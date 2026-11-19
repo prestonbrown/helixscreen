@@ -20,7 +20,7 @@
            pad_left="#space_sm" pad_right="#space_sm" pad_top="#space_xs" pad_bottom="#space_xs" pad_gap="#space_xs"/>
   </styles>
   <view name="theme_editor_overlay"
-        extends="overlay_panel" title="Edit Theme Colors" bg_color="#screen_bg"
+        extends="overlay_panel" title="Edit Theme Colors" title_subject="theme_editor_title" bg_color="#screen_bg"
         back_button_callback="on_theme_back_clicked">
     <!-- Content Area - no padding, rows handle their own -->
     <lv_obj name="overlay_content" width="100%" flex_grow="1" style_pad_top="0" scrollable="true" flex_flow="column">
@@ -63,24 +63,24 @@
 
       <setting_slider_row name="row_border_radius"
                           label="Border Radius" icon="cube" description="Corner roundness" min="0" max="7" value="3"
-                          min_icon="minus" max_icon="plus" callback="on_theme_property_changed"
-                          user_data="border_radius"/>
+                          value_subject="theme_editor_radius_name" value_format="%s" min_icon="minus" max_icon="plus"
+                          callback="on_theme_property_changed" user_data="border_radius"/>
 
       <setting_slider_row name="row_border_width"
                           label="Border Width" icon="ruler" description="Default border thickness" min="0" max="6"
-                          value="1" min_icon="minus" max_icon="plus" callback="on_theme_property_changed"
-                          user_data="border_width"/>
+                          value="1" value_subject="theme_editor_border_width" min_icon="minus" max_icon="plus"
+                          callback="on_theme_property_changed" user_data="border_width"/>
 
       <setting_slider_row name="row_border_opacity"
                           label="Border Opacity" icon="layers"
                           description="Border transparency (0 = invisible, 255 = solid)" min="0" max="255" value="128"
-                          min_icon="minus" max_icon="plus" callback="on_theme_property_changed"
-                          user_data="border_opacity"/>
+                          value_subject="theme_editor_border_opacity" min_icon="minus" max_icon="plus"
+                          callback="on_theme_property_changed" user_data="border_opacity"/>
 
       <setting_slider_row name="row_shadow_intensity"
                           label="Shadow Intensity" icon="animation" description="Drop shadow strength (0 = disabled)"
-                          min="0" max="50" value="0" min_icon="minus" max_icon="plus"
-                          callback="on_theme_property_changed" user_data="shadow"/>
+                          min="0" max="50" value="0" value_subject="theme_editor_shadow" min_icon="minus"
+                          max_icon="plus" callback="on_theme_property_changed" user_data="shadow"/>
 
     </lv_obj>
     <!-- ================================================================== -->
@@ -99,7 +99,8 @@
         <event_cb trigger="clicked" callback="on_theme_save_as_clicked"/>
       </ui_button>
 
-      <ui_button name="btn_save" height="#button_height" text="Save" variant="primary" flex_grow="1" disabled="true">
+      <ui_button name="btn_save" height="#button_height" text="Save" variant="primary" flex_grow="1">
+        <bind_state_if_eq subject="theme_editor_dirty" state="disabled" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
       </ui_button>
     </lv_obj>

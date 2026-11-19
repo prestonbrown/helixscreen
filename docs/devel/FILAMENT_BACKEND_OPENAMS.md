@@ -82,15 +82,16 @@ kind, never which backend produced it. So:
   0..100 axis with the set point as a dashed line;
 - it is worded against the target: "At target" within 5 points either way
   (`kPressureTargetDeadbandPct`), otherwise "Above target" or "Below target";
-- color appears only near the rails (`include/clog_meter_geometry.h`): 85% and up
-  warning, 95% and up danger, 5% and under warning while the lane has filament loaded
-  (the feed is not engaging). Regulating anywhere else, however far from the target, is
-  neutral;
+- color appears only at the rails (`include/clog_meter_geometry.h`): 90% and up warns,
+  as does 10% and under while the lane has filament loaded (the feed is not engaging).
+  Regulating anywhere else, however far from the target, is neutral, and the reading
+  alone never shows danger;
 - the Filament Buffer widget, the loaded-spool card and the Buffer Status modal read
   the lane feeding the current slot, else the first unit with a sensor (with several
   lanes loaded there is no current slot); the path canvas draws the unit's own lane;
-- the path canvas draws the buffer box labelled **FPS** because the buffer reports
-  pressure (`ui_ams_detail.cpp`), tinted only by the rail status and passing no bias;
+- the path canvas draws the buffer's tension control on the trunk, its thumb placing the
+  pressure against the set point (`buffer_position()`): empty fully expanded, the set point
+  centered, full fully compressed;
 - tapping it opens the Buffer Status modal: the gauge, "FPS 62%" and "target 50%",
   the word against the target and the last minute as a trace line.
 
@@ -100,7 +101,7 @@ the Clog Detection widget has nothing to show. See
 
 A lane with no `set_point` has no target to place the reading against, so the gauge
 draws with no tick, the pressure reads "Pressure: N%" with no word beside it, and only
-the rails tint. A manager that publishes no `pressure` gets no buffer box.
+the rails tint. A manager that publishes no `pressure` gets no tension control.
 
 ## Operations
 
@@ -171,7 +172,7 @@ alone, as before.
 toolhead. The backend copies it to `AmsUnit::hub_id`, and `compute_system_tool_layout()`
 folds units with the same non-empty `hub_id` onto one nozzle, so the overview draws the
 overview model: unit columns merging into one **Hub**, the lane's **FPS** box
-(`ui_system_path_canvas_set_buffer()` / `set_unit_hub()`) and one toolhead per lane. Groups
+(`ui_system_path_canvas_set_buffer()` / `ui_system_path_canvas_set_unit_hub()`) and one toolhead per lane. Groups
 `T<n>` are filament groups and never toolheads. Units on different lanes are different hubs on
 different toolheads, so two lanes draw two chains. The openams plugin's `lanes_by_fps[<lane>].extruder`
 becomes each slot's `extruder_name`, so the toolhead is badged by its extruder; without it
@@ -239,9 +240,10 @@ OpenAMS reports no colour, material or spool identity, so a lane's identity is i
 | Per-slot loaded authority | Yes, from `slots[].loaded` |
 | Tool mapping | Read-only `T<n>` groups; `owns_tool_mapping_table()` is true, edits are NOT_SUPPORTED |
 | Bypass | No |
-| Endless spool | Not exposed |
+| Endless spool | Read-only once the manager is ready: each group of two or more slots is a runout-backup group (`FirmwareManaged`, `src/printer/ams_backend_openams.cpp#get_endless_spool_capabilities`) |
 | Runout surface | No error hook, so the generic runout modal and toast remain (`runtime_config.cpp`) |
 | Environment sensors | Per unit from `devices.<unit>.environment` (`temp_c`, `rh_pct`), into `AmsUnit::environment`; openams only |
+| Unit hardware | `devices.<unit>.family` (or `capabilities.family`: `ams1`, `ams2`, `ams_ht`, a klipper-mmu device id) into `AmsUnit::model`, which picks the unit art; openams only |
 | Dryer | Per unit, see below; openams only |
 | Filament pressure | Per lane, from `lanes[].pressure` and `set_point`; drawn as the FPS box with bias tint and the buffer slider |
 

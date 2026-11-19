@@ -5,7 +5,7 @@
  * @file moonraker_file_transfer_api.h
  * @brief HTTP file transfer operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all HTTP file transfer functionality
+ * A MoonrakerAPI sub-API that encapsulates all HTTP file transfer functionality
  * (downloads, uploads, thumbnails) in a dedicated class. Owns an HTTP thread pool
  * for async file transfer operations.
  */

@@ -208,6 +208,10 @@ struct MotionSensorFixture : LVGLTestFixture {
     int status() {
         return lv_subject_get_int(ams.get_clog_meter_status_subject());
     }
+
+    int safe() {
+        return lv_subject_get_int(ams.clog_meter_subjects().safe);
+    }
 };
 
 } // namespace
@@ -224,6 +228,7 @@ TEST_CASE_METHOD(MotionSensorFixture, "clog meter: a motion sensor is a state, n
               helix::ui::kMotionMovingValue);
         CHECK(lv_subject_get_int(ams.get_clog_meter_warning_subject()) == 0);
         CHECK(status() == static_cast<int>(ClogMeterStatus::Ok));
+        CHECK(safe() == 1); // nothing to report: the check stands in for the arc
         CHECK(text(ams.get_clog_meter_mode_text_subject()) == "encoder");
         CHECK(text(ams.get_clog_meter_center_text_subject()).empty());
     }
@@ -235,6 +240,7 @@ TEST_CASE_METHOD(MotionSensorFixture, "clog meter: a motion sensor is a state, n
               helix::ui::kMotionJammedValue);
         CHECK(lv_subject_get_int(ams.get_clog_meter_warning_subject()) == 1);
         CHECK(status() == static_cast<int>(ClogMeterStatus::Fault));
+        CHECK(safe() == 0);
         CHECK(text(ams.get_clog_meter_center_text_subject()) == "Jammed");
     }
 

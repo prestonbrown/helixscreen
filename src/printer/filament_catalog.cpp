@@ -7,6 +7,7 @@
 #include "filament_variants.h"
 #include "helix_fs.h"
 #include "json_utils.h"
+#include "spoolman_types.h"
 #include "system/helix_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -78,9 +79,8 @@ EffectiveFilament to_effective(const nlohmann::json& p) {
     e.chamber_temp_c = base ? base->chamber_temp_c : 0;
     e.dry_temp_c = base ? base->dry_temp_c : 0;
     e.dry_time_min = base ? base->dry_time_min : 0;
-    e.density_g_cm3 = p.contains("density") && p["density"].is_number()
-                          ? p["density"].get<float>()
-                          : (base ? base->density_g_cm3 : 0.0f);
+    e.density_g_cm3 = helix::json_util::read_field<float>(p, "density")
+                          .value_or(base ? base->density_g_cm3 : 0.0f);
     e.compat_group = base ? base->compat_group : "";
 
     if (auto it = p.find("codes"); it != p.end() && it->is_object()) {
@@ -137,8 +137,8 @@ std::vector<nlohmann::json> read_products(const std::vector<std::string>& paths)
         nlohmann::json doc;
         if (read_json_file(path, doc) != FileRead::Parsed)
             continue;
-        if (doc.is_object() && doc.contains("filaments") && doc["filaments"].is_array())
-            return object_entries(doc["filaments"], path.c_str());
+        if (const auto* filaments = helix::json_util::find_array(doc, "filaments"))
+            return object_entries(*filaments, path.c_str());
         if (doc.is_array()) // user overlay is a bare array
             return object_entries(doc, path.c_str());
     }
@@ -302,9 +302,11 @@ FilamentCatalog::orca_id_map_from(const std::string& builtin_path,
         if (!orca.empty())
             ++carriers[orca];
 
+    // An id no Orca preset can match on the Moonraker path (a Bambu GF code, a
+    // display name) is no id at all: lane_data must not carry it (RFC 0001 §5).
     std::unordered_map<std::string, std::string> out;
     for (auto& [id, orca] : by_product)
-        if (!id.empty() && !orca.empty() && carriers[orca] == 1)
+        if (!id.empty() && carriers[orca] == 1 && is_usable_orca_filament_id(orca))
             out.emplace(id, std::move(orca));
     return out;
 }
@@ -392,9 +394,10 @@ std::vector<nlohmann::json> FilamentCatalog::load_user_types() {
 
 std::vector<nlohmann::json> FilamentCatalog::load_user_types_from(const std::string& path) {
     nlohmann::json doc;
-    if (read_json_file(path, doc) == FileRead::Parsed && doc.is_object() && doc.contains("types") &&
-        doc["types"].is_array())
-        return object_entries(doc["types"], path.c_str());
+    if (read_json_file(path, doc) != FileRead::Parsed)
+        return {};
+    if (const auto* types = helix::json_util::find_array(doc, "types"))
+        return object_entries(*types, path.c_str());
     return {};
 }
 
@@ -669,6 +672,43 @@ FilamentCatalog::variants_in_family(const std::string& family) const {
         out.push_back({"Basic", family});
     }
     return out;
+}
+
+std::vector<std::string>
+FilamentCatalog::families_allowing(const std::vector<std::string>& allowed) const {
+    const std::optional<std::vector<std::string>> list = allowed;
+    std::set<std::string> covered;
+    std::vector<std::string> out;
+    for (const auto& family : all_families()) {
+        bool kept = false;
+        for (const auto& variant : variants_in_family(family)) {
+            if (type_allowed(list, variant.sample_type)) {
+                covered.insert(tio::to_lower(variant.sample_type));
+                kept = true;
+            }
+        }
+        if (kept) {
+            out.push_back(family);
+        }
+    }
+    std::set<std::string> keys;
+    for (const auto& family : out) {
+        keys.insert(tio::to_lower(family));
+    }
+    for (const auto& type : allowed) {
+        if (!covered.count(tio::to_lower(type))) {
+            insert_ci(keys, out, type, type);
+        }
+    }
+    return out;
+}
+
+bool type_allowed(const std::optional<std::vector<std::string>>& allowed, const std::string& type) {
+    if (!allowed) {
+        return true;
+    }
+    return std::any_of(allowed->begin(), allowed->end(),
+                       [&type](const std::string& a) { return tio::equals_ignore_case(a, type); });
 }
 
 std::vector<std::string> FilamentCatalog::brands_in_family(const std::string& family) const {

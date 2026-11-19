@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/subject_notifications.h"
 #include "../ui_test_utils.h"
 #include "printer_temperature_state.h"
 
@@ -88,6 +89,18 @@ TEST_CASE_METHOD(TwoExtruderTemps,
     // Active subjects should still show extruder1's values
     REQUIRE(lv_subject_get_int(state.get_active_extruder_temp_subject()) == 1953);
     REQUIRE(lv_subject_get_int(state.get_active_extruder_target_subject()) == 2000);
+}
+
+TEST_CASE_METHOD(TwoExtruderTemps,
+                 "PrinterTemperatureState: a steady or omitted head still notifies its graph",
+                 "[core][temperature]") {
+    state.update_from_status(
+        {{"extruder", {{"temperature", 200.0}}}, {"extruder1", {{"temperature", 150.0}}}});
+    SubjectNotifications same(state.get_extruder_temp_subject("extruder"));
+    SubjectNotifications omitted(state.get_extruder_temp_subject("extruder1"));
+    state.update_from_status({{"extruder", {{"temperature", 200.0}}}});
+    CHECK(same.count == 1);
+    CHECK(omitted.count == 1);
 }
 
 TEST_CASE_METHOD(TwoExtruderTemps,
@@ -376,7 +389,7 @@ TEST_CASE_METHOD(OneExtruderTemps,
     CHECK(state.get_extruder_temp_subject("extruder", again) == temp);
     CHECK(lv_subject_get_int(state.get_extruder_version_subject()) == version);
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(TwoExtruderTemps,

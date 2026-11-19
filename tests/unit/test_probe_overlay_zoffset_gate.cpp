@@ -12,6 +12,8 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/xml_stand_in_subject.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "setting_group.h"
 
@@ -49,7 +51,7 @@ class ProbeOverlayZOffsetFixture : public XMLTestFixture {
     }
 
     bool button_hidden() const {
-        return lv_obj_has_flag(button_, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(button_);
     }
 
     lv_obj_t* overlay_ = nullptr;
@@ -75,4 +77,32 @@ TEST_CASE_METHOD(ProbeOverlayZOffsetFixture,
     CHECK(button_hidden());
     set("printer_has_tool_offset_cal", 0);
     CHECK_FALSE(button_hidden());
+}
+
+// A probe whose Z offset no status or config section gives shows no value
+// rather than a made-up 0.000 mm (#2089).
+TEST_CASE_METHOD(XMLTestFixture, "Probe overlay hides the Z offset row while the offset is unknown",
+                 "[probe][xml][2089]") {
+    // The XML subject registry is process-global and never forgets an entry, so
+    // the subject outlives every test; ProbeOverlay registers the real one.
+    lv_subject_t* known = helix::test::xml_stand_in("probe_z_offset_known", 0);
+    lv_subject_set_int(known, 0);
+    setting_group_register();
+    REQUIRE(register_component("header_bar"));
+    REQUIRE(register_component("setting_section_header"));
+    REQUIRE(register_component("setting_action_row"));
+    REQUIRE(register_component("probe_overlay"));
+
+    lv_obj_t* overlay = create_component("probe_overlay");
+    REQUIRE(overlay != nullptr);
+    lv_obj_t* row = lv_obj_find_by_name(overlay, "probe_z_offset_row");
+    REQUIRE(row != nullptr);
+    process_lvgl(10);
+    CHECK(lv_obj_is_hidden(row));
+
+    lv_subject_set_int(known, 1);
+    process_lvgl(10);
+    CHECK_FALSE(lv_obj_is_hidden(row));
+
+    lv_subject_set_int(known, 0);
 }

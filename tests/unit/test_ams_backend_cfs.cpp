@@ -44,6 +44,7 @@
 #include "test_helpers/gcode_recording_api.h"
 #include "test_helpers/print_state_test_drivers.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -129,7 +130,9 @@ class CfsRemapHelper : public AmsBackendCfs {
                            helix::SharedCallback<void(const MoonrakerError&)> on_error,
                            bool /*silent*/) override {
         captured.push_back(gcode);
-        if (reject) {
+        if (hold) {
+            held_ack = std::move(on_complete);
+        } else if (reject) {
             if (on_error) {
                 MoonrakerError err;
                 err.type = MoonrakerErrorType::JSON_RPC_ERROR;
@@ -143,6 +146,8 @@ class CfsRemapHelper : public AmsBackendCfs {
     }
 
     bool reject = false;
+    bool hold = false; // Klipper's answer waits for the test to fire held_ack
+    helix::SharedCallback<void()> held_ack;
 
     // Expose protected firmware-writeback helper for direct test calls.
     // push_slot_identity_to_firmware is protected (called from apply_user_edit
@@ -154,6 +159,9 @@ class CfsRemapHelper : public AmsBackendCfs {
         info.brand = brand;
         info.catalog_id = catalog_id;
         info.color_rgb = color_rgb;
+        return push_slot_identity_to_firmware(slot, info);
+    }
+    AmsError push_info(int slot, const SlotInfo& info) {
         return push_slot_identity_to_firmware(slot, info);
     }
 
@@ -216,7 +224,7 @@ class CfsCalibHelper : public CfsLifecycleHelper {
     template <typename... Args>
     explicit CfsCalibHelper(Args&&... args) : CfsLifecycleHelper(std::forward<Args>(args)...) {
         CfsTestAccess::set_macro_variant_k1(*this);
-        lv_subject_copy_string(state.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(state.motion_state().get_homed_axes_subject(), "xyz");
     }
 
     // Keep the 1-arg capture visible beside these overrides.
@@ -400,8 +408,7 @@ TEST_CASE("CFS bypass: fork dialect commands the attended load", "[ams][cfs][byp
 
 TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cfs][bypass]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
-    // Stock dialect is the default schema; a full box frame is what flips
-    // supports_bypass on.
+    // Stock is the default schema; a full box frame is what flips supports_bypass on.
     backend.fire_status(make_cfs_notification(json::parse(
         R"({"state": "connect", "filament": 0, "enable": 1,
             "filament_useup": 0,
@@ -413,6 +420,7 @@ TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cf
     SECTION("first full box frame flips supports_bypass") {
         auto info = backend.get_system_info();
         REQUIRE(info.supports_bypass);
+        CHECK_FALSE(backend.can_cancel_operation()); // its Cancel queues behind the load script
     }
 
     SECTION("enable stands the CFS down and declares; sensor feed confirms; "
@@ -527,6 +535,32 @@ class CfsAutoRefillHelper : public CfsRemapHelper {
     bool reject = false;
 };
 
+TEST_CASE("CFS reports an unload after print only where the firmware does one",
+          "[ams][cfs][unload_after_print]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    auto fork_box = [](bool unload) {
+        json box = make_flat_fork_box();
+        box["unload_after_print_enabled"] = unload;
+        return make_cfs_notification(box);
+    };
+
+    SECTION("stock firmware states no option and always unloads") {
+        backend.fire_status(make_cfs_notification(json::parse(R"({"state":"connect","filament":0,
+            "auto_refill":0,"enable":1,"map":{"T1A":"T1A"},
+            "T1":{"state":"connect","filament":"None","vender":["none"],"remain_len":["-1"],
+                  "color_value":["-1"],"material_type":["-1"]}})")));
+        CHECK(backend.auto_unloads_after_print());
+    }
+    SECTION("fork firmware with the option off leaves the filament in") {
+        backend.fire_status(fork_box(false));
+        CHECK_FALSE(backend.auto_unloads_after_print());
+    }
+    SECTION("fork firmware with the option on unloads") {
+        backend.fire_status(fork_box(true));
+        CHECK(backend.auto_unloads_after_print());
+    }
+}
+
 TEST_CASE("CFS Endless Spool switch sends an explicit ENABLE", "[ams][cfs]") {
     // BOX_ENABLE_AUTO_REFILL is a setter, not a toggle: the handler reads
     // ENABLE via gcmd.get_int, and Creality's own master-server sends
@@ -608,7 +642,9 @@ TEST_CASE("CFS K1 calibration section carries the cutter and chute (#1282)", "[a
         for (bool fork : {false, true}) {
             CfsK2CalibHelper backend({}, fork);
             CHECK(backend.get_device_sections().size() == 1);
-            CHECK(backend.get_device_actions().size() == 3);
+            // Clean Nozzle and Communication Test; stock adds Refresh RFID, which
+            // the Fork has no command for.
+            CHECK(backend.get_device_actions().size() == (fork ? 2u : 3u));
             CHECK(backend.tension_belts(nullptr).result == AmsResult::NOT_SUPPORTED);
             CHECK(backend.calibrate_cutter(nullptr).result == AmsResult::NOT_SUPPORTED);
             CHECK(backend.captured.empty());
@@ -810,10 +846,11 @@ TEST_CASE("CFS chute start failure reports the firmware message and never parks 
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
     bool ready = false;
     std::string failed_msg;
-    REQUIRE(backend
-                .start_chute_calibration([&] { ready = true; },
-                                         [&](const std::string& msg) { failed_msg = msg; })
-                .success());
+    REQUIRE(
+        backend
+            .start_chute_calibration([&] { ready = true; },
+                                     [&](const MoonrakerError& err) { failed_msg = err.message; })
+            .success());
     drain_calib_queue();
     // PREPARE never ran, so there is nothing to unwind: no further command.
     CHECK(backend.captured == std::vector<std::string>{"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"});
@@ -827,9 +864,13 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS"};
     bool saved = false;
     std::string failed_msg;
+    bool position_saved = true;
     REQUIRE(backend
                 .save_chute_position([&] { saved = true; },
-                                     [&](const std::string& msg) { failed_msg = msg; })
+                                     [&](const MoonrakerError& err, bool was_saved) {
+                                         failed_msg = err.message;
+                                         position_saved = was_saved;
+                                     })
                 .success());
     drain_calib_queue();
     // The save only ever runs after PREPARE, so a failure always re-parks.
@@ -838,6 +879,38 @@ TEST_CASE("CFS chute save failure re-parks and reports the firmware message (#12
                                     "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
     CHECK_FALSE(saved);
     CHECK_FALSE(failed_msg.empty());
+    CHECK_FALSE(position_saved);
+}
+
+TEST_CASE("CFS chute park failure after a good save reports the position as saved (#2007)",
+          "[ams][cfs][calib][2007]") {
+    helix::test::FakeMoonrakerClient console;
+    CfsCalibHelper backend(nullptr, &console);
+    const auto handlers = console.live_handlers();
+    backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
+    bool saved = false;
+    bool failed = false;
+    bool position_saved = false;
+    MoonrakerErrorType type = MoonrakerErrorType::NONE;
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const MoonrakerError& err, bool was_saved) {
+                                         failed = true;
+                                         position_saved = was_saved;
+                                         type = err.type;
+                                     })
+                .success());
+    drain_calib_queue();
+    REQUIRE(failed);
+    CHECK(position_saved);
+    CHECK(type == MoonrakerErrorType::JSON_RPC_ERROR);
+    CHECK_FALSE(saved);
+    // The park itself failed, so no second park goes out after it.
+    CHECK(backend.captured ==
+          std::vector<std::string>({"BOX_CUSTOM_COMMAND CMD=COORDINATES_ADJUST_SAVE_POS",
+                                    "BOX_CUSTOM_COMMAND CMD=Y_SAFE"}));
+    // The save's console watch goes with the failed park.
+    CHECK(console.live_handlers() == handlers);
 }
 
 // A K1 CFS against a real MoonrakerAPI over the mock client, with
@@ -854,10 +927,13 @@ class CfsLiveAckBackend : public AmsBackendCfs {
         : AmsBackendCfs(nullptr, client) {
         api_ = &printer.api;
         CfsTestAccess::set_macro_variant_k1(*this);
-        lv_subject_copy_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(printer.state.motion_state().get_homed_axes_subject(), "xyz");
     }
     ~CfsLiveAckBackend() override {
         drain_calib_queue();
+    }
+    void set_client_for_test(helix::IMoonrakerClient* client) {
+        client_ = client;
     }
 };
 
@@ -882,6 +958,26 @@ TEST_CASE("CFS calibration steps complete in the queue pass after each answer",
         REQUIRE(backend.save_chute_position([&] { saved = true; }).success());
         CHECK(UpdateQueueTestAccess::passes_until([&] { return saved; }) == 2);
     }
+}
+
+TEST_CASE("CFS chute park failure keeps the pair the save wrote (#2007)",
+          "[ams][cfs][calib][2007]") {
+    CfsLiveAckBackend backend;
+    backend.set_client_for_test(&backend.printer.client);
+    backend.printer.client.force_next_gcode_error(MoonrakerErrorType::JSON_RPC_ERROR,
+                                                  "Must home axis first", "CMD=Y_SAFE");
+    bool position_saved = false;
+    REQUIRE(backend
+                .save_chute_position(nullptr, [&](const MoonrakerError&,
+                                                  bool was_saved) { position_saved = was_saved; })
+                .success());
+    backend.printer.client.dispatch_gcode_response("cmd_save_extrude_pos x=152.50 y=219.50");
+    drain_calib_queue();
+    REQUIRE(position_saved);
+    double x = 0.0, y = 0.0;
+    REQUIRE(backend.last_chute_saved_position(x, y));
+    CHECK(x == Catch::Approx(152.5));
+    CHECK(y == Catch::Approx(219.5));
 }
 
 TEST_CASE("CFS Endless Spool switch records the box's answer in the queue pass after it",
@@ -957,7 +1053,7 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         backend.hold = {kHome};
         REQUIRE(backend
                     .start_chute_calibration([&] { ready = true; },
-                                             [&](const std::string& m) { failure = m; })
+                                             [&](const MoonrakerError& e) { failure = e.message; })
                     .success());
         print_starts();
         backend.release_held();
@@ -970,7 +1066,7 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
         backend.hold = {kPrepare};
         REQUIRE(backend
                     .start_chute_calibration([&] { ready = true; },
-                                             [&](const std::string& m) { failure = m; })
+                                             [&](const MoonrakerError& e) { failure = e.message; })
                     .success());
         print_starts();
         backend.release_held();
@@ -981,7 +1077,9 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
     }
     SECTION("the re-park after a save that fails once the print has arrived") {
         backend.fail_later = {kSave};
-        REQUIRE(backend.save_chute_position(nullptr, [&](const std::string& m) { failure = m; })
+        REQUIRE(backend
+                    .save_chute_position(
+                        nullptr, [&](const MoonrakerError& e, bool) { failure = e.message; })
                     .success());
         print_starts();
         backend.fail_held();
@@ -1004,11 +1102,11 @@ TEST_CASE("CFS chute flow sends no move once a print holds the machine", "[ams][
 TEST_CASE("CFS chute save refuses a toolhead that lost its homing", "[ams][cfs][calib]") {
     CfsCalibHelper backend;
     for (const char* axes : {"", "z", "xz", "yz"}) {
-        lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), axes);
+        lv_subject_set_string(backend.state.motion_state().get_homed_axes_subject(), axes);
         CHECK_FALSE(backend.save_chute_position().success());
         CHECK(backend.captured.empty());
     }
-    lv_subject_copy_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
+    lv_subject_set_string(backend.state.motion_state().get_homed_axes_subject(), "xy");
     CHECK(backend.save_chute_position().success());
     CHECK_FALSE(backend.captured.empty());
 }
@@ -1018,10 +1116,10 @@ TEST_CASE("CFS chute save reports a park that fails after the save", "[ams][cfs]
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=Y_SAFE"};
     bool saved = false;
     std::string failure;
-    REQUIRE(
-        backend
-            .save_chute_position([&] { saved = true; }, [&](const std::string& m) { failure = m; })
-            .success());
+    REQUIRE(backend
+                .save_chute_position([&] { saved = true; },
+                                     [&](const MoonrakerError& e, bool) { failure = e.message; })
+                .success());
     drain_calib_queue();
     CHECK_FALSE(saved);
     CHECK(failure.find("Y_SAFE") != std::string::npos);
@@ -1034,10 +1132,10 @@ TEST_CASE("CFS chute failure after the caller left is not reported to it", "[ams
     backend.fail = {"BOX_CUSTOM_COMMAND CMD=XYZ_ZERO"};
     auto cancel = std::make_shared<std::atomic<bool>>(true);
     bool failed = false;
-    REQUIRE(
-        backend.start_chute_calibration(
-                   nullptr, [&](const std::string&) { failed = true; }, cancel)
-            .success());
+    REQUIRE(backend
+                .start_chute_calibration(
+                    nullptr, [&](const MoonrakerError&) { failed = true; }, cancel)
+                .success());
     drain_calib_queue();
     CHECK_FALSE(failed);
 }
@@ -2932,6 +3030,37 @@ TEST_CASE("CFS a box write Klipper rejects saves nothing and reports the edit",
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
 }
 
+TEST_CASE("CFS a linked lane's moved material waits on the box and reports a rejection",
+          "[ams][cfs][filament_slot_override][firmware_writeback][box_wins]") {
+    helix::test::RegisteredWired<CfsRemapHelper> reg;
+    auto& b = *reg;
+    b.fire_status(make_cfs_notification(
+        make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+
+    SlotInfo original = b.get_slot_info(0);
+    original.spoolman_id = 149;
+    SlotInfo edit = original;
+    edit.material = "ASA";
+    const std::uint64_t since = helix::ams::pending_filings(reg.lane(0));
+
+    SECTION("in flight, the lane holds the edit as pending") {
+        (void)b.commit_user_edit(0, original, edit);
+        const auto pending = helix::ams::lane_sources(reg.lane(0)).pending;
+        REQUIRE(pending.has_value());
+        CHECK(pending->material == "ASA");
+    }
+    SECTION("a rejected write settles as failed") {
+        b.reject = true;
+        (void)b.commit_user_edit(0, original, edit);
+        std::optional<helix::ams::PendingOutcome> heard;
+        helix::ams::await_pending(
+            reg.lane(0), since,
+            [&heard](helix::ams::PendingOutcome outcome, const std::string&) { heard = outcome; });
+        REQUIRE(heard.has_value());
+        CHECK(*heard == helix::ams::PendingOutcome::Failed);
+    }
+}
+
 TEST_CASE("CFS refuses a box write while a print holds the printer",
           "[ams][cfs][filament_slot_override][firmware_writeback]") {
     struct PrintingCfs : CfsRemapHelper {
@@ -2983,6 +3112,19 @@ TEST_CASE("CFS Clear Spool writes the box's clear once",
         b.fire_status(make_cfs_notification(make_flat_fork_box()));
         clear_as_the_menu_does();
         CHECK(count("_BOX_SLOT_CLEAR SLOT=0") == 1);
+    }
+    SECTION("a Clear while an edit's box write is out erases what Klipper's OK would save") {
+        b.fire_status(make_cfs_notification(
+            make_single_unit_box({"101001", "-1", "-1", "-1"}, {"0FF5500", "-1", "-1", "-1"})));
+        b.hold = true;
+        SlotInfo edit = b.get_slot_info(0);
+        edit.brand = "Sunlu";
+        REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), edit).success());
+        static_cast<helix::AmsBackend&>(b).clear_slot_override(0);
+        b.held_ack();
+        CHECK(CfsTestAccess::get_override(b, 0)
+                  .value_or(helix::ams::FilamentSlotOverride{})
+                  .brand.empty());
     }
 }
 
@@ -3102,6 +3244,21 @@ TEST_CASE("CFS bypass declaration lives in Moonraker beside the lane records",
         // Nothing of the declaration's lands among the lane records.
         CHECK(rig.client.mock_db_get("lane_data", "helix_bypass_declared").is_null());
         REQUIRE(rig.backend->disable_bypass().success());
+        CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
+    }
+
+    SECTION("a loaded bay or a lane load withdraws the stored declaration") {
+        REQUIRE(rig.backend->enable_bypass().success());
+        REQUIRE(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared") == true);
+        SECTION("a bay loaded") {
+            json box =
+                make_single_unit_box({"101001", "-1", "-1", "-1"}, {"01A1A1A", "-1", "-1", "-1"});
+            box["T1"]["filament"] = "A";
+            rig.poll(box);
+        }
+        SECTION("a lane load") {
+            REQUIRE(rig.backend->load_filament(0).success());
+        }
         CHECK(rig.client.mock_db_get("helix-screen", "cfs_bypass_declared").is_null());
     }
 
@@ -4703,6 +4860,132 @@ TEST_CASE("CFS unload routes the bypass sentinel away from the bay script", "[am
     }
 }
 
+namespace {
+/// Holds Klipper's answer to an action script until the test gives it, so the
+/// box can report what the script did before the backend verifies it.
+class HeldAckCfs : public AmsBackendCfs {
+  public:
+    using AmsBackendCfs::AmsBackendCfs;
+    using AmsBackendCfs::execute_gcode;
+    AmsError execute_gcode(const std::string& gcode, helix::SharedCallback<void()> on_complete,
+                           helix::SharedCallback<void(const MoonrakerError&)> on_error,
+                           bool /*silent*/) override {
+        sent.push_back(gcode);
+        held_ack = std::move(on_complete);
+        held_error = std::move(on_error);
+        return AmsErrorHelper::success();
+    }
+    void ack() {
+        REQUIRE(held_ack);
+        std::exchange(held_ack, nullptr)();
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    /// Klipper raises on the script instead of answering OK.
+    void reject() {
+        REQUIRE(held_error);
+        MoonrakerError err;
+        err.type = MoonrakerErrorType::JSON_RPC_ERROR;
+        err.message = "key849";
+        std::exchange(held_error, nullptr)(err);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
+    std::vector<std::string> sent;
+    helix::SharedCallback<void()> held_ack;
+    helix::SharedCallback<void(const MoonrakerError&)> held_error;
+};
+} // namespace
+
+TEST_CASE("CFS unload of a used-up spool still runs and its failure says to pull by hand",
+          "[ams][cfs][runout]") {
+    using V = helix::printer::CfsMacroVariant;
+    using Verdict = AmsBackendCfs::PhaseVerdict;
+    helix::MacroParamCache::instance().clear();
+    const std::string generic = AmsBackendCfs::phase_verdict_message(Verdict::UnloadLeftFilament);
+    const std::string by_hand =
+        AmsBackendCfs::phase_verdict_message(Verdict::UnloadLeftFilament, /*spool_used_up=*/true);
+    REQUIRE(by_hand != generic);
+
+    auto* config = Config::get_instance();
+    const std::string type_path = config->df() + "type";
+    const std::string saved_type = config->get<std::string>(type_path, "");
+
+    for (V variant : {V::K2, V::K1}) {
+        const std::string name = variant == V::K1 ? "K1" : "K2";
+        // The dialect comes from the printer type the backend is built under.
+        config->set<std::string>(type_path, variant == V::K1 ? "Creality K1C" : "Creality K2 Plus");
+        CfsOverrideRig<HeldAckCfs> rig("cfs_useup_unload_" + name);
+        HeldAckCfs& backend = *rig.backend;
+        // A homed printer sends the script without a G28 ahead of it.
+        lv_subject_set_string(rig.state.motion_state().get_homed_axes_subject(), "xyz");
+        const auto box = [&rig](int useup) {
+            rig.poll(make_runout_seated_box(useup, /*active=*/"A"));
+        };
+        const auto switch_reads = [&rig](bool detected) {
+            rig.backend->fire_status(json{
+                {"filament_switch_sensor filament_sensor", {{"filament_detected", detected}}}});
+        };
+        // What the Filament panel shows: AmsState syncs it only on a backend event,
+        // so a settle that emits none leaves the panel on the running action.
+        const auto shown = [] {
+            helix::ui::UpdateQueue::instance().drain_until_empty();
+            return static_cast<AmsAction>(
+                lv_subject_get_int(helix::AmsState::instance().get_ams_action_subject()));
+        };
+        box(/*useup=*/0);
+        switch_reads(true);
+        REQUIRE(backend.get_system_info().current_slot == 0);
+        REQUIRE(backend.get_system_info().filament_loaded);
+
+        SECTION("a used-up spool still sends the unload script, " + name) {
+            // filament_useup can be stale (it survives until a successful
+            // extrude), so it never stops an unload.
+            box(/*useup=*/1);
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            CHECK(backend.sent == std::vector<std::string>{AmsBackendCfs::unload_gcode(variant)});
+
+            // The retract could not reach the strand: the switch still reads
+            // filament, and the fault says to remove it by hand.
+            backend.ack();
+            const AmsSystemInfo info = backend.get_system_info();
+            CHECK(info.action == AmsAction::ERROR);
+            CHECK(info.operation_detail == by_hand);
+
+            // Pulling it out by hand resolves the fault like any other.
+            switch_reads(false);
+            CHECK(backend.get_system_info().action == AmsAction::IDLE);
+        }
+
+        SECTION("a failed unload without a used-up spool keeps the generic message, " + name) {
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            CHECK(backend.sent == std::vector<std::string>{AmsBackendCfs::unload_gcode(variant)});
+            backend.ack();
+            const AmsSystemInfo info = backend.get_system_info();
+            CHECK(info.action == AmsAction::ERROR);
+            CHECK(info.operation_detail == generic);
+            CHECK(shown() == AmsAction::ERROR);
+        }
+
+        SECTION("a used-up spool whose unload cleared the switch raises nothing, " + name) {
+            box(/*useup=*/1);
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            switch_reads(false);
+            REQUIRE(shown() != AmsAction::IDLE);
+            backend.ack();
+            CHECK(backend.get_system_info().action == AmsAction::IDLE);
+            CHECK_FALSE(backend.current_error().has_value());
+            CHECK(shown() == AmsAction::IDLE);
+        }
+
+        SECTION("a script Klipper rejects settles the panel to IDLE, " + name) {
+            REQUIRE(backend.unload_filament(0).result == AmsResult::SUCCESS);
+            REQUIRE(shown() != AmsAction::IDLE);
+            backend.reject();
+            CHECK(shown() == AmsAction::IDLE);
+        }
+    }
+    config->set<std::string>(type_path, saved_type);
+}
+
 TEST_CASE("CFS bypass unload completes instead of erroring with filament still detected",
           "[ams][cfs][bypass]") {
     helix::MacroParamCache::instance().clear();
@@ -4791,6 +5074,44 @@ TEST_CASE("CFS phase verify: a raised fault survives later status frames", "[ams
     CHECK(backend.current_error().has_value());
 }
 
+TEST_CASE("CFS clear_fault sends nothing, so a Reset mid-print cannot cancel it",
+          "[ams][cfs][clear_fault]") {
+    // The same backend state sends CANCEL_PRINT through cancel(), so a
+    // clear_fault() that fell back to it would be caught here.
+    helix::test::StartedBackend<CfsRemapHelper> canceller;
+    REQUIRE(canceller.cancel().success());
+    REQUIRE(canceller.captured == std::vector<std::string>{"CANCEL_PRINT"});
+
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.clear_fault(-1).success());
+    CHECK(backend.captured.empty());
+}
+
+TEST_CASE("CFS clear_fault retires a phase fault without a command", "[ams][cfs][clear_fault]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
+    CfsTestAccess::set_filament_sensor(backend, true, false);
+    CfsTestAccess::complete_action(backend);
+    REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
+    REQUIRE(backend.current_error().has_value());
+    backend.captured.clear();
+
+    REQUIRE_FALSE(backend.get_system_info().operation_detail.empty());
+    CHECK(backend.clear_fault(0).success());
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK(backend.get_system_info().operation_detail.empty());
+    CHECK_FALSE(backend.current_error().has_value());
+    CHECK(backend.captured.empty());
+
+    // The cleared verdict does not come back on the next status frame.
+    backend.fire_status(
+        {{"params", nlohmann::json::array({{{"filament_switch_sensor filament_sensor",
+                                             {{"filament_detected", false}}}}})}});
+    CHECK(backend.get_system_info().action == AmsAction::IDLE);
+    CHECK_FALSE(backend.current_error().has_value());
+}
+
 TEST_CASE("CFS phase verify: starting a new operation clears the fault", "[ams][cfs][968]") {
     CfsRemapHelper backend;
 
@@ -4814,14 +5135,20 @@ nlohmann::json toolhead_sensor_frame(bool detected) {
 } // namespace
 
 TEST_CASE("CFS phase verify: clearing the toolhead by hand retires an unload fault",
-          "[ams][cfs][968]") {
+          "[ams][cfs][968][i18n]") {
     helix::test::StartedBackend<CfsRemapHelper> backend;
 
+    // Raised in one language, retired in another: the fault text is a catalog
+    // key, so the shown text follows the switch and the retire still matches it.
+    std::optional<ScopedLanguage> lang(std::in_place, "de");
     CfsTestAccess::force_phase_intent(backend, AmsAction::UNLOADING);
     CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
     CfsTestAccess::complete_action(backend);
     REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
     REQUIRE(backend.current_error().has_value());
+    lang.emplace("fr");
+    CHECK(std::string(lv_tr(backend.get_system_info().operation_detail.c_str()))
+              .rfind("Le filament est encore", 0) == 0);
 
     // Still blocked: the condition the fault names has not changed.
     backend.fire_status(toolhead_sensor_frame(true));
@@ -4893,17 +5220,6 @@ TEST_CASE("CFS box runout mid-job warns that the print continues on the tube",
         ToastSeverity::WARNING,
         "The CFS ran out of filament. Printing continues on what is left in the tube.", 10000);
     helix::ui::UpdateQueue::instance().drain_until_empty();
-}
-
-TEST_CASE("CFS phase verify: a good load completes to IDLE with no fault", "[ams][cfs][968]") {
-    CfsRemapHelper backend;
-
-    CfsTestAccess::force_phase_intent(backend, AmsAction::LOADING);
-    CfsTestAccess::set_filament_sensor(backend, /*seen=*/true, /*detected=*/true);
-    CfsTestAccess::complete_action(backend);
-
-    CHECK_FALSE(backend.current_error().has_value());
-    CHECK(backend.get_system_info().action == AmsAction::IDLE);
 }
 
 TEST_CASE("CFS runout: weak-hint fallback needs the box latch AND a pause", "[ams][cfs][1250]") {
@@ -6198,6 +6514,64 @@ TEST_CASE("CFS fork: commands name the firmware slot, not the bay position",
         backend.push(6, "", "", "", kAmsDefaultSlotColor);
         CHECK(backend.captured == std::vector<std::string>{"_BOX_SLOT_CLEAR SLOT=6"});
     }
+
+    // The box's NAME is the product the bay holds, the same field it reports
+    // back as the product, so a catalog pick writes the product's name.
+    SECTION("slot identity write names the product") {
+        SlotInfo info;
+        info.material = "PLA";
+        info.brand = "Creality";
+        info.color_rgb = 0xD74242;
+        info.product_name = "Hyper PLA";
+        REQUIRE(backend.push_info(6, info).success());
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0].find(R"( NAME="Hyper PLA" )") != std::string::npos);
+    }
+    SECTION("with no product the spool's own name is written") {
+        SlotInfo info;
+        info.material = "PLA";
+        info.brand = "Creality";
+        info.color_rgb = 0xD74242;
+        info.spool_name = "Shelf 3 red";
+        REQUIRE(backend.push_info(6, info).success());
+        REQUIRE(backend.captured.size() == 1);
+        CHECK(backend.captured[0].find(R"( NAME="Shelf 3 red" )") != std::string::npos);
+    }
+}
+
+// The fork's slots[] states what the box holds, set by _BOX_SLOT_SET or read
+// off a tag, and says nothing about which: none of it is badged as a tag read.
+TEST_CASE("CFS fork: slot data is not a tag reading", "[ams][cfs][fork][tag_link]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    backend.fire_status(make_cfs_notification(make_flat_fork_box()));
+    REQUIRE(backend.get_slot_info(0).material == "PLA");
+    CHECK_FALSE(backend.tag_reading(0));
+    CHECK_FALSE(backend.tag_reading(2));
+}
+
+// The fork's box.py registers NOZZLE_CLEAN and no error-clear, error-resume
+// or tag re-read command (Jacob10383/k2-plus-custom-firmware extras/box.py).
+TEST_CASE("CFS fork: buttons send only commands the fork registers", "[ams][cfs][fork]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    backend.fire_status(make_cfs_notification(make_flat_fork_box()));
+    backend.captured.clear();
+
+    SECTION("Reset sends no stock error clear") {
+        REQUIRE(backend.reset().success());
+        CHECK(backend.captured.empty());
+    }
+    SECTION("Recover resumes through RESUME") {
+        REQUIRE(backend.recover().success());
+        CHECK(backend.captured == std::vector<std::string>{"RESUME"});
+    }
+    SECTION("Clean Nozzle sends the fork's NOZZLE_CLEAN") {
+        REQUIRE(find_action(backend, "nozzle_clean").has_value());
+        REQUIRE(backend.execute_device_action("nozzle_clean", {}).success());
+        CHECK(backend.captured == std::vector<std::string>{"NOZZLE_CLEAN"});
+    }
+    SECTION("Refresh RFID is not offered") {
+        CHECK_FALSE(find_action(backend, "refresh_rfid").has_value());
+    }
 }
 
 // Firmware with print mapping registers BOX_SELECT_SLOT, which always names a
@@ -6810,9 +7184,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "CFS: an absent bay's tap opens no context m
     helix::ui::SlotMenuHost host;
     host.parent_screen = test_screen();
     helix::ui::AmsContextMenu menu;
-    helix::ui::open_slot_context_menu(menu, host, 5, test_screen(), {0, 0});
+    helix::ui::open_slot_context_menu(menu, host, 5, test_screen());
     CHECK_FALSE(menu.is_visible());
-    helix::ui::open_slot_context_menu(menu, host, 8, test_screen(), {0, 0});
+    helix::ui::open_slot_context_menu(menu, host, 8, test_screen());
     CHECK(menu.is_visible());
     menu.hide();
 }
@@ -7844,8 +8218,11 @@ TEST_CASE("CFS: a weights-only edit is cleared when its bay reads EMPTY",
     CHECK_FALSE(after.pending.has_value());
 }
 
-TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
-          "[ams][cfs][chute][2007]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "CFS reads the chute wiper and purge position from the configfile each Klipper "
+                 "start",
+                 "[ams][cfs][chute][2007][purge_chute]") {
+    get_printer_state().init_subjects(false); // the purge reads its homed axes
     helix::test::StartedBackend<UnansweredClientCfs> cfs;
     auto& client = cfs.wire().fake_client();
     auto answer_configfile = [&client](const json& settings) {
@@ -7859,9 +8236,19 @@ TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
         helix::ui::UpdateQueue::instance().drain_until_empty();
     };
     CHECK_FALSE(cfs.chute_wiper());
+    // BOX_GO_TO_EXTRUDE_POS is an absolute XY move, so the chute purge needs X and Y homed.
+    const IPrintRouting& routing = cfs;
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xy"}}}});
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
 
-    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5,
+    answer_configfile(json::parse(R"({"box": {"clean_left_pos_x": 153.5, "has_extrude_pos": 1,
         "clean_left_pos_y": 225.3, "clean_right_pos_x": 178.0, "clean_right_pos_y": 225.3}})"));
+    CHECK(routing.manual_purge_gcode(50, 600) == AmsBackendCfs::chute_purge_gcode(50, 600));
+    CHECK(AmsBackendCfs::chute_purge_gcode(50, 600).find(
+              "BOX_GO_TO_EXTRUDE_POS\nM83\nG1 E50 F600") != std::string::npos);
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xz"}}}});
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", "xy"}}}});
     const auto wiper = cfs.chute_wiper();
     REQUIRE(wiper);
     CHECK(wiper->x_min == Catch::Approx(153.5));
@@ -7871,4 +8258,6 @@ TEST_CASE("CFS reads the chute wiper from the configfile each Klipper start",
     cfs.on_klipper_restarted();
     answer_configfile(no_unit_settings());
     CHECK_FALSE(cfs.chute_wiper());
+    CHECK(routing.manual_purge_gcode(50, 600).empty());
+    get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", ""}}}});
 }

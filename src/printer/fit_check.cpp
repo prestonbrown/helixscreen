@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "fit_check.h"
 
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "gcode_wait_line.h"
 #include "json_utils.h"
@@ -496,12 +497,12 @@ std::string fit_finding_text(const FitFinding& f) {
                                                     "{:g} mm.")),
                            text_io::to_upper(f.axis), f.value, f.limit);
     case FitKind::TempOverMax:
-        return fmt::format(fmt::runtime(f.heater == "heater_bed"
-                                            ? lv_tr("Heats the bed to {:g}°C, above this "
-                                                    "printer's {:g}°C limit.")
-                                            : lv_tr("Heats the nozzle to {:g}°C, above this "
-                                                    "printer's {:g}°C limit.")),
-                           f.value, f.limit);
+        return fmt::format(
+            fmt::runtime(f.heater == "heater_bed" ? lv_tr("Heats the bed to {}, above this "
+                                                          "printer's {} limit.")
+                                                  : lv_tr("Heats the nozzle to {}, above this "
+                                                          "printer's {} limit.")),
+            units::format_display_temp(f.value), units::format_display_temp(f.limit));
     case FitKind::TooManyTools:
         return fmt::format(fmt::runtime(lv_tr("Uses tool T{}, and this printer's last tool is "
                                               "T{}.")),

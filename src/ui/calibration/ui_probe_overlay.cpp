@@ -11,11 +11,14 @@
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -24,7 +27,6 @@
 #include "probe_sensor_types.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
-#include "z_offset_calibration_approach.h"
 
 #include <spdlog/spdlog.h>
 
@@ -63,7 +65,7 @@ void init_probe_row_handler() {
              spdlog::debug("[Probe] Probe row clicked");
              auto& overlay = get_global_probe_overlay();
              overlay.set_api(get_moonraker_api());
-             overlay.show(lv_display_get_screen_active(nullptr));
+             overlay.show(lv_screen_active());
          }},
     });
     spdlog::trace("[Probe] Row click callback registered");
@@ -157,23 +159,15 @@ void ui_probe_overlay_register_callbacks() {
                                                lv_tr("Cartographer touch calibrate sent"));
              }
          }},
+        // A scan calibration opens a manual probe session; the Z-offset panel
+        // runs it with jog, Accept and Abort controls (#1994).
         {"on_carto_scan_cal",
-         [](lv_event_t* /*e*/) {
-             if (helix::ui::probe_send_gcode("CARTOGRAPHER_SCAN_CALIBRATE",
-                                             "Cartographer Scan Calibrate")) {
-                 ToastManager::instance().show(
-                     ToastSeverity::INFO,
-                     lv_tr("Cartographer scan calibrate sent — use Z-Offset panel to adjust"));
-             }
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
 
         // Beacon controls
+        // BEACON_CALIBRATE is a paper test too: the Z-offset panel runs it.
         {"on_beacon_calibrate",
-         [](lv_event_t* /*e*/) {
-             if (helix::ui::probe_send_gcode("BEACON_CALIBRATE", "Beacon Calibrate")) {
-                 ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Beacon calibrate sent"));
-             }
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
         {"on_beacon_auto_cal",
          [](lv_event_t* /*e*/) {
              if (helix::ui::probe_send_gcode("BEACON_AUTO_CALIBRATE", "Beacon Auto-Calibrate")) {
@@ -189,19 +183,9 @@ void ui_probe_overlay_register_callbacks() {
          [](lv_event_t* /*e*/) { send_probe_gcode("DOCK_PROBE", "Klicky Dock"); }},
 
         // Eddy current probe controls (BTT Eddy, Mellow Fly Eddy, etc.)
+        // PROBE_EDDY_CURRENT_CALIBRATE opens a manual probe session too.
         {"on_eddy_calibrate",
-         [](lv_event_t* /*e*/) {
-             auto& mgr = ProbeSensorManager::instance();
-             for (const auto& s : mgr.get_sensors()) {
-                 if (s.type == ProbeSensorType::EDDY_CURRENT) {
-                     const auto cmd = helix::zoffset_cal::calibration_command(
-                         ZOffsetCalibrationStrategy::PROBE_CALIBRATE, s.type, s.sensor_name);
-                     send_probe_gcode(cmd.gcode.c_str(), "Eddy Current Calibrate");
-                     return;
-                 }
-             }
-             spdlog::warn("[Probe] No eddy current sensor found for calibrate");
-         }},
+         [](lv_event_t* /*e*/) { get_global_probe_overlay().handle_zoffset_cal(); }},
         {"on_eddy_drive_current",
          [](lv_event_t* /*e*/) {
              auto& mgr = ProbeSensorManager::instance();
@@ -281,6 +265,7 @@ void ProbeOverlay::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(probe_z_offset_display_, probe_z_offset_display_buf_, "--",
                               "probe_z_offset_display", subjects_);
+    UI_MANAGED_SUBJECT_INT(probe_z_offset_known_, 0, "probe_z_offset_known", subjects_);
 
     // Overlay state (0=normal)
     UI_MANAGED_SUBJECT_INT(probe_overlay_state_, 0, "probe_overlay_state", subjects_);
@@ -391,10 +376,11 @@ void ProbeOverlay::update_display_subjects() {
 
     if (sensors.empty()) {
         snprintf(probe_display_name_buf_, sizeof(probe_display_name_buf_), "No Probe Detected");
-        lv_subject_copy_string(&probe_display_name_, probe_display_name_buf_);
-        lv_subject_copy_string(&probe_type_label_, "");
+        lv_subject_set_string(&probe_display_name_, probe_display_name_buf_);
+        lv_subject_set_string(&probe_type_label_, "");
         snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "--");
-        lv_subject_copy_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
+        lv_subject_set_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
+        lv_subject_set_int(&probe_z_offset_known_, 0);
         return;
     }
 
@@ -402,7 +388,7 @@ void ProbeOverlay::update_display_subjects() {
     const auto& sensor = sensors[0];
     std::string display_name = probe_type_to_display_string(sensor.type);
     snprintf(probe_display_name_buf_, sizeof(probe_display_name_buf_), "%s", display_name.c_str());
-    lv_subject_copy_string(&probe_display_name_, probe_display_name_buf_);
+    lv_subject_set_string(&probe_display_name_, probe_display_name_buf_);
 
     // Type description label
     const char* type_label = "Standard Probe";
@@ -439,12 +425,18 @@ void ProbeOverlay::update_display_subjects() {
         break;
     }
     snprintf(probe_type_label_buf_, sizeof(probe_type_label_buf_), "%s", type_label);
-    lv_subject_copy_string(&probe_type_label_, probe_type_label_buf_);
+    lv_subject_set_string(&probe_type_label_, probe_type_label_buf_);
 
-    // Z offset display
-    float z_offset = mgr.get_z_offset();
-    snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "%.3fmm", z_offset);
-    lv_subject_copy_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
+    // Z offset display; the row hides when no status or config section gives one (#2089)
+    const bool z_offset_known = mgr.has_z_offset();
+    if (z_offset_known) {
+        snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "%.3fmm",
+                 mgr.get_z_offset());
+    } else {
+        snprintf(probe_z_offset_display_buf_, sizeof(probe_z_offset_display_buf_), "--");
+    }
+    lv_subject_set_int(&probe_z_offset_known_, z_offset_known ? 1 : 0);
+    lv_subject_set_string(&probe_z_offset_display_, probe_z_offset_display_buf_);
 
     // Set Klicky detection flag for generic panel visibility binding
     lv_subject_set_int(&probe_is_klicky_, sensor.type == ProbeSensorType::KLICKY ? 1 : 0);
@@ -452,23 +444,23 @@ void ProbeOverlay::update_display_subjects() {
     // Cartographer coil temperature (placeholder until live query)
     if (sensor.type == ProbeSensorType::CARTOGRAPHER) {
         snprintf(probe_carto_coil_temp_buf_, sizeof(probe_carto_coil_temp_buf_), "--");
-        lv_subject_copy_string(&probe_carto_coil_temp_, probe_carto_coil_temp_buf_);
+        lv_subject_set_string(&probe_carto_coil_temp_, probe_carto_coil_temp_buf_);
     }
 
     // Beacon sensor temperature (placeholder until live query)
     if (sensor.type == ProbeSensorType::BEACON) {
         snprintf(probe_beacon_temp_buf_, sizeof(probe_beacon_temp_buf_), "--");
-        lv_subject_copy_string(&probe_beacon_temp_, probe_beacon_temp_buf_);
+        lv_subject_set_string(&probe_beacon_temp_, probe_beacon_temp_buf_);
         snprintf(probe_beacon_temp_comp_status_buf_, sizeof(probe_beacon_temp_comp_status_buf_),
                  "Unknown");
-        lv_subject_copy_string(&probe_beacon_temp_comp_status_, probe_beacon_temp_comp_status_buf_);
+        lv_subject_set_string(&probe_beacon_temp_comp_status_, probe_beacon_temp_comp_status_buf_);
     }
 }
 
 void ProbeOverlay::set_accuracy_error(const std::string& msg) {
     probe_acc_backstop_.end();
     snprintf(probe_acc_error_msg_buf_, sizeof(probe_acc_error_msg_buf_), "%s", msg.c_str());
-    lv_subject_copy_string(&probe_acc_error_msg_, probe_acc_error_msg_buf_);
+    lv_subject_set_string(&probe_acc_error_msg_, probe_acc_error_msg_buf_);
     lv_subject_set_int(&probe_acc_state_, 3); // ERROR
 }
 
@@ -538,6 +530,10 @@ void ProbeOverlay::load_type_panel() {
 // ============================================================================
 
 void ProbeOverlay::handle_probe_accuracy() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { run_probe_accuracy(); });
+}
+
+void ProbeOverlay::run_probe_accuracy() {
     spdlog::debug("[Probe] Probe accuracy test requested");
 
     if (!api_) {
@@ -596,7 +592,7 @@ void ProbeOverlay::handle_probe_accuracy() {
     lv_subject_set_int(&probe_acc_progress_, 0);
     snprintf(probe_acc_progress_text_buf_, sizeof(probe_acc_progress_text_buf_), "%s",
              all_homed ? lv_tr("Preparing...") : lv_tr("Homing first..."));
-    lv_subject_copy_string(&probe_acc_progress_text_, probe_acc_progress_text_buf_);
+    lv_subject_set_string(&probe_acc_progress_text_, probe_acc_progress_text_buf_);
 
     accuracy_modal_ = helix::ui::ComponentModal::show_owned("probe_accuracy_modal");
     if (!accuracy_modal_) {
@@ -618,11 +614,11 @@ void ProbeOverlay::handle_probe_accuracy() {
     api_->register_method_callback(
         "notify_gcode_response", probe_acc_handler_name_,
         [handler_name = probe_acc_handler_name_, api = api_](const json& msg) {
-            if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-                !msg["params"][0].is_string()) {
+            const std::string* line_param = helix::first_gcode_response_param(msg);
+            if (!line_param) {
                 return;
             }
-            const std::string& line = msg["params"][0].get_ref<const std::string&>();
+            const std::string& line = *line_param;
 
             // Check for individual probe sample: "probe at X,Y is z=Z"
             auto z_pos = line.find(" is z=");
@@ -647,8 +643,8 @@ void ProbeOverlay::handle_probe_accuracy() {
                     snprintf(overlay.probe_acc_progress_text_buf_,
                              sizeof(overlay.probe_acc_progress_text_buf_), "%s %d %s %d: z=%s",
                              lv_tr("Sample"), current, lv_tr("of"), total, z_val.c_str());
-                    lv_subject_copy_string(&overlay.probe_acc_progress_text_,
-                                           overlay.probe_acc_progress_text_buf_);
+                    lv_subject_set_string(&overlay.probe_acc_progress_text_,
+                                          overlay.probe_acc_progress_text_buf_);
                 });
                 return;
             }
@@ -729,7 +725,7 @@ void ProbeOverlay::show_accuracy_results(const std::string& results_line) {
 
     auto set_subject = [](lv_subject_t* subj, char* buf, size_t buf_size, const std::string& val) {
         snprintf(buf, buf_size, "%s mm", val.c_str());
-        lv_subject_copy_string(subj, buf);
+        lv_subject_set_string(subj, buf);
     };
 
     set_subject(&probe_acc_maximum_, probe_acc_maximum_buf_, sizeof(probe_acc_maximum_buf_),
@@ -765,7 +761,7 @@ void ProbeOverlay::show_accuracy_results(const std::string& results_line) {
     }
     lv_subject_set_int(&probe_acc_quality_, good ? 1 : 0);
     snprintf(probe_acc_quality_text_buf_, sizeof(probe_acc_quality_text_buf_), "%s", quality_text);
-    lv_subject_copy_string(&probe_acc_quality_text_, probe_acc_quality_text_buf_);
+    lv_subject_set_string(&probe_acc_quality_text_, probe_acc_quality_text_buf_);
 
     // Transition to RESULTS state
     lv_subject_set_int(&probe_acc_progress_, 100);
@@ -807,7 +803,7 @@ void ProbeOverlay::handle_zoffset_cal() {
 
     auto& overlay = get_global_zoffset_cal_panel();
     overlay.set_api(api_);
-    overlay.show(lv_display_get_screen_active(nullptr));
+    overlay.show(lv_screen_active());
 }
 
 void ProbeOverlay::handle_bed_mesh() {
@@ -817,7 +813,7 @@ void ProbeOverlay::handle_bed_mesh() {
     // Secondary entry to bed-mesh calibration (excluded, null-vtable stub on v1).
     helix::ui::show_feature_unavailable_toast();
 #else
-    helix::ui::open_bed_mesh_panel(lv_display_get_screen_active(nullptr));
+    helix::ui::open_bed_mesh_panel(lv_screen_active());
 #endif
 }
 
@@ -900,7 +896,7 @@ void ProbeOverlay::load_config_values() {
                     }
                     snprintf(buf, buf_size, "%s",
                              helix::ui::probe_config_display_value(key, configured).c_str());
-                    lv_subject_copy_string(subject, buf);
+                    lv_subject_set_string(subject, buf);
                 };
                 set_cfg("x_offset", probe_cfg_x_offset_buf_, sizeof(probe_cfg_x_offset_buf_),
                         &probe_cfg_x_offset_);
@@ -937,11 +933,11 @@ void ProbeOverlay::handle_config_edit(const std::string& field_key, const std::s
     // Set modal subjects
     snprintf(probe_config_edit_title_buf_, sizeof(probe_config_edit_title_buf_), "Edit %s",
              title.c_str());
-    lv_subject_copy_string(&probe_config_edit_title_, probe_config_edit_title_buf_);
+    lv_subject_set_string(&probe_config_edit_title_, probe_config_edit_title_buf_);
 
     snprintf(probe_config_edit_desc_buf_, sizeof(probe_config_edit_desc_buf_), "%s",
              description.c_str());
-    lv_subject_copy_string(&probe_config_edit_desc_, probe_config_edit_desc_buf_);
+    lv_subject_set_string(&probe_config_edit_desc_, probe_config_edit_desc_buf_);
 
     // Get current value from the corresponding display subject
     const char* current_val = "--";
@@ -960,14 +956,14 @@ void ProbeOverlay::handle_config_edit(const std::string& field_key, const std::s
 
     snprintf(probe_config_edit_current_buf_, sizeof(probe_config_edit_current_buf_), "%s",
              current_val);
-    lv_subject_copy_string(&probe_config_edit_current_, probe_config_edit_current_buf_);
+    lv_subject_set_string(&probe_config_edit_current_, probe_config_edit_current_buf_);
 
     // An option not in printer.cfg starts empty, with Klipper's default as the hint
     auto it = probe_cfg_configured_.find(field_key);
     const std::string configured = it != probe_cfg_configured_.end() ? it->second : "";
     snprintf(probe_config_edit_value_buf_, sizeof(probe_config_edit_value_buf_), "%s",
              configured.c_str());
-    lv_subject_copy_string(&probe_config_edit_value_, probe_config_edit_value_buf_);
+    lv_subject_set_string(&probe_config_edit_value_, probe_config_edit_value_buf_);
 
     edit_modal_ = helix::ui::ComponentModal::show_owned("probe_config_edit_modal");
     if (!edit_modal_) {

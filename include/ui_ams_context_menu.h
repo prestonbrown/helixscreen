@@ -6,6 +6,7 @@
 #include "ui_context_menu.h"
 
 #include "ams_types.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "i_moonraker_api.h"
 
@@ -46,7 +47,7 @@ namespace helix::ui {
  *         case MenuAction::SPOOLMAN: // show spoolman picker...
  *     }
  * });
- * menu.show_near_widget(parent, slot_index, slot_widget);
+ * menu.show_near_widget(parent, slot_index, slot_widget);  // around the slot
  * @endcode
  */
 class AmsContextMenu : public ContextMenu {
@@ -79,7 +80,8 @@ class AmsContextMenu : public ContextMenu {
         TOGGLE_BYPASS,    ///< Engage or disengage bypass (external spool only)
         MOUNT,            ///< Mount the tool this slot feeds
         PARK,             ///< Put the mounted tool back in its dock
-        CLEAR_FAULT       ///< Clear a fault the firmware still latches on this slot
+        CLEAR_FAULT,      ///< Clear a fault the firmware still latches on this slot
+        MARK_AVAILABLE    ///< Tell the firmware a gate it marked empty has filament
     };
 
     using ActionCallback = std::function<void(MenuAction action, int slot_index)>;
@@ -99,13 +101,18 @@ class AmsContextMenu : public ContextMenu {
      * @brief Show context menu near a slot widget
      * @param parent Parent screen for the menu
      * @param slot_index Slot this menu is for (0-based)
-     * @param near_widget Widget to position menu near (typically slot widget)
+     * @param near_widget The slot's own widget, which the card goes around
+     *        without covering; or, with @p tap, a canvas drawing many slots
      * @param is_loaded True if the slot is loaded/active (enables Unload, suppresses Load)
      * @param backend Optional backend the actions are gated on
+     * @param tap Display point of a tap on a canvas: the card hangs off it
+     *        (ContextMenu::AnchorMode::ClickPoint), since no widget stands for
+     *        the slot tapped
      * @return true if menu was shown successfully
      */
     bool show_near_widget(lv_obj_t* parent, int slot_index, lv_obj_t* near_widget,
-                          bool is_loaded = false, AmsBackend* backend = nullptr);
+                          bool is_loaded = false, AmsBackend* backend = nullptr,
+                          std::optional<lv_point_t> tap = std::nullopt);
 
     /**
      * @brief Show context menu for external spool (bypass/direct feed)
@@ -115,14 +122,17 @@ class AmsContextMenu : public ContextMenu {
      * lane ops do not apply and stay hidden.
      *
      * @param parent Parent screen for the menu
-     * @param anchor_widget Widget to position menu near (for click point)
+     * @param anchor_widget The spool's own widget, which the card goes around;
+     *        or, with @p tap, the canvas the spool is drawn on
      * @param offer_toggle Whether this surface can drive bypass. False hides the
      *        Enable/Disable Bypass entry — a visible entry the surface cannot
      *        act on would be a button that silently does nothing.
+     * @param tap Display point of a tap on a canvas, as for show_near_widget()
      * @return true if menu was shown successfully
      */
     bool show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_widget,
-                                 bool offer_toggle = true);
+                                 bool offer_toggle = true,
+                                 std::optional<lv_point_t> tap = std::nullopt);
 
     /**
      * @brief Get slot index the menu is currently shown for
@@ -155,6 +165,10 @@ class AmsContextMenu : public ContextMenu {
     void on_backdrop_clicked() override;
 
   private:
+    /// Around @p anchor, or hanging off @p tap when the anchor is a canvas.
+    bool show_anchored(lv_obj_t* parent, int item_index, lv_obj_t* anchor,
+                       std::optional<lv_point_t> tap);
+
     // === AMS-specific state ===
     ActionCallback action_callback_;
 
@@ -176,43 +190,66 @@ class AmsContextMenu : public ContextMenu {
     // Sharing the values across the three owners is correct rather than merely
     // tolerable: only one context menu is on screen at a time, and both values
     // are set in on_created() immediately before the menu is shown.
-    static lv_subject_t slot_is_loaded_subject_; ///< 1 = loaded (Unload enabled), 0 = not loaded
-    static lv_subject_t slot_can_load_subject_;  ///< 1 = has filament (Load enabled), 0 = empty
+    static helix::Subject slot_is_loaded_subject_; ///< 1 = loaded (Unload enabled), 0 = not loaded
+    static helix::Subject slot_can_load_subject_;  ///< 1 = has filament (Load enabled), 0 = empty
     /// 1 = Purge enabled. External-spool menu only; the lane menu has no Purge
     /// entry, so nothing binds this there.
-    static lv_subject_t slot_can_purge_subject_;
+    static helix::Subject slot_can_purge_subject_;
     /// One-line reason the unload is unavailable, and whether to show it.
     /// Text and visibility are separate because bind_flag needs an int.
-    static lv_subject_t slot_unload_hint_subject_;
-    static lv_subject_t slot_unload_hint_visible_subject_;
+    static helix::Subject slot_unload_hint_subject_;
+    static helix::Subject slot_unload_hint_visible_subject_;
     static char slot_unload_hint_buf_[128];
     /// One-line reason Eject is unavailable (AmsBackend::eject_unavailable_reason), and
     /// whether to show it.
-    static lv_subject_t slot_eject_hint_subject_;
-    static lv_subject_t slot_eject_hint_visible_subject_;
+    static helix::Subject slot_eject_hint_subject_;
+    static helix::Subject slot_eject_hint_visible_subject_;
     static char slot_eject_hint_buf_[128];
     /// 1 = Clear Spool enabled, 0 = the lane feeds the active print, so the
     /// clear must wait (clear_spool_blocked_by_print()). The reason rides the
     /// hint pair below, same shape as the unload hint.
-    static lv_subject_t slot_can_clear_subject_;
-    static lv_subject_t slot_clear_hint_subject_;
-    static lv_subject_t slot_clear_hint_visible_subject_;
+    static helix::Subject slot_can_clear_subject_;
+    static helix::Subject slot_clear_hint_subject_;
+    static helix::Subject slot_clear_hint_visible_subject_;
     static char slot_clear_hint_buf_[192];
     /// Preload row: 0 = hidden (backend has no lane preload), 1 = shown but
     /// disabled (busy, filament loaded, or a print blocks filament ops),
     /// 2 = enabled.
-    static lv_subject_t slot_preload_subject_;
+    static helix::Subject slot_preload_subject_;
     // Why this head's Load is unavailable, from decide_slot_actions().
-    static lv_subject_t slot_load_hint_subject_;
-    static lv_subject_t slot_load_hint_visible_subject_;
+    static helix::Subject slot_load_hint_subject_;
+    static helix::Subject slot_load_hint_visible_subject_;
     static char slot_load_hint_buf_[192];
     // Mount and Park for a head whose filament is all by hand: 0 hidden,
     // 1 disabled, 2 enabled.
-    static lv_subject_t slot_mount_subject_;
-    static lv_subject_t slot_park_subject_;
+    static helix::Subject slot_mount_subject_;
+    static helix::Subject slot_park_subject_;
     // Clear error for a fault that outlived its dialog
-    // (AmsBackend::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
-    static lv_subject_t slot_clear_error_subject_;
+    // (ILaneFaults::has_clearable_fault()): 0 hidden, 1 disabled, 2 enabled.
+    static helix::Subject slot_clear_error_subject_;
+    // Mark Available for a gate the firmware marked empty
+    // (IGateSelector::gate_marked_empty()): 0 hidden, 1 disabled, 2 enabled.
+    static helix::Subject slot_mark_available_subject_;
+    // Card header: the lane's own name, or "External Spool".
+    static helix::Subject slot_header_subject_;
+    static char slot_header_buf_[64];
+    // External-spool-only rows, 1 = shown: Purge, and the bypass toggle whose
+    // label names the action ("Enable Bypass" / "Disable Bypass").
+    static helix::Subject slot_purge_shown_subject_;
+    static helix::Subject slot_bypass_shown_subject_;
+    static helix::Subject slot_bypass_text_subject_;
+    static char slot_bypass_text_buf_[64];
+    // Check Slot (AmsBackend::supports_gate_check()): 0 hidden, 1 disabled, 2 enabled.
+    static helix::Subject slot_gate_check_subject_;
+    // 1 = the slot carries an assignment, so Clear Spool is offered.
+    static helix::Subject slot_clear_shown_subject_;
+    // Spoolman rows, 1 = shown. Snapshotted per show so the card is measured
+    // against the rows it will keep; Scan QR is also 0 on a build with no scanner.
+    static helix::Subject slot_spoolman_shown_subject_;
+    static helix::Subject slot_scan_qr_shown_subject_;
+
+    /// Sets the Spoolman row subjects from printer_has_spoolman.
+    static void publish_spoolman_rows();
 
     // === Backend the menu's actions are gated on ===
     AmsBackend* backend_ = nullptr;
@@ -247,6 +284,7 @@ class AmsContextMenu : public ContextMenu {
     void handle_edit();
     void handle_clear_spool();
     void handle_clear_fault();
+    void handle_mark_available();
     void handle_purge();
     void handle_bypass_toggle();
     void handle_spoolman();
@@ -390,6 +428,7 @@ class AmsContextMenu : public ContextMenu {
     static void on_edit_cb(lv_event_t* e);
     static void on_clear_spool_cb(lv_event_t* e);
     static void on_clear_fault_cb(lv_event_t* e);
+    static void on_mark_available_cb(lv_event_t* e);
     static void on_purge_cb(lv_event_t* e);
     static void on_bypass_toggle_cb(lv_event_t* e);
     static void on_spoolman_cb(lv_event_t* e);
@@ -410,10 +449,11 @@ struct SlotMenuHost {
 };
 
 /// Wire @p menu's action callback to the shared slot actions (LOAD, UNLOAD, EDIT,
-/// SPOOLMAN, SCAN_QR plus the backend-only ones) and show it at @p near_widget.
-/// AmsPanel and AmsOverviewPanel both open slot menus through this.
+/// SPOOLMAN, SCAN_QR plus the backend-only ones) and show it at @p near_widget
+/// (AmsContextMenu::show_near_widget(): around a slot widget, or at @p tap on a
+/// canvas). AmsPanel and AmsOverviewPanel both open slot menus through this.
 void open_slot_context_menu(AmsContextMenu& menu, const SlotMenuHost& host, int slot_index,
-                            lv_obj_t* near_widget, lv_point_t click_pt);
+                            lv_obj_t* near_widget, std::optional<lv_point_t> tap = std::nullopt);
 
 /// Open the slot editor for @p slot_index and commit what the user saves.
 void open_slot_editor(lv_obj_t* parent_screen, IMoonrakerAPI* api, int slot_index,

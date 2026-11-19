@@ -7,6 +7,9 @@
 #include "core/text_io.h"
 #include "helix_regex.h"
 #include "preprint_skip_wrappers.h"
+#include "signal_macro_names.h"
+#include "sliced_signal_names.h"
+#include "timelapse_local_installer.h"
 
 #include <spdlog/spdlog.h>
 
@@ -70,11 +73,10 @@ std::string parse_file_version(const std::string& content) {
 }
 
 /**
- * @brief Parse macro names from file content
+ * @brief Every [gcode_macro NAME] section name in file content, internal ones included
  * @param content File content
- * @return Vector of macro names
  */
-std::vector<std::string> parse_macro_names(const std::string& content) {
+std::vector<std::string> parse_section_macro_names(const std::string& content) {
     std::vector<std::string> names;
     // Anchored to line start: a real Klipper section header always starts in
     // column 0, so this does not also match one quoted inside a comment.
@@ -85,15 +87,42 @@ std::vector<std::string> parse_macro_names(const std::string& content) {
     while (std::getline(stream, line)) {
         helix::RegexMatch match;
         if (helix::regex_search(line, match, macro_pattern)) {
-            std::string name = match[1].str();
-            // Skip internal state macros
-            if (!name.empty() && name[0] != '_') {
-                names.push_back(name);
-            }
+            names.push_back(match[1].str());
         }
     }
-
     return names;
+}
+
+/**
+ * @brief Parse the macro names people run themselves from file content
+ * @param content File content
+ * @return Names without a leading underscore
+ */
+std::vector<std::string> parse_macro_names(const std::string& content) {
+    std::vector<std::string> names = parse_section_macro_names(content);
+    names.erase(std::remove_if(names.begin(), names.end(),
+                               [](const std::string& n) { return n.empty() || n[0] == '_'; }),
+                names.end());
+    return names;
+}
+
+/**
+ * @brief Append the forwarder block after the pack
+ *
+ * The forwarders come last so the pack's own sections stay byte-identical to
+ * the bundled file; a separating comment marks where they start.
+ */
+std::string with_alias_block(std::string content, const std::string& block) {
+    if (block.empty()) {
+        return content;
+    }
+    if (content.back() != '\n') {
+        content += '\n';
+    }
+    content += "\n# Forwarders that keep the signal names without the leading underscore\n"
+               "# callable. HelixScreen writes them; a macro update rewrites the list.\n\n";
+    content += block;
+    return content;
 }
 
 /**
@@ -106,6 +135,11 @@ std::vector<std::string> parse_macro_names(const std::string& content) {
  * matching version bump in helix_macros.cfg).
  */
 std::optional<std::string> parse_installed_version(const PrinterDiscovery& hardware) {
+    // has_helix_macro() only sees names starting HELIX_.
+    if (hardware.has_macro("_HELIX_PLAN")) {
+        return "2.2.0";
+    }
+
     if (hardware.has_helix_macro("HELIX_UNLOAD_FILAMENT")) {
         return "2.1.0";
     }
@@ -231,6 +265,11 @@ MacroInstallStatus MacroManager::get_status() const {
 }
 
 MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardware) {
+    return evaluate_status(hardware, signal_macros::recorded_signal_names());
+}
+
+MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardware,
+                                                 const std::vector<std::string>& extra_names) {
     // No objects list consumed yet: the printer has not told us anything,
     // and "no helix macros found" in that vacuum would be a claim, not an
     // observation.
@@ -267,6 +306,15 @@ MacroInstallStatus MacroManager::evaluate_status(const PrinterDiscovery& hardwar
         if (std::find(active.begin(), active.end(), op) == active.end()) {
             return MacroInstallStatus::OUTDATED;
         }
+    }
+
+    // The loaded signal names differ from what an update would stage: the old
+    // visible pack, a called or recorded name with no definition, or a forwarder
+    // nothing needs.
+    const auto& scan = hardware.signal_macro_scan();
+    if (scan && signal_macros::drift(*scan, extra_names, signal_macros::retired_signal_names()) !=
+                    signal_macros::SignalNameDrift::None) {
+        return MacroInstallStatus::OUTDATED;
     }
 
     return MacroInstallStatus::INSTALLED;
@@ -332,8 +380,40 @@ void MacroManager::install_files(SuccessCallback on_success, ErrorCallback on_er
 void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_error) {
     spdlog::info("[HelixMacroManager] Staging macro update...");
 
+    // The installed file decides whether the regenerated one keeps the
+    // timelapse include; a regeneration that dropped it would silently stop
+    // timelapse frames.
+    auto token = lifetime_.token();
+    api_.transfers().download_file(
+        "config", kHelixMacrosFilename,
+        [this, token, on_success, on_error](const std::string& installed) {
+            token.defer("MacroManager::update_stage",
+                        [this, keep = find_timelapse_include(installed), on_success, on_error]() {
+                            stage_update(keep, on_success, on_error);
+                        });
+        },
+        lifetime_.bg_cb("MacroManager::update_read_failed",
+                        [this, on_success, on_error](const MoonrakerError& err) {
+                            if (err.type == MoonrakerErrorType::FILE_NOT_FOUND) {
+                                stage_update({}, on_success, on_error);
+                                return;
+                            }
+                            spdlog::error("[HelixMacroManager] Failed to read the installed {}: {}",
+                                          kHelixMacrosFilename, err.message);
+                            if (on_error) {
+                                on_error(err);
+                            }
+                        }));
+}
+
+void MacroManager::stage_update(const std::string& timelapse_include, SuccessCallback on_success,
+                                ErrorCallback on_error) {
+    std::string content = macro_content_for(hardware_);
+    if (!timelapse_include.empty()) {
+        content = with_timelapse_include(content, timelapse_include);
+    }
     upload_macro_file(
-        kHelixMacrosFilename, macro_content_for(hardware_),
+        kHelixMacrosFilename, content,
         [this, on_success, on_error]() {
             if (!stages_skips()) {
                 if (on_success) {
@@ -347,6 +427,85 @@ void MacroManager::update_files(SuccessCallback on_success, ErrorCallback on_err
                               on_error);
         },
         on_error);
+}
+
+void MacroManager::include_timelapse_macros(const std::string& repo_dir, SuccessCallback on_success,
+                                            ErrorCallback on_error) {
+    const std::string line = timelapse_include_line(repo_dir);
+    spdlog::info("[HelixMacroManager] Adding {} to {}", line, kHelixMacrosFilename);
+
+    auto token = lifetime_.token();
+    api_.transfers().download_file(
+        "config", kHelixMacrosFilename,
+        [this, token, line, on_success, on_error](const std::string& content) {
+            if (has_timelapse_include(content)) {
+                spdlog::info("[HelixMacroManager] {} already includes the timelapse macros",
+                             kHelixMacrosFilename);
+                token.defer("MacroManager::timelapse_include_present", [on_success]() {
+                    if (on_success) {
+                        on_success();
+                    }
+                });
+                return;
+            }
+            token.defer(
+                "MacroManager::timelapse_include_upload",
+                [this, on_success, on_error, updated = with_timelapse_include(content, line)]() {
+                    upload_macro_file(kHelixMacrosFilename, updated, on_success, on_error);
+                });
+        },
+        lifetime_.bg_cb("MacroManager::timelapse_include_read_failed",
+                        [on_error](const MoonrakerError& err) {
+                            spdlog::warn("[HelixMacroManager] Could not read {}: {}",
+                                         kHelixMacrosFilename, err.message);
+                            if (on_error) {
+                                on_error(err);
+                            }
+                        }));
+}
+
+std::string MacroManager::timelapse_include_line(const std::string& repo_dir) {
+    std::string file = repo_dir + "/" + kTimelapseMacroFile;
+    // The last character as a one-letter class: a glob matching only this file.
+    file.insert(file.size() - 1, "[");
+    file += "]";
+    return "[include " + file + "]";
+}
+
+std::string MacroManager::find_timelapse_include(const std::string& content) {
+    static const std::string suffix = std::string("/") + kTimelapseMacroFile;
+    // timelapse.cfg globbed as timelapse.cf[g], as timelapse_include_line() writes it.
+    const std::string globbed_suffix = suffix.substr(0, suffix.size() - 1) + "[g]]";
+    std::istringstream input(content);
+    std::string line;
+    while (std::getline(input, line)) {
+        const std::string_view t = helix::text_io::trim(line);
+        if (t.rfind("[include /", 0) == 0 && t.size() > globbed_suffix.size() &&
+            t.compare(t.size() - globbed_suffix.size(), globbed_suffix.size(), globbed_suffix) ==
+                0) {
+            return std::string(t);
+        }
+    }
+    return {};
+}
+
+bool MacroManager::has_timelapse_include(const std::string& content) {
+    return !find_timelapse_include(content).empty();
+}
+
+std::string MacroManager::with_timelapse_include(const std::string& content,
+                                                 const std::string& line) {
+    if (has_timelapse_include(content)) {
+        return content;
+    }
+    std::string out = content;
+    if (!out.empty() && out.back() != '\n') {
+        out += '\n';
+    }
+    out += "\n# moonraker-timelapse's macros, added by the HelixScreen timelapse setup\n";
+    out += line;
+    out += '\n';
+    return out;
 }
 
 bool MacroManager::stages_skips() const {
@@ -421,27 +580,51 @@ std::string MacroManager::get_macro_content() {
     return load_macro_file();
 }
 
-std::string MacroManager::with_visible_signal_names(std::string content) {
-    for (const char* hidden : {"_HELIX_READY", "_HELIX_ENDED", "_HELIX_RESET", "_HELIX_PHASE_"}) {
-        for (size_t pos = content.find(hidden); pos != std::string::npos;
-             pos = content.find(hidden, pos)) {
-            content.erase(pos, 1);
-        }
-    }
-    return content;
+std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
+    return macro_content_for(hardware, signal_macros::recorded_signal_names());
 }
 
-std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware) {
+std::string MacroManager::macro_content_for(const PrinterDiscovery& hardware,
+                                            const std::vector<std::string>& extra_names) {
     std::string content = get_macro_content();
-    if (hardware.has_helix_macro("HELIX_READY")) {
-        return with_visible_signal_names(std::move(content));
+    if (content.empty()) {
+        return content;
     }
-    return content;
+    if (!hardware.signal_macro_scan() && !hardware.has_helix_macro("HELIX_READY") &&
+        extra_names.empty()) {
+        return content;
+    }
+    const auto& scan = hardware.signal_macro_scan();
+    if (scan) {
+        return with_alias_block(std::move(content),
+                                signal_macros::alias_block(signal_macros::names_to_alias(
+                                    *scan, extra_names, signal_macros::retired_signal_names())));
+    }
+    std::vector<std::string> all(signal_macros::kVisibleNames.begin(),
+                                 signal_macros::kVisibleNames.end());
+    return with_alias_block(std::move(content), signal_macros::alias_block(all));
 }
 
 std::string MacroManager::get_version() {
     std::string content = load_macro_file();
     return parse_file_version(content);
+}
+
+std::vector<std::string> MacroManager::pack_section_names() {
+    std::vector<std::string> sections;
+    for (const auto& name : parse_section_macro_names(load_macro_file())) {
+        sections.push_back("gcode_macro " + text_io::to_lower(name));
+    }
+    for (auto visible : signal_macros::kVisibleNames) {
+        const std::string name(visible);
+        for (const auto& spelling : {name, signal_macros::hidden_name(name)}) {
+            std::string key = "gcode_macro " + text_io::to_lower(spelling);
+            if (std::find(sections.begin(), sections.end(), key) == sections.end()) {
+                sections.push_back(std::move(key));
+            }
+        }
+    }
+    return sections;
 }
 
 std::vector<std::string> MacroManager::get_macro_names() {

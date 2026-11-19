@@ -673,3 +673,33 @@ TEST_CASE("PrinterDiscovery: Voron neopixels and led_effects discovered",
         CHECK_FALSE(any_contains(hw.fans(), "output_pin"));
     }
 }
+
+TEST_CASE("PrinterDiscovery: an output_pin gating a sibling fan pin is not a fan",
+          "[printer_discovery][enable-pin]") {
+    SECTION("an enable pin beside its PWM pin is dropped") {
+        PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array({"output_pin fan0_en", "output_pin FAN1_ENABLE",
+                                                "output_pin fan0", "output_pin fan1"}));
+        CHECK_FALSE(has(hw.fans(), "output_pin fan0_en"));
+        CHECK_FALSE(has(hw.fans(), "output_pin FAN1_ENABLE"));
+        CHECK(has(hw.fans(), "output_pin fan0"));
+        CHECK(has(hw.fans(), "output_pin fan1"));
+    }
+
+    SECTION("a chain of enable pins is dropped whatever the object order") {
+        PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array(
+            {"output_pin fan", "output_pin fan_en", "output_pin fan2", "output_pin fan_en_en"}));
+        CHECK_FALSE(has(hw.fans(), "output_pin fan_en"));
+        CHECK_FALSE(has(hw.fans(), "output_pin fan_en_en"));
+        CHECK(has(hw.fans(), "output_pin fan2"));
+    }
+
+    SECTION("a lone enable pin may be the only control, so it stays") {
+        PrinterDiscovery hw;
+        hw.parse_objects(
+            nlohmann::json::array({"output_pin exhaust_fan_enable", "output_pin chamber_fan_en"}));
+        CHECK(has(hw.fans(), "output_pin exhaust_fan_enable"));
+        CHECK(has(hw.fans(), "output_pin chamber_fan_en"));
+    }
+}

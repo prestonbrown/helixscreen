@@ -2,7 +2,7 @@
 
 Contributing a theme is the lowest-barrier way to contribute to HelixScreen. No C++. No build. No framework knowledge. Just a JSON file with colors and a few style properties, and an eye for what looks right.
 
-If you've ever wanted HelixScreen to match your setup — a Catppuccin workstation, a retro amber phosphor vibe, your shop's brand colors — you can ship that in an afternoon.
+If you've ever wanted HelixScreen to match your setup - a Catppuccin workstation, a retro amber phosphor vibe, your shop's brand colors - you can ship that in an afternoon.
 
 This doc is for people creating or contributing themes. If you want to understand how the theme system is *implemented* (C++ internals, token pipeline, reactive application), read [THEME_SYSTEM.md](THEME_SYSTEM.md) instead.
 
@@ -14,9 +14,9 @@ A HelixScreen theme is a single JSON file. It defines:
 
 - A **dark** palette (16 colors)
 - A **light** palette (same 16 colors)
-- A handful of **style properties** (border radius, border width, shadow intensity)
+- A handful of **style properties** (border radius, border width, shadows, slider handles)
 
-That's it. Users pick your theme in Settings → Appearance → Theme Colors, and the UI re-renders using your colors instantly — no restart needed.
+That's it. Users pick your theme in Settings → Appearance → Theme Colors, and the UI re-renders using your colors instantly - no restart needed.
 
 The file lives in `assets/config/themes/defaults/` in the repo. Every theme in that directory is auto-discovered and shown in the theme picker. Adding a new one is literally dropping a JSON file.
 
@@ -24,7 +24,7 @@ The file lives in `assets/config/themes/defaults/` in the repo. Every theme in t
 
 ## Anatomy of a theme
 
-Here's the full `ayu.json` — use this as a reference while reading:
+Here's the full `ayu.json` - use this as a reference while reading:
 
 ```json
 {
@@ -84,10 +84,10 @@ Each palette (`dark` and `light`) has the same 16 tokens. What each one is used 
 
 | Token | What it is | Example use |
 |---|---|---|
-| `screen_bg` | The deepest background — the screen itself | Home panel, print select, app-level background |
+| `screen_bg` | The deepest background - the screen itself | Home panel, print select, app-level background |
 | `overlay_bg` | Background for overlays that sit above the main panel | Settings subpages, filament overlay |
 | `card_bg` | Cards and primary content containers | Print job cards, widget tiles, list rows |
-| `elevated_bg` | Content raised above cards — drops, pressed states, modals | Dropdowns, pressed buttons, modal dialogs |
+| `elevated_bg` | Content raised above cards - drops, pressed states, modals | Dropdowns, pressed buttons, modal dialogs |
 
 Ordering matters. `screen_bg` should be the darkest (in a dark theme) or lightest (in light), and each subsequent layer steps *toward* the foreground. Users' eyes read depth from these. Flat palettes that use the same value for all four look amateurish.
 
@@ -117,7 +117,7 @@ Contrast matters most for `text` on `card_bg`. If you can't read it easily in bo
 | `secondary` | A supporting accent, often complementary | Secondary buttons, alternate highlights |
 | `tertiary` | A third accent for variety | Chart series, multi-color indicators |
 
-These should be harmonious — not three saturated hues fighting each other. Pick a palette strategy (analogous, complementary, triadic) and stick to it.
+These should be harmonious - not three saturated hues fighting each other. Pick a palette strategy (analogous, complementary, triadic) and stick to it.
 
 ### Status colors (4)
 
@@ -149,11 +149,13 @@ Below the two palettes, a theme can also set:
 | `border_radius_size` | 0–7 (index) | 3 | Corner roundness preset. 0 = sharp, 7 = fully rounded. Try 2 for classic, 4 for modern-soft, 6 for bubbly. |
 | `border_width` | 0–4 (px) | 1 | Width of borders in pixels. 0 disables borders entirely. |
 | `border_opacity` | 0–255 | 40 | How opaque borders are (0 = transparent, 255 = fully opaque). The default 40 is ≈16%, i.e. subtle; low values (20–60) keep borders faint. |
-| `shadow_intensity` | px | 0 | Blur radius of drop shadows, in pixels (not a 0–100 scale). 0 disables them. It also tunes how deep the on-screen keyboard's keycaps sit — and there 0 means *default* depth, not off (see the note below). |
+| `shadow_intensity` | px | 0 | Blur radius of drop shadows, in pixels (not a 0–100 scale). 0 disables them. It also tunes how deep the on-screen keyboard's keycaps sit - and there 0 means *default* depth, not off (see the note below). |
 | `shadow_opa` | 0–100 | 0 | Opacity of drop shadows. 0 disables. Shadows need both intensity AND opa to show. |
 | `shadow_offset_y` | int | 2 | Vertical shadow offset in pixels. |
+| `handle_style` | `round`, `bar` | `round` | Slider knob shape. `bar` draws a squared knob; switch knobs stay round either way. |
+| `handle_color` | `primary`, `secondary`, `tertiary`, `text` | `primary` | Palette token for slider knobs and a switch's ON knob. |
 
-These are global to the theme — they apply to both dark and light palettes.
+These are global to the theme - they apply to both dark and light palettes.
 
 **`shadow_intensity` and the on-screen keyboard.** Keyboard keys are drawn with a
 keycap edge whose depth this property scales, mapped onto single-digit pixels
@@ -183,16 +185,16 @@ Edit `name` to your theme's display name ("My Cool Theme"). Change the palette v
 
 You don't need to rebuild HelixScreen to test a theme. Put your theme in the **user themes directory**:
 
-- **On your dev machine:** `~/helixscreen/config/themes/my-theme.json`
+- **On your dev machine:** `config/themes/<my-theme>.json` under the directory you launch from (or `$HELIX_CONFIG_DIR/themes/`)
 - **On a device:** `~/helixscreen/config/themes/my-theme.json` (SSH'd to the printer)
 
-User themes take precedence over defaults and are auto-discovered at launch. Restart the app, go to Settings → Appearance → Theme Colors, and pick your theme.
+A user theme with the same filename as a default replaces it, and user themes are auto-discovered at launch. Restart the app, go to Settings → Appearance → Theme Colors, and pick your theme.
 
 Edit the JSON, save, restart. Iterate fast.
 
 ### Step 3: Test both modes
 
-Every theme must provide both `dark` and `light`. Users switch modes in settings — your theme must look intentional in both.
+Every theme must provide both `dark` and `light`. Users switch modes in settings - your theme must look intentional in both.
 
 Common mistake: designing in dark mode and copy-pasting the dark palette into `light` with minor tweaks. The result is always wrong because the *relationships* between layers invert. In dark mode, deeper = darker; in light mode, deeper = lighter. Design each mode from its own starting point.
 
@@ -200,32 +202,32 @@ Common mistake: designing in dark mode and copy-pasting the dark palette into `l
 
 Themes look different on sparse panels (home screen) vs dense ones (AMS, settings). Exercise:
 
-- **Home** — lots of widgets, multiple accent colors visible simultaneously
-- **Print select** — file cards, thumbnails, metadata
-- **AMS** — status colors on slots, multi-unit layouts
-- **Settings** — lots of rows with dividers, lots of text
-- **Print status** (during a simulated print) — primary accent used heavily, progress states
+- **Home** - lots of widgets, multiple accent colors visible simultaneously
+- **Print select** - file cards, thumbnails, metadata
+- **AMS** - status colors on slots, multi-unit layouts
+- **Settings** - lots of rows with dividers, lots of text
+- **Print status** (during a simulated print) - primary accent used heavily, progress states
 
 If your theme looks great on one panel and terrible on another, it's not done.
 
 ### Step 5: Test contrast
 
-Text on backgrounds must meet readable contrast. HelixScreen runs on 3D printers — often in a workshop, often viewed from an angle, often through safety glasses or at a distance. Low-contrast aesthetics that look refined on your monitor become unreadable in practice.
+Text on backgrounds must meet readable contrast. HelixScreen runs on 3D printers - often in a workshop, often viewed from an angle, often through safety glasses or at a distance. Low-contrast aesthetics that look refined on your monitor become unreadable in practice.
 
 Rough targets:
 - `text` on `card_bg`: aim for ≥ 7:1 contrast (WCAG AAA)
 - `text_muted` on `card_bg`: ≥ 4.5:1 (WCAG AA)
 - `text` on `screen_bg`: ≥ 7:1
 
-Use any contrast checker. If your contrast is marginal, bump `text` darker (light mode) or lighter (dark mode) — don't try to get away with it.
+Use any contrast checker. If your contrast is marginal, bump `text` darker (light mode) or lighter (dark mode) - don't try to get away with it.
 
 ---
 
 ## Using the in-app theme editor
 
-HelixScreen has a built-in live theme editor (Settings → Appearance → Theme Colors → Edit). It lets you tweak colors with live preview and export the result as JSON.
+HelixScreen has a built-in live theme editor (Settings → Appearance → Theme Colors → Edit Colors). It lets you tweak colors with live preview, then **Save** or **Save As New** writes the result as JSON to the user themes directory.
 
-Workflow: create a minimal JSON stub, load it as your active theme, tune it in the editor, export the result, copy back into your `.json` file. Faster than editing hex codes in a text editor when you're still searching for the palette.
+Workflow: create a minimal JSON stub, load it as your active theme, tune it in the editor, save, and copy the saved file from the user themes directory into your contribution. Faster than editing hex codes in a text editor when you're still searching for the palette.
 
 ---
 
@@ -233,7 +235,7 @@ Workflow: create a minimal JSON stub, load it as your active theme, tune it in t
 
 Themes get accepted when they:
 
-- **Have a clear identity.** Someone should be able to describe your theme in one short phrase — "solarized-light port", "warm coffee-shop browns", "synthwave neon on near-black". If you can't articulate it, neither can the user.
+- **Have a clear identity.** Someone should be able to describe your theme in one short phrase - "solarized-light port", "warm coffee-shop browns", "synthwave neon on near-black". If you can't articulate it, neither can the user.
 - **Both modes are intentional.** Not just "I made dark, and light is a hasty inversion."
 - **Accent colors are harmonious.** Three accents that fight each other on the home panel are a no.
 - **Status colors stay legible semantically.** Stylize, but keep green≈success, red≈danger, yellow≈warning recognizable.
@@ -252,26 +254,26 @@ Themes get bounced when they:
 ## Contributing your theme
 
 1. **Put the final JSON in `assets/config/themes/defaults/`** in the repo, never in `config/themes/`. That one is the user themes directory on an install, and a file shipped there would hide the default and overwrite users' edits on every update.
-2. **Filename is the theme's kebab-cased name** — my-cool-theme.json, not MyCoolTheme.json.
-3. **Take screenshots** of your theme on at least three panels — home, settings, print status. These go in the PR description.
+2. **Filename is the theme's kebab-cased name** - my-cool-theme.json, not MyCoolTheme.json.
+3. **Take screenshots** of your theme on at least three panels - home, settings, print status. These go in the PR description.
 4. **Open a PR** on `prestonbrown/helixscreen` with `feat(theme): add <theme name>` as the commit subject.
 5. **Mention the inspiration** if it's a port of an existing palette (Ayu, Catppuccin, Gruvbox, etc.) so the PR review can verify any attribution requirements.
 
-That's it. No C++. No build. No rebuild after merge — the packaging picks up every JSON in the defaults directory automatically.
+That's it. No C++. No build. No rebuild after merge - the packaging picks up every JSON in the defaults directory automatically.
 
 ---
 
 ## When you're stuck
 
-- **Theme picker doesn't show my theme** — the JSON is probably malformed. Check the logs (`./build/bin/helix-screen --test -vv` and grep for `[ThemeLoader]`). A missing `"dark"` or `"light"` key or a JSON syntax error will log a warning and fall back to Nord.
-- **Colors look wrong in one mode** — confirm you're editing the right palette (`dark` vs `light`). Easy to edit one and forget the other.
-- **Borders don't show** — check `border_width` (default 1) and `border_opacity` (default 40). Setting either to 0 disables borders entirely.
-- **A specific widget looks off** — it may be hardcoded against a token you haven't considered. File an issue with a screenshot and the widget name.
+- **Theme picker doesn't show my theme, or shows the default colors** - the JSON is probably malformed. Check the logs (`./build/bin/helix-screen --test -vv` and grep for `[ThemeLoader]`). A JSON syntax error, or neither a `"dark"` nor a `"light"` key, logs an error and loads the built-in HelixScreen theme instead. A theme with only one of the two is treated as dark-only or light-only, and a missing or empty color token logs a warning and takes the HelixScreen default for that token.
+- **Colors look wrong in one mode** - confirm you're editing the right palette (`dark` vs `light`). Easy to edit one and forget the other.
+- **Borders don't show** - check `border_width` (default 1) and `border_opacity` (default 40). Setting either to 0 disables borders entirely.
+- **A specific widget looks off** - it may be hardcoded against a token you haven't considered. File an issue with a screenshot and the widget name.
 
 ---
 
 ## Related docs
 
-- [THEME_SYSTEM.md](THEME_SYSTEM.md) — how the theme system is implemented (for developers adding new tokens or widgets)
-- [UI Contributor Guide § Color System](UI_CONTRIBUTOR_GUIDE.md) — how tokens are referenced from XML and C++
-- [Your First Contribution](YOUR_FIRST_CONTRIBUTION.md) — if you want to graduate from theming to feature work
+- [THEME_SYSTEM.md](THEME_SYSTEM.md) - how the theme system is implemented (for developers adding new tokens or widgets)
+- [UI Contributor Guide § Color System](UI_CONTRIBUTOR_GUIDE.md) - how tokens are referenced from XML and C++
+- [Your First Contribution](YOUR_FIRST_CONTRIBUTION.md) - if you want to graduate from theming to feature work

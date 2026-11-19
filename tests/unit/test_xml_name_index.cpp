@@ -3,6 +3,8 @@
 // TEST_MIRROR_OK: the code under test is the helix-xml engine, which ships from lib/helix-xml, not
 // include/ or src/.
 
+#include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 
@@ -17,14 +19,15 @@
 // are the case that breaks an open-addressed index, so churn enough names to
 // force collisions and growth, then check every name either way.
 
-TEST_CASE("globals subjects stay findable across register and unregister churn",
-          "[xml][name_index]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "globals subjects stay findable across register and unregister churn",
+                 "[xml][name_index]") {
     constexpr int N = 300;
-    std::vector<lv_subject_t> subjects(N);
+    std::vector<helix::Subject> subjects(N);
     std::vector<std::string> names;
     for (int i = 0; i < N; ++i) {
         names.push_back("name_index_subj_" + std::to_string(i));
-        lv_subject_init_int(&subjects[i], i);
+        subjects[i].init_int(i);
         REQUIRE(lv_xml_register_subject(nullptr, names[i].c_str(), &subjects[i]) == LV_RESULT_OK);
     }
 
@@ -38,8 +41,8 @@ TEST_CASE("globals subjects stay findable across register and unregister churn",
     }
 
     // Re-registering a live name repoints it rather than adding a second record.
-    lv_subject_t replacement;
-    lv_subject_init_int(&replacement, -1);
+    helix::Subject replacement;
+    replacement.init_int(-1);
     REQUIRE(lv_xml_register_subject(nullptr, names[1].c_str(), &replacement) == LV_RESULT_OK);
     CHECK(lv_xml_get_subject(nullptr, names[1].c_str()) == &replacement);
     REQUIRE(lv_xml_unregister_subject(nullptr, names[1].c_str()) == LV_RESULT_OK);
@@ -55,9 +58,8 @@ TEST_CASE("globals subjects stay findable across register and unregister churn",
 
     for (int i = 0; i < N; ++i) {
         lv_xml_unregister_subject(nullptr, names[i].c_str());
-        lv_subject_deinit(&subjects[i]);
+        subjects[i].reset();
     }
-    lv_subject_deinit(&replacement);
 }
 
 TEST_CASE("globals consts resolve through the index after registration and update",

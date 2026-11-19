@@ -18,8 +18,6 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
-
 namespace helix {
 
 using ::json; // Make global json alias visible in this namespace
@@ -65,26 +63,6 @@ inline constexpr const char* kCachedSnapshotMarker = "_helix_cached_snapshot";
  * refresh (current, so not a cached snapshot).
  */
 inline constexpr const char* kWholeObjectsMarker = "_helix_whole_objects";
-
-/**
- * @brief Wrap a raw status object as the notify_status_update a client dispatches
- *
- * The inverse of parse_status_notification() (printer_state.h). A synthetic
- * dispatch is not a Klipper frame, so its eventtime is 0.0 ("untimestamped") and
- * provenance travels in the markers instead of being inferred from the clock.
- */
-inline json make_status_notification(const json& status, bool from_cached_snapshot,
-                                     bool whole_objects) {
-    json notification = {{"method", "notify_status_update"},
-                         {"params", json::array({status, 0.0})}}; // [status, eventtime]
-    if (from_cached_snapshot) {
-        notification[kCachedSnapshotMarker] = true;
-    }
-    if (whole_objects) {
-        notification[kWholeObjectsMarker] = true;
-    }
-    return notification;
-}
 
 /**
  * @brief Abstract interface for the Moonraker WebSocket + JSON-RPC transport layer.

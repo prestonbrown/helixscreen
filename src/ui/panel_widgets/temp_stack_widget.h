@@ -12,6 +12,8 @@
 
 #include <memory>
 
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
+
 class TemperatureService;
 
 namespace helix {

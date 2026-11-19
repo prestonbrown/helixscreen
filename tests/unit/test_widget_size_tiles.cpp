@@ -18,6 +18,7 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_widget_labels.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -26,6 +27,7 @@
 #include "panel_widget.h"
 #include "panel_widget_registry.h"
 #include "settings_manager.h"
+#include "src/ui/panel_widgets/fan_widget.h"
 #include "src/ui/panel_widgets/led_widget.h"
 #include "src/ui/panel_widgets/tile_layout.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
@@ -243,6 +245,12 @@ TEST_CASE("two real fan tiles at different sizes draw different glyphs",
                  << " narrow=" << static_cast<const void*>(narrow_face));
     CHECK(wide_face != narrow_face);
 
+    // Each tile names its own fan.
+    static_cast<FanWidget&>(*wide).select_fan("fan_a");
+    static_cast<FanWidget&>(*narrow).select_fan("fan_b");
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(wide_obj, "fan_name"))) == "fan_a");
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(narrow_obj, "fan_name"))) == "fan_b");
+
     wide->detach();
     narrow->detach();
 }
@@ -303,7 +311,7 @@ TEST_CASE("a glyph-only tile is not charged its stack's gap", "[widget_size][til
         lv_obj_set_style_pad_column(root, row_gap, LV_PART_MAIN);
         lv_obj_create(root);
         lv_obj_t* label = lv_obj_create(root);
-        lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(label, true);
         return root;
     };
 
@@ -373,9 +381,11 @@ namespace {
 ///
 /// All of them, not just the first: a state-swapped tile keeps one icon per
 /// state and only one is visible, so a set where a single icon was missed
-/// resizes until the state changes and then stops.
+/// resizes until the state changes and then stops. The full-page face
+/// (full_page_frame's body) is not on the tile's rung ladder, so it is skipped.
 void collect_icon_fonts(lv_obj_t* root, std::vector<const lv_font_t*>& out) {
-    if (!root) {
+    const char* name = root ? lv_obj_get_name(root) : nullptr;
+    if (!root || (name && lv_streq(name, "full_page_body"))) {
         return;
     }
     const uint32_t n = lv_obj_get_child_count(root);
@@ -641,8 +651,8 @@ TEST_CASE("the xxl rung scales the largest linked face up to its size, at most 2
     // The binding draws it: the transform carries the scale, and the layout box
     // the parent spaces is the scaled size.
     ScopedXxlSize size(160);
-    lv_subject_t rung;
-    lv_subject_init_int(&rung, 0);
+    helix::Subject rung;
+    rung.init_int(0);
     lv_obj_t* icon = lv_label_create(fixture.test_screen());
     lv_label_set_text(icon, "\xF3\xB0\x90\xA5");
     helix::ui::bind_tile_rung(icon, &rung, helix::ui::TileLadder::Icon);
@@ -656,7 +666,6 @@ TEST_CASE("the xxl rung scales the largest linked face up to its size, at most 2
     CHECK(lv_obj_get_height(icon) >= face_h * 160 / 128 - 1);
 
     lv_obj_delete(icon);
-    lv_subject_deinit(&rung);
 }
 
 TEST_CASE("an unconfigured power tile reserves no state line", "[widget_size][tile][badge]") {
@@ -679,11 +688,11 @@ TEST_CASE("an unconfigured power tile reserves no state line", "[widget_size][ti
     REQUIRE(rung != nullptr);
 
     instance->notify_size_changed(2, 2, 110, 90);
-    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(status));
     const int unconfigured = lv_subject_get_int(rung);
 
     instance->set_config(nlohmann::json{{"device", "printer_psu"}});
-    CHECK_FALSE(lv_obj_has_flag(status, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(status));
     const int configured = lv_subject_get_int(rung);
     INFO("rung " << unconfigured << " unconfigured, " << configured << " with a state line");
     CHECK(unconfigured > configured);
@@ -929,8 +938,8 @@ TEST_CASE("a scaled glyph's layout box is the box TileSizing measures",
     REQUIRE(face.scale == 2 * LV_SCALE_NONE);
     const auto box = helix::ui::tile_glyph_box(face);
 
-    lv_subject_t rung;
-    lv_subject_init_int(&rung, 5);
+    helix::Subject rung;
+    rung.init_int(5);
     lv_obj_t* icon = lv_label_create(fixture.test_screen());
     lv_label_set_text(icon, "\xF3\xB0\x90\xA5");
     helix::ui::bind_tile_rung(icon, &rung, helix::ui::TileLadder::Icon);
@@ -938,7 +947,6 @@ TEST_CASE("a scaled glyph's layout box is the box TileSizing measures",
     CHECK(lv_obj_get_width(icon) == box.w);
     CHECK(lv_obj_get_height(icon) == box.h);
     lv_obj_delete(icon);
-    lv_subject_deinit(&rung);
 }
 
 TEST_CASE("a tile forgets its content root when the root is deleted", "[widget_size][tile]") {
@@ -1022,7 +1030,7 @@ TEST_CASE("an engaged bypass tile's spool row fits the box it is given",
     int row_drawn = 0;
     for (int edge = 40; edge <= 240; edge += 2) {
         h.resize(1, 1, edge, edge);
-        if (!lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(row)) {
             ++row_drawn;
         }
         require_no_overflow(h.root(), {}, "bypass at " + std::to_string(edge) + "px");
@@ -1052,7 +1060,7 @@ TEST_CASE("a bypass tile re-decides its box when bypass engages and disengages",
                " label " +
                std::to_string(
                    lv_subject_get_int(lv_xml_get_subject(nullptr, "bypass_tile_label"))) +
-               " row " + (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) ? "hidden" : "drawn");
+               " row " + (lv_obj_is_hidden(row) ? "hidden" : "drawn");
     };
 
     int differing = 0;

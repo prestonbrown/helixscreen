@@ -63,6 +63,7 @@ void ui_spool_canvas_invalidate_cache(void);
 #include "ui_swatch.h"
 
 #include "filament_tube_stroker.h"
+#include "spool_spin.h"
 
 #include <string>
 
@@ -91,6 +92,16 @@ void spool_canvas_set_view(lv_obj_t* canvas, SpoolView view);
 
 /// The view @p canvas draws.
 SpoolView spool_canvas_get_view(lv_obj_t* canvas);
+
+/**
+ * @brief Turn @p canvas's spool as @p spin says; a direction of 0 stands it still.
+ *
+ * The vents step through pre-rendered phases held in the render cache, so a
+ * turning spool costs a copy of its buffer per step, not a repaint, and its
+ * glow never repaints. The spin ends with the canvas, and a hidden canvas does
+ * not step. No-op on a spin already running.
+ */
+void spool_canvas_set_spin(lv_obj_t* canvas, const SpoolSpin& spin);
 
 /**
  * @brief Create a glow layer: an image the caller places behind a spool,

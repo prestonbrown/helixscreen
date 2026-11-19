@@ -362,7 +362,7 @@ static void* ui_hsv_picker_xml_create(lv_xml_parser_state_t* state, const char**
     lv_obj_set_style_bg_opa(picker, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(picker, 0, 0);
     lv_obj_set_style_pad_all(picker, 0, 0);
-    lv_obj_remove_flag(picker, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(picker, false);
 
     // Cleanup handler
     lv_obj_add_event_cb(picker, picker_delete_cb, LV_EVENT_DELETE, data);
@@ -425,7 +425,7 @@ static void ui_hsv_picker_xml_apply(lv_xml_parser_state_t* state, const char** a
     lv_image_set_src(data->sv_image, data->sv_buf);
     lv_obj_set_size(data->sv_image, data->sv_size, data->sv_size);
     lv_obj_set_pos(data->sv_image, 0, 0); // Top-left
-    lv_obj_add_flag(data->sv_image, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->sv_image, true);
     lv_obj_set_style_radius(data->sv_image, 4, 0);
     lv_obj_add_event_cb(data->sv_image, sv_touch_handler, LV_EVENT_PRESSING, nullptr);
     lv_obj_add_event_cb(data->sv_image, sv_touch_handler, LV_EVENT_CLICKED, nullptr);
@@ -435,7 +435,7 @@ static void ui_hsv_picker_xml_apply(lv_xml_parser_state_t* state, const char** a
     lv_image_set_src(data->hue_image, data->hue_buf);
     lv_obj_set_size(data->hue_image, data->sv_size, data->hue_height);
     lv_obj_set_pos(data->hue_image, 0, data->sv_size + data->gap); // Below SV square
-    lv_obj_add_flag(data->hue_image, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->hue_image, true);
     lv_obj_set_style_radius(data->hue_image, 4, 0);
     lv_obj_add_event_cb(data->hue_image, hue_touch_handler, LV_EVENT_PRESSING, nullptr);
     lv_obj_add_event_cb(data->hue_image, hue_touch_handler, LV_EVENT_CLICKED, nullptr);
@@ -449,7 +449,7 @@ static void ui_hsv_picker_xml_apply(lv_xml_parser_state_t* state, const char** a
     lv_obj_set_style_border_color(data->sv_indicator, lv_color_white(), 0);
     lv_obj_set_style_shadow_width(data->sv_indicator, 2, 0);
     lv_obj_set_style_shadow_color(data->sv_indicator, lv_color_black(), 0);
-    lv_obj_remove_flag(data->sv_indicator, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->sv_indicator, false);
 
     // Create Hue indicator (vertical line for horizontal bar)
     data->hue_indicator = lv_obj_create(data->hue_image);
@@ -459,7 +459,7 @@ static void ui_hsv_picker_xml_apply(lv_xml_parser_state_t* state, const char** a
     lv_obj_set_style_border_color(data->hue_indicator, lv_color_white(), 0);
     lv_obj_set_style_shadow_width(data->hue_indicator, 2, 0);
     lv_obj_set_style_shadow_color(data->hue_indicator, lv_color_black(), 0);
-    lv_obj_remove_flag(data->hue_indicator, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(data->hue_indicator, false);
     lv_obj_set_y(data->hue_indicator, 0);
 
     // Position indicators at initial HSV

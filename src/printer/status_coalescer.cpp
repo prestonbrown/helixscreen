@@ -54,6 +54,7 @@ constexpr TelemetryRow kTelemetry[] = {
     {"system_stats", "sysload"},
     {"system_stats", "cputime"},
     {"system_stats", "memavail"},
+    {"mcu", "last_stats"},
 };
 
 /// The Klipper object type a status key names: the part before any space, without the

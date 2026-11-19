@@ -11,6 +11,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/snapmaker_test_access.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_multiace.h"
 #include "ams_backend_snapmaker.h"
@@ -165,6 +166,37 @@ struct MultiAcePrintFixture : public LVGLTestFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(MultiAcePrintFixture,
+                 "the mock U1 feeder takes Auto loading and loads nothing with it off",
+                 "[multiace][auto_load]") {
+    auto backend = AmsBackend::create(AmsType::SNAPMAKER, api.get(), &client, nullptr);
+    REQUIRE(backend->start().success());
+    const auto row_value = [&](int head) {
+        const auto actions = backend->get_device_actions();
+        const std::string id = "snapmaker_auto_load_t" + std::to_string(head);
+        auto it =
+            std::find_if(actions.begin(), actions.end(), [&](const auto& a) { return a.id == id; });
+        REQUIRE(it != actions.end());
+        return std::any_cast<bool>(it->current_value);
+    };
+
+    // Head 1 is the left module's channel 0 on the stock wiring.
+    client.gcode_script("FEED_AUTO MODULE=left CHANNEL=0 AUTO=0");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(row_value(1) == false);
+    CHECK(row_value(0) == true);
+
+    // The firmware answers a load on that head OK and feeds nothing.
+    client.gcode_script("AUTO_FEEDING EXTRUDER=1 LOAD=1");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    REQUIRE(backend->execute_device_action("snapmaker_auto_load_t1", std::any(true)).success());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(row_value(1) == true);
+    CHECK(backend->slot_op_eligibility(1, /*load=*/true) !=
+          AmsBackend::FilamentOpEligibility::AlreadyLoaded);
+}
 
 // ============================================================================
 // Detection and construction
@@ -1013,6 +1045,21 @@ TEST_CASE_METHOD(MultiAceFixture, "a stock U1 keeps a PREP sensor on every head"
     CHECK_FALSE(stock.slot_has_prep_sensor(-1));
 }
 
+TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load counts bays and heads as the screen does",
+                 "[multiace][zero-numbering]") {
+    ScopedZeroLaneNumbering zero;
+    CapturingMultiAce b;
+    b.record_errors();
+    b.frame(ace_frame("head_mode_4ace.json"));
+    REQUIRE(b.load_filament(multiace::bay_global(0, 1)).success());
+    b.close_pending_window();
+    b.answer_ok();
+    b.frame(feed_frame(0, "preload_finish"));
+    REQUIRE(b.errors.size() == 1);
+    CHECK(b.errors[0] ==
+          "ACE 1 bay 1 was not loaded: toolhead 0 did not empty in time after its unload");
+}
+
 TEST_CASE_METHOD(MultiAceFixture, "a dropped bay load says so", "[multiace]") {
     CapturingMultiAce b;
     b.record_errors();
@@ -1157,6 +1204,9 @@ TEST_CASE_METHOD(MultiAceFixture, "spool numbering counts a routed bay once", "[
     for (int gi = 0; gi < plain.get_system_info().total_slots; ++gi) {
         CHECK(plain.spool_display_number(gi) == gi + 1);
     }
+    CHECK(plain.spool_display_number(-1) == -1);
+    ScopedZeroLaneNumbering from_zero;
+    CHECK(plain.spool_display_number(0) == 0);
 }
 
 TEST_CASE_METHOD(MultiAceFixture, "an ACE-fed head's upstream caption names its unit and bay",

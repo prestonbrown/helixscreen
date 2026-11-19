@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_network_state.cpp
- * @brief Network and connection state management extracted from PrinterState
+ * @brief Network and connection state, one of PrinterState's domain sub-states
  *
  * Manages WebSocket connection state, network connectivity, and Klipper firmware
  * state. Maintains a derived nav_buttons_enabled subject for UI gating.
- *
- * Extracted from PrinterState as part of god class decomposition.
  */
 
 #include "printer_network_state.h"
@@ -77,7 +75,6 @@ bool is_klippy_mcu_connect_error(std::string_view state_message) {
 }
 
 PrinterNetworkState::PrinterNetworkState() {
-    // Initialize string buffer
     std::memset(printer_connection_message_buf_, 0, sizeof(printer_connection_message_buf_));
     std::strcpy(printer_connection_message_buf_, "Disconnected");
 }
@@ -142,7 +139,6 @@ void PrinterNetworkState::deinit_subjects() {
 }
 
 void PrinterNetworkState::set_printer_connection_state_internal(int state, const char* message) {
-    // Called from main thread via ui_queue_update()
     // Log "Connected" at info level, transitional states at debug to reduce noise
     if (state == static_cast<int>(ConnectionState::CONNECTED)) {
         spdlog::info("[PrinterNetworkState] Printer connection state: Connected");
@@ -151,7 +147,6 @@ void PrinterNetworkState::set_printer_connection_state_internal(int state, const
                       message);
     }
 
-    // Track if we've ever successfully connected
     if (state == static_cast<int>(ConnectionState::CONNECTED) && !was_ever_connected_) {
         was_ever_connected_ = true;
         spdlog::debug(
@@ -164,7 +159,7 @@ void PrinterNetworkState::set_printer_connection_state_internal(int state, const
     lv_subject_set_int(&printer_connection_state_, state);
     spdlog::trace("[PrinterNetworkState] Subject value now: {}",
                   lv_subject_get_int(&printer_connection_state_));
-    lv_subject_copy_string(&printer_connection_message_, message);
+    lv_subject_set_string(&printer_connection_message_, message);
     update_nav_buttons_enabled();
     spdlog::trace("[PrinterNetworkState] Printer connection state update complete, observers "
                   "should be notified");
@@ -232,8 +227,8 @@ bool PrinterNetworkState::apply_webhooks(const nlohmann::json& webhooks, double 
         bool applied_state = false;
         auto message_describes = static_cast<KlippyState>(lv_subject_get_int(&klippy_state_));
 
-        if (webhooks.contains("state") && webhooks["state"].is_string()) {
-            std::string klippy_state_str = webhooks["state"].get<std::string>();
+        if (const auto state = json_util::read_field<std::string>(webhooks, "state")) {
+            const std::string& klippy_state_str = *state;
             if (const std::optional<KlippyState> parsed = parse_klippy_state(klippy_state_str)) {
                 changed = set_klippy_state_internal(*parsed);
                 applied_state = true;
@@ -250,9 +245,9 @@ bool PrinterNetworkState::apply_webhooks(const nlohmann::json& webhooks, double 
         }
 
         // Capture state_message (error/shutdown reason text)
-        if (webhooks.contains("state_message") && webhooks["state_message"].is_string()) {
-            set_klippy_state_message(webhooks["state_message"].get<std::string>(),
-                                     message_describes);
+        if (const auto state_message =
+                json_util::read_field<std::string>(webhooks, "state_message")) {
+            set_klippy_state_message(*state_message, message_describes);
         }
 
         // Only a frame that actually carried a usable state moves the guard.
@@ -305,7 +300,6 @@ bool PrinterNetworkState::set_klippy_state_internal(KlippyState state) {
     lv_subject_set_int(&klippy_state_, state_int);
     update_nav_buttons_enabled();
 
-    // Clear state message when returning to READY (error is resolved)
     if (state == KlippyState::READY) {
         set_klippy_state_message("", state);
     }
@@ -336,7 +330,6 @@ void PrinterNetworkState::set_klippy_state_message(const std::string& message,
 }
 
 void PrinterNetworkState::update_nav_buttons_enabled() {
-    // Compute combined state: enabled when connected AND klippy ready
     int connection = lv_subject_get_int(&printer_connection_state_);
     int klippy = lv_subject_get_int(&klippy_state_);
     bool connected = (connection == static_cast<int>(ConnectionState::CONNECTED));

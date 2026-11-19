@@ -69,8 +69,8 @@ ExtruderDelta parse_extruder_delta(const nlohmann::json& json) {
     if (auto v = ams::read_field<bool>(json, "activating_move")) {
         d.activating_move = *v;
     }
-    if (json.contains("extruder_offset") && json["extruder_offset"].is_array()) {
-        const auto& arr = json["extruder_offset"];
+    if (const auto* offsets = json_util::find_array(json, "extruder_offset")) {
+        const auto& arr = *offsets;
         for (size_t i = 0; i < std::min(arr.size(), d.extruder_offset.size()); i++) {
             if (arr[i].is_number()) {
                 d.extruder_offset[i] = arr[i].get<float>();
@@ -112,9 +112,9 @@ SnapmakerRfidInfo parse_rfid_info(const nlohmann::json& json) {
     if (auto v = ams::read_field<std::string>(json, "VENDOR")) {
         info.vendor = std::move(*v);
     }
-    if (json.contains("ARGB_COLOR") && json["ARGB_COLOR"].is_number()) {
+    if (const auto argb_color = ams::read_field<uint32_t>(json, "ARGB_COLOR")) {
         // ARGB -> RGB: mask off the alpha byte
-        uint32_t argb = json["ARGB_COLOR"].get<uint32_t>();
+        uint32_t argb = *argb_color;
         info.color_rgb = argb & 0x00FFFFFF;
     }
     if (auto v = ams::read_field<int>(json, "HOTEND_MIN_TEMP")) {
@@ -260,10 +260,10 @@ PrintTaskConfigDelta parse_print_task_config(const nlohmann::json& status) {
     }
     const auto& ptc = *ptc_it;
 
-    if (ptc.contains("extruder_map_table") && ptc["extruder_map_table"].is_array()) {
+    if (const auto* map_table = json_util::find_array(ptc, "extruder_map_table")) {
         std::vector<int> table;
-        table.reserve(ptc["extruder_map_table"].size());
-        for (const auto& entry : ptc["extruder_map_table"]) {
+        table.reserve(map_table->size());
+        for (const auto& entry : *map_table) {
             if (!entry.is_number_integer()) {
                 table.push_back(-1);
                 continue;
@@ -274,10 +274,10 @@ PrintTaskConfigDelta parse_print_task_config(const nlohmann::json& status) {
         d.extruder_map_table = std::move(table);
     }
 
-    if (ptc.contains("extruders_used") && ptc["extruders_used"].is_array()) {
+    if (const auto* extruders_used = json_util::find_array(ptc, "extruders_used")) {
         std::vector<bool> used;
-        used.reserve(ptc["extruders_used"].size());
-        for (const auto& entry : ptc["extruders_used"]) {
+        used.reserve(extruders_used->size());
+        for (const auto& entry : *extruders_used) {
             used.push_back(entry.is_boolean() && entry.get<bool>());
         }
         d.extruders_used = std::move(used);
@@ -295,16 +295,17 @@ PrintTaskConfigDelta parse_print_task_config(const nlohmann::json& status) {
 std::vector<FeedChannelDelta> parse_feed_channels(const nlohmann::json& status) {
     std::vector<FeedChannelDelta> channels;
     for (const char* feed_key : {"filament_feed left", "filament_feed right"}) {
-        if (!status.contains(feed_key) || !status[feed_key].is_object()) {
+        const auto* feed = json_util::find_object(status, feed_key);
+        if (!feed) {
             continue;
         }
-        const auto& feed = status[feed_key];
         for (int lane = 0; lane < kToolCount; lane++) {
             const std::string ext_key = "extruder" + std::to_string(lane);
-            if (!feed.contains(ext_key) || !feed[ext_key].is_object()) {
+            const auto* channel = json_util::find_object(*feed, ext_key.c_str());
+            if (!channel) {
                 continue;
             }
-            const auto& ch = feed[ext_key];
+            const auto& ch = *channel;
             FeedChannelDelta d;
             d.lane = lane;
             // Klipper publishes null for these before a sensor's first
@@ -330,27 +331,26 @@ StatusDelta parse_status(const nlohmann::json& status, const std::string& batch_
     static const char* const extruder_keys[kToolCount] = {"extruder", "extruder1", "extruder2",
                                                           "extruder3"};
     for (int i = 0; i < kToolCount; i++) {
-        if (status.contains(extruder_keys[i]) && status[extruder_keys[i]].is_object()) {
-            d.extruders[i] = parse_extruder_delta(status[extruder_keys[i]]);
+        if (const auto* extruder = json_util::find_object(status, extruder_keys[i])) {
+            d.extruders[i] = parse_extruder_delta(*extruder);
         }
     }
 
-    if (status.contains("toolhead") && status["toolhead"].is_object()) {
-        const auto& th = status["toolhead"];
-        if (auto v = ams::read_field<std::string>(th, "extruder")) {
+    if (const auto* th = json_util::find_object(status, "toolhead")) {
+        if (auto v = ams::read_field<std::string>(*th, "extruder")) {
             d.toolhead_extruder = std::move(*v);
         }
     }
 
-    if (status.contains("filament_detect") && status["filament_detect"].is_object()) {
-        d.filament_detect = parse_filament_detect(status["filament_detect"]);
+    if (const auto* filament_detect = json_util::find_object(status, "filament_detect")) {
+        d.filament_detect = parse_filament_detect(*filament_detect);
     }
 
     d.feed_channels = parse_feed_channels(status);
 
     d.toolhead_sensors = parse_toolhead_sensors(status);
 
-    if (status.contains("print_task_config") && status["print_task_config"].is_object()) {
+    if (json_util::find_object(status, "print_task_config")) {
         d.print_task_config = parse_print_task_config(status);
     }
 

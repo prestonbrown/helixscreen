@@ -13,12 +13,11 @@
 
 #include "wifi_manager.h"
 
-#include "ui_error_reporting.h"
-#include "ui_timer_guard.h"
-
 #include "config.h"
+#include "core/error_reporting.h"
 #include "core/http_executor.h"
 #include "core/log_redact.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "safe_log.h"
@@ -134,6 +133,10 @@ void WiFiManager::register_backend_callbacks(bool silent) {
         "DISCONNECTED", [this](const std::string& data) { handle_disconnected(data); });
     backend_->register_event_callback(
         "AUTH_FAILED", [this](const std::string& data) { handle_auth_failed(data); });
+    backend_->register_event_callback("ADDRESS_CHANGED", [this](const std::string&) {
+        spdlog::debug("[WiFiManager] Address changed event received");
+        notify_state_observers();
+    });
     backend_->register_event_callback(
         "INIT_FAILED", [this, silent](const std::string& msg) { handle_init_failed(silent, msg); });
     backend_->register_event_callback("REGDOM_CHANGE", [this](const std::string& data) {
@@ -308,7 +311,8 @@ void WiFiManager::handle_init_failed(bool silent, const std::string& msg) {
             NOTIFY_ERROR(lv_tr("WiFi initialization failed: {}"), msg);
         });
     } else {
-        spdlog::debug("[WiFiManager] WiFi init failed (silent): {}", msg);
+        spdlog::debug("[WiFiManager] WiFi init failed (silent): {}",
+                      helix::redact::names_in_text(msg));
     }
 }
 
@@ -615,7 +619,8 @@ void WiFiManager::apply_scan_trigger_result(const WiFiError& result, bool user_r
     // Keep the backend's own account of the failure: NOTIFY_WARNING logs only
     // the user-facing string, which cannot tell FAIL-BUSY from a wedged
     // control socket.
-    spdlog::warn("[WiFiManager] Scan trigger failed: {}", result.technical_msg);
+    spdlog::warn("[WiFiManager] Scan trigger failed: {}",
+                 helix::redact::names_in_text(result.technical_msg));
     // If the OS reports the wireless link is actually up, the managed backend
     // simply can't reach its control socket (the link is system-managed and
     // live). Nagging the user with a failure toast is wrong (helixscreen#1059).
@@ -1124,6 +1129,19 @@ WiFiError WiFiManager::apply_radio_enabled(bool enabled) {
         return WiFiError(WiFiResult::NOT_INITIALIZED, "No WiFi backend", "WiFi system not ready");
     }
 
+    // A backend whose init failed (a wedged daemon at boot, a failed earlier
+    // enable) stays down until something starts it, and every radio call on
+    // it answers "WiFi system not ready". Turning WiFi on is that something.
+    // Blocking start() is fine here: radio changes run on the control lane.
+    if (enabled && !backend_->is_running()) {
+        spdlog::info("[WiFiManager] WiFi backend is not running; starting it to turn WiFi on");
+        WiFiError started = backend_->start();
+        if (!started.success()) {
+            return started;
+        }
+        notify_state_observers(/*country_may_have_changed=*/true);
+    }
+
     // Radio on/off, NOT backend start()/stop(). stop() tears down the control
     // connection to wpa_supplicant entirely, so a subsequent STATUS has
     // nothing to query — every later call logs "send_command called but not
@@ -1264,103 +1282,6 @@ void WiFiManager::set_enabled_async(bool enabled, helix::LifetimeToken token,
             report_radio_result(enabled, unresponsive_error(), has_non_wifi_fallback());
             answer(false, is_enabled());
         });
-}
-
-void WiFiManager::get_status_async(
-    helix::LifetimeToken token,
-    helix::SharedCallback<void(const WifiBackend::ConnectionStatus&)> on_done) {
-    if (!on_done) {
-        return;
-    }
-    if (!helix::http::HttpExecutor::fast().running()) {
-        if (!lane_pooled_) {
-            on_done(backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{});
-            return;
-        }
-        // The pool has stopped (app exit): no read may run on this thread.
-        WifiBackend::ConnectionStatus cached;
-        {
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            cached = cached_status_;
-        }
-        cached.unresponsive = true;
-        on_done(cached);
-        return;
-    }
-    const bool stalled = control_stalled();
-    {
-        std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-        if (status_read_inflight_ && !stalled) {
-            status_waiters_.push_back({std::move(token), std::move(on_done)});
-            return;
-        }
-        if (stalled || !breaker_allows_call()) {
-            WifiBackend::ConnectionStatus cached = cached_status_;
-            cached.unresponsive = true;
-            token.defer("WiFiManager::get_status_async(unresponsive)",
-                        [cb = std::move(on_done), cached]() { cb(cached); });
-            return;
-        }
-        status_waiters_.push_back({std::move(token), std::move(on_done)});
-        status_read_inflight_ = true;
-    }
-    // A read dropped unrun clears the in-flight mark, so the next caller
-    // starts a read that also answers everyone still waiting.
-    submit_control(
-        "get_status", ControlKind::Health, [this]() { run_status_reads(); },
-        [this]() {
-            breaker_abandon_probe();
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            status_read_inflight_ = false;
-        });
-}
-
-void WiFiManager::run_status_reads() {
-    // `this` is valid for the whole body: see radio_op_mutex_.
-    // get_status_async() admitted the first read; each later one asks again.
-    bool first = true;
-    for (;;) {
-        std::vector<StatusWaiter> batch;
-        {
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            if (status_waiters_.empty()) {
-                status_read_inflight_ = false;
-                return;
-            }
-            batch.swap(status_waiters_);
-        }
-        const bool admitted = first || breaker_allows_call();
-        first = false;
-        WifiBackend::ConnectionStatus status;
-        if (admitted) {
-            // Every waiter in the batch asked before this read began.
-            const auto started = std::chrono::steady_clock::now();
-            status = backend_ ? backend_->get_status() : WifiBackend::ConnectionStatus{};
-            const bool answered_in_time = record_health_call(started);
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            if (answered_in_time) {
-                cached_status_ = status;
-            } else {
-                // A read that ran out the reply deadline parsed an empty reply,
-                // which says "disconnected" about a link nobody could ask about.
-                status = cached_status_;
-                status.unresponsive = breaker_open();
-            }
-        } else {
-            std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-            status = cached_status_;
-            status.unresponsive = true;
-        }
-        for (auto& w : batch) {
-            w.token.defer("WiFiManager::get_status_async",
-                          [cb = std::move(w.on_done), status]() { cb(status); });
-        }
-    }
-}
-
-bool WiFiManager::cached_connected() {
-    std::lock_guard<std::mutex> lock(status_waiters_mutex_);
-    return cached_status_.connected;
 }
 
 // ============================================================================

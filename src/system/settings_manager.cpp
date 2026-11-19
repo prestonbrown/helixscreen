@@ -3,8 +3,6 @@
 
 #include "settings_manager.h"
 
-#include "ui_panel_motion.h"
-
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -12,6 +10,7 @@
 #include "belt_tension_types.h"
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_client.h"
@@ -35,52 +34,6 @@
 #include <iterator>
 
 using namespace helix;
-
-// Aftermarket toolhead styles shown in dropdown (Auto + user overrides only)
-// Native styles (DEFAULT, CREALITY_K1, CREALITY_K2) are auto-detected and not shown.
-// The full style list: the dropdown and the enum carry the same eight
-// entries in the same order, so a style the DB auto-detects (K1/K2) or
-// pins (Default) is also selectable by hand.
-// Map dropdown index → ToolheadStyle enum value (production dropdown)
-static constexpr helix::ToolheadStyle kDropdownToStyle[] = {
-    helix::ToolheadStyle::AUTO,          // 0: Auto
-    helix::ToolheadStyle::DEFAULT,       // 1: Default (Bambu-like)
-    helix::ToolheadStyle::A4T,           // 2: A4T
-    helix::ToolheadStyle::ANTHEAD,       // 3: AntHead
-    helix::ToolheadStyle::JABBERWOCKY,   // 4: JabberWocky
-    helix::ToolheadStyle::STEALTHBURNER, // 5: Stealthburner
-    helix::ToolheadStyle::CREALITY_K1,   // 6: Creality K1
-    helix::ToolheadStyle::CREALITY_K2,   // 7: Creality K2
-};
-static constexpr int kDropdownCount =
-    static_cast<int>(sizeof(kDropdownToStyle) / sizeof(kDropdownToStyle[0]));
-
-// Debug dropdown: indices map directly to enum values (0=Auto, 1=Default, ...)
-static constexpr helix::ToolheadStyle kDropdownToStyleDebug[] = {
-    helix::ToolheadStyle::AUTO,          // 0
-    helix::ToolheadStyle::DEFAULT,       // 1
-    helix::ToolheadStyle::A4T,           // 2
-    helix::ToolheadStyle::ANTHEAD,       // 3
-    helix::ToolheadStyle::JABBERWOCKY,   // 4
-    helix::ToolheadStyle::STEALTHBURNER, // 5
-    helix::ToolheadStyle::CREALITY_K1,   // 6
-    helix::ToolheadStyle::CREALITY_K2,   // 7
-};
-static constexpr int kDropdownDebugCount =
-    static_cast<int>(sizeof(kDropdownToStyleDebug) / sizeof(kDropdownToStyleDebug[0]));
-
-// Convert ToolheadStyle enum to dropdown index
-static int style_to_dropdown_index(helix::ToolheadStyle style) {
-    auto* rc = get_runtime_config();
-    bool debug = rc && rc->test_mode;
-    int count = debug ? kDropdownDebugCount : kDropdownCount;
-    const auto* table = debug ? kDropdownToStyleDebug : kDropdownToStyle;
-    for (int i = 0; i < count; i++) {
-        if (table[i] == style)
-            return i;
-    }
-    return 0; // Unknown styles map to Auto
-}
 
 namespace {
 /// The one place a (mode, ring) pair becomes a config key.
@@ -125,6 +78,16 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // mm/s
     {"settings_extrude_speed", "filament/extrude_speed", Scope::PerPrinter, false, 5, 1, 50,
      "extrude_speed"},
+    // Filament panel length buttons, mm
+    {"settings_extrude_length_0", "filament/extrude_length_0", Scope::PerPrinter, false, 5,
+     SettingsManager::kExtrudeLengthMinMm, SettingsManager::kExtrudeLengthMaxMm,
+     "extrude_length_0"},
+    {"settings_extrude_length_1", "filament/extrude_length_1", Scope::PerPrinter, false, 10,
+     SettingsManager::kExtrudeLengthMinMm, SettingsManager::kExtrudeLengthMaxMm,
+     "extrude_length_1"},
+    {"settings_extrude_length_2", "filament/extrude_length_2", Scope::PerPrinter, false, 25,
+     SettingsManager::kExtrudeLengthMinMm, SettingsManager::kExtrudeLengthMaxMm,
+     "extrude_length_2"},
     // Jog feedrates in mm/min; defaults are the motion panel's shipped speeds.
     {"settings_jog_speed_xy", "motion/jog_speed_xy", Scope::PerPrinter, false, 6000, 60, 60000,
      "jog_speed_xy"},
@@ -149,8 +112,8 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
      "qidi_eject_velocity"},
     // Per-printer: AUTO resolves from this printer's type, so the manual
     // override follows the same printer.
-    {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0, 7,
-     "toolhead_style"},
+    {"settings_toolhead_style", "appearance/toolhead_style", Scope::PerPrinter, false, 0, 0,
+     kLastToolheadStyle, "toolhead_style"},
     // helix::ui::ToolNumberStyleSetting: 0=Auto, 1=Physical ("1"), 2=Gcode ("T0")
     {"settings_tool_number_style", "appearance/tool_number_style", Scope::PerPrinter, false, 0, 0,
      2, "tool_number_style"},
@@ -183,6 +146,12 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // #1335. Off: a popup the user did not ask for is opt-in.
     {"filament_auto_open_editor", "filament/auto_open_editor", Scope::PerPrinter, true, 0, 0, 1,
      "filament_auto_open_editor"},
+    // On: a material preset heats the bed and chamber with the nozzle.
+    {"material_presets_heat_bed_and_chamber", "filament/presets_heat_bed_and_chamber",
+     Scope::PerPrinter, true, 1, 0, 1, "material_presets_heat_bed_and_chamber"},
+    // Off: positions count from 1. See helix::ui::lane_number().
+    {"number_lanes_from_zero", "ams/number_lanes_from_zero", Scope::PerPrinter, true, 0, 0, 1,
+     "number_lanes_from_zero"},
     {"console_filter_temps", "/console/filter_temps", Scope::Global, true, 1, 0, 1,
      "console_filter_temps"},
     {"console_filter_firmware_noise", "/console/filter_firmware_noise", Scope::Global, true, 1, 0,
@@ -204,7 +173,32 @@ static constexpr settings::PersistedSetting SETTINGS[] = {
     // 4=A lower. Per-printer: belt routing is the machine's.
     {"settings_belt_layout", "belt_tension/layout", Scope::PerPrinter, false, 0, 0,
      helix::calibration::kBeltLayoutCount - 1, "belt_layout"},
+    // Temperature graph: stepper driver, MCU and host series are opt-in (#2080).
+    {"temp_graph_show_mcu", "temp_graph/show_mcu", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_mcu"},
+    {"temp_graph_show_host", "temp_graph/show_host", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_host"},
+    {"temp_graph_show_drivers", "temp_graph/show_drivers", Scope::PerPrinter, true, 0, 0, 1,
+     "temp_graph_show_drivers"},
+    // Off: a shell on the host, often as root, is something an owner turns on (#1573).
+    {"host_terminal_enabled", "/host_terminal/enabled", Scope::Global, true, 0, 0, 1,
+     "host_terminal_enabled"},
+    // The one-time warning the terminal shows the first time it opens.
+    {"host_terminal_warning_seen", "/host_terminal/warning_seen", Scope::Global, true, 0, 0, 1,
+     "host_terminal_warning_seen"},
 };
+
+namespace {
+/// Push a stored numbering base to the labels and re-render them if it changed.
+void apply_lane_numbering(bool from_zero) {
+    if (from_zero == helix::ui::lane_numbering_from_zero()) {
+        return;
+    }
+    helix::ui::set_lane_numbering_from_zero(from_zero);
+    // Everything that formats a number re-renders on this subject.
+    lv_subject_notify(SystemSettingsManager::instance().subject_language());
+}
+} // namespace
 
 SettingsManager& SettingsManager::instance() {
     static HELIX_PSRAM_BSS SettingsManager instance;
@@ -240,6 +234,7 @@ void SettingsManager::init_subjects() {
 
     settings_.init(subjects_);
     sync_tool_number_style_mirror();
+    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -319,12 +314,18 @@ void SettingsManager::load_jog_distances() {
     }
 }
 
+void SettingsManager::set_number_lanes_from_zero(bool enabled) {
+    settings_.set(Key::NumberLanesFromZero, enabled);
+    apply_lane_numbering(enabled);
+}
+
 void SettingsManager::reload_from_config() {
     if (!subjects_initialized_) {
         return;
     }
     settings_.reload();
     sync_tool_number_style_mirror();
+    apply_lane_numbering(get_number_lanes_from_zero());
     load_jog_distances();
 }
 
@@ -439,20 +440,6 @@ bool SettingsManager::set_maintenance_record(const std::string& printer_prefix,
 // TOOLHEAD STYLE
 // =============================================================================
 
-/// Maps a printer-database toolhead_style string to the enum; AUTO means "no
-/// opinion".
-static ToolheadStyle toolhead_style_from_name(const std::string& name) {
-    if (name == "creality_k1")
-        return ToolheadStyle::CREALITY_K1;
-    if (name == "creality_k2")
-        return ToolheadStyle::CREALITY_K2;
-    if (name == "anthead")
-        return ToolheadStyle::ANTHEAD;
-    if (name == "default")
-        return ToolheadStyle::DEFAULT;
-    return ToolheadStyle::AUTO;
-}
-
 ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
     auto style = get_toolhead_style();
     if (style != ToolheadStyle::AUTO) {
@@ -485,21 +472,19 @@ ToolheadStyle SettingsManager::get_effective_toolhead_style() const {
 std::string SettingsManager::get_toolhead_style_options() {
     // The first two are words; the rest name toolhead products.
     return std::string(lv_tr("Auto")) + "\n" + lv_tr("Default") +
-           "\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2";
+           "\nA4T\nAntHead\nJabberWocky\nStealthburner\nCreality K1\nCreality K2"
+           "\nDragonburner\nMini Stealthburner\nBambu Lab\nEnder 3\nXOL\nSnapmaker U1\nFlashForge "
+           "AD5\nFlashForge Creator 5\nElegoo Centauri\nArtillery M1\nQidi\nSovol SV08\nMedusaHC";
 }
 
 int SettingsManager::toolhead_style_to_dropdown_index(ToolheadStyle style) {
-    return style_to_dropdown_index(style);
+    return static_cast<int>(style);
 }
 
 ToolheadStyle SettingsManager::dropdown_index_to_toolhead_style(int index) {
-    auto* rc = get_runtime_config();
-    bool debug = rc && rc->test_mode;
-    int count = debug ? kDropdownDebugCount : kDropdownCount;
-    const auto* table = debug ? kDropdownToStyleDebug : kDropdownToStyle;
-    if (index < 0 || index >= count)
+    if (index < 0 || index > kLastToolheadStyle)
         return ToolheadStyle::AUTO;
-    return table[index];
+    return static_cast<ToolheadStyle>(index);
 }
 
 // ============================================================================
@@ -531,6 +516,10 @@ void SettingsManager::set_jog_distance(JogMode mode, bool outer, float mm) {
 
     TelemetryManager::instance().notify_setting_changed(jog_distance_key(mode, outer), old_val,
                                                         std::to_string(mm));
+}
+
+float SettingsManager::get_jog_distance_default(JogMode mode, bool outer) {
+    return jog_distance_default(mode, outer);
 }
 
 void SettingsManager::reset_jog_distances() {
@@ -646,6 +635,16 @@ bool SettingsManager::is_detection_seeded() const {
 void SettingsManager::mark_detection_seeded() {
     Config* config = Config::get_instance();
     config->set<bool>("/detection/seeded", true);
+    config->save();
+}
+
+bool SettingsManager::is_detection_switch_adopted() const {
+    return Config::get_instance()->get<bool>("/detection/switch_adopted", false);
+}
+
+void SettingsManager::mark_detection_switch_adopted() {
+    Config* config = Config::get_instance();
+    config->set<bool>("/detection/switch_adopted", true);
     config->save();
 }
 

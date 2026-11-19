@@ -4,10 +4,12 @@
 #pragma once
 
 #include "ui_container_delete_net.h"
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
 #include "ui_virtual_list.h"
 #include "ui_widget_ref.h"
+
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 
 #if defined(HELIX_PLATFORM_ESP32)
 #include "esp_psram_thumbnail.h"
@@ -41,8 +43,8 @@ namespace helix::ui {
  * ## Usage:
  * @code
  * PrintSelectCardView card_view;
- * card_view.setup(container, file_click_callback);
- * card_view.populate(file_list, calculate_dimensions_callback);
+ * card_view.setup(container, on_file_click, on_metadata_fetch);
+ * card_view.populate(file_list, dims);
  * // On scroll:
  * card_view.update_visible(file_list, dimensions);
  * @endcode
@@ -52,23 +54,23 @@ namespace helix::ui {
  * @brief Per-card widget data for declarative text binding
  *
  * Stored with each pooled card widget. Subjects are bound to labels once
- * at pool creation, then updated via lv_subject_copy_string() when card is recycled.
+ * at pool creation, then updated via lv_subject_set_string() when card is recycled.
  */
 struct CardWidgetData {
-    lv_subject_t filename_subject{};
+    helix::Subject filename_subject{};
     char filename_buf[128] = {0};
 
-    lv_subject_t time_subject{};
+    helix::Subject time_subject{};
     char time_buf[32] = {0};
 
-    lv_subject_t filament_subject{};
+    helix::Subject filament_subject{};
     char filament_buf[32] = {0};
 
     /// Folder type for declarative binding: 0=file, 1=directory, 2=parent directory (..)
-    lv_subject_t folder_type_subject{};
+    helix::Subject folder_type_subject{};
 
     /// Thumbnail state: 0=real thumbnail, 1=placeholder (show icon), 2=directory (hide both)
-    lv_subject_t thumbnail_state_subject{};
+    helix::Subject thumbnail_state_subject{};
 
     // Observer handles (saved for cleanup before DELETE)
     lv_observer_t* filename_observer = nullptr;
@@ -123,7 +125,7 @@ class PrintSelectCardView : public ContainerDeleteNet {
     PrintSelectCardView();
     ~PrintSelectCardView();
 
-    // Non-copyable, movable
+    // Non-copyable
     PrintSelectCardView(const PrintSelectCardView&) = delete;
     PrintSelectCardView& operator=(const PrintSelectCardView&) = delete;
     // Non-movable: the container's LV_EVENT_DELETE net is keyed to this
@@ -207,7 +209,8 @@ class PrintSelectCardView : public ContainerDeleteNet {
      * @param dims Card dimensions for layout
      * @param preserve_scroll If true, preserve scroll position; otherwise reset to top
      *
-     * Resets scroll position and visible range, then updates visible cards.
+     * Resets the visible range, updates visible cards, then restores the scroll
+     * position or resets it to the top.
      */
     void populate(const std::vector<PrintFileData>& file_list, const CardDimensions& dims,
                   bool preserve_scroll = false);
@@ -384,11 +387,6 @@ class PrintSelectCardView : public ContainerDeleteNet {
   private:
 #endif
 
-    /**
-     * @brief Create spacers for virtualization
-     */
-    void create_spacers();
-
     // === Static Callbacks ===
     static void on_card_clicked(lv_event_t* e);
     static void on_card_long_pressed(lv_event_t* e);
@@ -397,13 +395,10 @@ class PrintSelectCardView : public ContainerDeleteNet {
     /// run while the tree those pointers refer to is mid-deletion.
     void clear_cached_state();
 
-    /// ContainerDeleteNet: the watched tree died — drop the pool
-    /// before its pointers dangle.
+    /// ContainerDeleteNet: the tree the pool was built under is being deleted
+    /// (panel rebuild, teardown, shutdown). Drop the pool before its pointers
+    /// dangle; it must not outlive the tree (prestonbrown/helixscreen#1396).
     void on_netted_container_destroyed() override;
-
-    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
-    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
-    /// outlive it (prestonbrown/helixscreen#1396).
 };
 
 } // namespace helix::ui

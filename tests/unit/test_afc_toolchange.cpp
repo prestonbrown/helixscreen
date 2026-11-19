@@ -6,6 +6,7 @@
 #include "ams_backend_mock.h"
 #include "ams_types.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/zero_lane_numbering.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -520,6 +521,12 @@ TEST_CASE_METHOD(AfcToolchangeRenderFixture, "AFC toolchange text renders AFC's 
     SECTION("AFC's 'Change 1 out of 161' renders as 1 / 161, not 2 / 161") {
         feed_afc(1, 161);
         REQUIRE(rendered() == "1 / 161");
+    }
+
+    SECTION("a toolchange count ignores the slot numbering base") {
+        ScopedZeroLaneNumbering zero;
+        feed_afc(37, 161);
+        REQUIRE(rendered() == "37 / 161");
     }
 
     SECTION("mid print the label tracks AFC's console count") {

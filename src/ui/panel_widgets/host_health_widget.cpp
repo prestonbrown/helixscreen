@@ -8,11 +8,11 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_settings_system.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
@@ -22,7 +22,9 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "value_status.h"
@@ -46,23 +48,23 @@ constexpr const char* kDotSep = " \xc2\xb7 ";
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_mcu_row_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_mcu_rows_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cause_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cpu_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_temp_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_throttle_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_disk_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_busiest_load_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_glance_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cpu_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_temp_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_mem_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_detail_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_busiest_name_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_busiest_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_mcu_row_subject{};
+HELIX_PSRAM_BSS helix::Subject s_mcu_rows_subject{};
+HELIX_PSRAM_BSS helix::Subject s_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cause_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cpu_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_temp_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_throttle_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_disk_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_busiest_load_subject{};
+HELIX_PSRAM_BSS helix::Subject s_glance_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cpu_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_temp_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_mem_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_detail_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_busiest_name_subject{};
+HELIX_PSRAM_BSS helix::Subject s_busiest_text_subject{};
 HELIX_PSRAM_BSS char s_glance_text_buf[16];
 HELIX_PSRAM_BSS char s_cpu_text_buf[16];
 HELIX_PSRAM_BSS char s_temp_text_buf[24];
@@ -124,17 +126,6 @@ int perf_reading(const char* value_subject, const char* present_subject) {
     return perf_int(present_subject, 0) != 0 ? perf_int(value_subject, -1) : -1;
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* body;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_body"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 /// The height of the sparklines in a row, and the least width a row gives one. Mirrors
@@ -159,7 +150,7 @@ const char* const kWidestMcuText = "100% \xc2\xb7 9999 retx";
 /// (space_xs).
 helix::RungNeeds measure_needs(bool printing, int* mcu_row_pitch) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never

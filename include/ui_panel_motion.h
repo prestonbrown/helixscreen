@@ -3,12 +3,13 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "axis.h"
 #include "bed_plate_gesture.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "hold_repeat_timer.h"
 #include "motion_presets.h"
 #include "overlay_base.h"
@@ -54,6 +55,26 @@ std::optional<AxisKeypadParams> keypad_params_for_axis(const AxisBounds& bounds,
 bool z_direction_blocked(bool z_homed, bool bounds_known, double z, double z_min, double z_max,
                          double direction_mm);
 
+/// Segments the home bar shows with both All and XY: All, X, Y, XY and Z.
+inline constexpr int kHomeBarSegmentsWithXy = 5;
+
+/// Which of the Motion home bar's optional segments show. X, Y and Z follow
+/// the printer's individual-homing capability on their own.
+struct HomeBarSegments {
+    bool all = true;
+    bool xy = false;
+};
+
+/**
+ * @brief The Motion home bar's All and XY segments for a bar @p bar_content_w px wide.
+ *
+ * A printer that homes every axis together shows All alone. Otherwise all five
+ * show when each keeps at least @p min_segment_w (touch_target_min); a narrower
+ * bar drops All, which the jog pad's center button already does, and keeps XY.
+ */
+HomeBarSegments motion_home_bar_segments(bool individual_xyz_homing, int32_t bar_content_w,
+                                         int32_t min_segment_w);
+
 /// A block's size in px.
 struct BlockSize {
     int w = 0;
@@ -86,9 +107,6 @@ struct JogLayoutFit {
  */
 JogLayoutFit jog_layout_fit(MotionLayout layout, bool portrait, int box_w, int box_h, int gap,
                             int step_h, int step_count, int min_key);
-
-enum class JogMode { Fine = 0, Coarse = 1, Turbo = 2 };
-constexpr int kJogModeCount = 3;
 
 // Inner/outer distance pair for each mode. Labels are owned buffers so the
 // struct can travel by value out of the settings lookup.
@@ -299,6 +317,10 @@ class MotionPanel : public OverlayBase {
     /// SIZE_CHANGED event calls this, and so does a change in the step count.
     void fit_jog_layout(lv_obj_t* root);
 
+    /// Measure @p bar, a home_axis_bar, and publish its segments
+    /// (motion_home_bar_segments()). Its SIZE_CHANGED event calls this.
+    void fit_home_bar(lv_obj_t* bar);
+
     /// Bed tab: draw the reference grid and the print's outlines on the plate
     /// (its DRAW_MAIN hook).
     void draw_bed_plate(lv_event_t* e) const;
@@ -316,44 +338,51 @@ class MotionPanel : public OverlayBase {
     // RAII subject manager - auto-deinits all registered subjects on destruction
     SubjectManager subjects_;
 
-    lv_subject_t pos_x_subject_{};
-    lv_subject_t pos_y_subject_{};
-    lv_subject_t pos_z_subject_{};           // Commanded Z position
-    lv_subject_t z_axis_label_subject_{};    // "Bed" or "Print Head"
-    lv_subject_t z_up_icon_subject_{};       // "arrow_expand_up" or "arrow_up"
-    lv_subject_t z_down_icon_subject_{};     // "arrow_expand_down" or "arrow_down"
-    lv_subject_t jog_outer_label_subject_{}; // jog mode's outer distance, "10mm"
-    lv_subject_t jog_inner_label_subject_{}; // jog mode's inner distance, "1mm"
+    helix::Subject pos_x_subject_{};
+    helix::Subject pos_y_subject_{};
+    helix::Subject pos_z_subject_{};           // Commanded Z position
+    helix::Subject z_axis_label_subject_{};    // "Bed" or "Print Head"
+    helix::Subject z_up_icon_subject_{};       // "arrow_expand_up" or "arrow_up"
+    helix::Subject z_down_icon_subject_{};     // "arrow_expand_down" or "arrow_down"
+    helix::Subject jog_outer_label_subject_{}; // jog mode's outer distance, "10mm"
+    helix::Subject jog_inner_label_subject_{}; // jog mode's inner distance, "1mm"
     // Z keys' labels, [up, down][inner, outer]: the distance plus a Z+/Z-
     // tag from the same inversion the jog applies, "10mm · Z+".
-    lv_subject_t z_key_label_subject_[2][2]{};
+    helix::Subject z_key_label_subject_[2][2]{};
     // The arrow layouts' Z keys move the selected step, so they carry the tag
     // alone, [up, down]: "Z+".
-    lv_subject_t z_tag_subject_[2]{};
-    lv_subject_t jog_mode_fine_active_{};   // 1 when Fine mode active
-    lv_subject_t jog_mode_coarse_active_{}; // 1 when Coarse mode active
-    lv_subject_t jog_mode_turbo_active_{};  // 1 when Turbo mode active
+    helix::Subject z_tag_subject_[2]{};
+    helix::Subject jog_mode_fine_active_{};   // 1 when Fine mode active
+    helix::Subject jog_mode_coarse_active_{}; // 1 when Coarse mode active
+    helix::Subject jog_mode_turbo_active_{};  // 1 when Turbo mode active
     // Per-axis homing state (0=unhomed, 1=homed) for declarative bind_style:
     // the coordinate readouts mute an axis whose position is not trustworthy.
-    lv_subject_t motion_x_homed_{};
-    lv_subject_t motion_y_homed_{};
-    lv_subject_t motion_z_homed_{};
+    helix::Subject motion_x_homed_{};
+    helix::Subject motion_y_homed_{};
+    helix::Subject motion_z_homed_{};
+    helix::Subject motion_all_homed_{};    ///< the home bar's All segment
+    helix::Subject motion_xy_homed_{};     ///< the home bar's XY segment
+    helix::Subject motion_home_bar_all_{}; ///< 1: the home bar shows All
+    helix::Subject motion_home_bar_xy_{};  ///< 1: the home bar shows XY
+    int32_t home_bar_content_w_ = 0;       ///< the home bar's last measured content width
+    /// Publish motion_home_bar_segments() for the last measured width.
+    void apply_home_bar_segments();
     // Z button limit state (1=render disabled): a further move in that
     // button's G-code direction is impossible. up/down are screen directions,
     // the bed_moves inversion inside update_z_button_blocked() maps them.
-    lv_subject_t motion_z_up_blocked_{};
-    lv_subject_t motion_z_down_blocked_{};
+    helix::Subject motion_z_up_blocked_{};
+    helix::Subject motion_z_down_blocked_{};
     // Content tab selection (0=Jog, 1=Move, 2=Bed). zone_tab instances bind
     // one active subject each and their labels are subject-bound, matching the
     // AMS environment strip that shares the component.
-    lv_subject_t motion_tab_subject_{};
-    lv_subject_t motion_tab_active_[3]{};
-    lv_subject_t motion_tab_label_[3]{};
+    helix::Subject motion_tab_subject_{};
+    helix::Subject motion_tab_active_[3]{};
+    helix::Subject motion_tab_label_[3]{};
     char motion_tab_label_buf_[3][32];
     // Bed tab: readout text under the plate, and 1 when the plate is round.
-    lv_subject_t motion_bed_readout_{};
+    helix::Subject motion_bed_readout_{};
     char motion_bed_readout_buf_[128];
-    lv_subject_t motion_bed_circular_{};
+    helix::Subject motion_bed_circular_{};
     /// Fill the tab label buffers (and subjects, once they exist) in the
     /// current language.
     void refresh_tab_labels();
@@ -372,9 +401,9 @@ class MotionPanel : public OverlayBase {
     void refresh_z_key_labels();
     // Arrow layouts' step selector: how many steps show, each one's label and
     // whether it is the selected one.
-    lv_subject_t step_count_subject_{};
-    lv_subject_t step_label_subject_[helix::kJogStepMax]{};
-    lv_subject_t step_active_subject_[helix::kJogStepMax]{};
+    helix::Subject step_count_subject_{};
+    helix::Subject step_label_subject_[helix::kJogStepMax]{};
+    helix::Subject step_active_subject_[helix::kJogStepMax]{};
     char step_label_buf_[helix::kJogStepMax][16];
     std::vector<float> steps_;
     size_t step_index_ = 0;
@@ -471,6 +500,7 @@ class MotionPanel : public OverlayBase {
     ObserverGuard coordinate_mode_observer_;
     ObserverGuard language_observer_;
     ObserverGuard bed_moves_observer_;
+    ObserverGuard individual_homing_observer_;
     ObserverGuard homed_axes_observer_;
     ObserverGuard jog_ready_observer_;
     ObserverGuard layout_observer_;

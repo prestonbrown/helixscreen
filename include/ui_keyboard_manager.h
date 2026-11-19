@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "lvgl.h"
 
 #include <string>

@@ -122,17 +122,8 @@ class PluginInstallModal : public Modal {
     bool is_local_mode_ = false;
 
     // Widget references (populated in on_show)
-    lv_obj_t* local_description_ = nullptr;
-    lv_obj_t* remote_description_ = nullptr;
     lv_obj_t* command_textarea_ = nullptr;
-    lv_obj_t* local_button_row_ = nullptr;
-    lv_obj_t* remote_button_row_ = nullptr;
-    lv_obj_t* result_button_row_ = nullptr;
-    lv_obj_t* installing_container_ = nullptr;
-    lv_obj_t* result_container_ = nullptr;
-    lv_obj_t* checkbox_container_ = nullptr;
     lv_obj_t* dont_ask_checkbox_ = nullptr;
-    lv_obj_t* copy_feedback_ = nullptr;
 
     // Internal handlers
     void on_install_clicked();

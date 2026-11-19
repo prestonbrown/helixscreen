@@ -4,7 +4,6 @@
 #pragma once
 
 #include "ui_filament_mapping_modal.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_plugin_install_modal.h"
 #include "ui_print_select_card_view.h"
@@ -15,14 +14,16 @@
 #include "ui_print_select_path_navigator.h"
 #include "ui_print_select_usb_source.h"
 #include "ui_print_start_controller.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "ams_backend.h"
 #include "app_constants.h"
 #include "async_lifetime_guard.h"
 #include "connection_state.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "gcode_ops_detector.h"
 #include "helix_plugin_installer.h"
 #include "helix_shared_callback.h"
@@ -301,6 +302,11 @@ class PrintSelectPanel : public PanelBase {
 
     const char* get_name() const override {
         return "Print Select Panel";
+    }
+
+    /// The file card grid reflows into more columns.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
     }
     const char* get_xml_component_name() const override {
         return "print_select_panel";
@@ -755,13 +761,12 @@ class PrintSelectPanel : public PanelBase {
 
     helix::ui::WidgetRef card_view_container_;
     /// Card container content size the current cards were sized for.
-    lv_coord_t sized_for_w_ = -1;
-    lv_coord_t sized_for_h_ = -1;
+    int32_t sized_for_w_ = -1;
+    int32_t sized_for_h_ = -1;
     /// A deferred re-populate for a card container resize is queued.
     bool card_resize_pending_ = false;
     lv_obj_t* list_view_container_ = nullptr;
     helix::ui::WidgetRef list_rows_container_;
-    lv_obj_t* empty_state_container_ = nullptr;
     lv_obj_t* view_toggle_btn_ = nullptr;
     lv_obj_t* view_toggle_icon_ = nullptr;
     lv_obj_t* print_status_panel_widget_ = nullptr;
@@ -772,70 +777,76 @@ class PrintSelectPanel : public PanelBase {
 
     SubjectManager subjects_; ///< RAII manager for automatic subject cleanup
 
-    lv_subject_t selected_filename_subject_{}; ///< Raw filename (for API/lookups)
+    helix::Subject selected_filename_subject_{}; ///< Raw filename (for API/lookups)
     char selected_filename_buffer_[128];
 
-    lv_subject_t selected_display_filename_subject_{}; ///< Display name (no .gcode extension)
+    helix::Subject selected_display_filename_subject_{}; ///< Display name (no .gcode extension)
     char selected_display_filename_buffer_[128];
 
-    lv_subject_t selected_thumbnail_subject_{};
+    helix::Subject selected_thumbnail_subject_{};
     char selected_thumbnail_buffer_[256];
 
-    lv_subject_t selected_detail_thumbnail_subject_{}; ///< Full-res PNG for detail view
+    helix::Subject selected_detail_thumbnail_subject_{}; ///< Full-res PNG for detail view
     char selected_detail_thumbnail_buffer_[256];
     /// 1 when the detail view has an image to show, 0 for the placeholder glyph.
-    lv_subject_t selected_has_thumbnail_subject_{};
+    helix::Subject selected_has_thumbnail_subject_{};
 
-    lv_subject_t selected_print_time_subject_{};
+    helix::Subject selected_print_time_subject_{};
     char selected_print_time_buffer_[32];
 
-    lv_subject_t selected_filament_weight_subject_{};
+    helix::Subject selected_filament_weight_subject_{};
     char selected_filament_weight_buffer_[32];
 
-    lv_subject_t selected_layer_count_subject_{};
+    helix::Subject selected_layer_count_subject_{};
     char selected_layer_count_buffer_[32];
 
-    lv_subject_t selected_print_height_subject_{};
+    helix::Subject selected_print_height_subject_{};
     char selected_print_height_buffer_[32];
 
-    lv_subject_t selected_layer_height_subject_{};
+    helix::Subject selected_layer_height_subject_{};
     char selected_layer_height_buffer_[32];
 
-    lv_subject_t selected_filament_type_subject_{};
+    helix::Subject selected_filament_type_subject_{};
     char selected_filament_type_buffer_[64]; // Longer for full names like "PolyMaker PolyLite ABS"
 
     /// Sliced plates of the selected .3mf (the plate stepper shows from 2), the
     /// shown plate's name or number, and where it sits among them ("1/2", empty
     /// with one plate).
-    lv_subject_t selected_plate_count_subject_{};
-    lv_subject_t selected_plate_text_subject_{};
+    helix::Subject selected_plate_count_subject_{};
+    helix::Subject selected_plate_text_subject_{};
     char selected_plate_text_buffer_[64];
-    lv_subject_t selected_plate_position_subject_{};
+    helix::Subject selected_plate_position_subject_{};
     char selected_plate_position_buffer_[16];
 
-    lv_subject_t detail_view_visible_subject_{};
+    helix::Subject detail_view_visible_subject_{};
 
     /// View mode subject: 0 = CARD, 1 = LIST (XML bindings control visibility)
-    lv_subject_t view_mode_subject_{};
+    helix::Subject view_mode_subject_{};
+
+    /// 1 = the current directory lists no files: the empty state replaces both views
+    helix::Subject files_empty_subject_{};
+
+    /// 1 = the "Recently Printed" banner is up (entered through Library > Recent)
+    helix::Subject context_banner_shown_subject_{};
 
     /// Can start print subject: 1 = can print, 0 = print in progress (disables button via XML
     /// binding)
-    lv_subject_t can_print_subject_{};
+    helix::Subject can_print_subject_{};
 
     /// Button mode subject: 0 = Print, 1 = Queue (label + card visibility)
-    lv_subject_t button_mode_subject_{};
+    helix::Subject button_mode_subject_{};
 
     /// Button label text ("Print" / "Add to Queue")
-    lv_subject_t button_label_subject_{};
+    helix::Subject button_label_subject_{};
     char button_label_buffer_[32];
 
     /// Button icon name ("print" / "progress_clock"), bound to the button's
     /// icon slot the same way the label subject binds to its text
-    lv_subject_t button_icon_subject_{};
+    helix::Subject button_icon_subject_{};
     char button_icon_buffer_[32];
 
     /// Why the print button is disabled, shown beside it. Empty when it is not.
-    lv_subject_t blocked_reason_subject_{};
+    helix::Subject blocked_reason_subject_{};
     char blocked_reason_buffer_[96];
 
     //
@@ -1051,10 +1062,12 @@ class PrintSelectPanel : public PanelBase {
     /// The boot-time prompt: opens once a session when discovery finds the
     /// plugin absent, following helix::decide_plugin_turn(). A wait for the
     /// job is resumed by the lifecycle observer, a wait for the screen by
-    /// plugin_prompt_timer_.
+    /// plugin_prompt_timer_ while the display is awake and by the wake itself.
     void maybe_prompt_plugin_install();
     helix::PluginTurnStep plugin_prompt_wait_ = helix::PluginTurnStep::Stop;
     helix::ui::LvglTimerGuard plugin_prompt_timer_;
+    /// Guards the display-sleep callback that pauses and resumes the wait for the screen.
+    helix::AsyncLifetimeGuard plugin_prompt_lifetime_;
     /// How often a prompt waiting for the screen looks again.
     static constexpr uint32_t kPluginPromptRecheckMs = 1000;
 
@@ -1129,7 +1142,7 @@ class PrintSelectPanel : public PanelBase {
     void hide_context_banner();
 
     /**
-     * @brief Update empty state visibility based on file_list_ size
+     * @brief Publish whether file_list_ is empty; XML bindings swap the empty state in
      */
     void update_empty_state();
 

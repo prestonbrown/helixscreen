@@ -18,7 +18,10 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -178,11 +181,72 @@ TEST_CASE_METHOD(PidHeadsFixture, "MPC migration names the fan that cools the pi
         Access::head_clicked(panel, 0); // parked: no part fan reaches it
         CHECK(cooling_fan().empty());
     }
+    SECTION("tool changer naming its fan_generic by bare name: the fan object") {
+        // klipper-toolchanger takes `fan: T1_partfan` for [fan_generic T1_partfan]
+        // and reports the name as written; Kalico's cooling_fan needs the object.
+        api.hardware().parse_objects(
+            nlohmann::json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1",
+                                   "heater_bed", "fan_generic T1_partfan"}));
+        toolchanger(1);
+        helix::ToolState::instance().update_from_status({{"tool T1", {{"fan", "T1_partfan"}}}});
+        Access::activate(panel);
+        CHECK(cooling_fan() == "fan_generic T1_partfan");
+    }
     SECTION("the bed has no cooling fan") {
         load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
         Access::activate(panel);
         Access::bed_clicked(panel);
         CHECK(cooling_fan().empty());
+    }
+}
+
+TEST_CASE_METHOD(PidHeadsFixture, "An MPC heater with no cooling_fan is offered the part fan",
+                 "[pid][pid_heads][mpc_migration]") {
+    struct KalicoScope {
+        KalicoScope() {
+            setenv("HELIX_MOCK_KALICO", "1", 1);
+        }
+        ~KalicoScope() {
+            get_printer_state().set_hardware(helix::PrinterDiscovery{});
+            unsetenv("HELIX_MOCK_KALICO");
+        }
+    } kalico_scope;
+    helix::PrinterDiscovery kalico;
+    kalico.set_is_kalico(true);
+    get_printer_state().set_hardware(kalico);
+    load_tools(nlohmann::json::array({"extruder", "heater_bed"}));
+    api.hardware().parse_objects(nlohmann::json::array({"extruder", "heater_bed", "fan"}));
+
+    auto activate_and_detect = [&]() {
+        Access::activate(panel);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    SECTION("taking the offer stops at the confirmation, before any calibration") {
+        activate_and_detect();
+        REQUIRE(subject_int("cal_offer_cooling_fan") == 1);
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "cal_add_cooling_fan"), 1);
+        start();
+        CHECK_FALSE(sent("MPC_CALIBRATE"));
+    }
+    SECTION("declining calibrates with no config change") {
+        activate_and_detect();
+        REQUIRE(subject_int("cal_offer_cooling_fan") == 1);
+        start();
+        CHECK(sent("MPC_CALIBRATE HEATER=extruder "));
+    }
+    SECTION("a heater that names a fan gets no offer") {
+        client.set_extruder_cooling_fan("fan_generic mine");
+        activate_and_detect();
+        CHECK(subject_int("cal_offer_cooling_fan") == 0);
+    }
+    SECTION("leaving the offer behind drops the choice") {
+        activate_and_detect();
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "cal_add_cooling_fan"), 1);
+        Access::bed_clicked(panel);
+        CHECK(subject_int("cal_offer_cooling_fan") == 0);
+        CHECK(subject_int("cal_add_cooling_fan") == 0);
     }
 }
 

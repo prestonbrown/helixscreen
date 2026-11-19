@@ -74,7 +74,7 @@ the trunk has moved on to 1.2:
 | Branch | Versions | Channel |
 |--------|----------|---------|
 | `release/1.0` | `1.0.0`, `1.0.1`, `1.0.2` ... | stable |
-| `release/1.1` | `1.1.0-beta.15` ..., then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
+| `release/1.1` | `1.1.0-beta.N`, `1.1.0-rc.N`, then `1.1.0`, `1.1.1` ... | beta + dev, then stable |
 | `main` | `1.2.0-beta.1` ... (untagged until `1.1.0` ships) | dev, then beta + dev |
 
 The trunk names the release it is heading for, so a beta install says which minor
@@ -111,6 +111,15 @@ gh workflow run release.yml --ref <branch> -f platforms=x86   # platforms empty 
 
 A dry run creates no GitHub release and sends nothing to Play, Discord or the website. Its R2 uploads go under `dry-run/<run_id>/` with version `0.0.0-dryrun.<run_id>`, and the would-be release assets go to the `dry-run-release-assets` workflow artifact. The `dry-run-verify` job then runs `scripts/verify-dry-run-release.sh` against both and deletes the prefix. `tests/shell/test_release_dry_run.bats` fails any publishing step that is not gated on `RELEASE_MODE == 'publish'` and does not write through `R2_PREFIX`.
 
+### Signed channel manifests
+
+Every channel's `manifest.json` is published with a prehashed minisign signature beside it, `<channel>/manifest.json.minisig` in R2 (#1834). The easy installer and HelixScreen's own update checker check it against the release key compiled into them before they trust any hash in the manifest, and refuse a missing or failing signature. The `upload-r2` job's "Generate and sign channel manifests" step runs `scripts/sign-release-manifest.sh` before anything uploads; the upload puts each signature up before its manifest and checks that R2 serves it unchanged.
+
+- **A release** waits for a reviewer to approve the `release-signing` environment, which holds the `HELIX_RELEASE_MINISIGN_KEY` secret (the text of the minisign `.key` file; its password in `HELIX_RELEASE_MINISIGN_PASSWORD`). It verifies the result against `.github/release-minisign.pub`, the same public key the clients compile in. A missing secret, a placeholder `.pub` or a secret that is not that key's pair fails the release before any manifest goes live.
+- **A dry run** uses no environment and never reads the secret. It signs with a key generated in the job, so the whole signing path runs on any ref, and nothing a dry run leaves in R2 verifies against the release key. `dry-run-verify` checks that each channel's signature reached R2.
+
+Setup (the environment, the exact `gh secret set` commands), what each client checks, the ESP32 and `install.sh` status and the rollout order: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
+
 ### Pipeline Stages
 
 ```text
@@ -124,13 +133,14 @@ A dry run creates no GitHub release and sends nothing to Play, Discord or the we
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼
-  validate-shell gate → build-platforms matrix (9):
-    pi · pi32 · ad5m · cc1 · k1 · ad5x · k2 · x86 · snapmaker-u1
-  plus build-android → publish-android
-    `release` needs build-android too, not just build-platforms — otherwise it
+  validate-shell gate → plan → build-platforms matrix (9):
+    pi · pi32 · ad5m · cc1 · mips (K1 series + AD5X) · k2 · x86 · x86-desktop · snapmaker-u1
+  plus build-android → publish-android, and build-esp32 (K-Touch firmware, via
+    esp32-build.yml; skipped for v1.0.* tags and release/1.0)
+    `release` needs build-android too, not just build-platforms, otherwise it
     could publish before Android finished and ship with no APKs, silently.
     build-android FAILS the whole release if ANDROID_KEYSTORE_BASE64 is unset;
-    it no longer falls back to the debug keystore. See ANDROID_PLAY_STORE.md.
+    there is no debug-keystore fallback. See ANDROID_PLAY_STORE.md.
 
   Each platform job: Docker cross-toolchain → target arch → package .zip
                                │
@@ -154,14 +164,16 @@ A dry run creates no GitHub release and sends nothing to Play, Discord or the we
 | Raspberry Pi (32-bit) | `helixscreen-pi32.zip` | armhf binary, assets, configs |
 | AD5M | `helixscreen-ad5m.zip` | armv7l binary (static), assets, configs |
 | CC1 | `helixscreen-cc1.zip` | ARM binary, assets, configs |
-| K1 | `helixscreen-k1.zip` | MIPS32 binary (static, musl), assets, configs |
-| AD5X | `helixscreen-ad5x.zip` | MIPS binary (ZMOD), assets, configs |
+| K1 series | `helixscreen-k1.zip` | MIPS32 binary (static, musl), assets, configs |
+| AD5X | `helixscreen-ad5x.zip` | The same unified MIPS build, published under the AD5X name |
 | K2 | `helixscreen-k2.zip` | ARM binary (static, musl), assets, configs |
 | x86 | `helixscreen-x86.zip` | x86 binary, assets, configs |
+| x86 desktop | `helixscreen-x86-desktop.zip` | x86_64 Linux desktop build |
 | Snapmaker U1 | `helixscreen-snapmaker-u1.zip` | ARM binary, assets, configs |
-| Android | Play Store bundle | via `build-android` / `publish-android` |
+| ESP32 K-Touch | `helixscreen-esp32-ktouch-<version>.zip` | Firmware image and `README.txt` |
+| Android | APK and AAB; Play Store upload via `publish-android` | |
 
-> **Bridge release note:** Starting with v1.0.0 (the version you're currently preparing), the primary release asset is `helixscreen-{platform}.zip` (unversioned filename). The legacy `helixscreen-{platform}-v{version}.tar.gz` is still published during this bridge release for backwards compatibility with older installed versions; it will be removed in the following release.
+The `helixscreen-{platform}-v{version}.tar.gz` form is still published beside the zips for installed versions that fetch it.
 
 ---
 
@@ -177,7 +189,7 @@ A dry run creates no GitHub release and sends nothing to Play, Discord or the we
    ```
 
 2. **Bump `VERSION.txt` and add the CHANGELOG entry, in one `chore(release):` commit.**
-   `VERSION.txt` is the source of truth for the built binary (`Makefile:195`,
+   `VERSION.txt` is the source of truth for the built binary (`Makefile#HELIX_VERSION`,
    `mk/cross.mk`) - the version does **not** come from the git tag. Tagging
    without bumping the file ships a binary that reports the previous version.
    - `echo "X.Y.Z" > VERSION.txt`
@@ -230,12 +242,12 @@ The workflow auto-generates basic release notes if no annotation is provided.
 
 1. Go to **Actions** tab on GitHub
 2. Watch the "Release" workflow
-3. Build takes ~15-20 minutes typically
+3. Build time varies: most platforms finish in 35-50 minutes, and a cold Pi cross-compile is the long pole (up to a couple of hours)
 
 ### Step 4: Verify the Release
 
 1. Go to **Releases** on GitHub
-2. Check both platform archives are attached
+2. Check every platform zip, the APK/AAB files and `install.sh` are attached
 3. Verify checksums in release notes
 4. Test installation:
    ```bash
@@ -258,36 +270,24 @@ The workflow auto-generates basic release notes if no annotation is provided.
 ### After Release
 
 - [ ] Release workflow completed successfully
-- [ ] Both platform artifacts attached
+- [ ] Every platform artifact attached
 - [ ] Release notes accurate
 - [ ] Installation tested via curl|sh
 - [ ] Update any external references (Discord, documentation sites)
+- [ ] After every release: Review all user docs for accuracy
 
 ---
 
 ## Hotfix Releases
 
-For urgent bug fixes:
+A fix for an already-released line lands on that line's branch (`release/1.0`, `release/1.1`) and is cherry-picked to or from `main`, never merged between lines; see [BRANCHING.md](BRANCHING.md) for which way it flows. Then, on the release branch:
 
-1. **Create hotfix branch** from the release tag:
+1. Verify the fix and check for regressions (`make land-gate`).
+2. Bump `VERSION.txt` and add the CHANGELOG entry in one `chore(release):` commit (Step 1).
+3. Tag and push:
    ```bash
-   git checkout -b hotfix/v1.2.1 v1.2.0
-   ```
-
-2. **Apply minimal fix** - only the necessary changes
-
-3. **Test thoroughly** - verify the fix, check for regressions
-
-4. **Merge to main** (via PR if time permits):
-   ```bash
-   git checkout main
-   git merge hotfix/v1.2.1
-   ```
-
-5. **Tag and release:**
-   ```bash
-   git tag -a v1.2.1 -m "Fix: [description of fix]"
-   git push origin v1.2.1
+   git tag -a v1.0.3 -m "Fix: [description of fix]"
+   git push origin release/1.0 v1.0.3
    ```
 
 ---
@@ -368,7 +368,7 @@ make PLATFORM_TARGET=ad5m clean release-ad5m
 1. Go to GitHub **Releases** → **Draft a new release**
 2. Choose the tag
 3. Write release notes
-4. Upload the `.zip` files from `releases/` (plus the legacy `.tar.gz` files if the bridge release still ships them)
+4. Upload the `.zip` files from `releases/` (plus the `.tar.gz` files)
 5. Publish
 
 ---

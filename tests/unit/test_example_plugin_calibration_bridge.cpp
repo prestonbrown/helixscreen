@@ -63,7 +63,7 @@ void fire_agent_event(HostRig& rig, const char* event, const json& data) {
 }
 
 void set_print_state(const char* v) {
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "print_state"), v);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "print_state"), v);
     drain();
 }
 
@@ -701,13 +701,13 @@ TEST_CASE_METHOD(XMLTestFixture, "the state machine speaks German", "[plugin][ex
 
     helix::ui::ensure_translation_loaded("de");
     lv_translation_set_language("de");
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     CHECK(cb_str("calibration-bridge__state_title") == "Keine Kalibrierung aktiv");
     fire_agent_event(rig, "helixcal.available", json{{"wizard", "temp_tower"}});
     CHECK(cb_str("calibration-bridge__status_line") == "fehlerhaftes Ereignis");
 
     lv_translation_set_language("en");
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
 }
 
 // The result dialog over the overlay, for eyes rather than assertions. Hidden;

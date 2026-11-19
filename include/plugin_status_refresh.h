@@ -8,9 +8,8 @@
 // job starts and whenever the plugin announces a change
 // (notify_helix_features_changed).
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "history_job_events.h"
 
 namespace helix {

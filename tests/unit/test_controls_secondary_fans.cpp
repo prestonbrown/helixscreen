@@ -25,7 +25,7 @@
  *    only observe because it holds a live copy.
  *  - The real teardown/rebuild path (populate_secondary_fans) runs without crashing
  *    even though it resets ObserverGuards whose subjects were already freed —
- *    ObserverGuard::reset() must skip lv_observer_remove() on the dead subjects.
+ *    ObserverGuard::reset() must skip lv_observer_delete() on the dead subjects.
  */
 
 #include "ui_panel_controls.h"
@@ -87,7 +87,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     // Step 7: the real production teardown+rebuild path must not crash. It resets
     // ObserverGuards whose subjects were already freed in step 5; ObserverGuard::
-    // reset() must skip lv_observer_remove() because the token is dead. After the
+    // reset() must skip lv_observer_delete() because the token is dead. After the
     // rebuild the only remaining fan is PART_COOLING, so there are no secondary
     // rows/observers/lifetimes — the vectors come back empty and aligned.
     lv_obj_t* list = lv_obj_create(lv_screen_active());

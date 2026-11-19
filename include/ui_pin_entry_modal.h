@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include "ui_pin_utils.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
@@ -93,7 +94,7 @@ class PinEntryModal {
     void destroy_async();
     void update_dots();
     void clear_digits();
-    void show_error(const char* text = nullptr);
+    void show_error(const char* text);
     void hide_error();
     void cover_chrome();
     void uncover_chrome();
@@ -107,6 +108,7 @@ class PinEntryModal {
     helix::ui::WidgetRef backdrop_;
     bool covering_chrome_ = false;
     helix::ui::WidgetRef dialog_;
+    PinDisplay pin_display_{"pin_pad"};
 
     static constexpr int kMinDigits = 4;
     static constexpr int kMaxDigits = 6;

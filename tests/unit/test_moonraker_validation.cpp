@@ -3,6 +3,7 @@
 
 #include "../../src/api/moonraker_api_internal.h"
 #include "filament_database.h"
+#include "i_moonraker_api.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -664,4 +665,21 @@ TEST_CASE("is_safe_position() validates position ranges", "[moonraker_validation
         REQUIRE(is_safe_position(-10.0, limits) == false);
         REQUIRE(is_safe_position(350.0, limits) == false);
     }
+}
+
+TEST_CASE("is_safe_text_param() takes vendor and product names, never a parser character",
+          "[moonraker_validation][material]") {
+    for (const char* ok : {"Polymaker", "Bambu Lab", "Overture's", "Matte PLA, Black", "R&D",
+                           "PLA+ 2.0 (Gold)", "a=b"}) {
+        INFO(ok);
+        CHECK(helix::IMoonrakerAPI::is_safe_text_param(ok));
+    }
+    for (const char* bad : {"", "say \"hi\"", "back\\slash", "Red #1", "PLA;M112", "x*y",
+                            "line\nbreak", "tab\there", "PolyTerra\xe2\x84\xa2"}) {
+        INFO(bad);
+        CHECK_FALSE(helix::IMoonrakerAPI::is_safe_text_param(bad));
+    }
+    // An apostrophe unquoted opens a quote for Klipper's shlex: every value is quoted.
+    CHECK(helix::IMoonrakerAPI::quoted_gcode_param_value("Overture's") == "\"Overture's\"");
+    CHECK(helix::IMoonrakerAPI::quoted_gcode_param_value("Polymaker") == "\"Polymaker\"");
 }

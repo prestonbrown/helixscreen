@@ -7,7 +7,7 @@
 #include <string_view>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: status held by value
 
 namespace helix {
 

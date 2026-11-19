@@ -12,6 +12,7 @@
 #include "config.h"
 #include "drm_rotation_strategy.h"
 #include "env_knobs.h"
+#include "framebuffer_fill.h"
 #include "gpu_libs.h"
 #include "helix_display_telemetry.h"
 #include "input_device_scanner.h"
@@ -564,7 +565,23 @@ void DisplayBackendDRM::request_full_upload() {
 
 lv_indev_t* DisplayBackendDRM::create_input_pointer() {
     open_pointer_devices();
+    return hook_pointer_devices();
+}
 
+lv_indev_t* DisplayBackendDRM::reopen_input_pointer() {
+    if (pointer_ == nullptr) {
+        // The calibration wrapper went with the deleted device.
+        calibration_wrapper_installed_ = false;
+        open_touch_device(true);
+        if (pointer_ == nullptr) {
+            return nullptr;
+        }
+        spdlog::info("[DRM Backend] Touch device reopened on {}", pointer_path_);
+    }
+    return hook_pointer_devices();
+}
+
+lv_indev_t* DisplayBackendDRM::hook_pointer_devices() {
     // The calibration wrapper places its affine on a panel-space sample, so it
     // has to sit beneath the pointer frame hook. Device opening installs it for a
     // discovered touch panel; every other path installs it here, a passthrough
@@ -601,14 +618,29 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
 }
 
 void DisplayBackendDRM::open_pointer_devices() {
+    if (!open_touch_device(false)) {
+        open_mouse_device();
+    }
+    if (!pointer_ && !mouse_) {
+        spdlog::error("[DRM Backend] Failed to create any input device");
+    }
+}
+
+bool DisplayBackendDRM::open_touch_device(bool reopening) {
+    // Reset per device: a reopen may land on another driver than the device it replaces.
+    pointer_is_evdev_ = false;
+    calibration_context_.raw_source = nullptr;
+    // A reopen retries every second while the device is away; only its success is news.
+    const auto announce = reopening ? spdlog::level::debug : spdlog::level::info;
+
     std::string device_override;
 
     // Priority 1: Environment variable override (for debugging/testing)
     const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
     if (env_device && env_device[0] != '\0') {
         device_override = env_device;
-        spdlog::info("[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}",
-                     device_override);
+        spdlog::log(announce, "[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}",
+                    device_override);
     }
 
     // Priority 2: Config file override
@@ -616,8 +648,15 @@ void DisplayBackendDRM::open_pointer_devices() {
         helix::Config* cfg = helix::Config::get_instance();
         device_override = cfg->get<std::string>("/input/touch_device", "");
         if (!device_override.empty()) {
-            spdlog::info("[DRM Backend] Using touch device from config: {}", device_override);
+            spdlog::log(announce, "[DRM Backend] Using touch device from config: {}",
+                        device_override);
         }
+    }
+
+    // While a re-enumerating device is away its node is missing; trying to open
+    // it would log a driver error every retry.
+    if (reopening && !device_override.empty() && access(device_override.c_str(), F_OK) != 0) {
+        return true;
     }
 
     // If we have an explicit device, try it first
@@ -629,7 +668,7 @@ void DisplayBackendDRM::open_pointer_devices() {
         if (pointer_ != nullptr) {
             pointer_path_ = device_override;
             spdlog::info("[DRM Backend] Libinput pointer device created on {}", device_override);
-            return;
+            return true;
         }
 #endif
         // Try evdev as fallback for the specified device
@@ -639,13 +678,14 @@ void DisplayBackendDRM::open_pointer_devices() {
             pointer_path_ = device_override;
             spdlog::info("[DRM Backend] Evdev pointer device created on {}", device_override);
             configure_touch_gestures(pointer_);
-            return;
+            return true;
         }
-        spdlog::warn("[DRM Backend] Could not open specified touch device: {}", device_override);
+        spdlog::log(reopening ? spdlog::level::debug : spdlog::level::warn,
+                    "[DRM Backend] Could not open specified touch device: {}", device_override);
     }
 
     // Priority 3: Auto-discover touch device
-    spdlog::info("[DRM Backend] Auto-detecting touch/pointer device...");
+    spdlog::log(announce, "[DRM Backend] Auto-detecting touch/pointer device...");
 
     // libinput finds the touch device when the library is installed; the sysfs
     // scanner finds it otherwise. touch_path points into whichever owns it.
@@ -1041,6 +1081,12 @@ void DisplayBackendDRM::open_pointer_devices() {
         }
     }
 
+    // A reopen waits for a real touch panel: the fallbacks below would settle
+    // on whatever pointer or event node exists and stop the retry.
+    if (reopening) {
+        return false;
+    }
+
     // If no touch was found, try pointer devices
 #if LV_USE_LIBINPUT
     if (!pointer_ && use_libinput()) {
@@ -1077,7 +1123,10 @@ void DisplayBackendDRM::open_pointer_devices() {
             }
         }
     }
+    return false;
+}
 
+void DisplayBackendDRM::open_mouse_device() {
     // --- Mouse detection (independent of touch) ---
     // A USB HID mouse can coexist with the touchscreen as a separate input device.
     std::string mouse_override;
@@ -1125,13 +1174,9 @@ void DisplayBackendDRM::open_pointer_devices() {
         lv_obj_set_style_bg_opa(cursor_obj, LV_OPA_80, 0);
         lv_obj_set_style_border_width(cursor_obj, 1, 0);
         lv_obj_set_style_border_color(cursor_obj, lv_color_black(), 0);
-        lv_obj_clear_flag(cursor_obj, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(cursor_obj, false);
         lv_indev_set_cursor(mouse_, cursor_obj);
         spdlog::info("[DRM Backend] Mouse cursor enabled");
-    }
-
-    if (!pointer_ && !mouse_) {
-        spdlog::error("[DRM Backend] Failed to create any input device");
     }
 }
 
@@ -1326,33 +1371,8 @@ bool DisplayBackendDRM::clear_framebuffer(uint32_t color) {
         return false;
     }
 
-    // Determine bytes per pixel from stride
-    uint32_t bpp = 32;
-    if (vinfo.xres > 0) {
-        bpp = (finfo.line_length * 8) / vinfo.xres;
-    }
-
-    // Fill framebuffer with the specified color
-    if (bpp == 32) {
-        uint32_t* pixels = static_cast<uint32_t*>(fbp);
-        size_t pixel_count = screensize / 4;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = color;
-        }
-    } else if (bpp == 16) {
-        uint16_t r = ((color >> 16) & 0xFF) >> 3;
-        uint16_t g = ((color >> 8) & 0xFF) >> 2;
-        uint16_t b = (color & 0xFF) >> 3;
-        uint16_t rgb565 = (r << 11) | (g << 5) | b;
-
-        uint16_t* pixels = static_cast<uint16_t*>(fbp);
-        size_t pixel_count = screensize / 2;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = rgb565;
-        }
-    } else {
-        memset(fbp, 0, screensize);
-    }
+    helix::fill_framebuffer(fbp, screensize,
+                            helix::framebuffer_fill_bpp(vinfo.xres, finfo.line_length), color);
 
     spdlog::info("[DRM Backend] Cleared framebuffer via /dev/fb0 to 0x{:08X}", color);
 

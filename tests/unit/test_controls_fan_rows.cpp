@@ -192,7 +192,7 @@ TEST_CASE_METHOD(ControlsFanRowsFixture, "Controls fan rows rebuild when fans ar
     CHECK(rows().size() == 2);
 
     // A tap anywhere on the list opens the fan overlay.
-    CHECK(lv_obj_has_flag(list(), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(list()));
 }
 
 TEST_CASE_METHOD(ControlsFanRowsFixture,

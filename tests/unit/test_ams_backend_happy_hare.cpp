@@ -42,6 +42,7 @@
 #include <algorithm>
 #include <any>
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <utility>
@@ -370,6 +371,13 @@ class AmsBackendHappyHareTestHelper : public AmsBackendHappyHare {
         system_info_.spoolman_mode = mode;
     }
 
+    /// Feed a printer.mmu status object in a frame stamped with Klipper's @p eventtime.
+    void feed_mmu_status_at(const nlohmann::json& mmu, double eventtime) {
+        nlohmann::json notification;
+        notification["params"] = nlohmann::json::array({{{"mmu", mmu}}, eventtime});
+        handle_status_update(notification);
+    }
+
     void set_selector_type(const std::string& type) {
         HappyHareTestAccess::selector_type(*this) = type;
     }
@@ -679,12 +687,50 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare clear: the wipe names every gate-map fiel
     // echo out of the printer console.
     REQUIRE(
         helper.has_gcode("MMU_GATE_MAP GATE=0 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 QUIET=1"));
-    // RESET ignores GATE on v2/v3 and wipes every gate; an omitted TEMP
-    // returns the gate to default_extruder_temp; AVAILABLE=0 marks the gate
-    // EMPTY, not unknown.
+    // RESET ignores GATE on v2/v3 and wipes every gate; AVAILABLE=0 marks the
+    // gate EMPTY, not unknown. With no configfile read yet there is no default
+    // temperature to name, so TEMP stays off.
     REQUIRE_FALSE(helper.has_gcode_containing("RESET="));
     REQUIRE_FALSE(helper.has_gcode_containing("TEMP="));
     REQUIRE_FALSE(helper.has_gcode_containing("AVAILABLE="));
+}
+
+namespace {
+void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
+                          helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx);
+} // namespace
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare clear: the wipe returns the gate to default_extruder_temp",
+                 "[ams][happy_hare][clear]") {
+    // Happy Hare up to v4.2.0 reads an omitted TEMP as default_extruder_temp;
+    // later versions keep the gate's own. Naming the default resets the gate
+    // on both. The connect-time configfile read supplies it. From 4.2 the gate
+    // map holds the weights, so the wipe clears them too.
+    std::string tail = " QUIET=1";
+    SECTION("v3 keeps it in [mmu]") {
+        connect_with_fixture(
+            helper, client, {{"configfile_settings", {{"mmu", {{"default_extruder_temp", 215}}}}}});
+    }
+    SECTION("v4 keeps it in [mmu_parameters], as Klipper's parsed float") {
+        connect_with_fixture(helper, client,
+                             {{"configfile_settings",
+                               {{"mmu_machine", {{"happy_hare_version", "4.2.0"}}},
+                                {"mmu_parameters", {{"default_extruder_temp", 215.0}}}}},
+                              {"mmu_machine", {{"happy_hare_version", "4.2.0"}}}});
+        tail = " WEIGHT=-1 INITIAL_WEIGHT=-1 QUIET=1";
+    }
+
+    SlotInfo* slot = helper.get_mutable_slot(1);
+    REQUIRE(slot != nullptr);
+    slot->material = "PETG";
+    slot->nozzle_temp_min = 240;
+    helper.clear_captured_gcodes();
+
+    helix::test::apply_edit(helper, 1, funnel_cleared_copy(*slot));
+
+    REQUIRE(helper.has_gcode(
+        "MMU_GATE_MAP GATE=1 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 TEMP=215" + tail));
 }
 
 TEST_CASE_METHOD(HhHelper, "Happy Hare clear: a material edit does not take the wipe path",
@@ -1187,6 +1233,212 @@ TEST_CASE("Happy Hare preload_lane is refused while printing", "[ams][happy_hare
     CHECK(helper.captured_gcodes.empty());
 }
 
+// ============================================================================
+// mark_gate_available(): the recovery Happy Hare's failed-pickup error names
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare marks an empty gate available with MMU_GATE_MAP",
+                 "[ams][happy_hare][mark_available]") {
+    helper.set_running(true);
+    helper.feed_mmu_gate_status({1, 0, -1, 2});
+
+    CHECK_FALSE(helper.gate_marked_empty(0));
+    CHECK(helper.gate_marked_empty(1));
+    CHECK_FALSE(helper.gate_marked_empty(2)); // unknown is not empty
+    CHECK_FALSE(helper.gate_marked_empty(3));
+    CHECK_FALSE(helper.gate_marked_empty(4));
+    CHECK_FALSE(helper.gate_marked_empty(-1));
+
+    REQUIRE(helper.mark_gate_available(1).success());
+    // TEMP=0 keeps the gate's temperature; an omitted TEMP resets it.
+    CHECK(helper.captured_gcodes ==
+          std::vector<std::string>{"MMU_GATE_MAP GATE=1 AVAILABLE=1 TEMP=0 QUIET=1"});
+
+    helper.clear_captured_gcodes();
+    CHECK(helper.mark_gate_available(4).result == AmsResult::INVALID_SLOT);
+    CHECK(helper.captured_gcodes.empty());
+}
+
+TEST_CASE("Happy Hare mark available waits for a running print to pause",
+          "[ams][happy_hare][mark_available]") {
+    PrintLifecycleFixture fx;
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> helper_reg(fx.api.get(),
+                                                                             &fx.mock_client);
+    AmsBackendHappyHareTestHelper& helper = *helper_reg;
+    helper.initialize_test_gates(4);
+    helper.set_running(true);
+    helper.feed_mmu_gate_status({1, 0, 1, 1});
+
+    helix::test::set_wire_state(fx.state, helix::PrintJobState::PRINTING);
+    CHECK(helper.mark_gate_available(1).result == AmsResult::WRONG_STATE);
+    CHECK(helper.captured_gcodes.empty());
+
+    helix::test::set_wire_state(fx.state, helix::PrintJobState::PAUSED);
+    REQUIRE(helper.mark_gate_available(1).success());
+    CHECK(helper.has_gcode_containing("MMU_GATE_MAP GATE=1 AVAILABLE=1"));
+}
+
+namespace {
+void connect_with_fixture(AmsBackendHappyHareTestHelper& helper,
+                          helix::test::FakeMoonrakerClient& client, const nlohmann::json& fx);
+
+/// The single-unit v4 fixture, reporting Happy Hare @p version.
+nlohmann::json happy_hare_fixture_at(const std::string& version) {
+    nlohmann::json fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    fx["mmu_machine"]["happy_hare_version"] = version;
+    fx["configfile_settings"]["mmu_machine"]["happy_hare_version"] = version;
+    return fx;
+}
+} // namespace
+
+// ============================================================================
+// Gate weights (Happy Hare 4.2): the gate map holds remaining and initial weight
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare 4.2 gate weights reach the slot as the firmware's",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
+    helper.feed_mmu_status({{"gate_remaining_weight", {750, -1, 0, 120}},
+                            {"gate_initial_weight", {1000, -1, 1000, -1}}});
+
+    CHECK(helper.get_slot_info(0).remaining_weight_g == Catch::Approx(750.0F));
+    CHECK(helper.get_slot_info(0).total_weight_g == Catch::Approx(1000.0F));
+    CHECK(helper.get_slot_info(2).remaining_weight_g == Catch::Approx(0.0F));
+    CHECK(helper.get_slot_info(3).remaining_weight_g == Catch::Approx(120.0F));
+    // -1 is Happy Hare not knowing: no firmware weight on the lane.
+    const auto firmware = [&](int gate) {
+        const auto sources = helix::ams::lane_sources(helper.lane_id(gate));
+        REQUIRE(sources.firmware.has_value());
+        return *sources.firmware;
+    };
+    CHECK_FALSE(firmware(1).remaining_weight_g);
+    CHECK_FALSE(firmware(3).total_weight_g);
+    CHECK(firmware(0).remaining_weight_g == Catch::Approx(750.0F));
+
+    // A gate whose weight Happy Hare forgets drops the firmware's figure.
+    helper.feed_mmu_status({{"gate_remaining_weight", {-1, -1, 0, 120}}});
+    CHECK_FALSE(firmware(0).remaining_weight_g);
+
+    // Clear Spool names the weights: a gate with no spool id keeps them otherwise.
+    helper.get_mutable_slot(3)->material = "PLA";
+    helix::test::apply_edit(helper, 3, funnel_cleared_copy(helper.get_slot_info(3)));
+    CHECK(helper.has_gcode("MMU_GATE_MAP GATE=3 MATERIAL= COLOR= NAME= VENDOR= SPOOLID=-1 "
+                           "WEIGHT=-1 INITIAL_WEIGHT=-1 QUIET=1"));
+}
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare 4.2 in Spoolman pull mode refuses a weight edit",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
+    helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+    SlotInfo edit = helper.get_slot_info(1);
+    edit.remaining_weight_g = 300.0F;
+
+    const AmsError err = helix::test::apply_edit(helper, 1, edit);
+    CHECK(err.result == AmsResult::COMMAND_FAILED);
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+}
+
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare before 4.2 keeps weights beside the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.1.0"));
+    SECTION("an edit") {
+        SlotInfo edit = helper.get_slot_info(1);
+        edit.remaining_weight_g = 300.0F;
+        REQUIRE(helix::test::apply_edit(helper, 1, edit).success());
+    }
+    SECTION("a metered weight") {
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+    }
+    CHECK_FALSE(helper.has_gcode_containing("MMU_GATE_MAP"));
+}
+
+TEST_CASE_METHOD(HhFourGatesWithClient, "Happy Hare 4.2 writes a metered weight to the gate map",
+                 "[ams][happy_hare][gate_weights]") {
+    connect_with_fixture(helper, client, happy_hare_fixture_at("4.2.0"));
+
+    SECTION("an unlinked gate") {
+        helper.persist_slot_weight(1, 280.4F, 1000.0F);
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_GATE_MAP GATE=1 WEIGHT=280 INITIAL_WEIGHT=1000 "
+                                       "TEMP=0 QUIET=1"});
+    }
+    SECTION("a gate linked to a spool, whose weight is Spoolman's") {
+        helper.get_mutable_slot(1)->spoolman_id = 7;
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+        CHECK(helper.captured_gcodes.empty());
+    }
+    SECTION("pull mode") {
+        helper.test_parse_mmu_state(nlohmann::json{{"spoolman_support", "pull"}});
+        helper.persist_slot_weight(1, 280.0F, 1000.0F);
+        CHECK(helper.captured_gcodes.empty());
+    }
+}
+
+// ============================================================================
+// form_tip_macro: empty means no tip forming from Happy Hare 4.2
+// ============================================================================
+
+TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare empty form_tip_macro shows no tip step from 4.2",
+                 "[ams][happy_hare][tip_method]") {
+    helper.initialize_test_gates(4);
+    const auto tip_method_for = [&](const std::string& version, const std::string& macro) {
+        nlohmann::json fx = happy_hare_fixture_at(version);
+        fx["configfile_settings"]["mmu_parameters"]["form_tip_macro"] = macro;
+        connect_with_fixture(helper, client, fx);
+        return helper.get_system_info().tip_method;
+    };
+    CHECK(tip_method_for("4.2.0", "") == TipMethod::NONE);
+    CHECK(tip_method_for("4.2.0", "_MMU_FORM_TIP") == TipMethod::TIP_FORM);
+    CHECK(tip_method_for("4.2.0", "_MMU_CUT_TIP") == TipMethod::CUT);
+    // Before 4.2 an empty macro made Happy Hare fail the unload looking for it.
+    CHECK(tip_method_for("4.1.0", "") == TipMethod::TIP_FORM);
+}
+
+// ============================================================================
+// printer.mmu.drying: the cycle Happy Hare is running, whoever started it
+// ============================================================================
+
+TEST_CASE_METHOD(HhFourGates, "Happy Hare drying cycle reports its time left from end_time",
+                 "[ams][happy_hare][dryer][drying_cycle]") {
+    std::time_t wall = 1'000'000;
+    helper.test_set_clock([&wall] { return wall; });
+    helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+    const auto feed = [&](const nlohmann::json& mmu, double eventtime) {
+        helper.feed_mmu_status_at(mmu, eventtime);
+    };
+
+    SECTION("a cycle started elsewhere") {
+        // Started at reactor 1000 s for 240 min; this frame is a minute in.
+        feed({{"drying",
+               {{{"temp", 55},
+                 {"time", 240},
+                 {"humidity_target", nullptr},
+                 {"start_time", 1000.0},
+                 {"end_time", 1000.0 + 240 * 60}}}}},
+             1060.0);
+        CHECK(helper.get_dryer_info(0).remaining_min == 239);
+        CHECK(helper.get_dryer_info(0).duration_min == 240);
+        // Ten minutes later on the wall clock, with no frame in between.
+        wall += 600;
+        CHECK(helper.get_dryer_info(0).remaining_min == 229);
+    }
+    SECTION("the subscription's snapshot carries no eventtime; the next frame does") {
+        feed({{"drying", {{{"time", 60}, {"start_time", 50.0}, {"end_time", 3650.0}}}}}, 0.0);
+        feed({{"action", "Idle"}}, 650.0);
+        CHECK(helper.get_dryer_info(0).remaining_min == 50);
+    }
+    SECTION("no cycle, or a Happy Hare without the field, keeps HelixScreen's own clock") {
+        if (GENERATE(true, false)) {
+            feed({{"drying", {nullptr}}}, 500.0);
+        }
+        REQUIRE(helper.start_drying(50.0f, 90, -1, 0).success());
+        wall += 30 * 60;
+        CHECK(helper.get_dryer_info(0).remaining_min == 60);
+    }
+}
+
 TEST_CASE_METHOD(HhHelper,
                  "Happy Hare advertises lane eject, gate select and gate check; Reset reads Home",
                  "[ams][happy_hare][capability]") {
@@ -1194,50 +1446,6 @@ TEST_CASE_METHOD(HhHelper,
     CHECK(helper.supports_gate_select());
     CHECK(helper.supports_gate_check());
     CHECK(helper.reset_button_label() == "Home");
-}
-
-TEST_CASE("path_segment_from_happy_hare_pos maps every filament_pos and rejects the rest",
-          "[ams][happy_hare][v4][edge]") {
-    const std::pair<int, PathSegment> rows[] = {
-        {-100, PathSegment::NONE}, {-1, PathSegment::NONE},  {0, PathSegment::SPOOL},
-        {1, PathSegment::PREP},    {2, PathSegment::PREP},   {3, PathSegment::LANE},
-        {4, PathSegment::HUB},     {5, PathSegment::OUTPUT}, {6, PathSegment::TOOLHEAD},
-        {7, PathSegment::NOZZLE},  {8, PathSegment::NOZZLE}, {9, PathSegment::NOZZLE},
-        {10, PathSegment::NOZZLE}, {11, PathSegment::NONE},  {255, PathSegment::NONE},
-    };
-    for (const auto& [pos, segment] : rows) {
-        INFO("filament_pos " << pos);
-        CHECK(path_segment_from_happy_hare_pos(pos) == segment);
-    }
-}
-
-TEST_CASE("ams_action_from_string maps every Happy Hare action, unknown to IDLE",
-          "[ams][happy_hare][v4][edge]") {
-    const std::pair<const char*, AmsAction> rows[] = {
-        {"Idle", AmsAction::IDLE},
-        {"Loading", AmsAction::LOADING},
-        {"Loading Ext", AmsAction::LOADING},
-        {"Unloading", AmsAction::UNLOADING},
-        {"Exiting Ext", AmsAction::UNLOADING},
-        {"Selecting", AmsAction::SELECTING},
-        {"Homing", AmsAction::RESETTING},
-        {"Resetting", AmsAction::RESETTING},
-        {"Cutting", AmsAction::CUTTING},
-        {"Cutting Tip", AmsAction::CUTTING},
-        {"Cutting Filament", AmsAction::CUTTING},
-        {"Forming Tip", AmsAction::FORMING_TIP},
-        {"Heating", AmsAction::HEATING},
-        {"Checking", AmsAction::CHECKING},
-        {"Purging", AmsAction::PURGING},
-        {"Paused (user)", AmsAction::PAUSED},
-        {"Error: filament jam", AmsAction::ERROR},
-        {"SomeNewV5Action", AmsAction::IDLE},
-        {"", AmsAction::IDLE},
-    };
-    for (const auto& [text, action] : rows) {
-        INFO("action \"" << text << "\"");
-        CHECK(ams_action_from_string(text) == action);
-    }
 }
 
 TEST_CASE("Happy Hare per-gate arrays land on their own gates and skip unreadable entries",
@@ -1506,8 +1714,8 @@ TEST_CASE_METHOD(HhFourGates,
         std::optional<BufferMotion> motion;
     };
     const Case cases[] = {
-        {"rewind", SpoolMotorAction::Rewinding, "compressed", BufferMotion::Advancing},
-        {"assist", SpoolMotorAction::Assisting, "tension", BufferMotion::Trailing},
+        {"rewind", SpoolMotorAction::Rewinding, "compressed", BufferMotion::Compressed},
+        {"assist", SpoolMotorAction::Assisting, "tension", BufferMotion::Expanded},
         {"wiggle", SpoolMotorAction::Other, "neutral", BufferMotion::Unknown},
         {"", SpoolMotorAction::None, "disabled", std::nullopt},
     };
@@ -2902,13 +3110,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     feed_action("Heating");
     CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 0); // "heat" = index 0
-
     feed_action("Loading");
-    // "feed" is index 5 in the LOAD_SWAP template.
-    CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 5);
-
+    CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 5); // "feed" = index 5
     feed_action("Purging");
     CHECK(lv_subject_get_int(ams.get_toolchange_step_subject()) == 6); // "purge" = index 6
+
+    feed_action("Spinning up"); // no translation key for an unknown word: shown as sent
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_action_detail_subject())) == "Spinning up");
 
     ams.set_backend(nullptr);
 }
@@ -2977,10 +3185,16 @@ TEST_CASE_METHOD(HhHelper, "an outside re-bind takes the old spool's brand off a
     spool.material = "PETG";
     spool.color_hex = "FF00FF";
     spool.filament_id = 55;
+    spool.remaining_weight_g = 800.0;
+    spool.initial_weight_g = 1000.0;
     helix::test::spool_states(helper, 1, spool);
     helper.repaint_slot_from_lane(1);
     REQUIRE(helper.get_slot_info(1).brand == "Polymaker");
     REQUIRE(helper.get_slot_info(1).spoolman_filament_id == 55);
+    REQUIRE(helper.get_slot_info(1).remaining_weight_g == Catch::Approx(800.0F));
+    // Happy Hare's gate map names spool 42 on gate 1 first.
+    helper.feed_mmu_gate_spool_ids({0, 42, 7, 0});
+    REQUIRE(helper.get_slot_info(1).brand == "Polymaker");
 
     // Gate 2 is the control: same shape, and the frame below reports the spool
     // its lane already names, so its binding holds and nothing is retired.
@@ -3001,6 +3215,9 @@ TEST_CASE_METHOD(HhHelper, "an outside re-bind takes the old spool's brand off a
 
     CHECK(helper.get_slot_info(1).brand.empty());
     CHECK(helper.get_slot_info(1).spoolman_filament_id == 0);
+    // The old spool's weights describe nothing on the gate now.
+    CHECK(helper.get_slot_info(1).remaining_weight_g < 0.0F);
+    CHECK(helper.get_slot_info(1).total_weight_g < 0.0F);
     CHECK(helper.get_slot_info(2).brand == "Sunlu");
 }
 
@@ -3034,32 +3251,16 @@ TEST_CASE_METHOD(HhHelper, "Happy Hare's own gate writes carry the filament id",
                  "[ams][happyhare][1632]") {
     // The lane repaint that closes a full commit restates the field from the
     // override, so an edit-driven assertion cannot tell the backend's own copy
-    // from the restatement. Both pins sit below any repaint: apply_user_edit()
-    // writes the gate and returns before commit_user_edit() repaints, and the
-    // retire runs here with no frame behind it at all.
+    // from the restatement. The pin sits below any repaint: apply_user_edit()
+    // writes the gate and returns before commit_user_edit() repaints.
     helper.initialize_test_gates(2);
 
-    SECTION("the editor write copies it into the gate") {
-        SlotInfo info = helper.get_slot_info(0);
-        info.spoolman_id = 42;
-        info.spoolman_filament_id = 55;
-        const AmsError err = helper.apply_user_edit(0, info);
-        REQUIRE(err.success());
-        REQUIRE(helper.get_slot_info(0).spoolman_filament_id == 55);
-    }
-
-    SECTION("a departed binding's retire drops it") {
-        helper.set_gate_spoolman_link(0, 42, 55, 3);
-        REQUIRE(helper.get_slot_info(0).spoolman_filament_id == 55);
-        // The retire expects its caller to hold mutex_; get_slot_info takes
-        // the same lock itself, so release before reading back.
-        {
-            std::lock_guard<std::mutex> lock(helix::HappyHareTestAccess::mutex(helper));
-            helix::HappyHareTestAccess::retire_departed_identity(helper, 0);
-        }
-        CHECK(helper.get_slot_info(0).spoolman_filament_id == 0);
-        CHECK(helper.get_slot_info(0).spoolman_vendor_id == 0);
-    }
+    SlotInfo info = helper.get_slot_info(0);
+    info.spoolman_id = 42;
+    info.spoolman_filament_id = 55;
+    const AmsError err = helper.apply_user_edit(0, info);
+    REQUIRE(err.success());
+    CHECK(helper.get_slot_info(0).spoolman_filament_id == 55);
 }
 
 TEST_CASE_METHOD(HhFourGates, "HappyHare clear_slot_override drops the retained identity",
@@ -3776,6 +3977,64 @@ TEST_CASE("Happy Hare classify_error: a runout pause is a CRITICAL fault resumed
     CHECK(ev->detail.find("Runout detected on gate 0") != std::string::npos);
 }
 
+TEST_CASE("Happy Hare classify_error: the pause hint follows the reason",
+          "[ams][happy_hare][error-center][pause_hint]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+
+    nlohmann::json mmu;
+    mmu["print_state"] = "pause_locked";
+    mmu["reason_for_pause"] = "Gate 2 is empty!";
+    helix::ClassifyContext ctx;
+    ctx.is_paused = true;
+    const std::string line =
+        "!! MMU issue detected. Print will be paused\nReason: Gate 2 is empty!";
+
+    SECTION("v4.2 names what to do next") {
+        mmu["pause_hint"] = "Load filament into gate 2\nthen RESUME";
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!\nLoad filament into gate 2. then RESUME");
+        // The dedup identity stays the reason the console line carries.
+        CHECK(ev->raw_detail == "Gate 2 is empty!");
+    }
+    SECTION("an empty hint adds nothing") {
+        mmu["pause_hint"] = "";
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!");
+    }
+    SECTION("before v4.2 there is no hint") {
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!");
+        CHECK(ev->raw_detail.empty());
+    }
+    SECTION("a later fault's reason does not take the first fault's hint") {
+        mmu["pause_hint"] = "Load filament into gate 2";
+        hh.test_parse_mmu_state(mmu);
+        auto ev = hh.classify_error(
+            "!! MMU issue detected whilst printer is paused\nReason: Encoder not detecting", ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Encoder not detecting");
+    }
+    SECTION("the hint ends with the pause") {
+        mmu["pause_hint"] = "Load filament into gate 2";
+        hh.test_parse_mmu_state(mmu);
+        // Resume: reason_for_pause goes empty in a frame that leaves pause_hint out.
+        hh.test_parse_mmu_state({{"print_state", "printing"}, {"reason_for_pause", ""}});
+        hh.test_parse_mmu_state(
+            {{"print_state", "pause_locked"}, {"reason_for_pause", "Gate 2 is empty!"}});
+        auto ev = hh.classify_error(line, ctx);
+        REQUIRE(ev.has_value());
+        CHECK(ev->detail == "Gate 2 is empty!");
+    }
+}
+
 TEST_CASE("Happy Hare pause_locked marks the slot and path, and cancel clears them",
           "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
@@ -3815,7 +4074,11 @@ TEST_CASE("Happy Hare claims its own error notice prompt as a duplicate of the f
           "[ams][happy_hare][error-center][1323]") {
     helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
     AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    // v3 to v4.1 title the pause dialog "Error Notice"; v4.2 builds it in Python
+    // as "Pause Notice" (mmu_dialog.py ERROR_DIALOG_TITLE).
     CHECK(hh.duplicates_firmware_prompt("Happy Hare Error Notice"));
+    CHECK(hh.duplicates_firmware_prompt("Happy Hare Pause Notice"));
+    CHECK_FALSE(hh.duplicates_firmware_prompt("Happy Hare"));
     CHECK_FALSE(hh.duplicates_firmware_prompt("Filament Change"));
 }
 
@@ -3843,6 +4106,77 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     CHECK(presenter.is_visible());
     CHECK_FALSE(helix::ActionPromptManager::is_showing());
+
+    presenter.dismiss();
+    process_lvgl(20);
+    helix::ActionPromptManager::set_instance(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Happy Hare v4.2's pause notice closes when the HH recovery popup shows",
+                 "[ams][happy_hare][error-center][1323]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+
+    helix::ActionPromptManager prompts;
+    helix::ActionPromptManager::set_instance(&prompts);
+    // mmu_dialog.py shows the prompt ahead of the `!!` line, so it is up first.
+    prompts.process_line("// action:prompt_begin Happy Hare Pause Notice");
+    prompts.process_line("// action:prompt_text Gate 2 is empty.");
+    prompts.process_line("// action:prompt_show");
+    REQUIRE(helix::ActionPromptManager::is_showing());
+
+    helix::ClassifyContext ctx;
+    auto ev = hh.classify_error("!! MMU issue: Gate 2 is empty!", ctx);
+    REQUIRE(ev.has_value());
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    presenter.present(*ev);
+    process_lvgl(20);
+
+    CHECK(presenter.is_visible());
+    CHECK_FALSE(helix::ActionPromptManager::is_showing());
+
+    presenter.dismiss();
+    process_lvgl(20);
+    helix::ActionPromptManager::set_instance(nullptr);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Happy Hare's pause notice with a macro's own button survives the popup",
+                 "[ams][happy_hare][error-center][pause_dialog_buttons]") {
+    helix::test::RegisteredBackend<AmsBackendHappyHareTestHelper> hh_reg;
+    AmsBackendHappyHareTestHelper& hh = *hh_reg;
+    hh.initialize_test_gates(4);
+    CHECK(hh.firmware_prompt_button_is_own("RESUME"));
+    CHECK(hh.firmware_prompt_button_is_own("mmu_unlock "));
+    CHECK(hh.firmware_prompt_button_is_own("CANCEL_PRINT"));
+    CHECK_FALSE(hh.firmware_prompt_button_is_own("_BOX_RETRY_LOAD"));
+
+    const bool extra = GENERATE(false, true);
+    INFO("extra button: " << extra);
+    helix::ActionPromptManager prompts;
+    helix::ActionPromptManager::set_instance(&prompts);
+    prompts.process_line("// action:prompt_begin Happy Hare Pause Notice");
+    prompts.process_line("// action:prompt_text Reason: Gate 2 is empty!");
+    if (extra) {
+        prompts.process_line("// action:prompt_footer_button Retry load|_BOX_RETRY_LOAD|primary");
+    }
+    prompts.process_line("// action:prompt_footer_button ABORT|CANCEL_PRINT|error");
+    prompts.process_line("// action:prompt_footer_button RESUME|RESUME|warning");
+    prompts.process_line("// action:prompt_footer_button UNLOCK|MMU_UNLOCK|primary");
+    prompts.process_line("// action:prompt_show");
+    REQUIRE(helix::ActionPromptManager::is_showing());
+
+    helix::ClassifyContext ctx;
+    auto ev = hh.classify_error("!! MMU issue: Gate 2 is empty!", ctx);
+    REQUIRE(ev.has_value());
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    presenter.present(*ev);
+    process_lvgl(20);
+
+    CHECK(presenter.is_visible());
+    CHECK(helix::ActionPromptManager::is_showing() == extra);
 
     presenter.dismiss();
     process_lvgl(20);
@@ -4085,7 +4419,7 @@ nlohmann::json golden_hh_full_frame() {
 
 namespace {
 const std::string kHappyHareGolden = R"GOLD(full frame
-slot=1 tool=1 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=true action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=8 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4096,7 +4430,7 @@ slot=1 tool=1 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 load: loading
-slot=1 tool=1 loaded=true action=Loading detail='Loading' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=true action=Loading detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=3 bowden=40 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4107,7 +4441,7 @@ slot=1 tool=1 loaded=true action=Loading detail='Loading' bypass=true units=1 hu
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts='Same spool in Gate 3? Tap Clear if it is a new one.'
 load: loaded
-slot=2 tool=2 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=2 tool=2 loaded=true action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=8 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4118,7 +4452,7 @@ slot=2 tool=2 loaded=true action=Idle detail='Idle' bypass=true units=1 hub=true
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 unload: unloading
-slot=2 tool=2 loaded=true action=Unloading detail='Unloading' bypass=true units=1 hub=true slot_sensors=true
+slot=2 tool=2 loaded=true action=Unloading detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=4 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4129,7 +4463,7 @@ slot=2 tool=2 loaded=true action=Unloading detail='Unloading' bypass=true units=
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 unload: unloaded
-slot=-1 tool=-1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=false slot_sensors=true
+slot=-1 tool=-1 loaded=false action=Idle detail='' bypass=true units=1 hub=false slot_sensors=true
   pos=0 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4140,7 +4474,7 @@ slot=-1 tool=-1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=f
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 fault: paused
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=Output Tube fault='Filament is stuck in the extruder' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4151,7 +4485,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 fault: resumed
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,-1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4162,7 +4496,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Unknown #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 insert: gate 3 fills
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,0,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4173,7 +4507,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 insert: gate 2 fills
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4184,7 +4518,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 hex colours only
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4195,7 +4529,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 temperature + name deltas
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4206,7 +4540,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 per-gate drying array
-slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=1 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4217,7 +4551,7 @@ slot=1 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=false/false
   events=1 toasts=''
 aggregate sensors
-slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=true slot_sensors=true
+slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=1 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=0 counts=4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4228,7 +4562,7 @@ slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=1 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=true/true
   events=1 toasts=''
 topology string
-slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=2 hub=true slot_sensors=true
+slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=2 hub=true slot_sensors=true
   pos=5 bowden=-1 unit=1 counts=6,4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4239,7 +4573,7 @@ slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=2 hub=tru
   g3 Available #000000 mat='' name='Blue' brand='' spool=5 temp=200-200 grp=1 err=- sensor=true/true
   events=1 toasts=''
 idle sparse frame
-slot=3 tool=1 loaded=false action=Idle detail='Idle' bypass=true units=2 hub=true slot_sensors=true
+slot=3 tool=1 loaded=false action=Idle detail='' bypass=true units=2 hub=true slot_sensors=true
   pos=7 bowden=-1 unit=1 counts=6,4 seg=None fault='' rawgates=1,2,1,1
   espooler='assist' fb='neutral' bias=0.250/-0.500 drive=true clog=2 enc=true/97/8.0/20.0/15.0/6.0 fg=true/false//0.10/0.80/-0.80 fgmode=1 led='gate_status' flow=99.5 purge=45.0
   tc=2/10 spoolman=Pull pending=7 endless=true ttg=1,0,2,3
@@ -4729,6 +5063,17 @@ TEST_CASE_METHOD(HhHelperWithClient,
     }
 }
 
+TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare reports each unit's vendor as its model",
+                 "[ams][happy_hare][hh_multi_unit]") {
+    const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+    connect_with_fixture(helper, client, fx);
+    helper.test_parse_mmu_state(fx["mmu_status"]);
+    const auto info = helper.get_system_info();
+    REQUIRE(info.units.size() == 2);
+    CHECK(info.units[0].model == "ERCF");
+    CHECK(info.units[1].model == "BoxTurtle");
+}
+
 TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare single v4 unit is named by its display_name",
                  "[ams][happy_hare][hh_multi_unit]") {
     const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
@@ -5046,16 +5391,49 @@ TEST_CASE("Happy Hare tuning lives in Moonraker and drops what the config has ou
     // not be read (the printer's real default is 80); one saved against a real
     // default the printer has since changed, which is stale.
     TuningRig rig({{"gear_from_spool_speed", {{"value", 95.0}, {"config_default", 60.0}}},
-                   {"gear_unload_speed", {{"value", 99.0}, {"config_default", 111.0}}}});
+                   {"gear_unload_speed", {{"value", 99.0}, {"config_default", 111.0}}},
+                   {"gear_from_buffer_speed", {{"value", 120.0}, {"config_default", 150.0}}},
+                   {"toolhead_ooze_reduction", {{"value", 1.5}, {"config_default", 2.0}}}});
     rig.connect();
 
     const auto& o = HappyHareTestAccess::user_overrides(*rig.reg);
     REQUIRE(o.gear_from_spool_speed);
     CHECK(*o.gear_from_spool_speed == Catch::Approx(95.0f));
     CHECK_FALSE(o.gear_unload_speed);
+    CHECK(o.gear_from_buffer_speed == std::optional<float>(120.0f));
+    CHECK(o.toolhead_ooze_reduction == std::optional<float>(1.5f));
     // The built-in-default record is re-pointed at the printer's, in Moonraker.
     CHECK(rig.stored()["gear_from_spool_speed"]["config_default"] == Catch::Approx(80.0));
     CHECK(rig.reg->has_gcode_containing("GEAR_LOAD_SPEED=95"));
+}
+
+TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare endless spool groups follow the gate map with auto groups on",
+                 "[ams][happy_hare][endless_spool][auto_groups]") {
+    helper.initialize_test_gates(4);
+    nlohmann::json fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+    SECTION("auto groups on") {
+        fx["configfile_settings"]["mmu_parameters"]["endless_spool_auto_groups"] = 1;
+        connect_with_fixture(helper, client, fx);
+
+        const auto caps = helper.get_endless_spool_capabilities();
+        CHECK_FALSE(caps.editable());
+        CHECK(caps.restriction == helix::printer::EndlessSpoolRestriction::GroupsFollowSlots);
+        CHECK_FALSE(helix::printer::endless_spool_restriction_text(caps.restriction).empty());
+        // ENABLE= is still honored.
+        CHECK(caps.switchable);
+        helper.clear_captured_gcodes();
+        CHECK_FALSE(helper.set_endless_spool_backup(0, 1).success());
+        CHECK_FALSE(helper.has_gcode_containing("GROUPS="));
+    }
+    SECTION("auto groups off, or a Happy Hare without the option") {
+        if (GENERATE(true, false)) {
+            fx["configfile_settings"]["mmu_parameters"]["endless_spool_auto_groups"] = 0;
+        }
+        connect_with_fixture(helper, client, fx);
+        CHECK(helper.get_endless_spool_capabilities().editability ==
+              helix::printer::EndlessSpoolEditability::Group);
+    }
 }
 
 TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes",
@@ -5074,6 +5452,60 @@ TEST_CASE("a Happy Hare remaining weight is kept beside the gate map and echoes"
     REQUIRE(kept.is_object());
     CHECK(kept["remaining_weight_g"] == Catch::Approx(500.0));
     CHECK_FALSE(helix::ams::lane_sources(rig.reg->lane_id(0)).pending.has_value());
+}
+
+TEST_CASE("a Happy Hare 4.2 weight edit stays out of the extras record",
+          "[ams][happy_hare][gate_weights]") {
+    TuningRig rig;
+    rig.connect(happy_hare_fixture_at("4.2.0"));
+    const SlotInfo original = rig.reg->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.remaining_weight_g = 500.4f;
+    edited.total_weight_g = 1000.0f;
+    REQUIRE(rig.reg->commit_user_edit(0, original, edited).success());
+    for (int i = 0; i < 4; ++i) {
+        helix::ui::UpdateQueue::instance().drain();
+    }
+    CHECK(rig.reg->has_gcode("MMU_GATE_MAP GATE=0 WEIGHT=500 INITIAL_WEIGHT=1000 TEMP=0"));
+    nlohmann::json kept = rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1");
+    if (kept.is_object()) {
+        CHECK((!kept.contains("remaining_weight_g") || kept["remaining_weight_g"].is_null()));
+        CHECK((!kept.contains("total_weight_g") || kept["total_weight_g"].is_null()));
+    }
+}
+
+TEST_CASE("Happy Hare 4.2 takes over the weights a 4.1 record kept, once",
+          "[ams][happy_hare][gate_weights]") {
+    TuningRig rig;
+    for (const auto& [key, lane, grams] :
+         {std::tuple{"lane1", "0", 640}, {"lane2", "1", 300}, {"lane3", "2", 210}}) {
+        rig.printer.client.mock_db_set("helix-screen-hh-overrides", key,
+                                       {{"lane", lane},
+                                        {"writer", "helixscreen"},
+                                        {"remaining_weight_g", grams},
+                                        {"total_weight_g", 1000}});
+    }
+    rig.connect(happy_hare_fixture_at("4.2.0"));
+    // Gate 1's gate map already holds a weight, which is never overwritten. Gate
+    // 2's spool is Spoolman's, and its old weight stays off the gate after unlink.
+    nlohmann::json frame{{"gate_remaining_weight", {-1, 450, -1, -1}},
+                         {"gate_initial_weight", {-1, -1, -1, -1}},
+                         {"gate_spool_id", {-1, -1, 7, -1}}};
+    for (int i = 0; i < 2; ++i) {
+        rig.reg->feed_mmu_status(frame);
+        helix::ui::UpdateQueue::instance().drain();
+        frame["gate_spool_id"][2] = -1;
+    }
+    CHECK_FALSE(rig.reg->has_gcode_containing("GATE=2 "));
+    CHECK(rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane3")["total_weight_g"]
+              .is_null());
+    const auto& sent = rig.reg->captured_gcodes;
+    CHECK(std::count(sent.begin(), sent.end(),
+                     "MMU_GATE_MAP GATE=0 WEIGHT=640 INITIAL_WEIGHT=1000 TEMP=0 QUIET=1") == 1);
+    CHECK(rig.reg->has_gcode("MMU_GATE_MAP GATE=1 INITIAL_WEIGHT=1000 TEMP=0 QUIET=1"));
+    CHECK_FALSE(rig.reg->has_gcode_containing("GATE=1 WEIGHT"));
+    CHECK(rig.printer.client.mock_db_get("helix-screen-hh-overrides", "lane1")["remaining_weight_g"]
+              .is_null());
 }
 
 TEST_CASE("a gate name another client clears shows as cleared", "[ams][happy_hare][review]") {
@@ -5517,6 +5949,171 @@ TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare v4 takes a drying humidity targ
         CHECK(helper.captured_gcodes ==
               std::vector<std::string>{
                   "MMU_HEATER DRY=1 TEMP=50 TIMER=60 HUMIDITY=15 UNIT=1 GATES=6,7,8,9"});
+    }
+}
+
+namespace {
+/// The v4 sync feedback and fan rows the backend offers now, by id.
+std::map<std::string, helix::printer::DeviceAction>
+v4_control_rows(const AmsBackendHappyHareTestHelper& helper) {
+    std::map<std::string, helix::printer::DeviceAction> rows;
+    for (auto& a : helper.get_device_actions()) {
+        if (a.id.rfind("sync_feedback", 0) == 0 || a.id.rfind("mmu_fan_", 0) == 0) {
+            rows.emplace(a.id, a);
+        }
+    }
+    return rows;
+}
+
+nlohmann::json fan_entry(const char* unit, int first_gate, bool enabled,
+                         const nlohmann::json& modes) {
+    return {{"unit", unit},
+            {"first_gate", first_gate},
+            {"per_gate", modes.size() > 1},
+            {"enabled", enabled},
+            {"modes", modes}};
+}
+} // namespace
+
+TEST_CASE_METHOD(HhFourGatesWithClient,
+                 "Happy Hare v4 sync feedback and fan controls; v3 and absent hardware show none",
+                 "[ams][happy_hare][hh_v4][hh_v4_controls]") {
+    helper.set_running(true);
+    const nlohmann::json both = {{"sync_feedback_enabled", true},
+                                 {"fans", {fan_entry("unit0", 0, true, {2})}}};
+
+    SECTION("v3: no rows, and a control is refused unsent") {
+        feed_params(helper, {{"mmu", both}});
+        CHECK(v4_control_rows(helper).empty());
+        helper.clear_captured_gcodes();
+        CHECK_FALSE(helper.execute_device_action("sync_feedback", std::any(false)).success());
+        CHECK_FALSE(helper.execute_device_action("mmu_fan_mode:unit0", std::any(std::string("On")))
+                        .success());
+        CHECK(helper.captured_gcodes.empty());
+    }
+    SECTION("v4: autotune starts from the config, and a reload forgets what was sent") {
+        auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+        fx["configfile_settings"]["mmu_unit_parameters unit0"]["autotune_rotation_distance"] = 1;
+        const auto autotune = [this] {
+            return *std::any_cast<bool>(
+                &v4_control_rows(helper)["sync_feedback_autotune"].current_value);
+        };
+        connect_with_fixture(helper, client, fx);
+        feed_params(helper, {{"mmu", both}});
+        CHECK(autotune());
+        REQUIRE(helper.execute_device_action("sync_feedback_autotune", std::any(false)).success());
+        CHECK_FALSE(autotune());
+        connect_with_fixture(helper, client, fx);
+        CHECK(autotune());
+    }
+    SECTION("v4 single unit: each control's command, no UNIT=") {
+        const auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_single_unit.json");
+        connect_with_fixture(helper, client, fx);
+        // The fixture's unit has no buffer and no managed fans.
+        feed_params(helper, {{"mmu", fx["mmu_status"]}});
+        CHECK(v4_control_rows(helper).empty());
+
+        feed_params(helper, {{"mmu", both}});
+        auto rows = v4_control_rows(helper);
+        REQUIRE(rows.size() == 6);
+        CHECK(*std::any_cast<bool>(&rows["sync_feedback"].current_value));
+        CHECK_FALSE(*std::any_cast<bool>(&rows["sync_feedback_autotune"].current_value));
+        CHECK(rows["sync_feedback_reset"].enabled);
+        CHECK(rows["sync_feedback_adjust_tension"].moves_machine);
+        CHECK(*std::any_cast<std::string>(&rows["mmu_fan_mode:unit0"].current_value) == "Auto");
+
+        helper.clear_captured_gcodes();
+        CHECK(helper.execute_device_action("sync_feedback", std::any(false)).success());
+        CHECK(helper.execute_device_action("sync_feedback_autotune", std::any(true)).success());
+        CHECK(helper.execute_device_action("sync_feedback_reset", {}).success());
+        CHECK(helper.execute_device_action("sync_feedback_adjust_tension", {}).success());
+        CHECK(helper.execute_device_action("mmu_fan_control:unit0", std::any(false)).success());
+        CHECK(helper.execute_device_action("mmu_fan_mode:unit0", std::any(std::string("On")))
+                  .success());
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_SYNC_FEEDBACK ENABLE=0", "MMU_SYNC_FEEDBACK AUTOTUNE=1",
+                                       "MMU_SYNC_FEEDBACK RESET=1",
+                                       "MMU_SYNC_FEEDBACK ADJUST_TENSION=1", "MMU_FAN ENABLE=0",
+                                       "MMU_FAN FAN_FORCED=1"});
+        // Happy Hare does not report AUTOTUNE, so the row shows what was sent.
+        CHECK(
+            *std::any_cast<bool>(&v4_control_rows(helper)["sync_feedback_autotune"].current_value));
+
+        // Off: Reset does nothing in Happy Hare, so it is refused here.
+        feed_params(helper, {{"mmu", {{"sync_feedback_enabled", false}}}});
+        CHECK_FALSE(v4_control_rows(helper)["sync_feedback_reset"].enabled);
+        // Null: the selected unit has no buffer, so its rows go.
+        feed_params(helper, {{"mmu", {{"sync_feedback_enabled", nullptr}}}});
+        CHECK(v4_control_rows(helper).count("sync_feedback") == 0);
+        CHECK(v4_control_rows(helper).count("mmu_fan_mode:unit0") == 1);
+    }
+    SECTION("v4 two units: the command names its unit") {
+        auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+        connect_with_fixture(helper, client, fx);
+        fx["mmu_status"]["sync_feedback_enabled"] = true;
+        fx["mmu_status"]["fans"] = {fan_entry("ercf", 0, true, {2}),
+                                    fan_entry("bt", 6, false, {0, 1, nullptr, 0})};
+        feed_params(helper, {{"mmu", fx["mmu_status"]}});
+        auto rows = v4_control_rows(helper);
+        // Per-gate fans that disagree have no one mode to show.
+        CHECK(std::any_cast<std::string>(&rows["mmu_fan_mode:bt"].current_value)->empty());
+        CHECK(rows["mmu_fan_mode:bt"].description == "Box Turtle");
+        // Nothing is loaded in this fixture.
+        CHECK_FALSE(rows["sync_feedback_adjust_tension"].enabled);
+
+        helper.clear_captured_gcodes();
+        CHECK(helper.execute_device_action("sync_feedback", std::any(false)).success());
+        CHECK(helper.execute_device_action("mmu_fan_mode:bt", std::any(std::string("Auto")))
+                  .success());
+        CHECK_FALSE(helper.execute_device_action("sync_feedback_adjust_tension", {}).success());
+        CHECK(helper.captured_gcodes ==
+              std::vector<std::string>{"MMU_SYNC_FEEDBACK ENABLE=0 UNIT=1",
+                                       "MMU_FAN FAN_FORCED=2 UNIT=bt"});
+    }
+}
+
+TEST_CASE_METHOD(HhHelperWithClient,
+                 "Happy Hare 4.2 rotates spools on a shared heater without GATES",
+                 "[ams][happy_hare][hh_v4][dry_gates][shared_rotation]") {
+    // Unit 0 (ERCF) shares one heater; unit 1 (Box Turtle) has one per gate.
+    auto fx = helix::test::load_happy_hare_fixture("happy_hare_v4_two_unit.json");
+    fx["mmu_machine"]["unit_0"]["filament_heater"] = "heater_generic ercf_heater";
+    const std::string version = GENERATE(std::string("4.2.0"), std::string("4.1.0"));
+    INFO("Happy Hare " << version);
+    fx["mmu_machine"]["happy_hare_version"] = version;
+    fx["configfile_settings"]["mmu_machine"]["happy_hare_version"] = version;
+    const bool v42 = version == "4.2.0";
+    helper.test_parse_mmu_state(fx["mmu_status"]);
+
+    SECTION("a gear that turns its spool counts") {
+        // No eSpooler anywhere; the ERCF unit's gear turns its spools.
+        fx["configfile_settings"]["mmu_unit ercf"]["gear_rotates_spool"] = 1;
+        connect_with_fixture(helper, client, fx);
+        helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+        helper.test_parse_mmu_state(
+            {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
+        CHECK_FALSE(helper.get_dryer_info(0).supports_gate_selection);
+        CHECK(helper.get_dryer_info(0).supports_rotation == v42);
+
+        DryingRequest req{.temp_c = 50.0f, .duration_min = 60, .unit = 0};
+        req.rotate = true;
+        helper.clear_captured_gcodes();
+        const AmsError err = helper.start_drying_request(req);
+        if (v42) {
+            REQUIRE(err.success());
+            CHECK(helper.captured_gcodes ==
+                  std::vector<std::string>{"MMU_HEATER DRY=1 TEMP=50 TIMER=60 ROTATE=1 UNIT=0"});
+        } else {
+            CHECK(err.result == AmsResult::NOT_SUPPORTED);
+            CHECK(helper.captured_gcodes.empty());
+        }
+    }
+    SECTION("a unit whose gear grips but does not turn the spool") {
+        connect_with_fixture(helper, client, fx);
+        helper.test_parse_mmu_state({{"drying_state", {{"active", false}}}});
+        helper.test_parse_mmu_state(
+            {{"espooler", nlohmann::json::array({"", "", "", "", "", "", "", "", "", ""})}});
+        CHECK_FALSE(helper.get_dryer_info(0).supports_rotation);
     }
 }
 

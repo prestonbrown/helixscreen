@@ -9,6 +9,9 @@
 
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
+#include "display_settings_manager.h"
+#include "region_defaults.h"
 #include "system_settings_manager.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
@@ -20,12 +23,9 @@
 namespace helix::wizard {
 
 namespace {
-constexpr const char* kTimeFormatKey = "/display/time_format";
+constexpr const char* kTempUnitKey = "/display/temp_unit";
+constexpr const char* kDateFormatKey = "/display/date_format";
 } // namespace
-
-TimeFormat default_time_format_for_language(const std::string& language) {
-    return (language.empty() || language == "en") ? TimeFormat::HOUR_12 : TimeFormat::HOUR_24;
-}
 
 bool timezone_needs_attention(bool follows_system, bool system_zone_known) {
     return follows_system && !system_zone_known;
@@ -40,7 +40,7 @@ void WizardAppearanceStep::init_subjects() {
     const bool attention =
         timezone_needs_attention(DisplaySettingsManager::instance().get_timezone().empty(),
                                  helix::timezone_env::system_zone_known());
-    helix::ui::wizard::init_int_subject(subjects_, &tz_attention_, attention ? 1 : 0,
+    helix::ui::wizard::init_int_subject(subjects_, tz_attention_, attention ? 1 : 0,
                                         "wizard_appearance_tz_attention");
 }
 
@@ -63,6 +63,28 @@ void WizardAppearanceStep::apply_theme_by_index(int index) {
     spdlog::info("[WizardAppearance] Theme set to '{}'", themes[index].filename);
 }
 
+void WizardAppearanceStep::apply_region_defaults() {
+    auto& display = DisplaySettingsManager::instance();
+    const RegionDefaults defaults =
+        region_defaults(SystemSettingsManager::instance().get_language(), display.get_timezone());
+    if (temp_unit_follows_region_) {
+        display.set_temp_unit(defaults.temp_unit);
+    }
+    if (date_format_follows_region_) {
+        display.set_date_format(defaults.date_format);
+    }
+}
+
+void WizardAppearanceStep::on_temp_unit_picked(int index) {
+    temp_unit_follows_region_ = false;
+    DisplaySettingsManager::instance().set_temp_unit(static_cast<units::TempUnit>(index));
+}
+
+void WizardAppearanceStep::on_date_format_picked(int index) {
+    date_format_follows_region_ = false;
+    DisplaySettingsManager::instance().set_date_format(static_cast<DateFormat>(index));
+}
+
 void WizardAppearanceStep::register_callbacks() {
     // The rows reuse their overlay twins' callbacks, which a settings overlay
     // registers only when first opened.
@@ -71,19 +93,33 @@ void WizardAppearanceStep::register_callbacks() {
     register_xml_callbacks({
         {"on_wizard_theme_changed",
          [](lv_event_t* e) { apply_theme_by_index(helix::ui::event_selected(e)); }},
+        {"on_wizard_timezone_changed",
+         [](lv_event_t* e) {
+             DisplaySettingsManager::instance().set_timezone_by_index(helix::ui::event_selected(e));
+             get_wizard_appearance_step()->apply_region_defaults();
+         }},
+        {"on_wizard_temp_unit_changed",
+         [](lv_event_t* e) {
+             get_wizard_appearance_step()->on_temp_unit_picked(helix::ui::event_selected(e));
+         }},
+        {"on_wizard_date_format_changed",
+         [](lv_event_t* e) {
+             get_wizard_appearance_step()->on_date_format_picked(helix::ui::event_selected(e));
+         }},
     });
 }
 
 lv_obj_t* WizardAppearanceStep::create(lv_obj_t* parent) {
     init_subjects();
 
-    // An unpicked clock format takes the chosen language's, persisted so
-    // Settings shows the same value.
+    // An unpicked clock format already shows the chosen language's
+    // (DisplaySettingsManager follows the language until one is picked).
     Config* config = Config::get_instance();
-    if (config && !config->exists(kTimeFormatKey)) {
-        DisplaySettingsManager::instance().set_time_format(
-            default_time_format_for_language(SystemSettingsManager::instance().get_language()));
-    }
+    // Units nobody picked follow the region: saved now, and again whenever the
+    // timezone changes on this page, until a row is picked by hand.
+    temp_unit_follows_region_ = config && !config->exists(kTempUnitKey);
+    date_format_follows_region_ = config && !config->exists(kDateFormatKey);
+    apply_region_defaults();
 
     root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_appearance", nullptr));
     if (!root_) {

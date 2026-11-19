@@ -4,14 +4,18 @@
 #pragma once
 
 #include "ui_heater_icon_binder.h"
-#include "ui_observer_guard.h"
 
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "panel_widget.h"
+#include "subject_managed_panel.h"
 
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 namespace helix {
 
@@ -37,6 +41,7 @@ class PreheatWidget : public PanelWidget {
     struct PreheatTargets {
         int nozzle = 0;
         int bed = 0;
+        int chamber = 0; ///< the material's, 0 when it needs none
     };
     static PreheatTargets targets_for_slot(int slot);
 
@@ -55,8 +60,13 @@ class PreheatWidget : public PanelWidget {
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
     lv_obj_t* split_btn_ = nullptr;
-    lv_obj_t* tool_target_btn_ = nullptr;
-    lv_obj_t* tool_target_label_ = nullptr;
+
+    // The tool target button's caption, bound by the component. The button's
+    // visibility binds ToolState's extruder_count. Preheat is single-instance
+    // on the home grid, so the name is fixed.
+    helix::Subject tool_target_text_{};
+    char tool_target_text_buf_[64] = {};
+    SubjectManager subjects_;
 
     int selected_material_ = 0; // index into helix::presets slots, not a fixed material
     bool heaters_active_ = false;
@@ -71,6 +81,8 @@ class PreheatWidget : public PanelWidget {
     SubjectLifetime bed_target_lifetime_;
     ObserverGuard bed_target_obs_;
     ObserverGuard language_obs_;
+    ObserverGuard tools_version_obs_;
+    ObserverGuard extruder_count_obs_;
     int cached_extruder_target_ = 0;
     int cached_bed_target_ = 0;
 
@@ -85,8 +97,14 @@ class PreheatWidget : public PanelWidget {
     void update_button_label();
     void update_heater_state();
     void update_tool_target_label();
-    void set_temperatures(int nozzle, int bed);
-    void set_temperatures_multi(int nozzle, int bed);
+    /// Drop a target past the heads that remain, then refresh the caption.
+    void sync_tool_target();
+    void set_temperatures(int nozzle, int bed, int chamber);
+    void set_temperatures_multi(int nozzle, int bed, int chamber);
+    /// Send @p bed, and @p chamber when the printer has a chamber heater, while
+    /// material presets heat the bed and chamber (presets::heater_targets());
+    /// whether the bed went out.
+    bool send_bed_and_chamber(int bed, int chamber);
     void cycle_tool_target();
 
     void handle_nozzle_tap();

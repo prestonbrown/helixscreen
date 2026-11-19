@@ -1,0 +1,246 @@
+{
+  "id": "box_turtle_enclosed",
+  "lanes": 5,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png",
+          "body": "full_lane1_body.png",
+          "glow": "full_lane1_glow.png"
+        },
+        {
+          "color": "full_lane2.png",
+          "shade": "full_lane2_shade.png",
+          "body": "full_lane2_body.png",
+          "glow": "full_lane2_glow.png"
+        },
+        {
+          "color": "full_lane3.png",
+          "shade": "full_lane3_shade.png",
+          "body": "full_lane3_body.png",
+          "glow": "full_lane3_glow.png"
+        },
+        {
+          "color": "full_lane4.png",
+          "shade": "full_lane4_shade.png",
+          "body": "full_lane4_body.png",
+          "glow": "full_lane4_glow.png"
+        }
+      ]
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png",
+          "body": "thumb_lane1_body.png"
+        },
+        {
+          "color": "thumb_lane2.png",
+          "shade": "thumb_lane2_shade.png",
+          "body": "thumb_lane2_body.png"
+        },
+        {
+          "color": "thumb_lane3.png",
+          "shade": "thumb_lane3_shade.png",
+          "body": "thumb_lane3_body.png"
+        },
+        {
+          "color": "thumb_lane4.png",
+          "shade": "thumb_lane4_shade.png",
+          "body": "thumb_lane4_body.png"
+        }
+      ]
+    }
+  },
+  "drawn": [
+    0.03278,
+    0.16278,
+    0.94077,
+    0.81337
+  ],
+  "bottom_edge": [
+    0.03308,
+    0.68735,
+    0.75624,
+    0.81337
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.15776,
+        0.40313
+      ],
+      "near": [
+        0.25999,
+        0.42094
+      ],
+      "ey": [
+        0.07441,
+        -0.04995
+      ],
+      "ez": [
+        0.0,
+        -0.15401
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.08335,
+        0.24122,
+        0.33439,
+        0.58285
+      ],
+      "outlet": [
+        0.12703,
+        0.56062
+      ]
+    },
+    {
+      "far": [
+        0.29679,
+        0.42735
+      ],
+      "near": [
+        0.39901,
+        0.44517
+      ],
+      "ey": [
+        0.07441,
+        -0.04995
+      ],
+      "ez": [
+        0.0,
+        -0.15401
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.22238,
+        0.26545,
+        0.47342,
+        0.60708
+      ],
+      "outlet": [
+        0.26605,
+        0.58484
+      ]
+    },
+    {
+      "far": [
+        0.43581,
+        0.45158
+      ],
+      "near": [
+        0.53803,
+        0.4694
+      ],
+      "ey": [
+        0.07441,
+        -0.04995
+      ],
+      "ez": [
+        0.0,
+        -0.15401
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.3614,
+        0.28967,
+        0.61244,
+        0.63131
+      ],
+      "outlet": [
+        0.40507,
+        0.60907
+      ]
+    },
+    {
+      "far": [
+        0.57483,
+        0.47581
+      ],
+      "near": [
+        0.67706,
+        0.49362
+      ],
+      "ey": [
+        0.07441,
+        -0.04995
+      ],
+      "ez": [
+        0.0,
+        -0.15401
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.50043,
+        0.3139,
+        0.75147,
+        0.65553
+      ],
+      "outlet": [
+        0.5441,
+        0.6333
+      ]
+    },
+    {
+      "far": [
+        0.71386,
+        0.50004
+      ],
+      "near": [
+        0.81608,
+        0.51785
+      ],
+      "ey": [
+        0.07441,
+        -0.04995
+      ],
+      "ez": [
+        0.0,
+        -0.15401
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.63945,
+        0.33813,
+        0.89049,
+        0.67976
+      ],
+      "outlet": [
+        0.68312,
+        0.65753
+      ]
+    }
+  ],
+  "lane_order": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

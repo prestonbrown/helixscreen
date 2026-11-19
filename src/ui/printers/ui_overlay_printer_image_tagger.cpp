@@ -39,9 +39,7 @@ std::optional<ImageTagTarget> displayed_image_tag_target() {
     return t;
 }
 
-namespace {
-
-const char* prompt_text(TagPrompt p) {
+const char* tag_prompt_text(TagPrompt p) {
     switch (p) {
     case TagPrompt::Nozzle:
         return lv_tr("Tap the nozzle tip");
@@ -57,6 +55,14 @@ const char* prompt_text(TagPrompt p) {
         return lv_tr("Tap the bed's back-left corner");
     case TagPrompt::Chamber:
         return lv_tr("Tap an empty spot inside the enclosure");
+    case TagPrompt::WindowTopLeft:
+        return lv_tr("Tap the window's top-left corner, or skip if there is none");
+    case TagPrompt::WindowTopRight:
+        return lv_tr("Tap the window's top-right corner");
+    case TagPrompt::WindowBottomRight:
+        return lv_tr("Tap the window's bottom-right corner");
+    case TagPrompt::WindowBottomLeft:
+        return lv_tr("Tap the window's bottom-left corner");
     case TagPrompt::Light:
         return lv_tr("Tap the light");
     case TagPrompt::Done:
@@ -64,6 +70,8 @@ const char* prompt_text(TagPrompt p) {
     }
     return lv_tr("Check the chips, then save");
 }
+
+namespace {
 
 /// Each review chip's part, in CalloutKind order.
 constexpr const char* kChipParts[] = {"nozzle", "bed", "chamber", "fan", "light", "toolhead"};
@@ -165,10 +173,10 @@ void PrinterImageTaggerOverlay::on_activate() {
 void PrinterImageTaggerOverlay::refresh() {
     const TagPrompt p = session_.prompt();
     const std::string text = session_.done()
-                                 ? prompt_text(p)
-                                 : fmt::format("{} ({}/{})", prompt_text(p), session_.step() + 1,
-                                               ImageTagSession::kPromptCount);
-    lv_subject_copy_string(&prompt_subject_, text.c_str());
+                                 ? tag_prompt_text(p)
+                                 : fmt::format("{} ({}/{})", tag_prompt_text(p),
+                                               session_.step() + 1, ImageTagSession::kPromptCount);
+    lv_subject_set_string(&prompt_subject_, text.c_str());
     lv_subject_set_int(&reviewing_subject_, session_.done() ? 1 : 0);
     lv_subject_set_int(&can_skip_subject_, session_.can_skip() ? 1 : 0);
     lv_subject_set_int(&can_undo_subject_, session_.can_undo() ? 1 : 0);

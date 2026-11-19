@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
+#include "fan_heaters.h"
+#include "fan_tachometers.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -185,8 +187,30 @@ class PrinterFanState {
      */
     void update_fan_speed(const std::string& object_name, double speed);
 
-    /// Update RPM reading for a fan (from fan_feedback or Klipper rpm field)
-    void update_fan_rpm(const std::string& object_name, int rpm);
+    /// Update RPM reading for a fan (from fan_feedback or Klipper rpm field);
+    /// nullopt means the fan has no tachometer
+    void update_fan_rpm(const std::string& object_name, std::optional<int> rpm);
+
+    /// Which fan each separate tachometer reading measures (fan_tach::map_from_config).
+    /// An empty map leaves only the rpm a fan object reports itself.
+    void set_tachometers(fan_tach::TachMap map) {
+        tachometers_ = std::move(map);
+    }
+
+    /// Which heaters drive each [heater_fan] (PrinterDiscovery::heater_fans()).
+    void set_heater_fans(fan_heaters::HeaterFanMap map);
+
+    /// The tool printing now. @p heater is the heater the nozzle reading follows
+    /// (the active extruder); @p part_fan is the part fan that tool names itself,
+    /// empty where the tools carry no part fan of their own. While each names a
+    /// fan here, the primary part and hotend slots show that tool's fans and the
+    /// main fan speed reads its part fan.
+    void set_active_tool_fans(const std::string& heater, const std::string& part_fan);
+
+    /// Every tool's own fans: the part fans the tools name (as they name them)
+    /// and the heaters the tools print through. These fans belong to a tool, so
+    /// the aux slot never shows one, nor a [heater_fan] one of those heaters drives.
+    void set_tool_fans(std::vector<std::string> part_fans, std::vector<std::string> heaters);
 
     /// Rename a fan: saves custom name to Config, updates display_name, bumps fans_version
     void rename_fan(const std::string& object_name, const std::string& new_name);
@@ -201,6 +225,12 @@ class PrinterFanState {
     }
     lv_subject_t* get_fans_version_subject() {
         return &fans_version_;
+    }
+
+    /// Increments whenever any fan's tachometer reading changes. RPM moves at a
+    /// steady speed (spin-up), so a speed subject alone never redraws it.
+    lv_subject_t* get_fan_rpm_version_subject() {
+        return &fan_rpm_version_;
     }
 
     /// Increments whenever the runtime-resolved primary fan roles change (e.g. a
@@ -219,7 +249,7 @@ class PrinterFanState {
      *
      * IMPORTANT: These are dynamic subjects that may be destroyed during reconnection.
      * Always pass the returned lifetime token to your observer factory function
-     * to prevent use-after-free crashes. See ui_observer_guard.h for details.
+     * to prevent use-after-free crashes. See core/observer_guard.h for details.
      *
      * @param object_name Moonraker object name (e.g., "fan", "heater_fan hotend_fan")
      * @param[out] lifetime Receives the subject's lifetime token (empty if not found)
@@ -299,6 +329,9 @@ class PrinterFanState {
     /// scaling). Result is clamped to [0.0, 1.0].
     double normalize_speed(const std::string& object_name, double raw_speed) const;
 
+    /// Apply the Klipper "rpm" field of one fan object's status, if present
+    void update_klipper_rpm(const std::string& object_name, const nlohmann::json& fan_status);
+
     /// Disambiguate fans sharing the "chamber_fan" suffix by role: a HEATER_FAN
     /// becomes "Chamber Heater Fan" and a TEMPERATURE_FAN "Chamber Cooling Fan".
     /// Returns base_name unchanged for any other object or type.
@@ -313,9 +346,10 @@ class PrinterFanState {
     bool subjects_initialized_ = false;
 
     // Static fan subjects
-    lv_subject_t fan_speed_{};            ///< Main part-cooling fan, 0-100%
-    lv_subject_t fans_version_{};         ///< Increments on fan list (structural) changes
-    lv_subject_t primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
+    helix::Subject fan_speed_{};            ///< Main part-cooling fan, 0-100%
+    helix::Subject fans_version_{};         ///< Increments on fan list (structural) changes
+    helix::Subject primary_fans_version_{}; ///< Increments on primary-role reassignment (#1124)
+    helix::Subject fan_rpm_version_{};      ///< Increments on any fan's rpm change (#2071)
 
     /// Object names exactly as discovery handed them over — before the bare-[fan]
     /// shadowing rule filters them into fans_. apply_roles() re-runs that filter,
@@ -328,7 +362,7 @@ class PrinterFanState {
     PrimaryFans primary_fans_cache_;
 
     // Dynamic per-fan subjects (unique_ptr prevents invalidation on rehash)
-    std::unordered_map<std::string, std::unique_ptr<lv_subject_t>> fan_speed_subjects_;
+    std::unordered_map<std::string, std::unique_ptr<helix::Subject>> fan_speed_subjects_;
     // Lifetime tokens for dynamic fan subjects — destroyed when subject is deinited,
     // expiring weak_ptrs in ObserverGuards to prevent use-after-free.
     std::unordered_map<std::string, SubjectLifetime> fan_speed_lifetimes_;
@@ -339,6 +373,28 @@ class PrinterFanState {
     // Per-fan `max_power` from configfile.settings, keyed by lowercased object
     // name. Used to normalize reported speeds (see normalize_speed()).
     std::unordered_map<std::string, double> fan_max_power_;
+
+    // Tachometer readings published outside the fan objects, by field.
+    fan_tach::TachMap tachometers_;
+
+    // Each [heater_fan] and the heaters that switch it on.
+    fan_heaters::HeaterFanMap heater_fans_;
+
+    // The active tool's heater and its own part fan, as set_active_tool_fans() got them.
+    std::string active_heater_;
+    std::string active_tool_part_fan_;
+    // Every tool's own part fans and heaters, as set_tool_fans() got them.
+    std::vector<std::string> tool_part_fans_;
+    std::vector<std::string> tool_heaters_;
+
+    /// The fan object the active tool names as its part fan, or empty.
+    std::string active_tool_part_fan_object() const;
+    /// The one heater_fan the active tool's heater drives, as a fan object here, or empty.
+    std::string active_tool_hotend_fan_object() const;
+    /// The named fan whose speed the main fan_speed_ subject reads: the active
+    /// tool's own part fan, else the configured part fan. The bare [fan] feeds it
+    /// whenever the active tool names no fan of its own.
+    std::string main_speed_fan() const;
 
     // Configured fan roles from wizard config
     FanRoleConfig roles_;

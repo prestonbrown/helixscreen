@@ -16,12 +16,12 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "calibration_types.h"
+#include "core/operation_timeout_guard.h"
 #include "core/update_queue.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
-#include "operation_timeout_guard.h"
 // timer_can_still_fire() reads lv_timer_t::timer_cb/repeat_count, which the
 // public header keeps opaque.
 #include "lib/lvgl/src/misc/lv_timer_private.h"

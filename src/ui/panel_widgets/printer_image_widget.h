@@ -4,12 +4,14 @@
 #pragma once
 
 #include "ui_heater_icon_binder.h"
-#include "ui_observer_guard.h"
+#include "ui_temperature_utils.h"
 
 #include "callout_layout.h"
 #include "callout_presenter.h"
+#include "core/observer_guard.h"
 #include "exact_size_image.h"
 #include "panel_widget.h"
+#include "src/ui/panel_widgets/light_target_picker.h"
 
 #include <array>
 #include <string>
@@ -62,6 +64,21 @@ class PrinterImageWidget : public PanelWidget {
         return kWidgetId;
     }
 
+    /// Its `led` config: which lights the light chip switches, with the same
+    /// values as a home light button's (unset: the chamber light).
+    void set_config(const nlohmann::json& config) override;
+    bool has_edit_configure() const override {
+        return true;
+    }
+    /// Opens the light button's picker for the light chip's lights.
+    bool on_edit_configure() override;
+
+    const std::string& light_key() const {
+        return light_key_;
+    }
+    /// The device ids a light chip tap switches and its lit state reads.
+    std::vector<std::string> light_targets() const;
+
     /// Called when panel activates — re-check if printer image changed in settings
     void on_activate();
 
@@ -82,13 +99,19 @@ class PrinterImageWidget : public PanelWidget {
     static void printer_callout_chamber_cb(lv_event_t* e);
     static void printer_callout_fan_cb(lv_event_t* e);
     static void printer_callout_light_cb(lv_event_t* e);
-    /// Long-press on the light chip: opens the LEDs overlay on the chamber light.
+    /// Long-press on the light chip: opens the LEDs overlay on light_overlay_device()
+    /// of its `led` config.
     static void printer_callout_light_hold_cb(lv_event_t* e);
 
   protected:
     void on_hooked_root_deleted() override;
 
   private:
+    std::string light_key_;
+    LightTargetPicker light_picker_;
+    /// Point the light chip at @p key (a device id or kLightButtonAll) and save it.
+    void select_light(const std::string& key);
+
     lv_obj_t* widget_obj_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
@@ -145,12 +168,13 @@ class PrinterImageWidget : public PanelWidget {
     void arm_callout_observers();
     void update_callouts();         ///< subjects -> chip text/shown; relayout on change
     void schedule_callout_layout(); ///< one-shot deferred apply_callout_layout()
+    /// Breathe the bed and chamber glows while they climb and are on screen.
+    void update_glow_pulses();
     void cancel_callout_timer();
     void apply_callout_layout(); ///< measure, decide, position
     /// Moves and sizes printer_image to `moved`, or back to filling its
     /// container when null; refreshes the image only when the rect changes.
     void place_printer_image(const CalloutRect* moved);
-    void set_glow_pulse(bool on); ///< start/stop the bed glow's opacity pulse
     void handle_callout_clicked(CalloutKind kind);
     /// Recovers the widget from a chip's event (chip -> callout_layer -> printer_container).
     static PrinterImageWidget* widget_from_chip(lv_event_t* e);
@@ -162,7 +186,9 @@ class PrinterImageWidget : public PanelWidget {
     int callout_colspan_ = 0;
     int callout_rowspan_ = 0;
     int callout_spin_pct_ = -1; ///< speed the fan icons spin at; -1 = not yet applied
-    bool callout_glow_pulsing_ = false;
+    helix::ui::temperature::HeatState callout_bed_heat_ = helix::ui::temperature::HeatState::Off;
+    helix::ui::temperature::HeatState callout_chamber_heat_ =
+        helix::ui::temperature::HeatState::Off;
     helix::ui::CalloutPresenter presenter_;
     std::vector<ObserverGuard> callout_observers_;
     /// Each text chip's full text, indexed by CalloutKind. Its subject carries the

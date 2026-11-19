@@ -237,7 +237,7 @@ void DisplaySleepController::create_sleep_overlay() {
     lv_obj_set_style_bg_opa(m_sleep_overlay, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(m_sleep_overlay, 0, 0);
     lv_obj_set_style_pad_all(m_sleep_overlay, 0, 0);
-    lv_obj_remove_flag(m_sleep_overlay, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(m_sleep_overlay, false);
     helix::active_screen_hide_hold().acquire(lv_screen_active());
     spdlog::debug("[DisplaySleep] Software sleep overlay created");
 }
@@ -354,7 +354,7 @@ void DisplaySleepController::tick() {
     // active prints. We still need to honor wake-from-sleep touches: the
     // display may have entered sleep BEFORE the print started, and bailing out
     // here would strand the user on a blank screen for the duration of the
-    // print (debug bundle RYAQGL6C: 8 touch events, 18-minute wake delay).
+    // print.
     bool inhibit_sleep_entry = false;
     if (!DisplaySettingsManager::instance().get_sleep_while_printing()) {
         // Lifecycle: a user who turned off sleep-while-printing wants the
@@ -363,13 +363,13 @@ void DisplaySleepController::tick() {
         const auto lifecycle = get_printer_state().print_state().get_print_lifecycle();
         if (job_holds_machine(lifecycle)) {
             // Reset LVGL activity timer so we don't immediately sleep when print ends
-            lv_display_trigger_activity(nullptr);
+            lv_display_trigger_activity(lv_display_get_default());
             inhibit_sleep_entry = true;
         }
     }
     // A view waiting on the user mid-operation holds the screen up regardless.
     if (helix::display_awake_hold().is_held()) {
-        lv_display_trigger_activity(nullptr);
+        lv_display_trigger_activity(lv_display_get_default());
         inhibit_sleep_entry = true;
     }
 
@@ -575,7 +575,6 @@ void DisplaySleepController::wake() {
     bool was_preview = m_screensaver_is_preview;
     m_screensaver_is_preview = false;
     m_preview_start_tick_ms = 0;
-    // Stop screensaver on wake
     if (m_screensaver_active) {
         ScreensaverManager::instance().stop(m_wake_from_input ? helix::SaverRunEnd::TOUCH
                                                               : helix::SaverRunEnd::OTHER);
@@ -600,7 +599,7 @@ void DisplaySleepController::wake() {
 
     // A swallowed wake touch never reaches LVGL's activity clock, so without this the
     // display would wake and dim or sleep again on the next tick.
-    lv_display_trigger_activity(nullptr);
+    lv_display_trigger_activity(lv_display_get_default());
 
     if (was_sleeping && helix::ui::UpdateQueue::instance().is_draining()) {
         // The rest of this batch and status are not applied in here, so the first frame
@@ -734,7 +733,6 @@ void DisplaySleepController::set_dim_timeout(int seconds) {
 void DisplaySleepController::restore_on_shutdown() {
     DisplayBackend* backend = m_host.backend.get();
 
-    // Clean up software sleep overlay if active
     destroy_sleep_overlay();
     show_screen_after_dark_panel();
 

@@ -62,6 +62,15 @@
                             label="Edit filament on insert" icon="filament"
                             description="Open the slot editor when you load a new spool"
                             subject="filament_auto_open_editor" callback="on_filament_auto_open_editor_changed"/>
+        <setting_toggle_row name="row_material_presets_heat_bed_and_chamber"
+                            label="Material presets heat the bed and chamber" icon="radiator"
+                            description="A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets"
+                            subject="material_presets_heat_bed_and_chamber"
+                            callback="on_material_presets_heat_bed_and_chamber_changed"/>
+        <setting_toggle_row name="row_number_lanes_from_zero"
+                            label="Number slots from 0" icon="filament"
+                            description="Show slots, lanes, gates and tools counting from 0, matching T0 in G-code"
+                            subject="number_lanes_from_zero" callback="on_number_lanes_from_zero_changed"/>
         <setting_toggle_row name="row_tool_change_confirm"
                             label="Confirm tool changes" icon="swap_horizontal"
                             description="Ask before switching to another tool" subject="settings_tool_change_confirm"

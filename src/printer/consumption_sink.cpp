@@ -342,8 +342,8 @@ void AmsSlotSink::flush() {
     // one at PAUSE/COMPLETE (filament_consumption_tracker.cpp) — without this
     // guard a flush fires a per-slot weight persist for slots that were never
     // tracked (unknown weight / Spoolman-linked / no consumption), churning the
-    // override store and, before the weight-only split, rewriting Adventurer5M
-    // .json for every slot at pause (the #981 revert trigger). active_ is set in
+    // override store and rewriting Adventurer5M .json for every slot at pause
+    // (#981). active_ is set in
     // snapshot() and cleared when a slot goes untrackable mid-print.
     if (!active_) {
         return;

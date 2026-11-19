@@ -291,12 +291,12 @@ TEST_CASE("Subject reactivity", "[subjects]") {
 ```cpp
 TEST_CASE("Panel visibility", "[panels]") {
     lv_obj_t* panel = lv_obj_create(lv_screen_active());
-    lv_obj_add_flag(panel, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(panel, true);
 
-    REQUIRE(lv_obj_has_flag(panel, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(panel));
 
-    lv_obj_remove_flag(panel, LV_OBJ_FLAG_HIDDEN);
-    REQUIRE_FALSE(lv_obj_has_flag(panel, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_set_hidden(panel, false);
+    REQUIRE_FALSE(lv_obj_is_hidden(panel));
 }
 ```
 

@@ -3,12 +3,15 @@
 
 #include "remote_screen_server_sink.h"
 
+#include "bitmap_font_5x7.h"
 #include "jpeg_encode.h"
 #include "memory_utils.h"
 #include "remote_screen_blit.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cstring>
 #include <thread>
 #include <utility>
 
@@ -26,6 +29,28 @@ bool remote_screen_host_is_constrained() {
 std::chrono::milliseconds min_encode_interval(SnapshotRateCap cap, bool printing) {
     const int fps = printing ? cap.printing_fps : cap.idle_fps;
     return std::chrono::milliseconds(1000 / (fps > 0 ? fps : 1));
+}
+
+void draw_screen_placeholder_rgb888(int w, int h, std::vector<uint8_t>& rgb) {
+    constexpr uint8_t kBackground = 0x20;
+    constexpr uint8_t kText = 0xC0;
+    rgb.assign(static_cast<size_t>(std::max(w, 0)) * std::max(h, 0) * 3, kBackground);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+    // The largest scale whose line fills at most 80% of the width.
+    const int unit_w = font5x7_text_width(kScreenHiddenMessage, 1);
+    const int scale = std::min(w * 8 / 10 / unit_w, h / (kFont5x7H * 4));
+    if (scale < 1) {
+        return;
+    }
+    const int x0 = (w - font5x7_text_width(kScreenHiddenMessage, scale)) / 2;
+    const int y0 = (h - kFont5x7H * scale) / 2;
+    font5x7_draw_text(kScreenHiddenMessage, x0, y0, scale, [&](int x, int y) {
+        if (x >= 0 && x < w && y >= 0 && y < h) {
+            std::memset(&rgb[(static_cast<size_t>(y) * w + x) * 3], kText, 3);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +101,18 @@ void ScreenFrameStore::on_frame(const RemoteScreenFrame& f) {
                 full_redraw_needed_ = true;
             }
         }
+        if (f.secret != ScreenSecret::Absent) {
+            clean_ = false;
+            clean_pending_ = false;
+        } else if (!clean_ && !clean_pending_) {
+            // Pixels of the secret may sit anywhere in the shadow until a full repaint
+            // drawn without it has landed.
+            clean_pending_ = true;
+            clean_after_full_ = full_generation_;
+            if (!awaiting_full_) {
+                full_redraw_needed_ = true;
+            }
+        }
         const BlitResult r = blit_remote_frame(f, BlitTarget{shadow_.data(), shadow_.size(),
                                                              static_cast<uint32_t>(shadow_w_ * bpp),
                                                              shadow_w_, shadow_h_, bpp * 8});
@@ -112,6 +149,10 @@ void ScreenFrameStore::on_frame(const RemoteScreenFrame& f) {
         if (awaiting_full_) {
             awaiting_full_ = false;
             ++full_generation_;
+        }
+        if (clean_pending_ && full_generation_ > clean_after_full_) {
+            clean_pending_ = false;
+            clean_ = true;
         }
     }
     cv_.notify_all();
@@ -170,23 +211,35 @@ std::optional<EncodedSnapshot> ScreenFrameStore::snapshot(bool printing, Snapsho
     uint64_t gen = 0;
     int w = 0;
     int h = 0;
+    bool placeholder = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (!has_frame_) {
             return std::nullopt;
         }
-        if (cached_jpeg_ && (cached_generation_ == generation_ ||
-                             t - last_encode_ < min_encode_interval(cap, printing))) {
-            return EncodedSnapshot{cached_jpeg_, cached_generation_, cached_w_, cached_h_};
-        }
         w = shadow_w_;
         h = shadow_h_;
         gen = generation_;
-        rgb_.resize(static_cast<size_t>(w) * h * 3);
-        convert_to_rgb888(shadow_.data(), static_cast<uint32_t>(w * shadow_bpp_), w, h, shadow_bpp_,
-                          rgb_.data());
+        placeholder = !clean_;
+        if (placeholder) {
+            if (placeholder_jpeg_ && placeholder_w_ == w && placeholder_h_ == h) {
+                return EncodedSnapshot{placeholder_jpeg_, gen, w, h};
+            }
+        } else {
+            if (cached_jpeg_ && (cached_generation_ == generation_ ||
+                                 t - last_encode_ < min_encode_interval(cap, printing))) {
+                return EncodedSnapshot{cached_jpeg_, cached_generation_, cached_w_, cached_h_};
+            }
+            rgb_.resize(static_cast<size_t>(w) * h * 3);
+            convert_to_rgb888(shadow_.data(), static_cast<uint32_t>(w * shadow_bpp_), w, h,
+                              shadow_bpp_, rgb_.data());
+        }
     }
 
+    // The placeholder is drawn from nothing but its size, so no screen pixel reaches it.
+    if (placeholder) {
+        draw_screen_placeholder_rgb888(w, h, rgb_);
+    }
     auto jpeg = std::make_shared<std::vector<uint8_t>>();
     if (!encode_jpeg_rgb888(rgb_.data(), w, h, kRemoteScreenJpegQuality, *jpeg)) {
         spdlog::warn("[RemoteScreen] JPEG encode failed ({}x{})", w, h);
@@ -194,6 +247,12 @@ std::optional<EncodedSnapshot> ScreenFrameStore::snapshot(bool printing, Snapsho
     }
 
     std::lock_guard<std::mutex> lock(mutex_);
+    if (placeholder) {
+        placeholder_jpeg_ = std::move(jpeg);
+        placeholder_w_ = w;
+        placeholder_h_ = h;
+        return EncodedSnapshot{placeholder_jpeg_, gen, w, h};
+    }
     cached_jpeg_ = std::move(jpeg);
     cached_generation_ = gen;
     cached_w_ = w;
@@ -202,10 +261,19 @@ std::optional<EncodedSnapshot> ScreenFrameStore::snapshot(bool printing, Snapsho
     return EncodedSnapshot{cached_jpeg_, gen, w, h};
 }
 
+bool ScreenFrameStore::screen_clean() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return clean_;
+}
+
 void ScreenFrameStore::release_locked() {
     std::vector<uint8_t>().swap(shadow_);
     std::vector<uint8_t>().swap(rgb_);
     cached_jpeg_.reset();
+    placeholder_jpeg_.reset();
+    placeholder_w_ = placeholder_h_ = 0;
+    clean_ = true;
+    clean_pending_ = false;
     shadow_w_ = shadow_h_ = shadow_bpp_ = 0;
     cached_w_ = cached_h_ = 0;
     has_frame_ = false;
@@ -218,7 +286,7 @@ bool ScreenFrameStore::release_if_idle() {
     }
     std::lock_guard<std::mutex> encode_lock(encode_mutex_);
     std::lock_guard<std::mutex> lock(mutex_);
-    const bool had = !shadow_.empty() || !rgb_.empty() || cached_jpeg_;
+    const bool had = !shadow_.empty() || !rgb_.empty() || cached_jpeg_ || placeholder_jpeg_;
     release_locked();
     return had;
 }
@@ -229,11 +297,6 @@ void ScreenFrameStore::release() {
     std::lock_guard<std::mutex> encode_lock(encode_mutex_);
     std::lock_guard<std::mutex> lock(mutex_);
     release_locked();
-}
-
-size_t ScreenFrameStore::allocated_bytes() const {
-    std::lock_guard<std::mutex> lock(mutex_);
-    return shadow_.capacity() + rgb_.capacity() + (cached_jpeg_ ? cached_jpeg_->capacity() : 0);
 }
 
 // ---------------------------------------------------------------------------

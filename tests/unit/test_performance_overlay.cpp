@@ -135,7 +135,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay renders MCU rows dynami
     // observe<const char*> is non-immediate, the first rebuild fires on the next drain.
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     // Drain: fires the initial observe<const char*> callback triggered by attaching
     // the observer (LVGL calls the cb once on subscription).
@@ -173,7 +173,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay gates rebuild on actual
 
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
     UpdateQueue::instance().drain();
 
     auto* card = lv_obj_find_by_name(root, "mcu_card");
@@ -226,7 +226,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay resolves row layout syn
 
     auto* root = UiOverlayPerformance::instance().create(lv_screen_active());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
     UpdateQueue::instance().drain();
 
     auto* card = lv_obj_find_by_name(root, "mcu_card");
@@ -260,7 +260,7 @@ TEST_CASE_METHOD(PerfOverlayFixture, "PerformanceOverlay resolves row layout syn
 // printer switch, and between tests. mcu_names_observer_ lives on the overlay
 // SINGLETON (not the widget), so it can outlive the subject. If it was created
 // without subjects_lifetime(), tearing it down after the subject is freed calls
-// lv_observer_remove() on freed memory → UAF/SEGV (lv_observer.c:584) — the same
+// lv_observer_delete() on freed memory → UAF/SEGV (lv_observer.c:584) — the same
 // class of bug that 056bb40e9 fixed for HelixSparkline on perf_history_tick.
 //
 // This test frees the perf subjects out from under a live observer, then tears
@@ -300,7 +300,7 @@ TEST_CASE_METHOD(PerfOverlayFixture,
 
     // Tear the observer down. This is the UAF site: ObserverGuard::reset() runs on
     // an observer whose subject was just freed. With subjects_lifetime() passed to
-    // observe<const char*>, reset() sees the dead token and skips lv_observer_remove();
+    // observe<const char*>, reset() sees the dead token and skips lv_observer_delete();
     // without it, this line SEGVs.
     UiOverlayPerformanceTestAccess::reset(UiOverlayPerformance::instance());
 

@@ -20,9 +20,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "sensor_manager.h"
@@ -100,7 +100,7 @@ class SensorRowSection {
     SubjectManager& subjects_;
     std::string slug_;
     std::string count_id_;
-    lv_subject_t count_{};
+    helix::Subject count_{};
     std::vector<std::unique_ptr<Row>> rows_;
     std::vector<Slot> slots_;
     std::vector<sensors::SensorEntry> filled_entries_; ///< entries the last fill() read
@@ -134,9 +134,8 @@ class SensorSettingsOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "sensors_overlay";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     /// Fills every section before the XML is built, so the first expansion
@@ -168,7 +167,7 @@ class SensorSettingsOverlay : public OverlayBase {
     std::vector<std::string> chamber_sensor_names_;
 
     std::vector<std::unique_ptr<SensorRowSection>> sections_;
-    lv_subject_t total_count_{};
+    helix::Subject total_count_{};
     /// Declared after sections_ so it deinits their subjects before they are freed.
     SubjectManager subjects_;
 };

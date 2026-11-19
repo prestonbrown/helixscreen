@@ -125,6 +125,10 @@ std::vector<std::string> scan_sysfs_interfaces(const std::string& sysfs_root) {
     return ethernet_interfaces;
 }
 
+} // namespace helix::ethernet
+
+namespace helix::net {
+
 namespace {
 
 /// A non-blocking rtnetlink socket subscribed to link and IPv4 address changes.
@@ -165,25 +169,25 @@ class KernelLinkEvents : public LinkEvents {
 std::unique_ptr<LinkEvents> open_kernel_link_events() {
     const int fd = ::socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | SOCK_NONBLOCK, NETLINK_ROUTE);
     if (fd < 0) {
-        spdlog::debug("[Ethernet] rtnetlink socket unavailable: {}", std::strerror(errno));
+        spdlog::debug("[LinkEvents] rtnetlink socket unavailable: {}", std::strerror(errno));
         return nullptr;
     }
     sockaddr_nl addr{};
     addr.nl_family = AF_NETLINK;
     addr.nl_groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
     if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        spdlog::debug("[Ethernet] rtnetlink bind failed: {}", std::strerror(errno));
+        spdlog::debug("[LinkEvents] rtnetlink bind failed: {}", std::strerror(errno));
         ::close(fd);
         return nullptr;
     }
     return std::make_unique<KernelLinkEvents>(fd);
 }
 
-} // namespace helix::ethernet
+} // namespace helix::net
 #endif // !__APPLE__ && !__ANDROID__
 
 #if defined(__APPLE__) || defined(__ANDROID__)
-std::unique_ptr<helix::ethernet::LinkEvents> helix::ethernet::open_kernel_link_events() {
+std::unique_ptr<helix::net::LinkEvents> helix::net::open_kernel_link_events() {
     return nullptr;
 }
 #endif

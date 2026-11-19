@@ -153,7 +153,7 @@ inline std::optional<PrintStartPhase> print_start_phase_from_name(std::string_vi
 /**
  * @brief Whether the prediction history keeps a measured duration for a phase
  *
- * Heating is predicted from measured heat rates by ThermalRateModel rather than
+ * Bed and nozzle heating are predicted from measured heat rates by ThermalRateModel rather than
  * from history, and IDLE/INITIALIZING/COMPLETE are transitions with no dwell of
  * their own. Both listings are exhaustive so a new phase has to be classified.
  */

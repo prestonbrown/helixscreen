@@ -33,7 +33,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: params held by value
 
 namespace helix::lan_auth {
 

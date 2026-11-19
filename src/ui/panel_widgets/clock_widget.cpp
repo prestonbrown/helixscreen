@@ -3,9 +3,9 @@
 
 #include "clock_widget.h"
 
-#include "ui_format_utils.h"
-
+#include "core/subject.h"
 #include "core/text_io.h"
+#include "display_format.h"
 #include "helix/ui/text_metrics.h"
 #include "locale_formats.h"
 #include "panel_widget_registry.h"
@@ -27,16 +27,16 @@
 static constexpr uint32_t kClockUpdateIntervalMs = 1000;
 
 // Subjects owned by ClockWidget module — created before XML bindings resolve
-static lv_subject_t s_time_subject;
+static helix::Subject s_time_subject;
 static char s_time_buffer[32];
 
-static lv_subject_t s_date_subject;
+static helix::Subject s_date_subject;
 static char s_date_buffer[32];
 
-static lv_subject_t s_uptime_subject;
+static helix::Subject s_uptime_subject;
 static char s_uptime_buffer[64];
 
-static lv_subject_t s_size_mode_subject;
+static helix::Subject s_size_mode_subject;
 
 static helix::WidgetSubjects s_subjects{"ClockWidgetSubjects"};
 
@@ -46,31 +46,29 @@ static void format_uptime(char* buf, size_t buf_size) {
     const std::optional<double> parsed =
         line ? helix::text_io::parse_leading<double>(*line) : std::nullopt;
     const int uptime_secs = parsed ? static_cast<int>(*parsed) : -1;
-    std::snprintf(buf, buf_size, "%s", helix::ui::format_uptime(uptime_secs).c_str());
+    std::snprintf(buf, buf_size, "%s", helix::display_format::format_uptime(uptime_secs).c_str());
 }
 
 static void clock_widget_init_subjects() {
     s_subjects.ensure_init([] {
         // Time text (e.g. "2:30 PM" or "14:30")
-        lv_subject_init_string(&s_time_subject, s_time_buffer, nullptr, sizeof(s_time_buffer),
-                               "--:--");
+        s_time_subject.init_string(s_time_buffer, nullptr, sizeof(s_time_buffer), "--:--");
         s_subjects.publish("clock_time_text", &s_time_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_time_subject, "clock_time_text", LV_SUBJECT_TYPE_STRING);
 
         // Date text (e.g. "Fri, Feb 28")
-        lv_subject_init_string(&s_date_subject, s_date_buffer, nullptr, sizeof(s_date_buffer), "");
+        s_date_subject.init_string(s_date_buffer, nullptr, sizeof(s_date_buffer), "");
         s_subjects.publish("clock_date_text", &s_date_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_date_subject, "clock_date_text", LV_SUBJECT_TYPE_STRING);
 
         // Uptime text (e.g. "Up: 3d 14h")
-        lv_subject_init_string(&s_uptime_subject, s_uptime_buffer, nullptr, sizeof(s_uptime_buffer),
-                               "");
+        s_uptime_subject.init_string(s_uptime_buffer, nullptr, sizeof(s_uptime_buffer), "");
         s_subjects.publish("clock_uptime_text", &s_uptime_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_uptime_subject, "clock_uptime_text",
                                      LV_SUBJECT_TYPE_STRING);
 
         // Size mode (0=compact/1x1, 1=normal/2x1, 2=expanded/2x2+)
-        lv_subject_init_int(&s_size_mode_subject, 1);
+        s_size_mode_subject.init_int(1);
         s_subjects.publish("clock_size_mode", &s_size_mode_subject);
         HELIX_SUBJECT_DEBUG_REGISTER(&s_size_mode_subject, "clock_size_mode", LV_SUBJECT_TYPE_INT);
 
@@ -148,7 +146,7 @@ int widest_time_px(const lv_font_t* font) {
     for (int hour = 0; hour < 24; ++hour) {
         t.tm_hour = hour;
         widest = std::max(widest, static_cast<int>(helix::ui::text_width(
-                                      helix::ui::format_time(&t).c_str(), font)));
+                                      helix::display_format::format_time(&t).c_str(), font)));
     }
     return widest;
 }
@@ -164,7 +162,7 @@ int widest_date_px(const lv_font_t* font) {
             t.tm_mon = mon;
             t.tm_wday = wday;
             widest = std::max(widest, static_cast<int>(helix::ui::text_width(
-                                          helix::ui::format_localized_date(&t).c_str(), font)));
+                                          helix::locale::format_localized_date(&t).c_str(), font)));
         }
     }
     return widest;
@@ -237,16 +235,6 @@ void ClockWidget::on_size_changed(int colspan, int rowspan, int width_px, int he
         lv_obj_set_style_text_font(date_label, date_font, 0);
     }
 
-    // Uptime: visible only in expanded (2) and large (3) modes
-    auto* uptime_label = lv_obj_find_by_name(widget_obj_, "clock_uptime");
-    if (uptime_label) {
-        if (mode >= 2) {
-            lv_obj_remove_flag(uptime_label, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(uptime_label, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
     spdlog::trace("[ClockWidget] Size changed: {}x{} -> mode {}", colspan, rowspan, mode);
 }
 
@@ -257,18 +245,18 @@ void ClockWidget::update_clock() {
 
     if (tm_info) {
         // Time — use user's preferred format (12h/24h)
-        std::string time_str = helix::ui::format_time(tm_info);
-        lv_subject_copy_string(&s_time_subject, time_str.c_str());
+        std::string time_str = helix::display_format::format_time(tm_info);
+        lv_subject_set_string(&s_time_subject, time_str.c_str());
 
         // Date — locale-aware formatting
-        std::string date_str = helix::ui::format_localized_date(tm_info);
-        lv_subject_copy_string(&s_date_subject, date_str.c_str());
+        std::string date_str = helix::locale::format_localized_date(tm_info);
+        lv_subject_set_string(&s_date_subject, date_str.c_str());
     }
 
     // Uptime from /proc/uptime
     char uptime_buf[64];
     format_uptime(uptime_buf, sizeof(uptime_buf));
-    lv_subject_copy_string(&s_uptime_subject, uptime_buf);
+    lv_subject_set_string(&s_uptime_subject, uptime_buf);
 }
 
 void ClockWidget::clock_timer_cb(lv_timer_t* timer) {

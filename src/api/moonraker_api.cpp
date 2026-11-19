@@ -4,6 +4,7 @@
 #include "moonraker_api.h"
 
 #include "bed_mesh_presence.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "json_utils.h"
 #include "moonraker_api_internal.h"
@@ -37,7 +38,7 @@ MoonrakerAPI::MoonrakerAPI(IMoonrakerClient& client, PrinterState& state)
     timelapse_api_ = std::make_unique<MoonrakerTimelapseAPI>(client, http_base_url_);
 
     // Initialize build_volume_version subject for change notifications
-    lv_subject_init_int(&build_volume_version_, 0);
+    build_volume_version_.init_int(0);
 
     // Wire up bed mesh callback: Client pushes data to advanced API when it arrives from WebSocket
     client_.set_bed_mesh_callback([this](const json& bed_mesh) {
@@ -52,8 +53,8 @@ MoonrakerAPI::MoonrakerAPI(IMoonrakerClient& client, PrinterState& state)
             std::lock_guard<std::mutex> lock(bed_mesh_presence_mutex_);
             observer = bed_mesh_presence_observer_;
         }
-        if (bed_mesh.contains("probed_matrix")) {
-            const bool present = helix::probed_matrix_has_mesh(bed_mesh["probed_matrix"]);
+        if (const json* matrix = json_util::find_member(bed_mesh, "probed_matrix")) {
+            const bool present = helix::probed_matrix_has_mesh(*matrix);
             if (observer) {
                 observer(present);
             } else {
@@ -76,7 +77,7 @@ MoonrakerAPI::~MoonrakerAPI() {
 
     // Deinit LVGL subject before destruction to prevent dangling observer crashes
     // (same pattern as StaticSubjectRegistry — observers must be disconnected before lv_deinit)
-    lv_subject_deinit(&build_volume_version_);
+    build_volume_version_.reset();
 
     // HTTP work runs on process-wide HttpExecutor::fast()/slow() singletons,
     // which are stopped in Application::shutdown() after MoonrakerManager is
@@ -194,9 +195,7 @@ void MoonrakerAPI::database_get_item(const std::string& namespace_name, const st
             // before extracting the "value" field — the shape is
             // {"jsonrpc","id","result":{"namespace","key","value": <payload>}}.
             if (on_success) {
-                const json& result =
-                    response.contains("result") ? response["result"] : json::object();
-                const json* value = json_util::find_member(result, "value");
+                const json* value = json_util::find_path(response, "result", "value");
                 on_success(value ? *value : json{});
             }
         },
@@ -235,9 +234,7 @@ void MoonrakerAPI::database_get_namespace(const std::string& namespace_name,
         [on_success](const json& response) {
             // See database_get_item above: unwrap response["result"] first.
             if (on_success) {
-                const json& result =
-                    response.contains("result") ? response["result"] : json::object();
-                const json* value = json_util::find_member(result, "value");
+                const json* value = json_util::find_path(response, "result", "value");
                 on_success(value ? *value : json::object());
             }
         },

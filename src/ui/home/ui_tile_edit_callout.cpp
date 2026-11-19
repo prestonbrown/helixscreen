@@ -5,7 +5,8 @@
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
 
-#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
@@ -21,31 +22,17 @@ constexpr const char* kTitleSubject = "tile_callout_title";
 constexpr const char* kConfigureSubject = "tile_callout_configure";
 
 std::array<char, 96> s_title_buf{};
-lv_subject_t s_title_subject{};
-lv_subject_t s_configure_subject{};
-bool s_subjects_ready = false;
+helix::Subject s_title_subject{};
+helix::Subject s_configure_subject{};
+helix::WidgetSubjects s_subjects{"TileEditCallout", StaticSubjectRegistry::Lifetime::Process};
 
 void ensure_subjects() {
-    if (s_subjects_ready) {
-        return;
-    }
-    lv_subject_init_string(&s_title_subject, s_title_buf.data(), nullptr, s_title_buf.size(), "");
-    lv_xml_register_subject(nullptr, kTitleSubject, &s_title_subject);
-    lv_subject_init_int(&s_configure_subject, 0);
-    lv_xml_register_subject(nullptr, kConfigureSubject, &s_configure_subject);
-    s_subjects_ready = true;
-    StaticSubjectRegistry::instance().register_deinit(
-        "TileEditCallout",
-        []() {
-            if (s_subjects_ready) {
-                lv_xml_unregister_subject(nullptr, kTitleSubject);
-                lv_xml_unregister_subject(nullptr, kConfigureSubject);
-                lv_subject_deinit(&s_title_subject);
-                lv_subject_deinit(&s_configure_subject);
-                s_subjects_ready = false;
-            }
-        },
-        StaticSubjectRegistry::Lifetime::Process);
+    s_subjects.ensure_init([] {
+        s_title_subject.init_string(s_title_buf.data(), nullptr, s_title_buf.size(), "");
+        s_subjects.publish(kTitleSubject, &s_title_subject);
+        s_configure_subject.init_int(0);
+        s_subjects.publish(kConfigureSubject, &s_configure_subject);
+    });
 }
 
 /// Whether the press that produced @p e lifted over the object that handles it.
@@ -93,7 +80,7 @@ bool TileEditCallout::show_for(lv_obj_t* screen, lv_obj_t* tile, const std::stri
     if (!screen || !tile) {
         return false;
     }
-    lv_subject_copy_string(&s_title_subject, title.c_str());
+    lv_subject_set_string(&s_title_subject, title.c_str());
     lv_subject_set_int(&s_configure_subject, rows.configure ? 1 : 0);
     lv_obj_get_coords(tile, &tile_area_);
     lockout_.reset(lv_tick_get());
@@ -135,7 +122,7 @@ void TileEditCallout::on_created(lv_obj_t* backdrop) {
     widest_row_ = 0;
     for (const char* name : {"tile_callout_configure", "tile_callout_remove"}) {
         lv_obj_t* row = lv_obj_find_by_name(menu_card, name);
-        if (!row || lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+        if (!row || lv_obj_is_hidden(row)) {
             continue;
         }
         if (lv_obj_t* label = ui_button_get_label(row)) {

@@ -4,11 +4,15 @@
 #include "preset_materials.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "filament_database.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "material_settings_manager.h"
+#include "printer_temperature_state.h"
+#include "settings_manager.h"
 #include "subject_debug_registry.h"
 #include "subject_managed_panel.h"
 
@@ -27,11 +31,11 @@ constexpr size_t kLabelBufSize = 48;
 constexpr size_t kTempBufSize = 32;
 
 struct SubjectState {
-    std::array<lv_subject_t, kPresetCount> name_subjects{};
-    std::array<lv_subject_t, kPresetCount> temp_subjects{};
+    std::array<helix::Subject, kPresetCount> name_subjects{};
+    std::array<helix::Subject, kPresetCount> temp_subjects{};
     std::array<std::array<char, kLabelBufSize>, kPresetCount> name_bufs{};
     std::array<std::array<char, kTempBufSize>, kPresetCount> temp_bufs{};
-    lv_subject_t count_subject{};
+    helix::Subject count_subject{};
     SubjectManager subjects;
     bool ready = false;
 };
@@ -91,16 +95,33 @@ std::optional<SlotTemps> slot_temps(int slot) {
     if (!slot_valid(slot)) {
         return std::nullopt;
     }
+    // The chamber always follows the slot's material: a branded product
+    // carries no chamber temperature of its own.
+    auto mat = filament::find_material(name(slot));
+    const int chamber = mat ? mat->chamber_temp_c : 0;
     auto branded = MaterialSettingsManager::instance().get_preset_filament(slot);
     if (branded && branded->is_branded()) {
         // Exact branded product temps (whole °C ints, same unit as MaterialInfo).
-        return SlotTemps{branded->nozzle, branded->bed};
+        return SlotTemps{branded->nozzle, branded->bed, chamber};
     }
-    auto mat = filament::find_material(name(slot));
     if (!mat) {
         return std::nullopt;
     }
-    return SlotTemps{mat->nozzle_recommended(), mat->bed_temp};
+    return SlotTemps{mat->nozzle_recommended(), mat->bed_temp, chamber};
+}
+
+HeaterTargets heater_targets(int bed, int chamber) {
+    if (!SettingsManager::instance().get_material_presets_heat_bed_and_chamber()) {
+        return {};
+    }
+    return {bed, chamber > 0 ? std::optional<int>{chamber} : std::nullopt};
+}
+
+int chamber_request(int material_chamber_c, const PrinterTemperatureState& temps) {
+    if (temps.chamber_heater_name().empty() || material_chamber_c <= 0) {
+        return 0;
+    }
+    return material_chamber_c;
 }
 
 std::string temp_label(int slot) {
@@ -112,7 +133,8 @@ std::string temp_label(int slot) {
         return "---";
     }
     char buf[kTempBufSize];
-    std::snprintf(buf, sizeof(buf), "%d°C / %d°C", temps->nozzle, temps->bed);
+    std::snprintf(buf, sizeof(buf), "%s / %s", units::format_display_temp(temps->nozzle).c_str(),
+                  units::format_display_temp(temps->bed).c_str());
     return buf;
 }
 
@@ -136,18 +158,18 @@ void init_subjects() {
         s.name_bufs[i][0] = '\0';
         s.temp_bufs[i][0] = '\0';
 
-        lv_subject_init_string(&s.name_subjects[i], s.name_bufs[i].data(), nullptr,
-                               s.name_bufs[i].size(), s.name_bufs[i].data());
+        s.name_subjects[i].init_string(s.name_bufs[i].data(), nullptr, s.name_bufs[i].size(),
+                                       s.name_bufs[i].data());
         s.subjects.publish(kNameSubjects[i], &s.name_subjects[i]);
         HELIX_SUBJECT_DEBUG_REGISTER(&s.name_subjects[i], kNameSubjects[i], LV_SUBJECT_TYPE_STRING);
 
-        lv_subject_init_string(&s.temp_subjects[i], s.temp_bufs[i].data(), nullptr,
-                               s.temp_bufs[i].size(), s.temp_bufs[i].data());
+        s.temp_subjects[i].init_string(s.temp_bufs[i].data(), nullptr, s.temp_bufs[i].size(),
+                                       s.temp_bufs[i].data());
         s.subjects.publish(kTempSubjects[i], &s.temp_subjects[i]);
         HELIX_SUBJECT_DEBUG_REGISTER(&s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING);
     }
 
-    lv_subject_init_int(&s.count_subject, kPresetCount);
+    s.count_subject.init_int(kPresetCount);
     s.subjects.publish("preset_material_count", &s.count_subject);
     HELIX_SUBJECT_DEBUG_REGISTER(&s.count_subject, "preset_material_count", LV_SUBJECT_TYPE_INT);
 
@@ -171,8 +193,8 @@ void refresh_subjects() {
         const std::string temps = temp_label(i);
         std::snprintf(s.name_bufs[i].data(), s.name_bufs[i].size(), "%s", label.c_str());
         std::snprintf(s.temp_bufs[i].data(), s.temp_bufs[i].size(), "%s", temps.c_str());
-        lv_subject_copy_string(&s.name_subjects[i], s.name_bufs[i].data());
-        lv_subject_copy_string(&s.temp_subjects[i], s.temp_bufs[i].data());
+        lv_subject_set_string(&s.name_subjects[i], s.name_bufs[i].data());
+        lv_subject_set_string(&s.temp_subjects[i], s.temp_bufs[i].data());
     }
 }
 

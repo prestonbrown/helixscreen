@@ -3,11 +3,15 @@
 #include "ui_manual_pull_prompt.h"
 
 #include "ui_error_reporting.h"
+#include "ui_guided_load_modal.h"
 
 #include "ams_backend.h"
+#include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "filament_sensor_manager.h"
+#include "print_lifecycle_state.h"
+#include "printer_state.h"
 #include "standard_macros.h"
 
 #include <spdlog/spdlog.h>
@@ -113,6 +117,15 @@ bool notify_if_filament_op_unavailable(const AmsBackend* backend, int slot, bool
                                                             : StandardMacroSlot::UnloadFilament);
     if (macro.get_source() == MacroSource::CONFIGURED) {
         return false;
+    }
+    // During a job the guided load is refused (its heat and extrusion would be the
+    // job's), so a paused reload gets the reason instead: load it by hand.
+    if (load && ops.guided_hand_load &&
+        !job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        spdlog::info("[ManualPull] Load on head {} is a hand push here: opening the manual load",
+                     *head);
+        GuidedLoadModal::show_manual(slot);
+        return true;
     }
     const std::string& reason = load ? ops.load_reason : ops.unload_reason;
     spdlog::info("[ManualPull] {} on head {} is not automatic here — telling the user, sending "

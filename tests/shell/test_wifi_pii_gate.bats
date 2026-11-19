@@ -94,7 +94,7 @@ run_gate() {
 
 @test "flags a raw SSID in a NOTIFY_ERROR toast (also reaches spdlog::error)" {
     # NOTIFY_ERROR/_T/_MODAL and NOTIFY_WARNING/INFO/SUCCESS all expand to a
-    # spdlog call under the hood (see ui_error_reporting.h), so an unredacted
+    # spdlog call under the hood (see core/error_reporting.h), so an unredacted
     # SSID passed to any of them leaks the same way a bare spdlog::error()
     # call would.
     run_gate 'void f() {

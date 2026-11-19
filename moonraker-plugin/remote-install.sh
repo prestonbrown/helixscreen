@@ -37,7 +37,7 @@ PLUGIN_DIR="${HELIX_PLUGIN_DIR:-$HOME/helix_print}"
 
 # Everything install.sh and the plugin need from moonraker-plugin/. A bats test
 # fails when a shipped .py or .sh is missing here.
-PLUGIN_FILES="install.sh helix_print_conf.sh helix_print.py helix_3mf.py helix_analysis.py helix_capabilities.py helix_config.py helix_edits.py helix_file_queue.py helix_filament.py helix_fitcheck.py helix_gcode_reader.py helix_journal.py helix_photos.py helix_plr.py helix_plr_qidi.py helix_plr_render.py helix_plr_scan.py helix_print_hooks.py helix_storage.py helix_vendor_ace.py helix_vendor_ad5x.py helix_vendor_push.py strip_phase_tracking.py"
+PLUGIN_FILES="install.sh helix_print_conf.sh helix_print.py helix_3mf.py helix_analysis.py helix_capabilities.py helix_config.py helix_edits.py helix_file_queue.py helix_filament.py helix_fitcheck.py helix_gcode_reader.py helix_journal.py helix_photos.py helix_plr.py helix_plr_qidi.py helix_plr_render.py helix_plr_scan.py helix_print_hooks.py helix_signal_migration.py helix_storage.py helix_vendor_ace.py helix_vendor_ad5x.py helix_vendor_push.py strip_phase_tracking.py"
 
 info() { printf '[INFO] %s\n' "$1"; }
 error() {

@@ -33,6 +33,7 @@
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
+#include "theme_manager.h"
 #include "tool_state.h"
 
 #include <lvgl.h>

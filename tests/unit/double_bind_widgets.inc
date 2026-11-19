@@ -4,68 +4,87 @@
 // A moves_machine="true" attribute is one of them: the engine installs the
 // machine_motion_blocked -> disabled binding for the element itself, so a control
 // carrying the attribute and one hand-written state binding is a group of two.
-// Each row names the component to build, the widget in it, the property, the
-// subjects involved with a value that releases every binding on them, and one
-// value per binding that makes exactly that binding ask for the property.
+// Each row names the component to build, the widget in it, which of the
+// component's widgets of that name it is (from 0, in document order, among
+// those built with it), the subject values that select its <if> branches at
+// build time, the property, the subjects involved with a value that releases
+// every binding on them, and one value per binding that makes exactly that
+// binding ask for the property.
 //
 // `orders_testable` is false when two bindings share a subject: they cannot be
 // held one at a time, so only the each-alone phase applies to that row.
 //
-// Rows left out are counted in kUndrivableGroups - a cond= expression, a subject
-// the instantiating parent supplies as $param, or a ref_value that is a
-// per-iteration ${...} substitution.
+// Rows left out are counted at the bottom - a cond= expression, a subject
+// the instantiating parent supplies as $param, a ref_value that is a
+// per-iteration ${...} substitution, or an <if> branch whose cond is more than
+// one comparison.
 
 // clang-format off
 static const BindGroup kDoubleBindWidgets[] = {
-    {"ams_current_tool", "ams_current_tool", BindKind::Flag, "hidden", {{"ams_slot_count", -1}, {"ams_current_tool", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
-    {"components/filament_operations_group", "btn_load", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_load_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
-    {"components/filament_operations_group", "btn_unload", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
-    {"components/filament_operations_group", "btn_purge", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
-    {"components/filament_operations_group", "btn_extrude", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"components/filament_operations_group", "btn_retract", BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"components/move_preset_grid", "preset_rear_left", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_rear", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_rear_right", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_left", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_center", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_right", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_front_left", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_front", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "preset_front_right", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "move_park", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"components/move_preset_grid", "move_motors_off", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"controls_panel", "chamber_status", BindKind::Flag, "hidden", {{"ui_breakpoint", 0}, {"printer_has_chamber", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"controls_panel", "btn_home_all", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"controls_panel", "btn_home_x", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"controls_panel", "btn_home_y", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"controls_panel", "btn_home_xy", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"controls_panel", "btn_home_z", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_all", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_x", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_y", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_xy", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_home_z", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_qgl", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"micro/controls_panel", "btn_z_tilt", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"motion_panel", "move_park", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}, {"idle_timeout_printing", 0}}, 3, {{0, 1}, {1, 0}, {2, 1}}, 3, true},
-    {"motion_panel", "move_motors_off", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"motion_panel", "btn_qgl", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"motion_panel", "btn_z_tilt", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"motion_panel", "btn_qgl", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"motion_panel", "btn_z_tilt", BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
-    {"navigation_bar", "nav_btn_controls", BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
-    {"navigation_bar", "nav_btn_filament", BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
-    {"network_settings_overlay", "refresh_btn", BindKind::State, "disabled", {{"wifi_scanning", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"network_settings_overlay", "wifi_disabled_placeholder", BindKind::Flag, "hidden", {{"wifi_enabled", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
-    {"print_file_detail", "filament_mapping_card", BindKind::Flag, "hidden", {{"filament_mapping_visible", -1}, {"print_select_button_mode", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
-    {"spool_wizard", "create_btn", BindKind::State, "disabled", {{"spool_wizard_can_proceed", -1}, {"wizard_creating", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
-    {"wizard_wifi_setup", "network_list_container", BindKind::State, "disabled", {{"wifi_enabled", -1}, {"wifi_hardware_available", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
+    {"ams_current_tool", "ams_current_tool", 0, {}, 0, BindKind::Flag, "hidden", {{"ams_slot_count", -1}, {"ams_current_tool", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
+    {"ams_edit_overlay", "more_section", 0, {}, 0, BindKind::Flag, "hidden", {{"ams_edit_more_open", -1}, {"ams_edit_is_managed", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
+    {"ams_environment_overlay", "drying_progress_bar", 0, {}, 0, BindKind::Flag, "hidden", {{"env_zone_state", 0}, {"ams_env_overlay_drying_progress", 0}}, 2, {{0, 1}, {1, -1}}, 2, true},
+    {"cold_pull_overlay", "btn_cold_pull_extrude", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"cold_pull_busy", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"cold_pull_overlay", "btn_cold_pull_more", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"cold_pull_busy", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/ams_sidebar", "btn_park", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"ams_sidebar_park_disabled", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/filament_operations_group", "btn_load", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_load_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
+    {"components/filament_operations_group", "btn_unload", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
+    {"components/filament_operations_group", "btn_purge", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
+    {"components/filament_operations_group", "btn_extrude", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/filament_operations_group", "btn_retract", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/home_axis_bar", "btn_home_all", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/home_axis_bar", "btn_home_x", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/home_axis_bar", "btn_home_y", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/home_axis_bar", "btn_home_xy", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/home_axis_bar", "btn_home_z", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/motion_leveling_row", "leveling_qgl", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/motion_leveling_row", "leveling_z_tilt", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/move_preset_grid", "move_motors_off", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"components/panel_widget_toolhead", "toolhead_preset_0", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"toolhead_preset_0_state", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/panel_widget_toolhead", "toolhead_preset_1", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"toolhead_preset_1_state", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/panel_widget_toolhead", "toolhead_preset_2", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"toolhead_preset_2_state", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"components/speed_flow_part", "speed_flow_measured_right", 0, {}, 0, BindKind::Flag, "hidden", {{"speed_flow_rung", 4}, {"speed_flow_show_measured", -1}}, 2, {{0, 5}, {1, 0}}, 2, true},
+    {"components/speed_flow_part", "speed_flow_measured_below", 0, {}, 0, BindKind::Flag, "hidden", {{"speed_flow_rung", 3}, {"speed_flow_show_measured", -1}}, 2, {{0, 4}, {1, 0}}, 2, true},
+    {"components/tool_switcher_park_segment", "<view>", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"active_tool", 0}}, 2, {{0, 1}, {1, -1}}, 2, true},
+    {"controls_panel", "btn_home_all", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"controls_panel", "btn_home_x", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"controls_panel", "btn_home_y", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"controls_panel", "btn_home_xy", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"controls_panel", "btn_home_z", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"controls_panel", "btn_qgl_quick", 0, {{"ui_breakpoint", 0}, {"ui_is_portrait", 0}, {"ui_is_ultrawide", 0}}, 3, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"controls_panel", "btn_z_tilt_quick", 0, {{"ui_breakpoint", 0}, {"ui_is_portrait", 0}, {"ui_is_ultrawide", 0}}, 3, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"ipv4_settings_overlay", "ipv4_dhcp_btn", 0, {}, 0, BindKind::State, "disabled", {{"ipv4_busy", 0}, {"ipv4_job_held", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"ipv4_settings_overlay", "ipv4_apply_btn", 0, {}, 0, BindKind::State, "disabled", {{"ipv4_busy", 0}, {"ipv4_job_held", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "header_pos_x_group", 0, {}, 0, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"motion_x_homed", -1}}, 2, {{0, 2}, {1, 0}}, 2, true},
+    {"motion_panel", "header_pos_y_group", 0, {}, 0, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"motion_y_homed", -1}}, 2, {{0, 2}, {1, 0}}, 2, true},
+    {"motion_panel", "header_pos_z_group", 0, {}, 0, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"motion_z_homed", -1}}, 2, {{0, 2}, {1, 0}}, 2, true},
+    {"motion_panel", "row_pos_x_group", 0, {{"ui_is_portrait", 1}}, 1, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"motion_x_homed", -1}}, 2, {{0, 2}, {1, 0}}, 2, true},
+    {"motion_panel", "row_pos_y_group", 0, {{"ui_is_portrait", 1}}, 1, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"motion_y_homed", -1}}, 2, {{0, 2}, {1, 0}}, 2, true},
+    {"motion_panel", "row_pos_z_group", 0, {{"ui_is_portrait", 1}}, 1, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"motion_z_homed", -1}}, 2, {{0, 2}, {1, 0}}, 2, true},
+    {"motion_panel", "jog_pad_wrapper", 0, {{"ui_is_portrait", 1}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "jog_layout_slot", 0, {{"ui_is_portrait", 1}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"motion_panel", "motion_home_bar", 0, {{"ui_is_portrait", 1}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "jog_modes", 0, {{"ui_is_portrait", 1}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "move_motors_off", 0, {{"ui_is_portrait", 1}}, 1, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"nav_buttons_enabled", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"motion_panel", "btn_qgl", 0, {{"ui_is_portrait", 1}}, 1, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "btn_z_tilt", 0, {{"ui_is_portrait", 1}}, 1, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "jog_row", 0, {{"ui_is_portrait", 0}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "jog_layout_slot", 0, {{"ui_is_portrait", 0}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"motion_panel", "jog_modes_row", 0, {{"ui_is_portrait", 0}}, 1, BindKind::Flag, "hidden", {{"motion_tab", 0}, {"settings_motion_layout", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "btn_qgl", 0, {{"ui_is_portrait", 0}}, 1, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"motion_panel", "btn_z_tilt", 0, {{"ui_is_portrait", 0}}, 1, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"controls_operation_in_progress", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
+    {"navigation_bar", "nav_btn_controls", 0, {}, 0, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
+    {"navigation_bar", "nav_btn_filament", 0, {}, 0, BindKind::State, "disabled", {{"nav_buttons_enabled", 1}, {"home_edit_mode", 0}}, 2, {{0, 2}, {1, 1}}, 2, true},
+    {"network_settings_overlay", "refresh_btn", 0, {}, 0, BindKind::State, "disabled", {{"wifi_scanning", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"network_settings_overlay", "wifi_disabled_placeholder", 0, {}, 0, BindKind::Flag, "hidden", {{"wifi_enabled", 0}, {"wifi_hardware_available", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"pa_tuning_overlay", "pa_btn_start", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"pa_tune_can_start", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
+    {"print_file_detail", "filament_mapping_card", 0, {}, 0, BindKind::Flag, "hidden", {{"filament_mapping_visible", -1}, {"print_select_button_mode", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
+    {"settings_hardware_overlay", "container_camera", 0, {}, 0, BindKind::Flag, "hidden", {{"printer_has_webcam", -1}, {"platform_camera_supported", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
+    {"spool_wizard", "create_btn", 0, {}, 0, BindKind::State, "disabled", {{"spool_wizard_can_proceed", -1}, {"wizard_creating", 0}}, 2, {{0, 0}, {1, 1}}, 2, true},
+    {"wizard_wifi_setup", "network_list_container", 0, {}, 0, BindKind::State, "disabled", {{"wifi_enabled", -1}, {"wifi_hardware_available", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
 };
 // clang-format on
 
-// Groups the scan found but that no test can drive; see the header comment.
-static constexpr int kUndrivableGroups = 34;
-
-// Total groups in ui_xml/. A new double-bind widget moves this, which is the
-// point: it has to be regenerated and re-run rather than silently uncovered.
-static constexpr int kTotalGroups = 77;
+// Groups in ui_xml/: 61 drivable, 54 that no test can drive (see the header
+// comment), 115 total. qc_double_binds fails a commit that leaves this file
+// behind ui_xml/.

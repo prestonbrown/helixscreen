@@ -274,7 +274,7 @@ static void* ui_spinner_create(lv_xml_parser_state_t* state, const char** attrs)
 
     // Configure arc appearance
     lv_obj_set_size(arc, size, size);
-    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(arc, false);
     lv_arc_set_bg_angles(arc, 0, 360); // Full circle background (hidden)
     lv_arc_set_rotation(arc, 270);     // Start at top (12 o'clock)
 

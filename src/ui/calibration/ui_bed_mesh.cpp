@@ -646,8 +646,8 @@ static void* bed_mesh_xml_create(lv_xml_parser_state_t* state, const char** attr
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE); // Touch events work automatically!
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true); // Touch events work automatically!
 
     // Allocate widget data struct with RAII (exception-safe)
     auto data_ptr = std::make_unique<bed_mesh_widget_data_t>();

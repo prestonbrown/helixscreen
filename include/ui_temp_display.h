@@ -50,13 +50,17 @@
  * |----------------|---------|---------|--------------------------------------------------|
  * | size           | string  | "md"    | Font size: "sm", "md", or "lg"                   |
  * | show_target    | bool    | "false" | Show "/ target" portion (opt-in)                 |
+ * | trailing_target| bool    | "false" | With show_target, "205.3°C / 210°": the target   |
+ * |                |         |         | small and muted after the unit, "/ Off" when off |
  * | align_current  | bool    | "false" | Current reading at a fixed, right-aligned width  |
  * |                |         |         | so stacked displays line up at the separator     |
  * | bind_current   | subject | -       | Subject name for current temp (decidegrees×10) |
  * | bind_target    | subject | -       | Subject name for target temp (decidegrees×10)  |
- * | bind_mode      | subject | -       | Subject name for ChamberMode int (cooling-ceiling color in
- * Maintaining) | | event_cb       | string  | ""      | Click callback name (makes widget
- * clickable)     |
+ * | bind_unit      | subject | -       | String subject for the unit text (the user's
+ * temperature unit unbound; empty = none) | | bind_raw | subject | - | Int subject: nonzero shows
+ * the reading unconverted, for a bind_unit of the caller's own | | bind_mode      | subject | - |
+ * Subject name for ChamberMode int (cooling-ceiling color in Maintaining) | | event_cb       |
+ * string  | ""      | Click callback name (makes widget clickable)     |
  *
  * @note When show_target="true" and target=0, displays "--" instead of "0"
  *
@@ -112,7 +116,7 @@ extern "C" {
  * Call this during UI initialization, after fonts are registered but
  * BEFORE loading any XML components that use <temp_display>.
  *
- * Typical call location: main.cpp after helix::ui::icon::register_widget()
+ * Called from Application::register_widgets(), after helix::ui::icon::register_widget()
  */
 void ui_temp_display_init(void);
 

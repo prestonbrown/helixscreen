@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
@@ -130,10 +131,10 @@ class RemoteScreenSettingsManager {
     std::function<void()> change_handler_;
     std::function<void()> printer_handler_;
     std::function<void()> forget_handler_;
-    lv_subject_t available_subject_{};
-    lv_subject_t lan_mode_subject_{};
-    lv_subject_t control_active_subject_{};
-    lv_subject_t pair_code_subject_{};
+    helix::Subject available_subject_{};
+    helix::Subject lan_mode_subject_{};
+    helix::Subject control_active_subject_{};
+    helix::Subject pair_code_subject_{};
     char pair_code_buf_[16] = {};
     bool subjects_initialized_ = false;
 };

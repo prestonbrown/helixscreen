@@ -13,6 +13,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
 #include "../test_helpers/registered_backend.h"
+#include "../test_helpers/scoped_language.h"
 #include "../test_helpers/seeded_override.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "ams_backend_indx.h"
@@ -165,6 +166,10 @@ TEST_CASE_METHOD(IndxFixture,
     CHECK_FALSE(b.change_tool(1).success());
     REQUIRE(b.current_error().has_value());
     CHECK(b.current_error()->recovery_actions.empty());
+    // The fault names its tool, so a language switch re-words it with no new frame.
+    ScopedLanguage fr("fr");
+    b.refresh_translated_texts();
+    CHECK(b.get_system_info().operation_detail.find("mal engagé") != std::string::npos);
 
     b.feed(json{{"save_variables", {{"variables", {{"seat_suspect", -1}}}}},
                 {"gcode_macro TOOL_POSITIONS", {{"docks_calibrated", false}}}});
@@ -1093,16 +1098,17 @@ TEST_CASE_METHOD(IndxFixture, "INDX lane truth: a tool with no spool_id variable
 
     SlotInfo linked = b.get_slot_info(1);
     linked.spoolman_id = 42;
+    const auto variable_writes = [&b] {
+        return std::count_if(b.sent().begin(), b.sent().end(), [](const std::string& g) {
+            return g.find("SET_GCODE_VARIABLE") != std::string::npos;
+        });
+    };
     test::edit_slot_as_user(b, 1, linked);
-    for (const auto& g : b.sent()) {
-        CHECK(g.find("SET_GCODE_VARIABLE") == std::string::npos);
-    }
+    CHECK(variable_writes() == 0);
 
     // An edit that keeps the link sends nothing either.
     SlotInfo petg = b.get_slot_info(0);
     petg.material = "PETG";
     test::edit_slot_as_user(b, 0, petg);
-    for (const auto& g : b.sent()) {
-        CHECK(g.find("SET_GCODE_VARIABLE") == std::string::npos);
-    }
+    CHECK(variable_writes() == 0);
 }

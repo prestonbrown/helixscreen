@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 
+#include <algorithm>
 #include <cstdint>
 
 /**
@@ -20,6 +21,7 @@ struct AmsSlotLayout {
     int32_t slot_width = 0;       ///< Width of each slot widget (pixels)
     int32_t overlap = 0;          ///< Overlap between adjacent slots (pixels, 0 for ≤4 slots)
     int32_t centering_offset = 0; ///< Left padding to center slots within available width
+    int label_rows = 0; ///< Rows of labels above a drawn unit; 0 keeps the slots' own labels
 };
 
 /**
@@ -66,11 +68,65 @@ inline AmsSlotLayout calculate_ams_slot_layout(int32_t available_width, int slot
 
 namespace helix::ui {
 
-/// Pixels trimmed off each side of a slot's tap area.
+/// Pixels trimmed off each side of a slot's tap area. An inset of 0 leaves the slot's own edge.
 struct AmsSlotHitBand {
     int32_t left_inset = 0;
     int32_t right_inset = 0;
+    /// Pixels a trimmed edge leans right per pixel down, below the height its inset is measured
+    /// at, for lanes drawn at a slant; above it the edge stands upright.
+    float slant = 0;
+    /// The slot-local heights at which the left and right insets are measured.
+    int32_t left_y = 0;
+    int32_t right_y = 0;
 };
+
+/// Whether a tap at (@p x, @p y) falls in @p band of a slot whose left, top and right edges
+/// are @p x1, @p y1 and @p x2.
+inline bool ams_slot_hit_band_holds(const AmsSlotHitBand& band, int32_t x1, int32_t y1, int32_t x2,
+                                    int32_t x, int32_t y) {
+    auto lean = [&](int32_t at) { return band.slant * (float)std::max<int32_t>(0, y - y1 - at); };
+    if (band.left_inset > 0 && (float)x < (float)(x1 + band.left_inset) + lean(band.left_y))
+        return false;
+    if (band.right_inset > 0 && (float)x > (float)(x2 - band.right_inset) + lean(band.right_y))
+        return false;
+    return true;
+}
+
+/// A drawn lane in screen pixels: its spool's middle and its outlet below.
+struct AmsLaneLine {
+    int32_t x, y;
+    int32_t out_x, out_y;
+};
+
+/**
+ * @brief The band a slot owns over a drawing whose lanes lean.
+ *
+ * Each boundary stands midway between two neighbouring spools and, below their middles, leans
+ * with the lanes toward their outlets, so a tap on a lane's spool, its outlet or anywhere
+ * between opens that lane. @p lanes holds all @p n lanes;
+ * the slot spans @p x1 to @p x2 from top @p y1.
+ */
+inline AmsSlotHitBand ams_slot_lane_hit_band(const AmsLaneLine* lanes, int i, int n, int32_t x1,
+                                             int32_t y1, int32_t x2) {
+    AmsSlotHitBand band;
+    if (!lanes || i < 0 || i >= n)
+        return band;
+    const AmsLaneLine& lane = lanes[i];
+    if (lane.out_y != lane.y)
+        band.slant = (float)(lane.out_x - lane.x) / (float)(lane.out_y - lane.y);
+    // Neighbours compute each shared boundary from the same integer midpoint, so they meet.
+    if (i > 0) {
+        const int32_t mx = (lanes[i - 1].x + lane.x) / 2, my = (lanes[i - 1].y + lane.y) / 2;
+        band.left_inset = mx > x1 ? mx - x1 : 1;
+        band.left_y = my - y1;
+    }
+    if (i < n - 1) {
+        const int32_t mx = (lane.x + lanes[i + 1].x) / 2, my = (lane.y + lanes[i + 1].y) / 2;
+        band.right_inset = x2 > mx ? x2 - mx : 1;
+        band.right_y = my - y1;
+    }
+    return band;
+}
 
 /**
  * @brief The part of an overlapping slot that a tap belongs to.
@@ -96,6 +152,20 @@ struct AmsLabelRow {
     int rows = 1;
     int row = 0;
 };
+
+/// Most rows the labels over a drawn unit stagger into.
+inline constexpr int kAmsOverLaneMaxRows = 3;
+
+/**
+ * @brief A label row that cycles lane by lane over @p rows rows (1 to kAmsOverLaneMaxRows):
+ * the first lane nearest the spools, each next one a row higher.
+ */
+inline AmsLabelRow ams_alternate_row(int slot_index, int rows) {
+    AmsLabelRow r;
+    r.rows = std::clamp(rows, 1, kAmsOverLaneMaxRows);
+    r.row = slot_index % r.rows;
+    return r;
+}
 
 /**
  * @brief Which row a slot's label stands in, so neighbouring labels never share one.
@@ -131,6 +201,105 @@ inline int32_t ams_stagger_row_height(int32_t line_height, UiBreakpoint bp) {
     if (bp >= UiBreakpoint::Medium)
         return line_height * 3 / 2;
     return line_height;
+}
+
+/// Where a label over a drawn unit stands about its lane: how far it reaches left and right of
+/// the lane's center (its tick).
+struct AmsLabelSpan {
+    int32_t left = 0;
+    int32_t right = 0;
+    int32_t room_left = 0; ///< how far it could reach left, its neighbours and the row allowing
+    int32_t room_right = 0;
+};
+
+/**
+ * @brief Spans for labels over lanes at @p x (ascending), in rows @p row (0 nearest the unit),
+ * each asking @p need wide. Centered on its lane where the room allows; where a neighbour
+ * crowds one side, it slides toward the other, its own tick still under it. A label stops
+ * @p gap short of halfway to a neighbour in its own row, and @p gap short of the tick of any
+ * neighbour in a higher row, which rises past it; a neighbour in a lower row ticks down from
+ * under it and takes nothing. No label reaches past @p lo or @p hi.
+ */
+inline void ams_over_lane_label_spans(const float x[], const int row[], const int32_t need[], int n,
+                                      int32_t gap, float lo, float hi, AmsLabelSpan out[]) {
+    for (int k = 0; k < n; ++k) {
+        float room[2] = {x[k] - lo, hi - x[k]}; // left, right
+        for (int j = 0; j < n; ++j) {
+            if (j == k)
+                continue;
+            const int side = x[j] > x[k] ? 1 : 0;
+            const float d = side ? x[j] - x[k] : x[k] - x[j];
+            if (row[j] == row[k])
+                room[side] = std::min(room[side], d / 2 - (float)gap / 2);
+            else if (row[j] > row[k])
+                room[side] = std::min(room[side], d - (float)gap);
+        }
+        const int32_t want = need[k];
+        const int32_t room_l = (int32_t)std::max(0.0f, std::min(room[0], (float)want));
+        const int32_t room_r = (int32_t)std::max(0.0f, std::min(room[1], (float)want));
+        // Centered where both sides allow; else as far as the tighter side lets it, the rest
+        // on the other.
+        int32_t left = std::min(room_l, want / 2);
+        const int32_t right = std::min(room_r, want - left);
+        left = std::min(room_l, want - right);
+        out[k] = {left, right, (int32_t)std::max(0.0f, std::min(room[0], 1e6f)),
+                  (int32_t)std::max(0.0f, std::min(room[1], 1e6f))};
+    }
+}
+
+/**
+ * @brief The rows (1 to kAmsOverLaneMaxRows) the labels over lanes at @p x take, rows cycling
+ * label by label (k % rows): the fewest that give every label its whole text (@p whole), else
+ * the fewest that give each at least a few readable characters (@p readable), else
+ * kAmsOverLaneMaxRows. No label reaches past @p lo or @p hi.
+ */
+inline int ams_over_lane_label_rows(const float x[], const int32_t whole[],
+                                    const int32_t readable[], int n, int32_t gap, float lo,
+                                    float hi) {
+    int row[64];
+    AmsLabelSpan span[64];
+    n = std::min(n, 64);
+    for (const int32_t* need : {whole, readable}) {
+        for (int rows = 1; rows <= kAmsOverLaneMaxRows; ++rows) {
+            for (int k = 0; k < n; ++k)
+                row[k] = k % rows;
+            ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span);
+            bool fits = true;
+            for (int k = 0; k < n && fits; ++k)
+                fits = span[k].left + span[k].right >= need[k];
+            if (fits)
+                return rows;
+        }
+    }
+    return kAmsOverLaneMaxRows;
+}
+
+/// How the lane numbers under a drawn unit stand: in one row or alternating between two (odd
+/// lanes a number lower), and whether an empty lane's number keeps its "+".
+struct AmsLaneBadgeLayout {
+    int rows = 1;
+    bool plus = true;
+};
+
+/**
+ * @brief Lane numbers whose left edges stand at @p left (ascending), @p number wide with the
+ * number alone and @p with_plus wide carrying an empty lane's "+": one row while neighbours
+ * stand @p gap apart; else alternating rows; and where even that crowds them, no "+" (the
+ * number's own tap state says it).
+ */
+inline AmsLaneBadgeLayout ams_lane_badge_layout(const float left[], const int32_t number[],
+                                                const int32_t with_plus[], int n, int32_t gap) {
+    const auto fits = [&](int rows, const int32_t w[]) {
+        for (int i = 0; i + rows < n; ++i)
+            if (left[i + rows] - (left[i] + (float)w[i]) < (float)gap)
+                return false;
+        return true;
+    };
+    if (fits(1, with_plus))
+        return {1, true};
+    if (fits(2, with_plus))
+        return {2, true};
+    return {2, false};
 }
 
 /**

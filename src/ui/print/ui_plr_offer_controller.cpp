@@ -123,6 +123,8 @@ PlrCapabilitySignals PlrOfferController::read_signals() const {
     caps.probe_capable =
         lv_subject_get_int(ps.print_state().get_plr_power_loss_signal_subject()) != 0;
     caps.status_recovery_file = ps.print_state().pl_recovery_file();
+    caps.saved_file_gates_offer = ps.print_state().plr_saved_file_gates_offer();
+    caps.saved_recovery_file = ps.print_state().plr_saved_file();
     caps.plr_feature =
         ps.plugin_status_state().plugin_feature(kPlrFeatureName, kPlrFeatureMinVersion);
     if (plugin_status_) {
@@ -401,8 +403,10 @@ void PlrOfferController::publish_profile() {
     published_profile_type_ = type;
     // The app does not read homing_override, so homing is unknown here: no
     // user raise passes it. The plugin checks the database tier itself.
-    const PlrProfile profile = plr_resolve_profile(PrinterDetector::get_plr_block(type),
-                                                   PlrUserOverride{}, PlrHomingCheck{});
+    const bool guards_unlisted = ps.plugin_status_state().plugin_feature_reported(
+        kPlrFeatureName, kPlrUnlistedTierMinVersion);
+    const PlrProfile profile = plr_resolve_profile(
+        PrinterDetector::get_plr_block(type), PlrUserOverride{}, PlrHomingCheck{}, guards_unlisted);
     spdlog::info("[PLR] Writing plr_profile for '{}' (tier {})", type, profile.tier);
     plr_rpc::write_profile(
         *api, plr_profile_json(profile),

@@ -96,6 +96,7 @@ from pathlib import Path
 from staged_content import catfile_batch
 
 from source_strip import blank_xml_comments
+import ratchet  # noqa: E402
 
 XML_DIRS = ("ui_xml",)
 CPP_DIRS = ("src",)
@@ -424,8 +425,10 @@ def main() -> int:
         print("   Run: python3 scripts/check_hardcoded_pixels.py --list")
         return 1
     if total < limit:
-        print(f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)")
-        return 0
+        return ratchet.under_baseline(
+            'Hardcoded pixels', 'scripts/qc/design_pixels.sh',
+            [ratchet.lowered('--max-allowed', limit, total)],
+            f"✅ Hardcoded pixels: {total} (baseline {limit} — ratchet the baseline down)")
     print(f"✅ Hardcoded pixels: {total} == baseline ({limit})")
     return 0
 

@@ -127,7 +127,7 @@ void ui_severity_card_finalize(lv_obj_t* obj) {
     // Find and unhide the correct icon
     lv_obj_t* icon = lv_obj_find_by_name(obj, icon_name);
     if (icon) {
-        lv_obj_remove_flag(icon, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(icon, false);
         spdlog::debug("[SeverityCard] Finalized: showing '{}' for severity='{}'", icon_name,
                       severity);
     } else {

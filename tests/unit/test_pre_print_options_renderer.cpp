@@ -5,6 +5,7 @@
 #include "ui_print_preparation_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/subject.h"
 #include "macro_param_cache.h"
 #include "pre_print_option.h"
 #include "printer_detector.h"
@@ -178,8 +179,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     opt.strategy = PrePrintStrategyMacroParam{"SKIP_LEVELING", "0", "1", "0"};
     set.options.push_back(opt);
 
-    lv_subject_t can_show{};
-    lv_subject_init_int(&can_show, 1); // start visible
+    helix::Subject can_show{};
+    can_show.init_int(1); // start visible
 
     auto vis_lookup = [&](const std::string& id) -> lv_subject_t* {
         return id == "bed_mesh" ? &can_show : nullptr;
@@ -192,21 +193,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(row != nullptr);
 
     // Initially visible.
-    REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(row));
 
     // Flipping the visibility subject hides the row.
     lv_subject_set_int(&can_show, 0);
-    REQUIRE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(row));
 
     // And restoring re-shows it.
     lv_subject_set_int(&can_show, 1);
-    REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(row));
 
     // Tear down: clear the renderer FIRST so observers are uninstalled
     // before we deinit the local visibility subject (avoids dangling
     // observer pointers).
     renderer.clear();
-    lv_subject_deinit(&can_show);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -477,8 +477,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     opt.strategy = PrePrintStrategyMacroParam{"SKIP_LEVELING", "0", "1", "0"};
     set.options.push_back(opt);
 
-    lv_subject_t plugin_installed{};
-    lv_subject_init_int(&plugin_installed, -1); // unknown / still checking
+    helix::Subject plugin_installed{};
+    plugin_installed.init_int(-1); // unknown / still checking
 
     auto vis_lookup = [&](const std::string& id) -> lv_subject_t* {
         return id == "bed_mesh" ? &plugin_installed : nullptr;
@@ -489,18 +489,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(row != nullptr);
 
     // -1 (unknown): row visible so we never flash-hide during startup.
-    REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(row));
 
     // 0 (confirmed absent): hidden.
     lv_subject_set_int(&plugin_installed, 0);
-    REQUIRE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(row));
 
     // 1 (present): visible again.
     lv_subject_set_int(&plugin_installed, 1);
-    REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(row));
 
     renderer.clear();
-    lv_subject_deinit(&plugin_installed);
 }
 
 // ============================================================================
@@ -743,7 +742,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: a tap on a tile to
 
     lv_obj_t* tile = renderer.get_toggle("nozzle_clean"); // default off
     REQUIRE(tile != nullptr);
-    REQUIRE(lv_obj_has_flag(tile, LV_OBJ_FLAG_CHECKABLE));
+    REQUIRE(lv_obj_is_checkable(tile));
     REQUIRE_FALSE(lv_obj_has_state(tile, LV_STATE_CHECKED));
 
     // What a real tap does: LVGL's base RELEASED handler flips CHECKED and

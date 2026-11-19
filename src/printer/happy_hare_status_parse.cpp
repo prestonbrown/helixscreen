@@ -128,9 +128,8 @@ MmuSensorsDelta read_sensors(const nlohmann::json& sensors) {
     };
     d.has_toolhead_sensor = fitted("toolhead");
     d.has_extruder_sensor = fitted("extruder");
-    if (sensors.contains("mmu_pre_gate")) {
-        d.aggregate_pre_gate =
-            sensors["mmu_pre_gate"].is_boolean() && sensors["mmu_pre_gate"].get<bool>();
+    if (const auto* pre_gate = json_util::find_member(sensors, "mmu_pre_gate")) {
+        d.aggregate_pre_gate = pre_gate->is_boolean() && pre_gate->get<bool>();
     }
     return d;
 }
@@ -167,6 +166,8 @@ struct ParamRow {
 // (Toolhead).
 constexpr ParamRow kParams[] = {
     {"form_tip_macro", "form_tip_macro", "form_tip_macro", "form_tip_macro", ParamScope::Machine},
+    {"default_extruder_temp", "default_extruder_temp", "default_extruder_temp",
+     "default_extruder_temp", ParamScope::Machine},
     {"extruder_load_speed", "extruder_load_speed", "extruder_load_speed", "extruder_load_speed",
      ParamScope::Machine},
     {"extruder_unload_speed", "extruder_unload_speed", "extruder_unload_speed",
@@ -181,9 +182,15 @@ constexpr ParamRow kParams[] = {
      ParamScope::Unit},
     {"sync_to_extruder", "sync_to_extruder", "sync_to_extruder", "sync_to_extruder",
      ParamScope::Unit},
+    // Endless spool groups built from the gate map's material and color. Happy
+    // Hare development builds only; MMU_ENDLESS_SPOOL then ignores GROUPS=.
+    {"endless_spool_auto_groups", "", "", "endless_spool_auto_groups", ParamScope::Machine},
     {"heater_max_temp", "heater_max_temp", "heater_max_temp", "heater_max_temp", ParamScope::Unit},
     // The HUMIDITY= target MMU_HEATER applies when a start names none. v4 only.
     {"heater_default_dry_humidity", "", "", "heater_default_dry_humidity", ParamScope::Unit},
+    // Whether a sync-feedback (or encoder) autotuned rotation distance is saved. v4 only;
+    // MMU_SYNC_FEEDBACK AUTOTUNE= changes it until Klipper restarts.
+    {"autotune_rotation_distance", "", "", "autotune_rotation_distance", ParamScope::Unit},
     // Clog detection mode, 0 off, 1 static (manual), 2 automatic, in every
     // version. In static mode the length is the calibrated clog length before
     // 3.42 and the encoder's maximum motion from 3.42 on.
@@ -254,6 +261,10 @@ std::vector<std::string> read_config_list(const nlohmann::json* v) {
 MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::json& fields) {
     MachineUnit u;
     u.display_name = read_string_member(fields, "display_name");
+    // Live unit_N fields say `vendor`; an old [mmu_machine] section says `mmu_vendor`.
+    u.vendor = read_string_member(fields, "vendor");
+    if (u.vendor.empty())
+        u.vendor = read_string_member(fields, "mmu_vendor");
     u.selector_type = read_string_member(fields, "selector_type");
     if (const auto* first = find_member(fields, "first_gate")) {
         u.first_gate = ams::read_integer(*first).value_or(-1);
@@ -277,8 +288,19 @@ MachineUnit read_machine_unit(const nlohmann::json& settings, const nlohmann::js
     // v4 names the unit's encoder on its own [mmu_unit <name>] section; Klipper
     // lowercases section names in configfile.settings.
     const std::string name = tio::to_lower(read_string_member(fields, "name"));
-    if (const auto* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name)) {
+    const nlohmann::json* cfg = name.empty() ? nullptr : find_member(settings, "mmu_unit " + name);
+    if (cfg) {
         u.has_encoder = !read_string_member(*cfg, "encoder").empty();
+    }
+    const nlohmann::json* gear_turns = cfg ? find_member(*cfg, "gear_rotates_spool") : nullptr;
+    if (gear_turns && gear_turns->is_boolean()) {
+        u.gear_rotates_spool = gear_turns->get<bool>();
+    } else if (const auto n = read_config_number(gear_turns)) {
+        u.gear_rotates_spool = *n != 0.0F;
+    } else {
+        // mmu_unit.py's vendor profiles: VVD and QIDI default it on.
+        const std::string vendor = tio::to_upper(u.vendor);
+        u.gear_rotates_spool = vendor == "VVD" || vendor == "QIDI";
     }
     return u;
 }
@@ -537,6 +559,7 @@ MmuCoreDelta parse_core(const nlohmann::json& mmu) {
         d.filament_loaded = (*filament == "Loaded");
     }
     d.reason_for_pause = ams::read_field<std::string>(mmu, "reason_for_pause");
+    d.pause_hint = ams::read_field<std::string>(mmu, "pause_hint");
     d.action = ams::read_field<std::string>(mmu, "action");
     d.filament_pos = ams::read_integer_field(mmu, "filament_pos");
     if (const auto progress = ams::read_integer_field(mmu, "bowden_progress")) {
@@ -553,8 +576,8 @@ MmuTopologyDelta parse_topology(const nlohmann::json& mmu) {
     }
 
     std::vector<int> counts;
-    if (mmu.contains("num_gates")) {
-        counts = read_num_gates(mmu["num_gates"]);
+    if (const auto* num_gates = json_util::find_member(mmu, "num_gates")) {
+        counts = read_num_gates(*num_gates);
     }
     // An explicit unit_gate_counts array wins over num_gates.
     if (const auto unit_counts = ams::read_array<int>(mmu, "unit_gate_counts", ams::read_integer)) {
@@ -599,6 +622,8 @@ GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu) {
     d.name = ams::read_array<std::string>(mmu, "gate_name");
     d.filament_name = ams::read_array<std::string>(mmu, "gate_filament_name");
     d.endless_spool_group = ams::read_array<int>(mmu, "endless_spool_groups", ams::read_integer);
+    d.remaining_weight = ams::read_array<int>(mmu, "gate_remaining_weight", read_number_as_int);
+    d.initial_weight = ams::read_array<int>(mmu, "gate_initial_weight", read_number_as_int);
     return d;
 }
 
@@ -616,14 +641,36 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     d.sync_feedback_state = ams::read_field<std::string>(mmu, "sync_feedback_state");
     d.sync_feedback_bias = ams::read_field<float>(mmu, "sync_feedback_bias_modelled");
     d.sync_feedback_bias_raw = ams::read_field<float>(mmu, "sync_feedback_bias_raw");
+    d.sync_feedback_enabled = ams::read_field<bool>(mmu, "sync_feedback_enabled");
+    if (const auto it = mmu.find("fans"); it != mmu.end() && it->is_array()) {
+        std::vector<MmuFanUnit> fans;
+        for (const auto& entry : *it) {
+            if (!entry.is_object()) {
+                continue;
+            }
+            MmuFanUnit fan;
+            fan.unit = read_string_member(entry, "unit");
+            fan.first_gate = ams::read_integer_field(entry, "first_gate").value_or(-1);
+            fan.enabled = ams::read_field<bool>(entry, "enabled").value_or(false);
+            if (const auto* modes = find_member(entry, "modes"); modes && modes->is_array()) {
+                for (const auto& mode : *modes) {
+                    fan.modes.push_back(ams::read_integer(mode));
+                }
+            }
+            if (!fan.unit.empty()) {
+                fans.push_back(std::move(fan));
+            }
+        }
+        d.fans = std::move(fans);
+    }
     d.sync_drive = ams::read_field<bool>(mmu, "sync_drive");
     d.clog_detection_enabled = ams::read_integer_field(mmu, "clog_detection_enabled");
 
-    if (mmu.contains("encoder") && mmu["encoder"].is_object()) {
-        d.encoder = read_encoder(mmu["encoder"]);
+    if (const auto* encoder = json_util::find_object(mmu, "encoder")) {
+        d.encoder = read_encoder(*encoder);
     }
-    if (mmu.contains("flowguard") && mmu["flowguard"].is_object()) {
-        d.flowguard = read_flowguard(mmu["flowguard"]);
+    if (const auto* flowguard = json_util::find_object(mmu, "flowguard")) {
+        d.flowguard = read_flowguard(*flowguard);
     }
     if (const auto it = mmu.find("tangle_prevention"); it != mmu.end() && it->is_object()) {
         TanglePreventionDelta tp;
@@ -634,11 +681,9 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
         tp.release = ams::read_field<float>(*it, "release");
         d.tangle_prevention = tp;
     }
-    if (mmu.contains("leds") && mmu["leds"].is_object()) {
-        const auto& leds = mmu["leds"];
-        if (leds.contains("unit0") && leds["unit0"].is_object()) {
-            d.led_exit_effect = ams::read_field<std::string>(leds["unit0"], "exit_effect");
-        }
+    if (const auto* unit0 = json_util::find_path(mmu, "leds", "unit0");
+        unit0 && unit0->is_object()) {
+        d.led_exit_effect = ams::read_field<std::string>(*unit0, "exit_effect");
     }
 
     d.sync_feedback_flow_rate = ams::read_field<float>(mmu, "sync_feedback_flow_rate");
@@ -649,9 +694,9 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     if (const auto count = ams::read_integer_field(mmu, "num_toolchanges")) {
         d.current_toolchange = (*count > 0) ? (*count - 1) : -1;
     }
-    if (mmu.contains("slicer_tool_map") && mmu["slicer_tool_map"].is_object()) {
+    if (const auto* tool_map = json_util::find_object(mmu, "slicer_tool_map")) {
         d.number_of_toolchanges =
-            ams::read_integer_field(mmu["slicer_tool_map"], "total_toolchanges").value_or(0);
+            ams::read_integer_field(*tool_map, "total_toolchanges").value_or(0);
     }
 
     if (const auto mode = ams::read_field<std::string>(mmu, "spoolman_support")) {
@@ -665,6 +710,7 @@ MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu) {
     };
     d.sync_feedback_bias_null = is_null("sync_feedback_bias_modelled");
     d.sync_feedback_bias_raw_null = is_null("sync_feedback_bias_raw");
+    d.sync_feedback_enabled_null = is_null("sync_feedback_enabled");
     d.flowguard_null = is_null("flowguard");
     d.encoder_null = is_null("encoder");
     d.v4_marker = mmu.contains("tangle_prevention");
@@ -678,12 +724,31 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
     d.identity = parse_gate_identity(mmu);
     d.telemetry = parse_telemetry(mmu);
 
-    if (mmu.contains("sensors") && mmu["sensors"].is_object()) {
-        d.sensors = read_sensors(mmu["sensors"]);
+    if (const auto* sensors = json_util::find_object(mmu, "sensors")) {
+        d.sensors = read_sensors(*sensors);
     }
 
-    if (mmu.contains("drying_state")) {
-        const auto& drying = mmu["drying_state"];
+    if (const auto it = mmu.find("drying"); it != mmu.end() && it->is_array()) {
+        std::vector<std::optional<DryingCycle>> cycles;
+        cycles.reserve(it->size());
+        for (const auto& entry : *it) {
+            if (!entry.is_object()) {
+                cycles.emplace_back();
+                continue;
+            }
+            DryingCycle cycle;
+            cycle.temp_c = ams::read_field<float>(entry, "temp");
+            cycle.time_min = ams::read_integer_field(entry, "time");
+            cycle.humidity_target = ams::read_field<float>(entry, "humidity_target");
+            cycle.start_time = ams::read_field<double>(entry, "start_time");
+            cycle.end_time = ams::read_field<double>(entry, "end_time");
+            cycles.emplace_back(cycle);
+        }
+        d.drying_cycles = std::move(cycles);
+    }
+
+    if (const auto* drying_state = json_util::find_member(mmu, "drying_state")) {
+        const auto& drying = *drying_state;
         if (drying.is_object()) {
             DryingDelta dd;
             dd.object = read_drying_object(drying);
@@ -707,12 +772,42 @@ MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu) {
     // tagged DEPRECATED in mmu.py's get_status() with no replacement shipped:
     // read the newer spelling and fall back to the older one.
     for (const char* key : {"endless_spool_enabled", "endless_spool"}) {
-        if (mmu.contains(key) && !mmu[key].is_null()) {
+        if (const auto* v = json_util::find_member(mmu, key); v && !v->is_null()) {
             d.endless_spool_enabled = json_util::safe_bool(mmu, key, false);
             break;
         }
     }
     return d;
+}
+
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+SpoolMotorAction spool_motor_action(const std::string& state) {
+    if (state.empty()) {
+        return SpoolMotorAction::None;
+    }
+    if (state == "rewind") {
+        return SpoolMotorAction::Rewinding;
+    }
+    if (state == "assist") {
+        return SpoolMotorAction::Assisting;
+    }
+    return SpoolMotorAction::Other;
+}
+
+/// Happy Hare's sync_feedback_state as the system buffer's shape: nullopt
+/// when sync feedback is absent or "disabled"; "compressed" is compressed,
+/// "tension" is expanded, anything else ("neutral") has no direction.
+std::optional<BufferMotion> sync_feedback_motion(const std::string& state) {
+    if (state.empty() || state == "disabled") {
+        return std::nullopt;
+    }
+    if (state == "compressed") {
+        return BufferMotion::Compressed;
+    }
+    if (state == "tension") {
+        return BufferMotion::Expanded;
+    }
+    return BufferMotion::Unknown;
 }
 
 } // namespace helix::happy_hare

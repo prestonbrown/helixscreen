@@ -3,6 +3,8 @@
 
 #include "ui_ams_loading_error_modal.h"
 
+#include "core/subject.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
@@ -19,6 +21,16 @@ AmsLoadingErrorModal::~AmsLoadingErrorModal() {
     spdlog::trace("[AmsLoadingErrorModal] Destroyed");
 }
 
+void AmsLoadingErrorModal::init_subjects() {
+    if (!names_.empty()) {
+        return;
+    }
+    message_subject_.init_string(message_buf_, nullptr, sizeof(message_buf_), "");
+    names_.publish(&message_subject_, "message_subject", "message");
+    hint_subject_.init_string(hint_buf_, nullptr, sizeof(hint_buf_), "");
+    names_.publish(&hint_subject_, "hint_subject", "hint");
+}
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -32,11 +44,13 @@ bool AmsLoadingErrorModal::show(lv_obj_t* parent, const std::string& error_messa
                                 const std::string& hint_message, RetryCallback retry_callback) {
     // Store state
     error_message_ = error_message;
-    hint_message_ = hint_message;
     retry_callback_ = std::move(retry_callback);
+    init_subjects();
+    lv_subject_set_string(&message_subject_, error_message.c_str());
+    lv_subject_set_string(&hint_subject_, hint_message.c_str());
 
     // Show the modal via Modal base class (buttons wired in on_show())
-    if (!Modal::show(parent)) {
+    if (!Modal::show(parent, names_.attrs())) {
         return false;
     }
 
@@ -68,18 +82,7 @@ void AmsLoadingErrorModal::on_show() {
     wire_ok_button("btn_primary");       // Retry
     wire_cancel_button("btn_secondary"); // Close (bottom)
     wire_cancel_button("btn_close");     // X button (top-right)
-
-    // Update error message label
-    lv_obj_t* message_label = find_widget("error_message");
-    if (message_label) {
-        lv_label_set_text(message_label, error_message_.c_str());
-    }
-
-    // Update hint message label
-    lv_obj_t* hint_label = find_widget("error_hint");
-    if (hint_label) {
-        lv_label_set_text(hint_label, hint_message_.c_str());
-    }
+    // The message and hint bind this instance's subjects (the props show() passed).
 }
 
 void AmsLoadingErrorModal::on_hide() {

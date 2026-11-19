@@ -180,6 +180,22 @@ double MoonrakerClientMock::secondary_extruder_temp(int index) const {
     return secondary_extruders_[static_cast<size_t>(index)].temperature;
 }
 
+json MoonrakerClientMock::toolchanger_fan_status(double part_speed) const {
+    json out = json::object();
+    if (!has_toolchanger_tool_fans()) {
+        return out;
+    }
+    const int mounted = toolchanger_tool_.load();
+    for (int t = 0; t < 4; ++t) {
+        const double temp = t == 0 ? extruder_temp_.load() : secondary_extruder_temp(t);
+        out["fan_generic " + mock_internal::toolchanger_part_fan(t)] = {
+            {"speed", t == mounted ? part_speed : 0.0}};
+        out["heater_fan " + mock_internal::toolchanger_hotend_fan(t)] = {
+            {"speed", temp > 50.0 ? mock_internal::toolchanger_hotend_fan_speed(t) : 0.0}};
+    }
+    return out;
+}
+
 double MoonrakerClientMock::secondary_extruder_target(int index) const {
     std::lock_guard<std::mutex> lock(secondary_extruders_mutex_);
     if (index < 1 || index >= static_cast<int>(secondary_extruders_.size())) {
@@ -661,7 +677,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
              {{"live_position", {x, y, z + z_offset, 0.0}},
               {"live_velocity", feed_mm_s * (speed / 100.0)},
               {"live_extruder_velocity", extruder_mm_s}}},
-            {"fan", {{"speed", fan / 255.0}}},
+            {"fan", mock_internal::part_fan_status(fan / 255.0)},
             {"print_stats",
              {{"state", print_state_str},
               {"filename", filename},
@@ -710,7 +726,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
 
         // Toolchanger mock mode: the extra extruders on the live subscription
         // stream, each following its own target (secondary_extruder_temp()).
-        if (is_mock_toolchanger() || is_mock_medusahc()) {
+        if (is_mock_toolchanger() || is_mock_medusahc() || is_mock_u1_snapswap()) {
             const int count = is_mock_medusahc() ? medusa_tool_count() : 4;
             for (int t = 1; t < count; ++t) {
                 status_obj["extruder" + std::to_string(t)] = {
@@ -754,6 +770,16 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             }
             status_obj["filament_switch_sensor toolhead"] = {
                 {"filament_detected", ifs_module_head_loaded_.load()}};
+        }
+
+        // IFS Jacker mock: native Z-Mod's IFS objects and the stock sensors.
+        if (is_mock_zmod_ifs()) {
+            status_obj["zmod_ifs"] = ifs_jacker_zmod_ifs_json();
+            status_obj["zmod_color"] = ifs_jacker_zmod_color_json();
+            status_obj["filament_motion_sensor ifs_motion_sensor"] = {
+                {"filament_detected", ifs_jacker_head_loaded_.load()}};
+            status_obj["filament_switch_sensor head_switch_sensor"] = {
+                {"filament_detected", ifs_jacker_head_loaded_.load()}};
         }
 
         // CFS mock: the stock `box` frame AmsBackendCfs parses (bay states,
@@ -812,13 +838,16 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 status_obj[fan_name] = {{"speed", hotend_fan_speed}};
             }
         }
+        status_obj.merge_patch(toolchanger_fan_status(fan / 255.0));
 
         // Override fan speeds with explicitly-set values from fan_speeds_ map
         {
             std::lock_guard<std::mutex> lock(fan_mutex_);
             for (const auto& [name, spd] : fan_speeds_) {
-                if (name == "fan") {
-                    status_obj["fan"] = {{"speed", spd}};
+                if (name == "fan" && has_toolchanger_tool_fans()) {
+                    status_obj.merge_patch(toolchanger_fan_status(spd));
+                } else if (name == "fan") {
+                    status_obj["fan"] = mock_internal::part_fan_status(spd);
                 } else {
                     status_obj[name] = {{"speed", spd}};
                 }
@@ -907,11 +936,14 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 }
                 double speed = target > 0 ? 0.5 : 0.0;
                 status_obj[s] = {{"temperature", temp}, {"target", target}, {"speed", speed}};
-            } else if (s.rfind("tmc2240 ", 0) == 0 || s.rfind("tmc5160 ", 0) == 0) {
-                // TMC stepper drivers: drift around a base temp per-driver
+            } else if (s.rfind("tmc2240 ", 0) == 0) {
+                // TMC2240 drivers: drift around a base temp per-driver
                 double base = 55.0 + (std::hash<std::string>{}(s) % 20);
                 double temp = base + 3.0 * std::sin(2.0 * M_PI * sim_time / 120.0);
-                status_obj[s] = {{"temperature", temp}};
+                status_obj[s] = {{"temperature", temp},
+                                 {"drv_status", helix::mock::mock_tmc_drv_status(s)}};
+            } else if (s.rfind("tmc", 0) == 0) {
+                status_obj[s] = {{"drv_status", helix::mock::mock_tmc_drv_status(s)}};
             }
         }
 

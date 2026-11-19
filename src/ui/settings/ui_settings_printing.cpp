@@ -141,6 +141,11 @@ void PrintingSettingsOverlay::register_callbacks() {
                  PostOpCooldownManager::instance().cancel();
              }
          }},
+        {"on_material_presets_heat_bed_and_chamber_changed",
+         [](lv_event_t* e) {
+             SettingsManager::instance().set_material_presets_heat_bed_and_chamber(
+                 event_checked(e));
+         }},
         {"on_tool_change_confirm_changed",
          [](lv_event_t* e) {
              SafetySettingsManager::instance().set_tool_change_require_confirmation(
@@ -149,6 +154,10 @@ void PrintingSettingsOverlay::register_callbacks() {
         {"on_filament_auto_open_editor_changed",
          [](lv_event_t* e) {
              SettingsManager::instance().set_filament_auto_open_editor(event_checked(e));
+         }},
+        {"on_number_lanes_from_zero_changed",
+         [](lv_event_t* e) {
+             SettingsManager::instance().set_number_lanes_from_zero(event_checked(e));
          }},
         {"on_retraction_row_clicked",
          [](lv_event_t*) {

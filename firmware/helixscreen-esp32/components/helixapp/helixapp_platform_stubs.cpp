@@ -86,26 +86,33 @@ void UsbManager::set_drive_callback(DriveCallback) {}
 
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "detection_manager.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
+#include "settings_manager.h"
 #include "src/xml/lv_xml.h"
 
-static lv_subject_t g_notification_subject;
-static lv_subject_t g_show_beta_features_subject;
-static lv_subject_t g_home_edit_mode_subject;
-static lv_subject_t g_home_edit_page_deletable_subject;
-static lv_subject_t g_host_power_supported_subject;
-static lv_subject_t g_platform_extras_subject;
-static lv_subject_t g_camera_supported_subject;
+static helix::Subject g_notification_subject;
+static helix::Subject g_show_beta_features_subject;
+static helix::Subject g_home_edit_mode_subject;
+static helix::Subject g_home_edit_page_deletable_subject;
+static helix::Subject g_host_power_supported_subject;
+static helix::Subject g_platform_extras_subject;
+static helix::Subject g_camera_supported_subject;
+static helix::Subject g_console_supported_subject;
+static helix::Subject g_host_terminal_supported_subject;
 static bool g_subjects_initialized = false;
 
-lv_subject_t& get_notification_subject() {
+// Namespace-scope Subjects get their node at app_globals_init_subjects(), which app_boot_ui()
+// runs before any UI that calls these getters.
+helix::Subject& get_notification_subject() {
     return g_notification_subject;
 }
-lv_subject_t& get_home_edit_mode_subject() {
+helix::Subject& get_home_edit_mode_subject() {
     return g_home_edit_mode_subject;
 }
-lv_subject_t& get_home_edit_page_deletable_subject() {
+helix::Subject& get_home_edit_page_deletable_subject() {
     return g_home_edit_page_deletable_subject;
 }
 // These subjects are plain statics with no SubjectManager death signal, so
@@ -115,14 +122,13 @@ SubjectLifetime get_app_globals_subjects_lifetime() {
 }
 // Wizard-active gate (app_globals.cpp on Linux). ESP32 has no first-run wizard
 // flow driving it, so it initializes to 0 and only PLR/offer code observes it.
-static lv_subject_t g_wizard_active_subject;
+static helix::Subject g_wizard_active_subject;
 // Safety & Alerts binds DetectionManager's subjects and bed-check toggle. The firmware cut
 // has no detection (detection_manager.cpp is excluded), so every gate reads 0 and the
 // detection and bed-check rows stay hidden; the toggle's callback is inert.
-static lv_subject_t g_detection_subjects[5];
-static void detection_bed_check_noop_cb(lv_event_t* /*e*/) {}
-static lv_subject_t g_platform_tier_subject;
-lv_subject_t& get_wizard_active_subject() {
+static helix::Subject g_detection_subjects[5];
+static helix::Subject g_platform_tier_subject;
+helix::Subject& get_wizard_active_subject() {
     return g_wizard_active_subject;
 }
 
@@ -132,41 +138,45 @@ void app_globals_init_subjects() {
     if (g_subjects_initialized) {
         return;
     }
-    lv_subject_init_pointer(&g_notification_subject, nullptr);
+    g_notification_subject.init_pointer(nullptr);
     helix::Config* config = helix::Config::get_instance();
     bool beta_enabled = config && config->is_beta_features_enabled();
-    lv_subject_init_int(&g_show_beta_features_subject, beta_enabled ? 1 : 0);
+    g_show_beta_features_subject.init_int(beta_enabled ? 1 : 0);
     lv_xml_register_subject(nullptr, "show_beta_features", &g_show_beta_features_subject);
-    lv_subject_init_int(&g_home_edit_mode_subject, 0);
+    g_home_edit_mode_subject.init_int(0);
     lv_xml_register_subject(nullptr, "home_edit_mode", &g_home_edit_mode_subject);
-    lv_subject_init_int(&g_home_edit_page_deletable_subject, 0);
+    g_home_edit_page_deletable_subject.init_int(0);
     lv_xml_register_subject(nullptr, "home_edit_page_deletable",
                             &g_home_edit_page_deletable_subject);
-    lv_subject_init_int(&g_wizard_active_subject, 0); // not XML-bound, observed programmatically
+    g_wizard_active_subject.init_int(0); // not XML-bound, observed programmatically
     // Rows for hardware features outside the firmware cut bind hidden on 0.
-    lv_subject_init_int(&g_platform_extras_subject, 0);
+    g_platform_extras_subject.init_int(0);
     lv_xml_register_subject(nullptr, "platform_extras_available", &g_platform_extras_subject);
     // The firmware cut has no camera view (HELIX_HAS_CAMERA=0): camera rows bind hidden.
-    lv_subject_init_int(&g_camera_supported_subject, 0);
+    g_camera_supported_subject.init_int(0);
     lv_xml_register_subject(nullptr, "platform_camera_supported", &g_camera_supported_subject);
+    // The K-Touch feature profile leaves the G-code console out (HELIX_HAS_CONSOLE=0).
+    g_console_supported_subject.init_int(0);
+    lv_xml_register_subject(nullptr, "platform_console_supported", &g_console_supported_subject);
+    // No pty on the firmware (HELIX_HAS_HOST_TERMINAL=0): the Host Terminal rows bind hidden.
+    g_host_terminal_supported_subject.init_int(0);
+    lv_xml_register_subject(nullptr, "platform_host_terminal_supported",
+                            &g_host_terminal_supported_subject);
     // The shutdown home widget's hardware gate reads it by name.
-    lv_subject_init_int(&g_host_power_supported_subject,
-                        helix::platform_host_power_supported() ? 1 : 0);
+    g_host_power_supported_subject.init_int(helix::platform_host_power_supported() ? 1 : 0);
     lv_xml_register_subject(nullptr, "platform_host_power_supported",
                             &g_host_power_supported_subject);
     // overlay_panel.xml binds square corners below STANDARD.
-    lv_subject_init_int(&g_platform_tier_subject,
-                        static_cast<int>(helix::PlatformCapabilities::detect().tier));
+    g_platform_tier_subject.init_int(static_cast<int>(helix::PlatformCapabilities::detect().tier));
     lv_xml_register_subject(nullptr, "platform_tier", &g_platform_tier_subject);
-    for (lv_subject_t& subject : g_detection_subjects) {
-        lv_subject_init_int(&subject, 0);
+    for (helix::Subject& subject : g_detection_subjects) {
+        subject.init_int(0);
     }
     lv_xml_register_subject(nullptr, "detection_available", &g_detection_subjects[0]);
     lv_xml_register_subject(nullptr, "detection_pause_applicable", &g_detection_subjects[1]);
     lv_xml_register_subject(nullptr, "detection_bed_check_available", &g_detection_subjects[2]);
     lv_xml_register_subject(nullptr, "detection_bed_check_enabled", &g_detection_subjects[3]);
     lv_xml_register_subject(nullptr, "detection_bed_check_switchable", &g_detection_subjects[4]);
-    lv_xml_register_event_cb(nullptr, "on_bed_check_changed", detection_bed_check_noop_cb);
     helix::ui::modal_init_subjects();
     g_subjects_initialized = true;
     StaticSubjectRegistry::instance().register_deinit("AppGlobals", app_globals_deinit_subjects);
@@ -216,3 +226,14 @@ TemperatureHistoryManager* get_temperature_history_manager() {
 // outside helixcore's 11 medium-tier faces, plus the mdi/noto_sans/
 // source_code_pro tiers this component no longer compiles for real) live in
 // font_aliases.cpp, not here — single source of truth, see that file's header.
+
+// detection_manager.cpp is excluded from the firmware cut: the Safety & Alerts
+// switch only stores its setting, since no printer-side detector is followed.
+namespace helix::detection {
+void apply_detection_switch(bool enabled) {
+    SettingsManager::instance().set_detection_enabled(enabled);
+}
+// No detector reports a bed check here, so the row stays hidden and its switch
+// has nothing to drive.
+void apply_bed_check_switch(bool) {}
+} // namespace helix::detection

@@ -91,7 +91,7 @@ struct BedMeshTileFixture : public LVGLUITestFixture {
         set_print_active(false);
         set_machine_blocked(false);
         BedMeshState::instance().apply(nullptr, 0);
-        lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "xyz");
+        lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "xyz");
         drain();
     }
     void load_mesh(float spread, int profiles = 2, const char* name = "default") {
@@ -157,7 +157,7 @@ lv_obj_t* part(Harness& h, const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.
@@ -381,7 +381,7 @@ TEST_CASE_METHOD(BedMeshTileFixture,
     CHECK(ui_bed_mesh_has_data(map));
     CHECK(ui_bed_mesh_get_render_mode(map) == BedMeshRenderMode::Force2D);
     // A static canvas draws nothing interactive: it takes no press, so a tap reaches the tile.
-    CHECK_FALSE(lv_obj_has_flag(map, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(map));
 
     tap(map);
     CHECK(opened == 1);
@@ -591,7 +591,7 @@ TEST_CASE_METHOD(BedMeshTileFixture,
                  "bed_mesh_tile: Calibrate homes first when the toolhead is not homed",
                  "[widget_size][bed_mesh_tile][actions]") {
     clear_mesh(0);
-    lv_subject_copy_string(state().motion_state().get_homed_axes_subject(), "");
+    lv_subject_set_string(state().motion_state().get_homed_axes_subject(), "");
     Harness h(test_screen(), state());
     h.resize(1, 1, kFull.w, kFull.h);
 

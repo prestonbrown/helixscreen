@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
+#include "region_defaults.h"
 #include "subject_managed_panel.h"
 
 #include <algorithm>
@@ -35,6 +36,8 @@ enum class TimeFormat { HOUR_12 = 0, HOUR_24 = 1 };
  * - bed_mesh_render_mode (Auto/3D/2D)
  * - gcode_render_mode (Auto/3D/2D/Thumbnail Only)
  * - time_format (12H/24H)
+ * - temp_unit (°C/°F; display and entry only, state stays Celsius)
+ * - date_format (day/month/year order; unset follows the language)
  * - printer_image (config-only, no subject)
  * - bed_mesh_show_zero_plane (config-only, no subject)
  *
@@ -211,6 +214,18 @@ class DisplaySettingsManager {
     }
 
     /**
+     * @brief Record whether the on-screen keyboard is up.
+     *
+     * KeyboardManager calls this as it raises and lowers the keyboard; the
+     * soft_keyboard_visible subject publishes it for views that lay out around
+     * the keyboard. A keyboard suppressed by a hardware one never counts as up.
+     */
+    void set_soft_keyboard_visible(bool visible);
+
+    /** @brief Whether the on-screen keyboard is up (or rising), per KeyboardManager */
+    bool soft_keyboard_visible() const;
+
+    /**
      * @brief Whether text entry goes to the hardware keyboard alone.
      *
      * True only while the preference is on AND a physical keyboard is attached;
@@ -295,12 +310,33 @@ class DisplaySettingsManager {
     /** @brief Set G-code render mode; an explicit pick also clears the GPU crash blocks */
     void set_gcode_render_mode(int mode);
 
+    /// The clock format: the saved choice, or the active language's while none is saved.
     TimeFormat get_time_format() const {
         return static_cast<TimeFormat>(std::clamp(settings_.get(Key::TimeFormat), 0, 1));
     }
     void set_time_format(TimeFormat format) {
         settings_.set(Key::TimeFormat, static_cast<int>(format));
     }
+
+    /// The unit temperatures are shown and typed in.
+    units::TempUnit get_temp_unit() const {
+        return static_cast<units::TempUnit>(std::clamp(settings_.get(Key::TempUnit), 0, 1));
+    }
+    /// Persist the unit and make it the one every temperature readout uses.
+    void set_temp_unit(units::TempUnit unit);
+
+    /// The date order: the saved choice, or the active language's while none is saved.
+    DateFormat get_date_format() const;
+    void set_date_format(DateFormat format);
+
+    /// Whether the user (or the setup wizard) has saved a date order.
+    bool has_saved_date_format() const;
+
+    /// Whether the user has saved a clock format.
+    bool has_saved_time_format() const;
+
+    /// Re-read the language's date order and clock into their subjects while none is saved.
+    void on_language_changed();
 
     /// Whether the dropdown offers "System": the host's own zone. The ESP32 has
     /// none, so an unpicked zone there is UTC.
@@ -431,15 +467,19 @@ class DisplaySettingsManager {
     // DISPLAY DIM OPTIONS (for dropdown population)
     // =========================================================================
 
+    /// The dim timeout a fresh install starts with (10 minutes).
+    static constexpr int kDefaultDimSec = 600;
+
     /** @brief Get dropdown index for current dim seconds value */
     static int dim_seconds_to_index(int seconds);
 
     /** @brief Convert dropdown index to dim seconds */
     static int index_to_dim_seconds(int index);
 
-    /// The form the dim-timeout row takes in Display settings. Without a dimmable
-    /// backlight the same timeout starts the screensaver, so the row is offered
-    /// under that name while one is enabled, and hidden when nothing would happen.
+    /// The form the dim-timeout row takes in Display settings. While a screensaver is
+    /// enabled the timeout starts it, dimmable backlight or not, so the row is offered
+    /// under that name; with no saver it is Screen Dim on a dimmable backlight, and
+    /// hidden when nothing would happen.
     /// should_couple_sleep_to_dim() holds exactly when this is not Hidden.
     enum class DimRowKind { Hidden = 0, ScreenDim = 1, ScreensaverAfter = 2 };
     static DimRowKind dim_row_kind(bool has_dimming, bool screensaver_enabled);
@@ -567,6 +607,11 @@ class DisplaySettingsManager {
         return settings_.subject(Key::HideKeyboardWithHardware);
     }
 
+    /** @brief On-screen keyboard up (integer: 0=down, 1=up) */
+    lv_subject_t* subject_soft_keyboard_visible() {
+        return &soft_keyboard_visible_subject_;
+    }
+
     /** @brief Physical keyboard presence (integer: 0=none, 1=attached) */
     lv_subject_t* subject_hardware_keyboard_present() {
         return &hardware_keyboard_present_subject_;
@@ -609,6 +654,16 @@ class DisplaySettingsManager {
         return settings_.subject(Key::TimeFormat);
     }
 
+    /** @brief Temperature unit subject (integer: a units::TempUnit) */
+    lv_subject_t* subject_temp_unit() {
+        return settings_.subject(Key::TempUnit);
+    }
+
+    /** @brief Date format subject (integer: a DateFormat) */
+    lv_subject_t* subject_date_format() {
+        return settings_.subject(Key::DateFormat);
+    }
+
     /** @brief Timezone subject (integer: index into curated list) */
     lv_subject_t* subject_timezone() {
         return &timezone_subject_;
@@ -627,6 +682,9 @@ class DisplaySettingsManager {
   private:
     DisplaySettingsManager();
     ~DisplaySettingsManager() = default;
+
+    /// Set the clock subject to the language's format while no choice is saved.
+    void follow_language_clock();
 
     SubjectManager subjects_;
 
@@ -648,27 +706,33 @@ class DisplaySettingsManager {
         TimeFormat,
         GlassEffects,
         ScreensaverPrintProgress,
+        TempUnit,
+        DateFormat,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
 
-    lv_subject_t dark_mode_subject_{};
-    lv_subject_t dark_mode_available_subject_{};
-    lv_subject_t theme_preset_subject_{};
-    lv_subject_t display_dim_subject_{};
-    lv_subject_t display_sleep_subject_{};
-    lv_subject_t has_backlight_subject_{};
-    lv_subject_t has_dimming_subject_{};
-    lv_subject_t dim_row_kind_subject_{};
-    lv_subject_t animations_enabled_subject_{};
-    lv_subject_t hardware_keyboard_present_subject_{};
-    lv_subject_t is_android_subject_{};
-    lv_subject_t rotation_available_subject_{};
-    lv_subject_t timezone_subject_{};
-    lv_subject_t glass_available_subject_{};
+    helix::Subject dark_mode_subject_{};
+    helix::Subject dark_mode_available_subject_{};
+    helix::Subject theme_preset_subject_{};
+    helix::Subject display_dim_subject_{};
+    helix::Subject display_sleep_subject_{};
+    helix::Subject has_backlight_subject_{};
+    helix::Subject has_dimming_subject_{};
+    helix::Subject dim_row_kind_subject_{};
+    helix::Subject animations_enabled_subject_{};
+    helix::Subject hardware_keyboard_present_subject_{};
+    helix::Subject soft_keyboard_visible_subject_{};
+    helix::Subject is_android_subject_{};
+    helix::Subject rotation_available_subject_{};
+    helix::Subject timezone_subject_{};
+    helix::Subject glass_available_subject_{};
 
-    lv_subject_t screensaver_type_subject_{};
-    lv_subject_t has_screensaver_subject_{};
+    helix::Subject screensaver_type_subject_{};
+    /// "°C" or "°F", for XML labels that name the unit.
+    helix::Subject temp_unit_symbol_subject_{};
+    char temp_unit_symbol_buf_[8] = {};
+    helix::Subject has_screensaver_subject_{};
 
     bool subjects_initialized_ = false;
     bool hardware_keyboard_present_ = false;

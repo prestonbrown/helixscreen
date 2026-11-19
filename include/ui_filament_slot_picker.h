@@ -46,7 +46,6 @@ class FilamentSlotPicker {
     FilamentSlotPicker() = default;
     ~FilamentSlotPicker();
 
-    // Non-copyable
     FilamentSlotPicker(const FilamentSlotPicker&) = delete;
     FilamentSlotPicker& operator=(const FilamentSlotPicker&) = delete;
 

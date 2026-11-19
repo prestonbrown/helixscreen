@@ -19,19 +19,6 @@
 #include <memory>
 #include <utility>
 
-void wizard_hardware_dropdown_changed_cb(lv_event_t* e) {
-    lv_obj_t* dropdown = (lv_obj_t*)lv_event_get_target(e);
-    lv_subject_t* subject = (lv_subject_t*)lv_event_get_user_data(e);
-
-    if (!subject) {
-        spdlog::error("[Wizard Hardware] Dropdown callback missing subject user_data");
-        return;
-    }
-
-    uint16_t selected_index = static_cast<uint16_t>(lv_dropdown_get_selected(dropdown));
-    lv_subject_set_int(subject, selected_index);
-}
-
 bool wizard_populate_hardware_dropdown(
     lv_obj_t* root, const char* dropdown_name, lv_subject_t* subject,
     std::vector<std::string>& items_out,

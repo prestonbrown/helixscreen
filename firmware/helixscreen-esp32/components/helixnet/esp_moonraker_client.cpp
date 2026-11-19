@@ -14,6 +14,7 @@
 #include "klippy_notification.h"
 #include "link_liveness.h"
 #include "moonraker_auth.h"
+#include "moonraker_status_notification.h"
 #include "psram_thread_stack.h"
 
 #include <spdlog/spdlog.h>

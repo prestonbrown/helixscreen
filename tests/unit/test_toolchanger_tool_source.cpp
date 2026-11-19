@@ -323,6 +323,27 @@ TEST_CASE("A plain klipper-toolchanger keeps its own select commands",
     CHECK(cmds.unselect.empty());
 }
 
+TEST_CASE("A toolchanger view whose SELECT_TOOL takes tool numbers gets its own commands",
+          "[toolchanger][toolsource][commands]") {
+    // [ff_toolchange] publishes toolchanger and tool T<n> as read-only views
+    // over its own swap code, which parses T=<n> or TOOL=T<n> only and has no
+    // INITIALIZE_TOOLCHANGER or ASSIGN_TOOL.
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "ff_tool 0", "ff_tool 1",
+                                  "ff_toolchange", "ff_tool_offset", "extruder", "extruder1"}));
+
+    auto cmds = toolchanger_addon::resolve_tool_commands(hw);
+    REQUIRE(cmds.present);
+    CHECK(cmds.select_prefix == "SELECT_TOOL T=");
+    CHECK(cmds.unselect == "UNSELECT_TOOL");
+    CHECK_FALSE(cmds.initialize_available);
+
+    // Its toolchanger.tool_number is already read off the dock sensors, so
+    // there is no add-on sensor object to subscribe or prefer over it.
+    CHECK_FALSE(toolchanger_addon::resolve_tool_sensor(hw).present);
+    CHECK(toolchanger_addon::required_status_objects(hw).empty());
+}
+
 TEST_CASE("A changer without klipper-toolchanger names its own commands",
           "[toolchanger][toolsource][commands]") {
     PrinterDiscovery hw;

@@ -193,6 +193,14 @@
 # INCOMPLETE, never CLEAN, and the list says exactly what is left for a rerun
 # (--since the last proven commit, or --only).
 #
+# Each filter's baseline time is kept in build/mutate-baseline-secs.json, and a
+# baseline the deadline cut off is kept as a lower bound. A baseline whose kept
+# time is more than what is left of --max-minutes is not started: its hunks are
+# reported UNEXAMINED (unjudged in a pool) at once, so the fallback filter of a
+# large batch cannot spend the whole cap before any mutant runs. Catch2 times are
+# kept per --shards. A refusal marks its entry, and the next run measures that
+# baseline again, so a time taken under load costs one refused run.
+#
 # EXIT CODES
 #
 #   0  every changed hunk was examined and every mutant was killed
@@ -223,6 +231,7 @@ import argparse
 import contextlib
 import copy
 import io
+import json
 import os
 import re
 import select
@@ -245,7 +254,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from diff_base import base_line, resolve_base, short_sha  # noqa: E402
 
 HUNK_RE = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
-RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*\t(.*)$')
+RAW_RE = re.compile(r'^:(\d+) (\d+) [0-9a-f]+ [0-9a-f]+ (\w)\d*$')
+
+_C_ESCAPES = {'a': 7, 'b': 8, 't': 9, 'n': 10, 'v': 11, 'f': 12, 'r': 13, '"': 34, '\\': 92}
+
+
+def git_unquote(name):
+    """A path as git prints it, with its C-style quoting undone.
+
+    Git wraps a name holding a double quote, a backslash or a control byte (and,
+    without core.quotePath=false, any non-ASCII byte) in double quotes, writing
+    those bytes as `\\"`, `\\t` or octal `\\303\\251`. A bare name is returned as is.
+    """
+    if not name.startswith('"'):
+        return name
+    out, i = bytearray(), 1
+    while i < len(name) and name[i] != '"':
+        if name[i] == '\\' and i + 1 < len(name):
+            nxt = name[i + 1]
+            if nxt in '01234567':
+                out.append(int(name[i + 1:i + 4], 8) & 0xFF)
+                i += 4
+                continue
+            out.append(_C_ESCAPES.get(nxt, ord(nxt)))
+            i += 2
+            continue
+        out += name[i].encode('utf-8', 'surrogateescape')
+        i += 1
+    return out.decode('utf-8', 'surrogateescape')
+
+
+def patch_side(line):
+    """(name, path) from a `--- a/X` or `+++ b/X` header line.
+
+    `name` is the token exactly as git wrote it, quotes and prefix included;
+    `path` is the real file name, or None for /dev/null. Git ends the line with
+    a tab when the name holds a space; a name with a real tab in it is quoted.
+    """
+    name = line[4:].rstrip('\n')
+    if name.endswith('\t'):
+        name = name[:-1]
+    if name == '/dev/null':
+        return name, None
+    return name, git_unquote(name)[2:]
 
 # Files the suite physically cannot execute (no headless GL, no device). Shared
 # with scripts/cov_diff.py so both tools agree on what is un-judgeable rather
@@ -316,7 +367,30 @@ UNMUTATABLE = (
     ('tests/*',        'a test is proven by mutating the code it pins, not by reverting itself'),
     ('lib/*',          'vendored or submodule code; a superproject diff carries no hunks for it'),
     ('patches/*',      'a patch against vendored code; the build applies the stack as a whole'),
+    ('android/gradlew', 'the Gradle wrapper, which Gradle generates'),
 )
+
+# A shell script outside scripts/ (the plugin's installers, platform hooks, git
+# hooks, scripts/helix-claim) takes the tooling strategy: a `.sh` or `.bash` file,
+# or an extensionless one whose first line runs a shell. Checked after the rules
+# above, so tests/, lib/ and patches/ keep their own verdicts.
+SHELL_SUFFIXES = ('.sh', '.bash')
+SHELL_SHEBANG = re.compile(rb'#!\s*\S*/(?:env\s+)?(?:ba|da|k|z)?sh\b')
+
+
+def is_shell_script(path, root):
+    """A shell script by name, or, with @p root, by the shebang of an extensionless file."""
+    name = path.rsplit('/', 1)[-1]
+    if name.endswith(SHELL_SUFFIXES):
+        return True
+    if root is None or '.' in name:
+        return False
+    try:
+        with open(Path(root) / path, 'rb') as f:
+            first = f.readline(128)
+    except OSError:
+        return False
+    return SHELL_SHEBANG.match(first) is not None
 DEFAULT_REASON = 'no mutation strategy covers this path'
 # A run on the merge path. A longer run is a release check (--release).
 MERGE_MAX_MINUTES = 45
@@ -339,11 +413,12 @@ def load_untestable(root):
     return out
 
 
-def classify(path, is_gitlink):
+def classify(path, is_gitlink, root=None):
     """('mutate', strategy) | ('inert', reason) | ('uncovered', reason).
 
     The default is 'uncovered'. Every other outcome has to be claimed by a rule,
     which is what keeps a path nobody thought about out of a clean result.
+    @p root, when given, lets an extensionless file be read for its shebang.
     """
     if is_gitlink:
         return 'uncovered', GITLINK_REASON
@@ -359,6 +434,8 @@ def classify(path, is_gitlink):
     for pattern, reason in UNMUTATABLE:
         if fnmatch(path, pattern):
             return 'uncovered', reason
+    if is_shell_script(path, root):
+        return 'mutate', 'tooling'
     return 'uncovered', DEFAULT_REASON
 
 
@@ -485,7 +562,8 @@ def filter_scope(key, default_key, is_compiled):
 # own: an explicit --tests-for GLOB=FILTER first, else the test files that reach
 # it (Catch2's [#<test file>] tags): those naming its stem, the header a source
 # implements, or that header's class (reach_names); a data file also by the tests
-# reaching the sources DATA_CONSUMERS_MAP says read it. Else --tests. Hunks sharing a
+# reaching the sources DATA_CONSUMERS_MAP says read it; plus the cases elsewhere
+# carrying a tag those files own (owned_tags). Else --tests. Hunks sharing a
 # filter run together, as one child run each, so each filter gets the baseline
 # its shard timings are measured from.
 # ---------------------------------------------------------------------------
@@ -641,7 +719,59 @@ def auto_tests_filter(path, test_sources, max_files=AUTO_TESTS_MAX_FILES, source
         return ''
     # A required term makes Catch2 consider hidden cases too, so each term carries
     # the exclusions --tests' default has: [.] and [slow] stay out.
-    return ','.join(f'[#{name}]~[.]~[slow]' for name in sorted(hits))
+    return ','.join([f'[#{name}]~[.]~[slow]' for name in sorted(hits)]
+                    + [f'[{tag}]~[.]~[slow]' for tag in owned_tags(hits, test_sources)])
+
+
+# TEST_CASE("name", "[tags]") and TEST_CASE_METHOD(Fixture, "name", "[tags]"): the
+# tags string of each case. Adjacent string literals are not joined; no case
+# here splits its tags across two.
+_CASE_TAGS = re.compile(
+    r'\b(?:TEST_CASE|TEST_CASE_METHOD|TEMPLATE_TEST_CASE)\s*\(\s*(?:[A-Za-z_][\w:<>]*\s*,\s*)?'
+    r'"(?:[^"\\]|\\.)*"\s*,\s*"([^"]*)"')
+# A tag whose cases the selected files hold at least this share of is about the
+# code those files test, so its cases elsewhere reach that code too.
+OWNED_TAG_SHARE = 2 / 3
+# A tag in more unselected files than this is a theme, not one behaviour.
+OWNED_TAG_MAX_OTHER_FILES = 3
+
+
+def case_tags(test_sources):
+    """{test file stem: {tag: number of cases carrying it}}, hidden and special
+    tags ([.], [!...], [#...], [@...], [slow]) left out. About 0.3s for the suite."""
+    out = {}
+    for stem, text in test_sources.items():
+        counts = {}
+        for tags in _CASE_TAGS.findall(text):
+            for tag in set(re.findall(r'\[([^\]]+)\]', tags)):
+                if tag[0] not in '.!#@' and tag != 'slow':
+                    counts[tag] = counts.get(tag, 0) + 1
+        out[stem] = counts
+    return out
+
+
+def owned_tags(selected, test_sources):
+    """The tags the `selected` test files own whose cases also sit in others, sorted.
+
+    A test reaching the code through a header it shares with the whole suite
+    names none of the file's words, but its case often carries the tag of the
+    behaviour the selected files pin: [remap-restart] in a session-wiring test.
+    A tag counts when the selected files hold at least OWNED_TAG_SHARE of its
+    cases and no more than OWNED_TAG_MAX_OTHER_FILES other files carry it.
+    """
+    tags = case_tags(test_sources)
+    inside = {}
+    for stem in selected:
+        for tag, n in tags.get(stem, {}).items():
+            inside[tag] = inside.get(tag, 0) + n
+    owned = []
+    for tag, n in inside.items():
+        others = [counts[tag] for stem, counts in tags.items()
+                  if stem not in selected and tag in counts]
+        if others and len(others) <= OWNED_TAG_MAX_OTHER_FILES \
+                and n >= OWNED_TAG_SHARE * (n + sum(others)):
+            owned.append(tag)
+    return sorted(owned)
 
 
 def suite_paths(spec):
@@ -781,18 +911,22 @@ def changed_files(root, base):
     Read from `git diff --raw` rather than from the hunks, so a file the text
     diff has nothing to say about -- a binary asset, a submodule pointer, a mode
     change -- still reaches the report instead of vanishing between the two.
+    `-z` hands every path over unquoted, each in its own NUL-separated field.
     """
-    r = run(['git', '-c', 'core.quotePath=false', 'diff', '--raw', base], cwd=root)
+    r = run(['git', 'diff', '--raw', '-z', base], cwd=root)
     if r.returncode != 0:
         sys.exit(f'git diff --raw failed:\n{r.stdout}')
-    out = []
-    for line in r.stdout.splitlines():
-        m = RAW_RE.match(line)
+    fields, out, i = r.stdout.split('\0'), [], 0
+    while i < len(fields):
+        m = RAW_RE.match(fields[i])
         if not m:
+            i += 1
             continue
-        old_mode, new_mode, _status, paths = m.groups()
-        path = paths.split('\t')[-1]          # rename: destination is what exists now
+        old_mode, new_mode, status = m.groups()
+        npaths = 2 if status in 'RC' else 1
+        path = fields[i + npaths]               # rename: destination is what exists now
         out.append((path, '160000' in (old_mode, new_mode)))
+        i += 1 + npaths
     return out
 
 
@@ -803,28 +937,42 @@ def collect_hunks(root, base):
     `git apply -R` can undo that hunk alone while its siblings stay applied.
     The diff is taken over the WHOLE tree; what may be mutated is decided by
     classify(), which reports what it declines rather than filtering it away.
+
+    A hunk is reverted in place, in the file as it exists now (in_place_header).
+    `old_file` is where its pre-image lived at `base`, which differs from
+    `file` only for a rename or copy. Both come from the `---`/`+++` lines,
+    unquoted: the `diff --git a/X b/Y` line cannot be split reliably when a
+    name holds ` b/` itself.
     """
     r = run(['git', '-c', 'core.quotePath=false', 'diff', '-U3', base], cwd=root)
     if r.returncode != 0:
         sys.exit(f'git diff failed:\n{r.stdout}')
-    hunks, path, current, hdr_lines = [], None, None, []
+    hunks, path, old_path, current, hdr_lines = [], None, None, None, []
 
     def flush():
-        if path and current:
-            hunks.append({'file': path, 'line': current['line'],
+        if (path or old_path) and current:
+            hunks.append({'file': path or old_path, 'old_file': old_path or path,
+                          'line': current['line'],
                           'old_line': current['old_line'],
                           'body': list(current['body']),
-                          'patch': ''.join(hdr_lines + current['body'])})
+                          'patch': ''.join(in_place_header(hdr_lines) + current['body'])})
 
     for line in r.stdout.splitlines(keepends=True):
         if line.startswith('diff --git '):
             flush()
-            current = None
-            hdr_lines = [line]
-            path = line.split(' b/')[-1].strip()
-        elif current is None and (line.startswith(('index ', '--- ', '+++ ',
+            current, old_path = None, None
+            hdr_lines, path = [line], None
+        elif current is None and line.startswith(('--- ', '+++ ')):
+            side = patch_side(line)[1]
+            if line.startswith('--- '):
+                old_path = side
+            else:
+                path = side
+            hdr_lines.append(line)
+        elif current is None and (line.startswith(('index ',
                                                    'old mode', 'new mode',
-                                                   'similarity', 'rename ',
+                                                   'similarity', 'dissimilarity',
+                                                   'rename ', 'copy ',
                                                    'new file', 'deleted file'))):
             hdr_lines.append(line)
         elif line.startswith('@@'):
@@ -836,6 +984,35 @@ def collect_hunks(root, base):
             current['body'].append(line)
     flush()
     return hunks
+
+
+# Headers that make `git apply -R` do more than undo the hunk's lines: it would
+# move a renamed file back to its old path, or chmod the file, and restoring the
+# bytes at the current path puts back neither. The mutant is the edit; a rename
+# or mode change on its own is a compile-only question no suite answers.
+_NOT_IN_PLACE = ('old mode ', 'new mode ', 'similarity index ', 'dissimilarity index ',
+                 'rename from ', 'rename to ', 'copy from ', 'copy to ')
+
+
+def in_place_header(hdr_lines):
+    """A file header whose reversal touches only the file at its current path."""
+    out = []
+    for line in hdr_lines:
+        if line.startswith(_NOT_IN_PLACE):
+            continue
+        if line.startswith('index '):
+            # `index a..b 100644`: the mode suffix belongs to a mode change too.
+            line = ' '.join(line.split()[:2]) + '\n'
+        out.append(line)
+    plus = next((ln for ln in out if ln.startswith('+++ ')), None)
+    if plus is None or plus.startswith('+++ /dev/null'):
+        return out                      # no text hunk, or a deletion: the old path IS the path
+    name = patch_side(plus)[0]         # `b/<path>`, or `"b/<path>"` when quoted
+    a_name = '"a/' + name[3:] if name.startswith('"') else 'a/' + name[2:]
+    tail = plus[4 + len(name):]        # git's tab after a name with a space, and the newline
+    return [f'diff --git {a_name} {name}\n' if ln.startswith('diff --git ')
+            else f'--- {a_name}{tail}' if ln.startswith('--- ') and not ln.startswith('--- /dev/null')
+            else ln for ln in out]
 
 
 # ---------------------------------------------------------------------------
@@ -1000,6 +1177,7 @@ def hunk_changed_lines(root, base, h, cache):
     as usual rather than guess from a partial read.
     """
     path = h['file']
+    old_path = h.get('old_file', path)
     syntax = comment_syntax(path)
 
     def sides(key, loader):
@@ -1011,10 +1189,10 @@ def hunk_changed_lines(root, base, h, cache):
         return cache[key]
 
     def pre_loader():
-        r = run(['git', 'show', f'{base}:{path}'], cwd=root)
+        r = run(['git', 'show', f'{base}:{old_path}'], cwd=root)
         return r.stdout if r.returncode == 0 else ''
 
-    pre = sides(('pre', path), pre_loader)
+    pre = sides(('pre', old_path), pre_loader)
     post = sides(('post', path), lambda: (root / path).read_text(errors='replace'))
     if pre is None or post is None:
         return False
@@ -1536,6 +1714,93 @@ class BaselineRefused(RuntimeError):
     """A filter's suites cannot judge a mutant: red, silent, or matching nothing."""
 
 
+class BaselineUnaffordable(BaselineRefused):
+    """A baseline took longer on an earlier run here than this run has left."""
+
+
+BASELINE_RECORD = 'build/mutate-baseline-secs.json'
+_BASELINE_RECORD_LOCK = threading.Lock()
+
+
+def baseline_record_key(suite, args, shards=None):
+    """What a baseline's time is recorded under: the suite and the filter it ran,
+    and for catch2 the --shards it was asked for (`shards`, default args.shards),
+    since how many shards run at once sets its wall time."""
+    if suite == 'catch2':
+        return f'catch2 shards={args.shards if shards is None else shards} {args.tests}'
+    spec = {'bats': args.shell_tests, 'pytest': args.python_tests}.get(suite, '')
+    return f'{suite} {spec}'
+
+
+def read_baseline_record(root):
+    """{key: {'secs': float, 'refused': bool}} from earlier runs in this checkout."""
+    try:
+        data = json.loads((root / BASELINE_RECORD).read_text())
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {}
+    for k, v in data.items():
+        if isinstance(v, dict) and isinstance(v.get('secs'), (int, float)):
+            out[k] = {'secs': float(v['secs']), 'refused': bool(v.get('refused'))}
+    return out
+
+
+def _store_baseline_record(root, data):
+    path = root / BASELINE_RECORD
+    try:
+        tmp = path.with_name(path.name + '.tmp')
+        tmp.write_text(json.dumps(data, indent=1, sort_keys=True) + '\n')
+        tmp.replace(path)
+    except OSError:
+        pass                       # no build/ here: the next run just measures again
+
+
+def write_baseline_record(root, key, secs, at_least=False):
+    """Keep `secs` for `key`, measured by a run that started this baseline.
+    `at_least`: a lower bound, which never lowers a time kept. Either way the
+    entry is no longer marked refused: it has been run again."""
+    with _BASELINE_RECORD_LOCK:
+        data = read_baseline_record(root)
+        kept = data.get(key, {}).get('secs', 0)
+        data[key] = {'secs': round(max(kept, secs) if at_least else secs, 1),
+                     'refused': False}
+        _store_baseline_record(root, data)
+
+
+def check_baseline_affordable(root, suite, args):
+    """Raise BaselineUnaffordable when the kept time for this baseline exceeds what is
+    left before the deadline. A run with no deadline, or no kept time, always starts it.
+
+    A refusal is made once per measurement: it marks the entry, and the next run
+    that would refuse it runs the baseline instead, whose time replaces the entry.
+    A time measured under load therefore costs one refused run, never every run
+    after it, and a baseline that truly does not fit is re-measured every other run.
+    """
+    if RUN_STATE.deadline_at is None:
+        return
+    key = baseline_record_key(suite, args)
+    with _BASELINE_RECORD_LOCK:
+        data = read_baseline_record(root)
+        kept = data.get(key)
+        left = RUN_STATE.deadline_at - time.monotonic()
+        if kept is None or kept['secs'] < left:
+            return
+        if kept['refused']:
+            print(f'  {suite}: refused last time at {kept["secs"]:.0f}s, so measured again '
+                  f'with {max(left, 0):.0f}s left', flush=True)
+            return
+        kept['refused'] = True
+        _store_baseline_record(root, data)
+    spec = key.split(' ', 2 if suite == 'catch2' else 1)[-1]
+    raise BaselineUnaffordable(
+        f'the {suite} baseline for {spec!r} took {kept["secs"]:.0f}s on an earlier run here '
+        f'({BASELINE_RECORD}), more than the {max(left, 0):.0f}s left of --max-minutes '
+        f'(the next run measures it again); give those files a narrower --tests-for, '
+        f'or run them alone with --only')
+
+
 class BuildUnavailable(RuntimeError):
     """The Catch2 binary is not there, so no verdict about a mutant is possible.
 
@@ -1801,6 +2066,8 @@ class OutOfTime(RuntimeError):
 
 class _RunState:
     out_of_time = False
+    # time.monotonic() at which --max-minutes runs out, or None for no cap.
+    deadline_at = None
     # A stop signal is being handled: nothing new may start.
     stopping = False
     # Assertions this run stopped trusting; a group child leaves them in a file too.
@@ -2511,9 +2778,19 @@ def establish_baseline(suites, needed):
     every mutant read as killed, and one that cannot report judges nothing.
     """
     args = suites.args
+    started = {}
+    # fit_shards narrows args.shards below; the record is keyed on what was asked for.
+    asked_shards = args.shards
     if 'catch2' in needed:
+        # Counting the cases is part of what the catch2 baseline costs.
+        check_baseline_affordable(suites.root, 'catch2', args)
+        started['catch2'] = time.monotonic()
         suites.ensure_catch2_binary()
         matched = count_catch2_cases(suites.root, suites.catch2_bin, args.tests)
+        if RUN_STATE.out_of_time:
+            write_baseline_record(suites.root, baseline_record_key('catch2', args, asked_shards),
+                                  time.monotonic() - started['catch2'], at_least=True)
+            raise OutOfTime()
         if matched is not None:
             try:
                 args.shards = fit_shards(args.shards, matched)
@@ -2526,8 +2803,13 @@ def establish_baseline(suites, needed):
             print(f'  catch2: {matched} case(s) match {args.tests!r}, '
                   f'{suites.catch2.shards} shard(s), up to {args.shards} at once')
     for suite in sorted(needed):
+        if suite not in started:
+            check_baseline_affordable(suites.root, suite, args)
+            started[suite] = time.monotonic()
         state, why = suites.run(suite)
         if RUN_STATE.out_of_time:
+            write_baseline_record(suites.root, baseline_record_key(suite, args, asked_shards),
+                                  time.monotonic() - started[suite], at_least=True)
             raise OutOfTime()
         if state == DETECTED and suite == 'catch2':
             # A wall-clock budget in a test can run out on a machine this run
@@ -2557,6 +2839,9 @@ def establish_baseline(suites, needed):
             raise BaselineRefused(f'baseline {suite} suite judged nothing - {why}. Every '
                                   f'mutant would be measured by a suite that cannot report. '
                                   f'See {args.log}')
+        # From the start of this baseline: the case count and any re-run are its cost too.
+        write_baseline_record(suites.root, baseline_record_key(suite, args, asked_shards),
+                              time.monotonic() - started[suite])
         lo, hi = suites.adopt_baseline(suite, suites.last_secs)
         span = f'{lo:.0f}s' if round(lo) == round(hi) else f'{lo:.0f}-{hi:.0f}s'
         per = ' per shard' if suite == 'catch2' and suites.catch2.shards > 1 else ''
@@ -2587,6 +2872,9 @@ class FilterBaselines:
         suites = Suites(self.root, args, buf)
         try:
             establish_baseline(suites, self.needed_of[key])
+        except BaselineUnaffordable as e:
+            print(f'  not started for {describe_key(key)}: {e}', flush=True)
+            return e
         except BaselineRefused as e:
             print(f'  FAIL for {describe_key(key)}: {e}', flush=True)
             return e
@@ -2613,7 +2901,10 @@ class FilterBaselines:
         """The whole suite's baseline now, when any hunk or survivor will need it."""
         if self.args.confirm_survivors or any(self.key_of[h['file']] == self.whole_key
                                               for h in hunks):
-            self._established(self.whole_key)
+            try:
+                self._established(self.whole_key)
+            except BaselineUnaffordable:
+                pass              # named by _establish; its hunks read unjudged
 
     def wider_for(self, h, plan, tree_root, log):
         """() -> the whole suite's Suites in this tree, or None when `h` has it already.
@@ -2667,26 +2958,35 @@ def binary_fingerprint(path):
     return st.st_size, st.st_mtime_ns
 
 
-def restore_file(root, rel, original):
-    """Put one file back the way the run found it.
+def file_mode(path):
+    """The permission bits of `path`, or None when it is not a file."""
+    return stat.S_IMODE(path.stat().st_mode) if path.is_file() else None
+
+
+def restore_file(root, rel, original, mode=None):
+    """Put one file back the way the run found it: its bytes, and its `mode`
+    when given, since `git apply` writes a file anew with the umask's bits.
 
     touch(1)ed because make compares mtimes: a byte-identical restore with an
     older mtime leaves make nothing to do, and the next mutant's suite runs the
     previous mutant's binary.
 
     Returns whether anything had to be written. A file already holding its
-    original bytes is left alone, mtime included: it never held a mutant, so
-    no build has seen one, and touching it would only recompile it.
+    original bytes and mode is left alone, mtime included: it never held a
+    mutant, so no build has seen one, and touching it would only recompile it.
     """
     target = root / rel
     current = target.read_bytes() if target.is_file() else None
-    if current == original:
+    if current == original and (mode is None or file_mode(target) in (None, mode)):
         return False
     if original is None:
         target.unlink(missing_ok=True)
         return True
-    target.write_bytes(original)
-    os.utime(target, None)
+    if current != original:
+        target.write_bytes(original)
+        os.utime(target, None)
+    if mode is not None:
+        target.chmod(mode)
     return True
 
 
@@ -2725,24 +3025,26 @@ class TreeGuard:
 
     def __init__(self, root):
         self.root, self.pristine, self.dirty = root, {}, set()
+        self.modes = {}
         # A restored source leaves its mutant in the binary until the next build.
         self.binary_holds_mutant = False
 
     def capture(self, rel):
         target = self.root / rel
         self.pristine.setdefault(rel, target.read_bytes() if target.is_file() else None)
+        self.modes.setdefault(rel, file_mode(target))
 
     def mark(self, rel):
         self.dirty.add(rel)
 
     def restore(self, rel):
-        restore_file(self.root, rel, self.pristine[rel])
+        restore_file(self.root, rel, self.pristine[rel], self.modes.get(rel))
         self.dirty.discard(rel)
 
     def restore_all(self):
         """Restore every marked file; the paths that needed writing."""
         written = [rel for rel in sorted(self.dirty)
-                   if restore_file(self.root, rel, self.pristine[rel])]
+                   if restore_file(self.root, rel, self.pristine[rel], self.modes.get(rel))]
         self.dirty.clear()
         return written
 
@@ -2999,11 +3301,13 @@ def arm_deadline(seconds):
             signal_live_procs(signal.SIGKILL)
 
     signal.signal(signal.SIGALRM, on_deadline)
+    RUN_STATE.deadline_at = time.monotonic() + max(seconds, 0.001)
     signal.setitimer(signal.ITIMER_REAL, max(seconds, 0.001))
 
 
 def disarm_deadline():
     signal.setitimer(signal.ITIMER_REAL, 0)
+    RUN_STATE.deadline_at = None
 
 
 class RunBase:
@@ -3553,7 +3857,7 @@ def make_worker_trees(root, args, n, guard, suites):
     for dst in dsts:
         verify_pristine(dst, guard.pristine, f'in the worker copy {dst}')
         g = TreeGuard(dst)
-        g.pristine = dict(guard.pristine)
+        g.pristine, g.modes = dict(guard.pristine), dict(guard.modes)
         trees.append(WorkerTree(dst, g, suites.for_tree(dst, io.StringIO())))
     return trees
 
@@ -3758,6 +4062,7 @@ def main():
     if args.group_child:
         RUN_STATE.flaky_file = f'{args.log}.flaky'
         Path(RUN_STATE.flaky_file).unlink(missing_ok=True)
+        Path(f'{args.log}.survived').unlink(missing_ok=True)
     root = repo_root()
     if args.probe_workers:
         args.workers = 'auto'
@@ -3797,9 +4102,9 @@ def main():
     # ---- classify the whole change -------------------------------------
     verdict_of = {}       # path -> ('mutate', strategy) | ('inert'|'uncovered', reason)
     for path, is_gitlink in files:
-        verdict_of[path] = classify(path, is_gitlink)
+        verdict_of[path] = classify(path, is_gitlink, root)
     for h in hunks:                       # a hunk git names but --raw did not
-        verdict_of.setdefault(h['file'], classify(h['file'], False))
+        verdict_of.setdefault(h['file'], classify(h['file'], False, root))
 
     hunks_of = {}
     for h in hunks:
@@ -4135,6 +4440,15 @@ def main():
                 guards.append(t.guard)
             print(f'  {len(trees)} workers, each in a copy of the tree '
                   f'({trees[0].root.parent}, {time.monotonic() - t0:.0f}s)')
+    except BaselineUnaffordable as e:
+        disarm_deadline()
+        print(f'\nbaseline not started: {e}')
+        for h in mutable:
+            print(f'  UNEXAMINED    {h["file"]}:{h["line"]}')
+        print(report_incomplete(uncovered, deferred, unexamined=len(mutable),
+                                stop_reason='its baseline would not fit in --max-minutes'))
+        remove_worker_trees(trees)
+        return 0 if args.allow_incomplete else 3
     except BaselineRefused as e:
         print(f'FAIL: {e}', file=sys.stderr)
         return 2
@@ -4240,11 +4554,22 @@ def main():
     print(f'log: {args.log}')
 
     survived = [r for r in results if r[1] == 'survived']
+    if args.group_child and (survived or inside_survived):
+        # The parent counts every group's survivors from these files, so its verdict
+        # does not rest on how each child exited.
+        Path(f'{args.log}.survived').write_text(''.join(
+            f'{label}\n' for label in [r[0] for r in survived] + inside_survived))
     unproven = [r for r in results if r[1] in ('uncompilable', 'unreversible')]
     unjudged = [r for r in results if r[1] == 'inconclusive']
     if unproven or unjudged or uncovered or deferred or unexamined:
         incomplete = True
 
+    if incomplete and (survived or inside_survived):
+        # The survivors decide the exit, but the summary still names the part of
+        # the change this run never judged.
+        print(report_incomplete(uncovered, deferred, unproven, unjudged,
+                                unexamined=len(unexamined), stop_reason=stop_reason,
+                                survived=len(survived) + len(inside_survived)))
     if inside_survived and not survived:
         sys.stdout.flush()
         print(f'\nFAIL: {len(inside_survived)} inside mutant(s) survived, and no test detects them:',
@@ -4326,7 +4651,7 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         passthrough += ['--worker-dir', args.worker_dir]
     for pattern in args.first or ():
         passthrough += ['--first', pattern]
-    codes = []
+    codes, not_started, survivors = [], 0, []
     for i, ((filt, shell, python), paths) in enumerate(groups, 1):
         left = args.max_minutes - (time.monotonic() - started) / 60
         if args.max_minutes > 0 and left < 1:
@@ -4334,7 +4659,8 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
                   f'{args.max_minutes:g} reached ===')
             for path in paths:
                 print(f'  UNEXAMINED    {path}')
-            codes.append(3)
+            not_started += len(paths)
+            codes.append(None)
             continue
         print(f'\n=== group {i}/{len(groups)}: {describe_key((filt, shell, python))}  '
               f'({len(paths)} file(s)) ===', flush=True)
@@ -4346,6 +4672,9 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         for path in paths:
             guard.capture(path)
             guard.mark(path)
+        # A child that stops before clearing its own file would leave an earlier
+        # run's survivors to be counted as this run's.
+        Path(f'{args.log}.g{i}.survived').unlink(missing_ok=True)
         sys.stdout.flush()
         p = tracked_proc(cmd, root, stdout=sys.stdout)
         try:
@@ -4353,10 +4682,14 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
         finally:
             untrack_proc(p)
         for path in paths:
-            if restore_file(root, path, guard.pristine[path]):
+            if restore_file(root, path, guard.pristine[path], guard.modes.get(path)):
                 print(f'  RESTORED      {path}: the group left it changed', flush=True)
             guard.dirty.discard(path)
         codes.append(p.returncode if p.returncode >= 0 else 128 - p.returncode)
+        child_survived = Path(f'{args.log}.g{i}.survived')
+        if child_survived.is_file():
+            survivors += [s for s in child_survived.read_text().split('\n') if s]
+            child_survived.unlink()
         child_flaky = Path(f'{args.log}.g{i}.flaky')
         if child_flaky.is_file():
             RUN_STATE.flaky_sites |= set(child_flaky.read_text().split('\n')) - {''}
@@ -4365,12 +4698,26 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
     if RUN_STATE.flaky_sites:
         print('\n'.join(flaky_lines()))
     for (key, paths), code in zip(groups, codes):
-        print(f'  exit {code}  {describe_key(key)}  ({len(paths)} file(s))')
-    if incomplete:
-        print(report_incomplete(uncovered, deferred, survived=1 in codes))
-    worst = combine_exits(codes + ([3] if incomplete else []))
+        print(f'  exit {3 if code is None else code}  {describe_key(key)}  '
+              f'({len(paths)} file(s))')
+    short_groups = codes.count(3)
+    # A group that named survivors fails the run however it exited; one that exited 1
+    # without naming them still has survivors, of a count only its own output shows.
+    n_survived = len(survivors) or (1 in codes and 'Some')
+    if incomplete or not_started or short_groups:
+        print(report_incomplete(
+            uncovered, deferred, survived=n_survived, short_groups=short_groups,
+            not_started=not_started,
+            stop_reason=f'--max-minutes {args.max_minutes:g} reached before their group started'))
+    codes = [3 if code is None else code for code in codes]
+    worst = combine_exits(codes + ([3] if incomplete else []) + ([1] if survivors else []))
     if worst == 3 and args.allow_incomplete:
         return 0
+    if worst == 1 and not (incomplete or not_started or short_groups):
+        print(f'\nVERDICT: SURVIVED - {n_survived} hunk(s) across the groups above, '
+              'each needs a test that pins it:')
+        for label in survivors:
+            print(f'  {label}')
     if worst == 0:
         print(f'\nVERDICT: CLEAN{flaky_clause()} - every group mutated every hunk and killed '
               'every mutant (not recorded as proven: each group saw only its own files)')
@@ -4378,10 +4725,13 @@ def run_groups(root, guard, args, base, groups, started, incomplete, uncovered, 
 
 
 def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=0,
-                      stop_reason='', survived=False):
+                      stop_reason='', survived=0, short_groups=0, not_started=0):
     """The line that stops a partial run from reading like a whole one.
 
-    `survived`: a group of this run has survivors of its own, listed above.
+    `survived`: how many survivors the run has, listed above ('Some' when
+    a group exited 1 without naming them). `short_groups`: groups that
+    ran but did not examine all of their own files. `not_started`: files whose
+    group never started, for `stop_reason`.
     """
     parts = []
     if uncovered:
@@ -4394,9 +4744,13 @@ def report_incomplete(uncovered, deferred, unproven=(), unjudged=(), unexamined=
         parts.append(f'{deferred} hunk(s) deferred by --only/--limit')
     if unexamined:
         parts.append(f'{unexamined} hunk(s) UNEXAMINED: {stop_reason}')
+    if short_groups:
+        parts.append(f'{short_groups} group(s) INCOMPLETE, each named above')
+    if not_started:
+        parts.append(f'{not_started} file(s) UNEXAMINED: {stop_reason}')
     return ('\nVERDICT: INCOMPLETE - this run did not examine the whole change: '
             + '; '.join(parts) + '.\n'
-            + ('Hunks SURVIVED in the groups above: each needs a test that pins it. '
+            + (f'{survived} hunk(s) SURVIVED above: each needs a test that pins it. '
                if survived else
                'Nothing survived, but that is not evidence for the part above. ')
             + 'Mutate it by hand and say so in the commit body, or accept it with '

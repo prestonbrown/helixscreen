@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lvgl.h"
 #include "macro_edit_logic.h"
@@ -74,7 +74,7 @@ class MacrosPanel : public OverlayBase {
      *
      * OverlayBase::destroy_overlay_ui() async-deletes overlay_root_ and then
      * calls this hook. MacrosPanel is a singleton that outlives its widgets, so
-     * this drops the discovery observer and reclaims all five pools (unregister
+     * this drops the discovery observer and reclaims all seven pools (unregister
      * + deinit + free) so a re-open starts from a clean subject registry.
      */
     void on_ui_destroyed() override;
@@ -116,7 +116,7 @@ class MacrosPanel : public OverlayBase {
     bool refresh_macros();
 
     /**
-     * @brief Recompute displayed_ from all_macros_, size + populate the five
+     * @brief Recompute displayed_ from all_macros_, size + populate the row
      * pools, then publish macro_row_count. Populate-before-count so the repeat
      * binds to already-set subjects (no first-frame flash).
      */
@@ -140,7 +140,7 @@ class MacrosPanel : public OverlayBase {
      */
     std::set<std::string> seed_default_hidden() const;
 
-    // === Run path (unchanged) ===
+    // === Run path ===
     void fetch_params_and_execute(const std::string& macro_name);
     void fetch_params_and_run(const std::string& macro_name);
     void execute_with_params(const std::string& macro_name, const helix::MacroParamResult& result);
@@ -192,11 +192,11 @@ class MacrosPanel : public OverlayBase {
     // === Scalar subjects (registered in init_subjects; NOT reclaimed) ===
     SubjectManager subjects_;
     char status_buf_[64] = {};
-    lv_subject_t status_subject_{};          ///< "macros_status" (legacy, XML-bound)
-    lv_subject_t macro_row_count_{};         ///< "macro_row_count" (macros listed)
-    lv_subject_t macro_slot_count_{};        ///< "macro_slot_count" (drives the repeat)
-    lv_subject_t macro_edit_mode_{};         ///< "macro_edit_mode" (0/1)
-    lv_subject_t macros_edit_save_hidden_{}; ///< "macros_edit_save_hidden" (1 = Save hidden)
+    helix::Subject status_subject_{};          ///< "macros_status" (registered; no XML binds it)
+    helix::Subject macro_row_count_{};         ///< "macro_row_count" (macros listed)
+    helix::Subject macro_slot_count_{};        ///< "macro_slot_count" (drives the repeat)
+    helix::Subject macro_edit_mode_{};         ///< "macro_edit_mode" (0/1)
+    helix::Subject macros_edit_save_hidden_{}; ///< "macros_edit_save_hidden" (1 = Save hidden)
 
     /// Re-runs rebuild_rows() once macros become available (late discovery /
     /// reconnect / printer switch). nav_buttons_enabled flips to 1 only after

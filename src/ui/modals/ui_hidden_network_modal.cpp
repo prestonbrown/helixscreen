@@ -8,6 +8,7 @@
 
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "wifi_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -29,9 +30,9 @@ void HiddenNetworkModal::init_subjects() {
     if (subjects_initialized_) {
         return;
     }
-    lv_subject_init_int(&connecting_, 0);
-    lv_subject_init_string(&error_, error_buf_, nullptr, sizeof(error_buf_), "");
-    lv_subject_init_int(&has_error_, 0);
+    connecting_.init_int(0);
+    error_.init_string(error_buf_, nullptr, sizeof(error_buf_), "");
+    has_error_.init_int(0);
     subjects_.publish("hidden_connecting", &connecting_);
     subjects_.publish("hidden_network_error", &error_);
     subjects_.publish("hidden_network_has_error", &has_error_);
@@ -74,7 +75,7 @@ void HiddenNetworkModal::on_hide() {
 }
 
 void HiddenNetworkModal::show_error(const std::string& message) {
-    lv_subject_copy_string(&error_, message.c_str());
+    lv_subject_set_string(&error_, message.c_str());
     lv_subject_set_int(&has_error_, message.empty() ? 0 : 1);
 }
 
@@ -134,7 +135,8 @@ void HiddenNetworkModal::on_ok() {
                         hide(ModalCloseReason::ButtonPress);
                     }
                 } else {
-                    spdlog::error("[HiddenNetworkModal] Joining hidden network failed: {}", error);
+                    spdlog::error("[HiddenNetworkModal] Joining hidden network failed: {}",
+                                  helix::redact::names_in_text(error));
                     if (current) {
                         show_error(helix::connect_failure_message(
                             result, error, lv_tr("Connection failed. Check credentials.")));
@@ -153,7 +155,9 @@ void HiddenNetworkModal::on_ok() {
 bool show_hidden_network_modal(std::shared_ptr<helix::WiFiManager> wifi,
                                HiddenJoinCallback on_event) {
     auto& modal = helix::lazy_global<HiddenNetworkModal>("HiddenNetworkModal");
-    if (modal.is_visible()) {
+    // A backdrop the modal stack no longer tracks was torn down behind the modal
+    // (a screen rebuild, a stack clear), so showing again replaces it.
+    if (modal.is_visible() && ModalStack::instance().backdrop_for_backdrop(modal.backdrop())) {
         return true;
     }
     if (!modal.show_modal(std::move(wifi), std::move(on_event))) {

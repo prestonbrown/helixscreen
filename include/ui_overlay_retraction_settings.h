@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -21,9 +22,9 @@ class IMoonrakerAPI;
  *
  * ## Features
  * - Enable/disable firmware retraction
- * - Retract length (0-6mm, 0.1mm steps)
+ * - Retract length (0-6mm, 0.01mm steps)
  * - Retract speed (10-80 mm/s)
- * - Unretract extra length (0-1mm, 0.1mm steps)
+ * - Unretract extra length (0-1mm, 0.01mm steps)
  * - Unretract speed (10-60 mm/s)
  *
  * ## Klipper G-codes
@@ -136,20 +137,16 @@ class RetractionSettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Display label subjects
-    lv_subject_t retract_length_display_{};
-    lv_subject_t retract_speed_display_{};
-    lv_subject_t unretract_extra_display_{};
-    lv_subject_t unretract_speed_display_{};
+    helix::Subject retract_length_display_{};
+    helix::Subject retract_speed_display_{};
+    helix::Subject unretract_extra_display_{};
+    helix::Subject unretract_speed_display_{};
 
     // Static buffers for subject strings
     char retract_length_buf_[16];
     char retract_speed_buf_[16];
     char unretract_extra_buf_[16];
     char unretract_speed_buf_[16];
-
-    //
-    // === Injected Dependencies ===
-    //
 
     helix::IMoonrakerAPI* api_ = nullptr;
 

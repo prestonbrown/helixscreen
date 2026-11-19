@@ -41,6 +41,9 @@ namespace helix {
 /// Default color for slots without filament info (medium gray)
 constexpr uint32_t kAmsDefaultSlotColor = 0x808080;
 
+/// The paint AmsState::current_color holds while no filament color is known.
+inline constexpr uint32_t kNoFilamentPaint = 0x505050;
+
 /// Units the AMS UI addresses. The overview's path canvas draws this many and
 /// AmsState allocates this many sets of per-unit subjects, so a unit the path
 /// shows always has a badge to bind; both caps derive from this one constant.
@@ -128,6 +131,10 @@ inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
      nullptr},
     {AmsType::OPENAMS, "OpenAMS", "OpenAMS", "openams", "openams", AmsBufferRows::None, nullptr},
     {AmsType::INDX, "INDX", "INDX", "indx", "indx", AmsBufferRows::None, nullptr},
+    // Not a product: the producer names itself in lane_status.producer.name, which
+    // replaces this name on screen once the first status arrives.
+    {AmsType::LANE_STATUS, "Lane Status", "Lane Status Surface", "lane_status", "lane_status",
+     AmsBufferRows::None, nullptr},
 };
 
 /// The row for @p type; the NONE row for a value with none.
@@ -628,23 +635,6 @@ inline const char* tip_method_to_string(TipMethod method) {
     return "Unknown";
 }
 
-/**
- * @brief Get user-friendly step label for tip handling
- * @param method The tip method enum value
- * @return Untranslated English key; the display site passes it through lv_tr()
- */
-inline const char* tip_method_step_label(TipMethod method) {
-    switch (method) {
-    case TipMethod::CUT:
-        return TR_NOOP("Cut & retract");
-    case TipMethod::TIP_FORM:
-        return TR_NOOP("Form tip & retract");
-    case TipMethod::NONE:
-    default:
-        return TR_NOOP("Retract");
-    }
-}
-
 // ============================================================================
 // Filament Path Visualization Types
 // ============================================================================
@@ -901,12 +891,12 @@ struct AmsAlert {
     int slot_index = -1; ///< For SLOT level (-1 = N/A)
 };
 
-/// Which way a filament buffer is driving filament, translated by the backend
-/// from its firmware's own vocabulary.
+/// The physical shape of a filament buffer, translated by the backend from its
+/// firmware's own words (AFC's name its motor's response: afc::buffer_motion()).
 enum class BufferMotion : int {
-    Unknown = 0,   ///< Not reported, or a state with no direction (idle, neutral)
-    Advancing = 1, ///< Feeding filament forward: the buffer is compressed
-    Trailing = 2,  ///< Pulling filament back: the buffer is in tension
+    Unknown = 0,    ///< Not reported, or a state with no direction (idle, neutral)
+    Compressed = 1, ///< Filament arrives faster than the toolhead uses it
+    Expanded = 2,   ///< The toolhead pulls filament faster than it arrives
 };
 
 /// What a spool motor (Happy Hare's eSpooler) is doing, translated by the
@@ -1302,8 +1292,8 @@ struct SlotInfo {
     /**
      * @brief Drop every Spoolman handle from this slot
      *
-     * Unlink used to zero only spoolman_id, leaving spoolman_filament_id and
-     * spoolman_vendor_id behind. Those stale handles then fed
+     * Zeroing only spoolman_id would leave spoolman_filament_id and
+     * spoolman_vendor_id behind, and those stale handles would feed
      * SpoolmanSlotSaver's repoint comparison against a filament belonging to a
      * spool this lane is no longer linked to.
      *
@@ -1459,6 +1449,7 @@ struct AmsUnit {
     int unit_index = 0;              ///< Unit number (0-based)
     std::string name;                ///< Internal name for matching (e.g., "Box_Turtle Turtle_1")
     std::string display_name;        ///< Pretty name for UI (e.g., "Turtle 1") — empty = use name
+    std::string model;               ///< Hardware the firmware says it is; empty when unreported
     int slot_count = 0;              ///< Number of slots on this unit
     int first_slot_global_index = 0; ///< Global index of first slot
 
@@ -1702,7 +1693,10 @@ struct AmsSystemInfo {
     bool filament_runout =
         false; ///< CFS: active path empty (box.filament_useup); UI gates display on paused state
     AmsAction action = AmsAction::IDLE; ///< Current operation
-    std::string operation_detail;       ///< Detailed operation string
+    /// The status line. A fixed phrase is stored as its untranslated catalog
+    /// key (TR_NOOP) and AmsState translates it at display time, so it follows
+    /// a language switch; firmware or composed text is shown as it is.
+    std::string operation_detail;
 
     /// Granular firmware sub-phase of the active load/unload, for backends that
     /// expose one. Used to drive a multi-step progress bar that mirrors the real
@@ -1844,10 +1838,6 @@ struct AmsSystemInfo {
     }
 
     /**
-     * @brief Get the currently active slot info
-     * @return Pointer to active slot or nullptr if none selected
-     */
-    /**
      * @brief Whether @p global_index is a bay some unit actually reported
      *
      * False for an index no unit covers and for one inside an absent unit.
@@ -1901,6 +1891,10 @@ struct AmsSystemInfo {
         return nullptr;
     }
 
+    /**
+     * @brief Get the currently active slot info
+     * @return Pointer to active slot or nullptr if none selected
+     */
     [[nodiscard]] const SlotInfo* get_active_slot() const {
         if (current_slot < 0)
             return nullptr;
@@ -2084,9 +2078,9 @@ struct AmsSystemInfo {
 /**
  * @brief Decide whether enabling bypass must be preceded by an implicit unload.
  *
- * The AMS sidebar's bypass toggle used to unload whenever a slot was loaded,
- * then enable bypass once the unload finished. On backends whose users have a
- * console (AFC, Happy Hare) that ejects filament the user never asked to eject,
+ * Unloading whenever a slot is loaded, then enabling bypass once the unload
+ * finishes, is the chaining. On backends whose users have a console (AFC,
+ * Happy Hare) that ejects filament the user never asked to eject,
  * so those backends report @p allows_implicit_chaining false and the UI sends
  * only the bypass command, letting the firmware refuse it if it wants to
  * (prestonbrown/helixscreen#1229). Backends with no console fallback keep the
@@ -2216,9 +2210,9 @@ enum class EndlessSpoolEditability : int {
 /**
  * @brief Why editing is restricted.
  *
- * An enum, not prose. The old `description` field carried load-bearing state as
- * untranslated English ("Auto-refill enabled", "...read-only on multi-unit"),
- * which no UI could safely display in any language but ours. Display text comes
+ * An enum, not prose: load-bearing state carried as untranslated English
+ * ("Auto-refill enabled", "...read-only on multi-unit") is something no UI
+ * could safely display in any language but ours. Display text comes
  * from endless_spool_restriction_text(), which is where lv_tr() lives.
  */
 enum class EndlessSpoolRestriction : int {
@@ -2236,7 +2230,10 @@ enum class EndlessSpoolRestriction : int {
     /// No auto-switchover package is installed.
     PluginMissing,
     /// A package is installed but exposes no write path we can drive.
-    PluginReadOnly
+    PluginReadOnly,
+    /// The firmware builds the groups from each slot's material and color, and
+    /// ignores a group written by hand.
+    GroupsFollowSlots
 };
 
 /**
@@ -2250,9 +2247,9 @@ enum class EndlessSpoolRestriction : int {
 /**
  * @brief What a backend can do about endless spool, on three independent axes.
  *
- * Availability, enablement and editability are genuinely orthogonal and the old
- * two-bool struct could not hold them: CFS is available-and-read-only whether
- * auto-refill is on or off, so `supported=true` rendered both states
+ * Availability, enablement and editability are genuinely orthogonal and two
+ * bools cannot hold them: CFS is available-and-read-only whether auto-refill
+ * is on or off, so a single `supported=true` would render both states
  * identically. Every field is either an enum or a proper noun - nothing here is
  * translatable prose, so nothing here can leak English into the UI.
  */
@@ -2273,12 +2270,12 @@ struct EndlessSpoolCapabilities {
     /// free-text field left on the struct.
     std::string provider;
 
-    /// The feature exists and is usable. Replaces the old `supported` bool.
+    /// The feature exists and is usable.
     [[nodiscard]] bool available() const {
         return availability == EndlessSpoolAvailability::Available;
     }
 
-    /// The UI may write. Replaces the old `editable` bool.
+    /// The UI may write.
     [[nodiscard]] bool editable() const {
         return available() && editability != EndlessSpoolEditability::ReadOnly;
     }
@@ -2571,10 +2568,10 @@ struct DeviceAction {
         return a;
     }
 
-    /// A read-only row showing @p value as text.
-    static DeviceAction info(std::string id, std::string label, std::string section,
-                             std::string value, std::string icon = {},
-                             std::string description = {}) {
+    /// A read-only row showing @p value as text ((info): see ESP32_PORT.md "Reading the log").
+    static DeviceAction(info)(std::string id, std::string label, std::string section,
+                              std::string value, std::string icon = {},
+                              std::string description = {}) {
         DeviceAction a =
             toggle(std::move(id), std::move(label), std::move(section), std::any(std::move(value)),
                    std::move(icon), std::move(description));

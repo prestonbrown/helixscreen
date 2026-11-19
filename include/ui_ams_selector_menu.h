@@ -8,7 +8,6 @@
 #include <functional>
 #include <lvgl.h>
 
-// Forward declaration
 namespace helix {
 class AmsBackend;
 } // namespace helix
@@ -25,8 +24,8 @@ namespace helix::ui {
  * gear-motor sync toggle, and recover.
  *
  * This class only *presents* the menu and reports the user's choice via a
- * callback (SelectorAction). It does NOT invoke the backend directly — the
- * canvas→panel→menu→backend dispatch wiring lives elsewhere.
+ * callback (SelectorAction). It does NOT invoke the backend directly:
+ * ams_dispatch_selector_action() below runs the chosen action.
  *
  * Mirrors AmsContextMenu (the per-slot menu): callbacks dispatched through
  * ContextMenu::active(), capability gating in on_created(), and ContextMenu
@@ -68,11 +67,9 @@ class AmsSelectorMenu : public ContextMenu {
     AmsSelectorMenu();
     ~AmsSelectorMenu() override;
 
-    // Non-copyable
     AmsSelectorMenu(const AmsSelectorMenu&) = delete;
     AmsSelectorMenu& operator=(const AmsSelectorMenu&) = delete;
 
-    // Movable
     AmsSelectorMenu(AmsSelectorMenu&& other) noexcept;
     AmsSelectorMenu& operator=(AmsSelectorMenu&& other) noexcept;
 
@@ -86,9 +83,6 @@ class AmsSelectorMenu : public ContextMenu {
      */
     bool show_at(lv_obj_t* parent, lv_obj_t* anchor, lv_point_t click_pt, AmsBackend* backend);
 
-    /**
-     * @brief Set callback for menu actions
-     */
     void set_action_callback(ActionCallback callback);
 
   protected:

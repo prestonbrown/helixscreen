@@ -14,6 +14,7 @@
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
+#include "json_utils.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -58,8 +59,8 @@ void make_children_passthrough(lv_obj_t* parent) {
         lv_obj_t* child = lv_obj_get_child(parent, static_cast<int32_t>(i));
         if (!child)
             continue;
-        lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(child, false);
+        lv_obj_set_event_bubble(child, true);
         make_children_passthrough(child);
     }
 }
@@ -100,23 +101,12 @@ bool TempStackWidget::on_edit_configure() {
 }
 
 bool TempStackWidget::is_carousel_mode() const {
-    if (config_.contains("display_mode") && config_["display_mode"].is_string()) {
-        return config_["display_mode"].get<std::string>() == "carousel";
-    }
-    return false;
+    return helix::json_util::read_field<std::string>(config_, "display_mode") == "carousel";
 }
 
 void TempStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-
-    // Pressed feedback: dim each clickable row on touch
-    for (const char* name :
-         {"temp_stack_nozzle_row", "temp_stack_bed_row", "temp_stack_chamber_row"}) {
-        lv_obj_t* row = lv_obj_find_by_name(widget_obj_, name);
-        if (row)
-            lv_obj_set_style_opa(row, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
-    }
 
     if (is_carousel_mode()) {
         attach_carousel(widget_obj);
@@ -154,12 +144,12 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
         lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(page, 0, 0);
         lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
-        lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(page, false);
         lv_obj_set_flex_flow(page, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_flex_align(page, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
         lv_obj_set_style_pad_gap(page, theme_manager_get_spacing("space_xs"), 0);
-        lv_obj_add_flag(page, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(page, true);
         lv_obj_set_name(page, page_name);
 
         // Click callback to open temp overlay
@@ -187,12 +177,12 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
     lv_obj_set_size(nozzle_page, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_pad_all(nozzle_page, 0, 0);
     lv_obj_set_style_bg_opa(nozzle_page, LV_OPA_TRANSP, 0);
-    lv_obj_remove_flag(nozzle_page, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(nozzle_page, false);
     lv_obj_set_flex_flow(nozzle_page, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(nozzle_page, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(nozzle_page, theme_manager_get_spacing("space_xs"), 0);
-    lv_obj_add_flag(nozzle_page, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(nozzle_page, true);
     lv_obj_set_name(nozzle_page, "nozzle");
     lv_obj_add_event_cb(nozzle_page, temp_carousel_page_cb, LV_EVENT_CLICKED, nullptr);
 
@@ -257,7 +247,7 @@ void TempStackWidget::on_size_changed(int /*colspan*/, int rowspan, int /*width_
         if (!row)
             continue;
         rows[row_count++] = row;
-        if (!lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+        if (!lv_obj_is_hidden(row))
             visible_rows++;
     }
 

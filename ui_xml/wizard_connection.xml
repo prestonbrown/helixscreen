@@ -45,7 +45,9 @@
                 style_flex_cross_place="start">
           <text_body width="100%" text="Network Address"/>
           <text_input name="ip_input"
-                      width="100%" bind_text="connection_ip" placeholder_text="127.0.0.1" placeholder_tag="127.0.0.1"/>
+                      width="100%" bind_text="connection_ip" placeholder_text="127.0.0.1" placeholder_tag="127.0.0.1">
+            <event_cb trigger="value_changed" callback="on_ip_input_changed"/>
+          </text_input>
         </lv_obj>
         <!-- Right -->
         <lv_obj flex_grow="1"
@@ -53,7 +55,9 @@
                 style_flex_cross_place="start">
           <text_body width="100%" text="Port"/>
           <text_input name="port_input"
-                      width="100%" bind_text="connection_port" placeholder_text="7125" keyboard_hint="numeric"/>
+                      width="100%" bind_text="connection_port" placeholder_text="7125" keyboard_hint="numeric">
+            <event_cb trigger="value_changed" callback="on_port_input_changed"/>
+          </text_input>
         </lv_obj>
       </lv_obj>
       <!-- network address and port -->
@@ -75,6 +79,7 @@
             <bind_state_if_eq subject="connection_testing" state="disabled" ref_value="1"/>
             <!-- Remove clickable flag when connection test is in progress -->
             <bind_flag_if_eq subject="connection_testing" flag="clickable" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_test_connection_clicked"/>
           </ui_button>
           <!-- Connection Status (icon + text) -->
           <lv_obj style_pad_left="#space_sm"
@@ -85,9 +90,27 @@
               <bind_flag_if_eq subject="connection_discovering" flag="hidden" ref_value="0"/>
             </spinner>
             <!-- Status Icon - MDI (hidden when discovering) -->
-            <lv_label name="connection_status_icon" bind_text="connection_status_icon" style_text_font="mdi_icons_16">
+            <!-- One icon per status kind (WizardConnectionStep::StatusKind); none for 0 -->
+            <lv_obj name="connection_status_icon"
+                    width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                    scrollable="false">
               <bind_flag_if_eq subject="connection_discovering" flag="hidden" ref_value="1"/>
-            </lv_label>
+              <lv_label text="#icon_question_circle" style_text_font="mdi_icons_16" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="connection_status_kind" flag="hidden" ref_value="1"/>
+              </lv_label>
+              <lv_label text="#icon_check_circle" style_text_font="mdi_icons_16" style_text_color="#success">
+                <bind_flag_if_not_eq subject="connection_status_kind" flag="hidden" ref_value="2"/>
+              </lv_label>
+              <lv_label text="#icon_close_circle" style_text_font="mdi_icons_16" style_text_color="#danger">
+                <bind_flag_if_not_eq subject="connection_status_kind" flag="hidden" ref_value="3"/>
+              </lv_label>
+              <lv_label text="#icon_close_circle" style_text_font="mdi_icons_16" style_text_color="#warning">
+                <bind_flag_if_not_eq subject="connection_status_kind" flag="hidden" ref_value="4"/>
+              </lv_label>
+              <lv_label text="#icon_triangle_exclamation" style_text_font="mdi_icons_16" style_text_color="#warning">
+                <bind_flag_if_not_eq subject="connection_status_kind" flag="hidden" ref_value="5"/>
+              </lv_label>
+            </lv_obj>
             <!-- Status Text (wrapping enabled to prevent overflow) -->
             <text_body name="connection_status_text"
                        width="0" bind_text="connection_status_text" flex_grow="1" long_mode="wrap"/>

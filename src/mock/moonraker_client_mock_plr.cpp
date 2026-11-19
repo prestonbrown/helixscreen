@@ -7,6 +7,7 @@
 
 #include "core/text_io.h"
 #include "env_knobs.h"
+#include "json_utils.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
@@ -118,10 +119,18 @@ std::int64_t mock_file_size() {
 } // namespace
 
 json MoonrakerClientMock::mock_plr_feature_entry() {
+    // HELIX_MOCK_PLR=not_listed: the plugin runs but has no recovery recipe
+    // for this printer model.
+    if (const MockPlrConfig cfg = mock_plr_config(); cfg.backend == "not_listed") {
+        return json{{"version", helix::kPlrFeatureMinVersion},
+                    {"available", false},
+                    {"enabled", false},
+                    {"reason", "not_listed"}};
+    }
     if (!mock_plr_config().active) {
         return nullptr;
     }
-    return json{{"version", helix::kPlrFeatureMinVersion},
+    return json{{"version", helix::kPlrUnlistedTierMinVersion},
                 {"available", true},
                 {"enabled", mock_plr_saving() || mock_plr_interrupted()},
                 {"saving", mock_plr_saving()},
@@ -130,8 +139,7 @@ json MoonrakerClientMock::mock_plr_feature_entry() {
 
 bool MoonrakerClientMock::mock_plr_saving() {
     const json user = mock_db_get(helix::kPlrDbNamespace, helix::kPlrUserKey);
-    return !(user.is_object() && user.contains("enabled") && user["enabled"].is_boolean()) ||
-           user["enabled"].get<bool>();
+    return helix::json_util::read_field<bool>(user, "enabled").value_or(true);
 }
 
 bool MoonrakerClientMock::mock_plr_interrupted() const {
@@ -158,10 +166,7 @@ void MoonrakerClientMock::mock_plr_request(
         // The config-file question stands without the outage simulation, so
         // it answers even when no PLR backend is on.
         const bool had = plr_mesh_include_;
-        const std::string action =
-            params.is_object() && params.contains("action") && params["action"].is_string()
-                ? params["action"].get<std::string>()
-                : std::string();
+        const std::string action = helix::json_util::safe_string(params, "action");
         if (action == "add" || action == "remove") {
             plr_mesh_include_ = action == "add";
             reply({{"present", plr_mesh_include_}, {"changed", plr_mesh_include_ != had}});
@@ -270,10 +275,7 @@ void MoonrakerClientMock::mock_plr_request(
         return;
     }
 
-    const std::string plan_id =
-        params.is_object() && params.contains("plan_id") && params["plan_id"].is_string()
-            ? params["plan_id"].get<std::string>()
-            : std::string();
+    const std::string plan_id = helix::json_util::safe_string(params, "plan_id");
     if (plan_id.empty() || plan_id != plr_plan_id_) {
         fail(plr_error(method, "plr_stale_plan", "Not the latest plan"));
         return;
@@ -326,7 +328,7 @@ void MoonrakerClientMock::mock_plr_request(
             fail(plr_error(method, "plr_klippy_error", "Mock Klipper error (commit)"));
             return;
         }
-        const json* given = params.contains("confirmations") ? &params["confirmations"] : nullptr;
+        const json* given = helix::json_util::find_member(params, "confirmations");
         for (PlrConfirmation c : mock_requires(cfg)) {
             const char* name = helix::plr_confirmation_name(c);
             if (given == nullptr || !given->is_object() || !given->contains(name)) {

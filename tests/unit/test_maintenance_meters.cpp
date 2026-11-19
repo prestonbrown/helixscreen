@@ -21,19 +21,36 @@ using json = nlohmann::json;
 namespace {
 constexpr int kFilter = static_cast<int>(MeterId::Filter);
 constexpr int kNozzle = static_cast<int>(MeterId::Nozzle);
-constexpr int kRails = static_cast<int>(MeterId::Rails);
+constexpr int kRails = static_cast<int>(MeterId::XyAxis);
+constexpr int kZ = static_cast<int>(MeterId::ZAxis);
+constexpr int kFans = static_cast<int>(MeterId::ElectronicsFans);
+constexpr int kBelt = static_cast<int>(MeterId::BeltTension);
+constexpr int64_t kNow = 1800000000;
+constexpr int64_t kDay = 86400;
 
 Meter& meter(State& s, int i) {
     return s.meters[static_cast<size_t>(i)];
 }
+
+/// Every meter seeded with its generic default, as on an enclosed printer with a board fan.
+State seeded_state() {
+    State s = default_state();
+    seed_defaults(s, Applicability{true, false, false, true}, ModelDefaults{});
+    return s;
+}
 } // namespace
 
-TEST_CASE("maintenance defaults: filter 200, nozzle 500, rails 300, nothing used",
-          "[maintenance][meters]") {
-    State s = default_state();
-    CHECK(meter(s, kFilter).interval_h == 200);
-    CHECK(meter(s, kNozzle).interval_h == 500);
+TEST_CASE("the meters: keys, order and generic defaults", "[maintenance][meters]") {
+    CHECK(std::vector<std::string>(kMeterKeys.begin(), kMeterKeys.end()) ==
+          std::vector<std::string>{"rails", "z_axis", "nozzle", "extruder", "filter",
+                                   "electronics_fans", "belt_tension"});
+    State s = seeded_state();
     CHECK(meter(s, kRails).interval_h == 300);
+    CHECK(meter(s, kZ).interval_h == 500);
+    CHECK(meter(s, kNozzle).interval_h == 500);
+    CHECK(meter(s, kFilter).interval_h == 200);
+    CHECK(meter(s, kFans).interval_h == 500);
+    CHECK(meter(s, kBelt).interval_h == 0);
     CHECK(s.total_h == 0.0);
     for (const Meter& m : s.meters) {
         CHECK(m.used_h == 0.0);
@@ -42,8 +59,15 @@ TEST_CASE("maintenance defaults: filter 200, nozzle 500, rails 300, nothing used
     }
 }
 
+TEST_CASE("a fresh state is unseeded and off", "[maintenance][meters]") {
+    for (const Meter& m : default_state().meters) {
+        CHECK_FALSE(m.seeded);
+        CHECK_FALSE(enabled(m));
+    }
+}
+
 TEST_CASE("accrue adds to the total and to enabled meters only", "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     set_interval(s, kNozzle, 0);
     accrue(s, 1.5);
     CHECK(s.total_h == Catch::Approx(1.5));
@@ -61,28 +85,32 @@ TEST_CASE("accrue adds to the total and to enabled meters only", "[maintenance][
     }
 }
 
-TEST_CASE("crossing the interval reports the meter once, until a reset re-arms it",
+TEST_CASE("take_pending_notices names each due meter once, until a reset re-arms it",
           "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     set_interval(s, kFilter, 25);
-    CHECK(accrue(s, 24.9).empty());
+    accrue(s, 24.9);
+    CHECK(take_pending_notices(s).empty());
     CHECK_FALSE(meter(s, kFilter).notified);
 
-    const auto due = accrue(s, 0.1);
-    REQUIRE(due.size() == 1);
-    CHECK(due[0] == kFilter);
+    accrue(s, 0.1);
+    CHECK(meter(s, kFilter).notified == false);
+    CHECK(take_pending_notices(s) == std::vector<int>{kFilter});
     CHECK(meter(s, kFilter).notified);
     CHECK(meter_status(meter(s, kFilter)) == ValueStatus::Danger);
 
-    CHECK(accrue(s, 10.0).empty());
+    accrue(s, 10.0);
+    CHECK(take_pending_notices(s).empty());
 
     reset_meter(s, kFilter);
-    CHECK(accrue(s, 24.0).empty());
-    CHECK(accrue(s, 1.0) == std::vector<int>{kFilter});
+    accrue(s, 24.0);
+    CHECK(take_pending_notices(s).empty());
+    accrue(s, 1.0);
+    CHECK(take_pending_notices(s) == std::vector<int>{kFilter});
 }
 
 TEST_CASE("reset starts a new interval stamped with the total", "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     accrue(s, 120.4);
     reset_meter(s, kRails);
     CHECK(meter(s, kRails).used_h == 0.0);
@@ -99,11 +127,12 @@ TEST_CASE("reset starts a new interval stamped with the total", "[maintenance][m
 
 TEST_CASE("a raised interval re-arms the due notice, a lowered one does not",
           "[maintenance][meters]") {
-    State s = default_state();
-    set_interval(s, kFilter, 0);
-    set_interval(s, kRails, 0);
+    State s = seeded_state();
+    for (int i = 0; i < kMeterCount; ++i)
+        set_interval(s, i, 0);
     set_interval(s, kNozzle, 100);
     accrue(s, 150.0);
+    take_pending_notices(s);
     REQUIRE(meter(s, kNozzle).notified);
 
     set_interval(s, kNozzle, 150);
@@ -111,11 +140,12 @@ TEST_CASE("a raised interval re-arms the due notice, a lowered one does not",
 
     set_interval(s, kNozzle, 200);
     CHECK_FALSE(meter(s, kNozzle).notified);
-    CHECK(accrue(s, 50.0) == std::vector<int>{kNozzle});
+    accrue(s, 50.0);
+    CHECK(take_pending_notices(s) == std::vector<int>{kNozzle});
 }
 
 TEST_CASE("an interval of 0 turns a meter off: no accrual, not most due", "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     accrue(s, 190.0);
     REQUIRE(most_due(s) == kFilter);
     set_interval(s, kFilter, 0);
@@ -124,16 +154,17 @@ TEST_CASE("an interval of 0 turns a meter off: no accrual, not most due", "[main
     CHECK(hours_left(meter(s, kFilter)) == 0);
     CHECK(most_due(s) == kRails);
 
-    set_interval(s, kNozzle, 0);
-    set_interval(s, kRails, 0);
+    for (int i = 0; i < kMeterCount; ++i)
+        set_interval(s, i, 0);
     CHECK_FALSE(most_due(s).has_value());
-    CHECK(accrue(s, 5.0).empty());
+    accrue(s, 5.0);
+    CHECK(take_pending_notices(s).empty());
     CHECK(s.total_h == Catch::Approx(195.0));
 }
 
 TEST_CASE("hours left round up and stop at zero; status bands follow the used share",
           "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     set_interval(s, kFilter, 100);
     accrue(s, 74.2);
     CHECK(hours_left(meter(s, kFilter)) == 26);
@@ -160,10 +191,11 @@ TEST_CASE("intervals snap to the offered choices", "[maintenance][meters]") {
 }
 
 TEST_CASE("the persisted form round-trips", "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     set_interval(s, kNozzle, 0);
     set_interval(s, kFilter, 25);
     accrue(s, 30.25);
+    take_pending_notices(s);
     reset_meter(s, kRails);
     accrue(s, 2.0);
 
@@ -193,15 +225,16 @@ TEST_CASE("a corrupt record falls back field by field", "[maintenance][meters]")
     })");
     const State s = from_json(j);
     CHECK(s.total_h == 0.0);
-    CHECK(s.meters[kFilter].interval_h == 200);
+    CHECK_FALSE(s.meters[kFilter].seeded);
+    CHECK(s.meters[kFilter].interval_h == 0);
     CHECK(s.meters[kFilter].used_h == 0.0);
     CHECK_FALSE(s.meters[kFilter].notified);
     CHECK(s.meters[kNozzle].interval_h == 250);
     CHECK(s.meters[kNozzle].used_h == 0.0);
     CHECK_FALSE(s.meters[kNozzle].reset_at_h.has_value());
-    CHECK(s.meters[kRails].interval_h == 300);
+    CHECK_FALSE(s.meters[kRails].seeded);
 
-    CHECK(from_json(json()).meters[kNozzle].interval_h == 500);
+    CHECK_FALSE(from_json(json()).meters[kNozzle].seeded);
     CHECK(from_json(json::array()).total_h == 0.0);
 }
 
@@ -288,44 +321,239 @@ TEST_CASE("DurationTracker: a local zero before Klipper's running value counts n
 }
 
 TEST_CASE("accrue can leave the filter to a firmware counter", "[maintenance][meters]") {
-    State s = default_state();
+    State s = seeded_state();
     accrue(s, 2.0, true);
     CHECK(s.total_h == Catch::Approx(2.0));
-    CHECK(s.meters[0].used_h == Catch::Approx(0.0));
-    CHECK(s.meters[1].used_h == Catch::Approx(2.0));
-    CHECK(s.meters[2].used_h == Catch::Approx(2.0));
+    CHECK(meter(s, kFilter).used_h == Catch::Approx(0.0));
+    CHECK(meter(s, kRails).used_h == Catch::Approx(2.0));
+    CHECK(meter(s, kNozzle).used_h == Catch::Approx(2.0));
 }
 
 TEST_CASE("firmware filter hours replace the filter's used hours and fall due once",
           "[maintenance][meters]") {
-    State s = default_state();
-    REQUIRE(s.meters[0].interval_h == 200);
-    CHECK(apply_firmware_filter_hours(s, 12.5).empty());
-    CHECK(s.meters[0].used_h == Catch::Approx(12.5));
+    State s = seeded_state();
+    REQUIRE(meter(s, kFilter).interval_h == 200);
+    apply_firmware_filter_hours(s, 12.5);
+    CHECK(meter(s, kFilter).used_h == Catch::Approx(12.5));
     CHECK(s.total_h == Catch::Approx(0.0));
-    CHECK(apply_firmware_filter_hours(s, 200.0) == std::vector<int>{0});
-    CHECK(apply_firmware_filter_hours(s, 210.0).empty());
+    apply_firmware_filter_hours(s, 200.0);
+    CHECK(take_pending_notices(s) == std::vector<int>{kFilter});
+    apply_firmware_filter_hours(s, 210.0);
+    CHECK(take_pending_notices(s).empty());
     // The counter going back (reset on the printer) lowers the hours.
-    reset_meter(s, 0);
-    CHECK(apply_firmware_filter_hours(s, 0.1).empty());
-    CHECK(s.meters[0].used_h == Catch::Approx(0.1));
-    CHECK(apply_firmware_filter_hours(s, -1.0).empty());
-    CHECK(s.meters[0].used_h == Catch::Approx(0.1));
+    reset_meter(s, kFilter);
+    apply_firmware_filter_hours(s, 0.1);
+    CHECK(meter(s, kFilter).used_h == Catch::Approx(0.1));
+    apply_firmware_filter_hours(s, -1.0);
+    CHECK(meter(s, kFilter).used_h == Catch::Approx(0.1));
 }
 
 TEST_CASE("an Off filter meter takes no firmware hours", "[maintenance][meters]") {
-    State s = default_state();
-    set_interval(s, 0, 0);
-    CHECK(apply_firmware_filter_hours(s, 500.0).empty());
-    CHECK(s.meters[0].used_h == Catch::Approx(0.0));
+    State s = seeded_state();
+    set_interval(s, kFilter, 0);
+    apply_firmware_filter_hours(s, 500.0);
+    CHECK(meter(s, kFilter).used_h == Catch::Approx(0.0));
 }
 
 TEST_CASE("a firmware filter counter reset elsewhere re-arms the due notice",
           "[maintenance][meters]") {
-    State s = default_state();
-    CHECK(apply_firmware_filter_hours(s, 200.0) == std::vector<int>{0});
+    State s = seeded_state();
+    apply_firmware_filter_hours(s, 200.0);
+    CHECK(take_pending_notices(s) == std::vector<int>{kFilter});
     // Reset on the printer's console: the hours fall without reset_meter() running here.
-    CHECK(apply_firmware_filter_hours(s, 0.0).empty());
-    CHECK_FALSE(s.meters[0].notified);
-    CHECK(apply_firmware_filter_hours(s, 200.0) == std::vector<int>{0});
+    apply_firmware_filter_hours(s, 0.0);
+    CHECK_FALSE(meter(s, kFilter).notified);
+    apply_firmware_filter_hours(s, 200.0);
+    CHECK(take_pending_notices(s) == std::vector<int>{kFilter});
+}
+
+TEST_CASE("a record from before the new meters keeps its three and leaves the rest unseeded",
+          "[maintenance][meters][migration]") {
+    const State s = from_json(json::parse(R"({"total_h": 900, "meters": {
+        "rails": {"interval_h": 300, "used_h": 340, "reset_at_h": 560},
+        "nozzle": {"interval_h": 500, "used_h": 12},
+        "filter": {"interval_h": 200, "used_h": 80}}})"));
+    CHECK(s.meters[kRails].seeded);
+    CHECK(s.meters[kRails].interval_h == 300);
+    CHECK(s.meters[kFilter].interval_h == 200);
+    CHECK_FALSE(s.meters[kZ].seeded);
+    CHECK_FALSE(s.meters[kFans].seeded);
+
+    SECTION("Z starts from the rails hours") {
+        CHECK(s.meters[kZ].used_h == Catch::Approx(340.0));
+        REQUIRE(s.meters[kZ].reset_at_h.has_value());
+        CHECK(*s.meters[kZ].reset_at_h == Catch::Approx(560.0));
+    }
+    SECTION("every other new meter starts at zero") {
+        CHECK(s.meters[static_cast<int>(MeterId::Extruder)].used_h == 0.0);
+        CHECK(s.meters[kFans].used_h == 0.0);
+    }
+    SECTION("the seed does not repeat once z_axis exists") {
+        const State back = from_json(json::parse(R"({"meters": {
+            "rails": {"interval_h": 300, "used_h": 340},
+            "z_axis": {"used_h": 3}}})"));
+        CHECK(back.meters[kZ].used_h == Catch::Approx(3.0));
+    }
+}
+
+TEST_CASE("an unseeded meter round-trips without an interval", "[maintenance][meters]") {
+    State s = default_state();
+    meter(s, kZ).used_h = 7.0;
+    const json j = to_json(s);
+    CHECK_FALSE(j["meters"]["z_axis"].contains("interval_h"));
+    const State back = from_json(j);
+    CHECK_FALSE(back.meters[kZ].seeded);
+    CHECK(back.meters[kZ].used_h == Catch::Approx(7.0));
+
+    seed_defaults(s, {}, {});
+    CHECK(to_json(s)["meters"]["z_axis"]["interval_h"] == 500);
+}
+
+TEST_CASE("seed_defaults decides from what the printer reports", "[maintenance][meters]") {
+    const auto seeded = [](Applicability a, ModelDefaults model = {}) {
+        State s = default_state();
+        REQUIRE(seed_defaults(s, a, model));
+        return s;
+    };
+    SECTION("an open printer with no filter fan starts the filter Off") {
+        CHECK(seeded({}).meters[kFilter].interval_h == 0);
+    }
+    SECTION("an enclosure starts it at 200 h") {
+        CHECK(seeded({true, false, false, false}).meters[kFilter].interval_h == 200);
+    }
+    SECTION("a chamber filter fan alone turns it on") {
+        CHECK(seeded({false, true, false, false}).meters[kFilter].interval_h == 200);
+    }
+    SECTION("a firmware filter counter alone turns it on") {
+        CHECK(seeded({false, false, true, false}).meters[kFilter].interval_h == 200);
+    }
+    SECTION("no controller_fan starts the fans meter Off, one starts it at 500 h") {
+        CHECK(seeded({}).meters[kFans].interval_h == 0);
+        CHECK(seeded({false, false, false, true}).meters[kFans].interval_h == 500);
+    }
+    SECTION("belt tension needs a model row") {
+        CHECK(seeded({true, true, true, true}).meters[kBelt].interval_h == 0);
+        ModelDefaults model{};
+        model[kBelt].hours = 300;
+        CHECK(seeded({}, model).meters[kBelt].interval_h == 300);
+    }
+    SECTION("a model row overrides both ways") {
+        ModelDefaults model{};
+        model[kNozzle].hours = 0;
+        model[kFilter].hours = 150;
+        model[kFilter].days = 90;
+        const State s = seeded({}, model);
+        CHECK(s.meters[kNozzle].interval_h == 0);
+        CHECK(s.meters[kFilter].interval_h == 150);
+        CHECK(s.meters[kFilter].interval_d == 90);
+    }
+    SECTION("a seeded meter is never changed and an idle seed reports no change") {
+        State s = seeded({true, false, false, true});
+        set_interval(s, kNozzle, 750);
+        CHECK_FALSE(seed_defaults(s, {}, {}));
+        CHECK(s.meters[kNozzle].interval_h == 750);
+        CHECK(s.meters[kFilter].interval_h == 200);
+    }
+}
+
+TEST_CASE("the calendar limit", "[maintenance][meters]") {
+    State s = seeded_state();
+    set_interval(s, kNozzle, 500);
+    set_interval_days(s, kNozzle, 30, kNow);
+    Meter& m = meter(s, kNozzle);
+    REQUIRE(m.reset_at_s == kNow);
+
+    SECTION("a day limit makes a meter due before its hours") {
+        CHECK(used_fraction(m, kNow + 15 * kDay) == Catch::Approx(0.5));
+        CHECK(used_fraction(m, kNow + 30 * kDay) == 1.0);
+        CHECK(take_pending_notices(s, kNow + 30 * kDay) == std::vector<int>{kNozzle});
+    }
+    SECTION("status bands use the larger share") {
+        CHECK(meter_status(m, kNow + 23 * kDay) == ValueStatus::Warn);
+        accrue(s, 490.0);
+        CHECK(meter_status(m, kNow) == ValueStatus::Warn);
+    }
+    SECTION("the card says days only when they are the closer limit") {
+        CHECK(days_are_closer(m, kNow + 15 * kDay));
+        CHECK(days_left(m, kNow + 15 * kDay) == 15);
+        accrue(s, 400.0);
+        CHECK_FALSE(days_are_closer(m, kNow + 15 * kDay));
+    }
+    SECTION("an untrusted now never makes it due") {
+        CHECK(used_fraction(m, std::nullopt) == 0.0);
+        CHECK(used_fraction(m, int64_t{1000}) == 0.0);
+        CHECK_FALSE(days_left(m, std::nullopt).has_value());
+        CHECK(take_pending_notices(s, std::nullopt).empty());
+    }
+    SECTION("an untrusted reset leaves the limit idle until a trusted one") {
+        reset_meter(s, kNozzle, std::nullopt);
+        CHECK_FALSE(m.reset_at_s.has_value());
+        CHECK(used_fraction(m, kNow + 60 * kDay) == 0.0);
+        reset_meter(s, kNozzle, kNow);
+        CHECK(m.reset_at_s == kNow);
+    }
+    SECTION("a clock that went back holds at zero") {
+        CHECK(used_fraction(m, kNow - 10 * kDay) == 0.0);
+    }
+    SECTION("the day fields round-trip; a stamp from an untrusted clock does not load") {
+        const State back = from_json(json::parse(to_json(s).dump()));
+        CHECK(back.meters[kNozzle].interval_d == 30);
+        CHECK(back.meters[kNozzle].reset_at_s == kNow);
+        json j = to_json(s);
+        j["meters"]["nozzle"]["reset_at_s"] = 1000;
+        CHECK_FALSE(from_json(j).meters[kNozzle].reset_at_s.has_value());
+    }
+    SECTION("a late trusted clock starts a limit that had none") {
+        m.reset_at_s.reset();
+        CHECK_FALSE(stamp_calendar_starts(s, std::nullopt));
+        CHECK(stamp_calendar_starts(s, kNow));
+        CHECK(m.reset_at_s == kNow);
+        CHECK_FALSE(stamp_calendar_starts(s, kNow));
+    }
+    SECTION("raising the limit re-arms a notice the limit raised") {
+        take_pending_notices(s, kNow + 30 * kDay);
+        REQUIRE(m.notified);
+        set_interval_days(s, kNozzle, 60, kNow + 30 * kDay);
+        CHECK_FALSE(m.notified);
+    }
+}
+
+TEST_CASE("day choices snap", "[maintenance][meters]") {
+    CHECK(snap_days(-3) == 0);
+    CHECK(snap_days(0) == 0);
+    CHECK(snap_days(45) == 30);
+    CHECK(snap_days(46) == 60);
+    CHECK(snap_days(4000) == 365);
+    CHECK(day_choice_index(180) == 4);
+}
+
+TEST_CASE("due_order: most due first, ties in display order, Off meters absent",
+          "[maintenance][meters]") {
+    State s = seeded_state();
+    set_interval(s, kNozzle, 0);
+    meter(s, kFilter).used_h = 100.0;
+    meter(s, kRails).used_h = 100.0;
+    const auto order = due_order(s);
+    REQUIRE(order.size() == 5u);
+    CHECK(order[0] == kFilter);
+    CHECK(order[1] == kRails);
+    CHECK(order[2] == kZ);
+    CHECK(std::find(order.begin(), order.end(), kNozzle) == order.end());
+}
+
+TEST_CASE("model_defaults_from_json takes only good fields", "[maintenance][meters]") {
+    const json j = json::parse(R"({
+        "belt_tension": {"hours": 300},
+        "filter": {"hours": 150, "days": 90},
+        "nozzle": {"hours": "x", "days": -4},
+        "unknown": {"hours": 7},
+        "z_axis": 3
+    })");
+    const ModelDefaults m = model_defaults_from_json(j);
+    CHECK(m[kBelt].hours == 300);
+    CHECK(m[kFilter].days == 90);
+    CHECK_FALSE(m[kNozzle].hours.has_value());
+    CHECK_FALSE(m[kNozzle].days.has_value());
+    CHECK_FALSE(m[kZ].hours.has_value());
+    CHECK_FALSE(model_defaults_from_json(json::array())[kBelt].hours.has_value());
 }

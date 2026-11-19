@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file printer_capabilities_state.cpp
- * @brief Printer capabilities state management extracted from PrinterState
+ * @brief Printer capabilities state, one of PrinterState's domain sub-states
  *
  * Manages capability subjects that control UI feature visibility based on
- * hardware detection and user overrides. Extracted from PrinterState as
- * part of god class decomposition.
+ * hardware detection and user overrides.
  */
 
 #include "printer_capabilities_state.h"
 
+#include "belt_cutter_calibration.h"
 #include "chamber_air_modes.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "layer_pause.h"
 #include "lvgl.h"
+#include "motor_ripple_view.h"
 #include "pa_calibration.h"
 #include "printer_fan_state.h"
 #include "sound_manager.h"
@@ -72,6 +74,9 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HideManualZCalibration, "hide_manual_z_calibration", 0},
     {Capability::HasPaCal, "printer_has_pa_cal", 0},
     {Capability::HasStepperResonanceCal, "printer_has_stepper_resonance_cal", 0},
+    {Capability::CanTensionBelts, "printer_can_tension_belts", 0},
+    {Capability::CanCalibrateCutter, "printer_can_calibrate_cutter", 0},
+    {Capability::SupportsRippleCheck, "printer_supports_ripple_check", 0},
     {Capability::HasWebcam, "printer_has_webcam", 0},
     {Capability::WebcamCount, "webcam_count", 0},
     {Capability::HasExtraFans, "printer_has_extra_fans", 0},
@@ -109,16 +114,16 @@ void PrinterCapabilitiesState::init_subjects(bool register_xml) {
                   register_xml);
 
     for (const auto& def : kCapabilityDefs) {
+        capability_subjects_[static_cast<size_t>(def.cap)].init_int(def.initial);
         lv_subject_t* s = subject(def.cap);
-        lv_subject_init_int(s, def.initial);
         subjects_.register_subject(s, register_xml ? def.name : nullptr);
         if (register_xml) {
             helix::xml::register_subject_in_current_scope(def.name, s);
         }
     }
 
-    lv_subject_init_string(&tool_offset_cal_description_, tool_offset_cal_description_buf_, nullptr,
-                           sizeof(tool_offset_cal_description_buf_), "");
+    tool_offset_cal_description_.init_string(tool_offset_cal_description_buf_, nullptr,
+                                             sizeof(tool_offset_cal_description_buf_), "");
     constexpr const char* kToolOffsetCalDescription = "printer_tool_offset_cal_description";
     subjects_.register_subject(&tool_offset_cal_description_,
                                register_xml ? kToolOffsetCalDescription : nullptr);
@@ -302,6 +307,17 @@ void PrinterCapabilitiesState::set_hardware(const PrinterDiscovery& hardware,
     set_capability(Capability::HasPaCal, helix::pacal::is_supported(hardware) ? 1 : 0);
     set_capability(Capability::HasStepperResonanceCal,
                    helix::stepper_resonance_cal::resolve(hardware).present() ? 1 : 0);
+    set_capability(Capability::CanTensionBelts,
+                   helix::belt_cutter_cal::can_tension_belts(hardware) ? 1 : 0);
+    set_capability(Capability::CanCalibrateCutter,
+                   helix::belt_cutter_cal::can_calibrate_cutter(hardware) ? 1 : 0);
+    set_capability(
+        Capability::SupportsRippleCheck,
+        helix::calibration::ripple::ripple_check_supported(
+            hardware.kinematics(), hardware.has_accelerometer(),
+            hardware.motor_geometry(helix::calibration::ripple::MotorId::StepperX).has_value())
+            ? 1
+            : 0);
 
     // Spoolman requires async check - default to 0, updated separately via set_spoolman_available()
 
@@ -320,7 +336,7 @@ void PrinterCapabilitiesState::render_tool_offset_cal_description() {
         return;
     }
     const char* key = tool_offset_cal_description_key_;
-    lv_subject_copy_string(&tool_offset_cal_description_, key[0] != '\0' ? lv_tr(key) : "");
+    lv_subject_set_string(&tool_offset_cal_description_, key[0] != '\0' ? lv_tr(key) : "");
 }
 
 void PrinterCapabilitiesState::on_language_changed() {

@@ -212,7 +212,7 @@ path_without_python3() {
 
 @test "plugin exposes no phase-tracking endpoints" {
     [ -f "$PLUGIN_PY" ]
-    refute_grep 'phase_tracking' "$PLUGIN_PY"
+    refute_grep 'server/helix/phase_tracking' "$PLUGIN_PY"
 }
 
 # HelixScreen runs install.sh from a NoNewPrivileges service, where sudo can
@@ -454,6 +454,25 @@ setup_creality_k1_layout() {
     [ "$status" -eq 0 ] || fail "install failed: $output"
     [ -L "$root/usr/data/moonraker/moonraker/moonraker/components/helix_print.py" ]
     grep -q '^\[helix_print\]' "$root/usr/data/printer_data/config/moonraker.conf"
+}
+
+@test "a plugin installed through a package's latest link stays linked through latest" {
+    # PAXX's extended-pkg replaces the version dir on every upgrade and re-points
+    # latest at the new one; a link through latest survives that (#2136).
+    local root="$BATS_TEST_TMPDIR/k1"
+    setup_creality_k1_layout "$root"
+    local apps="$root/oem/apps/helixscreen"
+    mkdir -p "$apps/helixscreen-1.1.0/moonraker-plugin"
+    cp "$REPO_ROOT"/moonraker-plugin/*.sh "$REPO_ROOT"/moonraker-plugin/*.py \
+        "$apps/helixscreen-1.1.0/moonraker-plugin/"
+    ln -s helixscreen-1.1.0 "$apps/latest"
+
+    run env HOME="$root/home" HELIX_PROC_ROOT="$root/proc" \
+        sh "$apps/latest/moonraker-plugin/install.sh" --no-restart --auto
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+    local link="$root/usr/data/moonraker/moonraker/moonraker/components/helix_print.py"
+    [ "$(readlink "$link")" = "$apps/latest/moonraker-plugin/helix_print.py" ] \
+        || fail "link names $(readlink "$link"), not the path through latest"
 }
 
 @test "auto uninstall finds a Creality K1 Moonraker from its running process" {
@@ -1500,6 +1519,30 @@ setup_forgex_bind_mounted_app() {
     [ "$(printf '%s\n' "$output" | wc -l)" -eq 2 ] || fail "files: $(printf '%s\n' "$output" | head -n 4)"
 }
 
+@test "moonraker_conf_includes resolves relative and rooted includes, leaves globs, strips CR" {
+    local c="$BATS_TEST_TMPDIR/cfg"
+    mkdir -p "$c"
+    printf '[server]\n[include user.moonraker.conf]  \r\n[include /etc/mr/extra.conf]\n[include conf.d/*.conf]\n#[include skipped.conf]\n' \
+        > "$c/moonraker.conf"
+
+    run sh -c '. "$1"; moonraker_conf_includes "$2" "$3"' sh \
+        "$REPO_ROOT/moonraker-plugin/helix_print_conf.sh" "$c/moonraker.conf" "/chroot"
+    [ "$status" -eq 0 ] || fail "$output"
+    [ "$output" = "$c/user.moonraker.conf
+/chroot/etc/mr/extra.conf
+$c/conf.d/*.conf" ] || fail "includes: $output"
+}
+
+@test "moonraker_conf_includes prints nothing for a file with no includes or no file" {
+    local c="$BATS_TEST_TMPDIR/cfg"
+    mkdir -p "$c"
+    printf '[server]\nport: 7125\n' > "$c/moonraker.conf"
+    run sh -c '. "$1"; moonraker_conf_includes "$2"; moonraker_conf_includes "$3"' sh \
+        "$REPO_ROOT/moonraker-plugin/helix_print_conf.sh" "$c/moonraker.conf" "$c/missing.conf"
+    [ "$status" -eq 0 ]
+    [ -z "$output" ] || fail "unexpected: $output"
+}
+
 @test "an auto install Moonraker refuses to restart for says Moonraker needs one, never complete" {
     local home="$BATS_TEST_TMPDIR/home"
     setup_plain_home "$home"
@@ -1856,7 +1899,7 @@ bundled_version() {
         fail "an idle printer was not restarted: $(cat "$BATS_TEST_TMPDIR/mr/log")"
     grep -q 'print_stats' "$BATS_TEST_TMPDIR/mr/log" || fail "took the caller's word without asking"
     # Moonraker refuses the restart without a login too.
-    [ "$status" -eq 3 ] || fail "want 3, got $status: $output"
+    [ "$status" -eq 9 ] || fail "want 9, got $status: $output"
     contains "Moonraker refused to restart (401)" "$output"
 }
 
@@ -1905,7 +1948,7 @@ bundled_version() {
     [ ! -e "$log" ] || fail "ran a service manager: $(cat "$log")"
 }
 
-@test "--restart-moonraker exits 3 when Moonraker refuses, or still runs the old plugin" {
+@test "--restart-moonraker exits 9 when Moonraker refuses, 3 when it still runs the old plugin" {
     local home="$BATS_TEST_TMPDIR/home"
     setup_plain_home "$home"
     mock_moonraker_http "$BATS_TEST_TMPDIR/mr"
@@ -1913,7 +1956,7 @@ bundled_version() {
 
     : > "$BATS_TEST_TMPDIR/mr/refuse"
     run env HOME="$home" sh "$SCRIPT" --restart-moonraker
-    [ "$status" -eq 3 ] || fail "refused: want 3, got $status: $output"
+    [ "$status" -eq 9 ] || fail "refused: want 9, got $status: $output"
     contains "Restart Moonraker or reboot the printer to finish the plugin update" "$output"
 
     rm "$BATS_TEST_TMPDIR/mr/refuse"
@@ -1942,7 +1985,7 @@ bundled_version() {
     if printf '%s' "$output" | grep -q 'old HelixPrint plugin'; then fail "blamed an old plugin that never ran: $output"; fi
 }
 
-@test "--restart-moonraker says Moonraker did not restart when its service restart is accepted and does nothing" {
+@test "--restart-moonraker exits 8 and says Moonraker did not restart when its service restart is accepted and does nothing" {
     local home="$BATS_TEST_TMPDIR/home" mr="$BATS_TEST_TMPDIR/mr"
     setup_plain_home "$home"
     mock_moonraker_http "$mr"
@@ -1951,8 +1994,79 @@ bundled_version() {
     : > "$mr/inert"
 
     run env HOME="$home" sh "$SCRIPT" --restart-moonraker
-    [ "$status" -eq 3 ] || fail "want 3, got $status: $output"
+    [ "$status" -eq 8 ] || fail "want 8, got $status: $output"
     contains "Moonraker did not restart: its service restart is not available on this host" "$output"
+}
+
+@test "--help names every --restart-moonraker exit code the script's header lists" {
+    local codes help code
+    codes=$(awk '/^# Exit codes for --restart-moonraker/ { on = 1; next }
+        on && /^#   [0-9]+ - / { print $2; next }
+        on && !/^#/ { exit }' "$SCRIPT")
+    [ -n "$codes" ] || fail "no exit codes in the header"
+    help=$(sh "$SCRIPT" --help | awk '/--restart-moonraker/ { on = 1 } on && /--help/ { exit } on' | tr -s ' \n' ' ')
+    for code in $codes; do
+        case "$help" in
+            *"exit $code "* | *", $code "*) ;;
+            *) fail "--help leaves out exit $code: $help" ;;
+        esac
+    done
+}
+
+# Wrap mock_moonraker_http's curl in $1 with Moonraker's process samples: a
+# /machine/proc_stats GET reports $1/samples of them, and a carried-out service
+# restart starts the count again and answers every probe, as a restart quicker
+# than the one-second probes does.
+mock_fast_service_restart() {
+    local d="$1" bin="$BATS_TEST_TMPDIR/bin" body
+    mv "$bin/curl" "$bin/curl.inner"
+    echo 30 > "$d/samples"
+    body="d='$d' inner='$bin/curl.inner'
+$(cat <<'MOCK'
+case "$*" in
+    *machine/proc_stats*)
+        echo "GET proc_stats" >> "$d/log"
+        n=$(cat "$d/samples") stats='' i=0
+        while [ "$i" -lt "$n" ]; do
+            stats="$stats${stats:+,}{\"time\":$i}"
+            i=$((i + 1))
+        done
+        printf '{"result":{"moonraker_stats":[%s]}}\n200' "$stats"
+        exit 0 ;;
+esac
+"$inner" "$@"
+rc=$?
+case "$*" in
+    *POST*machine/services/restart*)
+        if [ ! -e "$d/inert" ] && [ ! -e "$d/refuse" ]; then
+            rm -f "$d/bounce"
+            echo 1 > "$d/samples"
+        fi ;;
+esac
+exit $rc
+MOCK
+)"
+    mock_command_script "curl" "$body"
+}
+
+@test "--restart-moonraker exits 3, not 8, when a quick service restart still runs the old plugin" {
+    local home="$BATS_TEST_TMPDIR/home" mr="$BATS_TEST_TMPDIR/mr"
+    setup_plain_home "$home"
+    mock_moonraker_http "$mr"
+    echo 0.0.1 > "$mr/version"
+    mock_fast_service_restart "$mr"
+
+    run env HOME="$home" sh "$SCRIPT" --restart-moonraker
+    [ "$status" -eq 3 ] || fail "want 3, got $status: $output"
+    contains "still runs the old HelixPrint plugin" "$output"
+    grep -qx 'POST http://127.0.0.1:7125/machine/services/restart?service=moonraker' "$mr/log" ||
+        fail "no service restart: $(cat "$mr/log")"
+
+    # The same samples with a restart that does nothing still read as no service.
+    : > "$mr/inert"
+    echo 30 > "$mr/samples"
+    run env HOME="$home" sh "$SCRIPT" --restart-moonraker
+    [ "$status" -eq 8 ] || fail "inert: want 8, got $status: $output"
 }
 
 @test "--restart-moonraker restarts nothing when Moonraker runs this tree's plugin already" {
@@ -2004,7 +2118,7 @@ bundled_version() {
         printf '%s' "$info" > "$mr/system_info"
         : > "$mr/log"
         run env HOME="$home" sh "$SCRIPT" --restart-moonraker
-        [ "$status" -eq 3 ] || fail "$info: want 3, got $status: $output"
+        [ "$status" -eq 8 ] || fail "$info: want 8, got $status: $output"
         if grep -q '^POST' "$mr/log"; then fail "$info: restarted a guessed service: $(cat "$mr/log")"; fi
         contains "Restart Moonraker or reboot the printer to finish the plugin update" "$output"
     done
@@ -2023,4 +2137,56 @@ bundled_version() {
     grep -qx 'POST http://127.0.0.1:7125/machine/services/restart?service=moonraker' "$BATS_TEST_TMPDIR/mr/log" ||
         fail "no service restart: $(cat "$BATS_TEST_TMPDIR/mr/log")"
     contains "Auto-install complete" "$output"
+}
+
+# A moonraker-timelapse checkout with the two files its installer links.
+setup_timelapse_checkout() {
+    mkdir -p "$1/component" "$1/klipper_macro"
+    printf '# timelapse component\n' > "$1/component/timelapse.py"
+    printf '[gcode_macro TIMELAPSE_TAKE_FRAME]\ngcode:\n' > "$1/klipper_macro/timelapse.cfg"
+}
+
+@test "link-timelapse links the component and the macro file, and leaves the config alone" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_plain_home "$home"
+    setup_timelapse_checkout "$home/moonraker-timelapse"
+    local c="$home/printer_data/config"
+    cp "$c/moonraker.conf" "$BATS_TEST_TMPDIR/conf.before"
+
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 0 ] || fail "link failed ($status): $output"
+
+    [ "$(readlink "$home/moonraker/moonraker/components/timelapse.py")" = "$home/moonraker-timelapse/component/timelapse.py" ] ||
+        fail "component link: $(readlink "$home/moonraker/moonraker/components/timelapse.py")"
+    [ "$(readlink "$c/timelapse.cfg")" = "$home/moonraker-timelapse/klipper_macro/timelapse.cfg" ] ||
+        fail "macro link: $(readlink "$c/timelapse.cfg")"
+    cmp -s "$BATS_TEST_TMPDIR/conf.before" "$c/moonraker.conf" || fail "edited moonraker.conf"
+}
+
+@test "link-timelapse refuses a directory that is not a timelapse checkout" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_plain_home "$home"
+    mkdir -p "$home/moonraker-timelapse"
+
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 1 ] || fail "want 1, got $status: $output"
+    [[ "$output" == *"Not a moonraker-timelapse checkout"* ]] || fail "unclear refusal: $output"
+    [ ! -e "$home/moonraker/moonraker/components/timelapse.py" ] || fail "linked anyway"
+}
+
+@test "link-timelapse never replaces a regular timelapse.py or timelapse.cfg" {
+    local home="$BATS_TEST_TMPDIR/home"
+    setup_plain_home "$home"
+    setup_timelapse_checkout "$home/moonraker-timelapse"
+    printf 'mine\n' > "$home/printer_data/config/timelapse.cfg"
+
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 0 ] || fail "link failed ($status): $output"
+    [ "$(cat "$home/printer_data/config/timelapse.cfg")" = "mine" ] || fail "replaced the user's macro file"
+
+    rm "$home/moonraker/moonraker/components/timelapse.py"
+    printf 'copied\n' > "$home/moonraker/moonraker/components/timelapse.py"
+    run env HOME="$home" sh "$SCRIPT" --link-timelapse "$home/moonraker-timelapse"
+    [ "$status" -eq 1 ] || fail "want 1 over a regular file, got $status: $output"
+    [ "$(cat "$home/moonraker/moonraker/components/timelapse.py")" = "copied" ] || fail "replaced it"
 }

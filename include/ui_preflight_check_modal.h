@@ -5,6 +5,7 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "preflight_validator.h"
 #include "subject_managed_panel.h"
 
@@ -107,9 +108,13 @@ class PreflightCheckModal : public Modal {
     Action on_force_, on_remap_, on_closed_;
 
     SubjectManager subjects_;
-    lv_subject_t fix_shown_subject_{};
-    lv_subject_t fix_text_subject_{};
+    helix::Subject fix_shown_subject_{};
+    helix::Subject fix_text_subject_{};
     char fix_text_buf_[96] = {0};
+    /// 1 when a remap can be carried out: Map Filament shows
+    helix::Subject remap_shown_subject_{};
+    helix::Subject explanation_subject_{};
+    char explanation_buf_[256] = {0};
 };
 
 } // namespace helix::ui

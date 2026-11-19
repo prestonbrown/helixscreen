@@ -5,8 +5,7 @@
 
 #include "plugin_dir_watcher.h"
 
-#include "ui_timer_guard.h"
-
+#include "core/timer_guard.h"
 #include "plugin_manifest.h"
 
 #include <spdlog/spdlog.h>

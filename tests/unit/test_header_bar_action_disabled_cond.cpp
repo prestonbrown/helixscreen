@@ -24,6 +24,7 @@
  */
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 
 #include <fstream>
@@ -104,10 +105,10 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     // Subjects the shipped expressions reference besides nav_buttons_enabled.
     // In production these are registered by each panel's init_subjects() at
     // startup, long before the overlay XML is created.
-    static lv_subject_t pid_not_idle;
-    static lv_subject_t is_calibrate_all_disabled;
-    lv_subject_init_int(&pid_not_idle, 0);
-    lv_subject_init_int(&is_calibrate_all_disabled, 0);
+    static helix::Subject pid_not_idle;
+    static helix::Subject is_calibrate_all_disabled;
+    pid_not_idle.init_int(0);
+    is_calibrate_all_disabled.init_int(0);
     lv_xml_register_subject(nullptr, "pid_cal_not_idle", &pid_not_idle);
     lv_xml_register_subject(nullptr, "is_calibrate_all_disabled", &is_calibrate_all_disabled);
 
@@ -163,6 +164,6 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     }
 
     lv_subject_set_int(nav, 1);
-    lv_subject_deinit(&pid_not_idle);
-    lv_subject_deinit(&is_calibrate_all_disabled);
+    pid_not_idle.reset();
+    is_calibrate_all_disabled.reset();
 }

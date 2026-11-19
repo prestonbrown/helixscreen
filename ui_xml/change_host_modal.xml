@@ -65,8 +65,24 @@
         <lv_obj style_pad_left="#space_sm"
                 flex_grow="1" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
                 style_pad_column="#space_sm">
-          <lv_label name="status_icon" text="" style_text_font="mdi_icons_16"/>
-          <text_body name="status_text" width="0" text="" flex_grow="1" long_mode="wrap"/>
+          <!-- One icon per status kind (ChangeHostModal::StatusKind); none for 0 -->
+          <lv_obj name="status_icon"
+                  width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false">
+            <lv_label text="#icon_question_circle" style_text_font="mdi_icons_16" style_text_color="#text_muted">
+              <bind_flag_if_not_eq subject="change_host_status_kind" flag="hidden" ref_value="1"/>
+            </lv_label>
+            <lv_label text="#icon_check_circle" style_text_font="mdi_icons_16" style_text_color="#success">
+              <bind_flag_if_not_eq subject="change_host_status_kind" flag="hidden" ref_value="2"/>
+            </lv_label>
+            <lv_label text="#icon_close_circle" style_text_font="mdi_icons_16" style_text_color="#warning">
+              <bind_flag_if_not_eq subject="change_host_status_kind" flag="hidden" ref_value="3"/>
+            </lv_label>
+            <lv_label text="#icon_close_circle" style_text_font="mdi_icons_16" style_text_color="#danger">
+              <bind_flag_if_not_eq subject="change_host_status_kind" flag="hidden" ref_value="4"/>
+            </lv_label>
+          </lv_obj>
+          <text_body name="status_text" width="0" bind_text="change_host_status_text" flex_grow="1" long_mode="wrap"/>
         </lv_obj>
       </lv_obj>
     </lv_obj>

@@ -7,7 +7,10 @@
  */
 
 #include "display_numbering.h"
+#include "lane_count_label.h"
 #include "lvgl.h"
+#include "lvgl/src/others/translation/lv_translation.h"
+#include "test_helpers/zero_lane_numbering.h"
 
 #include <optional>
 #include <vector>
@@ -112,12 +115,16 @@ TEST_CASE("lane_count_label counts positions in the backend's own noun", "[numbe
     CHECK(lane_count_label(LaneNoun::Toolhead, 4) == "4 toolheads");
 }
 
-TEST_CASE("a position count is a fixed form, never agreed with the count", "[numbering]") {
-    // The count is interpolated and the word is not chosen from it, so one and
-    // many read the same word in the base locale. A locale whose numerals
-    // inflect picks the one form it wants to see on a card header.
-    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 lanes");
+TEST_CASE("a position count agrees with the count", "[numbering]") {
+    // A one-lane unit's card reads "1 lane"; zero and many take the plural.
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 lane");
+    CHECK(lane_count_label(LaneNoun::Slot, 1) == "1 slot");
+    CHECK(lane_count_label(LaneNoun::Gate, 1) == "1 gate");
+    CHECK(lane_count_label(LaneNoun::Tool, 1) == "1 tool");
+    CHECK(lane_count_label(LaneNoun::Feeder, 1) == "1 feeder");
+    CHECK(lane_count_label(LaneNoun::Toolhead, 1) == "1 toolhead");
     CHECK(lane_count_label(LaneNoun::Lane, 0) == "0 lanes");
+    CHECK(lane_count_label(LaneNoun::Lane, 2) == "2 lanes");
 }
 
 TEST_CASE("a range with no valid end produces no label", "[numbering]") {
@@ -209,6 +216,22 @@ TEST_CASE("a generated tool name shows its display number beside the G-code name
                              ToolLabelForm::Code) == "T1");
     CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, tool_label(11), 11,
                              ToolLabelForm::Code) == "T11");
+}
+
+TEST_CASE("counting from zero, the full tool label does not repeat its number",
+          "[numbering][1769]") {
+    ScopedZeroLaneNumbering zero;
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T0", 0,
+                             ToolLabelForm::Full) == "Tool 0");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T3", 3,
+                             ToolLabelForm::Full) == "Tool 3");
+    CHECK(tool_label_in_form(LaneNoun::Toolhead, ToolNumberStyle::Physical, "T2", 2,
+                             ToolLabelForm::Full) == "Toolhead 2");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T3", 3,
+                             ToolLabelForm::Code) == "T3");
+    // A configured name is not a number, so the G-code name still earns its place.
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "Left", 0,
+                             ToolLabelForm::Full) == "Left (T0)");
 }
 
 TEST_CASE("the full tool label speaks the printer's own noun", "[numbering][1769]") {
@@ -348,4 +371,48 @@ TEST_CASE("pick_tool_label_form takes the most informative form that fits", "[nu
         CHECK(pick_tool_label_form(fits_only(ToolLabelForm::Full)) == ToolLabelForm::Full);
         CHECK(asked == std::vector<ToolLabelForm>{ToolLabelForm::Full});
     }
+}
+
+TEST_CASE("positions count from 0 when the option is on", "[numbering]") {
+    ScopedZeroLaneNumbering zero;
+
+    CHECK(lane_number(0) == 0);
+    CHECK(lane_number(3) == 3);
+    CHECK(lane_number_text(0) == "0");
+    CHECK(lane_label(LaneNoun::Gate, 0) == "Gate 0");
+    CHECK(lane_label(LaneNoun::Slot, "Turtle 1", 2) ==
+          std::string("Turtle 1 ") + kUnitSeparator + " Slot 2");
+    CHECK(lane_range_label(LaneNoun::Gate, 0, 3) == "Gates 0-3");
+    CHECK(lane_range_label(LaneNoun::Gate, 2, 2) == "Gate 2");
+}
+
+TEST_CASE("the numbering option leaves negatives invalid and defaults off", "[numbering]") {
+    CHECK_FALSE(lane_numbering_from_zero());
+    CHECK(lane_number(0) == 1);
+    CHECK(lane_range_label(LaneNoun::Slot, 0, 3) == "Slots 1-4");
+    ScopedZeroLaneNumbering zero;
+    CHECK(lane_number(-1) == -1);
+    CHECK(lane_number_text(-1).empty());
+    CHECK(lane_label(LaneNoun::Slot, -1).empty());
+}
+
+TEST_CASE("G-code tool names and ordinals ignore the numbering option", "[numbering]") {
+    ScopedZeroLaneNumbering zero;
+
+    CHECK(tool_label(0) == "T0");
+    CHECK(tool_label(2) == "T2");
+    CHECK(tool_label_in_form(LaneNoun::Tool, ToolNumberStyle::Physical, "T1", 1,
+                             ToolLabelForm::Code) == "T1");
+    CHECK(display_ordinal(0) == 1);
+    CHECK(display_ordinal(-1) == -1);
+}
+
+TEST_CASE("active_tool_name_label names a tool the way the screen numbers lanes",
+          "[numbering][target_tool]") {
+    CHECK(active_tool_name_label("T0", 0) == "Tool 1");
+    CHECK(active_tool_name_label("T3", 3) == "Tool 4");
+    // A configured name is what the machine is labeled with: shown as is.
+    CHECK(active_tool_name_label("Left", 0) == "Left");
+    ScopedZeroLaneNumbering zero;
+    CHECK(active_tool_name_label("T0", 0) == "Tool 0");
 }

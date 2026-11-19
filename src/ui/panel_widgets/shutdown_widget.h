@@ -6,6 +6,7 @@
 #include "ui_shutdown_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "safety_settings_manager.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "system_power.h"
 
@@ -40,7 +41,6 @@ class ShutdownWidget : public TiledPanelWidget {
     IMoonrakerAPI* api_;
 
     lv_obj_t* widget_obj_ = nullptr;
-    lv_obj_t* shutdown_btn_ = nullptr;
     lv_obj_t* parent_screen_ = nullptr;
 
     ShutdownModal shutdown_modal_;
@@ -106,6 +106,33 @@ enum class HostPowerFollowUp {
 /// Moonraker, or toasts.
 HostPowerFollowUp host_power_follow_up(PowerResult local_result, bool api_connected);
 
+/// What the entry point that opened the power dialog asked for.
+enum class PowerIntent {
+    Choose,   ///< A single power button: the dialog is where Shutdown or Reboot is picked.
+    Shutdown, ///< A row that already says Shutdown.
+    Reboot,   ///< A row that already says Reboot.
+};
+
+/// What a power request does: open the dialog, or act at once on a scope.
+struct PowerDecision {
+    bool run_now;
+    /// The scope acted on when run_now, else the scope a dual-host dialog's
+    /// split buttons open on. Read only in Dual mode.
+    ShutdownScope scope;
+};
+
+/// Decide a power request. Pure.
+///
+/// A dual-host screen with a target chosen in Settings (@p target) opens its
+/// dialog on that target instead of @p plan's default. A request runs without
+/// the dialog only when its entry point already names the action, the
+/// confirmation setting is off, no job holds the machine (powering down ruins
+/// it), and the scope is settled: a single-host screen has one, a dual-host
+/// screen needs a target other than Ask.
+PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation,
+                                   const ShutdownDialogPlan& plan, PowerTarget target,
+                                   bool job_active);
+
 /// Configure @p modal with single-/dual-scope callbacks for @p api (matching
 /// the home-panel widget's behavior — including local-fallback when Moonraker
 /// is disconnected) and show it as a child of @p parent_screen.
@@ -113,8 +140,11 @@ HostPowerFollowUp host_power_follow_up(PowerResult local_result, bool api_connec
 /// Caller owns @p modal and @p lifetime; both must outlive the modal. The
 /// lifetime guard is required for the "shutdown both" / "reboot both" flows
 /// that defer the local SystemPower call until the printer-side ack.
+///
+/// When decide_power_request() allows it for @p intent, the modal opens straight
+/// into its shutting-down or rebooting state and the action is sent at once.
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
-                          lv_obj_t* parent_screen);
+                          lv_obj_t* parent_screen, PowerIntent intent = PowerIntent::Choose);
 
 /// Handle a failed Moonraker machine.reboot / machine.shutdown.
 ///

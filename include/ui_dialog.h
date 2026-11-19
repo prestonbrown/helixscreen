@@ -13,9 +13,8 @@ extern "C" {
  * Register the ui_dialog component with the LVGL XML system
  * Must be called before any XML files using <ui_dialog> are registered
  *
- * Dialog uses LVGL's built-in button grey color for background,
- * which automatically adapts to light/dark theme mode.
- * This matches the default lv_button appearance.
+ * Dialog takes its background color, opacity and radius from ThemeManager's
+ * shared StyleRole::Dialog style, so it follows theme changes.
  */
 void ui_dialog_register(void);
 

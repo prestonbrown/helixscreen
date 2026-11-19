@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_exclude_object_badges.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "bed_coord_mapper.h"
 #include "bed_dimensions.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "gcode_parser.h"
+#include "instance_subjects.h"
 
 #include <cmath>
 #include <functional>
@@ -35,8 +37,8 @@ enum class ExcludeMapMode { Interactive, Mini };
 
 class ExcludeObjectMapView {
   public:
-    // Canonical value lives on helix::BedCoordMapper; aliased here so existing
-    // ExcludeObjectMapView::kMinTouchTargetPx references keep compiling.
+    // The value lives on helix::BedCoordMapper; aliased here for code that
+    // names ExcludeObjectMapView::kMinTouchTargetPx.
     static constexpr float kMinTouchTargetPx = helix::BedCoordMapper::kMinTouchTargetPx;
 
     using PixelRect = helix::PixelRect;
@@ -73,6 +75,8 @@ class ExcludeObjectMapView {
     friend class ::ExcludeObjectMapViewTestAccess;
 
     void build_surface();
+    /// Publish this view's subjects under fresh names, for the interactive map.
+    void publish_view_subjects();
     void build_object_rects();
     void update_visual_states();
     void draw_first_layer_outlines();
@@ -102,6 +106,14 @@ class ExcludeObjectMapView {
     std::unordered_map<std::string, std::vector<glm::vec2>> parsed_outlines_;
 
     ExcludeMapMode mode_{ExcludeMapMode::Interactive};
+
+    // The interactive map's plate size line and empty-state flag. Published per
+    // view under unique names: the print status overlay and a home tile can each
+    // hold a map at once.
+    helix::Subject dims_text_{};
+    char dims_buf_[32] = {};
+    helix::Subject has_objects_{};
+    helix::InstanceSubjects view_subjects_{"exclude_map"}; ///< After the subjects it publishes
 
     // The printer's bed, and the extent the map shows (the objects plus a
     // margin, else the bed) with its lower-left corner.

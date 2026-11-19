@@ -36,7 +36,7 @@ json ntfy_settings(const std::string& dest = "my-topic") {
 }
 
 void set_str(const char* subject, const char* value) {
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, subject), value);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, subject), value);
 }
 
 void set_int(const char* subject, int value) {
@@ -75,7 +75,7 @@ std::string visible_text() {
 struct LanguageGuard {
     ~LanguageGuard() {
         lv_translation_set_language("en");
-        helix::ui::locale_set_language("en");
+        helix::locale::locale_set_language("en");
     }
 };
 
@@ -329,7 +329,7 @@ TEST_CASE_METHOD(XMLTestFixture, "payloads follow the screen language", "[plugin
     // loads it; the plugin's own pack registered at load.
     helix::ui::ensure_translation_loaded("de");
     lv_translation_set_language("de");
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     edge("printing");
     REQUIRE(http_count(rig) == 1);
     // "Started" comes from the app catalog, "sent" and "aktiv" from the pack.

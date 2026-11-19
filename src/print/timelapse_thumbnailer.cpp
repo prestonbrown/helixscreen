@@ -9,11 +9,18 @@
 
 namespace helix::timelapse {
 
-std::string companion_filename(const std::string& video_filename) {
-    auto dot = video_filename.rfind('.');
-    if (dot == std::string::npos)
-        return video_filename + ".thumb.jpg";
-    return video_filename.substr(0, dot) + ".thumb.jpg";
+std::string find_companion_thumbnail(const std::string& video_filename,
+                                     const std::set<std::string>& listing) {
+    const auto dot = video_filename.rfind('.');
+    const std::string stem =
+        dot == std::string::npos ? video_filename : video_filename.substr(0, dot);
+    for (const char* suffix : {".jpg", ".thumb.jpg"}) {
+        const std::string candidate = stem + suffix;
+        if (listing.count(candidate) != 0) {
+            return candidate;
+        }
+    }
+    return {};
 }
 
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,

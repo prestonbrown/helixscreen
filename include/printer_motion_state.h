@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -23,9 +24,6 @@ struct AxisBounds {
     bool has_z = false;
 };
 
-/// Shift machine-space bounds into G-code space. machine = gcode + homing_origin
-/// (SET_GCODE_OFFSET, saved Z offset, toolchanger tool offsets), so the valid
-/// G-code range per axis is [min - origin, max - origin]. Has-bits are untouched.
 /// Resolution of the stored gcode_position subjects: centimillimetres,
 /// truncated, so a reading sits up to this far below the real position.
 inline constexpr double kPositionResolutionMm = 0.01;
@@ -49,6 +47,9 @@ inline AxisBounds inset_bounds(const AxisBounds& b, double margin) {
     return r;
 }
 
+/// Shift machine-space bounds into G-code space. machine = gcode + homing_origin
+/// (SET_GCODE_OFFSET, saved Z offset, toolchanger tool offsets), so the valid
+/// G-code range per axis is [min - origin, max - origin]. Has-bits are untouched.
 inline AxisBounds to_gcode_space(const AxisBounds& machine, double ox, double oy, double oz) {
     AxisBounds g = machine;
     g.x_min = static_cast<float>(machine.x_min - ox);
@@ -195,40 +196,40 @@ class PrinterMotionState {
     bool subjects_initialized_ = false;
 
     // Toolhead position subjects (actual physical position)
-    lv_subject_t position_x_{};
-    lv_subject_t position_y_{};
-    lv_subject_t position_z_{};
+    helix::Subject position_x_{};
+    helix::Subject position_y_{};
+    helix::Subject position_z_{};
 
     // Gcode position subjects (commanded position)
-    lv_subject_t gcode_position_x_{};
-    lv_subject_t gcode_position_y_{};
-    lv_subject_t gcode_position_z_{};
+    helix::Subject gcode_position_x_{};
+    helix::Subject gcode_position_y_{};
+    helix::Subject gcode_position_z_{};
 
     // Live position subjects (physical position mid-move, motion_report)
-    lv_subject_t live_position_x_{};
-    lv_subject_t live_position_y_{};
-    lv_subject_t live_position_z_{};
+    helix::Subject live_position_x_{};
+    helix::Subject live_position_y_{};
+    helix::Subject live_position_z_{};
 
-    lv_subject_t homed_axes_{};
+    helix::Subject homed_axes_{};
     char homed_axes_buf_[8]{};
 
     // Speed/flow subjects
-    lv_subject_t speed_factor_{};
-    lv_subject_t flow_factor_{};
+    helix::Subject speed_factor_{};
+    helix::Subject flow_factor_{};
 
     // Actual speed/velocity subjects
-    lv_subject_t max_velocity_{};           // mm/s (from toolhead.max_velocity)
-    lv_subject_t live_extruder_velocity_{}; // centimm/s (from motion_report, ×100 for precision)
-    lv_subject_t live_velocity_{};          // mm/s, measured toolhead speed (from motion_report)
+    helix::Subject max_velocity_{};           // mm/s (from toolhead.max_velocity)
+    helix::Subject live_extruder_velocity_{}; // centimm/s (from motion_report, ×100 for precision)
+    helix::Subject live_velocity_{};          // mm/s, measured toolhead speed (from motion_report)
 
     // Z-offset subjects
-    lv_subject_t gcode_z_offset_{};
-    lv_subject_t pending_z_offset_delta_{};
+    helix::Subject gcode_z_offset_{};
+    helix::Subject pending_z_offset_delta_{};
     // Firmware-persisted z-offset (ZMOD save_variables.gcode_offsets.z). Valid
     // flag is separate because 0 is a legitimate stored offset, so it cannot
     // double as "nothing stored".
-    lv_subject_t persisted_z_offset_{};
-    lv_subject_t persisted_z_offset_valid_{};
+    helix::Subject persisted_z_offset_{};
+    helix::Subject persisted_z_offset_valid_{};
 
     // Kinematic envelope (not subjects — read on demand by jog clamping etc.)
     AxisBounds axis_bounds_{};

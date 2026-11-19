@@ -45,12 +45,6 @@ class CameraWidgetTestAccess {
     static lv_obj_t* camera_image(const CameraWidget& w) {
         return w.camera_image_;
     }
-    static lv_obj_t* camera_overlay(const CameraWidget& w) {
-        return w.camera_overlay_;
-    }
-    static lv_obj_t* camera_status(const CameraWidget& w) {
-        return w.camera_status_;
-    }
     static lv_obj_t* widget_obj(const CameraWidget& w) {
         return w.widget_obj_;
     }
@@ -92,9 +86,6 @@ class CameraWidgetTestAccess {
     }
     static lv_obj_t* fullscreen_image(const CameraWidget& w) {
         return w.fullscreen_image_;
-    }
-    static lv_obj_t* fullscreen_spinner(const CameraWidget& w) {
-        return w.fullscreen_spinner_;
     }
 
     /// The open standalone viewer's CameraView, or nullptr when none is open.

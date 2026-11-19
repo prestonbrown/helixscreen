@@ -5,14 +5,16 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_filament_catalog_picker.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "active_material_provider.h"
 #include "async_lifetime_guard.h"
 #include "config.h"
+#include "core/observer_guard.h"
+#include "core/operation_timeout_guard.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "filament_motion.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
@@ -20,9 +22,10 @@
 #include "heater_type.h"
 #include "macro_param_modal.h"
 #include "moonraker_types.h"
-#include "operation_timeout_guard.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "target_tool.h"
+#include "target_tool_selection.h"
 #include "ui/temperature_observer_bundle.h"
 
 #include <array>
@@ -246,7 +249,8 @@ class FilamentPanel : public PanelBase {
     /// is at least kPortraitGraphMinHeight tall; otherwise the card stays in
     /// the flex flow as an invisible spacer so the column's slack lands
     /// between the material grid and the Operations divider, keeping the
-    /// multi-filament strip pinned to the bottom. Runs on the column's
+    /// multi-filament strip pinned to the bottom (with several heads, which
+    /// have no strip, the XML takes the card out of the column). Runs on the column's
     /// LV_EVENT_LAYOUT_CHANGED; the remainder is measured without the graph,
     /// so re-styling the card cannot change the answer.
     void fit_portrait_graph(lv_obj_t* column);
@@ -265,6 +269,10 @@ class FilamentPanel : public PanelBase {
     const char* get_name() const override {
         return "Filament Panel";
     }
+
+    /// Publishes filament_on_page, which filament_panel.xml binds to tighten its
+    /// spacing on a home full page.
+    void on_lent_to_page(bool on_page) override;
     const char* get_xml_component_name() const override {
         return "filament_panel";
     }
@@ -325,10 +333,6 @@ class FilamentPanel : public PanelBase {
      */
     void set_limits(const SafetyLimits& limits);
 
-    /// Keypad ceiling for one heater, preferring the printer's configured
-    /// max_temp over the compiled-in fallback (prestonbrown/helixscreen#1355).
-    float keypad_max_for(helix::HeaterType type, int fallback_deg);
-
     /**
      * @brief Set TemperatureService for combined temperature graph
      *
@@ -358,44 +362,34 @@ class FilamentPanel : public PanelBase {
      */
     bool handle_preset_longpress(int slot);
 
+    /// Opens the keypad that sets length button @p index's length.
+    /// @return true when the keypad opened, so the hold ends its press
+    bool handle_extrude_length_longpress(int index);
+
   private:
     //
     // === Subjects (owned by this panel) ===
     //
 
     SubjectManager subjects_;
-    lv_subject_t temp_display_subject_{};
-    lv_subject_t status_subject_{};
-    lv_subject_t material_selected_subject_{};
-    lv_subject_t extrusion_allowed_subject_{};
-    lv_subject_t safety_warning_visible_subject_{};
-    lv_subject_t warning_temps_subject_{};
-    lv_subject_t
+    helix::Subject temp_display_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject material_selected_subject_{};
+    helix::Subject extrusion_allowed_subject_{};
+    helix::Subject safety_warning_visible_subject_{};
+    helix::Subject warning_temps_subject_{};
+    helix::Subject
         safety_warning_text_subject_{}; ///< "Heat to at least X°C to load/unload" with dynamic temp
-    lv_subject_t material_nozzle_temp_subject_{};
-    lv_subject_t material_bed_temp_subject_{};
+    helix::Subject material_nozzle_temp_subject_{};
+    helix::Subject material_bed_temp_subject_{};
 
-    // Nozzle label (dynamic: "Nozzle" or "Nozzle N" for multi-tool)
-    lv_subject_t nozzle_label_subject_{};
-    char nozzle_label_buf_[32] = {};
     ObserverGuard active_tool_observer_;
     ObserverGuard language_observer_;
-    void update_nozzle_label();
+    ObserverGuard temp_unit_observer_; ///< re-formats temperature text on a °C/°F switch
 
-    // Tool selector caption (the active backend's noun: "Tool", "Toolhead").
     // The closed dropdown's own text is owned by sync_tool_dropdown_text().
-    lv_subject_t tool_noun_subject_{};
-    char tool_noun_buf_[32] = {};
-    void update_tool_noun();
-    void sync_tool_dropdown_text();
-
-    // Left card temperature subjects (current and target for nozzle/bed)
-    lv_subject_t nozzle_current_subject_{};
-    lv_subject_t nozzle_target_subject_{};
-    lv_subject_t bed_current_subject_{};
-    lv_subject_t bed_target_subject_{};
-    lv_subject_t chamber_current_subject_{};
-    lv_subject_t chamber_target_subject_{};
+    helix::Subject target_tool_action_subject_{};
+    helix::ui::ToolArrivalWait tool_arrival_;
 
     // Operation state
     OperationTimeoutGuard operation_guard_;
@@ -404,11 +398,11 @@ class FilamentPanel : public PanelBase {
     // tool: Load disabled when that tool is already loaded; Unload + Purge
     // disabled when it is NOT loaded. Re-evaluated on tool-selector change and
     // when live AMS state changes (observers below).
-    lv_subject_t load_disabled_subject_{};    ///< 1 = Load button disabled
-    lv_subject_t unload_disabled_subject_{};  ///< 1 = Unload/Purge buttons disabled
-    ObserverGuard ams_loaded_observer_;       ///< Re-eval gating on live load change
-    ObserverGuard ams_current_slot_observer_; ///< Re-eval gating on active-slot change
-    ObserverGuard print_active_observer_;     ///< Re-eval gating on print start/pause/end
+    helix::Subject load_disabled_subject_{};   ///< 1 = Load button disabled
+    helix::Subject unload_disabled_subject_{}; ///< 1 = Unload/Purge buttons disabled
+    ObserverGuard ams_loaded_observer_;        ///< Re-eval gating on live load change
+    ObserverGuard ams_current_slot_observer_;  ///< Re-eval gating on active-slot change
+    ObserverGuard print_active_observer_;      ///< Re-eval gating on print start/pause/end
     void update_filament_op_buttons(); ///< Recompute Load/Unload/Purge gating from live state
 
     // Single source of truth for which global AMS slot the Load/Unload/gating
@@ -416,19 +410,46 @@ class FilamentPanel : public PanelBase {
     // Returns -1 when there is no AMS backend or no resolvable slot.
     int selected_op_slot() const;
 
+    /// The tool the panel aims at (TargetToolSelection over ToolState's tools).
+    [[nodiscard]] int target_tool() const;
+    /// The target tool's Klipper extruder ("extruder" when it names none).
+    [[nodiscard]] std::string target_extruder_name() const;
+    /// Point the nozzle current/target observers at the target tool's extruder.
+    void repoint_nozzle_observers();
+    /// Bring the selector, nozzle label, temperature card and op gating to the
+    /// target tool after it moved.
+    void sync_target_tool_ui();
+    /// The Pick up / Park button beside the tool selector.
+    void handle_target_tool_action();
+    /// Drops a pickup's waiting step when the panel leaves the screen.
+    void on_deactivating(DeactivateReason reason) override;
+    /// Whether the target is the tool on the carriage (by tool index).
+    [[nodiscard]] bool target_is_mounted() const;
+    /// Whether the target is a different head from the one on the carriage.
+    [[nodiscard]] bool target_needs_pickup() const;
+    /// Withdraw a step waiting on a pickup, with a toast, when one is armed.
+    void drop_pending_pickup(const char* why);
+    /// The preset's nozzle (target tool), bed and chamber targets.
+    void send_preset_targets();
+    /// Pick the target up, then run @p then once ToolState reports it mounted.
+    /// A declined, failed or timed-out change runs nothing.
+    void with_target_mounted(std::function<void()> then);
+    /// Publish what the Pick up / Park button offers for the current target.
+    void update_target_tool_action();
+
     // Cooldown button visibility (1 when nozzle target > 0, 0 otherwise)
-    lv_subject_t nozzle_heating_subject_{};
+    helix::Subject nozzle_heating_subject_{};
 
     // Portrait spacer state (1 = the graph card is an invisible spacer and the
     // strip button stands in for it). C++ decides via fit_portrait_graph();
     // the XML bindings on the card, its container and btn_temp_graph draw it.
-    lv_subject_t graph_spacer_subject_{};
+    helix::Subject graph_spacer_subject_{};
+    /// 1 while the tree is lent to a home full page (on_lent_to_page()).
+    helix::Subject on_page_subject_{};
 
     // Extrude length button active subjects (boolean: 0=inactive, 1=active)
     // Using separate subjects because bind_style doesn't work with multiple ref_values
-    lv_subject_t extrude_length_5mm_active_subject_{};
-    lv_subject_t extrude_length_10mm_active_subject_{};
-    lv_subject_t extrude_length_25mm_active_subject_{};
+    helix::Subject extrude_length_index_subject_{}; ///< which length button is chosen
 
     // Per-op button feedback state (int: 0=idle, 1=busy/spinner, 2=done/check).
     // Drives ui_button bind_op_state so the triggering button shows on-button
@@ -436,11 +457,11 @@ class FilamentPanel : public PanelBase {
     // a time. A pending revert timer resets the active op back to idle after the
     // brief "done" checkmark.
     enum class FilamentOp { Load, Unload, Purge, Extrude, Retract };
-    lv_subject_t op_load_state_subject_{};
-    lv_subject_t op_unload_state_subject_{};
-    lv_subject_t op_purge_state_subject_{};
-    lv_subject_t op_extrude_state_subject_{};
-    lv_subject_t op_retract_state_subject_{};
+    helix::Subject op_load_state_subject_{};
+    helix::Subject op_unload_state_subject_{};
+    helix::Subject op_purge_state_subject_{};
+    helix::Subject op_extrude_state_subject_{};
+    helix::Subject op_retract_state_subject_{};
     lv_timer_t* op_revert_timer_ = nullptr; ///< shared one-shot timer (min-spinner delay / revert)
     FilamentOp op_revert_target_ = FilamentOp::Load; ///< which op the timer resets
     std::optional<FilamentOp> op_in_flight_; ///< op driven by run_filament_macro (one at a time)
@@ -459,7 +480,7 @@ class FilamentPanel : public PanelBase {
 
     /// The manual move running (helix::FilamentMotion), published as
     /// "filament_manual_motion" for the motion glyph and the AMS path canvas.
-    lv_subject_t manual_motion_subject_{};
+    helix::Subject manual_motion_subject_{};
     /// One-shot timer for the move's own duration (Klipper answers a G1 once
     /// queued). The guard neuters it on reset and on destruction.
     helix::ui::LvglTimerGuard motion_timer_;
@@ -491,7 +512,7 @@ class FilamentPanel : public PanelBase {
     void handle_operation_timeout(); ///< main-thread: toast + tear down the stalled op
 
     // Extrude length state
-    int extrude_length_ = 10; // Default 10mm
+    int extrude_length_index_ = 1; ///< length button chosen; its length is a setting
 
     // Preset slot identity and the name/temps label subjects now live in
     // helix::presets (include/preset_materials.h). They used to be panel-scoped
@@ -509,12 +530,6 @@ class FilamentPanel : public PanelBase {
     char safety_warning_text_buf_[128]; ///< "Heat to at least X°C for filament operations"
     char material_nozzle_buf_[16];
     char material_bed_buf_[16];
-    char nozzle_current_buf_[16];
-    char nozzle_target_buf_[16];
-    char bed_current_buf_[16];
-    char bed_target_buf_[16];
-    char chamber_current_buf_[16] = {};
-    char chamber_target_buf_[16] = {};
 
     //
     // === Instance State ===
@@ -550,15 +565,14 @@ class FilamentPanel : public PanelBase {
     // Dynamic spool preset button (shown when active material != standard preset)
     lv_obj_t* spool_preset_row_ = nullptr;
     lv_obj_t* spool_preset_button_ = nullptr;
-    lv_obj_t* spool_preset_label_ = nullptr;
-    lv_obj_t* spool_preset_temps_ = nullptr;
     std::optional<helix::ActiveMaterial> cached_active_material_;
-
-    // Temperature labels for color updates (4-state heating color)
-    lv_obj_t* nozzle_current_label_ = nullptr;
-    lv_obj_t* bed_current_label_ = nullptr;
-    lv_obj_t* chamber_current_label_ = nullptr;
-
+    // 1 while the spool's material is novel enough to earn its own preset
+    // button; the button's two lines bind the name and the temperatures.
+    helix::Subject spool_preset_shown_subject_{};
+    helix::Subject spool_preset_name_subject_{};
+    char spool_preset_name_buf_[64] = {};
+    helix::Subject spool_preset_temps_subject_{};
+    char spool_preset_temps_buf_[32] = {};
     // Warning dialogs for filament sensor integration
     helix::ui::WidgetRef load_warning_dialog_;
     helix::ui::WidgetRef unload_warning_dialog_;
@@ -586,31 +600,38 @@ class FilamentPanel : public PanelBase {
     // Spool card widgets — serves both Multi-Filament (AMS/multi-tool) and
     // External Spool presentations; C++ swaps the visible rows.
     lv_obj_t* spool_card_ = nullptr;
-    lv_obj_t* spool_card_header_row_ = nullptr;
-    lv_obj_t* extruder_selector_group_ = nullptr;
-    helix::ui::WidgetRef extruder_dropdown_;
-    lv_obj_t* btn_manage_slots_ = nullptr;
-    lv_obj_t* ams_manage_row_ = nullptr;
+    /// Extrude/retract speed presets beside the length choice. It edits
+    /// SettingsManager's extrude_speed, the value Machine Limits also sets.
+    helix::ui::WidgetRef extrude_speed_dropdown_;
+    ObserverGuard extrude_speed_observer_;
+    // 1 with no AMS and one head: the card shows the external spool row in
+    // place of the AMS row, centered, without its header.
+    helix::Subject external_spool_mode_subject_{};
     ObserverGuard tools_version_observer_;
+    ObserverGuard klippy_observer_;
+    // The shared target tool (TargetTool), and its nozzle's reading.
+    ObserverGuard target_tool_observer_;
+    ObserverGuard target_nozzle_temp_observer_;
+    ObserverGuard target_nozzle_target_observer_;
 
-    void populate_extruder_dropdown();
     void update_multi_filament_card_visibility();
     void apply_left_column_sizing(bool external_spool_mode);
-    void handle_extruder_changed();
-    /// Point the extruder dropdown back at the mounted tool.
-    void revert_extruder_dropdown();
 
     // External spool display (no-AMS mode)
-    lv_obj_t* external_spool_row_ = nullptr;
     lv_obj_t* external_spool_container_ = nullptr;
     lv_obj_t* external_spool_canvas_ = nullptr;
     // The container the spool canvas was last created in; same rebind guard
     // as temp_graph_container_wired_.
     helix::ui::WidgetRef external_spool_container_wired_;
-    lv_obj_t* external_spool_material_label_ = nullptr;
-    lv_obj_t* external_spool_color_label_ = nullptr;
+    // 1 while a spool is assigned; with none the row shows its own
+    // translated "No spool assigned" / "Tap to assign" lines instead.
+    helix::Subject external_spool_assigned_subject_{};
+    helix::Subject external_spool_material_subject_{};
+    char external_spool_material_buf_[96] = {};
+    helix::Subject external_spool_detail_subject_{};
+    char external_spool_detail_buf_[64] = {};
     ObserverGuard external_spool_observer_;
-    lv_subject_t card_title_subject_{};
+    helix::Subject card_title_subject_{};
     char card_title_buf_[32] = {};
 
     void setup_external_spool_display();
@@ -705,17 +726,12 @@ class FilamentPanel : public PanelBase {
     void handle_preset_button(int material_id);
     void handle_spool_preset_button();
     void update_spool_preset();
-    void handle_nozzle_temp_tap();
-    void handle_bed_temp_tap();
-    void handle_chamber_temp_tap();
-    void handle_custom_chamber_confirmed(float value);
-    void handle_custom_nozzle_confirmed(float value);
+    void publish_spool_preset_temps(); ///< the novel spool's "210 / 60°C" in the display unit
     /// Send nozzle_target_ through TemperatureController; a refusal or failure
     /// puts the printer's real target back on screen.
     void send_nozzle_target();
     /// Show the printer's own nozzle target in place of a request it did not take.
     void show_printer_nozzle_target();
-    void handle_custom_bed_confirmed(float value);
     void handle_load_button();
     /// @param chosen_lane the lane the user named as the one in the toolhead,
     ///        when the backend could not (see helix::ui::choose_unload_lane)
@@ -723,11 +739,13 @@ class FilamentPanel : public PanelBase {
     void handle_extrude_button();
     void handle_purge_button();
     void handle_retract_button();
-    void handle_extrude_length_select(int amount);
+    void handle_extrude_length_select(int index);
+    /// The chosen length button's length in mm.
+    [[nodiscard]] int extrude_length_mm() const;
+    /// Shows the setting's current speed on the dropdown, a preset or not.
+    void sync_extrude_speed_dropdown();
     void handle_cooldown();
     void update_material_temp_display();
-    void update_chamber_temp_display();
-    void update_left_card_temps();
     void update_status_icon_for_state();
 
     // Filament sensor warning helpers
@@ -774,10 +792,6 @@ class FilamentPanel : public PanelBase {
     void purge_failed(const MoonrakerError& error);
     void run_filament_macro(const std::string& macro_name, const std::string& op_label,
                             const helix::MacroParamResult& params);
-
-    // Keypad callback bridges (different signature - not LVGL events)
-    static void custom_nozzle_keypad_cb(float value, void* user_data);
-    static void custom_bed_keypad_cb(float value, void* user_data);
 };
 
 // Global instance accessor (needed by main.cpp)

@@ -24,6 +24,7 @@
 #include "filament_sensor_manager.h"
 #include "i_moonraker_api.h"
 #include "job_queue_start.h"
+#include "lane_count_label.h"
 #include "led/ui_led_control_overlay.h"
 #include "lvgl.h"
 #include "printer_capabilities_state.h"
@@ -53,7 +54,7 @@ namespace helix {
 namespace {
 
 lv_obj_t* screen() {
-    return lv_display_get_screen_active(nullptr);
+    return lv_screen_active();
 }
 
 void open_probe() {

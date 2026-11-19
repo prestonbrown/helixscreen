@@ -4,52 +4,46 @@
 
 ## Workflow Tips
 
-**Temperature shortcuts**: Tap temperature displays on the Home panel to jump directly to temperature controls.
+**Jump to a temperature.** Tap a heater on the Controls panel, or a heater in a Home screen widget, to open its temperature graph with the controls for that heater. See [Temperature](temperature.md#temperature-graph-screen).
 
-**Pre-print options**: These remember your choices per slicer — if you always mesh before PrusaSlicer prints, it persists.
+**Home before you move.** The Motion screen's coordinates, the Move tab's positions and **Park** stay grayed out until the printer is homed, and only a home button homes it. Home first with the home bar or the center of the jog pad. See [Motion](motion.md).
 
-**Quick homing**: Use "Home All" before starting manual positioning to ensure known coordinates.
+**Check the pre-print options.** Before you tap **Print**, look at the tiles under **PRINT OPTIONS**: bed mesh, gantry leveling, nozzle cleaning and the others each switch on or off for that one print. See [Pre-Print Options](printing.md#pre-print-options).
 
-**Save Z-offset during first layer**: Make baby step adjustments, then save while you can see the results.
+**Set your Z-offset on the first layer.** Open **Tune** during a print, make baby-step adjustments while you can see the lines going down, and save afterwards. The adjustment is temporary until you tap **Save Z-Offset** on the Controls panel once the print ends. On printers whose firmware saves the offset itself, there is nothing to save. See [Z-Offset / Baby Steps](printing.md#z-offset--baby-steps).
+
+**Put your most-used controls on the Home screen.** Long-press the widget grid to enter Edit Mode and add widgets such as Speed / Flow, Z-Offset, the camera or macro buttons. See [Edit Mode](home-edit-mode.md).
+
+**Start from OrcaSlicer.** OrcaSlicer 2.4.0 or newer can send a sliced file straight to your printer. See [Sending Prints from OrcaSlicer](printing.md#sending-prints-from-orcaslicer).
 
 ---
 
 ## Quick Troubleshooting
 
-| Problem | Quick Fix |
+| Problem | Quick fix |
 |---------|-----------|
-| Touchscreen taps in wrong spot | **Settings > Touch & Input > Touch Calibration** |
-| Panel shows "Disconnected" | Check Moonraker is running, network is up |
-| Temperature not changing | Verify heater is enabled in Klipper config |
-| Can't extrude | Heat nozzle above minimum temp first |
-| AMS not showing | Check Happy Hare/AFC is configured in Klipper |
+| Taps land in the wrong spot | **Settings > Touch & Input > Touch Calibration** |
+| The screen shows it is disconnected | Check that Moonraker is running and the network is up, then check **Settings > Connection > Host** |
+| Temperature does not change | Check that the heater is enabled in your Klipper configuration |
+| It will not extrude | Heat the nozzle above your printer's minimum extrusion temperature first |
+| Filament slots do not appear | Check that your filament system is set up in Klipper. See [Filament](filament.md) |
 
-For detailed troubleshooting, see [TROUBLESHOOTING.md](../TROUBLESHOOTING.md).
+For more, see [Troubleshooting](../TROUBLESHOOTING.md).
 
 ---
 
 ## When to Use Which Panel
 
-| I want to... | Go to... |
-|--------------|----------|
-| Start a print | Home panel, tap print area |
-| Change nozzle temp | Home panel, tap nozzle temp (or Controls) |
-| Move print head | Controls, Motion |
-| Load filament | Controls, Extrusion (single) or Filament (AMS) |
-| Level my bed | Advanced, Bed Leveling |
-| Run a custom macro | Advanced, Macros |
-| Check print history | Advanced, Print History |
-| Change theme | Settings > Appearance > Theme Colors |
-| Fix touch calibration | Settings > Touch & Input > Touch Calibration |
+The [I Want To... table](../USER_GUIDE.md#i-want-to) in the guide overview lists common tasks, where each one is on the screen, and the page that covers it.
 
 ---
 
 ## Further Reading
 
-- [Troubleshooting](../TROUBLESHOOTING.md) — Solutions to common problems
-- [Configuration](../CONFIGURATION.md) — Detailed configuration options
-- [FAQ](../FAQ.md) — Frequently asked questions
-- [Installation](../INSTALL.md) — Installation instructions
+- [Troubleshooting](../TROUBLESHOOTING.md): solutions to common problems
+- [Configuration](../CONFIGURATION.md): detailed configuration options
+- [FAQ](../FAQ.md): frequently asked questions
+- [Installation](../INSTALL.md): installation instructions
 
 ---
 

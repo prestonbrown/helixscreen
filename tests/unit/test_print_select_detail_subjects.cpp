@@ -22,7 +22,6 @@
 #include "ui_modal.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_select_detail_view.h"
-#include "ui_subject_registry.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -31,6 +30,7 @@
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "core/update_queue.h"
+#include "system/subject_registry.h"
 #if HELIX_HAS_PLUGINS
 #include "../test_helpers/plugin_host_test_support.h"
 #endif
@@ -46,6 +46,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "gcode_ops_detector.h"
 #include "gcode_parser.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -296,7 +297,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* const row = lv_obj_find_by_name(root, "option_tile_qgl");
     REQUIRE(row != nullptr);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) == !local_copies);
+    CHECK(lv_obj_is_hidden(row) == !local_copies);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "the detail view observes the printer it was handed",
@@ -519,7 +520,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Sliced colors toggle sits on the preview it
 
     lv_obj_t* const toggle = lv_obj_find_by_name(root, "sliced_colors_toggle");
     REQUIRE(toggle != nullptr);
-    CHECK(lv_obj_has_flag(toggle, LV_OBJ_FLAG_CHECKABLE));
+    CHECK(lv_obj_is_checkable(toggle));
 
     lv_obj_t* const preview = lv_obj_find_by_name(root, "detail_card");
     lv_obj_t* const column = lv_obj_find_by_name(root, "options_section");
@@ -574,16 +575,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // these three: a binding that is wrong in that direction hides the row
     // forever and would still pass a hidden-only test.
     set_state(0, 0);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     set_state(1, 0); // viewer is the preview, but the thumbnail still covers it
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
     set_state(0, 1); // a frame exists, but the viewer is not the active preview
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     // Both: the live viewer is what is on screen, the toggle recolours something
     // visible, so the toggle is offered.
     set_state(1, 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // Its checked state follows the preference both ways, so a reopened view
     // (which resets the preference) never shows a stale "on".
@@ -599,16 +600,20 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // And it goes away again when the viewer does - the binding is reactive, not
     // a one-shot evaluated when the tree was built.
     set_state(0, 1);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     view.hide();
     helix::ui::UpdateQueue::instance().drain();
     lv_timer_handler(); // the close callback runs on the next tick
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "History row lives in the metadata strip",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "History row sits in the metadata strip and shows the file's last outcome",
                  "[print_select][detail][xml]") {
-    lv_obj_t* const root = make_detail_root(test_screen());
+    register_detail_callbacks();
+    helix::ui::PrintSelectDetailView view;
+    view.init_subjects();
+    lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
     lv_obj_t* const row = lv_obj_find_by_name(root, "history_status_row");
     lv_obj_t* const strip = lv_obj_find_by_name(root, "detail_metadata_overlay");
@@ -620,6 +625,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "History row lives in the metadata strip",
     }
     CHECK(inside);
     CHECK(std::string(lv_obj_get_name(lv_obj_get_parent(row))) == "detail_history_wrap");
+
+    CHECK(lv_obj_is_hidden(row));
+    const struct {
+        FileHistoryStatus status;
+        const char* icon;
+        const char* text;
+    } outcomes[] = {
+        {FileHistoryStatus::CURRENTLY_PRINTING, "history_status_printing", "Currently printing"},
+        {FileHistoryStatus::COMPLETED, "history_status_completed", "Printed 3 times"},
+        {FileHistoryStatus::FAILED, "history_status_failed", "Last print failed"},
+        {FileHistoryStatus::CANCELLED, "history_status_canceled", "Last print canceled"},
+    };
+    for (const auto& o : outcomes) {
+        view.update_history_status(o.status, 3);
+        INFO(o.icon);
+        CHECK_FALSE(lv_obj_is_hidden(row));
+        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "history_status_label"))) ==
+              o.text);
+        for (const auto& other : outcomes) {
+            CHECK(lv_obj_is_hidden(lv_obj_find_by_name(row, other.icon)) == (&other != &o));
+        }
+    }
+    view.update_history_status(FileHistoryStatus::NEVER_PRINTED, 0);
+    CHECK(lv_obj_is_hidden(row));
+
+    view.hide();
+    helix::ui::UpdateQueue::instance().drain();
+    lv_timer_handler(); // the close callback runs on the next tick
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Print button sits outside the options scroll area",
@@ -633,11 +666,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Print button sits outside the options scrol
     for (lv_obj_t* p = lv_obj_get_parent(print); p; p = lv_obj_get_parent(p)) {
         CHECK(p != scroll);
     }
-    CHECK(lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_scrollable(scroll));
     // The fade must never take touches from the tiles under it.
     lv_obj_t* const cue = lv_obj_find_by_name(root, "detail_options_cue");
     REQUIRE(cue != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(cue, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(cue));
 }
 
 // ============================================================================
@@ -842,7 +875,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
 
         CHECK(lv_subject_get_int(visible) == 0);
         CHECK(lv_subject_get_int(remappable) == 0);
-        CHECK(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(card));
         // The teeth. "filament_chip_0" is the first chip the card's repeat
         // builds, so finding one anywhere under the detail root means a chip
         // was drawn.
@@ -857,7 +890,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A bypassed single-lane print renders no fil
         view.show("bypass_one.gcode", "sub", "PLA", palette, materials, kSize, kMtime);
 
         CHECK(lv_subject_get_int(visible) == 1);
-        CHECK_FALSE(lv_obj_has_flag(card, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(card));
         CHECK(lv_obj_find_by_name(root, "filament_chip_0") != nullptr);
     }
 }
@@ -1028,8 +1061,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The tap chevron tracks the card, and the ba
         REQUIRE(help != nullptr);
         CHECK_FALSE(lv_obj_has_state(card, LV_STATE_DISABLED));
         CHECK_FALSE(lv_obj_has_state(help, LV_STATE_DISABLED));
-        CHECK(lv_obj_has_flag(help, LV_OBJ_FLAG_CLICKABLE));
-        CHECK_FALSE(lv_obj_has_flag(help, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_clickable(help));
+        CHECK_FALSE(lv_obj_is_hidden(help));
     }
 
     SECTION("GcodeRewrite with the plugin: chevron lit, nothing greyed or explained") {
@@ -1333,9 +1366,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used
         }
     } closer{view};
 
-    lv_subject_t material{};
+    helix::Subject material{};
     char material_buf[64] = "ABS";
-    lv_subject_init_string(&material, material_buf, nullptr, sizeof(material_buf), "ABS");
+    material.init_string(material_buf, nullptr, sizeof(material_buf), "ABS");
     view.set_material_text_subject(&material);
     const auto text = [&material] { return std::string(lv_subject_get_string(&material)); };
 
@@ -1350,12 +1383,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details row's material follows the used
     CHECK(text() == "ABS-GF");
 
     // The panel's own write (a late metadata fetch) does not outlast the view.
-    lv_subject_copy_string(&material, "ABS");
+    lv_subject_set_string(&material, "ABS");
     view.publish_material_text();
     CHECK(text() == "ABS-GF");
 
     view.set_material_text_subject(nullptr);
-    lv_subject_deinit(&material);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -1471,18 +1503,17 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // bindings resolve these production names in whatever test builds that
     // view next. A stack subject here dangles for that test (SIGSEGV adding
     // an observer to the dead subject).
-    static lv_subject_t can_print;
-    lv_subject_init_int(&can_print, 0);
+    static helix::Subject can_print;
+    can_print.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_can_print", &can_print);
 
-    static lv_subject_t button_mode;
-    lv_subject_init_int(&button_mode, 0);
+    static helix::Subject button_mode;
+    button_mode.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_button_mode", &button_mode);
 
     static char reason_buf[96];
-    static lv_subject_t reason;
-    lv_subject_init_string(&reason, reason_buf, nullptr, sizeof(reason_buf),
-                           "Printing: start after this job");
+    static helix::Subject reason;
+    reason.init_string(reason_buf, nullptr, sizeof(reason_buf), "Printing: start after this job");
     lv_xml_register_subject(nullptr, "print_select_blocked_reason", &reason);
 
     lv_obj_t* const root = make_detail_root(test_screen());
@@ -1506,14 +1537,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Blocked: disabled button, reason on screen carrying the subject's text.
     REQUIRE(lv_obj_has_state(print_button, LV_STATE_DISABLED));
-    CHECK_FALSE(lv_obj_has_flag(reason_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reason_label));
     CHECK(std::string(lv_label_get_text(reason_label)) == "Printing: start after this job");
 
     // Printable: enabled button, reason gone.
     lv_subject_set_int(&can_print, 1);
     helix::ui::UpdateQueue::instance().drain();
     CHECK_FALSE(lv_obj_has_state(print_button, LV_STATE_DISABLED));
-    CHECK(lv_obj_has_flag(reason_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(reason_label));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scroll area",
@@ -1523,7 +1554,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scrol
     view.init_subjects();
     lv_obj_t* const root = view.create(test_screen());
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     struct CloseOnExit {
         helix::ui::PrintSelectDetailView& v;
@@ -1589,7 +1620,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Before the view is shown there is no estimate: 0 and hidden.
     CHECK(lv_subject_get_int(visible) == 0);
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
 
     // First open. show() defers the push; the drain runs on_activate()
     // -> update_prep_time_label() -> recalculate_estimate(), with no metadata.
@@ -1597,7 +1628,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(20);
     CHECK(lv_subject_get_int(visible) == 0);
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
 
     FileMetadata metadata;
     metadata.filename = "prep.gcode";
@@ -1607,13 +1638,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(20);
 
     CHECK(lv_subject_get_int(visible) == 1);
-    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(line));
     CHECK(std::string(lv_label_get_text(line)).find("prep time") != std::string::npos);
 
     // The binding is reactive in both directions, not a one-shot at build.
     lv_subject_set_int(visible, 0);
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
 
     // Micro and tiny give the line's row to the options column, estimate or
     // not; small and up keep it.
@@ -1625,11 +1656,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         INFO("breakpoint " << tier);
         lv_subject_set_int(bp, tier);
         process_lvgl(20);
-        CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(line));
     }
     lv_subject_set_int(bp, 2);
     process_lvgl(20);
-    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(line));
     lv_subject_set_int(bp, real_bp);
     process_lvgl(20);
 
@@ -2025,10 +2056,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(btn != nullptr);
     REQUIRE(card != nullptr);
     process_lvgl(20);
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
     // The row around the button leaves taps in its gaps to the preview.
-    CHECK_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(root, "detail_top_left_row"), LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(lv_obj_find_by_name(root, "detail_top_left_row")));
 
     lv_obj_update_layout(root);
     lv_area_t b, c;
@@ -2042,13 +2072,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* count = lv_obj_find_by_name(btn, "objects_pick_count");
     REQUIRE(count != nullptr);
-    CHECK(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(count));
 
     d.view.toggle_exclude_pick("Cube_id_1");
     d.view.toggle_exclude_pick("Cone_id_0");
     OpenDetail::settle();
     process_lvgl(20);
-    CHECK_FALSE(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(count));
     CHECK(std::string(lv_label_get_text(lv_obj_get_child(count, 0))) == "2");
 }
 
@@ -2059,7 +2089,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "The details skip button hides for a single-
     process_lvgl(20);
     lv_obj_t* btn = lv_obj_find_by_name(d.view.get_widget(), "btn_detail_objects");
     REQUIRE(btn != nullptr);
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -2080,7 +2110,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(d.view.exclude_picks() == std::vector<std::string>{"Cube_id_1"});
     OpenDetail::settle();
     process_lvgl(20);
-    CHECK(lv_obj_has_flag(lv_obj_get_child(rows, 1), LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(lv_obj_get_child(rows, 1)));
 
     lv_obj_send_event(lv_obj_get_child(rows, 1), LV_EVENT_CLICKED, nullptr);
     CHECK(d.view.exclude_picks().empty());
@@ -2456,7 +2486,7 @@ struct ShownDetail {
 };
 
 bool hidden(lv_obj_t* obj) {
-    return obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj == nullptr || lv_obj_is_hidden(obj);
 }
 
 } // namespace

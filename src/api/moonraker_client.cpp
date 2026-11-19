@@ -14,12 +14,12 @@
 
 #include "moonraker_client.h"
 
-#include "ui_error_reporting.h"
-
 #include "abort_manager.h"
 #include "app_globals.h"
 #include "callback_drain.h"
+#include "core/error_reporting.h"
 #include "core/update_queue.h"
+#include "exception_policy.h"
 #include "helix_thread.h"
 #include "helix_version.h"
 #include "host_identity.h"
@@ -29,6 +29,7 @@
 #include "klippy_notification.h"
 #include "moonraker_auth.h"
 #include "moonraker_auth_http.h"
+#include "moonraker_status_notification.h"
 #include "printer_state.h"
 #include "system/telemetry_manager.h"
 #include "translation_loader.h"
@@ -193,6 +194,7 @@ void MoonrakerClient::poll_klippy_state() {
                      "no longer polling printer.info",
                      elapsed);
         stop_klippy_state_poll("unsettled");
+        emit_event(moonraker_event::klippy_never_ready());
         return;
     }
     if (poll->in_flight.exchange(true)) {
@@ -339,15 +341,8 @@ void MoonrakerClient::set_connection_state(ConnectionState new_state) {
         // Double-check is_destroying_ AFTER releasing lock but BEFORE invoking callback
         // This catches the race where destructor set the flag between our copy and invocation
         if (callback_copy && !is_destroying_.load()) {
-            try {
-                callback_copy(old_state, new_state);
-            } catch (const std::exception& e) {
-                LOG_ERROR_INTERNAL("[Moonraker Client] State change callback threw exception: {}",
-                                   e.what());
-            } catch (...) {
-                LOG_ERROR_INTERNAL(
-                    "[Moonraker Client] State change callback threw unknown exception");
-            }
+            helix::contain_exceptions("[Moonraker Client] State change callback",
+                                      [&] { callback_copy(old_state, new_state); });
         }
     }
 }
@@ -568,16 +563,12 @@ void MoonrakerClient::install_ws_callbacks() {
         auto live = dg.lock();
         if (!live)
             return;
-        try {
+        helix::contain_exceptions("[Moonraker Client] onopen trampoline", [&] {
             std::shared_lock<std::shared_mutex> lk(callback_lifecycle_mutex_, std::try_to_lock);
             if (!lk.owns_lock() || is_destroying_.load(std::memory_order_acquire))
                 return;
             on_ws_open();
-        } catch (const std::exception& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] onopen trampoline threw: {}", e.what());
-        } catch (...) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] onopen trampoline threw unknown");
-        }
+        });
     };
 
     onmessage = [this, dg = std::weak_ptr<bool>(destruction_guard_)](const std::string& msg) {
@@ -586,16 +577,12 @@ void MoonrakerClient::install_ws_callbacks() {
         auto live = dg.lock();
         if (!live)
             return;
-        try {
+        helix::contain_exceptions("[Moonraker Client] onmessage trampoline", [&] {
             std::shared_lock<std::shared_mutex> lk(callback_lifecycle_mutex_, std::try_to_lock);
             if (!lk.owns_lock() || is_destroying_.load(std::memory_order_acquire))
                 return;
             on_ws_message(msg);
-        } catch (const std::exception& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] onmessage trampoline threw: {}", e.what());
-        } catch (...) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] onmessage trampoline threw unknown");
-        }
+        });
     };
 
     onclose = [this, dg = std::weak_ptr<bool>(destruction_guard_)]() {
@@ -605,16 +592,12 @@ void MoonrakerClient::install_ws_callbacks() {
         auto live = dg.lock();
         if (!live)
             return;
-        try {
+        helix::contain_exceptions("[Moonraker Client] onclose trampoline", [&] {
             std::shared_lock<std::shared_mutex> lk(callback_lifecycle_mutex_, std::try_to_lock);
             if (!lk.owns_lock() || is_destroying_.load(std::memory_order_acquire))
                 return;
             on_ws_close();
-        } catch (const std::exception& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] onclose trampoline threw: {}", e.what());
-        } catch (...) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] onclose trampoline threw unknown");
-        }
+        });
     };
 }
 
@@ -814,16 +797,8 @@ void MoonrakerClient::on_ws_message(const std::string& msg) {
                 emit_event(klippy->event);
 
                 if (klippy->kind == KlippyNotificationKind::Disconnected && on_disconnected) {
-                    try {
-                        on_disconnected();
-                    } catch (const std::exception& e) {
-                        LOG_ERROR_INTERNAL(
-                            "[Moonraker Client] Disconnection callback threw exception: {}",
-                            e.what());
-                    } catch (...) {
-                        LOG_ERROR_INTERNAL("[Moonraker Client] Disconnection callback threw "
-                                           "unknown exception");
-                    }
+                    helix::contain_exceptions("[Moonraker Client] Disconnection callback",
+                                              on_disconnected);
                 }
 
                 if (klippy->rediscover) {
@@ -902,16 +877,8 @@ void MoonrakerClient::on_ws_close() {
 
                 // Invoke user callback with exception safety
                 if (on_disconnected) {
-                    try {
-                        on_disconnected();
-                    } catch (const std::exception& e) {
-                        LOG_ERROR_INTERNAL(
-                            "[Moonraker Client] Disconnection callback threw exception: {}",
-                            e.what());
-                    } catch (...) {
-                        LOG_ERROR_INTERNAL(
-                            "[Moonraker Client] Disconnection callback threw unknown exception");
-                    }
+                    helix::contain_exceptions("[Moonraker Client] Disconnection callback",
+                                              on_disconnected);
                 }
             }
         } else {
@@ -994,15 +961,8 @@ void MoonrakerClient::on_ws_close() {
             // Callers can use their own state tracking (e.g. connection_testing flag)
             // to distinguish initial connection failures from reconnection scenarios
             if (on_disconnected) {
-                try {
-                    on_disconnected();
-                } catch (const std::exception& e) {
-                    LOG_ERROR_INTERNAL(
-                        "[Moonraker Client] Disconnection callback threw exception: {}", e.what());
-                } catch (...) {
-                    LOG_ERROR_INTERNAL(
-                        "[Moonraker Client] Disconnection callback threw unknown exception");
-                }
+                helix::contain_exceptions("[Moonraker Client] Disconnection callback",
+                                          on_disconnected);
             }
         }
     } catch (const std::exception& e) {
@@ -1097,18 +1057,17 @@ void MoonrakerClient::dispatch_status_update(const json& status, bool from_cache
     // Parse bed mesh data before dispatching (mirrors WebSocket handler behavior)
     // This ensures bed mesh is populated on initial subscription response,
     // not just on subsequent notify_status_update messages
-    if (status.contains("bed_mesh") && status["bed_mesh"].is_object()) {
-        parse_bed_mesh(status["bed_mesh"]);
+    if (const json* bed_mesh = json_util::find_object(status, "bed_mesh")) {
+        parse_bed_mesh(*bed_mesh);
         // NOTE: Do NOT set build_volume from mesh bounds here!
         // Mesh bounds represent the probe area, not bed dimensions.
         // Actual bed dimensions come from stepper config in moonraker_api_motion.cpp.
     }
 
     // Extract kinematics type from toolhead data (for printer detection)
-    if (status.contains("toolhead") && status["toolhead"].is_object()) {
-        const json& toolhead = status["toolhead"];
-        if (toolhead.contains("kinematics") && toolhead["kinematics"].is_string()) {
-            auto kinematics = toolhead["kinematics"].get<std::string>();
+    if (const json* toolhead = json_util::find_object(status, "toolhead")) {
+        if (auto found = json_util::read_field<std::string>(*toolhead, "kinematics")) {
+            auto kinematics = std::move(*found);
             discovery_.modify_hardware(
                 [&](PrinterDiscovery& hw) { hw.set_kinematics(kinematics); });
             spdlog::debug("[Moonraker Client] Kinematics type: {}", kinematics);
@@ -1293,8 +1252,8 @@ void MoonrakerClient::get_gcode_store(
             std::vector<GcodeStoreEntry> entries;
 
             // Parse response: {"result": {"gcode_store": [...]}}
-            if (response.contains("result") && response["result"].contains("gcode_store")) {
-                const auto& store = response["result"]["gcode_store"];
+            if (const json* gcode_store = json_util::find_path(response, "result", "gcode_store")) {
+                const auto& store = *gcode_store;
                 entries.reserve(store.size());
 
                 for (const auto& item : store) {
@@ -1330,8 +1289,8 @@ TemperatureStore MoonrakerClient::parse_temperature_store(const json& result) {
         const json& series_json = series_json_binding;
         TemperatureStoreSeries series;
         auto load_array = [&series_json](const char* field, std::vector<float>& out) {
-            if (series_json.contains(field) && series_json[field].is_array()) {
-                const auto& arr = series_json[field];
+            if (const json* found = json_util::find_array(series_json, field)) {
+                const auto& arr = *found;
                 out.reserve(arr.size());
                 for (const auto& v : arr) {
                     if (v.is_number()) {
@@ -1358,8 +1317,8 @@ void MoonrakerClient::get_temperature_store(
         "server.temperature_store", params,
         [on_success](const json& response) {
             TemperatureStore store;
-            if (response.contains("result")) {
-                store = parse_temperature_store(response["result"]);
+            if (const json* result = json_util::find_member(response, "result")) {
+                store = parse_temperature_store(*result);
             }
             if (on_success) {
                 on_success(store);
@@ -1371,14 +1330,7 @@ void MoonrakerClient::get_temperature_store(
 void MoonrakerClient::invoke_connected_callback(const helix::SharedCallback<void()>& cb,
                                                 const char* cause) {
     if (cb) {
-        try {
-            cb();
-        } catch (const std::exception& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] {} callback threw exception: {}", cause,
-                               e.what());
-        } catch (...) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] {} callback threw unknown exception", cause);
-        }
+        helix::contain_exceptions(fmt::format("[Moonraker Client] {} callback", cause), cb);
     }
 
     // Fan out to any registered observers. Copy under lock to avoid holding the
@@ -1394,15 +1346,8 @@ void MoonrakerClient::invoke_connected_callback(const helix::SharedCallback<void
     for (auto& [name, fn] : observers_copy) {
         if (!fn)
             continue;
-        try {
-            fn();
-        } catch (const std::exception& e) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] {} observer '{}' threw exception: {}", cause,
-                               name, e.what());
-        } catch (...) {
-            LOG_ERROR_INTERNAL("[Moonraker Client] {} observer '{}' threw unknown exception", cause,
-                               name);
-        }
+        helix::contain_exceptions(fmt::format("[Moonraker Client] {} observer '{}'", cause, name),
+                                  fn);
     }
 }
 
@@ -1422,17 +1367,9 @@ void MoonrakerClient::add_connected_observer(const std::string& handler_name,
         // Already-connected handshake: fire on the caller's thread (typically
         // the main/UI thread). Observers that need to touch LVGL should defer
         // via UpdateQueue / AsyncLifetimeGuard::bg_cb themselves.
-        try {
-            immediate_cb();
-        } catch (const std::exception& e) {
-            LOG_ERROR_INTERNAL(
-                "[Moonraker Client] connected observer '{}' immediate-fire threw: {}", handler_name,
-                e.what());
-        } catch (...) {
-            LOG_ERROR_INTERNAL(
-                "[Moonraker Client] connected observer '{}' immediate-fire threw unknown",
-                handler_name);
-        }
+        helix::contain_exceptions(
+            fmt::format("[Moonraker Client] connected observer '{}' immediate-fire", handler_name),
+            immediate_cb);
     }
 }
 

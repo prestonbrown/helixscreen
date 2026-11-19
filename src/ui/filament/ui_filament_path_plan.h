@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ams_unit_shell.h"
+
 /**
  * @file ui_filament_path_plan.h
  * @brief Route plan for the LINEAR/HUB detail canvas: frame → plan → paint.
@@ -19,6 +21,8 @@
 
 #include "ui_filament_path_internal.h"
 
+#include <algorithm>
+#include <cmath>
 #include <string>
 
 namespace helix::ui::fpath {
@@ -43,8 +47,39 @@ struct OffpageStub {
 /// The label an off-page stub carries: "N units", "1 unit" for one.
 std::string offpage_label_text(int count);
 
+/// Where a selector rail's head-on art is drawn; w == 0 when the canvas draws the bar instead.
+struct RailArtRect {
+    int32_t x = 0, y = 0, w = 0, h = 0;
+};
+
 // Everything the LINEAR/HUB plan needs for one draw: layout Ys, resolved
 // colors, filament/error state and the HUB merge-fan plan.
+/// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
+/// under 14 px so its end marks stay legible.
+inline int32_t buffer_capsule_height(int32_t hub_h) {
+    return LV_MAX(14, hub_h * 3 / 4);
+}
+
+/// The height the trunk keeps for the buffer's control: the capsule. Its thumb stands 3 px
+/// proud of it at each end, into the gaps kept above and below it.
+inline int32_t buffer_control_height(int32_t hub_h) {
+    return buffer_capsule_height(hub_h);
+}
+
+/// The buffer control's parts for a capsule @p cap_h tall: the track either side of the tube,
+/// the detail button's cell at the capsule's right end, and the thumb.
+struct BufferControlGeometry {
+    int32_t half = 0;    ///< the track's reach either side of the tube
+    int32_t cell = 0;    ///< the detail button's cell, right of the track
+    int32_t thumb_w = 0; ///< the thumb, cap_h + 6 tall
+    int32_t thumb_h = 0;
+};
+BufferControlGeometry buffer_control_geometry(int32_t cap_h);
+
+/// What a tap on the control at (@p cx, @p cy) opens the detail from: the capsule, its
+/// button and the thumb's glow, with 4 px to spare.
+lv_area_t buffer_control_hit(int32_t cx, int32_t cy, int32_t cap_h);
+
 struct LinearHubFrame {
     // Vertical layout (absolute display coords)
     int32_t entry_y = 0;
@@ -56,14 +91,22 @@ struct LinearHubFrame {
     int32_t output_y = 0;
     int32_t toolhead_y = 0;
     int32_t nozzle_y = 0;
-    int32_t inlet_y = 0; // the toolhead glyph's filament inlet
+    // The toolhead glyph's scale: the theme's, or smaller on a canvas too short to fit the hub
+    // between the lanes and a full-size head.
+    int32_t tool_scale = 0;
+    int32_t inlet_y = 0; // the head's filament inlet, where the tube ends
+    int32_t head_x = 0;  // the toolhead glyph's column, its inlet on center_x
     int32_t bypass_merge_y = 0;
     int32_t center_x = 0;
     int32_t output_x = 0; // LINEAR: under the active slot (possibly animating)
+    RailArtRect rail;     // LINEAR with rail art: where it is drawn
+    RailArtRect through;  // HUB with a pass-through unit's art: where it is drawn
 
     int32_t buffer_y = 0;
     int32_t buf_fil_top = 0;
     bool has_buffer = false;
+    // No room on the trunk for the buffer: the selector's or hub's outlet band shows its reading.
+    bool sync_on_output = false;
 
     lv_color_t idle_color, active_color, hub_bg, hub_border;
     lv_color_t error_color; // error token blended with the pulse phase
@@ -90,12 +133,119 @@ struct LinearHubFrame {
     SlotRenderStates states;
 };
 
+/// The layout a unit view draws a unit's lanes with (docs/devel/UNIT_ART.md § "Combiner"):
+/// lanes that reach one nozzle meet in a hub box below the unit, whether its combiner is
+/// inside it or not, and whatever selector the backend reports. A sliding selector keeps its
+/// rail, a one-lane unit has nothing to merge, and paths that do not end at one nozzle
+/// (PARALLEL, MIXED) keep their own drawing.
+inline helix::PathTopology combined_topology(helix::ui::tray::Combiner combiner, bool has_carriage,
+                                             helix::PathTopology reported) {
+    using helix::PathTopology;
+    const bool one_nozzle = reported == PathTopology::LINEAR || reported == PathTopology::HUB;
+    if (!one_nozzle || has_carriage || combiner == helix::ui::tray::Combiner::Absent)
+        return reported;
+    return PathTopology::HUB;
+}
+
+/// Whether a unit view draws a unit's head-on art over the path it lays out: a sliding
+/// selector's in LINEAR's bar, the face of a unit without one above its hub (HUB, or MIXED's
+/// hub and tools). Lanes on a PARALLEL path each run to their own tool, past no unit worth
+/// drawing.
+inline bool unit_art_drawn(helix::PathTopology topology, bool has_carriage) {
+    using helix::PathTopology;
+    return has_carriage ? topology == PathTopology::LINEAR
+                        : topology == PathTopology::HUB || topology == PathTopology::MIXED;
+}
+
+/// The spool box's front edge plus @p cap, when that leaves two tube gauges and a band of tube
+/// above @p row; INT32_MIN when the canvas has no box edge or it stands too low.
+int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
+                       int32_t row);
+
+/// Where the lanes leave the unit: the spool box's front edge when it stands clear above the
+/// lane run, else the prep sensors' row.
+int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g);
+
+/// The lanes' row (their prep sensors' straight run's end): its ratio row, or lower when lanes
+/// drop their bands below a box edge, by a band's room under the lowest band.
+int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g);
+
+/// A sliding selector's art in the LINEAR bar's place: between the lanes' sensors and the
+/// buffer, centred, as tall as fits. Empty for a canvas without such art, and for one too small
+/// to show it.
+RailArtRect rail_art_rect(const FilamentPathData& data, const BaseGeometry& g);
+
+/// Where a pass-through unit's head-on art goes (HUB and MIXED): a unit whose lanes each leave
+/// through their own outlet, so nothing slides. Between @p top and @p bottom, centred on
+/// @p center_x, as tall as fits. Empty for a canvas without such art, a LINEAR or on-head-hub
+/// layout, and a band too short to show it.
+RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g, int32_t top,
+                             int32_t bottom, int32_t center_x);
+
+/// The room left above a unit's head-on art for the lanes to bend in to it.
+int32_t art_fan_room(const FilamentPathData& data, const BaseGeometry& g);
+
+/// Where @p gate's lane goes into the art drawn at @p r.
+inline int32_t rail_gate_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
+                           int gate) {
+    return r.x + static_cast<int32_t>(std::lround((art.gate0_x + gate * art.gate_step_x) * r.w));
+}
+
+/// The height every lane goes into the art drawn at @p r.
+inline int32_t rail_inlet_y(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r) {
+    return r.y + static_cast<int32_t>(std::lround(art.inlet_y * r.h));
+}
+
+/// The height the filament leaves the art drawn at @p r.
+inline int32_t rail_outlet_y(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r) {
+    return r.y + static_cast<int32_t>(std::lround(art.outlet_y * r.h));
+}
+
+/// Where the filament leaves the carriage when it stands at @p gate.
+inline int32_t rail_outlet_x(const helix::ui::tray::RailFaceArt& art, const RailArtRect& r,
+                             int gate) {
+    return r.x + static_cast<int32_t>(std::lround((art.outlet_x + gate * art.gate_step_x) * r.w));
+}
+
+/// Where a LINEAR selector's output leaves with @p slot selected: under the slot, or at the rail
+/// art's carriage coupler.
+inline int32_t linear_exit_x(const FilamentPathData& data, const BaseGeometry& g, int slot) {
+    const RailArtRect r = rail_art_rect(data, g);
+    return r.w > 0 ? rail_outlet_x(*data.rail_art, r, slot) : g.slot_x[slot];
+}
+
+/// Where a selector rail's carriage is centred. It is under the active gate, on its way
+/// there while sliding, and stays at its last gate when nothing is selected.
+inline int32_t rail_carriage_x(const int32_t* slot_x, int slot_count, int active_slot,
+                               int32_t output_x_current, bool sliding) {
+    if (sliding)
+        return output_x_current;
+    if (active_slot >= 0 && active_slot < slot_count)
+        return slot_x[active_slot];
+    if (slot_count > 0 && output_x_current >= slot_x[0] &&
+        output_x_current <= slot_x[slot_count - 1])
+        return output_x_current;
+    return slot_count > 0 ? slot_x[0] : output_x_current;
+}
+
 /// Width the hub or selector box is drawn at: the frame's fitted width for a HUB, the
 /// slot span for a LINEAR selector. Its center is (center_x, hub_y).
 int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g, const LinearHubFrame& f);
 
-/// @p glyph_top is the toolhead glyph's topmost drawn Y (toolhead_top_y()):
-/// a HUB with the bypass hidden stacks its hub and buffer above it.
+/// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
+/// kToolheadGlyphBottomRatio of the canvas height.
+int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);
+int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale);
+
+/// @p glyph_top is the full-size toolhead glyph's topmost drawn Y (toolhead_top_y()):
+/// a HUB with the bypass hidden stacks its hub and buffer above it. A HUB canvas too
+/// short for its hub above that glyph draws a smaller head (LinearHubFrame::tool_scale).
+/// The least height @p g (its top where it is) needs for compute_linear_hub_frame() to lay the
+/// path out at full size: a full-size head, and the buffer kept on the trunk when the unit
+/// reports one and its hub is not on the head. @p g's own height when that already fits, or
+/// when no height up to four times it would.
+int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g);
+
 LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const BaseGeometry& g,
                                         int32_t glyph_top);
 
@@ -124,6 +274,7 @@ struct MixedFrame {
     // distinct hub-top entries.
     pg::MergeLaneOut hub_fan[FilamentPathData::kMaxSlots];
     int slot_to_fan[FilamentPathData::kMaxSlots]; // slot index -> hub-lane order (-1 none)
+    RailArtRect through; // a pass-through unit's art between the spools and the lane sensors
 
     SlotRenderStates states;
 };
@@ -156,7 +307,8 @@ struct Route {
 /// dropped and counted in Route::dropped; returns false when any were.
 bool route_append(Route& r, const pg::FilamentPath& piece, SpanStyle s);
 
-enum class BandState : uint8_t { Empty, Loaded, Active, Error };
+/// Sync: a rail's sync sensor at its outlet, banded in the buffer's colour (fill).
+enum class BandState : uint8_t { Empty, Loaded, Active, Error, Sync };
 
 struct SensorBand {
     pg::PathPoint at;
@@ -235,6 +387,10 @@ void reset_plan(PathPlan& out);
 void total_dropped(PathPlan& out);
 Route& new_route(PathPlan& plan);
 void append_line(Route& r, float x0, float y0, float x1, float y1, SpanStyle s);
+
+/// The bypass feed: out of the bottom of the spool standing over (@p spool_x, @p merge_y),
+/// down into the gap above its label, then along the merge line to @p merge_x.
+void append_bypass_feed(Route& r, float spool_x, float merge_y, float merge_x, SpanStyle s);
 SpanStyle unpainted(SpanStyle s);
 void add_band(PathPlan& plan, BandKind kind, pg::PathPoint at, pg::PathPoint tangent,
               BandState state, lv_color_t fill, bool on_box_edge = false);
@@ -250,6 +406,14 @@ PathPlan& plan_scratch();
 
 /// Outer tube width, walls included, for a theme's space_xs.
 int32_t tube_gauge_for_spacing(int32_t space_xs);
+
+/// The row @p lane's tube starts on in frame @p f: on a box edge, the edge where it crosses
+/// the lane's column (the edge's lowest point less the lane's rise).
+int32_t lane_start_y(const FilamentPathData& data, const LinearHubFrame& f, int lane);
+
+/// The row of @p lane's prep band: its band drop below its start, held a band's width above
+/// the lane's row.
+int32_t lane_band_y(const FilamentPathData& data, const LinearHubFrame& f, int lane);
 
 void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, const BaseGeometry& g,
                      PathPlan& out);
@@ -271,6 +435,8 @@ TubePalette tube_palette(const FilamentPathData& data);
 /// Halo, walls, bores, then every band not on a box edge.
 void paint_tubes(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal,
                  bool simple = reduced_effects());
+/// The colour a band paints in: accent, error, its fill when loaded or a sync band, else idle.
+lv_color_t band_color(const SensorBand& band, const TubePalette& pal);
 /// The bands on a hub/selector edge; called after the boxes are drawn.
 void paint_box_bands(lv_layer_t* layer, const PathPlan& plan, const TubePalette& pal);
 

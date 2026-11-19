@@ -1,10 +1,5 @@
 # Testing Infrastructure
 
-**Status:** Active
-**Last Updated:** 2026-08-08
-
----
-
 ## Quick Start
 
 ```bash
@@ -41,25 +36,25 @@ The binary counts them: `./build/bin/helix-tests --list-tags` prints every tag w
 
 ### Feature Tags
 
-| Tag | Count | Purpose |
-|-----|-------|---------|
-| `[ui]` | ~162 | Theme, icons, widgets, panels |
-| `[gcode]` | ~118 | G-code parsing, streaming, geometry |
-| `[ams]` | ~117 | AMS/MMU backends |
-| `[print]` | ~72 | Print workflow: start, pause, cancel, progress |
-| `[state]` | ~57 | PrinterState singleton, LVGL subjects, observers - drive state via `tests/test_helpers/print_state_test_drivers.h` (see "Test Fixtures") |
-| `[filament]` | ~53 | Spoolman, filament sensors |
-| `[application]` | ~51 | Application lifecycle |
-| `[config]` | ~50 | Configuration loading, validation |
-| `[printer]` | ~32 | Printer detection, capabilities, hardware |
-| `[assets]` | ~28 | Thumbnail extraction |
-| `[wizard]` | ~27 | Setup wizard flow |
-| `[history]` | ~27 | Print/notification history |
-| `[network]` | ~26 | WiFi, Ethernet management |
-| `[api]` | ~25 | Moonraker API infrastructure |
-| `[connection]` | ~23 | WebSocket connection lifecycle, retry logic |
-| `[calibration]` | ~17 | Bed mesh, input shaper, QGL, Z-tilt |
-| `[predictor]` | ~15 | Pre-print time estimation |
+| Tag | Purpose |
+|-----|---------|
+| `[ui]` | Theme, icons, widgets, panels |
+| `[gcode]` | G-code parsing, streaming, geometry |
+| `[ams]` | AMS/MMU backends |
+| `[print]` | Print workflow: start, pause, cancel, progress |
+| `[state]` | PrinterState singleton, LVGL subjects, observers - drive state via `tests/test_helpers/print_state_test_drivers.h` (see "Test Fixtures") |
+| `[filament]` | Spoolman, filament sensors |
+| `[application]` | Application lifecycle |
+| `[config]` | Configuration loading, validation |
+| `[printer]` | Printer detection, capabilities, hardware |
+| `[assets]` | Thumbnail extraction |
+| `[wizard]` | Setup wizard flow |
+| `[history]` | Print/notification history |
+| `[network]` | WiFi, Ethernet management |
+| `[api]` | Moonraker API infrastructure |
+| `[connection]` | WebSocket connection lifecycle, retry logic |
+| `[calibration]` | Bed mesh, input shaper, QGL, Z-tilt |
+| `[predictor]` | Pre-print time estimation |
 
 ### Sub-Tags
 
@@ -73,7 +68,6 @@ The binary counts them: `./build/bin/helix-tests --list-tags` prints every tag w
 
 ### Hidden Tags (Excluded by Default)
 
-- `[.pending]` - Test not yet implemented
 - `[.integration]` - Requires full environment
 - `[.slow]` - Long-running and hidden; prefer `[slow]` for a new test
 - `[.disabled]` - Temporarily disabled
@@ -256,16 +250,7 @@ per-file coverage notes: `HIDDEN_TESTS_TRACKER.md`.
 
 Slow tests are excluded from `unit-sweep` but can be run with `make test-slow`.
 
-| File | Why Slow |
-|------|----------|
-| `test_moonraker_mock_behavior.cpp` | Mock client simulation |
-| `test_moonraker_client_subscription_cancel.cpp` | WebSocket event loops |
-| `test_moonraker_client_security.cpp` | Security test fixtures |
-| `test_notification_history.cpp` | History/persistence |
-| `test_moonraker_client_robustness.cpp` | Concurrent access tests |
-| `test_moonraker_events.cpp` | Event dispatch timing |
-
-Rank the rest by how many cases each file tags:
+Rank the files by how many cases each tags:
 
 ```bash
 grep -c '\[slow\]' tests/unit/*.cpp | sort -t: -k2 -nr | head -20
@@ -281,15 +266,6 @@ grep -c '\[slow\]' tests/unit/*.cpp | sort -t: -k2 -nr | head -20
 - Test creates `hv::EventLoop` for WebSocket operations
 - Test requires real network connection/disconnection cycles
 - ALWAYS add `[slow]` alongside `[eventloop]` - eventloop tests are inherently slow
-
-### Disabled Tests (#if 0)
-
-These tests are completely disabled due to known issues:
-
-| File | Line | Reason |
-|------|------|--------|
-| `test_moonraker_client_robustness.cpp` | 555 | `send_jsonrpc` returns -1 instead of 0 when disconnected |
-| `test_moonraker_client_security.cpp` | 690 | Segmentation fault (object lifetime issues) |
 
 ### Running Excluded Tests
 
@@ -343,12 +319,7 @@ make test-slow   # Run only [slow] tagged tests
 - Database/history operations (SQLite)
 - Mock print simulation with phase transitions
 
-| File | Count | Reason |
-|------|------:|--------|
-| `test_print_history_api.cpp` | 18 | SQLite operations |
-| `test_notification_history.cpp` | 13 | History persistence |
-| `test_moonraker_mock_behavior.cpp` | 12 | Mock simulation delays |
-| `test_gcode_streaming_controller.cpp` | 12 | Layer processing |
+`grep -c '\[slow\]' tests/unit/*.cpp` ranks the files.
 
 ### EventLoop Tests (5-10 min total)
 
@@ -369,15 +340,6 @@ Tests using `hv::EventLoop` for real network operations. These are the slowest t
 - Network timeout waiting (1-5 seconds per test)
 - Event loop startup/shutdown overhead
 - Thread synchronization
-
-| File | Count | Tests |
-|------|------:|-------|
-| `test_moonraker_client_subscription_cancel.cpp` | 17 | Subscription lifecycle |
-| `test_moonraker_client_robustness.cpp` | 14 | Edge cases, concurrent access |
-| `test_moonraker_client_security.cpp` | 14 | Security validation |
-| `test_print_preparation_manager.cpp` | 6 | Print preparation retry |
-| `test_moonraker_api_security.cpp` | 2 | API lifecycle |
-| `test_moonraker_connection_retry.cpp` | 1 | Connection retry logic |
 
 **Important:** All `[eventloop]` tests MUST also be tagged `[slow]` to ensure they are excluded from `make unit-sweep`.
 
@@ -404,12 +366,14 @@ tests/
 │   ├── test_config.cpp
 │   ├── test_gcode_parser.cpp
 │   └── ...
-└── mocks/                      # Mock implementations
-    ├── mock_websocket_server.{h,cpp}
-    ├── mock_mdns_discovery.h
-    └── mock_printer_state.h
-
-experimental/src/              # Standalone test binaries
+├── mocks/                      # Mock implementations
+│   ├── mock_websocket_server.{h,cpp}
+│   ├── mock_mdns_discovery.h
+│   └── mock_printer_state.h
+├── test_helpers/               # Shared drivers (e.g. print_state_test_drivers.h)
+├── shell/                      # bats suites
+├── ui/                         # pytest + helix-screen ctl (UI_TESTING.md)
+└── python/                     # Python tool tests
 ```
 
 ---
@@ -518,7 +482,7 @@ See `HELIX_XML_FORK.md`.
 
 `HelixTestFixture` (`tests/helix_test_fixture.h`) is the base for every test fixture. Its ctor and dtor call `reset_all()` which drains the update queue, resets `SystemSettingsManager` language, and clears the modal stack. Use `TEST_CASE_METHOD(HelixTestFixture, ...)` for plain unit tests that mutate process-wide singletons so mutations don't leak to the next test.
 
-`LVGLTestFixture` (`tests/lvgl_test_fixture.h`) inherits `HelixTestFixture` and adds a headless DRM display + test screen. Use it for tests that touch LVGL widgets.
+`LVGLTestFixture` (`tests/lvgl_test_fixture.h`) inherits `HelixTestFixture` and adds a virtual-buffer headless display + test screen. Use it for tests that touch LVGL widgets.
 
 `XMLTestFixture` (`tests/test_fixtures.h`) inherits `LVGLTestFixture` and owns per-instance `PrinterState`, `MoonrakerClient`, and `MoonrakerAPI` — no shared static state between tests. Reach for it whenever you need to exercise XML bindings. XML subjects register into LVGL's global scope; each test's `init_subjects(true)` overwrites prior entries with fresh pointers, and the destructor tears the screen down before deinitializing subjects to avoid dangling observer references.
 
@@ -566,7 +530,7 @@ TEST_CASE("Connection retry 5s timeout", "[connection][slow]")
 TEST_CASE("Some test", "[unit]")
 ```
 
-The Makefile auto-discovers test files in `tests/unit/` and `tests/integration/`.
+The Makefile auto-discovers test files in `tests/unit/`.
 
 ---
 
@@ -577,12 +541,12 @@ The Makefile auto-discovers test files in `tests/unit/` and `tests/integration/`
 ```cpp
 #include "moonraker_client_mock.h"
 
-MoonrakerClientMock client;
-client.connect(url, on_connected, on_disconnected);
-client.trigger_connected();   // Fire callback
-client.get_rpc_methods();     // Verify calls made
-client.reset();               // Reset for next test
+MoonrakerClientMock client(PrinterType::VORON_24);  // persona, optional speedup factor
+client.connect(url, on_connected, on_disconnected); // fires on_connected after the connect delay
+client.send_jsonrpc("printer.info", params);        // answered by the mock
 ```
+
+`MoonrakerClientMock::set_connect_delay_ms()` shortens the pause connect() takes. The mock's full surface is in `include/moonraker_client_mock.h`.
 
 ### Available Mocks
 
@@ -592,9 +556,7 @@ client.reset();               // Reset for next test
 
 ### Mock Drift Protection
 
-Six mock boundaries are guarded at build time by `[compile][drift]` tests in `tests/unit/test_interface_drift_*.cpp`. Each test `static_assert`s that the mock derives from the corresponding interface and is not abstract — so adding a pure virtual to an interface without updating the mock (directly or via the concrete class it inherits from) fails the build.
-
-Covered: `AmsBackend`, `EthernetBackend`, `UsbBackend`, `WifiBackend` (already pure-virtual interfaces), plus `IMoonrakerAPI` and `helix::IMoonrakerClient` (narrow interfaces added Apr 2026 — see `include/i_moonraker_api.h`, `include/i_moonraker_client.h`). The Moonraker mocks still inherit the concrete classes; the interfaces enforce drift protection without requiring a mock rewrite.
+Mock boundaries are guarded at build time by `[compile][drift]` tests in `tests/unit/test_interface_drift_*.cpp` (ethernet, USB, WiFi, performance source, `IMoonrakerAPI`, `helix::IMoonrakerClient`). Each test `static_assert`s that the mock derives from the corresponding interface and is not abstract, so adding a pure virtual to an interface without updating the mock (directly or via the concrete class it inherits from) fails the build. The Moonraker mocks still inherit the concrete classes; the narrow interfaces (`include/i_moonraker_api.h`, `include/i_moonraker_client.h`) enforce drift protection without a mock rewrite.
 
 ---
 
@@ -671,6 +633,150 @@ Always use `"~[.]"` when running by tag:
 lldb build/bin/helix-tests
 (lldb) run "[gcode]"
 ```
+
+## mutate-diff
+
+The agent-facing rules (when to run it, how to scope it, what the verdicts mean) are in `tests/CLAUDE.md` § "Proving a test can fail". This section is the full manual.
+
+### Choosing the base
+
+The base is the nearest fork point among the refs this branch could have been cut
+from - its configured upstream, then the release branches, then main - because
+`main` alone is wrong on anything growing out of a maintenance branch. A branch
+cut from `release/1.0` shares with main only where those two parted, so measured
+against main it inherits everything `release/1.0` has done since as its own
+change: dozens of foreign hunks, a build apiece, and verdicts about other
+people's code. Those mostly come back `uncompilable`, which is correctly not a
+kill, so a mis-scoped run has no symptom of its own - it just looks slow and
+stubborn.
+
+**Where a hunk's time goes, and how a run spends less of it.** A compiled hunk costs
+one translation unit and a relink of `helix-tests` (seconds), then the scoped suite,
+which is as slow as its slowest shard: a single heavy case decides it. So the filter
+is cut into 4 Catch2 shards per process `--shards` allows at once (default 8),
+started longest first by their baseline time as slots free up, and a detection in
+any shard stops the rest. `--workers N` mutates N hunks at once, each in a reflink
+copy of the tree beside it (`.<tree>.mutate-w<i>`, removed at the end) with its own
+`build/` and binary, so no two mutants share a file and the tree you ran it in is
+never mutated. It needs a standalone clone on btrfs, XFS or ZFS and says why when
+it falls back to serial; `scripts/test-host-run.sh mutate` passes `--workers auto`.
+Every make the run starts, and every shard or worker beside the first, draws from
+the jobserver it inherits (the jobpool on the test host), so the workers never run
+on top of the machine's budget. Verdicts are the same either way; only the order
+they arrive in changes.
+
+**A run is bounded, and any stop leaves the tree as it found it.**
+
+- `--max-minutes N` (default and maximum 45; `--release` lifts the cap, and
+  only then does `0` mean none) caps the whole run, baseline included. At the
+  cap the in-flight hunk is stopped and restored, and it and
+  every hunk after it are listed `UNEXAMINED`: the run is `INCOMPLETE`, never
+  `CLEAN`. Each filter's baseline time is kept in the
+  checkout's build directory, as mutate-baseline-secs.json (a baseline the cap
+  cut off as a lower bound), keyed on suite, filter and for catch2 `--shards`, and a baseline whose
+  kept time exceeds what is left is not started: its hunks read `UNEXAMINED`
+  (unjudged in a pool) at once. A refusal marks the entry and the next run
+  measures it again, so one time taken under load costs one run. A large batch's
+  whole-suite fallback therefore cannot spend the cap before any mutant runs.
+- SIGINT, SIGTERM and SIGHUP all stop it the same way: every child (make and
+  its compilers, `git apply`, the suites) runs in its own process group and is
+  stopped and reaped first, then every mutated file is written back from the
+  bytes captured at the start, then it exits `128+signo`. Ctrl-C and a plain
+  `kill` are equally safe; only `kill -9` can strand a mutant. An inherited
+  SIGHUP ignore (`nohup`) is kept.
+- A run whose parent process exits stops before its next hunk instead of
+  mutating a tree nobody is watching. `--allow-orphan` for a deliberate detach.
+
+**Landing a fix mutates the fix, not the branch again.** A run that leaves
+nothing unexamined (every mutatable hunk killed or declaration-only) records HEAD
+as proven in `refs/notes/mutate-proven`, but only when all of these hold: its
+base is the fork point or itself a proven commit, HEAD did not move during the
+run, the tracked tree matches HEAD, and nothing untracked sits under `tests/`,
+`src/` or `include/`. Commit before the run if you want it recorded. The next
+run with no `--base` starts from the newest proven commit on the branch, and its
+first line says so (`<- last commit proven by mutate-diff on this branch`). The
+note carries the run's `NOT COVERED` paths and the next run reports them again,
+so a delta run is as INCOMPLETE as the branch it continues. A delta that removes
+or edits a line under `tests/` can undo the kills the proof rests on, so it falls
+back to the fork point and prints why.
+
+| Flag | Scope |
+|------|-------|
+| (none) | since the last proven commit, else the fork point |
+| `--since <sha>` | since a commit you name; must be an ancestor of HEAD, and records nothing unless it is proven |
+| `--whole-branch` | everything since the fork point, ignoring the record |
+| `--base <ref>` | exactly `<ref>`, taken as given; records only if it is the fork point or proven |
+| `--no-record` | run as usual, record nothing |
+
+The record lives in the repo that ran the gate, so a run on the test host
+(`scripts/test-host-run.sh mutate`) records there; pass `--since` explicitly to
+carry a proof between machines.
+
+### Verdicts
+
+The verdicts are not interchangeable:
+
+| Verdict | Means |
+|---------|-------|
+| `killed` | a test detects the change — the outcome you want |
+| `killed (timeout)` | the mutant hung the suite at a limit derived from the baseline (`max(60s, 5x baseline)` of the same Catch2 shard, or `--timeout`) AND hung again when re-run at twice that limit. One stall alone is a machine under load, not a detection. The whole process group dies with each timeout |
+| `SURVIVED` | the mutant ran and the suite stayed green: NO test detects it |
+| `uncompilable` / `unreversible` | a mutant was attempted but no test ever judged it. Never a kill: a compiler error proves the code is load-bearing for the build, not that anything tests its behaviour |
+| `skipped (declaration-only)` | every changed line of a C/C++ hunk is one of: a forward declaration (`class X;`, `enum class E : int;`), an access specifier or `friend class`, a `static_assert`, `#pragma once`, a class head with no `alignas` or base that is not changed between `class` and `struct`, or a member function or destructor declaration that is not `virtual` or `explicit` (changes to its signature, `const`, `noexcept` or `= delete` included, as long as `static`/`constexpr`/`inline` match the other side). Its revert can only fail to compile, so it is not built and never counts as a kill. Everything else is mutated: every `#include`, every data member, namespace-scope prototypes, aliases and externs, friend functions and operators, explicit specialisations and instantiations, initialisers, default arguments, inline bodies, enumerators, `#define`. `--no-skip-declarations` mutates them all |
+| `UNEXAMINED` | the run stopped (`--max-minutes`, or its parent exited) before reaching this hunk, or its baseline was known not to fit in what was left |
+| `NOT COVERED` | nothing here can mutate that file, so the gate did not look at it |
+
+What it mutates, and what pays for what:
+
+| Path | Refresh per mutant | Suite |
+|------|--------------------|-------|
+| `src/`, `include/` | `make test-build` | `helix-tests` |
+| `ui_xml/*.xml`, `assets/config/*.json` | none — the binary reads these off the tree at run time | `helix-tests` |
+| `scripts/*.py`, and shell scripts anywhere outside `tests/` and `lib/` (`.sh`, `.bash`, or no extension with a shell shebang) | none | `bats tests/shell` + `pytest tests/python` |
+
+Everything else is `NOT COVERED`, with the reason printed. Two are worth knowing:
+`tests/` itself, because a test is proven by mutating the code it pins rather
+than by reverting itself; and anything under `lib/`, because a superproject diff
+carries only a submodule's pointer and never its content. Clear one by mutating
+it by hand and naming the result in the commit body, or accept it with
+`--allow-incomplete`.
+
+### Which tests judge each file
+
+**Each changed file runs against its own tests.** A run prints `tests per file:` first. A
+file gets the filter of the first `--tests-for GLOB=FILTER` it matches, else the test files
+that name its stem as a whole word (Catch2's `[#test_<file>]` tags, under `-#`; a stem more
+than 12 files name counts as none), plus the cases in other files carrying a tag those
+files own (two thirds of its cases, at most 3 other files), else `--tests`. A script under `scripts/` runs the
+`.bats` and pytest files that name it (its file name, or a Python script's import stem):
+with only one of the two, that one judges it; with neither, both whole suites do, which is
+slow. A bats or pytest case red at baseline (inside the test container some fail on
+the environment alone: root, no jobpool) is set aside by name, printed, and every other
+case judges; a red Catch2 baseline still stops the run. Files sharing what judges
+them run as one group, each group a child run with its own baseline, inside the one
+45-minute budget; the worst group's exit is the run's. `--no-auto-tests` puts every file on
+`--tests`, `--shell-tests` and `--python-tests`.
+Generated output (`src/generated/`, `ui_xml/translations/`) is not mutated: its source is,
+and the regeneration gates pin the two together.
+
+`make mutate-diff` passes `--pool`, so a landing run shares one build and one set of worker copies across every file.
+
+### Release runs and where it runs
+
+**A whole-branch run is a release-class job, on an idle test host:** `--release --max-minutes
+0 --pool --auto-tests-max 100 --confirm-survivors --inside 2 --first <path>`. `--pool` keeps
+every hunk in one queue instead of a child run per filter. A hunk whose revert does not build
+stays `uncompilable` and the run stays incomplete; `--inside N` adds up to N small mutants of
+its added lines (negate an `if`, drop a call, flip an operator), each with its own verdict, and
+a survivor fails the run. A Catch2 baseline red once is asked again; green the second time, the
+assertions it named are printed and judge no mutant.
+
+**`make mutate-diff` runs where workers can run** (`scripts/mutate-diff.sh`). Parallel
+workers need reflink copies; a host without them (a Mac, an ext4 home) hands the run to the
+test host, which mutates the PUSHED HEAD, so it refuses with uncommitted code or an
+unpushed HEAD instead of judging another tree. `MUTATE_LOCAL=1` runs it here, serially. On
+the test host the run first makes its checkout's venv from `requirements.txt`, since script
+hunks are judged by pytest as well as bats and the image has no pytest.
 
 ---
 

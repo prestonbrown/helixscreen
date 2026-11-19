@@ -2,6 +2,7 @@
 
 #include "klipper_error_table.h"
 
+#include "cold_pull_temps.h"
 #include "lvgl.h"
 #include "translation_loader.h"
 
@@ -71,6 +72,10 @@ constexpr KlipperErrorAction kResetBoxAction{TR_NOOP("Reset CFS"), "BOX_ERROR_CL
 /// does the work and the gcode is empty.
 constexpr KlipperErrorAction kMcuBridgeRecoverAction{TR_NOOP("Recover"), "",
                                                      kKlipperErrorRecoveryServiceTag};
+
+/// A clog's fix is the guided cold pull, which heats, so it is a flow and not a gcode.
+constexpr KlipperErrorAction kColdPullAction{TR_NOOP("Cold Pull"), "",
+                                             "error_classify::key845_cold_pull", kColdPullFlowId};
 
 /// Every code in this family is a box hardware fault: one missing from the
 /// table still blocks, and its modal names the filament system.
@@ -202,7 +207,8 @@ static const std::unordered_map<std::string, KlipperErrorEntry> KlipperErrorTabl
       ErrorSeverity::CRITICAL, fmt_unit_only}},
     {"key845",
      {TR_NOOP("Nozzle clog detected"), TR_NOOP("Run a cold pull or replace the nozzle"),
-      AmsAlertLevel::SYSTEM, ErrorSeverity::CRITICAL, nullptr}},
+      AmsAlertLevel::SYSTEM, ErrorSeverity::CRITICAL, nullptr, /*prefer_fw_msg=*/false,
+      &kColdPullAction}},
     {"key846",
      {TR_NOOP("Filament buffer stopped moving"),
       TR_NOOP(
@@ -317,8 +323,21 @@ KlipperErrorClassification klipper_error_classify(const std::string& key_code) {
         c.title = title;
     }
     if (entry && entry->recovery) {
-        c.recovery_actions.push_back(
-            {lv_tr(entry->recovery->label), entry->recovery->gcode, entry->recovery->log_tag});
+        RecoveryAction action{lv_tr(entry->recovery->label), entry->recovery->gcode,
+                              entry->recovery->log_tag};
+        if (entry->recovery->guided_flow) {
+            action.guided_flow = entry->recovery->guided_flow;
+        }
+        const bool blocks = c.severity == ErrorSeverity::CRITICAL;
+        if (blocks) {
+            action.style = "primary";
+        }
+        c.recovery_actions.push_back(std::move(action));
+        // A blocking dialog's only button would make the fix the only way out: a
+        // user who chooses another remedy still needs to close it.
+        if (blocks) {
+            c.recovery_actions.push_back({lv_tr("OK"), "", "error_classify::dismiss"});
+        }
     }
     return c;
 }

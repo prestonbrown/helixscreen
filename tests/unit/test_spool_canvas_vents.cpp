@@ -1,9 +1,9 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The spool's front flange is vented: its slots show the filament wound behind
-// them, or the dark inside of an empty spool, and a spool too small to read
-// them keeps a solid flange. Pixels are read straight from the canvas buffer.
+// Both flanges are vented: the front's slots show the filament wound behind them,
+// or the dark inside of an empty spool, and a spool too small to read them keeps
+// solid flanges. Pixels are read straight from the canvas buffer.
 
 #include "ui_spool_canvas.h"
 
@@ -35,12 +35,13 @@ int brightness(lv_color32_t c) {
 }
 
 // An 80 px spool draws slots but no dots. Its front flange is centred at
-// x = 51, y = 40; the top slot's centre is 0.25 * 80 = 20 px above that, and
-// (55, 20) is solid flange on the same row, clear of every slot.
+// x = 51, y = 40 and its back flange at x = 29; the top slot's centre is
+// 0.25 * 80 = 20 px above that, and 4 px right of it is solid flange.
 constexpr int32_t kSpool = 80;
 constexpr int32_t kSlotX = 51;
 constexpr int32_t kSlotY = 20;
 constexpr int32_t kFlangeX = 55;
+constexpr int32_t kBackSlotX = 29;
 
 } // namespace
 
@@ -57,7 +58,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(grey(px(canvas, kFlangeX, kSlotY)));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: an empty spool's slots show the dark inside",
+TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: an empty spool's slots are dark, front and back",
                  "[spool_canvas][spool_vents]") {
     lv_obj_t* canvas = ui_spool_canvas_create(test_screen(), kSpool);
     REQUIRE(canvas != nullptr);
@@ -65,9 +66,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: an empty spool's slots show t
     ui_spool_canvas_set_color(canvas, lv_color_hex(0xD02020));
 
     const lv_color32_t slot = px(canvas, kSlotX, kSlotY);
-    const lv_color32_t flange = px(canvas, kFlangeX, kSlotY);
     CHECK(grey(slot));
-    CHECK(brightness(slot) + 60 < brightness(flange));
+    CHECK(brightness(slot) + 60 < brightness(px(canvas, kFlangeX, kSlotY)));
+    CHECK(brightness(px(canvas, kBackSlotX, kSlotY)) + 40 <
+          brightness(px(canvas, kBackSlotX + 4, kSlotY)));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -96,8 +98,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 TEST_CASE_METHOD(LVGLUITestFixture, "spool_canvas: a small spool keeps a solid flange",
                  "[spool_canvas][spool_vents]") {
-    // 28 px: the front flange is centred at x = 18, y = 14; the top slot would
-    // sit 7 px above that.
+    // 28 px: the front flange is centred at (18, 14), its top slot 7 px above.
     REQUIRE(helix::ui::spool_vent_detail(28) == helix::ui::SpoolVentDetail::None);
     lv_obj_t* canvas = ui_spool_canvas_create(test_screen(), 28);
     REQUIRE(canvas != nullptr);

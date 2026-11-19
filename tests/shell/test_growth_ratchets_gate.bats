@@ -343,7 +343,7 @@ EOF
     contains "static active-instance pointers grew by 1 (include/panel.h: active_instance_)" "$output"
 }
 
-@test "every spelling counts: s_active_, s_active_instance, an anonymous-namespace s_active_ctx, a named s_*_instance" {
+@test "every spelling counts: s_active_, s_active_instance, an anonymous-namespace s_active_ctx, a named s_*_instance, the current spellings" {
     cat > "$REPO/src/ui/statics.cpp" <<'EOF'
 namespace {
 Ctx* s_active_ctx = nullptr;
@@ -353,11 +353,16 @@ class Menu {
     static inline Menu* s_active_ = nullptr;
 };
 static DetailView* s_detail_view_instance = nullptr;
+static Panel* s_current_panel = nullptr;
+class Picker {
+    static Picker* current_;
+    static Picker* current_instance_;
+};
 EOF
-    commit_all "four statics"
+    commit_all "seven statics"
     ratchets
     [ "$status" -eq 1 ]
-    contains "grew by 4" "$output"
+    contains "grew by 7" "$output"
 }
 
 @test "ACTIVE_INSTANCE_OK opts one declaration out and leaves its neighbour counted" {
@@ -371,13 +376,18 @@ EOF
     contains "grew by 1 (src/ui/statics.cpp: s_active_panel)" "$output"
 }
 
-@test "an out-of-line definition, an accessor, a local, a singleton slot and a test file are not counted" {
+@test "an out-of-line definition, an accessor, a local, a singleton slot, a C string and a test file are not counted" {
     cat > "$REPO/src/ui/quiet.cpp" <<'EOF'
 Panel* Panel::active_instance_ = nullptr;
 static Panel* get_active_instance();
 static DisplayManager* s_instance = nullptr;
+static const char* s_current_tag = nullptr;
+class Row {
+    static Panel* current_panel_;
+};
 void f() {
     Panel* active = nullptr;
+    Panel* current_ = nullptr;
     return *s_active_;
 }
 // static Panel* s_active_;

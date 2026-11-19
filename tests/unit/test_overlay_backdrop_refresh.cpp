@@ -19,6 +19,7 @@
  * itself.
  */
 
+#include "ui_modal.h"
 #include "ui_nav_manager.h"
 
 #include "../lvgl_test_fixture.h"
@@ -164,9 +165,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "Backdrop refresh re-snapshots the live base c
     lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
     REQUIRE(backdrop != nullptr);
 
-    lv_obj_add_flag(base, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(base, true);
     lv_obj_t* overlay = make_flat_layer(screen, kOverlayColor);
-    lv_obj_move_foreground(overlay);
+    lv_obj_move_to_index(overlay, -1);
     NavigationManagerTestAccess::set_panel_stack(nav, {base, overlay});
     process_lvgl(20);
 
@@ -196,8 +197,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Backdrop refresh re-snapshots the live base c
         NavigationManagerTestAccess::refresh_overlay_backdrop(nav);
         process_lvgl(20);
 
-        CHECK(lv_obj_has_flag(base, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(base));
+        CHECK_FALSE(lv_obj_is_hidden(overlay));
     }
 
     SECTION("the replacement stays below the overlay it backs") {
@@ -212,12 +213,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "Backdrop refresh re-snapshots the live base c
     NavigationManagerTestAccess::set_panel_stack(nav, {});
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "The backdrop snapshot excludes the arriving overlay",
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "The backdrop snapshot excludes the arriving overlay and a closing dialog",
                  "[navigation][backdrop]") {
     auto& nav = NavigationManager::instance();
     lv_obj_t* screen = test_screen();
 
     lv_obj_t* base = make_flat_layer(screen, kBaseColor);
+    // A confirm button that opens an overlay runs before its dialog finishes
+    // closing, so the dialog is still on screen when the backdrop is taken.
+    lv_obj_t* dialog_backdrop = make_flat_layer(screen, LV_COLOR_MAKE(0x00, 0x00, 0xFF));
+    ModalStack::instance().push(dialog_backdrop, lv_obj_create(dialog_backdrop), "closing");
     // An overlay root left visible at push time, as a caller that skips the
     // create-hidden convention produces: the snapshot must not bake it in.
     lv_obj_t* arriving = make_flat_layer(screen, kOverlayColor);
@@ -228,11 +234,15 @@ TEST_CASE_METHOD(LVGLTestFixture, "The backdrop snapshot excludes the arriving o
     REQUIRE(backdrop != nullptr);
 
     // Green here means the arriving overlay is its own backdrop ghost: a dimmed
-    // copy sitting behind the live panel for as long as it is open.
+    // copy sitting behind the live panel for as long as it is open. Blue is the
+    // dialog, kept beside the overlay long after it closed.
     Rgb px = backdrop_center_pixel(backdrop);
     CHECK(px.g < px.r);
-    // The arriving overlay leaves the snapshot in the visibility it started in.
-    CHECK_FALSE(lv_obj_has_flag(arriving, LV_OBJ_FLAG_HIDDEN));
+    CHECK(px.b < px.r);
+    // Both leave the snapshot in the visibility they started in.
+    CHECK_FALSE(lv_obj_is_hidden(arriving));
+    CHECK_FALSE(lv_obj_is_hidden(dialog_backdrop));
+    ModalStack::instance().remove(dialog_backdrop, true);
 
     NavigationManagerTestAccess::set_panel_stack(nav, {});
 }
@@ -387,7 +397,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "with snapshots off the backdrop is a dim laye
     CHECK_FALSE(lv_obj_check_type(backdrop, &lv_image_class));
     CHECK(lv_obj_get_style_bg_opa(backdrop, LV_PART_MAIN) == 40);
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(backdrop, LV_PART_MAIN), lv_color_black()));
-    CHECK(lv_obj_has_flag(backdrop, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(backdrop));
     CHECK(lv_obj_get_index(backdrop) > lv_obj_get_index(base));
 
     // Translucent over the live navbar, so there is nothing to re-take.

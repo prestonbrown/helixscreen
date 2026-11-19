@@ -6,10 +6,9 @@
  *        construction, and the one group-to-edge projection.
  *
  * Nothing here touches a backend, a mutex or LVGL widgets, so it is directly
- * unit-testable. The projection in particular must exist exactly once - four
- * backends previously each invented their own, and Happy Hare's
- * `// Use first match` loop is what made a 4-gate group render as four
- * arbitrary arrows.
+ * unit-testable. The projection in particular must exist exactly once: a
+ * per-backend projection (a first-match loop, say) renders a 4-gate group as
+ * four arbitrary arrows.
  */
 
 #include "ams_types.h"
@@ -34,6 +33,8 @@ std::string endless_spool_restriction_text(EndlessSpoolRestriction restriction) 
         return lv_tr("No Endless Spool package is installed");
     case EndlessSpoolRestriction::PluginReadOnly:
         return lv_tr("Endless Spool is configured in its package, not from here");
+    case EndlessSpoolRestriction::GroupsFollowSlots:
+        return lv_tr("Groups follow each slot's material and color");
     }
     return {};
 }

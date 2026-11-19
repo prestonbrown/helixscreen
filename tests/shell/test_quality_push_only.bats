@@ -196,7 +196,8 @@ staged_units() {
 # Runs phase2's own compile block (from the qc_staged_compile_units call to the
 # branch's closing fi) in a scratch repo whose syntax_check.py is a stub that
 # records the units it was handed and exits STUB_RC, or 1 for a unit named in
-# STUB_FAIL_ON. helix-claim is a stub too: `hold` logs its arguments to hold.log.
+# STUB_FAIL_ON, or exits STUB_DIE_RC before printing anything. helix-claim is a
+# stub too: `hold` logs its arguments to hold.log.
 compile_block() {
   local repo="$BATS_TEST_TMPDIR/repo"
   bash -c '
@@ -221,6 +222,8 @@ compile_repo() {
   printf '[]\n' > "$repo/compile_commands.json"
   cat > "$repo/scripts/syntax_check.py" <<'PY'
 import os, sys
+if os.environ.get("STUB_DIE_RC"):
+    sys.exit(int(os.environ["STUB_DIE_RC"]))
 units = sys.argv[1:]
 if units[0] == "--jobs":
     open("jobs.txt", "w").write(units[1] + "\n")
@@ -239,7 +242,6 @@ case "$1" in
   hold)
     shift
     echo "$*" > hold.log
-    [ -z "$STUB_HOLD_RC" ] || exit "$STUB_HOLD_RC"
     while [ "$1" != "--" ]; do shift; done
     shift
     JOBPOOL_SLOTS=3 exec "$@"
@@ -326,8 +328,8 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
   contains "EXIT_CODE=0" "$output"
   lacks "Wide commit" "$output"
   [ "$(called_count)" -eq "$staged" ] || fail "compiled $(called_count) of $staged"
-  contains "-n 6 --min 1 --" "$(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
-  [ "$(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")" = 3 ] || fail "jobs is not the granted slots"
+  [ ! -e "$BATS_TEST_TMPDIR/repo/hold.log" ] || fail "took a hold: $(cat "$BATS_TEST_TMPDIR/repo/hold.log")"
+  [ "$(cat "$BATS_TEST_TMPDIR/repo/jobs.txt")" = 4 ] || fail "jobs is not the fixed commit width"
 }
 
 @test "over the cap a commit compiles a deterministic spread, keeps includers, and says what it skipped" {
@@ -376,9 +378,9 @@ compile_cap() { bash -c '. "$1/scripts/qc/_lib.sh"; echo "$QC_COMPILE_CAP"' _ "$
   lacks "u1.cpp: ok" "$output"
 }
 
-@test "a pool hold that dies silently fails the commit without blaming a source" {
+@test "a compile check that dies with no verdict fails the commit without blaming a source" {
   wide_repo 60
-  STUB_HOLD_RC=3 run compile_block
+  STUB_DIE_RC=3 run compile_block
   contains "❌ The compile check stopped with exit 3" "$output"
   lacks "A staged source does not compile" "$output"
   contains "EXIT_CODE=1" "$output"

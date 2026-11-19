@@ -11,6 +11,7 @@
 #include "ams_tag_reading.h"
 #include "ams_types.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_source_store.h"
@@ -22,10 +23,11 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: chained_spool_patch held by value
 
 namespace helix {
 class IMoonrakerAPI;
@@ -307,6 +309,10 @@ class AmsEditOverlay : public OverlayBase {
                        const std::vector<Option>& options_list,
                        const std::string& selected_payload);
     void rebuild_option_lists();
+    /// The materials the active filament system's firmware accepts
+    /// (AmsBackend::get_supported_materials()), or nullopt for any material:
+    /// no backend, or one that publishes no list or an empty one.
+    [[nodiscard]] static std::optional<std::vector<std::string>> firmware_materials();
     void handle_option_selected(int row, int index);
 
     // === Lane settings: Assigned Tool and Endless Spool backup ===
@@ -337,60 +343,75 @@ class AmsEditOverlay : public OverlayBase {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    lv_subject_t title_subject_{};     ///< "Gate 3" (lane label)
-    lv_subject_t view_mode_subject_{}; ///< kView* ("ams_edit_view")
-    lv_subject_t
+    helix::Subject title_subject_{};     ///< "Gate 3" (lane label)
+    helix::Subject view_mode_subject_{}; ///< kView* ("ams_edit_view")
+    helix::Subject
         picker_state_subject_{}; ///< 0=loading, 1=fetch error (retry), 2=content, 3=no match
-    lv_subject_t save_disabled_subject_{};   ///< 1=Save disabled ("ams_edit_save_disabled")
-    lv_subject_t save_hidden_subject_{};     ///< 1=header Save hidden ("ams_edit_save_hidden")
-    lv_subject_t is_managed_subject_{};      ///< 1=linked Spoolman spool ("ams_edit_is_managed")
-    lv_subject_t scan_enabled_subject_{};    ///< 1=QR button may show ("ams_edit_scan_enabled")
-    lv_subject_t product_hidden_subject_{};  ///< 1 while Generic selected
-    lv_subject_t color_selected_subject_{};  ///< ringed preset index (-1 none)
-    lv_subject_t color_col_count_subject_{}; ///< split-column presets (size_color_grids)
-    lv_subject_t color_row_count_subject_{}; ///< stacked-grid presets (size_color_grids)
-    lv_subject_t color_fits_subject_{};      ///< 1=presets and picker shown together
-    lv_subject_t color_pane_subject_{};      ///< one-pane form: 0=presets, 1=picker
-    int color_fit_room_w_ = -1;              ///< room update_color_fit last measured
+    helix::Subject save_disabled_subject_{};   ///< 1=Save disabled ("ams_edit_save_disabled")
+    helix::Subject save_hidden_subject_{};     ///< 1=header Save hidden ("ams_edit_save_hidden")
+    helix::Subject is_managed_subject_{};      ///< 1=linked Spoolman spool ("ams_edit_is_managed")
+    helix::Subject scan_enabled_subject_{};    ///< 1=QR button may show ("ams_edit_scan_enabled")
+    helix::Subject product_hidden_subject_{};  ///< 1 while Generic selected
+    helix::Subject color_selected_subject_{};  ///< ringed preset index (-1 none)
+    helix::Subject color_col_count_subject_{}; ///< split-column presets (size_color_grids)
+    helix::Subject color_row_count_subject_{}; ///< stacked-grid presets (size_color_grids)
+    helix::Subject color_fits_subject_{};      ///< 1=presets and picker shown together
+    helix::Subject color_pane_subject_{};      ///< one-pane form: 0=presets, 1=picker
+    int color_fit_room_w_ = -1;                ///< room update_color_fit last measured
     int color_fit_room_h_ = -1;
     bool color_fit_ = true; ///< that room's verdict
-    lv_subject_t summary_text_subject_{};
-    lv_subject_t tag_badge_visible_subject_{}; ///< any shown field is the tag's
-    lv_subject_t tag_material_subject_{};
-    lv_subject_t tag_brand_subject_{};
-    lv_subject_t tag_product_subject_{};
-    lv_subject_t tag_color_subject_{};
-    lv_subject_t tag_temps_subject_{};
+    helix::Subject summary_text_subject_{};
+    helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's
+    helix::Subject tag_material_subject_{};
+    helix::Subject tag_brand_subject_{};
+    helix::Subject tag_product_subject_{};
+    helix::Subject tag_color_subject_{};
+    helix::Subject tag_temps_subject_{};
     /// The temperatures the temp line shows, for the temps badge.
     int shown_nozzle_min_ = 0;
     int shown_nozzle_max_ = 0;
     int shown_bed_temp_ = 0;
-    lv_subject_t temp_text_subject_{};
-    lv_subject_t weight_text_subject_{};
-    lv_subject_t weight_hint_subject_{};
-    lv_subject_t reset_tag_visible_subject_{};
-    lv_subject_t add_spoolman_visible_subject_{};
-    lv_subject_t clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
-    lv_subject_t more_open_subject_{};
-    lv_subject_t spoolman_id_subject_{};        ///< "#19" for the header badge
-    lv_subject_t lane_visible_subject_{};       ///< 1 = the slot is a backend lane
-    lv_subject_t tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
-    lv_subject_t backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
-    lv_subject_t backup_editable_subject_{};    ///< 0 = backup shown read-only
-    lv_subject_t backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
+    helix::Subject temp_text_subject_{};
+    helix::Subject weight_text_subject_{};
+    helix::Subject weight_hint_subject_{};
+    helix::Subject reset_tag_visible_subject_{};
+    helix::Subject add_spoolman_visible_subject_{};
+    helix::Subject clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
+    helix::Subject more_open_subject_{};
+    helix::Subject spoolman_id_subject_{};        ///< "#19" for the header badge
+    helix::Subject lane_visible_subject_{};       ///< 1 = the slot is a backend lane
+    helix::Subject tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
+    helix::Subject tool_editable_subject_{};      ///< 0 = tool shown read-only
+    helix::Subject tool_refusal_subject_{};       ///< why the tool cannot be changed here
+    helix::Subject backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
+    helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
+    helix::Subject backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
     char summary_buf_[96] = {0};
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
     /// kSaveFailed with save_error_subject_ saying why.
-    lv_subject_t save_state_subject_{};
-    lv_subject_t save_error_subject_{}; ///< "ams_edit_save_error"
+    helix::Subject save_state_subject_{};
+    helix::Subject save_error_subject_{}; ///< "ams_edit_save_error"
+    /// 1 = the lane and its linked spool disagree ("ams_edit_spool_disagrees")
+    helix::Subject spool_disagrees_subject_{};
+    helix::Subject spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
+    char spool_disagreement_buf_[128] = {0};
+    struct FormSnapshot {
+        SlotInfo working;
+        SpoolEditSelection selection;
+        bool selection_moved = false;
+        uint32_t details_color = 0;
+        bool details_color_set = false;
+    };
+    std::optional<FormSnapshot> note_action_form_;
     char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
     char weight_buf_[24] = {0};
     char weight_hint_buf_[32] = {0};
     char spoolman_id_buf_[16] = {0};
     char backup_label_buf_[64] = {0};
+    char tool_refusal_buf_[160] = {0};
 
     // === Picker state (Spoolman spool selection) ===
     std::vector<SpoolInfo> cached_spools_;
@@ -449,8 +470,9 @@ class AmsEditOverlay : public OverlayBase {
     struct SaveCapture {
         uint32_t session = 0;
         int slot_index = -1;
-        SlotInfo original; ///< the diff base
-        SlotInfo saving;   ///< the slot this save commits
+        SlotInfo original;        ///< the diff base
+        SlotInfo saving;          ///< the slot this save commits
+        SlotInfo spoolman_target; ///< what Spoolman is asked to hold
         CompletionCallback owed;
         nlohmann::json chained_spool_patch; ///< More fields riding the Update arm
         int chained_spool_id = 0;
@@ -492,9 +514,11 @@ class AmsEditOverlay : public OverlayBase {
     void handle_weight_tap();       ///< Weight pill → numeric keypad
     void apply_weight(float grams); ///< Keypad result → remaining weight
     void handle_more_toggle();
-    void handle_add_to_spoolman(); ///< Quiet link: create + label
-    void handle_reset_to_tag();    ///< Reset every tag-stated field to the tag
-    void handle_clear_spool();     ///< Take the spool off the slot and close
+    void handle_add_to_spoolman();          ///< Quiet link: create + label
+    void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
+    void handle_clear_spool();              ///< Take the spool off the slot and close
+    void handle_reapply_linked_spool();     ///< Write the linked spool's identity to the lane
+    void handle_unlink_disagreeing_spool(); ///< Keep the lane's identity, drop the link
 
     // Pure decision for whether handle_save() should create a NEW Spoolman
     // spool from the working slot: only via the explicit "Add to Spoolman"
@@ -517,6 +541,41 @@ class AmsEditOverlay : public OverlayBase {
                                               bool spoolman_available);
 
     static bool is_material_identity_change(const SlotInfo& original, const SlotInfo& edited);
+
+    struct SpoolContradiction {
+        bool material = false;
+        bool color = false;
+        [[nodiscard]] bool any() const {
+            return material || color;
+        }
+    };
+
+    // Pure: which of the lane's material and colour the spool's record states
+    // differently. A field either side leaves unstated contradicts nothing.
+    static SpoolContradiction contradiction_with_spool(const SlotInfo& lane,
+                                                       const SpoolInfo& spool);
+
+    // True when the lane's firmware owns its identity and the linked spool's
+    // loaded record contradicts what the lane held when the editor opened.
+    [[nodiscard]] bool lane_contradicts_linked_spool() const;
+
+    // The two sides of a save as Spoolman sees them. On a lane contradicting
+    // its spool, base holds the spool's identity and target holds that identity
+    // with only the fields the user moved, so the lane's own values never reach
+    // the spool. Elsewhere they are the original and the working slot.
+    struct SpoolmanView {
+        SlotInfo base;
+        SlotInfo target;
+    };
+    [[nodiscard]] SpoolmanView spoolman_view() const;
+
+    // A note action stages onto the form before saving. A save that does not
+    // happen puts the form back on what it showed, so it matches the lane.
+    void remember_form_for_note_action();
+    void restore_form_after_note_action();
+
+    void update_spool_disagreement();
+    void apply_material_defaults(const std::string& material);
 
     // Pure: true when saving would push a changed filament identity onto a
     // LINKED Spoolman spool — material change or color beyond match

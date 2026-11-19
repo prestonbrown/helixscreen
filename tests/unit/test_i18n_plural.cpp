@@ -7,11 +7,11 @@
  *        form from a translation pack (prestonbrown/helixscreen#1808).
  */
 
-#include "ui_format_utils.h"
-
 #include "../lvgl_test_fixture.h"
+#include "display_format.h"
 #include "display_numbering.h"
 #include "i18n_plural.h"
+#include "lane_count_label.h"
 #include "lvgl.h"
 #include "translation_loader.h"
 
@@ -173,13 +173,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::ensure_translation_loaded("ru");
     lv_translation_set_language("ru");
 
-    CHECK(helix::ui::format_relative_time(1 * kDayMs) == "1 день назад");
-    CHECK(helix::ui::format_relative_time(2 * kDayMs) == "2 дня назад");
-    CHECK(helix::ui::format_relative_time(4 * kDayMs) == "4 дня назад");
-    CHECK(helix::ui::format_relative_time(5 * kDayMs) == "5 дней назад");
-    CHECK(helix::ui::format_relative_time(11 * kDayMs) == "11 дней назад");
-    CHECK(helix::ui::format_relative_time(21 * kDayMs) == "21 день назад");
-    CHECK(helix::ui::format_relative_time(22 * kDayMs) == "22 дня назад");
+    CHECK(helix::display_format::format_relative_time(1 * kDayMs) == "1 день назад");
+    CHECK(helix::display_format::format_relative_time(2 * kDayMs) == "2 дня назад");
+    CHECK(helix::display_format::format_relative_time(4 * kDayMs) == "4 дня назад");
+    CHECK(helix::display_format::format_relative_time(5 * kDayMs) == "5 дней назад");
+    CHECK(helix::display_format::format_relative_time(11 * kDayMs) == "11 дней назад");
+    CHECK(helix::display_format::format_relative_time(21 * kDayMs) == "21 день назад");
+    CHECK(helix::display_format::format_relative_time(22 * kDayMs) == "22 дня назад");
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
@@ -198,4 +198,29 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lane_count_label(LaneNoun::Lane, 21) == "21 канал");
     CHECK(lane_count_label(LaneNoun::Toolhead, 2) == "2 печатающие головки");
     CHECK(lane_count_label(LaneNoun::Toolhead, 5) == "5 печатающих головок");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "lane_count_label takes the singular for one in the shipped packs",
+                 "[i18n][plural]") {
+    using helix::ui::lane_count_label;
+    using helix::ui::LaneNoun;
+    ScopedLanguage restore_lang;
+
+    helix::ui::ensure_translation_loaded("de");
+    lv_translation_set_language("de");
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 Spur");
+    CHECK(lane_count_label(LaneNoun::Lane, 4) == "4 Spuren");
+    CHECK(lane_count_label(LaneNoun::Toolhead, 1) == "1 Werkzeugkopf");
+
+    // French counts zero with the singular too.
+    helix::ui::ensure_translation_loaded("fr");
+    lv_translation_set_language("fr");
+    CHECK(lane_count_label(LaneNoun::Slot, 0) == "0 emplacement");
+    CHECK(lane_count_label(LaneNoun::Slot, 1) == "1 emplacement");
+    CHECK(lane_count_label(LaneNoun::Slot, 2) == "2 emplacements");
+
+    helix::ui::ensure_translation_loaded("ru");
+    lv_translation_set_language("ru");
+    CHECK(lane_count_label(LaneNoun::Lane, 1) == "1 канал");
 }

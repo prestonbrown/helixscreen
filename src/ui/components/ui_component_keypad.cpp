@@ -17,9 +17,13 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_nav.h"
+#include "ui_pin_utils.h"
+#include "ui_slider_scale.h"
 #include "ui_utils.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "keypad_input.h"
 #include "lvgl/lvgl.h"
@@ -36,20 +40,22 @@
 // ============================================================================
 // Reactive State (Subject for XML binding)
 // ============================================================================
-static lv_subject_t keypad_display_subject;
+static helix::Subject keypad_display_subject;
 static char keypad_display_buf[16] = "";
 // The keypad is shared by every numeric field in the app, so it has to say which
 // one is being edited. Machine Limits alone opens it from five rows.
-static lv_subject_t keypad_title_subject;
+static helix::Subject keypad_title_subject;
 static char keypad_title_buf[48] = "";
 // Unit shown inside the display's right end ("°C", "mm/s").
-static lv_subject_t keypad_unit_subject;
+static helix::Subject keypad_unit_subject;
 static char keypad_unit_buf[16] = "";
 // Drives the dot key's disabled state, so an integer-only field never shows a
 // live "." that silently does nothing to the buffer.
-static lv_subject_t keypad_allow_decimal_subject;
+static helix::Subject keypad_allow_decimal_subject;
 // Shows the +/- key, only on fields whose range reaches below zero.
-static lv_subject_t keypad_allow_negative_subject;
+static helix::Subject keypad_allow_negative_subject;
+// Shows the reset key, only on fields that name a default.
+static helix::Subject keypad_has_default_subject;
 
 /// Dims what stays live beside the pad. NavigationManager only backdrops the FIRST
 /// overlay on the stack, and the keypad is almost never that - it opens over a temp
@@ -76,8 +82,22 @@ static constexpr int kKeypadFractionDigits = 2;
 
 // Current config and input state
 static ui_keypad_config_t current_config;
+// A temperature config's Celsius range, which a typed value converts back into.
+static float temperature_min_c = 0.0f;
+static float temperature_max_c = 0.0f;
 // Set by a confirm: the close that follows is not a cancel, and carries this value.
 static bool confirmed = false;
+
+/// @p value as the keys would type it: plain decimal digits, never exponent form,
+/// with no trailing fractional zeros.
+static std::string keypad_plain_decimal(float value) {
+    std::string text = fmt::format("{:.6f}", value);
+    text.erase(text.find_last_not_of('0') + 1); // "{:.6f}" always writes a '.'
+    if (text.back() == '.') {
+        text.pop_back();
+    }
+    return text;
+}
 static float confirmed_value = 0.0f;
 static std::string confirmed_text;
 static helix::ui::KeypadInput input;
@@ -87,7 +107,6 @@ static helix::ui::KeypadInput input;
 // ============================================================================
 static void update_display();
 static void handle_confirm();
-static void wire_button_events();
 
 // ============================================================================
 // Subject Initialization (call BEFORE XML creation)
@@ -105,6 +124,7 @@ void ui_keypad_init_subjects() {
     UI_MANAGED_SUBJECT_STRING(keypad_unit_subject, keypad_unit_buf, "", "keypad_unit", subjects_);
     UI_MANAGED_SUBJECT_INT(keypad_allow_decimal_subject, 1, "keypad_allow_decimal", subjects_);
     UI_MANAGED_SUBJECT_INT(keypad_allow_negative_subject, 0, "keypad_allow_negative", subjects_);
+    UI_MANAGED_SUBJECT_INT(keypad_has_default_subject, 0, "keypad_has_default", subjects_);
 
     subjects_initialized = true;
 
@@ -154,11 +174,43 @@ void ui_keypad_init(lv_obj_t* parent) {
     ui_keypad_init_subjects();
 
     helix::ui::store_until_deleted(&keypad_parent, parent);
-    // The in-pad confirm key (phone layout, integer fields) does what the header's Set does.
+    // The in-pad confirm key (phone layout, integer fields) and the header's Set
+    // both confirm.
     register_xml_callbacks({
+        {"on_keypad_digit",
+         [](lv_event_t* e) {
+             helix::ui::event_safe_call("keypad_digit", [e]() {
+                 const int digit = helix::ui::key_digit(e);
+                 if (digit >= 0 && input.append_digit(digit))
+                     update_display();
+             });
+         }},
+        {"on_keypad_dot",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_dot", []() {
+                 if (input.append_dot())
+                     update_display();
+             });
+         }},
+        {"on_keypad_backspace",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_backspace", []() {
+                 if (input.backspace())
+                     update_display();
+             });
+         }},
         {"on_keypad_confirm",
          [](lv_event_t*) {
              helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
+         }},
+        {"on_keypad_default",
+         [](lv_event_t*) {
+             helix::ui::event_safe_call("keypad_default", []() {
+                 if (current_config.default_value &&
+                     input.retype(keypad_plain_decimal(*current_config.default_value).c_str())) {
+                     update_display();
+                 }
+             });
          }},
         {"on_keypad_sign",
          [](lv_event_t*) {
@@ -190,7 +242,6 @@ static bool ensure_keypad_built() {
         return false;
     }
 
-    wire_button_events();
     spdlog::debug("[Keypad] Numeric keypad built on first use");
     return true;
 }
@@ -207,8 +258,12 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         return false;
     }
 
-    // Store config
-    current_config = *config;
+    // Store config, in the unit the user reads for a temperature
+    const helix::units::TempUnit unit = helix::units::display_temp_unit();
+    current_config = helix::ui::keypad_config_in_unit(*config, unit);
+    temperature_min_c = config->min_value;
+    temperature_max_c = config->max_value;
+    config = &current_config;
 
     // Start with empty display (user enters fresh value)
     input.clear();
@@ -233,14 +288,7 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         lv_subject_set_int(&keypad_allow_decimal_subject, 1);
         lv_subject_set_int(&keypad_allow_negative_subject, 0);
         // Typed key by key, so a prefill the keys could not produce starts empty.
-        for (char ch : config->initial_text) {
-            const bool ok = ch == '.' ? input.append_dot()
-                                      : (ch >= '0' && ch <= '9' && input.append_digit(ch - '0'));
-            if (!ok) {
-                input.clear();
-                break;
-            }
-        }
+        input.type(config->initial_text.c_str());
     } else {
         input.allow_dot = config->allow_decimal;
         lv_subject_set_int(&keypad_allow_decimal_subject, config->allow_decimal ? 1 : 0);
@@ -248,12 +296,19 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
     }
 
-    lv_subject_copy_string(&keypad_title_subject, config->title_label ? config->title_label : "");
+    // A default outside the field's range could only be refused on Set.
+    const bool default_in_range = config->default_value &&
+                                  *config->default_value >= config->min_value &&
+                                  *config->default_value <= config->max_value;
+    lv_subject_set_int(
+        &keypad_has_default_subject,
+        config->mode == helix::ui::KeypadInput::Mode::Number && default_in_range ? 1 : 0);
+    lv_subject_set_string(&keypad_title_subject, config->title_label ? config->title_label : "");
 
     // Update display via subject (reactive binding updates XML automatically)
     update_display();
 
-    lv_subject_copy_string(&keypad_unit_subject, config->unit_label ? config->unit_label : "");
+    lv_subject_set_string(&keypad_unit_subject, config->unit_label ? config->unit_label : "");
 
     // Register with nullptr lifecycle — keypad is function-based, not class-based
     // The panel authors its own width (#keypad_width, per breakpoint): a pad of
@@ -302,6 +357,68 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
     return true;
 }
 
+ui_keypad_config_t helix::ui::keypad_config_in_unit(const ui_keypad_config_t& config,
+                                                    units::TempUnit unit) {
+    ui_keypad_config_t shown = config;
+    if (!config.temperature) {
+        return shown;
+    }
+    // Whole degrees inside the Celsius range, so every accepted value converts back
+    // to a target the range allows.
+    shown.min_value = static_cast<float>(std::ceil(units::celsius_to_unit(config.min_value, unit)));
+    shown.max_value =
+        static_cast<float>(std::floor(units::celsius_to_unit(config.max_value, unit)));
+    shown.initial_value =
+        static_cast<float>(units::celsius_to_unit_whole(config.initial_value, unit));
+    if (config.default_value) {
+        float shown_default =
+            static_cast<float>(units::celsius_to_unit_whole(*config.default_value, unit));
+        // Rounding to a whole display degree can step a default on a Celsius bound
+        // just past the narrowed range; it stays the bound it was.
+        if (*config.default_value >= config.min_value &&
+            *config.default_value <= config.max_value) {
+            shown_default = std::clamp(shown_default, shown.min_value, shown.max_value);
+        }
+        shown.default_value = shown_default;
+    }
+    shown.unit_label = units::temp_unit_symbol(unit);
+    return shown;
+}
+
+bool helix::ui::keypad_typed_off(float typed, float min_c) {
+    return typed == 0.0f && min_c <= 0.0f;
+}
+
+float helix::ui::keypad_value_to_celsius(float typed, float min_c, float max_c,
+                                         units::TempUnit unit) {
+    if (keypad_typed_off(typed, min_c)) {
+        return 0.0f;
+    }
+    const int celsius = units::unit_to_celsius_whole(typed, unit);
+    return std::clamp(static_cast<float>(celsius), min_c, max_c);
+}
+
+void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
+                                       ui_keypad_callback_t callback, void* user_data,
+                                       const char* log_name, std::optional<float> default_value) {
+    const SliderScale scale{spec.divisor};
+    ui_keypad_config_t config = {
+        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
+        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
+        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
+        .title_label = lv_tr(spec.title),
+        .unit_label = spec.unit,
+        .allow_decimal = spec.allow_decimal,
+        .allow_negative = false,
+        .callback = callback,
+        .user_data = user_data};
+    config.default_value = default_value;
+
+    spdlog::debug("[{}] Keypad for {} ({}-{})", log_name, spec.title, config.min_value,
+                  config.max_value);
+    ui_keypad_show(&config);
+}
+
 void ui_keypad_hide() {
     if (keypad_widget && ui_keypad_is_visible()) {
         helix::nav::go_back();
@@ -311,7 +428,7 @@ void ui_keypad_hide() {
 bool ui_keypad_is_visible() {
     if (!keypad_widget)
         return false;
-    return !lv_obj_has_flag(keypad_widget, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(keypad_widget);
 }
 
 lv_subject_t* ui_keypad_get_display_subject() {
@@ -322,7 +439,7 @@ lv_subject_t* ui_keypad_get_display_subject() {
 // Input Logic
 // ============================================================================
 static void update_display() {
-    lv_subject_copy_string(&keypad_display_subject, input.buf);
+    lv_subject_set_string(&keypad_display_subject, input.buf);
 }
 
 static void handle_confirm() {
@@ -336,11 +453,18 @@ static void handle_confirm() {
     }
     float value = input.value();
 
-    // Validate range - show error if out of bounds
-    if (value < current_config.min_value || value > current_config.max_value) {
+    // Validate range - show error if out of bounds. A temperature's "off" is 0 in
+    // every unit, below a °F range that opens at 32.
+    const bool typed_off =
+        current_config.temperature && helix::ui::keypad_typed_off(value, temperature_min_c);
+    if (!typed_off && (value < current_config.min_value || value > current_config.max_value)) {
         NOTIFY_ERROR(lv_tr("Value must be between {} and {}"), current_config.min_value,
                      current_config.max_value);
         return; // Don't close keypad, let user correct the value
+    }
+    if (current_config.temperature) {
+        value = helix::ui::keypad_value_to_celsius(value, temperature_min_c, temperature_max_c,
+                                                   helix::units::display_temp_unit());
     }
     if (current_config.validate) {
         const std::string why = current_config.validate(value);
@@ -361,76 +485,4 @@ static void handle_confirm() {
     }
 
     ui_keypad_hide();
-}
-
-// ============================================================================
-// Event Wiring
-// ============================================================================
-static void wire_button_events() {
-    if (!keypad_widget)
-        return;
-
-    // Number buttons 0-9
-    const char* btn_names[] = {"btn_0", "btn_1", "btn_2", "btn_3", "btn_4",
-                               "btn_5", "btn_6", "btn_7", "btn_8", "btn_9"};
-
-    for (int i = 0; i < 10; i++) {
-        lv_obj_t* btn = lv_obj_find_by_name(keypad_widget, btn_names[i]);
-        if (btn) {
-            lv_obj_add_event_cb(
-                btn,
-                [](lv_event_t* e) {
-                    helix::ui::event_safe_call("keypad_digit", [e]() {
-                        int digit = (int)(intptr_t)lv_event_get_user_data(e);
-                        if (input.append_digit(digit))
-                            update_display();
-                    });
-                },
-                LV_EVENT_CLICKED, (void*)(intptr_t)i);
-        }
-    }
-
-    // Dot button
-    lv_obj_t* btn_dot = helix::ui::find_required(keypad_widget, "btn_dot", "Keypad");
-    if (btn_dot) {
-        lv_obj_add_event_cb(
-            btn_dot,
-            [](lv_event_t*) {
-                helix::ui::event_safe_call("keypad_dot", []() {
-                    if (input.append_dot())
-                        update_display();
-                });
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    // Backspace button
-    lv_obj_t* btn_back = helix::ui::find_required(keypad_widget, "btn_backspace", "Keypad");
-    if (btn_back) {
-        lv_obj_add_event_cb(
-            btn_back,
-            [](lv_event_t*) {
-                helix::ui::event_safe_call("keypad_backspace", []() {
-                    if (input.backspace())
-                        update_display();
-                });
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    // NOTE: Back button is handled by header_bar's default on_header_back_clicked callback
-    // Do NOT add a second handler here - it would cause double navigation!
-
-    // Action button (OK in header_bar) → confirm
-    lv_obj_t* ok_btn = helix::ui::find_required(keypad_widget, "action_button", "Keypad");
-    if (ok_btn) {
-        lv_obj_add_event_cb(
-            ok_btn,
-            [](lv_event_t*) {
-                helix::ui::event_safe_call("keypad_confirm", []() { handle_confirm(); });
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    spdlog::debug("[Keypad] Events wired");
 }

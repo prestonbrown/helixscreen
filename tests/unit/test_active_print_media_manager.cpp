@@ -321,7 +321,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     // Observer should have fired again
     REQUIRE(observer_count == 2);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -467,7 +467,7 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     REQUIRE(observer_fire_count == 3);
     REQUIRE(last_observed_path.empty());
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(
@@ -500,7 +500,7 @@ TEST_CASE_METHOD(
     REQUIRE(observed_values[2] == "A:/cache/second.bin");
     REQUIRE(observed_values[3] == "A:/cache/third.bin");
 
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 }
 
 TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
@@ -2111,4 +2111,37 @@ TEST_CASE_METHOD(ActivePrintMediaManagerTestFixture,
     CHECK(get_display_filename().empty());
     CHECK(get_thumbnail_path() == kNoThumb);
     state().print_state().set_printer_side_pre_start(false);
+}
+
+TEST_CASE_METHOD(ActivePrintMediaAsyncFixture,
+                 "ActivePrintMediaManager: a plate named after the commit-time load reloads it",
+                 "[ActivePrintMediaManager][async][three_mf][2063]") {
+    const std::string bytes = three_mf_fixture("multi_plate.gcode.3mf");
+    const std::string archive = "Late_" + std::to_string(::getpid()) + ".gcode.3mf";
+    transfers_stub().serve_archive(archive, bytes);
+    const std::string printer_id = PrinterPrintState::start_record_printer_id();
+
+    // The commit-time load finishes on the printer's default plate first.
+    state().print_state().begin_preparing(PrintJobRef{archive, "", ""});
+    drain();
+    REQUIRE(files().has_pending());
+    FileMetadata default_plate = make_metadata_with_thumb(200, unique_thumb_path("late"));
+    default_plate.estimated_time = 5238;
+    default_plate.filament_type = "ABS";
+    files().fire_index(0, default_plate);
+    drain();
+    const auto& offsets = transfers_stub().range_offsets();
+    REQUIRE(std::find(offsets.begin(), offsets.end(),
+                      entry_offset(bytes, "Metadata/plate_5.png")) == offsets.end());
+
+    // The start names plate 5, and the printer confirms it.
+    state().print_state().note_start_plate(printer_id, archive, 5);
+    state().update_from_status(
+        json{{"print_stats", {{"state", "printing"}, {"filename", archive}}}});
+    drain();
+    INFO("metadata asks: " << files().pending_count());
+    files().fire_last(default_plate);
+    drain();
+    CHECK(std::find(offsets.begin(), offsets.end(), entry_offset(bytes, "Metadata/plate_5.png")) !=
+          offsets.end());
 }

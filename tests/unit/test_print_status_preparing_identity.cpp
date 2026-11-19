@@ -29,6 +29,7 @@
 #include <memory>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using namespace helix;
 using Access = PrintStatusPanelTestAccess;

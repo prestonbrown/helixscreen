@@ -16,9 +16,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "printer_state.h"
 
 namespace helix::ui {
@@ -63,8 +62,8 @@ template <typename Panel> class PositionObserverBundle {
         clear();
 
         // PrinterState-owned subjects: a panel outliving a deinit_subjects()
-        // cycle needs the death signal, or clear() calls lv_observer_remove()
-        // on observer nodes lv_subject_deinit() already freed.
+        // cycle needs the death signal, or clear() calls lv_observer_delete()
+        // on observer nodes reset() already freed.
         const SubjectLifetime lifetime = state.get_subjects_lifetime();
 
         x_pos_observer_ = observe<int>(state.motion_state().get_gcode_position_x_subject(), panel,

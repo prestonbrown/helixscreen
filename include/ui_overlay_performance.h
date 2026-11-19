@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 
 #include <string>
@@ -24,7 +24,7 @@ namespace ui {
  * frees it and init_subjects() recreates it on reconnect / printer switch. Per
  * [L077] the observer therefore MUST be created with PerformanceState's
  * subjects_lifetime() token (done in create()) so its ObserverGuard releases
- * safely instead of calling lv_observer_remove() on a freed subject.
+ * safely instead of calling lv_observer_delete() on a freed subject.
  */
 class UiOverlayPerformance {
   public:

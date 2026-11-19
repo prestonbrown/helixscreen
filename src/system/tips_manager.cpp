@@ -3,9 +3,8 @@
 
 #include "tips_manager.h"
 
-#include "ui_error_reporting.h"
-
 #include "core/data_root_resolver.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "json_utils.h"
 #include "lvgl.h"
@@ -70,7 +69,8 @@ bool TipsManager::init(const std::string& tips_path) {
     }
 
     // Validate required fields
-    if (!data.contains("categories") || !data["categories"].is_object()) {
+    const json* categories = helix::json_util::find_object(data, "categories");
+    if (!categories) {
         NOTIFY_WARNING(lv_tr("Tips database format error"));
         LOG_ERROR_INTERNAL(
             "[TipsManager] Invalid tips file: missing or invalid 'categories' field");
@@ -84,7 +84,7 @@ bool TipsManager::init(const std::string& tips_path) {
     // the DOM, and both are satisfied by these.
     version_ = helix::json_util::safe_string(data, "version", "unknown");
     categories_.clear();
-    for (auto& [category_key, _] : data["categories"].items()) {
+    for (auto& [category_key, _] : categories->items()) {
         categories_.push_back(category_key);
     }
 
@@ -101,19 +101,21 @@ bool TipsManager::init(const std::string& tips_path) {
 void TipsManager::build_tips_cache() {
     tips_cache.clear();
 
-    if (!data.contains("categories") || !data["categories"].is_object()) {
+    const json* categories = helix::json_util::find_object(data, "categories");
+    if (!categories) {
         spdlog::warn("[TipsManager] No categories found in tips database");
         return;
     }
 
-    for (auto& [category_key, category_obj] : data["categories"].items()) {
-        if (!category_obj.contains("tips") || !category_obj["tips"].is_array()) {
+    for (auto& [category_key, category_obj] : categories->items()) {
+        const json* tips = helix::json_util::find_array(category_obj, "tips");
+        if (!tips) {
             spdlog::warn("[TipsManager] Category '{}' has no tips array", category_key);
             continue;
         }
 
         // Iterate through tips in this category
-        for (const auto& tip_json : category_obj["tips"]) {
+        for (const auto& tip_json : *tips) {
             // A non-object entry would resolve to an all-empty tip that still
             // occupies a slot in the random rotation — drop it instead.
             if (!tip_json.is_object()) {
@@ -144,16 +146,16 @@ PrintingTip TipsManager::json_to_tip(const json& tip_json, const std::string& ca
     tip.priority = helix::json_util::safe_string(tip_json, "priority");
     tip.category = category;
 
-    if (tip_json.contains("tags") && tip_json["tags"].is_array()) {
-        for (const auto& tag : tip_json["tags"]) {
+    if (const json* tags = helix::json_util::find_array(tip_json, "tags")) {
+        for (const auto& tag : *tags) {
             if (tag.is_string()) {
                 tip.tags.push_back(tag.get<std::string>());
             }
         }
     }
 
-    if (tip_json.contains("related_settings") && tip_json["related_settings"].is_array()) {
-        for (const auto& setting : tip_json["related_settings"]) {
+    if (const json* related = helix::json_util::find_array(tip_json, "related_settings")) {
+        for (const auto& setting : *related) {
             if (setting.is_string()) {
                 tip.related_settings.push_back(setting.get<std::string>());
             }

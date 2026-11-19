@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "capability_matrix.h"
+#include "core/observer_guard.h"
+#include "core/operation_timeout_guard.h"
+#include "core/subject.h"
 #include "file_version.h"
 #include "gcode_file_modifier.h"
 #include "gcode_ops_detector.h"
@@ -15,7 +16,6 @@
 #include "helix_shared_callback.h"
 #include "i_moonraker_api.h"
 #include "json_fwd.h"
-#include "operation_timeout_guard.h"
 #include "preprint_predictor.h"
 #include "print_3mf.h"
 #include "print_start_analyzer.h"
@@ -37,6 +37,8 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#include "hv/json.hpp" // JSON_HPP_OK: server_edits held in a std::optional
 
 class PrintPreparationManagerTestAccess;
 
@@ -701,7 +703,7 @@ class PrintPreparationManager {
     /// Read by the detail view through its getter, never bound by name: every
     /// manager has its own, and the XML engine's one scope could publish only one.
     SubjectManager subjects_;
-    lv_subject_t preprint_estimate_subject_{};
+    helix::Subject preprint_estimate_subject_{};
     bool estimate_subject_initialized_ = false;
 
     // === Predictor Cache ===

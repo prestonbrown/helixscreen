@@ -36,6 +36,7 @@ void register_shutdown_widget();
 void register_lock_widget();
 void register_macros_widget();
 void register_motion_widget();
+void register_filament_ops_widget();
 void register_filament_sensor_widget();
 void register_clock_widget();
 void register_control_buttons_widget();
@@ -44,7 +45,9 @@ void register_clog_detection_widget();
 void register_filament_buffer_widget();
 void register_print_stats_widget();
 void register_maintenance_widget();
+#if HELIX_HAS_CONSOLE
 void register_gcode_console_widget();
+#endif
 void register_bed_temperature_widget();
 void register_chamber_temperature_widget();
 void register_preheat_widget();
@@ -116,10 +119,10 @@ static std::vector<PanelWidgetDef> s_widget_defs = {
     {"led_controls",     TR_NOOP("LED Controls"),      "led_strip",        TR_NOOP("Open color and brightness controls"),     "led_has_devices",    "No LED strips detected",              kCatControls, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"fan_stack",        TR_NOOP("Fan Speeds"),        "fan",              TR_NOOP("Part, hotend, and auxiliary fan speeds"),       nullptr,              nullptr,                               kCatTemp,     true,  2, 2, 2, 2, 6, 4, true, true, true},
     {"fan",              TR_NOOP("Fan"),               "fan",              TR_NOOP("The speed of one fan you choose"),              nullptr,              nullptr,                               kCatTemp,     false, 2, 2, 1, 1, kBandColspan, kBandColspan, true, true, true},
-    {"temperature",      TR_NOOP("Nozzle Temperature"),"thermometer",      TR_NOOP("Set and watch the nozzle temperature"), nullptr,            nullptr,                               kCatTemp,     true,  2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
+    {"temperature",      TR_NOOP("Nozzle Temperature"),"thermometer",      TR_NOOP("Set and watch the nozzle temperature"), nullptr,            nullptr,                               kCatTemp,     true,  2, 2, 1, 1, kBandColspan, kBandColspan, true,  true, true},
     {"nozzle_temps",     TR_NOOP("Nozzle Temperatures"),"thermometer",      TR_NOOP("Every extruder's temperature at once"), nullptr,           nullptr,                               kCatTemp,     false, 2, 4, 2, 2, 4, 6, false, true, true, false},
-    {"bed_temperature",  TR_NOOP("Bed Temperature"),   "radiator",         TR_NOOP("Set and watch the bed temperature"),    nullptr,            nullptr,                               kCatTemp,     true, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
-    {"chamber_temperature", TR_NOOP("Chamber Temperature"), "fridge_industrial", TR_NOOP("Set and watch the chamber temperature"), "printer_has_chamber", "No chamber temperature sensor detected", kCatTemp,     false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
+    {"bed_temperature",  TR_NOOP("Bed Temperature"),   "radiator",         TR_NOOP("Set and watch the bed temperature"),    nullptr,            nullptr,                               kCatTemp,     true, 2, 2, 1, 1, kBandColspan, kBandColspan, true,  true, true},
+    {"chamber_temperature", TR_NOOP("Chamber Temperature"), "fridge_industrial", TR_NOOP("Set and watch the chamber temperature"), "printer_has_chamber", "No chamber temperature sensor detected", kCatTemp,     false, 2, 2, 1, 1, kBandColspan, kBandColspan, true,  true, true},
     {"temp_stack",       TR_NOOP("Temperatures"),      "thermometer",      TR_NOOP("Nozzle, bed, and chamber in one widget"),     nullptr,              nullptr,                               kCatTemp,     false, 2, 2, 2, 2, 6, 4, false, true, true},
     {"thermistor",       TR_NOOP("Temperature Sensors"), "thermometer",    TR_NOOP("Readings from extra temperature sensors"), "temp_sensor_count", "No temperature sensors detected", kCatTemp,     false, 2, 2, 1, 1, kBandColspan, kBandColspan, true, true, true},
     {"temp_graph",       TR_NOOP("Temperature Graph"), "chart_line",       TR_NOOP("Temperatures plotted over time"), nullptr,         nullptr,                               kCatTemp,     false, 4, 4, 2, 2, kBandColspan, 8, true, true, true, false},
@@ -128,11 +131,12 @@ static std::vector<PanelWidgetDef> s_widget_defs = {
     {"bypass",           TR_NOOP("Bypass"),           "source_branch",    TR_NOOP("Toggle external spool bypass"), "ams_supports_bypass", "Requires a filament system with bypass", kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"active_spool",     TR_NOOP("Active Spool"),      "inventory",  TR_NOOP("The Spoolman spool currently loaded"),     nullptr,                  nullptr,                           kCatFilament, false, 2, 2, 1, 1, 8, 4, false, true, true},
     {"filament",         TR_NOOP("Filament Sensor"),   "filament_sensor_alert",   TR_NOOP("Whether filament is loaded"),  "filament_sensor_count", "No filament sensor detected",      kCatFilament, true, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
+    {"filament_ops",     TR_NOOP("Filament Operations"), "filament",       TR_NOOP("Load, unload, purge, and extrude filament"), nullptr,           nullptr,                               kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, true,  true, true},
     {"humidity",         TR_NOOP("Humidity"),          "water",            TR_NOOP("Humidity inside the enclosure"),         "humidity_sensor_count", "No humidity sensor detected",       kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"width_sensor",     TR_NOOP("Width Sensor"),      "ruler",            TR_NOOP("Measured filament diameter"),     "width_sensor_count", "No width sensor detected",            kCatFilament, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
     {"favorite_macro", TR_NOOP("Macro Button"),    "play",             TR_NOOP("Run a macro you choose, in one tap"),     nullptr,              nullptr,                               kCatControls, false, 2, 2, 1, 1, kBandColspan, kBandColspan, true, true, true},
     {"macros",           TR_NOOP("Macros"),            "script_text",      TR_NOOP("Browse and run your Klipper macros"),           nullptr,              nullptr,                               kCatControls, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
-    {"motion",           TR_NOOP("Motion"),            "cursor_move",      TR_NOOP("Open motion controls for jogging"),           nullptr,              nullptr,                               kCatControls, false, 2, 2, 1, 1, kBandColspan, kBandColspan, false, true, true},
+    {"motion",           TR_NOOP("Motion"),            "cursor_move",      TR_NOOP("Open motion controls for jogging"),           nullptr,              nullptr,                               kCatControls, false, 2, 2, 1, 1, kBandColspan, kBandColspan, true,  true, true},
     {"clock",            TR_NOOP("Digital Clock"),     "clock",            TR_NOOP("The time, date, and system uptime"),    nullptr,              nullptr,                               kCatSystem,   false, 4, 2, 2, 2, 6, 6, false, true, true, true, nullptr, nullptr, WidgetScope::Screen},
     {"host_health",      TR_NOOP("Host Health"),       "gauge",            TR_NOOP("Host and MCU load, temperature, and memory"), "perf_available",   "Requires Moonraker performance data", kCatSystem,   false, 4, 2, 1, 1, 8, 8, false, true, true},
     {"control_buttons",  TR_NOOP("Print Controls"),    "pause",            TR_NOOP("Pause, resume, or stop the print"),   nullptr,              nullptr,                               kCatPrint,    false, 4, 2, 2, 2, 8, 4},
@@ -158,10 +162,12 @@ static std::vector<PanelWidgetDef> s_widget_defs = {
     // is too long. Taller boxes wrap it.
     {"display_message",  TR_NOOP("Printer Message"),   "message",          TR_NOOP("The message your printer's macros show (M117)"), nullptr,  nullptr,                           kCatPrint,    false, 4, 2, 2, 1, kBandColspan, 6, false, true, true},
     {"print_stats",      TR_NOOP("Print Stats"),       "printer_3d",       TR_NOOP("Print hours this week and lifetime totals"),      nullptr,              nullptr,                               kCatPrint,    false, 4, 4, 2, 1, 6, 4, false, true, true},
-    {"maintenance",      TR_NOOP("Maintenance"),       "wrench",           TR_NOOP("Service hours for the filter, nozzle, and rails"), nullptr,           nullptr,                               kCatSystem,   false, 2, 2, 1, 1, 8, 4, false, true, true},
+    {"maintenance",      TR_NOOP("Maintenance"),       "wrench",           TR_NOOP("Service hours for the parts that wear"), nullptr,           nullptr,                               kCatSystem,   false, 2, 2, 1, 1, 8, 4, false, true, true},
     // Two cells square by default: at two cells tall the tile shows a live tail
     // of the console output, and below that it is the icon tile.
+#if HELIX_HAS_CONSOLE
     {"gcode_console",    TR_NOOP("GCode Console"),     "console",          TR_NOOP("Send G-code and read the replies"),    nullptr,              nullptr,                               kCatControls, false, 4, 4, 1, 2, kBandColspan, kBandColspan, false, true, true},
+#endif
 #if HELIX_HAS_CAMERA
     {"camera",           TR_NOOP("Camera"),            "webcam",           TR_NOOP("Live view from your webcam"),           nullptr,              nullptr,                               kCatPrint,    false, 4, 4, 2, 2, 8, 6, false, true, true, false},
 #endif
@@ -396,9 +402,12 @@ void init_widget_registrations() {
     register_filament_buffer_widget();
     register_print_stats_widget();
     register_maintenance_widget();
+#if HELIX_HAS_CONSOLE
     register_gcode_console_widget();
+#endif
     register_macros_widget();
     register_motion_widget();
+    register_filament_ops_widget();
     register_filament_sensor_widget();
     register_preheat_widget();
     register_active_spool_widget();

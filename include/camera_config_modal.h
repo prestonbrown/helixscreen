@@ -8,6 +8,7 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "moonraker_types.h"
 
 #include <array>
@@ -15,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: base_config_ held by value
 
 namespace helix {
 
@@ -97,16 +98,16 @@ class CameraConfigModal : public Modal {
     // C++-owned subjects for XML bindings
     bool subjects_initialized_ = false;
     SubjectManager subjects_;
-    lv_subject_t rot_0_active_{};
-    lv_subject_t rot_90_active_{};
-    lv_subject_t rot_180_active_{};
-    lv_subject_t rot_270_active_{};
-    lv_subject_t flip_h_active_{};
-    lv_subject_t flip_v_active_{};
-    lv_subject_t source_count_{}; // rows in the picker (Automatic + cameras); drives the <repeat>
-    std::array<lv_subject_t, kMaxRows> source_active_{}; // 1 on the selected row
-    std::array<lv_subject_t, kMaxRows> source_name_{};
-    std::array<lv_subject_t, kMaxRows> source_note_{};
+    helix::Subject rot_0_active_{};
+    helix::Subject rot_90_active_{};
+    helix::Subject rot_180_active_{};
+    helix::Subject rot_270_active_{};
+    helix::Subject flip_h_active_{};
+    helix::Subject flip_v_active_{};
+    helix::Subject source_count_{}; // rows in the picker (Automatic + cameras); drives the <repeat>
+    std::array<helix::Subject, kMaxRows> source_active_{}; // 1 on the selected row
+    std::array<helix::Subject, kMaxRows> source_name_{};
+    std::array<helix::Subject, kMaxRows> source_note_{};
     static constexpr size_t kSourceTextLen = 64;
     std::array<std::array<char, kSourceTextLen>, kMaxRows> source_name_buf_{};
     std::array<std::array<char, kSourceTextLen>, kMaxRows> source_note_buf_{};

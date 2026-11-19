@@ -88,7 +88,6 @@
     "sensors": [
       "temperature_sensor chamber",
       "temperature_fan mainboard",
-      "temperature_sensor chamber",
       "temperature_sensor mcu_toolhead",
       "temperature_sensor mcu_bed"
     ],
@@ -208,13 +207,16 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic aux_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic case_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_switch_sensor filament_sensor": [
       "filament_detected",
@@ -253,7 +255,8 @@
       "power"
     ],
     "heater_fan extruder": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "idle_timeout": [
       "state"
@@ -293,7 +296,8 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "stepper_enable": [
       "steppers"
@@ -301,7 +305,8 @@
     "temperature_fan mainboard": [
       "temperature",
       "target",
-      "speed"
+      "speed",
+      "rpm"
     ],
     "temperature_sensor chamber": [
       "temperature",

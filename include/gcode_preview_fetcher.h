@@ -95,12 +95,6 @@ class GcodePreviewFetcher {
         ++generation_;
     }
 
-    /// Name of the cache file for @p file_key, e.g. "print_view_<hash>.gcode".
-    /// Keyed by the connected printer's address as well as @p file_key: a file of
-    /// the same name on another printer is a different file, and a copy of it
-    /// can match the new one's size.
-    static std::string cache_file_name(const char* prefix, const std::string& file_key);
-
     /// Does the fetcher hold a local copy it will delete?
     bool owns_file() const {
         return !owned_path_.empty();

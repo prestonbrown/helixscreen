@@ -11,7 +11,12 @@
 #include "ui_overlay_timelapse_install.h"
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_calibration_pid.h"
+#if HELIX_HAS_CONSOLE
 #include "ui_panel_console.h"
+#endif
+#if HELIX_HAS_HOST_TERMINAL
+#include "ui_panel_host_terminal.h"
+#endif
 #include "ui_panel_macros.h"
 #include "ui_panel_spoolman.h"
 #include "ui_plugin_overview_overlay.h"
@@ -31,6 +36,7 @@
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "src/ui/panel_widgets/shutdown_widget.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -80,6 +86,12 @@ void AdvancedPanel::init_subjects() {
         {"on_advanced_spoolman", on_spoolman_clicked},
         {"on_advanced_macros", on_macros_clicked},
         {"on_console_row_clicked", on_console_clicked},
+        {"on_host_terminal_row_clicked", on_host_terminal_clicked},
+        {"on_host_terminal_enabled_changed",
+         [](lv_event_t* e) {
+             helix::SettingsManager::instance().set_host_terminal_enabled(
+                 helix::ui::event_checked(e));
+         }},
         {"on_history_row_clicked", on_history_clicked},
         {"on_helix_plugin_install_clicked", on_helix_plugin_install_clicked},
         {"on_helix_plugin_uninstall_clicked", on_helix_plugin_uninstall_clicked},
@@ -95,7 +107,8 @@ void AdvancedPanel::init_subjects() {
          [](lv_event_t*) { get_global_advanced_panel().handle_pa_tuning_clicked(); }},
         {"on_timelapse_videos_clicked", on_timelapse_videos_clicked},
         {"on_timelapse_setup_clicked", on_timelapse_setup_clicked},
-        {"on_advanced_power_clicked", on_advanced_power_clicked},
+        {"on_advanced_shutdown_clicked", on_advanced_shutdown_clicked},
+        {"on_advanced_reboot_clicked", on_advanced_reboot_clicked},
         {"on_cold_pull_row_clicked", [](lv_event_t*) { helix::ui::open_cold_pull_overlay(); }},
     });
 
@@ -144,7 +157,7 @@ void AdvancedPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     if (auto* timelapse_row =
             helix::ui::find_required(panel_, "row_timelapse_videos", get_name())) {
         // DECLARATIVE_OK: compile-time capability (#if), no runtime subject exists
-        lv_obj_add_flag(timelapse_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(timelapse_row, true);
     }
 #endif
 
@@ -182,7 +195,15 @@ void AdvancedPanel::handle_macros_clicked() {
 }
 
 void AdvancedPanel::handle_console_clicked() {
+#if HELIX_HAS_CONSOLE
     get_global_console_panel().show(parent_screen_);
+#endif
+}
+
+void AdvancedPanel::handle_host_terminal_clicked() {
+#if HELIX_HAS_HOST_TERMINAL
+    helix::ui::open_host_terminal(parent_screen_);
+#endif
 }
 
 void AdvancedPanel::handle_history_clicked() {
@@ -231,6 +252,10 @@ void AdvancedPanel::on_console_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_console_clicked();
 }
 
+void AdvancedPanel::on_host_terminal_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_host_terminal_clicked();
+}
+
 void AdvancedPanel::on_history_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_history_clicked();
 }
@@ -264,17 +289,22 @@ void AdvancedPanel::on_timelapse_setup_clicked(lv_event_t* /*e*/) {
     get_global_advanced_panel().handle_timelapse_setup_clicked();
 }
 
-void AdvancedPanel::on_advanced_power_clicked(lv_event_t* /*e*/) {
-    get_global_advanced_panel().handle_power_clicked();
+void AdvancedPanel::on_advanced_shutdown_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_power_clicked(PowerIntent::Shutdown);
+}
+
+void AdvancedPanel::on_advanced_reboot_clicked(lv_event_t* /*e*/) {
+    get_global_advanced_panel().handle_power_clicked(PowerIntent::Reboot);
 }
 
 // ============================================================================
 // POWER HANDLER — shares the same dialog the home-panel power widget uses
 // ============================================================================
 
-void AdvancedPanel::handle_power_clicked() {
-    spdlog::debug("[{}] Power row clicked — opening shutdown dialog", get_name());
-    helix::show_shutdown_dialog(api_, shutdown_modal_, object_lifetime_, lv_screen_active());
+void AdvancedPanel::handle_power_clicked(PowerIntent intent) {
+    spdlog::debug("[{}] Power row clicked, opening shutdown dialog", get_name());
+    helix::show_shutdown_dialog(api_, shutdown_modal_, object_lifetime_, lv_screen_active(),
+                                intent);
 }
 
 // ============================================================================

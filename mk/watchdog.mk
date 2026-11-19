@@ -72,7 +72,7 @@ ifdef WATCHDOG_BUILD
 
 # Compile watchdog source (with dependency tracking for header changes)
 # Depends on LIBHV_LIB to ensure libhv headers are installed before compilation
-$(BUILD_DIR)/watchdog/%.o: src/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
+$(BUILD_DIR)/watchdog/%.o: src/%.cpp lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(ABI_STAMP) | $(BUILD_DIR)/watchdog
 	@echo "[CXX] $< (watchdog)"
 	$(Q)$(CXX) $(WATCHDOG_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 

@@ -7,6 +7,7 @@
 
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_plugin_features.h"
 #include "i_moonraker_api.h"
@@ -16,6 +17,8 @@
 
 #include <cstring>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 namespace {
@@ -23,7 +26,7 @@ namespace {
 constexpr const char* kRowNamePrefix = "plugin_feature_row_";
 
 /// Constant 1: the greyed copy of a row names it as its `disabled` subject.
-lv_subject_t s_greyed_subject{};
+helix::Subject s_greyed_subject{};
 bool s_greyed_initialized = false;
 
 void on_switch_changed(lv_event_t* e) {
@@ -48,13 +51,13 @@ void on_install_clicked(lv_event_t*) {
 
 void register_plugin_feature_row_callbacks() {
     if (!s_greyed_initialized) {
-        lv_subject_init_int(&s_greyed_subject, 1);
+        s_greyed_subject.init_int(1);
         s_greyed_initialized = true;
         StaticSubjectRegistry::instance().register_deinit(
             "PluginFeatureRow",
             []() {
                 if (s_greyed_initialized) {
-                    lv_subject_deinit(&s_greyed_subject);
+                    s_greyed_subject.reset();
                     s_greyed_initialized = false;
                 }
             },

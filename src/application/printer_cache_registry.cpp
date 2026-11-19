@@ -30,7 +30,8 @@ PrinterCacheRegistry::~PrinterCacheRegistry() {
 }
 
 void PrinterCacheRegistry::register_invalidator(const char* name,
-                                                std::function<void()> invalidate_fn) {
+                                                std::function<void()> invalidate_fn,
+                                                const void* owner) {
     if (name == nullptr) {
         spdlog::error("[PrinterCacheRegistry] Refusing to register an unnamed invalidator");
         return;
@@ -39,8 +40,9 @@ void PrinterCacheRegistry::register_invalidator(const char* name,
     // Replace in place rather than appending: entries survive invalidate_all(), so an init
     // path that runs again after a soft restart would otherwise register a duplicate on
     // every printer switch.
-    auto it = std::find_if(invalidators_.begin(), invalidators_.end(),
-                           [name](const InvalidateEntry& e) { return e.name == name; });
+    auto it = std::find_if(
+        invalidators_.begin(), invalidators_.end(),
+        [name, owner](const InvalidateEntry& e) { return e.name == name && e.owner == owner; });
     if (it != invalidators_.end()) {
         it->invalidate_fn = std::move(invalidate_fn);
         spdlog::trace("[PrinterCacheRegistry] Re-registered: {} (total: {})", name,
@@ -48,16 +50,17 @@ void PrinterCacheRegistry::register_invalidator(const char* name,
         return;
     }
 
-    invalidators_.push_back({name, std::move(invalidate_fn)});
+    invalidators_.push_back({name, std::move(invalidate_fn), owner});
     spdlog::trace("[PrinterCacheRegistry] Registered: {} (total: {})", name, invalidators_.size());
 }
 
-bool PrinterCacheRegistry::unregister(const char* name) {
+bool PrinterCacheRegistry::unregister(const char* name, const void* owner) {
     if (name == nullptr) {
         return false;
     }
-    auto it = std::find_if(invalidators_.begin(), invalidators_.end(),
-                           [name](const InvalidateEntry& e) { return e.name == name; });
+    auto it = std::find_if(
+        invalidators_.begin(), invalidators_.end(),
+        [name, owner](const InvalidateEntry& e) { return e.name == name && e.owner == owner; });
     if (it == invalidators_.end()) {
         return false;
     }

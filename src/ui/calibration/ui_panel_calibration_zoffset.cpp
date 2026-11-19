@@ -12,9 +12,11 @@
 #include "ui_z_offset_indicator.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "moonraker_api.h"
@@ -45,10 +47,6 @@ using helix::ui::observe;
 // STATIC STATE
 // ============================================================================
 
-// State subject (0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR)
-static lv_subject_t s_zoffset_cal_state;
-// Warm bed toggle subject (0=off, 1=on)
-static lv_subject_t s_zoffset_warm_bed;
 static bool s_callbacks_registered = false;
 
 /// Default bed temperature for calibration warm-up (°C)
@@ -71,10 +69,6 @@ ZOffsetCalibrationPanel::~ZOffsetCalibrationPanel() {
 
     // Clear widget pointers (owned by LVGL)
     overlay_root_ = nullptr;
-    saved_z_offset_display_ = nullptr;
-    z_position_display_ = nullptr;
-    final_offset_label_ = nullptr;
-    error_message_ = nullptr;
 }
 
 // ============================================================================
@@ -89,10 +83,17 @@ void ZOffsetCalibrationPanel::init_subjects() {
 
     spdlog::debug("[ZOffsetCal] Initializing subjects");
 
-    // Register state subject (shared across all instances)
-    UI_MANAGED_SUBJECT_INT(s_zoffset_cal_state, 0, "zoffset_cal_state", subjects_);
+    UI_MANAGED_SUBJECT_INT(cal_state_subject_, 0, "zoffset_cal_state", subjects_);
     // Warm bed toggle (default off)
-    UI_MANAGED_SUBJECT_INT(s_zoffset_warm_bed, 0, "zoffset_warm_bed", subjects_);
+    UI_MANAGED_SUBJECT_INT(warm_bed_subject_, 0, "zoffset_warm_bed", subjects_);
+    UI_MANAGED_SUBJECT_STRING(saved_text_subject_, saved_text_buf_, "", "zoffset_saved_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(z_text_subject_, z_text_buf_, "Z: 0.000", "zoffset_z_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(final_text_subject_, final_text_buf_, "", "zoffset_final_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(error_text_subject_, error_text_buf_, "", "zoffset_error_text",
+                              subjects_);
 
     subjects_initialized_ = true;
 
@@ -150,15 +151,20 @@ void ZOffsetCalibrationPanel::setup_widgets() {
     // State visibility is handled via XML subject bindings
     // Event handlers are registered via init_subjects() before XML creation
 
-    // Find display elements (for programmatic updates not covered by subject bindings)
-    saved_z_offset_display_ =
-        helix::ui::find_required(overlay_root_, "saved_z_offset_display", get_name());
-    z_position_display_ = helix::ui::find_required(overlay_root_, "z_position_display", get_name());
-    final_offset_label_ = helix::ui::find_required(overlay_root_, "final_offset_label", get_name());
-    error_message_ = helix::ui::find_required(overlay_root_, "error_message", get_name());
+    if (!run_in_progress()) {
+        reset_result_texts();
+    }
 
-    // Set initial state
-    set_state(State::IDLE);
+    // A rebuild mid-run keeps the run, its timeout and its readouts: the probe is
+    // still going on the printer.
+    if (run_in_progress()) {
+        lv_subject_set_int(&cal_state_subject_, static_cast<int>(state_));
+        if (state_ == State::ADJUSTING) {
+            show_saved_z_offset();
+        }
+    } else {
+        set_state(State::IDLE);
+    }
 
     // Subscribe to manual_probe state changes from Klipper
     // This replaces the fake timer with real state tracking
@@ -175,18 +181,12 @@ void ZOffsetCalibrationPanel::setup_widgets() {
                 spdlog::info("[ZOffsetCal] Manual probe active, entering adjustment phase "
                              "(was {})",
                              self->state_ == State::PROBING ? "PROBING" : "IDLE");
+                if (self->state_ == State::IDLE) {
+                    self->latch_run_strategy();
+                }
                 self->set_state(State::ADJUSTING);
 
-                // Populate saved z-offset display (snapshot value before calibration)
-                if (self->saved_z_offset_display_) {
-                    PrinterState& state = get_printer_state();
-                    int saved_microns = state.get_configured_z_offset_microns();
-                    char buf[32];
-                    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
-                    lv_label_set_text(self->saved_z_offset_display_, buf);
-                    spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
-                                  saved_microns / 1000.0);
-                }
+                self->show_saved_z_offset();
             } else if (!is_active && self->state_ == State::ADJUSTING) {
                 // Manual probe mode ended externally (G28 from console, printer error, ABORT from
                 // macros) The state should already have been changed by button handlers for
@@ -220,6 +220,27 @@ void ZOffsetCalibrationPanel::setup_widgets() {
 // LIFECYCLE HOOKS
 // ============================================================================
 
+void ZOffsetCalibrationPanel::set_readout(helix::Subject& subject, const char* text) {
+    if (subjects_initialized_) {
+        lv_subject_set_string(&subject, text);
+    }
+}
+
+void ZOffsetCalibrationPanel::reset_result_texts() {
+    set_readout(final_text_subject_, lv_tr("Accepted Z Position: 0.000"));
+    set_readout(error_text_subject_, lv_tr("An error occurred during calibration."));
+}
+
+void ZOffsetCalibrationPanel::show_saved_z_offset() {
+    // The snapshot from before this calibration.
+    const int saved_microns = get_printer_state().get_configured_z_offset_microns();
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
+    set_readout(saved_text_subject_, buf);
+    spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
+                  saved_microns / 1000.0);
+}
+
 void ZOffsetCalibrationPanel::on_activate() {
     // Call base class first
     OverlayBase::on_activate();
@@ -230,7 +251,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     // probe, a save or a result that landed behind it, and the reference-tool
     // question if it was open.
     const bool waking = take_wake();
-    if (waking && state_ != State::IDLE) {
+    if ((waking && state_ != State::IDLE) || run_in_progress()) {
         spdlog::info("[ZOffsetCal] Woke - keeping state {}", static_cast<int>(state_));
         return;
     }
@@ -246,6 +267,7 @@ void ZOffsetCalibrationPanel::on_activate() {
         int z_microns =
             lv_subject_get_int(ps.calibration_state().get_manual_probe_z_position_subject());
         current_z_ = z_microns / 1000.0f;
+        latch_run_strategy();
         set_state(State::ADJUSTING);
         update_z_position(current_z_);
         return;
@@ -258,9 +280,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     current_z_ = 0.0f;
     final_offset_ = 0.0f;
     cumulative_z_delta_ = 0.0f;
-    if (z_position_display_) {
-        lv_label_set_text(z_position_display_, "Z: 0.000");
-    }
+    set_readout(z_text_subject_, "Z: 0.000");
 
     // Reset the visual indicator
     if (overlay_root_) {
@@ -292,7 +312,7 @@ void ZOffsetCalibrationPanel::on_deactivating(DeactivateReason reason) {
     if (state_ == State::ADJUSTING || state_ == State::PROBING) {
         if (reason == DeactivateReason::NavigateAway) {
             spdlog::info("[ZOffsetCal] Aborting calibration on deactivate");
-            send_abort(); // send_abort() calls turn_off_bed_if_needed()
+            send_abort(); // Ends in IDLE, which turns the bed off
         } else {
             spdlog::info("[ZOffsetCal] Leaving calibration running ({})",
                          deactivate_reason_name(reason));
@@ -316,10 +336,6 @@ void ZOffsetCalibrationPanel::cleanup() {
 
     // Nullify widget pointers BEFORE resetting observers — any cascading
     // observer callbacks during teardown will see null and bail out.
-    saved_z_offset_display_ = nullptr;
-    z_position_display_ = nullptr;
-    final_offset_label_ = nullptr;
-    error_message_ = nullptr;
 
     // Reset ObserverGuards (applying [L020])
     manual_probe_active_observer_.reset();
@@ -335,10 +351,6 @@ void ZOffsetCalibrationPanel::cleanup() {
 void ZOffsetCalibrationPanel::on_ui_destroyed() {
     // The tree is gone: no observer or late result may reach its labels. The
     // run itself lives in state_ and the state subject.
-    saved_z_offset_display_ = nullptr;
-    z_position_display_ = nullptr;
-    final_offset_label_ = nullptr;
-    error_message_ = nullptr;
     manual_probe_active_observer_.reset();
     manual_probe_z_observer_.reset();
 }
@@ -351,12 +363,16 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[ZOffsetCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
     state_ = new_state;
+    if (new_state == State::IDLE || new_state == State::COMPLETE || new_state == State::ERROR) {
+        latched_strategy_.reset();
+        // Every way a run ends lands here, and the panel can stay open afterwards.
+        turn_off_bed_if_needed();
+    }
 
     // Manage operation timeout guard based on state transitions
     switch (new_state) {
     case State::WARMING:
         operation_guard_.begin(kWarmingTimeoutMs, [this] {
-            turn_off_bed_if_needed();
             set_state(State::ERROR);
             NOTIFY_WARNING(lv_tr("Bed warming timed out"));
         });
@@ -386,7 +402,7 @@ void ZOffsetCalibrationPanel::set_state(State new_state) {
     }
 
     // Update subject - XML bindings handle visibility automatically
-    lv_subject_set_int(&s_zoffset_cal_state, static_cast<int>(new_state));
+    lv_subject_set_int(&cal_state_subject_, static_cast<int>(new_state));
 }
 
 void ZOffsetCalibrationPanel::begin_saving_restart_watch() {
@@ -485,6 +501,10 @@ static std::string per_head_refusal() {
 }
 
 void ZOffsetCalibrationPanel::start_calibration() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
+}
+
+void ZOffsetCalibrationPanel::start_once_bed_clear() {
     if (!api_) {
         spdlog::error("[ZOffsetCal] No IMoonrakerAPI");
         on_calibration_result(false, lv_tr("No printer connection"));
@@ -507,9 +527,8 @@ void ZOffsetCalibrationPanel::start_calibration() {
     PrinterState& ps = get_printer_state();
     const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
     const int active = ToolState::instance().active_tool_index();
-    if (zoffset_cal::reference_tool_gate(ps.profile_state().z_offset_calibration_strategy(),
-                                         reference,
-                                         active) == zoffset_cal::ToolGate::ConfirmFirst) {
+    if (zoffset_cal::reference_tool_gate(run_strategy(), reference, active) ==
+        zoffset_cal::ToolGate::ConfirmFirst) {
         confirm_tool_then_start(*reference, active);
         return;
     }
@@ -578,18 +597,24 @@ void ZOffsetCalibrationPanel::close_tool_confirm() {
 
 void ZOffsetCalibrationPanel::begin_calibration() {
     // Check if warm bed is requested
-    bool warm_bed = lv_subject_get_int(&s_zoffset_warm_bed) == 1;
+    bool warm_bed = lv_subject_get_int(&warm_bed_subject_) == 1;
     if (warm_bed) {
         auto* cfg = Config::get_instance();
         int temp = cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp);
         warm_bed_target_deci_ =
-            helix::ui::temperature::degrees_to_deci(temp); // Convert °C to decidegrees
+            helix::temperature_rules::degrees_to_deci(temp); // Convert °C to decidegrees
 
         // Send non-blocking M140 to start heating
         char cmd[32];
         snprintf(cmd, sizeof(cmd), "M140 S%d", temp);
         spdlog::info("[ZOffsetCal] Warming bed to {}°C for calibration", temp);
-        bed_was_warmed_ = true;
+        // Heat already there is someone's, and only this panel's normal endings clear
+        // it. A bed an earlier run still owes an off for is this panel's own.
+        const bool bed_was_off =
+            lv_subject_get_int(get_printer_state().temperature_state().get_bed_target_subject()) ==
+                0 ||
+            heat_.owes_off("heater_bed");
+        heat_.own("heater_bed", temp, bed_was_off);
 
         auto tok = lifetime_.token();
         api_->execute_gcode(
@@ -612,9 +637,9 @@ void ZOffsetCalibrationPanel::begin_calibration() {
                 if (self->state_ != State::WARMING)
                     return;
 
-                spdlog::trace("[ZOffsetCal] Bed temp: {}.{}°C (target: {}°C)", temp_deci / 10,
-                              temp_deci % 10,
-                              helix::ui::temperature::deci_to_degrees(self->warm_bed_target_deci_));
+                spdlog::trace(
+                    "[ZOffsetCal] Bed temp: {}.{}°C (target: {}°C)", temp_deci / 10, temp_deci % 10,
+                    helix::temperature_rules::deci_to_degrees(self->warm_bed_target_deci_));
 
                 if (temp_deci >= self->warm_bed_target_deci_) {
                     spdlog::info("[ZOffsetCal] Bed reached target temperature, proceeding");
@@ -629,11 +654,28 @@ void ZOffsetCalibrationPanel::begin_calibration() {
     }
 }
 
+ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::run_strategy() const {
+    return latched_strategy_ ? *latched_strategy_ : resolve_run_strategy();
+}
+
+void ZOffsetCalibrationPanel::latch_run_strategy() {
+    latched_strategy_ = resolve_run_strategy();
+}
+
+ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::resolve_run_strategy() const {
+    const auto sensors = helix::sensors::ProbeSensorManager::instance().get_sensors();
+    const auto probe_type =
+        sensors.empty() ? helix::sensors::ProbeSensorType::STANDARD : sensors[0].type;
+    return zoffset_cal::run_strategy(
+        get_printer_state().profile_state().z_offset_calibration_strategy(), probe_type);
+}
+
 void ZOffsetCalibrationPanel::begin_probe_sequence() {
+    latch_run_strategy();
     set_state(State::PROBING);
 
     PrinterState& ps = get_printer_state();
-    auto strategy = ps.profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
 
     // Check homing state (shared across all strategies)
     const bool all_homed = helix::toolhead_is_homed(ps);
@@ -752,7 +794,7 @@ void ZOffsetCalibrationPanel::adjust_z(float delta) {
     if (!api_)
         return;
 
-    auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
 
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Direct G1 move using relative positioning
@@ -808,7 +850,7 @@ void ZOffsetCalibrationPanel::send_accept() {
         return;
     }
 
-    auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
     final_offset_ = current_z_;
     on_calibration_result(true, "");
 
@@ -921,12 +963,11 @@ void ZOffsetCalibrationPanel::send_abort() {
     // If warming, just cancel heating — no calibration gcode was sent yet
     if (state_ == State::WARMING) {
         spdlog::info("[ZOffsetCal] Aborting during bed warming");
-        turn_off_bed_if_needed();
         set_state(State::IDLE);
         return;
     }
 
-    auto strategy = get_printer_state().profile_state().z_offset_calibration_strategy();
+    const auto strategy = run_strategy();
 
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Retract nozzle without applying any offset
@@ -943,7 +984,6 @@ void ZOffsetCalibrationPanel::send_abort() {
         send_manual_probe_abort();
     }
 
-    turn_off_bed_if_needed();
     set_state(State::IDLE);
 }
 
@@ -1014,18 +1054,23 @@ void ZOffsetCalibrationPanel::handle_retry_clicked() {
 }
 
 void ZOffsetCalibrationPanel::handle_warm_bed_toggled() {
-    int current = lv_subject_get_int(&s_zoffset_warm_bed);
+    int current = lv_subject_get_int(&warm_bed_subject_);
     int toggled = current ? 0 : 1;
-    lv_subject_set_int(&s_zoffset_warm_bed, toggled);
+    lv_subject_set_int(&warm_bed_subject_, toggled);
     spdlog::info("[ZOffsetCal] Warm bed toggled: {}", toggled ? "on" : "off");
 }
 
 void ZOffsetCalibrationPanel::turn_off_bed_if_needed() {
-    if (!bed_was_warmed_ || !api_)
+    if (!api_) {
         return;
+    }
+    heat_.turn_off();
+}
 
-    bed_was_warmed_ = false;
-    spdlog::info("[ZOffsetCal] Turning off bed heater after calibration");
+void ZOffsetCalibrationPanel::send_bed_off() {
+    if (!api_) {
+        return;
+    }
     api_->execute_gcode(
         "M140 S0", []() { spdlog::debug("[ZOffsetCal] Bed heater off"); },
         // Log-only handler — see adjust_z().
@@ -1036,17 +1081,23 @@ void ZOffsetCalibrationPanel::turn_off_bed_if_needed() {
         /*caller_surfaces_errors=*/false);
 }
 
+void ZOffsetCalibrationPanel::before_disconnect() {
+    // A warm-up reaching its target now would start homing on a printer being left.
+    if (state_ == State::WARMING) {
+        set_state(State::IDLE);
+    }
+    heat_.before_disconnect();
+}
+
 // ============================================================================
 // PUBLIC METHODS
 // ============================================================================
 
 void ZOffsetCalibrationPanel::update_z_position(float z_position) {
     current_z_ = z_position;
-    if (z_position_display_) {
-        char buf[32];
-        snprintf(buf, sizeof(buf), "Z: %.3f", z_position);
-        lv_label_set_text(z_position_display_, buf);
-    }
+    char buf[32];
+    snprintf(buf, sizeof(buf), "Z: %.3f", z_position);
+    set_readout(z_text_subject_, buf);
 
     // Update the visual indicator (convert mm to microns)
     if (overlay_root_) {
@@ -1062,17 +1113,12 @@ void ZOffsetCalibrationPanel::update_z_position(float z_position) {
 void ZOffsetCalibrationPanel::on_calibration_result(bool success, const std::string& message) {
     if (success) {
         // Update final offset display
-        if (final_offset_label_) {
-            const std::string accepted =
-                fmt::format(lv_tr("Accepted Z Position: {:.3f}"), final_offset_);
-            lv_label_set_text(final_offset_label_, accepted.c_str());
-        }
-        turn_off_bed_if_needed();
+        const std::string accepted =
+            fmt::format(lv_tr("Accepted Z Position: {:.3f}"), final_offset_);
+        set_readout(final_text_subject_, accepted.c_str());
         set_state(State::COMPLETE);
     } else {
-        if (error_message_) {
-            lv_label_set_text(error_message_, message.c_str());
-        }
+        set_readout(error_text_subject_, message.c_str());
         set_state(State::ERROR);
         // An open session keeps the manual probe dialog up in Mainsail and Fluidd.
         abort_manual_probe_if_active();
@@ -1090,7 +1136,7 @@ void init_zoffset_row_handler() {
              spdlog::debug("[ZOffsetCal] Z-Offset row clicked");
              auto& overlay = get_global_zoffset_cal_panel();
              overlay.set_api(get_moonraker_api());
-             overlay.show(lv_display_get_screen_active(nullptr));
+             overlay.show(lv_screen_active());
          }},
     });
     spdlog::trace("[ZOffsetCal] Row click callback registered");

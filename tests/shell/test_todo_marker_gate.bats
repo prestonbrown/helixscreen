@@ -135,10 +135,12 @@ echo \"Checking for $T/$F markers\"")
 
 @test "adding a marker to the tree turns the wired gate red" {
     # The mutation the ratchet exists for: one more marker than the baseline.
+    # The wired baseline is read from the qc file; whether the tree sits at it
+    # is qc_todo_markers' verdict, so the files here are fixtures alone.
     baseline=$(grep -oE 'check_todo_markers.py --max-allowed [0-9]+' scripts/qc/todo_markers.sh | grep -oE '[0-9]+')
-    actual=$(python3 "$GATE" --summary | awk '/TOTAL/{print $2}')
-    [ "$actual" -eq "$baseline" ] || skip "tree is under the baseline; ratchet it down first"
-    extra=$(fixture extra.cpp "// $T: one more")
-    run python3 "$GATE" --max-allowed "$baseline" src include scripts "$extra"
+    [ -n "$baseline" ] || fail "no --max-allowed in scripts/qc/todo_markers.sh"
+    local files=() i
+    for i in $(seq 0 "$baseline"); do files+=("$(fixture "extra$i.cpp" "// $T: one more")"); done
+    run python3 "$GATE" --max-allowed "$baseline" "${files[@]}"
     [ "$status" -eq 1 ]
 }

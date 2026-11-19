@@ -131,7 +131,7 @@ struct HumidityRowState {
 bool widget_hidden(LVGLUITestFixture& fixture, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(fixture.test_screen(), name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Open the overlay on `unit`, read the humidity state, then tear the push down.

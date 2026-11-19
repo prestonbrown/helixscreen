@@ -40,11 +40,12 @@
  *   ui_filament_path_layers.cpp   canvas buffer management + async refresh
  */
 
-#include "ui_coalesced_timer.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toolhead_badge.h"
+#include "ui_toolhead_view.h"
 
 #include "ams_types.h"
+#include "core/coalesced_timer.h"
 #include "filament_motion.h"
 #include "filament_path_geometry.h"
 #include "filament_tube_stroker.h"
@@ -52,6 +53,10 @@
 
 #include <array>
 #include <optional>
+
+// The configured head is drawn by ui_toolhead_view; the path code names it unqualified.
+using helix::ui::draw_toolhead;
+using helix::ui::toolhead_glyph_bounds;
 
 namespace helix::ui::fpath {
 
@@ -76,8 +81,9 @@ inline constexpr float kHubYRatio = 0.30f;      // Hub/selector center
 inline constexpr float kHubHeightRatio = 0.10f; // Hub box height
 // Note: output sensor Y is computed as hub_bottom (butted against hub, no separate ratio)
 inline constexpr float kToolheadYRatio = 0.68f; // Toolhead sensor
-inline constexpr float kNozzleYRatio =
-    0.82f; // Nozzle/extruder center (needs more room for larger extruder)
+// The toolhead glyph stands on this line, so a tall head's art stays on the
+// canvas at every breakpoint; linear_hub_nozzle_y() turns it into the nozzle row.
+inline constexpr float kToolheadGlyphBottomRatio = 0.96f;
 
 // Bypass position (right side of widget)
 inline constexpr float kBypassXRatio = 0.85f; // Right side for bypass spool
@@ -144,6 +150,7 @@ struct ThemeCache {
     lv_color_t color_error;
     lv_color_t color_hub_bg;
     lv_color_t color_hub_border;
+    lv_color_t color_selected;
     lv_color_t color_text;
     lv_color_t color_bg;        // Canvas background (for hollow tube bore)
     lv_color_t color_success;   // Success color (cached for draw callbacks)
@@ -252,9 +259,10 @@ struct HitRects {
 // cheap to recompute from the path so it isn't cached.
 struct PathCache {
     pg::FilamentPath path = {};
-    int32_t center_x = 0; // last state-tied draw's center_x
-    int32_t nozzle_y = 0; // last state-tied draw's nozzle_y
-    int32_t sensor_r = 0; // last state-tied draw's sensor radius
+    int32_t center_x = 0;   // last state-tied draw's center_x
+    int32_t nozzle_y = 0;   // last state-tied draw's nozzle_y
+    int32_t tool_scale = 0; // and its toolhead glyph's scale
+    int32_t sensor_r = 0;   // last state-tied draw's sensor radius
     // Widget's top-left at that draw. Everything above is in display
     // coordinates, so the DRAW_POST pass shifts it by however far the widget
     // has moved since (a panel sliding in moves it with no state change).
@@ -279,19 +287,25 @@ struct FilamentPathData {
     int32_t slot_overlap = 0; // Overlap between slots in pixels (for 5+ gates)
     int32_t slot_width = 90;  // Dynamic slot width (fallback when slot_grid unavailable)
 
-    // Live slot position measurement: slot_grid pointer + cached spool_container
-    // pointers for pixel-perfect lane alignment at any screen size.
+    // Live slot position measurement: each slot in slot_grid is read on every use, for
+    // pixel-perfect lane alignment at any screen size. A rebuild moves the old slots out of the
+    // grid at once, so nothing read here can be a slot on its way to deletion.
     lv_obj_t* slot_grid = nullptr;
     // The spool box's front edge below slot_grid's top, INT32_MIN when none.
     int32_t lane_entry_offset = INT32_MIN;
     static constexpr int kMaxSlots = helix::kAmsMaxSlots;
-    lv_obj_t* spool_containers[kMaxSlots] = {};
+    // The grid's slots at the last set_slot_grid, to tell a changed row; never dereferenced.
+    const void* slot_ids[kMaxSlots] = {};
 
     // Per-slot filament state (for showing all installed filaments, not just active)
     SlotFilamentState slot_filament_states[kMaxSlots] = {};
 
     // Per-slot prep sensor capability (true = slot has prep/pre-gate sensor)
     bool slot_has_prep_sensor[kMaxSlots] = {};
+    // Under a drawn unit whose bottom edge slants, how far above the edge's lowest point each
+    // lane's tube starts, and how far below its start it stands its prep band.
+    int32_t lane_entry_rise[kMaxSlots] = {};
+    int32_t lane_band_drop[kMaxSlots] = {};
     // Per-slot load sensor between prep and hub (AFC), read as LANE
     bool slot_has_load_sensor[kMaxSlots] = {};
     // Per-slot error the slot reports (SlotInfo::error at ERROR severity)
@@ -346,18 +360,31 @@ struct FilamentPathData {
     // toolhead and the shared hub->nozzle run is a short stub (printers whose
     // combiner mounts on the print head; the per-lane tubes run the whole way).
     bool hub_on_toolhead = false;
+    bool fixed_selector = false; // the on-head selector is a fixed block, a port per lane
+    // A selector rail drawn head-on in place of the bar: static generated table entry, and the
+    // unit whose art it is.
+    const helix::ui::tray::RailFaceArt* rail_art = nullptr;
+    const char* rail_unit = nullptr;
+    bool rail_carriage = false;   // the art has a carriage layer that rides to the active gate
+    bool rail_art_failed = false; // its images did not load: the bar is drawn instead
+    // The rail art as last painted, for the per-frame carriage: offsets from the widget's corner.
+    bool rail_drawn = false;
+    int32_t rail_left = 0;
+    int32_t rail_top = 0;
+    int32_t rail_w = 0;
+    int32_t rail_h = 0;
     // The LINEAR/HUB path continues past the hub to a toolhead. False for a unit
     // that feeds no nozzle: its lanes end at the hub, with nothing drawn below it.
     bool feeds_toolhead = true;
     bool eject_mode = false;         // true = allow segment to drop below LANE (past slot sensor)
     bool has_toolhead_sensor = true; // the unit reports a toolhead filament sensor
 
-    // Buffer element (TurtleNeck / eSpooler visualization)
-    int buffer_fault_state = 0;  // -1=untinted, 0=healthy, 1=warning/approaching, 2=fault
-    bool buffer_present = false; // true = draw buffer box between hub and toolhead
-    int buffer_state = 0;        // 0=neutral, 1=compressed, 2=tension (coil icon spacing)
-    float buffer_bias = -2.0f;   ///< Proportional bias [-1.0,1.0], -2=unavailable (use discrete)
-    const char* buffer_label = "BUF"; ///< Box text; a static string, never translated
+    // The buffer's tension control on the trunk
+    int buffer_fault_state = 0;       // -1=untinted, 0=healthy, 1=warning/approaching, 2=fault
+    bool buffer_present = false;      // true = draw the control between hub and toolhead
+    int buffer_state = 0;             // 0=neutral, 1=compressed, 2=expanded (switched buffers)
+    float buffer_bias = -2.0f;        ///< Position [-1.0,1.0], -2=unavailable (use buffer_state)
+    const char* buffer_label = "BUF"; ///< The reading's name; a static string, never translated
 
     // Callbacks
     filament_path_slot_cb_t slot_callback = nullptr;
@@ -482,10 +509,23 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
                      lv_color_t bg_color, lv_color_t border_color, const char* label,
                      lv_opa_t bg_opa = LV_OPA_COVER, bool interactive = false);
 
-/// Buffer box element ("BUF"), border colored by fault state / proportional bias.
-/// Box width derives from the theme hub_width; height from hub_h (both clamped).
-void draw_buffer_coil(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t hub_h,
-                      bool has_filament, lv_color_t filament_color);
+/// Thumb positions further than this from center are drawn in the off-center tint.
+inline constexpr float kBufferOffCenter = 0.4f;
+
+/// Where the buffer sits on its travel, +1 fully compressed .. -1 fully expanded: the
+/// proportional bias when there is one, else the switched state snapped like the card's.
+float buffer_tension_position(const FilamentPathData& data);
+
+/// The thumb's color: the buffer bands' warning or danger token on a fault, else the
+/// accent, tinted lighter off center (normal operation).
+lv_color_t buffer_thumb_color(const FilamentPathData& data);
+
+/// The buffer's tension control across the tube at (@p cx, @p cy): a capsule @p cap_h tall
+/// the tube passes through, a thumb at buffer_tension_position(), chevrons marking the
+/// compressed (left) and expanded (right) ends, and the detail button in the capsule's
+/// right end. Writes the area a tap opens the detail from into @p hit.
+void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t cap_h,
+                         lv_area_t* hit);
 
 /// Animated filament tip: a glowing dot that moves along the path.
 void draw_filament_tip(lv_layer_t* layer, int32_t x, int32_t y, lv_color_t color, int32_t radius);
@@ -510,12 +550,6 @@ void draw_flow(lv_layer_t* layer, const FilamentPathData& data, const pg::Filame
                lv_color_t filament, const bool* seg_shown = nullptr,
                const pg::PathBox* avoid = nullptr, int n_avoid = 0);
 
-/// Toolhead/extruder glyph in the user's configured style. Applies the A4T
-/// style's 6/5 scale boost internally — pass the base scale. @p filament is
-/// the color at the nozzle, or nullopt when nothing is loaded there.
-void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_color_t> filament,
-                   int32_t scale, lv_opa_t opa = LV_OPA_COVER);
-
 /// Y of the nozzle tip for the configured toolhead style (heat glow anchor).
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale);
 struct BoxColors {
@@ -525,12 +559,14 @@ struct BoxColors {
 BoxColors buffer_box_colors(const FilamentPathData& data, bool has_filament,
                             lv_color_t filament_color);
 
-/// Drawn bounds of draw_toolhead()'s glyph at (@p cx, @p cy) for the
-/// configured style, at the same base scale.
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale);
 /// Topmost drawn Y of the toolhead glyph for the configured style (its cap or
 /// shroud, above the nozzle inlet at nozzle_y - extruder_scale * 2).
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale);
+/// The nozzle row at which draw_toolhead()'s glyph for the configured style,
+/// at base @p scale, ends on @p bottom_y.
+int32_t toolhead_standing_on(int32_t bottom_y, int32_t scale);
+/// The configured head's filament inlet at this nozzle row and scale.
+helix::ui::ToolheadInlet path_toolhead_inlet(int32_t nozzle_y, int32_t extruder_scale);
 
 /// The tool badge ("T0", "T1", …) on the corner of draw_toolhead()'s glyph,
 /// at full opacity. Paint it after every glyph.
@@ -603,5 +639,9 @@ void render_overlay_content(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* 
 /// Paint the per-frame animation overlay (flow chevrons, heat glow, segment tip).
 /// Called from the widget's DRAW_POST event every frame.
 void render_animation_overlay(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data);
+
+/// The number badges of the slots now in the canvas's slot grid, read live from each slot, so a
+/// rebuilt grid never leaves a stale badge behind. Returns how many it wrote to @p out.
+int lane_badges(const FilamentPathData& data, lv_obj_t* out[FilamentPathData::kMaxSlots]);
 
 } // namespace helix::ui::fpath

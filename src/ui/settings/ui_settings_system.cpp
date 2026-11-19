@@ -11,6 +11,8 @@
 #include "ui_settings_storage.h"
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "ui_settings_telemetry_data.h"
+#include "ui_telemetry_info_modal.h"
+#include "ui_wizard_telemetry.h"
 #endif
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -22,6 +24,8 @@
 #include "system_settings_manager.h"
 
 #include <spdlog/spdlog.h>
+
+#include <memory>
 
 namespace helix::settings {
 
@@ -48,6 +52,7 @@ void SystemSettingsOverlay::register_callbacks() {
 #else
         {"on_telemetry_view_data", [](lv_event_t*) {}},
 #endif
+        // telemetry_opt_in_row's callbacks, for this page and the setup wizard alike.
         {"on_telemetry_changed",
          [](lv_event_t* e) {
              bool on = helix::ui::event_checked(e);
@@ -55,10 +60,19 @@ void SystemSettingsOverlay::register_callbacks() {
              if (on) {
                  ToastManager::instance().show(
                      ToastSeverity::SUCCESS,
-                     lv_tr("Thanks! TOTALLY anonymous usage data helps improve HelixScreen."),
-                     4000);
+                     lv_tr("Thanks! Anonymous usage data helps improve HelixScreen."), 4000);
              }
          }},
+#if !defined(HELIX_PLATFORM_ESP32)
+        {"on_telemetry_info",
+         [](lv_event_t*) {
+             get_wizard_telemetry_step()->init_info_text_subject();
+             Modal::show_owned(std::make_unique<TelemetryInfoModal>(), lv_screen_active());
+         }},
+#else
+        // The firmware sends no telemetry and hides the row.
+        {"on_telemetry_info", [](lv_event_t*) {}},
+#endif
         {"on_log_level_changed",
          [](lv_event_t* e) {
              SystemSettingsManager::instance().set_log_level_by_index(event_selected(e));

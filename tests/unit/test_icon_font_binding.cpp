@@ -20,6 +20,8 @@
 #include "ui_fonts.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/xml_stand_in_subject.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl.h"
@@ -88,15 +90,8 @@ constexpr const char* kIconFixtureXml = R"(<component>
   </view>
 </component>)";
 
-lv_subject_t& icon_mode_subject() {
-    static lv_subject_t subject;
-    static bool registered = false;
-    if (!registered) {
-        lv_subject_init_int(&subject, 0);
-        lv_xml_register_subject(nullptr, kIconModeSubject, &subject);
-        registered = true;
-    }
-    return subject;
+lv_subject_t* icon_mode_subject() {
+    return helix::test::xml_stand_in(kIconModeSubject, 0);
 }
 
 lv_obj_t* create_icon_fixture(lv_obj_t* parent) {
@@ -119,7 +114,7 @@ const lv_font_t* icon_rung(const char* token) {
 
 TEST_CASE("a bound style overrides an icon's face", "[xml][icon][font][1559]") {
     XMLTestFixture fixture;
-    auto& mode = icon_mode_subject();
+    lv_subject_t* mode = icon_mode_subject();
 
     const lv_font_t* sm = icon_rung("icon_font_sm");
     const lv_font_t* xl = icon_rung("icon_font_xl");
@@ -135,15 +130,15 @@ TEST_CASE("a bound style overrides an icon's face", "[xml][icon][font][1559]") {
     REQUIRE(plain != nullptr);
 
     SECTION("the subject selects the bound face, and de-selecting restores the rung") {
-        lv_subject_set_int(&mode, 1);
+        lv_subject_set_int(mode, 1);
         CHECK(lv_obj_get_style_text_font(bound, LV_PART_MAIN) == xl);
 
-        lv_subject_set_int(&mode, 0);
+        lv_subject_set_int(mode, 0);
         CHECK(lv_obj_get_style_text_font(bound, LV_PART_MAIN) == sm);
     }
 
     SECTION("an icon with no face bind keeps its size attribute's rung") {
-        lv_subject_set_int(&mode, 1);
+        lv_subject_set_int(mode, 1);
         CHECK(lv_obj_get_style_text_font(plain, LV_PART_MAIN) == sm);
     }
 }
@@ -152,7 +147,7 @@ TEST_CASE("an icon with no size attribute still accepts a bound face", "[xml][ic
     // ui_icon_xml_create applies a face whether or not size= is present, so
     // this path has to stop writing locally too.
     XMLTestFixture fixture;
-    auto& mode = icon_mode_subject();
+    lv_subject_t* mode = icon_mode_subject();
 
     const lv_font_t* xs = icon_rung("icon_font_xs");
     const lv_font_t* xl = icon_rung("icon_font_xl");
@@ -163,17 +158,17 @@ TEST_CASE("an icon with no size attribute still accepts a bound face", "[xml][ic
     lv_obj_t* def = lv_obj_find_by_name(root, "default_icon");
     REQUIRE(def != nullptr);
 
-    lv_subject_set_int(&mode, 0);
+    lv_subject_set_int(mode, 0);
     CHECK(lv_obj_get_style_text_font(def, LV_PART_MAIN) == xl);
 
-    lv_subject_set_int(&mode, 1);
+    lv_subject_set_int(mode, 1);
     CHECK(lv_obj_get_style_text_font(def, LV_PART_MAIN) == xs);
 }
 
 TEST_CASE("an inline style_text_font still outranks an icon's bound face",
           "[xml][icon][font][1559]") {
     XMLTestFixture fixture;
-    auto& mode = icon_mode_subject();
+    lv_subject_t* mode = icon_mode_subject();
 
     const lv_font_t* sm = icon_rung("icon_font_sm");
     const lv_font_t* xl = icon_rung("icon_font_xl");
@@ -186,9 +181,9 @@ TEST_CASE("an inline style_text_font still outranks an icon's bound face",
 
     // Local on both sides of the subject: the inline attribute is evaluated
     // once at parse time and must hold regardless of any bound style's state.
-    lv_subject_set_int(&mode, 1);
+    lv_subject_set_int(mode, 1);
     CHECK(lv_obj_get_style_text_font(inline_icon, LV_PART_MAIN) == xl);
-    lv_subject_set_int(&mode, 0);
+    lv_subject_set_int(mode, 0);
     CHECK(lv_obj_get_style_text_font(inline_icon, LV_PART_MAIN) == xl);
 
     // And it is genuinely overriding a different rung, not echoing it.
@@ -220,13 +215,7 @@ void ensure_empty_name_subject() {
     // Mirrors the app's global "" noop subject: int 0, registered under the
     // empty name. Without this the binding would resolve NULL and skip, and
     // the test could not tell a guarded skip from a failed lookup.
-    static lv_subject_t subject;
-    static bool registered = false;
-    if (!registered) {
-        lv_subject_init_int(&subject, 0);
-        lv_xml_register_subject(nullptr, "", &subject);
-        registered = true;
-    }
+    helix::test::xml_stand_in("", 0);
 }
 
 } // namespace

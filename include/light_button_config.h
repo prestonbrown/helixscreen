@@ -22,6 +22,10 @@ bool adopt_pending_light_button(Config& cfg, PanelWidgetConfig& home);
 /// or the chamber light when there are none.
 std::vector<std::string> home_light_button_targets();
 
+/// Whether any device in @p ids is on: how a light button and the printer
+/// image's light chip read lit or dark.
+bool lights_lit(const std::vector<std::string>& ids);
+
 /// Whether any device in home_light_button_targets() is on: the light the
 /// print-status Light button drives and shows.
 bool home_light_buttons_lit();

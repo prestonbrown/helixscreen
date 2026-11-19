@@ -11,6 +11,7 @@
 #ifdef HELIX_DISPLAY_FBDEV
 
 #include "display_backend.h"
+#include "input_wake_source_list.h"
 #include "pointer_frame_hook.h"
 #include "touch_calibration.h"
 #include "touch_calibration_wrapper.h"
@@ -59,6 +60,9 @@ class DisplayBackendFbdev : public DisplayBackend {
 
     // Input device creation
     lv_indev_t* create_input_pointer() override;
+    std::vector<helix::InputWakeSource> input_wake_sources() const override {
+        return input_wake_sources_.sources();
+    }
     lv_indev_t* create_input_keyboard() override;
     bool has_hardware_keyboard() const override {
         return keyboard_ != nullptr;
@@ -194,6 +198,10 @@ class DisplayBackendFbdev : public DisplayBackend {
     lv_indev_t* touch_ = nullptr;
     lv_indev_t* mouse_ = nullptr;
     lv_indev_t* keyboard_ = nullptr;
+    /// Every evdev device this backend opened that LVGL has not deleted, with its fd
+    helix::InputWakeSourceList input_wake_sources_;
+
+    lv_indev_t* open_evdev(lv_indev_type_t type, const char* path);
 
     /// Affine touch calibration coefficients
     helix::TouchCalibration calibration_;

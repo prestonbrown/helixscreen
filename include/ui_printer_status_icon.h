@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -38,13 +38,8 @@ enum class PrinterIconState {
  */
 class PrinterStatusIcon {
   public:
-    /**
-     * @brief Get singleton instance
-     * @return Reference to the PrinterStatusIcon singleton
-     */
     static PrinterStatusIcon& instance();
 
-    // Non-copyable, non-movable (singleton)
     PrinterStatusIcon(const PrinterStatusIcon&) = delete;
     PrinterStatusIcon& operator=(const PrinterStatusIcon&) = delete;
     PrinterStatusIcon(PrinterStatusIcon&&) = delete;
@@ -77,7 +72,7 @@ class PrinterStatusIcon {
     /**
      * @brief Pure mapping from connection + klippy state to the displayed icon.
      *
-     * Extracted so the state logic is unit-testable without LVGL subjects or the
+     * Pure, so the state logic is unit-testable without LVGL subjects or the
      * singleton. When @p expected_restart is true, a transient Klipper SHUTDOWN
      * (from a SAVE_CONFIG bounce or user-initiated restart) is shown as WARNING
      * rather than ERROR — no red flash mid-calibration.
@@ -103,7 +98,7 @@ class PrinterStatusIcon {
     SubjectManager subjects_;
 
     // Printer icon state: 0=ready(green), 1=warning(orange), 2=error(red), 3=disconnected(gray)
-    lv_subject_t printer_icon_state_subject_{};
+    helix::Subject printer_icon_state_subject_{};
 
     // RAII observer guards for automatic cleanup
     ObserverGuard connection_observer_;

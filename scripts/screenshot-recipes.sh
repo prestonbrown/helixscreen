@@ -17,7 +17,7 @@
 # constructs representative sample data and shows the overlay with real lifecycle.
 #
 # This table is the single source of truth, sourced by both screenshot.sh (single
-# shot) and screenshot-all.sh (long-lived batch). Discover a new recipe by driving
+# shot) and doc_screenshots.py (the doc-image manifest's batch). Discover a new recipe by driving
 # the app: launch `helix-screen --test --skip-wizard --remote`, then
 # `helix-screen ctl navigate <panel>`, `helix-screen ctl ls`, find the trigger widget.
 
@@ -26,7 +26,7 @@
 # ships bash 3.2, which supports neither `declare -A` nor `declare -g` — and
 # fails *silently* on them (the shell reports an error but still exits 0), so
 # every macOS caller read this table as empty. That took out screenshot.sh,
-# screenshot-all.sh and tests/ui/test_screens.py, the last of which surfaced
+# the doc screenshot batch and tests/ui/test_screens.py, the last of which surfaced
 # it only as a KeyError a hundred lines away from the cause.
 #
 # Comment lines and blank lines are ignored by both accessors below.
@@ -94,11 +94,12 @@ ams                demo ams
 ams-pages          demo ams; wait_idle; click ams_unit_card[2]
 ams-pages-next     demo ams; wait_idle; click ams_unit_card[2]; wait_idle; click page_next_button
 ams-pages-last     demo ams; wait_idle; click ams_unit_card[2]; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button; wait_idle; click page_next_button
-# ams-cycle loads lane 2 from its context menu and unloads it from the sidebar,
-# waiting out each operation, so --repeat drives the AMS sync paths under a
-# sanitizer (make tsan-app RECIPE=ams-cycle). reset first: a second demo ams
+# ams-cycle unloads the loaded lane from the sidebar and loads lane 2 from its
+# context menu, waiting out each operation, so --repeat drives the AMS sync paths
+# under a sanitizer (make tsan-app RECIPE=ams-cycle). The mock starts loaded and
+# every pass ends loaded, so each pass runs both. reset first: a second demo ams
 # would stack a new panel over the old one.
-ams-cycle          reset; demo ams; wait_idle; click s/ams_panel/overlay_content/left_column/ams_unit_card/slot_area/slots_wrapper/unit_detail/slot_container/slot_grid/ams_slot_view[1]; click s/context_backdrop/context_menu/menu_columns/col_filament/btn_load; wait_for ams_filament_loaded 1 --timeout 240; wait_for ams_action 0 --timeout 240; click s/ams_panel/right_column/ams_operation_sidebar/action_buttons_container/btn_unload; wait_for ams_filament_loaded 0 --timeout 240; wait_for ams_action 0 --timeout 240
+ams-cycle          reset; demo ams; wait_idle; click s/ams_panel/right_column/ams_operation_sidebar/action_buttons_container/btn_unload; wait_for ams_filament_loaded 0 --timeout 240; wait_for ams_action 0 --timeout 240; click s/ams_panel/overlay_content/left_column/ams_unit_card/slot_area/slots_wrapper/unit_detail/slot_container/slot_grid/ams_slot_view[1]; click s/context_backdrop/context_menu/menu_columns/col_filament/btn_load; wait_for ams_filament_loaded 1 --timeout 240; wait_for ams_action 0 --timeout 240
 
 # Settings overlays (settings panel groups leaves under category rows).
 # A -2/-3 token shows the part of a long page a 480-tall screen cannot. The
@@ -132,6 +133,15 @@ safety             navigate settings; click row_safety
 connection         navigate settings; click row_connection
 network            navigate settings; click row_connection; click row_network
 printers           navigate settings; click row_connection; click row_printers
+# Switches to a second printer and back, ending idle on Home: a switch tears down
+# and rebuilds every per-printer subject and panel, so this is the sanitizer
+# drive for that path (scripts/test-host-run.sh asan-app printer-switch). The
+# second printer comes from screenshot_recipe_seed below, and the list rows are
+# named by printer id. The switch freezes and then discards the UpdateQueue, so
+# a ctl request sent during it goes unanswered: the drive sleeps past it before
+# wait_idle. It never uses wait_for, whose observer sits on a subject the switch
+# deinits.
+printer-switch     navigate settings; click row_connection; click row_printers; click second; sleep 5; wait_idle; navigate settings; click row_connection; click row_printers; click default; sleep 5; wait_idle
 language-time      navigate settings; click row_language_time
 system             navigate settings; click row_system
 system-2           navigate settings; click row_system; wait_idle; scroll overlay_content 0 -124
@@ -177,6 +187,23 @@ screenshot_recipe_for() {
     else
         printf 'navigate %s' "$token"
     fi
+}
+
+# Adjust the seeded mock settings file ($2) for a token ($1) that needs more
+# than the shipped template, before the app boots. Tokens with no entry leave
+# the file untouched.
+screenshot_recipe_seed() {
+    local token="$1" settings="$2"
+    case "$token" in
+        printer-switch)
+            # The template's one printer becomes Printer-A, and a second mock
+            # printer, id "second", is added ahead of it.
+            sed -i \
+                -e 's/"name": "Unnamed Printer"/"name": "Printer-A"/' \
+                -e 's/^  "printers": {$/  "printers": {\n    "second": {"name": "Printer-B", "type": "Unknown", "moonraker_host": "127.0.0.1", "moonraker_port": 7125},/' \
+                "$settings"
+            ;;
+    esac
 }
 
 # Every token in the table, one per line, in file order.

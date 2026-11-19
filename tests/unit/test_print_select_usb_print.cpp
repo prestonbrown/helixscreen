@@ -372,7 +372,7 @@ TEST_CASE_METHOD(UsbPrintFixture,
                  "[usb][usb_delete]") {
     lv_obj_t* del = lv_obj_find_by_name(lv_screen_active(), "delete_button");
     REQUIRE(del != nullptr);
-    CHECK(lv_obj_has_flag(del, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(del));
 
     // The long-press path reaches these without the button. Delete addresses
     // Moonraker storage by name, where a same-named printer file may live.

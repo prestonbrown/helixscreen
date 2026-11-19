@@ -28,4 +28,4 @@ qc_code_lint() {
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_code_lint='\.(cpp|c|cc|h|hpp)$|\.md$|^lib/helix-xml$|^scripts/(code_lint\.sh|check_(getenv_setenv|init_list_ternary)\.py|check_tool_labels\.sh)$'
+QC_TRIGGER_qc_code_lint='\.(cpp|c|cc|h|hpp)$|\.md$|^lib/helix-xml$|^scripts/(code_lint\.sh|check_(getenv_setenv|init_list_ternary)\.py|check_tool_labels\.sh|helix-launcher\.sh|gen-packaging-manifest\.sh|format-xml\.py)$|^scripts/translations/|^translations/|^config/helixscreen\.env$|^assets/|^ui_xml/|^mk/cross\.mk$|^tests/shell/fixtures/[a-z_]+_order\.txt$'

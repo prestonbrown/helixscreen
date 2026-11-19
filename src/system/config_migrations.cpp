@@ -288,9 +288,10 @@ static void migrate_v11_to_v12(json& config, const std::string& /*config_path*/)
 static bool config_names_printer(const json& config, const char* preset, const char* printer_type) {
     if (helix::json_util::safe_string(config, "preset") == preset)
         return true;
-    if (!config.contains("printers") || !config["printers"].is_object())
+    const json* printers = helix::json_util::find_object(config, "printers");
+    if (!printers)
         return false;
-    for (const auto& [printer_id, printer] : config["printers"].items()) {
+    for (const auto& [printer_id, printer] : printers->items()) {
         if (helix::json_util::safe_string(printer, "type") == printer_type)
             return true;
     }
@@ -355,8 +356,10 @@ static void migrate_v13_to_v14(json& config, const std::string& config_path) {
                      legacy_path);
         return;
     }
-    if (!has_key && legacy.contains("enabled") && legacy["enabled"].is_boolean()) {
-        bool legacy_enabled = legacy["enabled"].get<bool>();
+    const auto legacy_field =
+        has_key ? std::nullopt : helix::json_util::read_field<bool>(legacy, "enabled");
+    if (legacy_field) {
+        bool legacy_enabled = *legacy_field;
         config["telemetry_enabled"] = legacy_enabled;
         spdlog::info("[Config] Migration v14: imported telemetry_enabled={} "
                      "from legacy {}",
@@ -1010,8 +1013,8 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
     if (config.contains("ui") && config["ui"].is_object() && config["ui"].contains("cached_grid") &&
         config["ui"]["cached_grid"].is_object()) {
         for (const auto& [panel_id, node] : config["ui"]["cached_grid"].items()) {
-            if (node.is_object() && node.contains("rows") && node["rows"].is_number_integer()) {
-                cached_rows[panel_id] = node["rows"].get<int>();
+            if (auto rows = helix::json_util::read_integer_field(node, "rows")) {
+                cached_rows[panel_id] = *rows;
             }
         }
         config["ui"].erase("cached_grid");
@@ -1059,18 +1062,19 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
     // everything written before it. Their presence means the coordinates
     // already count against a measured grid.
     auto already_ported = [](const json& panel) {
-        return (panel.contains("grid") && panel["grid"].is_string() &&
-                !panel["grid"].get<std::string>().empty()) ||
-               (panel.contains("parked_grids") && panel["parked_grids"].is_object() &&
-                !panel["parked_grids"].empty());
+        const auto grid = helix::json_util::read_field<std::string>(panel, "grid");
+        if (grid && !grid->empty()) {
+            return true;
+        }
+        const json* parked = helix::json_util::find_object(panel, "parked_grids");
+        return parked && !parked->empty();
     };
 
     // Tagged but not yet ported: re-tagging would overwrite legacy_rows with 0,
     // because the /ui/cached_grid node it comes from was erased by the first
     // run. The tag that is already there carries the real value.
     auto already_tagged = [](const json& panel) {
-        return panel.contains("layout_units") && panel["layout_units"].is_string() &&
-               panel["layout_units"].get<std::string>() == "cells_v21";
+        return helix::json_util::read_field<std::string>(panel, "layout_units") == "cells_v21";
     };
 
     // Nothing to port: the tag exists so port_legacy_layout() knows which
@@ -1087,8 +1091,7 @@ static void migrate_v23_to_v24(json& config, const std::string& /*config_path*/)
                 continue;
             }
             for (const auto& entry : *w) {
-                if (entry.is_object() && entry.contains("col") &&
-                    entry["col"].is_number_integer()) {
+                if (helix::json_util::read_integer_field(entry, "col")) {
                     return true;
                 }
             }

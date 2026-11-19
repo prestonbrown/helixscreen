@@ -22,6 +22,10 @@ FORGEX_CHROOT="/data/.mod/.forge-x"
 # Backlight control script path (INSIDE the chroot, not on the host)
 FORGEX_BACKLIGHT="/root/printer_data/py/backlight.py"
 
+# Forge-X settings reader and the file it reads (INSIDE the chroot)
+FORGEX_ZCONF="/opt/config/mod/.shell/commands/zconf.sh"
+FORGEX_VARIABLES="/opt/config/mod_data/variables.cfg"
+
 # Boot splash ownership. ForgeX 1.4.2 replaced its static boot images with a
 # persistent `splash` daemon that owns /dev/fb0 and page-flips, started by
 # S00init and stopped only by S99root. S90helixscreen starts helix-splash
@@ -162,11 +166,18 @@ platform_stop_competing_uis() {
 # ForgeX may leave the backlight off when display mode is STOCK or during
 # boot transitions. We explicitly set it to 100% before starting HelixScreen.
 # The backlight.py script uses ioctl calls that must run inside the chroot.
+# A payload install runs this script from inside the chroot already, where
+# the chroot's root is "/" and the script's own path resolves directly.
 platform_enable_backlight() {
     local full_backlight_path="${FORGEX_CHROOT}${FORGEX_BACKLIGHT}"
     if [ -d "$FORGEX_CHROOT" ] && [ -x "$full_backlight_path" ]; then
         echo "Enabling backlight via ForgeX chroot..."
         /usr/sbin/chroot "$FORGEX_CHROOT" "$FORGEX_BACKLIGHT" 100 2>/dev/null || true
+        return 0
+    fi
+    if [ -x "$FORGEX_BACKLIGHT" ]; then
+        echo "Enabling backlight via ForgeX backlight script..."
+        "$FORGEX_BACKLIGHT" 100 2>/dev/null || true
         return 0
     fi
 
@@ -179,16 +190,21 @@ platform_enable_backlight() {
 # initializing causes severe swap thrashing. By waiting here with only the
 # lightweight splash screen running, moonraker can start without memory
 # competition, dramatically improving total boot time.
+#
+# Only on ForgeX, which has the memory constraints. A payload install runs this
+# from inside the chroot, where the host's chroot path does not exist but
+# zconf.sh resolves directly.
 platform_wait_for_services() {
-    # Only wait on ForgeX -- it has the memory constraints
-    if [ ! -d "$FORGEX_CHROOT" ]; then
-        return 0
-    fi
-
     # Check if moonraker is even enabled (ForgeX can disable it)
     local moonraker_disabled
-    moonraker_disabled=$(/usr/sbin/chroot "$FORGEX_CHROOT" /bin/sh -c \
-        'cd / 2>/dev/null; /opt/config/mod/.shell/commands/zconf.sh /opt/config/mod_data/variables.cfg --get "disable_moonraker" "0"' 2>/dev/null) || true
+    if [ -d "$FORGEX_CHROOT" ]; then
+        moonraker_disabled=$(/usr/sbin/chroot "$FORGEX_CHROOT" /bin/sh -c \
+            "cd / 2>/dev/null; $FORGEX_ZCONF $FORGEX_VARIABLES --get disable_moonraker 0" 2>/dev/null) || true
+    elif [ -x "$FORGEX_ZCONF" ]; then
+        moonraker_disabled=$(cd / 2>/dev/null; "$FORGEX_ZCONF" "$FORGEX_VARIABLES" --get disable_moonraker 0 2>/dev/null) || true
+    else
+        return 0
+    fi
     if [ "$moonraker_disabled" = "1" ]; then
         echo "Moonraker disabled, skipping wait"
         return 0

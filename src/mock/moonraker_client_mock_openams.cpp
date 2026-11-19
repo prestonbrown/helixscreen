@@ -26,6 +26,12 @@ bool MoonrakerClientMock::is_mock_openams() const {
 
 namespace {
 
+// The FPS pressure the mock reports (0..1): HELIX_MOCK_FPS_PRESSURE, else @p fallback.
+double mock_fps_pressure(double fallback) {
+    const char* env = std::getenv("HELIX_MOCK_FPS_PRESSURE");
+    return env ? std::atof(env) : fallback;
+}
+
 // One unit of the openams plugin shape: its hub lane and what its family is.
 struct OpenAmsUnitSpec {
     const char* name;
@@ -41,6 +47,8 @@ constexpr OpenAmsUnitSpec kAmsHt{"ams_ht", "AMS HT", "ams_ht", "fps", 1, 80.0, f
 constexpr OpenAmsUnitSpec kAms2{"ams2", "AMS 2 Pro", "ams2", "fps", 4, 65.0, true};
 constexpr OpenAmsUnitSpec kAms2b{"ams2b", "AMS 2 Pro", "ams2", "fps2", 4, 65.0, true};
 constexpr OpenAmsUnitSpec kAms2c{"ams2c", "AMS 2 Pro", "ams2", "fps2", 4, 65.0, true};
+// The original AMS has no dryer.
+constexpr OpenAmsUnitSpec kAms1{"ams1", "AMS", "ams1", "fps", 4, 0.0, false};
 
 std::vector<OpenAmsUnitSpec> openams_unit_specs() {
     const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
@@ -50,6 +58,9 @@ std::vector<OpenAmsUnitSpec> openams_unit_specs() {
     }
     if (shape == "shared") {
         return {kAmsHt, kAms2};
+    }
+    if (shape == "ams1") {
+        return {kAmsHt, kAms1};
     }
     if (shape == "fleet") {
         // An AMS HT then eleven AMS 2 Pro: units 1-10 feed lane `fps`, the last two `fps2`.
@@ -77,7 +88,7 @@ const char* openams_lane_extruder(const std::string& lane) {
 
 bool MoonrakerClientMock::openams_shared_lane_units() {
     const char* units = std::getenv("HELIX_MOCK_OPENAMS_UNITS");
-    return units && std::string(units) == "shared";
+    return units && (std::string(units) == "shared" || std::string(units) == "ams1");
 }
 
 bool MoonrakerClientMock::openams_fleet_lane_units() {
@@ -150,9 +161,9 @@ nlohmann::json MoonrakerClientMock::openams_shared_status_json() const {
     nlohmann::json lanes = nlohmann::json::array();
     for (const auto& id : lane_ids) {
         const bool here = loaded_valid && slot_lane[loaded] == id;
-        nlohmann::json lane = {{"id", id},          {"state", here ? "loaded" : "unloaded"},
-                               {"following", here}, {"direction", 1},
-                               {"pressure", 0.79},  {"set_point", 0.5}};
+        nlohmann::json lane = {
+            {"id", id},       {"state", here ? "loaded" : "unloaded"}, {"following", here},
+            {"direction", 1}, {"pressure", mock_fps_pressure(0.79)},   {"set_point", 0.5}};
         if (here) {
             lane["current_group"] =
                 "T" + std::to_string(loaded); // DISPLAY_NUMBERING_OK: OpenAMS group id
@@ -207,7 +218,7 @@ nlohmann::json MoonrakerClientMock::openams_shared_status_json() const {
         for (const auto& id : lane_ids) {
             const bool here = loaded_valid && slot_lane[loaded] == id;
             by_fps[id] = {{"op", here ? "loaded" : "idle"},
-                          {"pressure", 0.79},
+                          {"pressure", mock_fps_pressure(0.79)},
                           {"set_point", 0.5},
                           {"extruder", openams_lane_extruder(id)}};
             fps_ids.push_back(id);
@@ -275,6 +286,14 @@ nlohmann::json MoonrakerClientMock::openams_device_json(int unit) const {
                        {"clear_errors", "load", "unload", "follower", "dryer_stop", "clear_fault"})
                  : nlohmann::json::array({"clear_errors", "load", "unload", "follower",
                                           "dryer_start", "dryer_stop", "clear_fault"})}};
+    if (spec.dryer_max_c <= 0.0) {
+        // A unit without a dryer publishes `dryer: null` and no dryer actions.
+        device["capabilities"]["dryer"] = false;
+        device["dryer"] = nullptr;
+        device.erase("telemetry");
+        device["supported_actions"] =
+            nlohmann::json::array({"clear_errors", "load", "unload", "follower", "clear_fault"});
+    }
     return device;
 }
 
@@ -313,7 +332,7 @@ nlohmann::json MoonrakerClientMock::openams_status_json() const {
     }
     nlohmann::json lane = {{"id", "fps"},
                            {"state", loaded >= 0 ? "loaded" : "unloaded"},
-                           {"pressure", 0.5},
+                           {"pressure", mock_fps_pressure(0.5)},
                            {"set_point", 0.5}};
     if (loaded >= 0) {
         lane["current_group"] = kGroupOfSlot[loaded];

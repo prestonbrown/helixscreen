@@ -18,6 +18,7 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -37,6 +38,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -88,7 +90,7 @@ class PagedFleet : public AmsBackendMock {
             // The unit's own number is not its position, as on a backend that numbers its
             // units from elsewhere: the paging screen must key the viewed unit and the
             // env chip on this one.
-            unit.unit_index = kOwnNumberBase + static_cast<int>(pos);
+            unit.unit_index = own_number_base + static_cast<int>(pos);
             unit.name = specs[pos].name;
             unit.display_name = "Box " + specs[pos].name;
             unit.hub_id = specs[pos].hub;
@@ -111,6 +113,8 @@ class PagedFleet : public AmsBackendMock {
             }
             info.units.push_back(unit);
         }
+        if (system_type)
+            info.type = *system_type;
         info.total_slots = first_slot;
         info.current_slot = loaded_slot;
         info.filament_loaded = loaded_slot >= 0;
@@ -130,6 +134,10 @@ class PagedFleet : public AmsBackendMock {
     }
 
     std::vector<UnitSpec> specs;
+    std::optional<AmsType> system_type; ///< set to a type with baked unit art
+    /// The first unit's own number. 0 numbers units by position, which is what the
+    /// overview's per-unit environment subjects are keyed on.
+    int own_number_base = kOwnNumberBase;
     mutable int info_reads = 0;              ///< get_system_info() calls, a full copy each
     int loaded_slot = 2 * kSlotsPerUnit + 1; ///< a bay of unit 2
     int drying_unit = kOwnNumberBase + 6;    ///< by the unit's own number
@@ -137,6 +145,16 @@ class PagedFleet : public AmsBackendMock {
 
 class PagingFixture : public LVGLUITestFixture {
   public:
+    auto cards() {
+        return AmsPanelTestAccess::unit_cards(panel());
+    }
+    auto card_units() {
+        return AmsPanelTestAccess::unit_card_units(panel());
+    }
+    bool in_unit_view() {
+        return AmsPanelTestAccess::in_unit_view(panel());
+    }
+
     PagingFixture() {
         animations_were_enabled_ = DisplaySettingsManager::instance().get_animations_enabled();
         DisplaySettingsManager::instance().set_animations_enabled(false);
@@ -192,11 +210,11 @@ class PagingFixture : public LVGLUITestFixture {
 
     /// Tap the unit card of the unit at @p unit_pos in AmsSystemInfo::units.
     void enter(int unit_pos) {
-        const auto cards = AmsPanelTestAccess::unit_cards(panel());
-        const auto units = AmsPanelTestAccess::unit_card_units(panel());
-        for (size_t i = 0; i < cards.size(); ++i) {
+        const auto tiles = cards();
+        const auto units = card_units();
+        for (size_t i = 0; i < tiles.size(); ++i) {
             if (units[i] == unit_pos) {
-                tap(cards[i]);
+                tap(tiles[i]);
                 return;
             }
         }
@@ -206,9 +224,9 @@ class PagingFixture : public LVGLUITestFixture {
     /// Open the panel and zoom into the unit at @p unit_pos.
     void open_at(int unit_pos) {
         open();
-        REQUIRE_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
+        REQUIRE_FALSE(in_unit_view());
         enter(unit_pos);
-        REQUIRE(AmsPanelTestAccess::in_unit_view(panel()));
+        REQUIRE(in_unit_view());
     }
 
     void close() {
@@ -254,7 +272,7 @@ class PagingFixture : public LVGLUITestFixture {
     }
 
     bool hidden(const char* name) {
-        return lv_obj_has_flag(named(name), LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(named(name));
     }
 
     void tap(lv_obj_t* obj) {
@@ -291,7 +309,7 @@ class PagingFixture : public LVGLUITestFixture {
     /// Whether a slot context menu is on screen.
     bool slot_menu_open() {
         lv_obj_t* backdrop = lv_obj_find_by_name(test_screen(), "context_backdrop");
-        return backdrop != nullptr && !lv_obj_has_flag(backdrop, LV_OBJ_FLAG_HIDDEN);
+        return backdrop != nullptr && !lv_obj_is_hidden(backdrop);
     }
 
     /// The canvas's hub box.
@@ -315,7 +333,7 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the panel opens on the overview",
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
     CHECK(page_count() == 0);
     CHECK(AmsPanelTestAccess::unit_cards(panel()).size() == 12);
-    CHECK_FALSE(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
 
     // Each card's drop binds its own unit's humidity subject, not unit 0's.
     const auto cards = AmsPanelTestAccess::unit_cards(panel());
@@ -334,10 +352,10 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: the panel opens on the overview",
         REQUIRE(drop != nullptr);
         CHECK(helix::ui::humidity_drop_value(drop) == (30 + units[i]) * 10);
     }
-    CHECK_FALSE(lv_obj_has_flag(named("system_path_area"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("header_backend_suffix"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("system_path_area")));
+    CHECK(lv_obj_is_hidden(named("unit_detail_container")));
+    CHECK_FALSE(lv_obj_is_hidden(named("header_title")));
+    CHECK(lv_obj_is_hidden(named("header_backend_suffix")));
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: tapping a card opens that unit's page",
@@ -394,11 +412,11 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a card of the fleet opens its own pa
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 1);
 
     // The overview's elements give way to the unit view, and the header names the unit.
-    CHECK(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("system_path_area"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("header_backend_suffix"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(named("unit_cards_row")));
+    CHECK(lv_obj_is_hidden(named("system_path_area")));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_detail_container")));
+    CHECK(lv_obj_is_hidden(named("header_title")));
+    CHECK_FALSE(lv_obj_is_hidden(named("header_backend_suffix")));
 
     SECTION("another card opens its page") {
         tap(named("back_button"));
@@ -738,13 +756,13 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: a disconnected unit's page says so i
     open_at(2);
     REQUIRE(page_current() == 2);
     lv_obj_t* chip = named("detail_disconnected_chip");
-    CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(chip));
 
     // The flag is the viewed unit's, and it follows the page.
     go_to(3);
-    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chip));
     go_to(4);
-    CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(chip));
 }
 
 TEST_CASE_METHOD(PagingFixture, "Unit view: a change in the system keeps the shown unit",
@@ -817,10 +835,10 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: Back returns to the overview, and Ba
     CHECK(helix::nav::is_showing(panel_root));
     CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
-    CHECK_FALSE(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("system_path_area"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
+    CHECK_FALSE(lv_obj_is_hidden(named("system_path_area")));
+    CHECK(lv_obj_is_hidden(named("unit_detail_container")));
+    CHECK_FALSE(lv_obj_is_hidden(named("header_title")));
     CHECK(page_count() == 0);
     CHECK(AmsPanelTestAccess::pages(panel()).empty());
     // No unit is viewed any more.
@@ -840,8 +858,8 @@ TEST_CASE_METHOD(PagingFixture, "Unit view: reopening the panel shows the overvi
     CHECK(helix::nav::is_showing(root()));
     CHECK_FALSE(AmsPanelTestAccess::in_unit_view(panel()));
     CHECK(subject(AmsState::instance().get_ams_unit_view_active_subject()) == 0);
-    CHECK_FALSE(lv_obj_has_flag(named("unit_cards_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(named("unit_detail_container"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named("unit_cards_row")));
+    CHECK(lv_obj_is_hidden(named("unit_detail_container")));
 
     // A card opens its own page again, not the one left behind.
     enter(2);
@@ -977,16 +995,16 @@ TEST_CASE_METHOD(PagingFixture,
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(20);
         lv_obj_update_layout(lv_obj_get_screen(logo));
-        CHECK_FALSE(lv_obj_has_flag(logo, LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(name, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(logo));
+        CHECK_FALSE(lv_obj_is_hidden(name));
         lv_area_t logo_box;
         lv_area_t name_box;
         lv_obj_get_coords(logo, &logo_box);
         lv_obj_get_coords(name, &name_box);
         CHECK(std::abs((logo_box.y1 + logo_box.y2) - (name_box.y1 + name_box.y2)) <= 2);
-        CHECK_FALSE(lv_obj_has_flag(named("header_backend_suffix"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(named("header_backend_suffix")));
         // The overview's own title is not in play.
-        CHECK(lv_obj_has_flag(named("header_title"), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(named("header_title")));
     }
     lv_subject_set_int(bp, original);
     helix::ui::UpdateQueue::instance().drain();
@@ -1091,7 +1109,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::AmsStateTestAccess::seed_external_spool(spool);
     helix::ui::bypass_spool_sync_from_state(w);
     REQUIRE(helix::ui::bypass_node_visible_for(ams.get_backend()));
-    CHECK_FALSE(lv_obj_has_flag(w.box, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(w.box));
     CHECK(w.cached_color_rgb == 0x3366CC);
     CHECK(w.cached_has_spool);
     CHECK(std::string(w.cached_material) == "PETG");
@@ -1099,7 +1117,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // The node leaves the path: the widget goes with it.
     ams.set_backend(nullptr);
     helix::ui::bypass_spool_sync_from_state(w);
-    CHECK(lv_obj_has_flag(w.box, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(w.box));
 
     helix::ui::bypass_spool_destroy(w);
 }
@@ -1209,9 +1227,9 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over
     lv_obj_update_layout(lv_screen_active());
     lv_obj_t* dots = named("page_dots");
     lv_obj_t* canvas = named("detail_path_canvas");
-    REQUIRE_FALSE(lv_obj_has_flag(dots, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dots));
     // Floating, so the dots take no row of the unit view's height...
-    CHECK(lv_obj_has_flag(dots, LV_OBJ_FLAG_FLOATING));
+    CHECK(lv_obj_is_floating(dots));
     // ...and they sit inside the canvas's bottom-left quarter.
     lv_area_t da, ca;
     lv_obj_get_coords(dots, &da);
@@ -1220,4 +1238,297 @@ TEST_CASE_METHOD(PagingFixture, "Unit view in portrait: the page dots float over
     CHECK(da.y2 <= ca.y2);
     CHECK(da.y1 >= (ca.y1 + ca.y2) / 2);
     CHECK(da.x2 <= (ca.x1 + ca.x2) / 2 + 1);
+}
+
+// ---- Art tiles on the overview ----
+
+namespace {
+
+/// The unit art matches an ACE system whose unit reports exactly this many bays.
+constexpr int kArtLanes = 4;
+constexpr int kNoArtLanes = 6;
+
+void art_fleet(PagedFleet& f, int units) {
+    f.system_type = AmsType::ACE;
+    f.specs.clear();
+    for (int u = 0; u < units; ++u)
+        f.specs.push_back({"ACE " + std::to_string(u + 1), "fps", false, kArtLanes});
+}
+
+} // namespace
+
+TEST_CASE("Overview row: a row that fits lets flex share it", "[ams][overview-tiles]") {
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 72}) == 0);
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {}) == 0);
+    // 5 * 77 + 4 * 12 = 433: the row is three pixels short, so it overflows.
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {77, 77, 77, 77, 77}) > 0);
+    // A mixed row sizes every card by the widest floor.
+    CHECK(helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 100, 72}) >= 100);
+}
+
+TEST_CASE("Overview row: an overflowing row leaves the next card cut off",
+          "[ams][overview-tiles]") {
+    for (int32_t row : {300, 430, 431, 600, 977}) {
+        for (int count : {4, 6, 12, 30}) {
+            const std::vector<int32_t> mins(static_cast<size_t>(count), 100);
+            const int32_t w = helix::ui::overview_peek_card_width(row, 12, mins);
+            INFO("row " << row << " count " << count << " width " << w);
+            if (count * 100 + (count - 1) * 12 <= row) {
+                CHECK(w == 0);
+                continue;
+            }
+            REQUIRE(w >= 100);
+            int32_t x = 0;
+            while (x + w <= row)
+                x += w + 12;
+            const int32_t shown = row - x;
+            CHECK(shown >= w / 5);
+            CHECK(shown <= w * 4 / 5);
+        }
+    }
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with art is the art, not a card",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) { art_fleet(f, 3); });
+    open();
+
+    const auto tiles = cards();
+    REQUIRE(tiles.size() == 3);
+    for (lv_obj_t* card : tiles) {
+        CHECK(lv_obj_get_style_bg_opa(card, LV_PART_MAIN) == LV_OPA_TRANSP);
+        CHECK(lv_obj_get_style_border_width(card, LV_PART_MAIN) == 0);
+        CHECK(lv_obj_get_child_count(lv_obj_find_by_name(card, "bars_container")) == 0);
+        CHECK(lv_obj_find_by_name(card, "slot_count") == nullptr);
+        lv_obj_t* art = lv_obj_find_by_name(card, "unit_art");
+        REQUIRE(art != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(art));
+        CHECK(lv_obj_get_width(art) > 40);
+        CHECK(helix::ui::unit_art_is_flattened(art));
+        lv_obj_t* name = lv_obj_find_by_name(card, "unit_name");
+        REQUIRE(name != nullptr);
+        CHECK(lv_obj_get_style_text_align(name, LV_PART_MAIN) == LV_TEXT_ALIGN_CENTER);
+        CHECK(std::string(lv_label_get_text(name)).find("ACE ") != std::string::npos);
+    }
+
+    tap(tiles[1]);
+    CHECK(in_unit_view());
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit with no art is a tile of bars",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 2);
+        f.specs[1].slots = kNoArtLanes;
+    });
+    open();
+
+    const auto tiles = cards();
+    const auto units = card_units();
+    REQUIRE(tiles.size() == 2);
+    lv_obj_t* plain = units[0] == 1 ? tiles[0] : tiles[1];
+    CHECK(lv_obj_find_by_name(plain, "tile_stage") != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_TRANSP);
+    CHECK(lv_obj_get_style_border_width(plain, LV_PART_MAIN) == 0);
+    lv_obj_t* bars = lv_obj_find_by_name(plain, "bars_container");
+    REQUIRE(bars != nullptr);
+    CHECK(lv_obj_get_child_count(bars) == kNoArtLanes);
+    CHECK(lv_obj_find_by_name(plain, "unit_logo") == nullptr);
+    CHECK(lv_obj_find_by_name(plain, "slot_count") == nullptr);
+}
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview tile: in an overflowing row, art is never narrower than a bars tile",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) {
+        art_fleet(f, 6);
+        for (int u : {1, 3, 5})
+            f.specs[static_cast<size_t>(u)].slots = kNoArtLanes;
+    });
+    open();
+    process_lvgl(50);
+
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    lv_obj_update_layout(row);
+    REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    int32_t bars_width = 0;
+    for (lv_obj_t* card : cards()) {
+        lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
+        if (bars && lv_obj_get_child_count(bars) > 0)
+            bars_width = LV_MAX(bars_width, lv_obj_get_width(card));
+    }
+    REQUIRE(bars_width > 0);
+    for (lv_obj_t* card : cards()) {
+        lv_obj_t* art = lv_obj_find_by_name(card, "unit_art");
+        if (!art || lv_obj_is_hidden(art))
+            continue;
+        INFO("art tile " << lv_obj_get_width(card) << " px, bars tile " << bars_width << " px");
+        CHECK(lv_obj_get_width(card) >= bars_width);
+    }
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: a unit that gains art becomes a tile",
+                 "[ams][overview-tiles]") {
+    PagedFleet* fleet = install([](PagedFleet& f) {
+        art_fleet(f, 2);
+        f.specs[0].slots = kNoArtLanes;
+    });
+    open();
+    REQUIRE(lv_obj_find_by_name(root(), "bars_container") != nullptr);
+
+    fleet->specs[0].slots = kArtLanes;
+    AmsState::instance().sync_from_backend();
+    settle();
+    process_lvgl(50);
+
+    CHECK(lv_obj_get_child_count(lv_obj_find_by_name(root(), "bars_container")) == 0);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest breakpoints",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) { art_fleet(f, 2); });
+    open();
+
+    lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(bp != nullptr);
+    const int original = lv_subject_get_int(bp);
+    lv_obj_t* readout = lv_obj_find_by_name(cards()[0], "tile_readout");
+    REQUIRE(readout != nullptr);
+    for (int tier : {0, 1}) {
+        lv_subject_set_int(bp, tier);
+        INFO("breakpoint " << tier);
+        CHECK(lv_obj_is_hidden(readout));
+    }
+    for (int tier : {2, 3}) {
+        lv_subject_set_int(bp, tier);
+        INFO("breakpoint " << tier);
+        CHECK_FALSE(lv_obj_is_hidden(readout));
+    }
+    lv_subject_set_int(bp, original);
+}
+
+TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of the next tile",
+                 "[ams][overview-tiles]") {
+    install([](PagedFleet& f) { art_fleet(f, 12); });
+    open();
+    process_lvgl(50);
+
+    lv_obj_t* row = lv_obj_get_parent(cards()[0]);
+    // A row that narrows sizes its tiles again: unsized, it would end 4 px into the fourth.
+    if (GENERATE(false, true)) {
+        lv_obj_set_width(row, lv_obj_get_x(cards()[3]) + 4);
+        lv_obj_update_layout(row);
+        settle();
+        process_lvgl(50);
+    }
+    lv_obj_update_layout(row);
+    REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    lv_area_t row_box;
+    lv_obj_get_coords(row, &row_box);
+
+    int cut_off = 0;
+    for (lv_obj_t* card : cards()) {
+        lv_area_t box;
+        lv_obj_get_coords(card, &box);
+        if (box.x1 <= row_box.x2 && box.x2 > row_box.x2) {
+            ++cut_off;
+            const int32_t shown = row_box.x2 - box.x1 + 1;
+            const int32_t width = lv_area_get_width(&box);
+            INFO("shown " << shown << " of " << width);
+            CHECK(shown >= width / 5);
+            CHECK(shown <= width * 4 / 5);
+        }
+    }
+    CHECK(cut_off == 1);
+}
+
+// ============================================================================
+// Overview cards: the lane bars come first
+// ============================================================================
+
+namespace {
+bool card_shows(lv_obj_t* card, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(card, name);
+    REQUIRE(obj != nullptr);
+    return !lv_obj_is_hidden(obj);
+}
+/// The overview's cards, in the order the row lays them out.
+std::vector<lv_obj_t*> row_cards(lv_obj_t* row) {
+    std::vector<lv_obj_t*> out;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i)
+        out.push_back(lv_obj_get_child(row, static_cast<int32_t>(i)));
+    return out;
+}
+uint32_t bar_count(lv_obj_t* card) {
+    lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
+    REQUIRE(bars != nullptr);
+    return lv_obj_get_child_count(bars);
+}
+} // namespace
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview cards: a wide card carries its environment on one line under the bars",
+                 "[ams][panel][overview][card_fit]") {
+    install([](PagedFleet& f) {
+        f.specs.resize(2);
+        f.own_number_base = 0;
+    });
+    open();
+
+    CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 1);
+    for (lv_obj_t* card : row_cards(named("unit_cards_row"))) {
+        CHECK(bar_count(card) == kSlotsPerUnit);
+        CHECK(card_shows(card, "env_indicator"));
+        // The line takes the lane count's place, so the card keeps its height.
+        CHECK_FALSE(card_shows(card, "slot_count"));
+        // The bars span the card's content width, with nothing beside them.
+        lv_obj_t* bars = lv_obj_find_by_name(card, "bars_container");
+        CHECK(lv_obj_get_width(bars) == lv_obj_get_content_width(card));
+    }
+}
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview cards: a narrow row leaves the environment to each unit's page",
+                 "[ams][panel][overview][card_fit]") {
+    // Twelve units: every card at its minimum width.
+    install([](PagedFleet& f) { f.own_number_base = 0; });
+    open();
+
+    CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 0);
+    const auto card_list = row_cards(named("unit_cards_row"));
+    REQUIRE_FALSE(card_list.empty());
+    // The cards have readouts to drop; units are numbered by position here.
+    REQUIRE(subject(AmsState::instance().get_env_ind_visible_subject(0)) == 1);
+    for (lv_obj_t* card : card_list) {
+        CHECK(bar_count(card) == kSlotsPerUnit);
+        CHECK_FALSE(card_shows(card, "env_indicator"));
+        CHECK(card_shows(card, "slot_count"));
+    }
+}
+
+TEST_CASE_METHOD(PagingFixture,
+                 "Overview cards: a unit with more lanes than fit keeps its lane count",
+                 "[ams][panel][overview][card_fit]") {
+    install([](PagedFleet& f) {
+        f.specs.resize(2);
+        f.specs[0].slots = 40;
+        f.own_number_base = 0;
+    });
+    open();
+
+    const auto card_list = row_cards(named("unit_cards_row"));
+    REQUIRE(card_list.size() == 2);
+    // The row lays the units out by position: the 40-lane unit is first.
+    lv_obj_t* wide = card_list[0];
+    lv_obj_t* bars = lv_obj_find_by_name(wide, "bars_container");
+    const int32_t width = lv_obj_get_content_width(bars);
+    const int32_t gap = theme_manager_get_spacing("space_xxs");
+    // The bars that fit at the floor width are drawn; the rest are not.
+    const auto fit = helix::ui::decide_unit_card_fit(width, 40, 6, gap, 0);
+    REQUIRE(fit.bars_shown < 40);
+    CHECK(bar_count(wide) == static_cast<uint32_t>(fit.bars_shown));
+    CHECK(card_shows(wide, "slot_count"));
+    // One answer for the row: the overflowing unit leaves every card's readout
+    // to its page.
+    CHECK(subject(AmsState::instance().get_cards_env_line_subject()) == 0);
 }

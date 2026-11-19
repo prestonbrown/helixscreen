@@ -36,6 +36,10 @@
          to land on an exact number. Empty keeps the plain value label. -->
     <prop name="value_callback" type="string" default=""/>
     <prop name="value_text" type="string" default=""/>
+    <!-- Optional subject the value readout binds, formatted by value_format
+         (an int subject with the default "%d"). Empty leaves the static value. -->
+    <prop name="value_subject" type="string" default=""/>
+    <prop name="value_format" type="string" default="%d"/>
   </api>
   <styles>
     <style name="label_enabled" text_color="#text"/>
@@ -75,7 +79,9 @@
         </lv_obj>
       </lv_obj>
       <!-- Right side: Current value -->
-      <text_muted name="value_label" text="$value" hidden_if_prop_not_eq="$value_callback|"/>
+      <text_muted name="value_label"
+                  text="$value" bind_text="$value_subject" bind_text-fmt="$value_format"
+                  hidden_if_prop_not_eq="$value_callback|"/>
       <setting_value_field name="value_field"
                            value="$value_text" callback="$value_callback" hidden_if_empty="$value_callback"/>
     </lv_obj>

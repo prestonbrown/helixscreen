@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
+
+#include "core/timer_guard.h"
 
 #include <functional>
 #include <lvgl.h>

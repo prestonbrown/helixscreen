@@ -18,6 +18,7 @@
 #include "chamber_heater_assignment.h"
 #include "connection_state.h" // For ConnectionState enum
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
 #include "enclosure_top.h"
@@ -105,7 +106,6 @@ using namespace helix;
 // ============================================================================
 
 PrinterState::PrinterState() {
-    // Load user-configured capability overrides from settings.json
     capability_overrides_.load_from_config();
     plugin_status_state_.set_locality_source(
         [this] { return moonraker_locality() == helix::MoonrakerLocality::Local; });
@@ -114,20 +114,23 @@ PrinterState::PrinterState() {
 PrinterState::~PrinterState() {
     // Backstop for the path that skips deinit_subjects() entirely: the subjects
     // are members, so they die with this object even though nothing called
-    // lv_subject_deinit() on them. Any ObserverGuard still holding one would
+    // reset() on them. Any ObserverGuard still holding one would
     // otherwise reset() against freed storage. Flipping costs nothing when
     // deinit_subjects() already ran — that installed a fresh token, and flipping
     // it just tells holders registered since then that the state is gone too.
     // Plain flip, no renewal: a dying object has no successor generation.
     subjects_.mark_subjects_dead();
-    unregister_static_deinit();
+    unregister_registry_callbacks();
 }
 
-void PrinterState::unregister_static_deinit() {
-    // The registered callback captures `this`; a per-test instance would leave it
-    // dangling in the process-wide registry.
+void PrinterState::unregister_registry_callbacks() {
+    // Both registered callbacks capture `this`; a per-test instance would leave them
+    // dangling in the process-wide registries.
     if (!StaticSubjectRegistry::is_destroyed()) {
-        StaticSubjectRegistry::instance().unregister("PrinterState");
+        StaticSubjectRegistry::instance().unregister("PrinterState", this);
+    }
+    if (!helix::PrinterCacheRegistry::is_destroyed()) {
+        helix::PrinterCacheRegistry::instance().unregister("PrinterState", this);
     }
 }
 
@@ -139,7 +142,7 @@ void PrinterState::deinit_subjects() {
     }
 
     spdlog::trace("[PrinterState] deinit_subjects: Deinitializing all subjects");
-    unregister_static_deinit();
+    unregister_registry_callbacks();
 
     // Expire any setter callbacks still queued on the UpdateQueue. They capture
     // `this` and touch the subjects torn down below (directly or through
@@ -147,18 +150,13 @@ void PrinterState::deinit_subjects() {
     // observer list (#1165, #1146).
     async_lifetime_.invalidate();
 
-    // Drop the per-printer cache invalidator registered by init_subjects(). It captures
-    // `this`, and the registry outlives non-singleton instances (test fixtures own their
-    // own PrinterState), so leaving it registered would hold a callback over freed memory.
-    helix::PrinterCacheRegistry::instance().unregister("PrinterState");
-
     // Signal death of EVERY subject below BEFORE anything is torn down. The
     // umbrella contract: this token covers the per-domain components too, whose
     // subjects die in the cascade below — BEFORE this manager's own
     // deinit_all() runs — so the flip cannot wait for it. Observers held by
     // objects that outlive this call — process-lifetime panel singletons, most
     // of all — check this token in ObserverGuard::reset() and skip
-    // lv_observer_remove() on observer nodes that lv_subject_deinit() is about
+    // lv_observer_delete() on observer nodes that reset() is about
     // to free. Flipping the bool (rather than only dropping the shared_ptr) is
     // what makes it work when a holder still has a copy. The later
     // subjects_.deinit_all() flips again; that lands on the renewed token,
@@ -182,7 +180,7 @@ void PrinterState::deinit_subjects() {
     profile_state_.deinit_subjects();
 
     // Deinit PrinterState's own subjects (multi-printer)
-    lv_subject_deinit(&active_printer_name_);
+    active_printer_name_.reset();
     subjects_.deinit_all();
 
     subjects_initialized_ = false;
@@ -209,16 +207,12 @@ void PrinterState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterState] Initializing subjects (register_xml={})", register_xml);
 
-    // Initialize temperature state component (extruder and bed temperatures)
     temperature_state_.init_subjects(register_xml);
 
-    // Initialize motion state component (position, speed/flow, z-offset)
     motion_state_.init_subjects(register_xml);
 
-    // Initialize fan state component (fan speed, multi-fan tracking)
     fan_state_.init_subjects(register_xml);
 
-    // Initialize print state component (progress, state, timing, layers, print start)
     print_domain_.init_subjects(register_xml);
 
     // Initialize capabilities state component (hardware capabilities, feature availability)
@@ -261,8 +255,10 @@ void PrinterState::init_subjects(bool register_xml) {
     subjects_initialized_ = true;
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
-    StaticSubjectRegistry::instance().register_deinit("PrinterState",
-                                                      [this]() { deinit_subjects(); });
+    // Keyed by `this` as well as the name, like the cache invalidator below.
+    StaticSubjectRegistry::instance().register_deinit(
+        "PrinterState", [this]() { deinit_subjects(); }, StaticSubjectRegistry::Lifetime::Printer,
+        this);
 
     // Self-register per-printer cache invalidation. This object outlives every printer
     // switch, so anything cached from Config::df() or from the previous printer's status
@@ -272,14 +268,20 @@ void PrinterState::init_subjects(bool register_xml) {
     //  - exclude_object state is only refreshed by update_from_status() when the new
     //    printer reports an "exclude_object" object, so switching to a printer without
     //    [exclude_object] configured would keep the previous printer's objects on screen.
-    helix::PrinterCacheRegistry::instance().register_invalidator("PrinterState", [this]() {
-        // Only the override map is refreshed. The effective capability subjects are
-        // re-derived from set_hardware(discovery_, capability_overrides_) when the new
-        // printer's discovery lands; deriving them here would pair the new printer's
-        // overrides with the OLD printer's still-cached discovery_.
-        capability_overrides_.load_from_config();
-        excluded_objects_state_.clear_objects();
-    });
+    // Keyed by `this` as well as the name: a test's own PrinterState must neither replace
+    // the global instance's entry nor take it away when it dies.
+    helix::PrinterCacheRegistry::instance().register_invalidator(
+        "PrinterState",
+        [this]() {
+            // Only the override map is refreshed. The effective capability subjects are
+            // re-derived from set_hardware(discovery_, capability_overrides_) when the new
+            // printer's discovery lands; deriving them here would pair the new printer's
+            // overrides with the OLD printer's still-cached discovery_.
+            capability_overrides_.load_from_config();
+            excluded_objects_state_.clear_objects();
+            print_domain_.set_excluded_work_share(0.0);
+        },
+        this);
 
     spdlog::trace("[PrinterState] Subjects initialized and registered successfully");
 }
@@ -366,17 +368,14 @@ void PrinterState::update_from_status(const json& state, double eventtime,
 
     // Extract kinematics type (determines if bed moves on Z or gantry moves)
     // This is not part of motion_state_ as it affects printer_bed_moves_ subject
-    if (state.contains("toolhead")) {
-        const auto& toolhead = state["toolhead"];
-        if (toolhead.contains("kinematics") && toolhead["kinematics"].is_string()) {
-            std::string kin = toolhead["kinematics"].get<std::string>();
-            set_kinematics(kin);
+    if (const auto* toolhead = json_util::find_member(state, "toolhead")) {
+        if (const auto kin = json_util::read_field<std::string>(*toolhead, "kinematics")) {
+            set_kinematics(*kin);
         }
 
         // Track active extruder from toolhead (for tool changers and multi-extruder setups)
-        if (toolhead.contains("extruder") && toolhead["extruder"].is_string()) {
-            std::string active_ext = toolhead["extruder"].get<std::string>();
-            temperature_state_.set_active_extruder(active_ext);
+        if (const auto active_ext = json_util::read_field<std::string>(*toolhead, "extruder")) {
+            temperature_state_.set_active_extruder(*active_ext);
         }
     }
 
@@ -384,6 +383,7 @@ void PrinterState::update_from_status(const json& state, double eventtime,
     fan_state_.update_from_status(state);
 
     excluded_objects_state_.update_from_status(state);
+    print_domain_.set_excluded_work_share(excluded_objects_state_.excluded_work_share());
 
     // Klippy state from webhooks (shutdown/error detection), gated on freshness.
     if (auto it = state.find("webhooks"); it != state.end()) {
@@ -391,11 +391,8 @@ void PrinterState::update_from_status(const json& state, double eventtime,
     }
 
     // Track Klipper pause_resume.is_paused (PAUSE/RESUME gcode state)
-    if (state.contains("pause_resume")) {
-        const auto& pr = state["pause_resume"];
-        if (pr.contains("is_paused") && pr["is_paused"].is_boolean()) {
-            is_paused_ = pr["is_paused"].get<bool>();
-        }
+    if (const auto* pr = json_util::find_member(state, "pause_resume")) {
+        is_paused_ = json_util::read_field<bool>(*pr, "is_paused").value_or(is_paused_);
     }
 
     // Delegate calibration updates (manual probe, motor state, firmware retraction)
@@ -552,10 +549,15 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
 
     // Delegate capability subject updates to capabilities_state_ component
     capabilities_state_.set_hardware(discovery_, capability_overrides_);
-    // Per-head Z offset storage changes what the tune hint can promise.
-    if (profile_state_.set_z_offset_per_head(
-            helix::zoffset::firmware_applies_z_offset_per_head(discovery_)) &&
-        !profile_state_.printer_type().empty()) {
+    // Per-head Z offset storage changes what the tune hint can promise, and the
+    // probe, stepper_z's endstop and the kinematics pick the calibration
+    // strategy. A type resolved before this snapshot (the saved type at
+    // startup) is re-resolved against it.
+    profile_state_.set_z_offset_per_head(
+        helix::zoffset::firmware_applies_z_offset_per_head(discovery_));
+    profile_state_.set_z_homing(discovery_.z_position_endstop().has_value(),
+                                discovery_.kinematics());
+    if (!profile_state_.printer_type().empty()) {
         set_printer_type_internal(profile_state_.printer_type());
     }
     chamber_air_state_.set_hardware(discovery_);
@@ -566,9 +568,11 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // initial status dispatch that carries the interrupted flag; the offer
     // decision reads both, so the capability must land first.
     print_domain_.set_plr_resume_macro_present(helix::plr_resume_macro_present(discovery_));
+    print_domain_.set_plr_saved_file_gates_offer(helix::plr_saved_file_gates_offer(discovery_));
 
     // Fold the helper-macro install status in with the same snapshot.
     plugin_status_state_.set_helix_macros_base_status(MacroManager::evaluate_status(discovery_));
+    plugin_status_state_.set_signal_macro_scan(discovery_.signal_macro_scan());
 
     // Stored option settings belong to the machine that reported them. New
     // hardware starts from none: a self-storing firmware reports its own in the
@@ -715,6 +719,12 @@ void PrinterState::set_helix_plugin_features(helix::PluginFeatureMap features,
                           });
 }
 
+void PrinterState::set_signal_migration_report(helix::signal_macros::SignalMigrationReport report) {
+    async_lifetime_.defer("PrinterState::set_signal_migration_report", [this, report]() {
+        plugin_status_state_.set_signal_migration_report(report);
+    });
+}
+
 void PrinterState::set_macro_option_count(size_t count) {
     macro_option_count_ = count;
     update_gcode_modification_visibility();
@@ -757,7 +767,7 @@ bool PrinterState::is_blocking_operation_active() {
     //
     // Debounced, not the raw subject: the flag is equally true for a one-shot
     // housekeeping macro, and a printer with delayed_gcode loops would otherwise
-    // refuse a jog for ~7% of its idle life (bundle L53W5PKG).
+    // refuse a jog for ~7% of its idle life.
     if (!calibration_state_.idle_timeout_busy().blocking()) {
         return false;
     }
@@ -796,8 +806,13 @@ bool PrinterState::is_busy_episode_app_initiated() {
     return busy.blocking() && app_command_episode_.owns(busy.printing_since());
 }
 
+bool PrinterState::z_offset_reference_is_probe() {
+    return capabilities_state_.has_probe() &&
+           profile_state_.z_offset_calibration_strategy() != ZOffsetCalibrationStrategy::ENDSTOP;
+}
+
 int PrinterState::get_configured_z_offset_microns() {
-    if (capabilities_state_.has_probe()) {
+    if (z_offset_reference_is_probe()) {
         // Probe printers: z_offset stored in ProbeSensorManager (already in microns)
         return lv_subject_get_int(
             helix::sensors::ProbeSensorManager::instance().get_probe_z_offset_subject());
@@ -832,7 +847,6 @@ void PrinterState::set_kinematics(const std::string& kinematics) {
     bool has_qgl = lv_subject_get_int(capabilities_state_.subject(Capability::HasQgl)) != 0;
     auto_detected_bed_moves_ = is_corexy_family && !has_qgl;
 
-    // Apply with user override considered
     apply_effective_bed_moves();
 }
 
@@ -921,6 +935,18 @@ void PrinterState::set_z_offset_external_persistence_internal(const std::string&
     }
 }
 
+void PrinterState::set_z_position_endstop_known(bool numeric) {
+    async_lifetime_.defer("PrinterState::set_z_position_endstop_known",
+                          [this, numeric]() { set_z_position_endstop_known_internal(numeric); });
+}
+
+void PrinterState::set_z_position_endstop_known_internal(bool numeric) {
+    if (profile_state_.set_z_homing(numeric, discovery_.kinematics()) &&
+        !profile_state_.printer_type().empty()) {
+        set_printer_type_internal(profile_state_.printer_type());
+    }
+}
+
 void PrinterState::set_printer_type_internal(const std::string& type) {
     if (!profile_state_.set_printer_type(type, capabilities_state_.has_probe(),
                                          discovery_.has_exclude_object(), timelapse_available())) {
@@ -975,6 +1001,6 @@ bool PrinterState::timelapse_available() {
 // ============================================================================
 
 void PrinterState::set_active_printer_name(const std::string& name) {
-    lv_subject_copy_string(&active_printer_name_, name.c_str());
+    lv_subject_set_string(&active_printer_name_, name.c_str());
     spdlog::debug("[PrinterState] Active printer name set to: '{}'", name);
 }

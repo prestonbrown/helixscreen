@@ -23,6 +23,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "filament_sensor_manager.h"
 #include "humidity_sensor_manager.h"
 #include "panel_widget_manager.h"
@@ -262,9 +263,9 @@ TEST_CASE("XMLTestFixture leaves no PrinterState entry behind in the registry",
 
 TEST_CASE("SubjectManager::publish withdraws the name on deinit_all", "[shutdown][xml_name]") {
     LVGLTestFixture fixture;
-    lv_subject_t subject{};
+    helix::Subject subject{};
     SubjectManager subjects;
-    lv_subject_init_int(&subject, 0);
+    subject.init_int(0);
     subjects.publish("test_publish_withdraw", &subject);
     REQUIRE(lv_xml_get_subject(nullptr, "test_publish_withdraw") == &subject);
 
@@ -275,12 +276,12 @@ TEST_CASE("SubjectManager::publish withdraws the name on deinit_all", "[shutdown
 TEST_CASE("SubjectManager::deinit_all leaves a name a successor re-published",
           "[shutdown][xml_name]") {
     LVGLTestFixture fixture;
-    lv_subject_t old_subject{};
-    lv_subject_t new_subject{};
+    helix::Subject old_subject{};
+    helix::Subject new_subject{};
     SubjectManager old_owner;
     SubjectManager new_owner;
-    lv_subject_init_int(&old_subject, 0);
-    lv_subject_init_int(&new_subject, 0);
+    old_subject.init_int(0);
+    new_subject.init_int(0);
     old_owner.publish("test_publish_successor", &old_subject);
     new_owner.publish("test_publish_successor", &new_subject);
 

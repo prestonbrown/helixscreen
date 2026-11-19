@@ -21,6 +21,7 @@
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/mock_printer.h"
+#include "test_helpers/scoped_language.h"
 
 #include <algorithm>
 #include <array>
@@ -765,15 +766,57 @@ TEST_CASE("AD5X IFS module eject of its loaded lane names a temperature when the
 TEST_CASE("AD5X IFS module driver_error surfaces as ERROR", "[ams][ad5x_ifs][ifs_module]") {
     helix::test::StartedBackend<AmsBackendAd5xIfs> backend;
     backend.fire_status(module_ifs_frame(0, {}, "ready"));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == helix::AmsAction::IDLE);
 
     backend.fire_status(json{{"ifs",
                               {{"activity", "driver_error"},
                                {"error", "stepper driver fault: overcurrent"},
                                {"active_channel", 0},
                                {"loaded_channels", json::array()}}}});
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::ERROR);
+    CHECK(backend.get_current_action() == helix::AmsAction::ERROR);
     CHECK(backend.get_system_info().operation_detail.find("overcurrent") != std::string::npos);
+
+    // Without the board's own words the line is a catalog key, worded when shown.
+    helix::test::StartedBackend<AmsBackendAd5xIfs> bare;
+    bare.fire_status(module_ifs_frame(0, {}, "ready"));
+    bare.fire_status(json{{"ifs",
+                           {{"activity", "driver_error"},
+                            {"active_channel", 0},
+                            {"loaded_channels", json::array()}}}});
+    helix::ScopedLanguage fr("fr");
+    REQUIRE(bare.current_error().has_value());
+    CHECK(bare.current_error()->detail == "Erreur du pilote IFS");
+}
+
+TEST_CASE("AD5X IFS module clear_fault leaves a driver fault standing and sends nothing",
+          "[ams][ad5x_ifs][ifs_module][clear_fault]") {
+    helix::test::StartedBackend<TestableModuleBackend> backend;
+    backend.fire_status(module_ifs_frame(0, {}, "ready"));
+    backend.fire_status(json{{"ifs",
+                              {{"activity", "driver_error"},
+                               {"error", "stepper driver fault: overcurrent"},
+                               {"active_channel", 0},
+                               {"loaded_channels", json::array()}}}});
+    REQUIRE(backend.get_current_action() == helix::AmsAction::ERROR);
+
+    // The board reports driver_error once, so a cleared mirror would never come
+    // back while the hardware stays faulted.
+    CHECK(backend.clear_fault(0).result == helix::AmsResult::NOT_SUPPORTED);
+    CHECK(backend.get_current_action() == helix::AmsAction::ERROR);
+    CHECK(backend.captured_gcodes.empty());
+}
+
+TEST_CASE("AD5X IFS module clear_fault retires its own fault without IFS_UNLOCK",
+          "[ams][ad5x_ifs][ifs_module][clear_fault]") {
+    helix::test::StartedBackend<TestableModuleBackend> backend;
+    backend.fire_status(module_ifs_frame(0, {}, "ready"));
+    Ad5xIfsTestAccess::set_action(backend, helix::AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(backend.get_current_action() == helix::AmsAction::ERROR);
+
+    REQUIRE(backend.clear_fault(0).success());
+    CHECK(backend.get_current_action() == helix::AmsAction::IDLE);
+    CHECK(backend.captured_gcodes.empty());
 }
 
 TEST_CASE("AD5X IFS module activity tracks an externally-started op",
@@ -783,13 +826,13 @@ TEST_CASE("AD5X IFS module activity tracks an externally-started op",
     // A slicer's T1 or a console IFS_LOAD sets no tracker and installs no ack
     // callback here — the board's activity is the only signal it produces.
     backend.fire_status(module_ifs_frame(0, {}, "loading"));
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::LOADING);
+    CHECK(backend.get_current_action() == helix::AmsAction::LOADING);
 
     backend.fire_status(module_ifs_frame(0, {}, "ready"));
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+    CHECK(backend.get_current_action() == helix::AmsAction::IDLE);
 
     backend.fire_status(module_ifs_frame(0, {}, "unloading"));
-    CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::UNLOADING);
+    CHECK(backend.get_current_action() == helix::AmsAction::UNLOADING);
 }
 
 TEST_CASE("AD5X IFS module slotless unload names a lane the module can retract",
@@ -819,7 +862,7 @@ TEST_CASE("AD5X IFS module slotless unload names a lane the module can retract",
         const helix::AmsError err = backend.unload_filament(-1);
         CHECK_FALSE(err.success());
         CHECK(backend.captured_gcodes.empty());
-        CHECK(Ad5xIfsTestAccess::action(backend) == helix::AmsAction::IDLE);
+        CHECK(backend.get_current_action() == helix::AmsAction::IDLE);
     }
     SECTION("a remembered lane that has since emptied is not trusted") {
         Ad5xIfsTestAccess::set_persisted_seated_slot(backend, 3);
@@ -861,7 +904,7 @@ AmsBackendAd5xIfs::UnloadLaneDecision table_verdict(bool module, int recorded, i
     in.module = module;
     in.recorded_lane = recorded;
     in.at_hub_lane = at_hub;
-    in.present = present;
+    std::copy(present.begin(), present.end(), in.present.begin());
     in.head_loaded = head;
     return AmsBackendAd5xIfs::decide_unload_lane(in);
 }
@@ -984,7 +1027,7 @@ TEST_CASE("AD5X IFS module clears the extruder alone when no lane can be named",
         seat_unrecorded_module(backend, {1, 2}, /*at_hub=*/0);
         REQUIRE(backend.unload_filament(helix::kClearToolheadSlot).success());
         CHECK(backend.captured_gcodes == std::vector<std::string>{clear220});
-        CHECK(Ad5xIfsTestAccess::action(backend) != helix::AmsAction::IDLE);
+        CHECK(backend.get_current_action() != helix::AmsAction::IDLE);
     }
     SECTION("no lane holding filament asks to confirm the clear, and never clears unasked") {
         helix::test::StartedBackend<TestableModuleBackend> backend;
@@ -1154,9 +1197,12 @@ TEST_CASE("AD5X IFS module poll stand-down", "[ams][ad5x_ifs][ifs_module]") {
     REQUIRE(backend.unload_filament(1).success());
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
 
-    // And a manual resync is a no-op rather than a re-read.
+    // And a manual resync is a no-op rather than a re-read, of the IFS; the lane
+    // records are still read again.
+    const size_t reads = backend.wire().fake_client().rpc_count("server.database.get_item");
     backend.request_resync();
     CHECK(Ad5xIfsTestAccess::zcolor_schedule_count(backend) == before);
+    CHECK(backend.wire().fake_client().rpc_count("server.database.get_item") > reads);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

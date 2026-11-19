@@ -159,7 +159,7 @@ helix::PrinterState& get_printer_state();
  *
  * @return Reference to the global notification subject
  */
-lv_subject_t& get_notification_subject();
+helix::Subject& get_notification_subject();
 
 /**
  * @brief Get the global home edit mode subject
@@ -169,7 +169,7 @@ lv_subject_t& get_notification_subject();
  *
  * @return Reference to the home edit mode subject
  */
-lv_subject_t& get_home_edit_mode_subject();
+helix::Subject& get_home_edit_mode_subject();
 
 /**
  * @brief Get the global home edit page deletable subject
@@ -180,7 +180,7 @@ lv_subject_t& get_home_edit_mode_subject();
  * @return Reference to the home edit page deletable subject
  */
 // NAMESPACE_OK: sits with get_home_edit_mode_subject(), this header's file-scope API
-lv_subject_t& get_home_edit_page_deletable_subject();
+helix::Subject& get_home_edit_page_deletable_subject();
 
 /**
  * @brief Death signal for the file-static app_globals subjects
@@ -205,7 +205,7 @@ SubjectLifetime get_app_globals_subjects_lifetime(); // NAMESPACE_OK: sits with 
  *
  * @return Reference to the wizard-active subject
  */
-lv_subject_t& get_wizard_active_subject();
+helix::Subject& get_wizard_active_subject();
 
 /**
  * @brief Initialize all global subjects
@@ -481,12 +481,41 @@ void migrate_legacy_state_roots();
  */
 std::string app_get_install_root();
 
+/**
+ * @brief app_get_install_root() for a caller that writes into it
+ *
+ * Empty when the firmware owns the running install
+ * (helix::platform_defaults_to_external_updates()): the app never writes into a
+ * firmware's package directory, whose next package update replaces it anyway.
+ */
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_writable_install_root();
+
+namespace helix {
+/// The rule behind app_get_writable_install_root(), for any @p install_root: it, or
+/// empty when the firmware owns the running install.
+std::string writable_install_root(const std::string& install_root);
+} // namespace helix
+
 // Returns the cache directory (thumbnails, update tarballs, transient
 // assets). Resolved via the same platform-specific hierarchy as
 // get_helix_cache_dir(""), with any trailing slash stripped for display.
 // Never returns empty — falls back to /tmp/helix_ or similar.
 // Result is cached after first call.
 std::string app_get_cache_dir();
+
+/**
+ * @brief Directory for per-device state that has to outlive an update and stay
+ * out of the Klipper config tree, such as the telemetry identity.
+ *
+ * The board's state root beside the payload (see platforms.json
+ * storage.state_root), else the systemd state dir, else $HOME/.helixscreen;
+ * the first that can be created and written. Empty when none can, and always
+ * on Android, whose state dir is in the device backup set. Creates the
+ * directory it returns.
+ */
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_state_root();
 
 // Returns a writable base dir for SHORT-LIVED runtime files (nmcli stderr
 // capture, screenshots, timelapse temp downloads). Prefers a fast tmpfs

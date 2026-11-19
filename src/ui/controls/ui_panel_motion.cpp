@@ -12,7 +12,6 @@
 #include "ui_panel_common.h"
 #include "ui_panel_controls.h"
 #include "ui_settings_motion.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -32,6 +31,7 @@
 #include "sort_small.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "tile_grid_fit.h"
 #include "toolhead_homing.h"
@@ -259,6 +259,17 @@ bool helix::z_direction_blocked(bool z_homed, bool bounds_known, double z, doubl
     return z <= z_min + tolerance;
 }
 
+helix::HomeBarSegments helix::motion_home_bar_segments(bool individual_xyz_homing,
+                                                       int32_t bar_content_w,
+                                                       int32_t min_segment_w) {
+    if (!individual_xyz_homing) {
+        return {.all = true, .xy = false};
+    }
+    const bool five_fit =
+        min_segment_w > 0 && bar_content_w >= kHomeBarSegmentsWithXy * min_segment_w;
+    return {.all = five_fit, .xy = true};
+}
+
 /// Bed-grid preset keys as they appear in motion_panel.xml user_data, in
 /// MotionPreset declaration order (rear row first, front row last).
 // ============================================================================
@@ -411,6 +422,10 @@ void MotionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(motion_x_homed_, 0, "motion_x_homed", subjects_);
     UI_MANAGED_SUBJECT_INT(motion_y_homed_, 0, "motion_y_homed", subjects_);
     UI_MANAGED_SUBJECT_INT(motion_z_homed_, 0, "motion_z_homed", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_all_homed_, 0, "motion_all_homed", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_xy_homed_, 0, "motion_xy_homed", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_home_bar_all_, 1, "motion_home_bar_all", subjects_);
+    UI_MANAGED_SUBJECT_INT(motion_home_bar_xy_, 0, "motion_home_bar_xy", subjects_);
 
     // Z button limit state (0=enabled, 1=disabled); XML binds these with
     // bind_state_if_eq state="disabled" on every Z button in both layouts.
@@ -605,6 +620,16 @@ void MotionPanel::register_callbacks() {
         {"on_motion_bed_size_changed",
          [](lv_event_t*) { get_global_motion_panel().layout_bed_map(); }},
         {"on_motion_bed_home", [](lv_event_t*) { get_global_motion_panel().home('A'); }},
+        {"on_motion_home_all", [](lv_event_t*) { get_global_motion_panel().home('A'); }},
+        {"on_motion_home_x", [](lv_event_t*) { get_global_motion_panel().home('X'); }},
+        {"on_motion_home_y", [](lv_event_t*) { get_global_motion_panel().home('Y'); }},
+        {"on_motion_home_xy", [](lv_event_t*) { get_global_motion_panel().home_axes("XY"); }},
+        {"on_motion_home_bar_size_changed",
+         [](lv_event_t* e) {
+             get_global_motion_panel().fit_home_bar(
+                 static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
+         }},
+        {"on_motion_home_z", [](lv_event_t*) { get_global_motion_panel().home('Z'); }},
         {"on_motion_bed_cleared", [](lv_event_t*) { helix::confirm_bed_cleared(); }},
         {"on_motion_bed_plate_draw",
          [](lv_event_t* e) { get_global_motion_panel().draw_bed_plate(e); }},
@@ -767,7 +792,7 @@ void MotionPanel::fit_jog_pad() {
         return;
 
     lv_obj_update_layout(overlay_root_);
-    const lv_coord_t wrapper_h = lv_obj_get_height(jog_wrapper);
+    const int32_t wrapper_h = lv_obj_get_height(jog_wrapper);
 
     // Portrait only: the Z column grows beside the wrapper, so the wrapper's
     // resolved share under-reports the width a square pad could claim. Size
@@ -777,18 +802,18 @@ void MotionPanel::fit_jog_pad() {
     // wrapper: the pad centres in it and the Z controls live in a separate
     // right-hand column.
     lv_obj_t* pad_row = lv_obj_get_parent(jog_wrapper);
-    lv_coord_t wrapper_w = lv_obj_get_width(jog_wrapper);
+    int32_t wrapper_w = lv_obj_get_width(jog_wrapper);
     const bool portrait_pad_row = lv_streq(lv_obj_get_name(pad_row), "pad_row");
     if (portrait_pad_row) {
         lv_obj_t* z_column = lv_obj_get_child_by_name(pad_row, "z_column");
         if (z_column) {
-            const lv_coord_t z_floor = lv_obj_get_style_min_width(z_column, LV_PART_MAIN);
+            const int32_t z_floor = lv_obj_get_style_min_width(z_column, LV_PART_MAIN);
             wrapper_w = lv_obj_get_content_width(pad_row) - z_floor -
                         lv_obj_get_style_pad_column(pad_row, LV_PART_MAIN);
         }
     }
 
-    const lv_coord_t jog_size = LV_MIN(wrapper_w, wrapper_h);
+    const int32_t jog_size = LV_MIN(wrapper_w, wrapper_h);
     if (portrait_pad_row) {
         lv_obj_set_width(jog_wrapper, jog_size);
         lv_obj_set_flex_grow(jog_wrapper, 0);
@@ -798,8 +823,8 @@ void MotionPanel::fit_jog_pad() {
         lv_obj_t* right_column = lv_obj_find_by_name(overlay_root_, "right_column");
         lv_obj_t* z_key = right_column ? lv_obj_find_by_name(right_column, "z_up_large") : nullptr;
         if (z_key && lv_obj_get_height(z_key) > 0) {
-            const lv_coord_t max_w = lv_obj_get_style_max_width(right_column, LV_PART_MAIN);
-            const lv_coord_t near_square = lv_obj_get_height(z_key) * 7 / 5;
+            const int32_t max_w = lv_obj_get_style_max_width(right_column, LV_PART_MAIN);
+            const int32_t near_square = lv_obj_get_height(z_key) * 7 / 5;
             lv_obj_set_width(right_column, LV_MIN(max_w, near_square));
             lv_obj_set_flex_grow(right_column, 0);
             // A key too short to stack keeps its label beside the arrow, which
@@ -1000,6 +1025,12 @@ void MotionPanel::register_position_observers() {
         },
         get_printer_state().get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
 
+    // A printer that cannot home axes separately keeps All on the home bar.
+    individual_homing_observer_ = helix::ui::observe<int>(
+        get_printer_state().capabilities_state().subject(Capability::HasIndividualXyzHoming), this,
+        [](MotionPanel* self, int) { self->apply_home_bar_segments(); },
+        get_printer_state().get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
+
     // Observe homed_axes from PrinterState to publish the per-axis homed
     // subjects (the readouts mute an unhomed axis) and recolor the
     // custom-drawn center home button: warning tint until all axes are homed.
@@ -1014,6 +1045,8 @@ void MotionPanel::register_position_observers() {
             lv_subject_set_int(&self->motion_x_homed_, x);
             lv_subject_set_int(&self->motion_y_homed_, y);
             lv_subject_set_int(&self->motion_z_homed_, z);
+            lv_subject_set_int(&self->motion_all_homed_, x && y && z ? 1 : 0);
+            lv_subject_set_int(&self->motion_xy_homed_, x && y ? 1 : 0);
             self->update_z_button_blocked();
             self->refresh_bed_readout();
             self->update_jog_pad_homed();
@@ -1084,17 +1117,17 @@ void MotionPanel::update_z_axis_label(bool bed_moves) {
     const char* label = bed_moves ? lv_tr("Bed") : lv_tr("Print Head");
     std::strncpy(z_axis_label_buf_, label, sizeof(z_axis_label_buf_) - 1);
     z_axis_label_buf_[sizeof(z_axis_label_buf_) - 1] = '\0';
-    lv_subject_copy_string(&z_axis_label_subject_, z_axis_label_buf_);
+    lv_subject_set_string(&z_axis_label_subject_, z_axis_label_buf_);
 
     // Update Z button icons: expand variants (with platform line) for bed-moves
     const char* up_icon = bed_moves ? "arrow_expand_up" : "arrow_up";
     const char* down_icon = bed_moves ? "arrow_expand_down" : "arrow_down";
     std::strncpy(z_up_icon_buf_, up_icon, sizeof(z_up_icon_buf_) - 1);
     z_up_icon_buf_[sizeof(z_up_icon_buf_) - 1] = '\0';
-    lv_subject_copy_string(&z_up_icon_subject_, z_up_icon_buf_);
+    lv_subject_set_string(&z_up_icon_subject_, z_up_icon_buf_);
     std::strncpy(z_down_icon_buf_, down_icon, sizeof(z_down_icon_buf_) - 1);
     z_down_icon_buf_[sizeof(z_down_icon_buf_) - 1] = '\0';
-    lv_subject_copy_string(&z_down_icon_subject_, z_down_icon_buf_);
+    lv_subject_set_string(&z_down_icon_subject_, z_down_icon_buf_);
 
     // The inversion flips which bound each on-screen direction drives toward,
     // and which way each key's Z+/Z- tag reads.
@@ -1114,9 +1147,9 @@ void MotionPanel::refresh_position_display() {
     format_axis_value(pos_x_buf_, sizeof(pos_x_buf_), x);
     format_axis_value(pos_y_buf_, sizeof(pos_y_buf_), y);
     format_axis_value(pos_z_buf_, sizeof(pos_z_buf_), z);
-    lv_subject_copy_string(&pos_x_subject_, pos_x_buf_);
-    lv_subject_copy_string(&pos_y_subject_, pos_y_buf_);
-    lv_subject_copy_string(&pos_z_subject_, pos_z_buf_);
+    lv_subject_set_string(&pos_x_subject_, pos_x_buf_);
+    lv_subject_set_string(&pos_y_subject_, pos_y_buf_);
+    lv_subject_set_string(&pos_z_subject_, pos_z_buf_);
 }
 
 // ============================================================================
@@ -1347,12 +1380,12 @@ void MotionPanel::home_axes(const std::string& axes) {
         axes,
         [axes]() {
             if (axes.empty()) {
-                helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("All axes homed"));
+                helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("All axes homed"));
             } else {
                 if (axes.size() == 1) {
-                    helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axis homed"), axes);
+                    helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axis homed"), axes);
                 } else {
-                    helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axes homed"), axes);
+                    helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("{} axes homed"), axes);
                 }
             }
         },
@@ -1498,7 +1531,7 @@ void MotionPanel::refresh_tab_labels() {
     for (int i = 0; i < 3; ++i) {
         snprintf(motion_tab_label_buf_[i], sizeof(motion_tab_label_buf_[i]), "%s", tab_labels[i]);
         if (subjects_initialized_) {
-            lv_subject_copy_string(&motion_tab_label_[i], motion_tab_label_buf_[i]);
+            lv_subject_set_string(&motion_tab_label_[i], motion_tab_label_buf_[i]);
         }
     }
 }
@@ -1594,6 +1627,33 @@ PlateRect plate_rect(const helix::BedCoordMapper& mapper, const helix::AxisBound
             static_cast<int32_t>(std::lround(x2 - x1)), static_cast<int32_t>(std::lround(y2 - y1))};
 }
 } // namespace
+
+void MotionPanel::fit_home_bar(lv_obj_t* bar) {
+    if (!bar) {
+        return;
+    }
+    home_bar_content_w_ = lv_obj_get_content_width(bar);
+    apply_home_bar_segments();
+}
+
+void MotionPanel::apply_home_bar_segments() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const bool individual = lv_subject_get_int(get_printer_state().capabilities_state().subject(
+                                Capability::HasIndividualXyzHoming)) != 0;
+    const auto min_segment = static_cast<int32_t>(theme_manager_get_spacing("touch_target_min"));
+    const auto segments =
+        helix::motion_home_bar_segments(individual, home_bar_content_w_, min_segment);
+    const int all = segments.all ? 1 : 0;
+    const int xy = segments.xy ? 1 : 0;
+    if (lv_subject_get_int(&motion_home_bar_all_) != all) {
+        lv_subject_set_int(&motion_home_bar_all_, all);
+    }
+    if (lv_subject_get_int(&motion_home_bar_xy_) != xy) {
+        lv_subject_set_int(&motion_home_bar_xy_, xy);
+    }
+}
 
 void MotionPanel::layout_bed_map() {
     if (!overlay_root_ || motion_tab_ != 2) {
@@ -1784,7 +1844,7 @@ void MotionPanel::refresh_bed_readout() {
         return;
     }
     snprintf(motion_bed_readout_buf_, sizeof(motion_bed_readout_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&motion_bed_readout_, motion_bed_readout_buf_);
+    lv_subject_set_string(&motion_bed_readout_, motion_bed_readout_buf_);
 }
 
 void MotionPanel::handle_bed_touch(helix::BedTouch phase, lv_obj_t* area, lv_point_t screen_point) {
@@ -1876,10 +1936,10 @@ void MotionPanel::update_jog_distance_labels() {
 
     const auto& mode_dist = get_jog_mode_distances(current_mode_);
     snprintf(jog_outer_label_buf_, sizeof(jog_outer_label_buf_), "%smm", mode_dist.outer_label);
-    lv_subject_copy_string(&jog_outer_label_subject_, jog_outer_label_buf_);
+    lv_subject_set_string(&jog_outer_label_subject_, jog_outer_label_buf_);
 
     snprintf(jog_inner_label_buf_, sizeof(jog_inner_label_buf_), "%smm", mode_dist.inner_label);
-    lv_subject_copy_string(&jog_inner_label_subject_, jog_inner_label_buf_);
+    lv_subject_set_string(&jog_inner_label_subject_, jog_inner_label_buf_);
     refresh_z_key_labels();
 }
 
@@ -1893,13 +1953,13 @@ void MotionPanel::refresh_z_key_labels() {
     for (int dir = 0; dir < 2; ++dir) {
         std::snprintf(z_tag_buf_[dir], sizeof(z_tag_buf_[dir]), "%s",
                       helix::z_direction_tag(screen_sign[dir], bed_moves_));
-        lv_subject_copy_string(&z_tag_subject_[dir], z_tag_buf_[dir]);
+        lv_subject_set_string(&z_tag_subject_[dir], z_tag_buf_[dir]);
         for (int ring = 0; ring < 2; ++ring) {
             const std::string label =
                 helix::z_key_label(ring_label[ring], screen_sign[dir], bed_moves_);
             std::snprintf(z_key_label_buf_[dir][ring], sizeof(z_key_label_buf_[dir][ring]), "%s",
                           label.c_str());
-            lv_subject_copy_string(&z_key_label_subject_[dir][ring], z_key_label_buf_[dir][ring]);
+            lv_subject_set_string(&z_key_label_subject_[dir][ring], z_key_label_buf_[dir][ring]);
         }
     }
 }
@@ -1917,7 +1977,7 @@ void MotionPanel::refresh_step_list() {
     const int count = static_cast<int>(std::min<size_t>(steps_.size(), kJogStepMax));
     for (int i = 0; i < count; ++i) {
         format_distance_label(step_label_buf_[i], sizeof(step_label_buf_[i]), steps_[i]);
-        lv_subject_copy_string(&step_label_subject_[i], step_label_buf_[i]);
+        lv_subject_set_string(&step_label_subject_[i], step_label_buf_[i]);
     }
     for (int i = 0; i < kJogStepMax; ++i) {
         lv_subject_set_int(&step_active_subject_[i], i == static_cast<int>(step_index_) ? 1 : 0);

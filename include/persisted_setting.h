@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -43,10 +44,10 @@ struct TableView {
 };
 
 namespace detail {
-void init_setting(const PersistedSetting& s, lv_subject_t& subject, SubjectManager& subjects);
-void reload_setting(const PersistedSetting& s, lv_subject_t& subject);
-int get_setting(const PersistedSetting& s, const lv_subject_t& subject);
-void set_setting(const PersistedSetting& s, lv_subject_t& subject, int value);
+void init_setting(const PersistedSetting& s, Subject& subject, SubjectManager& subjects);
+void reload_setting(const PersistedSetting& s, Subject& subject);
+int get_setting(const PersistedSetting& s, const Subject& subject);
+void set_setting(const PersistedSetting& s, Subject& subject, int value);
 } // namespace detail
 
 /// A fixed set of settings indexed by an enum whose values are the table's
@@ -85,6 +86,10 @@ template <typename Key, size_t N> class PersistedSettings {
     lv_subject_t* subject(Key k) {
         return &subjects_[idx(k)];
     }
+    /// The row's default value.
+    int default_of(Key k) const {
+        return table_[idx(k)].def;
+    }
 
   private:
     static constexpr size_t idx(Key k) {
@@ -92,7 +97,7 @@ template <typename Key, size_t N> class PersistedSettings {
     }
 
     const PersistedSetting (&table_)[N];
-    std::array<lv_subject_t, N> subjects_{};
+    std::array<helix::Subject, N> subjects_{};
 };
 
 } // namespace helix::settings

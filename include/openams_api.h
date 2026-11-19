@@ -5,7 +5,7 @@
 
 #include <string>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline readers of the json
 
 /// The versioned status contract klipper_openams publishes on `oams_manager`
 /// (docs/UI_API.md in klipper_openams). Discovery and the backend share this

@@ -18,6 +18,7 @@
             style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_left="#accent_bar_gap" style_pad_right="0"
             style_pad_gap="#space_sm" style_flex_track_place="center" style_flex_main_place="center"
             style_flex_cross_place="center" clickable="true">
+      <style name="styles.press_dim" selector="pressed"/>
       <event_cb trigger="clicked" callback="tip_text_clicked_cb"/>
       <!-- "Tip: " prefix -->
       <text_heading text="Tip:" style_text_color="#text"/>

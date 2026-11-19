@@ -83,6 +83,10 @@ static helix::AmsSystemInfo make_hh_info() {
     return info;
 }
 
+constexpr const char* kExpandedText =
+    "Expanded: the toolhead pulls filament faster than it arrives";
+constexpr const char* kCompressedText = "Compressed: filament arrives faster than it is used";
+
 static helix::AmsSystemInfo make_afc_info(int unit_count = 1) {
     helix::AmsSystemInfo info;
     info.type = helix::AmsType::AFC;
@@ -93,7 +97,7 @@ static helix::AmsSystemInfo make_afc_info(int unit_count = 1) {
         bh.fault_detection_enabled = true;
         bh.distance_to_fault = 12.5f;
         bh.state = "Advancing";
-        bh.motion = helix::BufferMotion::Advancing;
+        bh.motion = helix::BufferMotion::Expanded;
         unit.buffer_health = bh;
         info.units.push_back(unit);
     }
@@ -266,8 +270,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC with buffer he
     modal.populate(info, 0);
 
     REQUIRE(modal.type_value() == 2);
-    REQUIRE(modal.show_meter_value() == 0);
-    REQUIRE(std::string(modal.buffer_state_value()) == "Feeding filament forward");
+    REQUIRE(modal.show_meter_value() == 1); // a switched buffer's three places
+    REQUIRE(std::string(modal.buffer_state_value()) == kExpandedText);
     REQUIRE(modal.show_distance_value() == 1);
 }
 
@@ -278,16 +282,16 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC state translat
 
     SECTION("Advancing") {
         info.units[0].buffer_health->state = "Advancing";
-        info.units[0].buffer_health->motion = helix::BufferMotion::Advancing;
+        info.units[0].buffer_health->motion = helix::BufferMotion::Expanded;
         modal.populate(info, 0);
-        REQUIRE(std::string(modal.buffer_state_value()) == "Feeding filament forward");
+        REQUIRE(std::string(modal.buffer_state_value()) == kExpandedText);
     }
 
     SECTION("Trailing") {
         info.units[0].buffer_health->state = "Trailing";
-        info.units[0].buffer_health->motion = helix::BufferMotion::Trailing;
+        info.units[0].buffer_health->motion = helix::BufferMotion::Compressed;
         modal.populate(info, 0);
-        REQUIRE(std::string(modal.buffer_state_value()) == "Pulling filament back");
+        REQUIRE(std::string(modal.buffer_state_value()) == kCompressedText);
     }
 
     SECTION("unknown state shows raw with prefix") {
@@ -340,7 +344,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal populate AFC out-of-range u
 
     SECTION("no unit reads the first unit's rows") {
         modal.populate(info, -1);
-        REQUIRE(std::string(modal.buffer_state_value()) == "Feeding filament forward");
+        REQUIRE(std::string(modal.buffer_state_value()) == kExpandedText);
     }
 }
 
@@ -457,10 +461,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal draws the meter for an AFC 
     auto info = make_afc_info();
     auto& bh = *info.units[0].buffer_health;
 
-    SECTION("switched TurtleNeck: state rows only") {
+    SECTION("switched TurtleNeck: the meter snapped to its place, its state in the rows") {
         modal.populate(info, 0);
         CHECK(modal.type_value() == 2);
-        CHECK(modal.show_meter_value() == 0);
+        CHECK(modal.show_meter_value() == 1);
         CHECK(std::string(modal.description_value()).empty());
     }
 
@@ -473,7 +477,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal draws the meter for an AFC 
         CHECK(modal.show_meter_value() == 1);
         CHECK(std::string(modal.description_value()) == "Balanced");
         // AFC's own rows stay.
-        CHECK(std::string(modal.buffer_state_value()) == "Feeding filament forward");
+        CHECK(std::string(modal.buffer_state_value()) == kExpandedText);
         CHECK(modal.show_distance_value() == 1);
     }
 }
@@ -492,12 +496,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(std::string(modal.description_value()) == "Running tight");
     }
 
-    SECTION("AFC switched buffer: its rows still read") {
+    SECTION("AFC switched buffer: its rows still read, beside its reading") {
         auto info = make_afc_info();
         modal.populate(info, -1);
         CHECK(modal.type_value() == 2);
-        CHECK(std::string(modal.buffer_state_value()) == "Feeding filament forward");
-        CHECK(modal.show_reading_value() == 0);
+        CHECK(std::string(modal.buffer_state_value()) == kExpandedText);
+        CHECK(modal.show_reading_value() == 1);
     }
 }
 
@@ -508,9 +512,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "BufferStatusModal all-units view describes th
     info.type = helix::AmsType::AFC;
     info.units[0].buffer_health.reset();
     info.units[1].buffer_health->state = "Trailing";
-    info.units[1].buffer_health->motion = helix::BufferMotion::Trailing;
+    info.units[1].buffer_health->motion = helix::BufferMotion::Compressed;
 
     modal.populate(info, -1);
 
-    REQUIRE(std::string(modal.buffer_state_value()) == "Pulling filament back");
+    REQUIRE(std::string(modal.buffer_state_value()) == kCompressedText);
 }

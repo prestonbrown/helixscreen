@@ -28,7 +28,9 @@
 #include "ams_state.h"
 #include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "printer_discovery.h"
 #include "test_helpers/ams_sidebar_xml.h"
+#include "tool_state.h"
 
 #include <lvgl.h>
 #include <memory>
@@ -194,6 +196,13 @@ TEST_CASE_METHOD(SidebarGuardFixture,
 
     lv_subject_set_int(subject, 1);
     CHECK(lv_obj_has_state(btn, LV_STATE_DISABLED));
+
+    // It shows only where the backend can check its gates.
+    lv_subject_t* shown = gate("ams_sidebar_check_gates_shown");
+    lv_subject_set_int(shown, 0);
+    CHECK(lv_obj_is_hidden(btn));
+    lv_subject_set_int(shown, 1);
+    CHECK_FALSE(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(SidebarDirectionGateFixture,
@@ -205,9 +214,9 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
         REQUIRE(loaded != nullptr);
         REQUIRE(lv_subject_get_int(loaded) == 0); // no tool on the carriage
         CHECK(gate_value("ams_sidebar_unload_picks") == 1);
-        CHECK_FALSE(lv_obj_has_flag(button("btn_load"), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_load")));
+        CHECK(lv_obj_is_hidden(button("btn_unload")));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_batch_unload")));
         CHECK(gate_value("ams_sidebar_unload_disabled") == 0);
         CHECK(gate_value("ams_sidebar_load_disabled") == 0);
     }
@@ -257,9 +266,9 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
         REQUIRE(mock->start().success());
         build(std::move(mock));
         CHECK(gate_value("ams_sidebar_unload_picks") == 0);
-        CHECK_FALSE(lv_obj_has_flag(button("btn_load"), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(button("btn_batch_unload"), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(button("btn_unload"), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_load")));
+        CHECK(lv_obj_is_hidden(button("btn_batch_unload")));
+        CHECK_FALSE(lv_obj_is_hidden(button("btn_unload")));
         lv_subject_t* loaded = helix::AmsState::instance().get_filament_loaded_subject();
         REQUIRE(loaded != nullptr);
         REQUIRE(lv_subject_get_int(loaded) == 1); // something IS loaded
@@ -310,7 +319,7 @@ class NoSectionsBackend : public helix::AmsBackendMock {
 } // namespace
 
 TEST_CASE_METHOD(SidebarDirectionGateFixture,
-                 "AMS sidebar Settings shows for a backend with no device sections",
+                 "AMS device operations are offered for a backend with no device sections",
                  "[ams][sidebar][device-ops]") {
     // The device operations still carry Quick Actions and the generic rows, so
     // the button follows the same gate as Settings > Printing.
@@ -318,11 +327,9 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
     REQUIRE(backend->start().success());
     build(std::move(backend));
     CHECK(gate_value("ams_has_device_ops") == 1);
-    CHECK_FALSE(lv_obj_has_flag(button("btn_settings"), LV_OBJ_FLAG_HIDDEN));
 
     helix::AmsState::instance().set_backend(nullptr);
     CHECK(gate_value("ams_has_device_ops") == 0);
-    CHECK(lv_obj_has_flag(button("btn_settings"), LV_OBJ_FLAG_HIDDEN));
 }
 
 TEST_CASE_METHOD(SidebarDirectionGateFixture,
@@ -341,7 +348,7 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
     REQUIRE(fresh != nullptr);
     lv_obj_t* unload = lv_obj_find_by_name(fresh, "btn_unload");
     REQUIRE(unload != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(unload, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(unload));
     lv_obj_delete(fresh);
 }
 
@@ -364,4 +371,65 @@ TEST_CASE_METHOD(SidebarDirectionGateFixture,
 
     // Still registered for the next switch.
     CHECK(registry.deinit_one("AmsSidebarButtonGatingReset", Scope::PrinterSwitch));
+}
+
+namespace {
+
+/// ToolState for a plain multi-extruder printer with @p extruders heater
+/// objects, the toolhead driving extruder @p active.
+void seed_tools(const std::vector<std::string>& extruders, int active) {
+    helix::ToolState::instance().init_subjects(true);
+    nlohmann::json objects = nlohmann::json::array();
+    for (const auto& e : extruders) {
+        objects.push_back(e);
+    }
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(objects);
+    helix::ToolState::instance().init_tools(hw);
+    helix::ToolState::instance().update_from_status(
+        {{"toolhead", {{"extruder", extruders[static_cast<size_t>(active)]}}}});
+    REQUIRE(helix::ToolState::instance().active_tool_index() == active);
+}
+
+} // namespace
+
+TEST_CASE("mounted_tool_text names the tool on the carriage", "[ams][sidebar][mounted]") {
+    using helix::ui::LaneNoun;
+    CHECK(helix::ui::mounted_tool_text(LaneNoun::Tool, 2)
+              .find(helix::ui::lane_label(LaneNoun::Tool, 2)) != std::string::npos);
+    CHECK(helix::ui::mounted_tool_text(LaneNoun::Tool, -1) == lv_tr("No tool mounted"));
+}
+
+TEST_CASE_METHOD(SidebarDirectionGateFixture,
+                 "AMS sidebar shows the mounted line on multi-head printers only",
+                 "[ams][sidebar][mounted]") {
+    SECTION("several heads, T1 mounted") {
+        seed_tools({"extruder", "extruder1", "extruder2"}, 1);
+        build(std::make_unique<helix::AmsBackendMock>(3));
+        CHECK(gate_value("ams_sidebar_mounted_shown") == 1);
+        lv_subject_t* text = lv_xml_get_subject(nullptr, "ams_sidebar_mounted_text");
+        REQUIRE(text != nullptr);
+        // A tool change after the sidebar is up reaches the line.
+        helix::ToolState::instance().update_from_status(
+            {{"toolhead", {{"extruder", "extruder2"}}}});
+        process_lvgl(10);
+        const int active = helix::ToolState::instance().active_tool_index();
+        REQUIRE(active >= 0);
+        CHECK(std::string(lv_subject_get_string(text)) ==
+              helix::ui::mounted_tool_text(helix::AmsState::instance().get_backend()->tool_noun(),
+                                           active));
+        CHECK(std::string(lv_subject_get_string(text)) != lv_tr("No tool mounted"));
+        CHECK_FALSE(lv_obj_is_hidden(button("mounted_line")));
+    }
+    SECTION("one head") {
+        seed_tools({"extruder"}, 0);
+        build(std::make_unique<helix::AmsBackendMock>(4));
+        CHECK(gate_value("ams_sidebar_mounted_shown") == 0);
+        CHECK(lv_obj_is_hidden(button("mounted_line")));
+    }
+}
+
+TEST_CASE_METHOD(SidebarGuardFixture, "AMS sidebar grid holds actions only, no Settings",
+                 "[ams][sidebar][mounted]") {
+    CHECK(lv_obj_find_by_name(root_, "btn_settings") == nullptr);
 }

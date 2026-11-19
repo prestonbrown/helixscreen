@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -153,15 +154,12 @@ class ContractBacklight : public BacklightBackend {
 /// exist only while a DisplayManager does.
 class ScopedContractDisplay {
   public:
-    ScopedContractDisplay() : previous_(DisplayManager::instance()) {
+    ScopedContractDisplay() {
         DisplayManagerTestAccess::set_backend(dm_, std::make_unique<ContractDisplayBackend>());
         DisplayManagerTestAccess::set_backlight(dm_, std::make_unique<ContractBacklight>());
         DisplayManagerTestAccess::set_use_hardware_blank(dm_, true);
         DisplayManagerTestAccess::set_size(dm_, 800, 480);
-        DisplayManagerTestAccess::set_active_instance(&dm_);
-    }
-    ~ScopedContractDisplay() {
-        DisplayManagerTestAccess::set_active_instance(previous_);
+        published_.emplace(&dm_);
     }
 
     ScopedContractDisplay(const ScopedContractDisplay&) = delete;
@@ -169,7 +167,7 @@ class ScopedContractDisplay {
 
   private:
     DisplayManager dm_;
-    DisplayManager* previous_;
+    std::optional<ActiveDisplayManagerScope> published_;
 };
 
 /// One golden value that does not come from the test's inputs, and the fixed
@@ -209,6 +207,7 @@ const std::vector<Pinned>& pinned_values() {
 
         // Probes of the machine running the test.
         {"session", "app.zip_tool", "<host>", false},
+        {"session", "app.host_mod", "<host>", false},
         {"session", "host.arch", "<host>", true},
         {"session", "host.cpu_model", "<host>", true},
         {"session", "host.cpu_cores", 0, true},

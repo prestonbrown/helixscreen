@@ -31,6 +31,10 @@
  * populate `ToolState` and `PrinterState` directly to reach it.
  */
 
+#include "ui_nav_manager.h"
+#include "ui_overlay_temp_graph.h"
+#include "ui_utils.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "ams_state.h"
@@ -40,7 +44,10 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/nozzle_layout.h"
 #include "src/ui/panel_widgets/nozzle_temps_widget.h"
+#include "target_tool.h"
 #include "tool_state.h"
+
+#include <array>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -152,13 +159,13 @@ void check_one_label_visible(lv_obj_t* container, int index, NozzleLabelMode mod
     lv_obj_t* short_lbl = nth_row_label(container, index, "tool_label_short");
     lv_obj_t* number_lbl = nth_row_label(container, index, "tool_label_number");
     lv_obj_t* target_lbl = nth_row_label(container, index, "target_label");
-    CHECK(lv_obj_has_flag(long_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Long));
-    CHECK(lv_obj_has_flag(short_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Short));
-    CHECK(lv_obj_has_flag(number_lbl, LV_OBJ_FLAG_HIDDEN) == (mode != NozzleLabelMode::Number));
+    CHECK(lv_obj_is_hidden(long_lbl) == (mode != NozzleLabelMode::Long));
+    CHECK(lv_obj_is_hidden(short_lbl) == (mode != NozzleLabelMode::Short));
+    CHECK(lv_obj_is_hidden(number_lbl) == (mode != NozzleLabelMode::Number));
     // The number/icon rungs budget the current-only value: the target half
     // is hidden there and drawn at the text rungs.
     const bool text_mode = mode == NozzleLabelMode::Long || mode == NozzleLabelMode::Short;
-    CHECK(lv_obj_has_flag(target_lbl, LV_OBJ_FLAG_HIDDEN) != text_mode);
+    CHECK(lv_obj_is_hidden(target_lbl) != text_mode);
 }
 
 } // namespace
@@ -236,7 +243,7 @@ TEST_CASE_METHOD(
     // reading implementation leaves the new row's long label visible here.
     CHECK(label_mode_subject_value() == mode);
     check_one_label_visible(container, 1, static_cast<NozzleLabelMode>(mode));
-    CHECK(lv_obj_has_flag(nth_row_label(container, 1, "tool_label_long"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(nth_row_label(container, 1, "tool_label_long")));
 
     // One column at this width, so rows stack DOWNWARD: the second row's Y is
     // past the first's. A container whose bound style never activated a layout
@@ -259,17 +266,17 @@ TEST_CASE_METHOD(
     lv_subject_t* mode_subject = lv_xml_get_subject(nullptr, "nozzle_row_label_mode");
     REQUIRE(mode_subject != nullptr);
     lv_subject_set_int(mode_subject, 0);
-    CHECK(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 1);
-    CHECK(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bed_label));
+    CHECK(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 2);
-    CHECK_FALSE(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_target));
     lv_subject_set_int(mode_subject, 3);
-    CHECK_FALSE(lv_obj_has_flag(bed_label, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(bed_target, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed_label));
+    CHECK_FALSE(lv_obj_is_hidden(bed_target));
 }
 
 /**
@@ -391,4 +398,41 @@ TEST_CASE_METHOD(NozzleTempsFixture,
     state().update_from_status(nlohmann::json{{"heater_bed", {{"target", 200.0}}}});
     helix::ui::UpdateQueue::instance().drain();
     CHECK(label_mode_subject_value() == static_cast<int>(NozzleLabelMode::Number));
+}
+
+TEST_CASE_METHOD(NozzleTempsFixture,
+                 "nozzle_temps: tapping a row opens the graph on that row's tool",
+                 "[nozzle_temps][temp_graph_overlay]") {
+    // The tap pushes the real global overlay: seed the navigation panels the
+    // way the app does, and tear the overlay down before this screen goes.
+    helix::ui::destroy_static_panels();
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels)
+        p = lv_obj_create(test_screen());
+    NavigationManager::instance().set_panels(panels.data());
+
+    configure_one_extruder(state());
+    {
+        PanelWidgetHarness<NozzleTempsWidget> h(test_screen(), state());
+        lv_obj_t* container = h.child("nozzle_temps_container");
+        REQUIRE(container != nullptr);
+        add_second_extruder(state());
+        REQUIRE(lv_obj_get_child_count(container) == 3); // 2 extruder rows + bed row
+        ToolState::instance().update_from_status({{"toolchanger", {{"tool_number", 0}}}});
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(ToolState::instance().active_tool_index() == 0); // T0 (extruder) mounted
+
+        // The row's tool becomes the shared target the graph's card shows.
+        auto& target = helix::ui::TargetTool::instance();
+        target.attach(state());
+        lv_obj_send_event(lv_obj_get_child(container, 1), LV_EVENT_CLICKED, nullptr);
+        CHECK(target.tool() == 1);
+
+        lv_obj_send_event(lv_obj_get_child(container, 0), LV_EVENT_CLICKED, nullptr);
+        CHECK(target.tool() == 0);
+        CHECK(target.mounted());
+    }
+    helix::ui::UpdateQueue::instance().drain();
+    NavigationManager::instance().shutdown();
+    helix::ui::destroy_static_panels();
 }

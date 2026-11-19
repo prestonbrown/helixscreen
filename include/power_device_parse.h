@@ -27,12 +27,12 @@ namespace helix {
 /// skipped — an unnamed device cannot be addressed by any later call.
 inline std::vector<PowerDevice> parse_power_devices(const nlohmann::json& j) {
     std::vector<PowerDevice> devices;
-    if (!j.contains("result") || !j["result"].contains("devices") ||
-        !j["result"]["devices"].is_array()) {
+    const nlohmann::json* device_list = json_util::find_path(j, "result", "devices");
+    if (!device_list || !device_list->is_array()) {
         return devices;
     }
 
-    for (const auto& info : j["result"]["devices"]) {
+    for (const auto& info : *device_list) {
         if (!info.is_object()) {
             continue;
         }
@@ -69,13 +69,13 @@ inline bool is_klipper_service_name(std::string_view service) {
 /// input: anything malformed reads as not bound.
 inline std::vector<std::string> parse_klipper_bound_power_devices(const nlohmann::json& j) {
     std::vector<std::string> bound;
-    if (!j.is_object() || !j.contains("result") || !j["result"].is_object() ||
-        !j["result"].contains("config") || !j["result"]["config"].is_object()) {
+    const nlohmann::json* config = json_util::find_path(j, "result", "config");
+    if (!config || !config->is_object()) {
         return bound;
     }
 
     constexpr std::string_view kSectionPrefix = "power ";
-    for (const auto& [section, options] : j["result"]["config"].items()) {
+    for (const auto& [section, options] : config->items()) {
         if (section.size() <= kSectionPrefix.size() ||
             std::string_view(section).substr(0, kSectionPrefix.size()) != kSectionPrefix ||
             !options.is_object()) {
@@ -86,12 +86,12 @@ inline std::vector<std::string> parse_klipper_bound_power_devices(const nlohmann
                    is_klipper_service_name(service.get_ref<const std::string&>());
         };
         // Moonraker still honours the deprecated single-valued `bound_service`.
-        bool is_bound =
-            options.contains("bound_service") && names_klipper(options["bound_service"]);
-        if (!is_bound && options.contains("bound_services") &&
-            options["bound_services"].is_array()) {
-            const auto& services = options["bound_services"];
-            is_bound = std::any_of(services.begin(), services.end(), names_klipper);
+        const nlohmann::json* bound_service = json_util::find_member(options, "bound_service");
+        bool is_bound = bound_service && names_klipper(*bound_service);
+        if (!is_bound) {
+            if (const nlohmann::json* services = json_util::find_array(options, "bound_services")) {
+                is_bound = std::any_of(services->begin(), services->end(), names_klipper);
+            }
         }
         if (is_bound) {
             bound.push_back(section.substr(kSectionPrefix.size()));

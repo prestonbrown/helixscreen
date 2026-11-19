@@ -76,7 +76,7 @@ lv_obj_t* find_widget(const char* name) {
 }
 
 bool hidden(lv_obj_t* obj) {
-    return obj == nullptr || lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj == nullptr || lv_obj_is_hidden(obj);
 }
 
 /// Registers a TemperatureController over this fixture's PrinterState/API as
@@ -286,9 +286,8 @@ TEST_CASE_METHOD(XMLTestFixture, "Micro-portrait wraps the temp inputs to two ro
     check_two_by_two_reflow(*this, 272, 480);
 }
 
-// TINY (480x320) and TINY_PORTRAIT (320x480) have no ui_xml/tiny*/ override, so
-// LayoutManager::variant_chain() falls through to this base file's own
-// four-across row. Each column fills its own share of the row instead of
+// TINY (480x320) and TINY_PORTRAIT (320x480) keep this file's four-across
+// row. Each column fills its own share of the row instead of
 // carrying a fixed input width, so the row has to shrink with the screen
 // rather than overflow it (prestonbrown/helixscreen#1263).
 namespace {
@@ -663,7 +662,7 @@ TEST_CASE("fr nozzle range key carries its intended value in the loaded catalog"
     std::ifstream catalog("ui_xml/translations/fr.xml");
     REQUIRE(catalog.is_open());
 
-    const std::string needle = "<translation tag=\"Nozzle temp must be 100-%d°C\" fr=\"";
+    const std::string needle = "<translation tag=\"Nozzle temp must be %d-%s\" fr=\"";
     bool found = false;
     std::string line;
     while (std::getline(catalog, line)) {
@@ -675,7 +674,7 @@ TEST_CASE("fr nozzle range key carries its intended value in the loaded catalog"
         const auto value_end = line.find("\"/>", pos + needle.size());
         REQUIRE(value_end != std::string::npos);
         CHECK(line.substr(pos + needle.size(), value_end - pos - needle.size()) ==
-              "La température de la buse doit être entre 100 et %d°C");
+              "La température de la buse doit être entre %d et %s");
     }
     REQUIRE(found);
 }

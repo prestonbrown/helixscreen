@@ -50,13 +50,23 @@ enum class TouchGate {
     NotPaired,      ///< 401: facing the LAN without a paired browser's token
 };
 
+/// The host a reverse proxy in front of the installer's nginx route says the browser
+/// addressed: the first `X-Forwarded-Host` entry, else the `host=` of the first
+/// `Forwarded` element. Empty unless @p behind_nginx: only then does every request arrive
+/// through that route (the server binds 127.0.0.1), which passes the client's headers on
+/// unchanged. A server facing the LAN takes these headers from anyone, so it ignores them.
+std::string trusted_forwarded_host(bool behind_nginx, const std::string& x_forwarded_host,
+                                   const std::string& forwarded);
+
 /// Whether a touch POST may drive the screen. Pure. @p origin may be empty (a
 /// same-origin request from some browsers); when present its host:port must be
-/// @p host. Pairing is only consulted in @p lan_mode: behind nginx, auth_request
-/// already authenticated the request.
+/// @p host or a non-empty @p forwarded_host (from trusted_forwarded_host). Pairing is
+/// only consulted in @p lan_mode: behind nginx, auth_request already authenticated the
+/// request.
 TouchGate check_touch_request(bool control_allowed, bool lan_mode, const std::string& content_type,
                               const std::string& x_helix_touch, const std::string& origin,
-                              const std::string& host, bool paired);
+                              const std::string& host, const std::string& forwarded_host,
+                              bool paired);
 
 /**
  * @brief Pairing for a screen server that faces the LAN.

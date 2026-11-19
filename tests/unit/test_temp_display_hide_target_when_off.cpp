@@ -47,8 +47,8 @@ bool target_portion_hidden(lv_obj_t* display) {
     lv_obj_t* target = lv_obj_get_child(display, kTargetChild);
     REQUIRE(separator != nullptr);
     REQUIRE(target != nullptr);
-    bool sep_hidden = lv_obj_has_flag(separator, LV_OBJ_FLAG_HIDDEN);
-    bool target_hidden = lv_obj_has_flag(target, LV_OBJ_FLAG_HIDDEN);
+    bool sep_hidden = lv_obj_is_hidden(separator);
+    bool target_hidden = lv_obj_is_hidden(target);
     // The two move together or the readout renders a dangling " / ".
     REQUIRE(sep_hidden == target_hidden);
     return sep_hidden;

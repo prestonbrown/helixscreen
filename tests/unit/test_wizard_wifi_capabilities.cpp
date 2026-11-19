@@ -61,12 +61,11 @@ class WizardCapabilityFixture : public LVGLUITestFixture {
 
 TEST_CASE_METHOD(WizardCapabilityFixture,
                  "The wizard offers the WiFi toggle when the radio can move", "[1429][wizard]") {
-    CHECK_FALSE(
-        lv_obj_has_flag(toggle_for(std::make_unique<WifiBackendMock>()), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(toggle_for(std::make_unique<WifiBackendMock>())));
 }
 
 TEST_CASE_METHOD(WizardCapabilityFixture,
                  "The wizard hides the WiFi toggle when the backend cannot move the radio",
                  "[1429][wizard]") {
-    CHECK(lv_obj_has_flag(toggle_for(std::make_unique<NoToggleBackend>()), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(toggle_for(std::make_unique<NoToggleBackend>())));
 }

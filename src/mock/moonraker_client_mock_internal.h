@@ -8,8 +8,10 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdlib>
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -77,6 +79,20 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
                                            std::getenv("HELIX_MOCK_PRINTER"));
 }
 
+/// The value of ` KEY=` on a G-code line: "" for `KEY=` with no value, nullopt when
+/// the line has no such parameter.
+[[nodiscard]] inline std::optional<std::string> gcode_param(const std::string& gcode,
+                                                            const char* key) {
+    const std::string needle = std::string(" ") + key + "=";
+    const size_t at = gcode.find(needle);
+    if (at == std::string::npos) {
+        return std::nullopt;
+    }
+    const size_t start = at + needle.size();
+    const size_t end = gcode.find_first_of(" \t", start);
+    return gcode.substr(start, end == std::string::npos ? std::string::npos : end - start);
+}
+
 /// Duty a real heater would be running at, 0.0-1.0, as Klipper reports it: flat
 /// out while far below target, tapering in, and a trickle once holding. The
 /// mock publishes this on every heater so a power readout has something to show.
@@ -89,6 +105,31 @@ toolhead_axis_maximum(const helix::mock::PersonaDescriptor& persona) {
         return 0.05;
     }
     return std::clamp(gap / 10.0, 0.1, 1.0);
+}
+
+// The part fan's tachometer at full speed. Klipper reports `rpm` for a fan with a
+// tachometer_pin; the mock's part fan has one, reading in proportion to its speed.
+// NAMESPACE_OK: mock_internal constant, alongside its sibling mock constants
+constexpr double kMockPartFanMaxRpm = 6800.0;
+
+/// Toolchanger mock: tool @p t's part fan, as its [tool] `fan:` names it (a
+/// fan_generic name), and its hotend [heater_fan] name.
+[[nodiscard]] inline std::string toolchanger_part_fan(int t) {
+    return "T" + std::to_string(t) + "_part_fan"; // DISPLAY_NUMBERING_OK: Klipper object name
+}
+[[nodiscard]] inline std::string toolchanger_hotend_fan(int t) {
+    return "T" + std::to_string(t) + "_hotend_fan"; // DISPLAY_NUMBERING_OK: Klipper object name
+}
+
+/// Toolchanger mock: tool @p t's hotend fan `fan_speed`, a step lower per tool so
+/// the hotend fan chips of different tools read apart.
+[[nodiscard]] inline double toolchanger_hotend_fan_speed(int t) {
+    return 1.0 - 0.1 * t;
+}
+
+/// The part fan's status block, as every frame the mock serves carries it.
+[[nodiscard]] inline nlohmann::json part_fan_status(double speed) {
+    return {{"speed", speed}, {"rpm", speed > 0.0 ? std::round(kMockPartFanMaxRpm * speed) : 0.0}};
 }
 
 /**
@@ -250,16 +291,6 @@ std::string mock_probe_type(helix::mock::PrinterType type);
  */
 json get_mock_probe_config(helix::mock::PrinterType type);
 
-/**
- * @brief Get mock Happy Hare "mmu" status (--real-ams)
- *
- * Minimal static 4-gate setup with a mix of loaded/empty gates, answered for a
- * requested "mmu" object by the objects.query and printer.objects.subscribe
- * handlers. The discovery sequence's subscription delivers it to
- * AmsBackendHappyHare as the initial state.
- */
-json get_mock_mmu_status();
-
 } // namespace mock_internal
 
 namespace helix::sim {
@@ -296,3 +327,24 @@ std::vector<std::string> mock_padded_macro_names();
 nlohmann::json mock_probe_status(helix::mock::PrinterType type);
 
 } // namespace helix::sim
+
+namespace helix::mock {
+
+/**
+ * @brief The drv_status a mock TMC driver object reports.
+ *
+ * `HELIX_MOCK_TMC_OVERTEMP` names the steppers whose driver is hot, comma
+ * separated: `stepper_z` sets the prewarning flag, `stepper_z:ot` the shutdown
+ * flag. Every other driver reports a running driver with no flags.
+ */
+nlohmann::json mock_tmc_drv_status(const std::string& driver_object);
+
+/**
+ * @brief configfile.config sections for the persona's temperature_sensor objects.
+ *
+ * An MCU-named sensor reports sensor_type temperature_mcu and a host-named one
+ * temperature_host, the way real configs declare them.
+ */
+nlohmann::json mock_temperature_sensor_config(const std::vector<std::string>& sensor_objects);
+
+} // namespace helix::mock

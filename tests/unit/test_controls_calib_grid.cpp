@@ -73,7 +73,7 @@ class ControlsCalibGridFixture : public LVGLUITestFixture {
         std::multiset<int32_t> row_tops;
         for (uint32_t i = 0; i < lv_obj_get_child_count(grid); ++i) {
             lv_obj_t* tile = lv_obj_get_child(grid, static_cast<int32_t>(i));
-            if (lv_obj_has_flag(tile, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(tile)) {
                 continue;
             }
             lv_area_t t;
@@ -89,7 +89,7 @@ class ControlsCalibGridFixture : public LVGLUITestFixture {
         int32_t min_h = INT32_MAX;
         for (uint32_t i = 0; i < lv_obj_get_child_count(grid); ++i) {
             lv_obj_t* tile = lv_obj_get_child(grid, static_cast<int32_t>(i));
-            if (!lv_obj_has_flag(tile, LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(tile)) {
                 min_h = std::min(min_h, lv_obj_get_height(tile));
             }
         }
@@ -121,7 +121,7 @@ class ControlsCalibGridFixture : public LVGLUITestFixture {
     bool bed_mesh_label_shown() {
         lv_obj_t* label = find_label(grid(), "Bed Mesh");
         REQUIRE(label != nullptr);
-        return !lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN);
+        return !lv_obj_is_hidden(label);
     }
 
     static lv_obj_t* find_label(lv_obj_t* obj, const char* text) {
@@ -265,7 +265,7 @@ TEST_CASE_METHOD(ControlsCalibGridFixture,
         lv_obj_t* obj = lv_obj_find_by_name(panel_obj, name);
         REQUIRE(obj != nullptr);
         for (; obj && obj != grid(); obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return true;
             }
         }
@@ -297,7 +297,7 @@ TEST_CASE_METHOD(ControlsCalibGridFixture,
     REQUIRE(tile != nullptr);
     auto tile_hidden = [&] {
         for (lv_obj_t* obj = tile; obj && obj != grid(); obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return true;
             }
         }
@@ -312,4 +312,45 @@ TEST_CASE_METHOD(ControlsCalibGridFixture,
     settle();
     CHECK(tile_hidden());
     set("z_offset_reapplied_per_head", 0);
+}
+
+TEST_CASE_METHOD(ControlsCalibGridFixture,
+                 "Controls at 480x272 moves QGL to Quick Actions and tightens every card",
+                 "[controls][calib-grid][layout]") {
+    // The dense 480x272 dashboard is the landscape MICRO tier; 272x480 portrait
+    // shares the tier but keeps the standard layout.
+    const bool micro = GENERATE(false, true);
+    INFO("micro=" << micro);
+    lv_subject_t* bp = lv_xml_get_subject(nullptr, "ui_breakpoint");
+    REQUIRE(bp != nullptr);
+    const int bp_before = lv_subject_get_int(bp);
+    lv_subject_set_int(bp, micro ? 0 : bp_before);
+
+    build();
+    show(1, 0, 0, 0, 0);
+    settle();
+
+    lv_obj_t* tile = lv_obj_find_by_name(panel_obj, "btn_qgl");
+    REQUIRE(tile != nullptr);
+    bool tile_hidden = false;
+    for (lv_obj_t* obj = tile; obj && obj != grid(); obj = lv_obj_get_parent(obj)) {
+        tile_hidden |= lv_obj_is_hidden(obj);
+    }
+    CHECK(tile_hidden == micro);
+
+    lv_obj_t* quick = lv_obj_find_by_name(panel_obj, "btn_qgl_quick");
+    CHECK((quick != nullptr) == micro);
+    if (quick) {
+        CHECK_FALSE(lv_obj_is_hidden(quick));
+    }
+
+    for (const char* card : {"card_position", "card_temperatures", "card_cooling",
+                             "card_calibration", "card_quick_actions"}) {
+        INFO(card);
+        lv_obj_t* obj = lv_obj_find_by_name(panel_obj, card);
+        REQUIRE(obj != nullptr);
+        CHECK(lv_obj_has_state(obj, LV_STATE_USER_3) == micro);
+    }
+
+    lv_subject_set_int(bp, bp_before);
 }

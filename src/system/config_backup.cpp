@@ -61,6 +61,11 @@ bool write_backup_file(const std::string& src_path, const std::string& backup_pa
 
 void write_rolling_backup(const std::string& src_path, const std::string& primary,
                           const std::string& fallback) {
+    // An optional file (helixscreen.env) that does not exist has nothing to protect.
+    if (!hfs::exists(src_path)) {
+        spdlog::trace("[Config] No {} to back up", src_path);
+        return;
+    }
     std::string primary_why;
     if (write_backup_file(src_path, primary, &primary_why)) {
         spdlog::trace("[Config] Backup written: {}", primary);

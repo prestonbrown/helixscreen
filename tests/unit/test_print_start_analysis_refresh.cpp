@@ -297,3 +297,18 @@ TEST_CASE_METHOD(AnalysisRefreshFixture, "an analysis the printer refuses for go
     const auto& asked = api_.transfers_mock().config_downloads();
     CHECK(std::count(asked.begin(), asked.end(), "printer.cfg") == 1);
 }
+
+TEST_CASE_METHOD(AnalysisRefreshFixture, "the first layer completes an active pre-print",
+                 "[print_preparation][print_start][collector]") {
+    CollectorScope scope;
+    auto collector = scope.moonraker.print_start_collector();
+    REQUIRE(collector);
+    collector->start();
+    REQUIRE(collector->is_active());
+    for (const int layer : {0, 1}) {
+        get_printer_state().update_from_status(
+            {{"print_stats", {{"state", "printing"}, {"info", {{"current_layer", layer}}}}}});
+        settle();
+    }
+    CHECK_FALSE(collector->is_active());
+}

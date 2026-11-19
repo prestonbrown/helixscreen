@@ -497,7 +497,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
                 // corrupting LVGL's event list during UpdateQueue batch (crash #356)
                 // Use lv_obj_delete_async() — LVGL cancels it automatically if the
                 // object is deleted first, unlike custom lv_async_call lambdas.
-                lv_obj_add_flag(state->ghost_progress_label_, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(state->ghost_progress_label_, true);
                 lv_obj_delete_async(state->ghost_progress_label_);
                 state->ghost_progress_label_ = nullptr;
             });
@@ -511,7 +511,7 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         }
         gcode_viewer_refresh_content_offset(st, obj, lv_area_get_width(&widget_coords),
                                             lv_area_get_height(&widget_coords));
-        st->renderer_->render(layer, *st->gcode_file, *st->camera_, &widget_coords);
+        st->renderer_->render(layer, st->gcode_file, *st->camera_, &widget_coords);
 
         // The GPU path is unusable on this device — either GL never came up, or
         // a draw batch returned a fatal error (out-of-memory /
@@ -524,7 +524,9 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
         // normally set.
         if (st->renderer_->render_failed() && !st->budget_forced_2d_) {
             spdlog::warn("[GCode Viewer] GLES renderer unusable ({}) — rendering this file in 2D",
-                         st->renderer_->init_failed() ? "GL init failed" : "fatal GL draw error");
+                         st->renderer_->init_failed() ? "GL init failed"
+                         : st->renderer_->too_slow()  ? "too slow to rotate"
+                                                      : "fatal GL draw error");
             st->budget_forced_2d_ = true;
             // Seed the 2D renderer now so the next frame renders immediately.
             // The lazy init in the 2D branch cannot: a renderer already exists
@@ -538,21 +540,28 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             helix::ui::queue_invalidate(obj);
             return;
         }
-
-        // During chunked VBO upload, renderer returns early without drawing.
-        // After the first real GPU render, force one extra frame so the
-        // cached-buffer path (no GL context switch) blits cleanly.
-        if (st->renderer_->is_uploading() || st->renderer_->is_refining() ||
-            st->needs_3d_refresh_) {
-            if (!st->renderer_->is_uploading()) {
-                st->needs_3d_refresh_ = false;
-            }
-            helix::ui::queue_invalidate(obj);
-        }
+        // Upload and refinement run on the renderer's own thread, which
+        // invalidates the viewer whenever it finishes a frame.
     }
 #endif
 
     draw_object_badges(st, layer, widget_coords);
+
+    // Tell the host which path drew, when it changed: the host hides
+    // 3D-only controls over a 2D render. Deferred like the first-frame callback
+    // below, since it writes subjects.
+    const int drawn_path = st->is_using_2d_mode() ? 0 : 1;
+    if (st->render_path_callback && drawn_path != st->reported_render_path_) {
+        st->reported_render_path_ = drawn_path;
+        helix::ui::queue_widget_update(obj, [](lv_obj_t* viewer) {
+            auto* state = get_state(viewer);
+            if (!state || !state->render_path_callback || state->reported_render_path_ < 0) {
+                return;
+            }
+            state->render_path_callback(viewer, state->render_path_callback_user_data,
+                                        state->reported_render_path_ == 1);
+        });
+    }
 
     // Fire the one-shot first-frame callback once the viewer has real content
     // on its canvas (not during VBO upload, not on a skipped/failed frame).
@@ -578,8 +587,9 @@ static void gcode_viewer_draw_cb(lv_event_t* e) {
             }
         } else {
 #ifdef ENABLE_3D_RENDERER
-            // is_uploading(): VBO upload in progress, no frame on the canvas yet.
-            if (st->renderer_ && st->renderer_->is_uploading())
+            // No frame of this geometry on the canvas yet (upload or the first
+            // refinement still running on the renderer's thread).
+            if (st->renderer_ && !st->renderer_->has_frame())
                 frame_complete = false;
 #endif
         }
@@ -710,7 +720,7 @@ static void gcode_viewer_watchdog_cb(lv_timer_t* timer) {
     if (st->print_progress_layer_ < 0)
         return; // Preview mode — not tracking a print
     if (!st->is_using_2d_mode())
-        return; // 3D path has its own continuation chain via needs_3d_refresh_
+        return; // 3D path: the renderer's thread invalidates on each finished frame
     if (!st->layer_renderer_2d_)
         return;
 
@@ -817,6 +827,13 @@ static void gcode_viewer_delete_cb(lv_event_t* e) {
         // Stop build thread before state destruction
         state->cancel_build();
 
+#ifdef ENABLE_3D_RENDERER
+        // The renderer's thread must not schedule work for this widget again.
+        if (state->renderer_) {
+            state->renderer_->set_frame_ready_callback(nullptr);
+        }
+#endif
+
         spdlog::trace("[GCode Viewer] Widget destroyed");
 
         // RAII destruction of remaining members
@@ -853,8 +870,8 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     lv_obj_add_event_cb(obj, gcode_viewer_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, gcode_viewer_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);
@@ -863,6 +880,24 @@ lv_obj_t* helix::ui::gcode_viewer_create(lv_obj_t* parent) {
 
     // Register in active-viewers list (drained in gcode_viewer_delete_cb).
     active_viewers().push_back(obj);
+
+#ifdef ENABLE_3D_RENDERER
+    // Runs on the renderer's draw thread, so the widget travels as a WeakWidget
+    // made here on the LVGL thread: the queued update runs between refreshes and
+    // finds nullptr once the viewer is deleted. The frame is adopted there so one
+    // refresh never mixes two.
+    st->renderer_->set_frame_ready_callback([viewer_ref = helix::ui::WeakWidget(obj)]() {
+        helix::ui::queue_widget_update(viewer_ref, [](lv_obj_t* viewer) {
+            gcode_viewer_state_t* state = get_state(viewer);
+            if (state && state->renderer_) {
+                state->renderer_->adopt_ready_frame();
+            }
+            // Also without a new frame: a notify after a fatal GL error is how
+            // the next draw learns of render_failed() and falls back to 2D.
+            lv_obj_invalidate(viewer);
+        });
+    });
+#endif
 
     // Initialize viewport size based on current widget dimensions
     // This ensures correct aspect ratio from the start
@@ -916,6 +951,20 @@ void helix::ui::gcode_viewer_set_first_frame_callback(
     st->first_frame_callback = callback;
     st->first_frame_callback_user_data = user_data;
     st->first_frame_fired_ = false;
+}
+
+void helix::ui::gcode_viewer_set_render_path_callback(
+    lv_obj_t* obj, helix::ui::gcode_viewer_render_path_callback_t callback, void* user_data) {
+    gcode_viewer_state_t* st = get_state(obj);
+    if (!st) {
+        return;
+    }
+    st->render_path_callback = callback;
+    st->render_path_callback_user_data = user_data;
+    st->reported_render_path_ = -1;
+    if (callback) {
+        lv_obj_invalidate(obj); // the next draw reports the current path
+    }
 }
 
 void helix::ui::gcode_viewer_set_thumbnail_parity(lv_obj_t* obj, bool enabled) {
@@ -1373,7 +1422,7 @@ void helix::ui::gcode_viewer_set_bottom_occluder(lv_obj_t* obj, lv_obj_t* occlud
 /// overlap (the strip is a sibling BELOW the preview in some layouts) or when
 /// either widget is hidden.
 static float measure_bottom_occlusion(gcode_viewer_state_t* st, lv_obj_t* obj) {
-    if (!st->bottom_occluder_ || lv_obj_has_flag(st->bottom_occluder_, LV_OBJ_FLAG_HIDDEN)) {
+    if (!st->bottom_occluder_ || lv_obj_is_hidden(st->bottom_occluder_)) {
         return 0.0f;
     }
 
@@ -1700,8 +1749,20 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
  * Call this during application initialization before loading any XML.
  * Typically called from main() or ui_init().
  */
+/// The preview stack's rotate button: reset the viewer that shares its stack.
+static void on_gcode_preview_reset_view(lv_event_t* e) {
+    lv_obj_t* stack = lv_obj_get_parent(lv_event_get_current_target_obj(e));
+    for (lv_obj_t* viewer : active_viewers()) {
+        if (lv_obj_get_parent(viewer) == stack) {
+            helix::ui::gcode_viewer_reset_camera(viewer);
+            return;
+        }
+    }
+}
+
 void helix::ui::gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
+    lv_xml_register_event_cb(nullptr, "on_gcode_preview_reset_view", on_gcode_preview_reset_view);
     spdlog::trace("[GCode Viewer] Registered <gcode_viewer> widget with LVGL XML system");
 }
 
@@ -1879,6 +1940,9 @@ static void gcode_viewer_xml_apply(lv_xml_parser_state_t* state, const char** at
 
 void helix::ui::gcode_viewer_register(void) {
     lv_xml_register_widget("gcode_viewer", gcode_viewer_xml_create, gcode_viewer_xml_apply);
+    // The preview stack's rotate button is hidden without a 3D viewer, but its
+    // callback name still has to resolve.
+    lv_xml_register_event_cb(nullptr, "on_gcode_preview_reset_view", [](lv_event_t*) {});
     spdlog::debug("[GCode Viewer] Compiled out (HELIX_HAS_GCODE_VIEWER=0); registered stub "
                   "<gcode_viewer> widget");
 }
@@ -1903,6 +1967,9 @@ void helix::ui::gcode_viewer_set_load_callback(lv_obj_t*, helix::ui::gcode_viewe
 void helix::ui::gcode_viewer_set_first_frame_callback(lv_obj_t*,
                                                       helix::ui::gcode_viewer_load_callback_t,
                                                       void*) {}
+
+void helix::ui::gcode_viewer_set_render_path_callback(
+    lv_obj_t*, helix::ui::gcode_viewer_render_path_callback_t, void*) {}
 
 void helix::ui::gcode_viewer_set_thumbnail_parity(lv_obj_t*, bool) {}
 

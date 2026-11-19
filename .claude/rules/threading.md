@@ -27,7 +27,7 @@ later, usually on a customer's printer.
 4. **A fetched `SubjectLifetime` must be handed to `observe<V>`.** It is the required 4th
    parameter, so omitting it does not compile; handing it a default-constructed token is
    silent: the guard never sees the subject die and `reset()` calls
-   `lv_observer_remove()` on freed memory (#705). Local
+   `lv_observer_delete()` on freed memory (#705). Local
    vs member is not what decides correctness: the `get_*_subject(name, lifetime)`
    accessors assign the owner's own `shared_ptr`, so a caller's copy dying never
    expires the guard.
@@ -45,3 +45,7 @@ Also: no `std::thread(...).detach()` for one-shot work (`EAGAIN` becomes
 `std::terminate` on AD5M/CC1, #724); use `HttpExecutor::fast()/slow()` or `BusThread`.
 `ObserverGuard::reset()` for all normal cleanup, never `release()` (#579). Every
 `init_subjects()` self-registers its `deinit_subjects()` with `StaticSubjectRegistry`.
+A subject is a `helix::Subject` (`include/core/subject.h`), never a by-value `lv_subject_t`:
+its node keeps one address across `reset()` and re-init, its free is queued on the update
+queue, and `is_live()` (or `helix::subject_is_live()`) is the only "initialized" test, never
+the type. THREADING.md § "Subject ownership"; gate `scripts/check_lvgl_subject_api.py`.

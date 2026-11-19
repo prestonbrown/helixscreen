@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "clog_meter_geometry.h"
+#include "core/observer_guard.h"
 
 #include <functional>
 

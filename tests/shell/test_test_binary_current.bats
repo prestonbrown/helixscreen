@@ -22,6 +22,14 @@ setup() {
     mkdir -p "$STUB_BIN"
 }
 
+# Installs a stub as both `make` and `gmake`: the gate runs gmake on a Mac
+# that has one, plain make elsewhere.
+install_make() {
+    cat > "$STUB_BIN/make"
+    chmod +x "$STUB_BIN/make"
+    cp "$STUB_BIN/make" "$STUB_BIN/gmake"
+}
+
 # A make whose -q always reports work outstanding and whose -n plan compiles
 # exactly the sources named here.
 stub_make() {
@@ -32,8 +40,7 @@ stub_make() {
             echo "echo 'ccache clang++ -std=c++17 -c $src -o build/obj/x.o'"
         done
         echo 'exit 0'
-    } > "$STUB_BIN/make"
-    chmod +x "$STUB_BIN/make"
+    } | install_make
 }
 
 @test "current when the only stale source is the git-hash file" {
@@ -62,13 +69,17 @@ stub_make() {
 }
 
 @test "a make -q that succeeds short-circuits to current" {
-    {
-        echo '#!/usr/bin/env bash'
-        echo 'exit 0'
-    } > "$STUB_BIN/make"
-    chmod +x "$STUB_BIN/make"
+    printf '#!/usr/bin/env bash\nexit 0\n' | install_make
     PATH="$STUB_BIN:$PATH" run "$GATE"
     [ "$status" -eq 0 ]
+}
+
+@test "stale when make cannot produce a plan, as a make below the Makefile's floor cannot" {
+    printf '#!/usr/bin/env bash\necho "*** GNU make >= 4.2 required, this is 3.81." >&2\nexit 2\n' |
+        install_make
+    PATH="$STUB_BIN:$PATH" run "$GATE"
+    [ "$status" -eq 1 ]
+    contains "4.2 required" "$output"
 }
 
 # ------------------------------------------------------------------- wiring

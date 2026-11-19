@@ -58,8 +58,8 @@ class EthernetBackendNetd : public EthernetBackend {
 
     bool has_interface() override;
     EthernetInfo get_info() override;
-    std::unique_ptr<helix::ethernet::LinkEvents> open_link_events() override {
-        return helix::ethernet::open_kernel_link_events();
+    std::unique_ptr<helix::net::LinkEvents> open_link_events() override {
+        return helix::net::open_kernel_link_events();
     }
 
   private:

@@ -7,8 +7,6 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_notification.h"
-#include "ui_subject_registry.h"
-#include "ui_timer_guard.h"
 #include "ui_wizard.h"
 
 #include "ams_state.h"
@@ -16,7 +14,9 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "i18n_plural.h"
@@ -31,6 +31,7 @@
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "runtime_config.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "utils/network_validation.h"
@@ -49,7 +50,7 @@ using namespace helix;
 // ============================================================================
 
 // Controls wizard Next button globally - shared across wizard steps
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Global Instance
@@ -67,7 +68,6 @@ WizardConnectionStep::WizardConnectionStep() {
     // Zero-initialize buffers
     std::memset(connection_ip_buffer_, 0, sizeof(connection_ip_buffer_));
     std::memset(connection_port_buffer_, 0, sizeof(connection_port_buffer_));
-    std::memset(connection_status_icon_buffer_, 0, sizeof(connection_status_icon_buffer_));
     std::memset(connection_status_text_buffer_, 0, sizeof(connection_status_text_buffer_));
     std::memset(connection_api_key_buffer_, 0, sizeof(connection_api_key_buffer_));
     std::memset(mdns_status_buffer_, 0, sizeof(mdns_status_buffer_));
@@ -153,6 +153,19 @@ void WizardConnectionStep::init_subjects() {
                       connection_ip_buffer_, connection_port_buffer_);
     }
 
+    // Every visit re-seeds the subjects below, so a revisit drops the previous visit's
+    // observers first: init on a live subject would orphan them.
+    if (subjects_initialized_) {
+        for (helix::Subject* subject :
+             {std::addressof(connection_ip_), std::addressof(connection_port_),
+              std::addressof(connection_status_kind_), std::addressof(connection_status_text_),
+              std::addressof(connection_testing_), std::addressof(connection_discovering_),
+              std::addressof(connection_api_key_), std::addressof(connection_login_required_),
+              std::addressof(mdns_status_), std::addressof(discovery_active_)}) {
+            subject->reset();
+        }
+    }
+
     // The macro snprintf()s initial_value INTO buffer; passing the buffer as
     // its own initial value aliases source and destination, and glibc yields
     // an empty string, losing the seed. Seed from a copy.
@@ -163,8 +176,8 @@ void WizardConnectionStep::init_subjects() {
                                         "connection_ip");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_port_, connection_port_buffer_,
                                         port_seed.c_str(), "connection_port");
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_icon_, connection_status_icon_buffer_, "",
-                                        "connection_status_icon");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(connection_status_kind_, static_cast<int>(StatusKind::None),
+                                     "connection_status_kind");
     UI_SUBJECT_INIT_AND_REGISTER_STRING(connection_status_text_, connection_status_text_buffer_, "",
                                         "connection_status_text");
     UI_SUBJECT_INIT_AND_REGISTER_INT(connection_testing_, 0, "connection_testing");
@@ -194,23 +207,23 @@ void WizardConnectionStep::init_subjects() {
 // Static Trampolines for LVGL Callbacks
 // ============================================================================
 
-void WizardConnectionStep::on_test_connection_clicked_static(lv_event_t* e) {
-    auto* self = static_cast<WizardConnectionStep*>(lv_event_get_user_data(e));
+void WizardConnectionStep::on_test_connection_clicked_static(lv_event_t* /*e*/) {
+    WizardConnectionStep* self = get_wizard_connection_step();
     if (self) {
         self->handle_test_connection_clicked();
     }
 }
 
-void WizardConnectionStep::on_ip_input_changed_static(lv_event_t* e) {
-    auto* self = static_cast<WizardConnectionStep*>(lv_event_get_user_data(e));
-    if (self) {
+void WizardConnectionStep::on_ip_input_changed_static(lv_event_t* /*e*/) {
+    WizardConnectionStep* self = get_wizard_connection_step();
+    if (self && !self->prefilling_inputs_) {
         self->handle_ip_input_changed();
     }
 }
 
-void WizardConnectionStep::on_port_input_changed_static(lv_event_t* e) {
-    auto* self = static_cast<WizardConnectionStep*>(lv_event_get_user_data(e));
-    if (self) {
+void WizardConnectionStep::on_port_input_changed_static(lv_event_t* /*e*/) {
+    WizardConnectionStep* self = get_wizard_connection_step();
+    if (self && !self->prefilling_inputs_) {
         self->handle_port_input_changed();
     }
 }
@@ -249,26 +262,26 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     // Validate inputs
     if (!ip || strlen(ip) == 0) {
-        set_status(nullptr, StatusVariant::None, "Please enter an IP address or hostname");
+        set_status(StatusKind::None, "Please enter an IP address or hostname");
         spdlog::warn("[{}] Empty IP address", get_name());
         return;
     }
 
     if (!is_valid_ip_or_hostname(ip)) {
-        set_status("icon_close_circle", StatusVariant::Danger, "Invalid IP address or hostname");
+        set_status(StatusKind::Error, "Invalid IP address or hostname");
         spdlog::warn("[{}] Invalid IP/hostname: {}", get_name(), ip);
         return;
     }
 
     if (!is_valid_port(port_clean)) {
-        set_status("icon_close_circle", StatusVariant::Danger, "Invalid port (must be 1-65535)");
+        set_status(StatusKind::Error, "Invalid port (must be 1-65535)");
         spdlog::warn("[{}] Invalid port: {}", get_name(), port_clean);
         return;
     }
 
     const std::string api_key = entered_api_key();
     if (const std::string problem = api_key_problem(api_key); !problem.empty()) {
-        set_status("icon_close_circle", StatusVariant::Danger, problem.c_str());
+        set_status(StatusKind::Error, problem.c_str());
         spdlog::warn("[{}] API key is not 32 hex digits", get_name());
         return;
     }
@@ -276,8 +289,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
     // Get MoonrakerClient instance
     IMoonrakerClient* client = get_moonraker_client();
     if (!client) {
-        set_status("icon_close_circle", StatusVariant::Danger,
-                   "Error: Moonraker client not initialized");
+        set_status(StatusKind::Error, "Error: Moonraker client not initialized");
         lv_subject_set_int(&connection_testing_, 0);
         LOG_ERROR_INTERNAL("[{}] MoonrakerClient is nullptr", get_name());
         return;
@@ -301,7 +313,7 @@ void WizardConnectionStep::handle_test_connection_clicked() {
 
     // Set UI to testing state
     lv_subject_set_int(&connection_testing_, 1);
-    set_status("icon_question_circle", StatusVariant::None, "Testing connection...");
+    set_status(StatusKind::Testing, "Testing connection...");
 
     spdlog::debug("[{}] Starting connection test to {}:{}", get_name(), ip, port_clean);
 
@@ -369,8 +381,7 @@ void WizardConnectionStep::connect_confirmed(const helix::LifetimeToken& tok, bo
         if (auto_probe) {
             on_auto_probe_failure(tok);
         } else {
-            set_status("icon_close_circle", StatusVariant::Danger,
-                       "Error starting connection test");
+            set_status(StatusKind::Error, "Error starting connection test");
             lv_subject_set_int(&connection_testing_, 0);
         }
     }
@@ -393,7 +404,7 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
 
     // Show "discovering" status - spinner shows via XML binding
     lv_subject_set_int(&connection_discovering_, 1);
-    set_status(nullptr, StatusVariant::None, lv_tr("Connected! Discovering printer..."));
+    set_status(StatusKind::None, lv_tr("Connected! Discovering printer..."));
     lv_subject_set_int(&connection_testing_, 0);
 
     // Set HTTP base URL so discovery can make HTTP calls
@@ -436,8 +447,7 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
 
                     // NOW enable Next button - discovery is complete
                     lv_subject_set_int(&connection_discovering_, 0);
-                    set_status("icon_check_circle", StatusVariant::Success,
-                               lv_tr("Connection successful!"));
+                    set_status(StatusKind::Success, lv_tr("Connection successful!"));
                     connection_validated_ = true;
                     lv_subject_set_int(&connection_test_passed, 1);
                 });
@@ -452,7 +462,7 @@ void WizardConnectionStep::on_connection_success(const helix::LifetimeToken& tok
     } else {
         // No client available - still show success but warn
         lv_subject_set_int(&connection_discovering_, 0);
-        set_status("icon_check_circle", StatusVariant::Success, lv_tr("Connected (no discovery)"));
+        set_status(StatusKind::Success, lv_tr("Connected (no discovery)"));
         connection_validated_ = true;
         lv_subject_set_int(&connection_test_passed, 1);
     }
@@ -504,8 +514,7 @@ void WizardConnectionStep::show_login_required(const std::string& ip,
     spdlog::warn("[Wizard Connection] Moonraker at {}:{} refused the test ({})", ip, result.port,
                  result.key_sent ? "API key rejected" : "login required");
     lv_subject_set_int(&connection_login_required_, 1);
-    set_status("icon_close_circle",
-               result.key_sent ? StatusVariant::Danger : StatusVariant::Warning,
+    set_status(result.key_sent ? StatusKind::Error : StatusKind::Refused,
                connection_test_status(ip, result).c_str());
     lv_subject_set_int(&connection_testing_, 0);
     connection_validated_ = false;
@@ -514,8 +523,7 @@ void WizardConnectionStep::show_login_required(const std::string& ip,
 
 void WizardConnectionStep::show_connection_failure(ConnectFailureKind kind) {
     spdlog::error("[Wizard Connection] Connection failed (kind={})", static_cast<int>(kind));
-    set_status("icon_close_circle", StatusVariant::Danger,
-               connect_failure_status(kind, tried_ports_).c_str());
+    set_status(StatusKind::Error, connect_failure_status(kind, tried_ports_).c_str());
     lv_subject_set_int(&connection_testing_, 0);
     connection_validated_ = false;
     lv_subject_set_int(&connection_test_passed, 0);
@@ -609,7 +617,7 @@ void WizardConnectionStep::attempt_auto_probe() {
     }
 
     // Show subtle probing indicator
-    set_status("icon_question_circle", StatusVariant::None, "Testing connection...");
+    set_status(StatusKind::Testing, "Testing connection...");
 
     // Set testing state (reuses existing subject for button disable)
     lv_subject_set_int(&connection_testing_, 1);
@@ -664,20 +672,12 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
     save_connection(ip, port);
 
     // Update subjects with the successful connection target
-    lv_subject_copy_string(&connection_ip_, ip.c_str());
+    lv_subject_set_string(&connection_ip_, ip.c_str());
     set_port_field(port);
-
-    // Hide help text on successful auto-probe
-    if (screen_root_) {
-        lv_obj_t* help_text = lv_obj_find_by_name(screen_root_, "help_text");
-        if (help_text) {
-            lv_obj_add_flag(help_text, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
 
     // Show "discovering" status - spinner shows via XML binding
     lv_subject_set_int(&connection_discovering_, 1);
-    set_status(nullptr, StatusVariant::None, lv_tr("Connected, discovering..."));
+    set_status(StatusKind::None, lv_tr("Connected, discovering..."));
 
     // Clear testing state
     lv_subject_set_int(&connection_testing_, 0);
@@ -713,8 +713,7 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
 
                     // NOW enable Next button - discovery is complete
                     lv_subject_set_int(&connection_discovering_, 0);
-                    set_status("icon_check_circle", StatusVariant::Success,
-                               lv_tr("Connection successful!"));
+                    set_status(StatusKind::Success, lv_tr("Connection successful!"));
                     connection_validated_ = true;
                     lv_subject_set_int(&connection_test_passed, 1);
                 });
@@ -729,7 +728,7 @@ void WizardConnectionStep::on_auto_probe_success(const helix::LifetimeToken& tok
     } else {
         // No client - still show success
         lv_subject_set_int(&connection_discovering_, 0);
-        set_status("icon_check_circle", StatusVariant::Success, lv_tr("Connection successful!"));
+        set_status(StatusKind::Success, lv_tr("Connection successful!"));
         connection_validated_ = true;
         lv_subject_set_int(&connection_test_passed, 1);
     }
@@ -748,8 +747,7 @@ void WizardConnectionStep::on_auto_probe_failure(const helix::LifetimeToken& /*t
 
     auto_probe_state_.store(AutoProbeState::FAILED);
 
-    set_status(nullptr, StatusVariant::None,
-               lv_tr("Connection must be tested successfully to continue"));
+    set_status(StatusKind::None, lv_tr("Connection must be tested successfully to continue"));
     lv_subject_set_int(&connection_testing_, 0);
 }
 
@@ -781,8 +779,7 @@ void WizardConnectionStep::handle_ip_input_changed() {
     lv_subject_set_int(&connection_discovering_, 0);
 
     // Reset to help text (user needs to test again after changing input)
-    set_status(nullptr, StatusVariant::None,
-               lv_tr("Connection must be tested successfully to continue"));
+    set_status(StatusKind::None, lv_tr("Connection must be tested successfully to continue"));
 
     // Clear validation state
     connection_validated_ = false;
@@ -821,8 +818,7 @@ void WizardConnectionStep::handle_port_input_changed() {
     lv_subject_set_int(&connection_discovering_, 0);
 
     // Reset to help text (user needs to test again after changing input)
-    set_status(nullptr, StatusVariant::None,
-               lv_tr("Connection must be tested successfully to continue"));
+    set_status(StatusKind::None, lv_tr("Connection must be tested successfully to continue"));
 
     // Clear validation state
     connection_validated_ = false;
@@ -838,7 +834,7 @@ void WizardConnectionStep::handle_port_input_changed() {
 void WizardConnectionStep::register_callbacks() {
     spdlog::debug("[{}] Registering event callbacks", get_name());
 
-    // Static trampolines — actual event binding happens in create() where we have 'this' pointer
+    // The XML wires these; each resolves the step singleton
     register_xml_callbacks({
         {"on_test_connection_clicked", on_test_connection_clicked_static},
         {"on_ip_input_changed", on_ip_input_changed_static},
@@ -873,30 +869,21 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find and configure test button - pass 'this' as user_data
-    lv_obj_t* test_btn = helix::ui::find_required(screen_root_, "btn_test_connection", get_name());
-    if (test_btn) {
-        lv_obj_add_event_cb(test_btn, on_test_connection_clicked_static, LV_EVENT_CLICKED, this);
-        spdlog::debug("[{}] Test button callback attached", get_name());
-    } else {
-        LOG_ERROR_INTERNAL("[{}] Test button not found in XML", get_name());
-    }
-
     // Find input fields and attach change handlers + keyboard support.
     // Pre-fill is driven by the underlying buffer, NOT by lv_subject_get_string,
     // because the subject's value can be transiently empty during XML creation
     // (bind_text observer-on-add ordering). The buffer is the source of truth:
     // it's seeded from config/defaults on first init and preserved across
     // step revisits by the subjects_initialized_ guard in init_subjects().
+    prefilling_inputs_ = true;
     lv_obj_t* ip_input = helix::ui::find_required(screen_root_, "ip_input", get_name());
     if (ip_input) {
         if (connection_ip_buffer_[0] != '\0') {
             lv_textarea_set_text(ip_input, connection_ip_buffer_);
             // Keep subject in sync so any observers see the same value.
-            lv_subject_copy_string(&connection_ip_, connection_ip_buffer_);
+            lv_subject_set_string(&connection_ip_, connection_ip_buffer_);
             spdlog::debug("[{}] Pre-filled IP input: {}", get_name(), connection_ip_buffer_);
         }
-        lv_obj_add_event_cb(ip_input, on_ip_input_changed_static, LV_EVENT_VALUE_CHANGED, this);
         spdlog::debug("[{}] IP input configured", get_name());
     }
 
@@ -908,12 +895,12 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
         // is handled by sanitize_port() at all read sites instead.
         if (connection_port_buffer_[0] != '\0') {
             lv_textarea_set_text(port_input, connection_port_buffer_);
-            lv_subject_copy_string(&connection_port_, connection_port_buffer_);
+            lv_subject_set_string(&connection_port_, connection_port_buffer_);
             spdlog::debug("[{}] Pre-filled port input: {}", get_name(), connection_port_buffer_);
         }
-        lv_obj_add_event_cb(port_input, on_port_input_changed_static, LV_EVENT_VALUE_CHANGED, this);
         spdlog::debug("[{}] Port input configured", get_name());
     }
+    prefilling_inputs_ = false;
 
     lv_obj_update_layout(screen_root_);
 
@@ -955,8 +942,7 @@ lv_obj_t* WizardConnectionStep::create(lv_obj_t* parent) {
     }
 
     // Set initial help text (bind_text only fires on changes, not initial value)
-    set_status(nullptr, StatusVariant::None,
-               lv_tr("Connection must be tested successfully to continue"));
+    set_status(StatusKind::None, lv_tr("Connection must be tested successfully to continue"));
 
     spdlog::debug("[{}] Screen created successfully", get_name());
     return screen_root_;
@@ -1042,14 +1028,14 @@ void WizardConnectionStep::on_printers_discovered(const std::vector<DiscoveredPr
 
     // Update status text
     if (printers.empty()) {
-        lv_subject_copy_string(&mdns_status_,
-                               searching ? lv_tr("Scanning...") : lv_tr("No printers found"));
+        lv_subject_set_string(&mdns_status_,
+                              searching ? lv_tr("Scanning...") : lv_tr("No printers found"));
     } else {
         char buf[64];
         snprintf(buf, sizeof(buf),
                  helix::ui::tr_plural("Found 1 printer", "Found %zu printers", printers.size()),
                  printers.size());
-        lv_subject_copy_string(&mdns_status_, buf);
+        lv_subject_set_string(&mdns_status_, buf);
     }
 
     // Update dropdown options (newline-separated for LVGL dropdown)
@@ -1083,12 +1069,12 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         // without one rather than being sent this one's.
         const std::string previous_ip = lv_subject_get_string(&self->connection_ip_);
         if (!text_io::equals_ignore_case(previous_ip, printer.ip_address)) {
-            lv_subject_copy_string(&self->connection_api_key_, "");
+            lv_subject_set_string(&self->connection_api_key_, "");
             lv_subject_set_int(&self->connection_login_required_, 0);
         }
 
         // Update IP input
-        lv_subject_copy_string(&self->connection_ip_, printer.ip_address.c_str());
+        lv_subject_set_string(&self->connection_ip_, printer.ip_address.c_str());
 
         // Also update the text area directly so user sees the change
         if (self->screen_root_) {
@@ -1108,7 +1094,7 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
         lv_subject_set_int(&connection_test_passed, 0);
 
         // Reset to help text (user still needs to test)
-        self->set_status(nullptr, StatusVariant::None,
+        self->set_status(StatusKind::None,
                          lv_tr("Connection must be tested successfully to continue"));
 
         spdlog::info("[Wizard Connection] Selected printer: {}", discovered_printer_label(printer));
@@ -1121,7 +1107,7 @@ void WizardConnectionStep::on_printer_selected_cb(lv_event_t* e) {
 
 void WizardConnectionStep::set_port_field(const std::string& port) {
     port_set_by_app_ = true;
-    lv_subject_copy_string(&connection_port_, port.c_str());
+    lv_subject_set_string(&connection_port_, port.c_str());
     if (screen_root_) {
         lv_obj_t* port_input = helix::ui::find_required(screen_root_, "port_input", get_name());
         if (port_input) {
@@ -1146,47 +1132,14 @@ void WizardConnectionStep::adopt_probed_port(int port) {
 // Status Helper
 // ============================================================================
 
-void WizardConnectionStep::set_status(const char* icon_name, StatusVariant variant,
-                                      const char* text) {
+void WizardConnectionStep::set_status(StatusKind kind, const char* text) {
     showing_klipper_unavailable_ = false;
     if (!screen_root_) {
         return;
     }
-
-    // Find and update icon
-    lv_obj_t* icon_label =
-        helix::ui::find_required(screen_root_, "connection_status_icon", get_name());
-    if (icon_label) {
-        // Get icon codepoint
-        const char* icon_text = icon_name ? lv_xml_get_const(nullptr, icon_name) : "";
-        lv_label_set_text(icon_label, icon_text ? icon_text : "");
-
-        // Set color based on variant
-        lv_color_t color;
-        switch (variant) {
-        case StatusVariant::Success:
-            color = theme_manager_get_color("success");
-            break;
-        case StatusVariant::Warning:
-            color = theme_manager_get_color("warning");
-            break;
-        case StatusVariant::Danger:
-            color = theme_manager_get_color("danger");
-            break;
-        case StatusVariant::None:
-        default:
-            color = theme_manager_get_color("text_muted");
-            break;
-        }
-        lv_obj_set_style_text_color(icon_label, color, LV_PART_MAIN);
-    }
-
-    // Find and update text
-    lv_obj_t* text_label =
-        helix::ui::find_required(screen_root_, "connection_status_text", get_name());
-    if (text_label) {
-        lv_label_set_text(text_label, text ? text : "");
-    }
+    // The status line's icon and text bind these
+    lv_subject_set_int(&connection_status_kind_, static_cast<int>(kind));
+    lv_subject_set_string(&connection_status_text_, text ? text : "");
 }
 
 void WizardConnectionStep::unblock_after_incomplete_discovery(const char* message) {
@@ -1195,7 +1148,7 @@ void WizardConnectionStep::unblock_after_incomplete_discovery(const char* messag
     lv_subject_set_int(&connection_discovering_, 0);
     lv_subject_set_int(&connection_testing_, 0);
 
-    set_status("icon_triangle_exclamation", StatusVariant::Warning, message);
+    set_status(StatusKind::Caution, message);
 
     // Not a full validation: discovery never ran, so hardware lists are empty.
     connection_validated_ = false;
@@ -1217,7 +1170,7 @@ void WizardConnectionStep::allow_continue_without_klipper() {
             get_printer_state().network_state().get_klippy_state_message_seq_subject(), this,
             [](WizardConnectionStep* self, int /*seq*/) {
                 if (self->showing_klipper_unavailable_) {
-                    self->set_status("icon_triangle_exclamation", StatusVariant::Warning,
+                    self->set_status(StatusKind::Caution,
                                      self->klipper_unavailable_status().c_str());
                     self->showing_klipper_unavailable_ = true;
                 }

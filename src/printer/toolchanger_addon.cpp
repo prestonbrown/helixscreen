@@ -30,12 +30,13 @@ struct Provider {
     const char* name;
     /// Identifies the machine from discovered hardware.
     bool (*detect)(const PrinterDiscovery& hw);
-    /// Status objects carrying its sensor state.
+    /// Status objects carrying its sensor state, or nullptr for a machine
+    /// with no add-on sensor to read beside toolchanger.tool_number.
     std::vector<std::string> (*status_objects)(const PrinterDiscovery& hw);
     /// Feeder gcode, or nullptr for a machine without one.
     std::string (*open_gcode)(const PrinterDiscovery& hw);
     std::string (*close_gcode)(const PrinterDiscovery& hw);
-    /// What drives a swap when klipper-toolchanger is not installed to do it.
+    /// What drives a swap when klipper-toolchanger is not the one doing it.
     /// Prefixed to the tool number; nullptr when the machine has no such
     /// command of its own.
     const char* select_prefix;
@@ -63,6 +64,9 @@ struct Provider {
     /// The controller command a RESUME macro calls to get the resume rule, or
     /// nullptr.
     const char* resume_command;
+    /// [toolchanger] is the firmware's own view over its changer, not
+    /// klipper-toolchanger, so INITIALIZE_TOOLCHANGER does not exist.
+    bool toolchanger_is_a_view;
 };
 
 // --- MedusaHC ---------------------------------------------------------------
@@ -211,6 +215,24 @@ std::string zmod_c5_feed_gcode(const PrinterDiscovery& hw, int head) {
     return "CHANGE_TOOL LANE=" + lane;
 }
 
+// --- Reforge on the FlashForge Creator 5 Pro --------------------------------
+//
+// Reforge (Klipper4FlashForge) swaps heads with its own [ff_toolchange] extra,
+// which publishes `toolchanger` and `tool T<n>` as read-only views shaped like
+// klipper-toolchanger's, with toolchanger.tool_number read off the dock and
+// grab sensors. Its SELECT_TOOL and UNSELECT_TOOL take a tool NUMBER only
+// (`T=<n>` or `TOOL=T<n>`) and reject klipper-toolchanger's quoted object name;
+// a bare UNSELECT_TOOL docks whatever is mounted. There is no ASSIGN_TOOL and
+// no INITIALIZE_TOOLCHANGER.
+
+bool reforge_detect(const PrinterDiscovery& hw) {
+    return printer_has_object(hw, "ff_toolchange");
+}
+
+std::string reforge_unselect_gcode(const PrinterDiscovery& /*hw*/) {
+    return "UNSELECT_TOOL";
+}
+
 const std::vector<Provider>& providers() {
     static const std::vector<Provider> table = {
         // T<n> and DROP_TOOL swap tools on every MedusaHC, with or without
@@ -218,11 +240,15 @@ const std::vector<Provider>& providers() {
         {"MedusaHC", medusa_detect, medusa_status_objects, medusa_open_gcode, medusa_close_gcode,
          "T", medusa_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
          /*feeds_through_mount=*/true, kMedusaResumeMinNozzleC, medusa_clean_gcode,
-         kMedusaResumeCommand},
+         kMedusaResumeCommand, /*toolchanger_is_a_view=*/false},
         {kZmodC5ProviderName, zmod_c5_detect, zmod_c5_status_objects, nullptr, nullptr,
          "_T_IN T=", zmod_c5_unselect_gcode, /*owns_swap=*/true, zmod_c5_material_write,
          zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr,
-         /*resume_command=*/nullptr},
+         /*resume_command=*/nullptr, /*toolchanger_is_a_view=*/false},
+        {"Reforge", reforge_detect, /*status_objects=*/nullptr, nullptr, nullptr,
+         "SELECT_TOOL T=", reforge_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
+         /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr,
+         /*resume_command=*/nullptr, /*toolchanger_is_a_view=*/true},
     };
     return table;
 }
@@ -580,7 +606,7 @@ std::string machine_name(const PrinterDiscovery& hw) {
 
 ToolSensor resolve_tool_sensor(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
-    if (!p) {
+    if (!p || !p->status_objects) {
         return {};
     }
     return ToolSensor{true, p->name};
@@ -607,7 +633,8 @@ bool resume_rule_in_force(const ResumeRule& rule) {
 ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     // klipper-toolchanger present means SELECT_TOOL/UNSELECT_TOOL exist and are
-    // the machine's own answer, unless the provider swaps the hardware itself.
+    // the machine's own answer, unless the provider swaps the hardware itself
+    // or takes different arguments for them.
     if (hw.has_tool_changer() && !(p && p->owns_swap)) {
         return {};
     }
@@ -621,7 +648,7 @@ ToolCommands resolve_tool_commands(const PrinterDiscovery& hw) {
     c.provider_name = p ? p->name : std::string();
     c.select_prefix = (p && p->select_prefix) ? p->select_prefix : "T";
     c.unselect = (p && p->unselect_gcode) ? p->unselect_gcode(hw) : "";
-    c.initialize_available = hw.has_tool_changer();
+    c.initialize_available = hw.has_tool_changer() && !(p && p->toolchanger_is_a_view);
     return c;
 }
 
@@ -675,7 +702,7 @@ std::vector<std::string> feeder_macro_candidates(const PrinterDiscovery& hw) {
 
 std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
-    return p ? p->status_objects(hw) : std::vector<std::string>{};
+    return p && p->status_objects ? p->status_objects(hw) : std::vector<std::string>{};
 }
 
 ToolFeed resolve_tool_feed(const PrinterDiscovery& hw) {

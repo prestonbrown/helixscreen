@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Reminder intervals: one row per maintenance meter with its print hours and its day
+     limit, the only place a meter that is Off can be turned back on. The belt tension row
+     (the last meter) shows on printers whose model has that meter. The dropdowns' options
+     come from the one choices table (MaintenanceIntervalsOverlay::apply_options). -->
+<component>
+  <view name="maintenance_intervals_overlay" extends="overlay_panel" title="Reminder Intervals" bg_color="#screen_bg">
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_top="0" style_pad_hor="#space_lg" style_pad_bottom="#space_lg"
+            style_pad_row="#space_sm" scrollable="true" flex_flow="column">
+      <repeat count="7">
+        <ui_card name="mt_interval_${i}"
+                 width="100%" height="content" flex_flow="row_wrap" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+                 style_flex_cross_place="center" scrollable="false">
+          <bind_flag_if cond="${i} eq 6 and maintenance_belt_available eq 0" flag="hidden"/>
+          <text_body name="mt_interval_name_${i}"
+                     width="0" flex_grow="1" style_min_width="#button_height_lg" bind_text="maintenance_m${i}_name"
+                     long_mode="wrap"/>
+          <lv_dropdown name="mt_hours_${i}" width="content" bind_selected="maintenance_m${i}_interval">
+            <event_cb trigger="value_changed" callback="maintenance_interval_cb" user_data="$i"/>
+          </lv_dropdown>
+          <lv_dropdown name="mt_days_${i}" width="content" bind_selected="maintenance_m${i}_days">
+            <event_cb trigger="value_changed" callback="maintenance_days_cb" user_data="$i"/>
+          </lv_dropdown>
+        </ui_card>
+      </repeat>
+    </lv_obj>
+  </view>
+</component>

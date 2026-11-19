@@ -57,6 +57,21 @@ The regulatory country the mock WiFi radio reports at startup, standing in for o
 HELIX_MOCK_WIFI_COUNTRY=DE ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_WIFI_DHCP_PENDING`
+
+Makes a Wi-Fi join on the mock radio complete without an address, so the link stays joined with DHCP pending: Network Settings shows "Getting address…" on its IP row and the Settings root shows "Connected, getting address…".
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` holds the address back; anything else assigns one |
+| **Default** | unset |
+| **File** | `src/network/wifi_backend_mock.cpp` |
+
+```bash
+# Join any secured mock network in Network Settings; it stays awaiting an address
+HELIX_MOCK_WIFI_DHCP_PENDING=1 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_IPV4_APPLY_FAIL`
 
 Make every IPv4 apply on the mock Wi-Fi and Ethernet backends fail, so the IPv4 screen's failure path (Network Settings > IPv4 > Apply) can be driven under `--test`. The revert that follows fails too, which leaves the pending-revert record for the next start.
@@ -406,6 +421,23 @@ it makes the print-start emit `SKIP_LEVELING=0 ADAPTIVE=1` on the `START_PRINT`
 invocation. On a non-adaptive printer the same row reads "Auto Bed Mesh" and
 behaves exactly as before.
 
+### `HELIX_MOCK_TIMELAPSE`
+
+Takes the moonraker-timelapse plugin away from the mock, so Advanced shows **Setup Timelapse** and its wizard reaches the install step. With the mock Moonraker on this host (the default), the wizard takes the local route: a simulated host answers its git, `install.sh --link-timelapse` and ffmpeg commands, and nothing runs on your machine. Its clone is a stub checkout in the `mock_timelapse_home` cache directory, never in your home. Linking the component makes the plugin answer, so the wizard finishes. With `HELIX_MOCK_REMOTE_PRINTER=1` it shows the SSH instructions instead, and Check Again keeps finding the plugin absent.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Comma-separated words. `absent` (no plugin, ffmpeg installed), `no-ffmpeg` (no ffmpeg, so the last screen shows the command that installs it), `helix-macros` (Klipper has HelixScreen's helper macros loaded and no `TIMELAPSE_TAKE_FRAME`, so the wizard's last screen and Timelapse Settings add the timelapse include to the mock's `helix_macros.cfg` and offer Restart Klipper; combines with either of the others) |
+| **Default** | unset (plugin present) |
+| **File** | `src/mock/timelapse_host_mock.cpp` |
+
+```bash
+HELIX_MOCK_TIMELAPSE=no-ffmpeg ./build/bin/helix-screen --test -vv             # local install, ffmpeg left to the user
+HELIX_MOCK_TIMELAPSE=absent HELIX_MOCK_REMOTE_PRINTER=1 ./build/bin/helix-screen --test -vv   # SSH instructions
+HELIX_MOCK_TIMELAPSE=absent,helix-macros ./build/bin/helix-screen --test -vv  # wizard ends on the Restart Klipper card
+HELIX_MOCK_TIMELAPSE=helix-macros ./build/bin/helix-screen --test -vv         # Timelapse Settings shows the Restart Klipper card
+```
+
 ### `HELIX_MOCK_WEBCAMS`
 
 The webcam list the mock publishes at discovery, as `Name[:service]` entries
@@ -499,6 +531,7 @@ Printer Events button shows the plugin's journal. `HELIX_MOCK_PLR` adds the `plr
 | `storage_auto_cleanup` | `plugin_features.storage_auto_cleanup`, off until Settings > System > Storage writes it |
 | `photos` | on unless `plugin_features.photos` is `false`. `HELIX_MOCK_PHOTOS=unavailable` reports it `available: false`, `reason: "snapshot_unreachable: ..."`, so the screen takes the photos |
 | `file_analysis`, `server_edits`, `config_edit`, `storage` | always on, `Ready` |
+| `signal_macro_migration` | on, `Ready`; `server.helix.signal_migration` answers `state: "nothing"` |
 
 The mock reports no `vendor_ad5x` or `vendor_ace` entry, so its AD5X and ACE backends poll as
 they do without the plugin. The mock has no `server.helix.config`, so a config edit falls back
@@ -553,7 +586,7 @@ plugin absent or `disabled` the knob does nothing.
 
 | Property | Value |
 |----------|-------|
-| Values | `generic`, `qidi_print_state` (the status `backend`); anything else = off |
+| Values | `generic`, `qidi_print_state` (the status `backend`); `not_listed` reports `features.plr` unavailable with reason `not_listed`, as on a printer model the plugin has no recipe for; anything else = off |
 | Default | off |
 | Affects | `server.helix.status` (`features.plr` ready, version 2), `server.helix.plr.*`, the newest `server.history.list` job (`interrupted`) |
 
@@ -715,33 +748,52 @@ Select the mock AMS topology/type.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `none`, `afc`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace` |
-| **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare, LINEAR, 4 slots on every other persona |
+| **Values** | `none`, `happy_hare` / `hh`, `afc`, `afc_ace`, `afc_cfs`, `toolchanger` / `tc`, `mixed`, `multi`, `torture`, `stealth`, `afc_direct`, `vivid`, `ifs`, `htlf`, `snapmaker`, `medusahc` / `medusahc-ktc` / `medusahc-tn`, `ifs-module`, `cfs`, `openams`, `multiace`, `indx`, `lane_status` |
+| **Default** | The persona's own (`helix::mock::effective_mock_ams`): `toolchanger` on `creator5`, `ifs` on `ad5x`, `cfs` on `k2`, `snapmaker` on `snapmaker_u1`; Happy Hare mock hardware (production backend) on every other persona that publishes `mmu` |
 | **File** | `src/printer/ams_backend.cpp` |
 
 | Value | Units | What it simulates |
 |-------|-------|-------------------|
-| *(unset)* | 1 | The persona's default AMS (see **Default**); Happy Hare, LINEAR, 4 slots where the persona has none |
+| *(unset)* | 1 | The persona's default AMS (see **Default**). Where that is Happy Hare it is **mock HARDWARE, real backend**: Happy Hare 4 on one ERCF (`HELIX_AMS_GATES` gates, spools 1-8 of the mock Spoolman in turn, gate 1 loaded, gate 4 empty), publishing `mmu`, `mmu_machine` and the v4 configfile sections and answering `MMU_LOAD` / `MMU_UNLOAD` / `MMU_EJECT` / `MMU_SELECT` / `MMU_SELECT_BYPASS` / `MMU_HOME` / `T<n>` with frame-by-frame `action` and `filament_pos`, plus `MMU_GATE_MAP`, `MMU_TTG_MAP`, `MMU_ENDLESS_SPOOL`, `MMU_PRELOAD`, `MMU_RECOVER`, `MMU_SYNC_FEEDBACK` and `MMU_FAN` (`src/mock/moonraker_client_mock_happy_hare.cpp`), so real discovery builds the production `AmsBackendHappyHare`. Setting any knob only `AmsBackendMock` serves (`helix::mock::kMockBackendKnobs`: `HELIX_MOCK_AMS_STATE` other than `idle`, the `HELIX_MOCK_DRYER*` / `HELIX_MOCK_DRYING` family, `HELIX_MOCK_AMS_ENV`, `HELIX_MOCK_NO_HUMIDITY`, `HELIX_MOCK_REMAP*`, `HELIX_MOCK_BUFFER_STATE`) keeps the default on `AmsBackendMock`'s Happy Hare simulation, as do `ercf` and `tradrack` |
+| `happy_hare` / `hh` | 1 | The Happy Hare mock hardware above, whatever scenario knobs are set |
 | `none` | - | No mock AMS at all |
-| `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots |
-| `afc` | 1 | AFC Box Turtle, HUB, 4 slots. Aliases: `box_turtle`, `boxturtle` |
-| `toolchanger` / `tc` | 1 | Tool Changer, PARALLEL topology. Alias: `tool_changer` |
+| `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots whatever `HELIX_AMS_GATES` says |
+| `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, 2 to 8, the counts a Box Turtle is built in; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP`, AFC DEV's `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` (both listed in `printer.gcode.help`) and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
+| `afc_ace` | 1 | **An ACE Pro run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_ACE Ace_1` over `AFC_lane lane1`..`lane4` (an ACE Pro has four; `HELIX_AMS_GATES` is ignored) and no buffer. The unit object carries AFC_ACE.py's `ace_dryer` / `ace_dryer_target` / `ace_dryer_duration` / `ace_dryer_remain` / `ace_temp` / `ace_humidity`, mid cycle at start (50 °C, 205 of 240 minutes left), and `ace_slots` with an identified RFID tag for every loaded spool, and `AFC_ACE_DRY UNIT=Ace_1 TEMP= DURATION=` / `AFC_ACE_DRY_STOP UNIT=Ace_1` start and stop it. Alias: `afc-ace` |
+| `afc_cfs` | 1 | **A Creality CFS run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_CFS cfs_1` over `AFC_lane lane1`..`lane4` (a CFS has four; `HELIX_AMS_GATES` is ignored) and no buffer; the unit object's `cfs.lanes.<lane>.tag` carries each loaded spool's decoded tag (material, color, 1000 g). Alias: `afc-cfs` |
+| `kms` | 1 | Happy Hare on a KMS: the mock backend with the unit reporting vendor `KMS`, HUB, 4 lanes (the count its drawing has) |
+| `hh_vivid` | 1 | Happy Hare on a BTT ViViD: the mock backend with the unit reporting vendor `VVD`, LINEAR, always 4 lanes |
+| `hh_qidi` | 1 | Happy Hare on a QIDI Box: vendor `QIDI`, HUB, always 4 lanes |
+| `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, LINEAR, 4 lanes |
+| `hh_night_owl` | 1 | Happy Hare on a Night Owl: vendor `NightOwl`, HUB, always 2 lanes |
+| `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, `HELIX_AMS_GATES` lanes from 2 to 8; the enclosed drawing while the mock reports a dryer or climate |
+| `hh_mmx` | 1 | Happy Hare on an MMX: vendor `MMX`, LINEAR (a ServoSelector), 4 lanes |
+| `hh_3ms` | 1 | Happy Hare on a 3MS: vendor `3MS`, HUB (a VirtualSelector), 4 lanes |
+| `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB (a VirtualSelector), 4 lanes |
+| `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: model `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
+| `quattro_box` | 1 | AFC Quattro Box, HUB, always 4 lanes. Alias: `quattrobox` |
+| `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
 | `torture` | **5** | **Its unit-card row overflows.** See below |
-| `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
+| `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two four-lane Bambu AMS share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
+| `afc_direct` | 6 | AFC toolchanger with five hub units on 3 extruders plus a one-lane "Tools" unit wired straight to a fourth. Each unit's topology comes from the AFC backend's own rule (`helix::printer::afc_unit_topology`), so the overview shows whether a direct unit gets a hub box |
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
-| `ifs` | 1 | AD5X IFS, 4 slots, LINEAR. Aliases: `ad5x`, `ad5x_ifs` |
+| `ifs` | 1 | **Native Z-Mod AD5X IFS - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` for the stock four ports (black PLA, white PETG, purple PLA, brown ABS; port 1 in the head) with the commands `ifs-jacker` answers, so the production `AmsBackendAd5xIfs` runs. Aliases: `ad5x`, `ad5x_ifs`; the `ad5x` persona's default |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
-| `snapmaker` | 1 | Snapmaker U1, 4 slots, PARALLEL, non-editable mapping. Aliases: `snapswap`, `u1` |
+| `snapmaker` | 1 | **A stock Snapmaker U1's SnapSwap - mock HARDWARE, real backend.** Publishes `filament_detect` (RFID tags), `print_task_config`, both `filament_feed` sides and each head's park/active pins over four extruders, with no `mmu`; `T<n>` moves the carriage, `AUTO_FEEDING` walks a feeder (an unload empties the head's record) and `SET_PRINT_FILAMENT_CONFIG` rewrites one, so real discovery builds the production `AmsBackendSnapmaker`. Aliases: `snapswap`, `u1`; the `snapmaker_u1` persona's default |
 | `medusahc` | 1 | **MedusaHC hotend changer - mock HARDWARE, real backend.** The stock Irbis3D install: controller + dock sensors, no klipper-toolchanger. Aliases: `medusa`, `mhc`. See below |
 | `medusahc-ktc` | 1 | The same controller with the optional klipper-toolchanger beside it. Alias: `medusa-ktc` |
 | `medusahc-tn` | 1 | A six-tool MedusaHC on the controller alone (topi's machine). Alias: `medusa-tn` |
 | `ifs-module` | 1 | **Standalone AD5X IFS module - mock HARDWARE, real backend.** The Forge-X drop-in's `ifs`/`ifs_materials` objects + stock-named sensors. Aliases: `ifs_module`, `ad5x-module`. See below |
+| `ifs-jacker` | 2 | **Native Z-Mod AD5X behind an IFS Jacker - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` with `color_limit` = `HELIX_MOCK_IFS_PORTS` (4..16, default 8; ports 3 and 7 start empty) plus the stock `ifs_motion_sensor` / `head_switch_sensor`, so the production `AmsBackendAd5xIfs` shows the lanes as `IFS 1`, `IFS 2`, ... `INSERT_PRUTOK_IFS` / `A_CHANGE_FILAMENT` seat a port, `_IFS_REMOVE_CURRENT_PRUTOK` empties the head, `IFS_F11` clears a lane. Alias: `ifs_jacker`. Pair with `HELIX_MOCK_PRINTER=ad5x` |
 | `cfs` | 1 | **Creality CFS, K1 stock dialect - mock HARDWARE, real backend.** The stock `box` status object plus the calibration command surface. Alias: `cfs-k1`. See below |
 | `openams` | 1 | **OpenAMS hub - mock HARDWARE, real backend.** Lists and pushes the `oams_manager` status object (4-bay hub unit, FPS lane, groups T0/T1/T2, slot 4 loaded) so real discovery claims OpenAMS and the production `AmsBackendOpenAms` runs. Slots 3 and 4 get ASA identity seeded into `lane_data`; `OPENAMS_UNLOAD` / `OPENAMS_LOAD GROUP=Tn` flip the loaded slot |
 | `multiace` | 1 | **multiACE on a U1 - mock HARDWARE, real backend.** Pushes the U1 feed objects plus the plain `ace` object so real discovery builds the production `AmsBackendMultiAce` and runs it against engine-shaped frames. Pair with `HELIX_MOCK_PRINTER=snapmaker_u1`. See below |
 | `indx` | 1 | **Bondtech INDX - mock HARDWARE, real backend.** Publishes the toolboard module, `save_variables` and Bondtech's macro objects so real discovery builds the production `AmsBackendIndx`. `T<n>` / `CHANGE_TOOL` / `PARK_TOOL` walk park and pickup over a few notifications, and heat is refused with no tool on the head or on a no-hotend tool. See below |
+| `lane_status` | 1 | **A Lane Status Surface producer - mock HARDWARE, real backend.** Publishes a `lane_status` object (producer `mock_lanes`, four lanes, `lane1` current) and writes one RFC 0001 `lane_data` record per lane (`lane3` empty, its keys null), so real discovery builds the generic `AmsBackendLaneStatus`. A controller listing `load` and `unload` by default: `CHANGE_TOOL LANE=` and `TOOL_UNLOAD` move `current_lane`. `HELIX_MOCK_LANE_STATUS_KIND=status_only` makes it status-only, with no capabilities |
+
+`HELIX_MOCK_AMS=toolchanger` models klipper-toolchanger's per-tool fans: no `[fan]`, and each tool T0-T3 has its own `fan_generic T<n>_part_fan` (the one its `tool T<n>` object names, and the one M106 drives while that tool is mounted) and a `heater_fan T<n>_hotend_fan` on its own extruder. Each hotend fan's `fan_speed` is a step lower per tool (100%, 90%, 80%, 70%) so the fan readouts of different tools read apart. A persona whose machine names its own fans omits these (`kToolchangerToolFans` in `include/mock_persona.h`): the Creator 5 personas keep their FlashForge fans. `HELIX_MOCK_TOOLCHANGER_TOOL=<n>` (0-3, default 0) starts with tool `n` mounted, in both the printer mock and the mock tool changer backend.
 
 `HELIX_MOCK_AMS=multiace` takes two knobs (read once at start by `MoonrakerClientMock`):
 
@@ -761,6 +813,10 @@ HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_AMS=multiace HELIX_MOCK_MULTIACE_MODE
 HELIX_MOCK_MULTIACE_UNITS=2 ./build/bin/helix-screen --test
 ```
 
+A mode that stands for a real product keeps `HELIX_AMS_GATES` inside the lane counts that product is built in (a Box Turtle 2 to 8, a Night Owl 2, the others named above 4) and logs the count it ignored (`helix::mock::mock_real_lane_count` in `include/mock_persona.h`). `kms` and `hh_htlf` still take `HELIX_AMS_GATES` as given.
+
+`HELIX_MOCK_AMS=ercf` and `HELIX_MOCK_AMS=tradrack` report the Happy Hare mock as that selector rail; `HELIX_AMS_GATES` picks the gate count (art exists for 4, 6, 8, 9 and 12).
+
 `HELIX_MOCK_AMS=indx` takes these knobs (read when the mock builds its object list):
 
 | Variable | Default | Effect |
@@ -779,6 +835,7 @@ HELIX_MOCK_PRINTER=voron_trident HELIX_MOCK_AMS=indx ./build/bin/helix-screen --
 |----------|-------|--------|
 | `HELIX_MOCK_OPENAMS_UNITS` | `fleet` | Twelve units: one AMS HT (1 bay) then eleven AMS 2 Pro (4 bays), 45 bays, groups `T0`-`T44` one bay each. Units 1-10 feed lane `fps`, units 11-12 feed `fps2`, which names `extruder1` (two hubs, two toolheads). Every unit publishes its own `devices.<unit>` environment (varied temperature and humidity), unit 6 is mid dryer cycle (55 C, 3 h 25 min left), and the first bay of unit 3 (slot 5) is loaded. `OAMS_DRYER_START OAMS=<1-12>` works on every unit. Same `HELIX_MOCK_OPENAMS_API` / `HELIX_MOCK_OPENAMS_FAULT` behavior as `shared` |
 | `HELIX_MOCK_OPENAMS_UNITS` | `shared` | An AMS HT (1 bay, slot 0) and an AMS 2 Pro (4 bays, slots 1-4) on ONE `fps` lane, groups `T0`-`T4` one slot each, slot 0 loaded: the shape of the reference printer. The overview draws one hub, one FPS and one toolhead. Advertises `OAMSM_LOAD_TO_TOOLHEAD` / `OAMSM_UNLOAD_FROM_TOOLHEAD` and adds the openams plugin's `lanes_by_fps` and `topology` |
+| `HELIX_MOCK_OPENAMS_UNITS` | `ams1` | `shared` with an original AMS (family `ams1`, 4 bays, no dryer: `dryer: null` and no dryer actions) in place of the AMS 2 Pro. Shows the original AMS unit art |
 | `HELIX_MOCK_OPENAMS_UNITS` | `two_lanes` | `shared`'s pair on lane `fps` (extruder), plus two AMS 2 Pro (`ams2b`, `ams2c`, slots 5-12) on lane `fps2` (`extruder1`, which the mock printer also reports). Groups `T0`-`T12`, one slot each; slot 0 loaded. The overview draws two chains, each a hub, an FPS and a toolhead. Takes the same `HELIX_MOCK_OPENAMS_API` / fault / dryer behavior as `shared` |
 | `HELIX_MOCK_OPENAMS_API` | `legacy` | With `shared`: the klipper_openams shape. Only `api_version`, `schema`, `ready`, `commands` (`OPENAMS_LOAD` / `OPENAMS_UNLOAD`), `lanes`, `units`, `groups` |
 | `HELIX_MOCK_OPENAMS_FAULT` | fault code, e.g. `motor_drive_fault` | With `shared` (not `legacy`): the AMS HT publishes that unit fault in `devices.ams_ht.faults[]` until `OAMS_CLEAR_FAULT OAMS=1` is sent |
@@ -1020,8 +1077,8 @@ other macro description.
 the failure path. `tests/unit/test_mock_tool_offset_calibration.cpp` pins it.
 
 **Snapmaker U1 toolhead offset calibration:** the `snapmaker_u1` persona lists the
-`_EXTRUDER_OFFSET_ACTION_*` hook macros, so AMS Management shows **Calibration > Calibrate
-Toolhead Offsets**. Each `EXTRUDER_OFFSET_ACTION_*` command answers about a second later, every
+`_EXTRUDER_OFFSET_ACTION_*` hook macros, so the **Tool Offsets** entry (Advanced, and the
+Controls panel) starts the U1's guided calibration. Each `EXTRUDER_OFFSET_ACTION_*` command answers about a second later, every
 step but PRESTART is refused with the firmware's coded fault until PRESTART has run, and a
 head's PROBE_CALIBRATE moves its `extruder_offset`, which `printer.objects.query` reports.
 `HELIX_MOCK_NOZZLE_CAL_PLATE_REFUSE=<n>` makes the first `n` plate checks report the PEI sheet
@@ -1029,6 +1086,14 @@ still on the bed; `HELIX_MOCK_NOZZLE_CAL_FAIL=<n>` fails head `n`'s probe.
 `HELIX_MOCK_NOZZLE_CAL_HELD=1` starts with the state already held, as another screen's run
 would leave it, so the connect-time "End it now?" prompt shows.
 `tests/unit/test_mock_nozzle_offset_calibration.cpp` pins it.
+
+### `HELIX_MOCK_HH_DEVELOPMENT`
+
+`1` makes the Happy Hare mock hardware (the default persona's `mmu`) also publish what
+only Happy Hare's development branch has: `printer.mmu.drying` (one `null` per unit) and
+`[mmu_parameters] endless_spool_auto_groups: 1`, which makes the endless spool groups
+read-only. Unset, the mock is Happy Hare 4.2.0 as released, with `gate_remaining_weight` and
+`gate_initial_weight`. `tests/unit/test_mock_real_ams_backends.cpp` pins both.
 
 ### `HELIX_MOCK_AMS_STATE`
 
@@ -1042,7 +1107,7 @@ Select the mock AMS visual scenario.
 
 | Value | What it shows |
 |-------|---------------|
-| *(unset)* / `idle` | Default idle state |
+| *(unset)* / `idle` | Default idle state. Any other value keeps the default persona on `AmsBackendMock` (see `HELIX_MOCK_AMS`) |
 | `loading` | Active load in progress with realistic segment animation |
 | `error` | Slot errors visible; buffer fault also shown when combined with `afc` mode |
 | `bypass` | Bypass mode active |
@@ -1051,6 +1116,7 @@ Select the mock AMS visual scenario.
 | `feeder` | Lane 3's filament waits at its feeder: its entry sensor reads it, its toolhead has not taken it (`PREP`). Shows the PARALLEL entry band with `HELIX_MOCK_AMS=snapmaker` |
 | `disconnected` | The last unit reports itself offline: its overview card ghosts with a "Disconnected" chip, and the detail header carries the chip. With one unit, the AMS panel header does |
 | `finishes` | One lane per swatch finish (silk, marble, sparkle, matte) plus a three-colour silk and a two-colour lane, repeating across the lanes, named for their colours and unlinked from Spoolman: every surface that paints a spool shows each (`docs/devel/COLOR_SWATCHES.md`) |
+| `absent` | The last unit's bays are reserved but its box is not on the bus: its slots take the disabled state, and a unit drawn from its baked art dims each spool |
 | `grade` | Every lane holds `PLA-CF` instead of its usual filament — same compat group, so the mapper routes a PLA tool exactly as before and the print-start **grade** dialog is what fires. All four lanes, not one, because a tool lands on a lane by colour and then by positional fallback over the file's whole palette |
 
 ```bash
@@ -1070,6 +1136,21 @@ HELIX_MOCK_AMS_STATE=grade ./build/bin/helix-screen --test -vv
 # Combine with topology selection
 HELIX_MOCK_AMS=afc HELIX_MOCK_AMS_STATE=error ./build/bin/helix-screen --test
 HELIX_MOCK_AMS=mixed HELIX_MOCK_AMS_STATE=loading ./build/bin/helix-screen --test
+```
+
+
+### `HELIX_MOCK_AMS_FILL`
+
+Each lane's remaining weight on the mock backend, as a comma-separated list of percentages of its spool (`100,50,10,100`); `empty` clears that lane to a bare bay with nothing known about a spool. Lanes past the list keep their own. Shows how full each spool is drawn, on the drawn tray and on a unit's baked art.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Comma-separated percentages, first lane first |
+| **Default** | Unset: each lane keeps the mock's sample weight |
+| **File** | `src/printer/ams_backend.cpp` |
+
+```bash
+HELIX_MOCK_AMS=ace HELIX_MOCK_AMS_FILL=100,50,10,100 ./build/bin/helix-screen --test
 ```
 
 
@@ -1351,13 +1432,27 @@ Return an empty power devices list from mock Moonraker API.
 MOCK_EMPTY_POWER=1 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_TMC_OVERTEMP`
+
+Sets overtemperature flags on mock TMC drivers, for the stepper driver warning notice. The default Voron 2.4 persona has `tmc2240 stepper_x` and `stepper_y` (temperature and flags) and `tmc2209 stepper_z` (flags only), plus `temperature_sensor mcu_temp` and `raspberry_pi`, which its configfile declares as `temperature_mcu` and `temperature_host`.
+
+| | |
+|---|---|
+| **Values** | comma-separated stepper names: `stepper_z` sets the prewarning flag (`otpw`), `stepper_z:ot` the shutdown flag (`ot`) |
+| **Default** | unset: every driver reports a running driver with no flags |
+| **File** | `src/mock/moonraker_client_mock_objects.cpp#mock_tmc_drv_status` |
+
+```bash
+HELIX_MOCK_TMC_OVERTEMP=stepper_z ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_PRINTER`
 
 Select which printer the mock Moonraker client impersonates. Drives the mock's reported identity, kinematics defaults, bed dimensions, hardware objects, and the printer type detection resolves. Each named persona is asserted to auto-detect as its printer by `tests/unit/test_mock_persona_detection.cpp`.
 
 | Property | Value |
 |----------|-------|
-| **Values** | see `include/mock_persona.h#kPersonas`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
+| **Values** | see `include/mock_persona.h#find_persona`: currently `voron_24`, `voron_trident`, `k1`, `k1max`, `ad5m`, `creator5`, `creator5_zmod`, `creator5_afc`, `generic_corexy`, `generic_bedslinger`, `multi_extruder`, `delta`, `snapmaker_u1`, `cc1`, `ad5x`, `k2`. Matched exactly (case-sensitive); an unrecognised value falls back to `voron_24` with a warning listing the valid ids |
 | **Default** | `voron_24` (Voron 2.4); unset and empty both select it silently |
 | **File** | `include/mock_persona.h` |
 
@@ -1380,10 +1475,13 @@ HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
 # FlashForge Creator 5 Pro on Z-Mod firmware (mock hardware, real tool changer backend)
 HELIX_MOCK_PRINTER=creator5_zmod ./build/bin/helix-screen --test -vv
 
+# FlashForge Creator 5 Pro on Reforge master: AFC over ff_toolchange (mock hardware, real AFC backend)
+HELIX_MOCK_PRINTER=creator5_afc ./build/bin/helix-screen --test -vv
+
 # Elegoo Centauri Carbon on COSMOS, at the CC1's own 480x272 screen size
 HELIX_MOCK_PRINTER=cc1 ./build/bin/helix-screen --test -s micro -vv
 
-# FlashForge Adventurer 5X with the mock IFS (4 slots)
+# FlashForge Adventurer 5X with native Z-Mod's IFS (4 slots)
 HELIX_MOCK_PRINTER=ad5x ./build/bin/helix-screen --test -vv
 
 # Creality K2 Plus with the CFS box
@@ -1399,10 +1497,9 @@ LEDs `led case` / `led hotend`, and the COSMOS macros that name the machine.
 `ad5x`: hostname `ad5x-mock`, a 220x220x220 CoreXY volume, the hardware in
 `assets/config/presets/ad5x.json` `hardware/expected`, the Flashforge `loadcell`
 probe, and `gcode_macro SET_EXTRUDER_SLOT`, which names the machine. Its default
-`HELIX_MOCK_AMS` is `ifs`, the mock IFS simulation. It publishes none of the IFS
-module's own objects (`ifs`, `ifs_materials`, `zmod_ifs`, `_ifs_port_sensor_*`),
-since those make discovery stand up the production AD5X IFS backend; use
-`HELIX_MOCK_AMS=ifs-module` for that.
+`HELIX_MOCK_AMS` is `ifs`: native Z-Mod's `zmod_ifs` / `zmod_color` for the stock
+four-port IFS, which the production `AmsBackendAd5xIfs` drives. The standalone IFS
+module's objects (`ifs`, `ifs_materials`) come only with `HELIX_MOCK_AMS=ifs-module`.
 
 `k2`: the Creality **K2 Plus**. Hostname `K2Plus-50C1`, the capture's 352.5x400x360
 CoreXY volume, and the hardware in `tests/fixtures/printers/creality_k2_plus.json` and
@@ -1429,8 +1526,8 @@ and applies its preset; no printer type is saved for it. Its default `HELIX_MOCK
 `snapmaker`, the mock Snapmaker simulation. It does not publish `filament_detect`, which
 would make discovery stand up the production Snapmaker backend. It does publish
 `defect_detection`, answering `printer.objects.query` with the module's stored config, whose
-`main_enable` and `clean_bed.enable` follow `DEFECT_DETECTION_CONFIG MAIN_ENABLE=0|1` and
-`CLEAN_BED_ENABLE=0|1`. Its `purifier` reports `power_detected: true`, the top module
+`main_enable`, `clean_bed.enable` and `noodle.enable` follow `DEFECT_DETECTION_CONFIG
+MAIN_ENABLE=0|1`, `CLEAN_BED_ENABLE=0|1` and `NOODLE_ENABLE=0|1`. Its `purifier` reports `power_detected: true`, the top module
 fitted, so the home panel shows the U1's with-top picture; `HELIX_MOCK_ENCLOSURE_TOP=0`
 reports it removed. The purifier behaves like firmware 2.x: `SET_PURIFIER_MODE MODE=0-3
 [FAN_SPEED=] [DESIRE_TEMP=] [ALARM_TEMP=]` sets the mode and the fan it drives, `SET_PURIFIER
@@ -1447,9 +1544,11 @@ Both Creator 5 personas model the **Creator 5 Pro** (the heated-chamber model), 
 `creator5` here names the mock persona, not the printer: the preset it mirrors is
 `assets/config/presets/creator5_pro.json`. The mock and the shipped preset
 describe the same machine: 4 extruders (`extruder`, `extruder1..3`), chamber heater
-`heater_generic chamber_heater`, fans `heater_fan heat_fan` / `fan_generic fanM106`
-/ `fan_generic chamber_fan` / `fan_generic chamber_loop_fan`, LED `led chamber_led`,
-and one runout switch per head (`fd_ex0..fd_ex3`).
+`heater_generic chamber_heater`, fans `fan_generic fanM106` (the one part fan, which
+M106 drives) / `heater_fan heat_fan`, `heat_fan1..3` (one per head) /
+`fan_generic chamber_fan` / `fan_generic chamber_loop_fan`, LED `led chamber_led`,
+and one runout switch per head (`fd_ex0..fd_ex3`). The toolchanger mock's generic
+`T<n>_part_fan` / `T<n>_hotend_fan` are left out: a Creator 5 has none.
 
 It also advertises the Creator 5 Pro fingerprint in `printer.objects.list`
 (`ff_toolchange`, `gcode_button extruder_grab0..3`, `heater_generic chamber_heater`,
@@ -1473,6 +1572,15 @@ HELIX_MOCK_PRINTER=creator5 ./build/bin/helix-screen --test -vv
 HELIX_MOCK_PRINTER=creator5 HELIX_MOCK_AMS=afc ./build/bin/helix-screen --test -vv
 ```
 
+Tool offsets save as on Reforge: the persona refuses `SET_TOOL_PARAMETER` and
+`SAVE_TOOL_PARAMETER` with Klipper's unknown-command error, and the
+`ff_toolchange` object selects the Reforge row of `helix::tool_offsets`, so the
+Tool Offsets panel's Save sends `SAVE_CONFIG`, preceded by
+`TOOL_Z_ADJUST TOOL=<n> ADJUST=0 SAVE=1` for a tool whose Z moved
+([FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md#reforge)). The
+persona models Reforge's tagged releases, which run no AFC; `creator5_afc` below models
+its master.
+
 The default is the persona's `default_mock_ams` in
 `include/mock_persona.h#descriptor`, applied by
 `include/mock_persona.h#effective_mock_ams`, which every `HELIX_MOCK_AMS` reader
@@ -1481,6 +1589,22 @@ consults so they cannot disagree about what the mock is presenting.
 Build volume is deliberately left at the generic mock value: the Creator 5 Pro's
 real travel limits are not documented in this repo, and detection keys off
 `ff_toolchange`, not the volume.
+
+#### The `creator5_afc` persona
+
+Reforge's master as it ships (Klipper4FlashForge/firmware since the 2026-11-04 AFC
+migration): mock HARDWARE, like `creator5_zmod`, so the production `AmsBackendAfc`
+drives it. Beside the `creator5` hardware it publishes what `ff-afc.cfg` makes AFC
+register: `AFC`, `AFC_Toolchanger Tools`, `AFC_extruder e0..e3` and `AFC_lane e0..e3`,
+one standalone lane per head with `map: T<n>`, and the `[afc_extruder e<n>]
+extruder_name` sections in configfile that tie lane `e<n>` to `extruder<n>`. ff_toolchange
+keeps publishing `toolchanger` and `tool T0..3`, and the persona adds `ff_print` (with its
+`FF_BEFORE_PRINT_START` macro, so the start sequence runs before the file), `ff_tool_offset`,
+printer.base.cfg's 1-based `gcode_button extruder_pos1..4` / `extruder_grab1..4`, and the
+`fm_ex0..3` clog sensors; AFC owns the `fd_ex` presence switches and hides them. `AFC_SELECT_TOOL`,
+`CHANGE_TOOL`, `SET_MAP` and `T<n>` move the mounted head and the map
+(`src/mock/moonraker_client_mock_reforge.cpp`). Tool offsets save the Reforge way, as on
+`creator5`.
 
 #### The `creator5_zmod` persona
 
@@ -1492,8 +1616,8 @@ persona publishes Z-Mod's own objects (`zmod`, `zmod_color`, `save_variables`,
 1-based) plus the Pro's `heater_generic chamber_heater` and the per-head sensor
 pairs `fd_ex0..3` / `fm_ex0..3`, and pushes no `mmu` and no `toolchanger` object.
 
-The point is that real discovery runs: `AmsBackend::try_create_mock()` declines
-this persona (see `MoonrakerClientMock::mock_hardware_persona()`), so
+The point is that real discovery runs: the AMS backend factory (`src/printer/ams_backend.cpp#try_create_mock`) declines
+this persona (see `helix::mock::mock_hardware_backend()` in `include/mock_persona.h`), so
 `toolchanger_addon` detects the Z-Mod row and the production
 `AmsBackendToolChanger` drives 4 slots against the mock's `zmod_color` status,
 the same escape hatch the MedusaHC modes use. The persona implies `--real-ams`
@@ -1506,12 +1630,19 @@ stores the slot's Material/HEX: upper-cased when the HEX is one of Z-Mod's 24
 palette colours, snapped to white (`FFFFFF`, palette index 0) when it is not,
 exactly as the firmware does. An unknown `TYPE` is refused with a gcode error.
 
+The persona also carries stock FlashForge's `[pa_adjust]` (a config section with no
+status object) and its two X/Y driver-latch pins, `output_pin enable_pin_tmc_x` and
+`_y`, so the PA calibration screen runs the stock eBoard sweep. `SET_PIN` on either pin
+updates its status, `PA_ACTION` is accepted and ignored, and each `PA_GET` answers
+`// Result is value=<n>` from `HELIX_MOCK_PA_VERDICTS` (a comma list, cycled; default
+`0,9,0,9,0,0,0`, so every sweep's winner is 0.020; a negative entry sends no reply).
+
 `HELIX_MOCK_ZMOD_AFC=1` swaps the afclite shim's objects for Z-Mod's built-in AFC
 emulation (mod setting `AFC=1`): `AFC`, `AFC_IFS IFS` and `AFC_lane lane1..4`, with
 `CHANGE_TOOL LANE=lane<n+1>` mounting head `n`. Discovery still hands the printer to the
 tool changer. On the `ad5x` persona the same flag adds `zmod_color` and those objects
-(discovery picks `AD5X_IFS`), and the mock IFS backend answers
-`AmsBackend::print_start_params()` the way Z-Mod's AD5X does, so a mapped print logs
+(discovery picks `AD5X_IFS`), and the production `AmsBackendAd5xIfs` reads Z-Mod's AFC as
+a print start that takes the tool map, so a mapped print logs
 `printer.print.start tools=...` from the mock Moonraker.
 
 It also publishes Z-Mod's calibration and chamber air macros. `CALIBRATE_EXTRUDERS`
@@ -1526,6 +1657,22 @@ firmware's speeds through the mock's own `SET_FAN_SPEED`.
 **Side effect on `settings.json`:** when this variable is set *at all* (even to an invalid value), `MoonrakerManager::init()` clears the saved printer type before detection runs, so a stale "Voron 2.4" from a previous launch cannot win over the env var. `PrinterDetector::auto_detect_and_save()` then re-resolves from the mock's reported identity on every launch. This writes to your config file — expect the persisted printer type to change.
 
 Confirm what you got from the log line: `[MoonrakerManager] Creating MOCK client (<printer>, <n>x speed)`.
+
+### `HELIX_MOCK_PA_FAIL`
+
+Make the mock's `FLOW_CALIBRATE` run (the Snapmaker U1 pressure advance calibration) refuse instead of converging. The refusal path is otherwise unreachable in mock mode, and it is one of the states the calibration panel shows most visibly.
+
+| Property | Value |
+|----------|-------|
+| **Values** | any truthy flag value (`1`) |
+| **Default** | unset: the run probes five candidate K values and settles on 0.0412 |
+| **File** | `src/mock/moonraker_client_mock.cpp` |
+
+After about 1.2 s the mock answers with the firmware's runout line (`!! [flow_calibrate] not edit filament info!`) and the run ends.
+
+```bash
+HELIX_MOCK_PA_FAIL=1 ./build/bin/helix-screen --test -vv
+```
 
 ### `HELIX_MOCK_PROBE_TYPE`
 
@@ -1597,6 +1744,27 @@ The mock accepts the calibration commands without simulating a sweep; the closin
 HELIX_MOCK_STEPPER_RESONANCE=1 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_ACCEL_RATE`
+
+The sample rate of the mock accelerometer a motor ripple sweep (Vertical Artifact Check)
+streams from, in Hz. Lower it to see how the check behaves on a printer whose
+accelerometer is slow: at `387`, like QIDI's stock `lis2dw` driver, every ripple above
+about 174 Hz reads as unmeasured.
+
+| Property | Value |
+|----------|-------|
+| **Values** | A positive number of samples per second |
+| **Default** | `3200` |
+| **File** | `src/mock/ripple_batch_source_mock.cpp` |
+
+The mock's ripple meets one resonance at 216 Hz (the 2x at about 86 mm/s on the mock's
+40 mm rotation distance), and the `creator5_zmod` persona's
+`STEPPER_RESONANCE_DAMP_ENABLE` cuts it to a quarter.
+
+```bash
+HELIX_MOCK_ACCEL_RATE=387 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_OBJECTS`
 
 Append additional Klipper objects to the mock's advertised object list, so capability detection paths that depend on an object being present can be exercised without a matching mock printer type.
@@ -1624,7 +1792,7 @@ HELIX_MOCK_OBJECTS="heater_generic dragonbreath dragonbreath output_pin dragonbr
   ./build/bin/helix-screen --test -vv
 ```
 
-**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/mock/moonraker_client_mock.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
+**Two-word object names are reassembled by prefix.** The parser splits on whitespace, then treats a token starting with `heater_generic`, `temperature_fan`, `temperature_sensor`, or `output_pin` as the start of a *new* object and glues any following tokens onto the current one. So `temperature_fan chamber` becomes the single object `temperature_fan chamber`. A token that is not a prefix glues onto the current object — with one exception: a token that exactly names a chamber-heater backend's diagnostics object (e.g. the bare `dragonbreath` after a completed `heater_generic dragonbreath`) starts a new standalone object instead of appending. A chamber heater accepted from this list also replaces the mock profile's built-in chamber heater. Any other `heater_generic` is simulated on its own (`src/mock/moonraker_client_mock_temperature.cpp#append_aux_heater_status`): it starts at 25°C with no target, steps 1°C per simulated second toward the target `SET_HEATER_TEMPERATURE HEATER=<bare name>` gives it, and reports `temperature`, `target` and `power`. Each accepted object is logged as `[MoonrakerClientMock] Added mock object: <name>`.
 
 ### `HELIX_MOCK_DETECTION_CAPABLE`
 
@@ -1639,6 +1807,18 @@ Force the K2 spaghetti-detection source's capability probe, so the Settings > Sa
 ```bash
 # Show the Spaghetti Detection / Pause on Detection rows in a mock
 HELIX_MOCK_DETECTION_CAPABLE=1 ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_CHAMBER_TARGET`
+
+Start the mock's chamber heater at this target, in whole degrees C, as if it had been set
+before the screen connected. The simulated chamber climbs toward it at its usual rate, so a
+hot chamber (its chip, its glow over the printer picture's windows) shows up without
+driving the UI. It needs a printer whose mock has a chamber heater and sensor:
+
+```bash
+HELIX_MOCK_OBJECTS="temperature_sensor chamber_temp heater_generic chamber_heater" \
+  HELIX_MOCK_CHAMBER_TARGET=60 ./build/bin/helix-screen --test --sim-speed 6 -vv
 ```
 
 ### `HELIX_MOCK_DRAGONBREATH_FAULT`
@@ -1761,6 +1941,16 @@ Make the mock report Kalico-style MPC heater control instead of Klipper's PID. T
 HELIX_MOCK_KALICO=1 ./build/bin/helix-screen --test -vv
 ```
 
+With `HELIX_MOCK_PRINTER=k2` it also swaps the K2 Plus objects for the Kalico port's:
+`belt_mdl x` / `belt_mdl y`, the `BELT_TENSION` macro and `motor_control`, and no
+`CALIBRATE_CUT_POS` macro (the port registers it as a Python command). Advanced >
+Calibration then shows Auto Belt Tension; add `HELIX_MOCK_AMS=cfs` for the `box` object
+that Cutter Calibration also needs.
+
+```bash
+HELIX_MOCK_KALICO=1 HELIX_MOCK_PRINTER=k2 HELIX_MOCK_AMS=cfs ./build/bin/helix-screen --test -vv
+```
+
 **Strict equality:** the check is `std::string(env) == "1"`. `true`, `yes` and `on` do *not* work here, unlike most other mock flags.
 
 ### `HELIX_MOCK_REMAP`
@@ -1779,6 +1969,16 @@ HELIX_MOCK_REMAP="0:3,2:1" ./build/bin/helix-screen --test -vv
 ```
 
 **Applying a partial CSV clears everything first.** All slots' `mapped_tool` are reset to `-1` before parsing, so tools you did not list deterministically fall back to color/positional resolution rather than keeping a stale mapping. Malformed pairs (no colon) are skipped silently; a non-numeric side raises and aborts the rest of the parse. Each accepted pair logs `[AmsBackendMock] Remap: T<tool> -> slot <slot>`.
+
+### `HELIX_MOCK_REMAP_READY`
+
+Declare the mock AMS's remap route but report it not ready: the shape of an AD5X before its `_IFS_VARS` exist. Every "can this printer remap" gate then answers no, which is the state the pre-flight Remap button, the detail-view chip tap and the AMS edit overlay's tool dropdown act on.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `0` declares the route not ready; any other value, or unset, leaves it ready |
+| **Default** | Unset: remap ready |
+| **File** | `src/printer/ams_backend.cpp` |
 
 ### `HELIX_MOCK_AMS_ENV`
 
@@ -1833,12 +2033,14 @@ Cycle the mock AFC TurtleNeck buffer through its health states, so the buffer in
 | **Default** | `neutral` (also the fallback for any unrecognized value) |
 | **File** | `src/printer/ams_backend_mock.cpp` |
 
-| Value | Reported state | `distance_to_fault` | Danger reading |
-|-------|----------------|---------------------|----------------|
-| `neutral` *(default)* | `Neutral` | `40.0` | 0% — exactly at the threshold |
-| `advancing` | `Advancing` | `-100.0` | fault timer stopped / stale — safe |
-| `trailing` | `Trailing` | `25.0` | 37.5% |
-| `fault` | `Trailing` | `5.0` | 87.5% |
+The values are AFC's own words, which name what its motor does about the buffer: `Advancing` speeds the feed because the buffer is expanded, `Trailing` slows it because the buffer is compressed.
+
+| Value | Reported state | Buffer shape | `distance_to_fault` | Danger reading |
+|-------|----------------|--------------|---------------------|----------------|
+| `neutral` *(default)* | `Neutral` | none | `40.0` | 0% — exactly at the threshold |
+| `advancing` | `Advancing` | expanded | `-100.0` | fault timer stopped / stale — safe |
+| `trailing` | `Trailing` | compressed | `25.0` | 37.5% |
+| `fault` | `Trailing` | compressed | `5.0` | 87.5% |
 
 The fault threshold is derived from `error_sensitivity = 7.0` as `(11 - 7) * 10 = 40mm`.
 
@@ -1848,6 +2050,36 @@ HELIX_MOCK_AMS=afc HELIX_MOCK_BUFFER_STATE=fault ./build/bin/helix-screen --test
 ```
 
 Note that `fault` does not report a distinct state string — it reports `Trailing` with a distance deep inside the threshold, which is what a real imminent fault looks like.
+
+The AFC mock hardware with the real backend (`HELIX_MOCK_AMS=afc`) reads the knob too, for the TurtleNeck's `state` alone: `neutral`, `advancing`, and `trailing` (the default there, and the fallback for any other value). Its fault detection stays off. This is the way to see the buffer's tension control on the unit view and the loaded card's buffer meter in each of its three places.
+
+### `HELIX_MOCK_FPS_PRESSURE`
+
+The pressure the OpenAMS mock's FPS reports, as a fraction from `0` to `1` (set point `0.5`), so the buffer's tension control and meter can be checked at any reading. Read on every status the mock builds.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `0`..`1` |
+| **Default** | `0.79` for the shared-lane shapes, `0.5` for the single hub unit |
+| **File** | `src/mock/moonraker_client_mock_openams.cpp` |
+
+```bash
+HELIX_MOCK_AMS=openams HELIX_MOCK_FPS_PRESSURE=0.35 ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_SYNC_BIAS`
+
+The Happy Hare mock's `sync_feedback_bias_modelled`, from `-1` (tight) to `1` (loose), so the sync buffer's tension control and meter can be checked at any reading. Read on every status the mock builds.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `-1`..`1` |
+| **Default** | `0.15` while feeding, `0` otherwise |
+| **File** | `src/mock/moonraker_client_mock_happy_hare.cpp` |
+
+```bash
+HELIX_MOCK_SYNC_BIAS=-0.45 ./build/bin/helix-screen --test -vv
+```
 
 ### Buffer reading scenarios
 

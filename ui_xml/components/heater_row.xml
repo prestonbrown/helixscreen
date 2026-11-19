@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One heater's row: "Nozzle 2   205.3°C / 210°", the reading colored by its
+     heating state and the target small after a slash ("/ Off" with the heater
+     off), and where the host has the room a status line under it with the
+     state as a word, the duty and the state glyph. The whole row is one tap
+     target and opens the temperature graph on its heater. heater_rows.xml
+     lays out the nozzle, bed and chamber rows every temperature card shows. -->
+<component>
+  <api>
+    <prop name="icon" type="string" default="heater"/>
+    <!-- The glyph's name, which HeaterIconBinder finds it by. -->
+    <prop name="glyph" type="string" default=""/>
+    <!-- The heater's name: static text, or a subject where it changes. -->
+    <prop name="label" type="string" default=""/>
+    <prop name="label_subject" type="string" default=""/>
+    <!-- A short name for where the full one does not fit (the nozzle's tool
+         number); empty for none. -->
+    <prop name="short_subject" type="string" default=""/>
+    <prop name="current" type="string" default=""/>
+    <prop name="target" type="string" default=""/>
+    <prop name="mode" type="string" default=""/>
+    <!-- HeaterStatusState and duty subjects for the status line. -->
+    <prop name="state" type="string" default=""/>
+    <prop name="duty" type="string" default=""/>
+    <!-- "false" leaves the status line out. -->
+    <prop name="status_line" type="string" default="true"/>
+    <prop name="callback" type="string" default=""/>
+    <!-- An int subject; at 1 the reading dims (the filament system will not
+         heat this heater now). Empty for none. -->
+    <prop name="blocked" type="string" default=""/>
+  </api>
+  <styles>
+    <!-- Icon-to-label gap: wider on the micro and tiny breakpoints, where the labels are
+         hidden and the icon sits against the reading. -->
+    <style name="heater_row_gap_standard" pad_column="#space_xs"/>
+    <style name="heater_row_gap_tiny" pad_column="#space_md"/>
+    <!-- Full width, unless the host lays the rows side by side
+         (heater_rows.xml, heater_row_across). A style, not an inline width,
+         so the host's bound style can outrank it. -->
+    <style name="heater_row_full" width="100%"/>
+  </styles>
+  <view extends="lv_obj"
+        height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" clickable="true" scrollable="false"
+        style_radius="#border_radius">
+    <style name="heater_row_full"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <event_cb trigger="clicked" callback="$callback"/>
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
+            style_pad_all="0" clickable="false" event_bubble="true" scrollable="false">
+      <lv_obj width="content"
+              height="content" flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
+              clickable="false" event_bubble="true">
+        <bind_style_if_le name="heater_row_gap_tiny" subject="ui_breakpoint" ref_value="1"/>
+        <bind_style_if_ge name="heater_row_gap_standard" subject="ui_breakpoint" ref_value="2"/>
+        <heater_icon src="$icon" glyph_name="$glyph" size="xs"/>
+        <text_small name="heater_row_label"
+                    text="$label" bind_text="$label_subject" clickable="false" event_bubble="true">
+          <bind_flag_if cond="ui_breakpoint le 1 or ui_is_portrait eq 1" flag="hidden"/>
+        </text_small>
+        <!-- The short name stands in where the full one is hidden. The wrapper
+             is hidden for good on a row that has none. -->
+        <lv_obj width="content"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                clickable="false" event_bubble="true" hidden_if_empty="$short_subject">
+          <text_small name="heater_row_short"
+                      bind_text="$short_subject" style_text_color="#text_muted" clickable="false" event_bubble="true">
+            <bind_flag_if cond="(ui_breakpoint gt 1 and ui_is_portrait eq 0) or target_tool_multi_head eq 0"
+                          flag="hidden"/>
+          </text_small>
+        </lv_obj>
+      </lv_obj>
+      <temp_display name="heater_row_reading"
+                    size="md" show_target="true" trailing_target="true" bind_current="$current" bind_target="$target"
+                    bind_mode="$mode" clickable="false" event_bubble="true">
+        <bind_style name="styles.heat_blocked" subject="$blocked" ref_value="1"/>
+      </temp_display>
+    </lv_obj>
+    <!-- The status line, right-aligned under the reading. Hidden for good
+         without one; otherwise only where the card has the height for it. -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            clickable="false" event_bubble="true" hidden_if_prop_eq="$status_line|false">
+      <lv_obj name="heater_row_status"
+              width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
+              scrollable="false" clickable="false" event_bubble="true">
+        <bind_flag_if cond="ui_breakpoint le 1 or ui_is_portrait eq 1" flag="hidden"/>
+        <heater_status state_subject="$state" duty_subject="$duty" words="true"/>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

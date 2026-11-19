@@ -430,11 +430,11 @@ TEST_CASE_METHOD(XMLTestFixture, "a language change re-renders without polling",
     const size_t before = http_count(rig);
     helix::ui::ensure_translation_loaded("de");
     lv_translation_set_language("de");
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     CHECK(http_count(rig) == before);
     CHECK(watcher_str("ambient-tile__age_text") == "Soeben aktualisiert");
     lv_translation_set_language("en");
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "payloads and status follow the screen language",
@@ -445,13 +445,13 @@ TEST_CASE_METHOD(XMLTestFixture, "payloads and status follow the screen language
 
     helix::ui::ensure_translation_loaded("de");
     lv_translation_set_language("de");
-    helix::ui::locale_set_language("de");
+    helix::locale::locale_set_language("de");
     CHECK(watcher_str("ambient-tile__age_text") == "Nie");
     CHECK(watcher_str("ambient-tile__status_line") == "nicht konfiguriert");
     CHECK(watcher_str("ambient-tile__source_line") == "JSON endpoint · (nicht gesetzt)");
 
     lv_translation_set_language("en");
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     CHECK(watcher_str("ambient-tile__age_text") == "Never");
 }
 

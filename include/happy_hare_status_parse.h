@@ -34,6 +34,8 @@ struct MmuCoreDelta {
     std::optional<int> tool;
     std::optional<bool> filament_loaded; ///< from `filament`: "Loaded" / "Unloaded"
     std::optional<std::string> reason_for_pause;
+    /// What to do next about the pause (v4.2+); "" outside a pause, absent before v4.2.
+    std::optional<std::string> pause_hint;
     std::optional<std::string> action;
     std::optional<int> filament_pos;
     std::optional<int> bowden_progress; ///< clamped to [-1, 100]
@@ -63,6 +65,9 @@ struct GateIdentityDelta {
     GateArray<std::string> name;          ///< gate_name
     GateArray<std::string> filament_name; ///< gate_filament_name (EMU)
     GateArray<int> endless_spool_group;
+    /// 4.2 gate_remaining_weight / gate_initial_weight: net grams, -1 unknown.
+    GateArray<int> remaining_weight;
+    GateArray<int> initial_weight;
 };
 
 struct EncoderDelta {
@@ -97,6 +102,15 @@ struct TanglePreventionDelta {
     std::optional<float> release;
 };
 
+/// One `fans` entry (v4.1+): a unit whose fans Happy Hare manages.
+struct MmuFanUnit {
+    std::string unit;     ///< The unit's name, which MMU_FAN's UNIT= accepts
+    int first_gate = -1;  ///< The unit's first gate, -1 when not published
+    bool enabled = false; ///< Automatic (temperature-driven) fan management
+    /// FAN_FORCED per fan: 0 off, 1 on, 2 auto; nullopt for a gate without a fan.
+    std::vector<std::optional<int>> modes;
+};
+
 /// The v4 extended status: eSpooler, sync feedback, clog detection, counters.
 struct MmuTelemetryDelta {
     std::optional<std::string> espooler_active; ///< v3; v4 keeps it as a deprecated alias
@@ -106,6 +120,10 @@ struct MmuTelemetryDelta {
     std::optional<std::string> sync_feedback_state;
     std::optional<float> sync_feedback_bias; ///< sync_feedback_bias_modelled
     std::optional<float> sync_feedback_bias_raw;
+    /// v4 `sync_feedback_enabled`: whether MMU_SYNC_FEEDBACK control is on.
+    std::optional<bool> sync_feedback_enabled;
+    /// v4.1 `fans`: one entry per unit with managed fans.
+    std::optional<std::vector<MmuFanUnit>> fans;
     std::optional<bool> sync_drive;
     std::optional<int> clog_detection_enabled;
     std::optional<EncoderDelta> encoder;
@@ -125,6 +143,7 @@ struct MmuTelemetryDelta {
     /// has no buffer (sync feedback, flowguard) or no encoder; v3 never does.
     bool sync_feedback_bias_null = false;
     bool sync_feedback_bias_raw_null = false;
+    bool sync_feedback_enabled_null = false;
     bool flowguard_null = false;
     bool encoder_null = false;
     /// `tangle_prevention` was in the frame (null or not): only v4 publishes it.
@@ -156,6 +175,18 @@ struct DryingObjectDelta {
     std::optional<int> fan_pct;
 };
 
+/// One unit's running cycle from `drying` (Happy Hare development builds,
+/// 798f83a6). Times are Klipper's reactor clock, the clock of a status frame's
+/// eventtime.
+struct DryingCycle {
+    std::optional<float> temp_c;
+    std::optional<int> time_min;
+    std::optional<float> humidity_target;
+    std::optional<double> start_time;
+    /// nullopt while a queued gate has not started, so the end is not known.
+    std::optional<double> end_time;
+};
+
 /// `drying_state`: an object (KMS) or one string per gate (EMU).
 struct DryingDelta {
     std::optional<DryingObjectDelta> object;
@@ -169,6 +200,8 @@ struct MmuStatusDelta {
     MmuTelemetryDelta telemetry;
     std::optional<MmuSensorsDelta> sensors;
     std::optional<DryingDelta> drying;
+    /// `drying`: per unit in unit order, nullopt for a unit not drying.
+    std::optional<std::vector<std::optional<DryingCycle>>> drying_cycles;
     /// The endless-spool ENABLE bit, from `endless_spool_enabled` or its older
     /// spelling `endless_spool`.
     std::optional<bool> endless_spool_enabled;
@@ -191,18 +224,29 @@ struct MachineLayout {
     /// Whether any unit has a bypass, from mmu_machine.unit_N.has_bypass. v4
     /// only: v4 publishes printer.mmu.has_bypass as a constant true.
     std::optional<bool> has_bypass;
+
+    /// Whether the install is Happy Hare @p version or later. An unknown
+    /// version is none of them, so an install that names none keeps the
+    /// oldest behavior.
+    [[nodiscard]] bool since(double version) const {
+        return version_number >= version;
+    }
 };
+
+/// The release that added each capability a version gate asks about.
+inline constexpr double kGateWeightsSince = 4.2; ///< gate_*_weight, MMU_GATE_MAP WEIGHT=
 
 /// One unit's machine fields. v3 and v4 both publish them on the live
 /// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on
 /// configfile's `[mmu_machine]`, read as a single unit.
 struct MachineUnit {
-    std::string display_name;                     ///< v4 `display_name`; empty when not published
-    std::string selector_type;                    ///< e.g. "VirtualSelector" (Type B)
-    int first_gate = -1;                          ///< -1 when not published
-    int num_gates = 0;                            ///< 0 when not published
-    std::string filament_heater;                  ///< shared enclosure heater
-    std::string environment_sensor;               ///< shared enclosure sensor
+    std::string display_name;       ///< v4 `display_name`; empty when not published
+    std::string vendor;             ///< hardware family, e.g. "ERCF"; empty when not published
+    std::string selector_type;      ///< e.g. "VirtualSelector" (Type B)
+    int first_gate = -1;            ///< -1 when not published
+    int num_gates = 0;              ///< 0 when not published
+    std::string filament_heater;    ///< shared enclosure heater
+    std::string environment_sensor; ///< shared enclosure sensor
     std::vector<std::string> filament_heaters;    ///< one per gate of THIS unit
     std::vector<std::string> environment_sensors; ///< one per gate of THIS unit
     std::optional<bool> has_bypass;
@@ -211,6 +255,10 @@ struct MachineUnit {
     /// From the unit's configfile `[mmu_unit <name>] encoder`; nullopt when the
     /// install does not say (v3)
     std::optional<bool> has_encoder;
+    /// The gear motor itself turns the spool (a type-B unit without an
+    /// eSpooler): `[mmu_unit <name>] gear_rotates_spool`, else Happy Hare's own
+    /// default for the unit's vendor (ViViD and QIDI Box).
+    bool gear_rotates_spool = false;
 };
 
 /// A per-unit capability v4 checks before it accepts a command or a
@@ -288,5 +336,12 @@ parse_entry_sensor_objects(const nlohmann::json& params);
 [[nodiscard]] GateIdentityDelta parse_gate_identity(const nlohmann::json& mmu);
 [[nodiscard]] MmuTelemetryDelta parse_telemetry(const nlohmann::json& mmu);
 [[nodiscard]] MmuStatusDelta parse_mmu_status(const nlohmann::json& mmu);
+
+/// Happy Hare's espooler word ("rewind", "assist", "" for idle) as an action.
+[[nodiscard]] SpoolMotorAction spool_motor_action(const std::string& state);
+
+/// Happy Hare's sync_feedback_state as the system buffer's shape: nullopt when
+/// sync feedback is absent or "disabled".
+[[nodiscard]] std::optional<BufferMotion> sync_feedback_motion(const std::string& state);
 
 } // namespace helix::happy_hare

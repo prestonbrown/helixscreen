@@ -121,6 +121,21 @@ TEST_CASE("PrinterProfileState knows which printers cannot print from a dot-dire
     CHECK_FALSE(profile.klipper_hides_dot_dirs());
 }
 
+TEST_CASE("PrinterProfileState knows which firmware turns the heaters off on a print error",
+          "[printer_state][profile][print_completion]") {
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+
+    REQUIRE(profile.set_printer_type("Creality K2 Plus (Jacobean firmware)", true, false, false));
+    CHECK(profile.firmware_owns_error_heaters());
+    // Creality's firmware and everything else get the app's shutdown.
+    REQUIRE(profile.set_printer_type("Creality K2 Plus", true, false, false));
+    CHECK_FALSE(profile.firmware_owns_error_heaters());
+    REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
+    CHECK_FALSE(profile.firmware_owns_error_heaters());
+}
+
 TEST_CASE("Z-offset tune hint claims auto-save only where something persists it",
           "[printer_state][profile][zoffset]") {
     using S = ZOffsetCalibrationStrategy;
@@ -196,6 +211,10 @@ TEST_CASE("PrinterProfileState publishes whether each head's own offset is re-ap
     CHECK(reapplied() == 1);
     REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
     CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+    // The firmware saves per head whatever the saving setting says.
+    profile.set_z_offset_save_enabled(false);
+    CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED_PER_HEAD);
+    profile.set_z_offset_save_enabled(true);
     CHECK(profile.set_z_offset_per_head(false));
     CHECK(reapplied() == 0);
 
@@ -338,19 +357,109 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
     };
 
-    for (const char* path :
-         {"ui_xml/print_tune_panel.xml", "ui_xml/portrait/print_tune_panel.xml"}) {
-        INFO(path);
-        const auto values = tune_hint_label_values(path);
-        CHECK(values == expected);
+    const auto values = tune_hint_label_values("ui_xml/print_tune_panel.xml");
+    CHECK(values == expected);
 
-        // On the U1 the tool-change label is the only one left visible.
-        std::vector<std::string> visible;
-        for (const auto& [name, value] : values) {
-            if (value == u1_hint) {
-                visible.push_back(name);
-            }
+    // On the U1 the tool-change label is the only one left visible.
+    std::vector<std::string> visible;
+    for (const auto& [name, value] : values) {
+        if (value == u1_hint) {
+            visible.push_back(name);
         }
-        CHECK(visible == std::vector<std::string>{"z_offset_help_text_tool_change"});
     }
+    CHECK(visible == std::vector<std::string>{"z_offset_help_text_tool_change"});
+}
+
+// ============================================================================
+// Z-offset calibration strategy: what holds Z0
+// ============================================================================
+//
+// Klipper registers Z_ENDSTOP_CALIBRATE and Z_OFFSET_APPLY_ENDSTOP only when
+// [stepper_z] sets position_endstop, i.e. Z homes on a switch
+// (klippy/extras/manual_probe.py). On such a printer Z0 is the endstop, so a
+// probe used only for leveling must not take the save: Z_OFFSET_APPLY_PROBE
+// would write a z_offset that never moves Z0.
+
+TEST_CASE("Z-offset strategy follows what holds Z0 when the database names none",
+          "[printer_state][profile][zoffset_strategy]") {
+    using S = ZOffsetCalibrationStrategy;
+    const auto pick = [](std::string_view db, bool probe, bool endstop, std::string_view kin) {
+        return resolve_z_offset_calibration_strategy(db, probe, endstop, kin);
+    };
+
+    // Stock Voron 2.4: Z switch, probe for QGL and mesh. A Klicky with a
+    // homing_override that still homes Z on its switch reports the same.
+    CHECK(pick("", true, true, "corexy") == S::ENDSTOP);
+    // Ender with a mesh-only BLTouch and the stock Z switch.
+    CHECK(pick("", true, true, "cartesian") == S::ENDSTOP);
+    // Tap, or any probe used as probe:z_virtual_endstop: no position_endstop.
+    CHECK(pick("", true, false, "corexy") == S::PROBE_CALIBRATE);
+    // Beacon or Cartographer as the virtual endstop: the probe strategy, whose
+    // command the panel maps to the scanner's own calibrate.
+    CHECK(pick("", true, false, "cartesian") == S::PROBE_CALIBRATE);
+    // No probe: the endstop, whether or not the reading is in yet.
+    CHECK(pick("", false, true, "cartesian") == S::ENDSTOP);
+    CHECK(pick("", false, false, "") == S::ENDSTOP);
+    CHECK(pick("", false, false, "corexy") == S::ENDSTOP);
+}
+
+TEST_CASE("Z-offset strategy named by the database wins over Z0",
+          "[printer_state][profile][zoffset_strategy]") {
+    using S = ZOffsetCalibrationStrategy;
+    CHECK(resolve_z_offset_calibration_strategy("probe_calibrate", true, true, "corexy") ==
+          S::PROBE_CALIBRATE);
+    CHECK(resolve_z_offset_calibration_strategy("firmware_managed", true, true, "corexy") ==
+          S::FIRMWARE_MANAGED);
+    CHECK(resolve_z_offset_calibration_strategy("firmware_managed", true, false, "corexy") ==
+          S::FIRMWARE_MANAGED);
+    CHECK(resolve_z_offset_calibration_strategy("endstop", true, false, "delta") == S::ENDSTOP);
+}
+
+TEST_CASE("Z-offset strategy on a delta uses only commands Klipper registers there",
+          "[printer_state][profile][zoffset_strategy]") {
+    using S = ZOffsetCalibrationStrategy;
+    // A delta has no [stepper_z], so no Z_ENDSTOP_CALIBRATE. probe.py registers
+    // PROBE_CALIBRATE on any kinematics.
+    for (const char* kin : {"delta", "rotary_delta", "deltesian", "winch"}) {
+        INFO(kin);
+        CHECK(resolve_z_offset_calibration_strategy("", true, false, kin) == S::PROBE_CALIBRATE);
+        CHECK(resolve_z_offset_calibration_strategy("", false, false, kin) == S::FIRMWARE_MANAGED);
+    }
+}
+
+TEST_CASE("PrinterProfileState re-resolves the strategy when the Z endstop reading arrives",
+          "[printer_state][profile][zoffset_strategy]") {
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+
+    REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
+    REQUIRE(profile.z_offset_calibration_strategy() == ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+
+    REQUIRE(profile.set_z_homing(true, "corexy"));
+    CHECK_FALSE(profile.set_z_homing(true, "corexy"));
+    REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
+    CHECK(profile.z_offset_calibration_strategy() == ZOffsetCalibrationStrategy::ENDSTOP);
+    CHECK(lv_subject_get_int(profile.get_z_offset_can_save_subject()) == 1);
+    CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
+          static_cast<int>(ZOffsetTuneHint::SAVE_ON_CONTROLS));
+
+    profile.deinit_subjects();
+}
+
+TEST_CASE("PrinterProfileState: a probe-less delta's offset is temporary, not auto-saved",
+          "[printer_state][profile][zoffset_strategy]") {
+    // Stock Klipper persists no SET_GCODE_OFFSET, so the FIRMWARE_MANAGED a
+    // delta lands on for want of Z_ENDSTOP_CALIBRATE must not claim a save.
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+
+    profile.set_z_homing(false, "delta");
+    REQUIRE(profile.set_printer_type("Unknown Printer", false, false, false));
+    CHECK(profile.z_offset_calibration_strategy() == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
+          static_cast<int>(ZOffsetTuneHint::TEMPORARY));
+
+    profile.deinit_subjects();
 }

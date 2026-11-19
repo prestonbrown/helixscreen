@@ -173,7 +173,8 @@ class HelixPluginInstaller {
     /**
      * @brief Get path to bundled install.sh script
      *
-     * Searches for install.sh relative to the executable.
+     * Looks in moonraker-plugin/ under the install root (board::resolve_install_root),
+     * then beside the executable and in the system share dir.
      *
      * @return Path to script, or empty if not found
      */
@@ -252,6 +253,10 @@ class HelixPluginInstaller {
     // Where install.sh is looked for. Empty means beside the executable, plus the
     // system share dir; a set root is searched alone, so nothing outside it runs.
     std::string script_search_root_;
+    // Tests only: the executable path, and the root the firmware package is probed
+    // under, that the install root is resolved from. Empty means /proc/self/exe.
+    std::string running_exe_override_;
+    std::string probe_root_ = "/";
     // How long install.sh may run before it is killed.
     int script_timeout_seconds_ = 60;
 
@@ -264,6 +269,17 @@ class HelixPluginInstaller {
     static AddonCheck addon_check_;
     static int64_t read_prompt_clock();
 };
+
+struct LocalPluginRecipe;
+
+/**
+ * @brief HelixPrint's recipe for the local plugin installer
+ *
+ * The plugin ships beside install.sh, so there is nothing to fetch; `install.sh
+ * --no-restart --auto` links it and writes its [helix_print] section, and the
+ * caller restarts Moonraker.
+ */
+LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds);
 
 /// How long closing the install prompt without "don't ask again" holds it off.
 inline constexpr int64_t kPluginPromptSnoozeSeconds = 7 * 24 * 60 * 60;
@@ -392,7 +408,9 @@ PluginLinkCheck relink_plugin(const std::string& script_path, int timeout_second
  */
 enum class PluginRestartOutcome {
     Restarted,    ///< Moonraker restarted and runs the plugin this app ships
-    NeedsManual,  ///< Moonraker refused the restart, or still runs the old plugin
+    NeedsManual,  ///< Moonraker restarted but still runs the old plugin, or loaded none
+    NoService,    ///< Moonraker cannot restart its own service, so only a reboot reloads it
+    Refused,      ///< Moonraker refused the restart; nothing restarted
     HeldForPrint, ///< a print is printing or paused
     JobUnknown,   ///< the print state could not be read, so nothing restarted
     NotAnswering, ///< Moonraker does not answer, before the restart or after it
@@ -403,13 +421,14 @@ enum class PluginRestartOutcome {
 /**
  * @brief Whether a restart with @p outcome counts as done for the plugin it was for
  *
- * A restart that finished counts, and so does one Moonraker refused or that
- * left the old plugin running when @p plugin_was_loaded: asking again for the
- * same versions would only repeat the warning. With no plugin loaded, one
- * that did not load it is tried again, as the next start may find what kept
- * it out repaired. The next app start repeats any other (a print hold, an
- * unreadable print state, a Moonraker that did not answer), which can clear
- * by itself.
+ * Only a restart that happened counts: one that finished, and one that left
+ * the old plugin running when @p plugin_was_loaded, since asking again for
+ * the same versions would only restart Moonraker for nothing. With no plugin
+ * loaded, one that did not load it is tried again, as the next start may find
+ * what kept it out repaired. The next app start repeats any other: a refusal,
+ * a Moonraker that cannot restart its own service (whose reboot advice then
+ * comes again until a reboot loads the plugin), a print hold, an unreadable
+ * print state, a Moonraker that did not answer.
  */
 bool plugin_restart_finished(PluginRestartOutcome outcome, bool plugin_was_loaded);
 
@@ -441,6 +460,7 @@ enum class PluginSelfHealStep {
     RestartNow, ///< Moonraker must restart to load the plugin this app ships
     WaitForJob, ///< as RestartNow, once no job holds the machine
     GiveUp,     ///< a restart for this same version pair or link already failed: warn only
+    KeepNewer,  ///< the running plugin is newer than the one this app ships: leave it alone
 };
 
 /**
@@ -475,11 +495,29 @@ struct PluginSelfHealFacts {
 /**
  * @brief Whether the running plugin reports another version than this app
  *        ships; false when either is unknown
+ *
+ * Two versions that parse (helix::version::parse_version()) differ when their
+ * precedence does, so `1.2.0+g0f1e2d3` matches `1.2.0`; any other pair is
+ * compared as text.
  */
 bool plugin_versions_differ(const PluginSelfHealFacts& facts);
 
 /**
+ * @brief Whether the running plugin's version ranks above the one this app ships
+ *
+ * Semantic Versioning precedence: `1.10.0` is newer than `1.9.0`, and
+ * `1.4.1-beta.2` older than `1.4.1`. False when either version is empty or
+ * does not parse, so an unreadable version never blocks a repair.
+ */
+bool plugin_running_newer(const std::string& reported_version, const std::string& bundled_version);
+
+/**
  * @brief Decide what the startup check does about the installed plugin
+ *
+ * A running plugin newer than the one this app ships (plugin_running_newer())
+ * is kept whatever else holds (KeepNewer): restarting Moonraker onto this
+ * app's plugin would downgrade it, and a remote one is not reported as a
+ * mismatch to fix either.
  *
  * Only a plugin the user installed is repaired, never one installed here, and
  * only on this host: a remote Moonraker's plugin, or a local one with no link

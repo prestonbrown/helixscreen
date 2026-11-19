@@ -124,15 +124,15 @@ TEST_CASE_METHOD(ExcludeObjectPanelFixture,
 
     objects.set_defined_objects({"Solo"});
     UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 
     objects.set_defined_objects({"A", "B"});
     UpdateQueue::instance().drain();
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
 
     lv_obj_t* count = lv_obj_find_by_name(btn, "objects_pick_count");
     REQUIRE(count != nullptr);
-    CHECK(lv_obj_has_flag(count, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(count));
 }
 
 TEST_CASE_METHOD(PrintStatusPanelFixture,
@@ -144,7 +144,7 @@ TEST_CASE_METHOD(PrintStatusPanelFixture,
 
     state().excluded_objects_state().set_defined_objects({"A", "B"});
     UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 }
 
 TEST_CASE_METHOD(PrintStatusPanelFixture,
@@ -154,19 +154,19 @@ TEST_CASE_METHOD(PrintStatusPanelFixture,
     REQUIRE(btn != nullptr);
     state().excluded_objects_state().set_defined_objects({"A", "B"});
     UpdateQueue::instance().drain();
-    REQUIRE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(btn));
 
     // Discovery reports [exclude_object] after the objects are already defined.
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json{"exclude_object", "extruder"});
     state().set_hardware(hw);
     UpdateQueue::instance().drain();
-    CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(btn));
 
     // A switch to a printer without it hides the button again.
     state().set_hardware(helix::PrinterDiscovery{});
     UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(btn));
 }
 
 namespace {
@@ -264,8 +264,8 @@ TEST_CASE_METHOD(ObjectsBeforeCreateFixture,
     lv_obj_t* toggle = lv_obj_find_by_name(root_, "btn_view_toggle");
     REQUIRE(objects_btn != nullptr);
     REQUIRE(toggle != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(objects_btn, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(toggle, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(objects_btn));
+    REQUIRE_FALSE(lv_obj_is_hidden(toggle));
 
     // Transformed coords: a style translate moves what the user sees and taps.
     lv_area_t a, b;
@@ -283,7 +283,7 @@ TEST_CASE_METHOD(ObjectsBeforeCreateFixture,
     state().excluded_objects_state().set_defined_objects({"Solo"});
     UpdateQueue::instance().drain();
     lv_obj_update_layout(root_);
-    REQUIRE(lv_obj_has_flag(objects_btn, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(objects_btn));
     lv_area_t solo;
     lv_obj_get_coords(toggle, &solo);
     lv_obj_get_transformed_area(toggle, &solo, LV_OBJ_POINT_TRANSFORM_FLAG_NONE);

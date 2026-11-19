@@ -3,11 +3,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h" // Need full definition for PowerDevice
 #include "subject_managed_panel.h"
 
@@ -75,14 +76,13 @@ class PowerPanel : public PanelBase {
     SubjectManager subjects_;
 
     // Subjects for reactive binding
-    lv_subject_t status_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject has_devices_subject_{}; ///< -1 not loaded, 0 none, 1 some: list or empty state
     char status_buf_[128] = "Loading devices...";
 
     // Widget references into a tree this panel does not own. forget_widget_tree()
     // drops them when that tree is deleted — see on_panel_deleted().
     lv_obj_t* device_list_container_ = nullptr;
-    lv_obj_t* empty_state_container_ = nullptr;
-    lv_obj_t* status_label_ = nullptr; ///< Write-only: cached by setup(), never read
 
     // Device state tracking
     struct DeviceRow {

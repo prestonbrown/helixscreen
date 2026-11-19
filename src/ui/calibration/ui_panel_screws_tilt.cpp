@@ -11,11 +11,14 @@
 
 #include "app_globals.h"
 #include "bed_mesh_gradient.h"
+#include "bed_plate_context.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "lv_draw_buf_guard.h"
 #include "moonraker_error.h"
 #include "printer_discovery.h"
@@ -32,14 +35,13 @@
 #include <cstdio>
 #include <memory>
 
+#include "hv/json.hpp"
+
 using namespace helix;
 
 // ============================================================================
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
 // ============================================================================
-
-// State subject (0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR)
-static lv_subject_t s_screws_tilt_state;
 
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();
@@ -51,7 +53,7 @@ void init_screws_tilt_row_handler() {
              spdlog::debug("[ScrewsTilt] Bed leveling row clicked");
              auto& panel = get_global_screws_tilt_panel();
              panel.set_client(get_moonraker_client(), get_moonraker_api());
-             panel.show(lv_display_get_screen_active(nullptr));
+             panel.show(lv_screen_active());
          }},
     });
     spdlog::trace("[ScrewsTilt] Row click callback registered");
@@ -95,8 +97,7 @@ void ScrewsTiltPanel::init_subjects() {
     }
 
     // Initialize state subject for state machine visibility
-    // Note: s_screws_tilt_state is file-static, managed separately
-    UI_MANAGED_SUBJECT_INT(s_screws_tilt_state, 0, "screws_tilt_state", subjects_);
+    UI_MANAGED_SUBJECT_INT(state_subject_, 0, "screws_tilt_state", subjects_);
 
     // Initialize subjects for reactive list rows (4 slots max)
     for (size_t i = 0; i < kMaxScrews; i++) {
@@ -271,7 +272,7 @@ void ScrewsTiltPanel::set_state(State new_state) {
 
     // Update subject - XML bindings handle visibility automatically
     // State mapping: 0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR
-    lv_subject_set_int(&s_screws_tilt_state, static_cast<int>(new_state));
+    lv_subject_set_int(&state_subject_, static_cast<int>(new_state));
 }
 
 // ============================================================================
@@ -279,6 +280,10 @@ void ScrewsTiltPanel::set_state(State new_state) {
 // ============================================================================
 
 void ScrewsTiltPanel::start_probing() {
+    ensure_bed_clear_then(lifetime_.token(), [this]() { probe_once_bed_clear(); });
+}
+
+void ScrewsTiltPanel::probe_once_bed_clear() {
     if (!api_) {
         spdlog::error("[ScrewsTilt] No API - cannot probe");
         on_screws_tilt_error(lv_tr("Internal error: API not available"));
@@ -389,7 +394,7 @@ void ScrewsTiltPanel::on_screws_tilt_results(const std::vector<ScrewTiltResult>&
                  helix::ui::tr_plural("Completed in %d probe", "Completed in %d probes",
                                       static_cast<uint64_t>(probe_count_)),
                  probe_count_);
-        lv_subject_copy_string(&probe_count_subject_, buf);
+        lv_subject_set_string(&probe_count_subject_, buf);
     }
 
     set_state(State::RESULTS);
@@ -410,7 +415,7 @@ void ScrewsTiltPanel::on_screws_tilt_error(const std::string& message) {
     if (clean.empty()) {
         clean = lv_tr("An error occurred during probing.");
     }
-    lv_subject_copy_string(&error_message_subject_, clean.c_str());
+    lv_subject_set_string(&error_message_subject_, clean.c_str());
     set_state(State::ERROR);
 }
 
@@ -435,7 +440,7 @@ void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& resul
                  lv_tr("Or instead of turning the others"),
                  results[hint.screw_index].display_name().c_str(),
                  describe_screw_turn(hint.signed_minutes, hint.tighten).c_str());
-        lv_subject_copy_string(&recenter_hint_subject_, recenter_hint_buf_);
+        lv_subject_set_string(&recenter_hint_subject_, recenter_hint_buf_);
         spdlog::info("[ScrewsTilt] Re-centring hint: {} instead of {} screws", recenter_hint_buf_,
                      hint.replaces);
     }
@@ -457,8 +462,8 @@ void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& resul
 
             // Update subjects - this triggers XML binding updates
             lv_subject_set_int(&screw_visible_subjects_[i], 1); // Show row
-            lv_subject_copy_string(&screw_name_subjects_[i], screw_name_bufs_[i]);
-            lv_subject_copy_string(&screw_adjustment_subjects_[i], screw_adj_bufs_[i]);
+            lv_subject_set_string(&screw_name_subjects_[i], screw_name_bufs_[i]);
+            lv_subject_set_string(&screw_adjustment_subjects_[i], screw_adj_bufs_[i]);
 
             // Update dot color (not bindable via subject, so do directly)
             if (screw_dots_[i]) {
@@ -481,7 +486,7 @@ void ScrewsTiltPanel::clear_results() {
     // Deferred: results arrive inside a queued UI-update batch, where a
     // synchronous delete corrupts LVGL's event list.
     helix::ui::safe_delete_deferred(tilt_surface_);
-    lv_subject_copy_string(&tilt_spread_subject_, "");
+    lv_subject_set_string(&tilt_spread_subject_, "");
 
     // Clear bed diagram indicators (dynamically positioned)
     for (auto& indicator : screw_indicators_) {
@@ -523,7 +528,7 @@ void ScrewsTiltPanel::create_tilt_surface() {
              fmt::format(fmt::runtime(lv_tr("Corners differ by {} mm")),
                          fmt::format("{:.2f}", surface.spread_mm))
                  .c_str());
-    lv_subject_copy_string(&tilt_spread_subject_, tilt_spread_buf_);
+    lv_subject_set_string(&tilt_spread_subject_, tilt_spread_buf_);
 
     // Rendered at the box's own size: a stretched image samples past its edges
     // and bleeds the opposite corner's colour into each one.
@@ -568,7 +573,7 @@ void ScrewsTiltPanel::create_tilt_surface() {
     lv_obj_set_style_radius(tilt_surface_,
                             lv_obj_get_style_radius(bed_diagram_container_, LV_PART_MAIN), 0);
     lv_obj_set_style_image_opa(tilt_surface_, LV_OPA_50, 0); // a backdrop to the screw icons
-    lv_obj_remove_flag(tilt_surface_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(tilt_surface_, false);
     lv_obj_move_to_index(tilt_surface_, 0); // beneath the screw indicators
 }
 
@@ -776,16 +781,15 @@ void ScrewsTiltPanel::query_screw_thread() {
             }
             // const operator[] on a missing key asserts rather than throws,
             // so the chain has to be guarded level by level.
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile") ||
-                !response["result"]["status"]["configfile"].contains("settings") ||
-                !response["result"]["status"]["configfile"]["settings"].is_object()) {
+            const json* settings_obj =
+                helix::json_util::find_path(response, "result", "status", "configfile", "settings");
+            if (!settings_obj || !settings_obj->is_object()) {
                 spdlog::debug("[ScrewsTilt] No configfile settings — assuming {:.1f}mm/turn",
                               screw_pitch_mm_);
                 return;
             }
 
-            const auto& settings = response["result"]["status"]["configfile"]["settings"];
+            const auto& settings = *settings_obj;
             // Upstream first, then the U1's own module, which carries the
             // same screw_thread key. No U1 config spells it yet; the default
             // stands until one does, and only the displayed turn count would

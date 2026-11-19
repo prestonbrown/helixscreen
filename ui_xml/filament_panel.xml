@@ -3,17 +3,20 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <consts>
-    <!-- Temperature card spacing -->
-    <px name="temp_card_spacing_tiny" value="2"/>
-    <px name="temp_card_spacing_small" value="8"/>
-    <px name="temp_card_spacing_medium" value="10"/>
-    <px name="temp_card_spacing_large" value="12"/>
-
-    <!-- Spacing overrides for temperature preset buttons -->
-    <px name="temp_preset_btn_spacing_tiny" value="1"/>
-    <px name="temp_preset_btn_spacing_small" value="6"/>
-    <px name="temp_preset_btn_spacing_medium" value="7"/>
-    <px name="temp_preset_btn_spacing_large" value="8"/>
+    <!-- Portrait Operations rows: a 320x480 column has no height to spare,
+         so the action rows and the length row come down from a touch target. -->
+    <px name="filament_portrait_row_h_tiny" value="42"/>
+    <px name="filament_portrait_row_h_small" value="48"/>
+    <px name="filament_portrait_row_h_medium" value="48"/>
+    <px name="filament_portrait_row_h_large" value="48"/>
+    <px name="filament_portrait_length_h_tiny" value="40"/>
+    <px name="filament_portrait_length_h_small" value="48"/>
+    <px name="filament_portrait_length_h_medium" value="48"/>
+    <px name="filament_portrait_length_h_large" value="48"/>
+    <!-- The lane bars' width in the portrait Operations header, beside its chevron and Pick up. -->
+    <px name="filament_header_lanes_w_small" value="80"/>
+    <px name="filament_header_lanes_w_medium" value="96"/>
+    <px name="filament_header_lanes_w_large" value="120"/>
     <!-- AMS mini-status row height. Tuned so slot indicators have room
          even at MICRO (button_height_lg_micro=34 was visibly pinched). -->
     <px name="filament_ams_row_h_micro" value="48"/>
@@ -21,15 +24,6 @@
     <px name="filament_ams_row_h_small" value="64"/>
     <px name="filament_ams_row_h_medium" value="72"/>
     <px name="filament_ams_row_h_large" value="88"/>
-    <!-- Portrait action-row height. The portrait column's slack goes to the
-         temperature graph, so its rows are fixed, and short enough at the
-         small tiers that the graph can still clear its 70px floor. -->
-    <px name="filament_portrait_row_h_micro" value="36"/>
-    <px name="filament_portrait_row_h_tiny" value="40"/>
-    <px name="filament_portrait_row_h_small" value="48"/>
-    <px name="filament_portrait_row_h_medium" value="52"/>
-    <px name="filament_portrait_row_h_large" value="64"/>
-    <px name="filament_portrait_row_h_xlarge" value="72"/>
     <!-- Graph height and flex_grow on temp_graph_card / spool_card are owned
          by FilamentPanel::apply_left_column_sizing() in C++ — the default
          per-breakpoint heights (70/80/140/180/220) live there so the sizing
@@ -44,20 +38,29 @@
          an inline style_bg_opa would outrank any bound style. -->
     <style name="temp_graph_card_shown" bg_opa="255"/>
     <style name="temp_graph_card_spacer" bg_opa="0"/>
+    <!-- On a home full page (filament_on_page, NavigationManager::lend_panel())
+         the home grid already keeps the page margin, and every pixel of height
+         goes to the controls above the swipe strip. The padding is a style, not
+         an inline attr, so the bound page style can outrank it. -->
+    <style name="filament_panel_pad" pad_all="#space_md"/>
+    <style name="filament_panel_on_page" pad_all="0"/>
   </styles>
   <!-- Filament Management Panel -->
-  <!-- Landscape: two columns, left (temp status + AMS) and right (material +
-       operations). Portrait: one column — temp chips, material, graph,
-       operations, multi-filament strip. The shared subtrees (material grid,
-       operations, spool card) live in ui_xml/components/filament_*.xml and are
-       instantiated by both branches so their markup exists exactly once; the
-       temp readouts differ genuinely (rows in a card vs. chips), so each
-       branch carries its own. ui_is_portrait is reactive, so a rotation
-       rebuilds this <if> in place — FilamentPanel::bind_widgets() re-finds
-       the widgets afterwards (see that function for the ordering constraint). -->
+  <!-- Cards in the Controls panel's style. Landscape: two columns, left (the
+       Temperature card, the graph, the Multi-Filament card) and right
+       (Material, then Operations, which holds the tool chooser where several
+       heads dock). Portrait: one column - Temperature, Material, graph,
+       Operations, and the multi-filament strip. The shared subtrees live in
+       ui_xml/components/filament_*.xml and heater_rows.xml and are
+       instantiated by both branches so their markup exists exactly once.
+       ui_is_portrait is reactive, so a rotation rebuilds this <if> in place -
+       FilamentPanel::bind_widgets() re-finds the widgets afterwards (see that
+       function for the ordering constraint). -->
   <view name="filament_panel"
-        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_md" scrollable="false"
-        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+        extends="lv_obj" width="100%" height="100%" style_border_width="0" scrollable="false" flex_flow="row"
+        style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+    <style name="filament_panel_pad"/>
+    <bind_style name="filament_panel_on_page" subject="filament_on_page" ref_value="1"/>
     <!-- Disable all controls when printer not connected or klippy not ready -->
     <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
@@ -65,74 +68,11 @@
       <!-- ================================================================== -->
       <!-- PORTRAIT: single column                                           -->
       <!-- ================================================================== -->
+      <!-- A 320x480 screen has no height to spare: the cards sit #space_xs apart. -->
       <lv_obj name="portrait_column"
               width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
-              style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
-        <!-- Temperature chips: Nozzle / Bed / Chamber as three equal shares
-             (a hidden chamber vacates its share and the other two split the
-             row). Muted label over "current / target", whole chip tappable
-             with the same handlers as the landscape rows. The value labels
-             keep the landscape names so the C++ temperature-color updates
-             find them in either orientation. -->
-        <lv_obj name="temp_chips_row"
-                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
-          <lv_obj name="nozzle_chip"
-                  width="0" height="content" flex_grow="1" clickable="true" scrollable="false" flex_flow="column"
-                  style_flex_main_place="center" style_flex_cross_place="start" style_pad_all="#space_sm"
-                  style_pad_gap="#space_xxs" style_bg_color="#card_bg" style_bg_opa="255" style_radius="#border_radius">
-            <style name="styles.press_wash" selector="pressed"/>
-            <event_cb trigger="clicked" callback="on_filament_nozzle_target_tap"/>
-            <text_small text="Nozzle" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
-            <lv_obj height="content"
-                    style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
-                    style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
-              <text_body name="nozzle_current_temp"
-                         bind_text="filament_nozzle_current" clickable="false" event_bubble="true"/>
-              <text_body text="/" clickable="false" event_bubble="true"/>
-              <text_body name="nozzle_target_temp"
-                         bind_text="filament_nozzle_target" clickable="false" event_bubble="true">
-                <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
-              </text_body>
-            </lv_obj>
-          </lv_obj>
-          <lv_obj name="bed_chip"
-                  width="0" height="content" flex_grow="1" clickable="true" scrollable="false" flex_flow="column"
-                  style_flex_main_place="center" style_flex_cross_place="start" style_pad_all="#space_sm"
-                  style_pad_gap="#space_xxs" style_bg_color="#card_bg" style_bg_opa="255" style_radius="#border_radius">
-            <style name="styles.press_wash" selector="pressed"/>
-            <event_cb trigger="clicked" callback="on_filament_bed_target_tap"/>
-            <text_small text="Bed" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
-            <lv_obj height="content"
-                    style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
-                    style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
-              <text_body name="bed_current_temp" bind_text="filament_bed_current" clickable="false" event_bubble="true"/>
-              <text_body text="/" clickable="false" event_bubble="true"/>
-              <text_body name="bed_target_temp" bind_text="filament_bed_target" clickable="false" event_bubble="true"/>
-            </lv_obj>
-          </lv_obj>
-          <lv_obj name="chamber_chip"
-                  width="0" height="content" flex_grow="1" clickable="true" scrollable="false" flex_flow="column"
-                  style_flex_main_place="center" style_flex_cross_place="start" style_pad_all="#space_sm"
-                  style_pad_gap="#space_xxs" style_bg_color="#card_bg" style_bg_opa="255" style_radius="#border_radius"
-                  hidden="true">
-            <style name="styles.press_wash" selector="pressed"/>
-            <event_cb trigger="clicked" callback="on_filament_chamber_target_tap"/>
-            <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
-            <text_small text="Chamber" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
-            <lv_obj height="content"
-                    style_pad_all="0" scrollable="false" flex_flow="row" style_flex_cross_place="center"
-                    style_pad_gap="#space_xxs" clickable="false" event_bubble="true">
-              <text_body name="chamber_current_temp"
-                         bind_text="filament_chamber_current" clickable="false" event_bubble="true"/>
-              <text_body text="/" clickable="false" event_bubble="true"/>
-              <text_body name="chamber_target_temp"
-                         bind_text="filament_chamber_target" clickable="false" event_bubble="true"/>
-            </lv_obj>
-          </lv_obj>
-        </lv_obj>
-
-        <!-- MATERIAL heading + 3x2 preset grid (shared component) -->
+              style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
+        <filament_temp_card/>
         <filament_material_group/>
 
         <!-- Temperature graph: this column's flexible remainder. Height and
@@ -141,10 +81,12 @@
              FilamentPanel::fit_portrait_graph() sets when the remainder is too
              short to read. -->
         <lv_obj name="temp_graph_card"
-                width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg">
+                width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg"
+                style_radius="#border_radius">
           <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
           <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
           <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
+          <event_cb trigger="clicked" callback="filament_temp_graph_cb"/>
           <!-- Graph container - populated by C++ via TempControlPanel -->
           <lv_obj name="temp_graph_container"
                   width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true">
@@ -152,15 +94,16 @@
           </lv_obj>
         </lv_obj>
 
-        <!-- Divider, OPERATIONS and the action rows (shared component), at
-             fixed heights: the graph above takes the column's slack. -->
+        <!-- Operations at their compact height: the graph above takes the column's slack. -->
         <filament_operations_group name="filament_operations_group"
-                                   height="content" flex_grow="0" row_height="#filament_portrait_row_h" row_grow="0"
-                                   row_min_height="0"/>
+                                   row_height="#filament_portrait_row_h" length_height="#filament_portrait_length_h"/>
 
-        <!-- Multi-filament strip (shared component; C++ hides its header row
-             in portrait so it reads as a strip, not a card) -->
-        <filament_spool_card/>
+        <!-- Multi-filament strip (C++ hides its header row in portrait so it
+             reads as a strip, not a card). With several heads the lane bars
+             sit in the Operations header instead. -->
+        <filament_spool_card>
+          <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
+        </filament_spool_card>
       </lv_obj>
       <else/>
       <!-- ================================================================== -->
@@ -169,121 +112,22 @@
       <lv_obj name="content_row"
               width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="row"
               style_flex_cross_place="start" style_pad_gap="#space_md">
-        <!-- ================================================================== -->
-        <!-- LEFT COLUMN: Temperature Status & AMS                              -->
-        <!-- ================================================================== -->
         <lv_obj name="left_column"
                 width="40%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
                 style_flex_main_place="start" style_pad_gap="#space_md">
-
-          <!-- Temperature Status Card - shows both nozzle and bed -->
-          <ui_card name="temp_status_card"
-                   width="100%" style_pad_all="#space_sm" style_pad_gap="#temp_card_spacing" flex_flow="column"
-                   style_flex_main_place="start" style_flex_cross_place="start">
-
-            <!-- Header row with icon -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="start"
-                    style_flex_cross_place="center" style_pad_gap="#space_sm">
-              <icon src="thermometer" size="sm" variant="secondary"/>
-              <text_body text="Temperature" text_transform="uppercase" style_translate_y="2"/>
-            </lv_obj>
-
-            <!-- Nozzle Row: Current / Target (entire row tappable) -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                    style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true"
-                    style_radius="#border_radius">
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_filament_nozzle_target_tap"/>
-              <text_small bind_text="filament_nozzle_label" clickable="false" event_bubble="true"/>
-              <lv_obj height="content"
-                      flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
-                      style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-                <text_body name="nozzle_current_temp"
-                           bind_text="filament_nozzle_current" clickable="false" event_bubble="true"/>
-                <text_body text="/" clickable="false" event_bubble="true"/>
-                <lv_obj name="nozzle_target_tap"
-                        width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
-                        style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-                  <text_body name="nozzle_target_temp"
-                             bind_text="filament_nozzle_target" clickable="false" event_bubble="true">
-                    <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
-                  </text_body>
-                  <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
-                </lv_obj>
-              </lv_obj>
-            </lv_obj>
-            <!-- Bed Row: Current / Target (entire row tappable) -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                    style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true"
-                    style_radius="#border_radius">
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_filament_bed_target_tap"/>
-              <text_small text="Bed" clickable="false" event_bubble="true"/>
-              <lv_obj height="content"
-                      flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
-                      style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-                <text_body name="bed_current_temp"
-                           bind_text="filament_bed_current" clickable="false" event_bubble="true"/>
-                <text_body text="/" clickable="false" event_bubble="true"/>
-                <lv_obj name="bed_target_tap"
-                        width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
-                        style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-                  <text_body name="bed_target_temp"
-                             bind_text="filament_bed_target" clickable="false" event_bubble="true"/>
-                  <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
-                </lv_obj>
-              </lv_obj>
-            </lv_obj>
-            <!-- Chamber Row: Current / Target (visible only if printer has chamber sensor) -->
-            <lv_obj name="chamber_section"
-                    width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-                    style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true" hidden="true"
-                    style_radius="#border_radius">
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_filament_chamber_target_tap"/>
-              <bind_flag_if_eq subject="printer_has_chamber" flag="hidden" ref_value="0"/>
-              <text_small text="Chamber" clickable="false" event_bubble="true"/>
-              <lv_obj height="content"
-                      flex_flow="row" style_pad_all="0" scrollable="false" style_flex_cross_place="center"
-                      style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-                <text_body name="chamber_current_temp"
-                           bind_text="filament_chamber_current" clickable="false" event_bubble="true"/>
-                <text_body text="/" clickable="false" event_bubble="true"/>
-                <lv_obj name="chamber_target_tap"
-                        width="content" height="content" style_pad_all="#space_xs" scrollable="false" flex_flow="row"
-                        style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-                  <text_body name="chamber_target_temp"
-                             bind_text="filament_chamber_target" clickable="false" event_bubble="true"/>
-                  <icon src="pencil" size="xs" variant="tertiary" clickable="false" event_bubble="true"/>
-                </lv_obj>
-              </lv_obj>
-            </lv_obj>
-            <!-- Status Indicator (icon + text row). Hidden at MICRO and TINY
-                   where vertical space is needed for the graph and filament card. -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="start"
-                    style_flex_cross_place="center" style_pad_gap="#space_xs">
-              <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
-              <icon name="status_icon" src="info" size="xs" variant="secondary"/>
-              <text_small name="status_text" width="0" flex_grow="1" long_mode="wrap" bind_text="filament_status"/>
-            </lv_obj>
-          </ui_card>
-          <!-- temp card -->
+          <filament_temp_card/>
 
           <!-- Temperature Graph (combined nozzle + bed). Height and flex_grow
-                 are set from C++ (apply_left_column_sizing) so the layout can
-                 swap between fixed-graph / growing-spool (AMS) and growing-graph
-                 / content-spool (external spool at MICRO/TINY). The spacer
-                 subject stays 0 in landscape; the bindings are the same pair
-                 the portrait branch carries. -->
+               are set from C++ (apply_left_column_sizing). The spacer subject
+               stays 0 in landscape; the bindings are the same pair the
+               portrait branch carries. -->
           <lv_obj name="temp_graph_card"
-                  width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg">
+                  width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg"
+                  style_radius="#border_radius">
             <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
             <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
             <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
+            <event_cb trigger="clicked" callback="filament_temp_graph_cb"/>
             <!-- Graph container - populated by C++ via TempControlPanel -->
             <lv_obj name="temp_graph_container"
                     width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true">
@@ -291,20 +135,20 @@
             </lv_obj>
           </lv_obj>
 
-          <!-- BOTTOM: Spool card (shared component) -->
           <filament_spool_card/>
         </lv_obj>
-        <!-- ================================================================== -->
-        <!-- RIGHT COLUMN: Material Selection & Actions                        -->
-        <!-- ================================================================== -->
         <lv_obj name="right_column"
-                width="58%" height="100%" style_pad_all="0" scrollable="false" style_layout="flex"
-                style_flex_flow="column" style_flex_main_place="space_between" style_pad_gap="#space_sm">
-          <!-- TOP GROUP: Material Selection + Selected Temps (shared component) -->
+                width="0" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
+                style_pad_gap="0">
           <filament_material_group/>
-          <!-- BOTTOM GROUP: Operations (shared component; fills the column
-               below the material grid) -->
-          <filament_operations_group name="filament_operations_group"/>
+          <!-- The column's slack goes between the cards, so Operations sits
+               level with the left column's bottom. The spacer is the gap: with
+               no slack it stays #space_md and the column overflows downward. -->
+          <lv_obj name="right_column_spacer"
+                  width="100%" height="0" flex_grow="1" style_min_height="#space_md" style_pad_all="0" style_bg_opa="0"
+                  style_border_width="0" scrollable="false" clickable="false"/>
+          <!-- Landscape action rows are standard button height. -->
+          <filament_operations_group name="filament_operations_group" row_height="#button_height"/>
         </lv_obj>
       </lv_obj>
     </if>

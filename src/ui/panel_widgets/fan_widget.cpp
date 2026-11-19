@@ -9,7 +9,9 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
@@ -17,7 +19,6 @@
 
 #include <spdlog/spdlog.h>
 
-#include <cstring>
 #include <utility>
 
 #include "hv/json.hpp"
@@ -62,7 +63,15 @@ FanWidget::FanWidget(const std::string& instance_id)
                                 /*label_always_drawn=*/true};
     content.label_is_identity = true;
     sizing_.set_content(std::move(content));
-    std::strcpy(speed_buffer_, "--");
+
+    // Published before the manager parses the component, which drops a
+    // binding whose subject is missing at parse time.
+    speed_subject_.init_string(speed_buffer_, nullptr, sizeof(speed_buffer_), "--");
+    sizing_.publish_instance_subject(subjects_, &speed_subject_, "speed_subject", "speed");
+    name_subject_.init_string(name_buffer_, nullptr, sizeof(name_buffer_), "");
+    sizing_.publish_instance_subject(subjects_, &name_subject_, "name_subject", "name");
+    named_subject_.init_int(0);
+    sizing_.publish_instance_subject(subjects_, &named_subject_, "named_subject", "named");
 }
 
 FanWidget::~FanWidget() {
@@ -72,8 +81,8 @@ FanWidget::~FanWidget() {
 void FanWidget::set_config(const nlohmann::json& config) {
     config_ = config;
 
-    if (config.contains("fan") && config["fan"].is_string()) {
-        selected_fan_ = config["fan"].get<std::string>();
+    if (auto fan = helix::json_util::read_field<std::string>(config, "fan")) {
+        selected_fan_ = *fan;
         resolve_display_name();
         spdlog::debug("[FanWidget] Config: fan={}", selected_fan_);
     }
@@ -86,11 +95,6 @@ std::string FanWidget::get_component_name() const {
 void FanWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
-
-    // Cache label pointers
-    speed_label_ = lv_obj_find_by_name(widget_obj_, "fan_speed");
-    name_label_ = lv_obj_find_by_name(widget_obj_, "fan_name");
-    fan_icon_ = lv_obj_find_by_name(widget_obj_, "fan_widget_icon");
 
     // Only bind if fans are already discovered (e.g. reconnection, panel re-entry).
     // At startup, fan subjects don't exist yet — the version observer (below)
@@ -138,9 +142,6 @@ void FanWidget::detach() {
         widget_obj_ = nullptr;
     }
     parent_screen_ = nullptr;
-    speed_label_ = nullptr;
-    name_label_ = nullptr;
-    fan_icon_ = nullptr;
 
     spdlog::debug("[FanWidget] Detached");
 }
@@ -170,7 +171,7 @@ void FanWidget::auto_select_first_fan() {
 
 void FanWidget::bind_speed_observer() {
     // Reset lifetime BEFORE observer so the guard's weak_ptr expires and
-    // skips lv_observer_remove() on a potentially-freed subject (#705).
+    // skips lv_observer_delete() on a potentially-freed subject (#705).
     speed_lifetime_.reset();
     speed_observer_.reset();
 
@@ -209,42 +210,34 @@ void FanWidget::select_fan(const std::string& object_name) {
     spdlog::info("[FanWidget] Selected fan: {} ({})", display_name_, object_name);
 }
 
-void FanWidget::on_speed_changed(int speed_pct) {
-    snprintf(speed_buffer_, sizeof(speed_buffer_), "%d%%", speed_pct);
+void FanWidget::set_speed_text(const char* text) {
+    lv_subject_set_string(&speed_subject_, text);
+}
 
-    if (speed_label_) {
-        lv_label_set_text(speed_label_, speed_buffer_);
-    }
+void FanWidget::on_speed_changed(int speed_pct) {
+    char text[16];
+    snprintf(text, sizeof(text), "%d%%", speed_pct);
+    set_speed_text(text);
 
     spdlog::trace("[FanWidget] {} = {}%", display_name_, speed_pct);
 }
 
 void FanWidget::update_display() {
-    if (speed_label_) {
-        if (selected_fan_.empty()) {
-            lv_label_set_text(speed_label_, "--");
-        } else {
-            // Read current value from subject
-            auto& ps = get_printer_state();
-            lv_subject_t* subj = ps.fan_state().get_fan_speed_subject(selected_fan_);
-            if (subj) {
-                int speed = lv_subject_get_int(subj);
-                snprintf(speed_buffer_, sizeof(speed_buffer_), "%d%%", speed);
-                lv_label_set_text(speed_label_, speed_buffer_);
-            } else {
-                lv_label_set_text(speed_label_, "--");
-            }
-        }
+    lv_subject_t* subj = selected_fan_.empty()
+                             ? nullptr
+                             : get_printer_state().fan_state().get_fan_speed_subject(selected_fan_);
+    if (subj) {
+        on_speed_changed(lv_subject_get_int(subj));
+    } else {
+        set_speed_text("--");
     }
 
-    if (name_label_) {
-        if (selected_fan_.empty()) {
-            // A tag, not lv_tr() text: the label then re-translates itself.
-            lv_label_set_translation_tag(name_label_, "Select fan");
-        } else {
-            lv_label_set_text(name_label_, display_name_.c_str());
-        }
+    // An empty selection shows the component's own "Select fan" label, which
+    // re-translates itself.
+    if (!selected_fan_.empty()) {
+        lv_subject_set_string(&name_subject_, display_name_.c_str());
     }
+    lv_subject_set_int(&named_subject_, selected_fan_.empty() ? 0 : 1);
 }
 
 void FanWidget::save_config() {
@@ -303,8 +296,8 @@ void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
         lv_obj_set_style_pad_gap(row, space_xs, 0);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_clickable(row, true);
 
         // Highlight for single-select
         lv_obj_set_style_bg_opa(row, is_selected ? 30 : 0, 0);
@@ -313,7 +306,7 @@ void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
         lv_label_set_text(name, fan.display_name.c_str());
         lv_obj_set_flex_grow(name, 1);
         lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);
-        helix::ui::label_hold_one_line(name);
+        lv_label_set_max_lines(name, 1);
         lv_obj_set_style_text_font(name, lv_font_get_default(), 0);
 
         // Current speed

@@ -16,6 +16,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -47,8 +48,8 @@ class TouchSettingsOverlay : public OverlayBase {
     void handle_touch_calibration_clicked();
 
     SubjectManager subjects_;
-    lv_subject_t show_touch_calibration_subject_{}; ///< 1 when a manual calibration entry applies
-    lv_subject_t touch_cal_status_subject_{};       ///< "Calibrated" / "Not calibrated"
+    helix::Subject show_touch_calibration_subject_{}; ///< 1 when a manual calibration entry applies
+    helix::Subject touch_cal_status_subject_{};       ///< "Calibrated" / "Not calibrated"
     char touch_cal_status_buf_[48] = {};
 };
 

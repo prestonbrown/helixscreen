@@ -3220,6 +3220,8 @@ TEST_CASE_METHOD(HelixTestFixture,
     auto& api = mock_printer.api;
 
     PrintPreparationManager manager;
+    // An earlier start, refused before it sent anything, leaves its parameters.
+    manager.start_print(kRemapFixture, "", nullptr, nullptr, {}, {{"plateindex", "3"}});
     manager.set_dependencies(&api, &state);
     state.print_state().begin_preparing(PrintJobRef{kRemapFixture, "gcodes", ""});
 
@@ -3251,6 +3253,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     CHECK(starts[0].original_filename == kRemapFixture);
     CHECK(starts[0].temp_file_path == uploads[0].dest_path);
     CHECK(starts[0].modifications == std::vector<std::string>{"remap_T1_to_T2"});
+    CHECK(starts[0].extra_params.count("plateindex") == 0);
 
     // Neither local copy outlives the flow.
     const auto& downloads = api.transfers_mock().download_destinations();

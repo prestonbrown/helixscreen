@@ -3,11 +3,8 @@
 # its own name, or delete it - then re-run with --write-baseline.
 unreferenced:bed_temperature
 unreferenced:chamber_temperature
-unreferenced:on_ip_input_changed
-unreferenced:on_port_input_changed
 unreferenced:on_printer_image_card_clicked
 unreferenced:on_printer_image_usb_clicked
-unreferenced:on_printer_name_changed
 unreferenced:on_profile_0_clicked
 unreferenced:on_profile_0_delete
 unreferenced:on_profile_0_rename
@@ -23,7 +20,6 @@ unreferenced:on_profile_3_rename
 unreferenced:on_profile_4_clicked
 unreferenced:on_profile_4_delete
 unreferenced:on_profile_4_rename
-unreferenced:on_test_connection_clicked
 unreferenced:on_zone_tab_clicked
 unreferenced:plugin_event
 unreferenced:temp_carousel_page_cb

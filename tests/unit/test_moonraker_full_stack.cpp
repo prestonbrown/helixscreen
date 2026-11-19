@@ -49,6 +49,19 @@
 
 using namespace helix;
 
+/// Lets two worker threads overlap for at least 100ms, and longer until each has
+/// run once: a loaded machine can first schedule a thread after a fixed window
+/// has already closed.
+static void let_both_run(const std::atomic<int>& a, const std::atomic<int>& b) {
+    const auto start = std::chrono::steady_clock::now();
+    const auto deadline = start + std::chrono::seconds(30);
+    while (std::chrono::steady_clock::now() < deadline &&
+           (std::chrono::steady_clock::now() - start < std::chrono::milliseconds(100) ||
+            a.load() == 0 || b.load() == 0)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
 // ============================================================================
 // Full Stack Test Fixture
 // ============================================================================
@@ -553,8 +566,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
             }
         });
 
-        // Run for a short time
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        let_both_run(add_count, read_count);
         stop_flag.store(true);
 
         writer.join();
@@ -606,8 +618,7 @@ TEST_CASE_METHOD(FullStackTestFixture, "Full stack: Concurrent access to shared 
             }
         });
 
-        // Run for a short time
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        let_both_run(update_count, read_count);
         stop_flag.store(true);
 
         updater.join();

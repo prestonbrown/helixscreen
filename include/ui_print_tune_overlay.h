@@ -5,6 +5,7 @@
 
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -154,9 +155,8 @@ class PrintTuneOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "print_tune_panel";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
 
     void init_subjects() override;
@@ -175,8 +175,13 @@ class PrintTuneOverlay : public OverlayBase {
      */
     void on_deactivating(DeactivateReason reason) override;
 
+  protected:
+    /// Drops the observers create() set up; the next open observes again.
+    void on_ui_destroyed() override;
+
   private:
     void setup_panel();
+    void release_observers();
     /// Renders the speed/flow headlines and their live readouts, led by
     /// whichever units the speed/flow preference picks.
     void update_display();
@@ -197,38 +202,39 @@ class PrintTuneOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Subjects for reactive UI
-    lv_subject_t tune_speed_subject_{};
-    lv_subject_t tune_flow_subject_{};
-    lv_subject_t tune_z_offset_subject_{};
+    helix::Subject tune_speed_subject_{};
+    helix::Subject tune_flow_subject_{};
+    helix::Subject tune_z_offset_subject_{};
+    helix::Subject tune_z_offset_microns_subject_{}; ///< What the z_offset_indicator draws
     /// Which z-step amount is selected, as an index. ONE int, not four
     /// booleans: the buttons are mutually exclusive by construction, so four
     /// parallel flags were four chances for the UI to disagree with itself,
     /// and every selection wrote all four. The XML compares against it with
     /// bind_style_if (CLAUDE.md rule 7).
-    lv_subject_t z_step_selected_subject_{};
+    helix::Subject z_step_selected_subject_{};
 
     /// Which z-offset the direction buttons drive: 0 machine-wide, 1 the active
     /// tool's own. Only meaningful on a tool changer — see helix::tool_offsets.
-    lv_subject_t z_tune_target_subject_{};
+    helix::Subject z_tune_target_subject_{};
     /// The target the user is NOT on, formatted for the muted context label.
-    lv_subject_t tune_z_other_subject_{};
-    lv_subject_t tune_z_offset_saved_subject_{};
-    lv_subject_t tune_z_offset_saved_visible_subject_{};
+    helix::Subject tune_z_other_subject_{};
+    helix::Subject tune_z_offset_saved_subject_{};
+    helix::Subject tune_z_offset_saved_visible_subject_{};
     /// Label for the tool button ("T1"). Not tool_badge_text: that one is
     /// deliberately index-only, sized for a disc overlaid on the nozzle glyph.
-    lv_subject_t tune_z_tool_label_subject_{};
-    lv_subject_t z_closer_icon_subject_{};  ///< Icon name for closer button (kinematic-aware)
-    lv_subject_t z_farther_icon_subject_{}; ///< Icon name for farther button (kinematic-aware)
+    helix::Subject tune_z_tool_label_subject_{};
+    helix::Subject z_closer_icon_subject_{};  ///< Icon name for closer button (kinematic-aware)
+    helix::Subject z_farther_icon_subject_{}; ///< Icon name for farther button (kinematic-aware)
 
     /// The active extruder's reported K ("0.0420"), and whether a tuning
     /// print is running that the tuner could be reopened for.
-    lv_subject_t tune_pa_subject_{};
+    helix::Subject tune_pa_subject_{};
     char tune_pa_buf_[16] = "--";
-    lv_subject_t tune_pa_session_subject_{};
+    helix::Subject tune_pa_session_subject_{};
 
     // Actual speed/flow display subjects
-    lv_subject_t tune_actual_speed_subject_{};
-    lv_subject_t tune_actual_flow_subject_{};
+    helix::Subject tune_actual_speed_subject_{};
+    helix::Subject tune_actual_flow_subject_{};
 
     // Subject storage buffers
     char tune_speed_buf_[32] = "100%";

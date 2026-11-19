@@ -35,7 +35,7 @@ std::string g_pending_text;          // Text to show when overlay appears
 constexpr uint8_t kOverlayBackdropOpacity = 180;
 
 // Spacing between spinner and label
-constexpr lv_coord_t kSpinnerLabelGap = 16;
+constexpr int32_t kSpinnerLabelGap = 16;
 
 void create_overlay_internal();
 void destroy_overlay_internal();
@@ -79,7 +79,7 @@ void create_overlay_internal() {
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_row(container, kSpinnerLabelGap, LV_PART_MAIN);
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
 
     // Create spinner using XML widget (with fallback to raw LVGL)
     g_spinner = static_cast<lv_obj_t*>(lv_xml_create(container, "spinner", nullptr));
@@ -106,7 +106,7 @@ void create_overlay_internal() {
     lv_label_set_text(g_label, g_pending_text.c_str());
 
     // Bring to foreground
-    lv_obj_move_foreground(g_overlay);
+    lv_obj_move_to_index(g_overlay, -1);
 
     g_pending_show = false;
     spdlog::debug("[BusyOverlay] Created overlay with text: '{}'", g_pending_text);

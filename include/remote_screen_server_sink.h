@@ -37,6 +37,13 @@ SnapshotRateCap snapshot_rate_cap(bool constrained_host);
 bool remote_screen_host_is_constrained();
 std::chrono::milliseconds min_encode_interval(SnapshotRateCap cap, bool printing);
 
+/// The one line on the frame served in place of the screen while a secret is on it.
+constexpr const char* kScreenHiddenMessage = "Screen hidden while the pairing code is shown";
+
+/// Draw the placeholder frame into @p rgb as RGB888, @p w x @p h: a plain gray fill with
+/// kScreenHiddenMessage centered on it (left out when the frame is too small to hold it).
+void draw_screen_placeholder_rgb888(int w, int h, std::vector<uint8_t>& rgb);
+
 struct EncodedSnapshot {
     std::shared_ptr<const std::vector<uint8_t>> jpeg;
     uint64_t generation = 0;
@@ -104,14 +111,20 @@ class ScreenFrameStore {
     /// The current screen as a JPEG, or nullopt when nothing has been captured. Reuses
     /// the cached JPEG when the generation is unchanged or the last encode is newer
     /// than min_encode_interval(cap, printing).
+    ///
+    /// The placeholder frame (draw_screen_placeholder_rgb888) stands in for the screen
+    /// until it is known clean: after a frame drawn with a secret Shown or Unknown, the
+    /// screen is clean again only once a full repaint (note_full_invalidate) drawn
+    /// with it Absent has completed. FullRedraw is asked for to get one.
     std::optional<EncodedSnapshot> snapshot(bool printing, SnapshotRateCap cap);
+
+    /// The shadow holds no pixels drawn while a secret was on the display.
+    bool screen_clean() const;
 
     /// Free every buffer if no viewer is present. True if it freed anything.
     bool release_if_idle();
     /// Free every buffer unconditionally.
     void release();
-
-    size_t allocated_bytes() const;
 
   private:
     std::chrono::steady_clock::time_point now() const;
@@ -142,7 +155,19 @@ class ScreenFrameStore {
     bool refresh_copied_ = false;
     uint64_t full_generation_ = 0;
 
+    /// The shadow holds no pixels drawn while a secret was on the display. An empty
+    /// shadow is clean.
+    bool clean_ = true;
+    /// Frames are Absent again; clean_ turns true once full_generation_ passes
+    /// clean_after_full_.
+    bool clean_pending_ = false;
+    uint64_t clean_after_full_ = 0;
+
     std::vector<uint8_t> rgb_;
+    /// The placeholder frame, encoded once per size.
+    std::shared_ptr<const std::vector<uint8_t>> placeholder_jpeg_;
+    int placeholder_w_ = 0;
+    int placeholder_h_ = 0;
     std::shared_ptr<const std::vector<uint8_t>> cached_jpeg_;
     uint64_t cached_generation_ = 0;
     int cached_w_ = 0;

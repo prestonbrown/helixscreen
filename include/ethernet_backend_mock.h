@@ -6,7 +6,9 @@
 #include "ethernet_backend.h"
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <string>
 
 /**
@@ -36,7 +38,7 @@ class EthernetBackendMock : public EthernetBackend {
     bool has_interface() override;
     EthernetInfo get_info() override;
     /// Fires after each set_connected_state() that changes the link.
-    std::unique_ptr<helix::ethernet::LinkEvents> open_link_events() override;
+    std::unique_ptr<helix::net::LinkEvents> open_link_events() override;
 
     /// In memory, one config for the process (helix::net::mock_ipv4_store).
     /// HELIX_MOCK_IPV4_APPLY_FAIL=1 makes applies fail.
@@ -72,7 +74,16 @@ class EthernetBackendMock : public EthernetBackend {
         default_connected_ = connected;
     }
 
+    /// Test helpers: the next get_info() takes its answer, then waits for
+    /// release, so a probe can be kept outstanding on its worker.
+    void hold_next_info();
+    void release_held_info();
+
   private:
+    std::mutex hold_mutex_;
+    std::condition_variable hold_cv_;
+    bool hold_next_info_{false};
+    bool info_held_{false};
     std::string real_mac_; ///< Real MAC from system for realistic demo display
     static inline bool default_connected_ = true;
     /// Set by tests on the main thread, read by get_info() on executor threads.

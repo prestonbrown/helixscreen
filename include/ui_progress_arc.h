@@ -30,7 +30,8 @@ void attach_progress_arc(lv_obj_t* arc, lv_obj_t* parent, lv_subject_t* tier_sub
 /// Convenience: like `attach_progress_arc()` but the helper allocates and
 /// owns the tier subject (freed on the arc's `LV_EVENT_DELETE`). Returns
 /// a non-owning pointer to the subject — do not free; do not outlive the
-/// arc. Use when the caller doesn't need the subject for anything else
+/// arc. Returns nullptr, and keeps no subject, when the attach fails. Use
+/// when the caller doesn't need the subject for anything else
 /// (e.g., multiple dynamic instances in fan widgets).
 lv_subject_t* attach_progress_arc_owned(lv_obj_t* arc, lv_obj_t* parent);
 

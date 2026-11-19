@@ -35,7 +35,11 @@ struct Info {
     bool has_jz_pwm_piezo;            ///< a piezo driven through the Ingenic PWM device
     bool reduced_effects;             ///< decorative animation is too heavy for the SoC
     bool firmware_dims_backlight_after_boot; ///< stock firmware undoes our brightness
-    bool firmware_manages_updates;           ///< the firmware owns HelixScreen's updates
+    /// The directory a firmware package manager installs HelixScreen into, one
+    /// subdirectory per version, or nullptr when no firmware ships it.
+    const char* firmware_package_dir;
+    /// Where our own installer puts HelixScreen on this board, or nullptr.
+    const char* installer_root;
 };
 
 /// The board a build with platform key @p platform_key is on. "ad5m", "ad5x", "k1", "k2",
@@ -50,11 +54,45 @@ Board resolve(const std::string& platform_key, const std::string& probe_root = "
 Board current();
 
 /// The row for @p board. Every Board has one.
-const Info& info(Board board);
+// The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+const Info&(info)(Board board);
 
 inline const Info& current_info() {
     return info(current());
 }
+
+/// True when @p board's firmware owns the HelixScreen install that is running, so the
+/// in-app updater must leave it alone. Decided under @p probe_root, failing toward
+/// "managed" because self-updating a firmware's package is the worse mistake:
+///  - no firmware_package_dir, or that directory absent: false;
+///  - @p running_exe is the same file (device and inode) as `<version dir>/bin/helix-screen`
+///    in ANY subdirectory of it, `latest` included: true. Identity rather than a path,
+///    because a firmware can launch the package through a bind mount over another path;
+///  - otherwise true unless @p running_exe resolves inside installer_root, so an exe that
+///    cannot be stat'd or resolved counts as the firmware's.
+bool firmware_manages_updates(Board board, const std::string& running_exe = "/proc/self/exe",
+                              const std::string& probe_root = "/");
+
+/// The version directory of @p board's firmware package that @p running_exe runs from:
+/// the subdirectory of firmware_package_dir whose `bin/helix-screen` is the same file
+/// (device and inode) as @p running_exe, so a launch through a bind mount over another
+/// path still names it. A link to it (`latest`) wins over the directory itself: the
+/// firmware re-points the link at each package version it installs, so a path through
+/// it outlives the version directory an upgrade deletes. nullopt
+/// when the board has no firmware package or @p running_exe is not one of its binaries.
+/// Paths probe under @p probe_root and come back with it prefixed.
+std::optional<std::string> firmware_package_root(Board board,
+                                                 const std::string& running_exe = "/proc/self/exe",
+                                                 const std::string& probe_root = "/");
+
+/// The install tree the running binary belongs to: resolve_data_root_from_exe(@p running_exe)
+/// when the binary's own path leads to one, otherwise current()'s firmware_package_root for
+/// @p running_exe when that is a valid data root. A firmware can launch the package binary
+/// through a bind mount over another path, which names no install tree. Every caller that
+/// needs "where is my install" asks this, never /proc/self/exe's directory. Empty when
+/// neither finds one; the package directory is probed under @p probe_root.
+std::string resolve_install_root(const std::string& running_exe,
+                                 const std::string& probe_root = "/");
 
 /// Test-only, main-thread-only: make current() answer @p board until reset with
 /// std::nullopt. HelixTestFixture::reset_all() resets it.

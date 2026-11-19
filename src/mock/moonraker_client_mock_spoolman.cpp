@@ -3,6 +3,7 @@
 
 #include "moonraker_client_mock_spoolman.h"
 
+#include "json_utils.h"
 #include "moonraker_client_mock.h"
 
 #include <spdlog/spdlog.h>
@@ -18,6 +19,7 @@
 namespace {
 
 using json = nlohmann::json;
+namespace json_util = helix::json_util;
 
 /// Spoolman serializes an unset optional field as null, not as an empty value.
 json or_null(const std::string& s) {
@@ -428,7 +430,8 @@ SpoolInfo* MockSpoolmanServer::find_spool(int id) {
 bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError& err) {
     const std::string method = params.value("request_method", "GET");
     const std::string full_path = params.value("path", "");
-    const json body = params.contains("body") ? params["body"] : json::object();
+    const json* body_field = json_util::find_member(params, "body");
+    const json body = body_field ? *body_field : json::object();
     const size_t q = full_path.find('?');
     const std::string path = full_path.substr(0, q);
     const std::string query = q == std::string::npos ? "" : full_path.substr(q + 1);
@@ -475,31 +478,27 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
                 err = spoolman_error(500);
                 return false;
             }
-            if (body.size() == 1 && body.contains("remaining_weight") &&
-                body["remaining_weight"].is_number()) {
-                weight_updates.push_back({*id, body["remaining_weight"].get<double>()});
+            const auto remaining = json_util::read_field<double>(body, "remaining_weight");
+            if (body.size() == 1 && remaining) {
+                weight_updates.push_back({*id, *remaining});
             } else {
                 spool_updates.push_back({*id, body});
             }
             if (!spool) {
                 return not_found("spool", *id);
             }
-            if (body.contains("archived") && body["archived"].is_boolean()) {
-                if (body["archived"].get<bool>()) {
+            if (auto archived = json_util::read_field<bool>(body, "archived")) {
+                if (*archived) {
                     archived_spool_ids_.insert(*id);
                 } else {
                     archived_spool_ids_.erase(*id);
                 }
             }
             auto num = [&body](const char* key, double& out) {
-                if (body.contains(key) && body[key].is_number()) {
-                    out = body[key].get<double>();
-                }
+                out = json_util::read_field<double>(body, key).value_or(out);
             };
             auto str = [&body](const char* key, std::string& out) {
-                if (body.contains(key) && body[key].is_string()) {
-                    out = body[key].get<std::string>();
-                }
+                out = json_util::read_field<std::string>(body, key).value_or(out);
             };
             num("remaining_weight", spool->remaining_weight_g);
             num("spool_weight", spool->spool_weight_g);
@@ -507,8 +506,8 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
             str("lot_nr", spool->lot_nr);
             str("comment", spool->comment);
             str("location", spool->location);
-            if (body.contains("filament_id") && body["filament_id"].is_number_integer()) {
-                spool->filament_id = body["filament_id"].get<int>();
+            if (auto filament_id = json_util::read_integer_field(body, "filament_id")) {
+                spool->filament_id = *filament_id;
                 for (const auto& f : filament_list()) {
                     if (f.id == spool->filament_id) {
                         spool->material = f.material;
@@ -544,8 +543,8 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
         spool.initial_weight_g = body.value("initial_weight", 1000.0);
         spool.remaining_weight_g = body.value("remaining_weight", spool.initial_weight_g);
         spool.spool_weight_g = body.value("spool_weight", 0.0);
-        if (body.contains("filament_id") && body["filament_id"].is_number_integer()) {
-            spool.filament_id = body["filament_id"].get<int>();
+        if (auto filament_id = json_util::read_integer_field(body, "filament_id")) {
+            spool.filament_id = *filament_id;
             for (const auto& f : filament_list()) {
                 if (f.id == spool.filament_id) {
                     spool.material = f.material;
@@ -559,11 +558,16 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
                 }
             }
         }
-        if (body.contains("location") && body["location"].is_string()) {
-            spool.location = body["location"].get<std::string>();
-        }
+        spool.location =
+            json_util::read_field<std::string>(body, "location").value_or(spool.location);
         spools_.push_back(spool);
         result = spool_json(spool);
+        return true;
+    }
+
+    if (method == "GET" && path == "/v1/setting/currency") {
+        // Spoolman's default currency, with the value JSON-encoded as Spoolman sends it.
+        result = {{"value", "\"EUR\""}, {"is_set", false}, {"type", "string"}};
         return true;
     }
 
@@ -581,9 +585,7 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
         vendor.id = next_created_vendor_id > 0 ? next_created_vendor_id
                                                : static_cast<int>(spools_.size()) + 100;
         vendor.name = body.value("name", "");
-        const std::string comment = body.contains("comment") && body["comment"].is_string()
-                                        ? body["comment"].get<std::string>()
-                                        : "";
+        const std::string comment = json_util::safe_string(body, "comment");
         vendor_comments_[vendor.id] = comment;
         vendors_.push_back(vendor);
         result = vendor_json(vendor, comment);
@@ -661,12 +663,12 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
              {std::tuple{"settings_extruder_temp", &filament.nozzle_temp_min,
                          &filament.nozzle_temp_max},
               std::tuple{"settings_bed_temp", &filament.bed_temp_min, &filament.bed_temp_max}}) {
-            if (body.contains(key) && body[key].is_number()) {
-                *lo = *hi = static_cast<int>(body[key].get<double>());
+            if (auto temp = json_util::read_field<double>(body, key)) {
+                *lo = *hi = static_cast<int>(*temp);
             }
         }
-        if (body.contains("vendor_id") && body["vendor_id"].is_number_integer()) {
-            filament.vendor_id = body["vendor_id"].get<int>();
+        if (auto vendor_id = json_util::read_integer_field(body, "vendor_id")) {
+            filament.vendor_id = *vendor_id;
             for (const auto& v : vendor_list()) {
                 if (v.id == filament.vendor_id) {
                     filament.vendor_name = v.name;
@@ -705,9 +707,9 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
             if (!temps_valid(body, err)) {
                 return false;
             }
-            if (body.contains("extra") && body["extra"].is_object()) {
+            if (const json* extra = json_util::find_object(body, "extra")) {
                 // Spoolman refuses a key with no field definition.
-                for (auto it = body["extra"].begin(); it != body["extra"].end(); ++it) {
+                for (auto it = extra->begin(); it != extra->end(); ++it) {
                     if (!filament_field_defined(it.key())) {
                         spdlog::debug("[MockSpoolman] 400: unknown extra field {}", it.key());
                         err = spoolman_error(400);
@@ -716,25 +718,23 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
                 }
                 // Older Spoolman replaces the whole dict, the stricter of the two
                 // behaviours a writer has to survive.
-                filament_extra_[*id] = body["extra"];
+                filament_extra_[*id] = *extra;
             }
             result = {{"id", *id}};
             for (auto& f : filaments_) {
                 if (f.id == *id) {
-                    if (body.contains("color_hex") && body["color_hex"].is_string()) {
-                        f.color_hex = body["color_hex"].get<std::string>();
-                    }
-                    if (body.contains("settings_extruder_temp")) {
+                    f.color_hex =
+                        json_util::read_field<std::string>(body, "color_hex").value_or(f.color_hex);
+                    if (const json* extruder_temp =
+                            json_util::find_member(body, "settings_extruder_temp")) {
                         f.nozzle_temp_min = f.nozzle_temp_max =
-                            body["settings_extruder_temp"].is_null()
+                            extruder_temp->is_null()
                                 ? 0
-                                : static_cast<int>(body["settings_extruder_temp"].get<double>());
+                                : static_cast<int>(extruder_temp->get<double>());
                     }
-                    if (body.contains("settings_bed_temp")) {
+                    if (const json* bed_temp = json_util::find_member(body, "settings_bed_temp")) {
                         f.bed_temp_min = f.bed_temp_max =
-                            body["settings_bed_temp"].is_null()
-                                ? 0
-                                : static_cast<int>(body["settings_bed_temp"].get<double>());
+                            bed_temp->is_null() ? 0 : static_cast<int>(bed_temp->get<double>());
                     }
                     result = with_extra(filament_json(f), f.id);
                 }

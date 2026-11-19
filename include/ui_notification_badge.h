@@ -14,12 +14,12 @@ extern "C" {
  * Creates a circular badge with auto-contrast text color.
  *
  * Attributes:
- * - variant: Badge color (info/warning/error) - default: info
  * - text: Badge text content - default: "0"
  * - bind_text: Subject to bind text to
  *
- * The badge automatically adjusts text color based on background
- * luminance for optimal readability.
+ * The background colour comes from styles bound in XML (badge_info,
+ * badge_warning, badge_error via bind_style); the badge adjusts its text
+ * colour to that background's luminance for readability.
  */
 void ui_notification_badge_init(void);
 

@@ -5,6 +5,7 @@
 #include "../test_helpers/measured_grids.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_int_subject.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "ams_state.h"
 #include "core/data_root_resolver.h"
 #include "core/update_queue.h"
@@ -17,6 +18,8 @@
 #include "theme_manager.h"
 
 extern "C" void lv_xml_component_init(void);
+
+#include "core/subject.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -347,9 +350,8 @@ class BreakpointGuard {
     explicit BreakpointGuard(UiBreakpoint bp) {
         subj_ = theme_manager_get_breakpoint_subject();
         if (subj_) {
-            if (subj_->type != LV_SUBJECT_TYPE_INT) {
-                // Zero-initialized subject in test env — init it properly
-                lv_subject_init_int(subj_, 0);
+            if (auto* owner = helix::Subject::owner_of(subj_); owner && !owner->is_live()) {
+                owner->init_int(0);
             }
             original_ = lv_subject_get_int(subj_);
             lv_subject_set_int(subj_, to_int(bp));
@@ -440,13 +442,7 @@ TEST_CASE_METHOD(HelixTestFixture, "default_layout: reset_all clears leaked ams_
                  "[default_layout][regression]") {
     // Mimic an AMS test leaving the singleton's gate subject >0. If AmsState
     // already registered the real subject this finds it; otherwise stand one in.
-    lv_subject_t* ams = lv_xml_get_subject(nullptr, "ams_slot_count");
-    static lv_subject_t stand_in;
-    if (!ams) {
-        lv_subject_init_int(&stand_in, 0);
-        lv_xml_register_subject(nullptr, "ams_slot_count", &stand_in);
-        ams = lv_xml_get_subject(nullptr, "ams_slot_count");
-    }
+    lv_subject_t* ams = helix::test::xml_stand_in("ams_slot_count", 0);
     REQUIRE(ams != nullptr);
     lv_subject_set_int(ams, 4); // 4 slots "discovered"
     REQUIRE(lv_subject_get_int(ams) == 4);
@@ -463,8 +459,8 @@ TEST_CASE_METHOD(HelixTestFixture, "default_layout: reset_all clears leaked ams_
 // A 480x800 portrait panel has a cramped axis of 480, the same MEDIUM
 // breakpoint as an 800x480 landscape one, so a table keyed by breakpoint alone
 // would hand it anchors authored for a landscape grid. Anchor tables are keyed
-// by layout variant in the same most-specific-first order
-// LayoutManager::variant_chain() uses for ui_xml/ overrides.
+// by layout variant in LayoutManager::variant_chain()'s most-specific-first
+// order.
 
 namespace {
 

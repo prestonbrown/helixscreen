@@ -3,6 +3,7 @@
 // VENDOR_OK: DragonBreath-firmware knowledge lives here and nowhere else.
 // Status schema verified live against the U1 rig 2026-08-19 (issue #1290).
 #include "chamber_heater_backend.h"
+#include "json_utils.h"
 
 #include <spdlog/spdlog.h>
 
@@ -183,31 +184,24 @@ class DragonbreathBackend : public ChamberHeaterBackend {
         ChamberHeaterDiagnostics d;
         // Key present -> engaged; null or a wrong type coerces to the type's
         // unknown value. Key absent -> nullopt: the frame made no report.
-        if (status.contains("fault")) {
-            d.fault = status["fault"].is_boolean() ? status["fault"].get<bool>() : false;
+        if (const auto* v = json_util::find_member(status, "fault")) {
+            d.fault = json_util::read_scalar<bool>(*v).value_or(false);
         }
-        if (status.contains("inhibited")) {
-            d.inhibited =
-                status["inhibited"].is_boolean() ? status["inhibited"].get<bool>() : false;
+        if (const auto* v = json_util::find_member(status, "inhibited")) {
+            d.inhibited = json_util::read_scalar<bool>(*v).value_or(false);
         }
-        if (status.contains("fault_reason")) {
-            d.fault_reason = status["fault_reason"].is_string()
-                                 ? status["fault_reason"].get<std::string>()
-                                 : std::string();
+        if (const auto* v = json_util::find_member(status, "fault_reason")) {
+            d.fault_reason = json_util::read_scalar<std::string>(*v).value_or(std::string());
             d.fault_reason_kind = classify_fault_reason(*d.fault_reason);
         }
-        if (status.contains("ptc_temp")) {
-            d.element_temp_c =
-                status["ptc_temp"].is_number() ? status["ptc_temp"].get<double>() : NAN;
+        if (const auto* v = json_util::find_member(status, "ptc_temp")) {
+            d.element_temp_c = json_util::read_scalar<double>(*v).value_or(NAN);
         }
-        if (status.contains("fan_percent")) {
-            d.filter_fan_percent =
-                status["fan_percent"].is_number() ? status["fan_percent"].get<int>() : -1;
+        if (const auto* v = json_util::find_member(status, "fan_percent")) {
+            d.filter_fan_percent = json_util::read_scalar<int>(*v).value_or(-1);
         }
-        if (status.contains("fan_reason")) {
-            d.filter_fan_reason = status["fan_reason"].is_string()
-                                      ? status["fan_reason"].get<std::string>()
-                                      : std::string();
+        if (const auto* v = json_util::find_member(status, "fan_reason")) {
+            d.filter_fan_reason = json_util::read_scalar<std::string>(*v).value_or(std::string());
             d.filter_fan_driver = classify_filter_fan_driver(*d.filter_fan_reason);
         }
         // The appliance is a mains-powered radio device: it can vanish while
@@ -216,68 +210,57 @@ class DragonbreathBackend : public ChamberHeaterBackend {
         // A value we cannot read is not evidence the device is unreachable, so
         // a malformed slot engages as connected: every coercion here fails
         // toward not raising an alarm, as the fault slot does.
-        if (status.contains("connected")) {
-            d.device_connected =
-                status["connected"].is_boolean() ? status["connected"].get<bool>() : true;
+        if (const auto* v = json_util::find_member(status, "connected")) {
+            d.device_connected = json_util::read_scalar<bool>(*v).value_or(true);
         }
         // Transport-level complaint from the glue. Logs only; the UI speaks
         // through chamber_heater_offline.
-        if (status.contains("protocol_error")) {
-            d.link_error = status["protocol_error"].is_string()
-                               ? status["protocol_error"].get<std::string>()
-                               : std::string();
+        const auto* protocol_error = json_util::find_member(status, "protocol_error");
+        if (protocol_error) {
+            d.link_error =
+                json_util::read_scalar<std::string>(*protocol_error).value_or(std::string());
         }
         // The heater's answer to our last target. The glue holds a rejection
         // until the next command intent and clears it to "". The code is the
         // machine-readable reason; a glue too old to send one reports only a
         // free-text protocol_error, which stays a link complaint, except that
         // its clearing to "" is still a report that nothing is outstanding.
-        if (status.contains("protocol_error_code")) {
-            const auto& code = status["protocol_error_code"];
-            d.rejection_code = code.is_string() ? code.get<std::string>() : std::string();
+        if (const auto* code = json_util::find_member(status, "protocol_error_code")) {
+            d.rejection_code = json_util::read_scalar<std::string>(*code).value_or(std::string());
             const ClassifiedRejection c = classify_rejection(*d.rejection_code);
             d.rejection = c.kind;
             d.refusal_cause = c.cause;
-        } else if (status.contains("protocol_error") && d.link_error && d.link_error->empty()) {
+        } else if (protocol_error && d.link_error && d.link_error->empty()) {
             d.rejection = CommandRejection::None;
             d.refusal_cause = RefusalCause::Unspecified;
         }
-        if (status.contains("protocol_error_seq")) {
-            const auto& seq = status["protocol_error_seq"];
-            d.rejection_seq = seq.is_number_integer() ? seq.get<int>() : 0;
+        if (const auto* seq = json_util::find_member(status, "protocol_error_seq")) {
+            d.rejection_seq = json_util::read_integer(*seq).value_or(0);
         }
-        if (status.contains("protocol_error_target")) {
-            const auto& t = status["protocol_error_target"];
-            d.rejection_target_c = t.is_number() ? t.get<double>() : NAN;
+        if (const auto* t = json_util::find_member(status, "protocol_error_target")) {
+            d.rejection_target_c = json_util::read_scalar<double>(*t).value_or(NAN);
         }
         // The glue's M191 wait: set when it starts, following a newer target,
         // cleared on every exit.
-        if (status.contains("wait_active")) {
-            d.wait_active =
-                status["wait_active"].is_boolean() ? status["wait_active"].get<bool>() : false;
+        if (const auto* v = json_util::find_member(status, "wait_active")) {
+            d.wait_active = json_util::read_scalar<bool>(*v).value_or(false);
         }
-        if (status.contains("wait_target")) {
-            d.wait_target_c =
-                status["wait_target"].is_number() ? status["wait_target"].get<double>() : NAN;
+        if (const auto* v = json_util::find_member(status, "wait_target")) {
+            d.wait_target_c = json_util::read_scalar<double>(*v).value_or(NAN);
         }
         // Externally driven: heater active, but neither klipper source nor our
         // lease. Computed from three inputs, so it is an answer only when the
         // frame carries all of them — a partial trio is not a confident false.
         // Fields may arrive as null (value() throws on null, not just on missing).
-        if (status.contains("mode") && status.contains("source") &&
-            status.contains("lease_owned")) {
-            std::string mode;
-            if (status["mode"].is_string()) {
-                mode = status["mode"].get<std::string>();
-            }
-            std::string source;
-            if (status["source"].is_string()) {
-                source = status["source"].get<std::string>();
-            }
-            bool lease_owned = false;
-            if (status["lease_owned"].is_boolean()) {
-                lease_owned = status["lease_owned"].get<bool>();
-            }
+        const auto* mode_value = json_util::find_member(status, "mode");
+        const auto* source_value = json_util::find_member(status, "source");
+        const auto* lease_value = json_util::find_member(status, "lease_owned");
+        if (mode_value && source_value && lease_value) {
+            const std::string mode =
+                json_util::read_scalar<std::string>(*mode_value).value_or(std::string());
+            const std::string source =
+                json_util::read_scalar<std::string>(*source_value).value_or(std::string());
+            const bool lease_owned = json_util::read_scalar<bool>(*lease_value).value_or(false);
             bool heating = mode == "power_on";
             bool ours = lease_owned || source == "klipper";
             d.externally_controlled = heating && !ours;

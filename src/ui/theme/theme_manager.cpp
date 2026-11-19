@@ -5,10 +5,11 @@
 
 #include "ui_error_reporting.h"
 #include "ui_gradient_canvas.h"
-#include "ui_observer_guard.h"
 
 #include "border_radius_sizes.h"
 #include "config.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix_psram_attr.h"
 #include "layout_manager.h"
@@ -72,25 +73,16 @@ ThemeSubjects& subjects() {
 }
 
 void ThemeSubjects::deinit() {
-    auto drop = [](lv_subject_t& subject, bool& ready) {
-        if (ready) {
-            lv_subject_deinit(&subject);
-            ready = false;
-        }
-    };
-    if (changed_ready) {
+    if (changed.is_live()) {
         generation = 0;
     }
-    drop(changed, changed_ready);
-    drop(breakpoint, breakpoint_ready);
-    drop(breakpoint_v, breakpoint_v_ready);
-    drop(is_portrait, is_portrait_ready);
-    drop(is_ultrawide, is_ultrawide_ready);
-    if (swatch_ready) {
-        for (auto& subject : swatch_desc) {
-            lv_subject_deinit(&subject);
-        }
-        swatch_ready = false;
+    changed.reset();
+    breakpoint.reset();
+    breakpoint_v.reset();
+    is_portrait.reset();
+    is_ultrawide.reset();
+    for (auto& subject : swatch_desc) {
+        subject.reset();
     }
 }
 
@@ -154,18 +146,75 @@ static helix::ThemeData theme_manager_load_active_theme() {
 /// not pass through theme_manager_deinit() just moves its value. The subject
 /// outlives widget teardown, so observer guards on it are exempt; a non-null
 /// `xml_name` makes it bindable from XML.
-static void publish_int_subject(lv_subject_t& subject, bool& ready, int32_t value,
-                                const char* xml_name) {
-    if (!ready) {
-        lv_subject_init_int(&subject, value);
-        ready = true;
-    } else {
-        lv_subject_set_int(&subject, value);
-    }
+static void publish_int_subject(helix::Subject& subject, int32_t value, const char* xml_name) {
+    subject.publish_int(value);
     ObserverGuard::mark_subject_teardown_exempt(&subject);
     if (xml_name) {
         lv_xml_register_subject(nullptr, xml_name, &subject);
     }
+}
+
+/// The theme's default text font: font_body at the display's breakpoint, never null.
+static const lv_font_t* resolve_base_font(lv_display_t* display) {
+    // Read responsive font based on current breakpoint
+    // NOTE: We read the variant directly because base constants are removed to enable
+    // responsive overrides (LVGL ignores lv_xml_register_const for existing constants)
+    int32_t resp_res = responsive_dimension(display);
+    const char* size_suffix = theme_manager_get_breakpoint_suffix(resp_res);
+
+    char font_variant_name[64];
+    snprintf(font_variant_name, sizeof(font_variant_name), "font_body%s", size_suffix);
+    const char* font_body_name = lv_xml_get_const(nullptr, font_variant_name);
+
+    // An absent tier falls back the way responsive spacing/font tokens do.
+    if (!font_body_name && strcmp(size_suffix, "_xxlarge") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_xlarge");
+        if (!font_body_name)
+            font_body_name = lv_xml_get_const(nullptr, "font_body_large");
+    } else if (!font_body_name && strcmp(size_suffix, "_xlarge") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_large");
+    } else if (!font_body_name && strcmp(size_suffix, "_micro") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_tiny");
+        if (!font_body_name)
+            font_body_name = lv_xml_get_const(nullptr, "font_body_small");
+    } else if (!font_body_name && strcmp(size_suffix, "_tiny") == 0) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body_small");
+    }
+
+    // The reads above resolve the suffixed variant const (e.g. font_body_medium),
+    // which is supplied by globals.xml's component consts. On the firmware
+    // release path that nullptr-scope read can miss it, but the responsive font
+    // registrar (theme_manager_register_responsive_fonts, run before this) always
+    // registers the breakpoint-selected BASE name "font_body" into this same
+    // scope — so fall back to it. Desktop resolves the variant directly and
+    // never reaches this line.
+    if (!font_body_name) {
+        font_body_name = lv_xml_get_const(nullptr, "font_body");
+    }
+
+    const lv_font_t* base_font =
+        font_body_name ? lv_xml_get_font(nullptr, font_body_name) : nullptr;
+    if (!base_font) {
+        // Resolve the fallback through the font REGISTRY (returns NULL if the
+        // face isn't linked/registered — e.g. a pruned firmware tier has no
+        // "noto_sans_16"), NOT via the &noto_sans_16 symbol: on such builds that
+        // symbol can resolve to a NULL/weak address and theme_init_lvgl would
+        // dereference it (Guru Meditation, PC=0). If even that misses, use
+        // LVGL's built-in default, which is always valid. NEVER hand a NULL font
+        // to LVGL.
+        const lv_font_t* fallback = lv_xml_get_font(nullptr, "noto_sans_16");
+        if (fallback) {
+            spdlog::warn("[Theme] Failed to get font '{}', using noto_sans_16", font_variant_name);
+            base_font = fallback;
+        } else {
+            spdlog::error("[Theme] Failed to get font '{}' and fallback noto_sans_16 is not "
+                          "registered; using lv_font_get_default()",
+                          font_variant_name);
+            base_font = lv_font_get_default();
+        }
+    }
+
+    return base_font;
 }
 
 void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
@@ -180,7 +229,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     const int32_t v_res = display ? lv_display_get_vertical_resolution(display) : 0;
     if (runtime().fully_initialized && runtime().display == display &&
         use_dark_mode_param == runtime().dark && h_res == runtime().init_h_res &&
-        v_res == runtime().init_v_res && subjects().changed_ready) {
+        v_res == runtime().init_v_res && subjects().changed.is_live()) {
         // The registration pass can stay skipped, but two pieces of mutable
         // state still have to come back in line, because this call is the
         // boundary that restores them.
@@ -210,8 +259,8 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     runtime().full_init_count++;
 
     // Initialize theme change notification subject
-    if (!subjects().changed_ready) {
-        publish_int_subject(subjects().changed, subjects().changed_ready, 0, nullptr);
+    if (!subjects().changed.is_live()) {
+        publish_int_subject(subjects().changed, 0, nullptr);
     }
 
     // Override runtime theme constants based on light/dark mode preference
@@ -253,8 +302,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         int32_t resp_res = responsive_dimension(display);
         UiBreakpoint bp = breakpoint_for(resp_res);
 
-        publish_int_subject(subjects().breakpoint, subjects().breakpoint_ready, to_int(bp),
-                            "ui_breakpoint");
+        publish_int_subject(subjects().breakpoint, to_int(bp), "ui_breakpoint");
         spdlog::debug("[Theme] Registered ui_breakpoint subject: {} (min_dim={})", to_int(bp),
                       resp_res);
     }
@@ -266,8 +314,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         int32_t vert_res = responsive_vertical_dimension(display);
         UiBreakpoint vbp = breakpoint_for(vert_res);
 
-        publish_int_subject(subjects().breakpoint_v, subjects().breakpoint_v_ready, to_int(vbp),
-                            "ui_breakpoint_v");
+        publish_int_subject(subjects().breakpoint_v, to_int(vbp), "ui_breakpoint_v");
         spdlog::debug("[Theme] Registered ui_breakpoint_v subject: {} (vert_dim={})", to_int(vbp),
                       vert_res);
     }
@@ -285,10 +332,8 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
         int is_portrait = is_portrait_layout(type) ? 1 : 0;
         int is_ultrawide = type == LayoutType::ULTRAWIDE ? 1 : 0;
 
-        publish_int_subject(subjects().is_portrait, subjects().is_portrait_ready, is_portrait,
-                            "ui_is_portrait");
-        publish_int_subject(subjects().is_ultrawide, subjects().is_ultrawide_ready, is_ultrawide,
-                            "ui_is_ultrawide");
+        publish_int_subject(subjects().is_portrait, is_portrait, "ui_is_portrait");
+        publish_int_subject(subjects().is_ultrawide, is_ultrawide, "ui_is_ultrawide");
         spdlog::debug("[Theme] Registered ui_is_portrait/ui_is_ultrawide subjects: {}/{} ({}x{})",
                       is_portrait, is_ultrawide, hor_res, ver_res);
     }
@@ -306,63 +351,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
 
     spdlog::trace("[Theme] Runtime constants set for {} mode", runtime().dark ? "dark" : "light");
 
-    // Read responsive font based on current breakpoint
-    // NOTE: We read the variant directly because base constants are removed to enable
-    // responsive overrides (LVGL ignores lv_xml_register_const for existing constants)
-    int32_t resp_res = responsive_dimension(display);
-    const char* size_suffix = theme_manager_get_breakpoint_suffix(resp_res);
-
-    char font_variant_name[64];
-    snprintf(font_variant_name, sizeof(font_variant_name), "font_body%s", size_suffix);
-    const char* font_body_name = lv_xml_get_const(nullptr, font_variant_name);
-
-    // An absent tier falls back the way responsive spacing/font tokens do.
-    if (!font_body_name && strcmp(size_suffix, "_xxlarge") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_xlarge");
-        if (!font_body_name)
-            font_body_name = lv_xml_get_const(nullptr, "font_body_large");
-    } else if (!font_body_name && strcmp(size_suffix, "_xlarge") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_large");
-    } else if (!font_body_name && strcmp(size_suffix, "_micro") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_tiny");
-        if (!font_body_name)
-            font_body_name = lv_xml_get_const(nullptr, "font_body_small");
-    } else if (!font_body_name && strcmp(size_suffix, "_tiny") == 0) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body_small");
-    }
-
-    // The reads above resolve the suffixed variant const (e.g. font_body_medium),
-    // which is supplied by globals.xml's component consts. On the firmware
-    // release path that nullptr-scope read can miss it, but the responsive font
-    // registrar (theme_manager_register_responsive_fonts, run just above) always
-    // registers the breakpoint-selected BASE name "font_body" into this same
-    // scope — so fall back to it. Desktop resolves the variant directly and
-    // never reaches this line.
-    if (!font_body_name) {
-        font_body_name = lv_xml_get_const(nullptr, "font_body");
-    }
-
-    const lv_font_t* base_font =
-        font_body_name ? lv_xml_get_font(nullptr, font_body_name) : nullptr;
-    if (!base_font) {
-        // Resolve the fallback through the font REGISTRY (returns NULL if the
-        // face isn't linked/registered — e.g. a pruned firmware tier has no
-        // "noto_sans_16"), NOT via the &noto_sans_16 symbol: on such builds that
-        // symbol can resolve to a NULL/weak address and theme_init_lvgl would
-        // dereference it (Guru Meditation, PC=0). If even that misses, use
-        // LVGL's built-in default, which is always valid. NEVER hand a NULL font
-        // to LVGL.
-        const lv_font_t* fallback = lv_xml_get_font(nullptr, "noto_sans_16");
-        if (fallback) {
-            spdlog::warn("[Theme] Failed to get font '{}', using noto_sans_16", font_variant_name);
-            base_font = fallback;
-        } else {
-            spdlog::error("[Theme] Failed to get font '{}' and fallback noto_sans_16 is not "
-                          "registered; using lv_font_get_default()",
-                          font_variant_name);
-            base_font = lv_font_get_default();
-        }
-    }
+    const lv_font_t* base_font = resolve_base_font(display);
 
     // Build palette from current mode
     const helix::ModePalette& mode_palette = get_current_mode_palette();
@@ -395,14 +384,20 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     runtime().fully_initialized = true;
 }
 
+void theme_manager_refresh_base_font(lv_display_t* display) { // NAMESPACE_OK: theme_manager C API
+    if (!runtime().current_theme)
+        return;
+    helix::theme_detail::theme_set_base_font(display, resolve_base_font(display));
+}
+
 // NAMESPACE_OK: joins the global theme_manager_init/deinit family
 int theme_manager_full_init_count() {
     return runtime().full_init_count;
 }
 
 void theme_manager_deinit() {
-    // Deinitialize subjects BEFORE lv_deinit() to prevent crash in lv_observer_remove().
-    // lv_subject_deinit() removes all observers from each subject AND removes the
+    // Deinitialize subjects BEFORE lv_deinit() to prevent crash in lv_observer_delete().
+    // reset() removes all observers from each subject AND removes the
     // unsubscribe_on_delete_cb from widgets. Without this, lv_deinit() -> obj_delete_core()
     // fires stale callbacks that try to remove from corrupted observer linked lists.
     subjects().deinit();
@@ -545,7 +540,7 @@ lv_subject_t* theme_manager_get_breakpoint_subject() {
 }
 
 void theme_manager_notify_change() {
-    if (!subjects().changed_ready)
+    if (!subjects().changed.is_live())
         return;
     subjects().generation++;
     lv_subject_set_int(&subjects().changed, subjects().generation);

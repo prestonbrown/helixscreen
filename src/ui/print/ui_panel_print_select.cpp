@@ -17,7 +17,6 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_fonts.h"
-#include "ui_format_utils.h"
 #include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
@@ -26,7 +25,6 @@
 #include "ui_print_select_file_sorter.h"
 #include "ui_print_select_history.h"
 #include "ui_print_select_path_navigator.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -42,8 +40,10 @@
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
+#include "filament_chip_model.h"
 #include "filament_mapper.h"
 #include "first_run_tour.h"
 #include "format_utils.h"
@@ -68,6 +68,7 @@
 #include "queued_job_start.h"
 #include "runtime_config.h"
 #include "storage_report_service.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "try_reserve.h"
@@ -92,12 +93,12 @@ namespace hfs = helix::fs;
 namespace tio = helix::text_io;
 
 using namespace helix;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_layer_count;
+using helix::display_format::format_layer_height;
+using helix::display_format::format_print_height;
+using helix::display_format::format_print_time;
 using helix::gcode::strip_gcode_extension;
-using helix::ui::format_filament_weight;
-using helix::ui::format_layer_count;
-using helix::ui::format_layer_height;
-using helix::ui::format_print_height;
-using helix::ui::format_print_time;
 
 // ============================================================================
 // Global Instance
@@ -260,7 +261,6 @@ PrintSelectPanel::~PrintSelectPanel() {
     card_view_container_ = nullptr;
     list_view_container_ = nullptr;
     list_rows_container_ = nullptr;
-    empty_state_container_ = nullptr;
     view_toggle_btn_ = nullptr;
     view_toggle_icon_ = nullptr;
     print_status_panel_widget_ = nullptr;
@@ -328,6 +328,9 @@ void PrintSelectPanel::init_subjects() {
 
     // Initialize view mode subject (0 = CARD, 1 = LIST) - XML bindings control container visibility
     UI_MANAGED_SUBJECT_INT(view_mode_subject_, 0, "print_select_view_mode", subjects_);
+    UI_MANAGED_SUBJECT_INT(files_empty_subject_, 0, "print_select_files_empty", subjects_);
+    UI_MANAGED_SUBJECT_INT(context_banner_shown_subject_, 0, "print_select_context_banner_shown",
+                           subjects_);
 
     // Initialize can print subject (1 = can print, 0 = print in progress)
     // XML binding disables print button when value is 0
@@ -437,12 +440,11 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     card_view_container_ = helix::ui::find_required(panel_, "card_view_container", get_name());
     list_view_container_ = helix::ui::find_required(panel_, "list_view_container", get_name());
     list_rows_container_ = helix::ui::find_required(panel_, "list_rows_container", get_name());
-    empty_state_container_ = helix::ui::find_required(panel_, "empty_state_container", get_name());
     view_toggle_btn_ = helix::ui::find_required(panel_, "view_toggle_btn", get_name());
     view_toggle_icon_ = lv_obj_find_by_name(panel_, "view_toggle_btn_icon");
 
     if (!card_view_container_ || !list_view_container_ || !list_rows_container_ ||
-        !empty_state_container_ || !view_toggle_btn_ || !view_toggle_icon_) {
+        !view_toggle_btn_ || !view_toggle_icon_) {
         spdlog::error("[{}] Failed to find required widgets", get_name());
         return;
     }
@@ -555,6 +557,7 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
                           panel->get_name(), c->files.size());
 
             panel->refresh_guard_.release();
+            helix::format_unfetched_print_times(c->files);
 
             // Snapshot previous file list (filename + modified time, in sorted
             // order) before replacing, so repopulation is skipped when nothing
@@ -754,6 +757,14 @@ void PrintSelectPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             if (resize_self) {
                 resize_self->handle_resize();
             }
+        });
+        // A sleeping screen shows no prompt, so a prompt waiting for the screen stops
+        // looking until the wake, which looks once at once.
+        dm->register_sleep_callback([this, token = plugin_prompt_lifetime_.token()](bool) {
+            if (token.expired() || plugin_prompt_wait_ != helix::PluginTurnStep::WaitForScreen) {
+                return;
+            }
+            maybe_prompt_plugin_install();
         });
     }
 
@@ -1001,23 +1012,13 @@ void PrintSelectPanel::set_sort_recent() {
     populate_current_view();
 
     // Show "Recently Printed" context banner
-    if (panel_) {
-        auto* banner = helix::ui::find_required(panel_, "context_banner", get_name());
-        if (banner) {
-            lv_obj_remove_flag(banner, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&context_banner_shown_subject_, 1);
 
     spdlog::info("[{}] Sort set to recent (MODIFIED descending)", get_name());
 }
 
 void PrintSelectPanel::hide_context_banner() {
-    if (panel_) {
-        auto* banner = helix::ui::find_required(panel_, "context_banner", get_name());
-        if (banner && !lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN)) {
-            lv_obj_add_flag(banner, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&context_banner_shown_subject_, 0);
 }
 
 void PrintSelectPanel::refresh_files(bool force) {
@@ -2142,12 +2143,12 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
                                          const char* layer_count, const char* print_height,
                                          const char* layer_height, const char* filament_type) {
     create_detail_view();
-    lv_subject_copy_string(&selected_filename_subject_, filename);
+    lv_subject_set_string(&selected_filename_subject_, filename);
     update_plate_stepper();
 
     // Display filename strips .gcode extension for cleaner UI
     std::string display_name = strip_gcode_extension(filename);
-    lv_subject_copy_string(&selected_display_filename_subject_, display_name.c_str());
+    lv_subject_set_string(&selected_display_filename_subject_, display_name.c_str());
 
     // Card thumbnail uses POINTER subject - copy to buffer then update pointer
     // This is the pre-scaled .bin for fast card rendering
@@ -2183,12 +2184,12 @@ void PrintSelectPanel::set_selected_file(const char* filename, const char* thumb
     // shows the same thing as one that was already up.
     lv_subject_set_int(&selected_has_thumbnail_subject_, has_image ? 1 : 0);
 
-    lv_subject_copy_string(&selected_print_time_subject_, print_time);
-    lv_subject_copy_string(&selected_filament_weight_subject_, filament_weight);
-    lv_subject_copy_string(&selected_layer_count_subject_, layer_count);
-    lv_subject_copy_string(&selected_print_height_subject_, print_height);
-    lv_subject_copy_string(&selected_layer_height_subject_, layer_height ? layer_height : "");
-    lv_subject_copy_string(&selected_filament_type_subject_, filament_type ? filament_type : "");
+    lv_subject_set_string(&selected_print_time_subject_, print_time);
+    lv_subject_set_string(&selected_filament_weight_subject_, filament_weight);
+    lv_subject_set_string(&selected_layer_count_subject_, layer_count);
+    lv_subject_set_string(&selected_print_height_subject_, print_height);
+    lv_subject_set_string(&selected_layer_height_subject_, layer_height ? layer_height : "");
+    lv_subject_set_string(&selected_filament_type_subject_, filament_type ? filament_type : "");
     apply_plate_stats_to_detail();
     // The open detail view knows which tools the print uses; its text wins.
     if (detail_view_ && detail_view_->is_visible()) {
@@ -2216,9 +2217,9 @@ void PrintSelectPanel::apply_plate_stats_to_detail() {
         format_print_time(card_total_minutes(static_cast<int>(meta.estimated_time / 60.0)));
     const std::string weight =
         format_filament_weight(static_cast<float>(meta.filament_weight_total));
-    lv_subject_copy_string(&selected_print_time_subject_, time.c_str());
-    lv_subject_copy_string(&selected_filament_weight_subject_, weight.c_str());
-    lv_subject_copy_string(&selected_filament_type_subject_, it->filament_type.c_str());
+    lv_subject_set_string(&selected_print_time_subject_, time.c_str());
+    lv_subject_set_string(&selected_filament_weight_subject_, weight.c_str());
+    lv_subject_set_string(&selected_filament_type_subject_, it->filament_type.c_str());
 }
 
 void PrintSelectPanel::fill_missing_from_archive(size_t i) {
@@ -2243,9 +2244,7 @@ void PrintSelectPanel::fill_missing_from_archive(size_t i) {
         filled = true;
     }
     if (f.filament_types.empty() && !meta.filament_type.empty()) {
-        for (std::string_view t : tio::lines(meta.filament_type, ';')) {
-            f.filament_types.emplace_back(t);
-        }
+        f.filament_types = helix::split_filament_types(meta.filament_type);
         f.filament_type = f.filament_types.front();
         filled = true;
     }
@@ -2393,8 +2392,8 @@ CardDimensions PrintSelectPanel::calculate_card_dimensions() {
     // The container's own content box already excludes the header, the context
     // banner and its padding, whichever of them is showing.
     lv_obj_update_layout(card_view_container_);
-    lv_coord_t container_width = lv_obj_get_content_width(card_view_container_);
-    lv_coord_t available_height = lv_obj_get_content_height(card_view_container_);
+    int32_t container_width = lv_obj_get_content_width(card_view_container_);
+    int32_t available_height = lv_obj_get_content_height(card_view_container_);
     sized_for_w_ = container_width;
     sized_for_h_ = available_height;
     spdlog::trace("[{}] Card container content height: {}px", get_name(), available_height);
@@ -2619,26 +2618,7 @@ void PrintSelectPanel::merge_history_into_file_list() {
 }
 
 void PrintSelectPanel::update_empty_state() {
-    if (!empty_state_container_)
-        return;
-
-    bool is_empty = file_list_.empty();
-
-    if (is_empty) {
-        lv_obj_remove_flag(empty_state_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(card_view_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(list_view_container_, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(empty_state_container_, LV_OBJ_FLAG_HIDDEN);
-
-        if (current_view_mode_ == PrintSelectViewMode::CARD) {
-            lv_obj_remove_flag(card_view_container_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(list_view_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(card_view_container_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(list_view_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    lv_subject_set_int(&files_empty_subject_, file_list_.empty() ? 1 : 0);
 }
 
 void PrintSelectPanel::update_print_button_state() {
@@ -2662,18 +2642,18 @@ void PrintSelectPanel::update_print_button_state() {
     const bool queue_busy = queue_mode && view.blocked_reason[0] != '\0';
 
     print_button_mode_ = view.mode;
-    lv_subject_copy_string(&button_label_subject_,
-                           queue_mode ? lv_tr("Add to Queue") : lv_tr("Print"));
+    lv_subject_set_string(&button_label_subject_,
+                          queue_mode ? lv_tr("Add to Queue") : lv_tr("Print"));
     // The queue operation's clock icon, the one the job queue surfaces use;
     // the printer icon stays for a direct start.
-    lv_subject_copy_string(&button_icon_subject_, queue_mode ? "progress_clock" : "print");
+    lv_subject_set_string(&button_icon_subject_, queue_mode ? "progress_clock" : "print");
     // Queue mode's own caption is contextual (in flight, or waiting for the
     // current print) rather than a block, so it is mapped here; the pure
     // function's reason only decides enabled/disabled for it.
-    lv_subject_copy_string(&blocked_reason_subject_, queue_busy ? lv_tr("Adding to queue...")
-                                                     : queue_mode
-                                                         ? lv_tr("Starts after the current print")
-                                                         : lv_tr(view.blocked_reason));
+    lv_subject_set_string(&blocked_reason_subject_, queue_busy ? lv_tr("Adding to queue...")
+                                                    : queue_mode
+                                                        ? lv_tr("Starts after the current print")
+                                                        : lv_tr(view.blocked_reason));
 
     const int new_value = enabled ? 1 : 0;
     // Only update if value changed (avoid unnecessary subject notifications)
@@ -2703,7 +2683,7 @@ void PrintSelectPanel::update_sort_indicators() {
             return;
 
         if (show) {
-            lv_obj_remove_flag(icon, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(icon, false);
 
             if (!animations_enabled) {
                 // Instant show
@@ -2729,12 +2709,12 @@ void PrintSelectPanel::update_sort_indicators() {
             // Hide icon
             if (!animations_enabled) {
                 // Instant hide
-                lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(icon, true);
                 return;
             }
 
             // Hide with fade out (hide flag set in completion callback)
-            bool is_visible = !lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN);
+            bool is_visible = !lv_obj_is_hidden(icon);
             if (is_visible) {
                 lv_anim_t fade_out;
                 lv_anim_init(&fade_out);
@@ -2747,12 +2727,12 @@ void PrintSelectPanel::update_sort_indicators() {
                                          LV_PART_MAIN);
                 });
                 lv_anim_set_completed_cb(&fade_out, [](lv_anim_t* anim) {
-                    lv_obj_add_flag(static_cast<lv_obj_t*>(anim->var), LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_set_hidden(static_cast<lv_obj_t*>(anim->var), true);
                 });
                 lv_anim_start(&fade_out);
             } else {
                 // Already hidden, just ensure it stays hidden
-                lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(icon, true);
             }
         }
     };
@@ -3207,8 +3187,8 @@ void PrintSelectPanel::copy_usb_file_to_printer(
                               return;
                           }
                           end_usb_copy();
-                          helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
-                                                     req.filename, err);
+                          helix::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"),
+                                                 req.filename, err);
                       });
         });
 }
@@ -3234,7 +3214,7 @@ void PrintSelectPanel::upload_usb_copy(UsbCopyRequest req,
             }
             if (space == storage::UploadSpace::TooFull) {
                 end_usb_copy();
-                helix::ui::notify_error_tr(storage::kNoUploadSpaceMessage);
+                helix::notify_error_tr(storage::kNoUploadSpaceMessage);
                 return;
             }
             start_usb_upload(std::move(req), dest);
@@ -3259,8 +3239,8 @@ void PrintSelectPanel::start_usb_upload(UsbCopyRequest req, const std::string& d
             tok.defer("PrintSelectPanel::usb_copy_failed", [this, generation, filename, err]() {
                 if (usb_copy_current(generation)) {
                     end_usb_copy();
-                    helix::ui::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
-                                               err);
+                    helix::notify_error_tr(TR_NOOP("Could not copy {} from USB: {}"), filename,
+                                           err);
                 }
             });
         },
@@ -3577,6 +3557,10 @@ void PrintSelectPanel::maybe_prompt_plugin_install() {
         return;
     case PluginTurnStep::WaitForScreen:
         plugin_prompt_wait_ = step;
+        if (DisplayManager* dm = DisplayManager::instance(); dm && dm->is_display_sleeping()) {
+            plugin_prompt_timer_.reset();
+            return;
+        }
         if (!plugin_prompt_timer_) {
             plugin_prompt_timer_.reset(lv_timer_create(
                 [](lv_timer_t* timer) {

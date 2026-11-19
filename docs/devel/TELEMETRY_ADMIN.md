@@ -19,8 +19,8 @@ Administration guide for HelixScreen's telemetry pipeline and analytics dashboar
 
 - **R2**: Permanent raw event archive in EU jurisdiction
 - **Analytics Engine**: 90-day queryable store for dashboard queries
-- **Worker**: `telemetry.helixscreen.org` — handles ingest + admin API + dashboard API
-- **Dashboard**: `analytics.helixscreen.org` — Vue SPA on Cloudflare Pages
+- **Worker**: `telemetry.helixscreen.org` - handles ingest + admin API + dashboard API
+- **Dashboard**: `analytics.helixscreen.org` - Vue SPA on Cloudflare Pages
 
 ## Fleet size: two numbers that do not agree
 
@@ -161,7 +161,7 @@ Seven tabs, each built around one question. Health is the home tab.
 | **Releases** (`/releases`) | Is the newest release better than the one before it? | Scorecard per version (active devices, crash-free devices, crash rate, update failure rate with its failed and attempted counts, print success, p95 frame time, p95 RSS), the adoption curve, devices stuck on old versions. Opens on the newest eight versions with traffic in the range; the picker adds others, its older lines and betas collapsed to one chip as on the charts (a chip holding a shown version says how many) |
 | **Stability** (`/stability`) | What crashes and errors, and where? | Crash clusters (signal, fault code, version, board), crash rate by version and platform, error codes by version, memory warnings by platform, connection stability, recent crashes, display anomalies |
 | **Performance** (`/performance`) | Is the UI fast enough on each platform? | Frame time p50 and p95 trend, drop rate by platform, p95 frame time and RSS per platform and version, jankiest panels per platform, RSS trend |
-| **Fleet** (`/fleet`) | Who runs it, on what? | Platforms, boards, printer models, kinematics, MCUs, AMS backends, host RAM, capabilities, CDN fleet, daily actives, weekly retention cohorts over 90 days |
+| **Fleet** (`/fleet`) | Who runs it, on what? | Platforms, boards, install sources and host mods, printer models, kinematics, MCUs, AMS backends, host RAM, capabilities, CDN fleet, daily actives, weekly retention cohorts over 90 days |
 | **Usage** (`/usage`) | What do people use and change? | Panels, overlays and widgets per device, settings changed from default, configured features, themes and locales |
 | **Prints** (`/prints`) | Do prints succeed, and with what? | Success rate trend, success by model, version and material set, multi-material share, slicer, thumbnails, print source |
 
@@ -208,7 +208,7 @@ Pure functions in `server/analytics-dashboard/src/utils/`, shared by every chart
   distinct materials, uppercased, sorted and joined with ` + `, so
   `PLA;PLA;PETG;PLA` is `PETG + PLA`. Two or more materials is multi-material.
   Every set is listed; one with fewer than 5 prints (`LOW_COUNT_PRINTS` in
-  `utils/materials.ts`) is drawn dimmed, bar and label.
+  `server/analytics-dashboard/src/utils/materials.ts`) is drawn dimmed, bar and label.
 - **Canonical models.** Names are lowercased, a trailing parenthesized variant
   removed, runs of space, `-` and `_` folded, then mapped through a small alias
   table. The label is the most common raw spelling.
@@ -228,19 +228,19 @@ queries](#delta-era-queries-and-the-waiting-state)).
 
 ## Analytics Engine schema table
 
-`server/telemetry-worker/src/schema.ts#POINT_KINDS` declares every Analytics Engine point kind (the
+`server/telemetry-worker/src/schema.ts#"export const POINT_KINDS"` declares every Analytics Engine point kind (the
 `index1` value) once: its blob and double fields, each with a stable name and a slot
 position. Two things read it, so they cannot disagree about where a field lives:
 
-- The writer (`server/telemetry-worker/src/analytics.ts#mapEventToDataPoints`) fills
+- The writer (`server/telemetry-worker/src/analytics.ts#"export function mapEventToDataPoints"`) fills
   the blob and double arrays from the kind's columns.
-- Queries name columns with `server/telemetry-worker/src/schema.ts#col` (`col(kind, field)`), never a literal `blobN`.
+- Queries name columns with `server/telemetry-worker/src/schema.ts#"export function col"` (`col(kind, field)`), never a literal `blobN`.
 
-`server/telemetry-worker/src/schema.ts#EVENT_FANOUT` lists the point kinds each event type writes (`panel_usage` fans out to
+`server/telemetry-worker/src/schema.ts#"export const EVENT_FANOUT"` lists the point kinds each event type writes (`panel_usage` fans out to
 `panel_usage`, `widget_interaction` and `overlay_visit`; `screensaver_usage` to one
 `screensaver_usage` point per saver and one `screensaver_level` point per saver and settled
 level; `settings_snapshot` to `settings_snapshot` and `widget_placement`; `settings_changes`
-to one `settings_change` point per change). `server/telemetry-worker/src/schema.ts#R2_ONLY` lists fields kept out of Analytics Engine on purpose.
+to one `settings_change` point per change). `server/telemetry-worker/src/schema.ts#"export const R2_ONLY"` lists fields kept out of Analytics Engine on purpose.
 
 **Slots are append-only.** Analytics Engine rows are read by position for 90 days, so a
 field never changes its `blobN` / `doubleN`. A new field takes the next unused slot of its
@@ -278,7 +278,7 @@ slots 13 and up, so rows written before those fields were added read empty there
 ## Filters
 
 Dashboard requests take `platform`, `version`, `model` and `board` (comma-separated
-values). `server/telemetry-worker/src/queries.ts#filterFor` resolves
+values). `server/telemetry-worker/src/queries.ts#"export function filterFor("` resolves
 each one to that kind's own column through the schema table:
 
 | Filter | Field read | Notes |
@@ -291,7 +291,7 @@ each one to that kind's own column through the schema table:
 A kind that lacks the filtered field is excluded (`AND 0`) rather than matched against
 whatever column shares that slot. A query over several kinds gets
 `((index1='a' AND blobX IN (...)) OR (index1='b' AND blobY IN (...)))` from
-`server/telemetry-worker/src/queries.ts#filterForKinds`, with excluded kinds dropped from the OR.
+`server/telemetry-worker/src/queries.ts#"export function filterForKinds"`, with excluded kinds dropped from the OR.
 
 When a filter excludes every kind an endpoint reads, the endpoint's `filter_not_applicable`
 names it and the view says "Not reported per printer model" (or platform, version,
@@ -307,10 +307,10 @@ characters outside letters, digits, space and `. - _ ( ) / +` are stripped.
 `print_outcome` rows carry no `printer_model`, and rows from current clients carry an empty
 `app_version`. Print success per model (Prints), per version (Prints, the Releases scorecard
 and the Health release windows) therefore joins through sessions in TypeScript:
-`server/telemetry-worker/src/queries.ts#releasePrintsSql` returns weighted outcomes per
-device and per the version the rows carry, `server/telemetry-worker/src/queries.ts#deviceSessionsSql`
+`server/telemetry-worker/src/queries.ts#"export function releasePrintsSql"` returns weighted outcomes per
+device and per the version the rows carry, `server/telemetry-worker/src/queries.ts#"export function deviceSessionsSql"`
 each device's latest session model and version before the window ends, read over all 90
-days, and `server/telemetry-worker/src/prints.ts#attributePrints` folds them. A session is
+days, and `server/telemetry-worker/src/prints.ts#"export function attributePrints"` folds them. A session is
 sent only on connect, so a device connected all week has none inside the window; it cannot
 change version without restarting, which sends one, so its latest session before the
 window's end names the version it ran. A row's own version wins; an empty one takes its
@@ -326,9 +326,9 @@ rows each stored row stands for. Every count and sum in `queries.ts` is weighted
 
 | Plain SQL | Used here |
 |-----------|-----------|
-| `count()` | `sum(_sample_interval)` (`server/telemetry-worker/src/queries.ts#wCount`) |
-| `sum(x)` | `sum(x * _sample_interval)` (`server/telemetry-worker/src/queries.ts#wSum`) |
-| `avg(x)` | `sum(x * _sample_interval) / sum(_sample_interval)` (`server/telemetry-worker/src/queries.ts#wAvg`) |
+| `count()` | `sum(_sample_interval)` (`server/telemetry-worker/src/queries.ts#"export function wCount("`) |
+| `sum(x)` | `sum(x * _sample_interval)` (`server/telemetry-worker/src/queries.ts#"export function wSum"`) |
+| `avg(x)` | `sum(x * _sample_interval) / sum(_sample_interval)` (`server/telemetry-worker/src/queries.ts#"export function wAvg"`) |
 
 `count(DISTINCT ...)` stays as it is: a device is one device however it was sampled.
 Delta queries weight by `delta_weight`, the `_sample_interval` of the deduplicated row.
@@ -377,7 +377,7 @@ carried over unclean exits. They are excluded from delta queries, not salvaged.
 
 ### Delta-era queries and the waiting state
 
-`server/telemetry-worker/src/queries.ts#deltaSource` is
+`server/telemetry-worker/src/queries.ts#"export function deltaSource"` is
 the one subquery every delta aggregate reads:
 
 1. Keep only rows with `schema_version >= 3`.
@@ -398,7 +398,7 @@ placeholder reads "Not reported per <filter>" instead.
 
 The client sends no `feature_adoption` event. Adoption is derived: a feature counts as adopted on
 a device when its overlay or widget has a count above 0 in the window, over
-`delta_era_devices` (`server/telemetry-worker/src/index.ts#deriveFeatureAdoption`, served at `/v1/dashboard/features`). Overlays are
+`delta_era_devices` (`server/telemetry-worker/src/index.ts#"export function deriveFeatureAdoption"`, served at `/v1/dashboard/features`). Overlays are
 identified by the overlay root's object name, falling back to the lifecycle name only when
 the root has none; widgets by their id. Flags with no overlay or widget to visit are
 fields on `settings_snapshot` (see below), reported beside the derived adoption. The `feature_adoption` point kind stays in the
@@ -522,7 +522,7 @@ The loop turns the Health data into three outputs: an email (a weekly report and
 
 | When (UTC) | What | Where |
 |------------|------|-------|
-| Daily 13:00 | Alert check: email the findings that carry an alert and were not alerted in the last `ALERT_REPEAT_DAYS` | Worker cron (`wrangler.toml` `[triggers]`, dispatched in `scheduled()` in `src/index.ts`) |
+| Daily 13:00 | Alert check: email the findings that carry an alert and were not alerted in the last `ALERT_REPEAT_DAYS` | Worker cron (`wrangler.toml` `[triggers]`, dispatched in `scheduled()` in `server/telemetry-worker/src/index.ts`) |
 | Mondays 13:00 | Weekly run, after the daily one: snapshot the ISO week that just closed, sync its issues, email the summary | Same cron |
 | Mondays 14:00 | Printer-database candidate issues | `.github/workflows/telemetry-printers.yml` |
 
@@ -542,7 +542,7 @@ Issue titles and bodies carry counts and a dashboard link, never device ids.
 
 ### Reports
 
-The weekly run stores its report as `reports/<YYYY-Www>.json` in the telemetry R2 bucket (`src/loop/report.ts`): the Health payload, the findings and the issue outcomes. A stored report is immutable. The dashboard serves them at `/reports` and `/reports/<week>`, backed by `GET /v1/dashboard/reports` and `GET /v1/dashboard/reports/<YYYY-Www>`. The email links to the report page.
+The weekly run stores its report as `reports/<YYYY-Www>.json` in the telemetry R2 bucket (`server/telemetry-worker/src/loop/report.ts`): the Health payload, the findings and the issue outcomes. A stored report is immutable. The dashboard serves them at `/reports` and `/reports/<week>`, backed by `GET /v1/dashboard/reports` and `GET /v1/dashboard/reports/<YYYY-Www>`. The email links to the report page.
 
 ### Loop state
 
@@ -777,7 +777,7 @@ Three booleans cover features with no overlay or widget to visit:
 Each is a tri-state `settings_snapshot` column (blobs 13-15): `"1"`, `"0"`, or empty for a
 client too old to send it. The Features view lists them under `configured`: devices that
 reported the flag on over devices that reported it at all
-(`server/telemetry-worker/src/index.ts#configuredFeature`).
+(`server/telemetry-worker/src/index.ts#"export function configuredFeature"`).
 
 ### screensaver_usage Event Details
 
@@ -822,7 +822,7 @@ Recorded once per session after printer discovery. Contains a full hardware inve
 
 These names are firmware/config-defined identifiers (no PII). Hostnames are explicitly excluded.
 
-**Analysis:** Use `scripts/telemetry-printer-profiles.py` to analyze hardware profiles — finds discriminating names per detected model, clusters undetected printers, and generates candidate heuristics for `config/printer_database.json`.
+**Analysis:** Use `scripts/telemetry-printer-profiles.py` to analyze hardware profiles - finds discriminating names per detected model, clusters undetected printers, and generates candidate heuristics for `assets/config/printer_database.json`.
 
 ### memory_warning Event Details
 

@@ -30,7 +30,6 @@ void PrinterHardwareValidationState::init_subjects(bool register_xml) {
     spdlog::trace("[PrinterHardwareValidationState] Initializing subjects (register_xml={})",
                   register_xml);
 
-    // Initialize hardware validation subjects
     INIT_SUBJECT_INT(hardware_status_level, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(hardware_critical_count, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(hardware_warning_count, 0, subjects_, register_xml);
@@ -57,7 +56,6 @@ void PrinterHardwareValidationState::deinit_subjects() {
 
 void PrinterHardwareValidationState::set_hardware_validation_result(
     const HardwareValidationResult& result) {
-    // Store the full result for UI access
     hardware_validation_result_ = result;
     has_result_ = true;
 
@@ -104,8 +102,8 @@ void PrinterHardwareValidationState::set_hardware_validation_result(
         snprintf(hardware_status_detail_buf_, sizeof(hardware_status_detail_buf_), "%s",
                  detail.c_str());
     }
-    lv_subject_copy_string(&hardware_status_title_, hardware_status_title_buf_);
-    lv_subject_copy_string(&hardware_status_detail_, hardware_status_detail_buf_);
+    lv_subject_set_string(&hardware_status_title_, hardware_status_title_buf_);
+    lv_subject_set_string(&hardware_status_detail_, hardware_status_detail_buf_);
 
     // Update issues label for settings panel ("1 Hardware Issue" / "5 Hardware Issues")
     size_t total = result.total_issue_count();
@@ -119,7 +117,7 @@ void PrinterHardwareValidationState::set_hardware_validation_result(
                 fmt::runtime(ui::tr_plural("1 Hardware Issue", "{} Hardware Issues", total)), total)
                 .c_str());
     }
-    lv_subject_copy_string(&hardware_issues_label_, hardware_issues_label_buf_);
+    lv_subject_set_string(&hardware_issues_label_, hardware_issues_label_buf_);
 
     spdlog::debug("[PrinterHardwareValidationState] Hardware validation updated: {} issues, "
                   "status_level={}",
@@ -133,7 +131,6 @@ void PrinterHardwareValidationState::refresh_texts() {
 }
 
 void PrinterHardwareValidationState::remove_hardware_issue(const std::string& hardware_name) {
-    // Helper lambda to remove an issue from a vector by hardware_name
     auto remove_by_name = [&hardware_name](std::vector<HardwareIssue>& issues) {
         issues.erase(std::remove_if(issues.begin(), issues.end(),
                                     [&hardware_name](const HardwareIssue& issue) {
@@ -142,7 +139,6 @@ void PrinterHardwareValidationState::remove_hardware_issue(const std::string& ha
                      issues.end());
     };
 
-    // Remove from all issue lists
     remove_by_name(hardware_validation_result_.critical_missing);
     remove_by_name(hardware_validation_result_.expected_missing);
     remove_by_name(hardware_validation_result_.newly_discovered);

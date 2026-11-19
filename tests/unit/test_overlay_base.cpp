@@ -93,7 +93,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "destroy_overlay_ui defers widget deletion (re
     // prevents the L081 event-list-corruption crash: no sync widget delete
     // inside the queue-callback call chain.
     REQUIRE(helix::test::widget_in_tree(root));
-    REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(root));
 
     // After the async tick, the widget is actually gone.
     process_async_timers();
@@ -122,7 +122,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // After drain: pointer nulled, widget hidden but still valid (async pending).
     REQUIRE(cached == nullptr);
     REQUIRE(helix::test::widget_in_tree(root));
-    REQUIRE(lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(root));
 
     // Async tick completes the deletion.
     REQUIRE_NOTHROW(process_async_timers());
@@ -181,7 +181,7 @@ class ShowOverlay : public OverlayBase {
             return OverlayBase::create(parent);
         }
         overlay_root_ = lv_obj_create(parent);
-        lv_obj_add_flag(overlay_root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(overlay_root_, true);
         return overlay_root_;
     }
     const char* xml_component() const override {
@@ -479,11 +479,11 @@ TEST_CASE_METHOD(ShowFixture, "show() leaves the screen undrawn until the queued
         REQUIRE(overlay.show(test_screen()));
         lv_obj_update_layout(test_screen());
         CHECK(meter.pixels == 0);
-        CHECK(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(overlay.get_root()));
         CHECK(lv_obj_get_parent(overlay.get_root()) == test_screen());
     }
     settle();
-    CHECK_FALSE(lv_obj_has_flag(overlay.get_root(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(overlay.get_root()));
     CHECK(NavigationManager::instance().is_panel_on_top(overlay.get_root()));
     pop(overlay);
 }
@@ -513,7 +513,7 @@ TEST_CASE_METHOD(ShowFixture, "is_push_pending() spans push_overlay() to its que
                  "[overlay_base][overlay_show][nav]") {
     auto& nav = NavigationManager::instance();
     lv_obj_t* overlay = lv_obj_create(test_screen());
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, nullptr);
 
     CHECK_FALSE(nav.is_push_pending(overlay));
@@ -532,7 +532,7 @@ TEST_CASE_METHOD(ShowFixture, "is_push_pending() spans push_overlay() to its que
 TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-out overlays",
                  "[overlay_base][overlay_show][nav]") {
     lv_obj_t* overlay = lv_obj_create(test_screen());
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     helix::nav::register_overlay(overlay, nullptr);
     CHECK_FALSE(helix::nav::is_showing(overlay));
     CHECK_FALSE(helix::nav::is_showing(nullptr));
@@ -546,9 +546,9 @@ TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-o
     helix::nav::go_back();
     settle();
     REQUIRE_FALSE(helix::nav::is_in_stack(overlay));
-    lv_obj_remove_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, false);
     CHECK(helix::nav::is_showing(overlay));
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     CHECK_FALSE(helix::nav::is_showing(overlay));
 
     // An owner's handle reads null once the widget is deleted.

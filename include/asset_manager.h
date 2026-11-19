@@ -4,6 +4,8 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 /**
  * @brief Manages font and image registration with LVGL XML system
@@ -65,6 +67,16 @@ class AssetManager {
      * @return UiBreakpoint index, or -1 if register_fonts() has never run
      */
     static int registered_font_tier();
+
+    /**
+     * @brief Every text face name registered once the breakpoint reaches @p tier
+     *
+     * The registration table itself, in a build of this binary's font tier.
+     * A scaled-up font token resolves only to a registered name, so the CJK
+     * filename bake and prune size their bins from this
+     * (scripts/translations/registered_text_fonts.txt, pinned by [font_tier]).
+     */
+    static std::vector<std::string> text_font_names_for_breakpoint(int tier);
 
     /**
      * @brief Drop registration bookkeeping so a test can replay startup

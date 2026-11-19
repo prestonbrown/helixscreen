@@ -16,9 +16,11 @@
 // SET_GCODE_OFFSET override persists whatever it computes -- silently discarding
 // the user's stored offset.
 
+#include "ui_button.h"
 #include "ui_nav_manager.h"
 #include "ui_print_tune_overlay.h"
 #include "ui_utils.h"
+#include "ui_z_offset_indicator.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
@@ -396,7 +398,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     auto& overlay = show_overlay();
     lv_obj_t* row = lv_obj_find_by_name(overlay.get_panel(), "tune_pa_row");
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     overlay.handle_pa_adjust(1);
     helix::ui::UpdateQueue::instance().drain();
@@ -460,9 +462,70 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     state().profile_state().set_z_offset_per_head(true);
     overlay.handle_z_adjust(-1);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(line));
     state().profile_state().set_z_offset_per_head(false);
 
     state().capabilities_state().set_stepper_z_endstop_microns(0);
     SettingsManager::instance().set_z_offset_save_mode(save_mode);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: one file lays out the z-offset controls for each orientation",
+                 "[ui_integration][zoffset][layout]") {
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int portrait_before = lv_subject_get_int(portrait);
+
+    // Portrait: the direction buttons sit beside the indicator and the step
+    // amounts get a row of their own. Landscape: steps and directions share a
+    // row beside the indicator.
+    const bool is_portrait = GENERATE(false, true);
+    INFO("portrait=" << is_portrait);
+    lv_subject_set_int(portrait, is_portrait ? 1 : 0);
+
+    lv_obj_t* root = show_overlay().get_root();
+    lv_obj_t* indicator = lv_obj_find_by_name(root, "z_offset_indicator");
+    lv_obj_t* farther = lv_obj_find_by_name(root, "btn_z_farther");
+    lv_obj_t* step = lv_obj_find_by_name(root, "btn_z_step_0");
+    lv_obj_t* reset = lv_obj_find_by_name(root, "btn_reset");
+    REQUIRE(indicator != nullptr);
+    REQUIRE(farther != nullptr);
+    REQUIRE(step != nullptr);
+    REQUIRE(reset != nullptr);
+
+    lv_obj_t* indicator_row = lv_obj_get_parent(indicator);
+    lv_obj_t* direction_column = lv_obj_get_parent(farther);
+    CHECK((lv_obj_get_parent(direction_column) == indicator_row) == is_portrait);
+    CHECK((lv_obj_get_parent(lv_obj_get_parent(step)) == lv_obj_get_parent(direction_column)) ==
+          !is_portrait);
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(reset))) ==
+          (is_portrait ? "Reset" : "Reset Speed & Flow to 100%"));
+
+    lv_subject_set_int(portrait, portrait_before);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the z-offset indicator keeps its value across a rotation",
+                 "[ui_integration][zoffset][layout]") {
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int portrait_before = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, 0);
+    set_live_offset(0.02);
+    set_printing(true);
+
+    lv_obj_t* root = show_overlay().get_root();
+    lv_obj_t* before = lv_obj_find_by_name(root, "z_offset_indicator");
+    REQUIRE(before != nullptr);
+    CHECK(helix::ui::z_offset_indicator_value(before) == 20);
+
+    // The orientation <if> rebuilds the indicator in place, before any panel
+    // rebuild runs; the new one has to show the offset straight away.
+    lv_subject_set_int(portrait, 1);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* after = lv_obj_find_by_name(root, "z_offset_indicator");
+    REQUIRE(after != nullptr);
+    CHECK(helix::ui::z_offset_indicator_value(after) == 20);
+
+    lv_subject_set_int(portrait, portrait_before);
 }

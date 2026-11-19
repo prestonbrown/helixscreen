@@ -17,6 +17,7 @@
 #include "display_settings_manager.h"
 #include "filament_consumption_tracker.h"
 #include "first_run_tour.h"
+#include "motor_ripple_store.h"
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "glass_painter.h"
 #endif
@@ -149,6 +150,10 @@ void wire_discovery(IMoonrakerAPI& api, IMoonrakerClient& client, DiscoveryHooks
             if (auto* history = get_print_history_manager()) {
                 history->on_discovery_complete();
             }
+            // The last motor ripple sweep is this printer's: a switch or a
+            // reconnect drops the old one and reads it back from Moonraker.
+            calibration::ripple::RippleResultCache::instance().clear();
+            calibration::ripple::RippleResultCache::instance().load(*a);
             tour::FirstRunTour::instance().on_printer_ready();
             spdlog::info("[Discovery] applied: {} heaters, {} fans, {} sensors, {} initial-status "
                          "keys",
@@ -208,7 +213,7 @@ lv_obj_t* create_app_layout(lv_obj_t* screen,
         return nullptr;
     }
     laps.lap("app_layout");
-    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
     lv_obj_set_scrollbar_mode(screen, LV_SCROLLBAR_MODE_OFF);
     lv_obj_update_layout(screen);
     NavigationManager::instance().set_app_layout(app_layout);

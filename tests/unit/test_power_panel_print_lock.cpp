@@ -93,11 +93,14 @@ class PowerPanelLockFixture : public LVGLUITestFixture {
         panel.deinit_subjects();
     }
 
-    /// Is the freshly built row's toggle refusing input?
+    /// Is the freshly built row's toggle refusing input? Its lock and note show exactly then.
     static bool toggle_disabled(lv_obj_t* panel_obj) {
         lv_obj_t* toggle = lv_obj_find_by_name(panel_obj, "device_toggle");
         REQUIRE(toggle != nullptr);
-        return lv_obj_has_state(toggle, LV_STATE_DISABLED);
+        const bool disabled = lv_obj_has_state(toggle, LV_STATE_DISABLED);
+        CHECK(lv_obj_is_hidden(lv_obj_find_by_name(panel_obj, "lock_icon")) == !disabled);
+        CHECK(lv_obj_is_hidden(lv_obj_find_by_name(panel_obj, "device_status")) == !disabled);
+        return disabled;
     }
 
     static std::vector<PowerDevice> one_locked_device() {
@@ -123,6 +126,12 @@ TEST_CASE_METHOD(PowerPanelLockFixture, "Power device toggle is live when nothin
     lv_obj_update_layout(test_screen());
 
     CHECK_FALSE(toggle_disabled(obj));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(obj, "empty_state")));
+
+    // No devices swaps the list for the empty state.
+    helix::ui::PowerPanelTestAccess::populate_device_list(panel, {});
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(obj, "device_list")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(obj, "empty_state")));
 
     teardown(panel, obj);
 }
@@ -147,6 +156,12 @@ TEST_CASE_METHOD(PowerPanelLockFixture, "Power device toggle locks while a print
 
     CHECK(toggle_disabled(obj));
 
+    // The flag is what gates the lock, not the print state on its own.
+    auto devices = one_locked_device();
+    devices[0].locked_while_printing = false;
+    helix::ui::PowerPanelTestAccess::populate_device_list(panel, devices);
+    CHECK_FALSE(toggle_disabled(obj));
+
     teardown(panel, obj);
 }
 
@@ -169,26 +184,6 @@ TEST_CASE_METHOD(PowerPanelLockFixture,
     lv_obj_update_layout(test_screen());
 
     CHECK(toggle_disabled(obj));
-
-    teardown(panel, obj);
-}
-
-TEST_CASE_METHOD(PowerPanelLockFixture, "An unlocked device stays togglable mid-print",
-                 "[power][print_state]") {
-    // The flag is what gates the lock, not the print state on its own.
-    auto& ps = state();
-    helix::test::set_wire_state(ps, PrintJobState::PRINTING);
-    settle();
-
-    PowerPanel panel(state(), nullptr);
-    lv_obj_t* obj = build(panel);
-
-    auto devices = one_locked_device();
-    devices[0].locked_while_printing = false;
-    helix::ui::PowerPanelTestAccess::populate_device_list(panel, devices);
-    lv_obj_update_layout(test_screen());
-
-    CHECK_FALSE(toggle_disabled(obj));
 
     teardown(panel, obj);
 }

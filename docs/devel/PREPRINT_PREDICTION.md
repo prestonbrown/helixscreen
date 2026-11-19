@@ -170,6 +170,22 @@ Redistribute: total_weight = 0.2 + 0.5 = 0.7
   Predicted BED_MESH = round(22.9 + 71.4) = 94s
 ```
 
+### Declared Durations
+
+A macro can state a phase's duration with `_HELIX_PLAN` (`docs/devel/PRINT_START_INTEGRATION.md`).
+Per phase, a declared value beats the overrides, then history and the thermal model, then the defaults.
+A declared 0 removes the phase, and a declared heater replaces the thermal price and is what the
+entry records as priced heating.
+
+A wall clock from an unplanned run already holds a soak nobody signalled, so adding declared
+seconds on top would count it twice. Planned runs are therefore their own population, as
+`PreprintWindow` separates host pre-start runs. With a plan the total is the weighted mean, over the
+entries that declared one, of wall clock less priced heating less each declared phase's recorded
+duration (its declared value when the phase was never signalled), plus this start's heating and
+declared seconds. With no such entry it is the sum of the durations. Without a plan the estimate
+is unchanged and planned entries are ordinary runs. Plans exist only once `PRINT_START` runs, so
+the print details estimate never sees one.
+
 ### The Predicted Total Is Not the Sum of the Phases
 
 `predicted_total()` (`src/print/preprint_predictor.cpp#predicted_total`) applies the same
@@ -463,7 +479,8 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
         },
         "temp_bucket": 1,
         "window": 2,
-        "skipped": ["QGL"]
+        "skipped": ["QGL"],
+        "declared": {"SOAKING": 90}
       }
     ]
   }
@@ -479,6 +496,8 @@ Entries are stored in the main config file (`config/settings.json`) at the JSON 
 - `temp_bucket`: Optional. 1 = cold start (bed below 40°C at start), 2 = warm start (40°C or above); omitted means unknown. `PreprintPredictor::temp_bucket_for()` is the one rule: the collector's history load, the entry it saves and the print details estimate all call it. Older versions stored the raw nozzle target temperature here; those values are dropped at load time as a one-shot migration.
 - `window`: Optional. `PreprintWindow` enum int - 1 = `PrinterEdge`, 2 = `HostPreStart`; omitted means legacy (read back as `Unknown`, treated as `PrinterEdge` when filtering). See "Measurement windows" above.
 - `skipped`: Optional. `PrintStartPhase` names of the phases this start's option toggles turned off (bed_mesh, qgl, z_tilt, nozzle_clean, purge_line), the phases the overrides `PrintPreparationManager::start_print()` handed to `PrintStartCollector::note_phase_overrides()` turn off (`PreprintPredictor::phases_skipped_by()`). `[]` means the start skipped nothing; omitted means unknown - a legacy entry, or a start this screen did not send. `estimate()` reads it to tell a phase no start ran from one the matcher missed.
+
+- `declared`: Optional. `PrintStartPhase` NAME to the seconds this start's `_HELIX_PLAN` declared, 0 meaning the phase will not run; omitted for a start without a plan.
 
 ### Save Flow
 

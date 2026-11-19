@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "sensor_manager.h"
 #include "width_sensor_types.h"
 
@@ -53,8 +54,8 @@ class WidthSensorManager : public SensorManager {
     [[nodiscard]] int flow_diameter_micrometers_locked() const;
 
     std::map<std::string, WidthSensorState> readings_; ///< by klipper_name
-    lv_subject_t diameter_{};
-    lv_subject_t diameter_text_{};
+    helix::Subject diameter_{};
+    helix::Subject diameter_text_{};
     char diameter_text_buf_[16]{};
 };
 

@@ -116,7 +116,8 @@ void AmsErrorBridge::on_action_changed(int action) {
         // the only description of the fault that exists on that path.
         error_detail_ = ams.fault_cause();
         if (error_detail_.empty() && backend) {
-            error_detail_ = backend->get_system_info().operation_detail;
+            // A fixed phrase is stored as its catalog key; firmware text passes through.
+            error_detail_ = lv_tr(backend->get_system_info().operation_detail.c_str());
         }
 
         // Last-resort fallback, armed on every ERROR edge and armed BEFORE the

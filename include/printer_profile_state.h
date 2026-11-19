@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "pre_print_option.h"
 #include "preprint_skip_wrappers.h"
 #include "subject_managed_panel.h"
@@ -9,6 +10,7 @@
 #include <lvgl.h>
 #include <map>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace helix {
@@ -63,6 +65,28 @@ ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
                                            bool per_head = false);
 
 /**
+ * @brief Pick the Z-offset calibration strategy for a printer
+ *
+ * A strategy the printer database names wins. Otherwise Z0 decides: a numeric
+ * stepper_z position_endstop means Z homes on a switch, so the endstop holds Z0
+ * and only Z_ENDSTOP_CALIBRATE / Z_OFFSET_APPLY_ENDSTOP move it, probe or not.
+ * Without one, a probe is the Z endstop (PROBE_CALIBRATE). Klipper registers the
+ * endstop commands only when that option is set (klippy/extras/manual_probe.py);
+ * a delta has no [stepper_z] and registers only its own Z_OFFSET_APPLY_ENDSTOP,
+ * so a delta without a probe gets FIRMWARE_MANAGED, whose commands every
+ * kinematics has. No probe and no endstop reading on any other kinematics stays
+ * ENDSTOP: Klipper requires position_endstop there, so the reading is late.
+ *
+ * @param db_strategy the database's `z_offset_calibration_strategy`, "" for none
+ * @param z_position_endstop_numeric stepper_z position_endstop is a number
+ * @param kinematics `[printer] kinematics`, "" while unknown
+ */
+ZOffsetCalibrationStrategy resolve_z_offset_calibration_strategy(std::string_view db_strategy,
+                                                                 bool has_probe,
+                                                                 bool z_position_endstop_numeric,
+                                                                 std::string_view kinematics);
+
+/**
  * @brief The printer type and what it decides: the pre-print option set and the
  *        z-offset calibration strategy
  *
@@ -114,6 +138,16 @@ class PrinterProfileState {
      * @return true when the flag changed
      */
     bool set_external_persistence(bool persisted);
+
+    /**
+     * @brief Record how Z finds Z0, for the strategy when the database names none
+     *
+     * @param z_position_endstop_numeric stepper_z position_endstop is a number
+     * @param kinematics `[printer] kinematics`
+     * The caller re-resolves the type.
+     * @return true when either input changed
+     */
+    bool set_z_homing(bool z_position_endstop_numeric, const std::string& kinematics);
     bool external_persistence() const {
         return external_persistence_;
     }
@@ -190,6 +224,13 @@ class PrinterProfileState {
         return db_hides_dot_dirs_;
     }
 
+    /// Whether this printer's firmware turns the heaters off itself when a
+    /// print errors (the printer database's `firmware_owns_error_heaters`):
+    /// the app sends no heater command of its own.
+    bool firmware_owns_error_heaters() const {
+        return db_firmware_owns_error_heaters_;
+    }
+
     /**
      * @brief String subject updated on every change to the resolved type
      *
@@ -229,6 +270,8 @@ class PrinterProfileState {
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     bool external_persistence_ = false;
+    bool z_position_endstop_numeric_ = false;
+    std::string kinematics_;
     bool z_offset_per_head_ = false;
 
     void publish_z_offset_reapplied_per_head();
@@ -238,6 +281,7 @@ class PrinterProfileState {
     bool db_tool_change_resets_z_offset_ = false;
     bool db_enclosed_ = false;
     bool db_hides_dot_dirs_ = false;
+    bool db_firmware_owns_error_heaters_ = false;
     bool timelapse_default_enabled_ = false;
     bool firmware_owns_timelapse_ = false;
     std::string heat_soak_macro_;
@@ -245,11 +289,11 @@ class PrinterProfileState {
     /// Empty on printers whose firmware stores none.
     std::map<std::string, bool> firmware_option_defaults_;
 
-    lv_subject_t printer_type_subject_{};
+    helix::Subject printer_type_subject_{};
     char printer_type_subject_buf_[128];
-    lv_subject_t z_offset_can_save_{};
-    lv_subject_t z_offset_tune_hint_{};
-    lv_subject_t z_offset_reapplied_per_head_{};
+    helix::Subject z_offset_can_save_{};
+    helix::Subject z_offset_tune_hint_{};
+    helix::Subject z_offset_reapplied_per_head_{};
 };
 
 } // namespace helix

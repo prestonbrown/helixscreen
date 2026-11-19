@@ -13,7 +13,7 @@
  * protection for an outside observer is the death token handed out by
  * AmsState::get_subjects_lifetime(). An observer created without it — the
  * guards fetch their subject by XML name, so there is no token'd accessor to
- * route through — calls lv_observer_remove() on a freed node when the panel
+ * route through — calls lv_observer_delete() on a freed node when the panel
  * is destroyed, a double free of that node.
  */
 
@@ -113,7 +113,7 @@ TEST_CASE_METHOD(
     CHECK(lv_ll_get_len(&subject_->subs_ll) == 0);
 
     // Destroying the panel resets its guards. With the death token the reset
-    // skips lv_observer_remove(); without it this is a double free of a node
+    // skips lv_observer_delete(); without it this is a double free of a node
     // lv_subject_deinit() already freed.
     panel_release();
 

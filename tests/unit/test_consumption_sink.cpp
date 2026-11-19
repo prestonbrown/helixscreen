@@ -62,6 +62,21 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture,
     REQUIRE(info.has_value());
     REQUIRE(info->remaining_weight_g < 1000.0f);
     REQUIRE(info->remaining_weight_g > 996.0f);
+
+    // The unpersisted count is the sink's own, not an external write; a counter
+    // reset (a new print) keeps it too.
+    auto weight = [] {
+        return helix::AmsState::instance().get_external_spool_info()->remaining_weight_g;
+    };
+    sink.apply_delta(2000.0f);
+    CHECK(weight() < 995.0f);
+    ExternalSpoolSink restarted;
+    restarted.snapshot(3000.0f);
+    restarted.apply_delta(4000.0f);
+    const float counted = weight();
+    restarted.apply_delta(100.0f); // filament_used went backwards
+    restarted.apply_delta(1100.0f);
+    CHECK(weight() < counted - 2.5f);
 }
 
 TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: unknown weight not trackable",

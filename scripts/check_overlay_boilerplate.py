@@ -29,6 +29,7 @@ import sys
 from pathlib import Path
 
 from source_strip import blank_cxx
+import ratchet  # noqa: E402
 
 PATTERNS = {
     "already_exists": re.compile(r"spdlog::\w+\([^;]*already exists"),
@@ -88,8 +89,13 @@ def main() -> int:
         print("   Use OverlayBase::show() and lazy_global<T>() instead of hand-rolling them.")
         return 1
     shrank = [k for k, v in now.items() if v < base.get(k, 0)]
-    note = f"; re-run with --write-baseline to hold the gain ({', '.join(shrank)})" if shrank else ""
-    print(f"✅ Overlay boilerplate: {now}, within {args.baseline}{note}")
+    if shrank:
+        return ratchet.under_baseline(
+            "Overlay boilerplate", f"{args.baseline} (re-run with --write-baseline)",
+            [ratchet.lowered(k, base.get(k, 0), now.get(k, 0)) for k in shrank],
+            f"✅ Overlay boilerplate: {now}, within {args.baseline}; re-run with "
+            f"--write-baseline to hold the gain ({', '.join(shrank)})")
+    print(f"✅ Overlay boilerplate: {now}, within {args.baseline}")
     return 0
 
 

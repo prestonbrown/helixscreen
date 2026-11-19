@@ -3,9 +3,6 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
-
 #include "ams_backend.h"
 #include "ams_backend_registry.h"
 #include "ams_runout_grace.h"
@@ -13,6 +10,9 @@
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
 #include "buffer_reading.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "filament_consumption_tracker.h"
 #include "filament_mapper.h"
 #include "filament_slot_override_store.h"
@@ -84,14 +84,12 @@ class PrinterDiscovery;
  * Positional does NOT mean an empty wire. FilamentMapper::identity_filtered_remap()
  * drops identity entries, but the U1 pre-print builder still emits the full used-
  * extruder map, so a positional seed goes out as an explicit identity
- * (SET_PRINT_EXTRUDER_MAP 0->0, 2->2). Measured, not inferred - an earlier
- * revision of this block claimed nothing is sent.
+ * (SET_PRINT_EXTRUDER_MAP 0->0, 2->2). Measured, not inferred.
  *
  * Positional is also only correct because use_current_assignments() pairs each
- * tool with its own default head. It used to pair by position in the used-tool
- * list, which silently remapped any file using a SPARSE tool set - T0+T2 sent T2
- * to lane 1, a lane the user never chose. Fixed, with a test; that bug is why
- * this flip could not have shipped as it stood.
+ * tool with its own default head. Pairing by position in the used-tool list
+ * would silently remap any file using a SPARSE tool set - T0+T2 would send T2
+ * to lane 1, a lane the user never chose; a test pins that.
  *
  * HARDWARE VERIFICATION - Snapmaker U1, 2026-08-27, calicat_PLA_37m55s.gcode
  * (T0 red 7.94g body / T2 black 2.63g tail; lanes loaded slot 0 BLACK, slot 1
@@ -297,10 +295,6 @@ class AmsState {
     static constexpr int kDryerDurationStepMin = 30;       ///< Duration adjustment step
     /// @}
 
-    /**
-     * @brief Get the singleton instance
-     * @return Reference to the global AmsState instance
-     */
     static AmsState& instance();
 
     /**
@@ -474,10 +468,6 @@ class AmsState {
      */
     [[nodiscard]] AmsBackend* get_backend(int index) const;
 
-    /**
-     * @brief Get the number of registered backends
-     * @return Number of backends
-     */
     [[nodiscard]] int backend_count() const;
 
     /**
@@ -757,7 +747,7 @@ class AmsState {
      *
      * Stored and applied to any mock backends when they are added.
      * In production, real backends don't use this (gcode responses come
-     * through the WebSocket). Used to let mock backends simulate
+     * through the WebSocket). It lets mock backends simulate
      * action:prompt dialogs.
      *
      * @param callback Function that processes "// action:..." lines
@@ -811,10 +801,6 @@ class AmsState {
         return &active_backend_;
     }
 
-    /**
-     * @brief Get the active backend index
-     * @return Currently selected backend index
-     */
     [[nodiscard]] int active_backend_index() const;
 
     /**
@@ -825,7 +811,7 @@ class AmsState {
 
     /**
      * @brief Get AMS type subject
-     * @return Subject holding AmsType enum as int (0=none, 1=happy_hare, 2=afc)
+     * @return Subject holding the AmsType enum (ams_type.h) as int
      */
     lv_subject_t* get_ams_type_subject() {
         return &ams_type_;
@@ -915,8 +901,7 @@ class AmsState {
      * nothing truthful to say - bind visibility to it with
      * `<bind_flag_if_eq subject="ams_endless_state" flag="hidden" ref_value="0"/>`.
      *
-     * Replaced the AD5X-only `ams_ifs_plugin` / `ams_ifs_backup_enabled` pair:
-     * every backend answers the same three-axis capability question now, so a
+     * Every backend answers the same three-axis capability question, so a
      * per-firmware subject could only ever describe one printer's answer.
      */
     lv_subject_t* get_endless_state_subject() {
@@ -1161,6 +1146,18 @@ class AmsState {
     }
 
     /**
+     * @brief The overview's unit cards carry their environment line
+     *
+     * 1 when every unit card with temperature or humidity has room for its
+     * one-line readout under a full row of lane bars; 0 leaves the readout to
+     * each unit's own page. Written by AmsOverviewPanel from measured widths;
+     * read by ams_unit_card.xml.
+     */
+    lv_subject_t* get_cards_env_line_subject() {
+        return &ams_cards_env_line_;
+    }
+
+    /**
      * @brief Get slots version subject
      *
      * Incremented whenever slot data changes. UI can observe this
@@ -1331,7 +1328,8 @@ class AmsState {
 
     /**
      * @brief Get clog meter mode subject
-     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=buffer fault)
+     * @return Subject holding mode (0=none, 1=encoder, 2=flowguard, 3=buffer fault,
+     *         4=motion sensor)
      */
     lv_subject_t* get_clog_meter_mode_subject() {
         return &clog_meter_mode_;
@@ -1445,6 +1443,7 @@ class AmsState {
         lv_subject_t* center_text;
         lv_subject_t* label_left;
         lv_subject_t* label_right;
+        lv_subject_t* safe;
     };
 
     /**
@@ -1742,8 +1741,8 @@ class AmsState {
      * Holds the last-synced material string ("PLA", "PETG", …, or "" when the
      * lane has no material). Written by the status-sync path; a delta bumps
      * slots_version so the panel's refresh_slots() re-reads the material label
-     * even when the color/status did not change (#1065 — native ZMOD AD5X where
-     * a type change keeps the same color and previously left the label stale).
+     * even when the color/status did not change (#1065: on native ZMOD AD5X a
+     * type change keeps the same color, which alone would leave the label stale).
      *
      * @param slot_index Slot index (0 to kMaxSlots-1)
      * @return Subject pointer or nullptr if out of range
@@ -2094,8 +2093,8 @@ class AmsState {
      * Single authority for spool assignment changes on backend slots. Order:
      * 1. S1: Spoolman server active spool — set when linking (id > 0), clear
      *    (post 0) when unlinking a previously-linked slot. Ungated on
-     *    manages_active_spool() by design: matches the previous overlay
-     *    semantics (see spec § follow-ups for the SET-arm gating question).
+     *    manages_active_spool() by design; whether the SET arm should be
+     *    gated is an open question.
      * 2. S6: invalidate the old spool's identity cache when the link changed.
      * 3. S3: backend->commit_user_edit() (firmware SET_SPOOL_ID gcode rides inside
      *    its apply_user_edit()).
@@ -2475,19 +2474,19 @@ class AmsState {
 
     /// Per-backend slot subject storage for secondary backends (index > 0)
     struct BackendSlotSubjects {
-        std::vector<lv_subject_t> colors;
-        std::vector<lv_subject_t> statuses;
-        std::vector<lv_subject_t> fills;       // int: fill percent 0-100, -1 = unknown
-        std::vector<lv_subject_t> lane_states; // int: helix::ui::LaneState
-        std::vector<lv_subject_t> has_errors;
-        std::vector<lv_subject_t> severities; // int: SlotError::Severity
-        std::vector<lv_subject_t> paints;     // int: SlotInfo::paint_key()
+        std::vector<helix::Subject> colors;
+        std::vector<helix::Subject> statuses;
+        std::vector<helix::Subject> fills;       // int: fill percent 0-100, -1 = unknown
+        std::vector<helix::Subject> lane_states; // int: helix::ui::LaneState
+        std::vector<helix::Subject> has_errors;
+        std::vector<helix::Subject> severities; // int: SlotError::Severity
+        std::vector<helix::Subject> paints;     // int: SlotInfo::paint_key()
         /// Material strings need storage the subject points into; same size as
         /// slot_materials_buf_ ("PETG-CF" etc. fits comfortably).
         static constexpr int kMaterialBufSize = 24;
-        std::vector<lv_subject_t> materials; // string: "PLA", "PETG", … or ""
+        std::vector<helix::Subject> materials; // string: "PLA", "PETG", … or ""
         std::vector<std::array<char, kMaterialBufSize>> material_bufs;
-        std::vector<lv_subject_t> names; // string: slot card spool name, or ""
+        std::vector<helix::Subject> names; // string: slot card spool name, or ""
         std::vector<std::array<char, kSlotNameBufSize>> name_bufs;
         int slot_count = 0;
         /// Lifetime token shared by every subject in this struct. These subjects
@@ -2505,8 +2504,8 @@ class AmsState {
     /// backend 0, with the lifetime token set accordingly. Every per-backend
     /// slot getter resolves through here.
     lv_subject_t* backend_slot_subject(int backend_index, int slot_index, SubjectLifetime& lifetime,
-                                       std::vector<lv_subject_t> BackendSlotSubjects::*member,
-                                       lv_subject_t (&primary)[kMaxSlots]);
+                                       std::vector<helix::Subject> BackendSlotSubjects::*member,
+                                       helix::Subject (&primary)[kMaxSlots]);
 
     AmsBackendRegistry registry_;
     std::vector<BackendSlotSubjects> secondary_slot_subjects_;
@@ -2556,24 +2555,24 @@ class AmsState {
     helix::AsyncLifetimeGuard async_lifetime_;
 
     // Backend selector subjects
-    lv_subject_t backend_count_{};
-    lv_subject_t active_backend_{};
-    lv_subject_t ams_data_revision_{};
+    helix::Subject backend_count_{};
+    helix::Subject active_backend_{};
+    helix::Subject ams_data_revision_{};
 
     // System-level subjects
-    lv_subject_t ams_type_{};
-    lv_subject_t ams_is_tool_changer_{};
-    lv_subject_t ams_nozzle_heat_blocked_{};
-    lv_subject_t ams_can_cancel_{};
-    lv_subject_t ams_lane_records_ready_{};
+    helix::Subject ams_type_{};
+    helix::Subject ams_is_tool_changer_{};
+    helix::Subject ams_nozzle_heat_blocked_{};
+    helix::Subject ams_can_cancel_{};
+    helix::Subject ams_lane_records_ready_{};
     /// commit_slot_edit()'s last result, for take_slot_edit_result().
     std::optional<std::pair<int, AmsError>> last_slot_edit_;
     AmsError commit_slot_edit_unrecorded(int slot_index, const SlotInfo& original,
                                          const SlotInfo& info);
     /// The mounted tool last seen on a shared-heater backend, -2 before any.
     int shared_heater_tool_ = -2;
-    lv_subject_t ams_is_filament_system_{};
-    lv_subject_t ams_action_{};
+    helix::Subject ams_is_filament_system_{};
+    helix::Subject ams_action_{};
     /// Copy of ams_action_ for readers off the main thread. Every write to the
     /// subject updates it.
     std::atomic<AmsAction> action_mirror_{AmsAction::IDLE};
@@ -2581,12 +2580,12 @@ class AmsState {
     std::optional<std::chrono::steady_clock::time_point> optimistic_action_until_;
     /// Granular load/unload sub-phase (-1=none, 0=Home, 1=Select, 2=Heat,
     /// 3=Move). Snapmaker U1 only; registered with subjects_.
-    lv_subject_t ams_operation_phase_{};
+    helix::Subject ams_operation_phase_{};
     /// 1 while an active op's phase-progress feed has stalled (~8s) so the frozen
     /// live-temp number should read as "Working…"; 0 otherwise. AD5X IFS only.
     /// Registered with subjects_.
-    lv_subject_t ams_operation_indeterminate_{};
-    lv_subject_t toolchange_step_{}; ///< current narration phase index (-1 = none/idle)
+    helix::Subject ams_operation_indeterminate_{};
+    helix::Subject toolchange_step_{}; ///< current narration phase index (-1 = none/idle)
     /// Active toolchange operation for the narration router to resolve a phase
     /// index without a sidebar pointer. Defaults to a swap (most common case).
     std::atomic<StepOperationType> active_step_operation_{StepOperationType::LOAD_SWAP};
@@ -2594,11 +2593,11 @@ class AmsState {
     /// toolchange_step_ against firmware that narrates one phase more than once
     /// per operation (AFC wipes before AND after the kick). -1 = no phase yet.
     int narration_phase_high_water_{-1};
-    lv_subject_t current_slot_{};
-    lv_subject_t pending_target_slot_{};
-    lv_subject_t ams_current_tool_{};
-    lv_subject_t filament_loaded_{};
-    lv_subject_t filament_runout_{};
+    helix::Subject current_slot_{};
+    helix::Subject pending_target_slot_{};
+    helix::Subject ams_current_tool_{};
+    helix::Subject filament_loaded_{};
+    helix::Subject filament_runout_{};
     /// Edge tracking behind `ams_filament_runout`. `AmsSystemInfo::filament_runout`
     /// is a LEVEL on some backends and a sticky latch on at least one (the CFS
     /// mirrors `box.filament_useup`, which is only ever cleared by a successful
@@ -2630,19 +2629,20 @@ class AmsState {
     /// connected (or when a backend was swapped in) describes no transition we
     /// witnessed. Same reasoning as AmsBackendAd5xIfs's head-switch edge gate.
     bool runout_level_seeded_{false};
-    lv_subject_t bypass_active_{};
-    lv_subject_t external_spool_color_{};
+    helix::Subject bypass_active_{};
+    helix::Subject external_spool_color_{};
     /// External spool material name — string flavor of external_spool_color_.
     /// Pure reflector of get_external_spool_info(); mirrors the color subject's
     /// update sites so XML text bindings stay in lockstep with the color dot.
-    lv_subject_t external_spool_material_{};
+    helix::Subject external_spool_material_{};
     char external_spool_material_buf_[32]; // "PLA", "PETG-CF", ... fits comfortably
-    lv_subject_t supports_bypass_{};
-    lv_subject_t ams_slot_count_{};
-    lv_subject_t ams_cards_compact_{};
-    lv_subject_t ams_feeder_open_{};
-    lv_subject_t slots_version_{};
-    lv_subject_t tool_map_version_{};
+    helix::Subject supports_bypass_{};
+    helix::Subject ams_slot_count_{};
+    helix::Subject ams_cards_compact_{};
+    helix::Subject ams_cards_env_line_{};
+    helix::Subject ams_feeder_open_{};
+    helix::Subject slots_version_{};
+    helix::Subject tool_map_version_{};
     /// First-gate (port) filament-present flag for the ACTIVE tool (#991).
     /// 1 = filament present at the active tool's port/buffer sensor, 0 = absent.
     /// Auto-feed backends (Snapmaker U1) update this from the port sensor — NOT
@@ -2650,7 +2650,7 @@ class AmsState {
     /// signal that flips true the moment a fresh spool is re-fed. Registered with
     /// subjects_. Defaults to 1 so non-auto-feed / unknown backends never gate
     /// Resume.
-    lv_subject_t active_tool_port_present_{};
+    helix::Subject active_tool_port_present_{};
     std::vector<int> last_tool_map_;
     /// Companion to last_tool_map_ for the APPLIED routing (get_tool_mapping()),
     /// which moves independently of the physical map on a backend that publishes
@@ -2694,8 +2694,9 @@ class AmsState {
     /// can be after the pause, read from gcode_store.
     ObserverGuard stop_reason_observer_;
 
-    /// Ends every backend's busy operation when klippy_state enters READY from
-    /// any other state: a Klipper restart ends every firmware-side operation.
+    /// On each klippy_state edge into READY, tells every backend Klipper is
+    /// ready (on_klippy_ready()), and on a restart edge first ends its busy
+    /// operation: a Klipper restart ends every firmware-side operation.
     ObserverGuard klippy_state_observer_;
     /// The klippy_state the observer last saw; -1 before its first fire.
     int last_klippy_state_ = -1;
@@ -2717,6 +2718,9 @@ class AmsState {
     bool connection_lost_ = false;
     /// Wire (or rewire) connection_state_observer_. Idempotent.
     void install_connection_state_observer();
+
+    /// Re-formats the unit temperature readouts on a °C/°F switch.
+    ObserverGuard temp_unit_observer_;
 
     /// Re-syncs the clog meter on FilamentSensorManager's motion signature.
     ObserverGuard motion_sensor_observer_;
@@ -2744,10 +2748,9 @@ class AmsState {
     /// Publish the already-initialized subjects under their XML names. Used by
     /// the init_subjects() re-entry path so register_xml=true still publishes
     /// after a first init that ran with register_xml=false. Registration only:
-    /// subjects must already be initialized — no lv_subject_init_* here, init
-    /// memzeros the subject and would wipe the observers bound since the first
-    /// init. MUST mirror the registration list in init_subjects(): a name
-    /// registered there must be registered here too.
+    /// subjects must already be initialized — no init_* here, a second init on a
+    /// live subject orphans the observers bound since the first init. MUST mirror the registration
+    /// list in init_subjects(): a name registered there must be registered here too.
     void register_xml_subject_names();
 
     /// The bypass record where AmsState keeps it (no backend holds it): the
@@ -2763,6 +2766,7 @@ class AmsState {
         std::string printer_id;
         std::string file_path;
         nlohmann::json file;
+        bool file_unreadable = false; ///< The file exists but did not parse, so it stays owed
         std::optional<std::map<int, int>> tool_spools;
         bool db_key_seen = false;
         /// The Moonraker key's value as read.
@@ -2790,7 +2794,7 @@ class AmsState {
     helix::ui::LvglTimerGuard bypass_poll_;
 
     // String subjects (need buffers)
-    lv_subject_t ams_action_detail_{};
+    helix::Subject ams_action_detail_{};
     // Sized for the longest known translated composition any producer hands
     // this subject: the CFS load-failure verdict message
     // (AmsBackendCfs::phase_verdict_message), worst case ru at 364 bytes, with
@@ -2799,57 +2803,59 @@ class AmsState {
     // with no length bound at all, so recompute_action_detail() truncates on
     // a UTF-8 boundary before the copy rather than relying on this size alone.
     char action_detail_buf_[512];
-    lv_subject_t ams_system_name_{};
-    char system_name_buf_[32];
-    lv_subject_t ams_system_logo_{};
+    helix::Subject ams_system_name_{};
+    // Holds a translated generic name (ru "Tool Changer" is 39 bytes); the sync
+    // cuts a longer one on a UTF-8 boundary.
+    char system_name_buf_[64];
+    helix::Subject ams_system_logo_{};
     char system_logo_buf_[64];
-    lv_subject_t ams_system_has_logo_{};
-    lv_subject_t ams_system_logo_color_{};
+    helix::Subject ams_system_has_logo_{};
+    helix::Subject ams_system_logo_color_{};
 
     /// Endless-spool status: kind as int, sentence as string. See the accessors.
     /// The buffer holds two translated lines; German and Russian restriction
     /// texts are the long ones, and Cyrillic costs ~2 bytes a character, hence
     /// 384 rather than the 64 used elsewhere.
-    lv_subject_t ams_endless_state_{};
-    lv_subject_t ams_endless_text_{};
+    helix::Subject ams_endless_state_{};
+    helix::Subject ams_endless_text_{};
     char ams_endless_text_buf_[384];
-    lv_subject_t ams_endless_spool_switchable_{};
-    lv_subject_t ams_endless_spool_on_{};
+    helix::Subject ams_endless_spool_switchable_{};
+    helix::Subject ams_endless_spool_on_{};
 
     /// 1 while a backend is present; see get_has_device_ops_subject().
-    lv_subject_t ams_has_device_ops_{};
+    helix::Subject ams_has_device_ops_{};
 
     // Tool change progress (AFC multi-color prints)
-    lv_subject_t toolchange_visible_{};        // 1 when swaps expected, 0 otherwise
-    lv_subject_t ams_current_toolchange_{};    // 0-based current toolchange index (-1=none)
-    lv_subject_t ams_number_of_toolchanges_{}; // Total expected toolchanges
-    lv_subject_t toolchange_text_{};           // "2 / 5" formatted display
-    char toolchange_text_buf_[32]{};           // Buffer for formatted text
+    helix::Subject toolchange_visible_{};        // 1 when swaps expected, 0 otherwise
+    helix::Subject ams_current_toolchange_{};    // 0-based current toolchange index (-1=none)
+    helix::Subject ams_number_of_toolchanges_{}; // Total expected toolchanges
+    helix::Subject toolchange_text_{};           // "2 / 5" formatted display
+    char toolchange_text_buf_[32]{};             // Buffer for formatted text
 
     // Filament path visualization subjects
-    lv_subject_t path_topology_{};
-    lv_subject_t path_filament_segment_{};
+    helix::Subject path_topology_{};
+    helix::Subject path_filament_segment_{};
 
     // Dryer subjects (for AMS systems with integrated drying)
-    lv_subject_t dryer_supported_{};
-    lv_subject_t dryer_active_{};
-    lv_subject_t dryer_current_temp_{};
-    lv_subject_t dryer_target_temp_{};
-    lv_subject_t dryer_remaining_min_{};
-    lv_subject_t dryer_progress_pct_{};
+    helix::Subject dryer_supported_{};
+    helix::Subject dryer_active_{};
+    helix::Subject dryer_current_temp_{};
+    helix::Subject dryer_target_temp_{};
+    helix::Subject dryer_remaining_min_{};
+    helix::Subject dryer_progress_pct_{};
     int dryer_mirror_unit_ = 0; ///< Unit whose dryer state the scalar subjects mirror
 
     // Dryer text subjects (need buffers)
-    lv_subject_t dryer_current_temp_text_{};
+    helix::Subject dryer_current_temp_text_{};
     char dryer_current_temp_text_buf_[16];
-    lv_subject_t dryer_target_temp_text_{};
+    helix::Subject dryer_target_temp_text_{};
     char dryer_target_temp_text_buf_[16];
-    lv_subject_t dryer_time_text_{};
+    helix::Subject dryer_time_text_{};
     char dryer_time_text_buf_[32];
 
     // Dryer modal editing subjects (user-adjustable values)
-    lv_subject_t modal_target_temp_{};  ///< Modal's target temp in °C (raw int subject)
-    lv_subject_t modal_duration_min_{}; ///< Modal's duration in minutes (raw int subject)
+    helix::Subject modal_target_temp_{};  ///< Modal's target temp in °C (raw int subject)
+    helix::Subject modal_duration_min_{}; ///< Modal's duration in minutes (raw int subject)
 
     // Clog detection config overrides (set by ClogDetectionConfigModal)
     int source_override_ = 0;           // 0=auto, 1=encoder, 2=flowguard, 3=afc
@@ -2859,155 +2865,157 @@ class AmsState {
     /// Buffer reading traces, keyed by unit position, -1 for the system-level reading.
     std::map<int, BufferTrace> buffer_traces_;
 
-    lv_subject_t buffer_present_{};    // 0/1: a proportional reading exists (widget gate)
-    lv_subject_t buffer_slider_{};     // 0/1: it has a set point, so the slider draws
-    lv_subject_t buffer_bias_pct_{};   // -100 tight .. +100 loose; 0 for a fill gauge
-    lv_subject_t buffer_status_{};     // ClogMeterStatus of the reading
-    lv_subject_t buffer_gauge_{};      // BufferGauge: 0 bias, 1 fill
-    lv_subject_t buffer_value_pct_{};  // fill gauge: the pressure, 0..100
-    lv_subject_t buffer_target_pct_{}; // fill gauge: the set point, -1 without one
-    lv_subject_t buffer_label_{};      // "FPS" / "Sync"
+    helix::Subject buffer_present_{};    // 0/1: a proportional reading exists (widget gate)
+    helix::Subject buffer_slider_{};     // 0/1: it has a set point, so the slider draws
+    helix::Subject buffer_bias_pct_{};   // -100 tight .. +100 loose; 0 for a fill gauge
+    helix::Subject buffer_status_{};     // ClogMeterStatus of the reading
+    helix::Subject buffer_gauge_{};      // BufferGauge: 0 bias, 1 fill
+    helix::Subject buffer_value_pct_{};  // fill gauge: the pressure, 0..100
+    helix::Subject buffer_target_pct_{}; // fill gauge: the set point, -1 without one
+    helix::Subject buffer_label_{};      // "FPS" / "Sync"
     char buffer_label_buf_[16]{};
-    lv_subject_t buffer_value_text_{}; // "32%", "-45%", "Pressure: 32%"
+    helix::Subject buffer_value_text_{}; // "32%", "-45%", "Pressure: 32%"
     char buffer_value_text_buf_[48]{};
-    lv_subject_t buffer_short_text_{}; // "32%", "-45%": the number alone, for narrow surfaces
+    helix::Subject buffer_short_text_{}; // "32%", "-45%": the number alone, for narrow surfaces
     char buffer_short_text_buf_[16]{};
-    lv_subject_t
+    helix::Subject
         buffer_lean_text_{}; // "Running tight" / "Balanced", or "At target" / "Above target"
     char buffer_lean_text_buf_[48]{};
-    lv_subject_t buffer_target_text_{}; // "target 50%" where a set point is known
+    helix::Subject buffer_target_text_{}; // "target 50%" where a set point is known
     char buffer_target_text_buf_[48]{};
 
-    lv_subject_t
-        clog_meter_mode_{}; // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=buffer fault
-    lv_subject_t clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
-    lv_subject_t clog_meter_warning_{}; // 0=ok, 1=warning
-    lv_subject_t clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault
-    lv_subject_t clog_meter_mode_text_{};
+    helix::Subject
+        clog_meter_mode_{}; // ClogMeterMode: 0=none, 1=encoder, 2=flowguard, 3=buffer, 4=motion
+    helix::Subject clog_meter_value_{};   // 0-100 (encoder/afc) or -100..+100 (flowguard)
+    helix::Subject clog_meter_warning_{}; // 0=ok, 1=warning
+    helix::Subject clog_meter_status_{};  // ClogMeterStatus: 0=ok, 1=warning, 2=fault
+    helix::Subject clog_meter_safe_{};    // 1 = nothing to report (clog_meter_is_safe)
+    helix::Subject clog_meter_mode_text_{};
     // Mode names render translated: ru "Засор: вручную" is 24 bytes before the
     // NUL, es "Obstrucción automática" the same. Undersized buffers truncate
     // mid-codepoint, silently.
     char clog_meter_mode_text_buf_[32]{};
-    lv_subject_t clog_meter_danger_pct_{};  // 0-100, where danger zone starts
-    lv_subject_t clog_meter_peak_pct_{};    // 0-100, peak-hold marker position
-    lv_subject_t clog_meter_center_text_{}; // Enhanced center display
+    helix::Subject clog_meter_danger_pct_{};  // 0-100, where danger zone starts
+    helix::Subject clog_meter_peak_pct_{};    // 0-100, peak-hold marker position
+    helix::Subject clog_meter_center_text_{}; // Enhanced center display
     char clog_meter_center_text_buf_[32]{};
-    lv_subject_t clog_meter_label_left_{}; // Left endpoint label
+    helix::Subject clog_meter_label_left_{}; // Left endpoint label
     // Endpoint labels render translated: ru "СПУТЫВАНИЕ" is 20 bytes.
     char clog_meter_label_left_buf_[24]{};
-    lv_subject_t clog_meter_label_right_{}; // Right endpoint label
+    helix::Subject clog_meter_label_right_{}; // Right endpoint label
     char clog_meter_label_right_buf_[24]{};
-    lv_subject_t clog_meter_note_kind_{}; // helix::ui::ClogNote; 0 hides the note line
-    lv_subject_t clog_meter_note_text_{};
+    helix::Subject clog_meter_note_kind_{}; // helix::ui::ClogNote; 0 hides the note line
+    helix::Subject clog_meter_note_text_{};
     char clog_meter_note_text_buf_[96]{}; // a firmware-supplied trip reason, or a translated phrase
 
     // Currently Loaded display subjects (reactive binding for "Currently Loaded" card)
-    lv_subject_t current_material_text_{};
+    helix::Subject current_material_text_{};
     // Holds a full filament identity — brand, Spoolman filament name and
-    // material concatenated. lv_subject_copy_string() truncates with
+    // material concatenated. lv_subject_set_string() truncates with
     // lv_strlcpy and reports nothing, so an undersized buffer clips the label
     // silently; real Spoolman names run past 50 characters on their own.
     char current_material_text_buf_[128];
-    lv_subject_t current_slot_text_{};
+    helix::Subject current_slot_text_{};
     char current_slot_text_buf_[64];
-    lv_subject_t current_weight_text_{};
+    helix::Subject current_weight_text_{};
     char current_weight_text_buf_[32];
-    lv_subject_t current_has_weight_{};
-    lv_subject_t current_color_{};
-    lv_subject_t current_colors_{};
+    helix::Subject current_has_weight_{};
+    helix::Subject current_color_{};
+    helix::Subject current_colors_{};
     char current_colors_buf_[128];
-    lv_subject_t current_finish_{};
+    helix::Subject current_finish_{};
     char current_finish_buf_[16];
-    lv_subject_t current_fill_pct_{};
+    helix::Subject current_fill_pct_{};
 
     // Per-slot subjects (color, status, remaining filament)
-    lv_subject_t slot_colors_[kMaxSlots]{};
-    lv_subject_t slot_statuses_[kMaxSlots]{};
-    lv_subject_t slot_remaining_[kMaxSlots]{}; // string: "52m" or "432g" or ""
-    char slot_remaining_buf_[kMaxSlots][16];   // buffers for remaining strings
-    lv_subject_t slot_drying_[kMaxSlots]{};    // int: helix::printer::ZoneDryingState
-    lv_subject_t slot_materials_[kMaxSlots]{}; // string: "PLA", "PETG", … or "" (last synced type)
+    helix::Subject slot_colors_[kMaxSlots]{};
+    helix::Subject slot_statuses_[kMaxSlots]{};
+    helix::Subject slot_remaining_[kMaxSlots]{}; // string: "52m" or "432g" or ""
+    char slot_remaining_buf_[kMaxSlots][16];     // buffers for remaining strings
+    helix::Subject slot_drying_[kMaxSlots]{};    // int: helix::printer::ZoneDryingState
+    helix::Subject
+        slot_materials_[kMaxSlots]{};        // string: "PLA", "PETG", … or "" (last synced type)
     char slot_materials_buf_[kMaxSlots][24]; // buffers for material strings (holds "PETG-CF" etc.)
-    lv_subject_t slot_names_[kMaxSlots]{};   // string: slot card spool name, or ""
+    helix::Subject slot_names_[kMaxSlots]{}; // string: slot card spool name, or ""
     char slot_names_buf_[kMaxSlots][kSlotNameBufSize];
-    lv_subject_t slot_fills_[kMaxSlots]{};  // int: fill percent 0-100, -1 = unknown/no-data
-                                            // (SlotInfo::display_fill_pct encoding)
-    lv_subject_t slot_paints_[kMaxSlots]{}; // int: SlotInfo::paint_key()
+    helix::Subject slot_fills_[kMaxSlots]{};  // int: fill percent 0-100, -1 = unknown/no-data
+                                              // (SlotInfo::display_fill_pct encoding)
+    helix::Subject slot_paints_[kMaxSlots]{}; // int: SlotInfo::paint_key()
 
     // Per-slot LIVE state subjects — the panel observes these to redraw the path
     // and active-lane highlight in real time as Moonraker sensor data arrives.
     // Updated alongside slot_colors_/slot_statuses_ in the status-sync path.
-    lv_subject_t slot_segments_[kMaxSlots]{};         // int: PathSegment enum value
-    lv_subject_t slot_toolhead_present_[kMaxSlots]{}; // int: 0/1 per-slot toolhead sensor
-    lv_subject_t slot_active_loaded_[kMaxSlots]{};    // int: 0/1 firmware seated & loaded
-    lv_subject_t slot_lane_states_[kMaxSlots]{};      // int: helix::ui::LaneState (classify_lane)
-    lv_subject_t slot_has_error_[kMaxSlots]{};        // int: 0/1 BLOCKED or carries a SlotError
-    lv_subject_t slot_error_severity_[kMaxSlots]{};   // int: SlotError::Severity (INFO when none)
-    int slot_overflow_warned_total_ = 0;              // slot count the overflow warning last named
+    helix::Subject slot_segments_[kMaxSlots]{};         // int: PathSegment enum value
+    helix::Subject slot_toolhead_present_[kMaxSlots]{}; // int: 0/1 per-slot toolhead sensor
+    helix::Subject slot_active_loaded_[kMaxSlots]{};    // int: 0/1 firmware seated & loaded
+    helix::Subject slot_lane_states_[kMaxSlots]{};      // int: helix::ui::LaneState (classify_lane)
+    helix::Subject slot_has_error_[kMaxSlots]{};        // int: 0/1 BLOCKED or carries a SlotError
+    helix::Subject slot_error_severity_[kMaxSlots]{};   // int: SlotError::Severity (INFO when none)
+    int slot_overflow_warned_total_ = 0; // slot count the overflow warning last named
 
     // Per-unit environment subjects (CFS temp/humidity)
-    lv_subject_t unit_temp_[kMaxUnits]{};         // int: tenths of C (270 = 27.0C), 0 = no data
-    lv_subject_t unit_humidity_[kMaxUnits]{};     // int: percentage, 0 = no data
-    lv_subject_t unit_absent_[kMaxUnits]{};       // int: 1 = AmsUnit::absent
-    lv_subject_t unit_logo_color_[kMaxUnits]{};   // int: 1 = the unit's logo is full-color art
-    lv_subject_t unit_disconnected_[kMaxUnits]{}; // int: 1 = present but !connected
+    helix::Subject unit_temp_[kMaxUnits]{};         // int: tenths of C (270 = 27.0C), 0 = no data
+    helix::Subject unit_humidity_[kMaxUnits]{};     // int: percentage, 0 = no data
+    helix::Subject unit_absent_[kMaxUnits]{};       // int: 1 = AmsUnit::absent
+    helix::Subject unit_logo_color_[kMaxUnits]{};   // int: 1 = the unit's logo is full-color art
+    helix::Subject unit_disconnected_[kMaxUnits]{}; // int: 1 = present but !connected
     // int: 1 = the unit set_viewed_unit() names is disconnected
-    lv_subject_t viewed_unit_disconnected_{};
+    helix::Subject viewed_unit_disconnected_{};
     // int: 1 = units exist and every present one is disconnected
-    lv_subject_t all_units_disconnected_{};
+    helix::Subject all_units_disconnected_{};
     int viewed_unit_ = -1;
     void publish_viewed_unit_disconnected(const AmsSystemInfo* info);
 
     // Unit paging (set_unit_page)
-    lv_subject_t ams_unit_view_active_{};
-    lv_subject_t ams_page_count_{};
-    lv_subject_t ams_page_current_{};
-    lv_subject_t ams_page_has_prev_{};
-    lv_subject_t ams_page_has_next_{};
-    lv_subject_t ams_page_unit_name_{};
+    helix::Subject ams_unit_view_active_{};
+    helix::Subject ams_page_count_{};
+    helix::Subject ams_page_current_{};
+    helix::Subject ams_page_has_prev_{};
+    helix::Subject ams_page_has_next_{};
+    helix::Subject ams_page_unit_name_{};
     char page_unit_name_buf_[48]{};
-    lv_subject_t ams_page_unit_logo_{};
+    helix::Subject ams_page_unit_logo_{};
     char page_unit_logo_buf_[64]{};
-    lv_subject_t ams_page_has_logo_{};
-    lv_subject_t ams_page_unit_logo_color_{};
+    helix::Subject ams_page_has_logo_{};
+    helix::Subject ams_page_unit_logo_color_{};
 
     /// Which units' dryers ran at the last sync, one character per unit position.
     std::string units_drying_signature_;
-    lv_subject_t ams_units_dryer_version_{};
+    helix::Subject ams_units_dryer_version_{};
 
     // Per-unit environment indicator display subjects (formatted text for XML binding)
     static constexpr int kEnvIndTextBufSize = 16;
     static constexpr int kEnvIndDryingBufSize = 32;
 
-    lv_subject_t env_ind_temp_text_[kMaxUnits]{};
+    helix::Subject env_ind_temp_text_[kMaxUnits]{};
     char env_ind_temp_text_buf_[kMaxUnits][kEnvIndTextBufSize]{};
-    lv_subject_t env_ind_humidity_text_[kMaxUnits]{};
+    helix::Subject env_ind_humidity_text_[kMaxUnits]{};
     char env_ind_humidity_text_buf_[kMaxUnits][kEnvIndTextBufSize]{};
-    lv_subject_t env_ind_visible_[kMaxUnits]{};
-    lv_subject_t env_ind_humidity_[kMaxUnits]{};        // int: tenths of %RH, -1 = no reading
-    lv_subject_t env_ind_humidity_status_[kMaxUnits]{}; // 0=ok, 1=warn, 2=danger
-    lv_subject_t env_ind_humidity_visible_[kMaxUnits]{};
-    lv_subject_t env_ind_drying_active_[kMaxUnits]{};
-    lv_subject_t env_ind_drying_text_[kMaxUnits]{};
+    helix::Subject env_ind_visible_[kMaxUnits]{};
+    helix::Subject env_ind_humidity_[kMaxUnits]{};        // int: tenths of %RH, -1 = no reading
+    helix::Subject env_ind_humidity_status_[kMaxUnits]{}; // 0=ok, 1=warn, 2=danger
+    helix::Subject env_ind_humidity_visible_[kMaxUnits]{};
+    helix::Subject env_ind_drying_active_[kMaxUnits]{};
+    helix::Subject env_ind_drying_text_[kMaxUnits]{};
     char env_ind_drying_text_buf_[kMaxUnits][kEnvIndDryingBufSize]{};
 
     // Always-off placeholders for units past kMaxUnits (see
     // env_indicator_subject_names). Written once at init and never again.
-    lv_subject_t env_ind_off_flag_{};
-    lv_subject_t env_ind_off_text_{};
+    helix::Subject env_ind_off_flag_{};
+    helix::Subject env_ind_off_text_{};
     char env_ind_off_text_buf_[kEnvIndTextBufSize]{};
 
     // Detail-view env indicator mirror subjects (reflect detail_env_unit_)
-    lv_subject_t env_ind_detail_temp_text_{};
+    helix::Subject env_ind_detail_temp_text_{};
     char env_ind_detail_temp_text_buf_[kEnvIndTextBufSize]{};
-    lv_subject_t env_ind_detail_humidity_text_{};
+    helix::Subject env_ind_detail_humidity_text_{};
     char env_ind_detail_humidity_text_buf_[kEnvIndTextBufSize]{};
-    lv_subject_t env_ind_detail_humidity_{};
-    lv_subject_t env_ind_detail_humidity_status_{};
-    lv_subject_t env_ind_detail_humidity_visible_{};
-    lv_subject_t env_ind_detail_visible_{};
-    lv_subject_t env_ind_detail_drying_active_{};
-    lv_subject_t env_ind_detail_drying_text_{};
+    helix::Subject env_ind_detail_humidity_{};
+    helix::Subject env_ind_detail_humidity_status_{};
+    helix::Subject env_ind_detail_humidity_visible_{};
+    helix::Subject env_ind_detail_visible_{};
+    helix::Subject env_ind_detail_drying_active_{};
+    helix::Subject env_ind_detail_drying_text_{};
     char env_ind_detail_drying_text_buf_[kEnvIndDryingBufSize]{};
     int detail_env_unit_ = 0;
 

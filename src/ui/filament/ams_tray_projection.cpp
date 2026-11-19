@@ -30,10 +30,10 @@ float box_rise(float depth) {
     return std::round(kDepthRise * depth);
 }
 
-float cap_width(const UnitShell& shell, float spool_size, float pitch) {
-    return std::min(spool_size * kSpoolWidth / 2.0f +
-                        shell.cap_clearance_px * spool_size / kShellReferenceSpool,
-                    pitch / 2.0f);
+float end_cap_width(const UnitShell* shell, float spool_size) {
+    const float clearance = shell ? shell->cap_clearance_px * spool_size / kShellReferenceSpool
+                                  : kDepthSkew * kSpoolFlangeRadius * spool_size;
+    return spool_size * kSpoolWidth / 2.0f + clearance;
 }
 
 PointF cheek_point(const TrayBox& b, const UnitShell& shell, float spool_size, float x, int i) {
@@ -59,6 +59,39 @@ PointF cheek_under(const TrayBox& b, const UnitShell& shell, float spool_size, f
     return proj(b, x, b.ft - height * spool_size / kShellReferenceSpool, z);
 }
 
+void front_part_box(const TrayBox& b, const FrontPart& part, float spool_size, float lane_x,
+                    float out[4]) {
+    const float scale = spool_size / kShellReferenceSpool;
+    float x0 = 0, x1 = 0;
+    switch (part.anchor) {
+    case FrontAnchor::Span:
+        x0 = b.fl + part.x0 * scale;
+        x1 = b.fr - part.x1 * scale;
+        break;
+    case FrontAnchor::Lane:
+        x0 = lane_x + part.x0 * scale;
+        x1 = lane_x + part.x1 * scale;
+        break;
+    case FrontAnchor::Center:
+        x0 = (b.fl + b.fr) / 2.0f + part.x0 * scale;
+        x1 = (b.fl + b.fr) / 2.0f + part.x1 * scale;
+        break;
+    case FrontAnchor::Left:
+        x0 = b.fl + part.x0 * scale;
+        x1 = b.fl + part.x1 * scale;
+        break;
+    case FrontAnchor::Right:
+        x0 = b.fr - part.x1 * scale;
+        x1 = b.fr - part.x0 * scale;
+        break;
+    }
+    // A narrow row must not push a part past the unit's ends.
+    out[0] = std::clamp(x0, b.fl, b.fr);
+    out[1] = b.ft + part.y0 * scale;
+    out[2] = std::clamp(x1, b.fl, b.fr);
+    out[3] = b.ft + part.y1 * scale;
+}
+
 void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_size, float x,
                         PointF* out, int n) {
     const float scale = spool_size / kShellReferenceSpool;
@@ -75,12 +108,19 @@ void shell_cap_polyline(const TrayBox& b, const UnitShell& shell, float spool_si
 }
 
 float spool_pitch(float spool_size) {
-    // The spool canvas's own integer geometry: width between flanges plus a
-    // flange ellipse each side.
-    const int width = (int)(spool_size * kSpoolWidth);
-    const int flange_rx = (int)((float)(int)(spool_size * kSpoolFlangeRadius) * kDepthSkew);
-    const float footprint = (float)(width + 2 * flange_rx);
-    return std::round(footprint + kDepthSkew * box_depth(spool_size) / 2.0f + kPitchClearance);
+    return std::round(spool_size * kSpoolWidth * kPackedPitch);
+}
+
+float unit_width(int lanes, float spool_size) {
+    return (float)std::max(lanes - 1, 0) * spool_pitch(spool_size) +
+           2 * end_cap_width(nullptr, spool_size) + kDepthSkew * box_depth(spool_size);
+}
+
+int32_t fit_spool_size(float width, int lanes, int32_t max_size) {
+    int32_t size = max_size;
+    while (size > 1 && unit_width(lanes, (float)size) > width)
+        --size;
+    return size;
 }
 
 PointF proj(const TrayBox& b, float x, float y, float z) {
@@ -98,6 +138,22 @@ TrayFaces tray_faces(const TrayBox& b) {
             {fl_t, bl_t, bl_b, fl_b},
             {fl_t, fr_t, fr_b, fl_b},
             {fr_t, br_t, br_b, fr_b}};
+}
+
+std::array<Edge, 7> near_edges(const TrayFaces& f) {
+    const PointF fl_t = f.front[0], fr_t = f.front[1], fr_b = f.front[2], fl_b = f.front[3];
+    const PointF br_t = f.back_wall[1], br_b = f.back_wall[2];
+    return {{{fl_t, fr_t},
+             {fl_b, fr_b},
+             {fl_t, fl_b},
+             {fr_t, fr_b},
+             {fr_t, br_t},
+             {fr_b, br_b},
+             {br_t, br_b}}};
+}
+
+std::array<Edge, 2> far_edges(const TrayFaces& f) {
+    return {{{f.front[0], f.back_wall[0]}, {f.front[3], f.back_wall[3]}}};
 }
 
 float spool_front_cy(const TrayBox& b, float flange_ry) {
@@ -141,12 +197,36 @@ float unit_top_y(const TrayBox& b, float lid_h, bool has_lid) {
 PointF lane_badge_origin(const TrayBox& b, float lane_x, float lane_half, float badge_w,
                          float badge_h, float inset) {
     const float x = std::max(lane_x - badge_w / 2.0f, lane_x + lane_half - badge_w - inset);
-    const float y = std::max(b.ft, b.fb - badge_h - inset);
+    const float y = std::max(b.ft, b.fb - badge_h - 2 * inset);
     return {x, y};
 }
 
 float pill_left_x(const TrayBox& b) {
     return proj(b, b.fr, b.ft, b.depth).x;
+}
+
+float pill_left_x(const TrayBox& b, float clear_of) {
+    return std::max(pill_left_x(b), clear_of);
+}
+
+int leader_dots(const PointF* pts, int n, float step, PointF* out, int max) {
+    if (n <= 0 || step <= 0 || max <= 0)
+        return 0;
+    int count = 0;
+    out[count++] = {std::round(pts[0].x), std::round(pts[0].y)};
+    float carried = 0; // distance walked since the last dot
+    for (int i = 0; i + 1 < n && count < max; ++i) {
+        const float dx = pts[i + 1].x - pts[i].x, dy = pts[i + 1].y - pts[i].y;
+        const float len = std::sqrt(dx * dx + dy * dy);
+        float at = step - carried;
+        while (at <= len && count < max) {
+            out[count++] = {std::round(pts[i].x + dx * at / len),
+                            std::round(pts[i].y + dy * at / len)};
+            at += step;
+        }
+        carried = len - (at - step);
+    }
+    return count;
 }
 
 LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_supported) {
@@ -159,6 +239,16 @@ LidMode lid_mode(const AmsUnit& unit, bool has_physical_tray, bool dryer_support
             return LidMode::PerLane;
     }
     return LidMode::None;
+}
+
+LidMode lid_mode(const UnitShell& shell) {
+    if (shell.dome_n == 0)
+        return LidMode::None;
+    return shell.lid_spans_row ? LidMode::Unit : LidMode::PerLane;
+}
+
+float spool_floor_gap(const UnitShell* shell, float shell_scale) {
+    return kSpoolFloorGap + (shell ? shell->spool_lift_px * shell_scale : 0.0f);
 }
 
 float lane_lid_half_width(float slot_spacing, const TrayBox& b) {

@@ -65,6 +65,21 @@ Turn a filter **off** if you want to see that output — for example, turn off "
 
 ---
 
+## Cold Pull
+
+A cold pull cleans a partly clogged nozzle. You melt filament into the nozzle, let it cool until it is firm, then pull it out by hand so the burnt residue comes out with it. **Cold Pull** in the Tools section walks you through it, and so does the **Cold Pull** button on the "Nozzle clog detected" alert.
+
+1. **Choose the material.** PLA, Nylon or cleaning filament. Each has a soak temperature (how hot the nozzle gets) and a pull temperature (when you pull). Adjust either in 5 °C steps; your change is remembered for that material. Do not cold pull a coated nozzle.
+2. **Get the toolhead ready.** The screen can park the head if the printer is homed and has a park macro. Unload the current filament first, unless your filament system has a lane loaded in the head, in which case that filament is used.
+3. **Heat and feed.** Push filament into the extruder until it stops, then tap **Extrude** until clean filament comes out. On a badly clogged nozzle nothing may come out; tap **Done** anyway.
+4. **Cool.** The heater drops to the pull temperature and the part fan runs at full speed. Do not touch the filament yet.
+5. **Pull.** When the screen says so, release the extruder tension and pull the filament out in one firm motion.
+6. **Inspect the tip.** A clean pull is a cone with no dark specks. If the tip stretched thin, pull a little colder next time; if it snapped, a little warmer. Tap **Repeat** for another pass or **Done** to finish.
+
+The cold pull runs on the active tool. It will not start while a print is running or paused, while another filament operation is heating the nozzle, or while the printer is not ready; the screen tells you which. **Cancel** works on every step, and any way you leave turns the heater off and puts the fan back where it was.
+
+---
+
 ## Macro Execution
 
 ![Macro Panel](../../images/user/advanced-macros.png)
@@ -73,7 +88,7 @@ Browse and execute all of your Klipper macros.
 
 **Opening the Macros panel:**
 
-- Navigate to **Advanced > Macros**, or
+- Navigate to **Advanced > Macro Browser**, or
 - Add the **Macros** widget to your home panel for one-tap access
 
 **Browsing macros:**
@@ -228,6 +243,12 @@ When the HelixPrint plugin is installed, **Advanced > HelixPrint Plugin** shows 
 
 ---
 
+## Restarting Moonraker
+
+The bar at the bottom of the Advanced panel has a **Restart Moonraker** button next to **Restart Klipper** and **Firmware Restart**. Use it when Moonraker is misbehaving, for example when files, history or Spoolman stop updating. HelixScreen asks you to confirm, then reconnects by itself once Moonraker is back, usually within a few seconds. The button is refused while a print is running or paused, and while a Klipper restart is still under way.
+
+---
+
 ## Print History
 
 ![Print History](../../images/user/advanced-history.png)
@@ -281,8 +302,9 @@ Record timelapse videos of your prints automatically using the [moonraker-timela
 If the timelapse plugin is not installed, HelixScreen detects this and offers a guided **Install Wizard**:
 
 1. Navigate to **Advanced > Timelapse Setup**
-2. Follow the on-screen instructions to install the plugin via SSH
+2. When HelixScreen runs on the same computer as Moonraker, it downloads and links the plugin itself, with no SSH needed. When Moonraker runs on another machine, or HelixScreen cannot tell yet, the screen shows the commands to run over SSH, and you tap **Check Again** afterwards
 3. HelixScreen will configure your `moonraker.conf` automatically
+   Videos need `ffmpeg` on the printer. If it is missing, the screen tells you the command to install it, and recording still works without it.
 4. After installation, the setup row is replaced by timelapse settings and video browser
 
 ### Settings

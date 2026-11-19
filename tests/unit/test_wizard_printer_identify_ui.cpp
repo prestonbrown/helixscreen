@@ -12,6 +12,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/one_line_label.h"
+#include "../test_helpers/printer_capture.h"
 #include "../test_helpers/wizard_printer_identify_test_access.h"
 #include "app_globals.h"
 #include "config.h"
@@ -138,10 +139,9 @@ class WizardPrinterIdentifyUIFixture : public LVGLUITestFixture {
     // Rows not hidden by the active view filter.
     std::vector<lv_obj_t*> visible_rows() {
         auto all = rows();
-        all.erase(
-            std::remove_if(all.begin(), all.end(),
-                           [](lv_obj_t* row) { return lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN); }),
-            all.end());
+        all.erase(std::remove_if(all.begin(), all.end(),
+                                 [](lv_obj_t* row) { return lv_obj_is_hidden(row); }),
+                  all.end());
         return all;
     }
 
@@ -199,7 +199,7 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer search filters 
             // The flat match list shows the vendor beside the model.
             lv_obj_t* vendor_label = lv_obj_get_child(shown[i], 1);
             REQUIRE(vendor_label != nullptr);
-            CHECK_FALSE(lv_obj_has_flag(vendor_label, LV_OBJ_FLAG_HIDDEN));
+            CHECK_FALSE(lv_obj_is_hidden(vendor_label));
         }
     }
 
@@ -258,7 +258,25 @@ TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
 
     lv_textarea_set_text(input, "");
     CHECK(view() == kViewTiles);
-    CHECK_FALSE(lv_obj_has_flag(tiles_container(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(tiles_container()));
+}
+
+TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture, "Wizard printer name gates Next on a blank name",
+                 "[wizard][selector]") {
+    require_ready();
+    lv_obj_t* name = lv_obj_find_by_name(step_root, "printer_name_input");
+    REQUIRE(name != nullptr);
+    lv_textarea_set_text(search_input(), "");
+    lv_obj_t* tile = tile_for("Anycubic");
+    REQUIRE(tile != nullptr);
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* first = visible_rows().at(0);
+    lv_obj_send_event(first, LV_EVENT_CLICKED, nullptr);
+
+    lv_textarea_set_text(name, "Bench V0");
+    CHECK(get_wizard_printer_identify_step()->is_validated());
+    lv_textarea_set_text(name, "   ");
+    CHECK_FALSE(get_wizard_printer_identify_step()->is_validated());
 }
 
 // ============================================================================
@@ -474,38 +492,24 @@ TEST_CASE("Wizard selector groups every visible machine exactly once", "[selecto
 
 namespace {
 
-// A K2 whose hostname names neither model and whose config declares no bed:
-// the detector cannot tell the K2 Plus from the K2 Pro.
-class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyUIFixture {
-  public:
-    WizardPrinterIdentifyTiedFixture() : WizardPrinterIdentifyTiedFixture({}, "") {}
-
+// The step opened against a connected printer: the discovery it detects and
+// the type the config holds when it opens.
+class WizardPrinterIdentifyDetectFixture : public WizardPrinterIdentifyUIFixture {
   protected:
-    /// @p extra_objects join the K2 discovery; @p saved_type is the type the
-    /// config holds when the step opens.
-    WizardPrinterIdentifyTiedFixture(const std::vector<std::string>& extra_objects,
-                                     const std::string& saved_type)
+    WizardPrinterIdentifyDetectFixture(const std::vector<std::string>& objects,
+                                       const std::string& hostname, const std::string& kinematics,
+                                       const std::string& saved_type)
         : WizardPrinterIdentifyUIFixture(DeferOpen{}) {
         Config* config = Config::get_instance();
         saved_type_ = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
         saved_name_ = config->get<std::string>(config->df() + helix::wizard::PRINTER_NAME, "");
         config->set<std::string>(config->df() + helix::wizard::PRINTER_TYPE, saved_type);
 
-        std::vector<std::string> objects = {"extruder",
-                                            "heater_bed",
-                                            "box",
-                                            "motor_control",
-                                            "fan_feedback",
-                                            "load_ai",
-                                            "filament_rack",
-                                            "heater_generic chamber_heater",
-                                            "temperature_sensor chamber_temp"};
-        objects.insert(objects.end(), extra_objects.begin(), extra_objects.end());
         helix::PrinterDiscovery& hardware = api()->hardware();
         hardware.parse_objects(nlohmann::json(objects));
         hardware.set_printer_objects(objects);
-        hardware.set_hostname("creality-k2");
-        hardware.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", "corexy"}}}});
+        hardware.set_hostname(hostname);
+        hardware.parse_config_keys(nlohmann::json{{"printer", {{"kinematics", kinematics}}}});
         set_moonraker_api(api());
 
         // The step detects once per printer; make it detect this one. A saved
@@ -516,7 +520,7 @@ class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyUIFixture {
     }
 
   public:
-    ~WizardPrinterIdentifyTiedFixture() {
+    ~WizardPrinterIdentifyDetectFixture() {
         close_step();
         set_moonraker_api(nullptr);
         // The next fixture opens without a printer and must list every machine.
@@ -548,6 +552,56 @@ class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyUIFixture {
 
     std::string saved_type_;
     std::string saved_name_;
+};
+
+// A K2 whose hostname names neither model and whose config declares no bed:
+// the detector cannot tell the K2 Plus from the K2 Pro.
+class WizardPrinterIdentifyTiedFixture : public WizardPrinterIdentifyDetectFixture {
+  public:
+    WizardPrinterIdentifyTiedFixture() : WizardPrinterIdentifyTiedFixture({}, "") {}
+
+  protected:
+    /// @p extra_objects join the K2 discovery; @p saved_type is the type the
+    /// config holds when the step opens.
+    WizardPrinterIdentifyTiedFixture(const std::vector<std::string>& extra_objects,
+                                     const std::string& saved_type)
+        : WizardPrinterIdentifyDetectFixture(k2_objects(extra_objects), "creality-k2", "corexy",
+                                             saved_type) {}
+
+  private:
+    static std::vector<std::string> k2_objects(const std::vector<std::string>& extra_objects) {
+        std::vector<std::string> objects = {"extruder",
+                                            "heater_bed",
+                                            "box",
+                                            "motor_control",
+                                            "fan_feedback",
+                                            "load_ai",
+                                            "filament_rack",
+                                            "heater_generic chamber_heater",
+                                            "temperature_sensor chamber_temp"};
+        objects.insert(objects.end(), extra_objects.begin(), extra_objects.end());
+        return objects;
+    }
+};
+
+// A Kobra X saved as the Kobra 3 V2 it was set up as before the database knew
+// it, opened from the type mismatch review's Choose Model.
+class WizardPrinterIdentifyKobraXFixture : public WizardPrinterIdentifyDetectFixture {
+  public:
+    WizardPrinterIdentifyKobraXFixture()
+        : WizardPrinterIdentifyDetectFixture(capture_objects(), "kobrian-kx-000000", "cartesian",
+                                             "Anycubic Kobra 3 V2") {}
+
+  private:
+    static std::vector<std::string> capture_objects() {
+        const nlohmann::json capture =
+            helix::test::load_printer_capture("anycubic_kobra_x_kobrian");
+        std::vector<std::string> objects;
+        for (const auto& name : capture.at("printer_objects")) {
+            objects.push_back(name.get<std::string>());
+        }
+        return objects;
+    }
 };
 
 // The same K2 on k2-improvements, opened from the type mismatch review with the
@@ -589,9 +643,9 @@ TEST_CASE_METHOD(WizardPrinterIdentifyTiedFixture,
         lv_obj_t* vendor_title = lv_obj_find_by_name(step_root, "vendor_title_label");
         REQUIRE(candidates_title != nullptr);
         REQUIRE(vendor_title != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(lv_obj_get_parent(candidates_title), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(candidates_title, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(vendor_title, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(lv_obj_get_parent(candidates_title)));
+        CHECK_FALSE(lv_obj_is_hidden(candidates_title));
+        CHECK(lv_obj_is_hidden(vendor_title));
         CHECK(std::string(get_wizard_printer_identify_step()->get_detection_status()) ==
               lv_tr("Several printers match - choose yours"));
     }
@@ -635,4 +689,20 @@ TEST_CASE_METHOD(WizardPrinterIdentifySavedTieFixture,
     CHECK(PrinterDetector::get_list_name_at(selected_index(), "corexy") == offered);
     CHECK(next_enabled());
     CHECK(std::string(get_wizard_printer_identify_step()->get_detection_status()) == offered);
+}
+
+// Accepting the switch is the Choose Model path: the identify step opens on
+// the detected machine, and leaving it saves that type in place of the old one
+// (prestonbrown/helixscreen#2075).
+TEST_CASE_METHOD(WizardPrinterIdentifyKobraXFixture,
+                 "Wizard opened from the type mismatch review switches to the detected type",
+                 "[wizard][selector][mismatch][2075]") {
+    require_ready();
+    const std::string kobra_x = "Anycubic Kobra X";
+    CHECK(PrinterDetector::get_list_name_at(selected_index(), "cartesian") == kobra_x);
+    CHECK(next_enabled());
+
+    close_step();
+    Config* config = Config::get_instance();
+    CHECK(config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "") == kobra_x);
 }

@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "console_filter_engine.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "in_flight_guard.h"
 #include "json_fwd.h"
 #include "lvgl.h"
@@ -39,13 +39,10 @@
  * - Temperature message filtering (periodic T:/B: reports)
  * - Auto-scroll to newest messages (pauses when user scrolls up)
  * - Empty state when no history available
- *
  * ## Moonraker API
  * - server.gcode_store - Fetch command history
  * - notify_gcode_response - Real-time response subscription
  * - printer.gcode.script - Send G-code commands
- *
- * @see docs/FEATURE_STATUS.md for implementation progress
  */
 class ConsolePanel : public OverlayBase {
   public:
@@ -75,6 +72,13 @@ class ConsolePanel : public OverlayBase {
 
     /// Send the current G-code command from the input field via Moonraker
     void send_gcode_command();
+    /// Up/Down in the input step through the command history.
+    void step_history(uint32_t key);
+
+    /// Where Up (older) or Down (newer) moves the history cursor: an index into
+    /// a history of @p history_size commands, newest at 0, or -1 for the input
+    /// the user was typing. nullopt when the key does not move it.
+    static std::optional<int> next_history_index(int index, size_t history_size, uint32_t key);
 
     /// Clear all entries from the console display and show empty state
     void clear_display();
@@ -163,7 +167,7 @@ class ConsolePanel : public OverlayBase {
     /// Subscribe to real-time G-code responses (called from on_activate)
     void subscribe_to_gcode_responses();
 
-    /// Unsubscribe from real-time G-code responses (called from on_deactivate)
+    /// Unsubscribe from real-time G-code responses (called from on_deactivating)
     void unsubscribe_from_gcode_responses();
 
     /// Rebuild the firmware-noise filter engine for the current printer.
@@ -216,9 +220,9 @@ class ConsolePanel : public OverlayBase {
     // Subjects
     SubjectManager subjects_;
     char status_buf_[128] = {};
-    lv_subject_t status_subject_{};
-    lv_subject_t status_visible_subject_{}; ///< 1 = status text visible, 0 = hidden
-    lv_subject_t has_entries_subject_{};    ///< 1 = has console entries, 0 = empty
+    helix::Subject status_subject_{};
+    helix::Subject status_visible_subject_{}; ///< 1 = status text visible, 0 = hidden
+    helix::Subject has_entries_subject_{};    ///< 1 = has console entries, 0 = empty
 };
 
 /**

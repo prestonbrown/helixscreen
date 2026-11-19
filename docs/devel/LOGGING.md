@@ -14,7 +14,7 @@ This document defines the logging standards for HelixScreen. All new code should
 
 ## Print Health Line
 
-During a print the main loop logs one `[PrintHealth]` line a minute at INFO: process and main-thread CPU as percent of one core, frames drawn per second and their mean render time, the frames that rendered longer than the 33 ms refresh period (`slow`), flushed screens per second, RSS and peak RSS, available memory and free swap. Read it first when a report describes a stalled print or heavy host load (`src/application/print_health_log.cpp#format_print_health`).
+During a print the main loop logs one `[PrintHealth]` line a minute at INFO: process and main-thread CPU as percent of one core, frames drawn per second and their mean render time, the frames that rendered longer than the 33 ms refresh period (`slow`), flushed screens per second (the refreshed area, `PERFORMANCE.md` § "Reading the UI's own counters"), RSS and peak RSS, available memory and free swap. Read it first when a report describes a stalled print or heavy host load (`src/application/print_health_log.cpp#format_print_health`).
 
 ## When to Use Each Level
 
@@ -203,7 +203,7 @@ The runtime target is set by precedence (highest → lowest):
    - **Other Linux** → `Syslog` (`syslog_sink_mt` via `libc syslog()`)
    - **macOS/other** → `Console` (`stdout_color_sink_mt`)
 
-Valid `LogTarget` values: `auto`, `journal`, `syslog`, `file`, `console`, `android`.
+`LogTarget` values: `auto`, `journal`, `syslog`, `file`, `console`, `android`. Only the first five pass `is_valid_log_target()` (the flag and the env var); `android` is chosen by detection.
 
 ### Per-Sink Log Patterns
 
@@ -400,7 +400,7 @@ Older installs wrote to `/tmp/helixscreen.log` on every SysV target. Debug bundl
 | `-vv` | DEBUG and above |
 | `-vvv` | TRACE and above |
 | `--log-level=trace\|debug\|info\|warn\|error\|critical\|off` | Explicit level (overrides `-v`) |
-| `--log-dest=auto\|journal\|syslog\|file\|console\|android` | Override destination |
+| `--log-dest=auto\|journal\|syslog\|file\|console` | Override destination (Android always logs to logcat) |
 | `--log-file=<path>` | Override path when `--log-dest=file` |
 
 ### Env / config
@@ -432,10 +432,12 @@ On Klipper-based platforms (Pi, AD5M, K1, K2, Snapmaker U1, etc.), `setup_config
 `DebugBundleCollector::collect()` (`src/system/debug_bundle_collector.cpp`) assembles a debug bundle on user request (Settings → Help & About → Upload Debug Bundle, or the `helix_debug` Moonraker shell command), reading the on-disk log cascade through `src/system/log_collector.cpp`. It captures:
 
 - `log_tail` - the structured app log, read from the in-memory ring rather than from disk (`src/system/debug_bundle_collector.cpp`), so it is always the live process and always fresh. Because the ring is installed in `init_early()` it reaches back past Phase 2 config load; see "Ring-Buffer Sink Lifecycle". The companion `log_meta` field records the active sink target, the level the persistent sinks were configured at (which the ring may have been more verbose than), and whether the tail came from the live ring or the on-disk fallback
-- Last N lines from each candidate launcher-log path (`/var/log/helixscreen/launcher.log`, `${install_dir}/logs/launcher.log`, legacy `/tmp/helixscreen.log`, etc.)
+- `launcher_log` - the last `kLauncherLogMaxLines` (300) lines, at most `kLauncherLogMaxBytes` (64 KB), of the freshest launcher capture among `helix::logs::launcher_log_paths()` (`/var/log/helixscreen/launcher.log`, the running install's `logs/launcher.log`, every known install and state root, and the AD5X mod tree's `helixscreen.log`). It opens with the file's path and age and passes through `sanitize_text_block()`. It is the record of each helix-screen exit code; systemd hosts log the launcher to the journal and carry no file
 - Last N lines of syslog (`/var/log/messages`, `/var/log/syslog`)
 - systemd journal entries when available (`journalctl -u helixscreen`)
 - Crash report (if recent)
+- `klipper_log` and `klipper_log_meta` - the klippy.log tail and where it came from. Moonraker serves `<its data dir>/logs/klippy.log`, but Klippy writes wherever its `-l` / `--logfile` points, and a vendor layout can put that outside Moonraker's data dir. On a same-host printer the collector reads the running klippy.py process's `-l` from `/proc/<pid>/cmdline` (`live_klippy_log_path()`), and when that file was written more than `kLogStaleSlackS` (120 s) after Moonraker's copy it ships the last `kKlipperTailBytes` of the live file instead, opening with its path and age. `klipper_log_meta` records `source` (`moonraker` or `local`), `path`, `modified`, `last_stamp` (the newest "Start printer at" / "Log rollover at" wall time in the tail), `klippy_connected_at` (the last "Klippy Connection Established" in moonraker.log on a same-host printer, or the screen journal's last `klippy_ready`) and `stale`: true when the log was last written before that connection, since a connecting Klippy always writes to its log. A stale tail opens with a `[helix] STALE:` line. Local log tails pass through `sanitize_text_block()` like served ones
+- `kernel_log` - the kernel's kill and crash records from the screen's own host, never the full ring: only lines naming an OOM kill (`invoked oom-killer`, `Out of memory`, `Killed process`, `oom-kill:`, `oom_reaper`) or a process fault (`segfault`, `general protection`, MIPS `sending SIGSEGV`, ARM `Unhandled fault` / `unhandled level`), the newest `kKernelLogMaxLines` (40), each cut to 512 bytes and passed through `sanitize_value()`. Read from `dmesg`, else `/dev/kmsg` opened non-blocking; a host that denies both gets `source: none` and a note. `uptime_s` turns the kernel's since-boot stamps into elapsed time, and `same_host_as_moonraker` says whether a Klippy kill could appear in it at all (`DebugBundleCollector::collect_kernel_log`)
 - `settings.json` (sanitized)
 - `printer_config` — Klipper's `printer.cfg` and every config it `[include]`s, fetched from
   `/server/files/config/<path>` and sanitized per line (see below)

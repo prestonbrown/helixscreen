@@ -53,6 +53,9 @@ struct FileStartFacts {
     FilePalette palette;
     std::set<int> tools_used;       ///< empty when the scan could not answer
     std::vector<double> tool_grams; ///< empty means unknown, never zero
+    /// Outer wall speed from the file's footer, read only while a motor ripple
+    /// sweep has saved bands to compare it with.
+    std::optional<float> outer_wall_speed_mm_s;
     /// The plugin's analysis as the fit check reads it; unset without one.
     std::optional<FitFile> fit_record;
 };
@@ -85,7 +88,7 @@ remap_modal_mappings(const std::vector<ToolMapping>& card_mappings,
 
 /// Fill the file fields of @p ctx from @p facts and the live filament state,
 /// the derivation the file view uses when its mapping card holds no user edit:
-/// FilamentMappingCard::build_used_tool_info(), AmsState::seed_tool_mappings(),
+/// helix::filament_mapping::build_used_tool_info(), AmsState::seed_tool_mappings(),
 /// AmsState::collect_available_slots(), FilamentMapper::identity_filtered_remap().
 /// Sets ctx.has_file_facts and the fit check's file facts (the plugin's
 /// record and the metadata; a queued start reads no head and has no preview).
@@ -102,13 +105,15 @@ void fill_file_context(PrintStartContext& ctx, const FileStartFacts& facts);
 /// alone lists the slicer's filaments, not the tools that print.
 [[nodiscard]] std::set<int> file_tools_used(const FileStartFacts& facts);
 
+/// How long gathering a file's start facts may go unanswered before a start
+/// gives up: the app's transfer stall window, plus @p metadata's file size at
+/// the slowest rate a whole-file read is allowed (100 kB/s), since a footer
+/// that cannot answer falls back to reading the whole file.
+[[nodiscard]] uint32_t file_facts_stall_ms(const FileMetadata& metadata);
+
 /// The empty-slot pre-flight for @p facts, computed with the same inputs.
 [[nodiscard]] PreflightResult preflight_for(const FileStartFacts& facts, bool material_needed);
 
-/// Gathers FileStartFacts for one file: metadata, then the tools/palette/grams
-/// footer read, then a whole-file tools scan when the footer cannot answer.
-/// The file view runs its own scan through the same steps, handing in its
-/// shared download so the viewer preview and the scan use one transfer.
 /// How much of a file FileStartFactsLoader::load() may read past Moonraker's
 /// metadata and the tools cache.
 enum class FileRead {
@@ -117,6 +122,10 @@ enum class FileRead {
     Whole,        ///< the footer, then a download and scan when it does not answer
 };
 
+/// Gathers FileStartFacts for one file: metadata, then the tools/palette/grams
+/// footer read, then a whole-file tools scan when the footer cannot answer.
+/// The file view runs its own scan through the same steps, handing in its
+/// shared download so the viewer preview and the scan use one transfer.
 class FileStartFactsLoader {
   public:
     /// Downloads the file and answers ok plus a local path the scan may read.

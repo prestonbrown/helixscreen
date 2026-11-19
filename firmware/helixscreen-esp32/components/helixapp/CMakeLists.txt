@@ -64,6 +64,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 set(MOCK_SRCS "")
 if(CONFIG_HELIX_MOCK_PRINTER)
     list(APPEND MOCK_SRCS ${REPO_ROOT}/src/printer/ams_backend_mock.cpp)
+    list(APPEND MOCK_SRCS ${REPO_ROOT}/src/printer/ams_backend_mock_identity.cpp)
 endif()
 
 # Local firmware-tree sources: platform seams (Linux-bound singletons the app
@@ -136,6 +137,12 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # The Motion panel covers what the Toolhead widget offers; leaving the
     # widget out saves its flash.
     HELIX_HAS_TOOLHEAD_WIDGET=0
+    # The K-Touch feature profile (docs/devel/ESP32_PORT.md): the G-code console
+    # and the Snake easter egg stay off the 4.3-inch panel.
+    HELIX_HAS_CONSOLE=0
+    HELIX_HAS_SNAKE_GAME=0
+    # No pty and no shell on the firmware: the Host Terminal and libvterm stay out.
+    HELIX_HAS_HOST_TERMINAL=0
     HELIX_HAS_GCODE_VIEWER=0
     HELIX_HAS_BED_MESH_3D=0
     HELIX_HAS_LABEL_PRINTER=0
@@ -164,4 +171,5 @@ target_include_directories(${COMPONENT_LIB} SYSTEM PRIVATE
     ${REPO_ROOT}/lib/lvgl/src
     ${REPO_ROOT}/lib/stb
     ${REPO_ROOT}/lib/lv_markdown/src
-    ${REPO_ROOT}/lib/lv_markdown/deps/md4c)
+    ${REPO_ROOT}/lib/lv_markdown/deps/md4c
+    ${REPO_ROOT}/lib/monocypher)

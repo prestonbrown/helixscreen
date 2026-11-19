@@ -277,7 +277,8 @@ helix_env_key_allowed() {
             HELIX_DISABLE_AUTO_UPDATES | HELIX_DISPLAY_BACKEND | \
             HELIX_DISPLAY_ROTATION | HELIX_DPI | HELIX_DRM_DEVICE | \
             HELIX_EGL_PARTIAL_UPLOAD | HELIX_EGL_VSYNC | HELIX_EGL_XRGB | \
-            HELIX_FB_DEVICE | HELIX_GCODE_MODE | HELIX_GLASS | HELIX_HANG_THRESHOLD_SEC | \
+            HELIX_FB_DEVICE | HELIX_FBDEV_VSYNC | HELIX_GCODE_MODE | HELIX_GLASS | \
+            HELIX_HANG_THRESHOLD_SEC | \
             HELIX_IMAGE_CACHE_KB | HELIX_KEY_DEPTH | HELIX_LOOP_MIN_SLEEP_MS | \
             HELIX_GCODE_STREAMING | HELIX_KEYBOARD_DEVICE | HELIX_LOG_DEST | \
             HELIX_LOG_FILE | HELIX_LOG_LEVEL | HELIX_LOG_RING_LINES | HELIX_MOUSE_DEVICE | \
@@ -1206,6 +1207,15 @@ if [ -z "${SSL_CERT_FILE:-}" ]; then
         done
         unset _cert_path
     fi
+fi
+
+# Z-Mod's own S80helixscreen never runs restore-user-config.sh, and its
+# Moonraker update rmtree()s the install root, config/ included. Relink the
+# user files from the state root before anything reads helixscreen.env or the
+# platform hooks. The script acts only on that layout (#2085).
+if [ -f "${INSTALL_DIR}/config/restore-user-config.sh" ]; then
+    HELIX_RESTORE_ZMOD_ONLY=1 IDIR="$INSTALL_DIR" \
+        sh "${INSTALL_DIR}/config/restore-user-config.sh" 2>/dev/null || true
 fi
 
 helix_load_env_file

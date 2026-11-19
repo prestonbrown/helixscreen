@@ -70,8 +70,10 @@ inline CalloutChipMetrics measure_callout_chip(lv_obj_t* probe) {
 /// A pinned chip sits on the picture, so it drops the unit letter ("60 / 70°").
 inline std::string compact_callout_text(std::string s) {
     static constexpr char kDegree[] = "°";
-    for (size_t p; (p = s.find("°C")) != std::string::npos;)
-        s.erase(p + sizeof(kDegree) - 1, 1);
+    for (const char* unit : {"°C", "°F"}) {
+        for (size_t p; (p = s.find(unit)) != std::string::npos;)
+            s.erase(p + sizeof(kDegree) - 1, 1);
+    }
     return s;
 }
 

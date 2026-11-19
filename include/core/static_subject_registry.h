@@ -15,7 +15,7 @@
  * Core state singletons (PrinterState, AmsState, SettingsManager, FilamentSensorManager)
  * have LVGL subjects that UI widgets observe. When lv_deinit() runs, it deletes widgets
  * which try to remove their observers from subjects. If subjects haven't been deinitialized
- * first, this causes crashes in lv_observer_remove.
+ * first, this causes crashes in lv_observer_delete.
  *
  * This registry is separate from StaticPanelRegistry because:
  * 1. These are NOT panels - they're core state singletons
@@ -98,9 +98,13 @@ class StaticSubjectRegistry {
      * @param name Singleton name for logging
      * @param deinit_fn Function to call during deinit_all()
      * @param lifetime What a printer switch does to the entry (see Lifetime)
+     * @param owner The instance the callback captures, for a source that can exist more
+     *        than once (a test's own PrinterState beside the global one). An entry is
+     *        identified by name AND owner, so one instance never replaces or removes
+     *        another's. Singletons and rebuilt sources leave it null.
      */
     void register_deinit(const char* name, helix::SharedCallback<void()> deinit_fn,
-                         Lifetime lifetime = Lifetime::Printer);
+                         Lifetime lifetime = Lifetime::Printer, const void* owner = nullptr);
 
     /**
      * @brief Deinitialize registered subjects in reverse registration order
@@ -132,9 +136,10 @@ class StaticSubjectRegistry {
      * fixture's own PrinterState): its callback captures the object, so the
      * entry has to leave the registry before the object does.
      *
+     * @param owner Owner used at registration
      * @return true if an entry was found and dropped
      */
-    bool unregister(const char* name);
+    bool unregister(const char* name, const void* owner = nullptr);
 
     /**
      * @brief Clear all registered entries without running callbacks
@@ -183,6 +188,7 @@ class StaticSubjectRegistry {
         std::string name;
         helix::SharedCallback<void()> deinit_fn;
         Lifetime lifetime = Lifetime::Printer;
+        const void* owner = nullptr;
     };
 
     std::vector<DeinitEntry> deinitializers_;

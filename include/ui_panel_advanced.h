@@ -3,18 +3,23 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_panel_history_dashboard.h"
 #include "ui_plugin_install_modal.h"
 #include "ui_shutdown_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix_plugin_installer.h"
 #include "macro_manager.h"
 
 #include <functional>
 #include <memory>
+
+namespace helix {
+enum class PowerIntent; // src/ui/panel_widgets/shutdown_widget.h
+} // namespace helix
 
 namespace helix::ui {
 struct AdvancedPanelTestAccess; // test-only friend (tests/test_helpers/)
@@ -65,13 +70,11 @@ class AdvancedPanel : public PanelBase {
     //
 
     /**
-     * @brief Initialize capability-related subjects for XML binding
+     * @brief Register the panel's XML event callbacks and its
+     *        advanced_show_notification_history subject
      *
-     * Creates subjects for:
-     * - printer_has_accelerometer
-     * - printer_has_spoolman
-     *
-     * Note: printer_has_probe is already created by SettingsPanel.
+     * The printer_has_* capability subjects the rows bind come from
+     * PrinterCapabilitiesState.
      */
     void init_subjects() override;
 
@@ -95,9 +98,9 @@ class AdvancedPanel : public PanelBase {
     //
 
     /**
-     * @brief Refresh capability flags when panel becomes visible
+     * @brief Refresh the notification history row when the panel becomes visible
      *
-     * Updates subjects based on current PrinterCapabilities.
+     * The row shows only while no notifications widget is placed on the home screen.
      */
     void on_activate() override;
 
@@ -119,6 +122,7 @@ class AdvancedPanel : public PanelBase {
     void handle_spoolman_clicked();
     void handle_macros_clicked();
     void handle_console_clicked();
+    void handle_host_terminal_clicked();
     void handle_history_clicked();
     void handle_pid_tuning_clicked();
     void handle_pa_tuning_clicked();
@@ -163,7 +167,7 @@ class AdvancedPanel : public PanelBase {
     // Both POWER rows (Shutdown, Reboot) open the same shared dialog — the
     // dialog itself presents shutdown vs. reboot buttons and, on dual-host
     // setups, the printer/screen/both scope. Single handler reflects that.
-    void handle_power_clicked();
+    void handle_power_clicked(helix::PowerIntent intent);
 
     //
     // === Static Event Callbacks (registered via lv_xml_register_event_cb) ===
@@ -172,6 +176,7 @@ class AdvancedPanel : public PanelBase {
     static void on_spoolman_clicked(lv_event_t* e);
     static void on_macros_clicked(lv_event_t* e);
     static void on_console_clicked(lv_event_t* e);
+    static void on_host_terminal_clicked(lv_event_t* e);
     static void on_history_clicked(lv_event_t* e);
     static void on_pid_tuning_clicked(lv_event_t* e);
     static void on_timelapse_videos_clicked(lv_event_t* e);
@@ -180,7 +185,8 @@ class AdvancedPanel : public PanelBase {
     static void on_helix_plugin_uninstall_clicked(lv_event_t* e);
     static void on_helix_macros_install_clicked(lv_event_t* e);
     static void on_helix_macros_update_clicked(lv_event_t* e);
-    static void on_advanced_power_clicked(lv_event_t* e);
+    static void on_advanced_shutdown_clicked(lv_event_t* e);
+    static void on_advanced_reboot_clicked(lv_event_t* e);
 
     //
     // === HelixPrint Plugin Support ===
@@ -244,7 +250,7 @@ class AdvancedPanel : public PanelBase {
 
     /// 1 while no notifications widget holds a cell on the home screen, which
     /// leaves this row as the only way into notification history.
-    lv_subject_t show_notification_history_subject_{};
+    helix::Subject show_notification_history_subject_{};
     SubjectManager subjects_;
     void refresh_notification_history_row();
 
@@ -256,14 +262,14 @@ class AdvancedPanel : public PanelBase {
 /**
  * @brief Global instance accessor
  *
- * Returns reference to singleton AdvancedPanel used by main.cpp.
+ * Returns reference to the singleton AdvancedPanel (PanelFactory sets it up).
  */
 AdvancedPanel& get_global_advanced_panel();
 
 /**
  * @brief Initialize the global AdvancedPanel instance
  *
- * Must be called by main.cpp before accessing get_global_advanced_panel().
+ * Called from SubjectInitializer before any get_global_advanced_panel() use.
  *
  * @param printer_state Reference to helix::PrinterState
  * @param api Pointer to IMoonrakerAPI

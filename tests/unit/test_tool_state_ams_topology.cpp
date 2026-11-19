@@ -423,6 +423,7 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
     REQUIRE(ts.tool_count() == 4);
     REQUIRE(ts.extruder_count() == 4);
     REQUIRE(ts.has_multiple_extruders());
+    CHECK(lv_subject_get_int(ts.get_extruder_count_subject()) == 4);
 
     // Surviving the AMS rebuild matters — that is where the mapping was lost once.
     helix::ToolTopology topo;
@@ -437,6 +438,7 @@ TEST_CASE_METHOD(ToolStateFixture, "A real 4-extruder ToolChanger does report mu
 
     ts.clear_ams_topology();
     UpdateQueue::instance().drain();
+    CHECK(lv_subject_get_int(ts.get_extruder_count_subject()) == ts.extruder_count());
 }
 
 // =============================================================================
@@ -894,6 +896,36 @@ TEST_CASE("A lane backend's topology does not allow an empty carriage",
     CHECK_FALSE(topo->allows_empty_carriage);
 }
 
+TEST_CASE_METHOD(ToolStateFixture,
+                 "An AFC toolchanger with every head parked shows no tool mounted",
+                 "[tool-state][ams-topology][empty-carriage][afc]") {
+    helix::test::WiredBackend<helix::AmsBackendAfc> afc;
+    afc.set_discovered_lanes({"lane1", "lane2", "lane3"}, {});
+    REQUIRE(afc.start().success());
+    UpdateQueue::instance().drain();
+    const auto feed = [&afc](const nlohmann::json& frame) { afc.fire_status(frame); };
+    const auto publish = [&afc] {
+        auto topo = helix::build_ams_topology(&afc, 0);
+        REQUIRE(topo.has_value());
+        ToolState::instance().set_ams_topology(*topo);
+        UpdateQueue::instance().drain();
+    };
+    feed({{"AFC", {{"extruders", {"extruder", "extruder1", "extruder2"}}}}});
+
+    feed({{"toolchanger", {{"tool_number", 2}, {"status", "ready"}}}});
+    publish();
+    CHECK(ToolState::instance().active_tool_index() == 2);
+
+    feed({{"toolchanger", {{"tool_number", -1}, {"status", "ready"}}}});
+    feed({{"AFC", {{"current_load", "lane1"}}}});
+    publish();
+    CHECK(ToolState::instance().active_tool_index() == -1);
+    CHECK(ToolState::instance().active_tool() == nullptr);
+
+    ToolState::instance().clear_ams_topology();
+    UpdateQueue::instance().drain();
+}
+
 TEST_CASE_METHOD(ToolStateFixture, "multiple toolheads means a tool changer, never AMS slots",
                  "[tool-state][ams][ams-topology]") {
     auto& ts = helix::ToolState::instance();
@@ -1055,8 +1087,8 @@ TEST_CASE("build_ams_topology carries each lane's extruder",
     mock.set_stealth_mode(true);
     auto topo = helix::build_ams_topology(&mock, 0);
     REQUIRE(topo.has_value());
-    REQUIRE(topo->tool_count == 18);
-    REQUIRE(topo->tool_extruder.size() == 18);
+    REQUIRE(topo->tool_count == 20);
+    REQUIRE(topo->tool_extruder.size() == 20);
     CHECK(topo->tool_extruder[0] == "extruder");
     CHECK(topo->tool_extruder[7] == "extruder4");
     CHECK(topo->tool_extruder[12] == "extruder6");

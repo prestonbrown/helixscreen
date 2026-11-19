@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "detection_manager.h"
 
-#include "ui_callback_helpers.h"
-
 #include "core/static_subject_registry.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "i_moonraker_client.h"
@@ -36,14 +34,6 @@ void DetectionManager::ensure_availability_subject() {
     UI_MANAGED_SUBJECT_INT(bed_check_enabled_subject_, 1, "detection_bed_check_enabled", subjects_);
     UI_MANAGED_SUBJECT_INT(bed_check_switchable_subject_, 1, "detection_bed_check_switchable",
                            subjects_);
-    // The Safety & Alerts row's toggle. Registered with its subject so the
-    // row and what it drives exist together.
-    register_xml_callbacks({
-        {"on_bed_check_changed",
-         [](lv_event_t* e) {
-             DetectionManager::instance().set_bed_check_enabled(helix::ui::event_checked(e));
-         }},
-    });
     availability_subject_ready_ = true;
     // Bound only by XML and written only here, so a printer switch leaves them up.
     StaticSubjectRegistry::instance().register_deinit(
@@ -114,6 +104,54 @@ bool DetectionManager::set_bed_check_enabled(bool enabled, std::function<void()>
                             show_bed_check_refusal(refusal);
                         }));
     return true;
+}
+
+void DetectionManager::set_detection_enabled(bool enabled) {
+    SettingsManager::instance().set_detection_enabled(enabled);
+    // The user has now chosen, so a later connect never adopts the printer's value.
+    SettingsManager::instance().mark_detection_switch_adopted();
+    spdlog::info("DetectionManager: detection -> {}", enabled ? "on" : "off");
+    for (const auto& src : sources_) {
+        if (src && src->available()) {
+            src->apply_detection_enabled(enabled);
+        }
+    }
+}
+
+void DetectionManager::reconcile_detection_enabled() {
+    for (const auto& src : sources_) {
+        if (!src || !src->available()) {
+            continue;
+        }
+        // sources_ only shrinks in reset_for_test(), which invalidates
+        // lifetime_ first, so the pointer is live whenever the body runs.
+        DetectionSource* raw = src.get();
+        raw->read_detection_enabled(lifetime_.bg_cb(
+            "DetectionManager::on_detection_enabled_read", [raw](std::optional<bool> printer_on) {
+                if (!printer_on || !raw->available()) {
+                    return;
+                }
+                SettingsManager& sm = SettingsManager::instance();
+                // The first read takes the printer's word: a switch turned off
+                // on the printer before HelixScreen followed it stays off.
+                if (!sm.is_detection_switch_adopted()) {
+                    sm.set_detection_enabled(*printer_on);
+                    sm.mark_detection_switch_adopted();
+                    spdlog::info("DetectionManager: adopted '{}' detection {} from the printer",
+                                 raw->id(), *printer_on ? "on" : "off");
+                    return;
+                }
+                // Read now, not when asked: a toggle made while the query was
+                // out has already been sent and must not be undone.
+                const bool wanted = sm.get_detection_enabled();
+                if (*printer_on == wanted) {
+                    return;
+                }
+                spdlog::info("DetectionManager: '{}' detection is {} on the printer; setting {}",
+                             raw->id(), *printer_on ? "on" : "off", wanted ? "on" : "off");
+                raw->apply_detection_enabled(wanted);
+            }));
+    }
 }
 
 void DetectionManager::show_bed_check_refusal(const std::string& refusal) {
@@ -298,6 +336,8 @@ void DetectionManager::apply_objects_list(const json& objects) {
         }
     }
     update_availability();
+    // After the seed, so a first connect compares against the seeded value.
+    reconcile_detection_enabled();
 }
 
 void DetectionManager::refresh_capabilities() {
@@ -358,6 +398,14 @@ void DetectionManager::reset_for_test() {
         lv_subject_set_int(&bed_check_enabled_subject_, 1);
         lv_subject_set_int(&bed_check_switchable_subject_, 1);
     }
+}
+
+void apply_detection_switch(bool enabled) {
+    DetectionManager::instance().set_detection_enabled(enabled);
+}
+
+void apply_bed_check_switch(bool enabled) {
+    DetectionManager::instance().set_bed_check_enabled(enabled);
 }
 
 } // namespace helix::detection

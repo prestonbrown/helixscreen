@@ -26,11 +26,7 @@ IMG_DIR = REPO_ROOT / "assets" / "images" / "printers"
 
 # A new entry without art belongs here WITH a reason, not silently falling through to
 # the generic frame. Keep the list short: every image here still needs drawing.
-KNOWN_MISSING: set[str] = {
-    # Anycubic Kobra X: no artwork exists yet. Detection is verified from a real
-    # machine (debug bundle JYTPVPP9); until the art lands it shows generic-corexy.
-    "anycubic-kobra-x.png",
-}
+KNOWN_MISSING: set[str] = set()
 
 
 def referenced_images(entry):

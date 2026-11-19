@@ -174,6 +174,11 @@ void MoonrakerSpoolmanAPI::get_spoolman_status(std::function<void(bool, int)>, E
     task10_unimplemented_err("MoonrakerSpoolmanAPI::get_spoolman_status", err);
 }
 
+void MoonrakerSpoolmanAPI::get_spoolman_currency(std::function<void(const std::string&)>,
+                                                 ErrorCallback err) {
+    task10_unimplemented_err("MoonrakerSpoolmanAPI::get_spoolman_currency", err);
+}
+
 void MoonrakerSpoolmanAPI::get_spoolman_spools(helix::SpoolListCallback, ErrorCallback err) {
     task10_unimplemented_err("MoonrakerSpoolmanAPI::get_spoolman_spools", err);
 }

@@ -1,0 +1,126 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @file subject.h
+ * @brief helix::Subject, the one owner of an LVGL subject allocated by lv_subject_create()
+ *
+ * @pattern RAII. The LVGL node is allocated once and keeps its address for the whole life
+ *          of the owning Subject: reset() and every later init_*() reuse it. The destructor
+ *          queues the free on the update queue, so members declared above a Subject (a
+ *          SubjectManager, an ObserverGuard) still reach a valid node while they die. Cached
+ *          getters, the XML subject registry, SubjectDebugRegistry and ObserverGuard all
+ *          key on that address across a printer switch's teardown and re-init.
+ * @threading Main thread only, like every LVGL subject call.
+ * @gotchas `&member` yields the lv_subject_t* (operator&), so pointer arithmetic over an
+ *          array of Subjects compiles and is wrong: the nodes are separate allocations.
+ *          Index the container instead. std::addressof() gives the Subject itself.
+ *          Never logs: destructors run in the atexit chain, after spdlog is gone.
+ */
+
+#pragma once
+
+#include "lvgl/lvgl.h"
+
+#include <cstddef>
+#include <cstdint>
+
+namespace helix {
+
+class Subject {
+  public:
+    /// Allocates the node when LVGL is up on the main thread, so `&member` taken in a
+    /// constructor already has its final address. The node refuses observers until the
+    /// first init_*(). Before lv_init() the handle stays null until init_*().
+    Subject() noexcept;
+    ~Subject();
+
+    Subject(const Subject&) = delete;
+    Subject& operator=(const Subject&) = delete;
+    Subject(Subject&& other) noexcept;
+    Subject& operator=(Subject&& other) noexcept;
+
+    void init_int(int32_t value);
+    /// init_int() the first time, then a plain set: for owners that re-publish a value
+    /// (each open, each theme load) without orphaning the observers bound to it.
+    void publish_int(int32_t value);
+    void init_float(float value);
+    void init_pointer(void* value);
+    void init_color(lv_color_t value);
+    /// `buf` (and `prev_buf` when non-null) must outlive this Subject; `value` may alias `buf`.
+    void init_string(char* buf, char* prev_buf, size_t size, const char* value);
+    template <size_t N> void init_string(char (&buf)[N], const char* value) {
+        init_string(buf, nullptr, N, value);
+    }
+
+    /// Removes every observer and refuses new ones until the next init_*(); keeps the
+    /// allocation. The replacement for lv_subject_deinit().
+    void reset();
+
+    [[nodiscard]] bool is_live() const noexcept {
+        return live_;
+    }
+    [[nodiscard]] lv_subject_t* get() const noexcept {
+        return handle_;
+    }
+    /// `&member` keeps yielding the lv_subject_t* every LVGL call takes.
+    lv_subject_t* operator&() const noexcept {
+        return handle_;
+    }
+
+    /// The Subject that owns `subject`, or nullptr for one no Subject owns (including a
+    /// node whose Subject is gone and whose free is still queued).
+    [[nodiscard]] static Subject* owner_of(const lv_subject_t* subject) noexcept;
+
+    /// How many misuse anomalies Subject has reported in this process (re-init while live,
+    /// init before lv_init, init off the main thread, retype with observers).
+    [[nodiscard]] static uint32_t anomalies_reported() noexcept;
+
+  private:
+    lv_subject_t* prepare(lv_subject_type_t type);
+    /// The node exists and belongs to the running LVGL (not one lv_deinit() has freed).
+    [[nodiscard]] bool node_usable() const noexcept;
+
+    lv_subject_t* handle_ = nullptr;
+    /// subjects_lvgl_generation() when the node was created.
+    uint32_t generation_ = 0;
+    bool live_ = false;
+};
+
+/// The update-queue tag of a destroyed Subject's queued free. The callback touches only the
+/// orphaned node, never its former owner, so it is safe to run at any later point.
+constexpr const char* kSubjectReleaseTag = "helix::Subject::release_node";
+
+/// Whether `subject` holds a value right now: initialized and not reset since. The one test
+/// for "has this subject been initialized": an owned node asks its Subject, and an unowned
+/// one (helix-xml's own, or by-value storage) needs a type and no deinit. A Subject's node
+/// exists from construction as an INT placeholder, so its type alone says nothing.
+[[nodiscard]] bool subject_is_live(const lv_subject_t* subject) noexcept;
+
+/// lv_deinit() frees every subject node. Called just before it (helix::ui::teardown_lvgl()),
+/// so a Subject whose node came from the ending LVGL never touches it again, even after a
+/// later lv_init().
+void subjects_note_lvgl_deinit() noexcept;
+
+/// Bumped by subjects_note_lvgl_deinit(): a pointer recorded under an earlier value names a
+/// node lv_deinit() has freed.
+[[nodiscard]] uint32_t subjects_lvgl_generation() noexcept;
+
+/// Resets the Subject that owns `subject`, for code holding only the pointer
+/// (SubjectManager, registries). A node whose Subject is gone is reset in place. A pointer no
+/// Subject owns is reported as the anomaly `subject_reset_unowned` and left alone: the only
+/// subjects without an owner are helix-xml's, which free themselves.
+void subject_reset(lv_subject_t* subject);
+
+/// Whether @p observer is still on @p subject's observer list. A subject's reset frees
+/// every observer on it, so a holder of a raw observer pointer asks this before deleting.
+[[nodiscard]] bool subject_has_observer(const lv_subject_t* subject, const lv_observer_t* observer);
+
+/// The managed macros' entry points.
+void subject_init_int(Subject& subject, int32_t value);
+void subject_init_pointer(Subject& subject, void* value);
+void subject_init_color(Subject& subject, lv_color_t value);
+void subject_init_string(Subject& subject, char* buf, char* prev_buf, size_t size,
+                         const char* value);
+
+} // namespace helix

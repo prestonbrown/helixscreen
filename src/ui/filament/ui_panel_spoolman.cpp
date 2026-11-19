@@ -7,13 +7,13 @@
 #include "ui_modal.h"
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_LABEL_PRINTER
 #include "ipp_print_modal.h"
@@ -61,6 +61,8 @@ void SpoolmanPanel::init_subjects() {
 
         UI_MANAGED_SUBJECT_STRING(header_title_subject_, header_title_buf_, "Spoolman",
                                   "spoolman_header_title", subjects_);
+        UI_MANAGED_SUBJECT_INT(location_filter_shown_subject_, 0, "spoolman_location_filter_shown",
+                               subjects_);
     });
 }
 
@@ -83,13 +85,6 @@ void SpoolmanPanel::register_callbacks() {
          [](lv_event_t* e) {
              lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
 
-             // Capture click point from the input device while event is still active
-             lv_point_t click_pt = {0, 0};
-             lv_indev_t* indev = lv_indev_active();
-             if (indev) {
-                 lv_indev_get_point(indev, &click_pt);
-             }
-
              // The target might be a child of the row, walk up to find the row
              lv_obj_t* row = target;
              while (row && lv_obj_get_user_data(row) == nullptr) {
@@ -97,7 +92,7 @@ void SpoolmanPanel::register_callbacks() {
              }
 
              if (row) {
-                 get_global_spoolman_panel().handle_spool_clicked(row, click_pt);
+                 get_global_spoolman_panel().handle_spool_clicked(row);
              }
          }},
         {"on_spoolman_refresh_clicked",
@@ -114,7 +109,7 @@ void SpoolmanPanel::register_callbacks() {
              auto& wizard = get_global_spool_wizard();
              wizard.set_completion_callback([]() { get_global_spoolman_panel().refresh_spools(); });
 
-             wizard.show(lv_display_get_screen_active(nullptr));
+             wizard.show(lv_screen_active());
          }},
         {"on_spoolman_search_changed",
          [](lv_event_t* e) {
@@ -285,6 +280,14 @@ void SpoolmanPanel::refresh_spools() {
 
     std::string name = get_name();
 
+    api->spoolman().get_spoolman_currency(
+        [this, tok](const std::string& currency) {
+            tok.defer([this, currency]() { currency_ = currency; });
+        },
+        [name](const MoonrakerError& err) {
+            spdlog::debug("[{}] No Spoolman currency: {}", name, err.message);
+        });
+
     api->spoolman().get_spoolman_spools(
         [name, apply_spools, tok](const std::vector<SpoolInfo>& spools) {
             // L081_OK: skips the active-spool RPC for a dead panel; apply_spools defers.
@@ -341,7 +344,7 @@ void SpoolmanPanel::show_spool_list() {
 
 void SpoolmanPanel::update_spool_count() {
     if (cached_spools_.empty()) {
-        lv_subject_copy_string(&header_title_subject_, "Spoolman");
+        lv_subject_set_string(&header_title_subject_, "Spoolman");
     } else if (filtered_spools_.size() != cached_spools_.size()) {
         // Show filtered count: "Spoolman: 5/19 Spools"
         char buf[64];
@@ -349,14 +352,14 @@ void SpoolmanPanel::update_spool_count() {
                  helix::ui::tr_plural("Spoolman: %zu/%zu Spool", "Spoolman: %zu/%zu Spools",
                                       cached_spools_.size()),
                  filtered_spools_.size(), cached_spools_.size());
-        lv_subject_copy_string(&header_title_subject_, buf);
+        lv_subject_set_string(&header_title_subject_, buf);
     } else {
         char buf[64];
         snprintf(buf, sizeof(buf),
                  helix::ui::tr_plural("Spoolman: %zu Spool", "Spoolman: %zu Spools",
                                       cached_spools_.size()),
                  cached_spools_.size());
-        lv_subject_copy_string(&header_title_subject_, buf);
+        lv_subject_set_string(&header_title_subject_, buf);
     }
 }
 
@@ -442,11 +445,9 @@ void SpoolmanPanel::update_location_filter_dropdown() {
         }
     }
 
-    // Hide dropdown if no locations exist.
-    // Imperative visibility exception: dropdown content is fully dynamic (options
-    // set from C++), so subject-based binding adds no value here.
+    // No location to filter by, no filter.
+    lv_subject_set_int(&location_filter_shown_subject_, locations.empty() ? 0 : 1);
     if (locations.empty()) {
-        lv_obj_add_flag(dropdown, LV_OBJ_FLAG_HIDDEN);
         selected_location_.clear();
         updating_location_dropdown_ = false;
         return;
@@ -479,7 +480,6 @@ void SpoolmanPanel::update_location_filter_dropdown() {
         lv_dropdown_set_selected(dropdown, 0);
     }
 
-    lv_obj_remove_flag(dropdown, LV_OBJ_FLAG_HIDDEN);
     updating_location_dropdown_ = false;
 }
 
@@ -505,7 +505,7 @@ void SpoolmanPanel::update_active_indicators() {
 // Spool Selection
 // ============================================================================
 
-void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt) {
+void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
     if (!row)
         return;
 
@@ -525,10 +525,10 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt) {
     context_menu_.set_action_callback([this](helix::ui::SpoolmanContextMenu::MenuAction action,
                                              int id) { handle_context_action(action, id); });
 
-    // Show context menu near the click point. Archive is withheld for the
+    // Show the context menu around the row. Archive is withheld for the
     // active spool — it is feeding the printer.
-    context_menu_.set_click_point(click_pt);
-    context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_);
+    context_menu_.show_for_spool(lv_screen_active(), *spool, row, spool_id != active_spool_id_,
+                                 currency_);
 }
 
 void SpoolmanPanel::handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action,

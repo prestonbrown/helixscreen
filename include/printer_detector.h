@@ -4,6 +4,7 @@
 #pragma once
 
 #include "belt_tension_types.h"
+#include "maintenance_meters.h"
 #include "plr_profile.h"
 #include "pre_print_option.h"
 
@@ -408,8 +409,7 @@ class PrinterDetector {
      *
      * Looks up the `pre_print_options` field from the printer database JSON for
      * the specified printer and returns the parsed `PrePrintOptionSet`. This is
-     * the printer-agnostic abstraction used by the print-detail panel (Phase 2
-     * of the pre-print-options-framework refactor).
+     * the printer-agnostic abstraction used by the print-detail panel.
      *
      * @param printer_name Printer name (e.g., "FlashForge Adventurer 5M Pro")
      * @return Option set, or empty set if not found
@@ -650,6 +650,11 @@ class PrinterDetector {
     /// (prestonbrown/helixscreen#1730); false when absent or unknown.
     static bool is_enclosed(const std::string& printer_name);
 
+    /// The model's maintenance meter overrides (`maintenance` in the database row); all
+    /// empty for a model without the field or an unknown printer.
+    [[nodiscard]] static helix::maintenance::ModelDefaults
+    get_maintenance_defaults(const std::string& printer_name);
+
     /// How @p printer_name tensions its belts, from the database's `"belt_tensioner"` string
     /// (`"screw"` or `"spring"`). UNKNOWN when the field is absent, empty, not a string, or
     /// any other value, and for an unknown printer.
@@ -660,6 +665,11 @@ class PrinterDetector {
     /// its Klipper skips dot-directories when it resolves a file to print, so a
     /// copy staged under one fails to open. False when absent or unknown.
     static bool klipper_hides_dot_dirs(const std::string& printer_name);
+
+    /// The database's `"firmware_owns_error_heaters": true` flag for @p printer_name:
+    /// its firmware turns the heaters off itself when a print errors, so the app
+    /// sends no heater command of its own for an error. False when absent or unknown.
+    static bool firmware_owns_error_heaters(const std::string& printer_name);
 
     /// The database's power-loss recovery `plr` block for @p printer_name;
     /// nullopt when the printer is unknown or unlisted for it (tier 0).
@@ -693,10 +703,10 @@ class PrinterDetector {
      * The saved type is a display name, not a stable id, so renaming an entry
      * orphans every config written under the old name: detection returns the
      * new name, the stored one never matches again, and the user is told their
-     * correctly-identified printer is set up wrong. Four entries have been
-     * renamed in place so far (voron_0_1, flashforge_ad5m_pro, and both
-     * zerog_nebula_*), and the database is user-updatable, so this is not a
-     * closed set that a one-off migration could cover.
+     * correctly-identified printer is set up wrong. Entries get renamed in
+     * place (voron_0_1, flashforge_ad5m_pro and both zerog_nebula_* among
+     * them), and the database is user-updatable, so the renames are an open
+     * set that no one-off conversion of stored configs could cover.
      *
      * Entries list their former names in "aliases". A name that is a current
      * entry name is returned untouched; a name that matches some entry's alias
@@ -737,6 +747,15 @@ class PrinterDetector {
     /// between saving and declining.
     static constexpr int kDetectMinMargin = 1;
 
+    /// The saved-vs-detected pair the user last answered the mismatch warning
+    /// for. An answer covers exactly that pair: a later detection of a
+    /// different type, such as a database entry added by an update, or a
+    /// different saved type, is a new question (prestonbrown/helixscreen#2075).
+    struct MismatchAnswer {
+        std::string saved;
+        std::string detected;
+    };
+
     /**
      * @brief Why the saved-vs-detected type warning was or was not offered.
      *
@@ -751,7 +770,7 @@ class PrinterDetector {
         Ambiguous,            ///< Scored well, but a rival outcome scored within kDetectMinMargin.
         MatchesSavedType,     ///< Detected type equals the saved one.
         SavedTypeNotSpecific, ///< Saved type is empty, Custom/Other, or Unknown.
-        AlreadyDismissed      ///< The user already answered for this saved type.
+        AlreadyDismissed      ///< The user already answered for this saved and detected pair.
     };
 
     /// Human-readable tag for a MismatchDecision, for logs.
@@ -762,9 +781,9 @@ class PrinterDetector {
      *
      * Warn iff detection is high-confidence (>= kMismatchMinConfidence), leads
      * its nearest rival outcome by kDetectMinMargin, contradicts a meaningful
-     * saved type (not Custom/Other, Unknown, or empty), and the per-printer
-     * flag does not already equal the current saved type (changing the type
-     * re-arms the warning once).
+     * saved type (not Custom/Other, Unknown, or empty), and @p answered is not
+     * this same saved and detected pair (changing either re-arms the warning
+     * once).
      *
      * @param detected_margin PrinterDetectionResult::margin() for the detection
      *        being classified. Every caller states it: a margin left implicit
@@ -777,7 +796,7 @@ class PrinterDetector {
     static MismatchDecision classify_type_mismatch(const std::string& saved_type,
                                                    const std::string& detected_type,
                                                    int detected_confidence,
-                                                   const std::string& flag_value,
+                                                   const MismatchAnswer& answered,
                                                    int detected_margin);
 
     /**
@@ -797,7 +816,7 @@ class PrinterDetector {
      */
     static MismatchDecision classify_type_mismatch(const std::string& saved_type,
                                                    const PrinterDetectionResult& detected,
-                                                   const std::string& flag_value);
+                                                   const MismatchAnswer& answered);
 
     /**
      * @brief The detected type a saved-vs-detected comparison is about.

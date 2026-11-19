@@ -210,8 +210,9 @@ TEST_CASE_METHOD(PluginCallFixture,
         CHECK(mock.last_send_method() != method);
     }
 
-    for (const char* method : {"server.helix.status", "server.helix.journal",
-                               "server.helix.plr.status", "server.helix.analysis"}) {
+    for (const char* method :
+         {"server.helix.status", "server.helix.journal", "server.helix.plr.status",
+          "server.helix.analysis", "server.helix.signal_migration"}) {
         INFO(method);
         call(method, json::object());
         CHECK(mock.last_send_method() == method);

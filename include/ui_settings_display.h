@@ -16,7 +16,6 @@
 #include "core/static_panel_registry.h"
 #include "overlay_base.h"
 #include "screensaver_registry.h"
-#include "subject_managed_panel.h"
 
 #include <vector>
 
@@ -34,41 +33,69 @@ class DisplaySettingsOverlay : public OverlayBase {
         return true;
     }
 
-    void init_subjects() override;
     void register_callbacks() override;
     void on_activate() override;
 
-    /// Slider drag tick: previews the backlight and updates the readout without persisting.
-    void handle_brightness_changed(int value);
-
-    /// Lists Off and the savers this board can run, selecting the one that runs for the stored
-    /// type: a too-heavy stored choice shows its fallback, and the stored value is left alone.
+    /// populate_screensaver_row() on this overlay.
     void init_screensaver_dropdown();
 
-    /// Stores the saver at dropdown `index` of the list init_screensaver_dropdown() built.
+    /// apply_screensaver_pick() on this overlay.
     void handle_screensaver_changed(int index);
 
   private:
     void init_display_rotation_dropdown();
-    void init_brightness_controls();
-    void init_dim_dropdown();
-    void init_sleep_dropdown();
-    void init_ui_scale_dropdown();
-
-    /// SubjectManager, declared ahead of the subjects it owns so it tears down
-    /// after them (names withdraw before storage dies).
-    SubjectManager subjects_;
-
-    /// Subject for brightness value label binding
-    lv_subject_t brightness_value_subject_{};
-    char brightness_value_buf_[8]; // e.g., "100%"
-
-    /// Stable registry name ("off", "maze", ...) at each screensaver dropdown index.
-    std::vector<const char*> screensaver_choices_;
 };
 
 inline DisplaySettingsOverlay& get_display_settings_overlay() {
     return lazy_global<DisplaySettingsOverlay>("DisplaySettingsOverlay");
 }
+
+// Rows Settings > Display shares with the setup wizard. Each helper takes the
+// container that holds the rows (found by name), so both pages run the same code
+// and pick from the same option lists; the callbacks are the overlay's.
+
+/// Moves the brightness slider (row_brightness) to the stored brightness.
+void select_brightness_slider(lv_obj_t* root);
+
+/// Selects the stored dim timeout in row_display_dim and row_screensaver_after.
+void select_dim_rows(lv_obj_t* root);
+
+/// Selects the stored sleep timeout in row_display_sleep.
+void select_sleep_row(lv_obj_t* root);
+
+/// Which explicit UI scale steps a UI scale row offers below Automatic.
+enum class UiScaleOffer {
+    All,     ///< Every step, for Settings
+    Fitting, ///< Only steps that leave the screen room for the smallest layout
+};
+
+/// The explicit UI scale percentages, in dropdown order after Automatic.
+std::vector<int> ui_scale_percents(UiScaleOffer offer);
+
+/// The explicit steps at which a @p width x @p height screen still holds the
+/// smallest layout (480x272) in either orientation.
+std::vector<int> fitting_ui_scale_percents(int width, int height);
+
+/// Whether a row offering Automatic (resolving to @p auto_percent) and @p fitting
+/// gives more than one size to choose from.
+bool ui_scale_has_choice(const std::vector<int>& fitting, int auto_percent);
+
+/// ui_scale_has_choice() for this display: whether a Fitting row offers a real choice.
+bool fitting_ui_scale_has_choice();
+
+/// Fills row_ui_scale with Automatic and the offered steps, selecting the stored one.
+void populate_ui_scale_row(lv_obj_t* root, UiScaleOffer offer);
+
+/// Stores the scale at dropdown @p index of a row filled by populate_ui_scale_row().
+void apply_ui_scale_pick(int index);
+
+/// Lists Off and the savers this board can run in row_screensaver, selecting the one
+/// that runs for the stored type: a too-heavy stored choice shows its fallback, and
+/// the stored value is left alone.
+void populate_screensaver_row(lv_obj_t* root);
+
+/// Stores the saver at dropdown @p index of row_screensaver, then refreshes the rows
+/// under @p root that the choice can change (the saver list, dim and sleep).
+void apply_screensaver_pick(lv_obj_t* root, int index);
 
 } // namespace helix::settings

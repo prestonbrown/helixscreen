@@ -5,6 +5,7 @@
 
 #include "ui_keyboard_manager.h"
 
+#include "core/subject.h"
 #include "system/debug_bundle_collector.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -43,9 +44,9 @@ bool DebugBundleModal::show_modal(lv_obj_t* parent) {
     // Reset to consent state
     lv_subject_set_int(&state_subject_, 0);
     lv_subject_set_int(&include_logs_subject_, 0);
-    lv_subject_copy_string(&status_subject_, "");
-    lv_subject_copy_string(&share_code_subject_, "");
-    lv_subject_copy_string(&error_subject_, "");
+    lv_subject_set_string(&status_subject_, "");
+    lv_subject_set_string(&share_code_subject_, "");
+    lv_subject_set_string(&error_subject_, "");
 
     return show(parent);
 }
@@ -93,12 +94,11 @@ void DebugBundleModal::init_subjects() {
         return;
     }
 
-    lv_subject_init_int(&state_subject_, 0);
-    lv_subject_init_string(&status_subject_, status_buf_, nullptr, sizeof(status_buf_), "");
-    lv_subject_init_string(&share_code_subject_, share_code_buf_, nullptr, sizeof(share_code_buf_),
-                           "");
-    lv_subject_init_string(&error_subject_, error_buf_, nullptr, sizeof(error_buf_), "");
-    lv_subject_init_int(&include_logs_subject_, 0);
+    state_subject_.init_int(0);
+    status_subject_.init_string(status_buf_, nullptr, sizeof(status_buf_), "");
+    share_code_subject_.init_string(share_code_buf_, nullptr, sizeof(share_code_buf_), "");
+    error_subject_.init_string(error_buf_, nullptr, sizeof(error_buf_), "");
+    include_logs_subject_.init_int(0);
 
     subjects_.publish("debug_bundle_state", &state_subject_);
     subjects_.publish("debug_bundle_status", &status_subject_);
@@ -188,7 +188,7 @@ void DebugBundleModal::handle_upload() {
 
     // Transition to uploading state
     lv_subject_set_int(&state_subject_, 1);
-    lv_subject_copy_string(&status_subject_, lv_tr("Collecting data..."));
+    lv_subject_set_string(&status_subject_, lv_tr("Collecting data..."));
 
     auto token = lifetime_.token();
 
@@ -197,7 +197,7 @@ void DebugBundleModal::handle_upload() {
             // Marshal to UI thread — this callback fires from the upload thread
             token.defer([this, result]() {
                 if (result.success) {
-                    lv_subject_copy_string(&share_code_subject_, result.share_code.c_str());
+                    lv_subject_set_string(&share_code_subject_, result.share_code.c_str());
                     lv_subject_set_int(&state_subject_, 2);
                     spdlog::info("[DebugBundleModal] Upload succeeded, "
                                  "share code: {}",
@@ -205,10 +205,10 @@ void DebugBundleModal::handle_upload() {
                 } else {
                     // A build-gate refusal shows the translated message; a
                     // transport failure shows the collector's detail verbatim.
-                    lv_subject_copy_string(&error_subject_,
-                                           result.uploads_disabled
-                                               ? lv_tr("Upload unavailable in this build")
-                                               : result.error_message.c_str());
+                    lv_subject_set_string(&error_subject_,
+                                          result.uploads_disabled
+                                              ? lv_tr("Upload unavailable in this build")
+                                              : result.error_message.c_str());
                     lv_subject_set_int(&state_subject_, 3);
                     spdlog::warn("[DebugBundleModal] Upload failed: {}", result.error_message);
                 }

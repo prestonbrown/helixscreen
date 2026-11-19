@@ -18,6 +18,7 @@
 #include "../catch_amalgamated.hpp"
 
 // Needed to access lv_timer_t internals for direct callback invocation in tests
+#include "core/subject.h"
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 
 // ============================================================================
@@ -608,8 +609,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item updates page_subject", "[carousel
     CarouselState* state = ui_carousel_get_state(carousel);
     state->wrap = false;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     state->page_subject = &subject;
 
     for (int i = 0; i < 3; i++) {
@@ -623,7 +624,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "remove_item updates page_subject", "[carousel
     ui_carousel_remove_item(carousel, 2);
     REQUIRE(lv_subject_get_int(&subject) == 1);
 
-    lv_subject_deinit(&subject);
+    subject.reset();
     state->page_subject = nullptr;
 }
 
@@ -702,7 +703,7 @@ bool reaches_counter(lv_obj_t* page) {
 
 lv_obj_t* add_bubbling_page(lv_obj_t* carousel, lv_obj_t* screen) {
     lv_obj_t* page = lv_obj_create(screen);
-    lv_obj_add_flag(page, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(page, true);
     ui_carousel_add_item(carousel, page);
     return page;
 }
@@ -771,15 +772,13 @@ lv_obj_t* carousel_with_pages(lv_obj_t* screen, int pages) {
 /// Swipeable: the scroll container scrolls, horizontally.
 bool swipe_live(lv_obj_t* carousel) {
     lv_obj_t* scroll = ui_carousel_get_state(carousel)->scroll_container;
-    return lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE) &&
-           lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
+    return lv_obj_is_scrollable(scroll) && lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
 }
 
 /// Not swipeable: the scroll container neither scrolls nor has a direction.
 bool swipe_off(lv_obj_t* carousel) {
     lv_obj_t* scroll = ui_carousel_get_state(carousel)->scroll_container;
-    return !lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE) &&
-           lv_obj_get_scroll_dir(scroll) == LV_DIR_NONE;
+    return !lv_obj_is_scrollable(scroll) && lv_obj_get_scroll_dir(scroll) == LV_DIR_NONE;
 }
 
 } // namespace
@@ -835,7 +834,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(dots() == original);
 
     helix::ui::carousel_set_bubble_events(carousel, true);
-    REQUIRE(lv_obj_has_flag(state->real_tiles[0], LV_OBJ_FLAG_EVENT_BUBBLE));
+    REQUIRE(lv_obj_is_event_bubble(state->real_tiles[0]));
     CHECK(dots() == original);
 }
 
@@ -888,7 +887,7 @@ void record_published(lv_observer_t* observer, lv_subject_t* subject) {
 struct RecordedCarousel {
     lv_obj_t* carousel = nullptr;
     CarouselState* state = nullptr;
-    lv_subject_t subject{};
+    helix::Subject subject{};
     std::vector<int> published;
     int32_t page_w = 0;
 
@@ -904,7 +903,7 @@ struct RecordedCarousel {
         page_w = lv_obj_get_content_width(state->scroll_container);
         REQUIRE(page_w > 0);
 
-        lv_subject_init_int(&subject, 0);
+        subject.init_int(0);
         state->page_subject = &subject;
         lv_subject_add_observer(&subject, record_published, &published);
         published.clear(); // adding the observer reports the current value once
@@ -912,7 +911,7 @@ struct RecordedCarousel {
 
     ~RecordedCarousel() {
         state->page_subject = nullptr;
-        lv_subject_deinit(&subject);
+        subject.reset();
     }
 
     RecordedCarousel(const RecordedCarousel&) = delete;
@@ -1064,7 +1063,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     // Flags only: the tile hides, the page stands with nothing published, and
     // the slide runs on to its page.
-    CHECK(lv_obj_has_flag(rc.state->real_tiles[3], LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(rc.state->real_tiles[3]));
     CHECK(ui_carousel_get_current_page(rc.carousel) == 1);
     CHECK(rc.published.empty());
     CHECK(lv_anim_get(scroll, nullptr) != nullptr);

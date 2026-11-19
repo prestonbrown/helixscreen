@@ -1039,3 +1039,18 @@ console.log(out.join(","));
     contains "Failed to install power-off/reboot polkit rule" "$output"
     [[ "$output" != *"Installed power-off/reboot polkit rule"* ]]
 }
+
+@test "install_permission_rules: a host without polkit says so instead of reporting a failed write" {
+    # Armbian on the BTT CB1 ships no polkitd: neither rule directory exists,
+    # so there is nowhere to write a rule and nothing that would read one.
+    mock_command "udevadm" ""
+    local mp
+    mp="$(_minimal_path)"
+
+    PATH="$BATS_TEST_TMPDIR/bin:$mp" run install_permission_rules "pi"
+    [ "$status" -eq 0 ]
+    [ ! -e "$HELIX_POLKIT_DIR" ]
+    contains "polkit is not installed" "$output"
+    contains "polkitd" "$output"
+    [[ "$output" != *"Failed to install power-off/reboot polkit rule"* ]]
+}

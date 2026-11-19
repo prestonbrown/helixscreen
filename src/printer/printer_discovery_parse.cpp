@@ -9,6 +9,7 @@
 #include "display_numbering.h" // helix::ui::tool_label
 #include "json_utils.h"
 #include "klipper_extruder_naming.h" // count_extruder_names
+#include "lane_status_parse.h"       // lane_status::kObject
 #include "macro_patterns.h"
 #include "openams_api.h" // OpenAMS claims only a manager speaking its API
 #include "printer_discovery.h"
@@ -41,7 +42,6 @@ PrinterDiscovery::~PrinterDiscovery() = default;
 void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     clear();
 
-    // Validate input is an array
     if (!objects.is_array()) {
         return;
     }
@@ -139,13 +139,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     };
 
     for (const auto& obj : objects) {
-        // Skip non-string elements
         if (!obj.is_string()) {
             continue;
         }
         std::string name = obj.template get<std::string>();
 
-        // Skip empty strings
         if (name.empty()) {
             continue;
         }
@@ -277,6 +275,11 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         // object. settle_status_claims() decides once the status is read.
         else if (name == openams::kManagerObject) {
             has_openams_manager_ = true;
+        }
+        // The Lane Status Surface's neutral object. Any filament system may
+        // publish it, so it never claims a printer a backend of its own reads.
+        else if (name == lane_status::kObject) {
+            has_lane_status_ = true;
         }
         // CFS detection (Creality Filament System).
         //
@@ -474,12 +477,10 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             // macro_config_name().
             macro_config_names_.emplace(upper_macro, macro_name);
 
-            // Check for HelixScreen helper macros
             if (upper_macro.rfind("HELIX_", 0) == 0) {
                 helix_macros_.insert(upper_macro);
             }
 
-            // Check for Klippain Shake&Tune
             if (upper_macro == "AXES_SHAPER_CALIBRATION") {
                 has_klippain_shaketune_ = true;
             }
@@ -505,7 +506,6 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
                 has_auto_feeding_batch_ = true;
             }
 
-            // Check for common macro patterns and cache them
             if (nozzle_clean_macro_.empty()) {
                 // Shared with StandardMacros' CleanNozzle slot — see
                 // include/macro_patterns.h.
@@ -682,8 +682,9 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
     // machine underneath keeps it. The changer fingerprint names the Creator 5
     // (the AD5X Z-Mod publishes zmod_color but has no carriage grab buttons),
     // and the toolchanger backend keeps its four heads. On the AD5X the IFS
-    // backend keeps its four ports: zmod_color and the IFS sensors are there
-    // whatever the AFC setting says, so flipping it changes nothing on screen.
+    // backend keeps its ports, an IFS Jacker's past the fourth included:
+    // zmod_color and the IFS sensors are there whatever the AFC setting says, so
+    // flipping it changes nothing on screen.
     // Scoped to Z-Mod's own objects for the same reason the PAXX rule is scoped
     // to filament_detect: a bare zmod_afclite on some other machine is
     // displacing nothing better.
@@ -696,7 +697,7 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
         } else if (has_zmod_afc()) {
             mmu_type_ = AmsType::AD5X_IFS;
             spdlog::info("[PrinterDiscovery] Z-Mod's built-in AFC on an AD5X: the IFS backend "
-                         "keeps the printer and its four ports.");
+                         "keeps the printer and its ports.");
         }
     }
 
@@ -751,12 +752,46 @@ const nlohmann::json* PrinterDiscovery::section(std::string_view name) const {
     return nullptr;
 }
 
+namespace {
+
+/// Drops fan-named output_pins that only gate a sibling PWM pin (`fan0_en` beside
+/// `fan0`). A lone enable pin stays: it may be the only control that fan has.
+void remove_fan_enable_pins(std::vector<std::string>& fans) {
+    static constexpr std::string_view kPrefix = "output_pin ";
+    // remove_if overwrites elements as it goes, so siblings are looked up in a copy.
+    const std::vector<std::string> names = fans;
+    const auto has_sibling = [&names](std::string_view stem) {
+        return std::any_of(names.begin(), names.end(), [stem](const std::string& fan) {
+            return std::string_view(fan).substr(0, kPrefix.size()) == kPrefix &&
+                   text_io::equals_ignore_case(std::string_view(fan).substr(kPrefix.size()), stem);
+        });
+    };
+    const auto gates_sibling = [&has_sibling](const std::string& fan) {
+        if (std::string_view(fan).substr(0, kPrefix.size()) != kPrefix) {
+            return false;
+        }
+        const std::string_view pin = std::string_view(fan).substr(kPrefix.size());
+        for (const std::string_view suffix :
+             {std::string_view("_en"), std::string_view("_enable")}) {
+            if (text_io::ends_with_ignore_case(pin, suffix) &&
+                has_sibling(pin.substr(0, pin.size() - suffix.size()))) {
+                return true;
+            }
+        }
+        return false;
+    };
+    fans.erase(std::remove_if(fans.begin(), fans.end(), gates_sibling), fans.end());
+}
+
+} // namespace
+
 void PrinterDiscovery::rebuild_buckets() {
     using hw::ObjectKind;
     heaters_ = objects_of({ObjectKind::Heater, ObjectKind::GenericHeater});
     fans_ =
         objects_of({ObjectKind::Fan, ObjectKind::HeaterFan, ObjectKind::ControllerFan,
                     ObjectKind::GenericFan, ObjectKind::TemperatureFan, ObjectKind::OutputPinFan});
+    remove_fan_enable_pins(fans_);
     sensors_ = objects_of({ObjectKind::TemperatureSensor, ObjectKind::TemperatureFan,
                            ObjectKind::DriverTemperature, ObjectKind::HumidityChip});
     leds_ = objects_of({ObjectKind::Led, ObjectKind::OutputPinLed});
@@ -812,6 +847,13 @@ void PrinterDiscovery::register_detected_ams_systems() {
         // below, which needs several extruders or klipper-toolchanger.
         mmu_type_ = AmsType::INDX;
         detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
+    } else if (has_lane_status_) {
+        // A producer no backend here knows: the generic lane_status reader.
+        // After every native fallback, so a status-only producer that wraps a
+        // system HelixScreen reads natively leaves it to that backend
+        // (lane-status-spec RFC 0001 §4).
+        mmu_type_ = AmsType::LANE_STATUS;
+        detected_ams_systems_.push_back({mmu_type_, ams_type_to_string(mmu_type_)});
     } else if (!tool_names_.empty() && (has_tool_changer_ || tool_names_.size() > 1)) {
         // More than one hot end, and no filament system managing them:
         // parallel topology, one slot per tool. Registering it is what gives
@@ -833,10 +875,9 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
     // Extract kinematics from [printer] section
     // Klipper's toolhead.kinematics status field returns null (it's an object reference),
     // so configfile.config.printer.kinematics is the reliable source
-    if (config.contains("printer") && config["printer"].is_object()) {
-        const auto& printer = config["printer"];
-        if (printer.contains("kinematics") && printer["kinematics"].is_string()) {
-            kinematics_ = printer["kinematics"].get<std::string>();
+    if (const auto* printer = json_util::find_object(config, "printer")) {
+        if (auto kinematics = json_util::read_field<std::string>(*printer, "kinematics")) {
+            kinematics_ = std::move(*kinematics);
             spdlog::debug("[PrinterDiscovery] Kinematics from config: {}", kinematics_);
         }
     }
@@ -868,6 +909,9 @@ void PrinterDiscovery::parse_config_keys(const nlohmann::json& config) {
 
     if (config.contains("spoollink")) {
         has_spoollink_ = true;
+    }
+    if (config.contains("pa_adjust")) {
+        has_pa_adjust_ = true;
     }
     // [indx] on Kalico may have no get_status(), so the configfile section is
     // the only sign of it, and it arrives after parse_objects() registered the
@@ -976,6 +1020,21 @@ bool PrinterDiscovery::parse_build_volume(const nlohmann::json& settings) {
     return true;
 }
 
+std::optional<double> PrinterDiscovery::read_z_position_endstop(const nlohmann::json& settings) {
+    if (!settings.is_object()) {
+        return std::nullopt;
+    }
+    const auto section = settings.find("stepper_z");
+    if (section == settings.end() || !section->is_object()) {
+        return std::nullopt;
+    }
+    const auto value = section->find("position_endstop");
+    if (value == section->end() || !value->is_number()) {
+        return std::nullopt;
+    }
+    return value->get<double>();
+}
+
 void PrinterDiscovery::parse_probe_xy_offset(const nlohmann::json& settings) {
     probe_xy_offset_.reset();
     if (!settings.is_object()) {
@@ -1054,6 +1113,7 @@ void PrinterDiscovery::clear() {
     led_driving_macros_.clear();
     skip_wrappable_.clear();
     skip_active_.clear();
+    signal_macro_scan_.reset();
     sensor_toggle_command_.clear();
     screws_tilt_builtin_.clear();
     helix_macros_.clear();
@@ -1081,8 +1141,10 @@ void PrinterDiscovery::clear() {
     has_medusahc_ = false;
     medusahc_object_name_.clear();
     has_indx_ = false;
+    has_lane_status_ = false;
     has_save_variables_ = false;
     has_spoollink_ = false;
+    has_pa_adjust_ = false;
     has_chamber_heater_ = false;
     has_chamber_sensor_ = false;
     chamber_sensor_name_.clear();
@@ -1095,11 +1157,16 @@ void PrinterDiscovery::clear() {
     chamber_fan_resting_deci_ = 0;
     filament_diameter_mm_ = filament::kDefaultDiameterMm;
     nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;
+    stepper_x_geometry_.reset();
+    stepper_y_geometry_.reset();
     fit_machine_.reset();
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
+    z_position_endstop_.reset();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
+    fan_tachometers_.clear();
+    heater_fans_.clear();
     configured_tool_numbers_.clear();
     has_led_ = false;
     led_effects_.clear();
@@ -1181,6 +1248,38 @@ void PrinterDiscovery::parse_extruder_dimensions(const nlohmann::json& settings)
     };
     read_positive("filament_diameter", filament_diameter_mm_);
     read_positive("nozzle_diameter", nozzle_diameter_mm_);
+}
+
+void PrinterDiscovery::parse_stepper_geometry(const nlohmann::json& settings) {
+    auto read =
+        [&settings](const char* section) -> std::optional<calibration::ripple::MotorGeometry> {
+        const auto s = settings.find(section);
+        if (s == settings.end() || !s->is_object()) {
+            return std::nullopt;
+        }
+        const auto rd = s->find("rotation_distance");
+        if (rd == s->end() || !rd->is_number() || !(rd->get<float>() > 0.0f)) {
+            return std::nullopt;
+        }
+        calibration::ripple::MotorGeometry g;
+        g.rotation_distance_mm = rd->get<float>();
+        const auto steps = s->find("full_steps_per_rotation");
+        if (steps != s->end() && steps->is_number_integer() && steps->get<int>() > 0) {
+            g.full_steps_per_rotation = steps->get<int>();
+        }
+        const auto gear = s->find("gear_ratio");
+        if (gear != s->end() && gear->is_array()) {
+            for (const auto& pair : *gear) {
+                if (pair.is_array() && pair.size() == 2 && pair[0].is_number() &&
+                    pair[1].is_number() && pair[1].get<float>() > 0.0f) {
+                    g.gear_ratio *= pair[0].get<float>() / pair[1].get<float>();
+                }
+            }
+        }
+        return g;
+    };
+    stepper_x_geometry_ = read("stepper_x");
+    stepper_y_geometry_ = read("stepper_y");
 }
 
 void PrinterDiscovery::parse_leveling_probe_points(const nlohmann::json& settings) {
@@ -1290,7 +1389,6 @@ void PrinterDiscovery::parse_configured_tool_numbers(const nlohmann::json& setti
 
 void PrinterDiscovery::natural_sort(std::vector<std::string>& names) {
     std::sort(names.begin(), names.end(), [](const std::string& a, const std::string& b) {
-        // Find where trailing digits start
         auto digit_start = [](const std::string& s) -> size_t {
             size_t i = s.size();
             while (i > 0 && std::isdigit(static_cast<unsigned char>(s[i - 1])))

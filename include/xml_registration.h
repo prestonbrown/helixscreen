@@ -77,6 +77,19 @@ bool is_xml_component_cpp_extended(const std::string& name);
 void unregister_idle_xml_components();
 
 /**
+ * @brief Before rebuilding the views for a new geometry: drop every first-use
+ *        component a fresh copy can replace, live ones included, and register
+ *        the shared styles again
+ *
+ * Component styles resolve their tokens at registration, so a rebuild from the
+ * old registration would keep the old geometry. A live widget keeps the scope it
+ * was built from until it is deleted; the rebuilt views register each component
+ * again at the new tokens and layout variant. A component holding C++ state
+ * keeps its registration, as in unregister_idle_xml_components().
+ */
+void reregister_xml_components_for_rebuild();
+
+/**
  * @brief Deinitialize XML-related subjects
  *
  * Must be called during shutdown before lv_deinit().

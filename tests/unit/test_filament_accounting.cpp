@@ -6,10 +6,13 @@
 // rules come from the case table the plugin's suite reads too.
 
 #include "../test_helpers/filament_accounting_cases.h"
+#include "../ui_test_utils.h"
 #include "filament_accounting.h"
+#include "filament_accounting_controller.h"
 #include "helix_plugin_features.h"
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <string>
@@ -159,6 +162,26 @@ TEST_CASE("filament accounting: the extruder signal leaves out shared extruders"
     INFO("every tool on one extruder: nothing to tell them apart by");
     CHECK_FALSE(extruder_feed_signal({"extruder", "extruder"}, {feed(0, 0, 1), feed(1, 1, 2)}));
     CHECK_FALSE(extruder_feed_signal({"", ""}, {feed(0, 0, 1), feed(1, 1, 2)}));
+}
+
+TEST_CASE("filament accounting: a printer with two tools publishes each one's extruder",
+          "[plugin_filament]") {
+    lv_init_safe();
+    ToolState& tools = ToolState::instance();
+    tools.deinit_subjects();
+    tools.init_subjects(false);
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"toolchanger", "tool T0", "tool T1", "extruder", "extruder1"}));
+    tools.init_tools(hw);
+
+    const auto signals = FilamentAccountingController::signals_now();
+    tools.deinit_subjects();
+    const auto toolhead = std::find_if(signals.begin(), signals.end(),
+                                       [](const FeedSignal& s) { return s.object == "toolhead"; });
+    REQUIRE(toolhead != signals.end());
+    REQUIRE(toolhead->values.size() == 2);
+    CHECK(toolhead->values[1].first == "extruder1");
+    CHECK(toolhead->values[1].second.tool == 1);
 }
 
 TEST_CASE("filament accounting: the spool map record", "[plugin_filament]") {

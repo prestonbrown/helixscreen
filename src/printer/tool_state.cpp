@@ -92,6 +92,7 @@ void ToolState::init_subjects(bool register_xml) {
     INIT_SUBJECT_STRING(tool_badge_text, "", subjects_, register_xml);
     INIT_SUBJECT_INT(show_tool_badge, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(names_mounted_nozzle, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(extruder_count, 0, subjects_, register_xml);
 
     // Per-tool offsets: which axes this printer keeps per toolhead, and the
     // aggregate save affordance. Defaults say "this printer has none and we
@@ -142,6 +143,9 @@ void ToolState::deinit_subjects() {
     ams_topology_tool_count_ = 0;
     ams_topology_tool_to_slot_.clear();
     ams_topology_tool_extruder_.clear();
+    // The editable-axis subjects die below; the staged half of follows_axis()
+    // must not outlive them into the next printer.
+    firmware_staged_axes_ = {};
 
     subjects_.deinit_all();
     subjects_initialized_ = false;
@@ -188,7 +192,9 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     for (Axis axis : kAllAxes) {
         const bool supported = helix::tool_offsets::supports_axis(hardware, axis);
         lv_subject_set_int(get_per_tool_axis_supported_subject(axis), supported ? 1 : 0);
-        if (supported) {
+        firmware_staged_axes_[axis_index(axis)] =
+            helix::tool_offsets::firmware_stages_axis(hardware, axis);
+        if (follows_axis(axis)) {
             axes += axis_letter(axis);
         }
     }
@@ -292,7 +298,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
         }
     }
 
-    heads_cache_.reset();
+    invalidate_heads();
 
     // Update subjects
     lv_subject_set_int(&tool_count_, static_cast<int>(tools_.size()));
@@ -320,7 +326,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                          ams_topology_tool_extruder_ != topo.tool_extruder;
     if (heads_share_heater_ != topo.heads_share_heater) {
         heads_share_heater_ = topo.heads_share_heater;
-        heads_cache_.reset();
+        invalidate_heads();
     }
 
     ams_topology_active_ = true;
@@ -390,7 +396,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
             }
             tools_.push_back(std::move(t));
         }
-        heads_cache_.reset();
+        invalidate_heads();
         lv_subject_set_int(&tool_count_, static_cast<int>(tools_.size()));
         int version = lv_subject_get_int(&tools_version_) + 1;
         lv_subject_set_int(&tools_version_, version);
@@ -409,7 +415,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
         }
     }
     if (seated_changed) {
-        heads_cache_.reset();
+        invalidate_heads();
     }
 
     int new_active = topo.active_tool;
@@ -438,7 +444,7 @@ void ToolState::clear_ams_topology() {
     ams_topology_tool_extruder_.clear();
     heads_share_heater_ = false;
     tools_.clear();
-    heads_cache_.reset();
+    invalidate_heads();
     active_tool_index_ = 0;
     lv_subject_set_int(&tool_count_, 0);
     lv_subject_set_int(&active_tool_, 0);
@@ -490,6 +496,25 @@ int ToolState::index_for_tool_number(int number) const {
     return it == tool_numbers_.end() ? -1 : static_cast<int>(it - tool_numbers_.begin());
 }
 
+std::string ToolState::own_part_fan_for_extruder(const std::string& extruder) const {
+    std::string first, found;
+    bool distinct = false;
+    for (const auto& tool : tools_) {
+        if (!tool.fan_name || tool.fan_name->empty()) {
+            continue;
+        }
+        if (first.empty()) {
+            first = *tool.fan_name;
+        } else if (*tool.fan_name != first) {
+            distinct = true;
+        }
+        if (found.empty() && tool.extruder_name && *tool.extruder_name == extruder) {
+            found = *tool.fan_name;
+        }
+    }
+    return distinct ? found : std::string();
+}
+
 void ToolState::update_from_status(const nlohmann::json& status) {
     if (tools_.empty()) {
         return;
@@ -502,10 +527,9 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // view — the logical T-number is driven by the backend, not the printer.
     const bool frame_owns_active_tool = !ams_topology_active_ && !backend_owns_active_tool_;
     if (frame_owns_active_tool) {
-        if (status.contains("toolchanger") && status["toolchanger"].is_object()) {
-            const auto& tc = status["toolchanger"];
-            if (tc.contains("tool_number") && tc["tool_number"].is_number_integer()) {
-                const int number = tc["tool_number"].get<int>();
+        if (const auto* tc = json_util::find_object(status, "toolchanger")) {
+            if (const auto tool_number = json_util::read_integer_field(*tc, "tool_number")) {
+                const int number = *tool_number;
                 const int new_index = index_for_tool_number(number);
                 if (new_index < 0 && number >= 0) {
                     spdlog::debug("[ToolState] toolchanger.tool_number {} names no listed tool",
@@ -529,10 +553,9 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // klipper-toolchanger's tool_number is the authority on what is mounted:
     // toolhead.extruder still names "extruder" on an empty carriage (#2058).
     if (frame_owns_active_tool && !toolchanger_reports_mount_) {
-        if (status.contains("toolhead") && status["toolhead"].is_object()) {
-            const auto& toolhead = status["toolhead"];
-            if (toolhead.contains("extruder") && toolhead["extruder"].is_string()) {
-                std::string ext_name = toolhead["extruder"].get<std::string>();
+        if (const auto* toolhead = json_util::find_object(status, "toolhead")) {
+            if (const auto extruder = json_util::read_field<std::string>(*toolhead, "extruder")) {
+                const std::string& ext_name = *extruder;
                 // Find which tool maps to this extruder
                 for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
                     if (tools_[i].extruder_name.has_value() &&
@@ -555,29 +578,31 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // Parse per-tool status updates
     for (auto& tool : tools_) {
         std::string key = "tool " + tool.name;
-        if (!status.contains(key) || !status[key].is_object()) {
+        const auto* tool_obj = json_util::find_object(status, key.c_str());
+        if (!tool_obj) {
             continue;
         }
-        const auto& tool_status = status[key];
+        const auto& tool_status = *tool_obj;
 
-        if (tool_status.contains("active") && tool_status["active"].is_boolean()) {
-            bool val = tool_status["active"].get<bool>();
+        if (const auto active = json_util::read_field<bool>(tool_status, "active")) {
+            bool val = *active;
             if (val != tool.active) {
                 tool.active = val;
                 changed = true;
             }
         }
 
-        if (tool_status.contains("mounted") && tool_status["mounted"].is_boolean()) {
-            bool val = tool_status["mounted"].get<bool>();
+        if (const auto mounted = json_util::read_field<bool>(tool_status, "mounted")) {
+            bool val = *mounted;
             if (val != tool.mounted) {
                 tool.mounted = val;
                 changed = true;
             }
         }
 
-        if (tool_status.contains("detect_state") && tool_status["detect_state"].is_string()) {
-            std::string ds = tool_status["detect_state"].get<std::string>();
+        if (const auto detect_state =
+                json_util::read_field<std::string>(tool_status, "detect_state")) {
+            const std::string& ds = *detect_state;
             DetectState new_state = DetectState::UNAVAILABLE;
             // klipper-toolchanger spells DETECT_PRESENT "mounted"
             // (klipper/extras/toolchanger.py). "present" is what forks that
@@ -600,18 +625,18 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         // MedusaHC the value on this object is not the one the machine prints
         // with. The per-tool offsets are read from the whole frame below.
 
-        if (tool_status.contains("extruder") && tool_status["extruder"].is_string()) {
-            std::string ext = tool_status["extruder"].get<std::string>();
+        if (const auto extruder = json_util::read_field<std::string>(tool_status, "extruder")) {
+            const std::string& ext = *extruder;
             std::optional<std::string> new_val = ext.empty() ? std::nullopt : std::optional(ext);
             if (new_val != tool.extruder_name) {
                 tool.extruder_name = new_val;
-                heads_cache_.reset();
+                invalidate_heads();
                 changed = true;
             }
         }
 
-        if (tool_status.contains("fan") && tool_status["fan"].is_string()) {
-            std::string fan = tool_status["fan"].get<std::string>();
+        if (const auto fan_name = json_util::read_field<std::string>(tool_status, "fan")) {
+            const std::string& fan = *fan_name;
             std::optional<std::string> new_val = fan.empty() ? std::nullopt : std::optional(fan);
             if (new_val != tool.fan_name) {
                 tool.fan_name = new_val;
@@ -624,10 +649,10 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // loop above. That loop skips a tool whose `tool T<n>` object is not in
     // this frame, and on a firmware that keeps every tool's offset on ONE
     // object (see helix::tool_offsets) that would skip the offsets entirely.
-    if (per_tool_offsets_supported()) {
+    if (follows_any_axis()) {
         for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
             for (Axis axis : kAllAxes) {
-                if (lv_subject_get_int(get_per_tool_axis_supported_subject(axis)) != 1) {
+                if (!follows_axis(axis)) {
                     continue;
                 }
                 auto microns = helix::tool_offsets::read_tool_offset_microns(
@@ -669,17 +694,27 @@ void ToolState::update_from_status(const nlohmann::json& status) {
 }
 
 bool ToolState::per_tool_offsets_supported() const {
-    // lv_subject_get_int takes a non-const pointer but only reads.
-    auto get = [](const lv_subject_t& subject) {
-        return lv_subject_get_int(const_cast<lv_subject_t*>(&subject));
-    };
+    auto get = [](const helix::Subject& subject) { return lv_subject_get_int(&subject); };
     return get(per_tool_x_supported_) == 1 || get(per_tool_y_supported_) == 1 ||
            get(per_tool_z_supported_) == 1;
 }
 
+bool ToolState::follows_axis(Axis axis) const {
+    // The getter and lv_subject_get_int take non-const pointers but only read.
+    auto* self = const_cast<ToolState*>(this);
+    return lv_subject_get_int(self->get_per_tool_axis_supported_subject(axis)) == 1 ||
+           firmware_staged_axes_[axis_index(axis)];
+}
+
+bool ToolState::follows_any_axis() const {
+    return per_tool_offsets_supported() ||
+           std::any_of(firmware_staged_axes_.begin(), firmware_staged_axes_.end(),
+                       [](bool staged) { return staged; });
+}
+
 void ToolState::query_tool_offsets(IMoonrakerClient* client,
                                    const helix::PrinterDiscovery& hardware) {
-    if (!client || tools_.empty() || !per_tool_offsets_supported()) {
+    if (!client || tools_.empty() || !follows_any_axis()) {
         return;
     }
 
@@ -701,11 +736,12 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
     // subjects were torn down while the request was in flight.
     auto cb = async_lifetime_.bg_cb(
         "ToolState::query_tool_offsets", [this](const nlohmann::json& response) {
-            if (!response.contains("result") || !response["result"].contains("status")) {
+            const auto* status = json_util::find_path(response, "result", "status");
+            if (!status) {
                 spdlog::debug("[ToolState] Tool offset query returned no status");
                 return;
             }
-            update_from_status(response["result"]["status"]);
+            update_from_status(*status);
             for (const auto& tool : tools_) {
                 spdlog::debug(
                     "[ToolState] Seeded per-tool offsets from query: {} x={:.3f}{} "
@@ -870,6 +906,13 @@ std::vector<PhysicalHead> ToolState::heated_heads() const {
     return heated;
 }
 
+void ToolState::invalidate_heads() {
+    heads_cache_.reset();
+    if (subjects_initialized_) {
+        lv_subject_set_int(&extruder_count_, extruder_count());
+    }
+}
+
 int ToolState::extruder_count() const {
     return static_cast<int>(heated_heads().size());
 }
@@ -882,6 +925,10 @@ const ToolInfo* ToolState::active_tool() const {
 }
 
 std::string ToolState::nozzle_label() const {
+    return nozzle_label(active_tool_index_);
+}
+
+std::string ToolState::nozzle_label(int tool_index) const {
     // Gated on physical extruders, not tool count: the label sits beside a
     // nozzle temperature readout in the controls and filament panels, so it
     // answers "which nozzle is this". set_ams_topology() expands tools_ to one
@@ -891,7 +938,9 @@ std::string ToolState::nozzle_label() const {
     if (!names_mounted_nozzle()) {
         return lv_tr("Nozzle");
     }
-    const auto* tool = active_tool();
+    const ToolInfo* tool = tool_index >= 0 && tool_index < static_cast<int>(tools_.size())
+                               ? &tools_[static_cast<size_t>(tool_index)]
+                               : nullptr;
     if (tool) {
         // The badge text, so this label and the nozzle badge, the extruder names
         // and the other-tools chip spell one nozzle one way: "Nozzle 2" or

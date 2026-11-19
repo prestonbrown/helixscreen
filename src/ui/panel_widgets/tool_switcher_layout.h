@@ -209,6 +209,9 @@ enum class FeederLabelForm : int { Icon = 0, Short = 1, Long = 2 };
     return FeederLabelForm::Icon;
 }
 
+/// Pixels between adjacent cells of a rail or the picker grid.
+inline constexpr int kToolRailGap = 2;
+
 /// The look a head's cell takes. The values are the per-head state subject's
 /// ints, which the cell XML compares against literal ref_values.
 enum class ToolSwitcherCellState : int { Idle = 0, Mounted = 1, Fault = 2 };

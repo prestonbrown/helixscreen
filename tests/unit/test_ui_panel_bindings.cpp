@@ -53,7 +53,7 @@ static void set_xml_subject(const char* name, int value) {
 static void set_xml_subject_str(const char* name, const char* value) {
     lv_subject_t* subject = lv_xml_get_subject(NULL, name);
     REQUIRE(subject != nullptr);
-    lv_subject_copy_string(subject, value);
+    lv_subject_set_string(subject, value);
 }
 
 // Look up a named descendant, failing the test with the name if it is absent.
@@ -73,7 +73,7 @@ static lv_obj_t* require_named(lv_obj_t* root, const char* name) {
 // the boundary and read the resolved flag.
 static bool is_hidden(lv_obj_t* obj) {
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 static std::string label_text_of(lv_obj_t* obj) {
@@ -408,24 +408,6 @@ TEST_CASE_METHOD(XMLTestFixture,
 // =============================================================================
 // ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)
 // =============================================================================
-
-TEST_CASE_METHOD(XMLTestFixture,
-                 "controls_panel: nozzle_temp_display binding (temp_display widget)",
-                 "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
-    ControlsPanelSubjects owner(state());
-    REQUIRE(register_component("controls_panel"));
-    // Subjects carry decidegrees; temp_display renders whole degrees.
-    set_xml_subject("extruder_temp", 2015);
-    set_xml_subject("extruder_target", 2200);
-    lv_obj_t* panel = create_component("controls_panel");
-    lv_obj_t* disp = require_named(panel, "nozzle_temp_display");
-    REQUIRE(ui_temp_display_is_valid(disp));
-    CHECK(ui_temp_display_get_current(disp) == 201);
-    CHECK(ui_temp_display_get_target(disp) == 220);
-
-    set_xml_subject("extruder_temp", 1000);
-    CHECK(ui_temp_display_get_current(disp) == 100);
-}
 
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_temp_display binding (temp_display widget)",
                  "[ui][controls_panel][bind_current][bind_target][.xml_required]") {

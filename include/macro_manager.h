@@ -150,6 +150,11 @@ class MacroManager {
      */
     [[nodiscard]] static MacroInstallStatus evaluate_status(const PrinterDiscovery& hardware);
 
+    /// evaluate_status with the signal names recorded from sliced files given
+    /// (signal_macros::recorded_signal_names() in the one-argument form).
+    [[nodiscard]] static MacroInstallStatus
+    evaluate_status(const PrinterDiscovery& hardware, const std::vector<std::string>& extra_names);
+
     /**
      * @brief Compare two dotted version strings numerically per component
      *
@@ -203,15 +208,55 @@ class MacroManager {
     /**
      * @brief Update Helix macros to latest version
      *
-     * Overwrites helix_macros.cfg with the current version. When
+     * Overwrites helix_macros.cfg with the current version, keeping the
+     * timelapse include when the installed file has one. When
      * stages_skips(), also writes helix_skips.cfg and adds its include if
      * missing; otherwise printer.cfg is not touched.
      * Does NOT restart Klipper — same rule as install_files().
      *
      * @param on_success Called when the new file is uploaded
-     * @param on_error Called if upload fails
+     * @param on_error Called if the installed file cannot be read (a missing
+     *                 one is fine) or the upload fails
      */
     void update_files(SuccessCallback on_success, ErrorCallback on_error);
+
+    /**
+     * @brief Make helix_macros.cfg load moonraker-timelapse's timelapse.cfg
+     *
+     * Adds timelapse_include_line(@p repo_dir) to the helix_macros.cfg on the
+     * printer, which update_files() then keeps and uninstall() removes with the
+     * file. The caller decides it is needed: Klipper has the helper macros
+     * loaded, no TIMELAPSE_TAKE_FRAME, and @p repo_dir is the checkout's
+     * absolute path on the Klipper host. Writes nothing when a timelapse include
+     * is there already. Does NOT restart Klipper; the macros load at the next
+     * restart.
+     *
+     * @param on_success Called when helix_macros.cfg carries the include
+     * @param on_error Called when helix_macros.cfg could not be read or written
+     */
+    void include_timelapse_macros(const std::string& repo_dir, SuccessCallback on_success,
+                                  ErrorCallback on_error);
+
+    /**
+     * @brief The include line for the macro file in the checkout at @p repo_dir
+     *
+     * The real file by absolute path, globbed so it matches nothing once the
+     * checkout is gone: Klipper refuses to start on a plain include whose file
+     * is missing and skips a glob that matches nothing. Never the config-root
+     * timelapse.cfg, a symlink into the checkout that a glob still matches
+     * after the checkout is deleted, and that Klipper then cannot open.
+     */
+    [[nodiscard]] static std::string timelapse_include_line(const std::string& repo_dir);
+
+    /// The live timelapse include line in helix_macros.cfg @p content, or empty.
+    [[nodiscard]] static std::string find_timelapse_include(const std::string& content);
+
+    /// Whether helix_macros.cfg @p content has a timelapse include as a live line.
+    [[nodiscard]] static bool has_timelapse_include(const std::string& content);
+
+    /// @p content with @p line appended, unless it has a timelapse include already.
+    [[nodiscard]] static std::string with_timelapse_include(const std::string& content,
+                                                            const std::string& line);
 
     /**
      * @brief Request a Klipper restart to load staged macro files
@@ -266,28 +311,21 @@ class MacroManager {
     [[nodiscard]] static std::string get_macro_content();
 
     /**
-     * @brief Remove the leading underscore from the signal and phase macro names
-     *
-     * Rewrites _HELIX_READY, _HELIX_ENDED, _HELIX_RESET and _HELIX_PHASE_*
-     * wherever they appear. Other _HELIX_ names, such as _HELIX_STATE, stay as
-     * they are.
-     *
-     * @param content helix_macros.cfg content
-     * @return The content with the signal macros under their visible names
-     */
-    [[nodiscard]] static std::string with_visible_signal_names(std::string content);
-
-    /**
      * @brief The helix_macros.cfg content to stage on this printer
      *
-     * A printer that already defines HELIX_READY may call the visible signal
-     * names from its own macros and sliced files, so it keeps them. Every other
-     * printer gets the hidden names.
+     * Every printer gets the pack with the hidden signal names. A printer that
+     * had the visible names, calls one, or recorded one from a sliced file
+     * (signal_macros::recorded_signal_names()) gets a forwarder for each
+     * visible name (signal_macros::alias_block) after the pack.
      *
      * @param hardware Discovery snapshot with the printer's macro names
      * @return Complete cfg file content, or empty if the file is not found
      */
     [[nodiscard]] static std::string macro_content_for(const PrinterDiscovery& hardware);
+
+    /// macro_content_for with the recorded signal names given.
+    [[nodiscard]] static std::string macro_content_for(const PrinterDiscovery& hardware,
+                                                       const std::vector<std::string>& extra_names);
 
     /**
      * @brief Get the version from the local macro file
@@ -305,6 +343,16 @@ class MacroManager {
      */
     [[nodiscard]] static std::vector<std::string> get_macro_names();
 
+    /**
+     * @brief Every section name the bundled pack defines, for signal_macros::scan()
+     *
+     * The signal macros appear under both spellings, since an earlier pack
+     * defined them without the underscore.
+     *
+     * @return Section names as configfile.settings keys them ("gcode_macro _helix_ready")
+     */
+    [[nodiscard]] static std::vector<std::string> pack_section_names();
+
   private:
     IMoonrakerAPI& api_;
     const PrinterDiscovery& hardware_;
@@ -315,6 +363,11 @@ class MacroManager {
     /// Upload one file to the printer's config root.
     void upload_macro_file(const std::string& filename, const std::string& content,
                            SuccessCallback on_success, ErrorCallback on_error);
+
+    /// update_files() once it knows whether to keep the timelapse include.
+    /// @p timelapse_include is the installed file's include line to keep, or empty.
+    void stage_update(const std::string& timelapse_include, SuccessCallback on_success,
+                      ErrorCallback on_error);
 
     /// Upload helix_skips.cfg when stages_skips(); succeed at once otherwise.
     void upload_skips_file(SuccessCallback on_success, ErrorCallback on_error);

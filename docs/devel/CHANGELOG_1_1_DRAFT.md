@@ -183,6 +183,10 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **The printer picture shows an attached CFS** - a Creality K2 with a CFS connected shows
   the K2 with the CFS on top, switching on its own when the CFS reports in or drops out. A
   picture you picked yourself stays in place.
+- **Jacobean's K2 Plus firmware is recognised (#2087)** - a K2 Plus running Jacobean's
+  Kalico-based replacement firmware is detected as itself instead of as k2-improvements, with
+  print-start progress that follows its own START_PRINT. A printer type mismatch warning
+  also leaves the screen as soon as the type is changed in Settings.
 - **A K2 without a CFS is a single-spool printer (#1904)** - with no CFS attached, the
   multi-filament panels, slot widgets and bypass controls stay out of the way, and the
   Filament panel's Load and Unload run the K2's own external-spool load and its cut and
@@ -850,7 +854,9 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   the Android app, and any screen whose brightness HelixScreen can't change, has nothing to
   dim, so the dim timer is what starts the screensaver. Settings > Display now offers it there
   as Screensaver after, with the same choices as Screen Dim, instead of hiding it and always
-  waiting 10 minutes. The row is hidden while the screensaver is Off.
+  waiting 10 minutes. The row is hidden while the screensaver is Off. On a screen that can
+  dim, choosing a screensaver turns Screen Dim into Screensaver after too, and a timer left at
+  Never becomes 10 minutes, so the screensaver you picked actually starts.
 - **The AD5X buzzer plays chords and music** - UI sounds play as chords, tracker music plays
   in four voices, and `M300` beeps from your macros take the buzzer when Klipper holds it.
 - **On-screen keyboard keys look like keys** - each key has a raised edge in its own colour

@@ -11,6 +11,8 @@
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "filament_action_set.h"
 #include "indx_contract.h"
@@ -37,8 +39,8 @@ namespace {
 // it: running, then the result. ui_xml/components/indx_flow_status.xml renders
 // these subjects (phase: 0 nothing to report, 1 running, 2 result). Only one
 // INDX flow runs at a time, so the three share it.
-lv_subject_t s_indx_flow_phase{};
-lv_subject_t s_indx_flow_status{};
+helix::Subject s_indx_flow_phase{};
+helix::Subject s_indx_flow_status{};
 char s_indx_flow_status_buf[128] = {};
 helix::WidgetSubjects s_indx_flow_subjects{"IndxFlowSubjects",
                                            StaticSubjectRegistry::Lifetime::Process};
@@ -66,7 +68,7 @@ void ensure_flow_subjects() {
 /// Write the status line's subjects. The bound line follows on its own.
 void write_flow_subjects(const std::string& text, int phase) {
     ensure_flow_subjects();
-    lv_subject_copy_string(&s_indx_flow_status, text.c_str());
+    lv_subject_set_string(&s_indx_flow_status, text.c_str());
     lv_subject_set_int(&s_indx_flow_phase, phase);
 }
 
@@ -252,25 +254,31 @@ void register_indx_device_flows() {
                                 {nullptr, [](const std::string&) { seat_by_hand(); }});
     register_guided_device_flow("indx_cycle_all",
                                 {attach_status, [](const std::string&) { confirm_cycle_all(); }});
-    register_guided_device_flow("indx_heater_calibration",
-                                {attach_status, [](const std::string&) {
-                                     confirm_calibration(
-                                         "calibrate_heater", lv_tr("Calibrate heater"),
-                                         lv_tr("The mounted nozzle heats to 200°C and cools "
-                                               "again while the heater's safety model is "
-                                               "fitted. Keep the part fan off and flammable "
-                                               "material away from the head. This takes "
-                                               "several minutes."));
-                                 }});
-    register_guided_device_flow("indx_fan_calibration",
-                                {attach_status, [](const std::string&) {
-                                     confirm_calibration(
-                                         "calibrate_fan", lv_tr("Calibrate part fan"),
-                                         lv_tr("The nozzle heats to 200°C while the part fan "
-                                               "steps through its speeds. For an accurate fit, "
-                                               "fit the duct as you print with it. This takes "
-                                               "several minutes."));
-                                 }});
+    register_guided_device_flow(
+        "indx_heater_calibration",
+        {attach_status, [](const std::string&) {
+             confirm_calibration(
+                 "calibrate_heater", lv_tr("Calibrate heater"),
+                 fmt::format(fmt::runtime(lv_tr("The mounted nozzle heats to {} and cools "
+                                                "again while the heater's safety model is "
+                                                "fitted. Keep the part fan off and flammable "
+                                                "material away from the head. This takes "
+                                                "several minutes.")),
+                             units::format_display_temp(200))
+                     .c_str());
+         }});
+    register_guided_device_flow(
+        "indx_fan_calibration",
+        {attach_status, [](const std::string&) {
+             confirm_calibration(
+                 "calibrate_fan", lv_tr("Calibrate part fan"),
+                 fmt::format(fmt::runtime(lv_tr("The nozzle heats to {} while the part fan "
+                                                "steps through its speeds. For an accurate fit, "
+                                                "fit the duct as you print with it. This takes "
+                                                "several minutes.")),
+                             units::format_display_temp(200))
+                     .c_str());
+         }});
 }
 
 } // namespace helix::ui

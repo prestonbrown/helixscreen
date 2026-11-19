@@ -166,7 +166,6 @@ void Application::handle_keyboard_shortcuts() {
     lv_obj_t* focused = lv_group_get_focused(lv_group_get_default());
     bool text_input_active = focused != nullptr && lv_obj_check_type(focused, &lv_textarea_class);
 
-    // Process shortcuts with SDL key state
     const Uint8* keyboard_state = SDL_GetKeyboardState(nullptr);
     shortcuts.process([keyboard_state](int scancode) { return keyboard_state[scancode] != 0; },
                       SDL_GetModState(), text_input_active);

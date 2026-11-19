@@ -3,11 +3,10 @@
 
 #include "input_sensor_manager.h"
 
-#include "ui_toast_manager.h"
-
 #include "app_globals.h"
 #include "core/text_io.h"
 #include "json_utils.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "print_start_checks.h"
 #include "printer_discovery.h"
@@ -349,7 +348,7 @@ void InputSensorManager::refresh_subjects() {
                                      get_printer_state().print_state().print_materials())) {
             const std::string msg =
                 fmt::format(fmt::runtime(lv_tr("Door opened during print: {}")), name);
-            ToastManager::instance().show(ToastSeverity::WARNING, msg.c_str(), 6000);
+            helix::publish_notice({helix::NoticeSeverity::WARNING, msg, 6000});
         }
     }
     open_doors_seen_ = std::move(open);

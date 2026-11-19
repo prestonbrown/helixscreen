@@ -11,13 +11,38 @@
 #include "printer_plugin_status_state.h"
 
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "macro_manager.h"
 #include "plr_backend.h"
 #include "state/subject_macros.h"
 
 #include <spdlog/spdlog.h>
 
+#include "hv/json.hpp"
+
 namespace helix {
+
+PrinterPluginStatusState::PrinterPluginStatusState()
+    : stored_opt_ins_(std::make_unique<nlohmann::json>(nlohmann::json::object())) {}
+
+PrinterPluginStatusState::~PrinterPluginStatusState() = default;
+
+void PrinterPluginStatusState::clear_data() {
+    set_link_dir("");
+    version_.clear();
+    disabled_ = false;
+    features_.clear();
+    *stored_opt_ins_ = nlohmann::json::object();
+}
+
+void PrinterPluginStatusState::set_stored_opt_ins(nlohmann::json record) {
+    *stored_opt_ins_ = std::move(record);
+    publish_features();
+}
+
+const nlohmann::json& PrinterPluginStatusState::stored_opt_ins() const {
+    return *stored_opt_ins_;
+}
 
 void PrinterPluginStatusState::init_subjects(bool register_xml) {
     if (subjects_initialized_) {
@@ -33,6 +58,9 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(helix_plugin_installed, -1, subjects_, register_xml);
     INIT_SUBJECT_INT(helix_macros_status, static_cast<int>(HelixMacrosStatus::Unknown), subjects_,
                      register_xml);
+    INIT_SUBJECT_INT(helix_macros_signal_names,
+                     static_cast<int>(signal_macros::SignalNamesLine::None), subjects_,
+                     register_xml);
     INIT_SUBJECT_INT(plr_feature_state, static_cast<int>(PluginFeatureState::Absent), subjects_,
                      register_xml);
     INIT_SUBJECT_INT(plr_saving_enabled, 0, subjects_, register_xml);
@@ -40,12 +68,12 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(helix_plugin_probe_seq, 0, subjects_, register_xml);
     for (size_t i = 0; i < kPluginSwitchFeatures.size(); ++i) {
         const PluginSwitchFeature& f = kPluginSwitchFeatures[i];
-        lv_subject_init_int(&switch_mode_[i], static_cast<int>(PluginSwitchMode::Hidden));
+        switch_mode_[i].init_int(static_cast<int>(PluginSwitchMode::Hidden));
         subjects_.register_subject(&switch_mode_[i], register_xml ? f.mode_subject : nullptr);
         if (register_xml) {
             helix::xml::register_subject_in_current_scope(f.mode_subject, &switch_mode_[i]);
         }
-        lv_subject_init_int(&switch_on_[i], 0);
+        switch_on_[i].init_int(0);
         const char* on_name = register_xml ? f.on_subject : nullptr;
         subjects_.register_subject(&switch_on_[i], on_name);
         if (on_name != nullptr) {
@@ -58,6 +86,8 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     // status or pending flag from the previous one.
     macros_base_status_ = static_cast<int>(HelixMacrosStatus::Unknown);
     macros_restart_pending_ = false;
+    signal_macro_scan_.reset();
+    signal_migration_report_ = signal_macros::SignalMigrationReport::Unknown;
 
     subjects_initialized_ = true;
     spdlog::trace("[PrinterPluginStatusState] Subjects initialized successfully");
@@ -103,7 +133,7 @@ void PrinterPluginStatusState::publish_features() {
         // stored opt-in the app's fallback acts on.
         const bool on = it != features_.end() && (it->second.available || !f.has_fallback)
                             ? it->second.enabled
-                            : plugin_feature_opted_in(stored_opt_ins_, f.name, f.acts);
+                            : plugin_feature_opted_in(*stored_opt_ins_, f.name, f.acts);
         lv_subject_set_int(&switch_on_[i], on ? 1 : 0);
     }
 
@@ -120,6 +150,34 @@ void PrinterPluginStatusState::publish_features() {
         }
     }
     lv_subject_set_int(&plr_saving_enabled_, saving ? 1 : 0);
+    publish_signal_names_line();
+}
+
+void PrinterPluginStatusState::set_signal_macro_scan(
+    std::optional<signal_macros::SignalMacroScan> scan) {
+    signal_macro_scan_ = std::move(scan);
+    publish_signal_names_line();
+}
+
+void PrinterPluginStatusState::set_signal_migration_report(
+    signal_macros::SignalMigrationReport report) {
+    signal_migration_report_ = report;
+    publish_signal_names_line();
+}
+
+void PrinterPluginStatusState::publish_signal_names_line() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    signal_macros::SignalMigrationPlugin plugin;
+    plugin.installed = service_has_helix_plugin();
+    plugin.reported = plugin_feature_reported("signal_macro_migration", 1);
+    plugin.feature = plugin_feature("signal_macro_migration", 1);
+    plugin.report = signal_migration_report_;
+    const auto line = signal_macro_scan_
+                          ? signal_macros::signal_names_line(*signal_macro_scan_, plugin)
+                          : signal_macros::SignalNamesLine::None;
+    lv_subject_set_int(&helix_macros_signal_names_, static_cast<int>(line));
 }
 
 void PrinterPluginStatusState::set_plr_mesh_include(std::optional<bool> present) {

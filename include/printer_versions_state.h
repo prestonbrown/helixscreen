@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -40,15 +41,17 @@ inline constexpr const char* kMinMoonrakerVersion = "0.9.0";
 [[nodiscard]] bool is_placeholder_version(const std::string& version);
 
 /**
- * @brief The Moonraker version update_manager knows, from a machine.update.status result.
+ * @brief The version update_manager knows for @p app, from a machine.update.status result.
  *
- * The fallback for a server.info that reports a placeholder. Takes
- * `version_info.moonraker.version` when it names a release; a checkout with no
+ * The fallback for a placeholder version: Moonraker's from server.info
+ * (@p app "moonraker"), Klipper's from printer.info (@p app "klipper"). Takes
+ * `version_info.<app>.version` when it names a release; a checkout with no
  * release tags reads "v0.0.0-N" there, so it answers the short commit hash
  * (`current_hash`, 7 characters) instead, the form Kalico reports itself in.
  * "" when neither is present.
  */
-[[nodiscard]] std::string moonraker_version_from_update_status(const nlohmann::json& result);
+[[nodiscard]] std::string version_from_update_status(const nlohmann::json& result,
+                                                     const std::string& app);
 
 /**
  * @brief Manages software version subjects for UI display
@@ -169,11 +172,11 @@ class PrinterVersionsState {
     bool subjects_initialized_ = false;
 
     // Version subjects (string, 64-byte buffer each)
-    lv_subject_t klipper_version_{};
-    lv_subject_t moonraker_version_{};
-    lv_subject_t os_version_{};
-    lv_subject_t moonraker_history_degraded_{};
-    lv_subject_t klipper_firmware_name_{};
+    helix::Subject klipper_version_{};
+    helix::Subject moonraker_version_{};
+    helix::Subject os_version_{};
+    helix::Subject moonraker_history_degraded_{};
+    helix::Subject klipper_firmware_name_{};
 
     // String buffers for subject storage
     char klipper_version_buf_[64]{};

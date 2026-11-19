@@ -85,7 +85,7 @@ TEST_CASE_METHOD(XMLTestFixture, "edit-mode chrome teardown runs no queued callb
     const auto dims = GridLayout::get_dimensions(UiBreakpoint::Medium, content_w, content_h);
 
     lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_pad_all(container, 0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_size(container, content_w, content_h);

@@ -5,7 +5,9 @@
 #include "ui_temperature_utils.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/log_capture.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "heater_type.h"
 #include "printer_state.h"
@@ -75,14 +77,13 @@ TEST_CASE("HeaterIconBinder: a missing required glyph is logged as an error", "[
 
     auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
     sink->set_level(spdlog::level::err);
-    auto& sinks = spdlog::default_logger()->sinks();
-    sinks.push_back(sink);
+    auto attached = std::make_unique<helix::ScopedLogSink>(sink);
     HeaterIconBinder binder;
     CHECK_FALSE(binder.bind(root, state, HeaterType::Bed));
     const bool optional_silent = sink->last_formatted().empty();
     CHECK_FALSE(binder.bind_required(root, state, HeaterType::Bed));
     const auto logged = sink->last_formatted();
-    sinks.pop_back();
+    attached.reset();
 
     CHECK(optional_silent);
     REQUIRE(logged.size() == 1);
@@ -97,8 +98,8 @@ TEST_CASE("HeaterIconBinder: bind_subjects still binds when only one subject is 
     lv_obj_t* icon = lv_label_create(root);
     lv_obj_set_name(icon, "bed_icon_glyph");
 
-    lv_subject_t current;
-    lv_subject_init_int(&current, 250);
+    helix::Subject current;
+    current.init_int(250);
 
     HeaterIconBinder binder;
     REQUIRE(binder.bind_subjects(root, "bed_icon_glyph", &current, nullptr));
@@ -350,9 +351,9 @@ TEST_CASE_METHOD(XMLTestFixture,
     // bind() on Bed/Chamber must pass its SubjectLifetime token into
     // observe<int>() (CLAUDE.md invariant #4, issue #705): if it doesn't,
     // the ObserverGuard has no way to know the subject died, and reset()
-    // below would call lv_observer_remove() on memory that
+    // below would call lv_observer_delete() on memory that
     // PrinterTemperatureState::deinit_subjects() already freed via
-    // lv_subject_deinit(). This is the same bool-token path covered for a
+    // helix::subject_reset(). This is the same bool-token path covered for a
     // synthetic subject in test_observer_factory.cpp's #816 tests —
     // here it runs against the real PrinterState accessors bind() uses.
     //
@@ -374,7 +375,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(chamber_binder.is_bound());
 
     // Simulate a printer-state reinit cycle: signals subject death (each
-    // lifetime bool -> false) then frees the subjects via lv_subject_deinit().
+    // lifetime bool -> false) then resets the subjects via helix::subject_reset().
     state().deinit_subjects();
 
     // Must not crash.
@@ -459,10 +460,10 @@ TEST_CASE("HeaterIconBinder: observers survive widget deletion without unbind",
           "[heater_binder][rebuild]") {
     LVGLTestFixture fixture;
 
-    lv_subject_t current;
-    lv_subject_t target;
-    lv_subject_init_int(&current, 250);
-    lv_subject_init_int(&target, 2000);
+    helix::Subject current;
+    helix::Subject target;
+    current.init_int(250);
+    target.init_int(2000);
 
     lv_obj_t* root = lv_obj_create(lv_screen_active());
     lv_obj_t* icon = lv_label_create(root);
@@ -502,10 +503,10 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_color_t label_before = lv_obj_get_style_text_color(label, LV_PART_MAIN);
 
-    lv_subject_t current;
-    lv_subject_t target;
-    lv_subject_init_int(&current, 250);
-    lv_subject_init_int(&target, 0);
+    helix::Subject current;
+    helix::Subject target;
+    current.init_int(250);
+    target.init_int(0);
 
     HeaterIconBinder binder;
     REQUIRE(binder.bind_subjects(row, "bed_icon_glyph", &current, &target));

@@ -765,6 +765,7 @@ inline bool is_resistive_touchscreen_name(const std::string& name) {
                                      "sun4i", // Allwinner resistive controller (AD5M)
                                      "tsc",   // Generic resistive touch screen controller
                                      "ns20",  // NS2009/NS2016 I2C resistive ADC (Nebula Pad)
+                                     "xpt",   // Xptek XPT2046/XPT7603 resistive ADC (Kobra 3)
                                      nullptr};
     return matches_any_pattern(name, patterns);
 }

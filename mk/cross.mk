@@ -1142,7 +1142,7 @@ DOCKER_REMOTE_CONTROL = ENABLE_REMOTE_CONTROL=$(if $(filter-out default file und
 
 # Forwards ENABLE_SCREENSAVER into a Docker build when it was given on the command line, for
 # measurement builds on boards that do not ship screensavers.
-DOCKER_SCREENSAVER = $(if $(filter command line,$(origin ENABLE_SCREENSAVER)),ENABLE_SCREENSAVER=$(ENABLE_SCREENSAVER))
+DOCKER_SCREENSAVER = $(if $(filter command line override,$(origin ENABLE_SCREENSAVER)),ENABLE_SCREENSAVER=$(ENABLE_SCREENSAVER))
 
 # Same forwarding for the diagnostic-upload gate (see the
 # ENABLE_DIAGNOSTIC_UPLOADS block in Makefile). Inside the container only the
@@ -1975,8 +1975,11 @@ pi-test: pi-docker deploy-pi-fg
 
 # Pi-side ASAN runtime config. detect_leaks=0 because LSan trips on every
 # normal LVGL image cache entry; abort_on_error=1 so the first UAF takes the
-# process down with a coredump-style report; fast_unwind_on_malloc=0 makes
-# stack traces reliable at the cost of speed (worth it for a stress run).
+# process down with a coredump-style report. Allocation stacks use the fast
+# unwinder: the slow one runs on every malloc and costs well over a core on a
+# Pi-class board (130-160% CPU at idle on a CB1), enough that Moonraker drops
+# the WebSocket. For complete allocation stacks, pass PI_ASAN_OPTIONS with
+# fast_unwind_on_malloc=0 instead.
 #
 # asan.supp holds LeakSanitizer (`leak:`) rules, which belong in LSAN_OPTIONS,
 # NOT ASAN_OPTIONS:suppressions= — feeding a leak-only file to ASAN's own
@@ -1984,7 +1987,7 @@ pi-test: pi-docker deploy-pi-fg
 # suppressions" (hit while reproducing 783DVYKD, 2026-06-16). Keep them split.
 # (LSAN_OPTIONS is only consulted when detect_leaks=1, but homing the file there
 # keeps it correct if leak detection is re-enabled.)
-PI_ASAN_OPTIONS ?= detect_leaks=0:abort_on_error=1:fast_unwind_on_malloc=0:print_stacktrace=1:halt_on_error=1:strip_path_prefix=/src/
+PI_ASAN_OPTIONS ?= detect_leaks=0:abort_on_error=1:fast_unwind_on_malloc=1:malloc_context_size=8:print_stacktrace=1:halt_on_error=1:strip_path_prefix=/src/
 PI_LSAN_OPTIONS ?= suppressions=$(PI_DEPLOY_DIR)/asan.supp
 
 deploy-pi-asan:
@@ -2905,7 +2908,11 @@ define release-clean-assets
 	@# takes whatever build/ happens to hold, so this is the step that bounds the
 	@# payload. A platform whose panel is unbounded keeps every size class and the
 	@# source PNGs; one whose manifest names candidate boards ships their union.
-	$(if $(2),@$(PLATFORM_MANIFEST) prune-assets $(2) $(1))
+	@# The CJK bins go by the build's HELIX_MAX_FONT_TIER, asked of this Makefile
+	@# for that target so this file stays its only definition: a bin for a face
+	@# the build does not link is one CjkFontManager never loads.
+	$(if $(2),@tier="$$($(MAKE) -s --no-print-directory PLATFORM_TARGET=$(2) print-var-HELIX_MAX_FONT_TIER | tail -n1)" && \
+		$(PLATFORM_MANIFEST) prune-assets $(2) $(1) "$$tier")
 endef
 
 # PII / runtime-state files that must NEVER ship in a release tarball.

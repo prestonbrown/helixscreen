@@ -35,16 +35,19 @@
           <ui_button name="btn_source_encoder" text="Encoder" flex_grow="1" clickable="true">
             <bind_style name="clog_btn_selected" subject="clog_src_encoder_active" ref_value="1"/>
             <bind_style name="clog_btn_unselected" subject="clog_src_encoder_active" ref_value="0"/>
+            <bind_flag_if_eq subject="clog_src_encoder_available" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_clog_source_encoder"/>
           </ui_button>
           <ui_button name="btn_source_flowguard" text="Flowguard" flex_grow="1" clickable="true">
             <bind_style name="clog_btn_selected" subject="clog_src_flowguard_active" ref_value="1"/>
             <bind_style name="clog_btn_unselected" subject="clog_src_flowguard_active" ref_value="0"/>
+            <bind_flag_if_eq subject="clog_src_flowguard_available" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_clog_source_flowguard"/>
           </ui_button>
           <ui_button name="btn_source_afc" text="AFC" flex_grow="1" clickable="true">
             <bind_style name="clog_btn_selected" subject="clog_src_afc_active" ref_value="1"/>
             <bind_style name="clog_btn_unselected" subject="clog_src_afc_active" ref_value="0"/>
+            <bind_flag_if_eq subject="clog_src_afc_available" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="on_clog_source_afc"/>
           </ui_button>
         </lv_obj>

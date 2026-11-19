@@ -16,15 +16,21 @@ bool is_android_platform();
 /// is seeded from it and the shutdown widget/dialog gate on that.
 bool platform_host_power_supported();
 
-/// True when this platform's software is owned by something other than HelixScreen
+/// True when this build and platform can open the Host Terminal: a shell on a pty on
+/// the machine HelixScreen runs on. Never on Android, where an app has no shell to
+/// offer, and never in a build without HELIX_HAS_HOST_TERMINAL. The single source of
+/// this rule; the platform_host_terminal_supported subject is seeded from it.
+bool platform_host_terminal_supported();
+
+/// True when this install's updates are owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///
-/// The Snapmaker U1 is the case: the PAXX Extended Firmware ships HelixScreen as a
-/// selectable component, downloading a pinned, sha256-verified tarball into
-/// /oem/apps/helixscreen via extended-pkg. Self-updating there rewrites a package the
-/// firmware believes it owns. The firmware hook does not export
-/// HELIX_DISABLE_AUTO_UPDATES, so without this default every U1 install would check
-/// for updates and raise the update modal.
+/// The board module decides it (board::firmware_manages_updates): today only a
+/// Snapmaker U1 running PAXX Extended Firmware's own HelixScreen package, which
+/// extended-pkg downloads as a pinned, sha256-verified tarball into
+/// /oem/apps/helixscreen. Self-updating there rewrites a package the firmware believes
+/// it owns, and the firmware hook does not export HELIX_DISABLE_AUTO_UPDATES. A U1 on
+/// stock firmware, where our installer owns /userdata/helixscreen, self-updates.
 ///
 /// The single source of this rule; updates_externally_managed() consults it for the
 /// default and an explicit HELIX_DISABLE_AUTO_UPDATES (either direction) still wins,
@@ -50,13 +56,14 @@ bool is_printer_embedded();
 enum class FlashForgeModTree {
     None,   ///< no FlashForge mod tree (Pi, dev box, K1)
     Zmod,   ///< the /ZMOD marker file or FlashForge's /usr/prog dir
-    ForgeX, ///< a Forge-X chroot, which has neither but keeps its mod git tree reachable
+    ForgeX, ///< a reachable Forge-X mod git tree, whatever else the chroot carries
 };
 
-/// Probes the mod tree: ZMOD (the /ZMOD marker file or FlashForge's /usr/prog dir) or
-/// Forge-X, whose chroot has neither but whose mod git tree stays reachable
+/// Probes the mod tree: Forge-X when its mod git tree is reachable
 /// (/opt/config/mod in-chroot, /usr/data/config/mod host-side, proven by
-/// .shell/platform.sh). Same rule as the launcher's heap-diag gate
+/// .shell/platform.sh), checked first because a Forge-X chroot can also carry
+/// /usr/prog; otherwise ZMOD (the /ZMOD marker file or FlashForge's /usr/prog
+/// dir). Same rule as the launcher's heap-diag gate
 /// (scripts/helix-launcher.sh); the two test suites pin both to one truth
 /// table. All probes resolve under `probe_root` (default "/") so tests can feed
 /// a fake layout without touching the real root filesystem. stat-only; never

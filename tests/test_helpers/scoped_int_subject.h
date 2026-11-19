@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
@@ -30,7 +31,7 @@ class ScopedIntSubject {
             saved_ = lv_subject_get_int(existing_);
             lv_subject_set_int(existing_, value);
         } else {
-            lv_subject_init_int(&own_, value);
+            own_.init_int(value);
             lv_xml_register_subject(nullptr, name, &own_);
         }
     }
@@ -40,7 +41,7 @@ class ScopedIntSubject {
             lv_subject_set_int(existing_, saved_);
         } else {
             lv_xml_unregister_subject(nullptr, name_.c_str());
-            lv_subject_deinit(&own_);
+            own_.reset();
         }
         helix::ui::UpdateQueue::instance().drain();
     }
@@ -51,7 +52,7 @@ class ScopedIntSubject {
   private:
     std::string name_;
     lv_subject_t* existing_ = nullptr;
-    lv_subject_t own_{};
+    helix::Subject own_{};
     int saved_ = 0;
 };
 

@@ -23,7 +23,9 @@ struct HostRig {
     int writes = 0;
     std::unique_ptr<PluginHost> host;
 
-    explicit HostRig(json initial = json::object(), size_t budget = size_t(64) << 20)
+    /// @p time_scale multiplies the time each plugin entry may spend.
+    explicit HostRig(json initial = json::object(), size_t budget = size_t(64) << 20,
+                     int time_scale = 1)
         : block(std::move(initial)) {
         PluginHost::Deps d;
         d.backend = fake.backend();
@@ -35,6 +37,8 @@ struct HostRig {
         d.settings_path = "/tmp/helix-plugin-host-test/settings.json";
         d.helix_version = "1.1.0";
         d.memory_budget = budget;
+        d.entry_time_budget *= time_scale;
+        d.entry_wall_ceiling *= time_scale;
         register_plugin_event_callback();
         host = std::make_unique<PluginHost>(std::move(d));
     }

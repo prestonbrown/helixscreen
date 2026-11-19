@@ -386,7 +386,7 @@ HELIX_FORCE_ROTATION_PROBE=1 ./build/bin/helix-screen
 - Saves the confirmed rotation to `/display/rotate` in `settings.json`
 - Sets `/display/rotation_probed` flag so it doesn't re-run on subsequent boots
 - Skips entirely if: rotation is already configured (config, env var, or CLI), or the probe has already run
-- Never shows on a board whose orientation is already known: the kernel's `panel_orientation`, else the board's mount (`upright_rotation` in `src/application/display_metrics.cpp#kKnownPanels`; 270° on the K1, K1C and K1 Max), which applies only when the framebuffer is the geometry that mount was measured on (480x800 for the K1). That rotation is saved the same way, with no prompt
+- Never shows on a board whose orientation is already known: the kernel's `panel_orientation`, else the board's mount (`upright_rotation` in `src/application/display_metrics.cpp#known_panel`; 270° on the K1, K1C and K1 Max), which applies only when the framebuffer is the geometry that mount was measured on (480x800 for the K1). That rotation is saved the same way, with no prompt
 - `HELIX_FORCE_ROTATION_PROBE=1` skips the board's mount, so the probe runs on a board that resolved wrongly. A kernel `panel_orientation` still applies
 - Runs after translations are loaded (Phase 8c) so probe strings are translatable via `lv_tr()`
 
@@ -752,6 +752,21 @@ Pixel format of the display on the EGL presentation path (`HELIX_DISPLAY_BACKEND
 On aarch64, LVGL's NEON blends into an XRGB8888 destination write 0 into the fourth byte of every pixel they mix through a mask or partial opacity, fully covered pixels included (a plain full-opacity fill writes `0xFF`), so with the default that byte is 0 wherever anything was antialiased or masked and the shader has to ignore it outright. The C blends an x86 test build uses leave the byte alone, so only the device shows this. An ARGB8888 display (`0`) has the opposite trap: LVGL copies an XRGB8888 image or canvas into it byte for byte, so whatever the source's fourth byte holds, including the 0 those blends leave, arrives as alpha.
 
 A defect here is invisible to `ctl screenshot` for the same reason. Check the panel by eye: icons, borders and antialiased text must not turn black.
+
+### `HELIX_FBDEV_VSYNC`
+
+Vertical-blank wait on the framebuffer backend (`HELIX_DISPLAY_BACKEND=fbdev`). With `1`, each frame waits for the next vblank (`FBIO_WAITFORVSYNC`) before its first flush, so the panel is less likely to show half of one frame and half of the next. The cost is that the LVGL thread blocks for up to one refresh interval per frame. Off by default while hardware tests decide which panels gain from it. A framebuffer driver that rejects the ioctl logs one LVGL warning and the wait stays off for the rest of the run.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, `true`, `yes` or `on` (wait for vblank); anything else (no wait) |
+| **Default** | Off |
+| **Invalid** | Reads as off |
+| **File** | `src/platform/display/display_backend_fbdev.cpp`, `patches/lvgl-fbdev-vsync-runtime.patch` |
+
+```bash
+HELIX_FBDEV_VSYNC=1 ./bin/helix-screen -vv
+```
 
 ### `HELIX_HEADLESS`
 
@@ -1260,6 +1275,16 @@ their timing does not depend on the host. No device deployment should need it.
 | **Default** | Unset — the real `/proc` |
 | **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
 
+### `HELIX_WPA_SYS_ROOT`
+
+Override the sysfs tree the wpa backend reads when it resolves a WiFi interface (the rfkill switches' `soft` attribute). A test seam, like `HELIX_WPA_PROC_ROOT`; no device deployment should need it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Absolute directory path to use in place of `/sys` |
+| **Default** | Unset or empty: the real `/sys` |
+| **File** | `src/network/wifi_backend_wpa_supplicant.cpp` |
+
 ### `HELIX_NETD_SOCKET`
 
 Override the control socket of the printer's network daemon (`netd`, the
@@ -1683,6 +1708,19 @@ HELIX_FLOW_SEGMENT=HUB ./build/bin/helix-screen --test -vv &
 
 ---
 
+### `HELIX_UNIT_ART_FEEDER`
+
+Picks which baked drawing a filament unit that holds no spools (BMCU, MMX, 3MS, AD5X IFS)
+uses on the overview. Dev-only: read once at first use, not a setting.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `spools`, `stubs` |
+| **Default** | `spools`: 200 mm spools behind the body |
+
+`stubs` draws the body alone, framed to itself, with a coloured tube leaving each inlet. Any other
+value means `spools`.
+
 ## Debugging
 
 ### `HELIX_DEBUG_SUBJECTS`
@@ -1732,7 +1770,7 @@ Unified touch debugging variable that enables both touch point visualization and
 | **Values** | `1` (enable), unset (disable) |
 | **Default** | Disabled |
 | **CLI equivalent** | `--debug-touches` |
-| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/ui/calibration/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
+| **Files** | `src/system/runtime_config.cpp`, `include/touch_calibration.h`, `src/platform/input/touch_calibration.cpp`, `src/ui/calibration/touch_calibration_panel.cpp`, `src/platform/display/display_backend_fbdev.cpp` |
 | **Legacy alias** | `HELIX_DEBUG_TOUCHES` (still accepted) |
 
 ```bash
@@ -1794,7 +1832,7 @@ HELIX_CRASH_TEST=1 ./helix-screen -vv
 
 ### `HELIX_LVGL_THREAD_CHECK`
 
-What to do when an LVGL entry point is called from a thread other than the LVGL (main) thread. The checked entry points are every subject write (`lv_subject_set_int`/`_float`/`_pointer`/`_color`, `lv_subject_copy_string`, `lv_subject_snprintf`) and `lv_subject_notify`, `lv_timer_create`/`lv_timer_delete` (which covers `lv_async_call` and `lv_obj_delete_async`), and `lv_obj_delete`/`lv_obj_clean`.
+What to do when an LVGL entry point is called from a thread other than the LVGL (main) thread. The checked entry points are every subject write (`lv_subject_set_int`/`_float`/`_pointer`/`_color`, `lv_subject_set_string`, `lv_subject_snprintf`) and `lv_subject_notify`, `lv_timer_create`/`lv_timer_delete` (which covers `lv_async_call` and `lv_obj_delete_async`), and `lv_obj_delete`/`lv_obj_clean`.
 
 | Property | Value |
 |----------|-------|
@@ -1848,7 +1886,7 @@ HELIX_STRICT_BG_THREAD_CHECK=1 ./build/bin/helix-screen --test -vv
 
 **Read once, at `set_main_thread_id()` time**, so setting it later in the process has no effect — the cost at fire time is a single cached read.
 
-**Release builds ignore the env var *and* compile out the abort branch.** Under `HELIX_RELEASE_BUILD` the detector still emits its telemetry anomaly and debug log, but never aborts: a Snapmaker U1 user (dev `6d10417c`, 2026-05-14) somehow had this set in their environment and hit a stray strict-mode abort (crash signature `307b6f48`). `set_strict_bg_check(true)` still flips the flag in any build — the release build simply has nothing to do with it. See `CLAUDE.md` § "Threading & Lifecycle".
+**Release builds ignore the env var *and* compile out the abort branch.** Under `HELIX_RELEASE_BUILD` the detector still emits its telemetry anomaly and debug log, but never aborts: a Snapmaker U1 user (dev `6d10417c`, 2026-05-14) somehow had this set in their environment and hit a stray strict-mode abort (crash signature `307b6f48`). `set_strict_bg_check(true)` still flips the flag in any build — the release build simply has nothing to do with it. See `.claude/rules/threading.md`.
 
 ---
 
@@ -2273,7 +2311,7 @@ HELIX_DISABLE_AUTO_UPDATES=0
 
 **Set, it decides in either direction; unset, the platform does.** A truthy value suppresses and a falsy value force-enables, which is how a dev box overrides a platform that defaults to managed without a rebuild. An **empty** value counts as unset, not as falsy — `helixscreen.env` can export one, and reading it as an explicit "no" would silently re-enable self-update on a firmware-managed box.
 
-The platform default lives in `helix::platform_defaults_to_external_updates()` (`include/platform_info.h`), the single place any platform is named. It is currently true only for the **Snapmaker U1**, where PAXX Extended Firmware ships HelixScreen as a pinned, sha256-verified `extended-pkg` package in `/oem/apps/helixscreen` — self-updating there overwrites a package the firmware owns. The firmware hook exports `HELIX_DATA_DIR`/`HELIX_SUPERVISED` and friends but never this flag, so keying suppression on the flag alone left every U1 install checking for updates and raising the update modal.
+The platform default lives in `helix::platform_defaults_to_external_updates()` (`include/platform_info.h`), which asks the board module (`helix::board::firmware_manages_updates()`, `include/board_identity.h`), the single place any platform is named. It is true when the running binary is a firmware package's own, or cannot be shown to be ours while such a package exists ([UPDATE_SYSTEM.md](UPDATE_SYSTEM.md) has the rule): today a **Snapmaker U1** on PAXX Extended Firmware running the pinned, sha256-verified `extended-pkg` package in `/oem/apps/helixscreen`, where self-updating would overwrite a package the firmware owns. The firmware hook exports `HELIX_DATA_DIR`/`HELIX_SUPERVISED` and friends but never this flag. A U1 on stock firmware runs our installer's `/userdata/helixscreen` and self-updates.
 
 The result is cached in a function-local static on first call, so changing the environment mid-process has no effect.
 
@@ -2518,6 +2556,7 @@ Set these in `helixscreen.env`, which the launcher sources before it builds the 
 | `HELIX_DEBUG` | Legacy debug switch; `1` adds `-vv` (debug-level logging). Launcher-only — the binary does not read it. Superseded by `HELIX_LOG_LEVEL`. | `0` |
 | `HELIX_LOG_DEST` | Log destination — same as `--log-dest`: `auto`, `journal`, `syslog`, `file`, `console`. | `auto` |
 | `HELIX_LOG_FILE` | Log file path — same as `--log-file`. Only meaningful once the destination resolves to `file`. | Unset |
+| `HELIX_LOG_ANOMALIES` | `1` also writes every LVGL-layer anomaly (`helix_lvgl_anomaly()`: null subjects, refused observers, `helix::Subject` misuse) to stderr as `[LvglAnomaly] <code>: <context>`, through its own logger, so it shows even where the default logger is silenced (the test binary). Telemetry rate-limits them, so this is the way to count them in a run. | Unset |
 
 **Usage Notes:**
 - `HELIX_LOG_DEST` / `HELIX_LOG_FILE` / `HELIX_LOG_LEVEL` are read **twice, independently**: the launcher turns them into `--log-dest=` / `--log-file=` / `--log-level=`, and `Application::init_logging()` reads them directly. The direct read is what makes them work under a systemd unit's `Environment=`, a hand-run binary, or a third-party init script that execs `helix-screen` without our launcher. `HELIX_DEBUG` is the exception: launcher-only.

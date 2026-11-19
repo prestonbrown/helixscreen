@@ -108,7 +108,7 @@ bool save_dropdown_selection(lv_subject_t* subject, const std::vector<std::strin
  *
  * Registers with @p subjects, whose deinit_all() withdraws the XML name.
  */
-void init_int_subject(SubjectManager& subjects, lv_subject_t* subject, int32_t initial_value,
+void init_int_subject(SubjectManager& subjects, helix::Subject& subject, int32_t initial_value,
                       const char* subject_name);
 } // namespace wizard
 } // namespace ui

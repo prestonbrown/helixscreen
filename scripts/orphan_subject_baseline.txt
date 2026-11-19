@@ -11,55 +11,54 @@
 #       --write-baseline
 #
 # Format:  <subject name>  # <registration site>
-abort_state  # src/abort/abort_manager.cpp:63
-about_version_description  # src/ui/settings/ui_settings_about.cpp:103
-ams_env_overlay_preset_text  # src/ui/filament/ui_ams_environment_overlay.cpp:124
-detail_view_visible  # src/ui/print/ui_panel_print_select.cpp:335
-dryer_current_temp_text  # src/printer/ams_state.cpp:416; src/printer/ams_state.cpp:816
-dryer_progress_pct  # src/printer/ams_state.cpp:415; src/printer/ams_state.cpp:815
-dryer_remaining_min  # src/printer/ams_state.cpp:414; src/printer/ams_state.cpp:814
-dryer_supported  # src/printer/ams_state_subjects.cpp:194; src/printer/ams_state_subjects.cpp:597
-dryer_target_temp  # src/printer/ams_state.cpp:413; src/printer/ams_state.cpp:813
-dryer_target_temp_text  # src/printer/ams_state.cpp:417; src/printer/ams_state.cpp:818
-dryer_time_text  # src/printer/ams_state.cpp:418; src/printer/ams_state.cpp:820
-filament_extrusion_allowed  # src/ui/filament/ui_panel_filament.cpp:287
-filament_material_bed_temp  # src/ui/filament/ui_panel_filament.cpp:301
-filament_material_nozzle_temp  # src/ui/filament/ui_panel_filament.cpp:299
-filament_material_selected  # src/ui/filament/ui_panel_filament.cpp:285
-filament_temp_display  # src/ui/filament/ui_panel_filament.cpp:281
-filament_warning_temps  # src/ui/filament/ui_panel_filament.cpp:292
-history_detail_status_icon  # src/ui/print/ui_panel_history_list.cpp:938
-history_detail_status_variant  # src/ui/print/ui_panel_history_list.cpp:940
-is_current_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:269
-is_result_x_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:305
-is_result_x_quality  # src/ui/calibration/ui_panel_input_shaper.cpp:307
-is_result_x_vibration  # src/ui/calibration/ui_panel_input_shaper.cpp:303
-is_result_y_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:315
-is_result_y_quality  # src/ui/calibration/ui_panel_input_shaper.cpp:317
-is_result_y_vibration  # src/ui/calibration/ui_panel_input_shaper.cpp:313
-notification_history_version  # src/ui/notify/ui_notification_manager.cpp:123
-perf_host_cpu_temp_c10  # src/system/performance_state.cpp:28
-perf_host_cpu_temp_present  # src/system/performance_state.cpp:29
-perf_host_mem_free_mb  # src/system/performance_state.cpp:30
-pid_temp_hint  # src/ui/calibration/ui_panel_calibration_pid.cpp:120
-print_pending_action  # src/ui/print/print_control_buttons.cpp:42
-print_status_nozzle_text  # src/ui/panel_widgets/print_status_widget.cpp:2079
-printer_detection_status  # src/ui/wizard/ui_wizard_printer_identify.cpp:314
+abort_state  # src/abort/abort_manager.cpp:54
+about_version_description  # src/ui/settings/ui_settings_about.cpp:73
+ams_env_overlay_preset_text  # src/ui/filament/ui_ams_environment_overlay.cpp:127
+detail_view_visible  # src/ui/print/ui_panel_print_select.cpp:327
+dryer_current_temp_text  # src/printer/ams_state_subjects.cpp:213; src/printer/ams_state_subjects.cpp:827
+dryer_progress_pct  # src/printer/ams_state_subjects.cpp:212; src/printer/ams_state_subjects.cpp:826
+dryer_remaining_min  # src/printer/ams_state_subjects.cpp:211; src/printer/ams_state_subjects.cpp:825
+dryer_supported  # src/printer/ams_state_subjects.cpp:207; src/printer/ams_state_subjects.cpp:821
+dryer_target_temp  # src/printer/ams_state_subjects.cpp:210; src/printer/ams_state_subjects.cpp:824
+dryer_target_temp_text  # src/printer/ams_state_subjects.cpp:214; src/printer/ams_state_subjects.cpp:829
+dryer_time_text  # src/printer/ams_state_subjects.cpp:215; src/printer/ams_state_subjects.cpp:831
+filament_extrusion_allowed  # src/ui/filament/ui_panel_filament.cpp:349
+filament_material_bed_temp  # src/ui/filament/ui_panel_filament.cpp:363
+filament_material_nozzle_temp  # src/ui/filament/ui_panel_filament.cpp:361
+filament_material_selected  # src/ui/filament/ui_panel_filament.cpp:347
+filament_temp_display  # src/ui/filament/ui_panel_filament.cpp:343
+filament_warning_temps  # src/ui/filament/ui_panel_filament.cpp:354
+history_detail_status_icon  # src/ui/print/ui_panel_history_list.cpp:911
+history_detail_status_variant  # src/ui/print/ui_panel_history_list.cpp:913
+is_current_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:230
+is_result_x_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:270
+is_result_x_quality  # src/ui/calibration/ui_panel_input_shaper.cpp:272
+is_result_x_vibration  # src/ui/calibration/ui_panel_input_shaper.cpp:268
+is_result_y_max_accel  # src/ui/calibration/ui_panel_input_shaper.cpp:280
+is_result_y_quality  # src/ui/calibration/ui_panel_input_shaper.cpp:282
+is_result_y_vibration  # src/ui/calibration/ui_panel_input_shaper.cpp:278
+notification_history_version  # src/ui/notify/ui_notification_manager.cpp:138
+perf_host_cpu_temp_c10  # src/system/performance_state.cpp:44
+perf_host_cpu_temp_present  # src/system/performance_state.cpp:45
+perf_host_mem_free_mb  # src/system/performance_state.cpp:46
+pid_temp_hint  # src/ui/calibration/ui_panel_calibration_pid.cpp:121
+print_pending_action  # src/ui/print/print_control_buttons.cpp:49
+print_status_nozzle_text  # src/ui/panel_widgets/print_status_widget.cpp:2548
+printer_detection_status  # src/ui/wizard/ui_wizard_printer_identify.cpp:318
 printer_icon_state  # src/ui/printers/ui_printer_status_icon.cpp:40
-probe_acc_median  # src/ui/calibration/ui_probe_overlay.cpp:364
-probe_overlay_state  # src/ui/calibration/ui_probe_overlay.cpp:309
-selected_filename  # src/ui/print/ui_panel_print_select.cpp:298
-selected_thumbnail  # src/ui/print/ui_panel_print_select.cpp:308
-settings_has_backlight  # src/system/display_settings_manager.cpp:241
-spool_wizard_can_create_vendor  # src/ui/filament/ui_spool_wizard.cpp:132
-spool_wizard_show_create_filament  # src/ui/filament/ui_spool_wizard.cpp:119
-spool_wizard_show_create_vendor  # src/ui/filament/ui_spool_wizard.cpp:117
-spool_wizard_step_label  # src/ui/filament/ui_spool_wizard.cpp:100
-test_gateway_status  # src/ui/settings/ui_overlay_network_settings.cpp:195
-test_internet_status  # src/ui/settings/ui_overlay_network_settings.cpp:196
-test_running  # src/ui/settings/ui_overlay_network_settings.cpp:194
-total_steps  # src/ui/wizard/ui_wizard.cpp:384
-touch_cal_accept_text  # src/ui/calibration/ui_touch_calibration_overlay.cpp:272
-touch_cal_current_step  # src/ui/wizard/ui_wizard_touch_calibration.cpp:133
-touch_cal_valid  # src/ui/wizard/ui_wizard_touch_calibration.cpp:134
-z_offset_delta_display  # src/ui/controls/ui_panel_controls.cpp:172
+probe_acc_median  # src/ui/calibration/ui_probe_overlay.cpp:323
+probe_overlay_state  # src/ui/calibration/ui_probe_overlay.cpp:268
+selected_filename  # src/ui/print/ui_panel_print_select.cpp:284
+selected_thumbnail  # src/ui/print/ui_panel_print_select.cpp:294
+settings_has_backlight  # src/system/display_settings_manager.cpp:303
+spool_wizard_can_create_vendor  # src/ui/filament/ui_spool_wizard.cpp:129
+spool_wizard_show_create_filament  # src/ui/filament/ui_spool_wizard.cpp:116
+spool_wizard_show_create_vendor  # src/ui/filament/ui_spool_wizard.cpp:114
+test_gateway_status  # src/ui/settings/ui_overlay_network_settings.cpp:194
+test_internet_status  # src/ui/settings/ui_overlay_network_settings.cpp:195
+test_running  # src/ui/settings/ui_overlay_network_settings.cpp:193
+total_steps  # src/ui/wizard/ui_wizard.cpp:388
+touch_cal_accept_text  # src/ui/calibration/ui_touch_calibration_overlay.cpp:207
+touch_cal_current_step  # src/ui/wizard/ui_wizard_touch_calibration.cpp:129
+touch_cal_valid  # src/ui/wizard/ui_wizard_touch_calibration.cpp:130
+z_offset_delta_display  # src/ui/controls/ui_panel_controls.cpp:171

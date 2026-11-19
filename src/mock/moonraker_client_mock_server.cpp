@@ -182,17 +182,18 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         [](MoonrakerClientMock* self, const json& params,
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
-        if (!params.contains("namespace") || !params["namespace"].is_string() ||
-            (params.contains("key") && !params["key"].is_string())) {
+        const auto ns_field = helix::json_util::read_field<std::string>(params, "namespace");
+        const json* key_field = helix::json_util::find_member(params, "key");
+        if (!ns_field || (key_field && !key_field->is_string())) {
             if (error_cb) {
                 error_cb(MoonrakerError::validation_error("server.database.get_item",
                                                           "get_item: 'namespace' is required"));
             }
             return true;
         }
-        std::string ns = params["namespace"].get<std::string>();
+        std::string ns = *ns_field;
         json& db = self->mock_db();
-        if (!params.contains("key")) {
+        if (!key_field) {
             auto ns_it = db.find(ns);
             if (ns_it == db.end()) {
                 if (error_cb) {
@@ -206,7 +207,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             return true;
         }
-        std::string key = params["key"].get<std::string>();
+        std::string key = key_field->get<std::string>();
         json* value = find_db_value(db, ns, key);
         if (value == nullptr) {
             if (error_cb) {
@@ -226,8 +227,10 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         [](MoonrakerClientMock* self, const json& params,
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
-        if (!params.contains("namespace") || !params["namespace"].is_string() ||
-            !params.contains("key") || !params["key"].is_string() || !params.contains("value")) {
+        const auto ns_field = helix::json_util::read_field<std::string>(params, "namespace");
+        const auto key_field = helix::json_util::read_field<std::string>(params, "key");
+        const json* value = helix::json_util::find_member(params, "value");
+        if (!ns_field || !key_field || !value) {
             if (error_cb) {
                 error_cb(MoonrakerError::validation_error(
                     "server.database.post_item",
@@ -235,13 +238,12 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             return true;
         }
-        std::string ns = params["namespace"].get<std::string>();
-        std::string key = params["key"].get<std::string>();
-        store_db_value(self->mock_db(), ns, key, params["value"]);
+        const std::string& ns = *ns_field;
+        const std::string& key = *key_field;
+        store_db_value(self->mock_db(), ns, key, *value);
         spdlog::debug("[MoonrakerClientMock] database post_item: {}/{}", ns, key);
         if (success_cb) {
-            success_cb(
-                json{{"result", {{"namespace", ns}, {"key", key}, {"value", params["value"]}}}});
+            success_cb(json{{"result", {{"namespace", ns}, {"key", key}, {"value", *value}}}});
         }
         return true;
     };
@@ -255,8 +257,9 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         [](MoonrakerClientMock* self, const json& params,
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
-        if (!params.contains("namespace") || !params["namespace"].is_string() ||
-            !params.contains("key") || !params["key"].is_string()) {
+        const auto ns_field = helix::json_util::read_field<std::string>(params, "namespace");
+        const auto key_field = helix::json_util::read_field<std::string>(params, "key");
+        if (!ns_field || !key_field) {
             if (error_cb) {
                 error_cb(MoonrakerError::validation_error(
                     "server.database.delete_item",
@@ -264,8 +267,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             return true;
         }
-        std::string ns = params["namespace"].get<std::string>();
-        std::string key = params["key"].get<std::string>();
+        std::string ns = *ns_field;
+        std::string key = *key_field;
         const std::vector<std::string> segments = split_key(key);
         // The PARENT record is what erases the child: the namespace object for
         // a dotless key, the intermediate record for a dotted one.
@@ -361,9 +364,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             return true;
         }
-        const int id = params.contains("spool_id") && params["spool_id"].is_number_integer()
-                           ? params["spool_id"].get<int>()
-                           : 0;
+        const int id = helix::json_util::read_integer_field(params, "spool_id").value_or(0);
         self->spoolman_mock().set_active_spool_id(id);
         if (success_cb) {
             success_cb(json{{"jsonrpc", "2.0"},
@@ -388,9 +389,7 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
         MoonrakerError err;
         const bool ok = self->spoolman_mock().proxy(params, result, err);
         const int latency_ms = self->spoolman_mock().external_search_latency_ms();
-        const std::string path = params.contains("path") && params["path"].is_string()
-                                     ? params["path"].get<std::string>()
-                                     : std::string();
+        const std::string path = helix::json_util::safe_string(params, "path");
         if (latency_ms > 0 && path.rfind("/v1/external/filament/search", 0) == 0) {
             // Answer from a worker thread after the delay, as a real response
             // arrives on the WebSocket thread.
@@ -494,7 +493,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                     return not_found(error_cb, "server.webcams.post_item");
                 }
                 json item = params;
-                item["enabled"] = params.contains("enabled") ? params["enabled"] : json(true);
+                const json* enabled = helix::json_util::find_member(params, "enabled");
+                item["enabled"] = enabled ? *enabled : json(true);
                 item["uid"] = "mock-webcam-" + std::to_string(++posted.next_uid);
                 items.push_back(item);
                 stored = item;
@@ -659,7 +659,8 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                 {"enabled", fit_opt_in.is_boolean() && fit_opt_in.get<bool>()},
                 {"reason", nullptr}};
             // The rest of what the plugin ships, each on and running.
-            for (const char* name : {"file_analysis", "server_edits", "config_edit", "storage"}) {
+            for (const char* name : {"file_analysis", "server_edits", "config_edit", "storage",
+                                     "signal_macro_migration"}) {
                 response["result"]["features"][name] = {
                     {"version", 1}, {"available", true}, {"enabled", true}, {"reason", nullptr}};
             }
@@ -718,6 +719,34 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
             success_cb(
                 json{{"jsonrpc", "2.0"},
                      {"result", {{"job_id", job_id}, {"enabled", true}, {"record", record}}}});
+        }
+        return true;
+    };
+
+    // server.helix.signal_migration - the plugin's last marker-block rename,
+    // present with the plugin: a mock config has no legacy blocks to rename.
+    registry["server.helix.signal_migration"] =
+        [](MoonrakerClientMock* /*self*/, const json& /*params*/,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        const char* mode = std::getenv("HELIX_MOCK_HELIX_PLUGIN");
+        if ((mode && std::string(mode) == "disabled") ||
+            !helix::env_flag("HELIX_MOCK_HELIX_PLUGIN")) {
+            if (error_cb) {
+                error_cb(
+                    MoonrakerError::unknown("Method not found", "server.helix.signal_migration"));
+            }
+            return true;
+        }
+        const json report = {{"state", "nothing"},
+                             {"missing", json::array()},
+                             {"planned", json::array()},
+                             {"edited", json::array()},
+                             {"skipped", json::array()},
+                             {"failed", json::array()},
+                             {"at", static_cast<double>(std::time(nullptr))}};
+        if (success_cb) {
+            success_cb(json{{"jsonrpc", "2.0"}, {"result", report}});
         }
         return true;
     };
@@ -1021,6 +1050,20 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                   {"like", "debian"},
                   {"codename", "jammy"}}}}}}}};
 
+        if (success_cb) {
+            success_cb(response);
+        }
+        return true;
+    };
+
+    // machine.update.refresh - re-read one update_manager entry; only the name is kept
+    // https://moonraker.readthedocs.io/en/latest/web_api/#refresh-update-status
+    registry["machine.update.refresh"] =
+        [](MoonrakerClientMock* self, const json& params,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
+        self->record_update_refresh(helix::json_util::safe_string(params, "name"));
+        json response = {{"jsonrpc", "2.0"}, {"result", json::object()}};
         if (success_cb) {
             success_cb(response);
         }

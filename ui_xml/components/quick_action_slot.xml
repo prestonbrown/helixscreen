@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!--
+    One Quick Actions slot on the Controls panel: the slot's macro button, or the
+    light toggle when the slot holds the light (see resolve_quick_slots). The
+    cell hides whole when the slot shows neither, so a row of slots packs only
+    what is shown and an empty slot takes no width.
+  -->
+  <api>
+    <prop name="button_name" type="string" default="btn_macro"/>
+    <prop name="name_subject" type="string" default=""/>
+    <prop name="visible_subject" type="string" default=""/>
+    <prop name="unavailable_cond" type="string" default="0 eq 1"/>
+    <prop name="user_data" type="string" default="0"/>
+    <prop name="light_cell_name" type="string" default="macro_light_cell"/>
+    <prop name="light_hidden_cond" type="string" default="1 eq 1"/>
+    <prop name="empty_cond" type="string" default="0 eq 1"/>
+    <prop name="button_height" type="string" default="#button_height"/>
+    <prop name="button_font" type="string" default="#font_small"/>
+  </api>
+  <view extends="lv_obj" width="0" height="content" flex_grow="1" style_pad_all="0" flex_flow="row" scrollable="false">
+    <bind_flag_if cond="$empty_cond" flag="hidden"/>
+    <ui_button name="$button_name"
+               width="0" height="$button_height" style_pad_ver="0" flex_grow="1" bind_text="$name_subject"
+               variant="secondary" style_text_font="$button_font" long_mode="wrap" moves_machine="true">
+      <bind_flag_if_eq subject="$visible_subject" flag="hidden" ref_value="0"/>
+      <!-- Two disable reasons that compose: moves_machine carries the job guard,
+           this bind carries the availability half. -->
+      <bind_state_if cond="$unavailable_cond" state="disabled"/>
+      <event_cb trigger="clicked" callback="on_controls_macro" user_data="$user_data"/>
+    </ui_button>
+    <lv_obj name="$light_cell_name"
+            width="0" height="$button_height" flex_grow="1" style_pad_all="0" scrollable="false" hidden="true">
+      <bind_flag_if cond="$light_hidden_cond" flag="hidden"/>
+      <!-- DUPLICATE_NAME_OK: each slot cell hands itself to its own LedWidget, which finds light_button inside that cell -->
+      <ui_button name="light_button"
+                 width="100%" height="100%" style_pad_ver="0" variant="secondary" flex_flow="row"
+                 style_flex_main_place="center" style_flex_cross_place="center" style_pad_gap="#space_xs"
+                 focusable="false">
+        <bind_state_if cond="printer_connection_state ne 2 or led_command_in_flight eq 1" state="disabled"/>
+        <!-- DUPLICATE_NAME_OK: found per cell by that cell's LedWidget -->
+        <icon name="light_icon" src="lightbulb_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+        <text_small text="Light" clickable="false" event_bubble="true"/>
+        <event_cb trigger="clicked" callback="light_toggle_cb"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

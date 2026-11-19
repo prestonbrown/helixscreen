@@ -125,10 +125,14 @@ void fill_cheek(const ShellView& view, lv_layer_t* layer, lv_point_t o, float x,
 /// The glass at a lid's end, reaching down to the body's contour.
 void fill_shell_cap(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
                     float x, lv_color_t color, lv_opa_t opa) {
+    // A solid cap's strips each reach one segment further and overlap, so no anti-aliased seam
+    // shows the background through it; glass keeps single strips, which would double up.
+    const int reach = opa == LV_OPA_COVER ? 2 : 1;
     for (int i = 0; i + 1 < kCapPoints; ++i) {
+        const int j = std::min(i + reach, kCapPoints - 1);
         const PointF low0 = cheek_under(view.box, *view.shell, view.spool_size, x, cap[i]);
-        const PointF low1 = cheek_under(view.box, *view.shell, view.spool_size, x, cap[i + 1]);
-        const PointF strip[4] = {cap[i], cap[i + 1], low1, low0};
+        const PointF low1 = cheek_under(view.box, *view.shell, view.spool_size, x, cap[j]);
+        const PointF strip[4] = {cap[i], cap[j], low1, low0};
         fill_convex(layer, o, strip, 4, color, opa);
     }
 }
@@ -162,33 +166,60 @@ void stroke_lid_top(lv_layer_t* layer, lv_point_t o, const Lid& lid, lv_color_t 
 }
 
 /// A unit's own front wall, rail and side, in the shell's hardware colours.
+void fill_box_side(const ShellView& view, lv_layer_t* layer, lv_point_t o, const PointF* cap,
+                   float x, lv_color_t edge_color, lv_opa_t edge_opa) {
+    fill_cheek(view, layer, o, x, view.shell->body);
+    fill_shell_cap(view, layer, o, cap, x, lv_color_hex(view.shell->lid_color), LV_OPA_COVER);
+    // The glass meets the top from the base up to the crest: the edge starts where the cap's
+    // outline crosses the base's top, not at its first point above it.
+    const int crest = kCapPoints / 2;
+    int first = 0;
+    while (first < crest && cap[first].y > view.box.ft)
+        ++first;
+    PointF edge_pts[kCapPoints];
+    int n = 0;
+    if (first > 0) {
+        const PointF a = cap[first - 1], b = cap[first];
+        const float t = (a.y - view.box.ft) / (a.y - b.y);
+        edge_pts[n++] = {a.x + (b.x - a.x) * t, view.box.ft};
+    }
+    for (int i = first; i <= crest; ++i)
+        edge_pts[n++] = cap[i];
+    stroke(layer, o, edge_pts, n, false, edge_color, edge_opa);
+}
+
 void draw_shell_front(const ShellView& view, lv_layer_t* layer, lv_point_t o) {
     const UnitShell& shell = *view.shell;
     const TrayBox& b = view.box;
-    const float scale = view.spool_size / kShellReferenceSpool;
-    const float rail = shell.rail_px * scale;
     fill_cheek(view, layer, o, b.fr, shell.body);
     fill_box(layer, o, b.fl, b.ft, b.fr, b.fb, shell.body, 3);
-    fill_box(layer, o, b.fl + 3, b.ft + rail + 2, b.fr - 3, b.fb - 3, shell.panel, 3);
-    fill_box(layer, o, b.fl + 4, b.ft, b.fr - 4, b.ft + rail, shell.rail, 2);
-    const float tab = 7.0f * scale;
-    for (int i = 0; i < view.lane_count; ++i) {
-        const float x = view.lane_x[i];
-        fill_box(layer, o, x - tab, b.ft - 3.0f * scale, x + tab, b.ft, shell.accent);
-        fill_box(layer, o, x - 1, b.ft + rail * 0.35f, x + 1, b.ft + rail * 0.85f, 0xf7f7f2);
-    }
     if (shell.corner) {
-        const float block = 8.0f * scale;
+        const float block = 8.0f * view.spool_size / kShellReferenceSpool;
         const float back_x = b.fr + kDepthSkew * b.depth;
         fill_box(layer, o, back_x - block, b.ft - b.rise, back_x, b.fb - b.rise, shell.corner);
-        fill_box(layer, o, b.fl, b.ft - 1.0f, b.fl + block, b.fb, shell.corner);
-        fill_box(layer, o, b.fr - block, b.ft - 1.0f, b.fr, b.fb, shell.corner);
     }
-    if (shell.has_latch) {
-        // Below the rail, so it never lands on a lane's tick.
-        const float mid = (b.fl + b.fr) / 2.0f;
-        fill_box(layer, o, mid - 15.0f * scale, b.ft + rail - 3.0f * scale, mid + 15.0f * scale,
-                 b.ft + rail + 5.0f * scale, 0xd8dade, 4);
+    const auto draw = [&](const FrontPart& part, float lane_x) {
+        float box[4];
+        front_part_box(b, part, view.spool_size, lane_x, box);
+        fill_box(layer, o, box[0], box[1], box[2], box[3], part.color, part.radius);
+        // A unit of boxes stands in a tray: its bands run on back along the right side.
+        if (shell.lid_color && part.anchor == FrontAnchor::Span) {
+            const float dx = kDepthSkew * b.depth;
+            const PointF side[4] = {{box[2], box[1]},
+                                    {box[2], box[3]},
+                                    {box[2] + dx, box[3] - b.rise},
+                                    {box[2] + dx, box[1] - b.rise}};
+            fill_convex(layer, o, side, 4, lv_color_hex(part.color), LV_OPA_COVER);
+        }
+    };
+    for (int p = 0; p < shell.front_n; ++p) {
+        const FrontPart& part = shell.front[p];
+        if (part.anchor != FrontAnchor::Lane) {
+            draw(part, 0.0f);
+            continue;
+        }
+        for (int i = 0; i < view.lane_count; ++i)
+            draw(part, view.lane_x[i]);
     }
 }
 

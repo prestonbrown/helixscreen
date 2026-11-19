@@ -45,7 +45,7 @@ void run_anim(lv_obj_t* obj, lv_anim_exec_xcb_t exec_cb, int32_t v_from, int32_t
     if (infinite)
         lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
     if (playback)
-        lv_anim_set_playback_duration(&anim, duration_ms);
+        lv_anim_set_reverse_duration(&anim, duration_ms);
     lv_anim_set_path_cb(&anim, path_cb);
     lv_anim_set_exec_cb(&anim, exec_cb);
     lv_anim_start(&anim);

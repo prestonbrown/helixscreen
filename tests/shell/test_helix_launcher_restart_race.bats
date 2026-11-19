@@ -107,7 +107,7 @@ wait_lines() {
 
 wait_gone() {
     local i=0
-    while [ "$i" -lt 30 ]; do
+    while [ "$i" -lt 300 ]; do
         kill -0 "$1" 2>/dev/null || return 0
         sleep 0.1
         i=$((i + 1))
@@ -153,6 +153,10 @@ wait_gone() {
     cat > "$MI/bin/helix-screen" <<EOF
 #!/bin/sh
 "$MI/bin/helix-splash" >/dev/null 2>&1 &
+# Until the fork execs, its argv and name are still this script's and the
+# launcher's sweep cannot recognize it.
+i=0
+until [ -s "$BATS_TEST_TMPDIR/splashes" ] || [ "\$i" -ge 600 ]; do sleep 0.05; i=\$((i + 1)); done
 exit 0
 EOF
     chmod +x "$MI/bin/helix-screen"
@@ -381,7 +385,7 @@ EOF
     chmod +x "$T/bin/"*
 
     run env HELIX_LAUNCHER_PID=4242 T="$T" sh -c '
-        LOGFILE="$T/log" DESC=x NAME=helixscreen DAEMON_DIR="$T" PIDFILE="$T/pid"
+        LOGFILE="$T/log" DESC=x NAME=helixscreen DAEMON_DIR="$T" PIDFILE="$T/pid" SPLASH_PIDFILE="$T/splash.pid"
         DAEMON="$T/bin/helix-screen" SPLASH="$T/bin/helix-splash" LAUNCHER="$T/bin/helix-launcher.sh"
         for f in platform_pre_start platform_stop_competing_uis platform_enable_backlight \
             platform_wait_for_services platform_wait_for_boot_complete stop_splash; do

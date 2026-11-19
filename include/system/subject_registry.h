@@ -1,0 +1,221 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @file subject_registry.h
+ * @brief Helper macros and functions for LVGL subject registration
+ *
+ * This header provides convenience macros to reduce boilerplate when declaring,
+ * initializing, and registering LVGL subjects for reactive data binding.
+ *
+ * ## Usage Example:
+ *
+ * ```cpp
+ * // In .cpp file (file scope):
+ * static helix::Subject temp_subject;
+ * static char temp_buf[32];
+ *
+ * void my_panel_init_subjects() {
+ *     // Initialize and register in one call
+ *     UI_SUBJECT_INIT_AND_REGISTER_STRING(temp_subject, temp_buf, "25°C", "my_temp");
+ *
+ *     // Or for int subjects:
+ *     static helix::Subject count_subject;
+ *     UI_SUBJECT_INIT_AND_REGISTER_INT(count_subject, 0, "my_count");
+ * }
+ * ```
+ */
+
+#pragma once
+
+#include "core/subject.h"
+#include "helix/xml/scoped_subject_registry.h"
+#include "subject_debug_registry.h"
+
+#include <cstdio>
+#include <cstring>
+#include <lvgl.h>
+
+/**
+ * @brief Initialize and register a string subject with the XML system
+ *
+ * This macro combines subject initialization and registration into a single call.
+ * It automatically handles buffer sizing and copies the initial value.
+ *
+ * @param subject The helix::Subject variable (no &)
+ * @param buffer The char[] buffer for string storage (no &)
+ * @param initial_value C-string with initial value (will be copied to buffer)
+ * @param name XML registration name (C-string)
+ *
+ * Example:
+ * ```cpp
+ * static helix::Subject temp_subject;
+ * static char temp_buf[32];
+ * UI_SUBJECT_INIT_AND_REGISTER_STRING(temp_subject, temp_buf, "25°C", "temperature");
+ * ```
+ */
+#define UI_SUBJECT_INIT_AND_REGISTER_STRING(subject, buffer, initial_value, name)                  \
+    do {                                                                                           \
+        /* A caller that seeds the buffer before registering passes it as its own initial          \
+           value. snprintf with overlapping src and dst is undefined behaviour and empties the     \
+           buffer on glibc, discarding the seed. Skip the copy when the two alias. */              \
+        if (static_cast<const char*>(initial_value) != static_cast<const char*>(buffer)) {         \
+            snprintf((buffer), sizeof(buffer), "%s", (initial_value));                             \
+        }                                                                                          \
+        helix::subject_init_string((subject), (buffer), nullptr, sizeof(buffer), (buffer));        \
+        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
+        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_STRING);                  \
+    } while (0)
+
+/**
+ * @brief Initialize and register a string subject with explicit size
+ *
+ * Use this variant when the buffer is passed via pointer (e.g., std::array::data())
+ * where sizeof() would return pointer size instead of buffer size.
+ *
+ * @param subject The helix::Subject variable (no &)
+ * @param buffer Pointer to char buffer
+ * @param size Size of the buffer in bytes
+ * @param initial_value C-string with initial value (will be copied to buffer)
+ * @param name XML registration name (C-string)
+ *
+ * Example:
+ * ```cpp
+ * std::array<char, 32> temp_buf;
+ * helix::Subject temp_subject;
+ * UI_SUBJECT_INIT_AND_REGISTER_STRING_N(temp_subject, temp_buf.data(), temp_buf.size(), "25°C",
+ *                                        "temperature");
+ * ```
+ */
+#define UI_SUBJECT_INIT_AND_REGISTER_STRING_N(subject, buffer, size, initial_value, name)          \
+    do {                                                                                           \
+        /* See UI_SUBJECT_INIT_AND_REGISTER_STRING: aliasing buffer and initial_value is UB. */    \
+        if (static_cast<const char*>(initial_value) != static_cast<const char*>(buffer)) {         \
+            snprintf((buffer), (size), "%s", (initial_value));                                     \
+        }                                                                                          \
+        helix::subject_init_string((subject), (buffer), nullptr, (size), (buffer));                \
+        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
+        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_STRING);                  \
+    } while (0)
+
+/**
+ * @brief Initialize and register an integer subject with the XML system
+ *
+ * This macro combines subject initialization and registration into a single call.
+ *
+ * @param subject The helix::Subject variable (no &)
+ * @param initial_value Integer initial value
+ * @param name XML registration name (C-string)
+ *
+ * Example:
+ * ```cpp
+ * static helix::Subject count_subject;
+ * UI_SUBJECT_INIT_AND_REGISTER_INT(count_subject, 0, "item_count");
+ * ```
+ */
+#define UI_SUBJECT_INIT_AND_REGISTER_INT(subject, initial_value, name)                             \
+    do {                                                                                           \
+        helix::subject_init_int((subject), (initial_value));                                       \
+        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
+        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_INT);                     \
+    } while (0)
+
+/**
+ * @brief Initialize and register a pointer subject with the XML system
+ *
+ * This macro combines subject initialization and registration into a single call.
+ *
+ * @param subject The helix::Subject variable (no &)
+ * @param initial_value Pointer initial value (can be nullptr)
+ * @param name XML registration name (C-string)
+ *
+ * Example:
+ * ```cpp
+ * static helix::Subject widget_subject;
+ * UI_SUBJECT_INIT_AND_REGISTER_POINTER(widget_subject, nullptr, "active_widget");
+ * ```
+ */
+#define UI_SUBJECT_INIT_AND_REGISTER_POINTER(subject, initial_value, name)                         \
+    do {                                                                                           \
+        helix::subject_init_pointer((subject), (initial_value));                                   \
+        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
+        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_POINTER);                 \
+    } while (0)
+
+/**
+ * @brief Initialize and register a color subject with the XML system
+ *
+ * This macro combines subject initialization and registration into a single call.
+ *
+ * @param subject The helix::Subject variable (no &)
+ * @param initial_value lv_color_t initial value
+ * @param name XML registration name (C-string)
+ *
+ * Example:
+ * ```cpp
+ * static helix::Subject color_subject;
+ * UI_SUBJECT_INIT_AND_REGISTER_COLOR(color_subject, lv_color_hex(0xFF0000), "accent_color");
+ * ```
+ */
+#define UI_SUBJECT_INIT_AND_REGISTER_COLOR(subject, initial_value, name)                           \
+    do {                                                                                           \
+        helix::subject_init_color((subject), (initial_value));                                     \
+        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
+        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_COLOR);                   \
+    } while (0)
+
+/**
+ * @brief Read a boolean-valued int subject, falling back until it is initialized.
+ *
+ * A subject that has not been initialized reads 0: a helix::Subject's node is an
+ * INT placeholder holding 0 until its first init_*(), and lv_subject_get_int()
+ * returns 0 for any subject whose type is not `LV_SUBJECT_TYPE_INT`. A getter that
+ * reads its subject directly therefore reports **false** before `init_subjects()`
+ * runs, no matter which default it documents. Only default-true settings can
+ * actually lie this way — default-false ones are accidentally consistent, since 0
+ * is both the uninitialized read and their intended answer. The fallback has to be
+ * supplied at the read, and helix::subject_is_live() decides when it applies.
+ *
+ * @param subject  Subject to read
+ * @param fallback Value to report while the subject is uninitialized
+ */
+inline bool subject_get_bool_or(const lv_subject_t& subject, bool fallback) {
+    if (!helix::subject_is_live(&subject) || subject.type != LV_SUBJECT_TYPE_INT) {
+        return fallback;
+    }
+    return lv_subject_get_int(const_cast<lv_subject_t*>(&subject)) != 0;
+}
+
+/// The same guard for a helix::Subject. Its node exists from construction as an INT
+/// placeholder, so the type check above cannot tell "not yet initialized"; is_live() can.
+// NAMESPACE_OK: overload of the global subject_get_bool_or above, same scope
+inline bool subject_get_bool_or(const helix::Subject& subject, bool fallback) {
+    return subject.get() != nullptr ? subject_get_bool_or(*subject.get(), fallback) : fallback;
+}
+
+namespace helix::ui {
+
+/**
+ * @brief Write @p text into a string subject only when it differs
+ *
+ * A string subject initialized without a previous-value buffer notifies on
+ * every copy, and a bound label then redraws even for the text it shows.
+ * @return whether the subject changed
+ */
+inline bool copy_string_if_changed(lv_subject_t* subject, const char* text) {
+    if (std::strcmp(lv_subject_get_string(subject), text) == 0)
+        return false;
+    lv_subject_set_string(subject, text);
+    return true;
+}
+
+/// Write @p value into an int subject only when it differs, so a sync that finds
+/// the same value wakes no observer. Returns whether the subject changed.
+inline bool set_int_if_changed(lv_subject_t* subject, int value) {
+    if (lv_subject_get_int(subject) == value)
+        return false;
+    lv_subject_set_int(subject, value);
+    return true;
+}
+
+} // namespace helix::ui

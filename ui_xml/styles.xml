@@ -19,6 +19,11 @@
          of its own gets the LVGL default, which ignores the theme's corner
          setting, so give it one. -->
     <style name="press_wash" bg_color="#primary" bg_opa="30%"/>
+    <!-- Pressed feedback for a tappable area that keeps its own background,
+         such as a picture or a home tile's row: the whole area dims. -->
+    <style name="press_dim" opa="70%"/>
+    <!-- A filament unit that is offline or absent. -->
+    <style name="unit_offline" opa="128"/>
     <!-- A filament slot picker row, at rest and as the current answer. The
          slot rows and the rows that name no slot (Auto, the extra answer,
          Cancel) share them. Inline style attributes outrank bound styles, so
@@ -64,6 +69,21 @@
          every heater surface colors the duty identically. -->
     <style name="heater_duty_heating" text_color="#danger"/>
     <style name="heater_duty_muted" text_color="#text_muted"/>
+
+    <!-- Text tones a subject or state swaps between. Bind them (or select them
+         by state) and leave the color off the widget's inline attrs, which
+         would outrank every one of them. -->
+    <style name="text_tone_muted" text_color="#text_muted"/>
+    <style name="text_tone_primary" text_color="#primary"/>
+    <style name="text_tone_danger" text_color="#danger"/>
+    <style name="text_tone_success" text_color="#success"/>
+    <style name="text_tone_warning" text_color="#warning"/>
+    <style name="text_tone_info" text_color="#info"/>
+
+    <!-- A printer connection dot: connected, connecting or reconnecting, down. -->
+    <style name="connection_dot_up" bg_color="#success"/>
+    <style name="connection_dot_trying" bg_color="#warning"/>
+    <style name="connection_dot_down" bg_color="#danger"/>
 
     <!-- The count-badge box paired with each tile icon rung: 2/5 of
          the glyph (tile_badge_* tokens), the proportion the AMS lane badge
@@ -213,6 +233,11 @@
     <style name="action_cell_stacked" pad_hor="#ams_action_pad_hor"/>
     <!-- Four to a row, for a narrow portrait screen with no height for two rows. -->
     <style name="action_cell_quarter" width="23%"/>
+    <!-- Role marker, no properties: chrome (a header or footer) that spans the
+         whole view while the content between is capped on an ultrawide
+         screen. helix::apply_content_cap() widens the root's direct children
+         that carry it; see docs/devel/LAYOUT_SYSTEM.md, "Content width cap". -->
+    <style name="cap_chrome"/>
   </styles>
   <!-- Registration requires a <view>; nothing ever instantiates this
        component, so an empty lv_obj keeps it harmless. -->

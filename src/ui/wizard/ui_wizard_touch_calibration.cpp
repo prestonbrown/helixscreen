@@ -5,14 +5,15 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_effects.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_manager.h"
 #include "lvgl.h"
 #include "settings_manager.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "touch_calibration_layout.h"
 #include "touch_calibration_wrapper.h"
@@ -32,9 +33,9 @@ constexpr int kCrosshairSize = 50;
 constexpr int kCrosshairHalfSize = kCrosshairSize / 2;
 
 // External wizard subjects (defined in ui_wizard.cpp)
-extern lv_subject_t connection_test_passed;
-extern lv_subject_t wizard_show_skip;
-extern lv_subject_t wizard_subtitle;
+extern helix::Subject connection_test_passed;
+extern helix::Subject wizard_show_skip;
+extern helix::Subject wizard_subtitle;
 
 // ============================================================================
 // Global Instance
@@ -104,8 +105,9 @@ WizardTouchCalibrationStep::WizardTouchCalibrationStep() {
 WizardTouchCalibrationStep::~WizardTouchCalibrationStep() {
     // Deinit subjects before memory is freed — removes observers from LVGL widgets
     if (subjects_initialized_ && lv_is_initialized()) {
-        lv_subject_deinit(&calibration_valid_);
-        lv_subject_deinit(&current_step_);
+        calibration_valid_.reset();
+        current_step_.reset();
+        cal_state_.reset();
         subjects_initialized_ = false;
     }
     screen_root_ = nullptr;
@@ -127,6 +129,7 @@ void WizardTouchCalibrationStep::init_subjects() {
     // Instruction text uses wizard_subtitle (in the header), not a local subject.
     UI_SUBJECT_INIT_AND_REGISTER_INT(current_step_, 0, "touch_cal_current_step");
     UI_SUBJECT_INIT_AND_REGISTER_INT(calibration_valid_, 0, "touch_cal_valid");
+    UI_SUBJECT_INIT_AND_REGISTER_INT(cal_state_, 0, "touch_cal_wizard_state");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -190,9 +193,6 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
     // (toggled by wizard_show_skip), so lifting the group keeps both accessible.
     raised_skip_ = helix::ui::raise_control_above_capture(lv_screen_active(), "next_skip_group");
 
-    // Find test area widgets (shown in COMPLETE state)
-    test_area_container_ =
-        helix::ui::find_required(screen_root_, "test_area_container", get_name());
     test_touch_area_ = helix::ui::find_required(screen_root_, "test_touch_area", get_name());
 
     // Center the wizard subtitle for this step (keeps it clear of crosshair targets)
@@ -270,7 +270,6 @@ void WizardTouchCalibrationStep::cleanup() {
 
     // Clear widget pointers FIRST to prevent UI updates during cleanup
     // (test area widgets are children of screen_root_, so they're deleted with it)
-    test_area_container_ = nullptr;
     test_touch_area_ = nullptr;
     screen_root_ = nullptr;
 
@@ -444,8 +443,8 @@ void WizardTouchCalibrationStep::handle_test_area_touched(lv_event_t* e) {
     // lv_obj_get_coords returns screen-absolute coordinates of the object
     lv_area_t area_coords;
     lv_obj_get_coords(test_touch_area_, &area_coords);
-    lv_coord_t local_x = point.x - area_coords.x1;
-    lv_coord_t local_y = point.y - area_coords.y1;
+    int32_t local_x = point.x - area_coords.x1;
+    int32_t local_y = point.y - area_coords.y1;
 
     spdlog::debug("[{}] Test area touched at screen ({}, {}), local ({}, {})", get_name(), point.x,
                   point.y, local_x, local_y);
@@ -453,7 +452,7 @@ void WizardTouchCalibrationStep::handle_test_area_touched(lv_event_t* e) {
     create_ripple_at(local_x, local_y);
 }
 
-void WizardTouchCalibrationStep::create_ripple_at(lv_coord_t x, lv_coord_t y) {
+void WizardTouchCalibrationStep::create_ripple_at(int32_t x, int32_t y) {
     if (!test_touch_area_) {
         return;
     }
@@ -511,8 +510,8 @@ void WizardTouchCalibrationStep::on_calibration_complete(const helix::TouchCalib
         lv_subject_set_int(&calibration_valid_, 1);
 
         // Update header subtitle to show success
-        lv_subject_copy_string(&wizard_subtitle,
-                               lv_tr("Calibration complete! Press 'Next' to continue."));
+        lv_subject_set_string(&wizard_subtitle,
+                              lv_tr("Calibration complete! Press 'Next' to continue."));
 
         // Change button text from "Skip" to "Next" since calibration is complete
         lv_subject_set_int(&wizard_show_skip, 0);
@@ -544,10 +543,10 @@ void WizardTouchCalibrationStep::update_instruction_text() {
 
     switch (p.state) {
     case helix::TouchCalibrationPanel::State::IDLE:
-        lv_subject_copy_string(&wizard_subtitle, lv_tr("Tap anywhere to begin calibration"));
+        lv_subject_set_string(&wizard_subtitle, lv_tr("Tap anywhere to begin calibration"));
         return;
     case helix::TouchCalibrationPanel::State::VERIFY:
-        lv_subject_copy_string(&wizard_subtitle, lv_tr("Computing calibration..."));
+        lv_subject_set_string(&wizard_subtitle, lv_tr("Computing calibration..."));
         return;
     case helix::TouchCalibrationPanel::State::COMPLETE:
         // Don't overwrite — on_calibration_complete sets the success message
@@ -570,9 +569,9 @@ void WizardTouchCalibrationStep::update_instruction_text() {
         char combined[256];
         snprintf(combined, sizeof(combined), "%s %s",
                  lv_tr("Calibration failed - touch targets more precisely."), step_text);
-        lv_subject_copy_string(&wizard_subtitle, combined);
+        lv_subject_set_string(&wizard_subtitle, combined);
     } else {
-        lv_subject_copy_string(&wizard_subtitle, step_text);
+        lv_subject_set_string(&wizard_subtitle, step_text);
     }
 }
 
@@ -580,7 +579,7 @@ void WizardTouchCalibrationStep::ensure_skip_on_top() {
     // After any lv_obj_move_foreground(touch_overlay), the skip group may end up
     // behind the overlay. Re-assert its z-order so it stays clickable.
     if (raised_skip_.obj) {
-        lv_obj_move_foreground(raised_skip_.obj);
+        lv_obj_move_to_index(raised_skip_.obj, -1);
     }
 }
 
@@ -592,40 +591,14 @@ void WizardTouchCalibrationStep::update_crosshair_position() {
     // Touch overlay was reparented to screen for full-screen capture
     lv_obj_t* touch_overlay = lv_obj_find_by_name(lv_screen_active(), "touch_capture_overlay");
 
-    auto state = controller_.panel()->get_state();
-
-    // IDLE: show touch overlay (for "tap anywhere to begin") but hide crosshair
-    if (state == helix::TouchCalibrationPanel::State::IDLE) {
-        if (crosshair_) {
-            lv_obj_add_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (touch_overlay) {
-            lv_obj_remove_flag(touch_overlay, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_move_foreground(touch_overlay);
-        }
-        ensure_skip_on_top();
+    // Visibility belongs to the XML: touch_cal_wizard_state shows the capture
+    // surface in IDLE and POINT_1-3 and the crosshair in POINT_1-3 only.
+    // Here only the z-order: the surface stays above the screen to take every tap.
+    if (controller_.panel()->get_state() >= helix::TouchCalibrationPanel::State::VERIFY) {
         return;
-    }
-
-    // Hide crosshair and touch overlay in VERIFY and COMPLETE states
-    if (state == helix::TouchCalibrationPanel::State::VERIFY ||
-        state == helix::TouchCalibrationPanel::State::COMPLETE) {
-        if (crosshair_) {
-            lv_obj_add_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (touch_overlay) {
-            lv_obj_add_flag(touch_overlay, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    // Show crosshair and touch overlay for calibration points
-    if (crosshair_) {
-        lv_obj_remove_flag(crosshair_, LV_OBJ_FLAG_HIDDEN);
     }
     if (touch_overlay) {
-        lv_obj_remove_flag(touch_overlay, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_move_foreground(touch_overlay); // Keep on top for click capture
+        lv_obj_move_to_index(touch_overlay, -1);
     }
     ensure_skip_on_top();
 
@@ -646,19 +619,9 @@ void WizardTouchCalibrationStep::update_crosshair_position() {
 }
 
 void WizardTouchCalibrationStep::update_button_visibility() {
-    if (!screen_root_ || !controller_.panel()) {
+    if (!subjects_initialized_ || !controller_.panel()) {
         return;
     }
-
-    auto state = controller_.panel()->get_state();
-    bool is_complete = (state == helix::TouchCalibrationPanel::State::COMPLETE);
-
-    // Show test area container only in COMPLETE state
-    if (test_area_container_) {
-        if (is_complete) {
-            lv_obj_remove_flag(test_area_container_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(test_area_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // The capture surface, crosshair and test area bind this
+    lv_subject_set_int(&cal_state_, static_cast<int>(controller_.panel()->get_state()));
 }

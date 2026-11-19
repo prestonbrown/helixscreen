@@ -8,7 +8,6 @@
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
@@ -16,13 +15,21 @@
 #include "ams_types.h"
 #include "ams_unit_pages.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "display_numbering.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 namespace helix::ui {
+
+/// Width for every card of an overview row that overflows, chosen so the next card stands
+/// partly past the row's right edge and shows there is more to scroll to. 0 when the row
+/// fits and flex shares it. @p min_widths has one entry per card.
+int32_t overview_peek_card_width(int32_t row_width, int32_t gap,
+                                 const std::vector<int32_t>& min_widths);
 
 /// The inputs a unit card's lane bars are built from.
 struct LaneBarsGeometry {
@@ -41,6 +48,41 @@ struct LaneBarsGeometry {
 inline bool lane_bars_stale(const LaneBarsGeometry& built, const LaneBarsGeometry& now) {
     return built.first_slot != now.first_slot || built.slot_count != now.slot_count ||
            built.width != now.width || built.upstream_mask != now.upstream_mask;
+}
+
+/// What a unit card does with its environment readout.
+enum class CardEnvironment {
+    None,    ///< The unit reports no temperature or humidity
+    Line,    ///< One line under the bars, in place of the lane count
+    Dropped, ///< Left to the unit's own page; the lane count keeps the line
+};
+
+/// How a unit card spends its content width.
+struct UnitCardFit {
+    int bars_shown = 0;
+    CardEnvironment environment = CardEnvironment::None;
+};
+
+/// The bars come first: every lane gets a bar while they fit at @p bar_min_w
+/// apart by @p bar_gap across @p content_w. The environment line only takes the
+/// line under them when it fits the card width and the bars show every lane;
+/// a unit with more lanes than fit keeps its lane count there instead.
+/// @param env_line_w width of the one-line readout, 0 when the unit has none
+inline UnitCardFit decide_unit_card_fit(int32_t content_w, int lanes, int32_t bar_min_w,
+                                        int32_t bar_gap, int32_t env_line_w) {
+    UnitCardFit fit;
+    if (lanes > 0 && bar_min_w > 0 && content_w >= bar_min_w) {
+        const int32_t fitting = (content_w + bar_gap) / (bar_min_w + bar_gap);
+        fit.bars_shown = fitting < lanes ? static_cast<int>(fitting) : lanes;
+    }
+    if (env_line_w <= 0) {
+        fit.environment = CardEnvironment::None;
+    } else if (fit.bars_shown < lanes || env_line_w > content_w) {
+        fit.environment = CardEnvironment::Dropped;
+    } else {
+        fit.environment = CardEnvironment::Line;
+    }
+    return fit;
 }
 
 } // namespace helix::ui
@@ -81,6 +123,11 @@ class AmsOverviewPanel : public PanelBase {
 
     [[nodiscard]] const char* get_name() const override {
         return "AMS Overview";
+    }
+
+    /// The multi-unit overview canvas lays units out across the width.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
     }
 
     /// Multi-unit filament overview — same reasoning as AmsPanel: a place
@@ -157,6 +204,11 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* bars_container = nullptr;   // Mini status bars
         lv_obj_t* slot_count_label = nullptr; // "4 slots"
         lv_obj_t* error_badge = nullptr;      // Error badge dot (top-right)
+        lv_obj_t* art_stage = nullptr;        // Art tile: the box the art fills
+        lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
+        int32_t compact_width = 0;            // Fixed width of a lane-bar tile; 0 shares the row
+        bool has_art = false;                 // An art tile rather than a card
+        lv_obj_t* env_line = nullptr;         // One-line environment readout
         int unit_index = -1;
         /// What the lane bars were built for; see lane_bars_stale().
         helix::ui::LaneBarsGeometry bars_built;
@@ -169,6 +221,7 @@ class AmsOverviewPanel : public PanelBase {
 
     std::vector<UnitCard> unit_cards_;
     helix::ui::WidgetRef cards_row_;
+    int32_t laid_out_row_width_ = 0; ///< The row width layout_unit_row() last sized the cards to
     helix::ui::WidgetRef system_path_;
     lv_obj_t* system_path_area_ = nullptr;
 
@@ -189,6 +242,8 @@ class AmsOverviewPanel : public PanelBase {
     helix::ui::WidgetRef detail_path_canvas_; ///< Filament path visualization
     helix::ui::WidgetRef detail_slot_widgets_[kMaxDetailSlots];
     int detail_slot_count_ = 0;
+    static constexpr int kMaxRelayoutPasses = 2;
+    int relayout_passes_ = 0; ///< how deep create_detail_slots() is in laying a unit out again
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
 
     // === Pages ===
@@ -218,8 +273,13 @@ class AmsOverviewPanel : public PanelBase {
     void create_unit_cards(const helix::AmsSystemInfo& info, helix::ui::LaneNoun noun);
     // The mini bars take no current_slot: the active-lane outline comes from the
     // per-slot active-loaded subject, not from comparing against current_slot.
+    /// Whether a unit is drawn as an art tile.
+    static bool unit_has_art(const helix::AmsSystemInfo& info, int unit_index);
     void apply_card_art(UnitCard& card, const helix::AmsUnit& unit,
                         const helix::AmsSystemInfo& info);
+    /// Size the cards to the row (see overview_peek_card_width) and each art stage to its tile.
+    void layout_unit_row();
+    static void on_cards_row_resized(lv_event_t* e);
     void update_unit_card(UnitCard& card, const helix::AmsUnit& unit, helix::ui::LaneNoun noun);
     void create_mini_bars(UnitCard& card, const helix::AmsUnit& unit);
     void refresh_system_path(const helix::AmsSystemInfo& info, int current_slot);
@@ -234,6 +294,9 @@ class AmsOverviewPanel : public PanelBase {
     void detach_widget_hooks();
     /// Publish ams_cards_compact from the measured narrowest card width.
     void publish_cards_compact(int32_t narrowest_card_w);
+    /// Publish ams_cards_env_line from each card's measured width and readout.
+    void publish_cards_env_line();
+    static void on_env_line_size_changed(lv_event_t* e);
 
     /// A slot, current-slot or dryer change: resync the unit view's pages, or refresh the
     /// overview's cards on the next tick.
@@ -269,8 +332,8 @@ class AmsOverviewPanel : public PanelBase {
     // === Slot Interaction ===
     std::unique_ptr<helix::ui::AmsContextMenu> context_menu_; ///< Slot context menu (lazy init)
 
-    void handle_detail_slot_tap(int global_slot_index, lv_point_t click_pt);
-    void show_detail_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt);
+    void handle_detail_slot_tap(int global_slot_index);
+    void show_detail_context_menu(int slot_index, lv_obj_t* near_widget);
 
     // === Bypass Spool Interaction ===
     // The overview's overlay sits on the system path canvas, the unit view's on its own

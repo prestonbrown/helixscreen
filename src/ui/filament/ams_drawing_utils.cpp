@@ -3,6 +3,7 @@
 #include "ui/ams_drawing_utils.h"
 
 #include "ams_backend.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "display_numbering.h"
 #include "sort_small.h"
@@ -98,30 +99,14 @@ int32_t calc_bar_width(int32_t container_width, int slot_count, int32_t gap, int
 // Presentation Helpers
 // ============================================================================
 
-std::string get_unit_display_name(const helix::AmsUnit& unit, int unit_index) {
-    // Prefer display_name (short, pretty) over internal name
-    std::string raw;
-    if (!unit.display_name.empty()) {
-        raw = unit.display_name;
-    } else if (!unit.name.empty()) {
-        raw = unit.name;
-    } else {
-        return "Unit " + std::to_string(helix::ui::lane_number(unit_index));
-    }
-
-    // Replace underscores with spaces for readability
-    std::replace(raw.begin(), raw.end(), '_', ' ');
-    return raw;
-}
-
 // ============================================================================
 // LVGL Widget Factories
 // ============================================================================
 
 lv_obj_t* create_transparent_container(lv_obj_t* parent) {
     lv_obj_t* c = lv_obj_create(parent);
-    lv_obj_remove_flag(c, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(c, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(c, false);
+    lv_obj_set_event_bubble(c, true);
     lv_obj_set_style_bg_opa(c, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(c, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(c, 0, LV_PART_MAIN);
@@ -165,8 +150,8 @@ void start_pulse(lv_obj_t* dot, lv_color_t base_color) {
     lv_anim_init(&sa);
     lv_anim_set_var(&sa, dot);
     lv_anim_set_values(&sa, kPulseScaleMax, kPulseScaleMin);
-    lv_anim_set_time(&sa, kPulseDurationMs);
-    lv_anim_set_playback_time(&sa, kPulseDurationMs);
+    lv_anim_set_duration(&sa, kPulseDurationMs);
+    lv_anim_set_reverse_duration(&sa, kPulseDurationMs);
     lv_anim_set_repeat_count(&sa, LV_ANIM_REPEAT_INFINITE);
     lv_anim_set_path_cb(&sa, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&sa, pulse_scale_anim_cb);
@@ -176,8 +161,8 @@ void start_pulse(lv_obj_t* dot, lv_color_t base_color) {
     lv_anim_init(&ca);
     lv_anim_set_var(&ca, dot);
     lv_anim_set_values(&ca, kPulseSatMax, kPulseSatMin);
-    lv_anim_set_time(&ca, kPulseDurationMs);
-    lv_anim_set_playback_time(&ca, kPulseDurationMs);
+    lv_anim_set_duration(&ca, kPulseDurationMs);
+    lv_anim_set_reverse_duration(&ca, kPulseDurationMs);
     lv_anim_set_repeat_count(&ca, LV_ANIM_REPEAT_INFINITE);
     lv_anim_set_path_cb(&ca, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&ca, pulse_color_anim_cb);
@@ -225,10 +210,10 @@ lv_obj_t* create_error_badge(lv_obj_t* parent, int32_t size) {
     lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_width(badge, 0, LV_PART_MAIN);
-    lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_IGNORE_LAYOUT);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(badge, false);
+    lv_obj_set_event_bubble(badge, true);
+    lv_obj_set_ignore_layout(badge, true);
+    lv_obj_set_hidden(badge, true);
     return badge;
 }
 
@@ -241,7 +226,7 @@ void update_error_badge(lv_obj_t* badge, bool has_error, helix::SlotError::Sever
     if (has_error) {
         lv_color_t color = severity_color(severity);
         lv_obj_set_style_bg_color(badge, color, LV_PART_MAIN);
-        lv_obj_remove_flag(badge, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(badge, false);
         if (animate) {
             start_pulse(badge, color);
         } else {
@@ -249,7 +234,7 @@ void update_error_badge(lv_obj_t* badge, bool has_error, helix::SlotError::Sever
         }
     } else {
         stop_pulse(badge);
-        lv_obj_add_flag(badge, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(badge, true);
     }
 }
 
@@ -300,9 +285,9 @@ void apply_logo(lv_obj_t* image, const helix::AmsUnit& unit, const helix::AmsSys
 
     if (path && path[0]) {
         lv_image_set_src(image, path);
-        lv_obj_remove_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, false);
     } else {
-        lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, true);
     }
 }
 
@@ -314,9 +299,9 @@ void apply_logo(lv_obj_t* image, const std::string& type_name) {
     const char* path = helix::AmsState::get_logo_path(type_name);
     if (path && path[0]) {
         lv_image_set_src(image, path);
-        lv_obj_remove_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, false);
     } else {
-        lv_obj_add_flag(image, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(image, true);
     }
 }
 
@@ -803,11 +788,21 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
         for (const auto& group : layout.hub_groups) {
             if (!group.hub_id.empty() && group.physical_tool >= 0 &&
                 group.physical_tool < static_cast<int>(out.numbers.size())) {
-                out.numbers[group.physical_tool] = helix::ui::lane_number(group.physical_tool);
+                out.numbers[group.physical_tool] = group.physical_tool;
             }
         }
     }
     return out;
+}
+
+std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane_badge in ams_draw
+    return number < 0 ? std::string() : std::to_string(number);
+}
+
+void set_lane_badge_number(lv_obj_t* badge, int lane_number) { // NAMESPACE_OK: in ams_draw
+    if (lv_obj_t* lbl = badge ? lv_obj_get_child(badge, 0) : nullptr) {
+        lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
+    }
 }
 
 lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
@@ -821,17 +816,15 @@ lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, boo
     lv_obj_set_style_border_color(badge, theme_manager_get_color("card_bg"), LV_PART_MAIN);
     lv_obj_set_style_pad_all(badge, 0, LV_PART_MAIN);
     lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
-    lv_obj_remove_flag(badge, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(badge, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(badge, false);
+    lv_obj_set_event_bubble(badge, true);
     lv_obj_t* lbl = lv_label_create(badge);
-    char txt[8];
-    snprintf(txt, sizeof(txt), "%d", lane_number); // 1-based; lane numbers not translated
-    lv_label_set_text(lbl, txt);
+    lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
     const lv_font_t* f = theme_manager_get_font("font_xs");
     if (f)
         lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);
     lv_obj_center(lbl);
-    lv_obj_add_flag(lbl, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(lbl, true);
     set_lane_badge_active(badge, active);
     return badge;
 }
@@ -898,7 +891,7 @@ std::vector<int> hub_groups_of_tool(const ams_draw::SystemToolLayout& layout, in
 
 std::string upstream_lane_caption(const helix::AmsSystemInfo& info,
                                   const helix::AmsBackend& backend, int slot) {
-    const auto upstream = backend.upstream_slot(slot);
+    const auto upstream = helix::upstream_slot(backend, slot);
     if (!upstream) {
         return {};
     }
@@ -907,7 +900,7 @@ std::string upstream_lane_caption(const helix::AmsSystemInfo& info,
         if (*upstream >= unit.first_slot_global_index &&
             *upstream < unit.first_slot_global_index + unit.slot_count) {
             const int local = *upstream - unit.first_slot_global_index;
-            return unit_scoped_label(ams_draw::get_unit_display_name(unit, static_cast<int>(u)),
+            return unit_scoped_label(unit_display_name(unit, static_cast<int>(u)),
                                      lane_number_text(local));
         }
     }

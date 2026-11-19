@@ -952,7 +952,7 @@ else
 # filtered out of the command line — the archive is already in LDFLAGS, and
 # repeating it changes link order.
 TEST_LINK_INPUTS = $(TEST_CORE_DEPS) $(TEST_LVGL_DEPS) $(TEST_APP_OBJS) $(TEST_TOOL_OBJS) \
-                   $(DNS_RESOLV_OBJ) $(MOCK_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) \
+                   $(DNS_RESOLV_OBJ) $(MOCK_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(MONOCYPHER_OBJS) $(VTERM_OBJS) \
                    $(LUA_OBJS) $(FONT_OBJS) $(OBJCPP_OBJS) \
                    $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(TEST_PLATFORM_DEPS)
 
@@ -1092,7 +1092,7 @@ TEST_WARN_FLAGS := -Werror=type-limits
 # Compile test sources
 # Uses DEPFLAGS to track header dependencies for incremental rebuilds
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST]$(RESET) $<"
 	$(Q)$(call TEST_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
@@ -1100,7 +1100,7 @@ $(OBJ_DIR)/tests/%.o: $(TEST_UNIT_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $
 
 # Compile application subdirectory test sources
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/tests/application/%.o: $(TEST_UNIT_DIR)/application/%.cpp lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[TEST-APP]$(RESET) $<"
 	$(Q)$(call TEST_APP_COMPILE,$(TEST_WARN_FLAGS) $(DEPFLAGS)) -c $< -o $@
@@ -1119,7 +1119,7 @@ $(DNS_RESOLV_OBJ): $(LIBHV_DIR)/base/dns_resolv.c $(LIBHV_LIB)
 # Compile mock sources
 # Uses DEPFLAGS to track header dependencies
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(YELLOW)[MOCK]$(RESET) $<"
 	$(Q)$(call TEST_MOCK_COMPILE,$(DEPFLAGS)) -c $< -o $@
@@ -1465,8 +1465,9 @@ APP_TSAN_BIN_DIR := $(BUILD_DIR)/bin-tsan
 APP_ASAN_BIN := $(APP_ASAN_BIN_DIR)/helix-screen
 APP_TSAN_BIN := $(APP_TSAN_BIN_DIR)/helix-screen
 
-# Runtime options for the APP, not the suite; mirrors mk/cross.mk's
-# PI_ASAN_OPTIONS (reliable stacks, first error fatal, no leak gate). Leak
+# Runtime options for the APP, not the suite: complete allocation stacks
+# (the slow unwinder, affordable on a desktop, unlike mk/cross.mk's Pi
+# default), first error fatal, no leak gate. Leak
 # detection stays off because the app's panels/widgets/subjects are
 # process-scoped by design and the real WiFi backend leaves an unjoined
 # probe thread at exit. TSan takes the same shape plus the shared

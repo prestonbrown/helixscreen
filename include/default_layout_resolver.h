@@ -12,7 +12,7 @@
 #include <string_view>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: config held by value
 
 /// Default home layout resolution: a `default_layout.json` table plus a
 /// snapshot of capability subjects in, placements out. Pure: it reads no LVGL

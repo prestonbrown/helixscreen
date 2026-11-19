@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "consumption_sink.h"
+#include "core/observer_guard.h"
 
 namespace helix {
 enum class PrintJobState;
@@ -82,8 +81,8 @@ class FilamentConsumptionTracker {
     IConsumptionSink* external_sink_raw_ = nullptr;
 
     /// True when at least one sink successfully snapshotted on print start.
-    /// Preserved for backwards-compatible `is_active()` semantics and used to
-    /// decide whether on_filament_used_changed forwards deltas.
+    /// Backs `is_active()` and decides whether on_filament_used_changed
+    /// forwards deltas.
     bool active_ = false;
 
     /// True between the PRINTING transition and a terminal state transition.
@@ -97,7 +96,7 @@ class FilamentConsumptionTracker {
     /// Shared lifetime for every per-extruder filament_used subject observer.
     /// Per [L077]: must be reset BEFORE `extruder_obs_` in stop() so the
     /// weak_ptr held inside each ObserverGuard expires before the guard runs
-    /// lv_observer_remove() — otherwise the guard can try to remove an observer
+    /// lv_observer_delete() — otherwise the guard can try to remove an observer
     /// from a freed subject when PrinterState tears down.
     SubjectLifetime extruder_lifetime_;
 

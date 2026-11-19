@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Screen brightness, shared by Settings > Display and the setup wizard. Hidden without
+       a dimmable backlight. Dragging previews; releasing saves. select_brightness_slider()
+       moves the slider to the stored value. -->
+  <view name="row_brightness"
+        extends="setting_slider_row" label="Brightness" icon="light" description="Adjust screen brightness level"
+        min="10" max="100" value="50" value_subject="settings_brightness" value_format="%d%%" min_icon="light_off"
+        max_icon="light" callback="on_brightness_changed" commit_callback="on_brightness_commit">
+    <bind_flag_if_eq subject="settings_has_dimming" flag="hidden" ref_value="0"/>
+  </view>
+</component>

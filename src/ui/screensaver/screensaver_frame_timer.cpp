@@ -4,7 +4,7 @@
 
 #include "screensaver_frame_timer.h"
 
-#include "ui_timer_guard.h" // lv_timer_cancel_safe
+#include "core/timer_guard.h" // lv_timer_cancel_safe
 
 #include <utility>
 

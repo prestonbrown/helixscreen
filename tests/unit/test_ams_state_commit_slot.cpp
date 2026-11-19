@@ -783,6 +783,30 @@ TEST_CASE("a relink drops the previous spool's catalog pick and Spoolman details
     CHECK_FALSE(helix::ams::lane_sources(lane_of(0)).spoolman.has_value());
 }
 
+TEST_CASE("a linked spool's material stands in unless firmware owns the lane",
+          "[ams][commit][lane][spoolman][box_wins]") {
+    const bool firmware_owns = GENERATE(false, true);
+    CommitFixture f;
+    f.setup(42);
+    f.backend->set_firmware_owns_lane_identity_for_testing(firmware_owns);
+    SlotInfo lane = f.backend->get_slot_info(0);
+    lane.material = "PLA";
+    helix::test::apply_edit(*f.backend, 0, lane);
+    helix::ams::Observation spoolman(helix::ams::ObservationSource::Spoolman);
+    spoolman.spoolman_id = 42;
+    spoolman.material = std::string("ASA");
+    helix::ams::ingest(lane_of(0), spoolman);
+
+    const SlotInfo original = f.backend->get_slot_info(0);
+    SlotInfo edited = original;
+    edited.material = "PLA";
+    edited.remaining_weight_g = 321.0f;
+    const AmsError err = AmsState::instance().commit_slot_edit(0, original, edited);
+    (void)err;
+
+    CHECK(f.backend->get_slot_info(0).material == (firmware_owns ? "PLA" : "ASA"));
+}
+
 TEST_CASE("a refused relink keeps the linked spool's Spoolman details",
           "[ams][commit][lane][spoolman][review]") {
     CommitFixture f;

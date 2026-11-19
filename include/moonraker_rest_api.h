@@ -5,7 +5,7 @@
  * @file moonraker_rest_api.h
  * @brief Generic REST endpoint and WLED control operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all REST endpoint operations
+ * A MoonrakerAPI sub-API that encapsulates all REST endpoint operations
  * and WLED control functionality in a dedicated class. Uses HTTP for
  * Moonraker extension plugins (e.g., ACE backend via ValgACE, WLED bridge).
  */

@@ -153,6 +153,25 @@ TEST_CASE("Z-offset calibration command: strategy and probe pick the command and
     check(S::FIRMWARE_MANAGED, ProbeSensorType::STANDARD, "", ReadingPoint::Nozzle);
 }
 
+TEST_CASE("Z-offset run strategy: a scanning probe runs its own calibration on a firmware-managed "
+          "printer",
+          "[zoffset_center][eddy]") {
+    using S = ZOffsetCalibrationStrategy;
+    for (const auto t :
+         {ProbeSensorType::EDDY_CURRENT, ProbeSensorType::BEACON, ProbeSensorType::CARTOGRAPHER}) {
+        CHECK(is_scanning_probe(t));
+        CHECK(run_strategy(S::FIRMWARE_MANAGED, t) == S::PROBE_CALIBRATE);
+        CHECK(run_strategy(S::PROBE_CALIBRATE, t) == S::PROBE_CALIBRATE);
+        CHECK(run_strategy(S::ENDSTOP, t) == S::ENDSTOP);
+    }
+    for (const auto t :
+         {ProbeSensorType::STANDARD, ProbeSensorType::BLTOUCH, ProbeSensorType::PRTOUCH_V2,
+          ProbeSensorType::LOADCELL, ProbeSensorType::TAP, ProbeSensorType::KLICKY}) {
+        CHECK_FALSE(is_scanning_probe(t));
+        CHECK(run_strategy(S::FIRMWARE_MANAGED, t) == S::FIRMWARE_MANAGED);
+    }
+}
+
 TEST_CASE("PrinterDiscovery: the probe XY offset comes from the probe's config section",
           "[zoffset_center]") {
     helix::PrinterDiscovery hw;

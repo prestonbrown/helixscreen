@@ -119,3 +119,26 @@ TEST_CASE_METHOD(WizardWifiModalFixture, "A dying modal clears only its own cach
 
     REQUIRE(Access::password_modal(s) == live);
 }
+
+TEST_CASE_METHOD(WizardWifiModalFixture,
+                 "Connect with no password shows the error until the modal opens again",
+                 "[wizard][wifi][modal_lifetime]") {
+    WizardWifiStep& s = step();
+    auto status_shown = [&]() {
+        lv_obj_t* status = lv_obj_find_by_name(Access::password_modal(s), "modal_status");
+        REQUIRE(status != nullptr);
+        return lv_obj_is_hidden(status) ? std::string() : std::string(lv_label_get_text(status));
+    };
+
+    s.show_password_modal("TestNetwork");
+    CHECK(status_shown().empty());
+    Access::password_connect_clicked(s);
+    CHECK(status_shown() == "Password cannot be empty");
+
+    s.hide_password_modal();
+    process_lvgl(50);
+    s.show_password_modal("TestNetwork");
+    CHECK(status_shown().empty());
+    s.hide_password_modal();
+    process_lvgl(50);
+}

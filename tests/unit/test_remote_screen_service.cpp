@@ -15,6 +15,7 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
+#include "display_wake_request.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_cache_registry.h"
@@ -115,6 +116,18 @@ TEST_CASE_METHOD(RemoteScreenFixture, "settings: control cannot be on while view
     CHECK(lv_subject_get_int(m.subject_control()) == 0);
 }
 
+TEST_CASE_METHOD(RemoteScreenFixture, "settings: a new pairing code reaches its subject",
+                 "[remote_screen][settings]") {
+    auto& m = RemoteScreenSettingsManager::instance();
+    lv_subject_t* code = lv_xml_get_subject(nullptr, "remote_screen_pair_code");
+    REQUIRE(code != nullptr);
+    const std::string before = m.get_pair_code();
+    m.set_pair_code("482913");
+    CHECK(std::string(lv_subject_get_string(code)) == "482913");
+    m.set_pair_code(before);
+    CHECK(std::string(lv_subject_get_string(code)) == before);
+}
+
 TEST_CASE_METHOD(RemoteScreenFixture,
                  "settings: a hand-edited config with control but no view loads off",
                  "[remote_screen][settings]") {
@@ -212,7 +225,7 @@ TEST_CASE_METHOD(
     CHECK(value("remote_screen_lan_mode") == 1);
     m.set_control_active(true);
     CHECK(seen == 1);
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // A switch rebuilds the print subjects; the next connect's apply_settings() must
@@ -297,12 +310,11 @@ TEST_CASE_METHOD(RemoteScreenFixture,
     svc.store()->note_request();
     svc.store()->on_frame(f);
     REQUIRE(svc.store()->snapshot(false, {5, 2}).has_value());
-    REQUIRE(svc.store()->allocated_bytes() > 0);
 
     RemoteScreenSettingsManager::instance().set_enabled(false);
     CHECK_FALSE(svc.running());
     CHECK(svc.port() == 0);
-    CHECK(svc.store()->allocated_bytes() == 0);
+    CHECK_FALSE(svc.store()->snapshot(false, {5, 2}).has_value());
     CHECK_FALSE(svc.store()->wants_frames());
 }
 
@@ -462,6 +474,13 @@ struct WakeTouchFixture : TouchFixture {
 };
 
 } // namespace
+
+TEST_CASE_METHOD(WakeTouchFixture, "a wake request reaches the active display",
+                 "[remote_screen][wake]") {
+    go_idle(/*dimmed=*/false);
+    helix::request_display_wake();
+    CHECK_FALSE(display.is_display_sleeping());
+}
 
 TEST_CASE_METHOD(WakeTouchFixture, "remote wake gesture never reaches the button underneath",
                  "[remote_screen][control][wake]") {

@@ -5,11 +5,12 @@
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
 
 #include "app_globals.h"
 #include "config.h"
+#include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "gcode_help.h"
 #include "i_moonraker_api.h"
 #include "save_config_restart.h"
@@ -395,7 +396,7 @@ AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm
         gcode, [sent_delta]() { spdlog::debug("[zoffset] adjusted {:+.3f}mm", sent_delta); },
         [](const MoonrakerError& err) {
             spdlog::error("[zoffset] adjust failed: {}", err.message);
-            helix::ui::notify_error_tr(TR_NOOP("Z-offset failed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Z-offset failed: {}"), err);
         });
 
     return AdjustResult{delta_mm, new_offset, true, false};
@@ -447,7 +448,7 @@ std::optional<SavedOffsetLine> saved_offset_line() {
     // theirs in their own models). The probe subject's -1 is "no Z probe".
     std::optional<int> saved;
     const int configured = ps.get_configured_z_offset_microns();
-    const bool probe = ps.capabilities_state().has_probe();
+    const bool probe = ps.z_offset_reference_is_probe();
     if (configured != 0 && !(probe && configured == -1)) {
         saved = configured;
     }
@@ -493,8 +494,8 @@ void republish_save_available(lv_observer_t*, lv_subject_t*);
 /// from a StaticSubjectRegistry deinit, while LVGL is still up.
 struct SaveAvailabilityPublisher {
     SubjectManager subjects;
-    lv_subject_t z_offset_save_available_{};
-    lv_subject_t z_offset_save_enabled_{};
+    helix::Subject z_offset_save_available_{};
+    helix::Subject z_offset_save_enabled_{};
     ObserverGuard global_offset_obs;
     ObserverGuard tools_dirty_obs;
     ObserverGuard can_save_obs;
@@ -801,8 +802,13 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
             }
             const int microns =
                 static_cast<int>(std::lround(ts.tool_offset_mm(tool, axis) * 1000.0));
-            const std::string gcode =
+            // A model HelixScreen cannot write has nothing to save by value; it
+            // may still need the live value staged for the SAVE_CONFIG below.
+            std::string gcode =
                 helix::tool_offsets::save_tool_offset_gcode(hw, axis, tool, microns);
+            if (gcode.empty()) {
+                gcode = helix::tool_offsets::stage_live_offset_gcode(hw, axis, tool);
+            }
             if (gcode.empty()) {
                 continue;
             }

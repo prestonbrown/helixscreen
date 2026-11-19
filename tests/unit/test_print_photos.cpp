@@ -724,8 +724,8 @@ TEST_CASE_METHOD(PhotosApiFx, "history's detail card offers the job's photos",
     REQUIRE(tabs != nullptr);
     REQUIRE(photo != nullptr);
     // The card opens on the end photo, with the tabs to go back to the preview.
-    CHECK_FALSE(lv_obj_has_flag(tabs, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(photo, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(tabs));
+    CHECK_FALSE(lv_obj_is_hidden(photo));
 
     NavigationManager::instance().go_back();
     drain();

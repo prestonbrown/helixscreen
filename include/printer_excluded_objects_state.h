@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 
@@ -229,11 +229,21 @@ class PrinterExcludedObjectsState {
         return !defined_objects_.empty();
     }
 
+    /**
+     * @brief Share of the print's work that excluded objects account for, 0 to 1
+     *
+     * Weighted by footprint area when every defined object has an outline
+     * polygon, since a small part excluded beside a large one saves far less
+     * than half the time. Falls back to counting objects when any outline is
+     * missing. 0 when no objects are defined.
+     */
+    double excluded_work_share() const;
+
     /// Death signal for the subjects this object owns.
     ///
     /// deinit_subjects() frees every observer node on them without bumping
     /// the ObserverGuard invalidation epoch, so outside observers must pass
-    /// this to observe_*(), or their guards call lv_observer_remove() on a
+    /// this to observe_*(), or their guards call lv_observer_delete() on a
     /// freed node.
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
         return subjects_.get_subjects_lifetime();
@@ -246,7 +256,7 @@ class PrinterExcludedObjectsState {
     bool subjects_initialized_ = false;
 
     // Excluded objects version subject (incremented when excluded_objects_ changes)
-    lv_subject_t excluded_objects_version_{};
+    helix::Subject excluded_objects_version_{};
 
     // Set of excluded object names (NOT a subject - sets aren't natively supported)
     std::unordered_set<std::string> excluded_objects_;
@@ -258,11 +268,11 @@ class PrinterExcludedObjectsState {
     std::string current_object_;
 
     // Version subject for defined objects list (incremented when list changes)
-    lv_subject_t defined_objects_version_{};
+    helix::Subject defined_objects_version_{};
 
     // Count of defined objects (held in sync with defined_objects_.size()) — used for
     // declarative XML visibility gating of list/empty-state widgets.
-    lv_subject_t defined_objects_count_{};
+    helix::Subject defined_objects_count_{};
 
     // Geometry map: object name -> ObjectInfo (center + bbox)
     // Populated by set_defined_objects_with_geometry(); empty if only names are known

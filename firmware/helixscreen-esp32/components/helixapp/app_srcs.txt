@@ -38,7 +38,7 @@
 #   binary assets now, not compiled here). Do not trust a running total — count
 #   what CMake actually reads:
 #       grep -cE '^[^#].*\.(cpp|c)$' app_srcs.txt
-#   Today that is 443 src/ + 3 lib/ = 446 source files.
+#   Today that is 835 src/ + 5 lib/ = 840 source files.
 #
 # EXCLUDED, and why (NOT in the list below):
 #   Moonraker transport/HTTP:
@@ -79,6 +79,8 @@
 lib/lv_markdown/deps/md4c/md4c.c
 lib/lv_markdown/src/lv_markdown.c
 lib/lv_markdown/src/lv_markdown_style.c
+lib/monocypher/monocypher.c
+lib/monocypher/monocypher-ed25519.c
 src/abort/abort_manager.cpp
 src/application/asset_manager.cpp
 src/core/data_root_resolver.cpp
@@ -96,6 +98,7 @@ src/application/home_layout_sync.cpp
 src/application/session_wiring.cpp
 src/core/static_panel_registry.cpp
 src/core/static_subject_registry.cpp
+src/core/subject.cpp
 src/application/subject_initializer.cpp
 src/color_utils.cpp
 src/device_display_name.cpp
@@ -112,12 +115,14 @@ src/ui/plugin/ui_plugin_menu_rows.cpp
 src/ui/plugin/ui_plugin_items_menu.cpp
 src/print/active_print_media_manager.cpp
 src/print/crc32.cpp
+src/print/gcode_preview_cache.cpp
 src/print/filament_sensor_manager.cpp
 src/print/firmware_3mf_extract.cpp
 src/print/preprint_predictor.cpp
 src/print/preprint_checklist.cpp
 src/print/print_3mf.cpp
 src/print/print_start_phase_label.cpp
+src/print/print_start_plan.cpp
 src/ui/print/print_status_chips.cpp
 src/ui/print/print_status_tile_layout.cpp
 src/ui/print/ui_print_status_more_menu.cpp
@@ -126,6 +131,7 @@ src/print/print_eta_estimator.cpp
 src/print/thumbnail_write_journal.cpp
 src/print/print_completion.cpp
 src/print/print_completion_alert.cpp
+src/ui/print/ui_print_completion_modal.cpp
 src/print/print_stop_reason.cpp
 src/print/print_file_data.cpp
 src/print/print_activity.cpp
@@ -142,6 +148,7 @@ src/print/three_mf.cpp
 src/print/three_mf_conversions.cpp
 src/print/three_mf_reader.cpp
 src/print/zip_reader.cpp
+src/printer/action_prompt_manager.cpp
 src/printer/active_material_provider.cpp
 src/printer/bed_occupancy.cpp
 src/printer/bed_occupancy_state.cpp
@@ -149,7 +156,10 @@ src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
 src/printer/ams_device_action_rows.cpp
+src/printer/belt_cutter_calibration.cpp
 src/printer/fault_path_position.cpp
+src/printer/fan_heaters.cpp
+src/printer/fan_tachometers.cpp
 src/printer/ace_slot_parse.cpp
 src/printer/ace_status_parse.cpp
 src/printer/ams_backend.cpp
@@ -161,14 +171,18 @@ src/printer/ams_backend_afc.cpp
 src/printer/afc_status_parse.cpp
 src/printer/ams_backend_cfs.cpp
 src/printer/ams_backend_cfs_calibration.cpp
+src/printer/ams_backend_cfs_purge.cpp
 src/printer/ams_backend_happy_hare.cpp
+src/printer/ams_backend_happy_hare_device.cpp
 src/printer/ams_backend_indx.cpp
+src/printer/ams_backend_lane_status.cpp
 src/printer/ams_backend_multiace.cpp
 src/printer/ams_backend_openams.cpp
 src/printer/ams_bypass_policy.cpp
 src/printer/ams_backend_qidi.cpp
 src/printer/qidi_status_parse.cpp
 src/printer/ams_backend_snapmaker.cpp
+src/printer/ams_backend_snapmaker_auto_load.cpp
 src/printer/ams_backend_toolchanger.cpp
 src/printer/ams_endless_spool.cpp
 src/printer/ams_environment_zone.cpp
@@ -192,6 +206,7 @@ src/printer/cfs_status_parse.cpp
 src/printer/lane_resolver.cpp
 src/printer/lane_apply.cpp
 src/printer/lane_source_store.cpp
+src/printer/lane_status_parse.cpp
 src/printer/lane_translation.cpp
 src/printer/lane_binding.cpp
 src/printer/bed_dimensions.cpp
@@ -215,6 +230,7 @@ src/printer/filament_database.cpp
 src/printer/filament_display_name.cpp
 src/printer/filament_macro_profiles.cpp
 src/printer/filament_mapper.cpp
+src/printer/filament_mapping_plan.cpp
 src/printer/filament_variants.cpp
 src/printer/firmware_error_envelope.cpp
 src/printer/firmware_fault_codes.cpp
@@ -247,6 +263,7 @@ src/printer/queued_job_options.cpp
 src/printer/printer_calibration_state.cpp
 src/printer/printer_capabilities_state.cpp
 src/printer/printer_composite_visibility_state.cpp
+src/printer/printer_database_merge.cpp
 src/printer/printer_detector.cpp
 src/printer/printer_excluded_objects_state.cpp
 src/printer/printer_fan_state.cpp
@@ -262,6 +279,7 @@ src/printer/helix_plugin_features.cpp
 src/printer/vendor_state_push.cpp
 src/printer/printer_event_journal.cpp
 src/printer/printer_print_state.cpp
+src/printer/printer_print_state_status.cpp
 src/printer/printer_profile_state.cpp
 src/printer/printer_recovery_service.cpp
 src/printer/printer_state.cpp
@@ -271,6 +289,7 @@ src/printer/sensor_state.cpp
 src/printer/slot_registry.cpp
 src/printer/snapmaker_channel_state.cpp
 src/printer/snapmaker_exceptions.cpp
+src/printer/snapmaker_feed_mode.cpp
 src/printer/pause_descriptor.cpp
 src/printer/snapmaker_nozzle_offset.cpp
 src/printer/snapmaker_nozzle_properties.cpp
@@ -308,6 +327,8 @@ src/printer/stepper_resonance_calibration.cpp
 src/printer/chamber_air_modes.cpp
 src/printer/chamber_air_state.cpp
 src/printer/pa_calibration.cpp
+src/calibration/flashforge_pa_sweep.cpp
+src/calibration/flashforge_pa_sweep_run.cpp
 src/printer/pa_tuning.cpp
 src/printer/tool_offsets.cpp
 src/printer/tool_state.cpp
@@ -338,8 +359,10 @@ src/system/config_backup.cpp
 src/system/default_layout_resolver.cpp
 src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
+src/system/region_defaults.cpp
 src/system/filament_favorites.cpp
 src/system/helix_plugin_installer.cpp
+src/system/local_plugin_installer.cpp
 src/core/http_executor.cpp
 src/system/input_settings_manager.cpp
 src/system/helix_regex.cpp
@@ -372,6 +395,7 @@ src/system/runtime_config.cpp
 src/system/remote_screen_settings_manager.cpp
 src/system/safety_settings_manager.cpp
 src/system/settings_manager.cpp
+src/system/release_signature.cpp
 src/system/sha256_util.cpp
 src/system/simulated_clock.cpp
 src/system/sound_manager.cpp
@@ -382,6 +406,7 @@ src/system/system_power.cpp
 src/system/system_settings_manager.cpp
 src/core/json_fwd_check.cpp
 src/core/text_io.cpp
+src/core/contract_breach.cpp
 src/system/helix_fs.cpp
 src/system/timezone_env.cpp
 src/system/tips_manager.cpp
@@ -390,9 +415,9 @@ src/system/translation_loader.cpp
 src/system/update_checker_subjects.cpp
 src/system/wizard_step_logic.cpp
 src/temperature/temperature_history_manager.cpp
+src/temperature/temperature_rules.cpp
 src/temperature/thermal_rate_model.cpp
 src/ui/notify/ui_chamber_air_notices.cpp
-src/ui/notify/action_prompt_manager.cpp
 src/ui/filament/ams_drawing_utils.cpp
 src/ui/filament/ams_tray_projection.cpp
 src/ui/filament/ams_unit_pages.cpp
@@ -405,8 +430,6 @@ src/ui/components/ui_plate_glow.cpp
 src/ui/home/camera_view.cpp
 src/ui/print/card_thumbnail_plan.cpp
 src/ui/controls/chamber_assignment_options.cpp
-src/ui/controls/console_filter_engine.cpp
-src/ui/controls/console_line.cpp
 src/ui/controls/fan_spin_animation.cpp
 src/ui/notify/fault_modal_registry.cpp
 src/ui/filament/filament_action_set.cpp
@@ -417,9 +440,11 @@ src/ui/filament/filament_motion.cpp
 src/ui/filament/filament_path_geometry.cpp
 src/ui/filament/filament_tube_stroker.cpp
 src/ui/filament/guided_load_flow.cpp
+src/ui/filament/guided_load_session.cpp
 src/ui/filament/cold_pull_flow.cpp
 src/ui/filament/cold_pull_runner.cpp
 src/ui/filament/ui_cold_pull_overlay.cpp
+src/ui/filament/ui_cold_pull_tip_sketch.cpp
 src/ui/home/grid_layout.cpp
 src/ui/components/helix_sparkline.cpp
 src/ui/print/job_queue_state.cpp
@@ -429,9 +454,11 @@ src/ui/components/keyboard_layout_provider.cpp
 src/ui/home/layout_port.cpp
 src/ui/home/light_button_config.cpp
 src/ui/home/home_macro_run.cpp
-src/ui/i18n_plural.cpp
-src/ui/locale_formats.cpp
-src/ui/printers/printer_discovery_list.cpp
+src/core/i18n_plural.cpp
+src/core/temperature_units.cpp
+src/core/temp_unit_subject.cpp
+src/system/locale_formats.cpp
+src/system/printer_discovery_list.cpp
 src/ui/modals/buffer_status_modal.cpp
 src/ui/modals/camera_config_modal.cpp
 src/ui/modals/clog_detection_config_modal.cpp
@@ -440,13 +467,13 @@ src/ui/modals/ui_hidden_network_modal.cpp
 src/ui/modals/macro_param_modal.cpp
 src/ui/modals/ui_preflight_check_modal.cpp
 src/core/observer_factory.cpp
-src/ui/operation_timeout_guard.cpp
+src/core/operation_timeout_guard.cpp
 src/ui/overlay_base.cpp
 src/ui/home/page_scroll_auto_inject.cpp
 src/ui/home/page_scroll_controller.cpp
 src/ui/home/panel_widget_manager.cpp
 src/ui/filament/buffer_slider_geometry.cpp
-src/ui/filament/clog_meter_geometry.cpp
+src/printer/clog_meter_geometry.cpp
 src/ui/filament/clog_meter_model.cpp
 src/ui/filament/humidity_drop_geometry.cpp
 src/ui/home/panel_widget_registry.cpp
@@ -460,16 +487,18 @@ src/ui/panel_widgets/control_buttons_widget.cpp
 src/ui/panel_widgets/display_message_widget.cpp
 src/ui/panel_widgets/fan_stack_widget.cpp
 src/ui/panel_widgets/fan_widget.cpp
+src/ui/panel_widgets/filament_ops_widget.cpp
+src/ui/panel_widgets/full_page_host.cpp
 src/ui/panel_widgets/exclude_map_widget.cpp
 src/ui/panel_widgets/filament_buffer_widget.cpp
 src/ui/panel_widgets/filament_sensor_widget.cpp
-src/ui/panel_widgets/gcode_console_widget.cpp
 src/ui/panel_widgets/heater_temp_widget.cpp
 src/ui/panel_widgets/host_health_widget.cpp
 src/ui/panel_widgets/humidity_widget.cpp
 src/ui/panel_widgets/job_queue_widget.cpp
 src/ui/panel_widgets/led_controls_widget.cpp
 src/ui/panel_widgets/led_widget.cpp
+src/ui/panel_widgets/light_target_picker.cpp
 src/ui/panel_widgets/lock_widget.cpp
 src/ui/panel_widgets/macros_widget.cpp
 src/ui/panel_widgets/motion_widget.cpp
@@ -498,23 +527,29 @@ src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print/print_control_buttons.cpp
 src/ui/print/print_control_view.cpp
 src/ui/calibration/save_config_restart.cpp
+src/ui/screen_secrets.cpp
 src/ui/effects/scroll_blit.cpp
 src/ui/settings/setting_group.cpp
 src/ui/settings/settings_root_status.cpp
 src/ui/shared_font_style.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
+src/ui/filament/target_tool.cpp
+src/ui/filament/target_tool_selection.cpp
+src/ui/filament/ui_toolhead_view.cpp
 src/ui/controls/temp_graph_controller.cpp
 src/ui/print/print_progress_text.cpp
 src/ui/print/print_status_layout_fitter.cpp
 src/ui/controls/temp_graph_tooltip.cpp
-src/ui/controls/temperature_controller.cpp
+src/temperature/temperature_controller.cpp
 src/ui/filament/bed_drying_controller.cpp
 src/ui/controls/temperature_service.cpp
 src/ui/theme/theme_loader.cpp
 src/ui/theme/theme_manager_new.cpp
 src/ui/filament/tool_change_request.cpp
-src/ui/calibration/touch_calibration.cpp
+src/ui/filament/tool_heads_model.cpp
+src/ui/filament/tool_picker.cpp
+src/platform/input/touch_calibration.cpp
 src/ui/calibration/touch_calibration_layout.cpp
 src/ui/calibration/touch_calibration_controller.cpp
 src/ui/calibration/touch_calibration_panel.cpp
@@ -522,7 +557,7 @@ src/ui/calibration/touch_calibration_session.cpp
 src/ui/tour/first_run_tour.cpp
 src/ui/tour/tour_overlay.cpp
 src/ui/tour/tour_steps.cpp
-src/ui/print/tune_controller.cpp
+src/print/tune_controller.cpp
 src/ui/filament/ui_ams_context_menu.cpp
 src/ui/filament/ui_ams_current_tool.cpp
 src/ui/filament/ui_ams_device_operations_overlay.cpp
@@ -550,6 +585,9 @@ src/ui/components/ui_multiselect.cpp
 src/ui/filament/ui_batch_filament_modal.cpp
 src/ui/filament/ui_ams_sidebar.cpp
 src/ui/filament/ui_ams_slot.cpp
+src/ui/filament/spool_spin.cpp
+src/ui/filament/ui_ams_slot_spin.cpp
+src/ui/filament/ui_spool_canvas_spin.cpp
 src/ui/filament/ui_buffer_slider.cpp
 src/ui/ui_busy_overlay.cpp
 src/ui/components/ui_button.cpp
@@ -566,6 +604,7 @@ src/generated/ams_unit_shells_gen.cpp
 src/ui/filament/ams_tray_shell_draw.cpp
 src/ui/filament/ams_unit_shell.cpp
 src/ui/filament/ui_unit_art.cpp
+src/ui/filament/unit_art_geometry.cpp
 src/ui/filament/ui_dryer_presentation.cpp
 src/ui/components/ui_color_picker.cpp
 src/ui/components/ui_component_header_bar.cpp
@@ -603,8 +642,9 @@ src/ui/filament/ui_filament_path_topology.cpp
 src/ui/filament/ui_filament_runout_handler.cpp
 src/ui/filament/ui_filament_slot_picker.cpp
 src/core/gcode_filename.cpp
-src/ui/ui_format_utils.cpp
-src/ui/display_numbering.cpp
+src/system/display_format.cpp
+src/printer/display_numbering.cpp
+src/ui/lane_count_label.cpp
 src/ui/components/ui_gradient_canvas.cpp
 src/ui/controls/ui_heater_icon_binder.cpp
 src/ui/controls/ui_heating_animator.cpp
@@ -639,9 +679,8 @@ src/ui/notify/ui_notification.cpp
 src/ui/notify/ui_notification_badge.cpp
 src/ui/notify/ui_notification_history.cpp
 src/ui/notify/ui_notification_manager.cpp
-src/ui/ui_observer_guard.cpp
+src/core/observer_guard.cpp
 src/ui/notify/ui_panel_notification_history.cpp
-src/ui/settings/ui_overlay_console_settings.cpp
 src/ui/settings/ui_overlay_network_settings.cpp
 src/ui/debug/ui_overlay_performance.cpp
 src/ui/printers/ui_overlay_printer_image.cpp
@@ -653,9 +692,9 @@ src/ui/plugin/ui_plugin_overview_overlay.cpp
 src/ui/plugin/ui_plugin_feature_row.cpp
 src/ui/filament/ui_panel_ams.cpp
 src/ui/filament/ui_panel_ams_overview.cpp
+src/ui/filament/ui_panel_ams_overview_cards.cpp
 src/ui/ui_panel_base.cpp
 src/ui/ui_panel_common.cpp
-src/ui/controls/ui_panel_console.cpp
 src/ui/controls/ui_panel_controls.cpp
 src/ui/home/quick_action_slots.cpp
 src/ui/home/quick_action_buttons.cpp
@@ -739,7 +778,6 @@ src/ui/settings/ui_settings_connection.cpp
 src/ui/settings/ui_settings_screen_sharing.cpp
 src/ui/settings/ui_settings_updates.cpp
 src/ui/components/ui_severity_card.cpp
-src/ui/debug/ui_snake_game.cpp
 src/ui/settings/ui_sound_preview_overlay.cpp
 src/ui/components/ui_spinner.cpp
 src/ui/components/ui_split_button.cpp
@@ -751,9 +789,9 @@ src/spoolman/spoolman_catalog_search.cpp
 src/spoolman/spoolman_types.cpp
 src/ui/components/ui_status_pill.cpp
 src/ui/components/ui_step_progress.cpp
-src/ui/ui_subscription_guard.cpp
+src/api/subscription_guard.cpp
 src/ui/components/ui_search_debounce.cpp
-src/ui/ui_coalesced_timer.cpp
+src/core/coalesced_timer.cpp
 src/ui/components/ui_swatch.cpp
 src/ui/components/ui_switch.cpp
 src/ui/filament/ui_system_path_canvas.cpp
@@ -764,6 +802,9 @@ src/ui/controls/ui_temp_graph.cpp
 src/ui/controls/ui_temperature_utils.cpp
 src/ui/components/ui_text.cpp
 src/ui/home/ui_tile_rung.cpp
+src/ui/components/text_clipboard.cpp
+src/ui/components/ui_text_edit_menu.cpp
+src/ui/components/ui_text_entry_modal.cpp
 src/ui/components/ui_text_input.cpp
 src/ui/settings/ui_theme_editor_overlay.cpp
 src/ui/notify/ui_toast_manager.cpp
@@ -806,6 +847,8 @@ src/ui/home/ui_tile_edit_callout.cpp
 src/ui/components/ui_hsv_picker.cpp
 src/ui/components/ui_progress_bar.cpp
 src/ui/filament/ui_ams_detail.cpp
+src/ui/filament/ui_ams_detail_labels.cpp
+src/ui/filament/ui_ams_detail_tray.cpp
 src/system/helix_paths.cpp
 src/printer/filament_slot_override_store.cpp
 src/printer/filament_temperature_source.cpp
@@ -817,6 +860,7 @@ src/network/wifi_ui_utils.cpp
 # wifi_backend_esp.cpp (LOCAL_SRCS, CMakeLists.txt) against esp_wifi.
 src/network/wifi_ap_steering.cpp
 src/network/wifi_manager.cpp
+src/network/wifi_manager_status.cpp
 src/network/wifi_interface.cpp
 src/network/wifi_scan_scheduler.cpp
 src/network/wifi_control_breaker.cpp
@@ -843,6 +887,7 @@ src/api/moonraker_motion_api.cpp
 src/api/moonraker_queue_api.cpp
 src/api/rpc_error_correlation.cpp
 src/api/webcam_selection.cpp
+src/application/main_loop_wake.cpp
 src/application/moonraker_manager.cpp
 src/generated/theme_token_table.cpp
 # New-since-audit core files the link pass proved are referenced by kept core:
@@ -939,6 +984,12 @@ src/printer/probe_preparation.cpp
 #     stays excluded.
 src/calibration/resonance_console.cpp
 src/calibration/shaper_csv_parser.cpp
+# The motor ripple sweep pieces the print-start check, discovery and the
+# capability rule read: bands, the saved result, the capability and texts.
+src/calibration/hann_windowed_signal.cpp
+src/calibration/motor_ripple_analysis.cpp
+src/calibration/motor_ripple_store.cpp
+src/calibration/motor_ripple_view.cpp
 
 # ===== mocks (CONFIG_HELIX_MOCK_PRINTER only) =====
 # MOCK: src/mock/moonraker_api_mock.cpp
@@ -952,7 +1003,13 @@ src/calibration/shaper_csv_parser.cpp
 # MOCK: src/mock/moonraker_client_mock_skips.cpp
 # MOCK: src/mock/moonraker_client_mock_layer_pause.cpp
 # MOCK: src/mock/moonraker_client_mock_plr.cpp
+# MOCK: src/mock/moonraker_client_mock_u1_feeder.cpp
 # MOCK: src/printer/ams_backend_mock.cpp
+# MOCK: src/printer/ams_backend_mock_identity.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp
 src/system/home_layout_share.cpp
+src/ui/controls/opa_pulse.cpp
+src/rendering/toolhead_art_gen.cpp
+src/rendering/baked_art.cpp
+src/rendering/toolhead_art.cpp

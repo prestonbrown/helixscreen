@@ -31,11 +31,10 @@ LV_FONT_DECLARE(mdi_icons_80);  // Large hero icons (XLARGE displays)
 // mdi_icons_16/24/32/48/64 are declared non-const (not LV_FONT_DECLARE) because
 // on embedded targets (ESP32) their glyph data is loaded from a runtime .bin
 // and struct-copied into these symbols at boot (see
-// firmware/helixscreen-esp32/main/font_registration.c). Desktop still
-// compiles them from assets/fonts/*.c — now emitted non-const to match, a
-// small .rodata->.data move. This de-const covers exactly the medium-tier
-// faces moved to runtime .bin (Plan A); do NOT widen it to faces that stay
-// compiled (80/96/128/14).
+// firmware/helixscreen-esp32/main/font_registration.c). Desktop compiles
+// them from assets/fonts/*.c, emitted non-const to match, a small
+// .rodata->.data cost. Only the medium-tier faces loaded from a runtime .bin
+// are non-const; do NOT widen it to faces that stay compiled (80/96/128/14).
 extern lv_font_t mdi_icons_64; // Navigation bar icons
 extern lv_font_t mdi_icons_48; // Status card icons (large displays)
 extern lv_font_t mdi_icons_32; // Status card icons (small displays)
@@ -95,9 +94,9 @@ LV_FONT_DECLARE(source_code_pro_8);
 LV_FONT_DECLARE(source_code_pro_10);
 LV_FONT_DECLARE(source_code_pro_12);
 // source_code_pro_14 is non-const (not LV_FONT_DECLARE): on embedded targets
-// (ESP32) it is moved to a runtime .bin and struct-copied into this symbol at
+// (ESP32) it is loaded from a runtime .bin and struct-copied into this symbol at
 // boot (firmware/helixscreen-esp32/main/font_registration.c). Desktop compiles
-// it from assets/fonts/source_code_pro_14.c, now emitted non-const to match.
+// it from assets/fonts/source_code_pro_14.c, emitted non-const to match.
 extern lv_font_t source_code_pro_14;
 LV_FONT_DECLARE(source_code_pro_16);
 LV_FONT_DECLARE(source_code_pro_18);

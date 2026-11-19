@@ -2,13 +2,8 @@
 
 /**
  * @file test_network_settings_hidden_connect.cpp
- * @brief The shared hidden-network modal must ask the backend for a hidden join.
- *
- * `nmcli device wifi connect <ssid>` matches the SSID against NetworkManager's
- * scan cache, and a hidden SSID is by definition absent from it — so the
- * modal's Connect button has to carry the is_hidden flag all the way to the
- * backend or the join can only ever fail with "No network with SSID found".
- * Network settings and the setup wizard both open this one modal.
+ * @brief The shared hidden-network modal must ask the backend for a hidden join:
+ *        a hidden SSID is absent from the scan cache `nmcli device wifi connect` matches.
  */
 
 #include "ui_hidden_network_modal.h"
@@ -50,9 +45,10 @@ class HiddenConnectFixture : public LVGLUITestFixture {
         wm_ = std::make_shared<helix::WiFiManager>(std::move(backend), /*silent=*/true);
         wm_->init_self_reference(wm_);
     }
-    // A join's report lands through the UpdateQueue and writes events_, so it runs
-    // while the fixture's members are alive.
+    // ModalStack::clear() skips the shared modal's on_hide(): left open, it keeps the
+    // manager alive and the join in flight reports into the destroyed events_.
     ~HiddenConnectFixture() override {
+        Modal::hide(Modal::get_top());
         helix::WiFiManagerTestAccess::settle(*wm_);
         helix::ui::UpdateQueue::instance().drain();
     }
@@ -100,7 +96,7 @@ TEST_CASE_METHOD(HiddenConnectFixture,
     // A refused join keeps the form open and says why, not "check your credentials".
     REQUIRE(Modal::get_top() == modal);
     lv_obj_t* error_label = named(modal, "error_label");
-    CHECK_FALSE(lv_obj_has_flag(error_label, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(error_label));
     const std::string shown = lv_label_get_text(error_label);
     CHECK(shown != lv_tr("Connection failed. Check credentials."));
     CHECK(shown.find(kUnknownSsid) != std::string::npos);
@@ -110,11 +106,11 @@ TEST_CASE_METHOD(HiddenConnectFixture,
                  "the hidden modal refuses an empty SSID without touching the backend",
                  "[network_settings][hidden]") {
     lv_obj_t* modal = open("");
-    CHECK(lv_obj_has_flag(named(modal, "error_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(named(modal, "error_label")));
 
     connect(modal);
 
-    CHECK_FALSE(lv_obj_has_flag(named(modal, "error_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(named(modal, "error_label")));
     CHECK_FALSE(backend_->last_connect_hidden());
     CHECK(events_.empty());
 }
@@ -127,16 +123,19 @@ TEST_CASE_METHOD(HiddenConnectFixture,
     lv_obj_t* form = named(modal, "hidden_form_container");
     lv_obj_t* spinner = named(modal, "connecting_container");
     lv_obj_t* connect_btn = named(modal, "connect_btn");
-    CHECK_FALSE(lv_obj_has_flag(form, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(connect_btn, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(form));
+    CHECK(lv_obj_is_hidden(spinner));
+    CHECK_FALSE(lv_obj_is_hidden(connect_btn));
 
     connect(modal);
 
-    CHECK(lv_obj_has_flag(form, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(spinner, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(connect_btn, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(named(modal, "cancel_btn"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(form));
+    CHECK_FALSE(lv_obj_is_hidden(spinner));
+    CHECK(lv_obj_is_hidden(connect_btn));
+    CHECK_FALSE(lv_obj_is_hidden(named(modal, "cancel_btn")));
+
+    Modal::hide(Modal::get_top());
+    CHECK(wm_.use_count() == 1); // teardown relies on this to end the join
 }
 
 TEST_CASE_METHOD(HiddenConnectFixture, "Add Hidden Network in network settings opens the modal",
@@ -153,4 +152,16 @@ TEST_CASE_METHOD(HiddenConnectFixture, "Add Hidden Network in network settings o
     lv_obj_t* modal = Modal::get_top();
     REQUIRE(modal != nullptr);
     CHECK(lv_obj_find_by_name(modal, "hidden_form_container") != nullptr);
+}
+
+TEST_CASE_METHOD(HiddenConnectFixture,
+                 "Add Hidden Network reopens the modal after the modal stack is cleared behind it",
+                 "[network_settings][hidden][1975]") {
+    open("Guest-Access");
+    // A screen rebuild clears the stack without the modal's own hide.
+    ModalStack::instance().clear();
+    REQUIRE(Modal::get_top() == nullptr);
+
+    open("Guest-Access");
+    CHECK(Modal::get_top() != nullptr);
 }

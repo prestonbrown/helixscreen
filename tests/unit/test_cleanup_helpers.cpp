@@ -84,7 +84,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred deletes object after tim
     // Pointer is nullified but object still exists until timer fires
     REQUIRE(obj == nullptr);
     // Object is hidden immediately
-    REQUIRE(lv_obj_has_flag(raw_copy, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(raw_copy));
 
     // After timer tick, the async deletion executes
     process_async_timers();
@@ -136,7 +136,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "safe_delete_deferred hides and defers deletio
     REQUIRE(obj == nullptr);
     // Object hidden immediately but still exists
     REQUIRE(helix::test::widget_in_tree(raw_copy));
-    REQUIRE(lv_obj_has_flag(raw_copy, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(raw_copy));
 
     // After timer tick, the async deletion executes
     process_async_timers();
@@ -216,8 +216,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(new_parent != lv_layer_top());
     REQUIRE(new_parent != grid);
     // The condemned container is hidden, size-0, and non-scrollable.
-    REQUIRE(lv_obj_has_flag(new_parent, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(new_parent, LV_OBJ_FLAG_SCROLLABLE));
+    REQUIRE(lv_obj_is_hidden(new_parent));
+    REQUIRE_FALSE(lv_obj_is_scrollable(new_parent));
     REQUIRE(lv_obj_get_width(new_parent) == 0);
     REQUIRE(lv_obj_get_height(new_parent) == 0);
 

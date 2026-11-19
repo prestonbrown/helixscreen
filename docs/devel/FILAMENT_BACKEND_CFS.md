@@ -117,20 +117,16 @@ A `Flat` box whose module we cannot identify still has its control paths refused
 > **"K2 SE" is a K1-family board.** It is served by the K1 MIPS OTA image and speaks the plain `BOX_*`
 > dialect, not `CR_BOX_*`. Do not classify it from the "K2" in its name — see the dialect note below.
 
-> **Correction — `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` DO exist on K1.** This doc previously recorded them as
-> "verified absent in the public K1-Max `box.cfg` dump." That evidence was invalid: they are C-extension
-> commands registered from `box_wrapper.cpython-38-mipsel-linux-gnu.so` (handlers `cmd_save_fan` /
-> `cmd_restore_fan`), never `[gcode_macro]`s, so a config dump could never have listed them. Verified by
-> symbol grep of the extension in `CR4CU220812S11_ota_img_V2.3.5.34`. `BOX_MODE_WAIT` genuinely is absent.
+> **`BOX_SAVE_FAN`/`BOX_RESTORE_FAN` exist on K1.** They are C-extension commands registered
+> from `box_wrapper.cpython-38-mipsel-linux-gnu.so` (handlers `cmd_save_fan` / `cmd_restore_fan`),
+> never `[gcode_macro]`s, so no config dump lists them; the symbol grep of
+> `CR4CU220812S11_ota_img_V2.3.5.34` settles it. The K1 envelope emits them, and the
+> `dispatch_action_script` error unwind runs on K1 as on K2. `BOX_MODE_WAIT` is genuinely absent.
 >
-> Two evidence traps to avoid repeating: **neither `box.cfg` nor `printer.gcode.help` can prove a `BOX_*`
-> command absent.** gcode.py records a description only when one is supplied, and the extension carries
-> 5 help strings against 69 handlers — roughly 64 commands are executable and invisible to help. Only a
-> symbol grep of the `.so` settles presence.
->
-> This has been **fixed**: the K1 envelope now emits `BOX_SAVE_FAN`/`BOX_RESTORE_FAN`, and the
-> `dispatch_action_script` error unwind (gated to K2 for the same wrong reason) runs on K1 too.
-> Re-confirmed against the extension a second time on 2026-08-16.
+> **Neither `box.cfg` nor `printer.gcode.help` can prove a `BOX_*` command absent.** gcode.py
+> records a description only when one is supplied, and the extension carries 5 help strings
+> against 69 handlers, so roughly 64 commands are executable and invisible to help. Only a symbol
+> grep of the `.so` settles presence.
 
 ### Macro dialect comparison
 
@@ -148,6 +144,16 @@ Both dialects cut with `BOX_CUT_MATERIAL`, the firmware's positioned cut. The K2
 toolhead stands, and Creality's own tool change moves to `[box]` `pre_cut_pos` before it.
 The envelope leaves the head at the purge chute (`extrude_pos`), and on a K2 Pro a strike
 from there runs into the frame, so no HelixScreen script emits `CR_BOX_CUT`.
+
+An unload whose spool the box reports used up (`box.filament_useup`) still runs the usual
+script: the latch is set by a runout and cleared only by a successful extrude, so it can be
+stale, and refusing on it would block a valid unload. When the strand really has left the
+box, `BOX_RETRUDE_MATERIAL` / `CR_BOX_RETRUDE`, which retract through the box, cannot pull it
+back, and phase verification raises `UnloadLeftFilament` with the switch still reading
+filament. With the latch set, that fault tells the user to remove the leftover filament by
+hand instead of suggesting the cut or retract may not have completed
+(`src/printer/ams_backend_cfs.cpp#phase_verdict_message`). Every other `UnloadLeftFilament`
+keeps the generic wording.
 
 The K1 envelope is shorter only because `BOX_MODE_WAIT` does not exist on K1 — verified by
 symbol grep, which finds it nowhere in the extension. `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` are
@@ -169,9 +175,9 @@ present on both families and are now emitted on both.
 | File | Role |
 |------|------|
 | `include/ams_backend_cfs.h` | `CfsMacroVariant` enum, `AmsBackendCfs` class, static `load_gcode/unload_gcode/swap_gcode(idx, variant)` helpers (load and swap take the Fork `BOX_SELECT_SLOT` choice) |
-| `src/printer/ams_backend_cfs.cpp` | `wrap_with_park_k1` / `wrap_with_park_k2` envelopes, K1-vs-K2 body emission, both schema parsers, the Fork revision gates and `BOX_PRINT_MAP` |
+| `src/printer/ams_backend_cfs.cpp` | `wrap_with_envelope_k1` / `wrap_with_park_k2` envelopes, K1-vs-K2 body emission, both schema parsers, the Fork revision gates and `BOX_PRINT_MAP` |
 | `include/cfs_status_parse.h` / `src/printer/cfs_status_parse.cpp` | Pure parse of the small status objects around a `box` frame (frame shape, filament sensor) into `std::optional` structs |
-| `include/printer_discovery.h` | `box` object handler — enables CFS for both K1 and K2 (#968 gate flipped) |
+| `src/printer/printer_discovery_parse.cpp` | `box` object handler: enables CFS on K1 and K2 |
 
 `AmsBackendCfs::macro_variant_` starts in the constructor from the model, `K1` when `PrinterDetector::is_creality_k1()` or `is_creality_hi()` matches and `K2` otherwise, and that model answer is kept in `model_macro_variant_`. The first flat frame carrying `api_version == 1` switches it to `Fork`; a later stock (`T<n>`) frame hands back the model's variant (`src/printer/ams_backend_cfs.cpp#handle_box_frame`). All member operations (`load_filament`, `unload_filament`, `change_tool`) thread `macro_variant_` into the gcode helpers. Static call sites without an explicit variant default to `K2` to preserve existing test behavior.
 
@@ -248,7 +254,7 @@ The per-unit `uuid` array is not read at all. A tagged bay's `vender` entry is t
 whole 40-character record (field layout in `printer-research/CREALITY_CFS_K2_INTERNALS.md`
 § "RFID tags"), and HelixScreen reads three things from it: occupancy (a sentinel means an
 empty bay), a brand fallback for a material code the catalog does not know
-(`AmsBackendCfs::brand_from_vender`: supplier code `0276` and `"unknown"` read as Creality,
+(`cfs::brand_from_vender`: supplier code `0276` and `"unknown"` read as Creality,
 another supplier's record as no brand, a short vendor name as itself), and a Spoolman spool
 id from the serial field (below). The printer has no known command that writes a tag.
 
@@ -484,33 +490,27 @@ empty bus under `--test`.
 Full mechanism for each of these, with sources and evidence tiers:
 **[CREALITY_CFS_K1_INTERNALS.md](printer-research/CREALITY_CFS_K1_INTERNALS.md)**.
 
-The full `BOX_*` command surface has since been read directly out of the shipped extension in
+The full `BOX_*` command surface is read directly out of the shipped extension in
 `CR4CU220812S11_ota_img_V2.3.5.34`, so the items below rest on the artifact rather than on
-inference.
+inference. What the backend already handles on K1:
 
-**Fixed:**
-
-- ~~Part-cooling ran through every K1 operation.~~ `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` do exist on
-  K1 and are now in the K1 envelope, along with the matching error-unwind (#1278).
-- ~~Two runout give-up wordings were unmatched.~~ There are **four** literals, not two;
-  `no tray with ingredients found` and `no auto refill` both fell through every tier, so those
-  paths paused the print with no modal at all. Both now matched.
-- ~~`BOX_MODIFY_TN` no-ops on K1.~~ It does not. It persists silently and applies to the
-  slicer's `T0`-`T15`, which is the entrypoint that resolves `Tnn_map`. Comments corrected in
-  three places; behaviour was already right.
-- ~~No phase verification.~~ The primitives record and queue failures instead of raising, so a
-  whole sequence could return success while nothing moved. `finish_action()` now checks the
-  toolhead filament switch against the operation's latched intent and raises a fault through
-  `current_error()` when they disagree. Applies to every dialect — it reads physical state, not
-  macros. See [CREALITY_CFS_K1_INTERNALS.md](printer-research/CREALITY_CFS_K1_INTERNALS.md#failures-are-deferred-not-raised--fixed-host-side-verification).
+- `BOX_SAVE_FAN`/`BOX_RESTORE_FAN` are in the K1 envelope, with the matching error unwind (#1278).
+- All **four** runout give-up literals are matched, including `no tray with ingredients found`
+  and `no auto refill`, so those paths raise the runout modal.
+- `BOX_MODIFY_TN` persists silently and applies to the slicer's `T0`-`T15`, the entrypoint that
+  resolves `Tnn_map`.
+- **Phase verification.** The primitives record and queue failures instead of raising, so a whole
+  sequence can return success while nothing moved. `finish_action()` checks the toolhead filament
+  switch against the operation's latched intent and raises a fault through `current_error()`
+  when they disagree, on every dialect. See [CREALITY_CFS_K1_INTERNALS.md](printer-research/CREALITY_CFS_K1_INTERNALS.md#failures-are-deferred-not-raised--fixed-host-side-verification).
 
 **Still open:**
 
 - **`BOX_ERROR_CLEAR` opening every sequence discards queued retry work** — reviewed and
   kept: a user-initiated load wants a clean slate, and `BOX_TNN_RETRY_PROCESS` is deliberately
   not wired to a button because it can resume a paused print as a side effect.
-- **Resume swallows the entire K1 body** — seven commands no-op during resume handling. No
-  longer silent (phase verification reports it), but it cannot be blocked up front: neither
+- **Resume swallows the entire K1 body:** seven commands no-op during resume handling. Phase
+  verification reports it, but it cannot be blocked up front: neither
   Klipper nor the box publishes a "resuming" state, and gating on "paused" would break
   loading filament during a runout pause.
 - **Swap flush is a deliberate choice, not a bug.** `swap_gcode()` emits a bare

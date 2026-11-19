@@ -76,6 +76,8 @@ TEST_CASE_METHOD(HelixTestFixture, "orca ids: only an id exactly one product car
         CHECK(ids.count("acme-pp") == 0); // SHARED01 names two products
         CHECK(ids.count("acme-petg-cf") == 0);
         CHECK(ids.count("acme-pc") == 0); // no orca_id
+        // A Bambu GF code matches no preset on the Moonraker path (RFC 0001 §5).
+        CHECK(ids.count("acme-pla-matte") == 0);
         REQUIRE(ids.count("acme-tpu") == 1);
         CHECK(ids.at("acme-tpu") == "OVERLAY_TAKEN");
     }

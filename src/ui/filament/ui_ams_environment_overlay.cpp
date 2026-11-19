@@ -29,8 +29,11 @@
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
+#include "display_settings_manager.h"
 #include "filament_database.h"
+#include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
 #include "preset_materials.h"
@@ -258,8 +261,9 @@ lv_obj_t* AmsEnvironmentOverlay::create(lv_obj_t* parent) {
 
 void AmsEnvironmentOverlay::show_zone(lv_obj_t* parent_screen,
                                       std::vector<helix::printer::EnvironmentZone> zones,
-                                      size_t selected, bool with_selector) {
+                                      size_t selected, bool with_selector, int scope_unit) {
     zones_ = std::move(zones);
+    scope_unit_ = scope_unit;
     selected_zone_ = zones_.empty() ? 0 : std::min(selected, zones_.size() - 1);
     with_selector_ =
         with_selector && zones_.size() > 1 && zones_.size() <= helix::printer::kMaxZoneTabs;
@@ -279,7 +283,7 @@ void AmsEnvironmentOverlay::reset_dryer_inputs() {
     // What shows when no loaded material picks a preset.
     if (temp_input_) {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%d", kDefaultDryerTempC);
+        snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(kDefaultDryerTempC));
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
@@ -351,6 +355,10 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     // it opened on rather than a default.
     const char* shown = lv_textarea_get_text(input);
     float initial = (shown && shown[0]) ? static_cast<float>(atoi(shown)) : 0.0f;
+    if (field == DryerField::Temperature) {
+        // The field holds the display unit; the keypad takes Celsius.
+        initial = static_cast<float>(helix::units::display_temp_to_celsius(initial));
+    }
     if (field == DryerField::Duration) {
         // To the two places the field shows, so the keypad opens on the same number.
         initial = std::round(static_cast<float>(parse_duration_hours(shown).value_or(0)) * 100.0f /
@@ -370,14 +378,14 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
     const char* title = lv_tr("Hours");
     const char* unit = "h";
     bool allow_decimal = true;
+    std::optional<float> default_value;
     switch (field) {
     case DryerField::Temperature:
         allow_decimal = false;
         min_value = dryer.min_temp_c;
         max_value = dryer.max_temp_c;
         title = lv_tr("Temperature");
-        unit = "\xC2\xB0"
-               "C";
+        unit = "";
         break;
     case DryerField::Duration:
         break;
@@ -387,6 +395,7 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
         max_value = DryerInfo::kMaxHumidityTargetPct;
         title = lv_tr("Target humidity");
         unit = "%";
+        default_value = dryer.default_humidity_target;
         break;
     }
 
@@ -398,7 +407,9 @@ void AmsEnvironmentOverlay::show_dryer_keypad(DryerField field) {
                                  .allow_decimal = allow_decimal,
                                  .allow_negative = false,
                                  .callback = on_dryer_keypad_confirmed,
-                                 .user_data = this};
+                                 .user_data = this,
+                                 .temperature = field == DryerField::Temperature};
+    config.default_value = default_value;
 
     ui_keypad_show(&config);
 }
@@ -412,6 +423,8 @@ void AmsEnvironmentOverlay::apply_dryer_keypad_value(DryerField field, float val
     if (field == DryerField::Duration) {
         snprintf(buf, sizeof(buf), "%s",
                  format_duration_hours(static_cast<int>(std::lround(value * 60.0f))).c_str());
+    } else if (field == DryerField::Temperature) {
+        snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(value));
     } else if (field != DryerField::HumidityTarget || value > 0.0f) {
         snprintf(buf, sizeof(buf), "%d", static_cast<int>(value));
     }
@@ -514,8 +527,11 @@ void AmsEnvironmentOverlay::publish_dry_gates() {
     }
 
     snprintf(dry_rotate_label_buf_, sizeof(dry_rotate_label_buf_), "%s", lv_tr("Rotate"));
-    lv_subject_copy_string(&dry_rotate_label_subject_, dry_rotate_label_buf_);
-    const bool rotate_offered = n > 0 && dryer.supports_rotation;
+    lv_subject_set_string(&dry_rotate_label_subject_, dry_rotate_label_buf_);
+    // A dryer that picks its gates rotates the picked ones; one shared heater
+    // rotates every empty gate, so Rotate stands alone there.
+    const bool rotate_offered =
+        dryer.supports_rotation && (n > 0 || (dryer.supported && !dryer.supports_gate_selection));
     lv_subject_set_int(&dry_rotate_visible_subject_, rotate_offered ? 1 : 0);
     lv_subject_set_int(&dry_rotate_on_subject_, rotate_offered && dry_rotate_ ? 1 : 0);
 }
@@ -622,6 +638,10 @@ void AmsEnvironmentOverlay::on_deactivating(DeactivateReason) {
     env_humidity_observer_.reset();
     dryer_active_observer_.reset();
     dryer_temp_observer_.reset();
+    if (overlay_root_) {
+        helix::ui::unit_art_set_glow(lv_obj_find_by_name(overlay_root_, "unit_art_picture"),
+                                     helix::ui::UnitArtGlow::Off);
+    }
 
     spdlog::debug("[{}] Deactivated", get_name());
 }
@@ -647,11 +667,10 @@ void AmsEnvironmentOverlay::update_from_backend() {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (backend) {
         if (zones_.empty()) {
-            // No prior show_zone() to re-match against, so a caller that pulls a fresh
-            // reading before ever calling show_zone() (this overlay's own tests do, to
-            // exercise refresh() without pushing onto the nav stack). No unit is known
-            // yet, so pull everything the printer reports rather than guessing one.
-            zones_ = backend->get_environment_zones(-1);
+            // Nothing to re-match against: an empty scope, or a refresh() before any
+            // show_zone(). Pull what the scope reports, so a unit with no zones stays
+            // empty rather than filling with every other unit's.
+            zones_ = backend->get_environment_zones(scope_unit_);
         } else {
             // Keep the set the caller chose and refresh its values in place. Re-deriving
             // by a single unit would narrow a multi-unit set to one, and on_activate() calls
@@ -677,11 +696,13 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         spdlog::warn("[{}] No zone available", get_name());
         snprintf(title_text_buf_, sizeof(title_text_buf_), "%s",
                  lv_tr("No Multi-Filament System connected"));
-        lv_subject_copy_string(&title_text_subject_, title_text_buf_);
+        lv_subject_set_string(&title_text_subject_, title_text_buf_);
         lv_subject_set_int(&dryer_visible_subject_, 0);
         lv_subject_set_int(&no_dryer_visible_subject_, 1);
         lv_subject_set_int(&humidity_target_visible_subject_, 0);
         lv_subject_set_int(&drying_active_subject_, 0);
+        helix::ui::unit_art_set_glow(lv_obj_find_by_name(overlay_root_, "unit_art_picture"),
+                                     helix::ui::UnitArtGlow::Off);
         lv_subject_set_int(&unit_logo_visible_subject_, 0);
         lv_subject_set_int(&unit_art_visible_subject_, 0);
         lv_subject_set_int(&humidity_visible_subject_, 0);
@@ -690,9 +711,9 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         lv_subject_set_int(&zone_state_subject_,
                            static_cast<int>(helix::printer::ZoneDryingState::Idle));
         queued_banner_buf_[0] = '\0';
-        lv_subject_copy_string(&queued_banner_subject_, queued_banner_buf_);
+        lv_subject_set_string(&queued_banner_subject_, queued_banner_buf_);
         slots_text_buf_[0] = '\0';
-        lv_subject_copy_string(&slots_text_subject_, slots_text_buf_);
+        lv_subject_set_string(&slots_text_subject_, slots_text_buf_);
         publish_dry_gates();
         return;
     }
@@ -729,7 +750,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     } else {
         snprintf(title_text_buf_, sizeof(title_text_buf_), "%s", label.c_str());
     }
-    lv_subject_copy_string(&title_text_subject_, title_text_buf_);
+    lv_subject_set_string(&title_text_subject_, title_text_buf_);
 
     // The unit's picture is the art its card on the AMS page shows.
     const LogoArt logo =
@@ -738,21 +759,25 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
             : AmsState::get_logo(type_name);
     const bool has_logo = logo.path && logo.path[0];
     snprintf(unit_logo_buf_, sizeof(unit_logo_buf_), "%s", has_logo ? logo.path : "");
-    lv_subject_copy_string(&unit_logo_subject_, unit_logo_buf_);
+    lv_subject_set_string(&unit_logo_subject_, unit_logo_buf_);
     lv_subject_set_int(&unit_logo_color_subject_, logo.color ? 1 : 0);
     lv_subject_set_int(&unit_logo_visible_subject_, has_logo ? 1 : 0);
+    // The dryer belongs to the whole device, so a unit that is one slice of a device shows all
+    // of it.
     const bool has_art =
         info && helix::ui::unit_art_available(*info, zone.unit_index,
-                                              helix::ui::unit_reports_climate(zone.unit_index));
+                                              helix::ui::unit_reports_climate(zone.unit_index),
+                                              helix::ui::UnitArtScope::Device);
     lv_subject_set_int(&unit_art_visible_subject_, has_art ? 1 : 0);
+    lv_obj_t* const unit_art = lv_obj_find_by_name(overlay_root_, "unit_art_picture");
     if (info)
-        helix::ui::unit_art_set_unit(lv_obj_find_by_name(overlay_root_, "unit_art_picture"), *info,
-                                     zone.unit_index,
-                                     helix::ui::unit_reports_climate(zone.unit_index));
+        helix::ui::unit_art_set_unit(unit_art, *info, zone.unit_index,
+                                     helix::ui::unit_reports_climate(zone.unit_index),
+                                     helix::ui::UnitArtScope::Device);
 
     const std::string gates = zone_slot_text(zone, slot_noun);
     snprintf(slots_text_buf_, sizeof(slots_text_buf_), "%s", gates.c_str());
-    lv_subject_copy_string(&slots_text_subject_, slots_text_buf_);
+    lv_subject_set_string(&slots_text_subject_, slots_text_buf_);
 
     const float temp_c = zone.env.temperature_c;
     const float humidity_pct = zone.env.humidity_pct;
@@ -793,26 +818,22 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     } else {
         queued_banner_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&queued_banner_subject_, queued_banner_buf_);
+    lv_subject_set_string(&queued_banner_subject_, queued_banner_buf_);
 
     // Update temperature display (current temp always in temp_text, target in target_temp_text)
     float display_temp = (dryer.active && dryer.current_temp_c > 0) ? dryer.current_temp_c : temp_c;
-    snprintf(temp_text_buf_, sizeof(temp_text_buf_),
-             "%.0f\xC2\xB0"
-             "C",
-             display_temp);
-    lv_subject_copy_string(&temp_text_subject_, temp_text_buf_);
+    snprintf(temp_text_buf_, sizeof(temp_text_buf_), "%s",
+             helix::units::format_display_temp(display_temp).c_str());
+    lv_subject_set_string(&temp_text_subject_, temp_text_buf_);
 
     // Target temp (shown via XML visibility binding when drying_active=1)
     if (dryer.active && dryer.target_temp_c > 0) {
-        snprintf(target_temp_text_buf_, sizeof(target_temp_text_buf_),
-                 "%.0f\xC2\xB0"
-                 "C",
-                 dryer.target_temp_c);
+        snprintf(target_temp_text_buf_, sizeof(target_temp_text_buf_), "%s",
+                 helix::units::format_display_temp(dryer.target_temp_c).c_str());
     } else {
         target_temp_text_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&target_temp_text_subject_, target_temp_text_buf_);
+    lv_subject_set_string(&target_temp_text_subject_, target_temp_text_buf_);
 
     // Update humidity display (show "--" if no sensor, i.e. 0%)
     if (humidity_pct > 0) {
@@ -820,7 +841,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     } else {
         snprintf(humidity_text_buf_, sizeof(humidity_text_buf_), "--");
     }
-    lv_subject_copy_string(&humidity_text_subject_, humidity_text_buf_);
+    lv_subject_set_string(&humidity_text_subject_, humidity_text_buf_);
     // The drop shows no reading exactly when the text does.
     lv_subject_set_int(&humidity_subject_, has_humidity && humidity_pct > 0
                                                ? static_cast<int>(std::lround(humidity_pct * 10.0f))
@@ -841,10 +862,18 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     // Drying active state
     lv_subject_set_int(&drying_active_subject_, dryer.active ? 1 : 0);
 
+    // A closed overlay can still publish, and a queued zone is waiting for the heater.
+    const bool heating_now = is_visible() && has_art && dryer.active &&
+                             zone.state != helix::printer::ZoneDryingState::Queued;
+    helix::ui::unit_art_set_glow(
+        unit_art, helix::ui::unit_art_glow_for(
+                      heating_now, DisplaySettingsManager::instance().get_animations_enabled(),
+                      helix::ui::reduced_effects()));
+
     if (dryer.active) {
         snprintf(drying_text_buf_, sizeof(drying_text_buf_), "%s",
                  drying_status_text(dryer).c_str());
-        lv_subject_copy_string(&drying_text_subject_, drying_text_buf_);
+        lv_subject_set_string(&drying_text_subject_, drying_text_buf_);
 
         int progress = dryer.get_progress_pct();
         // Negative when the cycle's length is unknown; the bar hides on it.
@@ -855,7 +884,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     } else {
         snprintf(start_stop_text_buf_, sizeof(start_stop_text_buf_), "%s", lv_tr("Start Drying"));
     }
-    lv_subject_copy_string(&start_stop_text_subject_, start_stop_text_buf_);
+    lv_subject_set_string(&start_stop_text_subject_, start_stop_text_buf_);
 
     // Material comfort ranges
     update_comfort_text(humidity_pct);
@@ -867,16 +896,13 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
         helix::ui::temperature::format_temperature_range(static_cast<int>(dryer.min_temp_c),
                                                          static_cast<int>(dryer.max_temp_c), range,
                                                          sizeof(range), false);
-        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s (%s)",
-                 lv_tr("Temp \xC2\xB0"
-                       "C"),
-                 range);
+        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s %s (%s)", lv_tr("Temp"),
+                 helix::units::display_temp_symbol(), range);
     } else {
-        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s",
-                 lv_tr("Temp \xC2\xB0"
-                       "C"));
+        snprintf(temp_range_buf_, sizeof(temp_range_buf_), "%s %s", lv_tr("Temp"),
+                 helix::units::display_temp_symbol());
     }
-    lv_subject_copy_string(&temp_range_subject_, temp_range_buf_);
+    lv_subject_set_string(&temp_range_subject_, temp_range_buf_);
 
     // Populate dryer presets and auto-select based on loaded materials. A value the
     // user typed is left alone: refresh() runs on every dryer and environment change,
@@ -896,7 +922,7 @@ void AmsEnvironmentOverlay::publish_selected_zone() {
     const size_t total = backend ? backend->get_environment_zones(-1).size() : zones_.size();
     const bool offer_all_zones = !overview_beneath && total > zones_.size();
     snprintf(all_zones_text_buf_, sizeof(all_zones_text_buf_), "%s", lv_tr("View all boxes"));
-    lv_subject_copy_string(&all_zones_text_subject_, all_zones_text_buf_);
+    lv_subject_set_string(&all_zones_text_subject_, all_zones_text_buf_);
     lv_subject_set_int(&all_zones_visible_subject_, offer_all_zones ? 1 : 0);
 }
 
@@ -980,7 +1006,7 @@ void AmsEnvironmentOverlay::update_comfort_text(float humidity_pct) {
         // Set text subject
         snprintf(comfort_text_buf_[row_idx], sizeof(comfort_text_buf_[row_idx]),
                  "%s: %s (< %.0f%%)", mat_name.c_str(), status_text, range->max_humidity_good);
-        lv_subject_copy_string(&comfort_text_[row_idx], comfort_text_buf_[row_idx]);
+        lv_subject_set_string(&comfort_text_[row_idx], comfort_text_buf_[row_idx]);
 
         // Show row
         lv_subject_set_int(&comfort_visible_[row_idx], 1);
@@ -1019,8 +1045,8 @@ void AmsEnvironmentOverlay::populate_presets() {
             options += '\n';
         }
         char buf[64];
-        snprintf(buf, sizeof(buf), "%s %g°C/%sh", preset.name.c_str(),
-                 dryer.clamp_temp(preset.temp_c),
+        snprintf(buf, sizeof(buf), "%s %s/%sh", preset.name.c_str(),
+                 helix::units::format_display_temp(dryer.clamp_temp(preset.temp_c)).c_str(),
                  format_duration_hours(preset.duration_min).c_str());
         options += buf;
     }
@@ -1046,7 +1072,8 @@ void AmsEnvironmentOverlay::apply_preset(int index) {
 
     if (temp_input_) {
         char buf[8];
-        snprintf(buf, sizeof(buf), "%d", static_cast<int>(applied_temp));
+        snprintf(buf, sizeof(buf), "%d",
+                 helix::units::to_display_temp_whole(static_cast<int>(applied_temp)));
         lv_textarea_set_text(temp_input_, buf);
     }
     if (duration_input_) {
@@ -1180,7 +1207,7 @@ void AmsEnvironmentOverlay::handle_start_stop() {
             if (temp_input_) {
                 const char* text = lv_textarea_get_text(temp_input_);
                 if (text && text[0])
-                    temp_c = static_cast<float>(atoi(text));
+                    temp_c = static_cast<float>(helix::units::display_temp_to_celsius(atoi(text)));
             }
             if (duration_input_) {
                 duration_min = parse_duration_hours(lv_textarea_get_text(duration_input_))
@@ -1256,12 +1283,14 @@ void open_environment_for_unit(int unit_index) {
         get_ams_zone_overview_overlay().show(lv_screen_active(), std::move(zones));
         return;
     case helix::printer::ZonePresentation::Tabs:
-        get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, true);
+        get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, true,
+                                                unit_index);
         return;
     case helix::printer::ZonePresentation::Single:
         break;
     }
-    get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, false);
+    get_ams_environment_overlay().show_zone(lv_screen_active(), std::move(zones), 0, false,
+                                            unit_index);
 }
 
 void ensure_ams_env_indicator_registered() {

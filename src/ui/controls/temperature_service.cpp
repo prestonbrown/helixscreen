@@ -9,7 +9,6 @@
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
 
@@ -18,11 +17,13 @@
 #include "app_globals.h"
 #include "chamber_stall_prompt.h"
 #include "core/observer_factory.h"
+#include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "printer_state.h"
+#include "system/subject_registry.h"
 #include "temp_graph_controller.h"
 #include "temperature_controller.h"
 #include "temperature_history_manager.h"
@@ -41,8 +42,8 @@
 #include <string>
 
 using namespace helix;
+using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees_f;
 
 // ============================================================================
 // Helper: heater type index
@@ -173,6 +174,14 @@ TemperatureService::TemperatureService(PrinterState& printer_state, IMoonrakerAP
         [](TemperatureService* self, int /*fan_target*/) { self->recompute_chamber_target(); },
         chamber.fan_target_lifetime);
 
+    // The display strings follow a °C/°F switch from the cached readings;
+    // update_display() is a no-op until init_subjects().
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](TemperatureService* self) {
+        for (int i = 0; i < helix::kHeaterTypeCount; ++i) {
+            self->update_display(static_cast<HeaterType>(i));
+        }
+    });
+
     // Register XML event callbacks (BEFORE any lv_xml_create calls)
     register_xml_callbacks({
         {"on_chamber_fault_reset_clicked", on_chamber_fault_reset_clicked},
@@ -268,7 +277,7 @@ void TemperatureService::update_display(HeaterType type) {
     auto& h = heaters_[idx(type)];
     char text[sizeof(h.display_buf)];
     format_display(h, text, sizeof(text));
-    lv_subject_copy_string(&h.display_subject, text);
+    lv_subject_set_string(&h.display_subject, text);
 }
 
 void TemperatureService::format_display(const HeaterState& h, char* buf, size_t size) {
@@ -312,7 +321,7 @@ void TemperatureService::update_status(HeaterType type) {
         snprintf(h.status_buf.data(), h.status_buf.size(), "%s", status.duty.c_str());
     }
 
-    lv_subject_copy_string(&h.status_subject, h.status_buf.data());
+    lv_subject_set_string(&h.status_subject, h.status_buf.data());
 
     int heating_state = (h.target > 0) ? 1 : 0;
     lv_subject_set_int(&h.heating_subject, heating_state);
@@ -391,8 +400,8 @@ void TemperatureService::deinit_subjects() {
 void TemperatureService::set_heater(HeaterType type, int current, int target) {
     auto& h = heaters_[idx(type)];
     helix::ui::temperature::validate_and_clamp_pair(
-        current, target, helix::ui::temperature::degrees_to_deci(h.min_temp),
-        helix::ui::temperature::degrees_to_deci(h.max_temp), heater_label(type));
+        current, target, helix::temperature_rules::degrees_to_deci(h.min_temp),
+        helix::temperature_rules::degrees_to_deci(h.max_temp), heater_label(type));
     h.current = current;
     h.target = target;
     update_display(type);
@@ -570,15 +579,17 @@ void TemperatureService::setup_mini_combined_graph(lv_obj_t* container) {
     }
     config.initial_features = features;
     {
+        const std::string& charted =
+            mini_graph_extruder_.empty() ? active_extruder_name_ : mini_graph_extruder_;
         helix::TempGraphSeriesSpec nozzle_spec;
-        nozzle_spec.klipper_name = active_extruder_name_;
+        nozzle_spec.klipper_name = charted;
         nozzle_spec.color = heaters_[idx(HeaterType::Nozzle)].config.color;
         nozzle_spec.show_target = true;
         // Source the localized "Nozzle [N]" label from PrinterTemperatureState
         // so the mini-graph legend matches the rest of the temp UI instead of
         // showing the raw Klipper "extruder" / "extruderN" identifier.
         const auto& exts = printer_state_.temperature_state().extruders();
-        auto it = exts.find(active_extruder_name_);
+        auto it = exts.find(charted);
         if (it != exts.end() && !it->second.display_name.empty())
             nozzle_spec.display_name = it->second.display_name;
         helix::TempGraphSeriesSpec bed_spec;
@@ -616,6 +627,17 @@ void TemperatureService::setup_mini_combined_graph(lv_obj_t* container) {
 
     spdlog::debug("[TempPanel] Mini combined graph created with {} point capacity",
                   kMiniGraphPoints);
+}
+
+void TemperatureService::set_mini_graph_extruder(const std::string& klipper_name) {
+    if (klipper_name == mini_graph_extruder_) {
+        return;
+    }
+    mini_graph_extruder_ = klipper_name;
+    if (mini_graph_controller_ && mini_graph_container_) {
+        mini_graph_controller_.reset();
+        setup_mini_combined_graph(mini_graph_container_);
+    }
 }
 
 void TemperatureService::register_heater_graph(ui_temp_graph_t* graph, SeriesId series_id,

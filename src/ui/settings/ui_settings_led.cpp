@@ -42,6 +42,7 @@ LedSettingsOverlay::~LedSettingsOverlay() {
 void LedSettingsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_INT(auto_state_enabled_subject_, 0, "led_auto_state_enabled", subjects_);
     UI_MANAGED_SUBJECT_INT(led_on_at_start_subject_, 0, "led_on_at_start_enabled", subjects_);
+    UI_MANAGED_SUBJECT_INT(startup_brightness_subject_, 0, "led_startup_brightness", subjects_);
     UI_MANAGED_SUBJECT_INT(print_macros_drive_leds_subject_, 0, "led_print_macros_drive_leds",
                            subjects_);
     UI_MANAGED_SUBJECT_INT(auto_preset_count_, 0, "led_auto_preset_count", subjects_);
@@ -107,16 +108,14 @@ void LedSettingsOverlay::init_led_on_at_start_toggle() {
 
     // The toggle row binds this subject, and the slider row hides on it
     lv_subject_set_int(&led_on_at_start_subject_, ctrl.get_led_on_at_start() ? 1 : 0);
+    // The slider row's readout binds this one
+    lv_subject_set_int(&startup_brightness_subject_, ctrl.get_startup_brightness());
 
     lv_obj_t* brightness_row = find_required(overlay_root_, "row_startup_brightness", get_name());
     if (brightness_row) {
         lv_obj_t* slider = helix::ui::find_required(brightness_row, "slider", get_name());
         if (slider) {
             lv_slider_set_value(slider, ctrl.get_startup_brightness(), LV_ANIM_OFF);
-        }
-        lv_obj_t* value_label = helix::ui::find_required(brightness_row, "value_label", get_name());
-        if (value_label) {
-            lv_label_set_text_fmt(value_label, "%d%%", ctrl.get_startup_brightness());
         }
     }
 }
@@ -174,7 +173,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
             lv_label_set_text(note, lv_tr("No LED macros detected on your printer. "
                                           "Add Klipper macros for LED control first."));
             lv_obj_set_width(note, lv_pct(100));
-            lv_label_set_long_mode(note, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(note, LV_LABEL_LONG_MODE_WRAP);
             lv_obj_set_style_text_color(note, theme_manager_get_color("text_subtle"), 0);
             int32_t note_pad_hor = theme_manager_get_spacing("space_xl");
             lv_obj_set_style_pad_left(note, note_pad_hor, 0);
@@ -213,7 +212,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
         lv_obj_set_style_pad_gap(header_row, theme_manager_get_spacing("space_sm"), 0);
         lv_obj_set_style_bg_opa(header_row, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(header_row, 0, 0);
-        lv_obj_remove_flag(header_row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(header_row, false);
 
         // Device name
         auto* name_label = lv_label_create(header_row);
@@ -245,7 +244,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
         lv_obj_set_style_bg_opa(spacer, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(spacer, 0, 0);
         lv_obj_set_style_pad_all(spacer, 0, 0);
-        lv_obj_remove_flag(spacer, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(spacer, false);
 
         // Icon-only edit/delete buttons share the larger touch target. Read once
         // per row; the token is flat today but reading it keeps these in step if
@@ -314,7 +313,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
 
             auto* summary_label = lv_label_create(card);
             lv_label_set_text(summary_label, summary.c_str());
-            lv_label_set_long_mode(summary_label, LV_LABEL_LONG_WRAP);
+            lv_label_set_long_mode(summary_label, LV_LABEL_LONG_MODE_WRAP);
             lv_obj_set_width(summary_label, lv_pct(100));
             lv_obj_set_style_text_color(summary_label, text_muted, 0);
         }
@@ -329,7 +328,7 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
             lv_obj_set_style_pad_gap(edit_container, theme_manager_get_spacing("space_sm"), 0);
             lv_obj_set_style_bg_opa(edit_container, LV_OPA_TRANSP, 0);
             lv_obj_set_style_border_width(edit_container, 0, 0);
-            lv_obj_remove_flag(edit_container, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_scrollable(edit_container, false);
             lv_obj_set_name(edit_container, fmt::format("macro_edit_{}", i).c_str());
 
             rebuild_macro_edit_controls(edit_container, i);
@@ -397,7 +396,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     // Type help text (form rebuilds on type change, so static text is fine)
     auto* type_help = lv_label_create(container);
     lv_obj_set_width(type_help, lv_pct(100));
-    lv_label_set_long_mode(type_help, LV_LABEL_LONG_WRAP);
+    lv_label_set_long_mode(type_help, LV_LABEL_LONG_MODE_WRAP);
     lv_obj_set_style_text_color(type_help, theme_manager_get_color("text_subtle"), 0);
     int32_t help_pad_hor = theme_manager_get_spacing("space_xl");
     lv_obj_set_style_pad_left(type_help, help_pad_hor, 0);
@@ -495,7 +494,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
         // Not fatal any more -- the fields below still take a typed macro name.
         auto* no_macros = lv_label_create(container);
         lv_label_set_text(no_macros, lv_tr("No LED macros detected. Type a macro name below."));
-        lv_label_set_long_mode(no_macros, LV_LABEL_LONG_WRAP);
+        lv_label_set_long_mode(no_macros, LV_LABEL_LONG_MODE_WRAP);
         lv_obj_set_width(no_macros, lv_pct(100));
         lv_obj_set_style_text_color(no_macros, theme_manager_get_color("text_subtle"), 0);
     }
@@ -536,7 +535,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
                 lv_obj_set_style_pad_gap(preset_row, theme_manager_get_spacing("space_xxs"), 0);
                 lv_obj_set_style_bg_opa(preset_row, LV_OPA_TRANSP, 0);
                 lv_obj_set_style_border_width(preset_row, 0, 0);
-                lv_obj_remove_flag(preset_row, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_scrollable(preset_row, false);
                 lv_obj_set_name(preset_row,
                                 fmt::format("macro_preset_row_{}_{}", index, p).c_str());
 
@@ -663,7 +662,7 @@ void LedSettingsOverlay::rebuild_macro_edit_controls(lv_obj_t* container, int in
     lv_obj_set_style_pad_all(save_row, 0, 0);
     lv_obj_set_style_bg_opa(save_row, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(save_row, 0, 0);
-    lv_obj_remove_flag(save_row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(save_row, false);
 
     auto* save_btn = lv_button_create(save_row);
     // Named so `helix-screen ctl` can drive the save path end to end.
@@ -1017,13 +1016,7 @@ void LedSettingsOverlay::handle_startup_brightness_changed(int value) {
     // which handle_startup_brightness_commit() handles.
     spdlog::debug("[{}] Startup brightness preview: {}%", get_name(), value);
     helix::led::LedController::instance().set_startup_brightness(value);
-
-    // Update the value label
-    lv_obj_t* brightness_row = find_required(overlay_root_, "row_startup_brightness", get_name());
-    if (lv_obj_t* value_label =
-            helix::ui::find_required(brightness_row, "value_label", get_name())) {
-        lv_label_set_text_fmt(value_label, "%d%%", value);
-    }
+    lv_subject_set_int(&startup_brightness_subject_, value);
 }
 
 void LedSettingsOverlay::handle_auto_state_changed(bool enabled) {
@@ -1165,7 +1158,9 @@ void LedSettingsOverlay::populate_auto_state_rows() {
             options_str += lv_tr("Macro");
     }
 
-    for (const auto& state : kStateRows) {
+    auto_detail_shown_pool_.ensure_size(kStateRowCount);
+    for (size_t row_index = 0; row_index < kStateRowCount; ++row_index) {
+        const auto& state = kStateRows[row_index];
         std::string key = state.key;
 
         // Get current action for this state
@@ -1222,19 +1217,18 @@ void LedSettingsOverlay::populate_auto_state_rows() {
 
         // --- Detail row (shown/hidden based on action type) ---
         bool needs_detail = (action.action_type != "off" && !action.action_type.empty());
+        auto_detail_shown_pool_.set_int(row_index, needs_detail ? 1 : 0);
 
+        const std::string shown = fmt::format("led_auto_detail_shown_{}", row_index);
+        const char* detail_attrs[] = {"shown_subject", shown.c_str(), nullptr};
         auto* detail =
-            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_detail_panel", nullptr));
+            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_detail_panel", detail_attrs));
         auto* ctx_container = helix::ui::find_required(detail, "controls", get_name());
         if (!ctx_container) {
             continue;
         }
         lv_obj_set_name(detail, fmt::format("detail_{}", key).c_str());
         lv_obj_set_name(ctx_container, fmt::format("ctx_{}", key).c_str());
-
-        if (!needs_detail) {
-            lv_obj_add_flag(detail, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: row child, not a root
-        }
 
         // Populate contextual controls for current action type
         rebuild_contextual_controls(key, ctx_container);
@@ -1533,15 +1527,10 @@ void LedSettingsOverlay::handle_action_type_changed(const std::string& state_key
     helix::led::LedAutoState::instance().set_mapping(state_key, action);
     save_and_evaluate(state_key);
 
-    // Show or hide the detail row based on new action type
-    std::string detail_name = fmt::format("detail_{}", state_key);
-    lv_obj_t* detail = lv_obj_find_by_name(overlay_root_, detail_name.c_str());
-    if (detail) {
-        if (new_type == "off") {
-            lv_obj_add_flag(detail, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(detail, LV_OBJ_FLAG_HIDDEN);
-        }
+    // The row's detail panel binds this
+    const auto row = state_row_index(state_key);
+    if (row && *row < auto_detail_shown_pool_.size()) {
+        auto_detail_shown_pool_.set_int(*row, new_type == "off" ? 0 : 1);
     }
 
     // SAFETY: Defer rebuild — the dropdown that fired this VALUE_CHANGED event is a

@@ -13,7 +13,8 @@
         style_pad_all="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
 
     <!-- ==================== HEADER ==================== -->
-    <header_bar name="overlay_header" title="New Spool: Step 1 of 3" title_tag="New Spool"/>
+    <header_bar name="overlay_header"
+                title="New Spool: Step 1 of 3" title_tag="New Spool" title_subject="spool_wizard_step_label"/>
 
     <!-- ==================== CONTENT AREA ==================== -->
     <lv_obj name="overlay_content"

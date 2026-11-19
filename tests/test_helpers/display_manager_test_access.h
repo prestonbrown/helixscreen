@@ -116,6 +116,28 @@ class DisplayManagerTestAccess {
         dm.watch_keyboard();
     }
 
+    // Whether a deleted pointer is waiting to be reopened (#2069).
+    static bool pointer_reopen_pending(const DisplayManager& dm) {
+        return dm.m_pointer_reopen_timer.get() != nullptr;
+    }
+
+    // Runs one retry of the pending pointer reopen directly, without going
+    // through lv_timer_handler(), which would also run every other timer.
+    static void run_pointer_reopen_tick(DisplayManager& dm) {
+        DisplayManager::pointer_reopen_tick(dm.m_pointer_reopen_timer.get());
+    }
+
+    // Whether m_pointer reads through the sleep-aware wrapper init() installs.
+    static bool pointer_is_sleep_wrapped(const DisplayManager& dm) {
+        return dm.m_pointer != nullptr &&
+               lv_indev_get_read_cb(dm.m_pointer) == &DisplayManager::sleep_aware_read_cb;
+    }
+
+    // shutdown() sets this before lv_deinit() deletes every remaining indev.
+    static void set_shutting_down(DisplayManager& dm, bool shutting_down) {
+        dm.m_shutting_down = shutting_down;
+    }
+
     // Creates the debug-touch ripple timer against the manager's current
     // m_pointer. init() calls this once; a test drives it directly so it can
     // exist against an injected pointer without a full init().
@@ -225,4 +247,21 @@ class DisplayManagerTestAccess {
         dm.m_sleep.m_screensaver_active = active;
     }
 #endif
+};
+
+/// Publishes @p dm as DisplayManager::instance() for a scope and restores the manager that
+/// was published before it, for a test that never runs init().
+class ActiveDisplayManagerScope {
+  public:
+    explicit ActiveDisplayManagerScope(DisplayManager* dm) : previous_(DisplayManager::instance()) {
+        DisplayManagerTestAccess::set_active_instance(dm);
+    }
+    ~ActiveDisplayManagerScope() {
+        DisplayManagerTestAccess::set_active_instance(previous_);
+    }
+    ActiveDisplayManagerScope(const ActiveDisplayManagerScope&) = delete;
+    ActiveDisplayManagerScope& operator=(const ActiveDisplayManagerScope&) = delete;
+
+  private:
+    DisplayManager* previous_;
 };

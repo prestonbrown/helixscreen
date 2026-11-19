@@ -21,6 +21,8 @@
  */
 
 #include "../test_fixtures.h"
+#include "../test_helpers/xml_stand_in_subject.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "lvgl/lvgl.h"
@@ -49,15 +51,8 @@ constexpr const char* kFixtureXml = R"(<component>
 
 /// The bind's subject. Registered into the global XML scope once; the value is
 /// per-test state, so every test sets it before creating the component.
-lv_subject_t& mode_subject() {
-    static lv_subject_t subject;
-    static bool registered = false;
-    if (!registered) {
-        lv_subject_init_int(&subject, 0);
-        lv_xml_register_subject(nullptr, kModeSubject, &subject);
-        registered = true;
-    }
-    return subject;
+lv_subject_t* mode_subject() {
+    return helix::test::xml_stand_in(kModeSubject, 0);
 }
 
 /// Register the fixture component (idempotent across test cases) and create it.
@@ -81,7 +76,7 @@ const lv_font_t* resolved_font(const char* token) {
 
 TEST_CASE("A bound text_font overrides the semantic font and releases cleanly", "[xml][1614]") {
     XMLTestFixture fixture;
-    auto& mode = mode_subject();
+    lv_subject_t* mode = mode_subject();
 
     const lv_font_t* small = resolved_font("font_small");
     const lv_font_t* xs = resolved_font("font_xs");
@@ -97,27 +92,27 @@ TEST_CASE("A bound text_font overrides the semantic font and releases cleanly", 
     REQUIRE(plain != nullptr);
 
     SECTION("subject selects the bound font, and de-selecting restores the semantic one") {
-        lv_subject_set_int(&mode, 1);
+        lv_subject_set_int(mode, 1);
         CHECK(lv_obj_get_style_text_font(bound, LV_PART_MAIN) == xs);
 
-        lv_subject_set_int(&mode, 0);
+        lv_subject_set_int(mode, 0);
         CHECK(lv_obj_get_style_text_font(bound, LV_PART_MAIN) == small);
     }
 
     SECTION("with the bind inactive the label keeps its semantic font") {
-        lv_subject_set_int(&mode, 0);
+        lv_subject_set_int(mode, 0);
         CHECK(lv_obj_get_style_text_font(bound, LV_PART_MAIN) == small);
     }
 
     SECTION("a label with no font bind renders the semantic font") {
-        lv_subject_set_int(&mode, 1);
+        lv_subject_set_int(mode, 1);
         CHECK(lv_obj_get_style_text_font(plain, LV_PART_MAIN) == small);
     }
 }
 
 TEST_CASE("An inline style_text_font still outranks the semantic and bound fonts", "[xml][1614]") {
     XMLTestFixture fixture;
-    auto& mode = mode_subject();
+    lv_subject_t* mode = mode_subject();
 
     const lv_font_t* small = resolved_font("font_small");
     const lv_font_t* xs = resolved_font("font_xs");
@@ -130,9 +125,9 @@ TEST_CASE("An inline style_text_font still outranks the semantic and bound fonts
 
     // Local on both sides of the subject: the inline attribute is evaluated
     // once at parse time and must hold regardless of the bound style's state.
-    lv_subject_set_int(&mode, 1);
+    lv_subject_set_int(mode, 1);
     CHECK(lv_obj_get_style_text_font(inline_lbl, LV_PART_MAIN) == xs);
-    lv_subject_set_int(&mode, 0);
+    lv_subject_set_int(mode, 0);
     CHECK(lv_obj_get_style_text_font(inline_lbl, LV_PART_MAIN) == xs);
 
     // And it is genuinely overriding a different semantic font, not echoing it.

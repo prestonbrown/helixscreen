@@ -8,6 +8,7 @@
 #include "core/update_queue.h"
 #include "env_knobs.h"
 #include "gcode_parser.h"
+#include "macro_manager.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_client_mock_internal.h"
@@ -18,6 +19,7 @@
 #include "screws_tilt_parser.h"
 #include "sensor_state.h"
 #include "thumbnail_rules.h"
+#include "timelapse_host_mock.h"
 #include "timelapse_state.h"
 
 #include <spdlog/spdlog.h>
@@ -542,6 +544,12 @@ void MoonrakerFileTransferAPIMock::download_file(const std::string& root, const 
             return;
         }
     }
+    if (root == "config" && config_files_.empty() && path == helix::kHelixMacrosFilename &&
+        helix::mock::timelapse_helix_macros_loaded()) {
+        if (on_success)
+            on_success(helix::mock::timelapse_mock_helix_macros_file());
+        return;
+    }
     if (root == "config" && !config_files_.empty()) {
         auto it = config_files_.find(path);
         if (it != config_files_.end()) {
@@ -998,6 +1006,9 @@ void MoonrakerFileTransferAPIMock::upload_file_with_name(const std::string& root
     // filename; a subdirectory prefixes it.
     if (root == "config" && !config_files_.empty()) {
         config_files_[path.empty() ? filename : path + "/" + filename] = content;
+    } else if (root == "config" && path.empty() && filename == helix::kHelixMacrosFilename &&
+               helix::mock::timelapse_helix_macros_loaded()) {
+        helix::mock::timelapse_mock_helix_macros_file() = content;
     }
 
     // Mock always succeeds
@@ -1802,6 +1813,29 @@ MoonrakerTimelapseAPIMock::MoonrakerTimelapseAPIMock(MoonrakerClient& client,
     // overlay calls on_activate(). Can't set here — subjects not yet initialized.
 }
 
+void MoonrakerTimelapseAPIMock::get_timelapse_settings(TimelapseSettingsCallback on_success,
+                                                       ErrorCallback on_error) {
+    if (helix::mock::timelapse_plugin_present()) {
+        // The body real Moonraker sends: the plugin's dict wrapped in "result",
+        // with floats where the app reads integers.
+        static constexpr const char* kSettingsBody =
+            R"({"result":{"enabled":false,"mode":"layermacro","output_framerate":30,)"
+            R"("autorender":true,"park_retract_distance":1.0,"park_extrude_speed":15,)"
+            R"("hyperlapse_cycle":30,"blockedsettings":[]}})";
+        TimelapseSettings settings;
+        helix::parse_timelapse_settings(kSettingsBody, settings);
+        if (on_success) {
+            on_success(settings);
+        }
+        return;
+    }
+    spdlog::debug(
+        "[MoonrakerAPIMock] get_timelapse_settings: plugin absent (HELIX_MOCK_TIMELAPSE)");
+    if (on_error) {
+        on_error(MoonrakerError::http_status_error("get_timelapse_settings", 404));
+    }
+}
+
 void MoonrakerTimelapseAPIMock::render_timelapse(SuccessCallback on_success,
                                                  ErrorCallback /*on_error*/) {
     spdlog::info("[MoonrakerAPIMock] render_timelapse (mock) - simulating render progress");
@@ -1873,7 +1907,7 @@ void MoonrakerTimelapseAPIMock::get_last_frame_info(
     // Set frame count and capture info subjects directly (we're on the UI thread)
     auto& tl = helix::TimelapseState::instance();
     lv_subject_set_int(tl.get_frame_count_subject(), 42);
-    lv_subject_copy_string(tl.get_capture_info_subject(), "3DBenchy.gcode \xC2\xB7 Mar 10, 14:32");
+    lv_subject_set_string(tl.get_capture_info_subject(), "3DBenchy.gcode \xC2\xB7 Mar 10, 14:32");
 
     if (on_success) {
         LastFrameInfo info;

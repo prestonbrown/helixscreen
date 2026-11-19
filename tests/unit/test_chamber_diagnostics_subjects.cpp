@@ -12,6 +12,8 @@
 #include "app_globals.h"
 #include "chamber_heater_assignment.h"
 #include "chamber_heater_backend.h"
+#include "core/temp_unit_subject.h"
+#include "core/update_queue.h"
 #include "printer_capabilities_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -74,6 +76,24 @@ TEST_CASE_METHOD(ChamberTemps, "dragonbreath status drives diagnostics subjects"
     CHECK(lv_subject_get_int(ts.get_chamber_filter_fan_on_subject()) == 1);
     // Capabilities are set by PrinterState::set_hardware in production; unit-level here:
     CHECK(ts.chamber_diagnostics_object() == "dragonbreath");
+
+    // A °C/°F switch reformats the element reading; a re-initialised state has none to show.
+    auto element = [this] {
+        return std::string(
+            lv_subject_get_string(ts.get_chamber_heater_element_temp_text_subject()));
+    };
+    auto show = [](helix::units::TempUnit unit) {
+        helix::units::set_display_temp_unit(unit);
+        helix::units::publish_temp_unit();
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    show(helix::units::TempUnit::Fahrenheit);
+    CHECK(element() == "223°F");
+    ts.deinit_subjects();
+    ts.init_subjects(false);
+    const std::string fresh = element();
+    show(helix::units::TempUnit::Celsius);
+    CHECK(element() == fresh);
 }
 
 TEST_CASE_METHOD(ChamberTemps, "fault reason kinds map to translated phrases at the subject border",
@@ -692,6 +712,10 @@ TEST_CASE_METHOD(ChamberTemps, "stock drying status drives the dryer subjects",
     ts.update_from_status(nlohmann::json{{"heater_generic panda_breath", {{"temperature", 41.4}}}});
     CHECK(lv_subject_get_int(ts.get_chamber_dryer_active_subject()) == 1);
     CHECK(text() == "41/55°C  3:12 " + left);
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit);
+    helix::units::publish_temp_unit();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(text() == "106/131°F  3:12 " + left);
 
     ts.update_from_status(nlohmann::json::parse(R"({"panda_breath": {
         "work_on": false, "filament_drying_active": false, "remaining_seconds": 0}})"));

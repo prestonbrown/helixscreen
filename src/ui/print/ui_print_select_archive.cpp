@@ -8,8 +8,8 @@
 #include "ui_panel_print_select.h"
 
 #include "core/gcode_filename.h"
-#include "core/text_io.h"
 #include "core/update_queue.h"
+#include "filament_chip_model.h"
 #include "lvgl.h"
 #include "three_mf_reader.h"
 #include "thumbnail_cache.h"
@@ -201,10 +201,7 @@ void PrintSelectPanel::show_archive_plate(size_t i, int plate_index) {
     // The card keeps the whole file's time and weight; the detail view shows
     // the plate's (apply_plate_stats_to_detail()).
     const FileMetadata plate_meta = three_mf::plate_file_metadata(*plate);
-    file.filament_types.clear();
-    for (std::string_view t : text_io::lines(plate_meta.filament_type, ';')) {
-        file.filament_types.emplace_back(t);
-    }
+    file.filament_types = split_filament_types(plate_meta.filament_type);
     file.filament_colors = plate_meta.filament_colors;
     file.filament_type = file.filament_types.empty() ? "" : file.filament_types.front();
     selected_filament_type_ = file.filament_type;
@@ -238,8 +235,8 @@ void PrintSelectPanel::update_plate_stepper() {
             }
         }
     }
-    lv_subject_copy_string(&selected_plate_text_subject_, text.c_str());
-    lv_subject_copy_string(&selected_plate_position_subject_, position.c_str());
+    lv_subject_set_string(&selected_plate_text_subject_, text.c_str());
+    lv_subject_set_string(&selected_plate_position_subject_, position.c_str());
     lv_subject_set_int(&selected_plate_count_subject_, count);
     sync_archive_scan_source();
 }

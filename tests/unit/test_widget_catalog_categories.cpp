@@ -286,7 +286,7 @@ class WidgetCatalogCategoryFixture : public LVGLUITestFixture {
         uint32_t visible = 0;
         for (uint32_t i = 0; parent && i < lv_obj_get_child_count(parent); i++) {
             lv_obj_t* row = lv_obj_get_child(parent, static_cast<int32_t>(i));
-            if (row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+            if (row && !lv_obj_is_hidden(row)) {
                 visible++;
             }
         }
@@ -681,7 +681,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     collect_labels(row, labels);
     CHECK(std::any_of(labels.begin(), labels.end(),
                       [](const std::string& l) { return l.find(" (") != std::string::npos; }));
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(row));
     CHECK(lv_obj_get_style_opa(row, LV_PART_MAIN) < LV_OPA_COVER);
 
     // Tapping it must not mint an instance.
@@ -855,8 +855,8 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     REQUIRE(results != nullptr);
 
     // Blank box = browse view.
-    CHECK_FALSE(lv_obj_has_flag(browse, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(level, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(browse));
+    CHECK(lv_obj_is_hidden(level));
 
     // A query that matches some but not everything: the fixture defaults gate
     // several defs, so "nozzle" (two labels, one description) is a real filter.
@@ -865,15 +865,15 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     REQUIRE(expected.size() < get_all_widget_defs().size());
 
     type_query("nozzle");
-    CHECK(lv_obj_has_flag(browse, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(level, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(browse));
+    CHECK_FALSE(lv_obj_is_hidden(level));
     CHECK(visible_rows(results) == expected.size());
     // Rows carry their def ids, so membership is exact, not just a count.
     for (const auto& id : expected) {
         lv_obj_t* row = lv_obj_find_by_name(results, id.c_str());
         INFO("expected hit: " << id);
         REQUIRE(row != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(row));
     }
     // The match count subject drives the empty-result message.
     lv_subject_t* count = lv_xml_get_subject(nullptr, "widget_catalog_match_count");
@@ -882,8 +882,8 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
 
     // Clearing the box restores the category list.
     type_query("");
-    CHECK_FALSE(lv_obj_has_flag(browse, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(level, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(browse));
+    CHECK(lv_obj_is_hidden(level));
 
     force_close();
 }
@@ -913,19 +913,19 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
 
     lv_obj_t* message = search_empty_message();
     REQUIRE(message != nullptr);
-    CHECK(lv_obj_has_flag(message, LV_OBJ_FLAG_HIDDEN)); // hidden while browsing
+    CHECK(lv_obj_is_hidden(message)); // hidden while browsing
 
     type_query("zzzqxv");
     lv_obj_t* results = search_results();
     REQUIRE(results != nullptr);
     CHECK(visible_rows(results) == 0);
     // Zero matches is what unhides it — the message itself must be visible.
-    CHECK_FALSE(lv_obj_has_flag(message, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(message));
 
     // And a query with matches hides it again.
     type_query("nozzle");
     CHECK(visible_rows(results) > 0);
-    CHECK(lv_obj_has_flag(message, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(message));
 
     force_close();
 }
@@ -982,7 +982,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     CHECK(visible_rows(results) == expected.size());
     lv_obj_t* row = lv_obj_find_by_name(results, carrier->id);
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     force_close();
 }
@@ -1008,9 +1008,9 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     REQUIRE(results != nullptr);
     lv_obj_t* row = lv_obj_find_by_name(results, target->id);
     REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(row));
     CHECK(lv_obj_get_style_opa(row, LV_PART_MAIN) < LV_OPA_COVER);
     std::vector<std::string> labels;
     collect_labels(row, labels);
@@ -1033,7 +1033,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
 
     lv_obj_t* reset = lv_obj_find_by_name(root, "action_button");
     REQUIRE(reset != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(reset, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reset));
 
     // Tapping it opens the reset confirmation, not a silent no-op.
     REQUIRE(ModalStack::instance().empty());
@@ -1138,7 +1138,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     REQUIRE(scroll != nullptr);
     lv_obj_t* row = lv_obj_find_by_name(scroll, target.id);
     REQUIRE(row != nullptr);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(row));
 
     force_close();
 }
@@ -1158,25 +1158,25 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     REQUIRE(results != nullptr);
     lv_obj_t* row = lv_obj_find_by_name(results, target.id);
     REQUIRE(row != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE_FALSE(lv_obj_is_clickable(row));
 
     lv_subject_set_int(gate, 1);
     settle();
 
     row = lv_obj_find_by_name(results, target.id);
     REQUIRE(row != nullptr);
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(row));
     CHECK(lv_obj_get_style_opa(row, LV_PART_MAIN) == LV_OPA_COVER);
 
     // Still in the search view, filtered by the query still in the box.
-    CHECK_FALSE(lv_obj_has_flag(search_level(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(search_level()));
     const auto expected = expected_search_hits(query);
     CHECK(visible_rows(results) == expected.size());
     for (const auto& id : expected) {
         lv_obj_t* hit = lv_obj_find_by_name(results, id.c_str());
         INFO("expected hit: " << id);
         REQUIRE(hit != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(hit, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(hit));
     }
 
     force_close();
@@ -1325,7 +1325,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     // A query naming the new def leaves exactly its row visible.
     type_query("Qz Runtime Tile");
     CHECK(visible_rows(results) == 1);
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
 
     // A query matching nothing must hide it too: entries rebuilt with the rows
     // filter the new def like any built-in.
@@ -1381,7 +1381,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     REQUIRE(beta != nullptr);
     type_query("Swap Beta");
     CHECK(visible_rows(results) == 1);
-    CHECK_FALSE(lv_obj_has_flag(beta, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(beta));
 
     unregister_runtime_widget_def("rt-swap-b");
     deliver_defs_change();

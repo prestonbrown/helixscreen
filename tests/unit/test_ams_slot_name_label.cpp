@@ -68,7 +68,7 @@ std::string text_of(lv_obj_t* label) {
 }
 
 bool shown(lv_obj_t* obj) {
-    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(obj);
 }
 
 /// Seed slot @p i's name/material/lane_state subjects as one sync would.
@@ -77,8 +77,8 @@ void seed_slot(int i, const char* name, const char* material,
     auto& ams = AmsState::instance();
     lv_subject_t* name_subject = ams.get_slot_name_subject(i);
     REQUIRE(name_subject != nullptr);
-    lv_subject_copy_string(name_subject, name);
-    lv_subject_copy_string(ams.get_slot_material_subject(i), material);
+    lv_subject_set_string(name_subject, name);
+    lv_subject_set_string(ams.get_slot_material_subject(i), material);
     lv_subject_set_int(ams.get_slot_lane_state_subject(i), static_cast<int>(state));
 }
 
@@ -269,7 +269,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a slot past the backend's count h
                  "[ams][slot_name][state]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(true);
-    lv_subject_copy_string(ams.get_slot_name_subject(5), "Stale Spool");
+    lv_subject_set_string(ams.get_slot_name_subject(5), "Stale Spool");
     ams.set_backend(std::make_unique<AmsBackendMock>(4));
     ams.sync_from_backend();
 
@@ -464,13 +464,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a new name with the same material
     REQUIRE(slot != nullptr);
     REQUIRE(text_of(name_label(slot)) == "Bone White");
 
-    lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0), "Jet Black");
+    lv_subject_set_string(AmsState::instance().get_slot_name_subject(0), "Jet Black");
     process_lvgl(50);
     CHECK(text_of(name_label(slot)) == "Jet Black");
     CHECK(text_of(material_label(slot)) == "PLA");
 
     // Losing the name falls back to the material line alone.
-    lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0), "");
+    lv_subject_set_string(AmsState::instance().get_slot_name_subject(0), "");
     process_lvgl(50);
     CHECK_FALSE(shown(name_label(slot)));
     CHECK(text_of(material_label(slot)) == "PLA");
@@ -524,8 +524,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
     SubjectLifetime lt;
     lv_subject_t* sec_name = ams.get_slot_name_subject(second, 0, lt);
     REQUIRE(sec_name != nullptr);
-    lv_subject_copy_string(sec_name, "Secondary Name");
-    lv_subject_copy_string(ams.get_slot_material_subject(second, 0, lt), "PLA");
+    lv_subject_set_string(sec_name, "Secondary Name");
+    lv_subject_set_string(ams.get_slot_material_subject(second, 0, lt), "PLA");
     lv_subject_set_int(ams.get_slot_lane_state_subject(second, 0, lt),
                        static_cast<int>(helix::ui::LaneState::Present));
 
@@ -534,7 +534,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows 
     REQUIRE(slot != nullptr);
     CHECK(text_of(name_label(slot)) == "Secondary Name");
 
-    lv_subject_copy_string(sec_name, "Secondary Renamed");
+    lv_subject_set_string(sec_name, "Secondary Renamed");
     process_lvgl(50);
     CHECK(text_of(name_label(slot)) == "Secondary Renamed");
 
@@ -562,14 +562,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a brand too wide for the slot hid
     // Far wider than the slot: the line goes rather than showing a few letters.
     const char* wide = "Polymaker PolyTerra Ambrosia Pink Matte";
     REQUIRE(helix::ui::text_width(wide, font, 0) > lv_obj_get_content_width(slot));
-    lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0), wide);
+    lv_subject_set_string(AmsState::instance().get_slot_name_subject(0), wide);
     process_lvgl(50);
     CHECK(text_of(name).empty());
     CHECK_FALSE(shown(name));
     CHECK(text_of(material_label(slot)) == "PLA");
 
     // A narrower slot drops a brand that fit before.
-    lv_subject_copy_string(AmsState::instance().get_slot_name_subject(0), "eSUN");
+    lv_subject_set_string(AmsState::instance().get_slot_name_subject(0), "eSUN");
     process_lvgl(50);
     REQUIRE(text_of(name) == "eSUN");
     lv_obj_set_width(slot, helix::ui::text_width("eSUN", font, 0) / 2);
@@ -671,9 +671,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a later material notify does not 
     lv_subject_t* material_subject = AmsState::instance().get_slot_material_subject(3);
     REQUIRE(material_subject != nullptr);
     // Round-trip through a non-empty value so the subject genuinely notifies twice.
-    lv_subject_copy_string(material_subject, "PLA");
+    lv_subject_set_string(material_subject, "PLA");
     process_lvgl(20);
-    lv_subject_copy_string(material_subject, "");
+    lv_subject_set_string(material_subject, "");
     process_lvgl(20);
 
     CHECK(text_of(material_label(slot)) == std::string(lv_tr("Empty")));

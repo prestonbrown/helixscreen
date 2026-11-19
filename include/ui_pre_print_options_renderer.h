@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "pre_print_option.h"
 
 #include <functional>
@@ -20,7 +20,7 @@ namespace helix::ui {
  * @file ui_pre_print_options_renderer.h
  * @brief Renders the per-print toggle list on the print-detail panel.
  *
- * Owns the per-option `lv_subject_t` state (one int subject per option in the
+ * Owns the per-option `helix::Subject` state (one int subject per option in the
  * active printer's `PrePrintOptionSet`). Builds a 2-column grid of checkable
  * `option_tile` pills: one per option, icon + 2-line label, filled with the
  * primary tint and showing a check in place of the icon when checked. Categories are used
@@ -29,20 +29,19 @@ namespace helix::ui {
  *
  * Visibility per row may be bound to a caller-supplied subject via the
  * `VisibilitySubjectLookup` callback — returning a non-null subject hides the
- * row when it reads 0. The current detail-view caller passes a lookup that
- * always returns nullptr (declared options are always visible) but the hook
- * remains available for future plugin-/macro-gated options.
+ * row when it reads 0. The detail view passes a lookup that always returns
+ * nullptr, so its declared options are always visible.
  *
  * The renderer does NOT decide visibility itself — the caller passes the
  * lookup function.
  *
  * ## Subject lifecycle
  *
- * Per-option state subjects are heap-allocated `lv_subject_t` instances owned
+ * Per-option state subjects are heap-allocated `helix::Subject` instances owned
  * by `OptionRow::state_subject`. They are paired one-to-one with their row
  * widget. The pairing means subject and observers always die together inside
  * `clear()` / the destructor, so no `SubjectLifetime` token is needed: when a
- * row's owning subject is deinited, all of that subject's observers are
+ * row's owning subject is reset, all of that subject's observers are
  * uninstalled atomically. There is no scenario where the subject can outlive
  * its observers (or vice-versa) since both are stored in the same `OptionRow`
  * struct.
@@ -55,7 +54,7 @@ namespace helix::ui {
  *
  *   1. From `populate()` rebuild path — `clear()` runs BEFORE
  *      `safe_clean_children`. Widgets are still alive at deinit time, so
- *      `lv_subject_deinit` walks each observer's widget and removes the
+ *      `reset()` walks each observer's widget and removes the
  *      `LV_EVENT_DELETE` cleanup callback cleanly.
  *
  *   2. From `OverlayBase::on_ui_destroyed()` (panel close) — widgets are
@@ -65,7 +64,7 @@ namespace helix::ui {
  *   3. From the renderer destructor at static teardown — widgets may already
  *      be gone (LVGL deleted them earlier). In that case, observers were
  *      auto-removed when the widgets were deleted, so the subject's observer
- *      list is already empty and `lv_subject_deinit` is a no-op cleanup that
+ *      list is already empty and `reset()` is a no-op cleanup that
  *      still frees the subject's internal lists.
  */
 class PrePrintOptionsRenderer {
@@ -76,8 +75,7 @@ class PrePrintOptionsRenderer {
      * Returning nullptr leaves the row visible unconditionally — used for
      * options whose visibility is purely driven by the option set being
      * present in the database (e.g. timelapse or framework-only options).
-     * Future plugin-/macro-gated options can plug a per-option visibility
-     * subject in here.
+     * A plugin- or macro-gated option can return its visibility subject here.
      */
     using VisibilitySubjectLookup = std::function<lv_subject_t*(const std::string& id)>;
 
@@ -185,7 +183,7 @@ class PrePrintOptionsRenderer {
         std::string id;
         lv_obj_t* row = nullptr;
         lv_obj_t* toggle_widget = nullptr;
-        std::unique_ptr<lv_subject_t> state_subject;
+        std::unique_ptr<helix::Subject> state_subject;
     };
 
     /// Resolve the untranslated i18n key for an option's label — either the

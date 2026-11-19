@@ -10,6 +10,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_backend_mock_timing_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
@@ -96,6 +97,15 @@ TEST_CASE("the suggested span is 1-based", "[ams][numbering]") {
           "Select a valid number (1-4)");
     CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Slot, 99, 15).suggestion ==
           "Select a valid number (1-16)");
+}
+
+TEST_CASE("the suggested span starts where the labels start", "[ams][numbering]") {
+    ScopedZeroLaneNumbering zero;
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, 9, 3).suggestion ==
+          "Select a valid number (0-3)");
+    // A single position still has a span: 0 is a real number here.
+    CHECK(AmsErrorHelper::invalid_slot(ui::LaneNoun::Gate, 4, 0).suggestion ==
+          "Select a valid number (0-0)");
 }
 
 TEST_CASE("the suggested span survives a one-position backend", "[ams][numbering]") {

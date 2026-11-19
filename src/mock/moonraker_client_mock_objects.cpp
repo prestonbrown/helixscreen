@@ -3,6 +3,7 @@
 
 #include "core/text_io.h"
 #include "env_knobs.h"
+#include "json_utils.h"
 #include "moonraker_client_mock_internal.h"
 #include "snapmaker_nozzle_offset.h"
 
@@ -100,6 +101,15 @@ static json toolchanger_configfile_sections(const MoonrakerClientMock* self) {
              "Measures every tool's XYZ offset on the nozzle sensor. Clean all nozzles first."}};
     }
     sections.merge_patch(self->medusa_config_sections());
+    if (self->has_toolchanger_tool_fans()) {
+        // Klipper keys configfile.settings sections lowercased.
+        for (int t = 0; t < 4; ++t) {
+            sections[helix::text_io::to_lower("heater_fan " +
+                                              mock_internal::toolchanger_hotend_fan(t))] = {
+                {"heater", t == 0 ? std::string("extruder") : "extruder" + std::to_string(t)},
+                {"fan_speed", mock_internal::toolchanger_hotend_fan_speed(t)}};
+        }
+    }
     return sections;
 }
 
@@ -115,6 +125,16 @@ static json input_button_configfile_sections(const MoonrakerClientMock* self) {
                 {"press_gcode", "\nRESPOND TYPE=command MSG=action:prompt_end"},
                 {"release_gcode", "\nRESPOND TYPE=command MSG=action:prompt_begin Door is Open!"}};
         }
+    }
+    return sections;
+}
+
+// configfile section of stock FlashForge's [pa_adjust] (creator5_zmod persona).
+// It has no status object, so this section is the only sign of it.
+static json pa_adjust_configfile_sections(const MoonrakerClientMock* self) {
+    json sections = json::object();
+    if (self->get_printer_type() == helix::mock::PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        sections["pa_adjust"] = json::object();
     }
     return sections;
 }
@@ -241,41 +261,6 @@ json get_mock_probe_config(helix::mock::PrinterType type) {
     return cfg;
 }
 
-// Minimal Happy Hare "mmu" status for --real-ams: a static 4-gate setup with a
-// mix of loaded/empty gates. gate_status is the load-bearing field — it's what
-// AmsBackendHappyHare::parse_mmu_state() uses to size the slot registry and
-// flip slots_.is_initialized(); the rest just refines what the AMS panel shows.
-// Values proven correct against AmsBackendHappyHare's own unit test fixture
-// (tests/unit/test_ams_backend_happy_hare.cpp, "v3 data with no v4 fields").
-json get_mock_mmu_status() {
-    return {{"gate", 2},
-            {"tool", 2},
-            {"filament", "Loaded"},
-            {"action", "Idle"},
-            {"filament_pos", 8},
-            {"has_bypass", true},
-            {"gate_status", {1, 0, 2, 1}},
-            {"gate_color_rgb", {0xFF0000, 0x00FF00, 0x0000FF, 0xFFFF00}},
-            {"gate_material", {"PLA", "PETG", "ABS", "TPU"}},
-            {"gate_vendor", {"Polymaker", "eSUN", "", "Overture"}},
-            {"ttg_map", {0, 1, 2, 3}},
-            {"endless_spool_groups", {0, 0, 1, 1}},
-            {"flowguard",
-             {{"enabled", true},
-              {"active", true},
-              {"trigger", ""},
-              {"reason", ""},
-              {"level", 0.15},
-              {"max_clog", 0.2},
-              {"max_tangle", -0.3}}},
-            {"tangle_prevention",
-             {{"enabled", true},
-              {"active", false},
-              {"boosted", false},
-              {"threshold", 0.6},
-              {"release", 0.3}}}};
-}
-
 void register_object_handlers(std::unordered_map<std::string, MethodHandler>& registry) {
     // printer.objects.list - List available printer objects
     // When Klippy is in STARTUP or ERROR state, Klipper returns JSON-RPC error -32601
@@ -341,6 +326,11 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 commands[name] = desc;
             }
         }
+        if (self->is_mock_afc_boxturtle()) {
+            // The AFC DEV lane commands the AFC mock answers.
+            commands["AFC_SET_SPOOL_TEMP"] = "Set spool temperatures for a lane";
+            commands["SET_FILAMENT_INFO"] = "Sets filament vendor and name for a lane";
+        }
         if (success_cb) {
             success_cb(json{{"result", commands}});
         }
@@ -359,8 +349,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        if (params.contains("objects")) {
-            auto& objects = params["objects"];
+        if (const json* objects_field = helix::json_util::find_member(params, "objects")) {
+            const json& objects = *objects_field;
 
             // webhooks state
             if (objects.contains("webhooks")) {
@@ -467,6 +457,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 if (is_mock_kalico()) {
                     extruder_settings["control"] = "mpc";
                     extruder_settings["heater_power"] = 50.0;
+                    if (!self->extruder_cooling_fan().empty()) {
+                        extruder_settings["cooling_fan"] = self->extruder_cooling_fan();
+                    }
                 } else {
                     extruder_settings["control"] = "pid";
                     extruder_settings["pid_kp"] = 22.865;
@@ -474,16 +467,12 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     extruder_settings["pid_kd"] = 101.178;
                 }
 
-                // Probe-equipped printers (endstop_pin: probe:z_virtual_endstop)
-                // get a JSON null here rather than a number — see
+                // A probe used as the Z endstop reports null; see
                 // set_stepper_z_endstop_null().
-                json stepper_z_settings = {{"position_min", axis_min.z},
-                                           {"position_max", axis_max.z}};
-                if (self->is_stepper_z_endstop_null()) {
-                    stepper_z_settings["position_endstop"] = nullptr;
-                } else {
-                    stepper_z_settings["position_endstop"] = 235.0;
-                }
+                json stepper_z_settings = {
+                    {"position_min", axis_min.z},
+                    {"position_max", axis_max.z},
+                    {"position_endstop", self->stepper_z_position_endstop()}};
 
                 status_obj["configfile"] = {
                     {"settings",
@@ -494,8 +483,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         // settings reader (belt hardware detect) and a config
                         // reader (bed moves detection) see the same machine.
                         {"kinematics", self->kinematics()}}},
-                      {"stepper_x", {{"position_min", axis_min.x}, {"position_max", axis_max.x}}},
-                      {"stepper_y", {{"position_min", axis_min.y}, {"position_max", axis_max.y}}},
+                      {"stepper_x",
+                       {{"position_min", axis_min.x},
+                        {"position_max", axis_max.x},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
+                      {"stepper_y",
+                       {{"position_min", axis_min.y},
+                        {"position_max", axis_max.y},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
                       {"stepper_z", stepper_z_settings},
                       {"extruder", extruder_settings},
                       // Resonance sweep bounds — the input shaper collector
@@ -536,6 +533,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
+                status_obj["configfile"]["config"].merge_patch(
+                    helix::mock::mock_temperature_sensor_config(self->hardware().sensors()));
+                status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
+                status_obj["configfile"]["settings"].merge_patch(
+                    pa_adjust_configfile_sections(self));
+                const json reforge_sections = self->reforge_afc_config_sections();
+                status_obj["configfile"]["settings"].merge_patch(reforge_sections);
+                status_obj["configfile"]["config"].merge_patch(reforge_sections);
+                status_obj["configfile"]["settings"].merge_patch(
+                    self->happy_hare_config_sections());
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -570,7 +577,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"position", {0.0, 0.0, 0.0, 0.0}},
                     {"axis_minimum", mock_internal::toolhead_axis_minimum(persona)},
                     {"axis_maximum", mock_internal::toolhead_axis_maximum(persona)},
-                    {"homed_axes", self->get_homed_axes()}};
+                    {"homed_axes", self->get_homed_axes()},
+                    {"extruder", self->toolhead_extruder()}};
             }
 
             // stepper_enable (for motors_enabled state - immediate response to M84)
@@ -602,11 +610,6 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["idle_timeout"] = {{"state", idle_state}};
             }
 
-            // mmu (Happy Hare MMU status — --real-ams)
-            if (objects.contains("mmu")) {
-                status_obj["mmu"] = get_mock_mmu_status();
-            }
-
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
             // the objects this variant actually ships, so a consumer that reads
             // the wrong schema finds nothing rather than a convenient default.
@@ -635,9 +638,37 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             if (objects.contains("oams_manager") && self->is_mock_openams()) {
                 status_obj["oams_manager"] = self->openams_status_json();
             }
-            // Z-Mod's colour registry (creator5_zmod persona).
+            if (objects.contains("lane_status") && self->is_mock_lane_status()) {
+                status_obj["lane_status"] = self->lane_status_json();
+            }
+            self->merge_mock_ams_hardware_status(status_obj, &objects);
+            // multiACE on a U1: both feeder sides at rest, so the backend's
+            // first frame carries each head's channel state and Auto loading.
+            if (self->is_mock_multiace()) {
+                if (objects.contains("filament_feed left")) {
+                    status_obj["filament_feed left"] = self->u1_feed_side_json(0);
+                }
+                if (objects.contains("filament_feed right")) {
+                    status_obj["filament_feed right"] = self->u1_feed_side_json(2);
+                }
+            }
+            // Z-Mod's colour registry (creator5_zmod persona) and IFS state
+            // (HELIX_MOCK_AMS=ifs-jacker).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            if (objects.contains("zmod_ifs")) {
+                if (auto ifs = self->zmod_ifs_status(); !ifs.empty()) {
+                    status_obj["zmod_ifs"] = std::move(ifs);
+                }
+            }
+            // Stock FlashForge driver-latch pins (creator5_zmod persona).
+            for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
+                if (objects.contains(pin)) {
+                    if (auto st = self->pa_latch_pin_status(pin); !st.empty()) {
+                        status_obj[pin] = st;
+                    }
+                }
             }
             // The U1 defect_detection module's stored config.
             if (objects.contains("defect_detection")) {
@@ -775,8 +806,8 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
         const auto axis_max = persona.axis_max;
         const auto axis_min = persona.axis_min;
 
-        if (params.contains("objects")) {
-            auto& objects = params["objects"];
+        if (const json* objects_field = helix::json_util::find_member(params, "objects")) {
+            const json& objects = *objects_field;
 
             // webhooks state
             if (objects.contains("webhooks")) {
@@ -890,9 +921,12 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"axis_minimum", mock_internal::toolhead_axis_minimum(persona)},
                     {"axis_maximum", mock_internal::toolhead_axis_maximum(persona)},
                     {"homed_axes", self->get_homed_axes()},
+                    {"extruder", self->toolhead_extruder()},
                     {"print_time", 0.0},
                     {"estimated_print_time", 0.0},
-                    {"extruder", "extruder"}};
+                    {"extruder", self->is_mock_toolchanger() && self->toolchanger_tool() > 0
+                                     ? "extruder" + std::to_string(self->toolchanger_tool())
+                                     : std::string("extruder")}};
             }
 
             // virtual_sdcard
@@ -905,7 +939,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
 
             // fan (part cooling fan)
             if (objects.contains("fan")) {
-                status_obj["fan"] = {{"speed", 0.0}, {"rpm", nullptr}};
+                status_obj["fan"] = mock_internal::part_fan_status(0.0);
             }
 
             // Print-start / state macros — the discovery sequence subscribes to
@@ -931,14 +965,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                                               {"fan8_speed", 0.0}, {"fan9_speed", 0.0}};
             }
 
-            // mmu (Happy Hare MMU status — --real-ams)
-            if (objects.contains("mmu")) {
-                status_obj["mmu"] = get_mock_mmu_status();
-            }
-
             // OpenAMS (HELIX_MOCK_AMS=openams): the subscribe snapshot.
             if (objects.contains("oams_manager") && self->is_mock_openams()) {
                 status_obj["oams_manager"] = self->openams_status_json();
+            }
+            if (objects.contains("lane_status") && self->is_mock_lane_status()) {
+                status_obj["lane_status"] = self->lane_status_json();
+            }
+            self->merge_mock_ams_hardware_status(status_obj, &objects);
+            // multiACE on a U1: both feeder sides at rest, so the backend's
+            // first frame carries each head's channel state and Auto loading.
+            if (self->is_mock_multiace()) {
+                if (objects.contains("filament_feed left")) {
+                    status_obj["filament_feed left"] = self->u1_feed_side_json(0);
+                }
+                if (objects.contains("filament_feed right")) {
+                    status_obj["filament_feed right"] = self->u1_feed_side_json(2);
+                }
             }
 
             // MedusaHC (HELIX_MOCK_AMS=medusahc[-ktc|-tn]). Emitted only for
@@ -964,9 +1007,23 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     }
                 }
             }
-            // Z-Mod's colour registry (creator5_zmod persona).
+            // Z-Mod's colour registry (creator5_zmod persona) and IFS state
+            // (HELIX_MOCK_AMS=ifs-jacker).
             if (objects.contains("zmod_color")) {
                 status_obj["zmod_color"] = self->zmod_color_status();
+            }
+            if (objects.contains("zmod_ifs")) {
+                if (auto ifs = self->zmod_ifs_status(); !ifs.empty()) {
+                    status_obj["zmod_ifs"] = std::move(ifs);
+                }
+            }
+            // Stock FlashForge driver-latch pins (creator5_zmod persona).
+            for (const char* pin : {"output_pin enable_pin_tmc_x", "output_pin enable_pin_tmc_y"}) {
+                if (objects.contains(pin)) {
+                    if (auto st = self->pa_latch_pin_status(pin); !st.empty()) {
+                        status_obj[pin] = st;
+                    }
+                }
             }
             // The U1 defect_detection module's stored config.
             if (objects.contains("defect_detection")) {
@@ -1041,8 +1098,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     tool_names.push_back(name);
                 }
                 // Beside a MedusaHC, pin_watch keeps tool_number on the docks' tool.
-                const int tool_number =
-                    self->is_mock_medusahc() ? self->sync_medusa_toolchanger_tool() : 0;
+                const int tool_number = self->is_mock_medusahc()
+                                            ? self->sync_medusa_toolchanger_tool()
+                                            : self->toolchanger_tool();
                 status_obj["toolchanger"] = {{"status", "ready"},
                                              {"tool_number", tool_number},
                                              {"tool_numbers", tool_numbers},
@@ -1084,7 +1142,9 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         {"gcode_y_offset", self->tool_offset(tool_number, helix::Axis::Y)},
                         {"gcode_z_offset", self->tool_offset(tool_number, helix::Axis::Z)},
                         {"extruder", extruder_for_tool},
-                        {"fan", "fan"}};
+                        {"fan", self->has_toolchanger_tool_fans()
+                                    ? mock_internal::toolchanger_part_fan(tool_number)
+                                    : std::string("fan")}};
                 }
             }
 
@@ -1179,12 +1239,20 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                         // settings reader (belt hardware detect) and a config
                         // reader (bed moves detection) see the same machine.
                         {"kinematics", self->kinematics()}}},
-                      {"stepper_x", {{"position_min", axis_min.x}, {"position_max", axis_max.x}}},
-                      {"stepper_y", {{"position_min", axis_min.y}, {"position_max", axis_max.y}}},
+                      {"stepper_x",
+                       {{"position_min", axis_min.x},
+                        {"position_max", axis_max.x},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
+                      {"stepper_y",
+                       {{"position_min", axis_min.y},
+                        {"position_max", axis_max.y},
+                        {"rotation_distance", 40.0},
+                        {"full_steps_per_rotation", 200}}},
                       {"stepper_z",
                        {{"position_min", axis_min.z},
                         {"position_max", axis_max.z},
-                        {"position_endstop", 235.0}}},
+                        {"position_endstop", self->stepper_z_position_endstop()}}},
                       {"extruder", extruder_settings2},
                       {"resonance_tester", self->resonance_tester_settings()},
                       {"heater_bed",
@@ -1227,6 +1295,16 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                 status_obj["configfile"]["config"].merge_patch(toolchanger_sections);
                 status_obj["configfile"]["config"].merge_patch(
                     input_button_configfile_sections(self));
+                status_obj["configfile"]["config"].merge_patch(
+                    helix::mock::mock_temperature_sensor_config(self->hardware().sensors()));
+                status_obj["configfile"]["config"].merge_patch(pa_adjust_configfile_sections(self));
+                status_obj["configfile"]["settings"].merge_patch(
+                    pa_adjust_configfile_sections(self));
+                const json reforge_sections = self->reforge_afc_config_sections();
+                status_obj["configfile"]["settings"].merge_patch(reforge_sections);
+                status_obj["configfile"]["config"].merge_patch(reforge_sections);
+                status_obj["configfile"]["settings"].merge_patch(
+                    self->happy_hare_config_sections());
 
                 // Whether a SAVE_CONFIG is owed, and for what. Klipper publishes
                 // these on configfile itself, not under settings/config, and
@@ -1306,3 +1384,49 @@ json mock_probe_status(helix::mock::PrinterType type) {
 }
 
 } // namespace helix::sim
+
+namespace helix::mock {
+
+nlohmann::json mock_tmc_drv_status(const std::string& driver_object) {
+    const size_t space = driver_object.find(' ');
+    const std::string stepper =
+        space == std::string::npos ? driver_object : driver_object.substr(space + 1);
+    nlohmann::json status = {{"cs_actual", 16}};
+    const char* env = std::getenv("HELIX_MOCK_TMC_OVERTEMP");
+    if (env == nullptr) {
+        return status;
+    }
+    const std::string list = env;
+    size_t start = 0;
+    while (start <= list.size()) {
+        const size_t comma = std::min(list.find(',', start), list.size());
+        const std::string item = list.substr(start, comma - start);
+        if (item == stepper) {
+            status["otpw"] = 1;
+        } else if (item == stepper + ":ot") {
+            status["otpw"] = 1;
+            status["ot"] = 1;
+        }
+        start = comma + 1;
+    }
+    return status;
+}
+
+nlohmann::json mock_temperature_sensor_config(const std::vector<std::string>& sensor_objects) {
+    nlohmann::json sections = json::object();
+    constexpr std::string_view kPrefix = "temperature_sensor ";
+    for (const auto& name : sensor_objects) {
+        if (name.rfind(kPrefix, 0) != 0) {
+            continue;
+        }
+        const std::string instance = name.substr(kPrefix.size());
+        if (instance.find("mcu") != std::string::npos) {
+            sections[name] = {{"sensor_type", "temperature_mcu"}};
+        } else if (instance.find("raspberry") != std::string::npos || instance == "host_temp") {
+            sections[name] = {{"sensor_type", "temperature_host"}};
+        }
+    }
+    return sections;
+}
+
+} // namespace helix::mock

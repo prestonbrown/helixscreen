@@ -108,12 +108,13 @@ void RecoveryFaultModal::run_action(size_t index) {
         hide(ModalCloseReason::ButtonPress);
         return;
     }
-    const std::string gcode = actions_[index].gcode;
+    // A copy: the callback may replace actions_.
+    const helix::RecoveryAction action = actions_[index];
     // The dialog closes after the callback, so the callback must not present a
     // new fault synchronously: it would be hidden here.
-    // An empty gcode is the dismiss affordance: close, send nothing.
-    if (!gcode.empty() && action_callback_) {
-        action_callback_(gcode);
+    // Nothing to run is the dismiss affordance: close, send nothing.
+    if ((!action.gcode.empty() || !action.guided_flow.empty()) && action_callback_) {
+        action_callback_(action);
     }
     hide(ModalCloseReason::ButtonPress);
 }

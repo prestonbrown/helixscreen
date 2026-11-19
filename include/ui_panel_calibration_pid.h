@@ -4,10 +4,11 @@
 #pragma once
 
 #include "ui_head_picker.h"
-#include "ui_observer_guard.h"
 #include "ui_temp_graph.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "klipper_config_editor.h"
 #include "moonraker_advanced_api.h"
 #include "overlay_base.h"
@@ -111,6 +112,27 @@ class PIDCalibrationPanel : public OverlayBase {
     [[nodiscard]] static std::vector<helix::system::ConfigEdit>
     build_control_migration_edits(CalibMethod target, int heater_wattage,
                                   const std::string& cooling_fan = "");
+
+    /**
+     * @brief Whether to offer naming a part fan on a heater already running MPC
+     *
+     * @param names_cooling_fan Whether the heater's section already has a cooling_fan
+     * @param part_fan Klipper object of the fan reaching this heater; empty for none
+     */
+    /// Whether a confirmed config rewrite may still run: the state the dialog
+    /// promised has to hold when Continue is tapped.
+    [[nodiscard]] static bool migration_still_valid(bool promised_fan, bool adding_fan,
+                                                    bool needs_migration) {
+        return promised_fan ? adding_fan : needs_migration;
+    }
+
+    [[nodiscard]] static bool offers_cooling_fan(ControlType current, CalibMethod target,
+                                                 bool names_cooling_fan,
+                                                 const std::string& part_fan);
+
+    /// The edit naming @p cooling_fan, which leaves a fan the user already named.
+    [[nodiscard]] static std::vector<helix::system::ConfigEdit>
+    build_cooling_fan_edits(const std::string& cooling_fan);
 
     PIDCalibrationPanel();
     ~PIDCalibrationPanel() override;
@@ -321,6 +343,7 @@ class PIDCalibrationPanel : public OverlayBase {
     bool needs_migration_ = false;
     bool supports_mpc_ = false;
     ControlType current_control_ = ControlType::UNKNOWN;
+    bool heater_names_cooling_fan_ = true;
 
     // MPC results
     MoonrakerAdvancedAPI::MPCResult mpc_result_;
@@ -332,73 +355,75 @@ class PIDCalibrationPanel : public OverlayBase {
     SubjectManager subjects_;
 
     // String subjects and buffers for reactive text updates
-    lv_subject_t subj_temp_display_{};
+    helix::Subject subj_temp_display_{};
     char buf_temp_display_[16];
 
-    lv_subject_t subj_temp_hint_{};
+    helix::Subject subj_temp_hint_{};
     char buf_temp_hint_[64];
 
-    lv_subject_t subj_calibrating_heater_{};
+    helix::Subject subj_calibrating_heater_{};
     char buf_calibrating_heater_[32];
 
-    lv_subject_t subj_migration_notice_{};
+    helix::Subject subj_migration_notice_{};
     char buf_migration_notice_[128];
 
-    lv_subject_t subj_pid_kp_{};
+    helix::Subject subj_pid_kp_{};
     char buf_pid_kp_[32];
 
-    lv_subject_t subj_pid_ki_{};
+    helix::Subject subj_pid_ki_{};
     char buf_pid_ki_[32];
 
-    lv_subject_t subj_pid_kd_{};
+    helix::Subject subj_pid_kd_{};
     char buf_pid_kd_[32];
 
-    lv_subject_t subj_result_summary_{};
+    helix::Subject subj_result_summary_{};
     char buf_result_summary_[128];
 
-    lv_subject_t subj_error_message_{};
+    helix::Subject subj_error_message_{};
     char buf_error_message_[256];
 
     // Int subject for showing/hiding extruder-only sections
-    lv_subject_t subj_heater_is_extruder_{};
+    helix::Subject subj_heater_is_extruder_{};
 
     // MPC result string subjects and buffers
-    lv_subject_t subj_mpc_heat_capacity_{};
+    helix::Subject subj_mpc_heat_capacity_{};
     char buf_mpc_heat_capacity_[32];
-    lv_subject_t subj_mpc_sensor_resp_{};
+    helix::Subject subj_mpc_sensor_resp_{};
     char buf_mpc_sensor_resp_[32];
-    lv_subject_t subj_mpc_ambient_transfer_{};
+    helix::Subject subj_mpc_ambient_transfer_{};
     char buf_mpc_ambient_transfer_[32];
-    lv_subject_t subj_mpc_fan_transfer_{};
+    helix::Subject subj_mpc_fan_transfer_{};
     char buf_mpc_fan_transfer_[64];
 
     // Fan speed display subject and buffer
-    lv_subject_t subj_fan_speed_text_{};
+    helix::Subject subj_fan_speed_text_{};
     char buf_fan_speed_text_[8];
 
     // Wattage display subject and buffer
-    lv_subject_t subj_wattage_display_{};
+    helix::Subject subj_wattage_display_{};
     char buf_wattage_display_[16];
 
     // MPC-related int subjects
-    lv_subject_t subj_supports_mpc_{};    // int 0/1
-    lv_subject_t subj_method_is_mpc_{};   // int 0/1
-    lv_subject_t subj_show_wattage_{};    // int 0/1
-    lv_subject_t subj_needs_migration_{}; // int 0/1
-    lv_subject_t subj_show_fan_config_{}; // int 0/1
-    lv_subject_t subj_fan_is_quick_{};    // int 0/1
-    lv_subject_t subj_fan_is_detailed_{}; // int 0/1
-    lv_subject_t subj_fan_is_thorough_{}; // int 0/1
-    lv_subject_t subj_show_pid_fan_{};    // 1 when extruder + PID method
+    helix::Subject subj_supports_mpc_{};      // int 0/1
+    helix::Subject subj_method_is_mpc_{};     // int 0/1
+    helix::Subject subj_show_wattage_{};      // int 0/1
+    helix::Subject subj_needs_migration_{};   // int 0/1
+    helix::Subject subj_show_fan_config_{};   // int 0/1
+    helix::Subject subj_offer_cooling_fan_{}; // int 0/1
+    helix::Subject subj_add_cooling_fan_{};   // int 0/1
+    helix::Subject subj_fan_is_quick_{};      // int 0/1
+    helix::Subject subj_fan_is_detailed_{};   // int 0/1
+    helix::Subject subj_fan_is_thorough_{};   // int 0/1
+    helix::Subject subj_show_pid_fan_{};      // 1 when extruder + PID method
 
     // Int subject: 1 when not idle (disables Start button in header)
-    lv_subject_t subj_cal_not_idle_{};
+    helix::Subject subj_cal_not_idle_{};
 
     // Progress tracking for calibration
-    lv_subject_t subj_pid_progress_{}; // int 0-100
-    lv_subject_t subj_pid_progress_text_{};
+    helix::Subject subj_pid_progress_{}; // int 0-100
+    helix::Subject subj_pid_progress_text_{};
     char buf_pid_progress_text_[64];
-    lv_subject_t subj_pid_eta_{};
+    helix::Subject subj_pid_eta_{};
     char buf_pid_eta_[32];
     int pid_estimated_total_ = 3;      // Dynamic estimate, starts at 3
     bool has_sample_progress_ = false; // True once first sample callback arrives
@@ -484,7 +509,7 @@ class PIDCalibrationPanel : public OverlayBase {
      *        it, and a late answer must not override a PID choice made since.
      */
     void detect_heater_control_type(bool preselect_mpc = true);
-    void start_migration(CalibMethod target);
+    void start_migration(CalibMethod target, bool adding_fan);
     void confirm_migration();
     void begin_calibration(CalibMethod method);
     void update_migration_notice();
@@ -511,6 +536,8 @@ class PIDCalibrationPanel : public OverlayBase {
     /// The Klipper fan object that cools the heater being tuned, or "" where
     /// no part fan reaches it or discovery did not find that object.
     std::string mpc_cooling_fan() const;
+    /// The user took the offer to name a part fan on a heater already on MPC.
+    bool adding_cooling_fan();
     /// build_control_migration_edits() for the selected heater.
     std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
 

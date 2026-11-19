@@ -1,11 +1,5 @@
 # Filament Path Canvas Rendering
 
-**Version:** 1.0
-**Last Updated:** 2026-06-13
-**Status:** Shipped (`feature/filament-path-redesign`, merge `d52258fe7`, 2026-06-09)
-
----
-
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
@@ -17,9 +11,10 @@
 7. [Topology Renderers](#topology-renderers)
 8. [Cache & Invalidation](#cache--invalidation)
 9. [Animation Overlay](#animation-overlay)
-10. [Extending the Renderer](#extending-the-renderer)
-11. [Testing](#testing)
-12. [File Map](#file-map)
+10. [Off-page stubs](#off-page-stubs)
+11. [Extending the Renderer](#extending-the-renderer)
+12. [Testing](#testing)
+13. [File Map](#file-map)
 
 ---
 
@@ -28,11 +23,10 @@
 The filament-path canvas is the AMS detail-panel visualization: it draws the
 physical route filament takes from each spool slot, through prep sensors, an
 optional hub/selector, the output (bowden) tube, the toolhead sensor, and into
-the nozzle — colored to reflect what filament is loaded and animated to show
+the nozzle, colored to reflect what filament is loaded and animated to show
 flow and heat during loads/unloads.
 
-The redesign replaced a ~3500-line monolithic draw callback with a layered,
-phase-decomposed renderer built on two new reusable modules: a **pure geometry
+It is a layered, phase-decomposed renderer built on two reusable modules: a **pure geometry
 library** (`pathgeo`) that produces arc-filleted filament paths with no LVGL
 dependency, and a **tube stroker** that renders those paths as concentric tube
 strokes. The same route plan and painter drive both this detail canvas and the
@@ -49,15 +43,10 @@ AMS overview canvas.
 3. **One plan and painter, two canvases.** The detail canvas and the system
    overview canvas each plan their routes into a `PathPlan` (span styles from
    `span_style()`, clamp bands from `band_state()`) and paint it with
-   `paint_tubes()` / `paint_box_bands()` — no duplicated lane drawing.
+   `paint_tubes()` / `paint_box_bands()`, with no duplicated lane drawing.
 4. **Hit-testing reads what was drawn.** The render pass records the exact
    boxes it draws for the hub, buffer, and bypass; the click handler tests
    against those rects rather than re-deriving geometry.
-
-> **No feature flag.** The redesign shipped as the *only* renderer. There is no
-> `HELIX_LAYERED_FILAMENT_PATH` flag (the name appears in an early scratchpad
-> but never reached the codebase), no compile-time switch, and no surviving
-> legacy draw path. The layered model is unconditional.
 
 ---
 
@@ -80,7 +69,7 @@ AMS overview canvas.
 ┌───────────────────────────▼──────────────────────────────────┐
 │  ui_filament_path_topology.cpp                                │
 │  render_overlay_content() → render_linear_hub / render_mixed  │
-│  / render_parallel — plan (ui_filament_path_plan) + glyphs    │
+│  / render_parallel : plan (ui_filament_path_plan) + glyphs    │
 └──────────┬──────────────────────────────┬────────────────────┘
            │ paint_tubes → stroke_path      │ hub/buffer/nozzle/badges
 ┌──────────▼──────────────┐  ┌──────────────▼────────────────────┐
@@ -89,7 +78,7 @@ AMS overview canvas.
 └──────────┬──────────────┘  │ nozzle, toolhead, badges           │
            │                 └────────────────────────────────────┘
 ┌──────────▼──────────────┐
-│ filament_path_geometry  │  helix::ui::pathgeo — pure float math:
+│ filament_path_geometry  │  helix::ui::pathgeo : pure float math:
 │ (pathgeo)               │  PathPoint / PathSeg / FilamentPath,
 └─────────────────────────┘  route_orthogonal, route_polyline_filleted,
                              build_merge_fan, path_point_at
@@ -117,12 +106,12 @@ struct LayerState {
 };
 ```
 
-1. **Overlay canvas** (`lv_canvas` child) — the full active topology render:
+1. **Overlay canvas** (`lv_canvas` child): the full active topology render:
    every lane, the hub/selector box, all sensors, the nozzle. Painted by
    `render_overlay_content()`. LVGL composites it natively. Repainted only when
-   filament/topology state changes — **not** every frame.
+   filament/topology state changes, **not** every frame.
 
-2. **DRAW_POST pass** — flow chevrons, heat glow, and the moving segment-transition
+2. **DRAW_POST pass**: flow chevrons, heat glow, and the moving segment-transition
    filament tip. Painted directly on top of the cached canvas every frame by
    `filament_path_draw_cb()` → `render_animation_overlay()`. This is the only
    per-frame cost during animation; it touches no canvas buffer.
@@ -144,10 +133,10 @@ so its buffer coordinates map to absolute display coordinates. The buffer is
 
 ## The Geometry Module
 
-`include/filament_path_geometry.h` / `src/ui/filament/filament_path_geometry.cpp` —
+`include/filament_path_geometry.h` / `src/ui/filament/filament_path_geometry.cpp`:
 namespace `helix::ui::pathgeo` (aliased `pg` in callers). Pure, float-based,
 screen-space (`+y` is **down**, angle 0 is `+x`, positive sweep is clockwise on
-screen). No LVGL types — this is the layer the unit tests hammer directly.
+screen). No LVGL types; this is the layer the unit tests hammer directly.
 
 ### Core types
 
@@ -166,8 +155,8 @@ struct PathSeg {
 };
 
 struct FilamentPath {
-    static constexpr int MAX_SEGS = 16;
-    PathSeg segs[MAX_SEGS];
+    static constexpr int kMaxSegs = 16;
+    PathSeg segs[kMaxSegs];
     int     count = 0;
     void add_line(float x0, float y0, float x1, float y1);
     void add_arc(float cx, float cy, float r, float a0, float sweep);
@@ -184,7 +173,7 @@ PathPoint path_point_at(const FilamentPath& p, float d, PathPoint* tangent_out =
 ```
 
 `path_point_at()` walks the path to arc-length `d` and optionally returns the
-unit tangent — this is how the animation overlay places flow chevrons and the
+unit tangent; this is how the animation overlay places flow chevrons and the
 moving tip along a cached path.
 
 ### Arc-fillet routing
@@ -225,10 +214,10 @@ giving every lane on a side the same diagonal slope.
 
 ## The Shared Tube Stroker
 
-`include/filament_tube_stroker.h` / `src/ui/filament/filament_tube_stroker.cpp` — renders
+`include/filament_tube_stroker.h` / `src/ui/filament/filament_tube_stroker.cpp` renders
 a `pathgeo::FilamentPath` as a tube. `paint_tubes()` (`ui_filament_path_plan.cpp`)
 strokes every route of a plan through it, for the detail canvas and the AMS
-overview canvas alike — the single source of truth for lane rendering.
+overview canvas alike: the single source of truth for lane rendering.
 
 ### Stroking model
 
@@ -242,7 +231,7 @@ walls. Detail lanes use `ThemeCache::tube_gauge` (`line_width_active + 2`).
 `stroke_path()` walks the path segment by segment:
 
 - Straight runs use `lv_draw_line` with float coordinates.
-- Arcs are sampled as chords from the exact float parametrization — **not**
+- Arcs are sampled as chords from the exact float parametrization, **not**
   `lv_draw_arc`, which rounds integer center/radius and produces visibly faceted
   corners at small radii.
 - Opaque passes round-join every segment and chord; translucent passes use
@@ -295,9 +284,8 @@ struct RenderCtx {
 };
 ```
 
-`BaseGeometry` is computed once per render (`compute_base_geometry()`),
-eliminating the repeated sibling-widget coordinate reads that the old monolith
-did inside every per-slot loop. Phases take `const RenderCtx&` plus only their
+`BaseGeometry` is computed once per render (`compute_base_geometry()`), so no
+per-slot loop re-reads sibling-widget coordinates. Phases take `const RenderCtx&` plus only their
 per-call values.
 
 The overlay-canvas content dispatches by topology
@@ -305,9 +293,10 @@ The overlay-canvas content dispatches by topology
 
 ```cpp
 void render_overlay_content(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
-    if      (data->topology == PathTopology::MIXED)    render_mixed(obj, layer, data);
-    else if (data->topology == PathTopology::PARALLEL) render_parallel(obj, layer, data);
-    else                                               render_linear_hub(obj, layer, data);
+    // records the widget origin into data->hits.origin first
+    if      (data->topology == int(PathTopology::MIXED))    render_mixed(obj, layer, data);
+    else if (data->topology == int(PathTopology::PARALLEL)) render_parallel(obj, layer, data);
+    else                                                    render_linear_hub(obj, layer, data);
 }
 ```
 
@@ -322,7 +311,7 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
     plan_linear_hub(f, *data, ctx.geo, plan); // routes + span styles + sensor bands
     paint_tubes(layer, plan, palette);        // halo -> walls -> bores -> bands
     draw_hub_section(ctx, f);                 // hub/selector box (records hits.hub)
-    // then, below the hub: buffer box (hits.buffer), hits.bypass, nozzle glyph,
+    // then, below the hub: buffer tension control (hits.buffer), hits.bypass, nozzle glyph,
     // and path_cache = filled_prefix(plan.routes[plan.active_route])
 }
 ```
@@ -354,7 +343,39 @@ borrows unused output-run height by lowering the hub. With the bypass hidden,
 the hub and buffer stack above the toolhead glyph (`glyph_top` is
 `toolhead_top_y()`), and the toolhead band sits in the gap above the glyph.
 
-`src/ui/ui_filament_path_plan.{h,cpp}`, pure apart from `paint_tubes` and
+**The buffer on the trunk.** A unit with a buffer carries its tension control on the
+trunk's final vertical drop, never on a sideways run. `place_under_unit()` in
+`compute_linear_hub_frame()` is the one rule for a hub and a selector (bar or rail art): the
+buffer stands with equal gaps to the unit's outlet above and the head below, and the lower gap
+holds the bypass merge and the toolhead band in the clear room over the head. A selector's
+exit stands under the active lane, so its filament jogs to the center first and the buffer
+stands below the jog. Where the room is short, the hub or selector rises toward the lanes
+(never over the lanes' numbers; the bar's prep sensors toward the box edge, the rail art toward
+the lanes' fan room); only a canvas too short for that draws a smaller head. Under a drawn
+unit the canvas reaches up into the unit and still ends at its container's bottom
+(`ams_detail_sync_lane_entry`), so the head stands near the bottom at every size. The control
+is `buffer_control_height(hub_h)` tall: the capsule (`buffer_capsule_height()`); its thumb
+stands into the gaps.
+
+**A drawing too tall for its path.** The canvas reports the least height that lays its path
+out at full size (`ui_filament_path_canvas_required_height()`, from
+`linear_hub_required_height()`: a full-size head and the buffer kept on the trunk). Where the
+path below a drawn unit falls short of it, or (in portrait, whose path grows to it) the diagram
+then runs past what is on screen, `ams_detail_sync_lane_entry()` caps the unit's spools for that
+unit, slot count, width and screen, and the panel lays the unit out again; a unit that fits is
+untouched. The drawing keeps at least half the size its width gives it; past that the head
+gives up the rest. In portrait the AMS panels scroll, so the sidebar's actions stand below
+the diagram at their own height.
+
+**Lane numbers and labels under a drawn unit.** Each lane's sensor band, and the number on
+it, stands below where the lane leaves the drawing's slanted foot by half a number
+(`set_lane_band_drop`). Where the numbers alternate rows, odd lanes drop a number further
+(less the foot's slant), and the planner keeps the hub a radius below the lowest number
+(`badges_bottom` in `compute_linear_hub_frame()`). The labels above the unit, their ticks and
+which lanes show one (none for an empty lane) are the unit view's: FILAMENT_MANAGEMENT.md,
+"Labels over a drawn unit".
+
+`src/ui/filament/ui_filament_path_plan.{h,cpp}`, pure apart from `paint_tubes` and
 `draw_sensor_band`, so `[filament-path][plan]` tests it without a display.
 
 - **Routes.** One route per slot, starting at the slot's entry. Every route is
@@ -396,11 +417,8 @@ the hub and buffer stack above the toolhead glyph (`glyph_top` is
   bores (empty, filled off the active route, the active route last so its fill
   wins at a T), then the bands.
 
-This mirrors the scratchpad's `compute_geometry / draw_static_topology /
-draw_filament_overlay / draw_animation_overlay` idea, but landed as a finer,
-per-topology phase split where the static/state concerns share a precomputed
-*frame* struct (`LinearHubFrame`, `MixedFrame`) rather than a single
-three-function pass.
+Each topology's static and state concerns share a precomputed *frame* struct
+(`LinearHubFrame`, `MixedFrame`).
 
 ---
 
@@ -427,6 +445,23 @@ NOZZLE`.
 | PARALLEL | `render_parallel()` | Each slot is an independent column with its own sensor and nozzle: `plan_parallel()`, then `draw_parallel_tool()` per slot. |
 | MIXED | `render_mixed()` | A subset of lanes route directly to their own nozzle; the rest merge through a hub to a shared toolhead. `compute_mixed_frame()` identifies which lanes are hub-routed. |
 
+A unit view draws the unit's combiner, not the selector its backend reports
+(`docs/devel/UNIT_ART.md` § "Combiner"). For a unit with art whose path ends at one
+nozzle (LINEAR or HUB), `combined_topology()` (`src/ui/filament/ui_filament_path_plan.h`)
+decides the layout, and `ams_detail_setup_path_canvas()` applies it:
+
+| Combiner | Drawn as |
+|----------|----------|
+| internal or external | HUB: each lane leaves the unit (through its head-on art when it has one) and the fan converges into the hub box below it |
+| none, or a sliding selector (ERCF, Tradrack) | The topology as reported: the selector rail in LINEAR's bar |
+
+PARALLEL and MIXED keep their own drawings. The hub box carries an output sensor band
+only when the backend reports a hub sensor (`add_hub_output_band`). Head-on art that
+finds no room above the hub's place takes the selector's slot and hangs the hub below it,
+clear of the bypass merge. The buffer keeps its place under the hub where the room is
+there; otherwise its reading moves to the hub's outlet band
+(`LinearHubFrame::sync_on_output`). Where neither fits, the hub box draws without the art.
+
 Per-slot render state (color, segment, mounted-ness, at-sensor, at-nozzle) is
 derived once into `SlotRenderStates` by `compute_slot_render_states()` and read
 by the topology bodies, so the same state isn't re-derived across phases.
@@ -447,6 +482,7 @@ struct PathCache {            // the active filament path, replayed by DRAW_POST
     int32_t center_x = 0;
     int32_t nozzle_y = 0;
     int32_t sensor_r = 0;
+    lv_point_t origin = {0, 0};   // widget top-left at that draw
     bool    valid    = false;
 };
 
@@ -460,7 +496,7 @@ struct HitRects {            // exact drawn boxes, read by the click handler
 LINEAR/HUB stores the active route's filled prefix (`filled_prefix()`) in
 `path_cache.path`; the DRAW_POST animation replays it without re-running the
 topology render. Hub/buffer/bypass phases record their drawn boxes
-into `hits`, and `filament_path_click_cb()` tests taps against those rects — the
+into `hits`, and `filament_path_click_cb()` tests taps against those rects: the
 single source of truth, no geometry re-derivation.
 
 A PARALLEL tap goes through the pure `helix::ui::parallel_tap_at()`
@@ -502,7 +538,7 @@ void layered_mark_dirty(lv_obj_t* obj) {
 the widget has a real size (`w>0 && h>0`), reallocates the buffer on size change
 (`layered_ensure_buffers()`), repaints the canvas if dirty, then clears the
 flag. A `SIZE_CHANGED` event (`layered_size_changed_cb()`) re-marks the canvas
-dirty and reschedules — critical because the create-time refresh can run before
+dirty and reschedules, which matters because the create-time refresh can run before
 layout has given the widget a size.
 
 ---
@@ -515,7 +551,7 @@ transition, error pulse, heat pulse, flow, output-X slide). Each ticks
 (`render_animation_overlay()`) reads `AnimState` and paints on top of the cached
 canvas:
 
-- **Flow chevrons** — `chevrons_along()` (`filament_path_geometry.h`) placing
+- **Flow chevrons**: `chevrons_along()` (`filament_path_geometry.h`) placing
   chevrons along the cached `path_cache`, sized from the tube gauge, pointing
   the way the filament travels, at an animated phase. They run during a
   load/unload (`flow_active`) and during a manual Extrude / Retract
@@ -525,8 +561,8 @@ canvas:
   widget has moved since; chevrons skip runs hidden in a box (`seg_shown`)
   and the hub and buffer boxes' hit rects. With animations off a manual move
   shows still chevrons; a load/unload shows none.
-- **Heat glow** — a pulsing radial glow at the nozzle/sensor when heating.
-- **Segment-transition tip** — the moving leading edge of filament as it
+- **Heat glow**: a pulsing radial glow at the nozzle/sensor when heating.
+- **Segment-transition tip**: the moving leading edge of filament as it
   advances along the cached path between segments.
 
 PARALLEL computes its mounted-slot entry line on demand; MIXED has no per-frame
@@ -597,7 +633,7 @@ unit-testable.
 `render_overlay_content()`. Derive per-slot state once via
 `compute_slot_render_states()`.
 
-**Reuse on a new canvas.** The plan and painter have no detail-canvas coupling —
+**Reuse on a new canvas.** The plan and painter have no detail-canvas coupling:
 `ui_system_path_plan.cpp` plans the overview with them. Fill the shared
 `plan_scratch()` with `new_route()` / `append_line()` / `add_band_at_end()`,
 style spans with `Lane::style()` and bands with `Lane::band()`, then call
@@ -612,11 +648,11 @@ use the LVGL test fixture.
 
 | Test file | Tags | Covers |
 |-----------|------|--------|
-| `tests/unit/test_filament_path_geometry.cpp` | `[filament-path][geometry]` | `seg_length`, `path_length`, `path_point_at`, `route_orthogonal`, `route_polyline_filleted`, `build_merge_fan` — pure math, no LVGL |
-| `tests/unit/test_filament_path_mixed_render.cpp` | `[filament-path][mixed][topology]`, `[filament-path][parallel][topology]` | MIXED/PARALLEL produce opaque overlay pixels once laid out; `SIZE_CHANGED` reschedules the async refresh post-layout |
+| `tests/unit/test_filament_path_geometry.cpp` | `[filament-path][geometry]` | `seg_length`, `path_length`, `path_point_at`, `route_orthogonal`, `route_polyline_filleted`, `build_merge_fan`; pure math, no LVGL |
+| `tests/unit/test_filament_path_mixed_render.cpp` | `[filament-path][canvas][mixed]` | MIXED/PARALLEL produce opaque overlay pixels once laid out; `SIZE_CHANGED` reschedules the async refresh post-layout |
 | `tests/unit/test_filament_path_plan.cpp` | `[filament-path][plan]`, `[filament-path][plan][hits]`, `[filament-path][plan][offpage]` | LINEAR/HUB frame, route plan (contiguity, ownership, span styles, bands, coalesce), the hub/buffer/bypass hit rects of a rendered canvas, and the off-page stubs' geometry |
 | `tests/unit/test_toolhead_badge.cpp` | `[toolhead_badge]` | Glyph bounds against drawn pixels per style; the badge corner clears the tube |
-| `tests/unit/test_system_path_plan.cpp` | `[system_path]` | The overview's plan: continuous unit routes, hub bands in all four states, dumb hubs, idle trunk, bypass merge, toolchanger routes |
+| `tests/unit/test_system_path_plan.cpp` | `[system_path]` | The overview's plan: continuous unit routes, hub bands in all four states, dumb hubs, idle trunk, bypass merge, toolchanger routes, hub boxes only at junctions (`nozzle_feed()`), and on the mock rigs at 800x480 and 480x272 no two routes crossing or closer than a haloed tube (`[route_spacing]`) |
 | `tests/unit/test_filament_path_canvas.cpp` | `[canvas][hit_test]`, `[filament-path][canvas]` | Hit-rect tests (hub box dead-center / argument order), SIZE_CHANGED handler |
 | `tests/unit/test_filament_path_parallel_tap.cpp` | `[filament-path][hit_test][toolhead_tap]` | A rendered PARALLEL canvas: a head tap reaches the toolhead callback (the slot callback when none is set), a tube tap the slot callback |
 | `tests/unit/test_ams_panel_toolhead_tap.cpp` | `[ams][path][hit_test]`, `[ams][path][toolhead_tap]` | `parallel_tap_at()` (glyph edges, tube above the glyph and sensor row, between columns, nearest column on overlap); the AMS panel's head tap asks or mounts, the mounted head opens the slot menu, busy is ignored, printing and spools on the bed refuse |
@@ -626,7 +662,7 @@ use the LVGL test fixture.
 ./build/bin/helix-tests "[geometry]"
 ```
 
-The geometry tests are the cheapest regression net for routing changes — they
+The geometry tests are the cheapest regression net for routing changes: they
 run without a display and assert exact arc tangents and lane separation.
 
 ---
@@ -635,7 +671,7 @@ run without a display and assert exact arc tangents and lane separation.
 
 | File | Contents |
 |------|----------|
-| `include/filament_path_geometry.h`, `src/ui/filament/filament_path_geometry.cpp` | `helix::ui::pathgeo` — pure path math, arc-fillet routing, merge fan |
+| `include/filament_path_geometry.h`, `src/ui/filament/filament_path_geometry.cpp` | `helix::ui::pathgeo`: pure path math, arc-fillet routing, merge fan |
 | `include/filament_tube_stroker.h`, `src/ui/filament/filament_tube_stroker.cpp` | Concentric tube stroking passes and color helpers |
 | `include/ui_filament_path_canvas.h` | Public widget API: create/register + the C state setters |
 | `src/ui/filament/ui_filament_path_internal.h` | `FilamentPathData`, `LayerState`, `PathCache`, `HitRects`, `RenderCtx`, `BaseGeometry`, `ThemeCache`, `AnimState` |
@@ -643,7 +679,7 @@ run without a display and assert exact arc tangents and lane separation.
 | `src/ui/filament/ui_filament_path_layers.cpp` | Canvas/buffer management, dirty flags, async refresh, size-change handling, teardown |
 | `src/ui/filament/ui_filament_path_topology.cpp` | The three topology renderers + phase functions + DRAW_POST `render_animation_overlay()` |
 | `src/ui/filament/ui_filament_path_plan.h`, `.cpp` | LINEAR/HUB and MIXED frames, route plans for all three topologies, span styles, sensor bands, layered `paint_tubes()` |
-| `src/ui/filament/ui_filament_path_glyphs.cpp` | Hub box, buffer coil, filament tip, nozzle, toolhead, badges |
+| `src/ui/filament/ui_filament_path_glyphs.cpp` | Hub box, buffer tension control, filament tip, nozzle, toolhead, badges |
 | `include/ui_toolhead_badge.h`, `src/ui/filament/ui_toolhead_badge.cpp` | Toolhead glyph bounds per style, the tool badge's look and corner rect |
 | `src/ui/filament/ui_filament_path_anim.cpp` | The five `lv_anim`-driven animation systems |
 | `src/ui/filament/ui_system_path_plan.h`, `.cpp` | AMS overview state, layout and `plan_overview()` onto the shared route plan |
@@ -653,7 +689,6 @@ run without a display and assert exact arc tangents and lane separation.
 
 ## References
 
-- `docs/devel/FILAMENT_MANAGEMENT.md` — AMS/AFC/Happy Hare/ACE/IFS/CFS backends that feed this widget
-- `docs/devel/BED_MESH_RENDERING_INTERNALS.md` — sibling software-renderer doc
-- `docs/devel/LVGL9_XML_GUIDE.md` — XML widget registration and subject bindings
-- The original design brainstorm lived in a local `.claude/scratchpad/` note (not tracked, predates the shipped naming and the dropped feature-flag plan)
+- `docs/devel/FILAMENT_MANAGEMENT.md`: AMS/AFC/Happy Hare/ACE/IFS/CFS backends that feed this widget
+- `docs/devel/BED_MESH_RENDERING_INTERNALS.md`: sibling software-renderer doc
+- `docs/devel/LVGL9_XML_GUIDE.md`: XML widget registration and subject bindings

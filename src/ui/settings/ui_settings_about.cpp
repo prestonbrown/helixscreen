@@ -11,7 +11,9 @@
 #include "ui_callback_helpers.h"
 #include "ui_panel_history_dashboard.h"
 #include "ui_settings_updates.h"
+#if HELIX_HAS_SNAKE_GAME
 #include "ui_snake_game.h"
+#endif
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -116,6 +118,7 @@ void AboutSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_about_printer_name_clicked",
          [](lv_event_t*) {
+#if HELIX_HAS_SNAKE_GAME
              static int tap_count = 0;
              static uint32_t last_tap_time = 0;
 
@@ -139,6 +142,7 @@ void AboutSettingsOverlay::register_callbacks() {
                  spdlog::info("[AboutSettings] Snake easter egg triggered!");
                  helix::SnakeGame::show();
              }
+#endif
          }},
         {"on_about_version_clicked",
          [](lv_event_t*) {
@@ -228,7 +232,7 @@ void AboutSettingsOverlay::on_activate() {
     // The label may have been created while the overlay was hidden, so LVGL couldn't
     // determine the correct text bounds to start the scroll animation.
     if (marquee_content_) {
-        lv_label_set_long_mode(marquee_content_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+        lv_label_set_long_mode(marquee_content_, LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
     }
 
 #ifdef HELIX_HAS_TRACKER
@@ -237,7 +241,7 @@ void AboutSettingsOverlay::on_activate() {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_deactivate_);
     if (elapsed.count() > 500) {
-        helix::SoundManager::instance().play_file("assets/sounds/space_debris.mod",
+        helix::SoundManager::instance().play_file("assets/sounds/pole_position_nights.mod",
                                                   SoundPriority::EVENT);
     } else {
         spdlog::debug("[{}] Skipping tracker start - re-activated {}ms after deactivation",
@@ -278,7 +282,7 @@ void AboutSettingsOverlay::setup_contributor_marquee() {
     // Single label with LVGL's built-in scroll long mode
     marquee_content_ = lv_label_create(marquee_container);
     lv_obj_set_width(marquee_content_, lv_pct(100));
-    lv_label_set_long_mode(marquee_content_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_label_set_long_mode(marquee_content_, LV_LABEL_LONG_MODE_SCROLL_CIRCULAR);
     lv_label_set_text(marquee_content_, text.c_str());
     lv_obj_set_style_text_color(marquee_content_, theme_manager_get_color("text_subtle"), 0);
     lv_obj_set_style_anim_duration(marquee_content_, text.size() * 100, 0);
@@ -293,16 +297,16 @@ void AboutSettingsOverlay::setup_contributor_marquee() {
 
 void AboutSettingsOverlay::populate_info_rows() {
     // Version
-    lv_subject_copy_string(&version_value_subject_, helix_version());
+    lv_subject_set_string(&version_value_subject_, helix_version());
     std::string about_desc = std::string(lv_tr("Current Version")) + ": " + helix_version();
-    lv_subject_copy_string(&about_version_description_subject_, about_desc.c_str());
+    lv_subject_set_string(&about_version_description_subject_, about_desc.c_str());
     spdlog::trace("[{}] Version subject: {}", get_name(), helix_version());
 
     // Printer name from config
     Config* config = Config::get_instance();
     std::string printer_name =
         config->get_printer_display_name(config->get_active_printer_id(), lv_tr("Unknown"));
-    lv_subject_copy_string(&printer_value_subject_, printer_name.c_str());
+    lv_subject_set_string(&printer_value_subject_, printer_name.c_str());
     spdlog::trace("[{}] Printer: {}", get_name(), printer_name);
 }
 
@@ -328,7 +332,7 @@ void AboutSettingsOverlay::fetch_print_hours() {
                             }
                             std::string formatted =
                                 helix::format::duration(static_cast<int>(totals.total_time));
-                            lv_subject_copy_string(&print_hours_value_subject_, formatted.c_str());
+                            lv_subject_set_string(&print_hours_value_subject_, formatted.c_str());
                             spdlog::trace("[{}] Print hours updated: {}", get_name(), formatted);
                         }),
         lifetime_.bg_cb(

@@ -84,6 +84,9 @@ class AmsBackendIndx : public AmsBackendToolChanger {
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
+    /// Re-words a standing seat fault, which names its tool, in the new language.
+    void refresh_translated_texts() override;
+
     /// Seat or remove the half-seated tool, each behind a confirm. Empty
     /// without the MANUAL_* macros or a seat fault. Caller holds mutex_.
     [[nodiscard]] std::vector<helix::RecoveryAction> build_recovery_actions() const override;

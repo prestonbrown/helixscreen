@@ -35,6 +35,7 @@ class PrinterPrintStateTestAccess {
         pps.printer_reports_layers_ = false;
         pps.slicer_progress_ = 0.0;
         pps.slicer_progress_active_ = false;
+        pps.file_progress_fraction_ = -1.0;
         pps.eta_estimator_.reset();
         pps.sdcard_active_ = false;
         // print_stats.exception parses under Moonraker delta semantics: an
@@ -44,6 +45,7 @@ class PrinterPrintStateTestAccess {
         pps.print_exception_id_ = -1;
         pps.print_exception_code_ = -1;
         pps.print_exception_message_.clear();
+        pps.print_exception_runout_lane_ = -1;
         // The job being prepared is session-scoped: it outlives
         // reset_for_new_print() by design, since it exists precisely for the
         // window before the printer reports the job. Leaving it set leaks a
@@ -177,6 +179,8 @@ class PrinterProfileStateTestAccess {
         s.z_offset_save_enabled_ = true;
         s.db_z_offset_persists_ = true;
         s.db_tool_change_resets_z_offset_ = false;
+        s.z_position_endstop_numeric_ = false;
+        s.kinematics_.clear();
         s.db_enclosed_ = false;
         s.db_hides_dot_dirs_ = false;
         s.timelapse_default_enabled_ = false;
@@ -258,6 +262,7 @@ class PrinterStateTestAccess {
             ps.fan_state_.init_fans({});
             ps.temperature_state_.init_extruders({});
         }
+        ps.fan_state_.set_tachometers({});
         // Plain string setters — no subject touched, so they run unguarded. These
         // are the Klipper object names the chamber logic matches against; a leaked
         // one makes a later test's chamber read the previous test's sensor.

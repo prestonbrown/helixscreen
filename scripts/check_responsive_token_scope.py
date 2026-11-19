@@ -6,14 +6,14 @@
 Token auto-discovery is top-level-only. It lists files with
 theme_manager_find_xml_files() (src/ui/theme/theme_token_scan.cpp) and recursive=false,
 which skips every subdirectory, so only ui_xml/*.xml is ever parsed for `<px name="foo_small">` /
-`<string name="foo_small">`. A responsive token declared in ui_xml/components/,
-ui_xml/portrait/, ui_xml/micro/ — anywhere below the top level — is never
+`<string name="foo_small">`. A responsive token declared in ui_xml/components/
+or anywhere else below the top level is never
 registered, and every `#foo` that references it silently resolves to nothing.
 Neither side warns (prestonbrown/helixscreen#1211).
 
 Recursing was the obvious fix and is the wrong one. Discovery is alphabetical
-last-wins, so a portrait-only `nav_width_small` would shadow the base token
-globally instead of only while the portrait variant is active. Discovery stays
+last-wins, so a component's `nav_width_small` would shadow the top-level token
+globally. Discovery stays
 top-level-only; this gate makes the constraint loud instead of silent.
 
 WHAT IS FLAGGED

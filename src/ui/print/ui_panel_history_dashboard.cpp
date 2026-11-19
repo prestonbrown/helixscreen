@@ -12,7 +12,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
-#include "core/text_io.h"
+#include "filament_chip_model.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
@@ -166,37 +166,9 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find widget references - Filter buttons
-    filter_day_ = find_required(overlay_root_, "filter_day", get_name());
-    filter_week_ = find_required(overlay_root_, "filter_week", get_name());
-    filter_month_ = find_required(overlay_root_, "filter_month", get_name());
-    filter_year_ = find_required(overlay_root_, "filter_year", get_name());
-    filter_all_ = find_required(overlay_root_, "filter_all", get_name());
-
-    // Stat labels (2x2 grid)
-    stat_total_prints_ = find_required(overlay_root_, "stat_total_prints", get_name());
-    stat_print_time_ = find_required(overlay_root_, "stat_print_time", get_name());
-    stat_filament_ = find_required(overlay_root_, "stat_filament", get_name());
-    stat_success_rate_ = find_required(overlay_root_, "stat_success_rate", get_name());
-
-    // Containers
-    stats_grid_ = find_required(overlay_root_, "stats_grid", get_name());
-    empty_state_ = find_required(overlay_root_, "empty_state", get_name());
-    btn_view_history_ = find_required(overlay_root_, "btn_view_history", get_name());
-
-    // Chart containers
     trend_chart_container_ = find_required(overlay_root_, "trend_chart_container", get_name());
-    trend_period_label_ = find_required(overlay_root_, "trend_period", get_name());
     filament_chart_container_ =
         find_required(overlay_root_, "filament_chart_container", get_name());
-
-    spdlog::debug("[{}] Widget refs - filters: {}/{}/{}/{}/{}, stats: {}/{}/{}/{}", get_name(),
-                  filter_day_ != nullptr, filter_week_ != nullptr, filter_month_ != nullptr,
-                  filter_year_ != nullptr, filter_all_ != nullptr, stat_total_prints_ != nullptr,
-                  stat_print_time_ != nullptr, stat_filament_ != nullptr,
-                  stat_success_rate_ != nullptr);
-    spdlog::debug("[{}] Chart containers: trend={}, filament={}", get_name(),
-                  trend_chart_container_ != nullptr, filament_chart_container_ != nullptr);
 
     create_trend_chart();
     create_filament_chart();
@@ -221,6 +193,12 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
 // ============================================================================
 // Lifecycle Hooks
 // ============================================================================
+
+void HistoryDashboardPanel::on_ui_destroyed() {
+    trend_series_ = nullptr;
+    filament_bar_rows_.clear();
+    connection_observer_.reset();
+}
 
 void HistoryDashboardPanel::on_activate() {
     // Call base class first
@@ -376,23 +354,23 @@ void HistoryDashboardPanel::update_all_time_statistics(const PrintHistoryTotals&
     lv_subject_set_int(&history_has_jobs_subject_, totals.total_jobs > 0 ? 1 : 0);
 
     if (totals.total_jobs == 0) {
-        lv_subject_copy_string(&stat_total_prints_subject_, "0");
-        lv_subject_copy_string(&stat_print_time_subject_, "0h");
-        lv_subject_copy_string(&stat_filament_subject_, "0m");
-        lv_subject_copy_string(&stat_success_rate_subject_, "0%");
+        lv_subject_set_string(&stat_total_prints_subject_, "0");
+        lv_subject_set_string(&stat_print_time_subject_, "0h");
+        lv_subject_set_string(&stat_filament_subject_, "0m");
+        lv_subject_set_string(&stat_success_rate_subject_, "0%");
         return;
     }
 
     // Total prints, time, filament from server-computed totals (accurate)
     char buf[32];
     snprintf(buf, sizeof(buf), "%llu", static_cast<unsigned long long>(totals.total_jobs));
-    lv_subject_copy_string(&stat_total_prints_subject_, buf);
+    lv_subject_set_string(&stat_total_prints_subject_, buf);
 
     std::string time_str = format_duration(static_cast<double>(totals.total_time));
-    lv_subject_copy_string(&stat_print_time_subject_, time_str.c_str());
+    lv_subject_set_string(&stat_print_time_subject_, time_str.c_str());
 
     std::string filament_str = format_filament(totals.total_filament_used);
-    lv_subject_copy_string(&stat_filament_subject_, filament_str.c_str());
+    lv_subject_set_string(&stat_filament_subject_, filament_str.c_str());
 
     // Success rate: computed from cached jobs (best approximation available —
     // Moonraker's totals endpoint doesn't provide status breakdown)
@@ -408,7 +386,7 @@ void HistoryDashboardPanel::update_all_time_statistics(const PrintHistoryTotals&
             (static_cast<double>(completed) / static_cast<double>(cached_jobs_.size())) * 100.0;
     }
     snprintf(buf, sizeof(buf), "%.0f%%", success_rate);
-    lv_subject_copy_string(&stat_success_rate_subject_, buf);
+    lv_subject_set_string(&stat_success_rate_subject_, buf);
 
     // Charts still use cached jobs (visual approximation)
     update_trend_chart(cached_jobs_);
@@ -428,10 +406,10 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
 
     if (jobs.empty()) {
         // Clear stats via subjects (bindings will update UI automatically)
-        lv_subject_copy_string(&stat_total_prints_subject_, "0");
-        lv_subject_copy_string(&stat_print_time_subject_, "0h");
-        lv_subject_copy_string(&stat_filament_subject_, "0m");
-        lv_subject_copy_string(&stat_success_rate_subject_, "0%");
+        lv_subject_set_string(&stat_total_prints_subject_, "0");
+        lv_subject_set_string(&stat_print_time_subject_, "0h");
+        lv_subject_set_string(&stat_filament_subject_, "0m");
+        lv_subject_set_string(&stat_success_rate_subject_, "0%");
         return;
     }
 
@@ -459,16 +437,16 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
     // Update stat subjects (bindings will update UI automatically)
     char buf[32];
     snprintf(buf, sizeof(buf), "%llu", static_cast<unsigned long long>(total_prints));
-    lv_subject_copy_string(&stat_total_prints_subject_, buf);
+    lv_subject_set_string(&stat_total_prints_subject_, buf);
 
     std::string time_str = format_duration(total_time);
-    lv_subject_copy_string(&stat_print_time_subject_, time_str.c_str());
+    lv_subject_set_string(&stat_print_time_subject_, time_str.c_str());
 
     std::string filament_str = format_filament(total_filament);
-    lv_subject_copy_string(&stat_filament_subject_, filament_str.c_str());
+    lv_subject_set_string(&stat_filament_subject_, filament_str.c_str());
 
     snprintf(buf, sizeof(buf), "%.0f%%", success_rate);
-    lv_subject_copy_string(&stat_success_rate_subject_, buf);
+    lv_subject_set_string(&stat_success_rate_subject_, buf);
 
     update_trend_chart(jobs);
     update_filament_chart(jobs);
@@ -672,7 +650,7 @@ void HistoryDashboardPanel::update_trend_chart(const std::vector<PrintHistoryJob
         period_text = lv_tr("All time");
         break;
     }
-    lv_subject_copy_string(&trend_period_subject_, period_text);
+    lv_subject_set_string(&trend_period_subject_, period_text);
 
     const std::vector<int> counts = count_trend_buckets(
         jobs, now, period_count, period_seconds, current_filter_ == HistoryTimeFilter::ALL_TIME);
@@ -691,10 +669,10 @@ void HistoryDashboardPanel::update_trend_chart(const std::vector<PrintHistoryJob
 
     lv_chart_set_axis_range(trend_chart_, LV_CHART_AXIS_PRIMARY_Y, 0, max_count);
 
-    // Update series data - use lv_chart_set_value_by_id for precise control
+    // Update series data - use lv_chart_set_series_value_by_id for precise control
     for (int i = 0; i < period_count; i++) {
-        lv_chart_set_value_by_id(trend_chart_, trend_series_, static_cast<uint32_t>(i),
-                                 counts[static_cast<size_t>(i)]);
+        lv_chart_set_series_value_by_id(trend_chart_, trend_series_, static_cast<uint32_t>(i),
+                                        counts[static_cast<size_t>(i)]);
     }
 
     lv_chart_refresh(trend_chart_);
@@ -723,15 +701,9 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
             continue;
         }
 
-        // Split semicolon-separated filament types (OrcaSlicer multi-extruder format)
-        std::vector<std::string> types;
-        for (std::string_view sv : helix::text_io::lines(job.filament_type, ';')) {
-            size_t start = sv.find_first_not_of(" \t");
-            size_t end = sv.find_last_not_of(" \t");
-            if (start != std::string_view::npos) {
-                types.emplace_back(sv.substr(start, end - start + 1));
-            }
-        }
+        // A multi-extruder file names one material per tool; unnamed tools take no share.
+        std::vector<std::string> types = helix::split_filament_types(job.filament_type);
+        types.erase(std::remove(types.begin(), types.end(), std::string()), types.end());
 
         if (types.empty()) {
             filament_by_type["Unknown"] += job.filament_used;
@@ -814,7 +786,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
         lv_obj_set_style_pad_gap(row, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(row, false);
         filament_bar_rows_.emplace_back(row);
 
         // Use readable font size (small but legible)
@@ -857,7 +829,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         lv_obj_set_style_radius(bar, 2, 0);
         lv_obj_set_style_border_width(bar, 0, 0);
         lv_obj_set_style_pad_all(bar, 0, 0);
-        lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(bar, false);
 
         // Spacer to push amount to right edge (fills remaining space)
         lv_obj_t* spacer = lv_obj_create(row);
@@ -866,7 +838,7 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         lv_obj_set_style_bg_opa(spacer, LV_OPA_0, 0);
         lv_obj_set_style_border_width(spacer, 0, 0);
         lv_obj_set_style_pad_all(spacer, 0, 0);
-        lv_obj_remove_flag(spacer, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(spacer, false);
 
         // Amount label (fixed width, right-aligned text at row's right edge)
         lv_obj_t* amount_label = lv_label_create(row);
@@ -889,9 +861,9 @@ void HistoryDashboardPanel::update_coverage_note(bool partial) {
     if (partial) {
         const std::string note = fmt::format(fmt::runtime(lv_tr("Based on the newest {} prints")),
                                              history_manager_->get_jobs().size());
-        lv_subject_copy_string(&history_coverage_subject_, note.c_str());
+        lv_subject_set_string(&history_coverage_subject_, note.c_str());
     } else {
-        lv_subject_copy_string(&history_coverage_subject_, "");
+        lv_subject_set_string(&history_coverage_subject_, "");
     }
     lv_subject_set_int(&history_coverage_partial_subject_, partial ? 1 : 0);
 }

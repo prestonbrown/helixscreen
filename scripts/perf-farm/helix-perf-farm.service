@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Runs the perf farm once from the host that reaches the printers (zeus), keeping results in
+# ~/.local/state/helix-perf-farm. Read them with: scripts/perf-farm-scheduled.sh --trend
+#
+# Install as a user unit, after deciding which printers run unattended and when (#1910):
+#   cp scripts/perf-farm/helix-perf-farm.{service,timer} ~/.config/systemd/user/
+#   edit ExecStart to point at this checkout, then
+#   systemctl --user daemon-reload && systemctl --user enable --now helix-perf-farm.timer
+# A timer for a user with no open session also needs: loginctl enable-linger $USER
+
+[Unit]
+Description=HelixScreen perf farm CPU check
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Device passwords (HELIX_K1C_PASSWORD, ...) and PERF_SSH_OPTS, one VAR=value per line.
+EnvironmentFile=-%h/.config/helix-perf-farm.env
+ExecStart=%h/Code/Printing/helixscreen/scripts/perf-farm-scheduled.sh
+# Exit 1 (over budget) and 2 (no usable sample) are findings kept in the results, not unit failures.
+SuccessExitStatus=1 2
+Nice=10

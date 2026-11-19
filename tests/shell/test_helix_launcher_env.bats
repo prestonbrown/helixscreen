@@ -1021,7 +1021,7 @@ print_env_from_file() {
 
 @test "the display, screensaver and sound tunables the env-var reference documents pass through" {
     local kv k
-    for kv in HELIX_EGL_VSYNC=0 HELIX_EGL_XRGB=0 HELIX_REFR_PERIOD_MS=16 \
+    for kv in HELIX_EGL_VSYNC=0 HELIX_EGL_XRGB=0 HELIX_FBDEV_VSYNC=1 HELIX_REFR_PERIOD_MS=16 \
         HELIX_REFR_PERIOD_SCOPE=all HELIX_LOOP_MIN_SLEEP_MS=1 HELIX_IMAGE_CACHE_KB=2048 \
         HELIX_KEY_DEPTH=flat HELIX_GLASS=0 HELIX_BED_MESH_2D=1 HELIX_HANG_THRESHOLD_SEC=120 \
         HELIX_SCREENSAVER_LEVEL=1 HELIX_SCREENSAVER_BUDGET_PCT=5 \

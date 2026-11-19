@@ -7,6 +7,8 @@
 #include "chamber_stall_prompt.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
@@ -95,10 +97,10 @@ class ChamberStallModal : public Modal {
             return;
         }
         subjects_initialized_ = true;
-        lv_subject_init_string(&message_subject_, message_buf_, nullptr, sizeof(message_buf_), "");
-        lv_subject_init_string(&hint_subject_, hint_buf_, nullptr, sizeof(hint_buf_), "");
-        lv_subject_init_int(&no_retry_subject_, 0);
-        lv_subject_init_int(&busy_subject_, 0);
+        message_subject_.init_string(message_buf_, nullptr, sizeof(message_buf_), "");
+        hint_subject_.init_string(hint_buf_, nullptr, sizeof(hint_buf_), "");
+        no_retry_subject_.init_int(0);
+        busy_subject_.init_int(0);
         lv_xml_register_subject(nullptr, "chamber_stall_message", &message_subject_);
         lv_xml_register_subject(nullptr, "chamber_stall_cancel_hint", &hint_subject_);
         lv_xml_register_subject(nullptr, "chamber_stall_no_retry", &no_retry_subject_);
@@ -111,10 +113,10 @@ class ChamberStallModal : public Modal {
             lv_xml_unregister_subject(nullptr, "chamber_stall_cancel_hint");
             lv_xml_unregister_subject(nullptr, "chamber_stall_no_retry");
             lv_xml_unregister_subject(nullptr, "chamber_stall_busy");
-            lv_subject_deinit(&message_subject_);
-            lv_subject_deinit(&hint_subject_);
-            lv_subject_deinit(&no_retry_subject_);
-            lv_subject_deinit(&busy_subject_);
+            message_subject_.reset();
+            hint_subject_.reset();
+            no_retry_subject_.reset();
+            busy_subject_.reset();
             subjects_initialized_ = false;
         });
     }
@@ -122,8 +124,8 @@ class ChamberStallModal : public Modal {
     static void set_content(const std::string& message, const std::string& hint, bool can_retry,
                             bool busy) {
         init_subjects();
-        lv_subject_copy_string(&message_subject_, message.c_str());
-        lv_subject_copy_string(&hint_subject_, hint.c_str());
+        lv_subject_set_string(&message_subject_, message.c_str());
+        lv_subject_set_string(&hint_subject_, hint.c_str());
         lv_subject_set_int(&no_retry_subject_, can_retry ? 0 : 1);
         lv_subject_set_int(&busy_subject_, busy ? 1 : 0);
     }
@@ -148,12 +150,12 @@ class ChamberStallModal : public Modal {
     void on_quaternary() override;
 
   private:
-    static inline lv_subject_t message_subject_{};
+    static inline helix::Subject message_subject_{};
     static inline HELIX_PSRAM_BSS char message_buf_[384] = {};
-    static inline lv_subject_t hint_subject_{};
+    static inline helix::Subject hint_subject_{};
     static inline char hint_buf_[192] = {};
-    static inline lv_subject_t no_retry_subject_{};
-    static inline lv_subject_t busy_subject_{};
+    static inline helix::Subject no_retry_subject_{};
+    static inline helix::Subject busy_subject_{};
     static inline bool subjects_initialized_ = false;
 };
 
@@ -436,8 +438,8 @@ void ChamberStallPrompt::refresh_content() {
 
     std::string message =
         wait_c > 0 ? fmt::format(fmt::runtime(lv_tr("The print is waiting for the chamber to "
-                                                    "reach {}°C, but the heater is not heating.")),
-                                 static_cast<int>(std::lround(wait_c)))
+                                                    "reach {}, but the heater is not heating.")),
+                                 units::format_display_temp(wait_c))
                    : std::string(lv_tr("The print is waiting for the chamber, but the heater is "
                                        "not heating."));
     const char* reason = lv_subject_get_string(temps.get_chamber_heater_rejection_text_subject());

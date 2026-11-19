@@ -3,28 +3,36 @@
 
 #include "helix_plugin_installer.h"
 
+#include "board_identity.h"
 #include "config.h"
 #include "core/text_io.h"
 #include "helix_fs.h"
 #include "helix_version.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
+#include "local_plugin_installer.h"
 #include "lvgl.h"
 #include "system/child_process.h"
 #include "system/moonraker_local_probe.h"
+#include "system/process_runner.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
+#include "version.h"
+#include "wall_clock_trust.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <vector>
 
@@ -58,21 +66,18 @@ struct WaitResult {
     std::string output;
 };
 
-/**
- * @brief Log install.sh's output line by line.
- *
- * The script's own messages are the only record of why it failed, so a
- * failure logs them at warn; a success keeps them at debug, except its own
- * [WARN] lines, such as a config edit it could not make.
- */
-static void log_script_output(const std::string& output, bool succeeded) {
+void log_command_output(const char* what, const std::string& output, bool succeeded) {
     for (const auto& line : script_output_lines(output)) {
         if (succeeded && line.rfind("[WARN]", 0) != 0) {
-            spdlog::debug("[PluginInstaller] install.sh: {}", line);
+            spdlog::debug("[PluginInstaller] {}: {}", what, line);
         } else {
-            spdlog::warn("[PluginInstaller] install.sh: {}", line);
+            spdlog::warn("[PluginInstaller] {}: {}", what, line);
         }
     }
+}
+
+static void log_script_output(const std::string& output, bool succeeded) {
+    log_command_output("install.sh", output, succeeded);
 }
 
 #if !defined(ESP_PLATFORM)
@@ -108,10 +113,12 @@ static void drain_output(int fd, std::string& out) {
  * @param operation_name Name for logging ("Installation" or "Uninstallation")
  * @param out_fd Non-blocking read end of the child's stdout/stderr, drained
  *               while waiting so a full pipe can never stall the child
+ * @param cancel When set and it turns true, the child is ended as at a timeout
  * @return WaitResult with exit code, captured output, or error info
  */
 static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
-                                              const char* operation_name, int out_fd) {
+                                              const char* operation_name, int out_fd,
+                                              const std::atomic<bool>* cancel) {
     constexpr auto kPollInterval = std::chrono::milliseconds(10);
     constexpr auto kTermGrace = std::chrono::milliseconds(500);
     WaitResult result;
@@ -120,7 +127,7 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
         pid, std::chrono::steady_clock::now() + std::chrono::seconds(timeout_seconds), kTermGrace,
         kPollInterval, [&] {
             drain_output(out_fd, result.output);
-            return true;
+            return cancel == nullptr || !cancel->load();
         });
     drain_output(out_fd, result.output);
 
@@ -129,9 +136,12 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
         result.exit_code = wait.exit_code();
         break;
     case ChildWaitOutcome::TimedOut:
-    case ChildWaitOutcome::Cancelled:
         spdlog::error("[PluginInstaller] {} timed out after {} seconds", operation_name,
                       timeout_seconds);
+        result.timed_out = true;
+        break;
+    case ChildWaitOutcome::Cancelled:
+        spdlog::warn("[PluginInstaller] {} stopped: the app is shutting down", operation_name);
         result.timed_out = true;
         break;
     case ChildWaitOutcome::WaitFailed:
@@ -146,28 +156,24 @@ static WaitResult wait_for_child_with_timeout(pid_t pid, int timeout_seconds,
 #endif // !ESP_PLATFORM
 
 /**
- * @brief Run install.sh in the given mode, capturing and logging its output.
+ * @brief Run /bin/sh with @p sh_args, capturing and returning its output.
  *
- * fork/exec instead of popen(): sh receives the script as a path argument,
- * not a command string, so nothing inside script_path is interpreted.
- * Running it through /bin/sh also works when the file has no exec bit:
- * Moonraker's type:web self-update extracts the release zip with Python's
- * zipfile, which does not restore unix modes. --no-restart, unless
- * @p no_restart is false: the caller restarts Moonraker over its API. An
- * inherited HELIX_JOB_STATE is left out of the script's environment: the
- * script asks Moonraker for the print state itself.
+ * fork/exec instead of popen(): every word reaches sh as its own argument,
+ * never as a command string, so nothing inside a path is interpreted. An
+ * inherited HELIX_JOB_STATE is left out of the child's environment: install.sh
+ * asks Moonraker for the print state itself. The child reads /dev/null and
+ * holds none of the app's other descriptors, so nothing it runs can wait on
+ * the terminal or keep one of the app's sockets open.
  */
-static WaitResult run_install_script(const std::string& script_path, const char* mode_flag,
-                                     int timeout_seconds, const char* operation_name,
-                                     bool no_restart = true) {
+static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_seconds,
+                         const char* operation_name, const std::atomic<bool>* cancel = nullptr) {
     WaitResult result;
 #if defined(ESP_PLATFORM)
-    // No shell and no processes to spawn: the firmware cannot run install.sh.
-    (void)script_path;
-    (void)mode_flag;
+    // No shell and no processes to spawn: the firmware cannot run commands.
+    (void)sh_args;
     (void)timeout_seconds;
     (void)operation_name;
-    (void)no_restart;
+    (void)cancel;
     result.error = result.spawn_failed = true;
     result.error_message = "not supported on this device";
     return result;
@@ -191,12 +197,25 @@ static WaitResult run_install_script(const std::string& script_path, const char*
         }
     }
     envp.push_back(nullptr);
-    std::array<const char*, 5> argv = {"sh", script_path.c_str(), mode_flag, nullptr, nullptr};
-    if (no_restart) {
-        argv = {"sh", script_path.c_str(), "--no-restart", mode_flag, nullptr};
+    std::vector<const char*> argv = {"sh"};
+    for (const auto& arg : sh_args) {
+        argv.push_back(arg.c_str());
     }
+    argv.push_back(nullptr);
+    const long open_max = sysconf(_SC_OPEN_MAX);
+    const int last_fd = open_max > 0 && open_max < 65536 ? static_cast<int>(open_max) : 65536;
 
+    // Until exec the child is a copy of the app, handlers included: a SIGTERM
+    // that ends it early must not run the app's own handler in it. Signals stay
+    // blocked across the fork, and the child resets every handled one first.
+    sigset_t all_signals;
+    sigset_t old_mask;
+    sigfillset(&all_signals);
+    pthread_sigmask(SIG_SETMASK, &all_signals, &old_mask);
     pid_t pid = fork();
+    if (pid != 0) {
+        pthread_sigmask(SIG_SETMASK, &old_mask, nullptr);
+    }
     if (pid < 0) {
         result.error = result.spawn_failed = true;
         result.error_message = strerror(errno);
@@ -207,19 +226,101 @@ static WaitResult run_install_script(const std::string& script_path, const char*
     }
 
     if (pid == 0) {
+        for (int sig = 1; sig < NSIG; ++sig) {
+            struct sigaction current {};
+            if (sigaction(sig, nullptr, &current) == 0 && current.sa_handler != SIG_IGN) {
+                struct sigaction reset {};
+                reset.sa_handler = SIG_DFL;
+                sigaction(sig, &reset, nullptr);
+            }
+        }
+        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+        const int null_fd = open("/dev/null", O_RDONLY);
+        if (null_fd >= 0) {
+            dup2(null_fd, STDIN_FILENO);
+        }
         dup2(fds[1], STDOUT_FILENO);
         dup2(fds[1], STDERR_FILENO);
-        close(fds[0]);
-        close(fds[1]);
+        for (int fd = STDERR_FILENO + 1; fd < last_fd; ++fd) {
+            close(fd);
+        }
         execve("/bin/sh", const_cast<char* const*>(argv.data()), envp.data());
         _exit(127);
     }
 
     close(fds[1]);
-    result = wait_for_child_with_timeout(pid, timeout_seconds, operation_name, fds[0]);
+    result = wait_for_child_with_timeout(pid, timeout_seconds, operation_name, fds[0], cancel);
     close(fds[0]);
     return result;
 #endif
+}
+
+/**
+ * @brief Run install.sh in the given mode, capturing its output.
+ *
+ * Through /bin/sh, which also works when the file has no exec bit: Moonraker's
+ * type:web self-update extracts the release zip with Python's zipfile, which
+ * does not restore unix modes. --no-restart, unless @p no_restart is false:
+ * the caller restarts Moonraker over its API.
+ */
+static WaitResult run_install_script(const std::string& script_path, const char* mode_flag,
+                                     int timeout_seconds, const char* operation_name,
+                                     bool no_restart = true) {
+    std::vector<std::string> args = {script_path};
+    if (no_restart) {
+        args.emplace_back("--no-restart");
+    }
+    args.emplace_back(mode_flag);
+    return run_sh(args, timeout_seconds, operation_name);
+}
+
+namespace {
+CommandResult run_process_until(const std::vector<std::string>& argv, int timeout_seconds,
+                                const std::atomic<bool>* cancel) {
+    CommandResult out;
+    if (argv.empty()) {
+        return out;
+    }
+    // sh execs "$@": it looks the program up on PATH and passes each word as is.
+    std::vector<std::string> args = {"-c", "exec \"$@\"", "sh"};
+    args.insert(args.end(), argv.begin(), argv.end());
+    const WaitResult result = run_sh(args, timeout_seconds, argv.front().c_str(), cancel);
+    out.started = !result.spawn_failed;
+    out.timed_out = result.timed_out;
+    out.exit_code = result.timed_out || result.error ? -1 : result.exit_code;
+    out.output = result.output;
+    if (result.error) {
+        out.error = result.error_message;
+    }
+    return out;
+}
+} // namespace
+
+CommandResult run_process(const std::vector<std::string>& argv, int timeout_seconds) {
+    return run_process_until(argv, timeout_seconds, nullptr);
+}
+
+ProcessRunner cancellable_process_runner(const std::atomic<bool>& cancel) {
+    return [&cancel](const std::vector<std::string>& argv, int timeout_seconds) {
+        return run_process_until(argv, timeout_seconds, &cancel);
+    };
+}
+
+ProcessRunner start_unless_cancelled(const std::atomic<bool>& cancel, ProcessRunner run) {
+    return
+        [&cancel, run = std::move(run)](const std::vector<std::string>& argv, int timeout_seconds) {
+            if (cancel.load()) {
+                CommandResult refused;
+                refused.error = "cancelled before it started";
+                return refused;
+            }
+            return run(argv, timeout_seconds);
+        };
+}
+
+std::string last_output_line(const std::string& output) {
+    const auto lines = script_output_lines(output);
+    return lines.empty() ? std::string() : lines.back();
 }
 
 std::vector<std::string> script_output_lines(const std::string& output) {
@@ -290,9 +391,17 @@ bool HelixPluginInstaller::is_local_moonraker() const {
     return is_moonraker_on_same_host(host);
 }
 
+LocalPluginRecipe helix_print_plugin_recipe(int install_timeout_seconds) {
+    LocalPluginRecipe recipe;
+    recipe.name = "HelixPrint";
+    recipe.install_args = {"--no-restart", "--auto"};
+    recipe.install_timeout_seconds = install_timeout_seconds;
+    return recipe;
+}
+
 HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync() {
-    // NOTE: This method is designed to be called from a background thread.
-    // It does NOT use std::function to avoid ARM/glibc static linking issues.
+    // Blocks while install.sh runs; it runs the steps inline on the calling
+    // thread and starts no thread of its own.
 
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-install on remote Moonraker");
@@ -308,32 +417,30 @@ HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync
     spdlog::info("[PluginInstaller] Starting local installation: {} --no-restart --auto",
                  script_path);
 
-    WaitResult result =
-        run_install_script(script_path, "--auto", script_timeout_seconds_, "Installation");
-    log_script_output(result.output, !result.timed_out && !result.error && result.exit_code == 0);
-
-    if (result.spawn_failed) {
-        state_.store(PluginInstallState::FAILED);
-        return {false, lv_tr("Failed to start installer: ") + result.error_message};
-    }
-
-    if (result.timed_out) {
-        state_.store(PluginInstallState::FAILED);
-        return {false, lv_tr("Installation timed out. The script may be stuck.")};
-    }
-
-    if (result.error) {
-        state_.store(PluginInstallState::FAILED);
-        return {false, lv_tr("Installation failed: ") + result.error_message};
-    }
-
-    if (result.exit_code == 0) {
+    // The plugin ships beside install.sh: nothing to fetch, no dependencies.
+    LocalPluginPlan plan;
+    plan.install_script = script_path;
+    const LocalPluginResult installed = install_plugin_locally(
+        helix_print_plugin_recipe(script_timeout_seconds_), plan, run_process);
+    if (installed.outcome != LocalPluginOutcome::Failed) {
         state_.store(PluginInstallState::SUCCESS);
         spdlog::info("[PluginInstaller] Installation completed successfully");
         return {true, lv_tr("Plugin installed successfully.")};
     }
 
     state_.store(PluginInstallState::FAILED);
+    const CommandResult& result = installed.failure;
+    if (!result.started) {
+        return {false, lv_tr("Failed to start installer: ") + result.error};
+    }
+    if (result.timed_out) {
+        spdlog::error("[PluginInstaller] Installation timed out after {} seconds",
+                      script_timeout_seconds_);
+        return {false, lv_tr("Installation timed out. The script may be stuck.")};
+    }
+    if (!result.error.empty()) {
+        return {false, lv_tr("Installation failed: ") + result.error};
+    }
     spdlog::error("[PluginInstaller] Installation failed (exit code {})", result.exit_code);
     return {false, lv_tr("Installation failed. Check logs for details.")};
 }
@@ -466,6 +573,8 @@ constexpr int kRestartExitManual = 3;
 constexpr int kRestartExitHeldForPrint = 4;
 constexpr int kRestartExitJobUnknown = 6;
 constexpr int kRestartExitNotAnswering = 7;
+constexpr int kRestartExitNoService = 8;
+constexpr int kRestartExitRefused = 9;
 } // namespace
 
 PluginRestartOutcome restart_moonraker_for_plugin(const std::string& script_path,
@@ -499,6 +608,12 @@ PluginRestartOutcome restart_moonraker_for_plugin(const std::string& script_path
     case kRestartExitNotAnswering:
         log_script_output(result.output, false);
         return PluginRestartOutcome::NotAnswering;
+    case kRestartExitNoService:
+        log_script_output(result.output, false);
+        return PluginRestartOutcome::NoService;
+    case kRestartExitRefused:
+        log_script_output(result.output, false);
+        return PluginRestartOutcome::Refused;
     default:
         log_script_output(result.output, false);
         return PluginRestartOutcome::Failed;
@@ -528,11 +643,27 @@ std::string parse_plugin_version(std::string_view text) {
 }
 
 bool plugin_versions_differ(const PluginSelfHealFacts& facts) {
-    return !facts.reported_version.empty() && !facts.bundled_version.empty() &&
-           facts.reported_version != facts.bundled_version;
+    if (facts.reported_version.empty() || facts.bundled_version.empty()) {
+        return false;
+    }
+    const auto reported = version::parse_version(facts.reported_version);
+    const auto bundled = version::parse_version(facts.bundled_version);
+    if (reported && bundled) {
+        return *reported != *bundled;
+    }
+    return facts.reported_version != facts.bundled_version;
+}
+
+bool plugin_running_newer(const std::string& reported_version, const std::string& bundled_version) {
+    const auto reported = version::parse_version(reported_version);
+    const auto bundled = version::parse_version(bundled_version);
+    return reported && bundled && *reported > *bundled;
 }
 
 PluginSelfHealStep decide_plugin_self_heal(const PluginSelfHealFacts& facts) {
+    if (plugin_running_newer(facts.reported_version, facts.bundled_version)) {
+        return PluginSelfHealStep::KeepNewer;
+    }
     const bool version_differs = plugin_versions_differ(facts);
     if (!facts.local) {
         return version_differs ? PluginSelfHealStep::ReportOnly : PluginSelfHealStep::Nothing;
@@ -630,32 +761,41 @@ std::string HelixPluginInstaller::get_install_script_path() const {
         exe_dir = script_search_root_;
         search_paths = {script_search_root_ + "/moonraker-plugin/install.sh"};
     } else {
+        std::string exe = running_exe_override_;
+        if (exe.empty()) {
 #ifdef __APPLE__
-        char path[1024];
-        uint32_t size = sizeof(path);
-        if (_NSGetExecutablePath(path, &size) == 0) {
-            exe_dir = std::string(hfs::parent_path(path));
-        }
+            char path[1024];
+            uint32_t size = sizeof(path);
+            if (_NSGetExecutablePath(path, &size) == 0) {
+                exe = path;
+            }
 #else
-        // Linux: read /proc/self/exe
-        char path[1024];
-        ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
-        if (len != -1) {
-            path[len] = '\0';
-            exe_dir = std::string(hfs::parent_path(path));
-        }
+            char path[1024];
+            ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+            if (len != -1) {
+                path[len] = '\0';
+                exe = path;
+            }
 #endif
-
-        if (exe_dir.empty()) {
+        }
+        if (exe.empty()) {
             return "";
         }
+        exe_dir = std::string(hfs::parent_path(exe));
 
-        // Try common locations relative to executable
-        search_paths = {exe_dir + "/moonraker-plugin/install.sh",    // Deployed alongside binary
-                        exe_dir + "/../moonraker-plugin/install.sh", // Development build
-                        exe_dir + "/../../moonraker-plugin/install.sh",
-                        exe_dir + "/../share/helix/moonraker-plugin/install.sh", // Installed
-                        "/usr/share/helix/moonraker-plugin/install.sh"};
+        const std::string install_root = board::resolve_install_root(exe, probe_root_);
+        if (!install_root.empty()) {
+            search_paths.push_back(install_root + "/moonraker-plugin/install.sh");
+        }
+        // Layouts with no install root of their own: the script beside the binary,
+        // or in a share dir.
+        for (const std::string& candidate :
+             {exe_dir + "/moonraker-plugin/install.sh", exe_dir + "/../moonraker-plugin/install.sh",
+              exe_dir + "/../../moonraker-plugin/install.sh",
+              exe_dir + "/../share/helix/moonraker-plugin/install.sh",
+              std::string("/usr/share/helix/moonraker-plugin/install.sh")}) {
+            search_paths.push_back(candidate);
+        }
     }
 
     for (const auto& candidate : search_paths) {
@@ -681,7 +821,11 @@ std::string HelixPluginInstaller::get_install_script_path() const {
 
         // No exec-bit check: the script runs via /bin/sh, and a release
         // unpacked by Moonraker's zip extractor carries no unix modes.
-        return *canonical_path;
+        // A candidate already in normal form is returned as named: install.sh
+        // links the plugin by the path it runs from, and a firmware package's
+        // `latest` link in that path outlives the version dir an upgrade deletes.
+        // One with "." or ".." elements is returned resolved.
+        return hfs::lexically_normal(candidate) == candidate ? candidate : *canonical_path;
     }
 
     spdlog::warn("[PluginInstaller] install.sh not found below exe dir {}", exe_dir);
@@ -773,21 +917,8 @@ void HelixPluginInstaller::snooze_install_prompt() {
                                                                snooze.unmeasured_starts);
 }
 
-namespace {
-
-/// A clock reading older than this names no real moment: a device without an
-/// RTC reads 1970 (or its build date) until NTP reaches it. 2020-01-01 UTC;
-/// HelixScreen's first release is 2025.
-constexpr int64_t kEarliestTrustedClockS = 1577836800;
-
-bool plugin_prompt_clock_trusted(int64_t s) {
-    return s >= kEarliestTrustedClockS;
-}
-
-} // namespace
-
 PluginPromptSnooze plugin_prompt_snooze_at(int64_t now_s) {
-    return {plugin_prompt_clock_trusted(now_s) ? now_s : kPluginPromptStampUnknown, 0};
+    return {wall_clock_trusted(now_s) ? now_s : kPluginPromptStampUnknown, 0};
 }
 
 PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze, int64_t now_s,
@@ -795,8 +926,8 @@ PluginPromptSnoozeTurn decide_plugin_prompt_snooze(PluginPromptSnooze snooze, in
     if (snooze.snoozed_at_s <= 0) {
         return {true, snooze};
     }
-    const bool now_trusted = plugin_prompt_clock_trusted(now_s);
-    if (now_trusted && !plugin_prompt_clock_trusted(snooze.snoozed_at_s)) {
+    const bool now_trusted = wall_clock_trusted(now_s);
+    if (now_trusted && !wall_clock_trusted(snooze.snoozed_at_s)) {
         return {false, {now_s, 0}};
     }
     if (now_trusted && now_s >= snooze.snoozed_at_s) {

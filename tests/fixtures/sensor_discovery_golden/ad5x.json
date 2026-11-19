@@ -7,7 +7,8 @@
       "controller_fan driver_fan"
     ],
     "filament_sensor_names": [
-      "filament_switch_sensor head_switch_sensor"
+      "filament_switch_sensor head_switch_sensor",
+      "filament_motion_sensor ifs_motion_sensor"
     ],
     "has_accelerometer": true,
     "has_fan_feedback": false,
@@ -58,10 +59,14 @@
       "mcu",
       "timelapse",
       "probe",
-      "filament_switch_sensor head_switch_sensor"
+      "filament_switch_sensor head_switch_sensor",
+      "zmod",
+      "zmod_ifs",
+      "zmod_color",
+      "save_variables",
+      "filament_motion_sensor ifs_motion_sensor"
     ],
     "sensors": [
-      "temperature_sensor chamber",
       "temperature_sensor chamber"
     ],
     "width_sensor_objects": []
@@ -80,7 +85,7 @@
       ]
     },
     "filament": {
-      "count": 1,
+      "count": 2,
       "entries": [
         {
           "enabled": true,
@@ -88,6 +93,13 @@
           "role": "none",
           "sensor_name": "head_switch_sensor",
           "type": "switch"
+        },
+        {
+          "enabled": true,
+          "klipper_name": "filament_motion_sensor ifs_motion_sensor",
+          "role": "none",
+          "sensor_name": "ifs_motion_sensor",
+          "type": "motion"
         }
       ]
     },
@@ -142,7 +154,8 @@
       "profiles"
     ],
     "controller_fan driver_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "display_status": [
       "message",
@@ -162,10 +175,17 @@
       "nozzle_volume_type"
     ],
     "fan_generic chamber_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic fanM106": [
-      "speed"
+      "speed",
+      "rpm"
+    ],
+    "filament_motion_sensor ifs_motion_sensor": [
+      "filament_detected",
+      "enabled",
+      "detection_count"
     ],
     "filament_switch_sensor head_switch_sensor": [
       "filament_detected",
@@ -204,7 +224,8 @@
       "power"
     ],
     "heater_fan heat_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "idle_timeout": [
       "state"
@@ -244,8 +265,10 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
+    "save_variables": null,
     "stepper_enable": [
       "steppers"
     ],
@@ -273,6 +296,8 @@
     "webhooks": [
       "state",
       "state_message"
-    ]
+    ],
+    "zmod_color": null,
+    "zmod_ifs": null
   }
 }

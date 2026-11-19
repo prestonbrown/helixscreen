@@ -21,6 +21,10 @@ namespace helix::ui {
  * path, so a second entry while the dialog is open is the caller's only
  * remaining guard.
  *
+ * With Settings > Safety & Alerts > "Confirm disabling motors" off, no dialog
+ * opens: M84 goes out at once under the same print-active check, and `stored`
+ * is left as it was.
+ *
  * @param api The API M84 is sent through on confirm; nullptr still shows the
  *        dialog but sends nothing.
  * @param stored The caller's guard. It reads nullptr once the dialog is gone,

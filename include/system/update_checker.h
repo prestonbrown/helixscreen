@@ -16,10 +16,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_widget_ref.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -30,6 +29,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -63,6 +63,13 @@ ChannelVersionRelation compare_channel_version(const std::string& installed,
 namespace helix {
 class IMoonrakerClient;
 class IMoonrakerAPI;
+
+/// Ask Moonraker's update manager to re-read one of its entries
+/// (machine.update.refresh), so a client like Mainsail sees the repository as
+/// it is now rather than as of Moonraker's last scheduled refresh. @p name is the
+/// update_manager section's name. Best effort: a missing section, or a print in
+/// progress, is only logged.
+void request_update_manager_refresh(IMoonrakerClient& client, const std::string& name);
 } // namespace helix
 
 /**
@@ -105,6 +112,9 @@ class UpdateChecker {
         /// channel back to a slower one. Offered explicitly and confirmed, never
         /// auto-notified.
         bool is_downgrade = false;
+        /// True only when the manifest this came from carried a minisign signature that
+        /// verified against the release key. Nothing unverified is ever downloaded.
+        bool signature_verified = false;
     };
 
     /**
@@ -253,7 +263,7 @@ class UpdateChecker {
     ///
     /// shutdown() frees every observer node on them without bumping the
     /// ObserverGuard invalidation epoch, so outside observers must pass this to
-    /// observe_*(), or their guards call lv_observer_remove() on a freed node.
+    /// observe_*(), or their guards call lv_observer_delete() on a freed node.
     [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
         return subjects_.get_subjects_lifetime();
     }
@@ -633,12 +643,6 @@ class UpdateChecker {
     lv_subject_t* release_notes_subject();
     lv_subject_t* changelog_visible_subject();
 
-    /** @brief Show the update notification modal */
-    void show_update_notification();
-
-    /** @brief Hide the update notification modal */
-    void hide_update_notification();
-
     /** @brief Result of a portable zip integrity probe. */
     enum class ZipIntegrity {
         Ok,           ///< Archive verified intact.
@@ -727,8 +731,20 @@ class UpdateChecker {
     bool fetch_beta_release(ReleaseInfo& info, std::string& error);
     bool fetch_dev_release(ReleaseInfo& info, std::string& error);
 
+    /// How fetching a channel manifest ended. Unreachable lets stable and beta fall back to
+    /// GitHub, whose answer can announce a release but never install one (it carries no
+    /// signature); Refused does not: a manifest whose signature fails is reported, not
+    /// papered over with an unverifiable source.
+    enum class ManifestFetch { Ok, Unreachable, Refused };
+
     // R2 CDN fetch (used as primary source before GitHub fallback)
-    bool fetch_r2_manifest(const std::string& channel, ReleaseInfo& info, std::string& error);
+    ManifestFetch fetch_r2_manifest(const std::string& channel, ReleaseInfo& info,
+                                    std::string& error);
+
+    /// GETs @p manifest_url and `<manifest_url>.minisig` and parses the manifest only when
+    /// the signature verifies against cached_release_pubkey_.
+    ManifestFetch fetch_verified_manifest(const std::string& manifest_url, ReleaseInfo& info,
+                                          std::string& error);
     std::string get_r2_base_url() const;
 
     /**
@@ -798,6 +814,9 @@ class UpdateChecker {
     UpdateChannel cached_channel_{UpdateChannel::Stable};
     std::string cached_dev_url_;
     std::string cached_r2_base_url_;
+    /// The key channel manifests must verify against: the compiled-in release key unless
+    /// update_urls.json names another.
+    std::string cached_release_pubkey_;
 
     // Diagnostics-only mirror of the two Config-derived values above, deliberately
     // SEPARATE from cached_* so it can be refreshed at any time on the main thread
@@ -806,9 +825,9 @@ class UpdateChecker {
     ConfigSnapshot config_snapshot_;
 
     // LVGL subjects for UI binding (update check)
-    lv_subject_t status_subject_{};
-    lv_subject_t version_text_subject_{};
-    lv_subject_t new_version_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject version_text_subject_{};
+    helix::Subject new_version_subject_{};
 
     // String buffers for string subjects (must outlive subjects)
     char version_text_buf_[256]{};
@@ -852,9 +871,9 @@ class UpdateChecker {
     std::function<void()> restart_action_;
 
     // Download LVGL subjects
-    lv_subject_t download_status_subject_{};
-    lv_subject_t download_progress_subject_{};
-    lv_subject_t download_text_subject_{};
+    helix::Subject download_status_subject_{};
+    helix::Subject download_progress_subject_{};
+    helix::Subject download_text_subject_{};
     char download_text_buf_[256]{};
 
     // Download internals
@@ -898,12 +917,9 @@ class UpdateChecker {
     // Auto-check timer
     lv_timer_t* auto_check_timer_{nullptr};
 
-    // Notification modal
-    helix::ui::WidgetRef notify_modal_;
-
     // Notification subjects
-    lv_subject_t release_notes_subject_{};
-    lv_subject_t changelog_visible_subject_{};
+    helix::Subject release_notes_subject_{};
+    helix::Subject changelog_visible_subject_{};
     char release_notes_buf_[2048]{};
 
     SubjectManager subjects_;
@@ -958,6 +974,25 @@ bool parse_github_release(const std::string& json_str, UpdateChecker::ReleaseInf
  */
 bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseInfo& info,
                             std::string& error, const std::vector<std::string>& asset_keys);
+
+/**
+ * @brief parse_release_manifest() only after the manifest's minisign signature verifies
+ *
+ * @p sig_status and @p sig_body are the HTTP result of fetching `<manifest URL>.minisig`.
+ * A missing signature, one by another key, a legacy (not prehashed) one, or a manifest
+ * changed after signing fails with @p error set and @p info untouched. On success
+ * info.signature_verified is true. docs/devel/RELEASE_SIGNING.md.
+ *
+ * @param public_key Base64 minisign key line the signature must verify against
+ */
+bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
+                                   const std::string& sig_body, std::string_view public_key,
+                                   UpdateChecker::ReleaseInfo& info, std::string& error,
+                                   const std::vector<std::string>& asset_keys);
+
+/// Whether @p info may be downloaded and installed: it came from a manifest whose signature
+/// verified and carries the SHA-256 the download is checked against.
+bool release_is_verified(const UpdateChecker::ReleaseInfo& info);
 
 /// True when @p info carries a download under one of @p asset_keys, or the build has
 /// no asset keys at all (an Android APK updates outside the release assets). A release

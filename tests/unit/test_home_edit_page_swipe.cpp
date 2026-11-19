@@ -30,6 +30,7 @@
 #include "ui_drag_surface.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_obj_flags.h"
 #include "ui_panel_home.h"
 #include "ui_utils.h"
 #include "ui_widget_catalog_overlay.h"
@@ -95,11 +96,11 @@ constexpr uint32_t kReadPeriodMs = ScopedPointerIndev::kReadPeriodMs;
 constexpr int kCellTracks = helix::GridLayout::TRACKS_PER_CELL;
 
 bool is_hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 bool is_clickable(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    return lv_obj_is_clickable(obj);
 }
 
 /// Installs a known "home" widget config and puts the prior one back however the
@@ -373,7 +374,7 @@ class ScopedBadgeRecorder {
     }
 
     ~ScopedBadgeRecorder() {
-        lv_observer_remove(observer_);
+        lv_observer_delete(observer_);
     }
 
     ScopedBadgeRecorder(const ScopedBadgeRecorder&) = delete;
@@ -492,15 +493,15 @@ class EditHomeFixture : public LVGLTestFixture {
         lv_obj_set_size(root_, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(root_, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(root_, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(root_, false);
 
         lv_obj_t* host = lv_obj_create(root_);
         lv_obj_set_name(host, "carousel_host");
         lv_obj_set_size(host, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(host, 0, LV_PART_MAIN);
         lv_obj_set_style_border_width(host, 0, LV_PART_MAIN);
-        lv_obj_remove_flag(host, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(host, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_clickable(host, false);
+        lv_obj_set_scrollable(host, false);
         for (const auto& handler : HomePanelTestAccess::grid_handlers()) {
             lv_obj_add_event_cb(host, handler.cb, handler.code, nullptr);
         }
@@ -650,8 +651,7 @@ class EditHomeFixture : public LVGLTestFixture {
     /// The carousel swipes: its scroll container scrolls horizontally.
     bool scroll_live() {
         lv_obj_t* scroll = scroller();
-        return lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE) &&
-               lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
+        return lv_obj_is_scrollable(scroll) && lv_obj_get_scroll_dir(scroll) == LV_DIR_HOR;
     }
 
     /// The swipe policy the panel last stated to the carousel.
@@ -896,8 +896,7 @@ class EditHomeFixture : public LVGLTestFixture {
         // Before anything reads it: a shield the session outlived is freed.
         REQUIRE(helix::test::widget_in_tree(shield));
         CHECK(lv_obj_get_parent(shield) == container);
-        lv_obj_t* selection_home =
-            GridEditModeTestAccess::dragging(grid()) ? drag_layer() : container;
+        lv_obj_t* selection_home = grid().is_dragging() ? drag_layer() : container;
         for (lv_obj_t* obj :
              {grid().selected_widget(), GridEditModeTestAccess::selection_overlay(grid())}) {
             if (obj) {
@@ -1069,7 +1068,7 @@ class EditHomeFixture : public LVGLTestFixture {
     /// Hold a live drag's pointer at height @p y in the edge zone toward @p dir
     /// until the dwell flips a page and the slide settles. Returns the pointer.
     lv_point_t dwell_flip(int dir, int y) {
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         const lv_area_t frame = settled_page_area();
         const int zone = edge_zone_px();
         const lv_point_t pointer{dir > 0 ? frame.x2 - zone / 2 : frame.x1 + zone / 2, y};
@@ -1079,7 +1078,7 @@ class EditHomeFixture : public LVGLTestFixture {
         settle();
         REQUIRE(grid().page_index() == landing);
         REQUIRE(current_page() == landing);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         return pointer;
     }
 
@@ -1091,7 +1090,7 @@ class EditHomeFixture : public LVGLTestFixture {
         indev.grab(c.x, c.y);
         const int start_x = c.x + past_drag_threshold();
         indev.move(start_x, c.y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         const lv_point_t carried{start_x + tracks_px(kCellTracks), c.y};
         indev.move(carried.x, carried.y);
         REQUIRE(GridEditModeTestAccess::snap_preview(grid()) != nullptr);
@@ -1106,11 +1105,11 @@ class EditHomeFixture : public LVGLTestFixture {
     /// rebuild the end schedules lays it out.
     void check_ended_uncommitted(const helix::PanelWidgetEntry& origin) {
         CHECK_FALSE(GridEditModeTestAccess::press_armed(grid()));
-        CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+        CHECK_FALSE(grid().is_dragging());
         CHECK(GridEditModeTestAccess::snap_preview(grid()) == nullptr);
         CHECK(grid().selected_widget() == nullptr);
         CHECK(scroll_live());
-        CHECK_FALSE(lv_obj_has_flag(widget_on(0, origin.id.c_str()), LV_OBJ_FLAG_FLOATING));
+        CHECK_FALSE(lv_obj_is_floating(widget_on(0, origin.id.c_str())));
         const helix::PanelWidgetEntry now = entry_on_page(0, origin.id.c_str());
         CHECK(now.col == origin.col);
         CHECK(now.row == origin.row);
@@ -1133,7 +1132,7 @@ class EditHomeFixture : public LVGLTestFixture {
         const lv_point_t c = center_of(widget);
         indev.grab(c.x, c.y);
         indev.move(c.x + past_drag_threshold(), c.y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
 
         SlotDrag drag;
         drag.start = {c.x + past_drag_threshold(), c.y};
@@ -1153,7 +1152,7 @@ class EditHomeFixture : public LVGLTestFixture {
         });
         REQUIRE(grid().page_index() == page_count());
         REQUIRE(lv_anim_count_running() == 0);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         return drag;
     }
 
@@ -1166,7 +1165,7 @@ class EditHomeFixture : public LVGLTestFixture {
         const lv_point_t c = center_of(widget);
         indev.grab(c.x, c.y);
         indev.move(c.x - past_drag_threshold(), c.y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
 
         SlotDrag drag;
         drag.start = {c.x - past_drag_threshold(), c.y};
@@ -1186,7 +1185,7 @@ class EditHomeFixture : public LVGLTestFixture {
         });
         REQUIRE(grid().page_index() == 0);
         REQUIRE(lv_anim_count_running() == 0);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         return drag;
     }
 };
@@ -1294,7 +1293,7 @@ TEST_CASE_METHOD(EditHomeFixture,
         REQUIRE(lv_obj_get_group(control) == group.get());
         lv_group_focus_obj(outside);
         REQUIRE(group.focused() == outside);
-        lv_obj_add_flag(outside, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(outside, true);
         REQUIRE(group.focused() == control);
     };
 
@@ -1455,7 +1454,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.grab(c.x, c.y);
     REQUIRE(grid().selected_widget() == widget);
     REQUIRE(GridEditModeTestAccess::press_armed(grid()));
-    REQUIRE_FALSE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE_FALSE(grid().is_dragging());
     REQUIRE_FALSE(scroll_live());
 
     // The press is armed and not yet a drag when the indev resets.
@@ -1470,7 +1469,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     const lv_point_t spot = empty_spot(0);
     indev.prime(spot.x, spot.y);
     indev.move(spot.x, spot.y - past_drag_threshold());
-    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    CHECK_FALSE(grid().is_dragging());
     CHECK_FALSE(GridEditModeTestAccess::press_armed(grid()));
     CHECK(grid().selected_widget() == nullptr); // tapped empty
     CHECK(scroll_live());
@@ -1490,7 +1489,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a press lost to a wait for release ends the d
     // handler, and the drag stays live until the lift.
     lv_indev_wait_release(indev.indev());
     indev.move(pointer.x + tracks_px(kCellTracks), pointer.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     REQUIRE_FALSE(scroll_live());
 
     // The lift sends PRESS_LOST to the press target in place of RELEASED.
@@ -1519,7 +1518,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a modal closed mid-drag ends the drag uncommi
     lv_obj_t* dialog = Modal::show(kModalComponent);
     REQUIRE(dialog != nullptr);
     indev.move(pointer.x, pointer.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Closing it resets input.
     Modal::hide(dialog);
@@ -1543,7 +1542,7 @@ TEST_CASE_METHOD(
     REQUIRE(lv_obj_get_parent(widget) == drag_layer());
 
     lv_indev_reset(nullptr, nullptr);
-    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    CHECK_FALSE(grid().is_dragging());
     CHECK(grid().page_index() == 0);
     CHECK(lv_obj_get_parent(widget) == page(0));
     // The drag went home with the slot still in reach: the carousel is on
@@ -1558,7 +1557,7 @@ TEST_CASE_METHOD(
     // The rebuild the end scheduled laid the widget out on its page again.
     REQUIRE(HomePanelTestAccess::edit_mode_active(panel()));
     widget = widget_on(0, "temperature");
-    CHECK_FALSE(lv_obj_has_flag(widget, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(widget));
     CHECK(lv_obj_get_child_by_name(slot_container(), "temperature") == nullptr);
     CHECK(current_page() == 0);
     CHECK(grid().page_index() == 0);
@@ -1591,7 +1590,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a drag and its drop leave no timer of the edi
         const lv_point_t c = center_of(widget);
         indev.grab(c.x, c.y);
         indev.move(c.x + past_drag_threshold(), c.y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         const lv_point_t zone{frame.x2 - edge_zone_px() / 2, c.y};
         indev.move(zone.x, zone.y);
         REQUIRE(armed_session_timer_count() == 1);
@@ -1605,7 +1604,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a drag and its drop leave no timer of the edi
         const int y = (wa.y1 + wa.y2) / 2;
         indev.grab(grab_x, y);
         indev.move(grab_x - past_drag_threshold(), y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         indev.move(frame.x2, y);
         REQUIRE(armed_session_timer_count() == 1);
         REQUIRE(grid().page_index() == 0);
@@ -1683,9 +1682,9 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     // Toast teardown resets input this way, scoped to the dying toast.
     lv_obj_t* other = lv_obj_create(test_screen());
-    lv_obj_add_flag(other, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(other, true);
     helix::ui::reset_input_within(other);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     REQUIRE_FALSE(scroll_live());
 
     // The drag carries on one more cell, and its release commits there.
@@ -1932,7 +1931,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a multi-frame drag commits its landing cell",
     REQUIRE(grid().selected_widget() == widget);
     const int start_x = c.x + past_drag_threshold();
     indev.move(start_x, c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     constexpr int kFrames = 6;
     for (int frame = 1; frame <= kFrames; ++frame) {
         indev.move(start_x + travel * frame / kFrames, c.y);
@@ -1966,7 +1965,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.grab(c.x, c.y);
     REQUIRE(grid().selected_widget() == widget);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Hold the widget in the right edge zone: the dwell flips one page while the
     // drag survives, and the slide settles.
@@ -1976,7 +1975,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     settle();
     CHECK(current_page() == 1);
     CHECK(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     check_session_on_screen();
     // The session is scoped to page 1 while the entry still lives on page 0:
     // the dragged widget's id resolves regardless, so its snap step holds.
@@ -2010,7 +2009,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a drag that flips forth and back drops on the
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     const lv_area_t frame = settled_page_area();
     const int zone = edge_zone_px();
@@ -2024,7 +2023,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a drag that flips forth and back drops on the
     process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
     settle();
     REQUIRE(current_page() == 0);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     check_session_on_screen();
 
     indev.release(c.x, c.y);
@@ -2049,7 +2048,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a move that empties a page removes it",
     indev.grab(c.x, c.y);
     REQUIRE(grid().selected_widget() == fan);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Hold in the left edge zone past the dwell: the session flips to page 0
     // with the drag alive.
@@ -2060,7 +2059,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a move that empties a page removes it",
     settle();
     REQUIRE(current_page() == 0);
     REQUIRE(grid().page_index() == 0);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Carry the widget clear of 'temperature' and drop it.
     const auto temperature = config().page_entries(0)[0];
@@ -2113,7 +2112,7 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     SECTION("carried in one read") {
         indev.move(c.x + past_drag_threshold(), c.y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         indev.move(drop.x, drop.y);
     }
     SECTION("carried no further than the scroll limit per read") {
@@ -2125,7 +2124,7 @@ TEST_CASE_METHOD(EditHomeFixture,
             indev.move(x, c.y);
         }
         indev.move(drop.x, drop.y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         REQUIRE_FALSE(lv_indev_get_press_moved(indev.indev()));
     }
 
@@ -2165,7 +2164,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     REQUIRE(grid().selected_widget() == temperature);
     const lv_point_t drop{c.x + past_drag_threshold() + tracks_px(kCellTracks), c.y};
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     indev.move(drop.x, drop.y);
     REQUIRE(GridEditModeTestAccess::snap_col(grid()) == fan_before.col);
     REQUIRE(GridEditModeTestAccess::snap_row(grid()) == fan_before.row);
@@ -2264,7 +2263,7 @@ TEST_CASE_METHOD(EditHomeFixture,
         x += past_drag_threshold();
         indev.move(x, c.y);
     }
-    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    CHECK_FALSE(grid().is_dragging());
     CHECK_FALSE(GridEditModeTestAccess::press_armed(grid()));
     CHECK(scroll_live()); // the swipe surface never locked
     // And the carousel's scroll took the gesture.
@@ -2296,7 +2295,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold on an unselected widget grabs it after
         x += past_drag_threshold();
         indev.move(x, c.y);
     }
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(x, c.y);
     CHECK(scroll_live());
 }
@@ -2323,7 +2322,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     REQUIRE(GridEditModeTestAccess::press_armed(grid()));
     const int threshold_x = grab_x - past_drag_threshold();
     indev.move(threshold_x, cy);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     const int grab_offset = threshold_x - wa.x1;
 
     // A pointer spot where the widget's majority is past the settled page's
@@ -2340,7 +2339,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.hold(helix::kCrossPageCrossingDelayMs + 3 * kReadPeriodMs);
     CHECK(current_page() == 1);
     CHECK(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(x, cy);
 }
 
@@ -2353,7 +2352,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a crossing held in the edge zone flips exactl
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Pinned inside the right edge zone: the push carries the widget's majority
     // across, the page slides in animated under a pointer that never moves, and
@@ -2381,8 +2380,51 @@ TEST_CASE_METHOD(EditHomeFixture, "a crossing held in the edge zone flips exactl
     CHECK(session_flips == 1);
     CHECK(current_page() == 1);
     CHECK(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(x, c.y);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a zone stay spent by a crossing flip stays spent when the widget drifts back "
+                 "inside",
+                 "[2070][edit-swipe][home][grid_edit]") {
+    build_home(2, 3); // a third page, so a second flip has a page to land on
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+
+    const lv_point_t c = center_of(widget);
+    indev.grab(c.x, c.y);
+    indev.move(c.x + past_drag_threshold(), c.y);
+    REQUIRE(grid().is_dragging());
+
+    // Grabbed at its center with the pointer in the edge zone, the dwell runs
+    // until the push carries the widget's majority across; that crossing cuts
+    // the dwell off and flips first.
+    const int x = frame.x2 - edge_zone_px() / 2;
+    indev.move(x, c.y);
+    uint32_t held_ms = 0;
+    while (grid().page_index() == 0 && held_ms < 2 * helix::kCrossPageDwellMs) {
+        indev.hold(kReadPeriodMs);
+        held_ms += kReadPeriodMs;
+    }
+    INFO("flipped after " << held_ms << "ms");
+    REQUIRE(grid().page_index() == 1);
+    REQUIRE(held_ms < helix::kCrossPageDwellMs);
+
+    // Back along the zone, far enough that the widget's majority is inside the
+    // new page again, and held there. The zone stay already flipped once, so
+    // neither the dwell nor the push's next crossing flips again.
+    const int back_x = frame.x2 - edge_zone_px() + 2;
+    indev.move(back_x, c.y);
+    const lv_area_t back_area = area_of(widget);
+    REQUIRE_FALSE(
+        helix::cross_page_past_right_border(frame.x2, back_area.x1, lv_area_get_width(&back_area)));
+    indev.hold(2 * helix::kCrossPageDwellMs);
+    CHECK(grid().page_index() == 1);
+    CHECK(current_page() == 1);
+    CHECK(grid().is_dragging());
+    indev.release(back_x, c.y);
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
@@ -2404,7 +2446,7 @@ TEST_CASE_METHOD(EditHomeFixture,
         indev.grab(grab_x, y);
         REQUIRE(GridEditModeTestAccess::press_armed(grid()));
         indev.move(grab_x - past_drag_threshold(), y);
-        REQUIRE(GridEditModeTestAccess::dragging(grid()));
+        REQUIRE(grid().is_dragging());
         indev.move(frame.x2, y); // majority past the border
         return y;
     };
@@ -2427,8 +2469,109 @@ TEST_CASE_METHOD(EditHomeFixture,
     process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs + kReadPeriodMs));
     CHECK(current_page() == 1);
     CHECK(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release((frame.x1 + frame.x2) / 2, cy);
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a crossing flips only if the finger stays down past the line for its delay",
+                 "[2070][edit-swipe][home][grid_edit]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+
+    // Grabbed left of center, so one move to the page's right edge carries the
+    // widget's majority past the border.
+    const lv_area_t wa = area_of(widget);
+    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
+    const int y = (wa.y1 + wa.y2) / 2;
+    indev.grab(grab_x, y);
+    indev.move(grab_x - past_drag_threshold(), y);
+    REQUIRE(grid().is_dragging());
+    indev.move(frame.x2, y);
+    REQUIRE(armed_session_timer_count() == 1);
+
+    // No reads while time passes, so no edge push moves the widget.
+    process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs - kReadPeriodMs));
+    REQUIRE(current_page() == 0);
+    REQUIRE(grid().page_index() == 0);
+
+    SECTION("held: the flip comes once the delay runs out") {
+        process_lvgl(static_cast<int>(2 * kReadPeriodMs));
+        CHECK(current_page() == 1);
+        CHECK(grid().page_index() == 1);
+        CHECK(grid().is_dragging());
+        indev.release((frame.x1 + frame.x2) / 2, y);
+    }
+    SECTION("released during the delay: no flip, ever") {
+        indev.release(frame.x2, y);
+        process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs + kReadPeriodMs));
+        settle();
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(armed_session_timer_count() == 0);
+    }
+    SECTION("pulled back inside during the delay: the flip is cancelled") {
+        const int mid = (frame.x1 + frame.x2) / 2;
+        indev.move(mid, y);
+        CHECK(armed_session_timer_count() == 0);
+        process_lvgl(static_cast<int>(helix::kCrossPageCrossingDelayMs + kReadPeriodMs));
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(grid().is_dragging());
+        indev.release(mid, y);
+    }
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "the edge dwell flips only if the pointer stays in the zone for its time",
+                 "[2070][edit-swipe][home][grid_edit]") {
+    build_home();
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+
+    // Grabbed at its center, the widget's majority stays inside the page with
+    // the pointer in the edge zone, so only the dwell runs.
+    const lv_point_t c = center_of(widget);
+    indev.grab(c.x, c.y);
+    indev.move(c.x + past_drag_threshold(), c.y);
+    REQUIRE(grid().is_dragging());
+    const lv_point_t zone{frame.x2 - edge_zone_px() / 2, c.y};
+    indev.move(zone.x, zone.y);
+    REQUIRE(armed_session_timer_count() == 1);
+
+    // No reads while time passes, so no edge push carries the widget across.
+    process_lvgl(static_cast<int>(helix::kCrossPageDwellMs - kReadPeriodMs));
+    REQUIRE(current_page() == 0);
+    REQUIRE(grid().page_index() == 0);
+
+    SECTION("held: the flip comes once the dwell runs out") {
+        process_lvgl(static_cast<int>(2 * kReadPeriodMs));
+        CHECK(current_page() == 1);
+        CHECK(grid().page_index() == 1);
+        CHECK(grid().is_dragging());
+        indev.release((frame.x1 + frame.x2) / 2, c.y);
+    }
+    SECTION("released during the dwell: no flip, ever") {
+        indev.release(zone.x, zone.y);
+        process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
+        settle();
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(armed_session_timer_count() == 0);
+    }
+    SECTION("moved out of the zone during the dwell: the flip is cancelled") {
+        const int mid = (frame.x1 + frame.x2) / 2;
+        indev.move(mid, c.y);
+        CHECK(armed_session_timer_count() == 0);
+        process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
+        CHECK(current_page() == 0);
+        CHECK(grid().page_index() == 0);
+        CHECK(grid().is_dragging());
+        indev.release(mid, c.y);
+    }
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
@@ -2455,7 +2598,7 @@ TEST_CASE_METHOD(EditHomeFixture,
         x += past_drag_threshold();
         indev.move(x, c.y);
     }
-    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    CHECK_FALSE(grid().is_dragging());
     CHECK(scroll_live());
     indev.release(x, c.y);
     settle();
@@ -2488,7 +2631,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.grab(grab_x, cy);
     const int threshold_x = grab_x + past_drag_threshold();
     indev.move(threshold_x, cy);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     const int grab_offset = threshold_x - wa.x1;
 
     // Pinned at the page's edge, inside the edge zone, the pointer alone leaves
@@ -2512,7 +2655,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.hold(hold_ms);
     CHECK(current_page() == 1);
     CHECK(grid().page_index() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(x, cy);
 }
 
@@ -2531,7 +2674,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a left crossing flips before the edge dwell c
     REQUIRE(grid().selected_widget() == fan);
     const int threshold_x = c.x - past_drag_threshold();
     indev.move(threshold_x, c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     const int grab_offset = threshold_x - wa.x1;
 
     // Pinned in the left edge zone with the widget's majority still inside the
@@ -2552,7 +2695,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a left crossing flips before the edge dwell c
     indev.hold(hold_ms);
     CHECK(current_page() == 0);
     CHECK(grid().page_index() == 0);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(x, c.y);
 }
 
@@ -2578,6 +2721,31 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     indev.release(drag.pointer.x, drag.pointer.y);
     settle();
+}
+
+TEST_CASE_METHOD(EditHomeFixture,
+                 "a release while the crossing flip waits stays on the visible page (#2070)",
+                 "[1638][edit-swipe][home][grid_edit]") {
+    build_home(1, 1);
+    lv_obj_t* widget = widget_on(0, "temperature");
+    enter_edit_mode();
+    const lv_area_t frame = settled_page_area();
+    const lv_area_t wa = area_of(widget);
+    const bool right = GENERATE(true, false);
+    CAPTURE(right);
+    const int grab_x = wa.x1 + lv_area_get_width(&wa) * (right ? 3 : 7) / 10;
+    const int y = (wa.y1 + wa.y2) / 2;
+    const int edge_x = right ? frame.x2 : frame.x1;
+    indev.grab(grab_x, y);
+    indev.move(grab_x + (right ? -past_drag_threshold() : past_drag_threshold()), y);
+    REQUIRE(grid().is_dragging());
+    indev.move(edge_x, y);
+    REQUIRE(armed_session_timer_count() == 1);
+
+    indev.release(edge_x, y);
+    settle();
+    CHECK(config().page_count() == 1);
+    CHECK(current_page() == 0);
 }
 
 TEST_CASE_METHOD(EditHomeFixture,
@@ -2679,7 +2847,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     REQUIRE(grid().page_index() == 0);
     REQUIRE(current_page() == 0);
     REQUIRE(lv_anim_count_running() == 0);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Onto a free cell of its page, two cells right of where the drag started.
     const int expected_col = orig.col + 2 * kCellTracks;
@@ -2724,7 +2892,7 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     // The exit's rebuild laid the widget out on its page again.
     widget = widget_on(0, "temperature");
-    CHECK_FALSE(lv_obj_has_flag(widget, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(widget));
     CHECK(lv_obj_get_child_by_name(slot_container(), "temperature") == nullptr);
     CHECK(current_page() == 0);
     CHECK(config().page_count() == 1);
@@ -2741,7 +2909,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a release right after a carried flip drops on
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // The dwell flips with no further read, and the release follows in the same
     // read period, with the landing page still sliding in.
@@ -2777,7 +2945,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.move(x, drag.start.y);
     process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
     REQUIRE(grid().page_index() == 0);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     indev.release(x, drag.start.y);
     settle();
 
@@ -2811,7 +2979,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Held at the right edge long enough to cross the border and outlast a dwell.
     const int x = settled_page_area().x2;
@@ -3097,7 +3265,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a page flip during edit mode re-scopes the ed
     // can arm its clicks again, and then only the re-scope disarms it.
     lv_obj_t* fan = widget_on(1, "fan");
     REQUIRE_FALSE(is_clickable(fan));
-    lv_obj_add_flag(fan, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(fan, true);
 
     // A swipe comes to rest on page 1, and the page observer re-scopes.
     settle_swipe_on(1);
@@ -3189,7 +3357,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     lv_obj_t* overlay = GridEditModeTestAccess::selection_overlay(grid());
     REQUIRE(overlay != nullptr);
 
@@ -3204,7 +3372,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     process_lvgl(static_cast<int>(helix::kCrossPageDwellMs + kReadPeriodMs));
     settle();
     REQUIRE(grid().page_index() == 1);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     check_session_on_screen();
 
     CHECK(lv_obj_get_parent(widget) == drag_layer());
@@ -3251,7 +3419,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.grab(c.x, c.y);
     const lv_point_t start{c.x + past_drag_threshold(), c.y};
     indev.move(start.x, start.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     const auto check_drawn_where_measured = [&](const char* when) {
         INFO(when);
@@ -3302,7 +3470,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // One move into the right edge zone places the widget under the pointer;
     // time then runs a few ms at a time, with no read, until the dwell flips.
@@ -3345,7 +3513,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     const lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     REQUIRE(GridEditModeTestAccess::press_armed(grid()));
-    REQUIRE_FALSE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE_FALSE(grid().is_dragging());
     REQUIRE_FALSE(scroll_live());
 
     // The carousel comes to rest on page 1 while the press is armed and not yet
@@ -3370,7 +3538,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a drop's page-creating intent ends with its g
     lv_point_t c = center_of(widget);
     indev.grab(c.x, c.y);
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
 
     // Held at the page's right edge until the push carries the widget's majority
     // past it: a release now would create a page.
@@ -3394,7 +3562,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a drop's page-creating intent ends with its g
     indev.press(c.x, c.y);                  // selects
     indev.hold(indev.long_press_hold_ms()); // its last read dispatches LONG_PRESSED: arms
     indev.move(c.x + past_drag_threshold(), c.y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     indev.move(c.x, c.y);
     indev.release(c.x, c.y);
     settle();
@@ -3464,7 +3632,7 @@ TEST_CASE_METHOD(EditHomeFixture, "an edge long-press resize owns the gesture, n
         CHECK(GridEditModeTestAccess::press_armed(grid()));
         CHECK_FALSE(scroll_live());
         indev.move(center_x + past_drag_threshold(), mid_y); // cross the threshold
-        CHECK(GridEditModeTestAccess::dragging(grid()));     // move-drag, not a resize
+        CHECK(grid().is_dragging());                         // move-drag, not a resize
         CHECK(slot_in_reach());                              // a drag can drop on the slot
 
         indev.release(center_x + past_drag_threshold(), mid_y);
@@ -3609,7 +3777,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     CHECK(grid().page_index() == 0);
     CHECK(current_page() == 0);
     CHECK(lv_obj_get_parent(temperature) == page(0));
-    CHECK_FALSE(lv_obj_has_flag(temperature, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(temperature));
     CHECK(grid().selected_widget() == temperature);
     check_session_on_screen();
 }
@@ -3709,7 +3877,7 @@ TEST_CASE_METHOD(EditHomeFixture, "the hold that enters edit mode only selects, 
         CHECK(scroll_live());
         // Moved across the swipe axis, where the carousel cannot take the gesture.
         indev.move(c.x, c.y + past_drag_threshold());
-        CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+        CHECK_FALSE(grid().is_dragging());
         CHECK_FALSE(GridEditModeTestAccess::press_armed(grid()));
         CHECK(scroll_live());
         indev.release(c.x, c.y + past_drag_threshold());
@@ -3821,6 +3989,8 @@ TEST_CASE_METHOD(EditHomeFixture,
 
 TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page button",
                  "[1638][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home(); // 'fan' alone on page 1, the last page
     lv_obj_t* fan = widget_on(1, "fan");
     enter_edit_mode(0);
@@ -3848,6 +4018,8 @@ TEST_CASE_METHOD(EditHomeFixture, "the next-page slot offers no delete-page butt
 
 TEST_CASE_METHOD(EditHomeFixture, "the delete-page button draws nothing over the grid",
                  "[2023][edit-swipe][home][grid_edit]") {
+    // The offer is read from the global home_edit_page_deletable subject.
+    app_globals_init_subjects();
     build_home();
     widget_on(1, "fan");
     enter_edit_mode(1);
@@ -3995,7 +4167,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     // Hidden, so the rebuild skips on_activate(), whose Spoolman polling and
     // first-run tour this case does not stand up.
     lv_obj_t* root_before = HomePanelTestAccess::panel_root(panel());
-    lv_obj_add_flag(root_before, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_before, true);
     NavigationManager::instance().rebuild_active_views();
     lv_obj_t* rebuilt_root = HomePanelTestAccess::panel_root(panel());
     REQUIRE(rebuilt_root != root_before);
@@ -4008,8 +4180,8 @@ TEST_CASE_METHOD(EditHomeFixture,
 
     // The rebuild appends the new root to its parent, here the screen the
     // catalog sat on; the app's panel parent holds panels only, below it.
-    lv_obj_remove_flag(rebuilt_root, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_move_background(rebuilt_root);
+    lv_obj_set_hidden(rebuilt_root, false);
+    lv_obj_move_to_index(rebuilt_root, 0);
     adopt_panel_root();
     settle();
 
@@ -4141,7 +4313,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.grab(grab_x, cy);
     const int threshold_x = grab_x + past_drag_threshold();
     indev.move(threshold_x, cy);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     const int grab_offset = threshold_x - wa.x1;
 
     // At the zone's inner edge, where the push has furthest to carry the widget.
@@ -4164,7 +4336,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     indev.hold(2 * kReadPeriodMs);
     CHECK(grid().page_index() == 1);
     CHECK(current_page() == 1);
-    CHECK(GridEditModeTestAccess::dragging(grid()));
+    CHECK(grid().is_dragging());
     indev.release(x, cy);
     settle();
 }
@@ -4201,91 +4373,6 @@ TEST_CASE_METHOD(EditHomeFixture,
     // The session and the carousel are on the page 'fan' landed on.
     REQUIRE(config().page_count() == 3);
     CHECK(count_on_page(1, "fan") == 1);
-    CHECK(grid().page_index() == 1);
-    check_session_on_screen();
-}
-
-TEST_CASE_METHOD(EditHomeFixture,
-                 "a release with the widget's majority past the last page's border creates the "
-                 "page before any flip and slides there from its origin page",
-                 "[1638][edit-swipe][home][grid_edit]") {
-    build_home(1, 1);
-    lv_obj_t* widget = widget_on(0, "temperature");
-    enter_edit_mode();
-    const helix::PanelWidgetEntry origin = entry_on_page(0, "temperature");
-
-    // Grabbed left of center, so one move to the page's right edge carries the
-    // widget's majority past the border.
-    const lv_area_t wa = area_of(widget);
-    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
-    const int y = (wa.y1 + wa.y2) / 2;
-    indev.grab(grab_x, y);
-    REQUIRE(GridEditModeTestAccess::press_armed(grid()));
-    indev.move(grab_x - past_drag_threshold(), y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
-    const int edge_x = settled_page_area().x2;
-    indev.move(edge_x, y);
-    REQUIRE(GridEditModeTestAccess::snap_row(grid()) == origin.row);
-
-    // The release follows in the same read period, before the crossing flips.
-    REQUIRE(grid().page_index() == 0);
-    REQUIRE(current_page() == 0);
-    const PageSetChange change = watch_page_set_change();
-    indev.release(edge_x, y);
-    // The origin page survives, and it is the page on screen: the rebuilt
-    // carousel comes up there, and one slide carries it to the new page, where
-    // the session goes.
-    run_page_set_rebuild(change, 0, 1);
-    CHECK(grid().page_index() == 1);
-
-    // The page past the last one is created, with the widget in its rightmost
-    // columns on the row the drag previewed.
-    CHECK(config().page_count() == 2);
-    CHECK(count_on_page(0, "temperature") == 0);
-    REQUIRE(count_on_page(1, "temperature") == 1);
-    const helix::PanelWidgetEntry landed = entry_on_page(1, "temperature");
-    const helix::CellMetrics m = page_metrics(1);
-    CHECK(landed.col == m.cols - origin.colspan);
-    CHECK(landed.row == origin.row);
-    CHECK(grid().page_index() == 1);
-    check_session_on_screen();
-}
-
-TEST_CASE_METHOD(EditHomeFixture,
-                 "a release past the last page's border that empties its origin page lands the "
-                 "new page on the origin's index with nothing to slide",
-                 "[1638][edit-swipe][home][grid_edit]") {
-    build_home(); // 'temperature' on page 0, 'fan' alone on page 1, the last page
-    lv_obj_t* widget = widget_on(1, "fan");
-    enter_edit_mode(1);
-    const helix::PanelWidgetEntry origin = entry_on_page(1, "fan");
-
-    // Grabbed left of center, so one move to the page's right edge carries the
-    // widget's majority past the border, and the release follows in the same
-    // read period, before the crossing flips.
-    const lv_area_t wa = area_of(widget);
-    const int grab_x = wa.x1 + lv_area_get_width(&wa) * 3 / 10;
-    const int y = (wa.y1 + wa.y2) / 2;
-    indev.grab(grab_x, y);
-    indev.move(grab_x - past_drag_threshold(), y);
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
-    const int edge_x = settled_page_area().x2;
-    indev.move(edge_x, y);
-    REQUIRE(grid().page_index() == 1);
-    REQUIRE(current_page() == 1);
-    const PageSetChange change = watch_page_set_change();
-    indev.release(edge_x, y);
-    // Page 1 emptied and was removed, so the page the drop created is page 1, the
-    // index of the page on screen: the carousel comes up on it with nothing to
-    // slide.
-    REQUIRE(config().page_count() == 2);
-    run_page_set_rebuild(change, 1);
-    settle();
-
-    REQUIRE(count_on_page(1, "fan") == 1);
-    const helix::PanelWidgetEntry landed = entry_on_page(1, "fan");
-    CHECK(landed.col == page_metrics(1).cols - origin.colspan);
-    CHECK(landed.row == origin.row);
     CHECK(grid().page_index() == 1);
     check_session_on_screen();
 }
@@ -4775,7 +4862,7 @@ namespace {
 lv_obj_t* fill_child(lv_obj_t* widget, lv_obj_t* child) {
     lv_obj_set_size(child, LV_PCT(100), LV_PCT(100));
     lv_obj_center(child);
-    lv_obj_add_flag(child, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_event_bubble(child, true);
     lv_obj_update_layout(widget);
     return child;
 }
@@ -4851,19 +4938,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "mark_drag_surface sets the flag and the input
                  "[home][drag_surface]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_t* obj = lv_obj_create(parent);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE);
+    lv_obj_set_clickable(obj, false);
+    lv_obj_set_gesture_bubble(obj, true);
     REQUIRE_FALSE(helix::ui::is_drag_surface_hit(obj, parent));
 
     helix::ui::mark_drag_surface(obj);
 
-    CHECK(lv_obj_has_flag(obj, helix::ui::kDragSurfaceFlag));
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE));
-    CHECK(lv_obj_has_flag(obj, LV_OBJ_FLAG_PRESS_LOCK));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLLABLE));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_HOR));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_SCROLL_CHAIN_VER));
-    CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_GESTURE_BUBBLE));
+    CHECK(helix::ui::obj_has_flags(obj, helix::ui::kDragSurfaceFlag));
+    CHECK(lv_obj_is_clickable(obj));
+    CHECK(lv_obj_is_press_lock(obj));
+    CHECK_FALSE(lv_obj_is_scrollable(obj));
+    CHECK_FALSE(lv_obj_is_scroll_chain_hor(obj));
+    CHECK_FALSE(lv_obj_is_scroll_chain_ver(obj));
+    CHECK_FALSE(lv_obj_is_gesture_bubble(obj));
 
     // A press on a child of the surface is a hit; the walk stops at stop_at.
     lv_obj_t* child = lv_obj_create(obj);
@@ -4989,10 +5076,10 @@ TEST_CASE_METHOD(EditHomeFixture,
     // A widget with no configure action gets only Remove.
     lv_obj_t* configure = callout_part("tile_callout_configure");
     REQUIRE(configure != nullptr);
-    CHECK(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(configure));
     lv_obj_t* remove = callout_part("tile_callout_remove");
     REQUIRE(remove != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(remove, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(remove));
 }
 
 TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile raises its callout, and lifting leaves it open",
@@ -5011,7 +5098,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold on a tile raises its callout, and lift
     indev.hold(indev.long_press_hold_ms());
     // Raised with the finger still down; nothing is dragged yet.
     REQUIRE(grid().is_callout_open());
-    CHECK_FALSE(GridEditModeTestAccess::dragging(grid()));
+    CHECK_FALSE(grid().is_dragging());
     // A finger settling within the drag threshold leaves it up.
     const int settle_x = c.x + past_drag_threshold() - 1;
     indev.move(settle_x, c.y);
@@ -5043,7 +5130,7 @@ TEST_CASE_METHOD(EditHomeFixture, "a hold that moves the tile drags it and opens
     const int to_x = c.x + tracks_px(kCellTracks);
     indev.move(c.x + 30, c.y);
     CHECK_FALSE(grid().is_callout_open());
-    REQUIRE(GridEditModeTestAccess::dragging(grid()));
+    REQUIRE(grid().is_dragging());
     indev.move(to_x, c.y);
     indev.release(to_x, c.y);
     settle();
@@ -5201,7 +5288,7 @@ TEST_CASE_METHOD(EditHomeFixture,
     open_callout_by_taps("temperature");
     lv_obj_t* configure = callout_part("tile_callout_configure");
     REQUIRE(configure != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(configure, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(configure));
 
     SECTION("a tap inside the lockout does nothing") {
         lv_point_t r = center_of(configure);

@@ -9,11 +9,13 @@
 
 #include "printer_excluded_objects_state.h"
 
+#include "json_utils.h"
 #include "state/subject_macros.h"
 
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 #include <glm/common.hpp>
 
 #include "hv/json.hpp"
@@ -29,7 +31,6 @@ void PrinterExcludedObjectsState::init_subjects(bool register_xml) {
     spdlog::trace("[PrinterExcludedObjectsState] Initializing subjects (register_xml={})",
                   register_xml);
 
-    // Initialize version subject to 0 (no changes yet)
     INIT_SUBJECT_INT(excluded_objects_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(defined_objects_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(defined_objects_count, 0, subjects_, register_xml);
@@ -71,9 +72,9 @@ void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& statu
     }
     const auto& eo = *it;
 
-    if (eo.contains("excluded_objects") && eo["excluded_objects"].is_array()) {
+    if (const auto* excluded_objects = json_util::find_array(eo, "excluded_objects")) {
         std::unordered_set<std::string> excluded;
-        for (const auto& obj : eo["excluded_objects"]) {
+        for (const auto& obj : *excluded_objects) {
             if (obj.is_string()) {
                 excluded.insert(obj.get<std::string>());
             }
@@ -83,37 +84,37 @@ void PrinterExcludedObjectsState::update_from_status(const nlohmann::json& statu
     }
 
     // Parse defined objects list with geometry (center + polygon bounding box)
-    if (eo.contains("objects") && eo["objects"].is_array()) {
+    if (const auto* defined_objects = json_util::find_array(eo, "objects")) {
         std::vector<ObjectInfo> objects;
-        for (const auto& obj : eo["objects"]) {
-            if (!obj.is_object() || !obj.contains("name") || !obj["name"].is_string())
+        for (const auto& obj : *defined_objects) {
+            auto name = json_util::read_field<std::string>(obj, "name");
+            if (!name)
                 continue;
 
             std::optional<glm::vec2> center;
-            if (obj.contains("center") && obj["center"].is_array() && obj["center"].size() >= 2 &&
-                obj["center"][0].is_number() && obj["center"][1].is_number()) {
-                center = glm::vec2(obj["center"][0].get<float>(), obj["center"][1].get<float>());
+            const auto* c = json_util::find_array(obj, "center");
+            if (c && c->size() >= 2 && (*c)[0].is_number() && (*c)[1].is_number()) {
+                center = glm::vec2((*c)[0].get<float>(), (*c)[1].get<float>());
             }
 
             std::vector<glm::vec2> polygon;
-            if (obj.contains("polygon") && obj["polygon"].is_array()) {
-                for (const auto& pt : obj["polygon"]) {
+            if (const auto* points = json_util::find_array(obj, "polygon")) {
+                for (const auto& pt : *points) {
                     if (pt.is_array() && pt.size() >= 2 && pt[0].is_number() && pt[1].is_number()) {
                         polygon.push_back({pt[0].get<float>(), pt[1].get<float>()});
                     }
                 }
             }
 
-            objects.push_back(
-                make_object_info(obj["name"].get<std::string>(), center, std::move(polygon)));
+            objects.push_back(make_object_info(std::move(*name), center, std::move(polygon)));
         }
         set_defined_objects_with_geometry(objects);
     }
 
-    if (eo.contains("current_object")) {
-        if (eo["current_object"].is_string()) {
-            set_current_object(eo["current_object"].get<std::string>());
-        } else if (eo["current_object"].is_null()) {
+    if (const auto* current = json_util::find_member(eo, "current_object")) {
+        if (current->is_string()) {
+            set_current_object(current->get<std::string>());
+        } else if (current->is_null()) {
             set_current_object("");
         }
     }
@@ -131,11 +132,9 @@ void PrinterExcludedObjectsState::deinit_subjects() {
 
 void PrinterExcludedObjectsState::set_excluded_objects(
     const std::unordered_set<std::string>& objects) {
-    // Only update if the set actually changed
     if (excluded_objects_ != objects) {
         excluded_objects_ = objects;
 
-        // Increment version to notify observers
         int version = lv_subject_get_int(&excluded_objects_version_);
         lv_subject_set_int(&excluded_objects_version_, version + 1);
 
@@ -146,11 +145,9 @@ void PrinterExcludedObjectsState::set_excluded_objects(
 }
 
 void PrinterExcludedObjectsState::set_defined_objects(const std::vector<std::string>& objects) {
-    // Only update if the list actually changed
     if (defined_objects_ != objects) {
         defined_objects_ = objects;
 
-        // Increment version to notify observers
         int version = lv_subject_get_int(&defined_objects_version_);
         lv_subject_set_int(&defined_objects_version_, version + 1);
         lv_subject_set_int(&defined_objects_count_, static_cast<int>(defined_objects_.size()));
@@ -192,6 +189,52 @@ void PrinterExcludedObjectsState::set_current_object(const std::string& name) {
         spdlog::debug("[PrinterExcludedObjectsState] Current object: '{}' (version {})",
                       current_object_, version + 1);
     }
+}
+
+namespace {
+
+/// Shoelace area of an outline polygon, 0 for fewer than three points.
+double polygon_area(const std::vector<glm::vec2>& polygon) {
+    if (polygon.size() < 3) {
+        return 0.0;
+    }
+    double twice_area = 0.0;
+    for (size_t i = 0; i < polygon.size(); ++i) {
+        const auto& a = polygon[i];
+        const auto& b = polygon[(i + 1) % polygon.size()];
+        twice_area += static_cast<double>(a.x) * b.y - static_cast<double>(b.x) * a.y;
+    }
+    return std::abs(twice_area) / 2.0;
+}
+
+} // namespace
+
+double PrinterExcludedObjectsState::excluded_work_share() const {
+    if (defined_objects_.empty() || excluded_objects_.empty()) {
+        return 0.0;
+    }
+
+    double total_area = 0.0;
+    double excluded_area = 0.0;
+    size_t excluded_count = 0;
+    bool every_object_has_area = true;
+    for (const auto& name : defined_objects_) {
+        const bool excluded = excluded_objects_.count(name) > 0;
+        excluded_count += excluded ? 1 : 0;
+        const auto geo = object_geometry_.find(name);
+        const double area = geo == object_geometry_.end() ? 0.0 : polygon_area(geo->second.polygon);
+        if (area <= 0.0) {
+            every_object_has_area = false;
+            continue;
+        }
+        total_area += area;
+        excluded_area += excluded ? area : 0.0;
+    }
+
+    if (every_object_has_area) {
+        return excluded_area / total_area;
+    }
+    return static_cast<double>(excluded_count) / static_cast<double>(defined_objects_.size());
 }
 
 void PrinterExcludedObjectsState::clear_objects() {

@@ -13,9 +13,13 @@
 #include "test_helpers/unique_temp_dir.h"
 
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -604,4 +608,51 @@ TEST_CASE("the scale decision follows the drawing surface it is given",
     CHECK(linux_panel.resolved.source == DpiSource::Fallback);
     CHECK(linux_panel.ui_scale == Catch::Approx(1.0));
     CHECK(linux_panel.lvgl_dpi == 160);
+}
+
+// scripts/translations/font_scale_reach.txt records, for every face that takes a
+// CJK fallback, each face scaled_font_name() can step it up to at a UI scale in
+// [1, kMaxScale]: the stored setting takes any percent in that range and the
+// automatic scale is continuous. The CJK filename bake and the release prune
+// read it, so a glyph bin exists for every size the runtime can reach.
+// HELIX_UPDATE_GOLDEN=1 rewrites it.
+TEST_CASE("DisplayMetrics: the scaled-font reach file matches scaled_font_name",
+          "[display_metrics][cjk_filename]") {
+#ifndef HELIX_MAX_FONT_TIER
+#define HELIX_MAX_FONT_TIER 6
+#endif
+    std::vector<std::string> faces;
+#define HELIX_CJK_FACE(face, bin, px) faces.emplace_back(#face);
+#include "cjk_font_faces.inc"
+#undef HELIX_CJK_FACE
+    REQUIRE(faces.size() == 35);
+
+    auto px_of = [](const std::string& face) {
+        return std::stoi(face.substr(face.rfind('_') + 1));
+    };
+    std::string expected;
+    for (const auto& face : faces) {
+        std::set<std::pair<int, std::string>> reach{{px_of(face), face}};
+        const int top = static_cast<int>(DisplayMetrics::kMaxScale * 1000);
+        for (int milli = 1000; milli <= top; ++milli) {
+            const std::string scaled = DisplayMetrics::scaled_font_name(face, milli / 1000.0);
+            reach.insert({px_of(scaled), scaled});
+        }
+        expected += face + ":";
+        for (const auto& entry : reach)
+            expected += " " + entry.second;
+        expected += "\n";
+    }
+
+    const std::string path = "scripts/translations/font_scale_reach.txt";
+    if (std::getenv("HELIX_UPDATE_GOLDEN")) {
+        std::ofstream(path) << expected;
+        WARN("rewrote " << path);
+        return;
+    }
+    std::ifstream in(path);
+    REQUIRE(in.good());
+    const std::string actual((std::istreambuf_iterator<char>(in)),
+                             std::istreambuf_iterator<char>());
+    CHECK(actual == expected);
 }

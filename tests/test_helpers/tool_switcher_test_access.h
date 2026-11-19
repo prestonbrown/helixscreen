@@ -58,12 +58,12 @@ class ToolSwitcherTestAccess {
     }
 
     static void hide_picker(ToolSwitcherWidget& widget) {
-        widget.picker_.hide();
+        widget.hide_mount_picker();
     }
 
-    /// The picker's tool list, or null while the picker is hidden.
+    /// The picker's tool list, or null while the picker this tile raised is hidden.
     static lv_obj_t* picker_list(ToolSwitcherWidget& widget) {
-        if (!widget.picker_.is_visible() || !widget.parent_screen_) {
+        if (!widget.has_overlay_open() || !widget.parent_screen_) {
             return nullptr;
         }
         return lv_obj_find_by_name(widget.parent_screen_, "tool_list");

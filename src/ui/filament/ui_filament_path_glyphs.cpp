@@ -12,6 +12,7 @@
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 
+#include "buffer_reading.h"
 #include "nozzle_renderer_dispatch.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
@@ -237,22 +238,157 @@ BoxColors buffer_box_colors(const FilamentPathData& data, bool has_filament,
     return {buf_bg, border_color};
 }
 
-// Draw buffer box element: a labeled box like HUB/SELECTOR, its border in the
-// buffer bands' token (neutral on target, warning, danger)
-void draw_buffer_coil(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t hub_h,
-                      bool has_filament, lv_color_t filament_color) {
-    const ThemeCache& theme = ctx.data->theme;
+namespace {
+void tension_line(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2,
+                  lv_color_t color, int32_t width, bool round = true) {
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init(&line);
+    line.color = color;
+    line.width = width;
+    line.opa = LV_OPA_COVER;
+    line.round_start = round;
+    line.round_end = round;
+    line.p1 = {static_cast<lv_value_precise_t>(x1), static_cast<lv_value_precise_t>(y1)};
+    line.p2 = {static_cast<lv_value_precise_t>(x2), static_cast<lv_value_precise_t>(y2)};
+    lv_draw_line(layer, &line);
+}
 
-    // Slightly smaller than hub box — fits "BUF" with comfortable padding
-    int32_t box_w = theme.hub_width * 4 / 5;
-    int32_t box_h = hub_h;
-    if (box_w < 36)
-        box_w = 36;
-    if (box_h < 16)
-        box_h = 16;
+void tension_fill(lv_layer_t* layer, const lv_area_t& a, lv_color_t color, int32_t radius,
+                  lv_opa_t opa) {
+    lv_draw_fill_dsc_t fill;
+    lv_draw_fill_dsc_init(&fill);
+    fill.color = color;
+    fill.opa = opa;
+    fill.radius = radius;
+    lv_draw_fill(layer, &fill, &a);
+}
 
-    const BoxColors colors = buffer_box_colors(*ctx.data, has_filament, filament_color);
-    draw_hub_box(ctx, cx, cy, box_w, box_h, colors.bg, colors.border, ctx.data->buffer_label);
+void tension_border(lv_layer_t* layer, const lv_area_t& a, lv_color_t color, int32_t radius) {
+    lv_draw_border_dsc_t border;
+    lv_draw_border_dsc_init(&border);
+    border.color = color;
+    border.width = 1;
+    border.radius = radius;
+    lv_draw_border(layer, &border, &a);
+}
+
+// A chevron of half-height @p s with its tip at (x, y), pointing right (+1) or left (-1).
+void tension_chevron(lv_layer_t* layer, int32_t x, int32_t y, int32_t s, int dir, lv_color_t c,
+                     int32_t w) {
+    tension_line(layer, x - dir * s, y - s, x, y, c, w);
+    tension_line(layer, x - dir * s, y + s, x, y, c, w);
+}
+
+// Two chevrons about a bar at @p x: pointing in at it (compressed) or away from it (expanded).
+void tension_squeeze(lv_layer_t* layer, int32_t x, int32_t y, int32_t s, bool inward, lv_color_t c,
+                     int32_t w) {
+    tension_line(layer, x, y - s, x, y + s, c, w, false);
+    if (inward) {
+        tension_chevron(layer, x - 2, y, s, +1, c, w);
+        tension_chevron(layer, x + 2, y, s, -1, c, w);
+    } else {
+        tension_chevron(layer, x - 2 - s, y, s, -1, c, w);
+        tension_chevron(layer, x + 2 + s, y, s, +1, c, w);
+    }
+}
+
+// A spring on its side: short leads at each end, @p teeth zigzag peaks between.
+void tension_spring(lv_layer_t* layer, int32_t x1, int32_t x2, int32_t y, int32_t amp, int teeth,
+                    lv_color_t c, int32_t w) {
+    const int32_t lead = LV_MAX(1, (x2 - x1) / 8);
+    const int32_t a = x1 + lead;
+    const int32_t b = x2 - lead;
+    tension_line(layer, x1, y, a, y, c, w);
+    tension_line(layer, b, y, x2, y, c, w);
+    const int segs = 2 * teeth;
+    int32_t px = a;
+    int32_t py = y;
+    for (int i = 0; i < segs; ++i) {
+        const int32_t nx = a + (b - a) * (2 * i + 1) / (2 * segs);
+        const int32_t ny = y + ((i % 2) ? amp : -amp);
+        tension_line(layer, px, py, nx, ny, c, w);
+        px = nx;
+        py = ny;
+    }
+    tension_line(layer, px, py, b, y, c, w);
+}
+} // namespace
+
+float buffer_tension_position(const FilamentPathData& d) {
+    if (d.buffer_bias > -1.5f)
+        return std::clamp(d.buffer_bias, -1.0f, 1.0f);
+    return d.buffer_state == 1   ? kSwitchedBufferBias
+           : d.buffer_state == 2 ? -kSwitchedBufferBias
+                                 : 0.0f;
+}
+
+lv_color_t buffer_thumb_color(const FilamentPathData& d) {
+    const ThemeCache& t = d.theme;
+    if (d.buffer_fault_state >= 2)
+        return t.color_buffer[2];
+    if (d.buffer_fault_state == 1)
+        return t.color_buffer[1];
+    // Off center is normal operation: a lighter tint of the accent, not a warning.
+    if (std::fabs(buffer_tension_position(d)) > kBufferOffCenter)
+        return lv_color_mix(t.color_text, t.color_accent, LV_OPA_40);
+    return t.color_accent;
+}
+
+void draw_buffer_tension(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t cap_h,
+                         lv_area_t* hit) {
+    const FilamentPathData& d = *ctx.data;
+    const ThemeCache& t = d.theme;
+    lv_layer_t* layer = ctx.layer;
+    const float pos = buffer_tension_position(d);
+    const lv_color_t thumb_color = buffer_thumb_color(d);
+
+    const int32_t stroke = cap_h >= 16 ? 2 : 1;
+    const BufferControlGeometry geo = buffer_control_geometry(cap_h);
+    const int32_t half = geo.half;
+    const int32_t cell = geo.cell;
+    const int32_t radius = cap_h / 2;
+    const lv_area_t cap = {cx - half, cy - cap_h / 2, cx + half + cell, cy + cap_h / 2};
+
+    // The capsule, in the hub chip's colors, half see-through so the tube shows through it.
+    tension_fill(layer, cap, t.color_hub_bg, radius, LV_OPA_50);
+    tension_border(layer, cap, t.color_hub_border, radius);
+
+    // The groove, and a notch at its center where the tube crosses: neutral.
+    const int32_t inset = LV_MAX(2, cap_h / 5);
+    tension_line(layer, cx - half + radius + 2, cy, cx + half - radius - 2, cy, t.color_hub_border,
+                 stroke);
+    tension_line(layer, cx, cap.y1 + 1, cx, cap.y1 + inset, t.color_muted, 1, false);
+    tension_line(layer, cx, cap.y2 - inset, cx, cap.y2 - 1, t.color_muted, 1, false);
+
+    // The ends: chevrons squeezing in on the compressed (left) end, pulling apart on the
+    // expanded (right) end.
+    const int32_t gs = LV_MAX(2, cap_h / 5);
+    tension_squeeze(layer, cx - half + radius + gs + 2, cy, gs, true, t.color_muted, stroke);
+    tension_squeeze(layer, cx + half - radius - gs - 2, cy, gs, false, t.color_muted, stroke);
+
+    // The thumb, a little taller than the capsule, ringed by a soft glow in its color.
+    const int32_t travel = half - radius - 2 * gs - 4;
+    const int32_t tx = cx - static_cast<int32_t>(pos * travel);
+    const int32_t tw = geo.thumb_w;
+    const int32_t th = geo.thumb_h;
+    const lv_area_t thumb = {tx - tw / 2, cy - th / 2, tx + tw / 2, cy + th / 2};
+    const lv_area_t glow = {thumb.x1 - 3, thumb.y1 - 3, thumb.x2 + 3, thumb.y2 + 3};
+    tension_fill(layer, glow, thumb_color, tw, LV_OPA_30);
+    tension_fill(layer, {thumb.x1 - 1, thumb.y1 - 1, thumb.x2 + 1, thumb.y2 + 1}, t.color_bg, tw,
+                 LV_OPA_COVER);
+    tension_fill(layer, thumb, thumb_color, tw, LV_OPA_COVER);
+
+    // The detail button: a divider, then a spring where the hub chip carries its gear.
+    const int32_t div = cx + half;
+    tension_line(layer, div, cap.y1 + 3, div, cap.y2 - 3, t.color_hub_border, 1, false);
+    const lv_font_t* icon_font = theme_manager_get_font("icon_font_sm");
+    const int32_t gear = icon_font ? lv_font_get_line_height(icon_font) : cap_h;
+    const int32_t glyph_w = LV_MIN(gear, cap_h);
+    const int32_t bx = div + cell / 2;
+    tension_spring(layer, bx - glyph_w / 2 + 1, bx + glyph_w / 2 - 1, cy, LV_MAX(2, glyph_w / 4), 3,
+                   t.color_text, stroke);
+
+    *hit = buffer_control_hit(cx, cy, cap_h);
 }
 
 // Draw animated filament tip (a glowing dot that moves along the path)
@@ -335,30 +471,15 @@ void draw_flow(lv_layer_t* layer, const FilamentPathData& data, const pg::Filame
 // Toolhead glyph
 // ============================================================================
 
-// The A4T glyph is drawn 6/5 larger than the others at every call site in this
-// widget, so the boost is folded in here.
-namespace {
-
-int32_t drawn_scale(helix::ToolheadStyle style, int32_t scale) {
-    return style == helix::ToolheadStyle::A4T ? scale * 6 / 5 : scale;
-}
-
-} // namespace
-
-void draw_toolhead(lv_layer_t* layer, int32_t cx, int32_t cy, std::optional<lv_color_t> filament,
-                   int32_t scale, lv_opa_t opa) {
-    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    draw_nozzle_for_style(layer, cx, cy, filament, drawn_scale(style, scale), opa);
-}
-
-helix::ui::GlyphBounds toolhead_glyph_bounds(int32_t cx, int32_t cy, int32_t scale) {
-    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
-    return helix::ui::toolhead_bounds(style, cx, cy, drawn_scale(style, scale));
-}
-
 // Nozzle tip Y for the configured style — anchors the heat glow halo.
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
-    switch (helix::SettingsManager::instance().get_effective_toolhead_style()) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    if (const helix::ui::ToolheadArt* art = helix::ui::toolhead_art_for(style)) {
+        const helix::ui::ToolheadArtRect r = helix::ui::toolhead_art_rect(
+            *art, 0, nozzle_y, helix::ui::toolhead_drawn_scale(style, extruder_scale));
+        return r.y + static_cast<int32_t>(r.h * art->tip_y);
+    }
+    switch (style) {
     case helix::ToolheadStyle::A4T:
         return nozzle_y + (extruder_scale * 6 / 5 * 46) / 10 - 6;
     case helix::ToolheadStyle::STEALTHBURNER:
@@ -370,8 +491,20 @@ int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {
     }
 }
 
+helix::ui::ToolheadInlet path_toolhead_inlet(int32_t nozzle_y, int32_t extruder_scale) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    return helix::ui::toolhead_inlet(style, nozzle_y,
+                                     helix::ui::toolhead_drawn_scale(style, extruder_scale));
+}
+
 int32_t toolhead_top_y(int32_t nozzle_y, int32_t extruder_scale) {
     return toolhead_glyph_bounds(0, nozzle_y, extruder_scale).top;
+}
+
+int32_t toolhead_standing_on(int32_t bottom_y, int32_t scale) {
+    const auto style = helix::SettingsManager::instance().get_effective_toolhead_style();
+    return helix::ui::toolhead_nozzle_standing_on(style, bottom_y,
+                                                  helix::ui::toolhead_drawn_scale(style, scale));
 }
 
 void draw_tool_badge(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t scale,

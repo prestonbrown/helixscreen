@@ -11,9 +11,10 @@
     <text_body name="clock_date" width="100%" bind_text="clock_date_text" style_text_align="center">
       <bind_flag_if_eq subject="clock_size_mode" flag="hidden" ref_value="0"/>
     </text_body>
-    <!-- Uptime (visibility controlled by on_size_changed — shown at 2x2+ and 3x2+) -->
+    <!-- Uptime (shown in the expanded and large modes, 2 and 3) -->
     <text_small name="clock_uptime"
-                width="100%" bind_text="clock_uptime_text" style_text_color="#text_muted" style_text_align="center"
-                hidden="true"/>
+                width="100%" bind_text="clock_uptime_text" style_text_color="#text_muted" style_text_align="center">
+      <bind_flag_if_lt subject="clock_size_mode" flag="hidden" ref_value="2"/>
+    </text_small>
   </view>
 </component>

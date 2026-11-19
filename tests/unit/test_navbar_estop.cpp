@@ -20,10 +20,13 @@
 #include "ui_lock_screen.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_test_utils.h"
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/xml_stand_in_subject.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
@@ -111,13 +114,13 @@ struct NavbarFixture : public LVGLUITestFixture {
 TEST_CASE_METHOD(NavbarFixture, "navbar E-stop is shown exactly while estop_visible is set",
                  "[estop_navbar][navigation]") {
     set_visible(0);
-    CHECK(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(slot_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(estop_));
+    CHECK(lv_obj_is_hidden(slot_));
     set_visible(1);
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(slot_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(estop_));
+    CHECK_FALSE(lv_obj_is_hidden(slot_));
     set_visible(0);
-    CHECK(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(estop_));
 }
 
 TEST_CASE_METHOD(NavbarFixture, "navbar E-stop fires the emergency stop callback",
@@ -153,29 +156,39 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop survives a panel switch",
     auto& nav = NavigationManager::instance();
     lv_obj_t* panels[kUiPanelCount] = {nullptr};
     panels[static_cast<int>(PanelId::Home)] = lv_obj_create(test_screen());
-    panels[static_cast<int>(PanelId::Controls)] = lv_obj_create(test_screen());
+    panels[static_cast<int>(PanelId::Settings)] = lv_obj_create(test_screen());
     nav.set_panels(panels);
     set_visible(1);
-    REQUIRE_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(estop_));
 
-    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Controls);
+    // A tap on a nav button switches the panel.
+    lv_obj_send_event(lv_obj_find_by_name(navbar_, "nav_btn_settings"), LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(nav.get_active() == PanelId::Settings);
+    CHECK_FALSE(lv_obj_is_hidden(estop_));
 
     // Closing an overlay sweeps stray screen children the same way.
     lv_obj_t* overlay = lv_obj_create(test_screen());
-    lv_obj_add_flag(overlay, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(overlay, true);
     nav.register_overlay_instance(overlay, nullptr);
     nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain();
     nav.go_back();
     helix::ui::UpdateQueue::instance().drain();
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
-    nav.unregister_overlay_instance(overlay);
+    CHECK_FALSE(lv_obj_is_hidden(estop_));
 
-    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Home);
+    // A tap on a nav button behind an open overlay's backdrop reaches the button.
+    nav.push_overlay(overlay);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    process_lvgl(50);
+    lv_area_t home;
+    lv_obj_get_coords(lv_obj_find_by_name(navbar_, "nav_btn_home"), &home);
+    UITest::init(test_screen());
+    REQUIRE(UITest::click_at((home.x1 + home.x2) / 2, (home.y1 + home.y2) / 2));
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(nav.get_active() == PanelId::Home);
+    CHECK_FALSE(lv_obj_is_hidden(estop_));
+    nav.unregister_overlay_instance(overlay);
 }
 
 TEST_CASE_METHOD(NavbarFixture, "navbar E-stop stays bright above an overlay backdrop",
@@ -189,7 +202,7 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop stays bright above an overlay bac
     // Above the dimming backdrop, not part of it: still its own, fully opaque
     // button, and still the thing a tap there lands on.
     CHECK(index_of(estop_) > index_of(backdrop));
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(estop_));
     CHECK(lv_obj_get_style_opa(estop_, LV_PART_MAIN) == LV_OPA_COVER);
 
     // A re-taken snapshot slots in above the old one; the E-stop stays above it.
@@ -255,7 +268,7 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop stays reachable above the keyboar
     lv_obj_t* kb = KeyboardManager::instance().get_instance();
     REQUIRE(kb != nullptr);
     REQUIRE(lv_obj_get_parent(kb) == lv_obj_get_parent(estop_));
-    REQUIRE_FALSE(lv_obj_has_flag(kb, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(kb));
     lv_obj_update_layout(test_screen());
 
     // Visible, clear of every key, and above the keyboard in z.
@@ -264,7 +277,7 @@ TEST_CASE_METHOD(NavbarFixture, "navbar E-stop stays reachable above the keyboar
     lv_obj_get_coords(estop_, &button);
     lv_obj_get_coords(slot_, &slot);
     REQUIRE(slot.y2 >= kb_area.y1); // the premise: the keyboard covers the slot
-    CHECK_FALSE(lv_obj_has_flag(estop_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(estop_));
     CHECK(button.y2 < kb_area.y1);
     CHECK(button.y1 >= 0);
     CHECK(button.x1 == slot.x1);
@@ -428,9 +441,9 @@ TEST_CASE_METHOD(NavbarFixture, "a printer switch leaves exactly one navbar E-st
     REQUIRE(current != nullptr);
     CHECK(helix::ui::is_screen_chrome(current));
     set_visible(1);
-    CHECK_FALSE(lv_obj_has_flag(current, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(current));
     set_visible(0);
-    CHECK(lv_obj_has_flag(current, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(current));
 }
 
 TEST_CASE_METHOD(NavbarFixture, "the lock screen covers the navbar E-stop",
@@ -505,9 +518,8 @@ TEST_CASE("the navbar is the one E-stop where the navbar shows, and screens that
     }
 
     // These sit beside the navbar and drew a second E-stop over their content.
-    for (const char* path :
-         {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml", "ui_xml/micro/controls_panel.xml",
-          "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
+    for (const char* path : {"ui_xml/home_panel.xml", "ui_xml/controls_panel.xml",
+                             "ui_xml/print_status_panel.xml", "ui_xml/motion_panel.xml"}) {
         INFO(path);
         const std::string xml = read_xml(path);
         CHECK(xml.find("estop_visible") == std::string::npos);
@@ -561,16 +573,11 @@ TEST_CASE("no root panel takes text input, so the keyboard never opens over a li
     // navbar is inert under an overlay or modal backdrop.
     for (const char* stem : {"home_panel", "print_select_panel", "controls_panel", "filament_panel",
                              "settings_panel", "advanced_panel"}) {
-        for (const char* dir : {"ui_xml/", "ui_xml/micro/", "ui_xml/portrait/"}) {
-            const std::string path = std::string(dir) + stem + ".xml";
-            if (!std::filesystem::exists(path)) {
-                continue;
-            }
-            INFO(path);
-            const std::string xml = read_xml(path);
-            CHECK(xml.find("<text_input") == std::string::npos);
-            CHECK(xml.find("<lv_textarea") == std::string::npos);
-        }
+        const std::string path = std::string("ui_xml/") + stem + ".xml";
+        INFO(path);
+        const std::string xml = read_xml(path);
+        CHECK(xml.find("<text_input") == std::string::npos);
+        CHECK(xml.find("<lv_textarea") == std::string::npos);
     }
 }
 
@@ -583,14 +590,10 @@ namespace {
 
 struct DryingNavbarFixture : public NavbarFixture {
     DryingNavbarFixture() {
-        drying_state_ = lv_xml_get_subject(nullptr, "bed_drying_state");
-        if (!drying_state_) {
-            // The registry keeps the pointer past this fixture, so it is static.
-            static lv_subject_t own_state;
-            lv_subject_init_int(&own_state, 0);
-            lv_xml_register_subject(nullptr, "bed_drying_state", &own_state);
-            drying_state_ = &own_state;
-            // The navbar binds at creation, so rebuild it against the subject.
+        const bool published = lv_xml_get_subject(nullptr, "bed_drying_state") != nullptr;
+        drying_state_ = helix::test::xml_stand_in("bed_drying_state", 0);
+        if (!published) {
+            // The navbar binds at creation, so rebuild it against the stand-in.
             auto& nav = NavigationManager::instance();
             nav.deinit_subjects();
             nav.init();
@@ -632,13 +635,13 @@ TEST_CASE_METHOD(DryingNavbarFixture,
                  "navbar drying button is shown exactly while spools are latched",
                  "[estop_navbar][bed_drying][navigation]") {
     set_latched(0);
-    CHECK(lv_obj_has_flag(drying_, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(drying_slot_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(drying_));
+    CHECK(lv_obj_is_hidden(drying_slot_));
     set_latched(4); // any non-idle run state
-    CHECK_FALSE(lv_obj_has_flag(drying_, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(drying_slot_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(drying_));
+    CHECK_FALSE(lv_obj_is_hidden(drying_slot_));
     set_latched(0);
-    CHECK(lv_obj_has_flag(drying_, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(drying_));
 }
 
 TEST_CASE_METHOD(DryingNavbarFixture, "navbar drying button does what the banner does",
@@ -673,6 +676,6 @@ TEST_CASE_METHOD(DryingNavbarFixture,
     REQUIRE(backdrop != nullptr);
     CHECK(index_of(drying_) > index_of(backdrop));
     CHECK(index_of(estop_) > index_of(backdrop));
-    CHECK_FALSE(lv_obj_has_flag(drying_, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(drying_));
     CHECK(helix::ui::is_screen_chrome(drying_));
 }

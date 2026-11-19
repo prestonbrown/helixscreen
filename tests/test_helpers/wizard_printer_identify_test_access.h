@@ -27,7 +27,7 @@ class WizardPrinterIdentifyStepTestAccess {
     /// type stay in the config.
     static void forget_printer(WizardPrinterIdentifyStep& step, bool same_printer = false) {
         if (same_printer) {
-            step.subjects_initialized_ = false;
+            step.forget_subjects();
             step.last_detected_url_.clear();
         } else {
             step.last_detected_url_ = "ws://previous-printer.invalid:7125";

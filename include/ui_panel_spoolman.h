@@ -10,6 +10,7 @@
 #include "ui_spoolman_list_view.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "spoolman_types.h" // For SpoolInfo
 #include "subject_managed_panel.h"
@@ -90,6 +91,7 @@ class SpoolmanPanel : public OverlayBase {
     std::vector<SpoolInfo> cached_spools_;
     std::vector<SpoolInfo> filtered_spools_; ///< Filtered view of cached_spools_
     int active_spool_id_ = -1;
+    std::string currency_; ///< Spoolman's currency code, for the spool menu's price line
 
     // ========== Search ==========
     std::string search_query_;
@@ -102,9 +104,11 @@ class SpoolmanPanel : public OverlayBase {
     bool preserve_scroll_ = false; ///< Preserve scroll position on next populate
 
     // ========== Subjects ==========
-    SubjectManager subjects_;            ///< RAII subject manager
-    lv_subject_t panel_state_subject_{}; ///< Panel display state (loading/empty/spools)
-    lv_subject_t header_title_subject_{};
+    SubjectManager subjects_;              ///< RAII subject manager
+    helix::Subject panel_state_subject_{}; ///< Panel display state (loading/empty/spools)
+    helix::Subject header_title_subject_{};
+    /// 1 = the location filter is offered: at least one spool names a location.
+    helix::Subject location_filter_shown_subject_{};
     char header_title_buf_[64];
 
     // ========== Private Methods ==========
@@ -122,7 +126,7 @@ class SpoolmanPanel : public OverlayBase {
     void show_spool_list();
     void update_spool_count();
 
-    void handle_spool_clicked(lv_obj_t* row, lv_point_t click_pt);
+    void handle_spool_clicked(lv_obj_t* row);
     void handle_context_action(helix::ui::SpoolmanContextMenu::MenuAction action, int spool_id);
     void set_active_spool(int spool_id);
     void duplicate_spool(int spool_id);

@@ -236,8 +236,8 @@ TEST_CASE("weekday_initial", "[print_activity]") {
 }
 
 TEST_CASE("format_localized_weekday_abbr reads tm_wday", "[print_activity]") {
-    helix::ui::locale_set_language("en");
+    helix::locale::locale_set_language("en");
     struct tm t {};
     t.tm_wday = 1;
-    CHECK(weekday_initial(helix::ui::format_localized_weekday_abbr(&t)) == "M");
+    CHECK(weekday_initial(helix::locale::format_localized_weekday_abbr(&t)) == "M");
 }

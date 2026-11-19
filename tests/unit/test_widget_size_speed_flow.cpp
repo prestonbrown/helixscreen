@@ -28,7 +28,6 @@
 #include "home_edit_mode_test_helpers.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
-#include "panel_widget_manager.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/speed_flow_widget.h"
 #include "tune_controller.h"
@@ -41,7 +40,6 @@ namespace {
 
 struct SpeedFlowFixture : public LVGLUITestFixture {
     SpeedFlowFixture() {
-        PanelWidgetManager::instance().init_widget_subjects();
         set_physical_units(false);
         set_print_active(false);
         set_percentages(100, 100);
@@ -105,7 +103,7 @@ lv_obj_t* part(PanelWidgetHarness<SpeedFlowWidget>& h, const char* axis, const c
 }
 
 bool hidden(lv_obj_t* obj) {
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 /// Whether an object draws: it and every ancestor up to the widget root is unhidden.

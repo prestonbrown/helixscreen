@@ -11,7 +11,7 @@
   </styles>
   <!-- The widget decides a mode from this content box (the tile less
        #space_md each side) and publishes it with every cell's size; the
-       branches below draw it. Cells sit kRailGap (2 px) apart, the gap the
+       branches below draw it. Cells sit kToolRailGap (2 px) apart, the gap the
        widget measures them with, and each branch clips its outer corners so
        the cells read as one control. -->
   <view name="tool_switcher_root"
@@ -19,7 +19,7 @@
         style_border_width="0">
     <!-- Rail and RailWithActions: a segment per head, then the detail block
          when the tile is tall enough for one. -->
-    <!-- SIZE_OK: the 2 px gap is kRailGap, which the widget measures cells with -->
+    <!-- SIZE_OK: the 2 px gap is kToolRailGap, which the widget measures cells with -->
     <lv_obj name="tool_switcher_rail_view"
             width="100%" height="100%" flex_flow="column" style_flex_cross_place="center"
             style_flex_track_place="center" style_pad_all="0" style_pad_gap="2" style_bg_opa="0" style_border_width="0"
@@ -29,7 +29,7 @@
            to the end of its parent. So the action cells (Park, then the feeder)
            ride in every iteration and show only after the last head, each on a
            backend that offers it. -->
-      <!-- SIZE_OK: kRailGap -->
+      <!-- SIZE_OK: kToolRailGap -->
       <lv_obj name="tool_switcher_rail"
               height="content" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="2" style_radius="#border_radius"
               style_clip_corner="true" style_bg_opa="0" style_border_width="0" scrollable="false">
@@ -37,7 +37,7 @@
              clipped corners fall on the outer cells. -->
         <bind_style_prop prop="width" subject="tool_switcher_rail_w"/>
         <repeat count="tool_switcher_rail_heads">
-          <tool_switcher_segment name="tool_switcher_seg_${i}" index="${i}"/>
+          <tool_switcher_segment name="tool_switcher_seg_${i}" index="${i}" callback="tool_switcher_segment_cb"/>
           <lv_obj name="tool_switcher_rail_park_${i}"
                   style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
             <bind_flag_if cond="tool_switcher_mode ne 0 or tool_switcher_rail_heads ne ${i + 1} or tool_switcher_park_supported eq 0"
@@ -86,7 +86,7 @@
     </lv_obj>
     <!-- Pair and Single: the mounted head as one target, and in Pair the Park
          cell beside it along the tile's long axis. -->
-    <!-- SIZE_OK: kRailGap -->
+    <!-- SIZE_OK: kToolRailGap -->
     <lv_obj name="tool_switcher_face_view"
             width="100%" height="100%" style_pad_all="0" style_pad_gap="2" style_radius="#border_radius"
             style_clip_corner="true" style_bg_opa="0" style_border_width="0" scrollable="false">

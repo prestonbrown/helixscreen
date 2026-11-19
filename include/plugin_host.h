@@ -15,6 +15,7 @@
 #include "plugin_presenter.h"
 #include "plugin_surfaces.h"
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -62,6 +63,10 @@ class PluginHost {
         std::string settings_path;                    ///< for storage file paths
         std::string helix_version;
         size_t memory_budget = 0;
+        /// CPU and wall time each plugin entry may spend. Memory comes from each
+        /// plugin's manifest.
+        std::chrono::milliseconds entry_time_budget = LuaRuntime::Limits{}.time_budget;
+        std::chrono::milliseconds entry_wall_ceiling = LuaRuntime::Limits{}.wall_ceiling;
     };
 
     explicit PluginHost(Deps deps);
@@ -136,6 +141,10 @@ class PluginHost {
 
   private:
     struct Loaded {
+        /// The manifest this instance loaded, which ctx->manifest refers to. Owned here
+        /// because plugins_ shifts and reallocates when a rescan adds or removes a plugin,
+        /// while a loaded_ node stays put until unload.
+        Manifest manifest;
         json settings;
         std::unique_ptr<PluginContext> ctx;
         std::unique_ptr<LuaRuntime> rt; ///< destroyed before ctx

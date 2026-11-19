@@ -8,17 +8,18 @@
 #include "ui_panel_common.h"
 #include "ui_row_text.h"
 #include "ui_selector_model.h"
-#include "ui_subject_registry.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
 #include "home_layout_sync.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <lvgl/lvgl.h>
@@ -87,8 +88,8 @@ struct CatalogState {
     // Search state. Entries are parallel to the search_results children (one row
     // per registry def, both in registry order) and to nothing else — the
     // category pages build their own rows per dive.
-    lv_subject_t view = {};        // kCatalogView*; bound by the XML view flip
-    lv_subject_t match_count = {}; // visible search rows; drives the empty message
+    helix::Subject view = {};        // kCatalogView*; bound by the XML view flip
+    helix::Subject match_count = {}; // visible search rows; drives the empty message
     std::vector<ui::SelectorEntry> entries;
     // The result rows exist. They are built on the first query, not at open:
     // a row per registry def is most of what the catalog costs to show, and
@@ -507,10 +508,10 @@ void WidgetCatalogOverlay::apply_search(const std::string& query) {
             continue;
         }
         if (ui::selector_entry_matches(g_catalog_state.entries[i], query)) {
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, false);
             ++visible;
         } else {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, true);
         }
     }
     lv_subject_set_int(&g_catalog_state.match_count, visible);
@@ -762,12 +763,16 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     lv_xml_register_event_cb(nullptr, "on_catalog_search_changed", on_search_changed);
 
     // Search subjects. Registered before the overlay XML is parsed so its
-    // bind_flag_* elements resolve them, and re-initialized per open: entries
-    // from the previous open's widgets removed themselves when those widgets
-    // were deleted, and the next open must not see their values.
-    UI_SUBJECT_INIT_AND_REGISTER_INT(g_catalog_state.view, kCatalogViewBrowse,
-                                     "widget_catalog_view");
-    UI_SUBJECT_INIT_AND_REGISTER_INT(g_catalog_state.match_count, 0, "widget_catalog_match_count");
+    // bind_flag_* elements resolve them, and reset per open: the next open must
+    // not see the previous one's values.
+    g_catalog_state.view.publish_int(kCatalogViewBrowse);
+    helix::xml::register_subject_in_current_scope("widget_catalog_view", &g_catalog_state.view);
+    HELIX_SUBJECT_DEBUG_REGISTER(&g_catalog_state.view, "widget_catalog_view", LV_SUBJECT_TYPE_INT);
+    g_catalog_state.match_count.publish_int(0);
+    helix::xml::register_subject_in_current_scope("widget_catalog_match_count",
+                                                  &g_catalog_state.match_count);
+    HELIX_SUBJECT_DEBUG_REGISTER(&g_catalog_state.match_count, "widget_catalog_match_count",
+                                 LV_SUBJECT_TYPE_INT);
 
     // Create a semi-transparent dark backdrop so the home panel shows through.
     // Uses the same modal_backdrop_opacity constant as Modal dialogs (DRY).
@@ -861,7 +866,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
             auto* backdrop = helix::ui::create_fullscreen_backdrop(live_screen, backdrop_opa);
             if (backdrop) {
                 // Don't block clicks — let taps on the backdrop close the catalog
-                lv_obj_remove_flag(backdrop, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(backdrop, false);
                 helix::ui::bring_to_front(backdrop);
             }
             g_catalog_state.backdrop = backdrop;

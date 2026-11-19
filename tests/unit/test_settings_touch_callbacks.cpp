@@ -157,6 +157,10 @@ TEST_CASE_METHOD(TouchCallbacksFixture,
     CHECK(helix::InputSettingsManager::instance().get_scroll_limit() == 15);
     CHECK(slider_label("row_scroll_limit") == "15");
     CHECK_FALSE(restart_prompt_up());
+
+    // The readout binds the setting, so a change made anywhere else shows too.
+    helix::InputSettingsManager::instance().set_scroll_limit(4);
+    CHECK(slider_label("row_scroll_limit") == "4");
 }
 
 TEST_CASE_METHOD(TouchCallbacksFixture,

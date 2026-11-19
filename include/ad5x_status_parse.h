@@ -23,9 +23,24 @@
  */
 namespace helix::ad5x {
 
-constexpr int kNumPorts = 4;
+/// Ports on one IFS. Z-Mod's `color_limit` raises the count past it when an IFS
+/// Jacker joins several IFS units into one bus; the lessWaste / bambufy plugin
+/// tables stay this wide whatever the count.
+constexpr int kDefaultPorts = 4;
 constexpr int kToolMapSize = 16;
-constexpr int kUnmappedPort = 5;
+/// The most ports a firmware may report: one per addressable slicer tool.
+constexpr int kMaxPorts = kToolMapSize;
+/// tool_map value for a tool no port feeds.
+constexpr int kUnmappedPort = 0;
+/// The lessWaste / bambufy `_tools` table's own "no port" value.
+constexpr int kPluginUnmappedPort = kDefaultPorts + 1;
+
+/// The port count a firmware's `color_limit` stands for: never fewer than one
+/// IFS, never more than kMaxPorts.
+[[nodiscard]] constexpr int clamp_port_count(int color_limit) {
+    return color_limit < kDefaultPorts ? kDefaultPorts
+                                       : (color_limit > kMaxPorts ? kMaxPorts : color_limit);
+}
 
 /// One slot of a GET_ZCOLOR answer, or of a zmod_color / ifs_materials object.
 struct ZColorSlot {
@@ -67,8 +82,11 @@ struct ZColorSilentResult {
     // SILENT slot lines and of the persisted ffmColor cache. When set, it is
     // the presence authority (apply_zcolor_result), which makes empty-channel
     // resurrection from a stale ffmColor structurally impossible (#981).
-    std::optional<std::array<bool, kNumPorts>> ifs_ports;
-    std::array<std::optional<ZColorSlot>, kNumPorts> slots;
+    std::optional<std::vector<bool>> ifs_ports;
+    std::array<std::optional<ZColorSlot>, kMaxPorts> slots;
+    /// `color_limit` of a zmod_ifs / zmod_color object: how many ports the
+    /// firmware drives. nullopt when the frame did not say.
+    std::optional<int> port_count;
 };
 
 /// Parse a GET_ZCOLOR SILENT=1 response, with the IFS_STATUS JSON line that
@@ -101,8 +119,9 @@ bool read_ifs_materials_object(const nlohmann::json& obj, ZColorSilentResult& re
 /// The standalone module's `ifs` status object.
 struct IfsModuleObject {
     /// loaded_channels as per-port presence; nullopt when absent or when any
-    /// entry is not an integer. Channels outside 1..kNumPorts are ignored.
-    std::optional<std::array<bool, kNumPorts>> loaded_ports;
+    /// entry is not an integer. Channels outside 1..kDefaultPorts are ignored:
+    /// the module drives one IFS.
+    std::optional<std::array<bool, kDefaultPorts>> loaded_ports;
     std::optional<int> active_channel; ///< 1-based, the zmod Chan equivalent
     std::optional<std::string> activity;
     std::optional<std::string> error;
@@ -112,8 +131,9 @@ struct IfsModuleObject {
 
 /// The sensor and extruder objects of one status frame.
 struct SensorFrame {
-    /// `filament_switch_sensor _ifs_port_sensor_<N>` for ports 1..kNumPorts.
-    std::array<std::optional<bool>, kNumPorts> port_detected;
+    /// `filament_switch_sensor _ifs_port_sensor_<N>`, the lessWaste plugin's
+    /// sensors, for ports 1..kDefaultPorts.
+    std::array<std::optional<bool>, kDefaultPorts> port_detected;
     /// The IFS motion sensor, stock section first, then the zmod namespace.
     std::optional<bool> motion_detected;
     /// The toolhead switch sensor: stock section, zmod namespace, then the
@@ -147,7 +167,8 @@ struct SaveVariables {
 
     /// Both plugins' `_tools` arrays are present and disagree.
     bool tools_conflict = false;
-    /// `<prefix>_tools`: index = tool, value = port (1-4, 5 = unmapped).
+    /// `<prefix>_tools`: index = tool, value = port 1..kDefaultPorts, or
+    /// kUnmappedPort for the plugin's kPluginUnmappedPort.
     std::array<std::optional<int>, kToolMapSize> tools;
     /// lessWaste only: the first of `_colors` / `_types` that is an array
     /// shorter than kToolMapSize, and its length.
@@ -169,7 +190,7 @@ struct IfsVarsMacro {
 /// nullopt for the empty dict Klipper returns for a macro that does not exist.
 [[nodiscard]] std::optional<IfsVarsMacro> parse_ifs_vars_macro(const nlohmann::json& macro_status);
 
-/// tool_map[tool] = port (1..kNumPorts, kUnmappedPort when nothing routes it).
+/// tool_map[tool] = port (1..kMaxPorts, kUnmappedPort when nothing routes it).
 using ToolMap = std::array<int, kToolMapSize>;
 
 /// The `tool_map` of a `printer.ifs` status object, whose presence is both the
@@ -179,7 +200,7 @@ using ToolMap = std::array<int, kToolMapSize>;
 /// object's keys are strings whatever Python held). Values are INT lanes,
 /// 1-BASED, the numbering IFS_LOAD SLOT= and loaded_channels speak. A frame
 /// carries the COMPLETE table, so entries it omits unmap. nullopt when the
-/// object has no such table.
+/// object has no such table. The module drives one IFS: lanes 1..kDefaultPorts.
 [[nodiscard]] std::optional<ToolMap> parse_ifs_tool_map(const nlohmann::json& ifs_object);
 
 /// The objects of one status frame that AmsBackendAd5xIfs applies under its
@@ -217,9 +238,9 @@ struct FfmPort {
 
 struct AdventurerFile {
     bool has_ffm = false; ///< the file has an FFMInfo object
-    /// Ports 1..kNumPorts at index 0..3; nullopt when the file names neither
+    /// Ports 1..kMaxPorts at index 0..15; nullopt when the file names neither
     /// ffmColor<N> nor ffmType<N>.
-    std::array<std::optional<FfmPort>, kNumPorts> ports;
+    std::array<std::optional<FfmPort>, kMaxPorts> ports;
     /// FFMInfo.channel as written (1-based, 0 = none) when it is an integer.
     std::optional<int> channel;
 };

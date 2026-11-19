@@ -39,6 +39,7 @@
 #include "spoolman_types.h" // SpoolInfo + apply_spool_to_slot (the picker-side writer)
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "tool_state.h"
 #include "translation_loader.h"
@@ -644,6 +645,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker channel_error raises Error only on
             CHECK(info.operation_detail.find("Feeder 2: No filament") != std::string::npos);
         else
             CHECK(info.operation_detail == row.detail);
+        if (row.detail == nullptr) {
+            // A standing fault re-words on a language switch with no new frame.
+            ScopedLanguage fr("fr");
+            backend.refresh_translated_texts();
+            CHECK(backend.get_system_info().operation_detail.find("Pas de filament") !=
+                  std::string::npos);
+        }
     }
 }
 
@@ -2778,26 +2786,9 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume classifies the 
     }
 }
 
-namespace {
-
-// LVGL has no pack-unregister API, so selecting a language nothing has loaded
-// makes every subsequent lookup miss again - the restore idiom
-// test_translation_loader.cpp uses.
-struct ScopedLanguage {
-    ScopedLanguage() = default;
-    ~ScopedLanguage() {
-        lv_translation_set_language(helix::ui::kIdentityLocale);
-    }
-    ScopedLanguage(const ScopedLanguage&) = delete;
-    ScopedLanguage& operator=(const ScopedLanguage&) = delete;
-};
-
-} // namespace
-
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a translated reason",
                  "[ams][snapmaker][resume][i18n]") {
     lv_init_safe();
-    ScopedLanguage restore_lang;
     PrinterState& ps = get_printer_state();
     ps.init_subjects(false);
 
@@ -2806,8 +2797,7 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker prepare_for_resume authors a trans
                    {"virtual_sdcard", {{"is_active", false}}}};
     ps.update_from_status(paused);
 
-    helix::ui::ensure_translation_loaded("ru");
-    lv_translation_set_language("ru");
+    ScopedLanguage ru("ru");
 
     helix::test::RegisteredBackend<AmsBackendSnapmaker> backend_reg(nullptr, nullptr);
     AmsBackendSnapmaker& backend = *backend_reg;
@@ -3139,6 +3129,39 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker takes a hand load as the load a fa
     h.backend.fire_status(make_feed_status(0, "manual_sta_finish"));
     CHECK(resume_once(h, 0).success());
     CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resumes a head loaded by hand past its feeder",
+                 "[ams][snapmaker][resume][load_unconfirmed]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    ResumeRecoveryHarness h;
+    const json switch_on{{"filament_motion_sensor e0_filament", {{"filament_detected", true}}}};
+    const json switch_off{{"filament_motion_sensor e0_filament", {{"filament_detected", false}}}};
+    h.backend.fire_status(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+
+    SECTION("pushed in after a refeed found nothing to feed") {
+        fail_refeed_then_switch_present(h);
+        h.backend.fire_status(switch_on);
+        CHECK(resume_once(h, 0).success());
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+    }
+    SECTION("ran out: Resume asks for a hand load instead of a refeed") {
+        h.backend.fire_status(switch_on);
+        h.backend.fire_status(switch_off);
+        const AmsError err = resume_once(h, 0);
+        CHECK_FALSE(err.success());
+        CHECK(err.suggestion == "Push filament into the toolhead by hand, then tap Resume.");
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 0);
+    }
+    SECTION("a feeder spool's tail passing the port is no hand push: Resume refeeds") {
+        h.backend.fire_status(make_feed_status(0, "load_finish"));
+        h.backend.fire_status(switch_on);
+        h.backend.fire_status(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.backend.fire_status(switch_off);
+        (void)resume_once(h, 0);
+        CHECK(count_containing(h.client.gcode_script_history(), "AUTO_FEEDING") == 1);
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -3926,6 +3949,9 @@ json golden_full_frame() {
         {"gcode_macro AUTO_FEEDING_BATCH", json{{"doing", false}}}};
 }
 
+// Pulling a spool from its feeder takes its filament out of the toolhead too.
+const json t0_switch_off{
+    {"filament_motion_sensor e0_filament", json{{"filament_detected", false}}}};
 json golden_feed(int ext, const char* state, std::optional<bool> detected = std::nullopt) {
     json ch{{"channel_state", state}};
     if (detected) {
@@ -4068,7 +4094,7 @@ TEST_CASE_METHOD(SnapmakerGoldenFixture, "Snapmaker golden status sequence",
         {"unload: prepare", golden_feed(1, "unload_prepare")},
         {"unload: finish", golden_feed(1, "unload_finish")},
         // Head 0 loses its spool and a tagless one goes in, then a tagged one in head 3.
-        {"insert: port drops", golden_feed(0, "wait_insert", false)},
+        {"insert: port drops", merged({golden_feed(0, "wait_insert", false), t0_switch_off})},
         {"insert: port rises", golden_feed(0, "wait_insert", true)},
         {"insert: reader answers NONE",
          json{{"filament_detect",
@@ -4946,6 +4972,27 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.config_writes().empty());
 }
 
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an official-flag repair keeps the head\x27s sub-type",
+                 "[ams][snapmaker][filament_record][official_repair]") {
+    lv_init_safe();
+    FilamentRecordHarness h("official_repair_subtype");
+    SlotInfo edit = inland_pla();
+    edit.spool_name.clear();
+    helix::test::edit_slot_as_user(h.backend, 3, edit);
+    h.printer.client.clear_gcode_script_history();
+
+    h.frame(make_written_entry(3, "PLA"));
+    json ptc = make_official_task(3, "PLA", "FF5500FF");
+    ptc["print_task_config"]["filament_sub_type"] =
+        json::array({"NONE", "NONE", "NONE", "SnapSpeed"});
+    h.frame(ptc);
+
+    const auto writes = h.config_writes();
+    REQUIRE(writes.size() == 2);
+    CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=3 VENDOR=Generic "
+                       "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=SnapSpeed FORCE=1");
+}
+
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker leaves an official flag it cannot prove it wrote",
                  "[ams][snapmaker][filament_record][official_repair]") {
     lv_init_safe();
@@ -5005,9 +5052,10 @@ TEST_CASE_METHOD(SnapmakerFixture,
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker sends no repair before its own frames name a print state",
                  "[ams][snapmaker][filament_record][official_repair]") {
-    // The app's print state may not be known when the first frames land; the
-    // backend's own print_stats is the only answer it trusts.
+    // The edit goes out on the app's print state; the repair waits for the
+    // backend's own print_stats, the only answer it trusts.
     lv_init_safe();
+    get_printer_state().init_subjects(false);
     FilamentRecordHarness h("official_repair_no_state", /*print_state=*/"");
     helix::test::edit_slot_as_user(h.backend, 3, inland_pla());
     h.printer.client.clear_gcode_script_history();
@@ -5160,6 +5208,73 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a product-line change alone rewrit
     REQUIRE(writes.size() == 1);
     CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
                        "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Matte");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an edit naming no product line keeps the sub-type",
+                 "[ams][snapmaker][filament_record]") {
+    lv_init_safe();
+    FilamentRecordHarness h("record_subtype_kept");
+    json ptc = make_task_filament({"NONE", "PLA", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_vendor"] =
+        json::array({"NONE", "Snapmaker", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_sub_type"] =
+        json::array({"NONE", "SnapSpeed", "NONE", "NONE"});
+    ptc["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "FF5500FF", "FFFFFFFF", "FFFFFFFF"});
+
+    SlotInfo edit;
+    edit.brand = "Snapmaker";
+    edit.material = "PLA";
+    edit.color_rgb = 0x00FF00;
+
+    SECTION("a colour change sends only the colour") {
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] ==
+              "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=00FF00FF");
+    }
+
+    SECTION("a head rewritten whole sends the sub-type it already holds") {
+        h.frame(make_written_entry(1, "PLA"));
+        ptc["print_task_config"]["filament_official"][1] = true;
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 2);
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=SnapSpeed FORCE=1");
+    }
+
+    SECTION("a new material does not inherit the old one\x27s sub-type") {
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        edit.material = "PETG";
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE_FALSE(writes.empty());
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PETG FILAMENT_SUBTYPE=Basic");
+    }
+
+    SECTION("a named product line still replaces it") {
+        h.frame(ptc);
+        h.printer.client.clear_gcode_script_history();
+        edit.spool_name = "Basic";
+        edit.color_rgb = 0xFF5500;
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] == "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 VENDOR=Snapmaker "
+                           "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic");
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker an edit never POSTs to filament_detect/set",
@@ -5582,6 +5697,13 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker says nothing when every used head 
         FileToolsProbe probe(h.backend, {0, 2});
         slicer_print_ready(h);
         h.frame(feeder(2, "load_feeding"));
+        h.print("printing");
+    }
+    SECTION("a head loaded by hand past its feeder") {
+        FileToolsProbe probe(h.backend, {0, 2});
+        slicer_print_ready(h);
+        h.frame(json{{"filament_feed right", {{"extruder2", {{"filament_detected", false}}}}}});
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", true}}}});
         h.print("printing");
     }
     CHECK(warnings.seen.empty());

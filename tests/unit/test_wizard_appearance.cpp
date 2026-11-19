@@ -9,6 +9,7 @@
 #include "settings_manager.h"
 #include "system_settings_manager.h"
 #include "theme_loader.h"
+#include "theme_manager.h"
 
 #include <lvgl/lvgl.h>
 
@@ -19,9 +20,9 @@
 using helix::TimeFormat;
 using helix::wizard::StepId;
 
-TEST_CASE("Appearance step follows Language and precedes Wifi", "[wizard][appearance]") {
+TEST_CASE("Appearance step follows Language and precedes Screen & Power", "[wizard][appearance]") {
     CHECK(static_cast<int>(StepId::Appearance) == static_cast<int>(StepId::Language) + 1);
-    CHECK(static_cast<int>(StepId::Wifi) == static_cast<int>(StepId::Appearance) + 1);
+    CHECK(static_cast<int>(StepId::ScreenPower) == static_cast<int>(StepId::Appearance) + 1);
 
     helix::wizard::Step* step = helix::wizard::step_by_id(StepId::Appearance);
     REQUIRE(step != nullptr);
@@ -46,14 +47,6 @@ TEST_CASE("Appearance step shows on the first printer only", "[wizard][appearanc
     later.is_subsequent_printer = true;
     later.preset = {true, false};
     CHECK(step->should_skip(later));
-}
-
-TEST_CASE("Appearance: the clock format default follows the language", "[wizard][appearance]") {
-    using helix::wizard::default_time_format_for_language;
-    CHECK(default_time_format_for_language("en") == TimeFormat::HOUR_12);
-    CHECK(default_time_format_for_language("") == TimeFormat::HOUR_12);
-    CHECK(default_time_format_for_language("de") == TimeFormat::HOUR_24);
-    CHECK(default_time_format_for_language("ja") == TimeFormat::HOUR_24);
 }
 
 TEST_CASE("Appearance: the timezone row draws attention only on an accidental UTC",
@@ -127,12 +120,17 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Appearance rows write the setting Settings 
         REQUIRE(themes.size() >= 2);
         lv_obj_t* dd = row_widget(root, "row_theme", "dropdown");
         CHECK(lv_dropdown_get_option_count(dd) == themes.size());
-        const std::string before = helix::Config::get_instance()->get<std::string>(
-            "/display/theme", std::string(helix::kDefaultTheme));
+        const helix::ThemeData prev_theme = theme_manager_get_active_theme();
+        const bool prev_dark = theme_manager_is_dark_mode();
+        const uint32_t before = lv_dropdown_get_selected(dd);
+        REQUIRE(before != 1);
         pick(dd, 1);
         CHECK(helix::Config::get_instance()->get<std::string>("/display/theme", "") ==
               themes[1].filename);
-        helix::Config::get_instance()->set<std::string>("/display/theme", before);
+        // The pick applied the theme live, in the saved dark mode: put back the
+        // setting, then the exact theme and mode the case started under.
+        pick(dd, before);
+        theme_manager_apply_theme(prev_theme, prev_dark);
     }
 
     step->cleanup();
@@ -156,7 +154,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Appearance: an unpicked clock format takes 
     step->register_callbacks();
     REQUIRE(step->create(test_screen()) != nullptr);
     CHECK(display.get_time_format() == TimeFormat::HOUR_24);
-    CHECK(config->exists("/display/time_format"));
+    // Shown, not saved: the clock keeps following the language until picked.
+    CHECK_FALSE(config->exists("/display/time_format"));
     step->cleanup();
 
     // A format the user already picked is left alone.

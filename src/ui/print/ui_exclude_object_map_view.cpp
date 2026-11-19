@@ -7,6 +7,7 @@
 #include "bed_dimensions.h"
 #include "bed_grid.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "exclude_map_hatch.h"
 #include "lv_draw_buf_guard.h"
 #include "printer_excluded_objects_state.h"
@@ -82,9 +83,13 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
 
     open_map_views().add(this);
 
-    root_ = static_cast<lv_obj_t*>(mode_ == ExcludeMapMode::Mini
-                                       ? lv_xml_create(parent, "exclude_object_map_mini", nullptr)
-                                       : lv_xml_create(parent, "exclude_object_map", nullptr));
+    if (mode_ == ExcludeMapMode::Mini) {
+        root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_map_mini", nullptr));
+    } else {
+        publish_view_subjects();
+        root_ = static_cast<lv_obj_t*>(
+            lv_xml_create(parent, "exclude_object_map", view_subjects_.attrs()));
+    }
     if (!root_) {
         spdlog::error("[ExcludeObjectMapView] lv_xml_create failed");
         open_map_views().remove(this);
@@ -92,7 +97,7 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     }
 
     // Disable scrolling on root view
-    lv_obj_remove_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(root_, false);
     lv_obj_set_scrollbar_mode(root_, LV_SCROLLBAR_MODE_OFF);
 
     // Force layout so children have valid sizes
@@ -102,7 +107,7 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
 
     // Disable scrolling on plate area
     if (plate_area_) {
-        lv_obj_remove_flag(plate_area_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scrollable(plate_area_, false);
         lv_obj_set_scrollbar_mode(plate_area_, LV_SCROLLBAR_MODE_OFF);
     }
 
@@ -119,9 +124,9 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
         lv_obj_set_style_bg_opa(object_container_, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(object_container_, 0, 0);
         lv_obj_set_style_pad_all(object_container_, 0, 0);
-        lv_obj_remove_flag(object_container_, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_remove_flag(object_container_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(object_container_, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_scrollable(object_container_, false);
+        lv_obj_set_clickable(object_container_, false);
+        lv_obj_set_event_bubble(object_container_, true);
         lv_obj_set_pos(object_container_, 0, 0);
     }
 
@@ -203,15 +208,11 @@ void ExcludeObjectMapView::build_surface() {
     coord_min_x_ = coord_min_x;
     coord_min_y_ = coord_min_y;
 
-    // Update plate dimensions label
+    // Plate dimensions line
     if (mode_ == ExcludeMapMode::Interactive) {
-        lv_obj_t* dims_label =
-            helix::ui::find_required(root_, "plate_dims_label", "ExcludeObjectMapView");
-        if (dims_label) {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.0f×%.0f mm", bed_w_mm_, bed_h_mm_);
-            lv_label_set_text(dims_label, buf);
-        }
+        char buf[sizeof(dims_buf_)];
+        snprintf(buf, sizeof(buf), "%.0f×%.0f mm", bed_w_mm_, bed_h_mm_);
+        lv_subject_set_string(&dims_text_, buf);
     }
 
     // Build mapper after layout so plate_area has real dimensions
@@ -230,10 +231,10 @@ void ExcludeObjectMapView::build_surface() {
         if (buf) {
             if (!canvas_) {
                 canvas_ = lv_canvas_create(plate_area_);
-                lv_obj_remove_flag(canvas_, LV_OBJ_FLAG_CLICKABLE);
-                lv_obj_remove_flag(canvas_, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_clickable(canvas_, false);
+                lv_obj_set_scrollable(canvas_, false);
                 lv_obj_set_scrollbar_mode(canvas_, LV_SCROLLBAR_MODE_OFF);
-                lv_obj_add_flag(canvas_, LV_OBJ_FLAG_EVENT_BUBBLE);
+                lv_obj_set_event_bubble(canvas_, true);
                 lv_obj_set_pos(canvas_, 0, 0);
             }
             lv_canvas_set_draw_buf(canvas_, buf);
@@ -259,6 +260,14 @@ void ExcludeObjectMapView::resize() {
 // ============================================================================
 // Destroy
 // ============================================================================
+
+void ExcludeObjectMapView::publish_view_subjects() {
+    view_subjects_.reset();
+    dims_text_.init_string(dims_buf_, nullptr, sizeof(dims_buf_), "");
+    view_subjects_.publish(&dims_text_, "dims_subject", "dims");
+    has_objects_.init_int(1);
+    view_subjects_.publish(&has_objects_, "has_objects_subject", "has_objects");
+}
 
 void ExcludeObjectMapView::destroy() {
     // A tree deleted under the view leaves root_ null but the buffer and the
@@ -318,6 +327,9 @@ void ExcludeObjectMapView::destroy() {
         plate_area_ = nullptr;
         object_container_ = nullptr;
     }
+    // Withdraws the names before the subjects go; the deferred delete above
+    // finds no observer left on them.
+    view_subjects_.reset();
 
     state_ = nullptr;
     on_object_tapped_ = nullptr;
@@ -393,16 +405,9 @@ void ExcludeObjectMapView::build_object_rects() {
     spdlog::debug("[ExcludeObjectMapView] Built {} rects from {} defined objects", rects_created,
                   badges.size());
 
-    // Show or hide the empty message imperatively. The XML component scope
-    // persists across create/destroy cycles, so we cannot use lv_xml_register_subject
-    // here — the scope would hold a dangling pointer after destroy() deinits it.
-    lv_obj_t* empty_msg = helix::ui::find_required(root_, "empty_message", "ExcludeObjectMapView");
-    if (empty_msg) {
-        if (rects_created > 0) {
-            lv_obj_add_flag(empty_msg, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(empty_msg, LV_OBJ_FLAG_HIDDEN);
-        }
+    // The empty message binds this view's has_objects subject.
+    if (mode_ == ExcludeMapMode::Interactive) {
+        lv_subject_set_int(&has_objects_, rects_created > 0 ? 1 : 0);
     }
 
     // Draw polygon outlines on canvas (from parsed GCode or Moonraker data)
@@ -663,8 +668,8 @@ lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, const Objec
     lv_obj_set_style_border_opa(obj, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(obj, 3, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     // Number badge — the same disc the 2D/3D render draws (ui_exclude_object_badges.h)
     const int32_t diameter = object_badge_diameter();
@@ -676,17 +681,17 @@ lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, const Objec
     lv_obj_set_style_radius(disc, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_border_width(disc, 0, 0);
     lv_obj_set_style_pad_all(disc, 0, 0);
-    lv_obj_remove_flag(disc, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(disc, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(disc, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_scrollable(disc, false);
+    lv_obj_set_clickable(disc, false);
+    lv_obj_set_event_bubble(disc, true);
 
     lv_obj_t* num_label = lv_label_create(disc);
     lv_label_set_text(num_label, badge.number.c_str());
     lv_obj_set_style_text_font(num_label, object_badge_font(), 0);
     lv_obj_set_style_text_color(num_label, object_badge_text_color(color), 0);
     lv_obj_align(num_label, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_remove_flag(num_label, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(num_label, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_clickable(num_label, false);
+    lv_obj_set_event_bubble(num_label, true);
 
     // Clicked callback — uses `this` captured in user_data
     lv_obj_add_event_cb(obj, on_object_clicked, LV_EVENT_CLICKED, this);
@@ -724,31 +729,31 @@ void ExcludeObjectMapView::update_visual_states() {
             lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
             lv_obj_set_style_opa(rect, object_badge_opa(is_excluded), 0);
             if (is_excluded && tap_mode_ == ExcludeTapMode::ExcludeOnly) {
-                lv_obj_remove_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(rect, false);
             } else {
-                lv_obj_add_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(rect, true);
             }
         } else if (is_excluded) {
             lv_obj_set_style_border_color(rect, danger_color, 0);
             lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
             lv_obj_set_style_opa(rect, object_badge_opa(true), 0);
             if (tap_mode_ == ExcludeTapMode::ExcludeOnly) {
-                lv_obj_remove_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(rect, false);
             } else {
-                lv_obj_add_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_set_clickable(rect, true);
             }
         } else if (is_current) {
             lv_obj_set_style_border_color(rect, primary_color, 0);
             lv_obj_set_style_bg_color(rect, primary_color, 0);
             lv_obj_set_style_bg_opa(rect, LV_OPA_20, 0);
             lv_obj_set_style_opa(rect, LV_OPA_COVER, 0);
-            lv_obj_add_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(rect, true);
         } else {
             lv_color_t color = object_badge_color(entry.defined_index);
             lv_obj_set_style_border_color(rect, color, 0);
             lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
             lv_obj_set_style_opa(rect, LV_OPA_COVER, 0);
-            lv_obj_add_flag(rect, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(rect, true);
         }
     }
 

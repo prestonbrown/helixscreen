@@ -541,6 +541,267 @@ esac
         || fail "start_service did not stand down on a mod-managed host: $output"
 }
 
+# A payload install whose run stopped a running UI starts it again, through the
+# mod's chroot the way boot does: the display was already HelixScreen's, so
+# leaving it dark until a reboot is a blank screen for anyone who updates.
+# The fakes below: helix-screen "runs" while $RUNNING exists, the chroot's
+# init script `stop` removes it, and the host's chroot(8) records each call
+# and brings it back on start/restart.
+_payload_update_fakes() { # chroot exit status for start/restart
+    RUNNING="$BATS_TEST_TMPDIR/running"
+    CALLS="$BATS_TEST_TMPDIR/chroot.calls"
+    : > "$CALLS"
+    HELIX_MOD_PAYLOAD=1
+    INIT_SYSTEM="sysv"
+    HELIX_INIT_SCRIPTS=""
+    INIT_SCRIPT_DEST="$HOST_MOD_CHROOT/etc/init.d/S80helixscreen"
+    mkdir -p "$(dirname "$INIT_SCRIPT_DEST")"
+    printf '#!/bin/sh\n[ "$1" = stop ] && rm -f "%s"\nexit 0\n' "$RUNNING" > "$INIT_SCRIPT_DEST"
+    chmod +x "$INIT_SCRIPT_DEST"
+    mock_command_script "pidof" "[ \"\$1\" = helix-screen ] && [ -f '$RUNNING' ] && echo 9999999 && exit 0; exit 1"
+    mock_command_script "chroot" "echo \"\$*\" >> '$CALLS'
+case \"\$3\" in start|restart) [ ${1:-0} -eq 0 ] && touch '$RUNNING'; exit ${1:-0} ;; esac
+exit 0"
+    mock_command_script "sleep" 'exit 0'
+    # The binary as the chroot sees it: the start runs it from there.
+    mkdir -p "$HOST_MOD_CHROOT$INSTALL_DIR/bin"
+    printf '#!/bin/sh\n' > "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+    chmod +x "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+}
+
+@test "payload update: the UI it stopped starts again through the mod's chroot" {
+    _payload_update_fakes 0
+    touch "$RUNNING"
+
+    stop_service "ad5x"
+    [ ! -f "$RUNNING" ] || fail "the fake stop did not run"
+    run start_service "ad5x"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    grep -qx "$HOST_MOD_CHROOT /etc/init.d/S80helixscreen start" "$CALLS" \
+        || fail "not started through the chroot's init script: $(cat "$CALLS")"
+    contains "HelixScreen is running" "$output"
+}
+
+@test "payload install over a UI still running restarts it through the chroot" {
+    # --local without --update stops nothing, so the old binary is still up.
+    _payload_update_fakes 0
+    touch "$RUNNING"
+
+    run start_service "ad5x"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    grep -qx "$HOST_MOD_CHROOT /etc/init.d/S80helixscreen restart" "$CALLS" \
+        || fail "the running UI was not restarted: $(cat "$CALLS")"
+}
+
+@test "payload update run from inside the chroot starts the init script directly" {
+    _payload_update_fakes 0
+    HOST_CHROOT_STATE="inside"
+    touch "$RUNNING"
+    stop_service "ad5x"
+    printf '#!/bin/sh\necho "direct $1" >> "%s"\n[ "$1" = start ] && touch "%s"\nexit 0\n' \
+        "$CALLS" "$RUNNING" > "$INIT_SCRIPT_DEST"
+
+    run start_service "ad5x"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    grep -qx "direct start" "$CALLS" || fail "calls: $(cat "$CALLS")"
+    ! grep -q "^$HOST_MOD_CHROOT " "$CALLS" || fail "chrooted from inside the chroot"
+}
+
+@test "fresh payload install with no UI running still waits for boot" {
+    _payload_update_fakes 0
+
+    run start_service "ad5x"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    [ ! -s "$CALLS" ] || fail "started a UI nothing had running: $(cat "$CALLS")"
+    contains "starts from the chroot at boot" "$output"
+}
+
+@test "payload update whose chroot start fails stays non-fatal and asks for a reboot" {
+    _payload_update_fakes 1
+    touch "$RUNNING"
+    stop_service "ad5x"
+
+    start_service "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1 || fail "start failure was fatal"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    run print_summary v1.2.3
+
+    contains "Reboot" "$output"
+    lacks "is running" "$output"
+}
+
+@test "payload update summary says the UI is running once it restarted" {
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    stop_service "ad5x"
+    start_service "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+
+    plan_starts_ui || fail "the step is titled as if nothing starts"
+    run print_summary v1.2.3
+
+    contains "is running" "$output"
+    lacks "Reboot" "$output"
+}
+
+@test "payload update whose init start exits 0 with no UI behind it does not claim running" {
+    # The init script exits 0 for start and status alike when its DAEMON_DIR
+    # does not resolve in the chroot; only a helix-screen process proves a start.
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    stop_service "ad5x"
+    mock_command_script "chroot" "echo \"\$*\" >> '$CALLS'; exit 0"
+
+    start_service "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1 || fail "start failure was fatal"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    run print_summary v1.2.3
+
+    lacks "HelixScreen is running" "$(cat "$BATS_TEST_TMPDIR/out")"
+    contains "Reboot" "$output"
+    lacks "is running" "$output"
+}
+
+@test "payload update with no binary the chroot can reach waits for boot" {
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    stop_service "ad5x"
+    rm -f "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+
+    run start_service "ad5x"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    [ ! -s "$CALLS" ] || fail "started a script that has no binary to run: $(cat "$CALLS")"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    run print_summary v1.2.3
+    contains "Reboot" "$output"
+}
+
+@test "payload update reaches the binary through the chroot's own spelling of the root" {
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    stop_service "ad5x"
+    HELIX_CHROOT_DAEMON_DIR="/opt/config/mod_data/helixscreen"
+    rm -f "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+    mkdir -p "$HOST_MOD_CHROOT$HELIX_CHROOT_DAEMON_DIR/bin"
+    printf '#!/bin/sh\n' > "$HOST_MOD_CHROOT$HELIX_CHROOT_DAEMON_DIR/bin/helix-screen"
+    chmod +x "$HOST_MOD_CHROOT$HELIX_CHROOT_DAEMON_DIR/bin/helix-screen"
+
+    run start_service "ad5x"
+
+    grep -qx "$HOST_MOD_CHROOT /etc/init.d/S80helixscreen start" "$CALLS" \
+        || fail "not started: $(cat "$CALLS")"
+}
+
+@test "payload update of an adopted legacy root leaves its host service to the reboot" {
+    # An adopted /opt/helixscreen boots from the host's S90, which the chroot
+    # cannot reach; the chroot's script would start nothing of it.
+    _payload_update_fakes 0
+    INSTALL_DIR="$SANDBOX/opt/helixscreen"
+    HOST_LEGACY_INSTALL_ROOT="$INSTALL_DIR"
+    mkdir -p "$HOST_MOD_CHROOT$INSTALL_DIR/bin"
+    printf '#!/bin/sh\n' > "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+    chmod +x "$HOST_MOD_CHROOT$INSTALL_DIR/bin/helix-screen"
+    touch "$RUNNING"
+    stop_service "ad5m"
+
+    run start_service "ad5m"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    [ ! -s "$CALLS" ] || fail "started the adopted root through the chroot: $(cat "$CALLS")"
+}
+
+@test "payload update trusts a running UI over a failing init script" {
+    # An init script that cannot write its pid file exits non-zero after its
+    # supervisor has already launched the UI.
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    stop_service "ad5x"
+    mock_command_script "chroot" "echo \"\$*\" >> '$CALLS'; touch '$RUNNING'; echo 'Failed to start helixscreen'; exit 1"
+
+    start_service "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1 || fail "start failure was fatal"
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    run print_summary v1.2.3
+
+    contains "HelixScreen is running" "$(cat "$BATS_TEST_TMPDIR/out")"
+    contains "is running" "$output"
+    lacks "Reboot" "$output"
+}
+
+@test "the reboot note follows only a UI that did not start" {
+    _payload_update_fakes 0
+    # shellcheck disable=SC1090
+    . "$WORKTREE_ROOT/scripts/lib/installer/plan.sh"
+    touch "$RUNNING"
+    stop_service "ad5m"
+    start_service "ad5m" > "$BATS_TEST_TMPDIR/out" 2>&1
+
+    run print_reboot_note ad5m
+    lacks "reboot" "$output"
+
+    HELIX_UI_CONFIRMED=""
+    run print_reboot_note ad5m
+    contains "reboot" "$output"
+    run print_reboot_note pi
+    lacks "reboot" "$output"
+}
+
+@test "apply_install prints the reboot note through print_reboot_note" {
+    _fn_body() { awk -v f="$1" '$0 ~ "^"f"\\(\\) *\\{" {p=1} p {print} p && /^}/ {exit}' "$2"; }
+    _fn_body apply_install "$WORKTREE_ROOT/scripts/lib/installer/main.sh" | grep -q 'print_reboot_note "\$platform"' \
+        || fail "apply_install does not route the note through print_reboot_note"
+    ! grep -q 'You may need to reboot' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" \
+        || fail "main.sh still prints the note unconditionally"
+}
+
+@test "payload update replaces our shipped config scripts and keeps user config" {
+    HELIX_MOD_PAYLOAD=1
+    seed_payload_root
+    printf '#!/bin/sh\n# OLD init\n' > "$INSTALL_DIR/config/helixscreen.init"
+    printf '[{"operator":1}]\n' > "$INSTALL_DIR/config/tool_spools.json"
+    mkdir -p "$INSTALL_DIR/config/themes"
+    printf 'mine\n' > "$INSTALL_DIR/config/themes/custom.json"
+    local staging="$BATS_TEST_TMPDIR/staging"
+    rm -rf "$staging"
+    mkdir -p "$staging/helixscreen/bin" "$staging/helixscreen/config/themes" \
+             "$staging/helixscreen/ui_xml" "$staging/helixscreen/assets"
+    create_fake_mips_elf "$staging/helixscreen/bin/helix-screen"
+    chmod +x "$staging/helixscreen/bin/helix-screen"
+    printf '#!/bin/sh\n# NEW init\n' > "$staging/helixscreen/config/helixscreen.init"
+    printf '[]\n' > "$staging/helixscreen/config/tool_spools.json"
+    printf '{"bundled":true}\n' > "$staging/helixscreen/config/settings.json"
+    printf 'shipped\n' > "$staging/helixscreen/config/themes/custom.json"
+    tar -czf "$TMP_DIR/helixscreen.tar.gz" -C "$staging" helixscreen
+
+    extract_release "ad5x"
+
+    grep -q 'NEW init' "$INSTALL_DIR/config/helixscreen.init" \
+        || fail "the shipped init script kept the old payload's copy"
+    grep -q '"operator":1' "$INSTALL_DIR/config/tool_spools.json" || fail "user tool_spools.json replaced"
+    grep -q '"operator":true' "$INSTALL_DIR/config/settings.json" || fail "user settings.json replaced"
+    grep -q mine "$INSTALL_DIR/config/themes/custom.json" || fail "user theme replaced"
+    cmp -s "$BATS_TEST_TMPDIR/env.operator" "$INSTALL_DIR/config/helixscreen.env" \
+        || fail "operator helixscreen.env was modified"
+}
+
+@test "payload self-update leaves the restart to the watchdog" {
+    _payload_update_fakes 0
+    touch "$RUNNING"
+    HELIX_SELF_UPDATE=1
+
+    run start_service "ad5x"
+
+    [ "$status" -eq 0 ] || fail "start_service failed: $output"
+    [ ! -s "$CALLS" ] || fail "started a second instance beside the app: $(cat "$CALLS")"
+}
+
 @test "start_service: the flag alone does not stand down on a non-mod host" {
     HOST_SERVICE_MECHANISM="systemd"
     HELIX_MOD_PAYLOAD=1

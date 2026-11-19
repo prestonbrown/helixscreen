@@ -127,6 +127,14 @@
     <px name="space_xs_large" value="6"/>
     <px name="space_xs_xlarge" value="8"/>
     <px name="space_xs_xxlarge" value="10"/>
+    <!-- menu_caret: how far a context menu's caret (the triangle pointing at what
+         opened it) stands off the card; its base is twice this wide. -->
+    <px name="menu_caret_tiny" value="5"/>
+    <px name="menu_caret_small" value="6"/>
+    <px name="menu_caret_medium" value="8"/>
+    <px name="menu_caret_large" value="9"/>
+    <px name="menu_caret_xlarge" value="12"/>
+    <px name="menu_caret_xxlarge" value="14"/>
     <!-- home_grid_gap: gap between the home widget grid's tracks. Matches space_xs up to
          medium; wider from large up, where cells are big enough to want the air. -->
     <px name="home_grid_gap_tiny" value="2"/>

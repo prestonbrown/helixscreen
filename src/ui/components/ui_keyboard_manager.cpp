@@ -9,6 +9,7 @@
 #include "ui_fonts.h"
 #include "ui_keycap_style.h"
 #include "ui_nav_manager.h"
+#include "ui_text_edit_menu.h"
 #include "ui_text_input.h"
 #include "ui_utils.h"
 
@@ -361,7 +362,7 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
     }
 
     lv_obj_set_pos(overlay_, overlay_x, overlay_y);
-    lv_obj_move_foreground(overlay_);
+    lv_obj_move_to_index(overlay_, -1);
     lv_obj_update_layout(overlay_);
 
     spdlog::info("[KeyboardManager] Showing overlay with {} alternatives at ({}, {})", alt_count,
@@ -949,8 +950,8 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
                 if (!hint_font) {
                     continue; // No font small enough to sit on this key.
                 }
-                const lv_coord_t hint_h = theme_manager_get_font_height(hint_font);
-                const lv_coord_t hint_w = static_cast<lv_coord_t>(hint_h * 0.9f);
+                const int32_t hint_h = theme_manager_get_font_height(hint_font);
+                const int32_t hint_w = static_cast<int32_t>(hint_h * 0.9f);
 
                 // Containment is enforced in compute_hint_area(); a false return means
                 // the glyph cannot fit this key, so draw nothing rather than spill onto
@@ -1045,7 +1046,7 @@ void slide_page(lv_obj_t* screen, lv_obj_t* keyboard, lv_anim_path_cb_t path,
         lv_anim_init(&a);
         lv_anim_set_var(&a, child);
         lv_anim_set_values(&a, current_y, target_y);
-        lv_anim_set_time(&a, 200);
+        lv_anim_set_duration(&a, 200);
         lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_obj_set_y);
         lv_anim_set_path_cb(&a, path);
         lv_anim_start(&a);
@@ -1281,7 +1282,7 @@ void KeyboardManager::init(lv_obj_t* parent) {
         [](KeyboardManager* self, int) { self->apply_key_styles(); }, subject_never_freed());
 
     lv_obj_align(keyboard_, LV_ALIGN_BOTTOM_MID, 0, 0);
-    lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(keyboard_, true);
 
     lv_obj_add_event_cb(keyboard_, keyboard_event_cb, LV_EVENT_READY, nullptr);
     lv_obj_add_event_cb(keyboard_, keyboard_event_cb, LV_EVENT_CANCEL, nullptr);
@@ -1314,6 +1315,9 @@ void KeyboardManager::register_textarea(lv_obj_t* textarea) {
     lv_obj_add_event_cb(textarea, textarea_focus_event_cb, LV_EVENT_FOCUSED, nullptr);
     lv_obj_add_event_cb(textarea, textarea_focus_event_cb, LV_EVENT_DEFOCUSED, nullptr);
     lv_obj_add_event_cb(textarea, textarea_delete_event_cb, LV_EVENT_DELETE, nullptr);
+    // Holding a field offers Cut / Copy / Paste.
+    lv_obj_add_event_cb(textarea, helix::ui::text_edit_long_press_cb, LV_EVENT_LONG_PRESSED,
+                        nullptr);
 
     lv_group_t* default_group = lv_group_get_default();
     if (default_group) {
@@ -1343,6 +1347,7 @@ void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
     // The focus pair is what raises and lowers the keyboard. The delete hook is left
     // in place: it is the manager's own bookkeeping, not part of the offer to type.
     lv_obj_remove_event_cb(textarea, textarea_focus_event_cb);
+    lv_obj_remove_event_cb(textarea, helix::ui::text_edit_long_press_cb);
 
     // Out of the input group too, or a physical keyboard still routes here.
     lv_group_remove_obj(textarea);
@@ -1356,25 +1361,13 @@ void KeyboardManager::unregister_textarea(lv_obj_t* textarea) {
 }
 
 void KeyboardManager::register_textarea_ex(lv_obj_t* textarea, bool is_password) {
-    if (keyboard_ == nullptr) {
-        spdlog::error("[KeyboardManager] Not initialized - call init() first");
-        return;
-    }
-
-    if (textarea == nullptr) {
-        spdlog::error("[KeyboardManager] Cannot register NULL textarea");
-        return;
-    }
-
-    spdlog::debug("[KeyboardManager] Registering textarea: {} (password: {})", (void*)textarea,
-                  is_password);
-
     // Assert the masking rather than merely recording it. is_password_context()
     // reads the widget's live state, so a caller declaring a password field this
     // way is guaranteed to get log redaction; a flag that were only logged would
     // make the whole overload look protective while doing nothing at all.
-    if (is_password) {
+    if (is_password && textarea != nullptr) {
         lv_textarea_set_password_mode(textarea, true);
+        helix::ui::mark_secret_field(textarea);
     }
 
     register_textarea(textarea);
@@ -1446,8 +1439,11 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     apply_keyboard_mode();
 
     lv_keyboard_set_textarea(keyboard_, textarea);
-    lv_obj_remove_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_move_foreground(keyboard_);
+    lv_obj_set_hidden(keyboard_, false);
+    // Published before the layout pass below, so a view that changes shape for
+    // the keyboard has done so by the time the page lift is measured.
+    DisplaySettingsManager::instance().set_soft_keyboard_visible(true);
+    lv_obj_move_to_index(keyboard_, -1);
     lv_obj_update_layout(screen);
     {
         // The keyboard covers the bottom of the navbar, where the E-stop sits:
@@ -1466,7 +1462,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
         lv_anim_init(&slide_anim);
         lv_anim_set_var(&slide_anim, keyboard_);
         lv_anim_set_values(&slide_anim, keyboard_height, 0);
-        lv_anim_set_time(&slide_anim, kKeyboardSlideDurationMs);
+        lv_anim_set_duration(&slide_anim, kKeyboardSlideDurationMs);
         lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_out);
         lv_anim_set_exec_cb(&slide_anim, [](void* obj, int32_t value) {
             lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
@@ -1494,8 +1490,7 @@ void KeyboardManager::show(lv_obj_t* textarea) {
     int32_t shift_up = ta_bottom - desired_bottom;
 
     auto reveal = reveal_targets_.find(textarea);
-    if (reveal != reveal_targets_.end() && reveal->second &&
-        !lv_obj_has_flag(reveal->second, LV_OBJ_FLAG_HIDDEN)) {
+    if (reveal != reveal_targets_.end() && reveal->second && !lv_obj_is_hidden(reveal->second)) {
         lv_area_t target_coords;
         lv_obj_get_coords(reveal->second, &target_coords);
         const int32_t target_bottom = target_coords.y2 + pending_page_slide(screen, reveal->second);
@@ -1544,6 +1539,7 @@ void KeyboardManager::hide() {
 
     // Cancel any in-progress show animation
     lv_anim_delete(keyboard_, nullptr);
+    DisplaySettingsManager::instance().set_soft_keyboard_visible(false);
 
     longpress_reset();
     longpress_state_ = LP_IDLE;
@@ -1559,19 +1555,19 @@ void KeyboardManager::hide() {
         lv_anim_init(&slide_anim);
         lv_anim_set_var(&slide_anim, keyboard_);
         lv_anim_set_values(&slide_anim, 0, keyboard_height);
-        lv_anim_set_time(&slide_anim, kKeyboardExitDurationMs);
+        lv_anim_set_duration(&slide_anim, kKeyboardExitDurationMs);
         lv_anim_set_path_cb(&slide_anim, lv_anim_path_ease_in);
         lv_anim_set_exec_cb(&slide_anim, [](void* obj, int32_t value) {
             lv_obj_set_style_translate_y(static_cast<lv_obj_t*>(obj), value, LV_PART_MAIN);
         });
         lv_anim_set_completed_cb(&slide_anim, [](lv_anim_t* anim) {
             lv_obj_t* kb = static_cast<lv_obj_t*>(anim->var);
-            lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(kb, true);
             lv_obj_set_style_translate_y(kb, 0, LV_PART_MAIN);
         });
         lv_anim_start(&slide_anim);
     } else {
-        lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(keyboard_, true);
     }
 
     spdlog::debug("[KeyboardManager] Restoring screen children to y=0");
@@ -1582,7 +1578,7 @@ bool KeyboardManager::is_visible() const {
     if (keyboard_ == nullptr) {
         return false;
     }
-    return !lv_obj_has_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(keyboard_);
 }
 
 bool KeyboardManager::is_password_context() const {
@@ -1613,6 +1609,9 @@ void KeyboardManager::set_mode(lv_keyboard_mode_t mode) {
 void KeyboardManager::reset() {
     spdlog::debug("[KeyboardManager] Resetting state for soft restart");
 
+    // Its field is about to go with the tree.
+    helix::ui::text_edit_menu_reset();
+
     // Delete keyboard widget (child of m_screen, survives app_layout teardown).
     // reset() runs from tear_down_printer_state(), whose callers may be inside an
     // input event or a queued callback, where several synchronous deletes are the
@@ -1629,7 +1628,7 @@ void KeyboardManager::reset() {
     // dereferences keyboard_, and init() installs a fresh one on rebuild.
     theme_observer_.reset();
 
-    context_textarea_ = nullptr; // Child of app_layout — deleted by lv_obj_del(m_app_layout)
+    context_textarea_ = nullptr; // Child of app_layout — deleted by lv_obj_delete(m_app_layout)
     reveal_targets_.clear();
 
     // Long-press overlay (also child of m_screen) — deferred delete for the same

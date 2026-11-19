@@ -811,11 +811,11 @@ TEST_CASE_METHOD(ThemeConstantsFixture,
 }
 
 TEST_CASE_METHOD(ThemeConstantsFixture,
-                 "ui_theme: constant sets are checked in layout subdirectories too",
+                 "ui_theme: constant sets are checked in nested subdirectories too",
                  "[ui_theme][validation]") {
     setup_temp_xml_dir();
     fs::create_directories(temp_dir / "components");
-    fs::create_directories(temp_dir / "portrait");
+    fs::create_directories(temp_dir / "components" / "cards");
 
     write_xml("components/tile.xml", R"(
 <component>
@@ -824,7 +824,7 @@ TEST_CASE_METHOD(ThemeConstantsFixture,
     </consts>
 </component>
 )");
-    write_xml("portrait/panel.xml", R"(
+    write_xml("components/cards/panel.xml", R"(
 <component>
     <consts>
         <color name="strip_bg_light" value="#FFFFFF"/>

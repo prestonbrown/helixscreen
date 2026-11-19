@@ -58,25 +58,18 @@ FBDEV_DISPLAY_API_SRCS := \
     src/platform/display/display_backend_fbdev.cpp \
     src/platform/display/drm_rotation_strategy.cpp \
     src/platform/input/touch_calibration_wrapper.cpp \
-    src/platform/input/input_device_scanner.cpp
-
-FBDEV_DISPLAY_UI_SRCS := \
-    src/ui/calibration/touch_calibration.cpp
+    src/platform/input/input_device_scanner.cpp \
+    src/platform/input/touch_calibration.cpp
 
 FBDEV_DISPLAY_API_OBJS := $(patsubst %.cpp,$(FBDEV_DISPLAY_DIR)/%.o,$(notdir $(FBDEV_DISPLAY_API_SRCS)))
-FBDEV_DISPLAY_UI_OBJS := $(FBDEV_DISPLAY_UI_SRCS:src/ui/calibration/%.cpp=$(FBDEV_DISPLAY_DIR)/%.o)
-FBDEV_DISPLAY_OBJS := $(FBDEV_DISPLAY_API_OBJS) $(FBDEV_DISPLAY_UI_OBJS)
+FBDEV_DISPLAY_OBJS := $(FBDEV_DISPLAY_API_OBJS)
 
 # Build fbdev display objects
-$(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/display/%.cpp lv_conf.h $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(FBDEV_DISPLAY_DIR)/%.o: src/platform/input/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
-	@echo "[CXX/fbdev] $<"
-	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
-
-$(FBDEV_DISPLAY_DIR)/%.o: src/ui/calibration/%.cpp $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
+$(FBDEV_DISPLAY_DIR)/%.o: src/platform/input/%.cpp lv_conf.h $(LIBHV_LIB) $(ABI_STAMP) | $(FBDEV_DISPLAY_DIR)
 	@echo "[CXX/fbdev] $<"
 	$(Q)$(CXX) $(FBDEV_DISPLAY_CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
@@ -205,7 +198,7 @@ DRM_DISPLAY_APP_OBJS := \
     $(OBJ_DIR)/platform/display/display_backend_fbdev.o \
     $(OBJ_DIR)/platform/input/touch_calibration_wrapper.o \
     $(OBJ_DIR)/platform/input/input_device_scanner.o \
-    $(OBJ_DIR)/ui/calibration/touch_calibration.o
+    $(OBJ_DIR)/platform/input/touch_calibration.o
 
 # All common app objects (swap out DRM-specific and GLES-specific objects)
 FBDEV_APP_OBJS := $(filter-out $(DRM_DISPLAY_APP_OBJS) $(DRM_CRASH_OBJ) $(DRM_GLES_APP_OBJS),$(APP_OBJS))
@@ -242,7 +235,7 @@ FBDEV_LDFLAGS := $(filter-out -ldrm -linput -lEGL -lGLESv2 -lgbm,$(LDFLAGS))
 # scripts/check_link_parity.py compares the two lists and fails on a gap.
 $(FBDEV_TARGET): $(APP_C_OBJS) $(FBDEV_APP_OBJS) $(FBDEV_GLES_VARIANT_OBJS) $(FBDEV_CRASH_OBJ) \
                  $(FBDEV_LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(SPDLOG_OBJS) $(LV_MARKDOWN_OBJS) \
-                 $(QUIRC_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(REMOTE_LINENOISE_OBJ) \
+                 $(QUIRC_OBJS) $(MONOCYPHER_OBJS) $(VTERM_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(REMOTE_LINENOISE_OBJ) \
                  $(APP_DNS_RESOLV_OBJ) $(DISPLAY_LIB_FBDEV) $(WPA_DEPS) \
                  | $(TARGET)
 	$(Q)mkdir -p $(dir $@)

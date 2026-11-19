@@ -45,6 +45,34 @@ TEST_CASE("file storage round-trips a document atomically", "[config][storage]")
     fs::remove_all(dir);
 }
 
+// Every symlinked layout links settings.json into a store outside the install
+// root; replacing the link with a file puts the settings back where the next
+// update deletes them (#2085).
+TEST_CASE("file storage behind a symlink keeps the link through store and preserve_corrupt",
+          "[config][storage][2085]") {
+    const fs::path dir = helix::test::unique_temp_dir("helix-storage-link");
+    fs::create_directories(dir / "store");
+    fs::create_directories(dir / "config");
+    const fs::path target = dir / "store" / "settings.json";
+    const fs::path link = dir / "config" / "settings.json";
+    fs::create_symlink(target, link);
+    auto storage = helix::make_file_config_storage(link.string());
+
+    REQUIRE(storage->store("{\"config_version\": 1}\n"));
+    CHECK(fs::is_symlink(link));
+    CHECK(helix::text_io::read_file(target.string()) == "{\"config_version\": 1}\n");
+
+    storage->preserve_corrupt();
+    CHECK(fs::is_symlink(link));
+    CHECK(helix::text_io::read_file(target.string() + ".corrupt") == "{\"config_version\": 1}\n");
+
+    REQUIRE(storage->store("{\"config_version\": 2}\n"));
+    CHECK(fs::is_symlink(link));
+    CHECK(helix::text_io::read_file(target.string()) == "{\"config_version\": 2}\n");
+
+    fs::remove_all(dir);
+}
+
 TEST_CASE("file storage load() distinguishes absent from present-but-unreadable",
           "[config][storage]") {
     if (::geteuid() == 0) {

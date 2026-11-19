@@ -22,7 +22,9 @@ Two things share the word "sensor". The managers consume **Klipper** objects, co
 | `include/hardware_object_table.h`, `src/printer/hardware_object_table.cpp` | The one object table: `classify_object()`, `classify_section()`, `status_fields()`, the `is_*` kind predicates |
 | `include/sensor_manager.h`, `src/sensors/sensor_manager.cpp` | `SensorManager` base, `SensorEntry`, `RoleSpec`, `TypeSpec`, `SensorRowView`, the registry `sensor_managers()`, `rediscover_from_config()` |
 | `include/dynamic_subject_map.h`, `src/sensors/dynamic_subject_map.cpp` | `DynamicSubjectMap`: integer subjects created at runtime, one per key, each with its own death signal |
-| `include/temperature_sensor_manager.h`, `src/sensors/temperature_sensor_manager.cpp` | Temperature sensors, fans with a sensor, generic heaters, TMC drivers |
+| `include/temperature_sensor_manager.h`, `src/sensors/temperature_sensor_manager.cpp` | Temperature sensors, fans with a sensor, generic heaters, TMC drivers, driver overtemperature notices |
+| `include/stepper_driver_overtemp.h` | `classify_drv_status()` and `driver_overtemp_rises()`: a TMC driver's overtemperature level and when it warrants a notice |
+| `include/temp_graph_series_policy.h` | Which sensors the temperature graph offers and which start visible |
 | `include/humidity_sensor_manager.h`, `src/sensors/humidity_sensor_manager.cpp`, `include/humidity_sensor_types.h` | Humidity chips and the chip table |
 | `include/probe_sensor_manager.h`, `src/sensors/probe_sensor_manager.cpp` | Native Klipper probes, per-type subscriptions |
 | `include/accel_sensor_manager.h`, `src/sensors/accel_sensor_manager.cpp` | Accelerometers (config sections only) |
@@ -97,7 +99,9 @@ const std::vector<std::string>& status_fields(ObjectKind kind);
 
 | Kind | Fields subscribed |
 |------|-------------------|
-| `TemperatureSensor`, `DriverTemperature`, `HumidityChip` | `temperature`, `humidity` |
+| `TemperatureSensor`, `HumidityChip` | `temperature`, `humidity` |
+| `DriverTemperature` (TMC2240) | `temperature`, `drv_status` |
+| `StepperDriver` (every other TMC) | `drv_status` |
 | `TemperatureFan` | `temperature`, `target`, `speed` |
 | `Heater`, `GenericHeater` | `temperature`, `target`, `power` |
 | `FilamentSwitch`, `FilamentMotion`, `BackendFilamentSensor` | `filament_detected`, `enabled`, `detection_count` |
@@ -233,7 +237,7 @@ if (sensor == status.end() || !sensor->is_object()) {
 
 ### rediscover_on_config
 
-The first discovery pass runs from the object list, before `configfile.config` has arrived. A manager that reads config sections in `on_discovered()` sets `rediscover_on_config`, and `rediscover_from_config(hw)` (`include/sensor_manager.h#rediscover_from_config`) runs its `discover()` again against discovery data that now carries the sections. `src/api/moonraker_discovery_sequence.cpp#continue_discovery_objects` queues that call to the main thread. Three managers need it:
+The first discovery pass runs from the object list, before `configfile.config` has arrived. A manager that reads config sections in `on_discovered()` sets `rediscover_on_config`, and `rediscover_from_config(hw)` (`include/sensor_manager.h#rediscover_from_config`) runs its `discover()` again against discovery data that now carries the sections. `src/api/moonraker_discovery_sequence.cpp#apply_configfile_config` queues that call to the main thread. Three managers need it:
 
 - accelerometers, which exist only as config sections;
 - probes, which seed `z_offset` from their section for modules whose status reports it as null;
@@ -276,7 +280,7 @@ Discovery is unconditional: an empty hardware list is what clears the previous p
 
 All values are integers so XML can bind them. Fixed-name subjects register globally through `UI_MANAGED_SUBJECT_INT`. Every manager publishes `<x>_count` and `<x>_revision`; per-sensor subjects whose set follows discovery live in a `DynamicSubjectMap` and are never registered with XML.
 
-`DynamicSubjectMap` (`include/dynamic_subject_map.h#DynamicSubjectMap`) creates one integer subject per key with `get_or_create()`, each with its own `SubjectLifetime`. `remove_missing()` flips a removed subject's lifetime to false and then deinits it, so an `ObserverGuard` holding a copy of the token sees it dead before `lv_subject_deinit()` frees the observers it would otherwise remove. Consumers fetch a subject and its token together and observe with that token. Main thread only.
+`DynamicSubjectMap` (`include/dynamic_subject_map.h#DynamicSubjectMap`) creates one integer subject per key with `get_or_create()`, each with its own `SubjectLifetime`. `remove_missing()` flips a removed subject's lifetime to false and then deinits it, so an `ObserverGuard` holding a copy of the token sees it dead before `reset()` frees the observers it would otherwise remove. Consumers fetch a subject and its token together and observe with that token. Main thread only.
 
 
 | Subject | Owner | Encoding |
@@ -392,9 +396,9 @@ Filament fed through an AMS bypass reaches the toolhead through no lane, so the 
 
 ## Temperature Sensors
 
-`TemperatureSensorManager` owns four kinds: `TemperatureSensor`, `TemperatureFan`, `GenericHeater` and `DriverTemperature` (TMC2240/TMC5160), plus `HumidityChip`, because a humidity chip also reports a temperature. Extruders and `heater_bed` classify as `Heater`, which no sensor manager owns, so they stay in `PrinterState`. `heater_generic` objects arrive through the same object list, which is how filament dryer heaters (Happy Hare `MMU_heater`, QIDI Box `heater_boxN`) reach the temp graph without any filament-backend code.
+`TemperatureSensorManager` owns four kinds: `TemperatureSensor`, `TemperatureFan`, `GenericHeater` and `DriverTemperature` (the TMC2240, the one Klipper TMC driver that reports a die temperature), plus `HumidityChip`, because a humidity chip also reports a temperature. Extruders and `heater_bed` classify as `Heater`, which no sensor manager owns, so they stay in `PrinterState`. `heater_generic` objects arrive through the same object list, which is how filament dryer heaters (Happy Hare `MMU_heater`, QIDI Box `heater_boxN`) reach the temp graph without any filament-backend code.
 
-`on_discovered()` assigns a role from the name, only to an entry with no role yet (`src/sensors/temperature_sensor_manager.cpp#role_for_name`): CHAMBER (name contains `chamber`, sort priority 0), MCU (contains `mcu`, 10), HOST (`raspberry_pi`, `host_temp`, `host`, `rpi`, or contains `raspberry`, 20), STEPPER_DRIVER (TMC objects, 30), AUXILIARY (everything else, 100). The roles are never persisted and never offered in the Settings dropdown; a rediscovery reproduces them. `get_sensors_sorted()` orders by priority.
+`on_discovered()` assigns a role from the name, only to an entry with no role yet (`src/sensors/temperature_sensor_manager.cpp#role_for_name`): CHAMBER (name contains `chamber`, sort priority 0), MCU (contains `mcu`, 10), HOST (`raspberry_pi`, `host_temp`, `host`, `rpi`, or contains `raspberry`, 20), STEPPER_DRIVER (`DriverTemperature` objects, 30), AUXILIARY (everything else, 100). The manager sets `rediscover_on_config`, and on the configfile pass a `[temperature_sensor]` whose `sensor_type` is `temperature_mcu` or `temperature_host` turns AUXILIARY into MCU or HOST, so a toolboard sensor named `EBBCan` is still an MCU. It never overrides CHAMBER. The roles are never persisted and never offered in the Settings dropdown; a rediscovery reproduces them. `get_sensors_sorted()` orders by priority.
 
 Each sensor gets a temperature subject and a target subject in `DynamicSubjectMap`s (decidegrees; the target reads 0 for objects without one, and `klipper_object_has_target()` (`include/temperature_sensor_types.h#klipper_object_has_target`) answers which have one). `on_entries_changed()` creates and removes them to match the entry list, and `on_deinit_subjects()` clears them. Consumers fetch a subject and its token together:
 
@@ -405,6 +409,10 @@ lv_subject_t* subject = tsm.get_temp_subject(klipper_name, lifetime);
 ```
 
 The thermistor widget observes `temp_sensor_count` to rebind when the sensor set changes. In single mode it mirrors the selected sensor's temperature and target into per-instance subjects its `temp_display` binds to, and a tap on a sensor with a target opens the keypad and sends through `TemperatureController::set_target(klipper_name, ...)` (`src/ui/panel_widgets/thermistor_widget.cpp#open_target_keypad`). The keypad ceiling is `TemperatureController::keypad_max_for()`: the heater's configfile `max_temp` when the printer reported one, else 120°C.
+
+**Temperature graph.** The graph overlay offers a series for every enabled sensor except the CHAMBER ones, which it draws as its chamber series (`temp_graph_sensor_series()`). Stepper driver, MCU and host series are opt-in: each starts hidden, and tapping its chip stores the choice per printer in `SettingsManager` (`temp_graph/show_drivers`, `temp_graph/show_mcu`, `temp_graph/show_host`), applied to every series of that group in every view. Auxiliary sensors start hidden.
+
+**Driver overtemperature.** Every TMC driver publishes `drv_status`: the DRV_STATUS fields that are set, or null while the driver is not polled (motors off). `ot` means the driver shut its outputs off; `otpw` and the TMC220x `t120`/`t143`/`t150`/`t157` thresholds are warnings. The manager reads `drv_status` from every `DriverTemperature` and `StepperDriver` object, sensor entry or not, and raises one notice (a warning toast, or an error for `ot`) each time a driver's level rises. A driver that stays hot raises nothing more; one that clears, or reads null, raises again on its next rise. Drivers without a temperature get no graph series.
 
 Chamber sensors whose names lack `chamber` (Snapmaker `cavity`, Elegoo `enclosure`) are promoted by `PrinterState` once discovery resolves the chamber sensor: it calls `apply_chamber_sensor_override(chamber_sensor, chamber_heater)` (`src/sensors/temperature_sensor_manager.cpp#apply_chamber_sensor_override`), which demotes the incumbent CHAMBER sensor to an inferred role and promotes the named one. A `heater_generic` chamber heater is promoted alongside it, so it is graphed once as "Chamber" and not again as an auxiliary heater; a `temperature_fan` in the heater slot keeps its own role. A sensor name the printer does not report is ignored. A CHAMBER sensor is not a Settings row: `listed_in_settings()` hides it and the chamber assignment dropdowns own that choice. [CHAMBER_HEATER.md](CHAMBER_HEATER.md) owns the chamber heater/sensor assignment rules.
 
@@ -465,7 +473,7 @@ Tests: `[input_sensors]` in `tests/unit/test_input_sensor_manager.cpp` (default 
 
 ## Probe, Accelerometer, Width and Load Cell
 
-**Probe.** The object table matches exact object names (`probe`, `bltouch`, `smart_effector`, `cartographer`, `beacon`) and the `probe_eddy_current <name>` prefix; the config-only `load_cell_probe` and `dockable_probe` sections describe the generic `probe` object, so beside it they type it (a load cell) and supply its `z_offset` rather than adding a sensor. One physical probe often registers several objects: Klipper's `bltouch`, `smart_effector` and `probe_eddy_current`, Beacon and the Cartographer plugin all also register the generic `probe`. `keep_most_specific()` keeps only the most specific object (and drops an eddy object beside a named scanner), and both `on_discovered()` and `extra_subscriptions()` go through it, so such a printer has one probe sensor, subscribed once. `on_discovered()` auto-assigns Z_PROBE when exactly one probe remains and none holds it; a saved `probe_sensors` role, applied by `load_settings()` afterwards, overrides that, including a saved role of none. Settings shows a probe's role as text and does not offer a dropdown (`offered` is false), so a printer with two genuinely distinct probes and no saved choice reads -1 on the probe subjects. `set_probe_type_override()` lets the printer database retype a generic `probe` as the real hardware; `PrinterState` calls it after detection.
+**Probe.** The object table matches exact object names (`probe`, `bltouch`, `smart_effector`, `cartographer`, `beacon`) and the `probe_eddy_current <name>` prefix; the config-only `load_cell_probe` and `dockable_probe` sections describe the generic `probe` object, so beside it they type it (a load cell) and supply its `z_offset` rather than adding a sensor. One physical probe often registers several objects: Klipper's `bltouch`, `smart_effector` and `probe_eddy_current`, Beacon and the Cartographer plugin all also register the generic `probe`. `AliasRule` (`src/sensors/probe_sensor_manager.cpp`) keeps only the most specific object (and drops an eddy object beside a named scanner), and both `on_discovered()` and `extra_subscriptions()` go through it, so such a printer has one probe sensor, subscribed once. `on_discovered()` auto-assigns Z_PROBE when exactly one probe remains and none holds it; a saved `probe_sensors` role, applied by `load_settings()` afterwards, overrides that, including a saved role of none. Settings shows a probe's role as text and does not offer a dropdown (`offered` is false), so a printer with two genuinely distinct probes and no saved choice reads -1 on the probe subjects. `set_probe_type_override()` lets the printer database retype a generic `probe` as the real hardware; `PrinterState` calls it after detection.
 
 ### Probe status keys
 
@@ -544,7 +552,7 @@ Refresh is revision-driven. On activation each section observes its manager's `r
 
 ### Role options map through RoleSpec
 
-The dropdown's option index is not a role id. `pick_role()` maps the index through `manager.offered_roles()`, the ids of the `RoleSpec`s with `offered` set, in `Options::roles` order, then calls `set_role()` and `save_settings()`. `row()` builds `role_labels` from the same list, so the labels, the XML `role_options` and the mapping all follow one order: the XML option list must name the offered roles in `Options::roles` order. A held role that is not offered (a probe's Z_PROBE, a chamber humidity role) has `selected_role` -1 and shows through `held_role_label`; the dropdown's own selection is hidden so it never contradicts it. The toggle follows `row_toggle`: `Enabled` calls `set_enabled()`, `Invert` calls `set_option()`.
+The dropdown's option index is not a role id. `pick_role()` maps the index through `manager.offered_roles()`, the ids of the `RoleSpec`s with `offered` set, in `Options::roles` order, then calls `set_role()` and `save_settings()`. `row()` counts `role_count` and `selected_role` over the same list, so the XML `role_options`, the selected index and the mapping all follow one order: the XML option list must name the offered roles in `Options::roles` order. A held role that is not offered (a probe's Z_PROBE, a chamber humidity role) has `selected_role` -1 and shows through `held_role_label`; the dropdown's own selection is hidden so it never contradicts it. The toggle follows `row_toggle`: `Enabled` calls `set_enabled()`, `Invert` calls `set_option()`.
 
 A manager customizes its rows by overriding `row()` (a display name, a live state, a toggle policy) and `listed_in_settings()` (filament hides AMS-owned sensors, temperature hides the chamber sensor), never by writing UI code.
 

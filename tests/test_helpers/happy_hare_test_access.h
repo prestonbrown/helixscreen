@@ -33,9 +33,6 @@ class HappyHareTestAccess {
     // --- private data -------------------------------------------------------
     // `auto&` deduces each member's own type, so adding an accessor never
     // restates a declaration that would then have to track the backend's.
-    template <class B> static auto& mutex(B& b) {
-        return b.mutex_;
-    }
     template <class B> static auto& slots(B& b) {
         return b.slots_;
     }
@@ -122,12 +119,6 @@ class HappyHareTestAccess {
     }
     template <class B, class... A> static decltype(auto) reapply_overrides(B& b, A&&... a) {
         return b.reapply_overrides(std::forward<A>(a)...);
-    }
-    /// Retire a gate's departed-spool identity with no frame behind it, so a
-    /// test can see what the retire itself dropped rather than what the paint
-    /// that follows one in production restates.
-    template <class B, class... A> static decltype(auto) retire_departed_identity(B& b, A&&... a) {
-        return b.retire_departed_identity_locked(std::forward<A>(a)...);
     }
     template <class B, class... A> static decltype(auto) update_unit_topologies(B& b, A&&... a) {
         return b.update_unit_topologies(std::forward<A>(a)...);

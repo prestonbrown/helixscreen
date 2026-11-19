@@ -6,10 +6,12 @@
 #include "connection_staleness.h"
 #include "core/gcode_filename.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
 #include "job_queue_start.h"
+#include "json_utils.h"
 #include "moonraker_types.h"
 #include "printer_print_state.h"
 #include "queued_job_options.h"
@@ -25,6 +27,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include "hv/json.hpp"
+
 JobQueueState::JobQueueState(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client)
     : api_(api), client_(client) {
     std::memset(up_next_text_buffer_, 0, sizeof(up_next_text_buffer_));
@@ -38,6 +42,9 @@ JobQueueState::JobQueueState(helix::IMoonrakerAPI* api, helix::IMoonrakerClient*
 
 void JobQueueState::invalidate() {
     is_loaded_ = false;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&job_queue_loaded_subject_, 0);
+    }
     // A dropped socket may hide a Moonraker restart, and a restart is the
     // only thing that changes server config: re-read it on the next connect.
     automatic_transition_loaded_ = false;
@@ -79,36 +86,37 @@ void JobQueueState::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&job_queue_count_subject_, 0);
+    job_queue_count_subject_.init_int(0);
     subjects_.publish("job_queue_count", &job_queue_count_subject_);
+    job_queue_loaded_subject_.init_int(is_loaded_ ? 1 : 0);
+    subjects_.publish("job_queue_loaded", &job_queue_loaded_subject_);
 
-    lv_subject_init_int(&job_queue_run_state_subject_,
-                        static_cast<int>(helix::QueueRunState::Paused));
+    job_queue_run_state_subject_.init_int(static_cast<int>(helix::QueueRunState::Paused));
     subjects_.publish("job_queue_run_state", &job_queue_run_state_subject_);
 
-    lv_subject_init_int(&job_queue_revision_subject_, 0);
+    job_queue_revision_subject_.init_int(0);
     subjects_.publish("job_queue_revision", &job_queue_revision_subject_);
 
-    lv_subject_init_int(&job_queue_start_in_flight_subject_, start_in_flight_ ? 1 : 0);
+    job_queue_start_in_flight_subject_.init_int(start_in_flight_ ? 1 : 0);
     subjects_.publish("job_queue_start_in_flight", &job_queue_start_in_flight_subject_);
 
-    lv_subject_init_string(&job_queue_up_next_text_subject_, up_next_text_buffer_, nullptr,
-                           sizeof(up_next_text_buffer_), "");
+    job_queue_up_next_text_subject_.init_string(up_next_text_buffer_, nullptr,
+                                                sizeof(up_next_text_buffer_), "");
     subjects_.publish("job_queue_up_next_text", &job_queue_up_next_text_subject_);
 
-    lv_subject_init_string(&job_queue_start_next_text_subject_, start_next_text_buffer_, nullptr,
-                           sizeof(start_next_text_buffer_), "");
+    job_queue_start_next_text_subject_.init_string(start_next_text_buffer_, nullptr,
+                                                   sizeof(start_next_text_buffer_), "");
     subjects_.publish("job_queue_start_next_text", &job_queue_start_next_text_subject_);
 
-    lv_subject_init_int(&job_queue_next_estimate_subject_, 0);
+    job_queue_next_estimate_subject_.init_int(0);
     subjects_.publish("job_queue_next_estimate", &job_queue_next_estimate_subject_);
 
-    lv_subject_init_string(&job_queue_next_thumbnail_subject_, next_thumbnail_buf_, nullptr,
-                           sizeof(next_thumbnail_buf_),
-                           helix::PrinterPrintState::no_thumbnail_placeholder());
+    job_queue_next_thumbnail_subject_.init_string(
+        next_thumbnail_buf_, nullptr, sizeof(next_thumbnail_buf_),
+        helix::PrinterPrintState::no_thumbnail_placeholder());
     subjects_.publish("job_queue_next_thumbnail", &job_queue_next_thumbnail_subject_);
 
-    lv_subject_init_int(&job_queue_automatic_transition_subject_, automatic_transition_ ? 1 : 0);
+    job_queue_automatic_transition_subject_.init_int(automatic_transition_ ? 1 : 0);
     subjects_.publish("job_queue_automatic_transition", &job_queue_automatic_transition_subject_);
 
     HELIX_SUBJECT_DEBUG_REGISTER(&job_queue_count_subject_, "job_queue_count", LV_SUBJECT_TYPE_INT);
@@ -284,7 +292,7 @@ void JobQueueState::on_next_job_metadata(const std::string& filename,
     get_thumbnail_cache().fetch(
         req, ctx,
         [this](const std::string& lvgl_path, bool /*degraded*/) {
-            lv_subject_copy_string(&job_queue_next_thumbnail_subject_, lvgl_path.c_str());
+            lv_subject_set_string(&job_queue_next_thumbnail_subject_, lvgl_path.c_str());
         },
         [thumb_path](const std::string& error) {
             spdlog::debug("[JobQueueState] Next job thumbnail '{}' failed: {}", thumb_path, error);
@@ -300,8 +308,8 @@ void JobQueueState::clear_next_job_media() {
         return;
     }
     lv_subject_set_int(&job_queue_next_estimate_subject_, 0);
-    lv_subject_copy_string(&job_queue_next_thumbnail_subject_,
-                           helix::PrinterPrintState::no_thumbnail_placeholder());
+    lv_subject_set_string(&job_queue_next_thumbnail_subject_,
+                          helix::PrinterPrintState::no_thumbnail_placeholder());
 }
 
 void JobQueueState::fetch_automatic_transition() {
@@ -352,16 +360,17 @@ void JobQueueState::update_subjects() {
     // Both surfaces bind their visibility to the count published last.
     std::snprintf(up_next_text_buffer_, sizeof(up_next_text_buffer_), "%s",
                   helix::format_up_next_text(next_display, count).c_str());
-    lv_subject_copy_string(&job_queue_up_next_text_subject_, up_next_text_buffer_);
+    lv_subject_set_string(&job_queue_up_next_text_subject_, up_next_text_buffer_);
 
     std::snprintf(start_next_text_buffer_, sizeof(start_next_text_buffer_), "%s",
                   helix::format_start_next_text(next_display, count).c_str());
-    lv_subject_copy_string(&job_queue_start_next_text_subject_, start_next_text_buffer_);
+    lv_subject_set_string(&job_queue_start_next_text_subject_, start_next_text_buffer_);
 
     lv_subject_set_int(&job_queue_automatic_transition_subject_, automatic_transition_ ? 1 : 0);
 
     lv_subject_set_int(&job_queue_run_state_subject_, static_cast<int>(run_state()));
     lv_subject_set_int(&job_queue_revision_subject_, jobs_revision_);
+    lv_subject_set_int(&job_queue_loaded_subject_, is_loaded_ ? 1 : 0);
 
     // Count goes LAST, after cached_jobs_ and both text subjects are settled.
     // It is the rebuild trigger the queue surfaces observe, and PrintStatusWidget's
@@ -455,23 +464,9 @@ JobQueueTileText compose_job_queue_tile_text(JobQueueTileState state,
 bool parse_automatic_transition(const json& rpc_response) {
     // Defensive walk, no throwing value() lookups: server.config is foreign
     // input and a malformed answer reads as Moonraker's own default (false).
-    if (!rpc_response.is_object() || !rpc_response.contains("result")) {
-        return false;
-    }
-    const json& result = rpc_response["result"];
-    if (!result.is_object() || !result.contains("config")) {
-        return false;
-    }
-    const json& config = result["config"];
-    if (!config.is_object() || !config.contains("job_queue")) {
-        return false;
-    }
-    const json& job_queue = config["job_queue"];
-    if (!job_queue.is_object() || !job_queue.contains("automatic_transition")) {
-        return false;
-    }
-    const json& value = job_queue["automatic_transition"];
-    return value.is_boolean() ? value.get<bool>() : false;
+    const json* job_queue = json_util::find_path(rpc_response, "result", "config", "job_queue");
+    return job_queue &&
+           json_util::read_field<bool>(*job_queue, "automatic_transition").value_or(false);
 }
 
 } // namespace helix

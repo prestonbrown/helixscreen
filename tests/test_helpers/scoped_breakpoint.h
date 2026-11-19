@@ -5,6 +5,7 @@
 
 #include "ui_breakpoint.h"
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "theme_manager.h"
 
@@ -29,11 +30,10 @@ class ScopedBreakpoint {
         if (!subj_) {
             return;
         }
-        // A zero-initialized subject in a test process that never ran
-        // theme_manager_init() has no type yet; writing an int to it without
-        // initializing first is undefined.
-        if (subj_->type != LV_SUBJECT_TYPE_INT) {
-            lv_subject_init_int(subj_, to_int(bp));
+        // In a test process that never ran theme_manager_init() the subject is not
+        // live yet and refuses a set; initialize it instead.
+        if (auto* owner = helix::Subject::owner_of(subj_); owner && !owner->is_live()) {
+            owner->init_int(to_int(bp));
             original_ = to_int(bp);
             return;
         }

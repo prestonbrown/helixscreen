@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_json_dump_utf8.py — the bare-.dump() save-path
+# Meta-tests for the json-dump-utf8 rule of scripts/check_source_rules.py — the bare-.dump() save-path
 # gate (prestonbrown/helixscreen#1493).
 #
 # nlohmann dumps with error_handler_t::strict by default, so a string holding
@@ -16,7 +16,7 @@
 # quiet ones matter just as much: a gate that fires on the correct form, on a
 # log line, or on an annotated site is a gate somebody switches off.
 
-GATE="scripts/check_json_dump_utf8.py"
+GATE="scripts/check_source_rules.py --rule json-dump-utf8"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -29,7 +29,7 @@ setup() {
 run_gate() {
     local name="$1" body="$2"
     printf '%s\n' "$body" > "$FIXTURE_DIR/$name.cpp"
-    run python3 "$GATE" "$FIXTURE_DIR/$name.cpp"
+    run python3 $GATE "$FIXTURE_DIR/$name.cpp"
     printf '%s\n' "$output" > "$FIXTURE_DIR/out.txt"
 }
 

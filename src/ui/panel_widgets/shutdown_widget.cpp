@@ -21,6 +21,7 @@
 #include "platform_info.h"
 #include "printer_state.h"
 #include "runtime_config.h"
+#include "safety_settings_manager.h"
 #include "system_power.h"
 
 #include <spdlog/spdlog.h>
@@ -273,42 +274,38 @@ void execute_both_reboot(IMoonrakerAPI* api, AsyncLifetimeGuard& lifetime) {
 
 // Split-button dispatchers (dual-scope mode). The split button's selected
 // dropdown index encodes the scope (ShutdownScope).
-void on_restart_split_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownModal] restart_split");
+// Fire the dual-scope action for @p scope, as the split buttons and a
+// confirmation-free request both do.
+void fire_scoped(ShutdownModal& m, ShutdownScope scope, bool is_reboot) {
+    switch (scope) {
+    case ShutdownScope::Both:
+        is_reboot ? m.fire_both_reboot() : m.fire_both_shutdown();
+        break;
+    case ShutdownScope::Printer:
+        is_reboot ? m.fire_printer_reboot() : m.fire_printer_shutdown();
+        break;
+    case ShutdownScope::Screen:
+        is_reboot ? m.fire_screen_reboot() : m.fire_screen_shutdown();
+        break;
+    }
+}
+
+void on_split_clicked(lv_event_t* e, bool is_reboot) {
     auto* m = find_shutdown_modal(e);
     lv_obj_t* sb = lv_event_get_current_target_obj(e);
     if (!m || !sb)
         return;
-    switch (ui_split_button_get_selected(sb)) {
-    case static_cast<uint32_t>(ShutdownScope::Both):
-        m->fire_both_reboot();
-        break;
-    case static_cast<uint32_t>(ShutdownScope::Printer):
-        m->fire_printer_reboot();
-        break;
-    case static_cast<uint32_t>(ShutdownScope::Screen):
-        m->fire_screen_reboot();
-        break;
-    }
+    fire_scoped(*m, static_cast<ShutdownScope>(ui_split_button_get_selected(sb)), is_reboot);
+}
+
+void on_restart_split_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownModal] restart_split");
+    on_split_clicked(e, /*is_reboot=*/true);
     LVGL_SAFE_EVENT_CB_END();
 }
 void on_shutdown_split_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownModal] shutdown_split");
-    auto* m = find_shutdown_modal(e);
-    lv_obj_t* sb = lv_event_get_current_target_obj(e);
-    if (!m || !sb)
-        return;
-    switch (ui_split_button_get_selected(sb)) {
-    case static_cast<uint32_t>(ShutdownScope::Both):
-        m->fire_both_shutdown();
-        break;
-    case static_cast<uint32_t>(ShutdownScope::Printer):
-        m->fire_printer_shutdown();
-        break;
-    case static_cast<uint32_t>(ShutdownScope::Screen):
-        m->fire_screen_shutdown();
-        break;
-    }
+    on_split_clicked(e, /*is_reboot=*/false);
     LVGL_SAFE_EVENT_CB_END();
 }
 
@@ -352,11 +349,6 @@ void ShutdownWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     widget_obj_ = widget_obj;
     parent_screen_ = parent_screen;
 
-    shutdown_btn_ = lv_obj_find_by_name(widget_obj_, "shutdown_button");
-    if (shutdown_btn_) {
-        lv_obj_add_event_cb(shutdown_btn_, shutdown_clicked_cb, LV_EVENT_CLICKED, this);
-    }
-
     install_delete_hook(widget_obj_);
 }
 
@@ -368,7 +360,6 @@ void ShutdownWidget::detach() {
         shutdown_modal_.hide();
     }
 
-    shutdown_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -379,7 +370,6 @@ void ShutdownWidget::on_hooked_root_deleted() {
     // than in this tile tree, so it is still alive here and hiding it needs a
     // non-delete context. detach() still runs later and does that.
     lifetime_.invalidate();
-    shutdown_btn_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 }
@@ -469,8 +459,24 @@ ShutdownDialogPlan plan_shutdown_dialog(bool api_connected, bool live_moonraker_
             ShutdownScope::Screen};
 }
 
+PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation,
+                                   const ShutdownDialogPlan& plan, PowerTarget target,
+                                   bool job_active) {
+    const bool dual = plan.mode == ShutdownDialogMode::Dual;
+    ShutdownScope scope = plan.dual_default;
+    if (dual && target == PowerTarget::Printer) {
+        scope = ShutdownScope::Printer;
+    } else if (dual && target == PowerTarget::Screen) {
+        scope = ShutdownScope::Screen;
+    }
+    const bool scope_settled = !dual || target != PowerTarget::Ask;
+    const bool run_now =
+        intent != PowerIntent::Choose && !require_confirmation && !job_active && scope_settled;
+    return {run_now, scope};
+}
+
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
-                          lv_obj_t* parent_screen) {
+                          lv_obj_t* parent_screen, PowerIntent intent) {
     // Backstop behind the UI gating (home-grid widget + Advanced POWER rows):
     // platforms without host power controls (Android) must never reach the
     // machine.reboot/shutdown RPCs, whatever entry point wires this up next.
@@ -490,6 +496,13 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
     const ShutdownDialogPlan plan =
         plan_shutdown_dialog(connected, get_printer_state().is_moonraker_remote(),
                              helix::is_moonraker_on_same_host(host), helix::host_runs_systemd());
+    const auto& safety = SafetySettingsManager::instance();
+    const bool job_active =
+        lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+    const PowerDecision decision =
+        decide_power_request(intent, safety.get_power_require_confirmation(), plan,
+                             safety.get_power_target(), job_active);
     switch (plan.mode) {
     case ShutdownDialogMode::SingleViaMoonraker:
         // Moonraker's machine.shutdown brings the whole device down. Moonraker
@@ -517,21 +530,33 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
                                    [api]() { execute_host_power(api, /*is_reboot=*/true); });
         break;
     case ShutdownDialogMode::Dual:
-        modal.set_dual_callbacks([api, &lifetime]() { execute_both_shutdown(api, lifetime); },
-                                 [api, &lifetime]() { execute_both_reboot(api, lifetime); },
-                                 [api]() { execute_printer_shutdown(api); },
-                                 [api]() { execute_printer_reboot(api); },
-                                 []() { execute_screen_shutdown(); },
-                                 []() { execute_screen_reboot(); }, plan.dual_default);
+        modal.set_dual_callbacks(
+            [api, &lifetime]() { execute_both_shutdown(api, lifetime); },
+            [api, &lifetime]() { execute_both_reboot(api, lifetime); },
+            [api]() { execute_printer_shutdown(api); }, [api]() { execute_printer_reboot(api); },
+            []() { execute_screen_shutdown(); }, []() { execute_screen_reboot(); }, decision.scope);
         break;
     }
 
     modal.show(parent_screen);
+
+    if (decision.run_now) {
+        const bool is_reboot = intent == PowerIntent::Reboot;
+        spdlog::info("[ShutdownDialog] Confirmation off in settings, {} at once",
+                     is_reboot ? "rebooting" : "shutting down");
+        if (plan.mode == ShutdownDialogMode::Dual) {
+            fire_scoped(modal, decision.scope, is_reboot);
+        } else if (is_reboot) {
+            modal.fire_printer_reboot();
+        } else {
+            modal.fire_printer_shutdown();
+        }
+    }
 }
 
 void ShutdownWidget::shutdown_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ShutdownWidget] shutdown_clicked_cb");
-    auto* self = static_cast<ShutdownWidget*>(lv_event_get_user_data(e));
+    auto* self = panel_widget_from_event<ShutdownWidget>(e);
     if (self) {
         self->record_interaction();
         self->handle_click();

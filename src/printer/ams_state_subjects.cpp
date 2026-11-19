@@ -15,6 +15,8 @@
 #include "connection_state.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
 #include "printer_cache_registry.h"
 #include "printer_state.h"
 #include "settings_manager.h"
@@ -55,7 +57,7 @@ void AmsState::init_subjects(bool register_xml) {
         //
         // A `if (!print_state_observer_)` guard is NOT sufficient: PrinterState
         // can deinit+reinit its subjects between cases (LVGLUITestFixture does
-        // this; production soft-restart can too). lv_subject_deinit() frees our
+        // this; production soft-restart can too). Its reset() frees our
         // observer node, but ObserverGuard::operator bool() only checks for a
         // non-null observer pointer — it stays truthy with a dangling pointer to
         // the freed/recreated subject, so the guard would skip re-install and
@@ -104,17 +106,17 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(pending_target_slot, -1, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_current_tool, -1, subjects_, register_xml);
     // These subjects need ams_ prefix for XML but member vars don't have it
-    lv_subject_init_int(&filament_loaded_, 0);
+    filament_loaded_.init_int(0);
     subjects_.register_subject(&filament_loaded_, register_xml ? "ams_filament_loaded" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_filament_loaded", &filament_loaded_);
 
-    lv_subject_init_int(&filament_runout_, 0);
+    filament_runout_.init_int(0);
     subjects_.register_subject(&filament_runout_, register_xml ? "ams_filament_runout" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_filament_runout", &filament_runout_);
 
-    lv_subject_init_int(&bypass_active_, 0);
+    bypass_active_.init_int(0);
     subjects_.register_subject(&bypass_active_, register_xml ? "ams_bypass_active" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_bypass_active", &bypass_active_);
@@ -123,7 +125,7 @@ void AmsState::init_subjects(bool register_xml) {
     {
         auto ext_spool = get_external_spool_info();
         int initial_color = ext_spool.has_value() ? static_cast<int>(ext_spool->color_rgb) : 0;
-        lv_subject_init_int(&external_spool_color_, initial_color);
+        external_spool_color_.init_int(initial_color);
         subjects_.register_subject(&external_spool_color_,
                                    register_xml ? "ams_external_spool_color" : nullptr);
         if (register_xml)
@@ -132,9 +134,9 @@ void AmsState::init_subjects(bool register_xml) {
 
         // Material string flavor — same source, string subject idiom as
         // ams_system_name_ (own buffer, nullptr prev_buf).
-        lv_subject_init_string(&external_spool_material_, external_spool_material_buf_, nullptr,
-                               sizeof(external_spool_material_buf_),
-                               ext_spool.has_value() ? ext_spool->material.c_str() : "");
+        external_spool_material_.init_string(
+            external_spool_material_buf_, nullptr, sizeof(external_spool_material_buf_),
+            ext_spool.has_value() ? ext_spool->material.c_str() : "");
         subjects_.register_subject(&external_spool_material_,
                                    register_xml ? "ams_external_spool_material" : nullptr);
         if (register_xml)
@@ -142,12 +144,13 @@ void AmsState::init_subjects(bool register_xml) {
                                                           &external_spool_material_);
     }
 
-    lv_subject_init_int(&supports_bypass_, 0);
+    supports_bypass_.init_int(0);
     subjects_.register_subject(&supports_bypass_, register_xml ? "ams_supports_bypass" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_supports_bypass", &supports_bypass_);
     INIT_SUBJECT_INT(ams_slot_count, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_cards_compact, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(ams_cards_env_line, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_feeder_open, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(slots_version, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(tool_map_version, 0, subjects_, register_xml);
@@ -155,14 +158,12 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(active_tool_port_present, 1, subjects_, register_xml);
 
     // String subjects (buffer names don't match macro convention)
-    lv_subject_init_string(&ams_action_detail_, action_detail_buf_, nullptr,
-                           sizeof(action_detail_buf_), "");
+    ams_action_detail_.init_string(action_detail_buf_, nullptr, sizeof(action_detail_buf_), "");
     subjects_.register_subject(&ams_action_detail_, register_xml ? "ams_action_detail" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_action_detail", &ams_action_detail_);
 
-    lv_subject_init_string(&ams_system_name_, system_name_buf_, nullptr, sizeof(system_name_buf_),
-                           "");
+    ams_system_name_.init_string(system_name_buf_, nullptr, sizeof(system_name_buf_), "");
     subjects_.register_subject(&ams_system_name_, register_xml ? "ams_system_name" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_system_name", &ams_system_name_);
@@ -170,7 +171,7 @@ void AmsState::init_subjects(bool register_xml) {
     // Logo uses pointer subject — bind_src expects a pointer to the path string buffer.
     // Init to nullptr so XML bind_src doesn't fire lv_image_set_src("") warnings before
     // sync_from_backend populates the real logo path.
-    lv_subject_init_pointer(&ams_system_logo_, nullptr);
+    ams_system_logo_.init_pointer(nullptr);
     subjects_.register_subject(&ams_system_logo_, register_xml ? "ams_system_logo" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_system_logo", &ams_system_logo_);
@@ -183,8 +184,8 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(ams_endless_state,
                      static_cast<int>(helix::printer::EndlessSpoolStatusKind::Hidden), subjects_,
                      register_xml);
-    lv_subject_init_string(&ams_endless_text_, ams_endless_text_buf_, nullptr,
-                           sizeof(ams_endless_text_buf_), "");
+    ams_endless_text_.init_string(ams_endless_text_buf_, nullptr, sizeof(ams_endless_text_buf_),
+                                  "");
     subjects_.register_subject(&ams_endless_text_, register_xml ? "ams_endless_text" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_endless_text", &ams_endless_text_);
@@ -220,37 +221,37 @@ void AmsState::init_subjects(bool register_xml) {
 
     // Currently Loaded display subjects (for reactive UI binding)
     // These subjects need ams_ prefix for XML but member vars don't have it
-    lv_subject_init_string(&current_material_text_, current_material_text_buf_, nullptr,
-                           sizeof(current_material_text_buf_), "---");
+    current_material_text_.init_string(current_material_text_buf_, nullptr,
+                                       sizeof(current_material_text_buf_), "---");
     subjects_.register_subject(&current_material_text_,
                                register_xml ? "ams_current_material_text" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_current_material_text",
                                                       &current_material_text_);
 
-    lv_subject_init_string(&current_slot_text_, current_slot_text_buf_, nullptr,
-                           sizeof(current_slot_text_buf_), "None");
+    current_slot_text_.init_string(current_slot_text_buf_, nullptr, sizeof(current_slot_text_buf_),
+                                   "None");
     subjects_.register_subject(&current_slot_text_,
                                register_xml ? "ams_current_slot_text" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_current_slot_text", &current_slot_text_);
 
-    lv_subject_init_string(&current_weight_text_, current_weight_text_buf_, nullptr,
-                           sizeof(current_weight_text_buf_), "");
+    current_weight_text_.init_string(current_weight_text_buf_, nullptr,
+                                     sizeof(current_weight_text_buf_), "");
     subjects_.register_subject(&current_weight_text_,
                                register_xml ? "ams_current_weight_text" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_current_weight_text",
                                                       &current_weight_text_);
 
-    lv_subject_init_int(&current_has_weight_, 0);
+    current_has_weight_.init_int(0);
     subjects_.register_subject(&current_has_weight_,
                                register_xml ? "ams_current_has_weight" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_current_has_weight",
                                                       &current_has_weight_);
 
-    INIT_SUBJECT_INT(current_color, 0x505050, subjects_, register_xml);
+    INIT_SUBJECT_INT(current_color, kNoFilamentPaint, subjects_, register_xml);
     // Read by C++ alongside current_color (ui_ams_current_tool.cpp), never bound in XML.
     INIT_SUBJECT_STRING(current_colors, "", subjects_, false);
     INIT_SUBJECT_STRING(current_finish, "", subjects_, false);
@@ -265,6 +266,7 @@ void AmsState::init_subjects(bool register_xml) {
         clog_meter_warning, 0, subjects_,
         register_xml); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     INIT_SUBJECT_INT(clog_meter_status, 0, subjects_, register_xml);
+    INIT_SUBJECT_INT(clog_meter_safe, 0, subjects_, register_xml);
     INIT_SUBJECT_STRING(clog_meter_mode_text, "", subjects_, register_xml);
     INIT_SUBJECT_INT(
         clog_meter_danger_pct, 0, subjects_,
@@ -301,41 +303,39 @@ void AmsState::init_subjects(bool register_xml) {
     // Per-slot subjects (dynamic names require manual init)
     char name_buf[32];
     for (int i = 0; i < kMaxSlots; ++i) {
-        lv_subject_init_int(&slot_colors_[i], static_cast<int>(kAmsDefaultSlotColor));
+        slot_colors_[i].init_int(static_cast<int>(kAmsDefaultSlotColor));
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_color", i);
         subjects_.register_subject(&slot_colors_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_colors_[i]);
 
-        lv_subject_init_int(&slot_statuses_[i], static_cast<int>(SlotStatus::UNKNOWN));
+        slot_statuses_[i].init_int(static_cast<int>(SlotStatus::UNKNOWN));
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_status", i);
         subjects_.register_subject(&slot_statuses_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_statuses_[i]);
 
-        lv_subject_init_string(&slot_remaining_[i], slot_remaining_buf_[i], nullptr,
-                               sizeof(slot_remaining_buf_[i]), "");
+        slot_remaining_[i].init_string(slot_remaining_buf_[i], nullptr,
+                                       sizeof(slot_remaining_buf_[i]), "");
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_remaining", i);
         subjects_.register_subject(&slot_remaining_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_remaining_[i]);
 
-        lv_subject_init_int(&slot_drying_[i],
-                            static_cast<int>(helix::printer::ZoneDryingState::Idle));
+        slot_drying_[i].init_int(static_cast<int>(helix::printer::ZoneDryingState::Idle));
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_drying", i);
         subjects_.register_subject(&slot_drying_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_drying_[i]);
 
-        lv_subject_init_string(&slot_materials_[i], slot_materials_buf_[i], nullptr,
-                               sizeof(slot_materials_buf_[i]), "");
+        slot_materials_[i].init_string(slot_materials_buf_[i], nullptr,
+                                       sizeof(slot_materials_buf_[i]), "");
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_material", i);
         subjects_.register_subject(&slot_materials_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_materials_[i]);
 
-        lv_subject_init_string(&slot_names_[i], slot_names_buf_[i], nullptr,
-                               sizeof(slot_names_buf_[i]), "");
+        slot_names_[i].init_string(slot_names_buf_[i], nullptr, sizeof(slot_names_buf_[i]), "");
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_name", i);
         subjects_.register_subject(&slot_names_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
@@ -344,36 +344,36 @@ void AmsState::init_subjects(bool register_xml) {
         // Per-slot fill percent (SlotInfo::display_fill_pct encoding: 0-100, -1
         // = unknown). Observed by the ams_slot widget so spool fill renders from
         // state on every panel. -1 initial → "no data yet, leave render as-is".
-        lv_subject_init_int(&slot_fills_[i], -1);
+        slot_fills_[i].init_int(-1);
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_fill", i);
         subjects_.register_subject(&slot_fills_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_fills_[i]);
 
         // Per-slot paint key, C++ only: lane spools repaint on it.
-        lv_subject_init_int(&slot_paints_[i], 0);
+        slot_paints_[i].init_int(0);
         subjects_.register_subject(&slot_paints_[i], nullptr);
 
         // Per-slot LIVE state subjects (path segment, toolhead-present, active-loaded)
-        lv_subject_init_int(&slot_segments_[i], static_cast<int>(PathSegment::NONE));
+        slot_segments_[i].init_int(static_cast<int>(PathSegment::NONE));
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_segment", i);
         subjects_.register_subject(&slot_segments_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_segments_[i]);
 
-        lv_subject_init_int(&slot_toolhead_present_[i], 0);
+        slot_toolhead_present_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_toolhead_present", i);
         subjects_.register_subject(&slot_toolhead_present_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_toolhead_present_[i]);
 
-        lv_subject_init_int(&slot_active_loaded_[i], 0);
+        slot_active_loaded_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_active_loaded", i);
         subjects_.register_subject(&slot_active_loaded_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_active_loaded_[i]);
 
-        lv_subject_init_int(&slot_lane_states_[i], static_cast<int>(helix::ui::LaneState::Empty));
+        slot_lane_states_[i].init_int(static_cast<int>(helix::ui::LaneState::Empty));
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_lane_state", i);
         subjects_.register_subject(&slot_lane_states_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
@@ -382,13 +382,13 @@ void AmsState::init_subjects(bool register_xml) {
         // Per-slot error state, published so a lane bar can draw its own
         // status line from subjects. has_error = BLOCKED or a carried
         // SlotError; severity defaults to INFO when no error is carried.
-        lv_subject_init_int(&slot_has_error_[i], 0);
+        slot_has_error_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_has_error", i);
         subjects_.register_subject(&slot_has_error_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &slot_has_error_[i]);
 
-        lv_subject_init_int(&slot_error_severity_[i], static_cast<int>(SlotError::Severity::INFO));
+        slot_error_severity_[i].init_int(static_cast<int>(SlotError::Severity::INFO));
         snprintf(name_buf, sizeof(name_buf), "ams_slot_%d_error_severity", i);
         subjects_.register_subject(&slot_error_severity_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
@@ -397,31 +397,31 @@ void AmsState::init_subjects(bool register_xml) {
 
     // Per-unit environment subjects (CFS temperature/humidity)
     for (int i = 0; i < kMaxUnits; ++i) {
-        lv_subject_init_int(&unit_temp_[i], 0);
+        unit_temp_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_temp", i);
         subjects_.register_subject(&unit_temp_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &unit_temp_[i]);
 
-        lv_subject_init_int(&unit_humidity_[i], 0);
+        unit_humidity_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_humidity", i);
         subjects_.register_subject(&unit_humidity_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &unit_humidity_[i]);
 
-        lv_subject_init_int(&unit_absent_[i], 0);
+        unit_absent_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_absent", i);
         subjects_.register_subject(&unit_absent_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &unit_absent_[i]);
 
-        lv_subject_init_int(&unit_disconnected_[i], 0);
+        unit_disconnected_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_disconnected", i);
         subjects_.register_subject(&unit_disconnected_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &unit_disconnected_[i]);
 
-        lv_subject_init_int(&unit_logo_color_[i], 0);
+        unit_logo_color_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_unit_%d_logo_color", i);
         subjects_.register_subject(&unit_logo_color_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
@@ -432,53 +432,53 @@ void AmsState::init_subjects(bool register_xml) {
     for (int i = 0; i < kMaxUnits; ++i) {
         char name_buf[48];
 
-        lv_subject_init_string(&env_ind_temp_text_[i], env_ind_temp_text_buf_[i], nullptr,
-                               kEnvIndTextBufSize, "---");
+        env_ind_temp_text_[i].init_string(env_ind_temp_text_buf_[i], nullptr, kEnvIndTextBufSize,
+                                          "---");
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_temp_text", i);
         subjects_.register_subject(&env_ind_temp_text_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_temp_text_[i]);
 
-        lv_subject_init_string(&env_ind_humidity_text_[i], env_ind_humidity_text_buf_[i], nullptr,
-                               kEnvIndTextBufSize, "---");
+        env_ind_humidity_text_[i].init_string(env_ind_humidity_text_buf_[i], nullptr,
+                                              kEnvIndTextBufSize, "---");
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity_text", i);
         subjects_.register_subject(&env_ind_humidity_text_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_humidity_text_[i]);
 
-        lv_subject_init_int(&env_ind_humidity_[i], -1);
+        env_ind_humidity_[i].init_int(-1);
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity", i);
         subjects_.register_subject(&env_ind_humidity_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_humidity_[i]);
 
-        lv_subject_init_int(&env_ind_humidity_status_[i], 0);
+        env_ind_humidity_status_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity_status", i);
         subjects_.register_subject(&env_ind_humidity_status_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_humidity_status_[i]);
 
-        lv_subject_init_int(&env_ind_humidity_visible_[i], 0);
+        env_ind_humidity_visible_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_humidity_visible", i);
         subjects_.register_subject(&env_ind_humidity_visible_[i],
                                    register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_humidity_visible_[i]);
 
-        lv_subject_init_int(&env_ind_visible_[i], 0);
+        env_ind_visible_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_visible", i);
         subjects_.register_subject(&env_ind_visible_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_visible_[i]);
 
-        lv_subject_init_int(&env_ind_drying_active_[i], 0);
+        env_ind_drying_active_[i].init_int(0);
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_drying_active", i);
         subjects_.register_subject(&env_ind_drying_active_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
             helix::xml::register_subject_in_current_scope(name_buf, &env_ind_drying_active_[i]);
 
-        lv_subject_init_string(&env_ind_drying_text_[i], env_ind_drying_text_buf_[i], nullptr,
-                               kEnvIndDryingBufSize, "");
+        env_ind_drying_text_[i].init_string(env_ind_drying_text_buf_[i], nullptr,
+                                            kEnvIndDryingBufSize, "");
         snprintf(name_buf, sizeof(name_buf), "ams_env_ind_%d_drying_text", i);
         subjects_.register_subject(&env_ind_drying_text_[i], register_xml ? name_buf : nullptr);
         if (register_xml)
@@ -492,25 +492,24 @@ void AmsState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(ams_page_has_next, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_page_has_logo, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_page_unit_logo_color, 0, subjects_, register_xml);
-    lv_subject_init_string(&ams_page_unit_name_, page_unit_name_buf_, nullptr,
-                           sizeof(page_unit_name_buf_), "");
+    ams_page_unit_name_.init_string(page_unit_name_buf_, nullptr, sizeof(page_unit_name_buf_), "");
     subjects_.register_subject(&ams_page_unit_name_, register_xml ? "ams_page_unit_name" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_page_unit_name", &ams_page_unit_name_);
     // Pointer subject like ams_system_logo: null until a unit with a logo is shown.
-    lv_subject_init_pointer(&ams_page_unit_logo_, nullptr);
+    ams_page_unit_logo_.init_pointer(nullptr);
     subjects_.register_subject(&ams_page_unit_logo_, register_xml ? "ams_page_unit_logo" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_page_unit_logo", &ams_page_unit_logo_);
     INIT_SUBJECT_INT(ams_units_dryer_version, 0, subjects_, register_xml);
 
-    lv_subject_init_int(&viewed_unit_disconnected_, 0);
+    viewed_unit_disconnected_.init_int(0);
     subjects_.register_subject(&viewed_unit_disconnected_,
                                register_xml ? "ams_viewed_unit_disconnected" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_viewed_unit_disconnected",
                                                       &viewed_unit_disconnected_);
-    lv_subject_init_int(&all_units_disconnected_, 0);
+    all_units_disconnected_.init_int(0);
     subjects_.register_subject(&all_units_disconnected_,
                                register_xml ? "ams_all_units_disconnected" : nullptr);
     if (register_xml)
@@ -521,71 +520,70 @@ void AmsState::init_subjects(bool register_xml) {
     // than we allocate subjects for still gets a card per unit; its environment
     // indicator binds these, so the badge stays hidden instead of the parser
     // warning once per binding about names nothing registered.
-    lv_subject_init_int(&env_ind_off_flag_, 0);
+    env_ind_off_flag_.init_int(0);
     subjects_.register_subject(&env_ind_off_flag_, register_xml ? kEnvIndOffFlagSubject : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope(kEnvIndOffFlagSubject, &env_ind_off_flag_);
 
-    lv_subject_init_string(&env_ind_off_text_, env_ind_off_text_buf_, nullptr, kEnvIndTextBufSize,
-                           "");
+    env_ind_off_text_.init_string(env_ind_off_text_buf_, nullptr, kEnvIndTextBufSize, "");
     subjects_.register_subject(&env_ind_off_text_, register_xml ? kEnvIndOffTextSubject : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope(kEnvIndOffTextSubject, &env_ind_off_text_);
 
     // Detail-view env indicator mirror subjects.
-    lv_subject_init_string(&env_ind_detail_temp_text_, env_ind_detail_temp_text_buf_, nullptr,
-                           kEnvIndTextBufSize, "---");
+    env_ind_detail_temp_text_.init_string(env_ind_detail_temp_text_buf_, nullptr,
+                                          kEnvIndTextBufSize, "---");
     subjects_.register_subject(&env_ind_detail_temp_text_,
                                register_xml ? "ams_env_ind_detail_temp_text" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_temp_text",
                                                       &env_ind_detail_temp_text_);
 
-    lv_subject_init_string(&env_ind_detail_humidity_text_, env_ind_detail_humidity_text_buf_,
-                           nullptr, kEnvIndTextBufSize, "---");
+    env_ind_detail_humidity_text_.init_string(env_ind_detail_humidity_text_buf_, nullptr,
+                                              kEnvIndTextBufSize, "---");
     subjects_.register_subject(&env_ind_detail_humidity_text_,
                                register_xml ? "ams_env_ind_detail_humidity_text" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_humidity_text",
                                                       &env_ind_detail_humidity_text_);
 
-    lv_subject_init_int(&env_ind_detail_humidity_, -1);
+    env_ind_detail_humidity_.init_int(-1);
     subjects_.register_subject(&env_ind_detail_humidity_,
                                register_xml ? "ams_env_ind_detail_humidity" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_humidity",
                                                       &env_ind_detail_humidity_);
 
-    lv_subject_init_int(&env_ind_detail_humidity_status_, 0);
+    env_ind_detail_humidity_status_.init_int(0);
     subjects_.register_subject(&env_ind_detail_humidity_status_,
                                register_xml ? "ams_env_ind_detail_humidity_status" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_humidity_status",
                                                       &env_ind_detail_humidity_status_);
 
-    lv_subject_init_int(&env_ind_detail_humidity_visible_, 0);
+    env_ind_detail_humidity_visible_.init_int(0);
     subjects_.register_subject(&env_ind_detail_humidity_visible_,
                                register_xml ? "ams_env_ind_detail_humidity_visible" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_humidity_visible",
                                                       &env_ind_detail_humidity_visible_);
 
-    lv_subject_init_int(&env_ind_detail_visible_, 0);
+    env_ind_detail_visible_.init_int(0);
     subjects_.register_subject(&env_ind_detail_visible_,
                                register_xml ? "ams_env_ind_detail_visible" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_visible",
                                                       &env_ind_detail_visible_);
 
-    lv_subject_init_int(&env_ind_detail_drying_active_, 0);
+    env_ind_detail_drying_active_.init_int(0);
     subjects_.register_subject(&env_ind_detail_drying_active_,
                                register_xml ? "ams_env_ind_detail_drying_active" : nullptr);
     if (register_xml)
         helix::xml::register_subject_in_current_scope("ams_env_ind_detail_drying_active",
                                                       &env_ind_detail_drying_active_);
 
-    lv_subject_init_string(&env_ind_detail_drying_text_, env_ind_detail_drying_text_buf_, nullptr,
-                           kEnvIndDryingBufSize, "");
+    env_ind_detail_drying_text_.init_string(env_ind_detail_drying_text_buf_, nullptr,
+                                            kEnvIndDryingBufSize, "");
     subjects_.register_subject(&env_ind_detail_drying_text_,
                                register_xml ? "ams_env_ind_detail_drying_text" : nullptr);
     if (register_xml)
@@ -613,6 +611,7 @@ void AmsState::init_subjects(bool register_xml) {
     }
 
     initialized_ = true;
+    sync_lane_records_ready();
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit(
@@ -643,6 +642,15 @@ void AmsState::init_subjects(bool register_xml) {
     install_klippy_state_observer();
     install_connection_state_observer();
     install_print_lifecycle_observer();
+    // The unit readouts are formatted from the backend's Celsius readings; a
+    // °C/°F switch formats them again from the same snapshot.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](AmsState* self) {
+        if (auto* backend = self->get_backend(0)) {
+            if (const auto snapshot = self->read_system_info(0)) {
+                self->sync_unit_environment(backend, *snapshot);
+            }
+        }
+    });
 }
 
 void AmsState::install_klippy_state_observer() {
@@ -669,13 +677,21 @@ void AmsState::install_klippy_state_observer() {
             }
             const bool restarted = self->klippy_ready_seen_ && prev != -1 && prev != kReady;
             self->klippy_ready_seen_ = true;
-            if (!restarted) {
+            // The observer's first fire reports the state it found, not an
+            // edge: backends started under a READY Klipper already saw it.
+            const bool became_ready = prev != -1 && prev != kReady;
+            if (!became_ready) {
                 return;
             }
             for (int i = 0; i < self->backend_count(); ++i) {
-                if (AmsBackend* backend = self->get_backend(i)) {
+                AmsBackend* backend = self->get_backend(i);
+                if (!backend) {
+                    continue;
+                }
+                if (restarted) {
                     backend->on_klipper_restarted();
                 }
+                backend->on_klippy_ready();
             }
         },
         get_printer_state().get_subjects_lifetime());
@@ -715,7 +731,7 @@ void AmsState::install_connection_state_observer() {
 void AmsState::install_print_state_observer() {
     // Idempotent: reset any prior guard before installing a fresh one. The
     // reset path uses the alive token from the *previous* install so it can
-    // safely skip lv_observer_remove() if PrinterState already deinit'd its
+    // safely skip lv_observer_delete() if PrinterState already deinit'd its
     // subjects (e.g. between tests).
     print_state_observer_.reset();
     auto lifetime = get_printer_state().print_state().get_static_subjects_lifetime();
@@ -732,8 +748,8 @@ void AmsState::install_print_state_observer() {
 
 void AmsState::register_xml_subject_names() {
     // Publishes the ALREADY-INITIALIZED subjects under their XML names —
-    // registration only, no lv_subject_init_* (init memzeros the subject and
-    // would wipe the observers bound since the first init). Re-registering an
+    // registration only, no init_* (a second init on a live subject orphans
+    // the observers bound since the first init). Re-registering an
     // existing name replaces the record's subject pointer, so names the first
     // init already published are harmlessly re-published.
     //
@@ -777,6 +793,7 @@ void AmsState::register_xml_subject_names() {
     helix::xml::register_subject_in_current_scope("ams_supports_bypass", &supports_bypass_);
     helix::xml::register_subject_in_current_scope("ams_slot_count", &ams_slot_count_);
     helix::xml::register_subject_in_current_scope("ams_cards_compact", &ams_cards_compact_);
+    helix::xml::register_subject_in_current_scope("ams_cards_env_line", &ams_cards_env_line_);
     helix::xml::register_subject_in_current_scope("ams_feeder_open", &ams_feeder_open_);
     helix::xml::register_subject_in_current_scope("slots_version", &slots_version_);
     helix::xml::register_subject_in_current_scope("tool_map_version", &tool_map_version_);
@@ -845,6 +862,7 @@ void AmsState::register_xml_subject_names() {
         "clog_meter_warning",
         &clog_meter_warning_); // SUBJECT_OK: ClogMeterModel observes it via clog_meter_subjects()
     helix::xml::register_subject_in_current_scope("clog_meter_status", &clog_meter_status_);
+    helix::xml::register_subject_in_current_scope("clog_meter_safe", &clog_meter_safe_);
     helix::xml::register_subject_in_current_scope("clog_meter_mode_text", &clog_meter_mode_text_);
     helix::xml::register_subject_in_current_scope(
         "clog_meter_danger_pct",
@@ -1016,6 +1034,7 @@ void AmsState::deinit_subjects() {
     print_state_observer_.reset();
     klippy_state_observer_.reset();
     connection_state_observer_.reset();
+    temp_unit_observer_.reset();
     motion_sensor_observer_.reset();
     print_lifecycle_observer_.reset();
 
@@ -1266,10 +1285,10 @@ std::string AmsState::unit_logo_color_subject_name(int unit_index) {
     return unit_flag_subject_name(unit_index, "logo_color");
 }
 
-lv_subject_t* AmsState::backend_slot_subject(int backend_index, int slot_index,
-                                             SubjectLifetime& lifetime,
-                                             std::vector<lv_subject_t> BackendSlotSubjects::*member,
-                                             lv_subject_t (&primary)[kMaxSlots]) {
+lv_subject_t*
+AmsState::backend_slot_subject(int backend_index, int slot_index, SubjectLifetime& lifetime,
+                               std::vector<helix::Subject> BackendSlotSubjects::*member,
+                               helix::Subject (&primary)[kMaxSlots]) {
     assert_main_thread();
     lifetime.reset();
     if (backend_index == 0) {
@@ -1379,16 +1398,16 @@ void AmsState::BackendSlotSubjects::init(int count) {
     name_bufs.resize(count);
     names.resize(count);
     for (int i = 0; i < count; ++i) {
-        lv_subject_init_int(&colors[i], static_cast<int>(kAmsDefaultSlotColor));
-        lv_subject_init_int(&statuses[i], static_cast<int>(SlotStatus::UNKNOWN));
-        lv_subject_init_int(&fills[i], -1);
-        lv_subject_init_int(&lane_states[i], static_cast<int>(helix::ui::LaneState::Empty));
-        lv_subject_init_int(&has_errors[i], 0);
-        lv_subject_init_int(&severities[i], static_cast<int>(SlotError::Severity::INFO));
-        lv_subject_init_int(&paints[i], 0);
-        lv_subject_init_string(&materials[i], material_bufs[i].data(), nullptr,
-                               BackendSlotSubjects::kMaterialBufSize, "");
-        lv_subject_init_string(&names[i], name_bufs[i].data(), nullptr, kSlotNameBufSize, "");
+        colors[i].init_int(static_cast<int>(kAmsDefaultSlotColor));
+        statuses[i].init_int(static_cast<int>(SlotStatus::UNKNOWN));
+        fills[i].init_int(-1);
+        lane_states[i].init_int(static_cast<int>(helix::ui::LaneState::Empty));
+        has_errors[i].init_int(0);
+        severities[i].init_int(static_cast<int>(SlotError::Severity::INFO));
+        paints[i].init_int(0);
+        materials[i].init_string(material_bufs[i].data(), nullptr,
+                                 BackendSlotSubjects::kMaterialBufSize, "");
+        names[i].init_string(name_bufs[i].data(), nullptr, kSlotNameBufSize, "");
     }
     // Fresh lifetime token: observers bound via the token'd accessors expire
     // when deinit() invalidates it on backend rediscovery.
@@ -1403,13 +1422,13 @@ void AmsState::BackendSlotSubjects::deinit() {
     }
     lifetime.reset();
     for (auto& c : colors)
-        lv_subject_deinit(&c);
+        c.reset();
     for (auto& s : statuses)
-        lv_subject_deinit(&s);
+        s.reset();
     for (auto* group :
          {&fills, &lane_states, &has_errors, &severities, &paints, &materials, &names})
         for (auto& subj : *group)
-            lv_subject_deinit(&subj);
+            subj.reset();
     colors.clear();
     statuses.clear();
     fills.clear();
@@ -1432,7 +1451,7 @@ void AmsState::BackendSlotSubjects::write(int i, const SlotInfo& slot) {
     lv_subject_set_int(&lane_states[i], static_cast<int>(helix::ui::classify_lane(slot)));
     // No prev buffer, so LVGL notifies on every copy; compare here instead.
     if (strcmp(lv_subject_get_string(&materials[i]), slot.material.c_str()) != 0)
-        lv_subject_copy_string(&materials[i], slot.material.c_str());
+        lv_subject_set_string(&materials[i], slot.material.c_str());
     write_slot_name(&names[i], kSlotNameBufSize, slot);
     bool has_error = false;
     int severity = 0;

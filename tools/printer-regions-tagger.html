@@ -13,6 +13,10 @@
   Points are normalized 0..1 over the source PNG. The prerendered .bin is an
   aspect-preserving resize of that PNG, so the same numbers hold at every size.
   Progress is kept in this browser; paste the output into regions.json to ship.
+
+  Window review: tools/printer-regions-server.py, then open this page with ?windows
+  to drag the corners of each enclosure window (front, side, top: one region each),
+  and of each cutout: whatever sits in front of a window and should not glow. Every approval writes regions.json.
 -->
 <meta charset="utf-8">
 <title>Printer regions tagger</title>
@@ -40,6 +44,16 @@
   .glow{position:absolute;border-radius:50%;pointer-events:none;background:radial-gradient(ellipse at center,rgba(255,110,40,.6),rgba(255,110,40,0) 70%)}
   .quad{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
   .quad polygon{fill:rgba(255,110,40,.35);stroke:#ff6e28;stroke-width:2;vector-effect:non-scaling-stroke}
+  body.review .tg-stage{cursor:default;touch-action:none}
+  body.review .tg-stage img{max-width:min(1100px,100%);max-height:84vh}
+  body.review .quad polygon{fill:rgba(229,72,77,.22);stroke:#ffe14d}
+  body.review .quad.cut polygon,.quad.cut polygon{fill:rgba(0,0,0,.5);stroke:#22d3ee}
+  .hd.cut{border-color:#22d3ee;background:rgba(34,211,238,.3)}
+  .hd{position:absolute;width:22px;height:22px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(255,225,77,.35);
+      border:2px solid #ffe14d;box-shadow:0 0 0 1px #000;cursor:grab;touch-action:none;display:flex;align-items:center;justify-content:center;
+      font-size:9px;font-weight:700;color:#fff;text-shadow:0 0 2px #000;user-select:none}
+  .tg-list div.cur.done{color:#3fb950}
+  .xb{position:absolute;transform:translate(-50%,-50%);background:#e5484d;color:#fff;border:0;border-radius:50%;width:24px;height:24px;padding:0;font-weight:700;cursor:pointer}
   .tg-out{width:100%;height:160px;margin-top:8px;background:#11151a;color:#8b93a0;border:1px solid #333a45;border-radius:6px;font:11px monospace}
   .tg-foot{margin-top:14px;display:flex;gap:8px;align-items:center;font-size:12px;color:#8b93a0}
 </style>
@@ -79,6 +93,10 @@ const STEPS = [
   {k:"bed_fr",  p:"Tap the bed's BACK-RIGHT corner", h:"The far edge of the plate's top surface, RIGHT end. If it is hidden, tap where it would be in perspective.", skip:1, sl:"Skip (estimate the far edge)"},
   {k:"bed_fl",  p:"Tap the bed's BACK-LEFT corner", h:"The far edge of the plate's top surface, LEFT end. If it is hidden, tap where it would be in perspective.", skip:1, sl:"Skip (estimate the far edge)"},
   {k:"chamber", p:"Tap an EMPTY SPOT inside the enclosure", h:"Where a chamber-temp chip can sit without hiding anything. Skip for open-frame printers.", skip:1},
+  {k:"win_tl",  p:"Tap the WINDOW's TOP-LEFT corner", h:"The see-through opening on the enclosure's front, inside its frame. Chamber heat and light stay inside these four corners. Skip for open-frame printers.", skip:1},
+  {k:"win_tr",  p:"Tap the WINDOW's TOP-RIGHT corner", h:"Inside the frame.", skip:1},
+  {k:"win_br",  p:"Tap the WINDOW's BOTTOM-RIGHT corner", h:"Inside the frame.", skip:1},
+  {k:"win_bl",  p:"Tap the WINDOW's BOTTOM-LEFT corner", h:"Inside the frame.", skip:1},
   {k:"light",   p:"Tap the LIGHT", h:"The chamber / case light, or where it would be mounted. Skip if the printer has none.", skip:1},
 ];
 const IMG_DIR = "../assets/images/printers/";
@@ -99,6 +117,8 @@ function toRegions(t) {
   for (const k of ["nozzle", "part_fan", "chamber", "light"]) if (t[k]) o[k] = t[k];
   // Plate quad, going around the top surface: near-left, near-right, far-right, far-left.
   if (t.bed_l && t.bed_r) o.bed = t.bed_fr && t.bed_fl ? [t.bed_l, t.bed_r, t.bed_fr, t.bed_fl] : [t.bed_l, t.bed_r];
+  // Clockwise from the top-left, as pictured.
+  if (t.win_tl && t.win_tr && t.win_br && t.win_bl) o.windows = [[t.win_tl, t.win_tr, t.win_br, t.win_bl]];
   return o;
 }
 function renderList() {
@@ -111,12 +131,12 @@ function renderList() {
     $("list").appendChild(d);
   });
 }
-function clearMarks() { $("stage").querySelectorAll(".mk,.mk-l,.chip,.glow,.quad").forEach(e => e.remove()); }
-function addQuad(pts) {
+function clearMarks() { $("stage").querySelectorAll(".mk,.mk-l,.chip,.glow,.quad,.hd,.xb").forEach(e => e.remove()); }
+function addQuad(pts, cls) {
   const ns = "http://www.w3.org/2000/svg", svg = document.createElementNS(ns, "svg"), poly = document.createElementNS(ns, "polygon");
-  svg.setAttribute("class", "quad"); svg.setAttribute("viewBox", "0 0 1 1"); svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("class", cls ? "quad " + cls : "quad"); svg.setAttribute("viewBox", "0 0 1 1"); svg.setAttribute("preserveAspectRatio", "none");
   poly.setAttribute("points", pts.map(([x, y]) => `${x},${y}`).join(" "));
-  svg.appendChild(poly); $("stage").appendChild(svg);
+  svg.appendChild(poly); $("stage").appendChild(svg); return poly;
 }
 function add(cls, x, y, html, style) {
   const e = document.createElement("div"); e.className = cls;
@@ -125,7 +145,7 @@ function add(cls, x, y, html, style) {
 }
 function drawTaps() {
   clearMarks();
-  const col = {nozzle:"#3fb950", part_fan:"#4a9eff", bed_l:"#e5484d", bed_r:"#e5484d", bed_fr:"#ff9f43", bed_fl:"#ff9f43", chamber:"#f0a020", light:"#f5d76e"};
+  const col = {nozzle:"#3fb950", part_fan:"#4a9eff", bed_l:"#e5484d", bed_r:"#e5484d", bed_fr:"#ff9f43", bed_fl:"#ff9f43", chamber:"#f0a020", win_tl:"#e5484d", win_tr:"#e5484d", win_br:"#e5484d", win_bl:"#e5484d", light:"#f5d76e"};
   for (const [k, [x, y]] of Object.entries(taps)) { add("mk", x, y, "", {background: col[k]}); add("mk-l", x, y, k); }
 }
 function drawPreview(reg) {
@@ -136,6 +156,8 @@ function drawPreview(reg) {
     else add("glow", Math.min(x1, x2), (y1 + y2) / 2 - w * 0.12, "", {width: (w * 100) + "%", height: (w * 24) + "%"});
     add("chip hot", (x1 + x2) / 2, (y1 + y2) / 2 + 0.05, "▭ 58/60°");
   }
+  (reg.windows || []).forEach(q => addQuad(q));
+  (reg.cutouts || []).forEach(q => addQuad(q, "cut"));
   if (reg.nozzle)   add("chip ok", reg.nozzle[0], reg.nozzle[1], "▼ 220°");
   if (reg.part_fan) add("chip", reg.part_fan[0], reg.part_fan[1], "✣ 80%");
   if (reg.chamber)  add("chip", reg.chamber[0], reg.chamber[1], "⌂ 34°");
@@ -193,8 +215,110 @@ function load(i, fresh) {
   }
   showStep();
 }
+
+// Window review: every image with a chamber tag, its corners draggable.
+const REVIEW = new URLSearchParams(location.search).has("windows");
+// ?windows=<pass> keeps a separate approval list, so a later pass walks every image again.
+const PASS = new URLSearchParams(location.search).get("windows");
+const OK_KEY = PASS ? `hx-window-ok-${PASS}` : "hx-window-ok";
+const CORNERS = ["TL", "TR", "BR", "BL"];
+const DEFAULT_WINDOW = [[.2, .2], [.8, .2], [.8, .8], [.2, .8]];
+let approved = new Set(), quads = null, cuts = [];
+try { approved = new Set(JSON.parse(localStorage.getItem(OK_KEY) || "[]")); } catch (e) {}
+
+function persist() {
+  save();
+  try { localStorage.setItem(OK_KEY, JSON.stringify([...approved])); } catch (e) {}
+  fetch("/__regions", {method: "POST", body: $("out").value})
+    .then(r => { $("hint").textContent = r.ok ? "Saved to regions.json" : `NOT saved: server said ${r.status}`; })
+    .catch(() => { $("hint").textContent = "NOT saved: run tools/printer-regions-server.py"; });
+}
+function renderReviewList() {
+  $("list").innerHTML = "";
+  IMAGES.forEach((f, i) => {
+    const d = document.createElement("div");
+    d.className = (i === cur ? "cur " : "") + (approved.has(f) ? "done" : "");
+    d.textContent = (approved.has(f) ? "✓ " : "") + f + (data[f].windows ? (data[f].windows.length > 1 ? ` (${data[f].windows.length})` : "") : " (no window)");
+    d.onclick = () => loadReview(i);
+    $("list").appendChild(d);
+  });
+}
+function drawCorners() {
+  clearMarks();
+  quads.forEach((quad, q) => drawQuad(quad, "", quads.length > 1 ? () => { quads.splice(q, 1); drawCorners(); } : null));
+  // Cutouts draw over the windows they take the glow away from.
+  cuts.forEach((quad, q) => drawQuad(quad, "cut", () => { cuts.splice(q, 1); drawCorners(); }));
+}
+/// One draggable quad; `remove`, when given, puts a × at its middle.
+function drawQuad(quad, cls, remove) {
+    const poly = addQuad(quad, cls);
+    quad.forEach(([x, y], n) => {
+      const h = add(cls ? "hd " + cls : "hd", x, y, CORNERS[n]);
+      h.onpointerdown = e => { e.preventDefault(); h.setPointerCapture(e.pointerId); h.style.cursor = "grabbing"; };
+      h.onpointermove = e => {
+        if (!h.hasPointerCapture(e.pointerId)) return;
+        const r = $("img").getBoundingClientRect();
+        quad[n] = [r3(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))), r3(Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)))];
+        h.style.left = (quad[n][0] * 100) + "%"; h.style.top = (quad[n][1] * 100) + "%";
+        poly.setAttribute("points", quad.map(([a, b]) => `${a},${b}`).join(" "));
+      };
+      h.onpointerup = () => { h.style.cursor = "grab"; };
+    });
+    if (remove) {
+      const xb = document.createElement("button");
+      xb.className = "xb"; xb.textContent = "×"; xb.title = cls ? "Remove this cutout" : "Remove this region";
+      xb.style.left = (quad.reduce((s, p) => s + p[0], 0) / 4 * 100) + "%";
+      xb.style.top = (quad.reduce((s, p) => s + p[1], 0) / 4 * 100) + "%";
+      xb.onclick = remove;
+      $("stage").appendChild(xb);
+    }
+}
+/// A new cutout starts small, in the middle of the picture.
+function addCutout() {
+  cuts.push([[.42, .42], [.58, .42], [.58, .58], [.42, .58]]);
+  drawCorners();
+}
+/// A new region starts in the free space right of the rightmost one.
+function addRegion() {
+  const right = Math.max(...quads.flat().map(p => p[0]));
+  const x0 = right < .9 ? right + .02 : .3, x1 = right < .9 ? Math.min(.98, right + .25) : .7;
+  quads.push([[r3(x0), .25], [r3(x1), .2], [r3(x1), .75], [r3(x0), .8]]);
+  drawCorners();
+}
+function nextReview(after) {
+  const n = IMAGES.findIndex((f, j) => j > after && !approved.has(f));
+  return n >= 0 ? n : IMAGES.findIndex(f => !approved.has(f));
+}
+function approve() {
+  const f = IMAGES[cur];
+  data[f].windows = quads.map(q => q.map(p => [...p]));
+  if (cuts.length) data[f].cutouts = cuts.map(q => q.map(p => [...p])); else delete data[f].cutouts;
+  approved.add(f); persist(); loadReview(nextReview(cur));
+}
+function loadReview(i) {
+  if (i < 0) { $("prompt").textContent = `All ${IMAGES.length} windows approved.`; bar([]); clearMarks(); renderReviewList(); return; }
+  cur = i;
+  const f = IMAGES[i];
+  $("img").src = IMG_DIR + f + ".png";
+  quads = (data[f].windows || [DEFAULT_WINDOW]).map(q => q.map(p => [...p]));
+  cuts = (data[f].cutouts || []).map(q => q.map(p => [...p]));
+  $("prompt").textContent = `${approved.size}/${IMAGES.length} approved · ${f}`;
+  $("hint").textContent = "Drag the corners inside each window frame. + Add region for a side or top window; + Add cutout (cyan) for a screen or spool in front of one. Enter approves.";
+  bar([
+    ["Approve → next", approve, 1],
+    ["+ Add region", addRegion],
+    ["+ Add cutout", addCutout],
+    ["No window here", () => { delete data[f].windows; delete data[f].cutouts; approved.add(f); persist(); loadReview(nextReview(cur)); }],
+    ["Reset this one", () => loadReview(i)],
+    ["← Prev", () => loadReview(Math.max(0, i - 1))],
+    ["Next →", () => loadReview(Math.min(IMAGES.length - 1, i + 1))],
+  ]);
+  drawCorners(); renderReviewList();
+}
+document.addEventListener("keydown", e => { if (REVIEW && e.key === "Enter" && cur >= 0 && quads) { e.preventDefault(); approve(); } });
+
 $("stage").addEventListener("click", e => {
-  if (step >= STEPS.length) return;
+  if (REVIEW || step >= STEPS.length) return;
   const r = $("img").getBoundingClientRect();
   const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
   if (x < 0 || x > 1 || y < 0 || y > 1) return;
@@ -210,6 +334,14 @@ $("copy").onclick = () => { $("out").select(); navigator.clipboard?.writeText($(
   const all = [...new Set(printers.map(p => (p.image || "").replace(/\.png$/, "")).filter(Boolean))];
   IMAGES = [...POPULAR.filter(f => all.includes(f)), ...all.filter(f => !POPULAR.includes(f)).sort()];
   data = (await getJson(IMG_DIR + "regions.json")) || {};
+  if (REVIEW) {
+    document.body.classList.add("review");
+    IMAGES = IMAGES.filter(f => data[f] && data[f].chamber);
+    for (const d of Object.values(data)) if (d.window) { d.windows = [d.window]; delete d.window; }
+    save();
+    loadReview(Math.max(0, nextReview(-1)));
+    return;
+  }
   try { Object.assign(data, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
   save();
   load(Math.max(0, nextUntagged(-1)), true);

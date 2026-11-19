@@ -155,7 +155,7 @@ void PrintLayerPauseControls::refresh_status_text() {
                                 print.slicer_current_layer(), print.slicer_total_layers(),
                                 lv_subject_get_int(print.get_layer_pause_layer_subject()));
     std::snprintf(status_text_buf_, sizeof(status_text_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&status_text_subject_, status_text_buf_);
+    lv_subject_set_string(&status_text_subject_, status_text_buf_);
 }
 
 void PrintLayerPauseControls::open_modal() {
@@ -173,8 +173,8 @@ bool PrintLayerPauseControls::send(const std::string& gcode, const char* what,
     api_->execute_gcode(gcode, lifetime_.bg_cb("PrintLayerPauseControls::send", std::move(on_sent)),
                         [](const MoonrakerError& err) {
                             spdlog::error("[LayerPause] Command failed: {}", err.message);
-                            helix::ui::notify_error_tr(TR_NOOP("Failed to schedule the pause: {}"),
-                                                       err);
+                            helix::notify_error_tr(TR_NOOP("Failed to schedule the pause: {}"),
+                                                   err);
                         });
     return true;
 }

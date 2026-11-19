@@ -5,12 +5,13 @@
 
 #include "ui_frequency_response_chart.h"
 #include "ui_shaper_sweep_chart.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "calibration_types.h" // For InputShaperResult
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "input_shaper_calibrator.h"
 #include "klipper_config_editor.h"
 #include "live_sweep_preview.h"
@@ -224,6 +225,8 @@ class InputShaperPanel : public OverlayBase {
 
     // Pre-flight noise check + calibration chain
     void start_with_preflight(char axis);
+    /// start_with_preflight() once the bed is known clear.
+    void start_once_bed_clear(char axis);
     void proceed_with_preflight(char axis);
     void calibrate_all();
     void on_preflight_complete(float noise_level);
@@ -304,7 +307,7 @@ class InputShaperPanel : public OverlayBase {
     helix::IMoonrakerAPI* api_ = nullptr;
 
     // Live sweep chart (MEASURING)
-    lv_subject_t is_measuring_has_chart_{};
+    helix::Subject is_measuring_has_chart_{};
     helix::calibration::LiveSweepFacts preview_facts_;
     helix::ui::ShaperSweepChart sweep_chart_;
 
@@ -318,13 +321,13 @@ class InputShaperPanel : public OverlayBase {
 
     struct ComparisonRow {
         char type_buf[kCmpTypeBuf] = {};
-        lv_subject_t type{};
+        helix::Subject type{};
         char freq_buf[kCmpValueBuf] = {};
-        lv_subject_t freq{};
+        helix::Subject freq{};
         char vib_buf[kCmpValueBuf] = {};
-        lv_subject_t vib{};
+        helix::Subject vib{};
         char accel_buf[kCmpValueBuf] = {};
-        lv_subject_t accel{};
+        helix::Subject accel{};
     };
 
     std::array<ComparisonRow, kMaxShapers> x_cmp_;
@@ -332,101 +335,101 @@ class InputShaperPanel : public OverlayBase {
 
     // Error message subject (replaces imperative lv_label_set_text)
     char is_error_message_buf_[128] = {};
-    lv_subject_t is_error_message_{};
+    helix::Subject is_error_message_{};
 
     // Current config display subjects
-    lv_subject_t is_shaper_configured_{};
+    helix::Subject is_shaper_configured_{};
     char is_current_x_type_buf_[32] = {};
-    lv_subject_t is_current_x_type_{};
+    helix::Subject is_current_x_type_{};
     char is_current_x_freq_buf_[32] = {};
-    lv_subject_t is_current_x_freq_{};
+    helix::Subject is_current_x_freq_{};
     char is_current_y_type_buf_[32] = {};
-    lv_subject_t is_current_y_type_{};
+    helix::Subject is_current_y_type_{};
     char is_current_y_freq_buf_[32] = {};
-    lv_subject_t is_current_y_freq_{};
+    helix::Subject is_current_y_freq_{};
     char is_current_max_accel_buf_[32] = {};
-    lv_subject_t is_current_max_accel_{};
+    helix::Subject is_current_max_accel_{};
 
     // Measuring state labels
     char is_measuring_axis_label_buf_[64] = {};
-    lv_subject_t is_measuring_axis_label_{};
+    helix::Subject is_measuring_axis_label_{};
     char is_measuring_step_label_buf_[64] = {};
-    lv_subject_t is_measuring_step_label_{};
-    lv_subject_t is_measuring_progress_{};
-    lv_subject_t
+    helix::Subject is_measuring_step_label_{};
+    helix::Subject is_measuring_progress_{};
+    helix::Subject
         is_measuring_has_progress_{}; // 0=indeterminate (spinner), 1=determinate (progress bar)
 
     // Analysis-phase elapsed label. The analysis reports no percent, so while
     // its spinner is shown a 1 Hz timer refreshes the step label
     // ("Analyzing data... Ns") from the tick stored when the phase began.
-    // ElapsedLabelTimer (ui_timer_guard.h) owns the timer; its destructor and
+    // ElapsedLabelTimer (core/timer_guard.h) owns the timer; its destructor and
     // cancel() are both cancel-safe from every teardown path.
     helix::ui::ElapsedLabelTimer analysis_elapsed_;
 
     // Per-axis result subjects
-    lv_subject_t is_results_has_x_{};
-    lv_subject_t is_results_has_y_{};
+    helix::Subject is_results_has_x_{};
+    helix::Subject is_results_has_y_{};
 
     // Header button disabled state (1 = disabled, 0 = enabled)
-    lv_subject_t is_calibrate_all_disabled_{};
+    helix::Subject is_calibrate_all_disabled_{};
 
     // Recommended row index per axis (for table highlight)
-    lv_subject_t is_x_recommended_row_{};
-    lv_subject_t is_y_recommended_row_{};
+    helix::Subject is_x_recommended_row_{};
+    helix::Subject is_y_recommended_row_{};
 
     // Number of shapers per axis (controls table row visibility)
-    lv_subject_t is_x_num_shapers_{};
-    lv_subject_t is_y_num_shapers_{};
+    helix::Subject is_x_num_shapers_{};
+    helix::Subject is_y_num_shapers_{};
     /// Chart chips actually backed by a curve, per axis. The XML declares a
     /// fixed kMaxShapers of them, so the surplus must be hidden or they render
     /// as empty outlines. Separate from num_shapers: the chips come from the CSV
     /// curves, the table from the console output, and those two lists can
     /// legitimately differ in length and order.
-    lv_subject_t is_x_num_chips_{};
-    lv_subject_t is_y_num_chips_{};
+    helix::Subject is_x_num_chips_{};
+    helix::Subject is_y_num_chips_{};
 
     // X axis result display
     char is_result_x_shaper_buf_[48] = {};
-    lv_subject_t is_result_x_shaper_{};
+    helix::Subject is_result_x_shaper_{};
     char is_result_x_explanation_buf_[128] = {};
-    lv_subject_t is_result_x_explanation_{};
+    helix::Subject is_result_x_explanation_{};
     char is_result_x_vibration_buf_[96] = {};
-    lv_subject_t is_result_x_vibration_{};
+    helix::Subject is_result_x_vibration_{};
     char is_result_x_max_accel_buf_[32] = {};
-    lv_subject_t is_result_x_max_accel_{};
-    lv_subject_t is_result_x_quality_{};
+    helix::Subject is_result_x_max_accel_{};
+    helix::Subject is_result_x_quality_{};
 
     // Y axis result display
     char is_result_y_shaper_buf_[48] = {};
-    lv_subject_t is_result_y_shaper_{};
+    helix::Subject is_result_y_shaper_{};
     char is_result_y_explanation_buf_[128] = {};
-    lv_subject_t is_result_y_explanation_{};
+    helix::Subject is_result_y_explanation_{};
     char is_result_y_vibration_buf_[96] = {};
-    lv_subject_t is_result_y_vibration_{};
+    helix::Subject is_result_y_vibration_{};
     char is_result_y_max_accel_buf_[32] = {};
-    lv_subject_t is_result_y_max_accel_{};
-    lv_subject_t is_result_y_quality_{};
+    helix::Subject is_result_y_max_accel_{};
+    helix::Subject is_result_y_quality_{};
 
     // Live-before delta display per axis: the was -> measured line and the old
     // setting's residual-vibration verdict against the freshly measured PSD.
     // Each row is gated by a has-subject so it hides when the inputs are
     // missing (no before-config, no PSD data, or an unported shaper type).
     char is_x_delta_buf_[64] = {};
-    lv_subject_t is_x_delta_text_{};
+    helix::Subject is_x_delta_text_{};
     char is_y_delta_buf_[64] = {};
-    lv_subject_t is_y_delta_text_{};
-    lv_subject_t is_x_has_delta_{};
-    lv_subject_t is_y_has_delta_{};
+    helix::Subject is_y_delta_text_{};
+    helix::Subject is_x_has_delta_{};
+    helix::Subject is_y_has_delta_{};
     char is_x_verdict_buf_[96] = {};
-    lv_subject_t is_x_verdict_text_{};
+    helix::Subject is_x_verdict_text_{};
     char is_y_verdict_buf_[96] = {};
-    lv_subject_t is_y_verdict_text_{};
-    lv_subject_t is_x_has_verdict_{};
-    lv_subject_t is_y_has_verdict_{};
+    helix::Subject is_y_verdict_text_{};
+    helix::Subject is_x_has_verdict_{};
+    helix::Subject is_y_has_verdict_{};
 
     // Firmware overwrote the staged X result with Y's values during the Y run
     // (1 = show the warning row on the X results card)
-    lv_subject_t is_x_fw_overwrite_warn_{};
+    helix::Subject is_x_fw_overwrite_warn_{};
 
     // Low-RAM warning modal before resonance calibration (see memory_utils.h)
     helix::ui::WidgetRef low_ram_warn_dialog_;
@@ -485,24 +488,24 @@ class InputShaperPanel : public OverlayBase {
     uint32_t save_restart_timeout_ms_ = 30000;
 
     // Freq data availability subjects (gating chart visibility in XML)
-    lv_subject_t is_x_has_freq_data_{};
-    lv_subject_t is_y_has_freq_data_{};
+    helix::Subject is_x_has_freq_data_{};
+    helix::Subject is_y_has_freq_data_{};
 
     // Chip label subjects (dynamically set from shaper names)
     static constexpr size_t kChipLabelBuf = 20;
     struct ChipRow {
         char label_buf[kChipLabelBuf] = {};
-        lv_subject_t label{};
-        lv_subject_t active{}; // 0=off, 1=on
+        helix::Subject label{};
+        helix::Subject active{}; // 0=off, 1=on
     };
     std::array<ChipRow, kMaxShapers> x_chips_;
     std::array<ChipRow, kMaxShapers> y_chips_;
 
     // Legend subjects (shaper name label, updated on chip toggle)
     char is_x_legend_shaper_label_buf_[kChipLabelBuf] = {};
-    lv_subject_t is_x_legend_shaper_label_{};
+    helix::Subject is_x_legend_shaper_label_{};
     char is_y_legend_shaper_label_buf_[kChipLabelBuf] = {};
-    lv_subject_t is_y_legend_shaper_label_{};
+    helix::Subject is_y_legend_shaper_label_{};
 
     // Legend dot widget pointers (for programmatic color updates)
     lv_obj_t* legend_x_shaper_dot_ = nullptr;

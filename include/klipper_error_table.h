@@ -16,6 +16,8 @@ struct KlipperErrorAction {
     const char* label;
     const char* gcode; ///< "" when a service, not a gcode, performs it
     const char* log_tag;
+    /// Guided device flow the tap opens instead of a gcode, nullptr for none.
+    const char* guided_flow = nullptr;
 };
 
 /// Tag of the action whose work PrinterRecoveryService does rather than a

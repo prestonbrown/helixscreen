@@ -78,14 +78,16 @@ TEST_CASE("Preset mode: skip hardware steps", "[wizard][step_logic][preset]") {
     skip_step(v, StepId::Summary);
     // telemetry NOT skipped (shown in preset mode)
 
-    // Steps shown: TouchCalibration, Language, Appearance, Connection, Preferences, Telemetry
-    REQUIRE(helix::wizard_visible_count(v) == 6);
+    // Steps shown: TouchCalibration, Language, Appearance, ScreenPower, Connection,
+    // Preferences, Telemetry
+    REQUIRE(helix::wizard_visible_count(v) == 7);
     REQUIRE(helix::wizard_display_number(StepId::TouchCalibration, v) == 1);
     REQUIRE(helix::wizard_display_number(StepId::Language, v) == 2);
     REQUIRE(helix::wizard_display_number(StepId::Appearance, v) == 3);
-    REQUIRE(helix::wizard_display_number(StepId::Connection, v) == 4);
-    REQUIRE(helix::wizard_display_number(StepId::Preferences, v) == 5);
-    REQUIRE(helix::wizard_display_number(StepId::Telemetry, v) == 6);
+    REQUIRE(helix::wizard_display_number(StepId::ScreenPower, v) == 4);
+    REQUIRE(helix::wizard_display_number(StepId::Connection, v) == 5);
+    REQUIRE(helix::wizard_display_number(StepId::Preferences, v) == 6);
+    REQUIRE(helix::wizard_display_number(StepId::Telemetry, v) == 7);
 }
 
 TEST_CASE("Preset mode: next skips hardware", "[wizard][step_logic][preset]") {
@@ -102,7 +104,8 @@ TEST_CASE("Preset mode: next skips hardware", "[wizard][step_logic][preset]") {
 
     REQUIRE(helix::wizard_next(StepId::TouchCalibration, v) == StepId::Language);
     REQUIRE(helix::wizard_next(StepId::Language, v) == StepId::Appearance);
-    REQUIRE(helix::wizard_next(StepId::Appearance, v) == StepId::Connection);
+    REQUIRE(helix::wizard_next(StepId::Appearance, v) == StepId::ScreenPower);
+    REQUIRE(helix::wizard_next(StepId::ScreenPower, v) == StepId::Connection);
     REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::Preferences);
     REQUIRE(helix::wizard_next(StepId::Preferences, v) == StepId::Telemetry);
     REQUIRE(helix::wizard_is_last(StepId::Telemetry, v));
@@ -131,7 +134,8 @@ TEST_CASE("Preset mode: prev works", "[wizard][step_logic][preset]") {
 
     REQUIRE(helix::wizard_prev(StepId::Telemetry, v) == StepId::Preferences);
     REQUIRE(helix::wizard_prev(StepId::Preferences, v) == StepId::Connection);
-    REQUIRE(helix::wizard_prev(StepId::Connection, v) == StepId::Appearance);
+    REQUIRE(helix::wizard_prev(StepId::Connection, v) == StepId::ScreenPower);
+    REQUIRE(helix::wizard_prev(StepId::ScreenPower, v) == StepId::Appearance);
     REQUIRE(helix::wizard_prev(StepId::Appearance, v) == StepId::Language);
     REQUIRE(helix::wizard_prev(StepId::Language, v) == StepId::TouchCalibration);
     REQUIRE_FALSE(helix::wizard_prev(StepId::TouchCalibration, v).has_value());
@@ -151,10 +155,10 @@ TEST_CASE("Preset mode: connection also skipped", "[wizard][step_logic][preset]"
     skip_step(v, StepId::Summary);
     // telemetry NOT skipped
 
-    // Steps: TouchCalibration, Language, Appearance, Preferences, Telemetry = 5
-    REQUIRE(helix::wizard_visible_count(v) == 5);
-    // appearance -> preferences (skip conn + all hw)
-    REQUIRE(helix::wizard_next(StepId::Appearance, v) == StepId::Preferences);
+    // Steps: TouchCalibration, Language, Appearance, ScreenPower, Preferences, Telemetry = 6
+    REQUIRE(helix::wizard_visible_count(v) == 6);
+    // screen & power -> preferences (skip conn + all hw)
+    REQUIRE(helix::wizard_next(StepId::ScreenPower, v) == StepId::Preferences);
 }
 
 // ============================================================================
@@ -217,6 +221,7 @@ TEST_CASE(
     skip_step(v, StepId::TouchCalibration);
     skip_step(v, StepId::Language);
     skip_step(v, StepId::Appearance);
+    skip_step(v, StepId::ScreenPower);
     skip_step(v, StepId::Wifi);
     // preset covers hardware (PrinterIdentify..InputShaper)
     if (plan.skip_hardware) {
@@ -282,7 +287,7 @@ TEST_CASE("id-nav: display number counts visible predecessors", "[wizard][step_l
     auto v = all_visible();
     for (auto& s : v)
         if (s.id == StepId::TouchCalibration || s.id == StepId::Language ||
-            s.id == StepId::Appearance)
+            s.id == StepId::Appearance || s.id == StepId::ScreenPower)
             s.skipped = true;
     REQUIRE(helix::wizard_display_number(StepId::Wifi, v) == 1);
     REQUIRE(helix::wizard_display_number(StepId::Connection, v) == 2);

@@ -33,6 +33,9 @@ struct PauseDescriptor {
     int code = -1;
     /// Firmware error envelope already decoded to its text.
     std::string message;
+    /// The lane (a filament sensor's lane index) whose runout the firmware
+    /// paused on, or -1 when the cause is no runout or names no lane.
+    int runout_lane = -1;
 };
 
 /// Status fields the discovered firmware's pause descriptor needs, as a

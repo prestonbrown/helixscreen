@@ -17,11 +17,13 @@
 #include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toolchanger_test_access.h"
 #include "../test_helpers/toolchanger_test_helper.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "cleanup_hold.h"
 #include "config.h"
 #include "connection_state.h"
 #include "core/update_queue.h"
@@ -440,7 +442,7 @@ TEST_CASE("MedusaHC shows the mount-to-feed steps for a load and an unload",
     const auto load = tc.get_operation_step_model(StepOperationType::LOAD_FRESH);
     REQUIRE(load.steps.size() == 5);
     CHECK(load.steps[0].label == "Insert filament");
-    CHECK(load.steps[1].label == "Mount tool");
+    CHECK(load.steps[1].label == "Pick up tool");
     CHECK(load.steps[2].label == "Heat nozzle");
     CHECK(load.steps[3].label == "Purge");
     const auto unload = tc.get_operation_step_model(StepOperationType::UNLOAD);
@@ -757,9 +759,9 @@ TEST_CASE("MedusaHC's step model spans every tool of a multi-tool run",
     // first tool has an insert row and only the last has a restore row.
     REQUIRE(model.steps.size() == 8);
     CHECK(model.steps[0].label == "Tool 2 (1/2): Insert filament");
-    CHECK(model.steps[1].label == "Tool 2 (1/2): Mount tool");
+    CHECK(model.steps[1].label == "Tool 2 (1/2): Pick up tool");
     CHECK(model.steps[3].label == "Tool 2 (1/2): Purge");
-    CHECK(model.steps[4].label == "Tool 4 (2/2): Mount tool");
+    CHECK(model.steps[4].label == "Tool 4 (2/2): Pick up tool");
     CHECK(model.steps[7].label == "Tool 4 (2/2): Restore tool");
     for (const auto& step : model.steps) {
         CHECK(step.label.find("Tool 4 (2/2): Insert") == std::string::npos);
@@ -977,6 +979,35 @@ TEST_CASE("MedusaHC ends the run and says so when the cleanup itself cannot be s
     CHECK(std::count(tc.sent_.begin(), tc.sent_.end(), cleanup) == 1);
 }
 
+TEST_CASE("a mount-to-feed run holds its heaters once it has started",
+          "[toolchanger][mount_feed][sigterm]") {
+    using helix::CleanupHold;
+    auto tc = std::make_unique<AckingChanger>(4);
+    tc->feed_status("ready", 0);
+    REQUIRE_FALSE(CleanupHold::any_held_signal_safe());
+    REQUIRE(tc->load_filament(3).success());
+    tc->ack(); // the prompt is up: nothing has heated
+    CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    ToolChangerTestAccess::feed_operator_reply(*tc, mf::Reply::Continue);
+    tc->ack(); // mounted; the heat stage is in flight
+    REQUIRE(CleanupHold::any_held_signal_safe());
+
+    SECTION("teardown sends the off, and moves nothing") {
+        tc->before_disconnect();
+        CHECK(tc->sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder3 TARGET=0");
+        CHECK(tc->get_current_action() == AmsAction::IDLE);
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    }
+    SECTION("the link drops: nothing can be sent") {
+        tc->lose();
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    }
+    SECTION("destroyed") {
+        tc.reset();
+        CHECK_FALSE(CleanupHold::any_held_signal_safe());
+    }
+}
+
 TEST_CASE("MedusaHC stops under a live run without deadlocking, and still sends the cleanup",
           "[toolchanger][mount_feed][medusahc]") {
     // Heap-allocated so a deadlocked stop() can be abandoned: the stuck thread
@@ -1175,7 +1206,7 @@ TEST_CASE("MedusaHC: the dock sensors losing the tool mid-run stop it without a 
     CHECK_FALSE(tc.can_cancel_operation());
     // The fault stays on show once the run is over.
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
 }
 
@@ -1345,7 +1376,7 @@ TEST_CASE("MedusaHC: a fault the controller reports during a swap still stops th
     CHECK(tc.sent_.back() == "SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=0");
     tc.ack();
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
 }
 
 TEST_CASE("MedusaHC: a cleanup that sends no swap is no cover for a -2",
@@ -1382,6 +1413,16 @@ TEST_CASE("mount-to-feed: an abort that cannot trust the carriage leaves it alon
     restoring.abort();
     REQUIRE(restoring.current_stage() != nullptr);
     CHECK(restoring.current_stage()->swaps); // its cleanup puts tool 0 back
+}
+
+TEST_CASE("A load prompt numbers tools as the screen does when slots count from 0",
+          "[toolchanger][mount_feed][zero-numbering]") {
+    ScopedZeroLaneNumbering zero;
+    AckingChanger tc(4);
+    tc.feed_status("ready", 0);
+    REQUIRE(tc.load_filament_batch({0, 2}).success());
+    CHECK(tc.sent_.back().find("Insert filament into Tool 0 as far as it goes, and into the hot "
+                               "end of Tool 2 while it is docked") != std::string::npos);
 }
 
 TEST_CASE("MedusaHC words a mixed load's prompt for the mounted tool and the docked ones",
@@ -1584,7 +1625,7 @@ TEST_CASE("MedusaHC: a frame silent about the carriage leaves a standing sensor 
     // sensors agreeing again.
     tc.feed(json{{"medusahc", {{"sensors", {{"t0", 1}, {"t2", 1}}}}}});
     CHECK(tc.get_system_info().action == AmsAction::ERROR);
-    CHECK(tc.get_system_info().operation_detail == "sensor error");
+    CHECK(tc.get_system_info().operation_detail == "Sensor Error");
     CHECK_FALSE(tc.unload_blocked_reason(1).empty());
 
     tc.feed(json{{"medusahc", {{"current_tool", 1}}}});
@@ -2177,6 +2218,18 @@ TEST_CASE("toolchanger: a tool listing sent in separate frames re-seats the carr
     // ASSIGN_TOOL moving number 2 onto T3 arrives as a listing alone.
     tc.feed(json{{"toolchanger", {{"tool_numbers", json::array({0, 3, 2})}}}});
     CHECK(tc.get_system_info().current_slot == 2);
+
+    // Swapping the two numbers back renames instead: the delta carries tool_names alone.
+    tc.feed(
+        json{{"toolchanger", {{"tool_names", json::array({"tool T0", "tool T3", "tool T2"})}}}});
+    CHECK(tc.get_system_info().current_slot == 1);
+
+    // A remap's listing and tool_number in one frame: the listing answers first.
+    tc.feed(json{{"toolchanger",
+                  {{"tool_numbers", json::array({0, 1})},
+                   {"tool_names", json::array({"tool T3", "tool T0"})},
+                   {"tool_number", 0}}}});
+    CHECK(tc.get_system_info().current_slot == 2);
 }
 
 TEST_CASE("toolchanger: mounting a lane on gapped tool numbers mounts that lane's tool",
@@ -2213,6 +2266,12 @@ TEST_CASE("toolchanger: tool numbers come from the listing for badges, remaps an
         CHECK(tc.get_tool_mapping() == std::vector<int>{0, -1, 1, 2});
         listing({0, 2, 3}, rotated);
         CHECK(tc.get_slot_info(2).mapped_tool == 0);
+    }
+    SECTION("a listing that arrived before the tool names still numbers them") {
+        helix::test::ToolChangerHelper late(3);
+        late.feed(json{{"toolchanger", {{"tool_numbers", {0, 2, 3}}, {"tool_names", in_order}}}});
+        late.set_discovered_tools({"T0", "T2", "T3"});
+        CHECK(late.get_tool_mapping() == std::vector<int>{0, -1, 1, 2});
     }
     SECTION("a listed number past the tool count can be remapped") {
         listing({0, 2, 3}, in_order);

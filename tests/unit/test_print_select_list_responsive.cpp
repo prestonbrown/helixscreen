@@ -31,7 +31,7 @@ using namespace helix;
 namespace {
 
 bool is_hidden(lv_obj_t* w) {
-    return lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(w);
 }
 
 lv_obj_t* by_name(lv_obj_t* root, const char* name) {

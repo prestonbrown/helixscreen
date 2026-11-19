@@ -16,10 +16,15 @@ namespace helix {
 
 /// What a buffer reading comes from, which is also what it is called on screen.
 enum class BufferSource : int {
-    None = 0, ///< No proportional reading: a switched buffer, or no buffer at all
-    Fps = 1,  ///< A filament pressure sensor (OpenAMS lane, AFC FPS_PSF buffer)
-    Sync = 2, ///< Happy Hare sync feedback, one buffer for the whole system
+    None = 0,   ///< No buffer at all
+    Fps = 1,    ///< A filament pressure sensor (OpenAMS lane, AFC FPS_PSF buffer)
+    Sync = 2,   ///< Happy Hare sync feedback, one buffer for the whole system
+    Switch = 3, ///< A switched buffer (TurtleNeck): three positions, snapped on the scale
 };
+
+/// Where a switched buffer's compressed (+) and expanded (-) positions sit on the bias scale:
+/// short of the end stops, which a switch cannot tell apart from its position.
+inline constexpr float kSwitchedBufferBias = 0.8f;
 
 /// How a reading is drawn and worded.
 enum class BufferGauge : int {
@@ -75,6 +80,11 @@ struct BufferReading {
 /// Happy Hare's sync feedback.
 [[nodiscard]] BufferReading buffer_reading(const AmsSystemInfo& info, int unit);
 
+/// Where the buffer sits on its travel, +1 fully compressed .. -1 fully expanded: a Bias
+/// reading's bias; a Fill reading's pressure against its set point (empty -1, the set point 0,
+/// full +1; 50% stands in for an unknown set point). 0 with no reading.
+[[nodiscard]] float buffer_position(const BufferReading& r);
+
 /// The unit whose rows (AFC state, fault distance) describe @p unit's buffer:
 /// @p unit itself, else the unit the system reading came from, else 0.
 [[nodiscard]] int buffer_view_unit(const AmsSystemInfo& info, int unit);
@@ -96,7 +106,7 @@ struct BufferReading {
 /// A Bias reading: "Running tight" / "Running loose" / "Balanced" from
 /// buffer_lean(). A Fill reading: "At target" / "Above target" / "Below target"
 /// against its set point, within kPressureTargetDeadbandPct. Empty without a
-/// gauge, and for a Fill reading with no set point.
+/// gauge, for a Fill reading with no set point, and for a switched buffer.
 [[nodiscard]] const char* buffer_lean_text(const BufferReading& r);
 
 /// The line under the trace that says what its axis is: "last 60 s · LOOSE up,

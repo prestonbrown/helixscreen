@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
 #include "ams_feeder_control.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "cleanup_hold.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override_store.h"
 #include "mount_feed_sequence.h"
 #include "notice.h"
@@ -134,6 +134,12 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         // recovery already offers.
         t.supports_reset = false;
         t.lane_noun = helix::ui::LaneNoun::Tool;
+        // Selecting a slot mounts that toolhead: do_select_slot() forwards to
+        // do_change_tool(), which emits SELECT_TOOL and swaps the carriage.
+        t.select_slot_moves_toolhead = true;
+        // A clear before the first frame sticks: the stored override and the
+        // lane are cleared even for a tool not cached yet.
+        t.clears_override_without_slot = true;
         return t;
     }();
     /// With a firmware feed command (Z-Mod's afclite shim), Load feeds filament
@@ -295,13 +301,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     AmsError do_filament_batch(const std::vector<int>& slots, bool load) override;
     AmsError do_select_slot(int slot_index) override;
 
-    /// On a tool changer, selecting a slot means mounting that toolhead —
-    /// do_select_slot() forwards to do_change_tool(), which emits SELECT_TOOL
-    /// and swaps what is on the carriage.
-    [[nodiscard]] bool select_slot_moves_toolhead() const override {
-        return true;
-    }
-
     /**
      * @brief Mount a physical toolhead. The argument is a SLOT INDEX.
      *
@@ -457,6 +456,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     [[nodiscard]] bool reset_available() const override;
     [[nodiscard]] bool recover_available() const override;
     AmsError cancel() override;
+    /// Ends a live mount-to-feed run with its heaters off and no carriage move,
+    /// while the client can still carry it.
+    void before_disconnect() override;
     /// Refuses while a swap the controller failed mid-print leaves its target
     /// tool too cold for the machine's own RESUME.
     void prepare_for_resume(int slot_index, ResumeReadyCallback on_ready) override;
@@ -468,6 +470,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// retires its generation so a late ack resolves nothing. A mount-to-feed
     /// run ends here too, and any heaters-off a lost run still owes goes out.
     void on_klipper_restarted() override;
+    /// Re-seeds the Z-Mod tool state (T_INFO) on each edge into READY.
+    void on_klippy_ready() override;
     /// A mount-to-feed run ends: nothing it sent will be answered, and its
     /// cleanup waits for a printer that can take it.
     void on_connection_lost() override;
@@ -576,11 +580,6 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         return "[AMS ToolChanger]";
     }
     SlotInfo* cached_slot_locked(int slot_index) override;
-    /// The stored override and the lane are cleared even for a tool not cached
-    /// yet, so a clear before the first frame sticks.
-    [[nodiscard]] bool clears_override_without_slot() const override {
-        return true;
-    }
 
     /// Whether this machine's firmware holds each head's colour and material
     /// (a material source with a writer, whose slots and palette a frame has
@@ -595,7 +594,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     }
     void on_stopping() override;
     void on_stopped() override;
-    [[nodiscard]] bool needs_mount_to_feed(int head) const override;
+    /// Whether filament reaches @p head only through the mounted tool: load and
+    /// unload mount it themselves and put the carriage back afterwards.
+    [[nodiscard]] bool needs_mount_to_feed(int head) const;
 
     /// Apply an add-on dock-sensor reading over the toolchanger's own claim.
     /// Caller holds mutex_.
@@ -629,9 +630,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     void on_feed_signal(helix::mount_feed::ConsoleSignal signal);
     /// The backend stopping under a live run: the full cleanup goes out, best
     /// effort, and the run resets without waiting for an ack that may never
-    /// arrive. From on_stopped(). Takes mutex_ and emits, so never under the
-    /// lock.
-    void abandon_feed_run_after_disconnect();
+    /// arrive. Takes mutex_ and emits, so never under the lock.
+    void abandon_feed_run_after_disconnect(bool restore_carriage);
     /// The printer can no longer take the run's gcode (a lost connection, a
     /// Klipper restart): end the run sending nothing, say so, and owe its
     /// heaters-off to the next moment Klippy is ready.
@@ -741,6 +741,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     int purge_mm_ = helix::mount_feed::kDefaultPurgeMm;
     /// The run in progress. Main thread only; feed_active_ mirrors it under mutex_.
     std::optional<helix::mount_feed::Run> feed_run_;
+    helix::CleanupHold feed_heater_hold_;
     uint64_t feed_generation_ = 0;
     bool feed_active_ = false;
     AmsAction feed_action_ = AmsAction::IDLE;
@@ -854,7 +855,8 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     apply_afc_lane_spools_locked(const std::vector<helix::toolchanger_addon::AfcLaneSpool>& spools);
     /// Ask Z-Mod where every tool sits (T_INFO is read-only). Its answer fixes
     /// the boot state on firmware whose active_tool_id only recomputes inside
-    /// its own commands.
+    /// its own commands. Sent only while Klipper reads READY: a start ahead of
+    /// READY leaves it to on_klippy_ready(), so each connect sends it once.
     void query_zmod_tool_state();
 
   private:
@@ -1035,7 +1037,7 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// klipper-toolchanger reports no material, colour, brand or weight at all.
     /// The store is the SOLE source of filament identity here, not a layer over
     /// a firmware reading, and initialize_tools() resets colour to default grey
-    /// on every rediscovery - which is exactly what used to wipe the user's edit.
+    /// on every rediscovery - which would wipe the user's edit without the store.
 
     /// The store is the sole source of filament identity here, so a clear
     /// blanks every identity field: nothing will restate them.

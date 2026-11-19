@@ -27,7 +27,7 @@ constexpr const char* kMeasureDescription =
 /// send - unlike a SET_GCODE_VARIABLE MACRO= mux key.
 constexpr const char* kPanelMacro = "CALIBRATE_TOOL_OFFSETS";
 
-/// Z-Mod's Creator 5 calibration (c5pro_generic.cfg): opens "remove the build
+/// Z-Mod's Creator 5 calibration (c5pro_display_off.cfg): opens "remove the build
 /// plate" in an action:prompt whose OK runs _T_CALIBRATE_EXTRUDERS.
 constexpr const char* kPromptMacro = "CALIBRATE_EXTRUDERS";
 

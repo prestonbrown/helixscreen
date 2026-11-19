@@ -72,7 +72,7 @@ int fault_segment() {
 /// The graphic is present in the tree but hides itself; "shown" means both.
 bool graphic_visible(lv_obj_t* root) {
     lv_obj_t* g = lv_obj_find_by_name(root, "fault_path");
-    return g != nullptr && !lv_obj_has_flag(g, LV_OBJ_FLAG_HIDDEN);
+    return g != nullptr && !lv_obj_is_hidden(g);
 }
 
 /// Every caption in fault_path.xml, so "exactly one is visible" is checkable.
@@ -156,13 +156,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the fault position is named in words, not o
         helix::ui::fault_path_apply(c.message);
         process_lvgl(10);
         REQUIRE(fault_segment() == static_cast<int>(c.segment));
-        REQUIRE_FALSE(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(graphic));
 
         int visible = 0;
         for (const char* name : kAllCaptions) {
             lv_obj_t* caption = lv_obj_find_by_name(graphic, name);
             REQUIRE(caption != nullptr);
-            if (lv_obj_has_flag(caption, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(caption)) {
                 continue;
             }
             ++visible;
@@ -176,15 +176,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the fault position is named in words, not o
         // keeps the toolhead named.
         lv_obj_t* toolhead_label = lv_obj_find_by_name(graphic, "fault_path_stop_label_toolhead");
         REQUIRE(toolhead_label != nullptr);
-        CHECK(lv_obj_has_flag(toolhead_label, LV_OBJ_FLAG_HIDDEN) ==
-              (c.segment == helix::PathSegment::TOOLHEAD));
+        CHECK(lv_obj_is_hidden(toolhead_label) == (c.segment == helix::PathSegment::TOOLHEAD));
     }
 
     // Unrecognised message: the component hides, so no caption speaks for a fault
     // whose position we could not place.
     helix::ui::fault_path_apply(kUnknownFault);
     process_lvgl(10);
-    CHECK(lv_obj_has_flag(graphic, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(graphic));
 
     lv_obj_delete(graphic);
     process_lvgl(10);
@@ -256,6 +255,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the loading-error modal carries the graphic
 
     CHECK(graphic_visible(modal.dialog()));
     CHECK(shown == kPreGearSentence);
+    auto text_of = [&modal](const char* name) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(modal.dialog(), name)));
+    };
+    CHECK(text_of("error_message") == shown);
+    CHECK(text_of("error_hint") == "Check the filament path and try again.");
 
     modal.hide();
     process_lvgl(20);
@@ -265,9 +269,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the loading-error modal carries the graphic
     REQUIRE(modal.show(lv_screen_active(), plain, []() {}));
     process_lvgl(20);
     CHECK_FALSE(graphic_visible(modal.dialog()));
+    CHECK(text_of("error_message") == plain);
 
     modal.hide();
     process_lvgl(20);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "two loading-error modals each show their own message",
+                 "[afc][fault][modal]") {
+    lv_xml_register_component_from_file("A:ui_xml/ams_loading_error_modal.xml");
+    // AmsPanel and the standing-fault dialog each keep one alive all session.
+    helix::ui::AmsLoadingErrorModal panel_modal;
+    helix::ui::AmsLoadingErrorModal fault_modal;
+    auto shows = [this](helix::ui::AmsLoadingErrorModal& m, const std::string& msg) {
+        REQUIRE(m.show(lv_screen_active(), msg, []() {}));
+        const std::string text =
+            lv_label_get_text(lv_obj_find_by_name(m.dialog(), "error_message"));
+        m.hide();
+        process_lvgl(20);
+        return text;
+    };
+    CHECK(shows(fault_modal, "fault one") == "fault one");
+    CHECK(shows(panel_modal, "load error") == "load error");
+    CHECK(shows(fault_modal, "fault two") == "fault two");
+    CHECK(shows(panel_modal, "load error again") == "load error again");
 }
 
 // ============================================================================
@@ -289,7 +314,7 @@ int visible_captions(lv_obj_t* root) {
     for (const char* name : kAllCaptions) {
         lv_obj_t* caption = lv_obj_find_by_name(root, name);
         REQUIRE(caption != nullptr);
-        visible += lv_obj_has_flag(caption, LV_OBJ_FLAG_HIDDEN) ? 0 : 1;
+        visible += lv_obj_is_hidden(caption) ? 0 : 1;
     }
     return visible;
 }

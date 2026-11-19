@@ -7,6 +7,7 @@
 #include "cjk_font_manager.h"
 #include "config.h"
 #include "core/static_subject_registry.h"
+#include "display_settings_manager.h"
 #include "locale_formats.h"
 #include "logging_init.h"
 #include "lvgl.h"
@@ -46,16 +47,20 @@ static int spdlog_level_to_index(spdlog::level::level_enum level) {
 }
 
 // Language options - codes and display names
-// Order: en, de, fr, es, ru, pt, it, zh, ja (indices 0-8). The CJK pair comes
-// last so a build without CJK fonts (HELIX_HAS_CJK=0, the ESP32 firmware) drops
-// it by shortening the list, and every other index keeps its meaning. A saved
-// zh/ja there reads as English.
-static const char* kLanguageCodes[] = {"en", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};
-static const int kLanguageCount = HELIX_HAS_CJK ? 9 : 7;
+// Order: en, en-GB, de, fr, es, ru, pt, it, zh, ja (indices 0-9). A regional
+// variant sits right after its base language and is named in it ("English (UK)").
+// The CJK pair comes last so a build without CJK fonts (HELIX_HAS_CJK=0, the
+// ESP32 firmware) drops it by shortening the list, and every other index keeps
+// its meaning. A saved zh/ja there reads as English. Settings store the code, so
+// an index is never persisted.
+static const char* kLanguageCodes[] = {"en", "en-GB", "de", "fr", "es",
+                                       "ru", "pt",    "it", "zh", "ja"};
+static const int kLanguageCount = HELIX_HAS_CJK ? 10 : 8;
 static const char* kLanguageOptionsText =
     HELIX_HAS_CJK
-        ? "English\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano\n中文\n日本語"
-        : "English\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano";
+        ? "English\nEnglish (UK)\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano"
+          "\n中文\n日本語"
+        : "English\nEnglish (UK)\nDeutsch\nFrançais\nEspañol\nРусский\nPortuguês\nItaliano";
 
 using settings::Scope;
 // Row order is SystemSettingsManager::Key.
@@ -99,7 +104,7 @@ void SystemSettingsManager::init_subjects() {
                   lang_index);
 
     // Initialize locale formatting for the loaded language
-    helix::ui::locale_set_language(lang_code);
+    helix::locale::locale_set_language(lang_code);
 
     settings_.init(subjects_);
 
@@ -228,12 +233,14 @@ void SystemSettingsManager::set_language(const std::string& lang) {
     get_printer_state().capabilities_state().on_language_changed();
 
     // 3. Update locale formatting tables
-    helix::ui::locale_set_language(lang);
+    helix::locale::locale_set_language(lang);
 
     // 4. Persist to config
     Config* config = Config::get_instance();
     config->set_language(lang);
     config->save();
+    // An unsaved date order follows the language just saved.
+    DisplaySettingsManager::instance().on_language_changed();
     crash_handler::breadcrumb::note("lang", "set_end", static_cast<long>(index));
 }
 

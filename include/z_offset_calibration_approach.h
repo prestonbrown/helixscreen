@@ -36,6 +36,23 @@ struct CalibrationCommand {
     ReadingPoint point;
 };
 
+/// Whether @p probe_type is a scanning probe whose calibrate command builds its
+/// own height model (Cartographer, Beacon, Klipper's probe_eddy_current).
+bool is_scanning_probe(sensors::ProbeSensorType probe_type);
+
+/**
+ * @brief The strategy a calibration run on the Z-offset panel follows
+ *
+ * A scanning probe has to run its own calibrate command: its paper test and
+ * coil sweep are the calibration, and a gcode offset cannot stand in for them.
+ * ACCEPT stages the new model and SAVE_CONFIG alone keeps it, so the run never
+ * folds the gcode offset into the probe, which is what FIRMWARE_MANAGED guards
+ * against. A scanning probe therefore runs PROBE_CALIBRATE where the printer's
+ * strategy is FIRMWARE_MANAGED (#1994). Every other pairing keeps @p strategy.
+ */
+ZOffsetCalibrationStrategy run_strategy(ZOffsetCalibrationStrategy strategy,
+                                        sensors::ProbeSensorType probe_type);
+
 /// @param chip the probe's sensor name (ProbeSensorConfig::sensor_name), which
 ///             names the chip for a probe whose calibrate command takes one
 CalibrationCommand calibration_command(ZOffsetCalibrationStrategy strategy,

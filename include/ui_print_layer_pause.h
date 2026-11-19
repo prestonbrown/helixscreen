@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "layer_pause.h"
 #include "subject_managed_panel.h"
 
@@ -72,7 +72,7 @@ class PrintLayerPauseControls {
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t status_text_subject_{};
+    helix::Subject status_text_subject_{};
     char status_text_buf_[192] = "";
 
     ObserverGuard availability_observer_;

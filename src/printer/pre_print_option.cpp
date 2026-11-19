@@ -74,21 +74,23 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j) {
     PrePrintOption opt;
 
     // --- id (required) ---
-    if (!j.contains("id") || !j["id"].is_string() || j["id"].get<std::string>().empty()) {
+    auto id = helix::json_util::read_field<std::string>(j, "id");
+    if (!id || id->empty()) {
         spdlog::warn("[PrePrintOption] Skipping option: missing or empty 'id' field");
         return std::nullopt;
     }
-    opt.id = j["id"].get<std::string>();
+    opt.id = std::move(*id);
 
     // --- strategy (required) ---
-    if (!j.contains("strategy") || !j["strategy"].is_string()) {
+    const auto strategy = helix::json_util::read_field<std::string>(j, "strategy");
+    if (!strategy) {
         spdlog::warn("[PrePrintOption] Skipping option '{}': missing 'strategy' field", opt.id);
         return std::nullopt;
     }
-    auto kind = parse_strategy_kind(j["strategy"].get<std::string>());
+    auto kind = parse_strategy_kind(*strategy);
     if (!kind) {
         spdlog::warn("[PrePrintOption] Skipping option '{}': unknown strategy '{}'", opt.id,
-                     j["strategy"].get<std::string>());
+                     *strategy);
         return std::nullopt;
     }
     opt.strategy_kind = *kind;
@@ -101,7 +103,7 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j) {
     // in parse_pre_print_option_set, not at the printer_detector.cpp call site.
     // A null would have unwound out of printer detection entirely. The existing
     // design already degrades per-option (return nullopt, caller skips it), so
-    // the required-field checks below now do that job for nulls too: a null
+    // the required-field checks below do that job for nulls too: a null
     // `param_name` reads as empty and is rejected with the accurate "requires
     // non-empty 'param_name'" message instead of throwing.
     opt.capability = helix::json_util::safe_string(j, "capability");
@@ -114,14 +116,14 @@ std::optional<PrePrintOption> parse_pre_print_option(const nlohmann::json& j) {
     opt.needs_material = helix::json_util::safe_bool(j, "needs_material", false);
 
     // category — defaults to Mechanical if absent or unknown (warned).
-    if (j.contains("category") && j["category"].is_string()) {
-        auto cat = parse_category(j["category"].get<std::string>());
+    if (const auto category = helix::json_util::read_field<std::string>(j, "category")) {
+        auto cat = parse_category(*category);
         if (cat) {
             opt.category = *cat;
         } else {
             spdlog::warn("[PrePrintOption] Option '{}': unknown category '{}', defaulting to "
                          "'mechanical'",
-                         opt.id, j["category"].get<std::string>());
+                         opt.id, *category);
         }
     }
 
@@ -207,8 +209,8 @@ PrePrintOptionSet parse_pre_print_option_set(const nlohmann::json& j) {
     set.macro_name = helix::json_util::safe_string(j, "macro_name");
     set.setup_gcode = helix::json_util::safe_string(j, "setup_gcode");
 
-    if (j.contains("options")) {
-        const auto& arr = j["options"];
+    if (const auto* options = helix::json_util::find_member(j, "options")) {
+        const auto& arr = *options;
         if (!arr.is_array()) {
             spdlog::warn("[PrePrintOption] 'options' is not an array; ignoring");
         } else {

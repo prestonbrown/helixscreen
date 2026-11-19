@@ -19,10 +19,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "callout_presenter.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "preprint_checklist.h"
 #include "print_status_chips.h"
 #include "printer_image_regions.h"
@@ -135,13 +135,13 @@ class PrintStatusTiles {
   private:
     static constexpr size_t kChipSubjectCount = 7;
     struct ChipSubjects {
-        lv_subject_t shown{};
-        lv_subject_t text{};
-        lv_subject_t tone{};
-        lv_subject_t glow{};
-        lv_subject_t progress{};
-        lv_subject_t line{};
-        lv_subject_t state{};
+        helix::Subject shown{};
+        helix::Subject text{};
+        helix::Subject tone{};
+        helix::Subject glow{};
+        helix::Subject progress{};
+        helix::Subject line{};
+        helix::Subject state{};
         char text_buf[96] = "";
         /// What paint_heat_chip() last wrote, so an unchanged reading writes no style.
         struct {
@@ -152,9 +152,9 @@ class PrintStatusTiles {
         } painted;
     };
     struct StepSubjects {
-        lv_subject_t name{};
-        lv_subject_t time{};
-        lv_subject_t status{};
+        helix::Subject name{};
+        helix::Subject time{};
+        helix::Subject status{};
         char name_buf[48] = "";
         char time_buf[16] = "";
     };
@@ -199,19 +199,19 @@ class PrintStatusTiles {
 
     std::array<ChipSubjects, kPrintStatusChipCount> chips_{};
     std::array<std::string, kChipSubjectCount * kPrintStatusChipCount> chip_names_{};
-    lv_subject_t image_src_{};
+    helix::Subject image_src_{};
     char image_src_buf_[256] = "";
-    lv_subject_t callout_mode_{};
-    lv_subject_t toolhead_merged_{};
-    lv_subject_t toolhead_text_{};
+    helix::Subject callout_mode_{};
+    helix::Subject toolhead_merged_{};
+    helix::Subject toolhead_text_{};
     char toolhead_text_buf_[48] = "";
 
     std::array<StepSubjects, kPreprintChecklistMaxRows> steps_{};
     std::array<std::string, 3 * kPreprintChecklistMaxRows> step_names_{};
-    lv_subject_t step_count_{};
-    lv_subject_t step_position_text_{};
-    lv_subject_t step_current_name_{};
-    lv_subject_t step_current_time_{};
+    helix::Subject step_count_{};
+    helix::Subject step_position_text_{};
+    helix::Subject step_current_name_{};
+    helix::Subject step_current_time_{};
     char step_position_buf_[32] = "";
     char step_current_name_buf_[48] = "";
     char step_current_time_buf_[16] = "";
@@ -262,6 +262,7 @@ class PrintStatusTiles {
     ObserverGuard nozzle_power_observer_;
     ObserverGuard bed_power_observer_;
     ObserverGuard chamber_power_observer_;
+    ObserverGuard temp_unit_observer_;
 
     // Lifetimes before observers: members destroy in reverse, so each guard
     // goes while its lifetime still says whether the subject lives.

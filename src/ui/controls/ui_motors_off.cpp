@@ -8,11 +8,43 @@
 
 #include "app_globals.h"
 #include "printer_state.h"
+#include "safety_settings_manager.h"
 
 namespace helix::ui {
 
+namespace {
+
+/// Send M84 unless a print has started, reporting the outcome in toasts.
+void send_motors_off(IMoonrakerAPI* api) {
+    if (!api) {
+        return;
+    }
+    // A print can start while a dialog is open (Mainsail, the job queue), and
+    // the button's gate was only checked when the user tapped it.
+    if (lv_subject_get_int(
+            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
+        NOTIFY_WARNING(lv_tr("Motors stay on while a print is active"));
+        return;
+    }
+    NOTIFY_INFO(lv_tr("Disabling motors..."));
+    api->execute_gcode(
+        "M84", // Klipper command to disable steppers
+        []() { helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Motors disabled")); },
+        [](const MoonrakerError& err) {
+            helix::notify_error_tr(TR_NOOP("Motors disable failed: {}"), err);
+        });
+}
+
+} // namespace
+
 void show_motors_off_confirm(IMoonrakerAPI* api, WidgetRef& stored,
                              std::optional<LifetimeToken> owner_token) {
+    if (!SafetySettingsManager::instance().get_motors_off_require_confirmation()) {
+        spdlog::debug("[MotorsOff] Confirmation off in settings, disabling motors directly");
+        send_motors_off(api);
+        return;
+    }
+
     spdlog::debug("[MotorsOff] Showing motors disable confirmation");
 
     // The dialog closes itself on a button press; every close path just drops
@@ -31,23 +63,7 @@ void show_motors_off_confirm(IMoonrakerAPI* api, WidgetRef& stored,
         ModalSeverity::Warning, lv_tr("Disable"),
         [api, drop] {
             drop();
-            if (!api) {
-                return;
-            }
-            // A print can start while the dialog is open (Mainsail, the job
-            // queue), and the button's gate was only checked when it opened.
-            if (lv_subject_get_int(
-                    get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0) {
-                NOTIFY_WARNING(lv_tr("Motors stay on while a print is active"));
-                return;
-            }
-            NOTIFY_INFO(lv_tr("Disabling motors..."));
-            api->execute_gcode(
-                "M84", // Klipper command to disable steppers
-                []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Motors disabled")); },
-                [](const MoonrakerError& err) {
-                    helix::ui::notify_error_tr(TR_NOOP("Motors disable failed: {}"), err);
-                });
+            send_motors_off(api);
         },
         opts);
 

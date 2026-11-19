@@ -1652,3 +1652,51 @@ TEST_CASE("mock Spoolman serves only the asked vendor's filaments", "[spoolman][
     // Every listed filament belongs to exactly one vendor.
     CHECK(served == all.size());
 }
+
+TEST_CASE("Spoolman currency setting decodes its JSON-encoded value",
+          "[filament][spoolman][price]") {
+    // Spoolman stores every setting value as JSON text, so the code arrives quoted.
+    CHECK(spoolman_detail::parse_spoolman_currency(
+              json{{"value", "\"EUR\""}, {"is_set", false}, {"type", "string"}}) == "EUR");
+    CHECK(spoolman_detail::parse_spoolman_currency(json{{"value", "\"USD\""}}) == "USD");
+
+    // Unquoted, missing or not an object: no currency rather than a guess.
+    CHECK(spoolman_detail::parse_spoolman_currency(json{{"value", "EUR"}}).empty());
+    CHECK(spoolman_detail::parse_spoolman_currency(json{{"value", "12"}}).empty());
+    CHECK(spoolman_detail::parse_spoolman_currency(json::object()).empty());
+    CHECK(spoolman_detail::parse_spoolman_currency(json::array()).empty());
+}
+
+TEST_CASE("A spool's price falls back to its filament's", "[filament][spoolman][price]") {
+    json spool = {{"id", 7}, {"price", 24.5}, {"filament", {{"id", 3}, {"price", 19.99}}}};
+    SpoolInfo own = spoolman_detail::parse_spool_info(spool);
+    CHECK(own.effective_price() == Catch::Approx(24.5));
+
+    // Spoolman leaves the spool's price null when the filament's applies.
+    spool["price"] = nullptr;
+    SpoolInfo inherited = spoolman_detail::parse_spool_info(spool);
+    CHECK(inherited.price == 0);
+    CHECK(inherited.effective_price() == Catch::Approx(19.99));
+
+    spool["filament"]["price"] = nullptr;
+    CHECK(spoolman_detail::parse_spool_info(spool).effective_price() == 0);
+}
+
+TEST_CASE("Spool prices format in the configured currency", "[filament][spoolman][price]") {
+    CHECK(format_price_with_currency(24.5, "USD") == "$24.50");
+    CHECK(format_price_with_currency(24.5, "EUR") == "\xE2\x82\xAC"
+                                                     "24.50");
+    CHECK(format_price_with_currency(24.5, "gbp") == "\xC2\xA3"
+                                                     "24.50");
+    // Yen and won have no minor unit.
+    CHECK(format_price_with_currency(2500, "JPY") == "\xC2\xA5"
+                                                     "2500");
+    CHECK(format_price_with_currency(30000, "KRW") == "30000 KRW");
+    // A code without a symbol the fonts carry follows the amount.
+    CHECK(format_price_with_currency(31.9, "CHF") == "31.90 CHF");
+    // No currency known: the bare amount.
+    CHECK(format_price_with_currency(24.5, "") == "24.50");
+    // No price: nothing to show.
+    CHECK(format_price_with_currency(0, "EUR").empty());
+    CHECK(format_price_with_currency(-1, "EUR").empty());
+}

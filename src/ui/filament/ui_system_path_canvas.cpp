@@ -90,9 +90,11 @@ static void load_theme_sizes(SystemPathData* data) {
     data->border_radius = LV_MAX(4, space_xs);
     data->extruder_scale = LV_MAX(8, space_md);
     data->space_md = space_md;
+    data->space_xs = space_xs;
 
     const char* font_name = lv_xml_get_const(nullptr, "font_small");
     data->label_font = font_name ? lv_xml_get_font(nullptr, font_name) : &noto_sans_12;
+    data->label_line_h = data->label_font ? lv_font_get_line_height(data->label_font) : 0;
 }
 
 // ============================================================================
@@ -127,6 +129,8 @@ static void draw_hub_box(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t widt
         label_dsc.font = font;
         label_dsc.align = LV_TEXT_ALIGN_CENTER;
         label_dsc.text = label;
+        // Drawing is deferred past this call, and a label may be a stack buffer.
+        label_dsc.text_local = 1;
 
         int32_t font_h = lv_font_get_line_height(font);
         lv_area_t label_area = {cx - width / 2, cy - font_h / 2, cx + width / 2, cy + font_h / 2};
@@ -134,26 +138,48 @@ static void draw_hub_box(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t widt
     }
 }
 
-// A hub's buffer: a labeled box on the output line between the hub and the
-// nozzle, tinted by the buffer severity.
+// A box carrying a buffer takes the buffer's severity tint over @p base.
+static lv_color_t buffer_tint(int fault, lv_color_t base) {
+    if (fault <= 0)
+        return base;
+    const auto status = static_cast<helix::ui::ClogMeterStatus>(std::min(fault, 2));
+    return lv_color_mix(theme_manager_get_color(helix::ui::buffer_status_token(status)), base, 85);
+}
+
+// A buffer: a labeled box on the output line, tinted by the buffer severity.
 static void draw_buffer_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
                             int32_t box_w, int32_t box_h, int fault, const char* label) {
-    lv_color_t bg = data->color_hub_bg;
-    if (fault > 0) {
-        const auto status = static_cast<helix::ui::ClogMeterStatus>(std::min(fault, 2));
-        bg = lv_color_mix(theme_manager_get_color(helix::ui::buffer_status_token(status)), bg, 85);
+    draw_hub_box(layer, cx, cy, box_w, box_h, buffer_tint(fault, data->color_hub_bg),
+                 data->color_hub_border, data->color_text, data->label_font, data->border_radius,
+                 label);
+}
+
+// A junction's hub box: "Hub", or "Hub+BUF" in the buffer's tint when the hub
+// carries the buffer; "H" / "H+B" when the box is too narrow, and no text when
+// it is too short for a line of it.
+static void draw_junction_box(lv_layer_t* layer, const SystemPathData* data, int32_t cx, int32_t cy,
+                              int32_t w, int32_t h, lv_color_t bg, bool short_label, bool labeled,
+                              bool with_buffer, int fault, const char* buffer_label) {
+    char label[24];
+    const char* hub = short_label ? "H" : "Hub";
+    if (with_buffer && buffer_label && buffer_label[0]) {
+        if (short_label)
+            snprintf(label, sizeof(label), "%s+%c", hub, buffer_label[0]);
+        else
+            snprintf(label, sizeof(label), "%s+%s", hub, buffer_label);
+        bg = buffer_tint(fault, bg);
+    } else {
+        snprintf(label, sizeof(label), "%s", hub);
     }
-    draw_hub_box(layer, cx, cy, box_w, box_h, bg, data->color_hub_border, data->color_text,
-                 data->label_font, data->border_radius, label);
+    draw_hub_box(layer, cx, cy, w, h, bg, data->color_hub_border, data->color_text,
+                 data->label_font, data->border_radius, labeled ? label : "");
 }
 
 // The single-toolhead layout's buffer, halfway down the trunk.
 static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, const SysLayout& L) {
-    const int32_t hub_bottom = L.hub_y + L.hub_h / 2;
-    const int32_t nozzle_top = L.nozzle_y - data->extruder_scale * 2;
-    draw_buffer_box(layer, data, L.center_x, hub_bottom + (nozzle_top - hub_bottom) / 2,
-                    data->hub_width * 2 / 3, L.hub_h * 2 / 3, data->buffer_fault,
-                    data->buffer_label);
+    const TrunkBuffer b = trunk_buffer(*data, L);
+    draw_buffer_box(layer, data, L.center_x, b.y, data->hub_width * 2 / 3, b.h, data->buffer_fault,
+                    b.labeled ? data->buffer_label : "");
 }
 
 // ============================================================================
@@ -199,22 +225,21 @@ static void draw_status_beside_nozzle(lv_layer_t* layer, SystemPathData* data, c
     lv_draw_label(layer, &status_dsc, &status_area);
 }
 
-// Multi-tool hubs: "H" on a MIXED unit's stem, "Hub" on a HUB unit's, each HUB
-// hub with its buffer box below it.
+// Multi-tool boxes: each junction's hub, and the buffer on a lone route.
 static void draw_mini_hubs(lv_layer_t* layer, const SystemPathData* data,
                            const OverviewBoxes& boxes) {
-    for (int i = 0; i < data->unit_count && i < SystemPathData::kMaxUnits; i++) {
-        const HubInfo& hi = boxes.hubs[i];
-        if (!hi.valid)
-            continue;
-        const char* hub_label = hi.short_label ? "H" : "Hub";
-        draw_hub_box(layer, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h, hi.hub_bg_color,
-                     data->color_hub_border, data->color_text, data->label_font,
-                     data->border_radius, hub_label);
-        if (hi.buffer_h > 0) {
-            draw_buffer_box(layer, data, hi.hub_x, hi.buffer_y, hi.buffer_w, hi.buffer_h,
-                            data->unit_buffer_fault[i], data->unit_buffer_label[i]);
+    for (const HubInfo& hi : boxes.hubs) {
+        const bool has_buffer = hi.buffer_unit >= 0 && hi.buffer_unit < SystemPathData::kMaxUnits;
+        const int fault = has_buffer ? data->unit_buffer_fault[hi.buffer_unit] : 0;
+        const char* label = has_buffer ? data->unit_buffer_label[hi.buffer_unit] : "";
+        if (hi.valid) {
+            draw_junction_box(layer, data, hi.hub_x, hi.mini_hub_y, hi.mini_hub_w, hi.mini_hub_h,
+                              hi.hub_bg_color, hi.short_label, hi.labeled, hi.buffer_in_hub, fault,
+                              label);
         }
+        if (hi.buffer_h > 0 && has_buffer)
+            draw_buffer_box(layer, data, hi.hub_x, hi.buffer_y, hi.buffer_w, hi.buffer_h, fault,
+                            hi.labeled ? label : "");
     }
 }
 
@@ -226,7 +251,9 @@ static void draw_tool_row(lv_layer_t* layer, SystemPathData* data, const SysLayo
     for (int t = 0; t < tools; ++t) {
         int32_t tool_x = calc_tool_x(t, data->total_tools, L.x_off, L.width);
         bool is_active_tool = (t == data->active_tool) && data->filament_loaded;
-        draw_nozzle_for_style(layer, tool_x, L.tools_y,
+        const int32_t head_x =
+            tool_x + helix::ui::toolhead_inlet(data->toolhead_style, L.tools_y, small_scale).dx;
+        draw_nozzle_for_style(layer, head_x, L.tools_y,
                               is_active_tool ? std::optional(active) : std::nullopt, small_scale);
     }
     const helix::ui::ToolBadgeLook look = helix::ui::tool_badge_look();
@@ -234,7 +261,10 @@ static void draw_tool_row(lv_layer_t* layer, SystemPathData* data, const SysLayo
         int32_t tool_x = calc_tool_x(t, data->total_tools, L.x_off, L.width);
         helix::ui::draw_toolhead_badge(
             layer, look,
-            helix::ui::toolhead_bounds(data->toolhead_style, tool_x, L.tools_y, small_scale),
+            helix::ui::toolhead_bounds(
+                data->toolhead_style,
+                tool_x + helix::ui::toolhead_inlet(data->toolhead_style, L.tools_y, small_scale).dx,
+                L.tools_y, small_scale),
             data->tool_labels[t]);
     }
 }
@@ -245,14 +275,17 @@ static void draw_single_nozzle(lv_layer_t* layer, SystemPathData* data, const Sy
     const bool bp_active = data->bypass_active && data->filament_loaded;
     const lv_color_t noz_color =
         bp_active ? lv_color_hex(data->bypass_color) : lv_color_hex(data->active_color);
-    draw_nozzle_for_style(layer, L.center_x, L.nozzle_y,
+    const int32_t head_x =
+        L.center_x +
+        helix::ui::toolhead_inlet(data->toolhead_style, L.nozzle_y, data->extruder_scale).dx;
+    draw_nozzle_for_style(layer, head_x, L.nozzle_y,
                           (unit_active || bp_active) ? std::optional(noz_color) : std::nullopt,
                           data->extruder_scale);
 
     // Only when multiple slots feed one toolhead
     if (data->total_tools <= 1 && data->current_tool >= 0) {
         helix::ui::draw_toolhead_badge(layer, helix::ui::tool_badge_look(),
-                                       helix::ui::toolhead_bounds(data->toolhead_style, L.center_x,
+                                       helix::ui::toolhead_bounds(data->toolhead_style, head_x,
                                                                   L.nozzle_y, data->extruder_scale),
                                        data->current_tool_label);
     }
@@ -279,21 +312,26 @@ static void system_path_draw_cb(lv_event_t* e) {
     OverviewBoxes boxes;
     plan_overview(*data, L, plan, boxes);
     const fpath::TubePalette pal = overview_palette(*data);
+    // Heads first: each tube is painted over its head, down to the inlet.
+    if (L.multi_tool)
+        draw_tool_row(layer, data, L);
+    else
+        draw_single_nozzle(layer, data, L);
     fpath::paint_tubes(layer, plan, pal);
 
     if (L.multi_tool) {
         draw_mini_hubs(layer, data, boxes);
         fpath::paint_box_bands(layer, plan, pal);
-        draw_tool_row(layer, data, L);
         draw_status_centered(layer, data, L);
     } else {
-        draw_hub_box(layer, L.center_x, L.hub_y, data->hub_width, L.hub_h, boxes.combiner_bg,
-                     data->color_hub_border, data->color_text, data->label_font,
-                     data->border_radius, "Hub");
-        if (data->has_buffer)
+        if (boxes.combiner) {
+            draw_junction_box(layer, data, L.center_x, L.hub_y, data->hub_width, L.hub_h,
+                              boxes.combiner_bg, false, boxes.combiner_labeled,
+                              boxes.combiner_buffer, data->buffer_fault, data->buffer_label);
+        }
+        if (data->has_buffer && !boxes.combiner_buffer)
             draw_trunk_buffer(layer, data, L);
         fpath::paint_box_bands(layer, plan, pal);
-        draw_single_nozzle(layer, data, L);
         draw_status_beside_nozzle(layer, data, L);
     }
 
@@ -343,8 +381,8 @@ static void* system_path_xml_create(lv_xml_parser_state_t* state, const char** a
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
@@ -427,8 +465,8 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);

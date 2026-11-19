@@ -63,19 +63,19 @@ bool is_placeholder_version(const std::string& version) {
     return trimmed.empty() || trimmed == "?" || helix::text_io::to_lower(trimmed) == "unknown";
 }
 
-std::string moonraker_version_from_update_status(const nlohmann::json& result) {
+std::string version_from_update_status(const nlohmann::json& result, const std::string& app) {
     const auto* version_info = helix::json_util::find_member(result, "version_info");
-    const auto* moonraker =
-        version_info ? helix::json_util::find_member(*version_info, "moonraker") : nullptr;
-    if (!moonraker || !moonraker->is_object()) {
+    const auto* entry =
+        version_info ? helix::json_util::find_member(*version_info, app.c_str()) : nullptr;
+    if (!entry || !entry->is_object()) {
         return {};
     }
-    const std::string version = trim(helix::json_util::safe_string(*moonraker, "version"));
+    const std::string version = trim(helix::json_util::safe_string(*entry, "version"));
     if (!is_placeholder_version(version) && !is_untagged_checkout_version(version)) {
         return version;
     }
     constexpr size_t kShortHashLength = 7;
-    const std::string hash = trim(helix::json_util::safe_string(*moonraker, "current_hash"));
+    const std::string hash = trim(helix::json_util::safe_string(*entry, "current_hash"));
     if (hash.size() >= kShortHashLength && !is_placeholder_version(hash)) {
         return hash.substr(0, kShortHashLength);
     }
@@ -90,7 +90,6 @@ void PrinterVersionsState::init_subjects(bool register_xml) {
 
     spdlog::trace("[PrinterVersionsState] Initializing subjects (register_xml={})", register_xml);
 
-    // Initialize string subjects with em dash default
     INIT_SUBJECT_STRING(klipper_version, "—", subjects_, register_xml);
     INIT_SUBJECT_STRING(moonraker_version, "—", subjects_, register_xml);
     INIT_SUBJECT_STRING(os_version, "—", subjects_, register_xml);
@@ -114,12 +113,12 @@ void PrinterVersionsState::deinit_subjects() {
 
 void PrinterVersionsState::set_klipper_version_internal(const std::string& version) {
     klipper_version_raw_ = version;
-    lv_subject_copy_string(&klipper_version_, display_version(version).c_str());
+    lv_subject_set_string(&klipper_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] Klipper version set: {}", version);
 }
 
 void PrinterVersionsState::set_moonraker_version_internal(const std::string& version) {
-    lv_subject_copy_string(&moonraker_version_, display_version(version).c_str());
+    lv_subject_set_string(&moonraker_version_, display_version(version).c_str());
     // Derived from the raw string, not the display form: display_version()
     // collapses placeholders to a translated label that no comparison can read.
     const bool degraded = moonraker_history_is_degraded(version);
@@ -130,12 +129,12 @@ void PrinterVersionsState::set_moonraker_version_internal(const std::string& ver
 
 void PrinterVersionsState::set_firmware_name_internal(const std::string& name) {
     if (name != klipper_firmware_name_buf_) {
-        lv_subject_copy_string(&klipper_firmware_name_, name.c_str());
+        lv_subject_set_string(&klipper_firmware_name_, name.c_str());
     }
 }
 
 void PrinterVersionsState::set_os_version_internal(const std::string& version) {
-    lv_subject_copy_string(&os_version_, display_version(version).c_str());
+    lv_subject_set_string(&os_version_, display_version(version).c_str());
     spdlog::debug("[PrinterVersionsState] OS version set: {}", version);
 }
 

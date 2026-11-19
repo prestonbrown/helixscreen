@@ -64,16 +64,16 @@ TEST_CASE_METHOD(HardwareCameraRowFixture,
     lv_subject_set_int(webcam, 1);
     lv_subject_set_int(supported, 1);
     process_lvgl(5);
-    CHECK_FALSE(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(container));
 
     lv_subject_set_int(supported, 0);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(container));
 
     lv_subject_set_int(supported, 1);
     lv_subject_set_int(webcam, 0);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(container));
 
     lv_subject_set_int(webcam, webcam_before);
     lv_subject_set_int(supported, supported_before);

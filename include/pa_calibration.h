@@ -12,13 +12,18 @@
 // number. That is the only kind of calibration this screen can drive, because
 // the screen's whole premise is that the printer decides, not the user.
 //
-// This module is the ONLY place that knows which firmwares can do that, what
-// command each one takes, and how to read its console output. Generic code -
-// the panel, the capability subject, MoonrakerAdvancedAPI - asks these
-// functions and never names a firmware.
+// This module is the ONLY place that knows which firmwares can do that and
+// how. Generic code - the panel, the capability subject, the connect steps -
+// asks these functions and never names a firmware.
 //
-// Adding a firmware means adding one Provider to the table in
-// pa_calibration.cpp. No call site changes.
+// Firmwares differ in who runs the procedure, so each table row names a kind:
+//   - one firmware command that runs the whole procedure and prints the
+//     result (Snapmaker U1 FLOW_CALIBRATE, Klipper4FlashForge FF_PA_CALIBRATE);
+//   - a sweep this app drives step by step over commands the firmware only
+//     forwards (stock FlashForge Creator 5: PA_ACTION / PA_GET).
+// Every kind runs behind pacal::Run (pa_calibration_run.h). Adding a firmware
+// of a known kind is one table row in pa_calibration.cpp; a new kind is one
+// more case in start_run(). No call site changes.
 
 #include <cstdint>
 #include <optional>
@@ -73,6 +78,34 @@ struct Procedure {
     /// the real authority and a slow heat-up must not read as a failure.
     uint32_t timeout_ms = 600000; // 10 min
 };
+
+/// What happens to the measured K once the run reports it.
+enum class Kept : uint8_t {
+    Nothing,     ///< reported only: it matters once it is copied into a slicer
+    ThisSession, ///< live on the extruder until Klipper restarts
+    Permanently, ///< the firmware applied it and saves it
+};
+
+/// What generic code needs to know about this printer's calibration, without
+/// knowing which firmware it is.
+struct Traits {
+    std::string provider; ///< for logs
+    bool per_tool = false;
+    Kept kept = Kept::Nothing;
+    /// The firmware runs the whole procedure as one command: it may set heater
+    /// targets itself (the panel hands the heater over with
+    /// CalibrationOwnedHeat::let_firmware_set), and a stop only stops this app
+    /// listening while the firmware finishes. False when this app drives the
+    /// procedure, stays the only one heating, and can end it between steps.
+    bool firmware_runs_procedure = false;
+    int expected_attempts = 0;
+    int estimate_minutes = 3;
+    /// How long a run may take before the panel gives up on it.
+    uint32_t timeout_ms = 600000;
+};
+
+/// The traits of this printer's calibration, or nullopt when it has none.
+std::optional<Traits> traits(const PrinterDiscovery& hw);
 
 /// Whether this printer can measure pressure advance on its own. False for the
 /// overwhelming majority of Klipper machines, whose only option is a tuning

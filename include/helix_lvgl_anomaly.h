@@ -16,6 +16,15 @@ extern "C" {
  */
 void helix_lvgl_anomaly(const char* code, const char* context);
 
+/** Called with every anomaly before it reaches telemetry, on the reporting thread. */
+typedef void (*helix_lvgl_anomaly_observer_fn)(const char* code, const char* context);
+
+/**
+ * Install `observer` (null removes it). The unit test binary installs one to fail the
+ * case that reports an anomaly; the app installs none.
+ */
+void helix_lvgl_anomaly_set_observer(helix_lvgl_anomaly_observer_fn observer);
+
 #ifdef __cplusplus
 }
 #endif

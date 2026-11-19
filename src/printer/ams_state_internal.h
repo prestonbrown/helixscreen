@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "ui_subject_registry.h"
-
 #include "ams_types.h"
 #include "lvgl/lvgl.h"
+#include "system/subject_registry.h"
 
 #include <cstring>
 

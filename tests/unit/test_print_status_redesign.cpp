@@ -11,6 +11,7 @@
 #include "../test_helpers/print_status_panel_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "../test_helpers/scoped_portrait_layout.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
@@ -21,6 +22,7 @@
 #include "printer_discovery.h"
 #include "printer_image_manager.h"
 #include "printer_state.h"
+#include "status_dispatch.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 
@@ -87,6 +89,17 @@ PrintStatusTiles::Image tagged_image(const std::string& path) {
     return img;
 }
 
+/// Two steps done of five, the third under way.
+std::optional<PreprintChecklistInput> five_steps() {
+    PreprintChecklistInput in;
+    in.done_in_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED};
+    in.current = PrintStartPhase::HEATING_NOZZLE;
+    in.expected_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
+                         PrintStartPhase::HEATING_NOZZLE, PrintStartPhase::QGL,
+                         PrintStartPhase::BED_MESH};
+    return in;
+}
+
 /// The panel's own XML built at a screen size, with a tagged printer picture.
 class TileFixture : public PrintStatusPanelFixture {
   public:
@@ -100,7 +113,7 @@ class TileFixture : public PrintStatusPanelFixture {
               helix::PrinterImageManager::instance().init_subjects();
               return std::make_shared<helix::test::ScopedGeometry>(screen_w, screen_h);
           }) {
-        lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root_, false);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
         REQUIRE(tile_ != nullptr);
         // No picture file: the chips lay out against the tagged regions alone,
@@ -111,6 +124,24 @@ class TileFixture : public PrintStatusPanelFixture {
 
     PrintStatusTiles& tiles() {
         return PrintStatusPanelTestAccess::tiles(panel());
+    }
+
+    void enter_preparing() {
+        tiles().set_checklist_source(five_steps);
+        lv_subject_set_int(state().print_state().get_print_start_phase_subject(),
+                           static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+        UpdateQueue::instance().drain();
+        process_lvgl(900); // the preparing view shows after its debounce
+        REQUIRE(subject_int("preparing_visible") == 1);
+    }
+
+    void leave_preparing() {
+        tiles().set_checklist_source(
+            []() -> std::optional<PreprintChecklistInput> { return PreprintChecklistInput{}; });
+        lv_subject_set_int(state().print_state().get_print_start_phase_subject(),
+                           static_cast<int>(PrintStartPhase::IDLE));
+        UpdateQueue::instance().drain();
+        REQUIRE(subject_int("preparing_visible") == 0);
     }
 
     /// Deliver queued observer fires, then run the update they scheduled.
@@ -133,6 +164,28 @@ struct Portrait320 : TileFixture {
 };
 struct Portrait272 : TileFixture {
     Portrait272() : TileFixture(272, 480) {}
+};
+
+/// The panel built under the ultrawide layout at 1480x320, which picks its ultrawide body.
+class Ultrawide1480 : public PrintStatusPanelFixture {
+  public:
+    Ultrawide1480()
+        : PrintStatusPanelFixture([]() -> std::shared_ptr<void> {
+              helix::led::LedController::instance().init(nullptr, nullptr);
+              ToolState::instance().init_subjects(false);
+              helix::PrinterImageManager::instance().init_subjects();
+              return std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
+          }) {
+        lv_obj_set_hidden(root_, false);
+        lv_obj_update_layout(root_);
+        PrintStatusPanelTestAccess::relayout(panel());
+        UpdateQueue::instance().drain();
+        lv_obj_update_layout(root_);
+    }
+
+    lv_obj_t* find(const char* name) {
+        return lv_obj_find_by_name(root_, name);
+    }
 };
 
 void set_int(lv_subject_t* s, int v) {
@@ -196,7 +249,8 @@ TEST_CASE_METHOD(Landscape800, "printing hides checklist and shows preview", "[p
     CHECK(subject_str("ps_step_position_text").empty());
 }
 
-TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque checklist",
+TEST_CASE_METHOD(Landscape800,
+                 "the G-code viewer does not draw under a thumbnail file's opaque checklist",
                  "[print_status][gcode_viewer]") {
     lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
     REQUIRE(viewer != nullptr);
@@ -204,6 +258,7 @@ TEST_CASE_METHOD(Landscape800, "the G-code viewer does not draw under the opaque
     PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
     settle();
     REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+    state().print_state().set_print_thumbnail("part.gcode", "A:assets/images/part.png");
 
     tiles().set_checklist_source([]() -> std::optional<PreprintChecklistInput> {
         PreprintChecklistInput in;
@@ -241,6 +296,9 @@ TEST_CASE_METHOD(Landscape800, "phase switch relayouts and clears pre-print glow
     REQUIRE(subject_int("ps_chip_nozzle_shown") == 1);
     REQUIRE(subject_int("ps_glow_nozzle") == 1);
     REQUIRE(subject_int("ps_chip_nozzle_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(lv_color_eq(
+        lv_obj_get_style_image_recolor(lv_obj_find_by_name(root_, "ps_glow_nozzle"), LV_PART_MAIN),
+        get_heating_state_color(helix::ui::temperature::HeatState::Heating)));
     const int layouts = tiles().layout_count();
 
     // The start sequence ends and its macro drops the preheat in the same batch.
@@ -290,7 +348,7 @@ TEST_CASE_METHOD(Landscape800, "a heater chip paints every part from its heat st
     CHECK(same(lv_obj_get_style_text_color(text, LV_PART_MAIN), HeatState::Cooling));
     CHECK(same(lv_obj_get_style_border_color(chip, LV_PART_MAIN), HeatState::Cooling));
     CHECK(subject_int("ps_glow_bed") == 3); // cooling from 90°C still glows its hottest
-    CHECK_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(glow));
 
     set_int(temps.get_bed_temp_subject(), 600);
     settle();
@@ -352,8 +410,8 @@ TEST_CASE_METHOD(Landscape800, "a heater at its target shows the check", "[print
     lv_obj_t* flame = lv_obj_find_by_name(chip, "status_heating");
     REQUIRE(check != nullptr);
     REQUIRE(flame != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(check, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(flame, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(check));
+    CHECK(lv_obj_is_hidden(flame));
     // The duty is in the chip's own text; the status row adds only the glyph,
     // which is all the chip's width reserves for it.
     lv_obj_t* duty = lv_obj_find_by_name(chip, "status_duty");
@@ -362,7 +420,7 @@ TEST_CASE_METHOD(Landscape800, "a heater at its target shows the check", "[print
     // A chip with no heater shows no glyph.
     lv_obj_t* fan = lv_obj_find_by_name(root_, "ps_chip_part_fan");
     REQUIRE(fan != nullptr);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(fan, "status_ready"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(fan, "status_ready")));
     set_int(temps.get_bed_target_subject(), 0);
     set_int(temps.get_bed_temp_subject(), 250);
 }
@@ -453,8 +511,8 @@ TEST_CASE_METHOD(Landscape800, "outcome shows reprint and keeps preview", "[prin
             static_cast<int>(PrintOutcome::COMPLETE));
     UpdateQueue::instance().drain();
 
-    CHECK_FALSE(lv_obj_has_flag(reprint, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(cancel, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(reprint));
+    CHECK(lv_obj_is_hidden(cancel));
     CHECK(subject_int("preparing_visible") == 0); // the job tile stays the preview
     set_int(state().print_state().get_print_outcome_subject(),
             static_cast<int>(PrintOutcome::NONE));
@@ -481,16 +539,16 @@ TEST_CASE_METHOD(Landscape800, "more menu lists only available actions", "[print
     REQUIRE(camera != nullptr);
     REQUIRE(light != nullptr);
     REQUIRE(tl != nullptr);
-    CHECK(lv_obj_has_flag(camera, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(tl, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(light, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(camera));
+    CHECK(lv_obj_is_hidden(tl));
+    CHECK_FALSE(lv_obj_is_hidden(light));
     menu.hide();
     set_int(leds, 0);
 }
 
 TEST_CASE_METHOD(Landscape800, "nozzle chip shows active tool on a toolchanger", "[print_status]") {
     auto& tools = ToolState::instance();
-    lv_subject_copy_string(tools.get_tool_badge_text_subject(), "T1");
+    lv_subject_set_string(tools.get_tool_badge_text_subject(), "T1");
     set_int(tools.get_show_tool_badge_subject(), 1);
     auto& temps = state().temperature_state();
     set_int(temps.get_active_extruder_temp_subject(), 2100);
@@ -500,9 +558,106 @@ TEST_CASE_METHOD(Landscape800, "nozzle chip shows active tool on a toolchanger",
     CHECK(subject_str("ps_chip_nozzle_text").rfind("T1 ", 0) == 0);
 
     set_int(tools.get_show_tool_badge_subject(), 0);
-    lv_subject_copy_string(tools.get_tool_badge_text_subject(), "");
+    lv_subject_set_string(tools.get_tool_badge_text_subject(), "");
     settle();
     CHECK(subject_str("ps_chip_nozzle_text").rfind("T1", 0) == std::string::npos);
+}
+
+namespace {
+
+/// klipper-toolchanger with a part fan and a hotend fan on every tool, and the
+/// wizard's part and hotend roles left on T0's, as a real printer had them.
+PrinterFanState& load_toolchanger_with_tool_fans(PrinterState& ps) {
+    PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"toolhead", "extruder", "extruder1", "extruder2",
+                                            "toolchanger", "tool T0", "tool T1", "tool T2"}));
+    ToolState::instance().init_tools(hw);
+    ps.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
+    auto& fans = PrinterStateTestAccess::get_fan_state(ps);
+    FanRoleConfig roles;
+    roles.part_fan = "fan_generic T0_part_fan";
+    roles.hotend_fan = "heater_fan T0_hotend_fan";
+    fans.init_fans({"fan_generic T0_part_fan", "heater_fan T0_hotend_fan",
+                    "fan_generic T1_part_fan", "heater_fan T1_hotend_fan",
+                    "fan_generic T2_part_fan", "heater_fan T2_hotend_fan",
+                    "heater_fan nevermore_fan", "temperature_fan _leviathan_mcu_fans"},
+                   roles);
+    // configfile.settings keys sections lowercased.
+    fans.set_heater_fans(fan_heaters::map_from_config(
+        nlohmann::json{{"heater_fan t0_hotend_fan", {{"heater", "extruder"}}},
+                       {"heater_fan t1_hotend_fan", {{"heater", "extruder1"}}},
+                       {"heater_fan t2_hotend_fan", {{"heater", "extruder2"}}},
+                       {"heater_fan nevermore_fan", {{"heater", "heater_bed"}}}}));
+    return fans;
+}
+
+void unload_toolchanger(PrinterState& ps) {
+    auto& fans = PrinterStateTestAccess::get_fan_state(ps);
+    fans.set_active_tool_fans("", "");
+    fans.set_tool_fans({}, {});
+    fans.set_heater_fans({});
+    fans.init_fans({});
+    ps.temperature_state().init_extruders({"extruder"});
+    ToolState::instance().init_tools(PrinterDiscovery{});
+}
+
+/// That printer's status frame with T2 mounted.
+nlohmann::json t2_mounted_frame() {
+    return nlohmann::json{{"toolhead", {{"extruder", "extruder2"}}},
+                          {"toolchanger", {{"tool_number", 2}}},
+                          {"tool T0", {{"extruder", "extruder"}, {"fan", "T0_part_fan"}}},
+                          {"tool T1", {{"extruder", "extruder1"}, {"fan", "T1_part_fan"}}},
+                          {"tool T2", {{"extruder", "extruder2"}, {"fan", "T2_part_fan"}}},
+                          {"fan_generic T0_part_fan", {{"speed", 0.2}}},
+                          {"fan_generic T1_part_fan", {{"speed", 0.5}}},
+                          {"fan_generic T2_part_fan", {{"speed", 0.7}}},
+                          {"heater_fan T0_hotend_fan", {{"speed", 1.0}}},
+                          {"heater_fan T2_hotend_fan", {{"speed", 0.4}}}};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "fan chips follow the active tool's own fans on a toolchanger",
+                 "[print_status][fan_state][tool_state]") {
+    auto& fans = load_toolchanger_with_tool_fans(state());
+
+    dispatch_status(t2_mounted_frame());
+    settle();
+    settle();
+
+    CHECK(fans.classify_primary_fans().part == "fan_generic T2_part_fan");
+    CHECK(fans.classify_primary_fans().hotend == "heater_fan T2_hotend_fan");
+    // The home printer picture's fan chip reads the main fan speed.
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 70);
+    CHECK(subject_str("ps_chip_part_fan_text").find("70%") != std::string::npos);
+    CHECK(subject_str("ps_chip_hotend_fan_text").find("40%") != std::string::npos);
+
+    // Back to T0: the chips go with it.
+    dispatch_status(nlohmann::json{{"toolhead", {{"extruder", "extruder"}}},
+                                   {"toolchanger", {{"tool_number", 0}}}});
+    settle();
+    settle();
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 20);
+    CHECK(subject_str("ps_chip_part_fan_text").find("20%") != std::string::npos);
+    CHECK(subject_str("ps_chip_hotend_fan_text").find("100%") != std::string::npos);
+
+    unload_toolchanger(state());
+}
+
+TEST_CASE_METHOD(Landscape800, "the aux chip shows no tool's own fan on a toolchanger",
+                 "[print_status][fan_state][tool_state]") {
+    // T1's part fan has run, so it is the commandable fan the aux slot would prefer.
+    auto& fans = load_toolchanger_with_tool_fans(state());
+    dispatch_status(t2_mounted_frame());
+    settle();
+    settle();
+
+    const std::string aux = fans.classify_primary_fans().aux;
+    CHECK(aux.find("_part_fan") == std::string::npos);
+    CHECK(aux.find("_hotend_fan") == std::string::npos);
+    CHECK(aux == "temperature_fan _leviathan_mcu_fans");
+
+    unload_toolchanger(state());
 }
 
 namespace {
@@ -510,18 +665,7 @@ namespace {
 bool hidden(lv_obj_t* root, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(root, name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
-}
-
-/// Two steps done of five, the third under way.
-std::optional<PreprintChecklistInput> five_steps() {
-    PreprintChecklistInput in;
-    in.done_in_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED};
-    in.current = PrintStartPhase::HEATING_NOZZLE;
-    in.expected_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
-                         PrintStartPhase::HEATING_NOZZLE, PrintStartPhase::QGL,
-                         PrintStartPhase::BED_MESH};
-    return in;
+    return lv_obj_is_hidden(obj);
 }
 
 } // namespace
@@ -591,6 +735,116 @@ TEST_CASE_METHOD(Landscape800,
 
     set_int(ps.get_print_start_phase_subject(), static_cast<int>(PrintStartPhase::IDLE));
     UpdateQueue::instance().drain();
+}
+
+namespace {
+
+lv_opa_t bg_opa_of(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return lv_obj_get_style_bg_opa(obj, LV_PART_MAIN);
+}
+
+/// True when `name` has a pill behind it no wider than `max_w`, so a bar across its row fails.
+void check_pill(lv_obj_t* root, const char* name, int32_t max_w) {
+    INFO(name);
+    CHECK(bg_opa_of(root, name) > 0);
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    CHECK(lv_obj_get_width(obj) < max_w);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Landscape800, "a file without a thumbnail shows its toolpath under the checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    enter_preparing();
+    settle();
+    lv_obj_t* row = lv_obj_find_by_name(root_, "ps_step_row_2");
+    REQUIRE(row != nullptr);
+    const int32_t row_w = lv_obj_get_width(row);
+
+    // Before the viewer is up the list is the opaque one, pills blending in.
+    CHECK(subject_int("print_has_thumbnail") == 0);
+    CHECK(bg_opa_of(root_, "ps_job_checklist") == LV_OPA_COVER);
+    CHECK(hidden(root_, "preview_corner_buttons"));
+
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    settle();
+    CHECK(bg_opa_of(root_, "ps_job_checklist") == 0);
+    CHECK(hidden(root_, "ps_checklist_fade"));
+    CHECK(hidden(root_, "rotate_hint"));
+    CHECK(hidden(root_, "gradient_background"));
+    CHECK_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+    CHECK(lv_obj_get_style_opa(lv_obj_find_by_name(root_, "metadata_clip"), LV_PART_MAIN) == 0);
+
+    for (const char* name : {"ps_checklist_file", "ps_step_name_2", "ps_step_time_2"}) {
+        check_pill(root_, name, row_w * 3 / 4);
+    }
+    // A row ends with its time at the right edge, wherever the name's pill stops.
+    lv_area_t row_box, time_box;
+    lv_obj_get_coords(row, &row_box);
+    lv_obj_get_coords(lv_obj_find_by_name(root_, "ps_step_time_2"), &time_box);
+    CHECK(time_box.x2 == row_box.x2);
+
+    // The viewer box is the one printing uses: a different one re-renders at print start.
+    lv_area_t preparing_box, printing_box;
+    lv_obj_get_coords(viewer, &preparing_box);
+    leave_preparing();
+    settle();
+    lv_obj_get_coords(viewer, &printing_box);
+    CHECK(lv_area_get_width(&preparing_box) == lv_area_get_width(&printing_box));
+    CHECK(lv_area_get_height(&preparing_box) == lv_area_get_height(&printing_box));
+    CHECK(preparing_box.x1 == printing_box.x1);
+    CHECK(preparing_box.y1 == printing_box.y1);
+    CHECK(lv_obj_get_style_opa(lv_obj_find_by_name(root_, "metadata_clip"), LV_PART_MAIN) ==
+          LV_OPA_COVER);
+    CHECK_FALSE(hidden(root_, "preview_corner_buttons"));
+    CHECK_FALSE(hidden(root_, "gradient_background"));
+}
+
+TEST_CASE_METHOD(Landscape800, "a thumbnail arriving mid-start goes back to the opaque checklist",
+                 "[print_status][gcode_viewer]") {
+    lv_obj_t* viewer = PrintStatusPanelTestAccess::gcode_viewer(panel());
+    REQUIRE(viewer != nullptr);
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    enter_preparing();
+    settle();
+    REQUIRE_FALSE(helix::ui::gcode_viewer_is_paused(viewer));
+
+    state().print_state().set_print_thumbnail("part.gcode", "A:assets/images/part.png");
+    UpdateQueue::instance().drain();
+    settle();
+    CHECK(helix::ui::gcode_viewer_is_paused(viewer));
+    CHECK(bg_opa_of(root_, "ps_job_checklist") == LV_OPA_COVER);
+    CHECK_FALSE(hidden(root_, "ps_checklist_fade"));
+    CHECK(bg_opa_of(root_, "ps_step_name_2") == 0);
+    CHECK(bg_opa_of(root_, "ps_step_time_2") == 0);
+    CHECK(lv_obj_get_style_opa(lv_obj_find_by_name(root_, "metadata_clip"), LV_PART_MAIN) ==
+          LV_OPA_COVER);
+    leave_preparing();
+}
+
+TEST_CASE_METHOD(Portrait272, "the compact checklist puts pills on its lines over the toolpath",
+                 "[print_status]") {
+    panel().on_activate();
+    PrintStatusPanelTestAccess::show_gcode_viewer(panel(), true);
+    enter_preparing();
+    settle();
+    REQUIRE(subject_int("ps_checklist_compact") == 1);
+    REQUIRE(bg_opa_of(root_, "ps_job_checklist") == 0);
+
+    lv_obj_t* body = lv_obj_find_by_name(root_, "ps_checklist_compact");
+    REQUIRE(body != nullptr);
+    const int32_t body_w = lv_obj_get_width(body);
+    for (const char* name : {"ps_checklist_compact_file", "ps_checklist_position",
+                             "ps_checklist_current", "ps_checklist_current_time"}) {
+        check_pill(root_, name, body_w);
+    }
+    leave_preparing();
 }
 
 TEST_CASE_METHOD(Portrait272, "a narrow job tile shows the current step compactly",
@@ -741,7 +995,7 @@ void check_chips_inside_and_apart(lv_obj_t* root) {
                              "ps_chip_hotend_fan", "ps_chip_aux_fan", "ps_chip_light",
                              "ps_chip_speed_flow", "ps_chip_toolhead"}) {
         lv_obj_t* chip = lv_obj_find_by_name(root, name);
-        if (!chip || lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN))
+        if (!chip || lv_obj_is_hidden(chip))
             continue;
         lv_area_t a;
         lv_obj_get_coords(chip, &a);
@@ -1038,7 +1292,7 @@ TEST_CASE_METHOD(Landscape800, "a rebuilt tree shows the exact-size copy as an e
     process_lvgl(50);
     root_ = panel().create(test_screen());
     REQUIRE(root_ != nullptr);
-    lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root_, false);
     settle();
 
     img = lv_obj_find_by_name(root_, "ps_printer_image");
@@ -1096,12 +1350,46 @@ TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without r
     clear_all_eight_chips(*this);
 }
 
+TEST_CASE_METHOD(Landscape800, "a warm chamber's glow takes over from the light's",
+                 "[print_status]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedStripInfo strip;
+    strip.id = strip.name = "neopixel chamber_light";
+    strip.backend = helix::led::LedBackendType::NATIVE;
+    strip.supports_color = true;
+    ctrl.native().add_strip(strip);
+    ctrl.update_from_status({{"neopixel chamber_light", {{"color_data", {{1.0, 1.0, 1.0, 0.0}}}}}});
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 1);
+    set_int(state().capabilities_state().subject(Capability::HasChamber), 1);
+    auto& temps = state().temperature_state();
+    set_int(temps.get_chamber_temp_subject(), 250);
+    settle();
+    settle();
+    REQUIRE(subject_int("ps_chip_light_tone") == static_cast<int>(ChipTone::Active));
+    CHECK(subject_int("ps_glow_light") == 1);
+    CHECK(subject_int("ps_glow_chamber") == 0);
+
+    set_int(temps.get_chamber_temp_subject(), 450);
+    settle();
+    settle();
+    CHECK(subject_int("ps_glow_chamber") == 2);
+    CHECK(subject_int("ps_glow_light") == 0);
+    // The chamber's wash keeps its markup color while its chip is painted with the heat's.
+    lv_obj_t* glow = lv_obj_find_by_name(root_, "ps_glow_chamber");
+    REQUIRE(glow != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_image_recolor(glow, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
+
+    set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
+    set_int(lv_xml_get_subject(nullptr, "led_controllable"), 0);
+}
+
 TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's subjects",
                  "[print_status]") {
     const char* keys[] = {"nozzle",     "bed",     "chamber", "part_fan",
                           "hotend_fan", "aux_fan", "light",   "speed_flow"};
-    const char* colors[] = {nullptr, nullptr, nullptr,   "info",
-                            "info",  "info",  "warning", "warning"};
+    const char* colors[] = {nullptr, "warning", "danger",  "info",
+                            "info",  "info",    "warning", "warning"};
     const auto subj = [](const std::string& name) {
         lv_subject_t* s = lv_xml_get_subject(nullptr, name.c_str());
         REQUIRE(s != nullptr);
@@ -1112,7 +1400,7 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
         REQUIRE(o != nullptr);
         return o;
     };
-    const auto hidden = [](lv_obj_t* o) { return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); };
+    const auto hidden = [](lv_obj_t* o) { return lv_obj_is_hidden(o); };
     set_int(subj("ps_callout_mode"), static_cast<int>(CalloutMode::BothSides));
     for (const char* k : keys) {
         set_int(subj(std::string("ps_glow_") + k), 0);
@@ -1125,9 +1413,9 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
         INFO(k);
         lv_obj_t* glow = obj("ps_glow_" + k);
         lv_obj_t* line = obj("ps_line_" + k);
-        // A heater glow is painted from its heat state, not from the markup.
+        // The nozzle's glow is painted from its heat state, not from the markup.
         if (colors[i])
-            CHECK(lv_color_eq(lv_obj_get_style_bg_color(glow, LV_PART_MAIN),
+            CHECK(lv_color_eq(lv_obj_get_style_image_recolor(glow, LV_PART_MAIN),
                               theme_manager_get_color(colors[i])));
         set_int(subj("ps_glow_" + k), 1);
         set_int(subj("ps_line_" + k), 1);
@@ -1136,16 +1424,16 @@ TEST_CASE_METHOD(Landscape800, "each glow and leader line follows its own chip's
             CHECK(hidden(obj(std::string("ps_glow_") + other)) == (k != other));
             CHECK(hidden(obj(std::string("ps_line_") + other)) == (k != other));
         }
-        if (k == "bed") {
-            // The plate glow's strength is its heat level, not the chip's tone.
+        if (k == "bed" || k == "chamber") {
+            // These glows' strength is their heat level, not the chip's tone.
             const int warm = lv_obj_get_style_opa(glow, LV_PART_MAIN);
-            set_int(subj("ps_glow_bed"), 3);
+            set_int(subj("ps_glow_" + k), 3);
             CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) > warm);
-            set_int(subj("ps_glow_bed"), 1);
+            set_int(subj("ps_glow_" + k), 1);
         } else {
-            const int soft = lv_obj_get_style_bg_opa(glow, LV_PART_MAIN);
+            const int soft = lv_obj_get_style_opa(glow, LV_PART_MAIN);
             set_int(subj("ps_chip_" + k + "_tone"), static_cast<int>(ChipTone::Active));
-            CHECK(lv_obj_get_style_bg_opa(glow, LV_PART_MAIN) > soft);
+            CHECK(lv_obj_get_style_opa(glow, LV_PART_MAIN) > soft);
         }
         set_int(subj("ps_chip_" + k + "_shown"), 0);
         CHECK(hidden(line));
@@ -1338,4 +1626,65 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip numbers configured names to
 
     CHECK(subject_int("ps_chip_other_tools_shown") == 1);
     CHECK(subject_str("ps_chip_other_tools_text") == "2 150° · 3 off");
+}
+
+TEST_CASE_METHOD(Ultrawide1480,
+                 "ultrawide builds one row of columns at the widths the fitter decides",
+                 "[print_status][ultrawide]") {
+    // The ultrawide body, not the landscape strip.
+    REQUIRE(find("ps_uw_info") != nullptr);
+    CHECK(find("ps_strip") == nullptr);
+    CHECK(find("metadata_overlay") == nullptr);
+
+    lv_obj_t* content = find("overlay_content");
+    REQUIRE(content != nullptr);
+    const int32_t w = lv_obj_get_content_width(content);
+    const int32_t h = lv_obj_get_content_height(content);
+    const auto cols =
+        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"));
+    REQUIRE(cols.preview_w > 0);
+
+    lv_obj_t* job = find("ps_job_tile");
+    lv_obj_t* printer = find("ps_printer_tile");
+    lv_obj_t* readouts = find("ps_uw_readouts");
+    lv_obj_t* actions = find("ps_uw_actions");
+    lv_obj_t* info = find("ps_uw_info");
+    REQUIRE((job && printer && readouts && actions && info));
+    CHECK(lv_obj_get_width(job) == cols.preview_w);
+    CHECK(lv_obj_get_height(job) == h);
+    CHECK(lv_obj_get_width(printer) == cols.printer_w);
+    CHECK(lv_obj_get_width(readouts) == cols.readouts_w);
+    CHECK(lv_obj_get_width(actions) == cols.actions_w);
+    CHECK(lv_obj_get_width(info) == cols.info_w);
+
+    // The buttons stack, and a heater row and the speed row are taps.
+    lv_obj_t* pause = find("btn_pause");
+    lv_obj_t* cancel = find("btn_cancel");
+    REQUIRE((pause && cancel));
+    CHECK(lv_obj_get_y(cancel) > lv_obj_get_y(pause));
+    CHECK(lv_obj_get_x(cancel) == lv_obj_get_x(pause));
+    CHECK(lv_obj_is_clickable(find("readout_bed")));
+    CHECK(lv_obj_is_clickable(find("readout_speed")));
+}
+
+TEST_CASE_METHOD(Ultrawide1480, "ultrawide readouts drop the chamber row without a chamber",
+                 "[print_status][ultrawide]") {
+    lv_subject_t* has_chamber = lv_xml_get_subject(nullptr, "printer_has_chamber");
+    REQUIRE(has_chamber != nullptr);
+    const int original = lv_subject_get_int(has_chamber);
+    lv_obj_t* row = find("readout_chamber");
+    REQUIRE(row != nullptr);
+
+    lv_subject_set_int(has_chamber, 1);
+    CHECK_FALSE(lv_obj_is_hidden(row));
+    lv_subject_set_int(has_chamber, 0);
+    CHECK(lv_obj_is_hidden(row));
+    lv_subject_set_int(has_chamber, original);
+}
+
+TEST_CASE_METHOD(Landscape800, "a standard screen keeps the strip and builds no columns",
+                 "[print_status][ultrawide]") {
+    CHECK(lv_obj_find_by_name(root_, "ps_strip") != nullptr);
+    CHECK(lv_obj_find_by_name(root_, "ps_uw_info") == nullptr);
+    CHECK(lv_obj_find_by_name(root_, "metadata_overlay") != nullptr);
 }

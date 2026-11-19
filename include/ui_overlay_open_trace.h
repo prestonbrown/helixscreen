@@ -71,5 +71,8 @@ void overlay_open_requested(lv_obj_t* root, const char* name, bool built,
                             std::chrono::steady_clock::time_point t0);
 void overlay_open_pushed(lv_obj_t* root);
 std::vector<OverlayOpenRecord> overlay_open_records();
+/// Forget every record and pending open, so a test starts with an empty trace and
+/// the overlays earlier tests opened do not fill its kMaxOverlays slots.
+void reset_overlay_open_trace_for_test();
 
 } // namespace helix::nav

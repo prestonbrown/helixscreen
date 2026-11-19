@@ -312,71 +312,35 @@ TEST_CASE("compute_pressure_level: available memory triggers critical", "[memory
 // Hysteresis tests
 // =============================================================================
 
-TEST_CASE("compute_pressure_level: hysteresis holds warning level", "[memory_monitor]") {
-    MemoryInfo sys;
-    sys.total_kb = 2048 * 1024;
-    sys.available_kb = 1500 * 1024;
-    auto t = MemoryThresholds::for_device(sys);
-
-    // RSS is between clear and warn thresholds — should hold warning
-    MemoryStats stats;
-    stats.vm_rss_kb = (t.clear_warn_rss_kb + t.warn_rss_kb) / 2;
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::warning, sys, 0);
-    REQUIRE(level == MemoryPressureLevel::warning);
-}
-
-TEST_CASE("compute_pressure_level: hysteresis clears warning when below clear threshold",
+TEST_CASE("compute_pressure_level: RSS hysteresis holds a level until it falls below clear",
           "[memory_monitor]") {
     MemoryInfo sys;
     sys.total_kb = 2048 * 1024;
     sys.available_kb = 1500 * 1024;
     auto t = MemoryThresholds::for_device(sys);
-
-    // RSS below clear threshold — should drop to none
-    MemoryStats stats;
-    stats.vm_rss_kb = t.clear_warn_rss_kb - 1024;
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::warning, sys, 0);
-    REQUIRE(level == MemoryPressureLevel::none);
-}
-
-TEST_CASE("compute_pressure_level: hysteresis holds critical level", "[memory_monitor]") {
-    MemoryInfo sys;
-    sys.total_kb = 2048 * 1024;
-    sys.available_kb = 1500 * 1024;
-    auto t = MemoryThresholds::for_device(sys);
-
-    // RSS between clear_critical and critical — should hold critical
-    MemoryStats stats;
-    stats.vm_rss_kb = (t.clear_critical_rss_kb + t.critical_rss_kb) / 2;
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::critical, sys, 0);
-    REQUIRE(level == MemoryPressureLevel::critical);
-}
-
-TEST_CASE("compute_pressure_level: hysteresis clears critical when below clear threshold",
-          "[memory_monitor]") {
-    MemoryInfo sys;
-    sys.total_kb = 2048 * 1024;
-    sys.available_kb = 1500 * 1024;
-    auto t = MemoryThresholds::for_device(sys);
-
-    // RSS below clear_critical but above clear_warn — should drop to warning hold
-    // Wait: if RSS is below clear_critical_rss but above clear_warn_rss,
-    // and current is critical, what happens?
-    // The function checks: critical trigger? no. warn trigger? depends on value.
-    // Then checks: hold critical? RSS >= clear_critical? no (we set it below).
-    // Then checks: hold warning? RSS >= clear_warn? yes.
-    // So it drops from critical to warning (held by hysteresis).
-    MemoryStats stats;
-    stats.vm_rss_kb = t.clear_critical_rss_kb - 1024;
-    // Ensure this is still above clear_warn
-    REQUIRE(stats.vm_rss_kb > t.clear_warn_rss_kb);
-
-    auto level = compute_pressure_level(stats, t, MemoryPressureLevel::critical, sys, 0);
-    // Critical cleared, but warning hysteresis still holds (RSS > clear_warn)
-    REQUIRE(level == MemoryPressureLevel::warning);
+    REQUIRE(t.clear_critical_rss_kb - 1024 > t.clear_warn_rss_kb);
+    struct Step {
+        size_t rss_kb;
+        MemoryPressureLevel current;
+        MemoryPressureLevel expected;
+    };
+    const Step steps[] = {
+        // Between clear and trigger: the level holds.
+        {(t.clear_warn_rss_kb + t.warn_rss_kb) / 2, MemoryPressureLevel::warning,
+         MemoryPressureLevel::warning},
+        {(t.clear_critical_rss_kb + t.critical_rss_kb) / 2, MemoryPressureLevel::critical,
+         MemoryPressureLevel::critical},
+        // Below clear: warning clears; critical clears to the warning it still holds.
+        {t.clear_warn_rss_kb - 1024, MemoryPressureLevel::warning, MemoryPressureLevel::none},
+        {t.clear_critical_rss_kb - 1024, MemoryPressureLevel::critical,
+         MemoryPressureLevel::warning},
+    };
+    for (const Step& step : steps) {
+        CAPTURE(step.rss_kb);
+        MemoryStats stats;
+        stats.vm_rss_kb = step.rss_kb;
+        CHECK(compute_pressure_level(stats, t, step.current, sys, 0) == step.expected);
+    }
 }
 
 TEST_CASE("compute_pressure_level: available memory hysteresis", "[memory_monitor]") {

@@ -3,7 +3,7 @@
 
 /**
  * @file test_filament_mapping_used_filter.cpp
- * @brief Unit tests for FilamentMappingCard::apply_used_tools_filter (the pure
+ * @brief Unit tests for helix::filament_mapping::apply_used_tools_filter (the pure
  *        used-tools compaction helper) and the card's idempotent rebuild.
  *
  * The mapping card renders one chip (and one modal row) per slicer palette
@@ -36,6 +36,7 @@
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "lvgl.h"
 #include "print_start_checks.h"
 #include "print_start_inputs.h"
@@ -88,7 +89,7 @@ TEST_CASE("apply_used_tools_filter: keeps only used tools in lockstep",
     auto ti = make_tool_info();
     auto m = make_mappings();
 
-    FilamentMappingCard::apply_used_tools_filter(ti, m, std::set<int>{2, 3});
+    helix::filament_mapping::apply_used_tools_filter(ti, m, std::set<int>{2, 3});
 
     REQUIRE(ti.size() == 2);
     REQUIRE(m.size() == 2);
@@ -107,7 +108,7 @@ TEST_CASE("apply_used_tools_filter: nullopt leaves both vectors untouched (show 
     auto ti = make_tool_info();
     auto m = make_mappings();
 
-    FilamentMappingCard::apply_used_tools_filter(ti, m, std::nullopt);
+    helix::filament_mapping::apply_used_tools_filter(ti, m, std::nullopt);
 
     REQUIRE(ti.size() == 4);
     REQUIRE(m.size() == 4);
@@ -122,7 +123,7 @@ TEST_CASE("apply_used_tools_filter: empty set leaves both vectors untouched (sho
     auto ti = make_tool_info();
     auto m = make_mappings();
 
-    FilamentMappingCard::apply_used_tools_filter(ti, m, std::set<int>{});
+    helix::filament_mapping::apply_used_tools_filter(ti, m, std::set<int>{});
 
     // Empty => show all. Must NOT compact to zero.
     REQUIRE(ti.size() == 4);
@@ -136,7 +137,7 @@ TEST_CASE("apply_used_tools_filter: single used tool preserves its real tool_ind
 
     // Only T2 used — a genuinely single-tool file must keep the real index (2),
     // not collapse to a palette ordinal of 0.
-    FilamentMappingCard::apply_used_tools_filter(ti, m, std::set<int>{2});
+    helix::filament_mapping::apply_used_tools_filter(ti, m, std::set<int>{2});
 
     REQUIRE(ti.size() == 1);
     REQUIRE(m.size() == 1);
@@ -152,7 +153,7 @@ TEST_CASE("apply_used_tools_filter: used tools not present in the palette are ig
 
     // used contains a stray index (9) that has no palette entry — the filter
     // keeps the intersection (just T1) and never fabricates an entry.
-    FilamentMappingCard::apply_used_tools_filter(ti, m, std::set<int>{1, 9});
+    helix::filament_mapping::apply_used_tools_filter(ti, m, std::set<int>{1, 9});
 
     REQUIRE(ti.size() == 1);
     REQUIRE(m.size() == 1);
@@ -168,10 +169,11 @@ TEST_CASE("find_by_tool_index: resolves by real tool_index on a compacted vector
     // lookup that replaced it.
     auto ti = make_tool_info();
     auto m = make_mappings();
-    FilamentMappingCard::apply_used_tools_filter(ti, m, std::set<int>{2, 3}); // -> positions 0,1
+    helix::filament_mapping::apply_used_tools_filter(ti, m,
+                                                     std::set<int>{2, 3}); // -> positions 0,1
 
-    const auto* t2 = FilamentMappingCard::find_by_tool_index(ti, 2);
-    const auto* t3 = FilamentMappingCard::find_by_tool_index(ti, 3);
+    const auto* t2 = helix::filament_mapping::find_by_tool_index(ti, 2);
+    const auto* t3 = helix::filament_mapping::find_by_tool_index(ti, 3);
     REQUIRE(t2 != nullptr);
     REQUIRE(t3 != nullptr);
     // Correct entries by identity (color set to 0x100000*(i+1) in make_tool_info).
@@ -182,9 +184,9 @@ TEST_CASE("find_by_tool_index: resolves by real tool_index on a compacted vector
 
     // Tools filtered out (0, 1) are no longer found — the dialogs iterate only
     // the used/unresolved tools, so a nullptr here means "not used", not "wrong".
-    CHECK(FilamentMappingCard::find_by_tool_index(ti, 0) == nullptr);
-    CHECK(FilamentMappingCard::find_by_tool_index(ti, 1) == nullptr);
-    CHECK(FilamentMappingCard::find_by_tool_index(ti, 99) == nullptr);
+    CHECK(helix::filament_mapping::find_by_tool_index(ti, 0) == nullptr);
+    CHECK(helix::filament_mapping::find_by_tool_index(ti, 1) == nullptr);
+    CHECK(helix::filament_mapping::find_by_tool_index(ti, 99) == nullptr);
 }
 
 TEST_CASE("find_by_tool_index: full palette resolves each tool to its own entry",
@@ -193,7 +195,7 @@ TEST_CASE("find_by_tool_index: full palette resolves each tool to its own entry"
     // so the lookup matches what the old positional access returned.
     auto ti = make_tool_info();
     for (int i = 0; i < 4; ++i) {
-        const auto* t = FilamentMappingCard::find_by_tool_index(ti, i);
+        const auto* t = helix::filament_mapping::find_by_tool_index(ti, i);
         REQUIRE(t != nullptr);
         CHECK(t->tool_index == i);
         CHECK(t->color_rgb == 0x100000u * static_cast<uint32_t>(i + 1));
@@ -211,7 +213,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     const std::vector<std::string> materials = {"PLA", "PETG", "PLA"};
     const std::optional<std::set<int>> used = std::set<int>{0, 2};
 
-    const auto m = FilamentMappingCard::compute_mapping(colors, materials, used);
+    const auto m = helix::filament_mapping::compute_mapping(colors, materials, used);
     REQUIRE(m.shows);
     CHECK(m.palette_colour_count == 3);
     CHECK(m.palette_tool_count == 3);
@@ -339,15 +341,15 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
     CHECK(lv_color_eq(border_of(warn), theme_manager_get_color("warning")));
     CHECK(lv_color_eq(border_of(block), theme_manager_get_color("danger")));
     // No lane: the empty-spool icon stands in, and no word sits in the body.
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_slot"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_pick"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_pick")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_slot")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_pick")));
     lv_obj_t* const warn_slot = lv_obj_find_by_name(warn, "chip_slot");
     REQUIRE(warn_slot != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(warn_slot, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(warn_slot));
     CHECK(std::string(lv_label_get_text(warn_slot)) == "2");
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(block, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(ok, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_spool")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_spool")));
 
     process_lvgl(100);
 }
@@ -366,8 +368,8 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An empty slot outlines its chip red"
     CHECK(chip_string(1, "_slot") == "2");
     lv_obj_t* const empty = chip(1);
     REQUIRE(empty != nullptr);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(empty, "chip_spool"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(empty, "chip_empty_ring"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_spool")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_empty_ring")));
 
     process_lvgl(100);
 }
@@ -430,11 +432,10 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Unknown gcode colour draws no fill o
     REQUIRE(chip_count() == 2);
     CHECK(chip_int(0, "_file_color_known") == 0);
     CHECK(chip_int(0, "_ink") == 0);
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(chip(0), "chip_header_fill"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(chip(0), "chip_header_fill")));
     CHECK(chip_int(1, "_file_color_known") == 1);
     CHECK(chip_int(1, "_ink") != 0);
-    CHECK_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(chip(1), "chip_header_fill"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(chip(1), "chip_header_fill")));
 
     process_lvgl(100);
 }
@@ -533,7 +534,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture,
     CHECK(chip(2) == nullptr);
     lv_obj_t* const pill = lv_obj_find_by_name(rows, "filament_chip_more");
     REQUIRE(pill != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(pill));
     CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(pill, "count_label"))) == "+4");
 
     process_lvgl(100);
@@ -547,7 +548,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "A palette that fits draws no overflo
     CHECK(chip_count() == 3);
     lv_obj_t* const pill = lv_obj_find_by_name(rows, "filament_chip_more");
     REQUIRE(pill != nullptr);
-    CHECK(lv_obj_has_flag(pill, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(pill));
 
     process_lvgl(100);
 }

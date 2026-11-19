@@ -777,7 +777,7 @@ jobs:
         changesNotSentForReview: false
 
   # ============================================================================
-  # Build the ESP32 (BTT K-Touch) firmware zip, alpha
+  # Build the ESP32 (BTT K-Touch) firmware zip, beta
   # ============================================================================
   # The same workflow that builds the firmware on every push, asked to package
   # the result. Skipped on the 1.0 line, which does not support ESP32 (the same
@@ -786,7 +786,7 @@ jobs:
   # A skipped job poisons the implicit success() of every job downstream of it,
   # transitively, so release, publish-android, upload-r2 and notify-website each
   # spell out their own condition with !cancelled() and explicit results instead
-  # of relying on it. Release ignores this job's result: the firmware is alpha,
+  # of relying on it. Release ignores this job's result: the firmware is beta,
   # so a red ESP32 build ships the release without the zip instead of blocking
   # every platform.
   build-esp32:
@@ -891,6 +891,27 @@ jobs:
           ls -1 release-files/*android* 2>/dev/null || echo "  (no android artifacts at all)"
           exit 1
         fi
+
+    # Firmware mods fetch some assets by exact name (Z-Mod's type: web updater, PAXX's
+    # pinned URL, the install.sh every installer route pipes). A rename would leave their
+    # users unable to install or update with no error on our side, so a missing name
+    # fails here, before anything is published. The names live in
+    # scripts/distribution_partners.json, the same data docs/devel/INSTALLER.md's table
+    # is rendered from. The platform list keeps a dry run of a subset green.
+    # Versioned archives are named from VERSION.txt (mk/cross.mk). A tag push checks them
+    # under the tag itself, since PAXX builds its URL from the tag and a VERSION.txt that
+    # disagrees must fail; a dry run's tag is synthetic, so it checks VERSION.txt's name.
+    - name: Verify distribution partner assets are present
+      env:
+        BUILT_PLATFORMS: ${{ needs.plan.outputs.platforms }}
+      run: |
+        set -euo pipefail
+        if [ "$RELEASE_MODE" = publish ]; then
+          ASSET_TAG="$RELEASE_TAG"
+        else
+          ASSET_TAG="v$(cat VERSION.txt)"
+        fi
+        python3 scripts/distribution_partners.py check release-files --tag "$ASSET_TAG" --platforms "$BUILT_PLATFORMS"
 
     - name: Prepare symbol files for release
       run: |
@@ -1107,7 +1128,7 @@ jobs:
 
         Sideload via `adb install` or download directly on device.
 
-        ### ESP32 (BTT K-Touch) - alpha
+        ### ESP32 (BTT K-Touch) - beta
         Firmware for the BigTreeTech K-Touch, flashed over USB with esptool. Not built for 1.0.x releases.
         - `helixscreen-esp32-ktouch-${{ steps.version.outputs.version }}.zip`: unzip it and follow `README.txt` inside, or see the [install guide](https://github.com/${{ github.repository }}/blob/main/docs/user/guide/install-esp32.md)
         EOF
@@ -1244,6 +1265,12 @@ jobs:
     # — a green run with a stale manifest is the silent-failure trap from .github#952
     # / v0.99.80, where continue-on-error hid a real publish failure from alerting.
     # Runs in both modes; every R2 key below starts with R2_PREFIX.
+    #
+    # A release waits here for a reviewer to approve the release-signing environment,
+    # which alone holds the release key's secrets (HELIX_RELEASE_MINISIGN_KEY and its
+    # password) and admits only v* tags. A dry run uses no environment, never reads the
+    # key and signs with one made for the run. docs/devel/RELEASE_SIGNING.md.
+    environment: ${{ needs.plan.outputs.mode == 'publish' && 'release-signing' || '' }}
     env:
       R2_PREFIX: ${{ needs.plan.outputs.r2_prefix }}
       RELEASE_TAG: ${{ needs.plan.outputs.tag }}
@@ -1411,14 +1438,60 @@ jobs:
           fi
         fi
 
+    - name: Prepare apt
+      uses: ./.github/actions/apt-prepare
+
+    - name: Install minisign
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq minisign
+        minisign -v
+
+    # Each channel's manifest is generated, checked and signed here, before
+    # anything is uploaded, so a bad entry or a signing failure stops the
+    # release with nothing published. The release key reaches only this step,
+    # and only in a release, from the release-signing environment's secrets: a
+    # dry run signs with a key generated for the run (scripts/sign-release-manifest.sh).
+    - name: Generate and sign channel manifests
+      env:
+        HELIX_RELEASE_MINISIGN_KEY: ${{ env.RELEASE_MODE == 'publish' && secrets.HELIX_RELEASE_MINISIGN_KEY || '' }}
+        HELIX_RELEASE_MINISIGN_PASSWORD: ${{ env.RELEASE_MODE == 'publish' && secrets.HELIX_RELEASE_MINISIGN_PASSWORD || '' }}
+        RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
+        RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
+        UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
+      run: |
+        chmod +x scripts/generate-manifest.sh
+        manifests=()
+        for CHANNEL in $UPLOAD_CHANNELS; do
+          echo "=== Generating ${CHANNEL} manifest ==="
+
+          scripts/generate-manifest.sh \
+            --version "$RELEASE_VERSION" \
+            --tag "$RELEASE_TAG" \
+            --notes "$RELEASE_NOTES" \
+            --dir release-files \
+            --base-url "${R2_PUBLIC_URL}/${R2_PREFIX}releases/v${RELEASE_VERSION}" \
+            --output "release-files/manifest-${CHANNEL}.json"
+
+          echo "Generated manifest for ${CHANNEL}:"
+          cat "release-files/manifest-${CHANNEL}.json" | jq .
+
+          # The ESP32 entries are checked against the zips on disk.
+          scripts/check-esp32-manifest.sh "release-files/manifest-${CHANNEL}.json" release-files
+          manifests+=("release-files/manifest-${CHANNEL}.json")
+        done
+        scripts/sign-release-manifest.sh --mode "$RELEASE_MODE" "${manifests[@]}"
+
     - name: Upload artifacts and manifests to R2
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
-        RELEASE_NOTES: ${{ steps.notes.outputs.notes }}
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
-        RELEASE_TAG: ${{ steps.version.outputs.tag }}
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         R2_PUBLIC_URL: ${{ vars.R2_PUBLIC_URL }}
         UPLOAD_CHANNELS: ${{ steps.channels.outputs.channels }}
@@ -1427,8 +1500,6 @@ jobs:
           echo "::error::dry run with R2_PREFIX='${R2_PREFIX}'; refusing to write live R2 paths"
           exit 1
         }
-        chmod +x scripts/generate-manifest.sh
-
         # Retry wrapper for transient R2 errors. A 504 Gateway Timeout on a large
         # multipart upload can exhaust the AWS CLI's own retries and abort this
         # step before the manifest uploads, which pins every client to the
@@ -1473,29 +1544,19 @@ jobs:
           s3cp "$zip" "s3://${R2_BUCKET}/${R2_PREFIX}releases/v${RELEASE_VERSION}/${filename}"
         done
 
-        # 3. Generate and upload the per-channel manifests. This is the artifact
+        # 3. Upload the per-channel manifests (signed in the step before). This is the artifact
         #    that makes a release visible to in-app updaters, so it is published as
         #    early as possible — right after its referenced tarballs/zips and BEFORE
         #    the install.sh / symbol uploads, whose transient failures must never be
         #    able to suppress release visibility (the v0.99.76 failure mode, .github#952).
         for CHANNEL in $UPLOAD_CHANNELS; do
-          echo "=== Generating ${CHANNEL} manifest ==="
-
-          scripts/generate-manifest.sh \
-            --version "$RELEASE_VERSION" \
-            --tag "$RELEASE_TAG" \
-            --notes "$RELEASE_NOTES" \
-            --dir release-files \
-            --base-url "${R2_PUBLIC_URL}/${R2_PREFIX}releases/v${RELEASE_VERSION}" \
-            --output "release-files/manifest-${CHANNEL}.json"
-
-          echo "Generated manifest for ${CHANNEL}:"
-          cat "release-files/manifest-${CHANNEL}.json" | jq .
-
-          # The ESP32 entries are checked against the zips on disk before the
-          # manifest goes live, so a bad entry stops the release with nothing
-          # published.
-          scripts/check-esp32-manifest.sh "release-files/manifest-${CHANNEL}.json" release-files
+          # The signature goes up first: a client reading between the two puts
+          # sees the old manifest with the new signature and refuses it, rather
+          # than trusting a manifest whose signature is not there yet.
+          echo "Uploading ${R2_PREFIX}${CHANNEL}/manifest.json.minisig..."
+          s3cp "release-files/manifest-${CHANNEL}.json.minisig" \
+            "s3://${R2_BUCKET}/${R2_PREFIX}${CHANNEL}/manifest.json.minisig" \
+            --content-type "text/plain"
 
           echo "Uploading ${R2_PREFIX}${CHANNEL}/manifest.json..."
           s3cp "release-files/manifest-${CHANNEL}.json" \
@@ -1520,6 +1581,19 @@ jobs:
           done
           if [ "$served" != "$RELEASE_VERSION" ]; then
             echo "::error::${CHANNEL} manifest serves '${served:-<none>}', expected '${RELEASE_VERSION}' -- release would be invisible to in-app updaters"
+            exit 1
+          fi
+          sig_served=false
+          for attempt in 1 2 3 4; do
+            if curl -fsS "${R2_PUBLIC_URL}/${R2_PREFIX}${CHANNEL}/manifest.json.minisig" \
+                | cmp -s - "release-files/manifest-${CHANNEL}.json.minisig"; then
+              sig_served=true; break
+            fi
+            echo "  attempt ${attempt}: ${CHANNEL}/manifest.json.minisig not served as signed; retrying in 5s..."
+            sleep 5
+          done
+          if [ "$sig_served" != true ]; then
+            echo "::error::${CHANNEL}/manifest.json.minisig is not served as signed -- the easy installer would refuse this release"
             exit 1
           fi
 
@@ -1578,6 +1652,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
@@ -1765,6 +1841,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -1849,6 +1927,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
         R2_BUCKET: ${{ vars.R2_BUCKET_NAME || 'helixscreen-releases' }}
         RETAIN_COUNT: 5
@@ -1991,6 +2071,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       run: |
         [[ "$R2_PREFIX" == dry-run/?*/ ]] || { echo "::error::R2_PREFIX='${R2_PREFIX}' is not a dry-run prefix"; exit 1; }
@@ -2016,6 +2098,8 @@ jobs:
       env:
         AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        # R2 rejects AWS region names; runners without a default region pick us-west-2.
+        AWS_DEFAULT_REGION: auto
         R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       run: |
         [[ "$R2_PREFIX" == dry-run/?*/ ]] || { echo "::error::R2_PREFIX='${R2_PREFIX}' is not a dry-run prefix"; exit 1; }

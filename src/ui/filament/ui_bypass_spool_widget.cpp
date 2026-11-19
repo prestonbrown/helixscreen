@@ -3,6 +3,7 @@
 
 #include "ui_bypass_spool_widget.h"
 
+#include "ui_ams_lane_spool.h"
 #include "ui_spool_canvas.h"
 
 #include "ams_backend.h"
@@ -77,24 +78,34 @@ void bypass_spool_set_visible(BypassSpoolWidgets& w, bool visible) {
             continue;
         }
         if (visible) {
-            lv_obj_remove_flag(part, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(part, false);
         } else {
-            lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(part, true);
         }
     }
 
     if (!visible && w.material_label != nullptr) {
-        lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w.material_label, true);
     }
 }
 
 namespace {
-constexpr int32_t kBypassSpoolSize = 48;
 constexpr int32_t kBoxPad = 4;
-constexpr int32_t kBoxSize = kBypassSpoolSize + kBoxPad * 2;
 constexpr int32_t kLabelGap = 4;
 constexpr int32_t kLabelHeight = 16;
+// The room the tube's turn takes between the spool and the merge line, and between the
+// line and the "Bypass" label under it.
+constexpr int32_t kTubeDrop = 10;
+constexpr int32_t kTubeClear = 8;
 } // namespace
+
+int32_t bypass_spool_bottom_above_merge() {
+    return kTubeDrop + kBoxPad;
+}
+
+int32_t bypass_spool_box_size() {
+    return ams_slot_spool_size() + kBoxPad * 2;
+}
 
 BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click, void* user_data) {
     BypassSpoolWidgets w;
@@ -102,17 +113,19 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
         return w;
     }
 
+    const int32_t spool_size = ams_slot_spool_size();
+    w.box_size = bypass_spool_box_size();
     w.box = lv_obj_create(parent);
-    lv_obj_set_size(w.box, kBoxSize, kBoxSize);
+    lv_obj_set_size(w.box, w.box_size, w.box_size);
     lv_obj_set_style_pad_all(w.box, 0, 0);
     lv_obj_set_style_bg_opa(w.box, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_color(w.box, theme_manager_get_color("card_bg"), 0);
     lv_obj_set_style_radius(w.box, theme_manager_get_spacing("border_radius"), 0);
     lv_obj_set_style_border_width(w.box, 0, 0);
-    lv_obj_remove_flag(w.box, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(w.box, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_scrollable(w.box, false);
+    lv_obj_set_floating(w.box, true);
 
-    w.spool_canvas = ui_spool_canvas_create(w.box, kBypassSpoolSize);
+    w.spool_canvas = ui_spool_canvas_create(w.box, spool_size);
     if (!w.spool_canvas) {
         lv_obj_delete(w.box);
         w = {};
@@ -121,22 +134,22 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     lv_obj_set_pos(w.spool_canvas, kBoxPad, kBoxPad);
 
     if (on_click) {
-        lv_obj_add_flag(w.box, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(w.box, true);
         lv_obj_add_event_cb(w.box, on_click, LV_EVENT_CLICKED, user_data);
     }
 
     w.bypass_label = lv_label_create(parent);
     lv_label_set_text(w.bypass_label, lv_tr("Bypass"));
     lv_obj_set_style_text_color(w.bypass_label, theme_manager_get_color("text"), 0);
-    lv_obj_add_flag(w.bypass_label, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(w.bypass_label, true);
     lv_obj_update_layout(w.bypass_label);
     w.cached_bypass_label_w = lv_obj_get_width(w.bypass_label);
 
     w.material_label = lv_label_create(parent);
     lv_label_set_text(w.material_label, "");
     lv_obj_set_style_text_color(w.material_label, theme_manager_get_color("text"), 0);
-    lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_FLOATING);
-    lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_floating(w.material_label, true);
+    lv_obj_set_hidden(w.material_label, true);
 
     return w;
 }
@@ -209,9 +222,9 @@ void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {
 
     lv_label_set_text(w.material_label, w.cached_material);
     if (w.cached_material[0] == '\0') {
-        lv_obj_add_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w.material_label, true);
     } else {
-        lv_obj_remove_flag(w.material_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(w.material_label, false);
     }
 }
 
@@ -220,13 +233,12 @@ void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
         return;
     }
 
-    int32_t box_left = cx - kBoxSize / 2;
-    int32_t box_top = cy - kBoxSize / 2;
+    int32_t box_left = cx - w.box_size / 2;
+    int32_t box_top = cy - kTubeDrop - w.box_size;
     lv_obj_set_pos(w.box, box_left, box_top);
 
     if (w.bypass_label) {
-        lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2,
-                       box_top + kBoxSize + kLabelGap);
+        lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2, cy + kTubeClear);
     }
     if (w.material_label) {
         // Material text changes — must measure each call.

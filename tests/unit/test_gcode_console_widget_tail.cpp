@@ -87,7 +87,7 @@ std::vector<std::string> rows(PanelWidgetHarnessBase& h) {
 bool hidden(PanelWidgetHarnessBase& h, const char* name) {
     lv_obj_t* obj = h.child(name);
     REQUIRE(obj != nullptr);
-    return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return lv_obj_is_hidden(obj);
 }
 
 // TEST_MIRROR_OK: contains() is a one-line assertion utility (vector membership), not logic

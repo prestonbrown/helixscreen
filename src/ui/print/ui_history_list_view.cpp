@@ -5,6 +5,9 @@
 
 #include "ui_virtual_list.h"
 
+#include "core/gcode_filename.h"
+#include "display_format.h"
+#include "filament_chip_model.h"
 #include "format_utils.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
@@ -81,7 +84,7 @@ void HistoryListView::cleanup() {
 
 void HistoryListView::reset() {
     for (auto* row : pool_) {
-        lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(row, true);
     }
     std::fill(pool_indices_.begin(), pool_indices_.end(), static_cast<ssize_t>(-1));
     if (leading_spacer_) {
@@ -110,33 +113,11 @@ bool HistoryListView::add_pool_row() {
     if (!row) {
         return false;
     }
-    lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, shown by show_window
+    lv_obj_set_hidden(row, true); // XML_HIDDEN_OK: pooled row, shown by show_window
     // Attach click handler: one per pool row, reused across recycles
     lv_obj_add_event_cb(row, on_row_click_static, LV_EVENT_CLICKED, this);
     pool_.push_back(row);
     return true;
-}
-
-void HistoryListView::create_spacers() {
-    if (!container_) {
-        return;
-    }
-
-    if (!leading_spacer_) {
-        leading_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(leading_spacer_);
-        lv_obj_remove_flag(leading_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(leading_spacer_, lv_pct(100));
-        lv_obj_set_height(leading_spacer_, 0);
-    }
-
-    if (!trailing_spacer_) {
-        trailing_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(trailing_spacer_);
-        lv_obj_remove_flag(trailing_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(trailing_spacer_, lv_pct(100));
-        lv_obj_set_height(trailing_spacer_, 0);
-    }
 }
 
 // ============================================================================
@@ -190,24 +171,31 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* filename_label = helix::ui::find_required(row, "row_filename", "HistoryListView");
     if (filename_label) {
+        helix::gcode::note_displayed_filename(job.filename);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(filename_label, job.filename.c_str());
     }
 
     lv_obj_t* date_label = helix::ui::find_required(row, "row_date", "HistoryListView");
     if (date_label) {
-        lv_label_set_text(date_label, job.date_str.c_str());
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
+        lv_label_set_text(date_label, helix::display_format::format_modified_date(
+                                          static_cast<time_t>(job.start_time))
+                                          .c_str());
     }
 
     lv_obj_t* duration_label = helix::ui::find_required(row, "row_duration", "HistoryListView");
     if (duration_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(duration_label,
                           helix::format::duration(static_cast<int>(job.print_duration)).c_str());
     }
 
     lv_obj_t* filament_label = helix::ui::find_required(row, "row_filament", "HistoryListView");
     if (filament_label) {
-        lv_label_set_text(filament_label,
-                          job.filament_type.empty() ? lv_tr("Unknown") : job.filament_type.c_str());
+        const std::string materials = helix::filament_type_text(job.filament_type);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
+        lv_label_set_text(filament_label, materials.empty() ? lv_tr("Unknown") : materials.c_str());
     }
 
     // Status text
@@ -216,8 +204,10 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
 
     lv_obj_t* status_label = helix::ui::find_required(row, "row_status", "HistoryListView");
     if (status_label) {
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_label_set_text(status_label, status_text);
         lv_color_t color = theme_manager_parse_hex_color(status_color);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_obj_set_style_text_color(status_label, color, LV_PART_MAIN);
     }
 
@@ -225,10 +215,11 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     lv_obj_t* status_bar = helix::ui::find_required(row, "status_bar", "HistoryListView");
     if (status_bar) {
         lv_color_t color = theme_manager_parse_hex_color(status_color);
+        // DECLARATIVE_OK: a recycled pool row rebound to the job it now shows
         lv_obj_set_style_bg_color(status_bar, color, LV_PART_MAIN);
     }
 
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(row, false);
 
     (void)data_index; // Used by on_row_click_static via pool_indices_
 }
@@ -250,7 +241,7 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
         pool_indices_.push_back(-1);
     }
 
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     // Cache row dimensions on first populate
     if (cached_row_height_ == 0 && !pool_.empty() && !jobs.empty()) {
@@ -293,7 +284,7 @@ void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool pr
 void HistoryListView::update_visible(const std::vector<PrintHistoryJob>& jobs) {
     if (!container_ || pool_.empty() || jobs.empty()) {
         for (auto* row : pool_) {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, true);
         }
         sync_list_spacers(container_, leading_spacer_, trailing_spacer_, VirtualWindow{},
                           last_leading_height_, last_trailing_height_);
@@ -340,7 +331,7 @@ void HistoryListView::update_visible(const std::vector<PrintHistoryJob>& jobs) {
             configure_row(pool_[slot], static_cast<size_t>(job_idx),
                           jobs[static_cast<size_t>(job_idx)]);
         },
-        [this](size_t slot) { lv_obj_add_flag(pool_[slot], LV_OBJ_FLAG_HIDDEN); });
+        [this](size_t slot) { lv_obj_set_hidden(pool_[slot], true); });
 
     spdlog::debug("[HistoryListView] Spacers: leading={}px trailing={}px, visible rows={}, "
                   "container content_h={} child_count={}",

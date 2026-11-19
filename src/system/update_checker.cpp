@@ -15,19 +15,13 @@
 
 #include "system/update_checker.h"
 
-#include "ui_emergency_stop.h"
-#include "ui_event_safety.h"
-#include "ui_modal.h"
-#include "ui_notification.h"
-#include "ui_panel_settings.h"
-#include "ui_settings_updates.h"
-#include "ui_timer_guard.h"
-
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
 #include "core/log_redact.h"
+#include "core/notification_api.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "helix_install_roots.h"
 #include "helix_thread.h"
@@ -40,6 +34,7 @@
 #include "klipper_config_includes.h"
 #include "lvgl.h"
 #include "moonraker_config_manager.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -50,6 +45,7 @@
 #include "system/helix_paths.h"
 #include "system/log_path_probe.h"
 #include "system/moonraker_local_probe.h"
+#include "system/release_signature.h"
 #include "system/sha256_util.h"
 #include "system/telemetry_manager.h"
 #include "system/tls_trust.h"
@@ -149,17 +145,7 @@ using app_constants::update::env_backup_fallback;
  * @brief Safely get string value from JSON, handling null
  */
 std::string json_string_or_empty(const json& j, const std::string& key) {
-    if (!j.contains(key)) {
-        return "";
-    }
-    const auto& val = j[key];
-    if (val.is_null()) {
-        return "";
-    }
-    if (val.is_string()) {
-        return val.get<std::string>();
-    }
-    return "";
+    return helix::json_util::safe_string(j, key.c_str());
 }
 
 /// "'mips' or 'k1'": the keys a lookup tried, for logs and errors.
@@ -255,10 +241,10 @@ bool parse_github_release(const json& j, UpdateChecker::ReleaseInfo& info, std::
     // yields "Corrupt download" for clients still on v0.99.30 or earlier
     // (mirrors the R2 manifest --include-zip gate). Once telemetry shows
     // v0.99.30 adoption is gone, this preference can flip back to zip.
-    if (j.contains("assets") && j["assets"].is_array()) {
+    if (const json* assets = helix::json_util::find_array(j, "assets")) {
         bool found = false;
         for (const auto& key : asset_keys) {
-            if (select_github_asset(j["assets"], key, info)) {
+            if (select_github_asset(*assets, key, info)) {
                 found = true;
                 break;
             }
@@ -523,7 +509,7 @@ int safe_exec(const std::vector<std::string>& args, bool capture_stderr = false)
  * up at startup since we know the new version launched successfully.
  */
 void cleanup_stale_old_install() {
-    std::string install_root = app_get_install_root();
+    std::string install_root = app_get_writable_install_root();
     if (install_root.empty()) {
         return;
     }
@@ -755,16 +741,16 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
         info.release_notes = json_string_or_empty(j, "notes");
         info.published_at = json_string_or_empty(j, "published_at");
 
-        if (!j.contains("assets") || !j["assets"].is_object() || j["assets"].empty()) {
+        const json* assets = helix::json_util::find_object(j, "assets");
+        if (!assets || assets->empty()) {
             error = "Missing or empty 'assets' in manifest";
             return false;
         }
 
-        const auto& assets = j["assets"];
         for (const auto& key : asset_keys) {
-            if (assets.contains(key)) {
+            if (const json* asset = helix::json_util::find_member(*assets, key.c_str())) {
                 spdlog::debug("[UpdateChecker] Manifest asset key: '{}'", key);
-                populate_release_urls_from_manifest(assets[key], info);
+                populate_release_urls_from_manifest(*asset, info);
                 return true;
             }
         }
@@ -781,6 +767,34 @@ bool parse_release_manifest(const std::string& json_str, UpdateChecker::ReleaseI
         error = std::string("JSON parse error: ") + e.what();
         return false;
     }
+}
+
+bool parse_signed_release_manifest(const std::string& json_str, int sig_status,
+                                   const std::string& sig_body, std::string_view public_key,
+                                   UpdateChecker::ReleaseInfo& info, std::string& error,
+                                   const std::vector<std::string>& asset_keys) {
+    if (sig_status != 200) {
+        error = sig_status == 0
+                    ? "could not fetch the manifest signature"
+                    : "manifest is not signed (signature HTTP " + std::to_string(sig_status) + ")";
+        return false;
+    }
+    const auto verdict = release_signature::verify(json_str, sig_body, public_key);
+    if (verdict != release_signature::Verdict::Ok) {
+        error = std::string("manifest signature refused: ") + release_signature::describe(verdict);
+        return false;
+    }
+    UpdateChecker::ReleaseInfo parsed;
+    if (!parse_release_manifest(json_str, parsed, error, asset_keys)) {
+        return false;
+    }
+    parsed.signature_verified = true;
+    info = std::move(parsed);
+    return true;
+}
+
+bool release_is_verified(const UpdateChecker::ReleaseInfo& info) {
+    return info.signature_verified && !info.sha256.empty();
 }
 } // namespace helix
 
@@ -840,9 +854,6 @@ UpdateChecker::~UpdateChecker() {
     reap_download_thread(std::chrono::milliseconds(250));
 }
 
-// Forward declaration - defined before show_update_notification()
-static void register_notify_callbacks();
-
 // ============================================================================
 // Lifecycle
 // ============================================================================
@@ -858,7 +869,6 @@ void UpdateChecker::init() {
     download_cancelled_ = false;
 
     init_subjects();
-    register_notify_callbacks();
 
     // Snapshot the Config-derived settings while we are provably on the main
     // thread, so the debug bundle can report channel/manifest URL from its
@@ -873,7 +883,7 @@ void UpdateChecker::init() {
     // ask Moonraker to update us. Self-healing is the point: an install with a
     // bad asset_name cannot receive the fix through the channel it breaks
     // (prestonbrown/helixscreen#993).
-    repair_release_info(app_get_install_root());
+    repair_release_info(app_get_writable_install_root());
 
     spdlog::debug("[UpdateChecker] Initialized");
     initialized_ = true;
@@ -945,7 +955,7 @@ lv_subject_t* UpdateChecker::version_text_subject() {
 void UpdateChecker::render_version_text() {
     switch (shown_.status) {
     case Status::Checking:
-        lv_subject_copy_string(&version_text_subject_, lv_tr("Checking..."));
+        lv_subject_set_string(&version_text_subject_, lv_tr("Checking..."));
         return;
     case Status::UpdateAvailable:
         // A downgrade is not "available" in the usual sense: say what it
@@ -956,7 +966,7 @@ void UpdateChecker::render_version_text() {
                  shown_.version.c_str());
         break;
     case Status::UpToDate:
-        lv_subject_copy_string(&version_text_subject_, lv_tr("Up to date"));
+        lv_subject_set_string(&version_text_subject_, lv_tr("Up to date"));
         return;
     case Status::Error:
         snprintf(version_text_buf_, sizeof(version_text_buf_), lv_tr("Error: %s"),
@@ -965,11 +975,11 @@ void UpdateChecker::render_version_text() {
                      : shown_.error.c_str());
         break;
     case Status::Idle:
-        lv_subject_copy_string(&version_text_subject_,
-                               fmt::format(lv_tr("Version {}"), HELIX_VERSION).c_str());
+        lv_subject_set_string(&version_text_subject_,
+                              fmt::format(lv_tr("Version {}"), HELIX_VERSION).c_str());
         return;
     }
-    lv_subject_copy_string(&version_text_subject_, version_text_buf_);
+    lv_subject_set_string(&version_text_subject_, version_text_buf_);
 }
 
 void UpdateChecker::on_language_changed() {
@@ -1278,7 +1288,7 @@ std::string UpdateChecker::get_download_path(DownloadPathDiag* diag,
     // We add both the install dir and its parent — both yield the same
     // f_bavail (same filesystem) but the parent helps when an installer
     // tightens permissions on the install dir itself.
-    const std::string install_root = app_get_install_root();
+    const std::string install_root = app_get_writable_install_root();
     if (!install_root.empty()) {
         candidates.emplace_back(install_root);
         const auto last_slash = install_root.find_last_of('/');
@@ -1493,7 +1503,7 @@ void UpdateChecker::report_download_status(DownloadStatus status, int progress,
         if (subjects_initialized_) {
             lv_subject_set_int(&download_status_subject_, static_cast<int>(status));
             lv_subject_set_int(&download_progress_subject_, progress);
-            lv_subject_copy_string(&download_text_subject_, text.c_str());
+            lv_subject_set_string(&download_text_subject_, text.c_str());
         }
     });
 }
@@ -1588,6 +1598,21 @@ void UpdateChecker::start_download() {
         report_download_status(DownloadStatus::Error, 0, lv_tr("Error: No update available"),
                                "No update information cached");
         TelemetryManager::instance().record_update_failure("no_cached_update", "",
+                                                           helix::platform::current_key());
+        return;
+    }
+
+    // Only a release from a manifest whose signature verified, with the hash that signature
+    // vouches for, is downloaded. A release found through the GitHub fallback carries neither:
+    // it can tell the user an update exists, never install it.
+    if (!helix::release_is_verified(*cached_info_)) {
+        const std::string version = cached_info_->version;
+        lock.unlock();
+        spdlog::error("[UpdateChecker] Download refused: v{} did not come from a signed manifest",
+                      version);
+        report_download_status(DownloadStatus::Error, 0, lv_tr("Error: Update can't be verified"),
+                               "The release list's signature could not be verified");
+        TelemetryManager::instance().record_update_failure("unsigned_manifest", version,
                                                            helix::platform::current_key());
         return;
     }
@@ -1888,7 +1913,7 @@ void UpdateChecker::do_download() {
         return;
     }
 
-    // Verify SHA256 hash if available (R2 manifest provides this; GitHub fallback does not)
+    // Verify the SHA-256 the signed manifest gave for this download
     {
         std::string expected_sha256;
         {
@@ -1898,7 +1923,14 @@ void UpdateChecker::do_download() {
         }
 
         if (expected_sha256.empty()) {
-            spdlog::info("[UpdateChecker] No SHA256 hash available, skipping verification");
+            spdlog::error("[UpdateChecker] No SHA256 hash for {}, refusing to install",
+                          download_path);
+            std::remove(download_path.c_str());
+            report_download_status(DownloadStatus::Error, 0, lv_tr("Error: Verification failed"),
+                                   "No checksum to verify the download against");
+            TelemetryManager::instance().record_update_failure("sha256_missing", version,
+                                                               helix::platform::current_key());
+            return;
         } else {
             report_download_status(DownloadStatus::Verifying, 100,
                                    lv_tr("Verifying SHA256 checksum..."));
@@ -2896,7 +2928,15 @@ void UpdateChecker::check_for_updates(Callback callback) {
     cached_channel_ = get_channel();
     auto* config = Config::get_instance();
     warn_legacy_update_url_keys(config);
-    cached_dev_url_ = helix::config_trust::read_update_urls().dev_url;
+    const auto update_urls = helix::config_trust::read_update_urls();
+    cached_dev_url_ = update_urls.dev_url;
+    cached_release_pubkey_ = update_urls.release_pubkey.empty()
+                                 ? std::string(helix::release_signature::kReleasePublicKey)
+                                 : update_urls.release_pubkey;
+    if (!update_urls.release_pubkey.empty()) {
+        spdlog::warn("[UpdateChecker] release manifests are checked against the key in "
+                     "update_urls.json, not the release key");
+    }
     cached_r2_base_url_ = effective_r2_base_url();
 
     spdlog::debug("[UpdateChecker] check_for_updates: channel={} dev_url='{}' r2_base_url='{}'",
@@ -3334,8 +3374,7 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
                 }
                 // The app's websocket drops with it and reconnects on its own; that
                 // rediscovery syncs again, finds the stanza matching, and stops.
-                EmergencyStopOverlay::instance().suppress_recovery_dialog(
-                    recovery_suppression::LONG);
+                helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
                 api_ptr->restart_moonraker(
                     []() {
                         spdlog::info(
@@ -3486,13 +3525,16 @@ constexpr const char* kExternalUpdateHandler = "external_update_restart";
 //   "proc_id":N, "message":"...", "complete":true/false}]
 // Method callbacks always receive the full JSON-RPC message.
 void handle_update_response(const json& msg) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty())
+    const json* payload = helix::json_util::notification_payload(msg);
+    if (!payload)
         return;
-    const auto& p = msg["params"][0];
-    if (!p.contains("application") || !p.contains("complete"))
+    const auto& p = *payload;
+    const json* application = helix::json_util::find_member(p, "application");
+    const json* complete_field = helix::json_util::find_member(p, "complete");
+    if (!application || !complete_field)
         return;
-    std::string app = p["application"].get<std::string>();
-    bool complete = p["complete"].get<bool>();
+    std::string app = application->get<std::string>();
+    bool complete = complete_field->get<bool>();
     if (app != "helixscreen")
         return;
     if (!complete) {
@@ -3506,6 +3548,20 @@ void handle_update_response(const json& msg) {
 }
 } // namespace
 
+void helix::request_update_manager_refresh(helix::IMoonrakerClient& client,
+                                           const std::string& name) {
+    client.send_jsonrpc(
+        "machine.update.refresh", json{{"name", name}},
+        [name](const json&) {
+            spdlog::info("[UpdateChecker] Moonraker refreshed its update status for {}", name);
+        },
+        [name](const MoonrakerError& err) {
+            spdlog::debug("[UpdateChecker] Moonraker update refresh of {} declined: {}", name,
+                          err.message);
+        },
+        0, /*silent=*/true);
+}
+
 void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
     {
         namespace fs = std::filesystem;
@@ -3517,19 +3573,8 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
             // Moonraker re-reads release_info.json only on a refresh, and its
             // own schedule can be a week apart, so Mainsail keeps showing the
             // version we just replaced. "helixscreen" is the update_manager
-            // section the installer writes; a missing or renamed section, or a
-            // print in progress, just gets an error back.
-            client.send_jsonrpc(
-                "machine.update.refresh", json{{"name", "helixscreen"}},
-                [](const json&) {
-                    spdlog::info("[UpdateChecker] Moonraker refreshed its HelixScreen "
-                                 "version after the update");
-                },
-                [](const MoonrakerError& err) {
-                    spdlog::debug("[UpdateChecker] Moonraker update refresh declined: {}",
-                                  err.message);
-                },
-                0, /*silent=*/true);
+            // section the installer writes.
+            helix::request_update_manager_refresh(client, "helixscreen");
         }
         // Legacy: best-effort under PrivateTmp (sees private /tmp,
         // not real /tmp — stale real sentinels cleaned on reboot)
@@ -3634,12 +3679,12 @@ void UpdateChecker::start_auto_check() {
                 }
 
                 if (self->subjects_initialized_) {
-                    lv_subject_copy_string(&self->release_notes_subject_,
-                                           info->release_notes.c_str());
+                    lv_subject_set_string(&self->release_notes_subject_,
+                                          info->release_notes.c_str());
                     lv_subject_set_int(&self->changelog_visible_subject_, 0);
                 }
 
-                self->show_update_notification();
+                helix::publish_ui_request({helix::UiRequestKind::ShowUpdateNotification});
             });
 
             // Convert to 24h periodic timer
@@ -3669,111 +3714,69 @@ void UpdateChecker::stop_auto_check() {
     }
 }
 
-// ============================================================================
-// Notification Modal Callbacks
-// ============================================================================
-
-static void on_update_notify_install(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_install");
-    spdlog::info("[UpdateChecker] User chose to install update");
-    UpdateChecker::instance().hide_update_notification();
-    helix::settings::get_updates_settings_overlay().show_update_download_modal(
-        /*start_immediately=*/true);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_update_notify_ignore(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_ignore");
-    spdlog::info("[UpdateChecker] User chose to ignore update");
-    UpdateChecker::instance().dismiss_current_version();
-    UpdateChecker::instance().hide_update_notification();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_update_notify_close(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_notify_close");
-    spdlog::info("[UpdateChecker] User closed update notification (remind later)");
-    UpdateChecker::instance().hide_update_notification();
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static void on_update_toggle_changelog(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[UpdateChecker] on_update_toggle_changelog");
-    auto* subject = UpdateChecker::instance().changelog_visible_subject();
-    int current = lv_subject_get_int(subject);
-    lv_subject_set_int(subject, current ? 0 : 1);
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-static bool s_notify_callbacks_registered = false;
-
-static void register_notify_callbacks() {
-    if (s_notify_callbacks_registered)
-        return;
-    lv_xml_register_event_cb(nullptr, "on_update_notify_install", on_update_notify_install);
-    lv_xml_register_event_cb(nullptr, "on_update_notify_ignore", on_update_notify_ignore);
-    lv_xml_register_event_cb(nullptr, "on_update_notify_close", on_update_notify_close);
-    lv_xml_register_event_cb(nullptr, "on_update_toggle_changelog", on_update_toggle_changelog);
-    s_notify_callbacks_registered = true;
-    spdlog::debug("[UpdateChecker] Notification callbacks registered");
-}
-
-void UpdateChecker::show_update_notification() {
-    spdlog::info("[UpdateChecker] Show update notification");
-    if (!notify_modal_) {
-        notify_modal_ = helix::ui::ComponentModal::show_owned("update_notify_modal");
-    }
-}
-
-void UpdateChecker::hide_update_notification() {
-    if (notify_modal_) {
-        helix::ui::modal_hide(notify_modal_);
-        notify_modal_ = nullptr;
-    }
-}
-
 std::string UpdateChecker::get_r2_base_url() const {
     return cached_r2_base_url_;
 }
 
-bool UpdateChecker::fetch_r2_manifest(const std::string& channel, ReleaseInfo& info,
-                                      std::string& error) {
+UpdateChecker::ManifestFetch UpdateChecker::fetch_r2_manifest(const std::string& channel,
+                                                              ReleaseInfo& info,
+                                                              std::string& error) {
     std::string base = get_r2_base_url();
     if (base.empty()) {
         error = "R2 base URL not configured";
-        return false;
+        return ManifestFetch::Unreachable;
     }
+    const auto result =
+        fetch_verified_manifest(base + "/" + channel + "/manifest.json", info, error);
+    if (result == ManifestFetch::Ok) {
+        spdlog::debug("[UpdateChecker] R2 manifest parsed: {} ({})", info.version, channel);
+    } else {
+        error = "R2 " + error;
+    }
+    return result;
+}
 
-    std::string manifest_url = base + "/" + channel + "/manifest.json";
-
-    spdlog::debug("[UpdateChecker] Requesting R2 manifest: {}", manifest_url);
+UpdateChecker::ManifestFetch UpdateChecker::fetch_verified_manifest(const std::string& manifest_url,
+                                                                    ReleaseInfo& info,
+                                                                    std::string& error) {
+    spdlog::debug("[UpdateChecker] Requesting manifest: {}", manifest_url);
     auto [status, body] = do_http_get(manifest_url);
 
     if (cancelled_)
-        return false;
+        return ManifestFetch::Unreachable;
 
     if (status == 0) {
         error = "Connection failed (" + manifest_url + ")";
-        return false;
+        return ManifestFetch::Unreachable;
     }
 
     if (status != 200) {
-        error = "R2 HTTP " + std::to_string(status);
-        return false;
+        error = "HTTP " + std::to_string(status) + " (" + manifest_url + ")";
+        return ManifestFetch::Unreachable;
     }
 
-    // Same schema as the dev channel manifest (generate-manifest.sh)
-    if (!helix::parse_release_manifest(body, info, error, this_build_release_asset_keys())) {
-        error = "R2 " + error;
-        return false;
+    const std::string sig_url = manifest_url + ".minisig";
+    auto [sig_status, sig_body] = do_http_get(sig_url);
+
+    if (cancelled_)
+        return ManifestFetch::Unreachable;
+
+    if (!helix::parse_signed_release_manifest(body, sig_status, sig_body, cached_release_pubkey_,
+                                              info, error, this_build_release_asset_keys())) {
+        spdlog::error("[UpdateChecker] {} refused: {}", manifest_url, error);
+        return ManifestFetch::Refused;
     }
-    spdlog::debug("[UpdateChecker] R2 manifest parsed: {} ({})", info.version, channel);
-    return true;
+    spdlog::info("[UpdateChecker] {} signature verified", manifest_url);
+    return ManifestFetch::Ok;
 }
 
 bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
-    if (fetch_r2_manifest("stable", info, error)) {
+    const auto r2 = fetch_r2_manifest("stable", info, error);
+    if (r2 == ManifestFetch::Refused) {
+        return false;
+    }
+    if (r2 == ManifestFetch::Ok) {
         // Enrich with full changelog from CHANGELOG.md on GitHub
         auto changelog = fetch_changelog_for_version(info.version);
         if (!changelog.empty()) {
@@ -3806,7 +3809,11 @@ bool UpdateChecker::fetch_stable_release(ReleaseInfo& info, std::string& error) 
 
 bool UpdateChecker::fetch_beta_release(ReleaseInfo& info, std::string& error) {
     // Try R2 CDN first (manifest has version/assets, but notes may be sparse)
-    if (fetch_r2_manifest("beta", info, error)) {
+    const auto r2 = fetch_r2_manifest("beta", info, error);
+    if (r2 == ManifestFetch::Refused) {
+        return false;
+    }
+    if (r2 == ManifestFetch::Ok) {
         // Enrich with full changelog from CHANGELOG.md on GitHub
         auto changelog = fetch_changelog_for_version(info.version);
         if (!changelog.empty()) {
@@ -3889,29 +3896,11 @@ bool UpdateChecker::fetch_dev_release(ReleaseInfo& info, std::string& error) {
         if (dev_url.back() != '/') {
             dev_url += '/';
         }
-        std::string manifest_url = dev_url + "manifest.json";
-
-        spdlog::debug("[UpdateChecker] Requesting (dev): {}", manifest_url);
-        auto [status, body] = do_http_get(manifest_url);
-
-        if (cancelled_)
-            return false;
-
-        if (status == 0) {
-            error = "Connection failed (" + manifest_url + ")";
-            return false;
-        }
-
-        if (status != 200) {
-            error = "HTTP " + std::to_string(status) + " (" + manifest_url + ")";
-            return false;
-        }
-
-        return helix::parse_release_manifest(body, info, error, this_build_release_asset_keys());
+        return fetch_verified_manifest(dev_url + "manifest.json", info, error) == ManifestFetch::Ok;
     }
 
     // No explicit dev_url -- use R2 default
-    return fetch_r2_manifest("dev", info, error);
+    return fetch_r2_manifest("dev", info, error) == ManifestFetch::Ok;
 }
 
 void UpdateChecker::report_fetched_release(ReleaseInfo info, const std::string& current_version) {
@@ -3976,11 +3965,11 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
                 if (status == Status::UpdateAvailable && info) {
                     shown_ = {status, info->version, info->is_downgrade, ""};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, info->version.c_str());
+                    lv_subject_set_string(&new_version_subject_, info->version.c_str());
                 } else if (status == Status::UpToDate) {
                     shown_ = {status, "", false, ""};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, "");
+                    lv_subject_set_string(&new_version_subject_, "");
                 } else if (status == Status::Error) {
                     // An Error carrying a release means the release is the problem:
                     // it has no build for this board.
@@ -3988,7 +3977,7 @@ void UpdateChecker::report_result(Status status, std::optional<ReleaseInfo> info
                     shown_ = {status, no_build ? info->version : "", false, no_build ? "" : error,
                               no_build};
                     render_version_text();
-                    lv_subject_copy_string(&new_version_subject_, "");
+                    lv_subject_set_string(&new_version_subject_, "");
                 }
             }
 

@@ -33,7 +33,7 @@ The U1 does **not** use the standard [viesturz/klipper-toolchanger](https://gith
 
 HelixScreen needs exactly one thing from the firmware: **SSH access** (to deploy and to install its boot hook). Both stock and community firmware can provide it — HelixScreen does **not** require PAXX.
 
-- **Stock Snapmaker firmware (1.2+)** ships the `dropbear` SSH server. It is disabled by default and gated behind the printer's root/developer-access mode: `/etc/init.d/S50dropbear` exits early unless `custom_misc vertype` reports `dbg`. Snapmaker added a user-facing **Root access** option in firmware **V1.2.0**; enabling it (or flashing debug mode via `custom_misc gen-debug`, which persists across upgrades) starts dropbear with the standard `root` / `lava` accounts, password `snapmaker`. That is the exact SSH path HelixScreen uses — **stock firmware is supported.**
+- **Stock Snapmaker firmware (1.2+)** ships the `dropbear` SSH server. It is disabled by default and gated behind the printer's root/developer-access mode: `/etc/init.d/S50dropbear` exits early unless `custom_misc vertype` reports `dbg`. Snapmaker added a user-facing **Root access** option in firmware **V1.2.0**; enabling it (or flashing debug mode via `custom_misc gen-debug`, which persists across upgrades) starts dropbear with the standard `root` / `lava` accounts, password `snapmaker`. That is the exact SSH path HelixScreen uses — **stock firmware is supported.** On stock firmware the `S50dropbear` vertype gate means the init script alone never starts SSH on a release build: when **Root access** is on, the stock GUI starts dropbear with `S50dropbear start --force` on every boot. With the stock GUI disabled, nothing would, so HelixScreen's platform hook does it instead (`assets/config/platform/hooks-snapmaker-u1.sh#ensure_root_ssh`, which reads the same `open_root` setting from `<printer_data>/config/gui_config.json`).
 - **PAXX Extended Firmware** is *repackaged stock firmware* plus an overlay of patches. It removes the dropbear debug-mode gate (SSH on by default) and bundles extras HelixScreen does not use — Tailscale, OctoEverywhere, WebRTC camera, a `/firmware-config/` web UI, RFID filament write-back, etc. It is the turnkey option if you'd rather not enable stock root access yourself, but it is **not** a HelixScreen requirement.
 
 | Firmware | SSH | Status | Boot launcher HelixScreen hooks |
@@ -85,7 +85,7 @@ Both changes live in the persistent overlay upper and survive reboot via `/oem/.
 
 ## Cross-Compilation
 
-The U1 target uses the same aarch64 cross-compiler as the Raspberry Pi, with fully static linking to avoid glibc version dependencies.
+The U1 target uses the same aarch64 cross-compiler as the Raspberry Pi. libstdc++ and libgcc are linked statically; libc and libdrm come from the printer.
 
 ### Build via Docker (Recommended)
 
@@ -94,12 +94,12 @@ The U1 target uses the same aarch64 cross-compiler as the Raspberry Pi, with ful
 make snapmaker-u1-docker
 ```
 
-The Docker image (`docker/Dockerfile.snapmaker-u1`) is based on Debian Trixie with `crossbuild-essential-arm64`. It uses Debian's `aarch64-linux-gnu` toolchain with static linking for a self-contained binary.
+The Docker image (`docker/Dockerfile.snapmaker-u1`) is based on Debian Trixie with `crossbuild-essential-arm64`. It uses Debian's `aarch64-linux-gnu` toolchain.
 
 ### Build Directly (Requires Toolchain)
 
 ```bash
-make PLATFORM_TARGET=snapmaker-u1 -j
+make snapmaker-u1
 ```
 
 ### Build Configuration
@@ -112,7 +112,7 @@ make PLATFORM_TARGET=snapmaker-u1 -j
 | Display backend | DRM/KMS (`/dev/dri/card0`, double-buffered page flipping) |
 | Input | evdev (auto-detected) |
 | SSL | Enabled |
-| Optimization | `-Os` (size-optimized) |
+| Optimization | `-Os -flto` (size-optimized) |
 | Platform define | `HELIX_PLATFORM_SNAPMAKER_U1` |
 
 ### CI/Release Status
@@ -184,7 +184,7 @@ The deploy target automatically:
 ### What Happens on Deploy
 
 1. DRM keepalive: a background process opens `/dev/dri/card0` to prevent CRTC teardown
-2. The stock UI process (`gui`) is killed, and the installer disables its binary (`chmod -x /usr/bin/gui`) so no launcher can relaunch it. `lmd` (the camera/timelapse supervisor) is left running — killing it would break timelapse.
+2. The stock UI process (`gui`) is killed, and the installer disables its binary (`chmod -x /usr/bin/gui`) so no launcher can relaunch it. `lmd` is left running: it supervises `gui`, `unisrv` (camera, MQTT and timelapse) and `flow_calc_server` (flow calibration), so killing it would take those down too. With `gui` not executable, `lmd` logs `execv(/usr/bin/gui) failed: Permission denied` and retries it every few seconds for as long as the printer is up; the retries are harmless noise.
 3. HelixScreen starts as DRM master with double-buffered page flipping
 4. The DRM keepalive process exits once HelixScreen has the DRM device open
 5. The first-run wizard appears (language selection, printer connection setup)
@@ -197,7 +197,7 @@ To restore the stock Snapmaker touchscreen UI, run the uninstaller — it re-ena
 ssh root@<printer-ip> "curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall; reboot"
 ```
 
-> **A bare `rm -rf /userdata/helixscreen` is no longer sufficient.** The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) so neither firmware's launcher can start it; removing HelixScreen without re-enabling the binary leaves a black screen. If you can't run the uninstaller, revert manually:
+> **A bare `rm -rf /userdata/helixscreen` is not enough.** The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) so neither firmware's launcher can start it; removing HelixScreen without re-enabling the binary leaves a black screen. If you can't run the uninstaller, revert manually:
 >
 > ```bash
 > ssh root@<printer-ip> "killall helix-screen helix-watchdog 2>/dev/null; chmod +x /usr/bin/gui; rm -rf /userdata/helixscreen; reboot"
@@ -215,7 +215,7 @@ This is the current deployment method used by `make deploy-snapmaker-u1`:
 
 1. Enable SSH: the **Root access** option on stock firmware 1.2+, or [PAXX Extended Firmware](https://github.com/paxx12-snapmaker-u1/SnapmakerU1-Extended-Firmware) (SSH on by default). See [Firmware Requirements](#firmware-requirements)
 2. Deploy via `make deploy-snapmaker-u1 SNAPMAKER_U1_HOST=<ip>`
-3. The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) and hooks the firmware's own boot launcher (`S99screen`, `S99fb-http` or `S99input-event-daemon`, preserved as `*.stock`; see [How HelixScreen takes over the display](#how-helixscreen-takes-over-the-display)); HelixScreen starts on `/dev/fb0`. `lmd` (camera/timelapse supervisor) keeps running.
+3. The installer disables the stock UI binary (`chmod -x /usr/bin/gui`) and hooks the firmware's own boot launcher (`S99screen`, `S99fb-http` or `S99input-event-daemon`, preserved as `*.stock`; see [How HelixScreen takes over the display](#how-helixscreen-takes-over-the-display)); HelixScreen starts on `/dev/fb0`. `lmd` (supervisor of `gui`, `unisrv` and `flow_calc_server`) keeps running.
 
 **To revert**: run the uninstaller (re-enables `/usr/bin/gui` and restores the launcher), or manually `chmod +x /usr/bin/gui && rm -rf /userdata/helixscreen`, then reboot. The stock UI binary is on the read-only SquashFS rootfs and is only disabled, never deleted — but note that the init-script changes and the binary's exec bit **are** modified (in the reversible overlay), so a plain reboot alone will not bring the stock UI back.
 
@@ -251,7 +251,7 @@ HelixScreen uses the DRM backend for double-buffered page flipping on `/dev/dri/
 
 **The CRTC keepalive problem**: The stock UI (`/usr/bin/gui`) holds DRM master. When gui exits, the kernel's VOP2 driver calls `vop2_crtc_atomic_disable`, permanently disabling the display until reboot. The MCU panel driver only creates modes during the initial boot sequence — once the CRTC is disabled, there's no way to re-enable it.
 
-**The solution**: The platform hooks (`config/platform/hooks-snapmaker-u1.sh`) spawn a background process that holds `/dev/dri/card0` open *before* killing gui. This prevents the kernel from tearing down the CRTC when gui exits. HelixScreen then opens the DRM device itself and becomes DRM master. The keepalive process detects that HelixScreen has the device open and exits — but the CRTC stays active because HelixScreen now holds the fd.
+**The solution**: The platform hooks (`assets/config/platform/hooks-snapmaker-u1.sh`) spawn a background process that holds `/dev/dri/card0` open *before* killing gui. This prevents the kernel from tearing down the CRTC when gui exits. HelixScreen then opens the DRM device itself and becomes DRM master. The keepalive process detects that HelixScreen has the device open and exits — but the CRTC stays active because HelixScreen now holds the fd.
 
 **Critical implementation notes**:
 - The keepalive MUST be a background subshell (`(exec 3>/dev/dri/card0; ...) &`), not a shell fd (`exec 7>`). Shell fds die when the init script exits, but background processes survive.
@@ -271,19 +271,24 @@ HelixScreen auto-detects the sysfs backlight device (`/sys/class/backlight/backl
 
 ## Auto-Detection
 
-HelixScreen auto-detects the Snapmaker U1 using 17 heuristics from `config/printer_database.json`:
+HelixScreen auto-detects the Snapmaker U1 using 21 heuristics from `assets/config/printer_database.json`:
 
 | Heuristic | Confidence | Description |
 |-----------|------------|-------------|
 | `fm175xx_reader` object | 99 | FM175xx RFID reader -- definitive U1 signature |
-| `FILAMENT_DT_UPDATE` macro | 95 | RFID filament detection macro (extended firmware) |
-| `FILAMENT_DT_QUERY` macro | 95 | RFID filament query macro (extended firmware) |
+| `homing_precise_corexy` object | 99 | Snapmaker's homing module |
+| `FILAMENT_DT_UPDATE` / `FILAMENT_DT_QUERY` macros | 95 | RFID filament detection macros |
+| `extruder_offset_calibration`, `filament_entangle_detect` objects | 95 | Snapmaker modules |
 | Hostname `u1` | 90 | Hostname contains "u1" |
+| `machine_state_manager` object, `FEEDING_RUNOUT_EVENT_HANDLE` / `EXTRUDER_OFFSET_ACTION_PROBE_CALIBRATE_ALL` macros | 90 | Snapmaker modules and macros |
 | Hostname `snapmaker` | 85 | Hostname contains "snapmaker" |
+| `defect_detection`, `purifier` objects | 80-85 | Snapmaker modules |
+| Four tool heaters | 75 | `tool_count` |
+| `e1_fan` / `e2_fan` / `e3_fan` | 70 | Per-head fans |
 | `tmc2240` object | 60 | TMC2240 stepper driver presence |
-| CoreXY kinematics | 40 | CoreXY motion system |
-| Cartesian kinematics | 20 | Cartesian motion system |
-| _(+9 additional heuristics)_ | various | Tool state, extruder naming, custom macros, motion parameters, etc. |
+| Build volume | 50 | Bed mesh range |
+| CoreXY kinematics | 30 | CoreXY motion system |
+| aarch64 CPU | 10 | Host architecture |
 
 No manual printer configuration is needed in most cases. The FM175xx RFID reader is the strongest signal -- it is unique to the U1 and provides near-certain identification.
 
@@ -414,7 +419,7 @@ These are resolution-specific issues, not Snapmaker-specific. Any 480x320 device
 - **Auto-start requires `/oem/.debug`** -- The overlay filesystem is wiped on boot unless `/oem/.debug` exists. This flag must be created once during installation to persist the boot-launcher hook (see [How HelixScreen takes over the display](#how-helixscreen-takes-over-the-display)).
 - **WiFi management** -- Stopping `unisrv` (stock UI) does not affect WiFi — the U1 uses standard `wpa_supplicant` managed by the OS. HelixScreen has its own WiFi manager with `wpa_supplicant` support.
 - **Remote screen ("gui" webcam)** -- Wired up via the U1 platform hook (`assets/config/platform/hooks-snapmaker-u1.sh`): `start_remote_screen` launches the firmware's `fb-http` tool on every HelixScreen start (so it survives the overlay boot-glob trap for free — the hook already runs on every boot), gated on the PAXX `web remote_screen` toggle. **The working path is fbdev + the in-app fb0 mailbox mirror.** Every shipping `fb-http` (on-device build, mainline `paxx12/screen-apps`, and the exact commit the Extended-Firmware submodule pins) reads `/dev/fb0` and exposes only `--port/--bind/--fb/--touch/--html-dir`; **no `fb-http` with a DRM backend exists in any public/shipping source** (verified 2026-07-09). HelixScreen renders into its own DRM dumb buffer and never touches `/dev/fb0`, so on its own the fbdev daemon would serve a stale frame — the hook therefore exports `HELIX_REMOTE_SCREEN_FB0=/dev/fb0` on the fbdev path, and HelixScreen mirrors each rendered frame into `/dev/fb0` (`RemoteScreenManager`/`Fb0MailboxSink`, tapped from the flush hook), so `fb-http`'s snapshot is the live UI. Hardware-verified 2026-07-09: fb0 is decoupled from the DRM scanout (writing to it does not disturb the panel), BGRA maps straight through (plain memcpy), and the served snapshot matched what was written. The hook still **probes** the tool (`_remote_screen_backend_args`) and would prefer a `--backend drm` capture path *if* a DRM-capable `fb-http` ever ships (no mirror needed then) — but that is dormant/forward-looking today. nginx `/screen/` route (`/etc/nginx/fluidd.d/remote-screen.conf`) and the `[webcam gui]` Moonraker slot are provided by the firmware — but the `[webcam gui]` section ships **commented out** in `extended/moonraker/04_remote_screen.cfg`. Setting `web remote_screen` in `extended2.cfg` alone only gates fb-http startup; the firmware-config web UI toggle (/usr/local/share/firmware-config/functions/12_settings_remote_screen.yaml) is what uncomments `[webcam gui]`, sets `enabled: true`, and restarts `S99fb-http` (= HelixScreen, via the hijacked delegate) plus Moonraker. Enabling by hand requires replicating all of that (`extended-config.py add/uncomment/update` + both restarts).
-- **Two benign Moonraker warnings on buildroot** -- After install, Mainsail/Fluidd surface *"Unable to find DBus PolKit Interface"* (Moonraker's always-loaded `machine` component on a no-PolKit OS) and *"Unable to initialize System Update Provider for distribution: buildroot"* (Moonraker's `update_manager` initializes a system/OS package provider by default, which can't detect apt/PackageKit on buildroot). The PolKit one is not ours — it's inherent to Moonraker on buildroot and re-surfaces because our installer restarts Moonraker. The system-update one is triggered by us adding `[update_manager helixscreen]` (loading the component pulls in the default system provider); it can be silenced with a top-level `[update_manager]` / `enable_system_updates: False`, which doesn't affect HelixScreen's own one-click updater. Both are harmless. Same condition applies to K1/K2 (also buildroot).
+- **Two benign Moonraker warnings on buildroot** -- After install, Mainsail/Fluidd surface *"Unable to find DBus PolKit Interface"* (Moonraker's always-loaded `machine` component on a no-PolKit OS) and *"Unable to initialize System Update Provider for distribution: buildroot"* (Moonraker's `update_manager` initializes a system/OS package provider by default, which can't detect apt/PackageKit on buildroot). The PolKit one is not ours — it's inherent to Moonraker on buildroot and re-surfaces because our installer restarts Moonraker. The system-update one appears whenever Moonraker loads the `update_manager` component without `enable_system_updates: False`. Stock U1 Moonraker loads no `update_manager` at all (`/machine/update/status` returns 404), so nothing triggers it until the installer runs. The U1's Moonraker still ships the old zip updater module (no `asset_name` support, #993), so `configure_moonraker_updates` never writes `[update_manager helixscreen]` there: it removes a stale one if present, then `disable_system_updates_on_buildroot` adds a bare `[update_manager]` with `enable_system_updates: False` (stock: creates the section; where one exists, merges the key into it; a PAXX rig ends up with exactly that and no helixscreen section). In-app updates are HelixScreen's own updater. Both are harmless. Same condition applies to K1/K2 (also buildroot).
 
 ## Future Work
 
@@ -428,7 +433,7 @@ These are resolution-specific issues, not Snapmaker-specific. Any 480x320 device
 
 **Remote control — working (verified 2026-07-12, #1091).** `fb-http` also injects touch to `/dev/input/event0` via its `/touch` endpoint (nginx `/screen/touch`), and remote *control* works end-to-end for free. HelixScreen opens `event0` through LVGL's evdev driver (`src/platform/display/display_backend_drm.cpp#create_input_pointer`) and does **not** `EVIOCGRAB` it, so it sees `fb-http`'s injected events. `fb-http` defaults its touch device to `/dev/input/event0` (no `--touch` flag needed) and scales browser clicks 1:1 (the TLSC6x reports `ABS_MT` in the same 480×320 space as the framebuffer). Verified on-device (v0.99.88, printer idle): synthetic taps at the Settings gear, Help & About row, and home-nav icon each landed on the intended element in the rendered snapshot — no offset, no inversion. The browser client (/usr/local/share/fb-http/html/index.html) maps clicks to native image coordinates via `getImageCoords` and POSTs `down`/`move`/`up`. PNG snapshot is poll-based, not a continuous MJPEG stream.
 
-> **Rotation caveat.** This works because the U1 auto-probes `"rotate": 0` (no display rotation). fb-http serves the *rendered* (display-space) frame, and LVGL re-rotates every incoming `event0` point via `lv_display_rotate_point` (`lvgl/src/display/lv_display.c`) whenever a rotation is active. At `rotate == 0` that transform is identity, so injected coordinates pass straight through. **At a non-zero rotation, injected taps would be double-transformed (point-symmetric-inverted)** — fb-http can't know HelixScreen's rotation, and we don't own it. The rotation-robust path is the in-process touch injection tracked by **#1032** (inject past the evdev round-trip, after rotation), not the fb-http path. The U1's panel is fixed-mount and probes to 0 in practice, so this is a latent limitation, not an active bug.
+> **Rotation caveat.** This works because the U1 auto-probes `"rotate": 0` (no display rotation). fb-http serves the *rendered* (display-space) frame, and LVGL re-rotates every incoming `event0` point via `lv_display_rotate_point` (`lib/lvgl/src/display/lv_display.c`) whenever a rotation is active. At `rotate == 0` that transform is identity, so injected coordinates pass straight through. **At a non-zero rotation, injected taps would be double-transformed (point-symmetric-inverted)** — fb-http can't know HelixScreen's rotation, and we don't own it. The rotation-robust path is the in-process touch injection tracked by **#1032** (inject past the evdev round-trip, after rotation), not the fb-http path. The U1's panel is fixed-mount and probes to 0 in practice, so this is a latent limitation, not an active bug.
 
 ### Extended Firmware Overlay
 
@@ -538,7 +543,7 @@ Subscribed only when `mmu_type()` reports SnapSwap; the screws-tilt code reads i
 
 ### `defect_detection` — Print defect detection (NOT SUBSCRIBED)
 
-AI-based print defect detection system. The status object itself is not subscribed (it is queried once per connect for the bed check's state); HelixScreen consumes detection through `print_stats.exception` instead: on a confirmed defect (custom `exception` sub-object, `code: 2` = spaghetti/noodle) the firmware pauses the print itself, and `U1StockSource` reports it to `DetectionManager` (`include/detection_manager.h`) with `already_paused` set. Sources only report: `DetectionManager::response_for()` classifies the event from the settings in Settings > Safety & Alerts (**Spaghetti Detection**, exposed to XML as the `detection_available` subject). **Pause on Detection** is hidden on a U1 (the `detection_pause_applicable` subject is 0): the firmware pauses by itself and no HelixScreen setting can prevent that, so the row only exists for sources whose pause HelixScreen sends. Every confirmed U1 detection therefore shows the response modal (Resume / Abort / Tune / Turn off detection) even under a warn-only policy: a print the firmware already paused cannot be left on a vanishing toast. The first capable start seeds the Spaghetti Detection settings with the defaults (detection on) and they are HelixScreen's from then on. Capability is gated by probing `printer.objects.list` for `defect_detection` after the WebSocket connects (probing at init would latch false forever).
+AI-based print defect detection system. The status object itself is not subscribed (it is queried once per connect for the bed check's state); HelixScreen consumes detection through `print_stats.exception` instead: on a confirmed defect (custom `exception` sub-object, `code: 2` = spaghetti/noodle) the firmware pauses the print itself, and `U1StockSource` reports it to `DetectionManager` (`include/detection_manager.h`) with `already_paused` set. Sources only report: `DetectionManager::response_for()` classifies the event from the settings in Settings > Safety & Alerts (**Spaghetti Detection**, exposed to XML as the `detection_available` subject). **Pause on Detection** is hidden on a U1 (the `detection_pause_applicable` subject is 0): the firmware pauses by itself and no HelixScreen setting can prevent that, so the row only exists for sources whose pause HelixScreen sends. Every confirmed U1 detection therefore shows the response modal (Resume / Abort / Tune / Turn off detection) even under a warn-only policy: a print the firmware already paused cannot be left on a vanishing toast. The first capable start seeds the Spaghetti Detection settings with the defaults (detection on) and they are HelixScreen's from then on. The switch reaches the printer: `DetectionManager::set_detection_enabled()` (the settings toggle and the modal's Turn off detection) always sends `DEFECT_DETECTION_CONFIG NOODLE_ENABLE=0|1` through `U1StockSource::apply_detection_enabled()`, so with detection off the firmware stops pausing prints rather than pausing them silently. After each capability probe, `DetectionManager::reconcile_detection_enabled()` reads `noodle.enable` from a `printer.objects.query` and sends only when it differs from the setting: each send rewrites the module's config file, and enabling a feature mid-print turns the cavity LED on. Capability is gated by probing `printer.objects.list` for `defect_detection` after the WebSocket connects (probing at init would latch false forever).
 
 **Bed clear check (code 1).** Before a print the module runs the camera's `item` detection over the bed (`DEFECT_DETECTION_DETECT_BED`); when it scores above its threshold it raises exception 532 code 1 "detected dirty bed", pauses, and deactivates `virtual_sdcard`, so the print cannot resume. False positives happen on a clear bed. `U1StockSource` reports it as a `DirtyBed` event and `present_detection()` shows the bed check modal (Restart print / Cancel print / Turn off bed check) whatever the Spaghetti Detection settings say, since the print needs a decision either way. Restart takes the same path as the "Print Was Terminated" restart (`helix::ui::restart_print_from_beginning()`): `SDCARD_RESET_FILE` + `CANCEL_PRINT_BASE`, then the file again. The source also answers `explains_current_pause()` for any 532 defect pause, which keeps the runout guidance dialog and the "Filament Runout" pause reason away from it (`include/non_filament_pause.h`). The check is switched with `DEFECT_DETECTION_CONFIG CLEAN_BED_ENABLE=0|1`, which the firmware persists in its own config file; its `get_status()` returns that same stored config, so the **Bed Clear Check** row in Settings > Safety & Alerts reads `clean_bed.enable` from a `printer.objects.query` after each capability probe instead of assuming a default. The `defect_detection/config` webhook only writes: it returns nothing to read back.
 

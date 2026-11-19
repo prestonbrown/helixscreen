@@ -83,6 +83,13 @@ class ActionPromptLayoutFixture : public LVGLUITestFixture {
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
     }
 
+    /// A synchronous layout pass over the screen and the dialog, so geometry settles.
+    void settle_layout() {
+        lv_obj_update_layout(test_screen());
+        if (lv_obj_t* dialog = modal_.dialog())
+            lv_obj_update_layout(dialog);
+    }
+
     helix::ui::ActionPromptModal modal_;
     bool prev_animations_ = true;
 };
@@ -95,16 +102,16 @@ class ActionPromptLayoutFixture : public LVGLUITestFixture {
 TEST_CASE_METHOD(ActionPromptLayoutFixture, "ActionPromptModal: 4 regular buttons fit on one row",
                  "[action_prompt][layout][ui_integration]") {
     auto data = make_regular_prompt(4);
+    // A title past the title's 511 bytes is cut before a 2-byte character, never inside it.
+    data.title = std::string(510, 'a') + "\xC3\xA9";
     REQUIRE(modal_.show_prompt(test_screen(), data));
-
-    // Force a synchronous layout pass on the whole tree so geometry settles.
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(modal_.dialog(), "dialog_title"))) ==
+          std::string(510, 'a'));
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 4);
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(modal_.dialog(), "footer_divider")));
 
     // All four buttons must be on the SAME visual row. If the 4th wraps, its y
     // jumps down by ~one button-height (>= ~48px) — far outside this tolerance.
@@ -136,10 +143,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     data.buttons.push_back({"Cancel", "CANCEL", "error", "", false, -1});
 
     REQUIRE(modal_.show_prompt(test_screen(), data));
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 3);
@@ -180,13 +184,11 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     data.buttons.push_back({"Cancel", "AFC_CALIBRATION CANCEL=1", "error", "", true, -1});
 
     REQUIRE(modal_.show_prompt(test_screen(), data));
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 6); // 5 regular + 1 footer
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(modal_.dialog(), "footer_divider")));
 
     // Every regular button must be able to show its label in full.
     for (size_t i = 0; i < 5; ++i) {
@@ -222,10 +224,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     }
 
     REQUIRE(modal_.show_prompt(test_screen(), data));
-    lv_obj_update_layout(test_screen());
-    if (lv_obj_t* dialog = modal_.dialog()) {
-        lv_obj_update_layout(dialog);
-    }
+    settle_layout();
 
     const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
     REQUIRE(btns.size() == 7);
@@ -515,7 +514,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     }
     lv_obj_t* scroll = lv_obj_find_by_name(dialog, "prompt_scroll");
     REQUIRE(scroll != nullptr);
-    CHECK(lv_obj_has_flag(scroll, LV_OBJ_FLAG_SCROLLABLE));
+    CHECK(lv_obj_is_scrollable(scroll));
     CHECK(lv_obj_get_scroll_bottom(scroll) > 0);
 
     lv_area_t card, footer_area;

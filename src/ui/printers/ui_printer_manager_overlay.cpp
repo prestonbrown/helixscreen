@@ -3,7 +3,6 @@
 #include "ui_printer_manager_overlay.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_event_safety.h"
 #include "ui_keyboard_manager.h"
 #include "ui_nav.h"
 #include "ui_overlay_printer_image.h"
@@ -91,43 +90,6 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
     // Find name editing widgets (visibility driven by pm_name_editing subject via XML bindings)
     name_input_ = helix::ui::find_required(overlay_root_, "pm_printer_name_input", get_name());
 
-    // Register READY/CANCEL on textarea for name edit lifecycle
-    // (acceptable exception to declarative rule — textarea lifecycle event, like DELETE cleanup)
-    if (name_input_) {
-        lv_obj_add_event_cb(
-            name_input_,
-            [](lv_event_t*) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[PrinterManagerOverlay] name_input_ready");
-                get_printer_manager_overlay().finish_name_edit();
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_READY, nullptr);
-        lv_obj_add_event_cb(
-            name_input_,
-            [](lv_event_t*) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[PrinterManagerOverlay] name_input_cancel");
-                get_printer_manager_overlay().cancel_name_edit();
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CANCEL, nullptr);
-    }
-
-    // Clicking anywhere in the body while editing saves and dismisses the input.
-    // LVGL DEFOCUSED events don't fire reliably on touchscreens, so we use a
-    // click handler on the body instead; the body's containers (the scrolling
-    // details column among them) set event_bubble so a tap on them lands here.
-    if (auto* content = helix::ui::find_required(overlay_root_, "overlay_content", get_name())) {
-        lv_obj_add_event_cb(
-            content,
-            [](lv_event_t*) {
-                auto& pm = get_printer_manager_overlay();
-                if (lv_subject_get_int(&pm.name_editing_) != 0) {
-                    pm.finish_name_edit();
-                }
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
 #if defined(HELIX_PLATFORM_ESP32)
     // The ESP32 image has no camera, so timelapse is unavailable whatever the
     // printer reports. That is a compile-time fact no subject carries, so the
@@ -135,7 +97,7 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
     if (auto* timelapse_chip =
             helix::ui::find_required(overlay_root_, "pm_chip_timelapse", get_name())) {
         // DECLARATIVE_OK: compile-time capability (#if), no runtime subject exists
-        lv_obj_add_flag(timelapse_chip, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(timelapse_chip, true);
     }
 #endif
 
@@ -148,6 +110,22 @@ lv_obj_t* PrinterManagerOverlay::create(lv_obj_t* parent) {
 
 void PrinterManagerOverlay::register_callbacks() {
     register_xml_callbacks({
+        // The name input's keyboard OK saves the edit, and its cancel drops it
+        {"pm_name_input_ready",
+         [](lv_event_t*) { get_printer_manager_overlay().finish_name_edit(); }},
+        {"pm_name_input_cancel",
+         [](lv_event_t*) { get_printer_manager_overlay().cancel_name_edit(); }},
+        // A tap anywhere in the body while editing saves and dismisses the input.
+        // DEFOCUSED does not fire reliably on touchscreens; the body's containers
+        // (the scrolling details column among them) set event_bubble so a tap on
+        // them lands here.
+        {"pm_body_clicked",
+         [](lv_event_t*) {
+             auto& pm = get_printer_manager_overlay();
+             if (lv_subject_get_int(&pm.name_editing_) != 0) {
+                 pm.finish_name_edit();
+             }
+         }},
         {"pm_chip_clicked",
          [](lv_event_t* e) {
              auto* chip = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
@@ -165,19 +143,17 @@ void PrinterManagerOverlay::register_callbacks() {
         {"on_change_printer_image_clicked",
          [](lv_event_t*) {
              spdlog::debug("[Printer Manager] Printer image clicked, opening image picker");
-             helix::settings::get_printer_image_overlay().show(
-                 lv_display_get_screen_active(nullptr));
+             helix::settings::get_printer_image_overlay().show(lv_screen_active());
          }},
         {"on_change_printer_model_clicked",
          [](lv_event_t*) {
              spdlog::debug("[Printer Manager] Printer model clicked, opening model picker");
-             helix::settings::get_printer_type_overlay().show(
-                 lv_display_get_screen_active(nullptr));
+             helix::settings::get_printer_type_overlay().show(lv_screen_active());
          }},
         {"pm_manage_printers_clicked",
          [](lv_event_t*) {
              spdlog::info("[Printer Manager] Manage Printers clicked, opening printer list");
-             helix::ui::get_printer_list_overlay().show(lv_display_get_screen_active(nullptr));
+             helix::ui::get_printer_list_overlay().show(lv_screen_active());
          }},
     });
 }
@@ -229,13 +205,13 @@ void PrinterManagerOverlay::finish_name_edit() {
     // Update subjects to reflect new name (local overlay + global PrinterState + image widget)
     std::strncpy(name_buf_, name_str.c_str(), sizeof(name_buf_) - 1);
     name_buf_[sizeof(name_buf_) - 1] = '\0';
-    lv_subject_copy_string(&printer_manager_name_, name_buf_);
+    lv_subject_set_string(&printer_manager_name_, name_buf_);
     get_printer_state().set_active_printer_name(name_str);
 
     // Update the printer image widget's name subject directly
     auto* type_subject = lv_xml_get_subject(nullptr, "printer_type_text");
     if (type_subject) {
-        lv_subject_copy_string(type_subject, name_str.c_str());
+        lv_subject_set_string(type_subject, name_str.c_str());
     }
 
     // Toggle back to viewing mode — XML bind_flag_if_eq handles visibility
@@ -300,19 +276,19 @@ void PrinterManagerOverlay::refresh_printer_info() {
     std::string name = helix::get_printer_display_name();
     std::strncpy(name_buf_, name.c_str(), sizeof(name_buf_) - 1);
     name_buf_[sizeof(name_buf_) - 1] = '\0';
-    lv_subject_copy_string(&printer_manager_name_, name_buf_);
+    lv_subject_set_string(&printer_manager_name_, name_buf_);
 
     // Printer model/type from config
     std::string model = config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "");
     std::strncpy(model_buf_, model.c_str(), sizeof(model_buf_) - 1);
     model_buf_[sizeof(model_buf_) - 1] = '\0';
-    lv_subject_copy_string(&printer_manager_model_, model_buf_);
+    lv_subject_set_string(&printer_manager_model_, model_buf_);
 
     // HelixScreen version
     const char* version = helix_version();
     std::strncpy(version_buf_, version, sizeof(version_buf_) - 1);
     version_buf_[sizeof(version_buf_) - 1] = '\0';
-    lv_subject_copy_string(&helix_version_, version_buf_);
+    lv_subject_set_string(&helix_version_, version_buf_);
 
     spdlog::debug("[{}] Refreshed: name='{}', model='{}', version='{}'", get_name(), name_buf_,
                   model_buf_, version_buf_);
@@ -352,11 +328,11 @@ void PrinterManagerOverlay::refresh_capability_chips() {
         const auto i = static_cast<size_t>(spec.chip);
         const std::string text = capability_chip_text(spec.chip, facts);
         if (text != chip_text_bufs_[i].data()) {
-            lv_subject_copy_string(&chip_text_[i], text.c_str());
+            lv_subject_set_string(&chip_text_[i], text.c_str());
         }
     }
 
-    auto set_if_changed = [](lv_subject_t& subject, bool value) {
+    auto set_if_changed = [](helix::Subject& subject, bool value) {
         if (lv_subject_get_int(&subject) != (value ? 1 : 0)) {
             lv_subject_set_int(&subject, value ? 1 : 0);
         }

@@ -3,11 +3,8 @@
 
 #include "ui_wizard_summary.h"
 
-#include "ui_event_safety.h"
-#include "ui_modal.h"
-#include "ui_subject_registry.h"
-#include "ui_telemetry_info_modal.h"
-#include "ui_toast_manager.h"
+#include "ui_settings_system.h"
+#include "ui_settings_updates.h"
 #include "ui_wizard.h"
 #include "ui_wizard_input_shaper.h"
 #include "ui_wizard_telemetry.h"
@@ -20,15 +17,15 @@
 #include "core/static_panel_registry.h"
 #include "filament_sensor_manager.h"
 #include "lvgl/lvgl.h"
+#include "system/subject_registry.h"
+#include "system/update_checker.h"
 #include "system_settings_manager.h"
-#include "ui/ui_widget_helpers.h"
 #include "utils/network_validation.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstring>
-#include <memory>
 #include <sstream>
 #include <string>
 
@@ -110,6 +107,19 @@ std::string WizardSummaryStep::format_hotend_summary() {
 
 void WizardSummaryStep::init_subjects() {
     spdlog::debug("[{}] Initializing subjects", get_name());
+
+    // Every screen load re-seeds these from the config, and create() seeds them again:
+    // drop the previous seed's observers first so the re-init never lands on a live subject.
+    if (subjects_initialized_) {
+        for (lv_subject_t* subject :
+             {&printer_name_, &printer_type_, &wifi_ssid_, &moonraker_connection_, &bed_, &hotend_,
+              &part_fan_, &part_fan_visible_, &hotend_fan_, &hotend_fan_visible_, &led_strip_,
+              &led_strip_visible_, &filament_sensor_, &filament_sensor_visible_, &ams_type_,
+              &ams_visible_, &input_shaper_, &input_shaper_visible_, &telemetry_visible_}) {
+            helix::subject_reset(subject);
+        }
+        subjects_initialized_ = false;
+    }
 
     // Load all values from config
     Config* config = Config::get_instance();
@@ -257,6 +267,11 @@ void WizardSummaryStep::init_subjects() {
     UI_SUBJECT_INIT_AND_REGISTER_INT(input_shaper_visible_, input_shaper_visible,
                                      "summary_input_shaper_visible");
 
+    // The telemetry opt-in is asked once, on the first printer's wizard
+    UI_SUBJECT_INIT_AND_REGISTER_INT(telemetry_visible_,
+                                     config->get_printer_ids().size() > 1 ? 0 : 1,
+                                     "summary_telemetry_visible");
+
     // The info modal's text belongs to the telemetry step; this step's modal binds to it.
     get_wizard_telemetry_step()->init_info_text_subject();
 
@@ -270,10 +285,10 @@ void WizardSummaryStep::init_subjects() {
 
 void WizardSummaryStep::register_callbacks() {
     spdlog::debug("[{}] Registering callbacks", get_name());
-    lv_xml_register_event_cb(nullptr, "on_wizard_summary_telemetry_changed",
-                             WizardSummaryStep::on_wizard_telemetry_changed);
-    lv_xml_register_event_cb(nullptr, "on_wizard_summary_telemetry_info",
-                             WizardSummaryStep::on_wizard_telemetry_info);
+    // The update channel and statistics rows reuse Settings > Updates' and Settings >
+    // System's callbacks, registered there only when those overlays first open.
+    helix::settings::get_updates_settings_overlay().register_callbacks();
+    helix::settings::get_system_settings_overlay().register_callbacks();
 }
 
 // ============================================================================
@@ -299,23 +314,8 @@ lv_obj_t* WizardSummaryStep::create(lv_obj_t* parent) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
         return nullptr;
     }
-
-    // Toggle state synced via bind_state_if_eq on settings_telemetry_enabled subject
-
-    // Hide telemetry opt-in for subsequent printers (already shown on first wizard run)
-    auto* cfg = Config::get_instance();
-    if (cfg->get_printer_ids().size() > 1) {
-        lv_obj_t* telemetry_row =
-            helix::ui::find_required(screen_root_, "telemetry_opt_in_row", get_name());
-        if (telemetry_row) {
-            lv_obj_add_flag(telemetry_row, LV_OBJ_FLAG_HIDDEN);
-        }
-        lv_obj_t* telemetry_divider =
-            helix::ui::find_required(screen_root_, "telemetry_divider", get_name());
-        if (telemetry_divider) {
-            lv_obj_add_flag(telemetry_divider, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    helix::settings::UpdatesSettingsOverlay::sync_update_channel_rows(
+        screen_root_, static_cast<int>(UpdateChecker::instance().get_channel()));
 
     spdlog::debug("[{}] Screen created successfully", get_name());
     return screen_root_;
@@ -344,24 +344,3 @@ bool WizardSummaryStep::is_validated() const {
 // ============================================================================
 // Static Callbacks
 // ============================================================================
-
-void WizardSummaryStep::on_wizard_telemetry_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_changed");
-    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
-    spdlog::info("[WizardSummary] Telemetry toggled: {}", enabled ? "ON" : "OFF");
-    SystemSettingsManager::instance().set_telemetry_enabled(enabled);
-    if (enabled) {
-        ToastManager::instance().show(
-            ToastSeverity::SUCCESS,
-            lv_tr("Thanks! Anonymous usage data helps improve HelixScreen."), 4000);
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void WizardSummaryStep::on_wizard_telemetry_info(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[WizardSummary] on_wizard_telemetry_info");
-    spdlog::debug("[WizardSummary] Showing telemetry info modal");
-    Modal::show_owned(std::make_unique<TelemetryInfoModal>(), lv_screen_active());
-    LVGL_SAFE_EVENT_CB_END();
-}

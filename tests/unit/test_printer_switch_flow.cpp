@@ -18,11 +18,13 @@
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "boot_crash_guard.h"
 #include "config.h"
 #include "connection_state.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "platform_capabilities.h"
 #include "printer_cache_registry.h"
@@ -61,7 +63,7 @@ std::vector<lv_obj_t*> visible_switch_cards() {
         lv_obj_t* child = lv_obj_get_child(top, static_cast<int32_t>(i));
         const char* name = lv_obj_get_name(child);
         if (name && std::string(name) == "printer_switch_interstitial" &&
-            !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+            !lv_obj_is_hidden(child)) {
             cards.push_back(child);
         }
     }
@@ -663,13 +665,8 @@ TEST_CASE_METHOD(SwitchFlowFixture, "Switch flow: the switch card is painted bef
 TEST_CASE_METHOD(SwitchFlowFixture,
                  "Switch flow: the switch card spinner moves only on full render tiers",
                  "[multi-printer][switch_flow][switch_interstitial]") {
-    lv_subject_t* tier = lv_xml_get_subject(nullptr, "platform_tier");
-    static lv_subject_t s_tier;
-    if (!tier) {
-        lv_subject_init_int(&s_tier, static_cast<int>(helix::PlatformTier::STANDARD));
-        lv_xml_register_subject(nullptr, "platform_tier", &s_tier);
-        tier = &s_tier;
-    }
+    lv_subject_t* tier =
+        helix::test::xml_stand_in("platform_tier", static_cast<int>(helix::PlatformTier::STANDARD));
     const int saved = lv_subject_get_int(tier);
 
     helix::PlatformTier set_tier = helix::PlatformTier::STANDARD;

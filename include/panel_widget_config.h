@@ -6,14 +6,13 @@
 #include "ui_breakpoint.h"
 
 #include "default_layout_resolver.h"
+#include "json_fwd.h"
 
 #include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "hv/json.hpp"
 
 namespace helix {
 

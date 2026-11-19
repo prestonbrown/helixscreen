@@ -40,9 +40,10 @@ plan_missing_libs() {
     echo ${MISSING_UNZIP_PKG:-} ${MISSING_RUNTIME_DEPS:-}
 }
 
-# False on a payload install, whose UI the mod starts at the next boot.
+# False on a payload install whose UI the mod starts at the next boot, true
+# on one that restarts the UI it replaced (mod_payload_restarts_ui).
 plan_starts_ui() {
-    [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ]
+    [ "${HOST_SERVICE_MECHANISM:-}" != "mod-managed" ] || mod_payload_restarts_ui
 }
 
 _plan_sep() { if [ "$UI_UTF8" = 1 ]; then printf ' · '; else printf ', '; fi; }
@@ -200,4 +201,16 @@ print_summary() { # version
     [ -n "${COMPETING_UIS_FOUND:-}" ] && _summary_row Disabled "$COMPETING_UIS_FOUND  (re-enabled by --uninstall)"
     [ -n "${KIAUH_EXT_ADDED:-}" ] && _summary_row KIAUH "restart KIAUH to see the HelixScreen extension"
     [ -z "${INSTALL_LOG_KEPT:-}" ] || _summary_row Log "$(display_path "$INSTALL_LOG_KEPT")"
+}
+
+# The closing hedge on the boards whose display has needed a reboot to show a
+# new install. Printed only when this run did not see the UI come up, so it
+# never follows a summary that says the UI is running.
+print_reboot_note() { # platform
+    case "$1" in
+        ad5m|k1|k2) ;;
+        *) return 0 ;;
+    esac
+    [ "${HELIX_UI_CONFIRMED:-}" = "1" ] && return 0
+    log_note "You may need to reboot for the display to update."
 }

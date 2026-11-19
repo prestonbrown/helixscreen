@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 /**
  * @file test_moonraker_version_fallback.cpp
- * @brief Moonraker's version when server.info reports a placeholder
+ * @brief Moonraker's and Klipper's versions when server.info or printer.info
+ * reports a placeholder
  *
  * A Moonraker checkout without release tags (the k2-improvements install on a
  * K2 Plus) answers server.info with moonraker_version "?", while
@@ -51,27 +52,36 @@ json tagless_moonraker_update_status() {
 
 TEST_CASE("Moonraker version from update_manager", "[versions][moonraker_version]") {
     SECTION("a tagless checkout reads as its short commit hash") {
-        CHECK(moonraker_version_from_update_status(tagless_moonraker_update_status()) == "9e676eb");
+        CHECK(version_from_update_status(tagless_moonraker_update_status(), "moonraker") ==
+              "9e676eb");
     }
 
     SECTION("a tagged checkout reads as its version") {
         json status = tagless_moonraker_update_status();
         status["version_info"]["moonraker"]["version"] = "v0.9.3-12";
-        CHECK(moonraker_version_from_update_status(status) == "v0.9.3-12");
+        CHECK(version_from_update_status(status, "moonraker") == "v0.9.3-12");
     }
 
     SECTION("a placeholder version with no hash reads as nothing") {
         json status = tagless_moonraker_update_status();
         status["version_info"]["moonraker"]["version"] = "?";
         status["version_info"]["moonraker"].erase("current_hash");
-        CHECK(moonraker_version_from_update_status(status).empty());
+        CHECK(version_from_update_status(status, "moonraker").empty());
+    }
+
+    SECTION("Klipper's entry is read for Klipper") {
+        CHECK(version_from_update_status(tagless_moonraker_update_status(), "klipper") ==
+              "25d8714");
+        json status = tagless_moonraker_update_status();
+        status["version_info"]["klipper"]["version"] = "v0.12.0-301";
+        CHECK(version_from_update_status(status, "klipper") == "v0.12.0-301");
     }
 
     SECTION("no moonraker entry reads as nothing, not another component's version") {
         json status = tagless_moonraker_update_status();
         status["version_info"].erase("moonraker");
-        CHECK(moonraker_version_from_update_status(status).empty());
-        CHECK(moonraker_version_from_update_status(json::object()).empty());
+        CHECK(version_from_update_status(status, "moonraker").empty());
+        CHECK(version_from_update_status(json::object(), "moonraker").empty());
     }
 }
 
@@ -107,6 +117,16 @@ class TaglessMoonrakerClient : public MoonrakerClientMock {
             success_cb(json{{"result", tagless_moonraker_update_status()}});
             return 0;
         }
+        if (method == "printer.info" && success_cb && klipper_placeholder) {
+            return MoonrakerClientMock::send_jsonrpc(
+                method, params,
+                [success_cb](const json& response) {
+                    json patched = response;
+                    patched["result"]["software_version"] = "?";
+                    success_cb(patched);
+                },
+                error_cb, timeout_ms, silent, intent);
+        }
         if (method == "server.info" && success_cb) {
             return MoonrakerClientMock::send_jsonrpc(
                 method, params,
@@ -120,11 +140,15 @@ class TaglessMoonrakerClient : public MoonrakerClientMock {
         return MoonrakerClientMock::send_jsonrpc(method, params, success_cb, error_cb, timeout_ms,
                                                  silent, intent);
     }
+
+    /// printer.info reports "?" for software_version, as a Klipper run from
+    /// outside a git checkout does.
+    bool klipper_placeholder = false;
 };
 
 } // namespace
 
-TEST_CASE("Discovery reads Moonraker's version from update_manager when server.info has none",
+TEST_CASE("Discovery reads a placeholder version from update_manager",
           "[versions][moonraker_version][discovery]") {
     LVGLTestFixture fixture;
     PrinterState& state = get_printer_state();
@@ -132,13 +156,27 @@ TEST_CASE("Discovery reads Moonraker's version from update_manager when server.i
     state.init_subjects(false);
     TaglessMoonrakerClient client;
     client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
-
     bool completed = false;
-    client.discover_printer_real([&completed]() { completed = true; }, [](const std::string&) {});
-    REQUIRE(completed);
-    CHECK(client.hardware().moonraker_version() == "9e676eb");
+    const auto discover = [&] {
+        client.discover_printer_real([&completed]() { completed = true; },
+                                     [](const std::string&) {});
+        REQUIRE(completed);
+        UpdateQueue::instance().drain();
+    };
 
-    UpdateQueue::instance().drain();
-    CHECK(std::string(lv_subject_get_string(
-              state.versions_state().get_moonraker_version_subject())) == "9e676eb");
+    SECTION("Moonraker, when server.info has none, and never over printer.info's Klipper") {
+        discover();
+        CHECK(client.hardware().moonraker_version() == "9e676eb");
+        CHECK(std::string(lv_subject_get_string(
+                  state.versions_state().get_moonraker_version_subject())) == "9e676eb");
+        CHECK(client.hardware().software_version() == "v0.12.0-mock");
+    }
+
+    SECTION("Klipper, when printer.info has none") {
+        client.klipper_placeholder = true;
+        discover();
+        CHECK(client.hardware().software_version() == "25d8714");
+        CHECK(std::string(lv_subject_get_string(
+                  state.versions_state().get_klipper_version_subject())) == "25d8714");
+    }
 }

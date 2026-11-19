@@ -14,6 +14,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "cleanup_hold.h"
 #include "cold_pull_runner.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -90,18 +91,6 @@ class QueryGateClient : public MoonrakerClientMock {
     int queries = 0;
 };
 
-/// A head whose unload the user does by hand.
-class ManualUnloadBackend : public helix::AmsBackendMock {
-  public:
-    ManualUnloadBackend() : helix::AmsBackendMock(4) {}
-    helix::HeadFilamentOps head_filament_ops(int) const override {
-        helix::HeadFilamentOps ops;
-        ops.unload = helix::FilamentOpSupport::Manual;
-        ops.unload_reason = "Pull the filament out by hand.";
-        return ops;
-    }
-};
-
 class RunnerFixture : public LVGLTestFixture {
   public:
     RunnerFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -155,7 +144,7 @@ class RunnerFixture : public LVGLTestFixture {
     /// Start a PLA pull on the active head and take it to Heating at 230 °C.
     void begin_heating(const char* heater = "extruder") {
         REQUIRE(runner->start(ColdPullMaterial::Pla, {230, 90}, false) == ColdPullRefusal::Ok);
-        runner->toolhead_clear();
+        runner->toolhead_ready();
         drain();
         feed(heater, 25, 230);
         REQUIRE(runner->flow()->stage() == ColdPullStage::Heating);
@@ -202,6 +191,63 @@ TEST_CASE_METHOD(RunnerFixture, "cold pull: teardown sends the cleanup before th
     CHECK(client.gcode_script_history().empty());
 }
 
+TEST_CASE_METHOD(RunnerFixture, "cold pull: SIGTERM sees the heater held only while it is",
+                 "[cold_pull][sigterm]") {
+    REQUIRE_FALSE(helix::CleanupHold::any_held_signal_safe());
+    REQUIRE(runner->start(ColdPullMaterial::Pla, {230, 90}, false) == ColdPullRefusal::Ok);
+    drain();
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Preparing);
+    CHECK_FALSE(helix::CleanupHold::any_held_signal_safe()); // nothing is hot yet
+
+    runner->toolhead_ready();
+    drain();
+    feed("extruder", 25, 230);
+    REQUIRE(helix::CleanupHold::any_held_signal_safe());
+
+    SECTION("cancel") {
+        runner->cancel();
+        drain();
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+    SECTION("teardown") {
+        runner->before_disconnect();
+        drain();
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+    SECTION("runner destroyed") {
+        runner.reset();
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+    SECTION("a job takes the machine") {
+        state.update_from_status({{"print_stats", {{"state", "printing"}}}});
+        drain();
+        REQUIRE_FALSE(runner->running());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+    }
+    SECTION("the link drops: nothing can be sent") {
+        connection(0);
+        REQUIRE_FALSE(runner->running());
+        CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+
+        SECTION("held again while the owed target is being read") {
+            client.hold_query = true;
+            connection(2);
+            REQUIRE(client.queries == 1);
+            CHECK(helix::CleanupHold::any_held_signal_safe());
+
+            runner->before_disconnect();
+            drain();
+            CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+        }
+        SECTION("released when the owed read fails") {
+            client.fail_query = true;
+            connection(2);
+            REQUIRE(client.queries == 1);
+            CHECK_FALSE(helix::CleanupHold::any_held_signal_safe());
+        }
+    }
+}
+
 TEST_CASE_METHOD(RunnerFixture,
                  "cold pull: a tool change mid-pull leaves the pull on its own heater",
                  "[cold_pull][multi_extruder]") {
@@ -213,7 +259,7 @@ TEST_CASE_METHOD(RunnerFixture,
     // Another client sends T0.
     state.update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
     drain();
-    runner->toolhead_clear();
+    runner->toolhead_ready();
     drain();
     CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=230"));
     CHECK_FALSE(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET="));
@@ -246,16 +292,28 @@ TEST_CASE_METHOD(RunnerFixture, "cold pull: a feed queued behind another operati
     CHECK_FALSE(runner->flow()->busy());
 }
 
-TEST_CASE_METHOD(RunnerFixture, "cold pull: a head that unloads by hand fails the unload step",
+TEST_CASE_METHOD(RunnerFixture, "cold pull: a seated lane heats with nothing unloaded",
                  "[cold_pull]") {
-    helix::AmsState::instance().set_backend(std::make_unique<ManualUnloadBackend>());
+    helix::AmsState::instance().set_backend(std::make_unique<helix::AmsBackendMock>(4));
+    auto* backend = helix::AmsState::instance().get_backend();
+    REQUIRE(backend->is_filament_loaded());
     REQUIRE(runner->start(ColdPullMaterial::Pla, {230, 90}, false) == ColdPullRefusal::Ok);
-    REQUIRE(runner->flow()->stage() == ColdPullStage::AwaitClearToolhead);
 
-    runner->unload_lane();
+    CHECK(runner->flow()->params().toolhead_loaded);
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Preparing);
+    runner->toolhead_ready();
     drain();
-    CHECK_FALSE(runner->flow()->busy());
-    CHECK(runner->flow()->unload_failed());
+    CHECK(runner->flow()->stage() == ColdPullStage::Heating);
+    CHECK(sent("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=230"));
+    CHECK(backend->is_filament_loaded());
+}
+
+TEST_CASE_METHOD(RunnerFixture, "cold pull: the ring is full at a reached soak", "[cold_pull]") {
+    runner->init_subjects();
+    begin_heating();
+    feed("extruder", 228, 230);
+    REQUIRE(runner->flow()->stage() == ColdPullStage::Feed);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "cold_pull_progress")) == 100);
 }
 
 TEST_CASE_METHOD(RunnerFixture, "cold pull: no extruder refuses the start", "[cold_pull]") {

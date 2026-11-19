@@ -45,7 +45,7 @@ graph TB
             AS["AmsState<br/>AmsBackendRegistry +<br/>per-system backends"]
             TS["ToolState<br/>multi-tool tracking"]
             SM["SettingsManager"]
-            SENSORS["7 sensor managers<br/>temp/humidity/width/probe/<br/>accel/load cell/filament"]
+            SENSORS["8 sensor managers<br/>temp/humidity/width/probe/<br/>accel/load cell/filament/input"]
         end
         subgraph Comms["Communication Layer"]
             MC["IMoonrakerClient<br/>WebSocket + JSON-RPC"]
@@ -206,7 +206,7 @@ gate (`qc_layering`, pre-push and land-gate) measures a branch from its fork poi
 a file may lose upward includes and may not gain one, a refactor that empties a
 directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and a commit
 message line `Layering: <path> <reason>` grants one file that cannot wait. The
-upward includes the tree still carries are chapter 15's debt (#1946, #1952).
+upward includes the tree still carries are tracked in #1952.
 
 To tell the user something, `src/printer` publishes a plain `helix::Notice`
 (`include/notice.h`) with `publish_notice()`, which delivers on the calling thread.

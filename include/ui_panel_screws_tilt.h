@@ -7,6 +7,7 @@
 
 #include "calibration_types.h" // For ScrewTiltResult
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
@@ -35,9 +36,7 @@ class IMoonrakerAPI;
  *
  * ## Usage:
  * ```cpp
- * ScrewsTiltPanel& panel = get_global_screws_tilt_panel();
- * panel.setup(lv_obj, parent_screen, moonraker_client, moonraker_api);
- * helix::nav::push_overlay(lv_obj);
+ * helix::ui::open_screws_tilt_panel(parent_screen); // set_client() + show()
  * ```
  */
 class ScrewsTiltPanel : public OverlayBase {
@@ -80,10 +79,6 @@ class ScrewsTiltPanel : public OverlayBase {
      */
     lv_obj_t* create(lv_obj_t* parent) override;
 
-    /**
-     * @brief Get human-readable overlay name
-     * @return "Screws Tilt Adjust"
-     */
     const char* xml_component() const override {
         return "screws_tilt_panel";
     }
@@ -98,14 +93,16 @@ class ScrewsTiltPanel : public OverlayBase {
     /**
      * @brief Called when overlay becomes visible
      *
-     * Resets probe count and state to IDLE.
+     * Resets probe count and state to IDLE, except on a wake from the
+     * screensaver, which keeps the session and redraws its results.
      */
     void on_activate() override;
 
     /**
      * @brief Called when overlay is being hidden
      *
-     * Aborts probing if in progress, clears results.
+     * Aborts a running probe unless the overlay is only suspended (screensaver),
+     * and clears the drawn results; screw_results_ stays for the wake.
      */
     void on_deactivating(DeactivateReason reason) override;
 
@@ -169,6 +166,8 @@ class ScrewsTiltPanel : public OverlayBase {
 
     // Command helpers
     void start_probing();
+    /// start_probing() once the bed is known clear.
+    void probe_once_bed_clear();
     void start_screws_tilt_command();
     void cancel_probing();
 
@@ -223,9 +222,9 @@ class ScrewsTiltPanel : public OverlayBase {
     static constexpr size_t kScrewNameBufSize = 32;
     static constexpr size_t kScrewAdjBufSize = 24; // "Tighten ¼ turn" etc.
 
-    std::array<lv_subject_t, kMaxScrews> screw_visible_subjects_{};
-    std::array<lv_subject_t, kMaxScrews> screw_name_subjects_{};
-    std::array<lv_subject_t, kMaxScrews> screw_adjustment_subjects_{};
+    std::array<helix::Subject, kMaxScrews> screw_visible_subjects_{};
+    std::array<helix::Subject, kMaxScrews> screw_name_subjects_{};
+    std::array<helix::Subject, kMaxScrews> screw_adjustment_subjects_{};
 
     // Fixed char arrays for string subjects (LVGL requires stable buffers)
     char screw_name_bufs_[kMaxScrews][kScrewNameBufSize] = {};
@@ -234,12 +233,13 @@ class ScrewsTiltPanel : public OverlayBase {
     // Subjects for status labels
     static constexpr size_t kProbeCountBufSize = 64;
     static constexpr size_t kErrorMsgBufSize = 256;
-    lv_subject_t probe_count_subject_{};
-    lv_subject_t error_message_subject_{};
-    lv_subject_t recenter_hint_subject_{};   ///< Alternative that turns fewer screws
-    lv_subject_t recenter_hint_available_{}; ///< 1 when the hint is worth showing
-    lv_subject_t results_is_leveled_subject_{};
-    lv_subject_t tilt_spread_subject_{}; ///< "Corners differ by 0.23 mm"
+    helix::Subject state_subject_{}; ///< 0=IDLE, 1=PROBING, 2=RESULTS, 3=ERROR
+    helix::Subject probe_count_subject_{};
+    helix::Subject error_message_subject_{};
+    helix::Subject recenter_hint_subject_{};   ///< Alternative that turns fewer screws
+    helix::Subject recenter_hint_available_{}; ///< 1 when the hint is worth showing
+    helix::Subject results_is_leveled_subject_{};
+    helix::Subject tilt_spread_subject_{}; ///< "Corners differ by 0.23 mm"
     static constexpr size_t kTiltSpreadBufSize = 64;
     char tilt_spread_buf_[kTiltSpreadBufSize] = {};
     char probe_count_buf_[kProbeCountBufSize] = {};
@@ -267,8 +267,8 @@ class ScrewsTiltPanel : public OverlayBase {
 // Defined out of line: the ESP32 build, which excludes this panel, supplies its own.
 ScrewsTiltPanel& get_global_screws_tilt_panel();
 
-/// Open the Screws Tilt panel over @p parent_screen, wired to the active API.
 namespace helix::ui {
+/// Open the Screws Tilt panel over @p parent_screen, wired to the active API.
 void open_screws_tilt_panel(lv_obj_t* parent_screen);
 } // namespace helix::ui
 
@@ -276,7 +276,8 @@ void open_screws_tilt_panel(lv_obj_t* parent_screen);
  * @brief Register XML event callbacks for screws tilt panel
  *
  * Call this once at startup before creating any screws_tilt_panel XML.
- * Registers callbacks for all button events (start, cancel, done, reprobe, retry).
+ * Registers callbacks for all button events (start, cancel, done, reprobe, retry,
+ * share), then initializes the panel's subjects.
  */
 void ui_panel_screws_tilt_register_callbacks();
 

@@ -251,8 +251,10 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
     theme.name = helix::json_util::safe_string(json, "name", "Unnamed Theme");
 
     // Theme must have "dark" and/or "light" palette objects
-    bool has_dark = json.contains("dark");
-    bool has_light = json.contains("light");
+    const nlohmann::json* dark = helix::json_util::find_member(json, "dark");
+    const nlohmann::json* light = helix::json_util::find_member(json, "light");
+    bool has_dark = dark != nullptr;
+    bool has_light = light != nullptr;
 
     if (!has_dark && !has_light) {
         spdlog::error("[ThemeLoader] No 'dark' or 'light' palette in {}", filename);
@@ -261,11 +263,11 @@ ThemeData parse_theme_json(const std::string& json_str, const std::string& filen
 
     spdlog::trace("[ThemeLoader] Parsing {} with dark={}, light={}", filename, has_dark, has_light);
 
-    if (has_dark) {
-        parse_mode_palette(json["dark"], theme.dark, filename, "dark");
+    if (dark) {
+        parse_mode_palette(*dark, theme.dark, filename, "dark");
     }
-    if (has_light) {
-        parse_mode_palette(json["light"], theme.light, filename, "light");
+    if (light) {
+        parse_mode_palette(*light, theme.light, filename, "light");
     }
 
     // Parse properties with defaults

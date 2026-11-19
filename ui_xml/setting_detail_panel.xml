@@ -4,10 +4,15 @@
 <!-- Indented detail panel for contextual sub-controls below a state row -->
 <!-- Contains a "controls" child for C++ to populate with type-specific widgets -->
 <component>
+  <api>
+    <!-- Int subject: the panel shows while it is non-zero. Empty always shows. -->
+    <prop name="shown_subject" type="string" default=""/>
+  </api>
   <view extends="lv_obj"
         width="100%" height="content" flex_flow="column" style_pad_left="48" style_pad_right="#space_lg"
         style_pad_top="0" style_pad_bottom="#space_md" style_pad_gap="#space_sm" style_bg_color="#card_bg"
         style_bg_opa="0" style_border_width="0" style_radius="8" scrollable="false">
+    <bind_flag_if_eq subject="$shown_subject" flag="hidden" ref_value="0"/>
     <lv_obj name="controls"
             width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm"
             style_bg_opa="0" style_border_width="0" scrollable="false"/>

@@ -39,6 +39,7 @@ enum class ScreensaverType : int {
     FIREFLIES = 10,
     AQUA = 11,
     HIGHFLY = 12,
+    NIXIE_CLOCK = 13,
     /// Not a saver: each run starts a different registered saver the board can run. Kept clear
     /// of the row range, so savers added later never collide with it.
     RANDOM = 100,
@@ -94,6 +95,8 @@ inline constexpr ScreensaverInfo kScreensavers[] = {
     {ScreensaverType::AQUA, "aqua", "Aqua Surface", SAVER_DEPTH_16 | SAVER_DEPTH_32,
      PrintDisplay::SCENE},
     {ScreensaverType::HIGHFLY, "highfly", "High Fly", SAVER_DEPTH_16 | SAVER_DEPTH_32,
+     PrintDisplay::SCENE},
+    {ScreensaverType::NIXIE_CLOCK, "nixie", "Nixie Clock", SAVER_DEPTH_16 | SAVER_DEPTH_32,
      PrintDisplay::SCENE},
 };
 

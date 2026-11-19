@@ -32,6 +32,7 @@
 #include "printer_retarget.h"
 #include "printer_state.h"
 #include "printer_switch_flow.h"
+#include "theme_manager.h"
 #include "utils/network_validation.h"
 
 #include <algorithm>
@@ -94,7 +95,7 @@ class ChangeHostRestoreFixture : public XMLTestFixture {
 
         lv_subject_t* ip = lv_xml_get_subject(nullptr, "change_host_ip");
         REQUIRE(ip != nullptr);
-        lv_subject_copy_string(ip, host);
+        lv_subject_set_string(ip, host);
 
         click(dialog, "btn_test_connection");
         REQUIRE_FALSE(net_.asked.empty());
@@ -208,13 +209,13 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     lv_obj_t* change_title = lv_obj_find_by_name(dialog, "title_change_host");
     REQUIRE(add_title != nullptr);
     REQUIRE(change_title != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(add_title, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(change_title, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(add_title));
+    CHECK(lv_obj_is_hidden(change_title));
 
     net_.answer("10.9.9.9:7125");
-    lv_subject_copy_string(ip, "10.9.9.9");
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_api_key"),
-                           "0123456789abcdef0123456789abcdef");
+    lv_subject_set_string(ip, "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_api_key"),
+                          "0123456789abcdef0123456789abcdef");
     click(dialog, "btn_test_connection");
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
     click(dialog, "modal_save_btn");
@@ -245,7 +246,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host after Add shows the save
           kSavedHost);
     lv_obj_t* change_title = lv_obj_find_by_name(dialog, "title_change_host");
     REQUIRE(change_title != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(change_title, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(change_title));
 }
 
 namespace {
@@ -309,7 +310,7 @@ lv_obj_t* open_add_modal(AddResult& result) {
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     return dialog;
 }
 
@@ -385,7 +386,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     const char* host = GENERATE("", "   ");
     AddResult result;
     lv_obj_t* dialog = open_add_modal(result);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), host);
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), host);
 
     click(dialog, "modal_save_btn");
     UpdateQueue::instance().drain();
@@ -403,13 +404,13 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     AddResult result;
     lv_obj_t* dialog = open_add_modal(result);
     lv_subject_t* ip = lv_xml_get_subject(nullptr, "change_host_ip");
-    lv_subject_copy_string(ip, "");
+    lv_subject_set_string(ip, "");
     click(dialog, "modal_save_btn");
     lv_obj_t* status = lv_obj_find_by_name(dialog, "status_text");
     REQUIRE(status != nullptr);
     REQUIRE_FALSE(std::string(lv_label_get_text(status)).empty());
 
-    lv_subject_copy_string(ip, "10.1.2.3");
+    lv_subject_set_string(ip, "10.1.2.3");
     UpdateQueue::instance().drain();
 
     CHECK(std::string(lv_label_get_text(status)).empty());
@@ -462,8 +463,8 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host: a typed port is the onl
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_port"), "7125");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_port"), "7125");
     click(dialog, "btn_test_connection");
 
     CHECK(net_.asked == std::vector<std::string>{"10.9.9.9:7125"});
@@ -502,7 +503,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     lv_obj_t* dialog = Modal::get_top();
     REQUIRE(dialog != nullptr);
     net_.answer("10.9.9.9:7125");
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     click(dialog, "btn_test_connection");
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
 
@@ -562,7 +563,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
 
     lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
     REQUIRE(section != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
     lv_obj_t* dropdown = lv_obj_find_by_name(dialog, "printer_dropdown");
     REQUIRE(dropdown != nullptr);
     REQUIRE(lv_dropdown_get_option_count(dropdown) == 2);
@@ -594,7 +595,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     REQUIRE(dialog != nullptr);
     REQUIRE(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_port"))) ==
             "80");
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     click(dialog, "btn_test_connection");
 
     CHECK(net_.asked == std::vector<std::string>{"10.9.9.9:80"});
@@ -632,7 +633,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     REQUIRE(dialog != nullptr);
     lv_obj_t* section = lv_obj_find_by_name(dialog, "discovery_section");
     REQUIRE(section != nullptr);
-    CHECK(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(section));
 }
 
 // ============================================================================
@@ -666,13 +667,29 @@ class SavedKeyGuard {
 void type_api_key(const char* key) {
     lv_subject_t* subject = lv_xml_get_subject(nullptr, "change_host_api_key");
     REQUIRE(subject != nullptr);
-    lv_subject_copy_string(subject, key);
+    lv_subject_set_string(subject, key);
 }
 
 std::string status_text(lv_obj_t* dialog) {
     lv_obj_t* label = lv_obj_find_by_name(dialog, "status_text");
     REQUIRE(label != nullptr);
     return lv_label_get_text(label);
+}
+
+/// The text colour of the one status icon showing.
+lv_color_t status_icon_color(lv_obj_t* dialog) {
+    lv_obj_t* slot = lv_obj_find_by_name(dialog, "status_icon");
+    REQUIRE(slot != nullptr);
+    lv_obj_t* shown = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(slot); ++i) {
+        lv_obj_t* icon = lv_obj_get_child(slot, i);
+        if (!lv_obj_is_hidden(icon)) {
+            REQUIRE(shown == nullptr);
+            shown = icon;
+        }
+    }
+    REQUIRE(shown != nullptr);
+    return lv_obj_get_style_text_color(shown, LV_PART_MAIN);
 }
 
 nlohmann::json saved_api_key() {
@@ -705,7 +722,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::ui::show_change_host_modal();
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     type_api_key("not-a-key");
 
     click(dialog, "btn_test_connection");
@@ -723,7 +740,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::ui::show_change_host_modal();
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     // Pasted with a stray space: the key is the 32 digits.
     type_api_key((std::string(" ") + kGoodKey + " ").c_str());
 
@@ -749,16 +766,18 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::ui::show_change_host_modal();
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
 
     SECTION("no key: it needs one") {
         click(dialog, "btn_test_connection");
         CHECK(status_text(dialog).find("requires an API key") != std::string::npos);
+        CHECK(lv_color_eq(status_icon_color(dialog), theme_manager_get_color("warning")));
     }
     SECTION("a wrong key: it was rejected") {
         type_api_key("ffffffffffffffffffffffffffffffff");
         click(dialog, "btn_test_connection");
         CHECK(status_text(dialog).find("rejected the API key") != std::string::npos);
+        CHECK(lv_color_eq(status_icon_color(dialog), theme_manager_get_color("danger")));
     }
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 0);
     lv_obj_t* save = lv_obj_find_by_name(dialog, "modal_save_btn");
@@ -776,7 +795,7 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     helix::ui::show_change_host_modal();
     UpdateQueue::instance().drain();
     lv_obj_t* dialog = Modal::get_top();
-    lv_subject_copy_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
+    lv_subject_set_string(lv_xml_get_subject(nullptr, "change_host_ip"), "10.9.9.9");
     type_api_key("");
     click(dialog, "btn_test_connection");
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "change_host_validated")) == 1);
@@ -801,5 +820,5 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
               .empty());
     lv_obj_t* section = lv_obj_find_by_name(Modal::get_top(), "api_key_section");
     REQUIRE(section != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(section, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(section));
 }

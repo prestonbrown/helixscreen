@@ -8,6 +8,7 @@
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_guided_load_modal.h"
 #include "ui_icon.h"
 #include "ui_manual_pull_prompt.h"
 #include "ui_nav.h"
@@ -15,7 +16,6 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_spool_canvas.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_unload_lane_choice.h"
 #include "ui_utils.h"
@@ -26,6 +26,8 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
@@ -36,6 +38,7 @@
 #include "filament_op_slot_resolver.h"
 #include "filament_sensor_manager.h"
 #include "gcode_unknown_command.h"
+#include "helix/ui/text_metrics.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "macro_executor.h"
@@ -48,6 +51,7 @@
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
 #include "standard_macros.h"
+#include "system/subject_registry.h"
 #include "temperature_controller.h"
 #include "temperature_service.h"
 #include "theme_manager.h"
@@ -91,11 +95,10 @@ void reset_to_defaults() {
 }
 } // namespace helix::filament_presets
 
+using helix::temperature_rules::deci_to_degrees;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees;
 using helix::ui::temperature::format_target_or_off;
 using helix::ui::temperature::format_temperature_pair;
-using helix::ui::temperature::get_heating_state_color;
 
 // The shared MacroParamModal and the tier-3 gcode fallbacks now live in
 // filament_op_router.h so AmsOperationSidebar and FilamentRunoutHandler reach
@@ -113,6 +116,14 @@ static void preset_hold(lv_event_t* e, int slot) {
     }
 }
 
+/// A hold on length button @p index opens the keypad for its length; the hold
+/// ends its press so the release is not also a tap on the button.
+static void length_hold(lv_event_t* e, int index) {
+    if (get_global_filament_panel().handle_extrude_length_longpress(index)) {
+        helix::ui::end_press(e);
+    }
+}
+
 // ============================================================================
 // CONSTRUCTOR
 // ============================================================================
@@ -123,15 +134,12 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
                             sizeof(temp_display_buf_));
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Select material to begin"));
-    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_),
-                  lv_tr("Current: %d°C | Target: %d°C"), nozzle_current_, nozzle_target_);
+    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), lv_tr("Current: %s | Target: %s"),
+                  helix::units::format_display_temp(nozzle_current_).c_str(),
+                  helix::units::format_display_temp(nozzle_target_).c_str());
     update_safety_warning_text();
     format_target_or_off(0, material_nozzle_buf_, sizeof(material_nozzle_buf_));
     format_target_or_off(0, material_bed_buf_, sizeof(material_bed_buf_));
-    std::snprintf(nozzle_current_buf_, sizeof(nozzle_current_buf_), "%d°C", nozzle_current_);
-    format_target_or_off(0, nozzle_target_buf_, sizeof(nozzle_target_buf_));
-    std::snprintf(bed_current_buf_, sizeof(bed_current_buf_), "%d°C", bed_current_);
-    format_target_or_off(0, bed_target_buf_, sizeof(bed_target_buf_));
 
     // Register XML event callbacks
     register_xml_callbacks({
@@ -165,26 +173,27 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         {"on_filament_preset_petg_hold", [](lv_event_t* e) { preset_hold(e, 1); }},
         {"on_filament_preset_abs_hold", [](lv_event_t* e) { preset_hold(e, 2); }},
         {"on_filament_preset_tpu_hold", [](lv_event_t* e) { preset_hold(e, 3); }},
-        // Temperature tap targets
-        {"on_filament_nozzle_target_tap",
-         [](lv_event_t*) { get_global_filament_panel().handle_nozzle_temp_tap(); }},
-        {"on_filament_bed_target_tap",
-         [](lv_event_t*) { get_global_filament_panel().handle_bed_temp_tap(); }},
-        {"on_filament_chamber_target_tap",
-         [](lv_event_t*) { get_global_filament_panel().handle_chamber_temp_tap(); }},
         // Extrude length buttons
-        {"on_filament_extrude_length_5mm",
-         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(5); }},
-        {"on_filament_extrude_length_10mm",
-         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(10); }},
-        {"on_filament_extrude_length_25mm",
-         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(25); }},
+        {"on_filament_extrude_length_0",
+         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(0); }},
+        {"on_filament_extrude_length_1",
+         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(1); }},
+        {"on_filament_extrude_length_2",
+         [](lv_event_t*) { get_global_filament_panel().handle_extrude_length_select(2); }},
+        {"on_filament_extrude_length_0_hold", [](lv_event_t* e) { length_hold(e, 0); }},
+        {"on_filament_extrude_length_1_hold", [](lv_event_t* e) { length_hold(e, 1); }},
+        {"on_filament_extrude_length_2_hold", [](lv_event_t* e) { length_hold(e, 2); }},
+        {"on_filament_extrude_speed_changed",
+         [](lv_event_t* e) {
+             auto* dd = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             helix::SettingsManager::instance().set_extrude_speed_preset(
+                 lv_dropdown_get_selected(dd));
+         }},
         // Cooldown button
         {"on_filament_cooldown",
          [](lv_event_t*) { get_global_filament_panel().handle_cooldown(); }},
-        // Extruder selector dropdown
-        {"on_extruder_dropdown_changed",
-         [](lv_event_t*) { get_global_filament_panel().handle_extruder_changed(); }},
+        {"on_filament_target_tool_action",
+         [](lv_event_t*) { get_global_filament_panel().handle_target_tool_action(); }},
         // External spool edit
         {"on_external_spool_edit",
          [](lv_event_t*) { get_global_filament_panel().show_external_spool_edit_modal(); }},
@@ -195,16 +204,10 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
 
     // Subscribe to PrinterState temperatures using bundle pattern. Each handler caches its value
     // inline and defers the UI update, which must not land in the render phase [L029].
+    // The bundle carries the bed. The nozzle follows the panel's target tool
+    // through repoint_nozzle_observers(), so its half here is inert.
     temp_observers_.setup_sync(
-        this, printer_state_,
-        [](FilamentPanel* self, int raw) {
-            self->nozzle_current_ = deci_to_degrees(raw);
-            self->defer_temps_update();
-        },
-        [](FilamentPanel* self, int raw) {
-            self->nozzle_target_ = deci_to_degrees(raw);
-            self->defer_temps_update();
-        },
+        this, printer_state_, [](FilamentPanel*, int) {}, [](FilamentPanel*, int) {},
         [](FilamentPanel* self, int raw) {
             self->bed_current_ = deci_to_degrees(raw);
             self->defer_temps_update();
@@ -223,7 +226,6 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         [](FilamentPanel* self, int raw) {
             self->chamber_current_ = deci_to_degrees(raw);
             if (self->are_subjects_initialized()) {
-                self->update_chamber_temp_display();
                 self->update_status();
             }
         },
@@ -232,9 +234,6 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         printer_state_.temperature_state().get_chamber_target_subject(), this,
         [](FilamentPanel* self, int raw) {
             self->chamber_target_ = raw; // Store decidegrees (matches PrinterState format)
-            if (self->are_subjects_initialized()) {
-                self->update_chamber_temp_display();
-            }
         },
         printer_state_.get_subjects_lifetime());
 
@@ -244,34 +243,69 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     // the active one heats (#9).
     active_tool_observer_ = observe<int>(
         helix::ToolState::instance().get_active_tool_subject(), this,
-        [](FilamentPanel* self, int tool_idx) {
-            self->update_nozzle_label();
-            if (self->extruder_dropdown_) {
-                if (tool_idx >= 0) {
-                    lv_dropdown_set_selected(self->extruder_dropdown_,
-                                             static_cast<uint32_t>(tool_idx));
-                }
-                self->sync_tool_dropdown_text();
-            }
+        [](FilamentPanel* self, int /*tool_idx*/) {
+            // Pick up / Park follows the carriage as well as the target.
+            self->sync_target_tool_ui();
             if (self->temp_control_panel_) {
                 const auto* tool = helix::ToolState::instance().active_tool();
                 if (tool && tool->extruder_name) {
                     self->temp_control_panel_->switch_active_extruder(*tool->extruder_name);
                 }
             }
-            // Re-evaluate Load/Unload/Purge gating for the newly-selected tool.
-            self->update_filament_op_buttons();
         },
         helix::ToolState::instance().get_subjects_lifetime());
-    update_nozzle_label();
+    // A pickup's waiting step never outlives Klipper leaving READY.
+    klippy_observer_ = observe<int>(
+        printer_state_.network_state().get_klippy_state_subject(), this,
+        [](FilamentPanel* self, int state) {
+            if (state != static_cast<int>(helix::KlippyState::READY)) {
+                self->drop_pending_pickup("Klipper not ready");
+            }
+        },
+        printer_state_.get_subjects_lifetime());
+    // The panel aims at the shared target tool, wherever it was picked, and
+    // reads its nozzle through the target's own mirror.
+    auto& target = helix::ui::TargetTool::instance();
+    target.attach(printer_state_);
+    target_tool_observer_ = observe<int>(
+        target.subject(), this, [](FilamentPanel* self, int) { self->sync_target_tool_ui(); },
+        target.get_subjects_lifetime());
+    if (lv_subject_t* temp = lv_xml_get_subject(nullptr, "target_nozzle_temp")) {
+        target_nozzle_temp_observer_ = observe<int>(
+            temp, this,
+            [](FilamentPanel* self, int raw) {
+                self->nozzle_current_ = deci_to_degrees(raw);
+                self->defer_temps_update();
+            },
+            target.get_subjects_lifetime());
+    }
+    if (lv_subject_t* tgt = lv_xml_get_subject(nullptr, "target_nozzle_target")) {
+        target_nozzle_target_observer_ = observe<int>(
+            tgt, this,
+            [](FilamentPanel* self, int raw) {
+                self->nozzle_target_ = deci_to_degrees(raw);
+                self->defer_temps_update();
+            },
+            target.get_subjects_lifetime());
+    }
 
-    // The status line, nozzle label and warnings are formatted here with
-    // lv_tr(); a new language formats them again. The tool caption follows the
-    // extruder dropdown, which repopulates when ToolState relabels its tools.
+    // The status line and warnings are formatted here with lv_tr(); a new
+    // language formats them again.
     language_observer_ = helix::ui::observe_language_change(this, [](FilamentPanel* self) {
         self->last_status_branch_ = StatusBranch::None;
         self->update_status();
-        self->update_nozzle_label();
+        self->update_warning_text();
+        self->update_safety_warning_text();
+    });
+
+    // Every temperature string here is formatted from cached Celsius values;
+    // a °C/°F switch formats them again without touching the heater subjects.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(this, [](FilamentPanel* self) {
+        self->update_temp_display();
+        self->update_material_temp_display();
+        self->publish_spool_preset_temps();
+        self->last_status_branch_ = StatusBranch::None;
+        self->update_status();
         self->update_warning_text();
         self->update_safety_warning_text();
     });
@@ -304,10 +338,11 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         [](FilamentPanel* self, int) { self->update_filament_op_buttons(); },
         printer_state_.print_state().get_static_subjects_lifetime());
 
-    // Note: Chamber temperature display is initialized by observer callbacks
-    // and refresh_all_displays() on panel activation.
-    // We don't call update_chamber_temp_display() here because subjects
-    // aren't initialized yet (init_subjects() is called after construction).
+    // Machine Limits edits the same setting while this panel lives.
+    extrude_speed_observer_ = observe<int>(
+        helix::SettingsManager::instance().subject_extrude_speed(), this,
+        [](FilamentPanel* self, int) { self->sync_extrude_speed_dropdown(); },
+        helix::SettingsManager::instance().get_subjects_lifetime());
 }
 
 FilamentPanel::~FilamentPanel() {
@@ -362,27 +397,9 @@ void FilamentPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(material_bed_temp_subject_, material_bed_buf_, material_bed_buf_,
                                   "filament_material_bed_temp", subjects_);
 
-        // Nozzle label (dynamic for multi-tool)
-        UI_MANAGED_SUBJECT_STRING(nozzle_label_subject_, nozzle_label_buf_, lv_tr("Nozzle"),
-                                  "filament_nozzle_label", subjects_);
-
-        // Tool selector caption (backend noun: "Tool" / "Toolhead")
-        UI_MANAGED_SUBJECT_STRING(tool_noun_subject_, tool_noun_buf_, lv_tr("Tool"),
-                                  "filament_tool_noun", subjects_);
-
-        // Left card temperature subjects (current and target for nozzle/bed)
-        UI_MANAGED_SUBJECT_STRING(nozzle_current_subject_, nozzle_current_buf_, nozzle_current_buf_,
-                                  "filament_nozzle_current", subjects_);
-        UI_MANAGED_SUBJECT_STRING(nozzle_target_subject_, nozzle_target_buf_, nozzle_target_buf_,
-                                  "filament_nozzle_target", subjects_);
-        UI_MANAGED_SUBJECT_STRING(bed_current_subject_, bed_current_buf_, bed_current_buf_,
-                                  "filament_bed_current", subjects_);
-        UI_MANAGED_SUBJECT_STRING(bed_target_subject_, bed_target_buf_, bed_target_buf_,
-                                  "filament_bed_target", subjects_);
-        UI_MANAGED_SUBJECT_STRING(chamber_current_subject_, chamber_current_buf_,
-                                  chamber_current_buf_, "filament_chamber_current", subjects_);
-        UI_MANAGED_SUBJECT_STRING(chamber_target_subject_, chamber_target_buf_, chamber_target_buf_,
-                                  "filament_chamber_target", subjects_);
+        // Which of Pick up / Park the Operations header shows: a TargetToolAction.
+        UI_MANAGED_SUBJECT_INT(target_tool_action_subject_, 0, "filament_target_tool_action",
+                               subjects_);
 
         // Operation in progress subject (for disabling buttons during filament ops)
         operation_guard_.init_subject("filament_operation_in_progress", subjects_);
@@ -399,15 +416,12 @@ void FilamentPanel::init_subjects() {
         // Portrait graph spacer state; 1 = the graph card draws nothing and the
         // strip button replaces it. The XML bindings consume this.
         UI_MANAGED_SUBJECT_INT(graph_spacer_subject_, 0, "filament_graph_spacer", subjects_);
+        UI_MANAGED_SUBJECT_INT(on_page_subject_, 0, "filament_on_page", subjects_);
 
         // Extrude length button active states (boolean: 0=inactive, 1=active)
         // Using separate subjects because bind_style doesn't work well with multiple ref_values
-        UI_MANAGED_SUBJECT_INT(extrude_length_5mm_active_subject_, 0,
-                               "filament_extrude_length_5mm_active", subjects_);
-        UI_MANAGED_SUBJECT_INT(extrude_length_10mm_active_subject_, 1,
-                               "filament_extrude_length_10mm_active", subjects_);
-        UI_MANAGED_SUBJECT_INT(extrude_length_25mm_active_subject_, 0,
-                               "filament_extrude_length_25mm_active", subjects_);
+        UI_MANAGED_SUBJECT_INT(extrude_length_index_subject_, extrude_length_index_,
+                               "filament_extrude_length_index", subjects_);
 
         // Per-op button feedback state (0=idle, 1=busy spinner, 2=done check).
         // Bound to each op button's bind_op_state in filament_panel.xml.
@@ -420,6 +434,24 @@ void FilamentPanel::init_subjects() {
                                subjects_);
         UI_MANAGED_SUBJECT_INT(manual_motion_subject_, 0, helix::kFilamentMotionSubjectName,
                                subjects_);
+
+        // Spool card mode and the external spool row's text
+        UI_MANAGED_SUBJECT_INT(external_spool_mode_subject_, 0, "filament_external_spool_mode",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(external_spool_assigned_subject_, 0,
+                               "filament_external_spool_assigned", subjects_);
+        UI_MANAGED_SUBJECT_STRING(external_spool_material_subject_, external_spool_material_buf_,
+                                  "", "filament_external_spool_material", subjects_);
+        UI_MANAGED_SUBJECT_STRING(external_spool_detail_subject_, external_spool_detail_buf_, "",
+                                  "filament_external_spool_detail", subjects_);
+
+        // Spool preset button
+        UI_MANAGED_SUBJECT_INT(spool_preset_shown_subject_, 0, "filament_spool_preset_shown",
+                               subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_preset_name_subject_, spool_preset_name_buf_, "",
+                                  "filament_spool_preset_name", subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_preset_temps_subject_, spool_preset_temps_buf_, "",
+                                  "filament_spool_preset_temps", subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
@@ -451,6 +483,7 @@ void FilamentPanel::deinit_subjects() {
     // Watches PrinterState's print_state_enum, a subject tests deinit between
     // cases — must be released alongside the AmsState guards above.
     print_active_observer_.reset();
+    extrude_speed_observer_.reset();
     temp_observers_.clear();
     deinit_subjects_base(subjects_);
 }
@@ -474,11 +507,11 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     temp_graph_container_wired_ = nullptr;
     portrait_column_wired_ = nullptr;
 
-    // Rebuild dropdown if tool list changes
+    // A new tool list can change how many heads there are.
     tools_version_observer_ = observe<int>(
         helix::ToolState::instance().get_tools_version_subject(), this,
         [](FilamentPanel* self, int) {
-            self->populate_extruder_dropdown();
+            self->sync_target_tool_ui();
             self->update_multi_filament_card_visibility();
         },
         helix::ToolState::instance().get_subjects_lifetime());
@@ -508,6 +541,9 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
             // including ops this panel did not start. Re-gate before the guard
             // bookkeeping below, which only cares about the terminal edges.
             self->update_filament_op_buttons();
+            if (failed) {
+                self->drop_pending_pickup("filament system error");
+            }
             if ((!idle && !failed) || !self->operation_guard_.is_active()) {
                 return;
             }
@@ -563,6 +599,12 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     spdlog::debug("[{}] Setup complete!", get_name());
 }
 
+void FilamentPanel::on_lent_to_page(bool on_page) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&on_page_subject_, on_page ? 1 : 0);
+    }
+}
+
 void FilamentPanel::bind_widgets() {
     if (!panel_)
         return;
@@ -587,12 +629,6 @@ void FilamentPanel::bind_widgets() {
     // repaint instead of early-returning against the tree that is already gone.
     last_status_branch_ = StatusBranch::None;
 
-    // Find temperature labels for color updates. The portrait chips carry the
-    // same names as the landscape rows, so these resolve in either branch.
-    nozzle_current_label_ = lv_obj_find_by_name(panel_, "nozzle_current_temp");
-    bed_current_label_ = lv_obj_find_by_name(panel_, "bed_current_temp");
-    chamber_current_label_ = lv_obj_find_by_name(panel_, "chamber_current_temp");
-
     // Find temp graph for dynamic sizing when bottom card changes
     temp_graph_card_ = lv_obj_find_by_name(panel_, "temp_graph_card");
     // Fresh tree: the graph starts shown, so the spacer bookkeeping does too.
@@ -602,27 +638,16 @@ void FilamentPanel::bind_widgets() {
 
     // Find spool card widgets (serves both Multi-Filament and External Spool modes)
     spool_card_ = helix::ui::find_required(panel_, "spool_card", get_name());
-    spool_card_header_row_ = helix::ui::find_required(panel_, "spool_card_header_row", get_name());
-    extruder_selector_group_ =
-        helix::ui::find_required(panel_, "extruder_selector_group", get_name());
-    extruder_dropdown_ = helix::ui::find_required(panel_, "extruder_dropdown", get_name());
-    btn_manage_slots_ = helix::ui::find_required(panel_, "btn_manage_slots", get_name());
-    ams_manage_row_ = helix::ui::find_required(panel_, "ams_manage_row", get_name());
+    extrude_speed_dropdown_ =
+        helix::ui::find_required(panel_, "extrude_speed_dropdown", get_name());
 
     // Find external spool row widgets
-    external_spool_row_ = helix::ui::find_required(panel_, "external_spool_row", get_name());
     external_spool_container_ =
         helix::ui::find_required(panel_, "external_spool_container", get_name());
-    external_spool_material_label_ =
-        helix::ui::find_required(panel_, "external_spool_material_label", get_name());
-    external_spool_color_label_ =
-        helix::ui::find_required(panel_, "external_spool_color_label", get_name());
 
     // Find spool preset widgets
     spool_preset_row_ = helix::ui::find_required(panel_, "spool_preset_row", get_name());
     spool_preset_button_ = helix::ui::find_required(panel_, "preset_spool", get_name());
-    spool_preset_label_ = helix::ui::find_required(panel_, "spool_preset_label", get_name());
-    spool_preset_temps_ = helix::ui::find_required(panel_, "spool_preset_temps", get_name());
 
     // Setup external spool display (creates canvas, wires observer)
     setup_external_spool_display();
@@ -630,8 +655,7 @@ void FilamentPanel::bind_widgets() {
     // Setup spool preset button (show if active material doesn't match standard presets)
     update_spool_preset();
 
-    // Populate extruder dropdown and set card visibility
-    populate_extruder_dropdown();
+    sync_target_tool_ui();
     update_multi_filament_card_visibility();
 
     // Seed Load/Unload/Purge gating from current live load state (Task 5).
@@ -640,7 +664,6 @@ void FilamentPanel::bind_widgets() {
     // Initialize visual state
     update_preset_buttons_visual();
     update_temp_display();
-    update_left_card_temps();
     update_material_temp_display();
     update_status();
     update_status_icon_for_state();
@@ -648,7 +671,8 @@ void FilamentPanel::bind_widgets() {
     update_safety_state();
 
     // Trigger initial extrude length selection (notifies bind_style observers)
-    handle_extrude_length_select(extrude_length_);
+    handle_extrude_length_select(extrude_length_index_);
+    sync_extrude_speed_dropdown();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -676,7 +700,7 @@ void FilamentPanel::fit_portrait_graph(lv_obj_t* column) {
     const uint32_t count = lv_obj_get_child_count(column);
     for (uint32_t i = 0; i < count; i++) {
         lv_obj_t* child = lv_obj_get_child(column, static_cast<int32_t>(i));
-        if (child == temp_graph_card_ || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN))
+        if (child == temp_graph_card_ || lv_obj_is_hidden(child))
             continue;
         // Each visible sibling brings its own height plus one gap to the graph's side.
         used += lv_obj_get_height(child) + gap;
@@ -712,21 +736,6 @@ void FilamentPanel::setup_temp_graph() {
     if (temp_control_panel_) {
         temp_control_panel_->setup_mini_combined_graph(graph_container);
         spdlog::debug("[{}] Temperature graph initialized", get_name());
-    }
-
-    // Click-to-open overlay: the CLICKABLE flag itself comes from the XML
-    // (bind_flag_if_eq on filament_graph_spacer); only the handler is wired
-    // here, once per tree.
-    if (temp_graph_card_) {
-        lv_obj_add_event_cb(
-            temp_graph_card_,
-            [](lv_event_t* e) {
-                auto* self = static_cast<FilamentPanel*>(lv_event_get_user_data(e));
-                if (self) {
-                    self->open_temp_graph_overlay();
-                }
-            },
-            LV_EVENT_CLICKED, this);
     }
 }
 
@@ -768,7 +777,7 @@ void FilamentPanel::setup_orientation_rewire_observer() {
 void FilamentPanel::update_temp_display() {
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
                             sizeof(temp_display_buf_));
-    lv_subject_copy_string(&temp_display_subject_, temp_display_buf_);
+    lv_subject_set_string(&temp_display_subject_, temp_display_buf_);
 }
 
 void FilamentPanel::update_status_icon(const char* icon_name, const char* variant) {
@@ -803,26 +812,27 @@ void FilamentPanel::update_status() {
         // see ramp progress (#8: previously only target was visible, leaving
         // the user staring at a static "Heating to 230°C..." for several
         // minutes with no sign of life from the firmware).
-        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Heating: %d / %d°C"),
-                      nozzle_current_, nozzle_target_);
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Heating: %d / %s"),
+                      helix::units::to_display_temp_whole(nozzle_current_),
+                      helix::units::format_display_temp(nozzle_target_).c_str());
+        lv_subject_set_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::NozzleHeating;
         update_status_icon("flash", "warning");
         return; // Already updated, exit early
     } else if (chamber_target_ > 0 && chamber_current_ < deci_to_degrees(chamber_target_) - 5) {
         // Chamber is heating (show only if nozzle is cold)
-        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber heating to %d°C..."),
-                      deci_to_degrees(chamber_target_));
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber heating to %s..."),
+                      helix::units::format_display_temp(deci_to_degrees(chamber_target_)).c_str());
+        lv_subject_set_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::ChamberHeating;
         update_status_icon("fire", "warning");
         return;
     } else if (chamber_target_ > 0 && chamber_current_ >= deci_to_degrees(chamber_target_) - 5 &&
                chamber_current_ <= deci_to_degrees(chamber_target_) + 2) {
         // Chamber at target (show only if nozzle is cold)
-        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber at %d°C"),
-                      deci_to_degrees(chamber_target_));
-        lv_subject_copy_string(&status_subject_, status_buf_);
+        std::snprintf(status_buf_, sizeof(status_buf_), lv_tr("Chamber at %s"),
+                      helix::units::format_display_temp(deci_to_degrees(chamber_target_)).c_str());
+        lv_subject_set_string(&status_subject_, status_buf_);
         last_status_branch_ = StatusBranch::ChamberAtTarget;
         update_status_icon("check", "success");
         return;
@@ -837,20 +847,22 @@ void FilamentPanel::update_status() {
         update_status_icon("cooldown", "secondary");
     }
 
-    lv_subject_copy_string(&status_subject_, status_msg);
+    lv_subject_set_string(&status_subject_, status_msg);
 }
 
 void FilamentPanel::update_warning_text() {
-    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_),
-                  lv_tr("Current: %d°C | Target: %d°C"), nozzle_current_, nozzle_target_);
-    lv_subject_copy_string(&warning_temps_subject_, warning_temps_buf_);
+    std::snprintf(warning_temps_buf_, sizeof(warning_temps_buf_), lv_tr("Current: %s | Target: %s"),
+                  helix::units::format_display_temp(nozzle_current_).c_str(),
+                  helix::units::format_display_temp(nozzle_target_).c_str());
+    lv_subject_set_string(&warning_temps_subject_, warning_temps_buf_);
 }
 
 void FilamentPanel::update_safety_warning_text() {
     std::snprintf(safety_warning_text_buf_, sizeof(safety_warning_text_buf_),
-                  lv_tr("Heat to at least %d°C for filament operations"), min_extrude_temp_);
+                  lv_tr("Heat to at least %s for filament operations"),
+                  helix::units::format_display_temp(min_extrude_temp_).c_str());
     if (subjects_initialized_) {
-        lv_subject_copy_string(&safety_warning_text_subject_, safety_warning_text_buf_);
+        lv_subject_set_string(&safety_warning_text_subject_, safety_warning_text_buf_);
     }
 }
 
@@ -928,40 +940,98 @@ void FilamentPanel::check_and_auto_select_preset() {
     }
 }
 
-void FilamentPanel::update_nozzle_label() {
-    auto label = helix::ToolState::instance().nozzle_label();
-    std::snprintf(nozzle_label_buf_, sizeof(nozzle_label_buf_), "%s", label.c_str());
-    if (subjects_initialized_) {
-        lv_subject_copy_string(&nozzle_label_subject_, nozzle_label_buf_);
-    }
+int FilamentPanel::target_tool() const {
+    return helix::ui::TargetTool::instance().tool();
 }
 
-void FilamentPanel::update_tool_noun() {
-    auto noun = helix::ui::noun_text(helix::ui::active_tool_noun());
-    std::snprintf(tool_noun_buf_, sizeof(tool_noun_buf_), "%s", noun.c_str());
-    if (subjects_initialized_) {
-        lv_subject_copy_string(&tool_noun_subject_, tool_noun_buf_);
-    }
+std::string FilamentPanel::target_extruder_name() const {
+    return helix::ui::TargetTool::instance().extruder_name();
 }
 
-void FilamentPanel::sync_tool_dropdown_text() {
-    // The closed dropdown shows the G-code name ("T0"), not the full option
-    // string the open list carries; every selection change routes through here
-    // so the two can never disagree.
-    if (!extruder_dropdown_)
+void FilamentPanel::sync_target_tool_ui() {
+    // The mini graph charts the tool the card shows; the mounted tool keeps
+    // the service's own active-extruder binding.
+    if (temp_control_panel_) {
+        temp_control_panel_->set_mini_graph_extruder(target_is_mounted() ? std::string()
+                                                                         : target_extruder_name());
+    }
+    update_target_tool_action();
+    update_filament_op_buttons();
+}
+
+bool FilamentPanel::target_is_mounted() const {
+    return helix::ui::TargetTool::instance().mounted();
+}
+
+bool FilamentPanel::target_needs_pickup() const {
+    return helix::ToolState::instance().has_multiple_toolheads() && !target_is_mounted();
+}
+
+void FilamentPanel::drop_pending_pickup(const char* why) {
+    if (!tool_arrival_.armed()) {
         return;
-    auto& ts = helix::ToolState::instance();
-    const auto& tools = ts.tools();
-    const int selected = static_cast<int>(lv_dropdown_get_selected(extruder_dropdown_));
-    std::string label;
-    if (lv_subject_get_int(ts.get_active_tool_subject()) < 0) {
-        // A tool changer with its carriage empty: no tool is selected, whatever
-        // the list last pointed at.
-        label = lv_tr("None");
-    } else if (selected >= 0 && selected < static_cast<int>(tools.size())) {
-        label = helix::ui::tool_label(tools[selected].index);
     }
-    lv_dropdown_set_text(extruder_dropdown_, label.c_str());
+    spdlog::info("[{}] Pending pick-up step dropped: {}", get_name(), why);
+    tool_arrival_.cancel();
+    NOTIFY_WARNING(lv_tr("Pick-up step cancelled; nothing was sent"));
+}
+
+void FilamentPanel::on_deactivating(DeactivateReason reason) {
+    // A step waiting on a pickup must not run on a screen the user has left.
+    // Suspended keeps the panel on the stack (a keypad over it), so it stays.
+    if (reason != DeactivateReason::Suspended) {
+        drop_pending_pickup("panel left");
+    }
+    PanelBase::on_deactivating(reason);
+}
+
+void FilamentPanel::update_target_tool_action() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const auto& ts = helix::ToolState::instance();
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const auto action = helix::ui::decide_target_tool_action(
+        target_tool(), ts.active_tool_index(), ts.has_multiple_toolheads(),
+        backend && backend->supports_tool_park());
+    lv_subject_set_int(&target_tool_action_subject_, static_cast<int>(action));
+}
+
+void FilamentPanel::handle_target_tool_action() {
+    const auto action =
+        static_cast<helix::ui::TargetToolAction>(lv_subject_get_int(&target_tool_action_subject_));
+    if (action == helix::ui::TargetToolAction::Park) {
+        helix::ui::request_tool_park(printer_state_);
+    } else if (action == helix::ui::TargetToolAction::PickUp) {
+        with_target_mounted(nullptr);
+    }
+}
+
+void FilamentPanel::with_target_mounted(std::function<void()> then) {
+    if (!target_needs_pickup()) {
+        if (then) {
+            then();
+        }
+        return;
+    }
+    const int target = target_tool();
+    spdlog::info("[{}] Picking up T{} before the next step", get_name(), target);
+    helix::ui::ToolChangeHooks hooks;
+    // Accepted is not mounted: a hot-end changer confirms the swap from its
+    // dock sensors later, and a move sent before then reaches the old nozzle.
+    hooks.on_success = object_lifetime_.bg_cb(
+        "FilamentPanel::pickup_accepted", [this, target, then = std::move(then)]() {
+            if (!then) {
+                return;
+            }
+            tool_arrival_.start(target, helix::ui::kToolArrivalTimeoutMs, then, [target]() {
+                NOTIFY_WARNING(lv_tr("{} did not arrive; nothing was sent"),
+                               helix::ui::tool_label(target));
+            });
+        });
+    hooks.owner_token = object_lifetime_.token();
+    hooks.resolve_api = [this]() { return api_; };
+    helix::ui::offer_tool_change(printer_state_, target, std::move(hooks));
 }
 
 void FilamentPanel::defer_temps_update() {
@@ -975,7 +1045,6 @@ void FilamentPanel::update_all_temps() {
         return;
 
     // Always update current-temp-dependent displays
-    update_left_card_temps();
     update_temp_display();
     update_warning_text();
     update_safety_state();
@@ -1025,8 +1094,12 @@ void FilamentPanel::handle_preset_button(int material_id) {
     }
 
     // An explicit preheat applies the selected material, not a filament-swap
-    // temperature floor. A configured heating macro owns all heater commands.
-    if (selected_material_ == material_id) {
+    // temperature floor. A configured heating macro owns all heater commands,
+    // but it heats the mounted tool: aimed at another, the panel sends the
+    // targets itself.
+    if (selected_material_ == material_id && !target_is_mounted()) {
+        send_preset_targets();
+    } else if (selected_material_ == material_id) {
         const auto& hw = printer_state_.get_discovery();
         execute_material_preheat(
             api_,
@@ -1034,26 +1107,33 @@ void FilamentPanel::handle_preset_button(int material_id) {
                 helix::MaterialSettingsManager::instance().find_override_for_material(
                     helix::presets::name(material_id)),
                 hw),
-            [this]() {
-                send_nozzle_target();
-                if (auto* c = get_temperature_controller()) {
-                    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                                  {.toast = true, .on_success = [target = bed_target_]() {
-                                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
-                                   }});
+            [this]() { send_preset_targets(); }, "[FilamentPanel]", hw);
+    }
+}
 
-                    // Set chamber temperature if preset specifies one
-                    if (chamber_target_ > 0) {
-                        int target = deci_to_degrees(chamber_target_);
-                        c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
-                                      {.toast = true, .on_success = [target]() {
-                                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"),
-                                                          target);
-                                       }});
-                    }
-                }
-            },
-            "[FilamentPanel]", hw);
+void FilamentPanel::send_preset_targets() {
+    send_nozzle_target();
+    auto* c = get_temperature_controller();
+    if (!c) {
+        return;
+    }
+    // With "Material presets heat the bed and chamber" off, a preset heats the
+    // nozzle alone.
+    const auto targets =
+        helix::presets::heater_targets(bed_target_, deci_to_degrees(chamber_target_));
+    if (targets.bed) {
+        c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                      {.toast = true, .on_success = [target = *targets.bed]() {
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                          helix::units::format_display_temp(target));
+                       }});
+    }
+    if (targets.chamber) {
+        c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
+                      {.toast = true, .on_success = [target = *targets.chamber]() {
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}"),
+                                          helix::units::format_display_temp(target));
+                       }});
     }
 }
 
@@ -1122,97 +1202,6 @@ void FilamentPanel::apply_preset_pick(int slot, const helix::printer::EffectiveF
                  slot, ef.id, ef.nozzle_recommended, ef.bed_temp);
 }
 
-/// Keypad ceiling for one heater, from the printer's own config where it is
-/// known. ControlsPanel already asked TemperatureController this question for
-/// its three keypads; the filament panel used compiled-in members instead, so a
-/// 290C machine offered targets up to 400 (nozzle) and every bed and chamber
-/// keypad stopped at a hardcoded 150 regardless of the printer
-/// (prestonbrown/helixscreen#1355). ensure_limits() is a no-op once the
-/// heater's section has been read.
-float FilamentPanel::keypad_max_for(helix::HeaterType type, int fallback_deg) {
-    return helix::keypad_ceiling(get_temperature_controller(), type,
-                                 static_cast<float>(fallback_deg));
-}
-
-void FilamentPanel::handle_nozzle_temp_tap() {
-    spdlog::debug("[{}] Opening custom nozzle temperature keypad", get_name());
-
-    const std::string title =
-        helix::ui::temperature::heater_keypad_title(helix::HeaterType::Nozzle);
-    ui_keypad_config_t config = {
-        .initial_value = static_cast<float>(nozzle_target_ > 0 ? nozzle_target_ : 200),
-        .min_value = 0.0f,
-        .max_value = keypad_max_for(helix::HeaterType::Nozzle, nozzle_max_temp_),
-        .title_label = title.c_str(),
-        .unit_label = "°C",
-        .allow_decimal = false,
-        .allow_negative = false,
-        .callback = custom_nozzle_keypad_cb,
-        .user_data = this};
-
-    ui_keypad_show(&config);
-}
-
-void FilamentPanel::handle_bed_temp_tap() {
-    spdlog::debug("[{}] Opening custom bed temperature keypad", get_name());
-
-    const std::string title = helix::ui::temperature::heater_keypad_title(helix::HeaterType::Bed);
-    ui_keypad_config_t config = {.initial_value =
-                                     static_cast<float>(bed_target_ > 0 ? bed_target_ : 60),
-                                 .min_value = 0.0f,
-                                 .max_value = keypad_max_for(helix::HeaterType::Bed, bed_max_temp_),
-                                 .title_label = title.c_str(),
-                                 .unit_label = "°C",
-                                 .allow_decimal = false,
-                                 .allow_negative = false,
-                                 .callback = custom_bed_keypad_cb,
-                                 .user_data = this};
-
-    ui_keypad_show(&config);
-}
-
-void FilamentPanel::handle_chamber_temp_tap() {
-    spdlog::debug("[{}] Opening custom chamber temperature keypad", get_name());
-
-    const std::string title =
-        helix::ui::temperature::heater_keypad_title(helix::HeaterType::Chamber);
-    ui_keypad_config_t config = {
-        .initial_value =
-            static_cast<float>(chamber_target_ > 0 ? deci_to_degrees(chamber_target_) : 50),
-        .min_value = 0.0f,
-        .max_value = keypad_max_for(helix::HeaterType::Chamber, chamber_max_temp_),
-        .title_label = title.c_str(),
-        .unit_label = "°C",
-        .allow_decimal = false,
-        .allow_negative = false,
-        .callback =
-            [](float value, void* user_data) {
-                auto* self = static_cast<FilamentPanel*>(user_data);
-                if (self) {
-                    self->handle_custom_chamber_confirmed(value);
-                }
-            },
-        .user_data = this};
-
-    ui_keypad_show(&config);
-}
-
-void FilamentPanel::handle_custom_chamber_confirmed(float value) {
-    spdlog::info("[{}] Custom chamber temperature confirmed: {}°C", get_name(),
-                 static_cast<int>(value));
-
-    chamber_target_ = helix::units::to_decidegrees(value);
-    update_chamber_temp_display();
-
-    int target = static_cast<int>(value);
-    if (auto* c = get_temperature_controller()) {
-        c->set_target(helix::HeaterType::Chamber, static_cast<double>(target),
-                      {.toast = true, .on_success = [target]() {
-                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}°C"), target);
-                       }});
-    }
-}
-
 void FilamentPanel::send_nozzle_target() {
     auto* c = get_temperature_controller();
     if (!c) {
@@ -1220,111 +1209,48 @@ void FilamentPanel::send_nozzle_target() {
     }
     // nozzle_target_ already shows the request. A refused or failed send must
     // not leave it there: the panel would claim a target the printer never got.
-    c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_),
-                  {.toast = true,
-                   .on_success =
-                       [target = nozzle_target_]() {
-                           NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), target);
-                       },
-                   .on_error =
-                       [this](const MoonrakerError&) {
-                           object_lifetime_.defer("FilamentPanel::nozzle_target_refused",
-                                                  [this]() { show_printer_nozzle_target(); });
-                       }});
+    // The mounted tool goes by HeaterType so the controller's nozzle guards
+    // apply as everywhere else; any other target is named by its extruder.
+    const std::string extruder = target_extruder_name();
+    const bool mounted = target_is_mounted();
+    const helix::SendOptions opts{.toast = true,
+                                  .on_success =
+                                      [target = nozzle_target_]() {
+                                          NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                                         helix::units::format_display_temp(target));
+                                      },
+                                  .on_error =
+                                      [this](const MoonrakerError&) {
+                                          object_lifetime_.defer(
+                                              "FilamentPanel::nozzle_target_refused",
+                                              [this]() { show_printer_nozzle_target(); });
+                                      }};
+    if (mounted) {
+        c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle_target_), opts);
+    } else {
+        c->set_target(extruder, static_cast<double>(nozzle_target_), opts);
+    }
 }
 
 void FilamentPanel::show_printer_nozzle_target() {
-    nozzle_target_ = helix::ui::temperature::deci_to_degrees(lv_subject_get_int(
-        printer_state_.temperature_state().get_active_extruder_target_subject()));
+    lv_subject_t* target =
+        printer_state_.temperature_state().get_extruder_target_subject(target_extruder_name());
+    if (!target) {
+        target = printer_state_.temperature_state().get_active_extruder_target_subject();
+    }
+    nozzle_target_ = helix::temperature_rules::deci_to_degrees(lv_subject_get_int(target));
     update_temp_display();
     update_material_temp_display();
     update_status();
     check_and_auto_select_preset();
 }
 
-void FilamentPanel::handle_custom_nozzle_confirmed(float value) {
-    spdlog::info("[{}] Custom nozzle temperature confirmed: {}°C", get_name(),
-                 static_cast<int>(value));
-
-    nozzle_target_ = static_cast<int>(value);
-    // Deselect any preset since user set custom temp
-    selected_material_ = -1;
-    lv_subject_set_int(&material_selected_subject_, selected_material_);
-    update_preset_buttons_visual();
-    update_temp_display();
-    update_material_temp_display();
-    update_status();
-
-    send_nozzle_target();
-}
-
-void FilamentPanel::handle_custom_bed_confirmed(float value) {
-    spdlog::info("[{}] Custom bed temperature confirmed: {}°C", get_name(),
-                 static_cast<int>(value));
-
-    bed_target_ = static_cast<int>(value);
-    // Deselect any preset since user set custom temp
-    selected_material_ = -1;
-    lv_subject_set_int(&material_selected_subject_, selected_material_);
-    update_preset_buttons_visual();
-    update_material_temp_display();
-
-    // Send temperature command to printer
-    if (auto* c = get_temperature_controller()) {
-        c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                      {.toast = true, .on_success = [target = bed_target_]() {
-                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), target);
-                       }});
-    }
-}
-
 void FilamentPanel::update_material_temp_display() {
     // Use centralized formatting with em dash for heater-off state
     format_target_or_off(nozzle_target_, material_nozzle_buf_, sizeof(material_nozzle_buf_));
     format_target_or_off(bed_target_, material_bed_buf_, sizeof(material_bed_buf_));
-    lv_subject_copy_string(&material_nozzle_temp_subject_, material_nozzle_buf_);
-    lv_subject_copy_string(&material_bed_temp_subject_, material_bed_buf_);
-}
-
-void FilamentPanel::update_chamber_temp_display() {
-    // chamber_current_ is already in degrees (observer converts), chamber_target_ is decidegrees
-    std::snprintf(chamber_current_buf_, sizeof(chamber_current_buf_), "%d°C", chamber_current_);
-    format_target_or_off(deci_to_degrees(chamber_target_), chamber_target_buf_,
-                         sizeof(chamber_target_buf_));
-    lv_subject_copy_string(&chamber_current_subject_, chamber_current_buf_);
-    lv_subject_copy_string(&chamber_target_subject_, chamber_target_buf_);
-
-    // Apply 4-state heating color (matches nozzle/bed)
-    if (chamber_current_label_) {
-        int target_deg = deci_to_degrees(chamber_target_);
-        lv_color_t color = get_heating_state_color(chamber_current_, target_deg);
-        lv_obj_set_style_text_color(chamber_current_label_, color, LV_PART_MAIN);
-    }
-}
-
-void FilamentPanel::update_left_card_temps() {
-    // Update current temps
-    std::snprintf(nozzle_current_buf_, sizeof(nozzle_current_buf_), "%d°C", nozzle_current_);
-    std::snprintf(bed_current_buf_, sizeof(bed_current_buf_), "%d°C", bed_current_);
-    lv_subject_copy_string(&nozzle_current_subject_, nozzle_current_buf_);
-    lv_subject_copy_string(&bed_current_subject_, bed_current_buf_);
-
-    // Update target temps using centralized formatting with em dash for heater-off state
-    format_target_or_off(nozzle_target_, nozzle_target_buf_, sizeof(nozzle_target_buf_));
-    format_target_or_off(bed_target_, bed_target_buf_, sizeof(bed_target_buf_));
-    lv_subject_copy_string(&nozzle_target_subject_, nozzle_target_buf_);
-    lv_subject_copy_string(&bed_target_subject_, bed_target_buf_);
-
-    // Update temperature label colors using 4-state heating logic
-    // (matches temp_display widget: gray=off, red=heating, green=at-temp, blue=cooling)
-    if (nozzle_current_label_) {
-        lv_color_t nozzle_color = get_heating_state_color(nozzle_current_, nozzle_target_);
-        lv_obj_set_style_text_color(nozzle_current_label_, nozzle_color, LV_PART_MAIN);
-    }
-    if (bed_current_label_) {
-        lv_color_t bed_color = get_heating_state_color(bed_current_, bed_target_);
-        lv_obj_set_style_text_color(bed_current_label_, bed_color, LV_PART_MAIN);
-    }
+    lv_subject_set_string(&material_nozzle_temp_subject_, material_nozzle_buf_);
+    lv_subject_set_string(&material_bed_temp_subject_, material_bed_buf_);
 }
 
 void FilamentPanel::update_status_icon_for_state() {
@@ -1344,15 +1270,69 @@ void FilamentPanel::update_status_icon_for_state() {
     }
 }
 
-// set_operation_in_progress removed — replaced by OperationTimeoutGuard
+void FilamentPanel::handle_extrude_length_select(int index) {
+    if (index < 0 || index >= helix::SettingsManager::kExtrudeLengthPresetCount) {
+        return;
+    }
+    extrude_length_index_ = index;
+    lv_subject_set_int(&extrude_length_index_subject_, index);
+    spdlog::debug("[{}] Extrude length set to {}mm", get_name(), extrude_length_mm());
+}
 
-void FilamentPanel::handle_extrude_length_select(int amount) {
-    extrude_length_ = amount;
-    // Update boolean subjects for each button (only one active at a time)
-    lv_subject_set_int(&extrude_length_5mm_active_subject_, amount == 5 ? 1 : 0);
-    lv_subject_set_int(&extrude_length_10mm_active_subject_, amount == 10 ? 1 : 0);
-    lv_subject_set_int(&extrude_length_25mm_active_subject_, amount == 25 ? 1 : 0);
-    spdlog::debug("[{}] Extrude length set to {}mm", get_name(), amount);
+int FilamentPanel::extrude_length_mm() const {
+    return helix::SettingsManager::instance().get_extrude_length_preset(extrude_length_index_);
+}
+
+bool FilamentPanel::handle_extrude_length_longpress(int index) {
+    auto& settings = helix::SettingsManager::instance();
+    if (index < 0 || index >= helix::SettingsManager::kExtrudeLengthPresetCount) {
+        return false;
+    }
+    ui_keypad_config_t config{};
+    config.initial_value = static_cast<float>(settings.get_extrude_length_preset(index));
+    config.min_value = static_cast<float>(helix::SettingsManager::kExtrudeLengthMinMm);
+    config.max_value = static_cast<float>(helix::SettingsManager::kExtrudeLengthMaxMm);
+    config.default_value = static_cast<float>(settings.get_extrude_length_default(index));
+    config.title_label = lv_tr("Extrude Length");
+    config.unit_label = "mm";
+    // The keypad edits the button it was opened from, which also becomes the
+    // length Extrude and Retract use.
+    config.on_confirm = [this, index](float mm) {
+        helix::SettingsManager::instance().set_extrude_length_preset(index, static_cast<int>(mm));
+        handle_extrude_length_select(index);
+    };
+    return ui_keypad_show(&config);
+}
+
+void FilamentPanel::sync_extrude_speed_dropdown() {
+    if (!extrude_speed_dropdown_) {
+        return;
+    }
+    const auto& presets = helix::SettingsManager::kExtrudeSpeedPresets;
+    const int speed = helix::SettingsManager::instance().get_extrude_speed();
+
+    std::string options;
+    uint32_t selected = LV_DROPDOWN_POS_LAST;
+    for (size_t i = 0; i < std::size(presets); ++i) {
+        if (!options.empty()) {
+            options += '\n';
+        }
+        options += fmt::format("{} mm/s", presets[i]);
+        if (presets[i] == speed) {
+            selected = static_cast<uint32_t>(i);
+        }
+    }
+    if (lv_dropdown_get_option_count(extrude_speed_dropdown_) != std::size(presets)) {
+        lv_dropdown_set_options(extrude_speed_dropdown_, options.c_str());
+    }
+    if (selected != LV_DROPDOWN_POS_LAST) {
+        lv_dropdown_set_selected(extrude_speed_dropdown_, selected);
+    }
+
+    // A speed set in Machine Limits need not be a preset: the closed dropdown
+    // always names the speed Extrude and Retract will use.
+    lv_dropdown_set_text(extrude_speed_dropdown_, fmt::format("{} mm/s", speed).c_str());
+    helix::ui::fit_dropdown_to_text(extrude_speed_dropdown_);
 }
 
 // ============================================================================
@@ -1493,7 +1473,7 @@ void FilamentPanel::begin_manual_motion(helix::FilamentMotion motion, int speed_
     motion_timer_.reset();
     motion_rpc_pending_ = true;
     lv_subject_set_int(&manual_motion_subject_, static_cast<int>(motion));
-    const uint32_t ms = helix::manual_motion_duration_ms(extrude_length_, speed_mm_s);
+    const uint32_t ms = helix::manual_motion_duration_ms(extrude_length_mm(), speed_mm_s);
     // `this` is an immortal singleton, and motion_timer_ neuters the timer on
     // reset and destruction.
     lv_timer_t* t = lv_timer_create(
@@ -1587,6 +1567,12 @@ void FilamentPanel::handle_load_button() {
         return;
     }
 
+    // With no filament system the load macro feeds the mounted extruder.
+    if (!AmsState::instance().get_backend() && target_needs_pickup()) {
+        with_target_mounted([this]() { handle_load_button(); });
+        return;
+    }
+
     // A backend load homes inside its own ensure_homed_then(). On the macro tier
     // we send the G28 only for a macro profile that needs one, right before the
     // macro and after any preheat; an unrecognized macro runs as it is.
@@ -1625,6 +1611,12 @@ void FilamentPanel::handle_unload_button(std::optional<int> chosen_lane) {
     }
 
     if (cancel_pending_preheat()) {
+        return;
+    }
+
+    // With no filament system the unload macro empties the mounted extruder.
+    if (!AmsState::instance().get_backend() && target_needs_pickup()) {
+        with_target_mounted([this, chosen_lane]() { handle_unload_button(chosen_lane); });
         return;
     }
 
@@ -1676,11 +1668,17 @@ void FilamentPanel::handle_extrude_button() {
         return;
     }
 
+    // The move goes to the mounted nozzle: bring the target there first.
+    if (target_needs_pickup()) {
+        with_target_mounted([this]() { handle_extrude_button(); });
+        return;
+    }
+
     run_after_preheat(helix::ui::FilamentHeatOp::Extrude, &FilamentPanel::execute_extrude);
 }
 
 void FilamentPanel::execute_extrude() {
-    spdlog::info("[{}] Extruding {}mm", get_name(), extrude_length_);
+    spdlog::info("[{}] Extruding {}mm", get_name(), extrude_length_mm());
 
     if (!api_) {
         return;
@@ -1689,8 +1687,8 @@ void FilamentPanel::execute_extrude() {
     // Inline G-code: M83 = relative extrusion, G1 E{amount} F{speed}
     begin_operation_guard();
     int speed_mm_min = helix::SettingsManager::instance().get_extrude_speed() * 60;
-    spdlog::info("[{}] Extruding {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
-    std::string gcode = helix::ui::extrude_gcode(extrude_length_, speed_mm_min);
+    spdlog::info("[{}] Extruding {}mm at F{}", get_name(), extrude_length_mm(), speed_mm_min);
+    std::string gcode = helix::ui::extrude_gcode(extrude_length_mm(), speed_mm_min);
     op_started(FilamentOp::Extrude); // on-button spinner replaces the start toast
     begin_manual_motion(helix::FilamentMotion::Extrude, speed_mm_min / 60);
 
@@ -1702,18 +1700,18 @@ void FilamentPanel::execute_extrude() {
                                    heat_op_succeeded();
                                    op_succeeded(FilamentOp::Extrude); // checkmark, then auto-revert
                                }),
-        object_lifetime_.bg_cb(
-            "FilamentPanel::extrude_err",
-            [this](const MoonrakerError& error) {
-                operation_guard_.end();
-                heat_op_failed();
-                op_failed(FilamentOp::Extrude);
-                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                    NOTIFY_WARNING(lv_tr("Extrude may still be running — response timed out"));
-                } else {
-                    helix::ui::notify_error_tr(TR_NOOP("Extrude failed: {}"), error);
-                }
-            }),
+        object_lifetime_.bg_cb("FilamentPanel::extrude_err",
+                               [this](const MoonrakerError& error) {
+                                   operation_guard_.end();
+                                   heat_op_failed();
+                                   op_failed(FilamentOp::Extrude);
+                                   if (error.type == MoonrakerErrorType::TIMEOUT) {
+                                       NOTIFY_WARNING(lv_tr(
+                                           "Extrude may still be running — response timed out"));
+                                   } else {
+                                       helix::notify_error_tr(TR_NOOP("Extrude failed: {}"), error);
+                                   }
+                               }),
         IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
@@ -1724,6 +1722,12 @@ void FilamentPanel::handle_purge_button() {
     }
 
     if (cancel_pending_preheat()) {
+        return;
+    }
+
+    // The move goes to the mounted nozzle: bring the target there first.
+    if (target_needs_pickup()) {
+        with_target_mounted([this]() { handle_purge_button(); });
         return;
     }
 
@@ -1784,7 +1788,7 @@ void FilamentPanel::execute_purge() {
                 return;
             }
             begin_operation_guard();
-            api_->execute_gcode(filament_purge_fallback_gcode(),
+            api_->execute_gcode(filament_purge_fallback_gcode(AmsState::instance().get_backend()),
                                 object_lifetime_.bg_cb("FilamentPanel::purge_ok",
                                                        [this]() {
                                                            operation_guard_.end();
@@ -1817,7 +1821,7 @@ void FilamentPanel::purge_failed(const MoonrakerError& error) {
     if (error.type == MoonrakerErrorType::TIMEOUT) {
         NOTIFY_WARNING(lv_tr("Purge may still be running — response timed out"));
     } else {
-        helix::ui::notify_error_tr(TR_NOOP("Purge failed: {}"), error);
+        helix::notify_error_tr(TR_NOOP("Purge failed: {}"), error);
     }
 }
 
@@ -1831,11 +1835,17 @@ void FilamentPanel::handle_retract_button() {
         return;
     }
 
+    // The move goes to the mounted nozzle: bring the target there first.
+    if (target_needs_pickup()) {
+        with_target_mounted([this]() { handle_retract_button(); });
+        return;
+    }
+
     run_after_preheat(helix::ui::FilamentHeatOp::Retract, &FilamentPanel::execute_retract);
 }
 
 void FilamentPanel::execute_retract() {
-    spdlog::info("[{}] Retracting {}mm", get_name(), extrude_length_);
+    spdlog::info("[{}] Retracting {}mm", get_name(), extrude_length_mm());
 
     if (!api_) {
         return;
@@ -1844,8 +1854,8 @@ void FilamentPanel::execute_retract() {
     // Inline G-code: M83 = relative extrusion, negative E = retract
     begin_operation_guard();
     int speed_mm_min = helix::SettingsManager::instance().get_extrude_speed() * 60;
-    spdlog::info("[{}] Retracting {}mm at F{}", get_name(), extrude_length_, speed_mm_min);
-    std::string gcode = helix::ui::extrude_gcode(-extrude_length_, speed_mm_min);
+    spdlog::info("[{}] Retracting {}mm at F{}", get_name(), extrude_length_mm(), speed_mm_min);
+    std::string gcode = helix::ui::extrude_gcode(-extrude_length_mm(), speed_mm_min);
     op_started(FilamentOp::Retract); // on-button spinner replaces the start toast
     begin_manual_motion(helix::FilamentMotion::Retract, speed_mm_min / 60);
 
@@ -1857,18 +1867,18 @@ void FilamentPanel::execute_retract() {
                                    heat_op_succeeded();
                                    op_succeeded(FilamentOp::Retract);
                                }),
-        object_lifetime_.bg_cb(
-            "FilamentPanel::retract_err",
-            [this](const MoonrakerError& error) {
-                operation_guard_.end();
-                heat_op_failed();
-                op_failed(FilamentOp::Retract);
-                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                    NOTIFY_WARNING(lv_tr("Retract may still be running — response timed out"));
-                } else {
-                    helix::ui::notify_error_tr(TR_NOOP("Retract failed: {}"), error);
-                }
-            }),
+        object_lifetime_.bg_cb("FilamentPanel::retract_err",
+                               [this](const MoonrakerError& error) {
+                                   operation_guard_.end();
+                                   heat_op_failed();
+                                   op_failed(FilamentOp::Retract);
+                                   if (error.type == MoonrakerErrorType::TIMEOUT) {
+                                       NOTIFY_WARNING(lv_tr(
+                                           "Retract may still be running — response timed out"));
+                                   } else {
+                                       helix::notify_error_tr(TR_NOOP("Retract failed: {}"), error);
+                                   }
+                               }),
         IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
@@ -1895,49 +1905,14 @@ void FilamentPanel::update_multi_filament_card_visibility() {
         return;
 
     bool has_ams = (lv_subject_get_int(AmsState::instance().get_ams_type_subject()) != 0);
-    bool multi_tool = helix::ToolState::instance().is_multi_tool();
+    // Several toolheads, not several tools: lanes a hub feeds into one head
+    // are a filament system, not a tool choice.
+    bool multi_tool = helix::ToolState::instance().has_multiple_toolheads();
 
-    // Card is ALWAYS visible
-    lv_obj_remove_flag(spool_card_, LV_OBJ_FLAG_HIDDEN);
-
-    // AMS manage row visible when AMS or multi-tool
-    if (ams_manage_row_) {
-        if (has_ams || multi_tool) {
-            lv_obj_remove_flag(ams_manage_row_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(ams_manage_row_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
+    // The card swaps its AMS row for the external spool row, centers it and
+    // drops its header in this mode (filament_spool_card.xml).
     bool external_spool_mode = !has_ams && !multi_tool;
-
-    // External spool row visible when no AMS and no multi-tool
-    if (external_spool_row_) {
-        if (external_spool_mode) {
-            lv_obj_remove_flag(external_spool_row_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(external_spool_row_, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    // Header row (icon + title) hidden in external spool mode, and in
-    // portrait where the card is a bottom strip that cannot afford the title
-    // line (320x480 leaves it no room above the AMS row).
-    lv_subject_t* portrait_subject = lv_xml_get_subject(nullptr, "ui_is_portrait");
-    const bool portrait = portrait_subject && lv_subject_get_int(portrait_subject) != 0;
-    if (spool_card_header_row_) {
-        lv_obj_set_flag(spool_card_header_row_, LV_OBJ_FLAG_HIDDEN,
-                        external_spool_mode || portrait);
-    }
-
-    // Center the external spool row within the card when in external spool mode
-    if (external_spool_mode) {
-        lv_obj_set_style_flex_main_place(spool_card_, LV_FLEX_ALIGN_CENTER, 0);
-        lv_obj_set_style_flex_cross_place(spool_card_, LV_FLEX_ALIGN_CENTER, 0);
-    } else {
-        lv_obj_set_style_flex_main_place(spool_card_, LV_FLEX_ALIGN_START, 0);
-        lv_obj_set_style_flex_cross_place(spool_card_, LV_FLEX_ALIGN_START, 0);
-    }
+    lv_subject_set_int(&external_spool_mode_subject_, external_spool_mode ? 1 : 0);
 
     // Swap which card is the flex filler. Without AMS at MICRO/TINY the spool
     // card has almost no content, so hand the freed space to the temp graph.
@@ -1947,7 +1922,7 @@ void FilamentPanel::update_multi_filament_card_visibility() {
     const char* title = external_spool_mode ? lv_tr("External Spool") : lv_tr("Multi-Filament");
     std::strncpy(card_title_buf_, title, sizeof(card_title_buf_) - 1);
     card_title_buf_[sizeof(card_title_buf_) - 1] = '\0';
-    lv_subject_copy_string(&card_title_subject_, card_title_buf_);
+    lv_subject_set_string(&card_title_subject_, card_title_buf_);
 
     spdlog::debug("[{}] Multi-filament card: ams={}, multi_tool={}, title={}", get_name(), has_ams,
                   multi_tool, title);
@@ -1971,8 +1946,8 @@ void FilamentPanel::setup_external_spool_display() {
     }
     external_spool_container_wired_ = external_spool_container_;
     // L071: Canvas absorbs clicks — pass through to parent row's event_cb
-    lv_obj_remove_flag(external_spool_canvas_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(external_spool_canvas_, LV_OBJ_FLAG_EVENT_BUBBLE);
+    lv_obj_set_clickable(external_spool_canvas_, false);
+    lv_obj_set_event_bubble(external_spool_canvas_, true);
 
     // Set initial state from AmsState
     update_external_spool_from_state();
@@ -2000,51 +1975,44 @@ void FilamentPanel::update_external_spool_from_state() {
             (ext->total_weight_g > 0) ? ext->remaining_weight_g / ext->total_weight_g : 1.0f;
         ui_spool_canvas_set_fill_level(external_spool_canvas_, fill);
 
-        // Update labels with material info
-        if (external_spool_material_label_) {
-            std::string mat_text;
-            if (!ext->brand.empty() && !ext->material.empty()) {
-                mat_text = ext->brand + " " + ext->material;
-            } else if (!ext->material.empty()) {
-                mat_text = ext->material;
-            } else {
-                mat_text = lv_tr("Unknown");
-            }
-            // Append Spoolman spool ID when linked (e.g., "Prusament PLA #129")
-            if (ext->spoolman_id > 0) {
-                char id_buf[16];
-                snprintf(id_buf, sizeof(id_buf), " #%d", ext->spoolman_id);
-                mat_text += id_buf; // i18n: do not translate — Spoolman ID
-            }
-            lv_label_set_text(external_spool_material_label_, mat_text.c_str());
+        // Material line
+        std::string mat_text;
+        if (!ext->brand.empty() && !ext->material.empty()) {
+            mat_text = ext->brand + " " + ext->material;
+        } else if (!ext->material.empty()) {
+            mat_text = ext->material;
+        } else {
+            mat_text = lv_tr("Unknown");
         }
-        if (external_spool_color_label_) {
-            // Build second line: color name + remaining weight in grams
-            std::string detail;
-            if (!ext->color_name.empty()) {
-                detail = ext->color_name;
-            }
-            if (ext->remaining_weight_g > 0) {
-                char weight_str[16];
-                snprintf(weight_str, sizeof(weight_str), "%.0fg", ext->remaining_weight_g);
-                if (!detail.empty()) {
-                    detail += " · ";
-                }
-                detail += weight_str;
-            }
-            lv_label_set_text(external_spool_color_label_, detail.c_str());
+        // Append Spoolman spool ID when linked (e.g., "Prusament PLA #129")
+        if (ext->spoolman_id > 0) {
+            char id_buf[16];
+            snprintf(id_buf, sizeof(id_buf), " #%d", ext->spoolman_id);
+            mat_text += id_buf; // i18n: do not translate — Spoolman ID
         }
+        lv_subject_set_string(&external_spool_material_subject_, mat_text.c_str());
+
+        // Second line: color name + remaining weight in grams
+        std::string detail;
+        if (!ext->color_name.empty()) {
+            detail = ext->color_name;
+        }
+        if (ext->remaining_weight_g > 0) {
+            char weight_str[16];
+            snprintf(weight_str, sizeof(weight_str), "%.0fg", ext->remaining_weight_g);
+            if (!detail.empty()) {
+                detail += " · ";
+            }
+            detail += weight_str;
+        }
+        lv_subject_set_string(&external_spool_detail_subject_, detail.c_str());
+        lv_subject_set_int(&external_spool_assigned_subject_, 1);
     } else {
-        // No spool assigned - show muted empty spool
+        // No spool assigned - show muted empty spool; the row's own
+        // placeholder lines take over from the bound text.
         ui_spool_canvas_set_color(external_spool_canvas_, lv_color_hex(0x505050));
         ui_spool_canvas_set_fill_level(external_spool_canvas_, 0.0f);
-
-        if (external_spool_material_label_) {
-            lv_label_set_text(external_spool_material_label_, lv_tr("No spool assigned"));
-        }
-        if (external_spool_color_label_) {
-            lv_label_set_text(external_spool_color_label_, lv_tr("Tap to assign"));
-        }
+        lv_subject_set_int(&external_spool_assigned_subject_, 0);
     }
     ui_spool_canvas_redraw(external_spool_canvas_);
 }
@@ -2070,68 +2038,8 @@ void FilamentPanel::show_external_spool_edit_modal() {
         });
 }
 
-void FilamentPanel::populate_extruder_dropdown() {
-    if (!extruder_dropdown_)
-        return;
-
-    auto& ts = helix::ToolState::instance();
-
-    // The manage row holds one control or the other, and the tool count alone
-    // decides which. Manage navigates to the AMS panel, so it is the single-tool
-    // affordance. Every multi-tool printer gets the selector instead: the options
-    // come from ToolState, and handle_extruder_changed() issues a gcode Tn when no
-    // AMS backend claims the tool, so the selector works without one.
-    // update_multi_filament_card_visibility() hides the whole row when the printer
-    // has neither an AMS nor a second tool.
-    const bool multi_tool = ts.is_multi_tool();
-    if (extruder_selector_group_)
-        lv_obj_set_flag(extruder_selector_group_, LV_OBJ_FLAG_HIDDEN, !multi_tool);
-    if (btn_manage_slots_)
-        lv_obj_set_flag(btn_manage_slots_, LV_OBJ_FLAG_HIDDEN, multi_tool);
-
-    if (!multi_tool)
-        return;
-
-    // Build options string ("Tool 1 (T0)\nTool 2 (T1)\n..."). The open list
-    // sizes itself to its widest option, so it always has room for the full
-    // form; the closed control shows only the G-code name. With one head, every
-    // tool is a lane the hub feeds into it, so each is named by its lane
-    // ("Slot 1 (T0)", "1A (T0)"): "Tool 2" would name a toolhead the printer
-    // does not have.
-    const bool tools_are_lanes = !ts.has_multiple_toolheads();
-    // A lane is named by the backend that feeds it, which need not be the
-    // active one.
-    auto lane_label = [](const ToolInfo& tool) {
-        const auto* backend = AmsState::instance().get_backend(tool.backend_index);
-        return backend ? helix::ui::backend_lane_label(*backend, tool.backend_slot)
-                       : helix::ui::active_lane_label(tool.backend_slot);
-    };
-    std::string options;
-    for (const auto& tool : ts.tools()) {
-        if (!options.empty())
-            options += '\n';
-        options += tools_are_lanes && tool.backend_slot >= 0
-                       ? helix::ui::fed_lane_tool_label(lane_label(tool), tool.index,
-                                                        helix::ui::ToolLabelForm::Full)
-                       : helix::ui::active_tool_label(tool.name, tool.index,
-                                                      helix::ui::ToolLabelForm::Full);
-    }
-    lv_dropdown_set_options(extruder_dropdown_, options.c_str());
-
-    // Sync selection to active tool
-    int active = ts.active_tool_index();
-    if (active >= 0 && active < ts.tool_count()) {
-        lv_dropdown_set_selected(extruder_dropdown_, static_cast<uint32_t>(active));
-    }
-    update_tool_noun();
-    sync_tool_dropdown_text();
-
-    spdlog::debug("[{}] Extruder dropdown populated: {} tools, active=T{}", get_name(),
-                  ts.tool_count(), active);
-}
-
 int FilamentPanel::selected_op_slot() const {
-    // Map the selected tool (dropdown index == tool index) to a global slot.
+    // Map the tool the panel aims at to a global slot.
     // resolve_op_button_slot() prefers an explicit tool→slot map, then falls
     // back by topology: tool index == slot index on a multi-tool toolchanger,
     // but current_slot on a single-extruder multi-lane AMS (AD5X IFS), where
@@ -2141,10 +2049,10 @@ int FilamentPanel::selected_op_slot() const {
         return -1;
     }
     AmsSystemInfo sys = backend->get_system_info();
-    int selected_tool = helix::ToolState::instance().active_tool_index();
-    if (extruder_dropdown_) {
-        selected_tool = static_cast<int>(lv_dropdown_get_selected(extruder_dropdown_));
-    }
+    // Several heads: the target tool. One head: the mounted tool, whose slot
+    // the backend resolves from its current lane.
+    const auto& ts = helix::ToolState::instance();
+    const int selected_tool = ts.has_multiple_toolheads() ? target_tool() : ts.active_tool_index();
     return helix::ui::resolve_op_button_slot(
         sys, selected_tool, helix::ToolState::instance().tool_count(),
         backend->toolhead_filament_unaccounted().value_or(false));
@@ -2246,74 +2154,6 @@ void FilamentPanel::update_filament_op_buttons() {
                   backend->filament_ops_self_home(), gating.load_disabled, gating.unload_disabled);
 }
 
-void FilamentPanel::handle_extruder_changed() {
-    if (!extruder_dropdown_)
-        return;
-
-    int selected = static_cast<int>(lv_dropdown_get_selected(extruder_dropdown_));
-    auto& ts = helix::ToolState::instance();
-    sync_tool_dropdown_text();
-
-    // Re-evaluate button gating for the newly-selected tool immediately, even if
-    // it's already the active tool (no tool change issued below).
-    update_filament_op_buttons();
-
-    if (selected == ts.active_tool_index())
-        return;
-
-    if (selected < 0 || selected >= static_cast<int>(ts.tools().size())) {
-        spdlog::warn("[{}] Invalid extruder index {}", get_name(), selected);
-        return;
-    }
-
-    // Divergent behavior by topology: on a shared-extruder AMS (AFC BoxTurtle =
-    // HUB, AD5X IFS = LINEAR), selecting a tool in the dropdown must NOT trigger a
-    // physical filament swap — that's a multi-minute cut/unload/load at the single
-    // toolhead. The dropdown is selection-only; the explicit Load button performs
-    // the swap (execute_load acts on selected_op_slot()). Only a true PARALLEL
-    // toolchanger (each tool is its own toolhead) changes tool on select. With no
-    // backend (plain multi-extruder / external spool) keep the gcode Tn fallback.
-    AmsBackend* backend = AmsState::instance().get_backend();
-    if (backend && backend->get_topology() != PathTopology::PARALLEL) {
-        spdlog::info("[{}] Tool T{} selected (AMS: selection only; Load performs the swap)",
-                     get_name(), selected);
-        return;
-    }
-
-    spdlog::info("[{}] User selected tool T{}", get_name(), selected);
-
-    helix::ui::ToolChangeHooks hooks;
-    const auto& tool = ts.tools()[static_cast<size_t>(selected)];
-    // on_success means the change was accepted, not that it finished: a swap
-    // can still fail, and that failure is reported on its own.
-    hooks.on_success = [label = helix::ui::active_tool_label(tool.name, tool.index,
-                                                             helix::ui::ToolLabelForm::Full)]() {
-        NOTIFY_INFO(lv_tr("Switching to {}"), label);
-    };
-    hooks.on_failed = object_lifetime_.bg_cb("FilamentPanel::tool_change_err",
-                                             [this]() { revert_extruder_dropdown(); });
-    // A refused, ignored or cancelled change leaves the dropdown naming a tool
-    // that is not mounted.
-    hooks.on_declined = [this]() { revert_extruder_dropdown(); };
-    hooks.owner_token = object_lifetime_.token();
-    hooks.resolve_api = [this]() { return api_; };
-    helix::ui::offer_tool_change(printer_state_, selected, std::move(hooks));
-}
-
-void FilamentPanel::revert_extruder_dropdown() {
-    // A confirmation dialog can outlive the widgets it was opened over (a hot
-    // reload rebuilding the panel), and its close is what calls this.
-    if (!extruder_dropdown_ || !lv_is_initialized()) {
-        return;
-    }
-    const int active = helix::ToolState::instance().active_tool_index();
-    if (active >= 0) {
-        lv_dropdown_set_selected(extruder_dropdown_, static_cast<uint32_t>(active));
-    }
-    sync_tool_dropdown_text();
-    update_filament_op_buttons();
-}
-
 void FilamentPanel::handle_spool_preset_button() {
     if (!cached_active_material_.has_value())
         return;
@@ -2344,10 +2184,12 @@ void FilamentPanel::handle_spool_preset_button() {
                               hw),
         [this]() {
             send_nozzle_target();
-            if (auto* c = get_temperature_controller()) {
-                c->set_target(helix::HeaterType::Bed, static_cast<double>(bed_target_),
-                              {.toast = true, .on_success = [t = bed_target_]() {
-                                   NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), t);
+            const auto bed = helix::presets::heater_targets(bed_target_).bed;
+            if (auto* c = get_temperature_controller(); c && bed) {
+                c->set_target(helix::HeaterType::Bed, static_cast<double>(*bed),
+                              {.toast = true, .on_success = [t = *bed]() {
+                                   NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                                  helix::units::format_display_temp(t));
                                }});
             }
             spdlog::info("[{}] Spool preset applied: {} (nozzle={}°C, bed={}°C)", get_name(),
@@ -2356,14 +2198,22 @@ void FilamentPanel::handle_spool_preset_button() {
         "[FilamentPanel]", hw);
 }
 
+void FilamentPanel::publish_spool_preset_temps() {
+    if (!cached_active_material_.has_value()) {
+        return;
+    }
+    const auto& info = cached_active_material_->material_info;
+    auto text =
+        fmt::format("{} / {}", helix::units::to_display_temp_whole(info.nozzle_recommended()),
+                    helix::units::format_display_temp(info.bed_temp));
+    lv_subject_set_string(&spool_preset_temps_subject_, text.c_str());
+}
+
 void FilamentPanel::update_spool_preset() {
     cached_active_material_ = helix::get_active_material();
 
-    if (!spool_preset_button_)
-        return;
-
     if (!cached_active_material_.has_value()) {
-        lv_obj_add_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_subject_set_int(&spool_preset_shown_subject_, 0);
         return;
     }
 
@@ -2376,24 +2226,15 @@ void FilamentPanel::update_spool_preset() {
         preset_lower = helix::text_io::to_lower(preset_lower);
         mat_lower = helix::text_io::to_lower(mat_lower);
         if (preset_lower == mat_lower) {
-            lv_obj_add_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
+            lv_subject_set_int(&spool_preset_shown_subject_, 0);
             return;
         }
     }
 
     // Novel material — show spool preset button.
-    // Using lv_label_set_text directly: text is dynamic (material name + computed temps)
-    // so subject binding is not practical here.
-    lv_obj_remove_flag(spool_preset_button_, LV_OBJ_FLAG_HIDDEN);
-
-    if (spool_preset_label_) {
-        lv_label_set_text(spool_preset_label_, active.material_name.c_str());
-    }
-    if (spool_preset_temps_) {
-        auto text = fmt::format("{} / {}°C", active.material_info.nozzle_recommended(),
-                                active.material_info.bed_temp);
-        lv_label_set_text(spool_preset_temps_, text.c_str());
-    }
+    lv_subject_set_string(&spool_preset_name_subject_, active.material_name.c_str());
+    publish_spool_preset_temps();
+    lv_subject_set_int(&spool_preset_shown_subject_, 1);
 
     // Deselect spool button initially (user must tap)
     if (spool_preset_button_) {
@@ -2405,29 +2246,15 @@ void FilamentPanel::update_spool_preset() {
 }
 
 // Temperature tap callbacks (XML event_cb - use global singleton)
-void FilamentPanel::custom_nozzle_keypad_cb(float value, void* user_data) {
-    auto* self = static_cast<FilamentPanel*>(user_data);
-    if (self) {
-        self->handle_custom_nozzle_confirmed(value);
-    }
-}
-
-void FilamentPanel::custom_bed_keypad_cb(float value, void* user_data) {
-    auto* self = static_cast<FilamentPanel*>(user_data);
-    if (self) {
-        self->handle_custom_bed_confirmed(value);
-    }
-}
-
 void FilamentPanel::handle_cooldown() {
     spdlog::info("[{}] Cooldown requested - turning off heaters", get_name());
 
     if (api_) {
         api_->execute_gcode(
             helix::ui::temperature::resolve_cooldown_gcode(printer_state_.temperature_state()),
-            []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
+            []() { helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
             [](const MoonrakerError& error) {
-                helix::ui::notify_error_tr(TR_NOOP("Failed to turn off heaters: {}"), error);
+                helix::notify_error_tr(TR_NOOP("Failed to turn off heaters: {}"), error);
             });
     }
 
@@ -2444,8 +2271,8 @@ void FilamentPanel::handle_cooldown() {
 void FilamentPanel::set_temp(int current, int target) {
     // Validate temperature ranges
     helix::ui::temperature::validate_and_clamp_pair(
-        current, target, helix::ui::temperature::degrees_to_deci(nozzle_min_temp_),
-        helix::ui::temperature::degrees_to_deci(nozzle_max_temp_), "Filament");
+        current, target, helix::temperature_rules::degrees_to_deci(nozzle_min_temp_),
+        helix::temperature_rules::degrees_to_deci(nozzle_max_temp_), "Filament");
 
     nozzle_current_ = current;
     nozzle_target_ = target;
@@ -2481,13 +2308,10 @@ void FilamentPanel::set_material(int material_id) {
     nozzle_target_ = mat->nozzle_recommended();
     bed_target_ = mat->bed_temp;
 
-    // Set chamber target from material preset (clear if material has no chamber requirement)
-    if (!printer_state_.temperature_state().chamber_heater_name().empty()) {
-        chamber_target_ = mat->chamber_temp_c > 0
-                              ? helix::ui::temperature::degrees_to_deci(mat->chamber_temp_c)
-                              : 0;
-        update_chamber_temp_display();
-    }
+    // The material's chamber temperature, 0 when it needs none or the printer
+    // has no chamber heater.
+    chamber_target_ = helix::temperature_rules::degrees_to_deci(
+        helix::presets::chamber_request(mat->chamber_temp_c, printer_state_.temperature_state()));
 
     lv_subject_set_int(&material_selected_subject_, selected_material_);
     update_preset_buttons_visual();
@@ -2586,6 +2410,11 @@ FilamentPanel::macro_temp_prefill(helix::ui::FilamentMacroOp op) const {
 }
 
 bool FilamentPanel::cancel_pending_preheat() {
+    // A tap while a pickup is on its way withdraws the step waiting on it.
+    if (tool_arrival_.armed()) {
+        tool_arrival_.cancel();
+        return true;
+    }
     auto* heater = helix::ui::get_filament_op_heater();
     return heater && heater->cancel_owned(this);
 }
@@ -2811,6 +2640,13 @@ void FilamentPanel::execute_load() {
     AmsBackend* backend = AmsState::instance().get_backend();
     const int target_slot = selected_op_slot();
 
+    if (helix::ui::load_is_by_hand(backend, target_slot, printer_state_)) {
+        spdlog::info("[{}] No filament system and no load macro: opening the manual load",
+                     get_name());
+        helix::ui::GuidedLoadModal::show_manual(target_slot);
+        return;
+    }
+
     helix::ui::FilamentOpSurface surface = op_surface(FilamentOp::Load);
     // The refusal copy and the slot-picker redirect are this panel's, and only
     // this panel's: the surfaces layered under a live dialog must not navigate
@@ -2925,31 +2761,31 @@ void FilamentPanel::run_filament_macro(const std::string& macro_name, const std:
     }
 
     std::string gcode = helix::build_macro_gcode(macro_name, params);
-    api_->execute_gcode(gcode,
-                        object_lifetime_.bg_cb("FilamentPanel::macro_ok",
-                                               [this]() {
-                                                   operation_guard_.end();
-                                                   heat_op_succeeded();
-                                                   if (op_in_flight_) {
-                                                       op_succeeded(*op_in_flight_);
-                                                   }
-                                               }),
-                        object_lifetime_.bg_cb(
-                            "FilamentPanel::macro_err",
-                            [this](const MoonrakerError& error) {
-                                operation_guard_.end();
-                                heat_op_failed();
-                                if (op_in_flight_) {
-                                    op_failed(*op_in_flight_);
-                                }
-                                if (error.type == MoonrakerErrorType::TIMEOUT) {
-                                    NOTIFY_WARNING(
-                                        lv_tr("Macro may still be running — response timed out"));
-                                } else {
-                                    helix::ui::notify_error_tr(TR_NOOP("Macro failed: {}"), error);
-                                }
-                            }),
-                        IMoonrakerAPI::kExtrusionTimeoutMs);
+    api_->execute_gcode(
+        gcode,
+        object_lifetime_.bg_cb("FilamentPanel::macro_ok",
+                               [this]() {
+                                   operation_guard_.end();
+                                   heat_op_succeeded();
+                                   if (op_in_flight_) {
+                                       op_succeeded(*op_in_flight_);
+                                   }
+                               }),
+        object_lifetime_.bg_cb("FilamentPanel::macro_err",
+                               [this](const MoonrakerError& error) {
+                                   operation_guard_.end();
+                                   heat_op_failed();
+                                   if (op_in_flight_) {
+                                       op_failed(*op_in_flight_);
+                                   }
+                                   if (error.type == MoonrakerErrorType::TIMEOUT) {
+                                       NOTIFY_WARNING(lv_tr(
+                                           "Macro may still be running — response timed out"));
+                                   } else {
+                                       helix::notify_error_tr(TR_NOOP("Macro failed: {}"), error);
+                                   }
+                               }),
+        IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
 void FilamentPanel::show_load_warning() {

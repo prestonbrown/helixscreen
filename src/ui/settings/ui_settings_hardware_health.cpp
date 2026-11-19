@@ -89,7 +89,10 @@ void HardwareHealthOverlay::populate_hardware_issues() {
         // Add issue rows
         for (const auto& issue : issues) {
             // Create row with severity attribute for colored left border
-            const char* attrs[] = {"severity", severity_to_string(issue.severity), nullptr};
+            const char* attrs[] = {"severity",      severity_to_string(issue.severity),
+                                   "hardware_name", issue.hardware_name.c_str(),
+                                   "message",       issue.message.c_str(),
+                                   nullptr};
             lv_obj_t* row =
                 static_cast<lv_obj_t*>(lv_xml_create(list, "hardware_issue_row", attrs));
             if (!row) {
@@ -99,33 +102,12 @@ void HardwareHealthOverlay::populate_hardware_issues() {
             // Finalize severity_card to show correct icon
             ui_severity_card_finalize(row);
 
-            // Set hardware name
-            lv_obj_t* name_label = helix::ui::find_required(row, "hardware_name", get_name());
-            if (name_label) {
-                lv_label_set_text(name_label, issue.hardware_name.c_str());
-            }
-
-            // Set issue message
-            lv_obj_t* message_label = helix::ui::find_required(row, "issue_message", get_name());
-            if (message_label) {
-                // Messages are TR_NOOP keys; a tag keeps the row re-translatable.
-                lv_label_set_translation_tag(message_label, issue.message.c_str());
-            }
-
-            // Every issue can be ignored; only newly discovered hardware can be saved.
-            lv_obj_t* action_buttons = helix::ui::find_required(row, "action_buttons", get_name());
+            // Every issue can be ignored; only newly discovered hardware can be saved,
+            // and the row shows Save for its info severity alone.
             lv_obj_t* ignore_btn = helix::ui::find_required(row, "ignore_btn", get_name());
             lv_obj_t* save_btn = helix::ui::find_required(row, "save_btn", get_name());
 
-            if (action_buttons && ignore_btn) {
-                // Show button container
-                lv_obj_clear_flag(action_buttons, LV_OBJ_FLAG_HIDDEN);
-
-                // Show Save button only for INFO severity (newly discovered)
-                if (save_btn && issue.severity == HardwareIssueSeverity::INFO) {
-                    lv_obj_clear_flag(save_btn, LV_OBJ_FLAG_HIDDEN);
-                }
-
+            if (ignore_btn) {
                 // Store hardware name for callbacks (freed on row delete).
                 // NOTE: We do NOT use lv_obj_set_user_data() here because
                 // severity_card (our parent XML component) owns that slot

@@ -4,17 +4,21 @@
 #include "recovery_modal_presenter.h"
 
 #include "ui_error_reporting.h"
+#include "ui_guided_device_flow.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 
 #include "action_prompt_manager.h"
 #include "active_material_provider.h"
+#include "ams_firmware_prompt_dedup.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/temperature_units.h"
+#include "core/timer_guard.h"
+#include "core/update_queue.h"
 #include "error_event.h"
 #include "error_modal_view.h"
 #include "i_moonraker_api.h"
@@ -35,6 +39,22 @@
 
 namespace {
 
+/// Whether every button on the showing firmware prompt is one of @p dedup's
+/// own dialog actions. A prompt carrying any other button keeps that action
+/// only while it stays up.
+bool prompt_buttons_all_own(const helix::IFirmwarePromptDedup& dedup) {
+    const auto* prompts = helix::ActionPromptManager::instance();
+    const helix::PromptData* prompt = prompts ? prompts->get_current_prompt() : nullptr;
+    if (prompt == nullptr) {
+        return true;
+    }
+    return std::all_of(prompt->buttons.begin(), prompt->buttons.end(),
+                       [&dedup](const helix::PromptButton& button) {
+                           return dedup.firmware_prompt_button_is_own(
+                               button.gcode.empty() ? button.label : button.gcode);
+                       });
+}
+
 /// Poll cadence while waiting for the nozzle. Fast enough that the recovery
 /// fires within a frame of reaching temperature, slow enough to cost nothing.
 constexpr uint32_t kPreheatPollMs = 250;
@@ -52,7 +72,7 @@ constexpr int kTempThresholdC = 5;
 
 int nozzle_current_c() {
     auto* subj = get_printer_state().temperature_state().get_active_extruder_temp_subject();
-    return subj ? helix::ui::temperature::deci_to_degrees(lv_subject_get_int(subj)) : 0;
+    return subj ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(subj)) : 0;
 }
 
 } // namespace
@@ -156,8 +176,13 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
 
     if (!modal_) {
         modal_ = std::make_unique<helix::ui::RecoveryFaultModal>();
-        modal_->set_action_callback(
-            [this](const std::string& gcode) { on_recovery_tapped(gcode); });
+        modal_->set_action_callback([this](const helix::RecoveryAction& action) {
+            if (!action.guided_flow.empty()) {
+                on_guided_flow_tapped(action);
+            } else {
+                on_recovery_tapped(action.gcode);
+            }
+        });
         // Every close but this class's own hide(): a button (including the
         // empty-gcode dismiss), backdrop, ESC, or a sweep. The user has
         // answered this fault.
@@ -191,7 +216,9 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
         AmsState& ams = AmsState::instance();
         for (int i = 0; i < ams.backend_count(); ++i) {
             const AmsBackend* backend = ams.get_backend(i);
-            if (backend && backend->duplicates_firmware_prompt(title)) {
+            const auto* dedup = backend ? backend->as<helix::IFirmwarePromptDedup>() : nullptr;
+            if (dedup && dedup->duplicates_firmware_prompt(title) &&
+                prompt_buttons_all_own(*dedup)) {
                 spdlog::debug("[RecoveryModal] closing duplicate firmware prompt: {}", title);
                 helix::ActionPromptManager::dismiss_active();
                 break;
@@ -252,6 +279,24 @@ void RecoveryModalPresenter::on_recovery_tapped(const std::string& gcode) {
     }
 
     continue_recovery(gcode, tag, label, needs_hot_nozzle);
+}
+
+void RecoveryModalPresenter::on_guided_flow_tapped(const helix::RecoveryAction& action) {
+    mark_handled();
+    shown_detail_.clear();
+    spdlog::info("[RecoveryModal] User tapped {}: opening guided flow '{}'", action.log_tag,
+                 action.guided_flow);
+    // Deferred past the dialog's own close, which runs after this callback and
+    // must not land on top of the flow's surface.
+    helix::ui::queue_update("recovery_guided_flow", [id = action.guided_flow,
+                                                     label = action.label]() {
+        const GuidedDeviceFlow* flow = find_guided_device_flow(id);
+        if (!flow || !flow->start) {
+            spdlog::warn("[RecoveryModal] Guided flow '{}' is not registered; nothing opened", id);
+            return;
+        }
+        flow->start(label);
+    });
 }
 
 void RecoveryModalPresenter::continue_recovery(const std::string& gcode, const std::string& tag,
@@ -362,7 +407,8 @@ void RecoveryModalPresenter::begin_preheat(const std::string& gcode, const std::
 
     // The modal closed on the tap, so this is the only acknowledgement the user
     // gets that their choice was accepted rather than ignored.
-    NOTIFY_INFO(lv_tr("Heating to {}°C before {}..."), target, label);
+    NOTIFY_INFO(lv_tr("Heating to {} before {}..."), helix::units::format_display_temp(target),
+                label);
     spdlog::info("[RecoveryModal] Nozzle at {}C is below min_extrude; preheating to {}C "
                  "before {} ({})",
                  nozzle_current_c(), target, tag, gcode);
@@ -395,7 +441,8 @@ void RecoveryModalPresenter::poll_preheat() {
 
     spdlog::error("[RecoveryModal] Preheat to {}C timed out at {}C after {}s; abandoning {}",
                   target, current, preheat_budget_ms_ / 1000, tag);
-    NOTIFY_ERROR(lv_tr("Nozzle did not reach {}°C — {} canceled"), target, label);
+    NOTIFY_ERROR(lv_tr("Nozzle did not reach {} — {} canceled"),
+                 helix::units::format_display_temp(target), label);
 }
 
 void RecoveryModalPresenter::cancel_preheat_timer() {

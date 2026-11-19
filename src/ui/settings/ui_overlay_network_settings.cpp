@@ -10,17 +10,19 @@
 #include "ui_nav.h"
 #include "ui_overlay_ipv4_settings.h"
 #include "ui_step_progress.h"
-#include "ui_subject_registry.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
 #include "core/data_root_resolver.h"
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "ethernet_manager.h"
 #include "network_tester.h"
+#include "settings_root_status.h"
 #include "sort_small.h"
+#include "system/subject_registry.h"
 #include "system_settings_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "wifi_country.h"
@@ -55,20 +57,27 @@ using namespace helix;
 struct NetworkSettingsItemData {
     std::string ssid;
     bool is_secured;
+    char ssid_buffer[64];
     char band_buffer[16];
-    lv_subject_t band_text{};    ///< String subject bound to band_label's text
-    lv_subject_t band_visible{}; ///< 1 when the badge should be shown, else 0
+    /// String subject bound to ssid_label. An SSID may begin with '#', which a
+    /// component prop would resolve as a constant, so it rides a subject.
+    helix::Subject ssid_text{};
+    helix::Subject band_text{};    ///< String subject bound to band_label's text
+    helix::Subject band_visible{}; ///< 1 when the badge should be shown, else 0
 
     NetworkSettingsItemData(const std::string& ssid_, bool secured, const std::string& band)
         : ssid(ssid_), is_secured(secured) {
+        std::snprintf(ssid_buffer, sizeof(ssid_buffer), "%s", ssid_.c_str());
+        ssid_text.init_string(ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
         std::snprintf(band_buffer, sizeof(band_buffer), "%s", band.c_str());
-        lv_subject_init_string(&band_text, band_buffer, nullptr, sizeof(band_buffer), band_buffer);
-        lv_subject_init_int(&band_visible, band.empty() ? 0 : 1);
+        band_text.init_string(band_buffer, nullptr, sizeof(band_buffer), band_buffer);
+        band_visible.init_int(band.empty() ? 0 : 1);
     }
 
     ~NetworkSettingsItemData() {
-        lv_subject_deinit(&band_text);
-        lv_subject_deinit(&band_visible);
+        ssid_text.reset();
+        band_text.reset();
+        band_visible.reset();
     }
 };
 
@@ -118,7 +127,7 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
     ethernet_manager_.reset();
     network_tester_.reset();
 
-    // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
+    // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_delete()!
     if (lv_is_initialized()) {
         if (test_modal_) {
             helix::ui::modal_hide(test_modal_);
@@ -139,12 +148,6 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
         subjects_.deinit_all();
         subjects_initialized_ = false;
     }
-
-    // Clear widget pointers (owned by LVGL)
-    overlay_root_ = nullptr;
-    parent_screen_ = nullptr;
-    networks_list_ = nullptr;
-    country_dropdown_ = nullptr;
     // NOTE: Do NOT use spdlog here - it may be destroyed during exit
 }
 
@@ -171,7 +174,7 @@ void NetworkSettingsOverlay::init_subjects() {
 
     // WiFi string subjects
     UI_MANAGED_SUBJECT_STRING(connected_ssid_, ssid_buffer_, "", "connected_ssid", subjects_);
-    UI_MANAGED_SUBJECT_STRING(ip_address_, ip_buffer_, "", "ip_address", subjects_);
+    UI_MANAGED_SUBJECT_STRING(ip_display_, ip_display_buffer_, "", "wifi_ip_display", subjects_);
     UI_MANAGED_SUBJECT_STRING(mac_address_, mac_buffer_, "", "mac_address", subjects_);
     UI_MANAGED_SUBJECT_STRING(network_count_, count_buffer_, "(0)", "network_count", subjects_);
 
@@ -200,6 +203,11 @@ void NetworkSettingsOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_INT(wifi_connecting_, 0, "wifi_connecting", subjects_);
     UI_MANAGED_SUBJECT_STRING(wifi_password_modal_ssid_, password_modal_ssid_buffer_, "",
                               "wifi_password_modal_ssid", subjects_);
+    UI_MANAGED_SUBJECT_STRING(password_status_, password_status_buffer_, "",
+                              "network_password_status",
+                              subjects_); // SUBJECT_OK: bound via modal attrs
+    UI_MANAGED_SUBJECT_INT(password_status_shown_, 0, "network_password_status_shown",
+                           subjects_); // SUBJECT_OK: bound via modal attrs
 
     subjects_initialized_ = true;
     spdlog::debug("[NetworkSettingsOverlay] Subjects initialized");
@@ -324,23 +332,16 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
 // ============================================================================
 
 void NetworkSettingsOverlay::on_activate() {
-    // Call base class first
     OverlayBase::on_activate();
     // A wake from the screensaver keeps lifetime_, so what it registered and
     // what it has in flight are still live.
     const bool waking = take_wake();
     if (!waking) {
         forget_read_pending_ = false;
-        // A probe still out at the last close never lands, since closing
-        // invalidated lifetime_, and its mark would park every Ethernet
-        // refresh from here on.
-        eth_refresh_in_flight_ = false;
-        eth_refresh_trailing_ = false;
     }
 
     spdlog::debug("[NetworkSettingsOverlay] on_activate()");
 
-    // Update connection status
     update_wifi_status();
     update_ethernet_status();
     update_any_network_connected();
@@ -378,6 +379,10 @@ void NetworkSettingsOverlay::on_activate() {
 
     // Start scanning if WiFi enabled
     if (wifi_manager_ && wifi_manager_->is_enabled()) {
+        // A rebuilt tree shows the last scan's rows until this one lands.
+        if (!waking && !cached_networks_.empty()) {
+            populate_network_list(cached_networks_);
+        }
         lv_subject_set_int(&wifi_scanning_, 1);
 
         auto token = lifetime_.token();
@@ -394,13 +399,11 @@ void NetworkSettingsOverlay::on_activate() {
 void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
     spdlog::debug("[NetworkSettingsOverlay] on_deactivating()");
 
-    // Stop scanning
     if (wifi_manager_) {
         wifi_manager_->stop_scan();
         lv_subject_set_int(&wifi_scanning_, 0);
     }
 
-    // Cancel any running tests
     if (network_tester_ && network_tester_->is_running()) {
         network_tester_->cancel();
         lv_subject_set_int(&test_running_, 0);
@@ -410,6 +413,12 @@ void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
 // ============================================================================
 // Cleanup
 // ============================================================================
+
+void NetworkSettingsOverlay::on_ui_destroyed() {
+    detach_country_dropdown();
+    networks_list_ = nullptr;
+    pending_wlan_toggle_switch_ = nullptr;
+}
 
 void NetworkSettingsOverlay::cleanup() {
     spdlog::debug("[NetworkSettingsOverlay] Cleaning up");
@@ -444,9 +453,8 @@ void NetworkSettingsOverlay::cleanup() {
     ethernet_manager_.reset();
     network_tester_.reset();
 
-    detach_country_dropdown();
+    on_ui_destroyed();
     parent_screen_ = nullptr;
-    networks_list_ = nullptr;
 
     current_ssid_[0] = '\0';
     current_network_is_secured_ = false;
@@ -467,10 +475,10 @@ void NetworkSettingsOverlay::refresh_transport_status() {
 
 void NetworkSettingsOverlay::refresh_ipv4_rows() {
     auto token = lifetime_.token();
-    const auto summary_into = [](lv_subject_t& subject) {
+    const auto summary_into = [](helix::Subject& subject) {
         return [&subject](bool ok, const helix::net::Ipv4Config& config) {
-            lv_subject_copy_string(&subject, ok ? helix::settings::ipv4_row_summary(config).c_str()
-                                                : lv_tr("Unknown"));
+            lv_subject_set_string(&subject, ok ? helix::settings::ipv4_row_summary(config).c_str()
+                                               : lv_tr("Unknown"));
         };
     };
     if (wifi_manager_ && wifi_manager_->supports_ipv4_config()) {
@@ -623,7 +631,9 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
 
         strncpy(ip_buffer_, ip.c_str(), sizeof(ip_buffer_) - 1);
         ip_buffer_[sizeof(ip_buffer_) - 1] = '\0';
-        lv_subject_notify(&ip_address_);
+        lv_subject_set_string(
+            &ip_display_,
+            helix::settings::status::wifi_address(helix::ui::wifi::link_phase(status), ip).c_str());
 
         strncpy(mac_buffer_, mac.c_str(), sizeof(mac_buffer_) - 1);
         mac_buffer_[sizeof(mac_buffer_) - 1] = '\0';
@@ -636,7 +646,7 @@ void NetworkSettingsOverlay::apply_wifi_status(const WifiBackend::ConnectionStat
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_notify(&ip_address_);
+        lv_subject_set_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 }
@@ -651,11 +661,14 @@ void NetworkSettingsOverlay::update_ethernet_status() {
     // just marks one trailing refresh — a flapping link or a failed-join
     // retry burst must not queue N sequential daemon round trips on the
     // shared fast lane (and mid-join the daemon is one-op-at-a-time anyway).
-    if (eth_refresh_in_flight_) {
+    // One probe at a time also keeps answers in order: two out together can
+    // land in either order, and a stale "connected" applied last would stand.
+    if (eth_probe_outstanding()) {
         eth_refresh_trailing_ = true;
         return;
     }
-    eth_refresh_in_flight_ = true;
+    // A trailing mark left by a dropped probe is served by this one.
+    eth_refresh_trailing_ = false;
 
     // Kick off an async probe — the callback fires on the UI thread via
     // tok.defer() so it's safe to touch subjects there. No bare expired()
@@ -663,6 +676,7 @@ void NetworkSettingsOverlay::update_ethernet_status() {
     // gone, and dropping the bare check silences the bg_tok_expired_check
     // detector for this site (3XNZQB2R audit).
     auto tok = lifetime_.token();
+    eth_probe_token_ = tok;
     ethernet_manager_->get_info_async([this, tok](const EthernetInfo& info) {
         tok.defer("NetworkSettingsOverlay::apply_ethernet_status",
                   [this, info]() { apply_ethernet_status(info); });
@@ -670,7 +684,7 @@ void NetworkSettingsOverlay::update_ethernet_status() {
 }
 
 void NetworkSettingsOverlay::apply_ethernet_status(const EthernetInfo& info) {
-    eth_refresh_in_flight_ = false;
+    eth_probe_token_.reset();
     if (eth_refresh_trailing_) {
         // A refresh was requested while this probe ran — run it now that the
         // lane is free (this pass's data is about to be superseded anyway).
@@ -741,7 +755,8 @@ void NetworkSettingsOverlay::update_test_state(NetworkTester::TestState state,
         lv_subject_set_int(&test_running_, 0);
         lv_subject_set_int(&test_gateway_status_, 3);  // failed
         lv_subject_set_int(&test_internet_status_, 3); // failed
-        spdlog::warn("[NetworkSettingsOverlay] Test failed: {}", result.error_message);
+        spdlog::warn("[NetworkSettingsOverlay] Test failed: {}",
+                     helix::redact::names_in_text(result.error_message));
         break;
     }
 }
@@ -782,9 +797,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
     snprintf(count_buffer_, sizeof(count_buffer_), "(%zu)", networks.size());
     lv_subject_notify(&network_count_);
 
-    // Show/hide placeholder
-    show_placeholder(networks.empty());
-
     // Sort by signal strength
     std::vector<WiFiNetwork> sorted_networks = networks;
     helix::sort_small(sorted_networks.begin(), sorted_networks.end(),
@@ -802,7 +814,14 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
     // Create network items
     static int item_counter = 0;
     for (const auto& network : sorted_networks) {
-        const char* item_attrs[] = {"click_callback", "on_network_settings_item_clicked", nullptr};
+        const int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(
+            network.signal_strength, network.is_secured);
+        const std::string signal_state = std::to_string(icon_state);
+        const char* item_attrs[] = {
+            "click_callback", "on_network_settings_item_clicked",
+            "signal_state",   signal_state.c_str(),
+            "security",       network.is_secured ? network.security_type.c_str() : "",
+            nullptr};
         lv_obj_t* item =
             static_cast<lv_obj_t*>(lv_xml_create(networks_list_, "wifi_network_item", item_attrs));
         if (!item) {
@@ -814,27 +833,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
         char item_name[32];
         snprintf(item_name, sizeof(item_name), "network_item_%d", item_counter++);
         lv_obj_set_name(item, item_name);
-
-        // Set SSID
-        lv_obj_t* ssid_label = helix::ui::find_required(item, "ssid_label", get_name());
-        if (ssid_label) {
-            lv_label_set_text(ssid_label, network.ssid.c_str());
-        }
-
-        // Set security label
-        lv_obj_t* security_label = helix::ui::find_required(item, "security_label", get_name());
-        if (security_label) {
-            if (network.is_secured) {
-                lv_label_set_text(security_label, network.security_type.c_str());
-            } else {
-                lv_label_set_text(security_label, "");
-            }
-        }
-
-        // Update signal icons
-        int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(network.signal_strength,
-                                                                         network.is_secured);
-        update_signal_icons(item, icon_state);
 
         // Mark connected network with LV_STATE_CHECKED
         bool is_connected = (!connected_ssid.empty() && network.ssid == connected_ssid);
@@ -850,7 +848,10 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
         auto* data = new NetworkSettingsItemData(network.ssid, network.is_secured, band_text);
         lv_obj_set_user_data(item, data);
 
-        // Bind the band badge to this row's own subjects
+        // Bind the SSID and band badge to this row's own subjects
+        if (lv_obj_t* ssid_label = helix::ui::find_required(item, "ssid_label", get_name())) {
+            lv_label_bind_text(ssid_label, &data->ssid_text, nullptr);
+        }
         lv_obj_t* band_label = helix::ui::find_required(item, "band_label", get_name());
         if (band_label) {
             lv_label_bind_text(band_label, &data->band_text, nullptr);
@@ -903,7 +904,7 @@ void NetworkSettingsOverlay::clear_network_list() {
         if (name && strncmp(name, "network_item_", 13) == 0) {
             // Remove clickable flag to prevent stale indev click events —
             // LVGL's indev may have cached this item as the pressed target.
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(child, false);
 
             // Defer deletion to next tick — safe_delete_deferred hides immediately
             // and deletes via lv_obj_delete_async, preventing event list corruption
@@ -915,51 +916,9 @@ void NetworkSettingsOverlay::clear_network_list() {
     spdlog::debug("[NetworkSettingsOverlay] Network list cleared");
 }
 
-void NetworkSettingsOverlay::show_placeholder(bool show) {
-    if (!networks_list_) {
-        return;
-    }
-
-    lv_obj_t* placeholder = lv_obj_find_by_name(networks_list_, "no_networks_placeholder");
-    if (placeholder) {
-        if (show) {
-            lv_obj_remove_flag(placeholder, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(placeholder, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-}
-
-void NetworkSettingsOverlay::update_signal_icons(lv_obj_t* item, int icon_state) {
-    if (!item) {
-        return;
-    }
-
-    lv_obj_t* signal_icons = helix::ui::find_required(item, "signal_icons", get_name());
-    if (!signal_icons) {
-        return;
-    }
-
-    // Icon names and their corresponding states
-    static const struct {
-        const char* name;
-        int state;
-    } icon_bindings[] = {
-        {"sig_1", 1},      {"sig_2", 2},      {"sig_3", 3},      {"sig_4", 4},
-        {"sig_1_lock", 5}, {"sig_2_lock", 6}, {"sig_3_lock", 7}, {"sig_4_lock", 8},
-    };
-
-    // Show only the icon matching current state
-    for (const auto& binding : icon_bindings) {
-        lv_obj_t* icon = lv_obj_find_by_name(signal_icons, binding.name);
-        if (icon) {
-            if (binding.state == icon_state) {
-                lv_obj_remove_flag(icon, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-    }
+void NetworkSettingsOverlay::show_password_status(const std::string& text) {
+    lv_subject_set_string(&password_status_, text.c_str());
+    lv_subject_set_int(&password_status_shown_, text.empty() ? 0 : 1);
 }
 
 // ============================================================================
@@ -1060,7 +1019,6 @@ void NetworkSettingsOverlay::apply_wlan_toggle(bool enabled) {
         wifi_manager_->stop_scan();
         lv_subject_set_int(&wifi_scanning_, 0);
         clear_network_list();
-        show_placeholder(true);
     }
 
     arm_wlan_toggle_backstop();
@@ -1119,7 +1077,6 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         }
         lv_subject_set_int(&wifi_scanning_, 0);
         clear_network_list();
-        show_placeholder(true);
 
         // Update connection status
         lv_subject_set_int(&wifi_connected_, 0);
@@ -1127,7 +1084,7 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         ip_buffer_[0] = '\0';
         mac_buffer_[0] = '\0';
         lv_subject_notify(&connected_ssid_);
-        lv_subject_notify(&ip_address_);
+        lv_subject_set_string(&ip_display_, "");
         lv_subject_notify(&mac_address_);
     }
 
@@ -1405,7 +1362,8 @@ void NetworkSettingsOverlay::handle_network_item_clicked(lv_event_t* e) {
                                      helix::redact::ssid(current_ssid_));
                         refresh_transport_status();
                     } else {
-                        spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}", error);
+                        spdlog::error("[NetworkSettingsOverlay] Failed to connect: {}",
+                                      helix::redact::names_in_text(error));
                         // An open network opens no modal, so a toast is the
                         // only surface this branch has. Without it the user
                         // taps a network and nothing whatsoever happens.
@@ -1534,9 +1492,18 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     // Reset connecting state
     lv_subject_set_int(&wifi_connecting_, 0);
 
+    // No error line from a previous attempt
+    show_password_status("");
+
     // Show modal
-    const char* modal_attrs[] = {"cancel_callback", "on_network_settings_password_cancel",
-                                 "connect_callback", "on_network_settings_password_connect",
+    const char* modal_attrs[] = {"cancel_callback",
+                                 "on_network_settings_password_cancel",
+                                 "connect_callback",
+                                 "on_network_settings_password_connect",
+                                 "status_subject",
+                                 "network_password_status",
+                                 "status_shown_subject",
+                                 "network_password_status_shown",
                                  nullptr};
     password_modal_ = helix::ui::ComponentModal::show_owned("wifi_password_modal", modal_attrs);
     if (!password_modal_) {
@@ -1555,12 +1522,6 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
         if (group) {
             lv_group_focus_obj(password_input);
         }
-    }
-
-    // Hide any previous error message
-    lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
-    if (modal_status) {
-        lv_obj_add_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
     }
 
     spdlog::debug("[NetworkSettingsOverlay] Password modal shown");
@@ -1597,12 +1558,7 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
 
     const char* password = lv_textarea_get_text(password_input);
     if (!password || strlen(password) == 0) {
-        // Show error in modal
-        lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
-        if (modal_status) {
-            lv_label_set_text(modal_status, lv_tr("Password cannot be empty"));
-            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_password_status(lv_tr("Password cannot be empty"));
         return;
     }
 
@@ -1645,22 +1601,15 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
                             });
                     }
                 } else {
-                    spdlog::error("[NetworkSettingsOverlay] Connection failed: {}", error);
+                    spdlog::error("[NetworkSettingsOverlay] Connection failed: {}",
+                                  helix::redact::names_in_text(error));
 
                     // Show what actually went wrong. Only a credential rejection
                     // gets the canned password text - everything else carries a
                     // reason the user has to read.
                     if (password_modal_) {
-                        lv_obj_t* modal_status =
-                            lv_obj_find_by_name(password_modal_, "modal_status");
-                        if (modal_status) {
-                            lv_label_set_text(
-                                modal_status,
-                                helix::connect_failure_message(
-                                    result, error, lv_tr("Connection failed. Check password."))
-                                    .c_str());
-                            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
-                        }
+                        show_password_status(helix::connect_failure_message(
+                            result, error, lv_tr("Connection failed. Check password.")));
                     }
                     // The join's start dropped any status answer in flight.
                     update_wifi_status();

@@ -3,7 +3,7 @@
 
 /**
  * @file test_filament_mapping_build_tool_info.cpp
- * @brief Unit tests for FilamentMappingCard::build_tool_info (the stateless
+ * @brief Unit tests for helix::filament_mapping::build_tool_info (the stateless
  *        per-tool-info assembler).
  *
  * build_tool_info is the single source that derives per-tool GcodeToolInfo from
@@ -21,19 +21,21 @@
 
 #include "ui_filament_mapping_card.h"
 
+#include "filament_mapping_plan.h"
+
 #include "../catch_amalgamated.hpp"
 
 using helix::ui::FilamentMappingCard;
 
 TEST_CASE("build_tool_info: empty inputs produce no tools", "[filament][mapping][tool_info]") {
-    auto tools = FilamentMappingCard::build_tool_info({}, {});
+    auto tools = helix::filament_mapping::build_tool_info({}, {});
     CHECK(tools.empty());
 }
 
 TEST_CASE("build_tool_info: one entry per tool with sequential indices",
           "[filament][mapping][tool_info]") {
-    auto tools = FilamentMappingCard::build_tool_info({"#FF0000", "#00FF00", "#0000FF"},
-                                                      {"PLA", "PETG", "ABS"});
+    auto tools = helix::filament_mapping::build_tool_info({"#FF0000", "#00FF00", "#0000FF"},
+                                                          {"PLA", "PETG", "ABS"});
     REQUIRE(tools.size() == 3);
     CHECK(tools[0].tool_index == 0);
     CHECK(tools[1].tool_index == 1);
@@ -49,14 +51,14 @@ TEST_CASE("build_tool_info: one entry per tool with sequential indices",
 TEST_CASE("build_tool_info: count is max(colors, materials)", "[filament][mapping][tool_info]") {
     SECTION("more colors than materials") {
         auto tools =
-            FilamentMappingCard::build_tool_info({"#111111", "#222222", "#333333"}, {"PLA"});
+            helix::filament_mapping::build_tool_info({"#111111", "#222222", "#333333"}, {"PLA"});
         REQUIRE(tools.size() == 3);
         CHECK(tools[0].material == "PLA");
         CHECK(tools[1].material.empty());
         CHECK(tools[2].material.empty());
     }
     SECTION("more materials than colors") {
-        auto tools = FilamentMappingCard::build_tool_info({"#111111"}, {"PLA", "PETG"});
+        auto tools = helix::filament_mapping::build_tool_info({"#111111"}, {"PLA", "PETG"});
         REQUIRE(tools.size() == 2);
         CHECK(tools[0].color_rgb == 0x111111);
         // Tool 1 has no color → grey fallback.
@@ -67,7 +69,7 @@ TEST_CASE("build_tool_info: count is max(colors, materials)", "[filament][mappin
 
 TEST_CASE("build_tool_info: empty or invalid color falls back to grey",
           "[filament][mapping][tool_info]") {
-    auto tools = FilamentMappingCard::build_tool_info({"", "not-a-color"}, {"PLA", "PETG"});
+    auto tools = helix::filament_mapping::build_tool_info({"", "not-a-color"}, {"PLA", "PETG"});
     REQUIRE(tools.size() == 2);
     CHECK(tools[0].color_rgb == 0x808080);
     CHECK(tools[1].color_rgb == 0x808080);
@@ -89,7 +91,7 @@ TEST_CASE("build_tool_info: empty or invalid color falls back to grey",
 
 TEST_CASE("build_tool_info: a tool with no palette entry is color-unknown",
           "[filament][mapping][tool_info]") {
-    auto tools = FilamentMappingCard::build_tool_info({}, {"PLA", "ASA", "ASA"});
+    auto tools = helix::filament_mapping::build_tool_info({}, {"PLA", "ASA", "ASA"});
     REQUIRE(tools.size() == 3);
     for (const auto& t : tools) {
         CHECK_FALSE(t.color_known);
@@ -100,7 +102,7 @@ TEST_CASE("build_tool_info: a tool with no palette entry is color-unknown",
 }
 
 TEST_CASE("build_tool_info: a real color is color-known", "[filament][mapping][tool_info]") {
-    auto tools = FilamentMappingCard::build_tool_info({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
+    auto tools = helix::filament_mapping::build_tool_info({"#FF0000", "#00FF00"}, {"PLA", "PETG"});
     REQUIRE(tools.size() == 2);
     CHECK(tools[0].color_known);
     CHECK(tools[1].color_known);
@@ -110,8 +112,8 @@ TEST_CASE("build_tool_info: an empty or unparsable entry is color-unknown",
           "[filament][mapping][tool_info]") {
     // A slicer that emits `filament_colour = ;#00FF00;` leaves real gaps in an
     // otherwise usable palette — per-tool, not all-or-nothing.
-    auto tools = FilamentMappingCard::build_tool_info({"", "#00FF00", "not-a-color"},
-                                                      {"PLA", "PETG", "ABS"});
+    auto tools = helix::filament_mapping::build_tool_info({"", "#00FF00", "not-a-color"},
+                                                          {"PLA", "PETG", "ABS"});
     REQUIRE(tools.size() == 3);
     CHECK_FALSE(tools[0].color_known);
     CHECK(tools[1].color_known);

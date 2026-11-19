@@ -95,7 +95,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "wifi rows and password buttons dispatch to 
 TEST_CASE_METHOD(LVGLUITestFixture, "wifi password modal withdraws Connect while connecting",
                  "[wifi][callbacks]") {
     auto& overlay = get_network_settings_overlay();
-    overlay.init_subjects();
+    // The overlay is process-wide: an earlier case may have initialized it already.
+    overlay.ensure_subjects();
     overlay.register_callbacks();
     lv_subject_t* connecting = lv_xml_get_subject(nullptr, "wifi_connecting");
     REQUIRE(connecting != nullptr);
@@ -114,11 +115,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "wifi password modal withdraws Connect while
     REQUIRE(divider != nullptr);
 
     lv_subject_set_int(connecting, 1);
-    CHECK(lv_obj_has_flag(connect, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(divider, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(cancel, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(connect));
+    CHECK(lv_obj_is_hidden(divider));
+    CHECK_FALSE(lv_obj_is_hidden(cancel));
 
     lv_subject_set_int(connecting, 0);
-    CHECK_FALSE(lv_obj_has_flag(connect, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(divider, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(connect));
+    CHECK_FALSE(lv_obj_is_hidden(divider));
 }

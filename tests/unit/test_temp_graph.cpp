@@ -5,6 +5,7 @@
 #include "../../include/theme_manager.h"
 #include "../../include/ui_temp_graph.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
@@ -20,8 +21,10 @@ class TempGraphTestFixture : public LVGLTestFixture {
         screen = lv_obj_create(NULL);
     }
 
-    ~TempGraphTestFixture() {
-        // Cleanup is handled by LVGL
+    /// A destroyed graph's chart waits on an async delete; deleting the screen
+    /// cancels it, so it cannot fire inside a later case.
+    ~TempGraphTestFixture() override {
+        lv_obj_delete(screen);
     }
 
     lv_obj_t* screen;
@@ -61,7 +64,7 @@ TEST_CASE_METHOD(TempGraphTestFixture, "Create and destroy graph", "[ui][core]")
     }
 }
 
-// L081 regression: ui_temp_graph_destroy must NOT call sync lv_obj_del on the chart
+// L081 regression: ui_temp_graph_destroy must NOT call sync lv_obj_delete on the chart
 // (sync widget deletion inside an UpdateQueue::process_pending batch corrupts LVGL's
 // global event list — see prestonbrown/helixscreen#867 cluster). Async deletion
 // escapes the batch via lv_obj_delete_async; the chart stays alive until the next
@@ -817,7 +820,7 @@ TEST_CASE_METHOD(TempGraphTestFixture, "Over-range points stored at full precisi
 
     // Verify data is stored at full precision (not clamped at storage time)
     // so that when Y-axis expands, the full values are available for drawing
-    int32_t* y_data = lv_chart_get_y_array(graph->chart, graph->series_meta[0].chart_series);
+    int32_t* y_data = lv_chart_get_series_y_array(graph->chart, graph->series_meta[0].chart_series);
     uint32_t pc = lv_chart_get_point_count(graph->chart);
     uint32_t sp = lv_chart_get_x_start_point(graph->chart, graph->series_meta[0].chart_series);
 
@@ -1631,6 +1634,91 @@ TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: legend row sits outside t
     ui_temp_graph_show_series(graph, nozzle, true);
     lv_obj_update_layout(screen);
     CHECK(plot_top() == top_with_legend);
+
+    ui_temp_graph_destroy(graph);
+}
+
+// ============================================================================
+// Repeated misuse logs once
+// ============================================================================
+
+namespace {
+int temp_graph_complaints(const helix::LogCapture& log) {
+    int n = 0;
+    for (const auto& line : log.lines()) {
+        const bool complaint = line.find("[error]") != std::string::npos ||
+                               line.find("[warning]") != std::string::npos;
+        if (complaint && line.find("[TempGraph") != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
+}
+} // namespace
+
+TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: calls on a deleted chart log once per graph",
+                 "[temp_graph][log_once]") {
+    lv_obj_t* container = lv_obj_create(screen);
+    ui_temp_graph_t* graph = ui_temp_graph_create(container);
+    REQUIRE(graph != nullptr);
+    SeriesId id = ui_temp_graph_add_series(graph, "Nozzle", lv_color_hex(0xFF0000));
+    REQUIRE(id != SeriesId::None);
+
+    // The parent goes, the struct stays: what an owner that outlives its
+    // container keeps calling into.
+    lv_obj_delete(container);
+    REQUIRE_FALSE(ui_temp_graph_is_valid(graph));
+
+    helix::LogCapture log;
+    for (int i = 0; i < 5; ++i) {
+        ui_temp_graph_update_series_with_time(graph, id, 200.0f, 1000 * i);
+        ui_temp_graph_set_current_target(graph, id, 210.0f, true);
+        ui_temp_graph_set_temp_range(graph, 0.0f, 250.0f);
+        ui_temp_graph_set_y_axis(graph, 50.0f, true);
+    }
+    CHECK(temp_graph_complaints(log) == 1);
+
+    ui_temp_graph_destroy(graph);
+}
+
+TEST_CASE_METHOD(TempGraphTestFixture, "ui_temp_graph: an unknown series id logs once per id",
+                 "[temp_graph][log_once]") {
+    ui_temp_graph_t* graph = ui_temp_graph_create(screen);
+    REQUIRE(graph != nullptr);
+    const auto missing = static_cast<SeriesId>(7);
+    const auto other = static_cast<SeriesId>(8);
+
+    helix::LogCapture log;
+    for (int i = 0; i < 4; ++i) {
+        ui_temp_graph_update_series(graph, missing, 100.0f);
+        ui_temp_graph_set_series_target(graph, missing, 50.0f, true);
+    }
+    CHECK(log.count_containing("Series 7 not found") == 1);
+
+    ui_temp_graph_update_series(graph, other, 100.0f);
+    ui_temp_graph_update_series(graph, other, 100.0f);
+    CHECK(log.count_containing("Series 8 not found") == 1);
+
+    ui_temp_graph_destroy(graph);
+}
+
+TEST_CASE_METHOD(TempGraphTestFixture,
+                 "ui_temp_graph: an invalid range logs once until a valid range is set",
+                 "[temp_graph][log_once]") {
+    ui_temp_graph_t* graph = ui_temp_graph_create(screen);
+    REQUIRE(graph != nullptr);
+
+    helix::LogCapture log;
+    for (int i = 0; i < 4; ++i) {
+        ui_temp_graph_set_temp_range(graph, 100.0f, 50.0f);
+    }
+    CHECK(log.count_containing("Invalid temperature range") == 1);
+
+    // A valid range ends the episode; the next bad one is new information.
+    ui_temp_graph_set_temp_range(graph, 0.0f, 300.0f);
+    ui_temp_graph_set_temp_range(graph, 80.0f, 80.0f);
+    ui_temp_graph_set_temp_range(graph, 80.0f, 80.0f);
+    CHECK(log.count_containing("Invalid temperature range") == 2);
 
     ui_temp_graph_destroy(graph);
 }

@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "hardware_role_registry.h" // helix::SeenHardware
 #include "json_fwd.h"
 
 #include <optional>
@@ -96,8 +97,9 @@ struct HardwareIssue {
     /**
      * @brief Create an issue for missing critical hardware
      */
-    static HardwareIssue critical(const std::string& name, HardwareType type,
-                                  const std::string& msg) {
+    // The parentheses stop the ESP32 spdlog shim's critical() macro expanding this declarator.
+    static HardwareIssue(critical)(const std::string& name, HardwareType type,
+                                   const std::string& msg) {
         return {name, type, HardwareIssueSeverity::CRITICAL, msg, false};
     }
 
@@ -112,7 +114,8 @@ struct HardwareIssue {
     /**
      * @brief Create an issue for newly discovered hardware
      */
-    static HardwareIssue info(const std::string& name, HardwareType type, const std::string& msg) {
+    // The parentheses stop the ESP32 spdlog shim's info() macro expanding this declarator.
+    static HardwareIssue(info)(const std::string& name, HardwareType type, const std::string& msg) {
         return {name, type, HardwareIssueSeverity::INFO, msg, false};
     }
 };
@@ -311,6 +314,15 @@ class HardwareValidator {
      * @return Previous snapshot, or nullopt if none exists
      */
     static std::optional<HardwareSnapshot> load_session_snapshot(helix::Config* config);
+
+    /**
+     * @brief Every fan and heater this printer has reported at any earlier discovery
+     *
+     * Every save_session_snapshot() adds its fans and heaters to the record, whether or
+     * not that discovery prompted the user, so hardware that went away while a print
+     * ran or a wizard sat unanswered still counts as seen.
+     */
+    static helix::SeenHardware load_seen_hardware(helix::Config* config);
 
     /**
      * @brief Check if hardware is marked as optional in config

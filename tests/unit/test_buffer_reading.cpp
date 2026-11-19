@@ -26,7 +26,7 @@ TEST_CASE("buffer_reading: a pressure sensor against its set point", "[buffer][r
     CHECK(r.value_pct == 32);
     CHECK(r.target_pct == 50);
     CHECK(r.bias == Catch::Approx(-0.36f));
-    CHECK(r.status == ClogMeterStatus::Warning);
+    CHECK(r.status == ClogMeterStatus::Ok); // off center is normal operation
 }
 
 TEST_CASE("buffer_reading: no set point is a reading with nothing to centre on",
@@ -50,7 +50,7 @@ TEST_CASE("buffer_reading: Happy Hare sync feedback is one buffer for the system
     CHECK(r.has_slider);
     CHECK(r.value_pct == -45);
     CHECK(r.bias == Catch::Approx(-0.45f));
-    CHECK(r.status == ClogMeterStatus::Warning);
+    CHECK(r.status == ClogMeterStatus::Ok);
 
     SECTION("a unit with no buffer of its own reads the same one") {
         AmsUnit unit;
@@ -76,7 +76,7 @@ TEST_CASE("buffer_reading: the system follows the lane feeding the toolhead", "[
         const BufferReading r = buffer_reading(info, -1);
         CHECK(r.unit == 0);
         CHECK(r.bias == Catch::Approx(0.8f));
-        CHECK(r.status == ClogMeterStatus::Fault);
+        CHECK(r.status == ClogMeterStatus::Ok);
     }
 
     SECTION("a unit's own view reads its own lane") {
@@ -105,7 +105,8 @@ TEST_CASE("buffer_reading: the system follows the lane feeding the toolhead", "[
     }
 }
 
-TEST_CASE("buffer_reading: a switched buffer has no reading", "[buffer][reading]") {
+TEST_CASE("buffer_reading: a switched buffer snaps to three places on the scale",
+          "[buffer][reading][switch]") {
     AmsSystemInfo info;
     AmsUnit unit;
     unit.slot_count = 4;
@@ -120,30 +121,73 @@ TEST_CASE("buffer_reading: a switched buffer has no reading", "[buffer][reading]
     info.units[1].unit_index = 1;
     info.units[1].first_slot_global_index = 4;
 
-    CHECK_FALSE(buffer_reading(info, 0).present());
-    CHECK(buffer_reading(info, 1).present());
+    const BufferReading neutral = buffer_reading(info, 0);
+    CHECK(neutral.source == BufferSource::Switch);
+    CHECK(neutral.unit == 0);
+    CHECK(neutral.has_slider);
+    CHECK(neutral.bias == 0.0f);
+    CHECK(neutral.status == ClogMeterStatus::Ok);
+    CHECK(buffer_reading(info, 1).source == BufferSource::Fps);
+
+    SECTION("advancing is compressed, short of the end stop") {
+        info.units[0].buffer_health->motion = BufferMotion::Compressed;
+        const BufferReading r = buffer_reading(info, 0);
+        CHECK(r.bias == Catch::Approx(kSwitchedBufferBias));
+        CHECK(r.status == ClogMeterStatus::Ok);
+    }
+
+    SECTION("trailing is expanded") {
+        info.units[0].buffer_health->motion = BufferMotion::Expanded;
+        CHECK(buffer_reading(info, 0).bias == Catch::Approx(-kSwitchedBufferBias));
+    }
+
+    SECTION("the system reads it when nothing proportional feeds the toolhead") {
+        info.units.pop_back();
+        const BufferReading r = buffer_reading(info, -1);
+        CHECK(r.source == BufferSource::Switch);
+        CHECK(r.unit == 0);
+    }
 }
 
-TEST_CASE("buffer_reading: a sensor past its rails", "[buffer][reading]") {
+TEST_CASE("buffer_reading: a sensor past its rails warns, never faults", "[buffer][reading]") {
     const BufferReading high = buffer_reading(test::fps_units({1.2f}), -1);
     CHECK(high.value_pct == 100);
     CHECK(high.bias == Catch::Approx(1.0f));
-    CHECK(high.status == ClogMeterStatus::Fault);
+    CHECK(high.status == ClogMeterStatus::Warning);
 
     const BufferReading low = buffer_reading(test::fps_units({-0.05f}), -1);
     CHECK(low.value_pct == 0);
     CHECK(low.bias == Catch::Approx(-1.0f));
-    CHECK(low.status == ClogMeterStatus::Fault);
+    CHECK(low.status == ClogMeterStatus::Warning);
 }
 
-TEST_CASE("buffer_reading: the bands at their edges", "[buffer][reading]") {
+TEST_CASE("buffer_reading: the end-stop band at its edges", "[buffer][reading]") {
     // bias = (p - 0.5) / 0.5, judged on lround(bias * 100)
-    CHECK(buffer_reading(test::fps_units({0.36f}), -1).status == ClogMeterStatus::Ok);      // -28
-    CHECK(buffer_reading(test::fps_units({0.35f}), -1).status == ClogMeterStatus::Warning); // -30
-    CHECK(buffer_reading(test::fps_units({0.65f}), -1).status == ClogMeterStatus::Warning); // +30
-    CHECK(buffer_reading(test::fps_units({0.84f}), -1).status == ClogMeterStatus::Warning); // +68
-    CHECK(buffer_reading(test::fps_units({0.85f}), -1).status == ClogMeterStatus::Fault);   // +70
-    CHECK(buffer_reading(test::fps_units({0.15f}), -1).status == ClogMeterStatus::Fault);   // -70
+    CHECK(buffer_reading(test::fps_units({0.35f}), -1).status == ClogMeterStatus::Ok);      // -30
+    CHECK(buffer_reading(test::fps_units({0.85f}), -1).status == ClogMeterStatus::Ok);      // +70
+    CHECK(buffer_reading(test::fps_units({0.94f}), -1).status == ClogMeterStatus::Ok);      // +88
+    CHECK(buffer_reading(test::fps_units({0.95f}), -1).status == ClogMeterStatus::Warning); // +90
+    CHECK(buffer_reading(test::fps_units({0.05f}), -1).status == ClogMeterStatus::Warning); // -90
+}
+
+TEST_CASE("buffer_position: a pressure places against its set point", "[buffer][reading][fill]") {
+    BufferReading r;
+    r.source = BufferSource::Fps;
+    r.gauge = BufferGauge::Fill;
+    r.has_slider = true;
+    r.target_pct = 40;
+    r.value_pct = 40;
+    CHECK(buffer_position(r) == 0.0f);
+    r.value_pct = 100;
+    CHECK(buffer_position(r) == Catch::Approx(1.0f));
+    r.value_pct = 0;
+    CHECK(buffer_position(r) == Catch::Approx(-1.0f));
+    r.value_pct = 20;
+    CHECK(buffer_position(r) == Catch::Approx(-0.5f));
+    r.target_pct = -1; // no set point: 50% stands in
+    r.value_pct = 75;
+    CHECK(buffer_position(r) == Catch::Approx(0.5f));
+    CHECK(buffer_position(BufferReading{}) == 0.0f);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words", "[buffer][reading][text]") {
@@ -174,6 +218,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "buffer reading words", "[buffer][reading][tex
         r = buffer_reading(info, -1);
         CHECK(buffer_value_text(r) == "0%");
         CHECK(std::string(buffer_lean_text(r)) == "Balanced");
+    }
+    SECTION("a switched buffer names its place") {
+        AmsSystemInfo info;
+        AmsUnit unit;
+        unit.buffer_health = BufferHealth{};
+        info.units.push_back(unit);
+        CHECK(std::string(buffer_label(buffer_reading(info, 0))) == "Buffer");
+        CHECK(buffer_short_text(buffer_reading(info, 0)) == "Neutral");
+        info.units[0].buffer_health->motion = BufferMotion::Compressed;
+        CHECK(buffer_short_text(buffer_reading(info, 0)) == "Compressed");
+        info.units[0].buffer_health->motion = BufferMotion::Expanded;
+        CHECK(buffer_short_text(buffer_reading(info, 0)) == "Expanded");
     }
     SECTION("nothing to read") {
         const BufferReading r;
@@ -208,7 +264,7 @@ TEST_CASE("buffer_reading: a compression-only sensor is a fill gauge, not a bias
         CHECK(afc.gauge == BufferGauge::Bias);
         CHECK_FALSE(afc.is_fill());
         CHECK(afc.bias == Catch::Approx(-0.36f));
-        CHECK(afc.status == ClogMeterStatus::Warning);
+        CHECK(afc.status == ClogMeterStatus::Ok);
     }
     SECTION("Happy Hare sync feedback is still a two-ended bias") {
         AmsSystemInfo info;
@@ -217,13 +273,11 @@ TEST_CASE("buffer_reading: a compression-only sensor is a fill gauge, not a bias
     }
 }
 
-TEST_CASE("buffer_reading: a fill gauge is only colored near its rails",
+TEST_CASE("buffer_reading: a fill gauge only warns at its rails, and never faults",
           "[buffer][reading][fill]") {
-    CHECK(fill_reading(0.84f).status == ClogMeterStatus::Ok);
-    CHECK(fill_reading(0.85f).status == ClogMeterStatus::Warning);
-    CHECK(fill_reading(0.94f).status == ClogMeterStatus::Warning);
-    CHECK(fill_reading(0.95f).status == ClogMeterStatus::Fault);
-    CHECK(fill_reading(1.2f).status == ClogMeterStatus::Fault);
+    CHECK(fill_reading(0.89f).status == ClogMeterStatus::Ok);
+    CHECK(fill_reading(0.90f).status == ClogMeterStatus::Warning);
+    CHECK(fill_reading(1.2f).status == ClogMeterStatus::Warning);
 
     SECTION("regulating around the set point, however far from it, is neutral") {
         CHECK(fill_reading(0.20f, 0.5f).status == ClogMeterStatus::Ok);
@@ -231,13 +285,13 @@ TEST_CASE("buffer_reading: a fill gauge is only colored near its rails",
         CHECK(fill_reading(0.50f, 0.5f).status == ClogMeterStatus::Ok);
     }
     SECTION("near empty warns only while filament is loaded") {
-        CHECK(fill_reading(0.05f, 0.5f, true).status == ClogMeterStatus::Warning);
-        CHECK(fill_reading(0.06f, 0.5f, true).status == ClogMeterStatus::Ok);
-        CHECK(fill_reading(0.05f, 0.5f, false).status == ClogMeterStatus::Ok);
+        CHECK(fill_reading(0.10f, 0.5f, true).status == ClogMeterStatus::Warning);
+        CHECK(fill_reading(0.11f, 0.5f, true).status == ClogMeterStatus::Ok);
+        CHECK(fill_reading(0.10f, 0.5f, false).status == ClogMeterStatus::Ok);
         CHECK(fill_reading(0.0f, 0.5f, true).status == ClogMeterStatus::Warning);
     }
     SECTION("the rails do not need a set point") {
-        CHECK(fill_reading(0.97f, -1.0f).status == ClogMeterStatus::Fault);
+        CHECK(fill_reading(0.97f, -1.0f).status == ClogMeterStatus::Warning);
         CHECK(fill_reading(0.03f, -1.0f, true).status == ClogMeterStatus::Warning);
     }
 }

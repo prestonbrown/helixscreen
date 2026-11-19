@@ -209,8 +209,7 @@ Failures write a screenshot, the app's log tail, and a screen-state dump to
 `ui-artifacts/<test-name>/` (or `$HELIX_UI_ARTIFACTS/<test-name>/`).
 
 Golden images are **local-only** for now. They are sensitive to renderer and font
-rasterization, so a golden captured on a desktop will not match a CI runner; see the
-design spec's Risks section.
+rasterization, so a golden captured on a desktop will not match a CI runner.
 
 **Treat the golden corpus as pinned to one environment — Linux, with the toolchain
 the goldens were captured under.** The rest of `tests/ui/` (navigation, text,
@@ -300,29 +299,28 @@ Two mock facts the corpus depends on:
 Every golden'd screen also depends on `settings_animations_enabled` being off, or
 `NavigationManager`'s overlay slide+fade can still be mid-flight when `freeze()`
 runs. Each `HelixApp` boots with its own private `HELIX_CONFIG_DIR`, which
-bypasses `config/settings-test.json`, so `HelixApp.start()` seeds that dir with a
-minimal settings file that turns animations off. If a screen animates
+gets no settings file, so `HelixApp.start()` seeds that dir with a
+minimal `settings-test.json` that turns animations off. If a screen animates
 unexpectedly, check that the seeding step is still wired up before adding a local
 fixture.
 
 ### CI coverage: what runs, what doesn't, and why
 
 `.github/workflows/build.yml`'s `test-ubuntu` job runs the out-of-process suite
-**with the 8 golden-image tests excluded**
-(`pytest tests/ui/ -v --ignore=tests/ui/test_screens.py`) after the existing
+**with the golden-image tests excluded**
+(`pytest tests/ui/ -v --ignore=tests/ui/test_screens.py -m "not slow"`; `make test-ui-ci` runs the same slice locally) after the existing
 in-process Catch2 run, using `actions/setup-python` + `pip install pytest` +
 `requirements.txt` — not `make test-ui-pytest`, since that target's `.venv` check
 exists for a local dev who forgot `make venv-setup`, which doesn't apply to a
 runner provisioned by `actions/setup-python`.
 
-The 38 excluded-golden tests assert on behavior (navigation, `wait_idle`, text
+The tests that remain assert on behavior (navigation, `wait_idle`, text
 reading, capture mechanics, screen state, reset semantics) and are portable across
 machines. Verified they have zero coupling to the golden files themselves: they
 pass with `tests/ui/goldens/` removed entirely, not just with `test_screens.py`
 skipped. The golden tests compare pixels, and cross-machine font rasterization is
-exactly the golden-portability risk called out above and in the design spec's
-Risks section — they stay a **local-only** gate until someone deliberately captures
-them inside a fixed container with pinned fonts. If a future contributor sees 8
+exactly the golden-portability risk called out above: they stay a **local-only** gate until someone deliberately captures
+them inside a fixed container with pinned fonts. If a contributor sees the golden
 tests missing from a CI run and "fixes" it by dropping `--ignore`, that trades a
 green build for pixel diffs unrelated to whatever change actually broke it — don't.
 
@@ -361,8 +359,8 @@ These handle the cleanup that a bespoke fixture forgets; a bespoke fixture is th
 **Workaround:**
 ```cpp
 // Option 1: Test via C++ API instead of UI simulation
-WiFiManager::set_enabled(true);
-REQUIRE(WiFiManager::is_enabled());
+manager.set_enabled(true);
+REQUIRE(manager.is_enabled());
 
 // Option 2: Test subjects directly
 lv_subject_set_int(&my_subject, 42);

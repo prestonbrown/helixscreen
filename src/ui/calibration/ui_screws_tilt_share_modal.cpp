@@ -4,6 +4,7 @@
 #include "ui_screws_tilt_share_modal.h"
 
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "screws_tilt_share_text.h"
 #include "subject_managed_panel.h"
 
@@ -33,10 +34,10 @@ constexpr size_t kAdjBufSize = 24;
  * before lv_deinit()) removes that ordering hazard entirely.
  */
 struct ShareSubjects {
-    lv_subject_t count{};
-    std::array<lv_subject_t, ScrewsTiltShareModal::kMaxRows> name{};
-    std::array<lv_subject_t, ScrewsTiltShareModal::kMaxRows> z{};
-    std::array<lv_subject_t, ScrewsTiltShareModal::kMaxRows> adj{};
+    helix::Subject count{};
+    std::array<helix::Subject, ScrewsTiltShareModal::kMaxRows> name{};
+    std::array<helix::Subject, ScrewsTiltShareModal::kMaxRows> z{};
+    std::array<helix::Subject, ScrewsTiltShareModal::kMaxRows> adj{};
 
     char name_bufs[ScrewsTiltShareModal::kMaxRows][kNameBufSize] = {};
     char z_bufs[ScrewsTiltShareModal::kMaxRows][kZBufSize] = {};
@@ -101,9 +102,9 @@ int publish_rows(const std::vector<ScrewTiltResult>& results) {
 
     for (size_t i = 0; i < ScrewsTiltShareModal::kMaxRows; i++) {
         if (i >= rows) {
-            lv_subject_copy_string(&s.name[i], "");
-            lv_subject_copy_string(&s.z[i], "");
-            lv_subject_copy_string(&s.adj[i], "");
+            lv_subject_set_string(&s.name[i], "");
+            lv_subject_set_string(&s.z[i], "");
+            lv_subject_set_string(&s.adj[i], "");
             continue;
         }
 
@@ -111,10 +112,10 @@ int publish_rows(const std::vector<ScrewTiltResult>& results) {
         char z_text[kZBufSize];
         std::snprintf(z_text, sizeof(z_text), "Z %s", format_screw_share_z(screw).c_str());
 
-        lv_subject_copy_string(&s.name[i], screw.display_name().c_str());
-        lv_subject_copy_string(&s.z[i], z_text);
-        lv_subject_copy_string(&s.adj[i],
-                               format_screw_share_adjustment(screw, lv_tr("Base")).c_str());
+        lv_subject_set_string(&s.name[i], screw.display_name().c_str());
+        lv_subject_set_string(&s.z[i], z_text);
+        lv_subject_set_string(&s.adj[i],
+                              format_screw_share_adjustment(screw, lv_tr("Base")).c_str());
     }
 
     // Set the count LAST: it drives the <repeat> expansion, and the rebuilt

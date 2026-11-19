@@ -12,24 +12,10 @@
 
 // Include LVGL for lv_obj_t and lv_obj_find_by_name
 // This ensures we get the correct type declarations
+#include "core/contract_breach.h"
 #include "lvgl/lvgl.h"
 
 namespace helix::ui {
-
-/**
- * @brief Make a breached UI contract fatal
- *
- * On in unit tests and under --test: a breach prints to stderr and aborts, so
- * the run fails where the XML and the C++ disagree. Off (the default) it only
- * logs. Release builds never abort.
- */
-void set_strict_ui_checks(bool enabled) noexcept;
-
-/// Whether set_strict_ui_checks() turned breaches fatal.
-[[nodiscard]] bool strict_ui_checks() noexcept;
-
-/// Log @p message at error, then abort when strict UI checks are on.
-void report_ui_contract_breach(const char* message);
 
 /**
  * @brief A widget the component's XML must contain

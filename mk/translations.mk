@@ -14,6 +14,7 @@ TRANS_XML := ui_xml/translations/translations.xml
 # Source files for translations
 TRANS_YAML := $(wildcard translations/*.yml)
 TRANS_SCRIPT := scripts/generate_translations.py
+TRANS_VARIANTS := scripts/translations/locale_variants.py
 
 # HELIX_LANG: optional comma-separated locale whitelist (e.g. "en" or "en,zh")
 # When set, generate_translations.py emits only those locales' packs. Base
@@ -49,7 +50,7 @@ $(TRANS_LANG_STAMP)-update:
 # dies between the two leaves a fresh-mtime master over a partial set, and the
 # next build would see the target up to date and ship it. A failed generation
 # must leave no master behind.
-$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT) $(TRANS_LANG_STAMP)
+$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT) $(TRANS_VARIANTS) $(TRANS_LANG_STAMP)
 	$(ECHO) "$(CYAN)Generating translations from YAML...$(if $(HELIX_LANG), (HELIX_LANG=$(HELIX_LANG)))$(RESET)"
 	$(Q)mkdir -p $(TRANS_GEN_DIR)
 	$(Q)if [ -x "$(VENV_PYTHON_TRANS)" ] && $(VENV_PYTHON_TRANS) -c "import yaml" 2>/dev/null; then \
@@ -113,6 +114,19 @@ translation-coverage:
 	$(ECHO) "$(CYAN)Translation coverage report...$(RESET)"
 	$(Q)if [ -x "$(VENV_PYTHON_TRANS)" ]; then \
 		$(VENV_PYTHON_TRANS) $(TRANS_SYNC_SCRIPT) coverage --show-missing; \
+	else \
+		echo "$(RED)✗ Python venv not available - run 'make venv-setup'$(RESET)"; \
+		exit 1; \
+	fi
+
+# Rewrite translations/*.yml into the shape Weblate writes them in, so its next
+# commit touches only the strings a translator changed (TRANSLATION_SYSTEM.md,
+# "Weblate"). qc_translation_files fails a file in any other shape.
+.PHONY: translation-normalize
+translation-normalize:
+	$(ECHO) "$(CYAN)Normalizing locale files to Weblate's YAML shape...$(RESET)"
+	$(Q)if [ -x "$(VENV_PYTHON_TRANS)" ]; then \
+		$(VENV_PYTHON_TRANS) scripts/check_translation_files.py --fix --base none; \
 	else \
 		echo "$(RED)✗ Python venv not available - run 'make venv-setup'$(RESET)"; \
 		exit 1; \

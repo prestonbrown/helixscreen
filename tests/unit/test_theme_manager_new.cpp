@@ -436,33 +436,13 @@ TEST_CASE_METHOD(LVGLTestFixture, "preview_palette applies temporarily",
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "theme_manager_get_contrast_color returns light text for dark background",
+                 "theme_manager_get_contrast_color returns light text on dark, dark on light",
                  "[theme-manager][contrast]") {
-    auto& tm = ThemeManager::instance();
-    tm.init();
-
-    // Dark background (low brightness)
-    lv_color_t dark_bg = lv_color_hex(0x2E3440);
-    lv_color_t text = theme_manager_get_contrast_color(dark_bg);
-
-    // Should return light colored text (high brightness)
-    int brightness = theme_compute_brightness(text);
-    REQUIRE(brightness > 128);
-}
-
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "theme_manager_get_contrast_color returns dark text for light background",
-                 "[theme-manager][contrast]") {
-    auto& tm = ThemeManager::instance();
-    tm.init();
-
-    // Light background (high brightness)
-    lv_color_t light_bg = lv_color_hex(0xECEFF4);
-    lv_color_t text = theme_manager_get_contrast_color(light_bg);
-
-    // Should return dark colored text (low brightness)
-    int brightness = theme_compute_brightness(text);
-    REQUIRE(brightness < 128);
+    ThemeManager::instance().init();
+    // Dark background: light text (high brightness)
+    CHECK(theme_compute_brightness(theme_manager_get_contrast_color(lv_color_hex(0x2E3440))) > 128);
+    // Light background: dark text
+    CHECK(theme_compute_brightness(theme_manager_get_contrast_color(lv_color_hex(0xECEFF4))) < 128);
 }
 
 // ============================================================================

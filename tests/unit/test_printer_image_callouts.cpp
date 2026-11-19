@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_context_menu.h"
 #include "ui_nav_manager.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_printer_manager_overlay.h"
@@ -10,6 +11,8 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/printer_image_regions_test_access.h"
 #include "../test_helpers/process_async_timers.h"
+#include "../test_helpers/scoped_home_layout.h"
+#include "../test_helpers/scoped_language.h"
 #include "../test_helpers/scoped_pointer_indev.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
@@ -18,6 +21,7 @@
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "json_utils.h"
 #include "led/led_controller.h"
 #include "led/ui_led_control_overlay.h"
 #include "light_button_config.h"
@@ -66,9 +70,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                           "callout_chip_fan", "callout_chip_light", "callout_chip_toolhead"}) {
         INFO(n);
         REQUIRE(h.child(n));
-        CHECK(lv_obj_has_flag(h.child(n), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(h.child(n)));
     }
-    CHECK(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_IGNORE_LAYOUT));
+    CHECK(lv_obj_is_ignore_layout(h.child("callout_layer")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -153,7 +157,7 @@ std::string text_of(PanelWidgetHarness<PrinterImageWidget>& h, const char* chip)
     return lv_label_get_text(lv_obj_find_by_name(h.child(chip), "chip_text"));
 }
 bool shown(PanelWidgetHarness<PrinterImageWidget>& h, const char* chip) {
-    return !lv_obj_has_flag(h.child(chip), LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(h.child(chip));
 }
 
 /// Native `chamber_light` and `sb_leds` strips with no known state while the
@@ -202,10 +206,30 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_layer")));
     CHECK(shown(h, "callout_chip_bed"));
     CHECK(text_of(h, "callout_chip_bed") == helix::ui::temperature::heater_display(400, 600).temp);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_heating")) == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a warm chamber glows at its level",
+                 "[printer_image][callouts]") {
+    const auto regions = prepare_tagged_widget();
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    h.resize(8, 4, 480, 160);
+    lv_subject_set_int(state().capabilities_state().subject(Capability::HasChamber), 1);
+    lv_subject_set_int(state().temperature_state().get_chamber_temp_subject(), 500);
+    settle();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_chamber_glow_level")) == 2);
+    lv_obj_t* glow = h.child("callout_chamber_glow");
+    CHECK_FALSE(lv_obj_is_hidden(glow));
+    CHECK(lv_image_get_src(glow) != nullptr);
+
+    lv_subject_set_int(state().temperature_state().get_chamber_temp_subject(), 250);
+    settle();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_chamber_glow_level")) == 0);
+    CHECK(lv_obj_is_hidden(glow));
+    lv_subject_set_int(state().capabilities_state().subject(Capability::HasChamber), 0);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: idle cold printer shows no chips",
@@ -348,10 +372,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(has_led, 1);
     const auto lit = [&] {
         lv_obj_t* chip = h.child("callout_chip_light");
-        const bool lit_shown =
-            !lv_obj_has_flag(lv_obj_find_by_name(chip, "callout_light_lit"), LV_OBJ_FLAG_HIDDEN);
-        const bool dark_shown =
-            !lv_obj_has_flag(lv_obj_find_by_name(chip, "callout_light_dark"), LV_OBJ_FLAG_HIDDEN);
+        const bool lit_shown = !lv_obj_is_hidden(lv_obj_find_by_name(chip, "callout_light_lit"));
+        const bool dark_shown = !lv_obj_is_hidden(lv_obj_find_by_name(chip, "callout_light_dark"));
         REQUIRE(lit_shown != dark_shown);
         return lit_shown;
     };
@@ -420,7 +442,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     CHECK(text_of(h, "callout_chip_bed") == "40 / 60°");
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(chip, "heater_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(chip, "heater_icon")));
     const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
     CHECK(font == theme_manager_get_font("font_xs"));
     // Placed at the width it renders: its text plus chrome, no icon gap.
@@ -438,7 +460,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_update_layout(h.root());
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::BothSides));
     CHECK(text_of(h, "callout_chip_bed") == helix::ui::temperature::heater_display(400, 600).temp);
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(chip, "heater_icon"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(chip, "heater_icon")));
     CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) == theme_manager_get_font("font_small"));
     CHECK(lv_obj_get_width(chip) > compact_w);
 }
@@ -450,10 +472,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: single cell hides the whole layer
     h.resize(4, 4, 160, 160);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
-    REQUIRE_FALSE(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(h.child("callout_layer")));
     h.resize(2, 2, 80, 80);
     settle();
-    CHECK(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(h.child("callout_layer")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a chip sits inside the image container",
@@ -499,7 +521,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a chip narrower than its text dot
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
-    REQUIRE_FALSE(lv_obj_has_flag(h.child("callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(h.child("callout_layer")));
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     REQUIRE(label);
@@ -539,7 +561,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_update_layout(h.root());
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
-    REQUIRE_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(chip));
     const int text_px = helix::ui::measure_text_px(lv_label_get_text(label),
                                                    lv_obj_get_style_text_font(label, LV_PART_MAIN));
     CHECK(lv_obj_get_width(label) >= text_px);
@@ -569,7 +591,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the nozzle chip budgets the tool 
         }
     } tool_subjects;
     auto& tools = ToolState::instance();
-    lv_subject_copy_string(tools.get_tool_badge_text_subject(), "12");
+    lv_subject_set_string(tools.get_tool_badge_text_subject(), "12");
     lv_subject_set_int(tools.get_show_tool_badge_subject(), 1);
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
     h.resize(4, 4, 160, 160);
@@ -579,10 +601,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the nozzle chip budgets the tool 
     settle();
     lv_obj_update_layout(h.root());
     lv_obj_t* chip = h.child("callout_chip_nozzle");
-    REQUIRE_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(chip));
     lv_obj_t* badge = lv_obj_find_by_name(chip, "tool_badge");
     REQUIRE(badge);
-    REQUIRE_FALSE(lv_obj_has_flag(badge, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(badge));
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     CHECK(lv_obj_get_width(label) >=
           helix::ui::measure_text_px(lv_label_get_text(label),
@@ -606,8 +628,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a recycled instance drives its ne
     widget.attach(comp1, test_screen());
     lv_obj_update_layout(comp1);
     widget.on_size_changed(4, 4, 160, 160);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 600);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_temp_subject(), 400);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 800);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_temp_subject(), 600);
     lv_subject_set_int(get_printer_state().fan_state().get_fan_speed_subject(), 60);
     settle();
     REQUIRE(lv_anim_get(lv_obj_find_by_name(comp1, "callout_bed_glow"), nullptr) != nullptr);
@@ -619,14 +641,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a recycled instance drives its ne
     REQUIRE(comp2);
     widget.attach(comp2, test_screen());
     // Until the timer positions its chips, the new tree shows none of them.
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(comp2, "callout_layer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(comp2, "callout_layer")));
     lv_obj_update_layout(comp2);
     widget.on_size_changed(4, 4, 160, 160);
-    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 650);
+    lv_subject_set_int(get_printer_state().temperature_state().get_bed_target_subject(), 850);
     settle();
     lv_obj_update_layout(comp2);
     lv_obj_t* bed = lv_obj_find_by_name(comp2, "callout_chip_bed");
-    CHECK_FALSE(lv_obj_has_flag(bed, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bed));
     CHECK(lv_obj_get_x(bed) > 0);
     CHECK(lv_anim_get(lv_obj_find_by_name(comp2, "callout_bed_glow"), nullptr) != nullptr);
     widget.detach();
@@ -659,7 +681,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     settle();
 
     TempGraphOverlayScope overlay_scope;
-    get_global_temp_graph_overlay().init_subjects();
+    get_global_temp_graph_overlay().ensure_subjects();
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode);
     lv_subject_set_int(mode, static_cast<int>(TempGraphOverlay::Mode::GraphOnly));
@@ -760,10 +782,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: holding the light chip opens the LEDs overlay on the chamber light",
-                 "[printer_image][callouts]") {
+                 "callouts: holding the light chip opens the LEDs overlay on the light it drives",
+                 "[printer_image][callouts][light_chip]") {
     const auto regions = prepare_tagged_widget();
     LightChipRig rig(state());
+    // Unset opens on the chamber light; a chosen strip opens on that strip.
+    const std::string key = GENERATE(std::string(), std::string("neopixel sb_leds"));
+    const std::string expect = key.empty() ? "neopixel chamber_light" : key;
+    const std::string other = key.empty() ? "neopixel sb_leds" : "neopixel chamber_light";
+    INFO("led: '" << key << "'");
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels) {
         p = lv_obj_create(test_screen());
@@ -773,14 +800,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The overlay otherwise reopens on the last focused device. Opened and
     // closed before the widget exists: closing hides every screen child that
     // is not a main panel, the widget's tree included.
-    ScopedLedStrips::report("neopixel sb_leds", true);
-    REQUIRE(helix::open_led_control_overlay(test_screen(), "neopixel sb_leds") != nullptr);
+    ScopedLedStrips::report(other.c_str(), true);
+    REQUIRE(helix::open_led_control_overlay(test_screen(), other) != nullptr);
     settle();
     NavigationManager::instance().go_back();
     settle();
-    REQUIRE(get_led_control_overlay().focused_device() == "neopixel sb_leds");
+    REQUIRE(get_led_control_overlay().focused_device() == other);
 
-    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(), HarnessConfig{{{"led", key}}});
     h.resize(4, 4, 160, 160);
     lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
     ScopedLedStrips::report("neopixel chamber_light", true);
@@ -811,12 +838,165 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     finger.hold(3 * finger.long_press_hold_ms());
     finger.release(x, y);
     settle();
-    CHECK(get_led_control_overlay().focused_device() == "neopixel chamber_light");
+    CHECK(get_led_control_overlay().focused_device() == expect);
     CHECK(long_presses_reaching_grid == 0);
     CHECK(holds_on_chip == 1);
     CHECK(scripts_naming(rig.client, "chamber_light") == 0);
+    CHECK(scripts_naming(rig.client, "sb_leds") == 0);
     NavigationManager::instance().go_back();
     settle();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the light chip's targets follow its led setting",
+                 "[printer_image][callouts][light_chip]") {
+    const ScopedLedStrips leds;
+    const auto& ctrl = helix::led::LedController::instance();
+    PrinterImageWidget w;
+    CHECK(w.has_edit_configure());
+
+    w.set_config(nlohmann::json::object());
+    CHECK(w.light_targets() == std::vector<std::string>{"neopixel chamber_light"});
+
+    w.set_config({{"led", "all"}});
+    CHECK(w.light_targets() == ctrl.switchable_ids());
+    CHECK(w.light_targets().size() == 2);
+
+    w.set_config({{"led", "neopixel sb_leds"}});
+    CHECK(w.light_key() == "neopixel sb_leds");
+    CHECK(w.light_targets() == std::vector<std::string>{"neopixel sb_leds"});
+
+    // A recycled instance whose new entry has no setting goes back to the default.
+    w.set_config(nlohmann::json::object());
+    CHECK(w.light_key().empty());
+    CHECK(w.light_targets() == std::vector<std::string>{"neopixel chamber_light"});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a light chip set to All lights switches every light",
+                 "[printer_image][callouts][light_chip]") {
+    const auto regions = prepare_tagged_widget();
+    LightChipRig rig(state());
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(), HarnessConfig{{{"led", "all"}}});
+    h.resize(4, 4, 160, 160);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
+    ScopedLedStrips::report("neopixel chamber_light", false);
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    settle();
+    REQUIRE(shown(h, "callout_chip_light"));
+    helix::ui::set_event_bubble_recursive(h.root());
+
+    rig.client.clear_gcode_script_history();
+    helix::ui::send_tap(h.child("callout_chip_light"));
+    settle();
+    CHECK(scripts_naming(rig.client, "chamber_light") == 1);
+    CHECK(scripts_naming(rig.client, "sb_leds") == 1);
+    destroy_printer_manager_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: a light chip set to one strip switches only it",
+                 "[printer_image][callouts][light_chip]") {
+    const auto regions = prepare_tagged_widget();
+    LightChipRig rig(state());
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(),
+                                             HarnessConfig{{{"led", "neopixel sb_leds"}}});
+    h.resize(4, 4, 160, 160);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
+    ScopedLedStrips::report("neopixel chamber_light", false);
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    settle();
+    REQUIRE(shown(h, "callout_chip_light"));
+    helix::ui::set_event_bubble_recursive(h.root());
+
+    rig.client.clear_gcode_script_history();
+    helix::ui::send_tap(h.child("callout_chip_light"));
+    settle();
+    CHECK(scripts_naming(rig.client, "sb_leds") == 1);
+    CHECK(scripts_naming(rig.client, "chamber_light") == 0);
+    destroy_printer_manager_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the light chip reads lit from the lights it drives",
+                 "[printer_image][callouts][light_chip]") {
+    const auto regions = prepare_tagged_widget();
+    const ScopedLedStrips leds;
+    const std::string key = GENERATE(std::string("all"), std::string("neopixel sb_leds"));
+    INFO("led: " << key);
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen(), HarnessConfig{{{"led", key}}});
+    h.resize(4, 4, 160, 160);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "printer_has_led"), 1);
+    const auto lit = [&] {
+        return !lv_obj_is_hidden(
+            lv_obj_find_by_name(h.child("callout_chip_light"), "callout_light_lit"));
+    };
+    ScopedLedStrips::report("neopixel chamber_light", false);
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    settle();
+    REQUIRE(shown(h, "callout_chip_light"));
+    CHECK_FALSE(lit());
+
+    // sb_leds is in both sets.
+    ScopedLedStrips::report("neopixel sb_leds", true);
+    settle();
+    CHECK(lit());
+
+    // The chamber light alone lights only the All lights chip.
+    ScopedLedStrips::report("neopixel sb_leds", false);
+    ScopedLedStrips::report("neopixel chamber_light", true);
+    settle();
+    CHECK(lit() == (key == "all"));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "callouts: the light chip's configure picker chooses and saves its lights",
+                 "[printer_image][callouts][light_chip]") {
+    helix::ui::ContextMenu::register_shared_callbacks();
+    const auto regions = prepare_tagged_widget();
+    const ScopedLedStrips leds;
+    helix::test::ScopedHomeLayout layout(nlohmann::json::array(
+        {{{"id", "printer_image"}, {"enabled", true}, {"col", 0}, {"row", 0}}}));
+    PanelWidgetHarness<PrinterImageWidget> h(test_screen());
+    h.widget().set_panel_id("home");
+    h.resize(4, 4, 160, 160);
+    settle();
+    REQUIRE(h.widget().has_edit_configure());
+
+    CHECK_FALSE(h.widget().on_edit_configure()); // the tile updates in place
+    process_lvgl(30);
+    lv_subject_t* selected = lv_xml_get_subject(nullptr, "led_picker_selected");
+    REQUIRE(selected);
+    CHECK(lv_subject_get_int(selected) == 0); // the chamber light, the default
+    lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "This light chip controls");
+    lv_obj_t* row = lv_obj_find_by_name(test_screen(), "led_picker_row_1");
+    REQUIRE(row != nullptr);
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+
+    CHECK(h.widget().light_key() == "neopixel sb_leds");
+    CHECK(h.widget().light_targets() == std::vector<std::string>{"neopixel sb_leds"});
+    const nlohmann::json saved =
+        PanelWidgetManager::instance().get_widget_config("home").get_widget_config("printer_image");
+    CHECK(json_util::safe_string(saved, "led") == "neopixel sb_leds");
+
+    // All lights is the row under the list.
+    h.widget().on_edit_configure();
+    process_lvgl(30);
+    lv_obj_t* all = lv_obj_find_by_name(test_screen(), "led_picker_all");
+    REQUIRE(all != nullptr);
+    lv_obj_send_event(all, LV_EVENT_CLICKED, nullptr);
+    process_lvgl(50);
+    CHECK(h.widget().light_key() == "all");
+
+    // The title follows the interface language.
+    helix::ScopedLanguage de("de");
+    h.widget().on_edit_configure();
+    process_lvgl(30);
+    lv_obj_t* de_title = lv_obj_find_by_name(test_screen(), "card_title");
+    REQUIRE(de_title != nullptr);
+    CHECK(std::string(lv_label_get_text(de_title)) == "Dieser Lichtchip steuert");
+    lv_obj_send_event(lv_obj_find_by_name(test_screen(), "led_picker_all"), LV_EVENT_CLICKED,
+                      nullptr);
+    process_lvgl(50);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -832,7 +1012,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(shown(h, "callout_chip_light"));
     lv_obj_t* dark = lv_obj_find_by_name(h.child("callout_chip_light"), "callout_light_dark");
     REQUIRE(dark);
-    REQUIRE_FALSE(lv_obj_has_flag(dark, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dark));
     const lv_color_t resting = lv_obj_get_style_text_color(dark, LV_PART_MAIN);
     const lv_color_t lamp = theme_manager_get_color("light_icon_on");
     REQUIRE_FALSE(lv_color_eq(resting, lamp));
@@ -861,7 +1041,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ScopedLedStrips::report("neopixel chamber_light", false);
     settle();
     lv_obj_t* dark = lv_obj_find_by_name(h.child("callout_chip_light"), "callout_light_dark");
-    REQUIRE_FALSE(lv_obj_has_flag(dark, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(dark));
     const lv_color_t resting = lv_obj_get_style_text_color(dark, LV_PART_MAIN);
 
     helix::ui::send_tap(h.child("callout_chip_light"));
@@ -941,7 +1121,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::set_event_bubble_recursive(h.root());
 
     TempGraphOverlayScope overlay_scope;
-    get_global_temp_graph_overlay().init_subjects();
+    get_global_temp_graph_overlay().ensure_subjects();
     lv_subject_t* mode = lv_xml_get_subject(nullptr, "temp_graph_mode");
     REQUIRE(mode);
     lv_subject_set_int(mode, static_cast<int>(TempGraphOverlay::Mode::GraphOnly));
@@ -1020,26 +1200,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: wide widget draws a line to the b
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 400);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::BothSides));
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(h.child("callout_line_nozzle"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_line_bed")));
+    CHECK(lv_obj_is_hidden(h.child("callout_line_nozzle")));
     // 40°C is too cool to glow, though the bed is climbing.
     const auto level = [] {
         return lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_glow_level"));
     };
     CHECK(level() == 0);
-    CHECK(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(h.child("callout_bed_glow")));
     // At target the plate still glows; the line stays.
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 600);
     settle();
     CHECK(level() == 1);
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_bed_glow")));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_line_bed")));
     // Cooling from very hot glows strongest, with the target gone.
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 0);
     lv_subject_set_int(state().temperature_state().get_bed_temp_subject(), 950);
     settle();
     CHECK(level() == 3);
-    CHECK_FALSE(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(h.child("callout_bed_glow")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: pinned mode draws no lines",
@@ -1050,7 +1230,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: pinned mode draws no lines",
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::Pinned));
-    CHECK(lv_obj_has_flag(h.child("callout_line_bed"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(h.child("callout_line_bed")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the bed line runs from the bed point to the chip",
@@ -1293,7 +1473,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: the disconnected overlay is centr
     lv_obj_update_layout(h.root());
     lv_obj_t* overlay = h.child("disconnected_overlay");
     lv_obj_t* container = h.child("printer_container");
-    REQUIRE_FALSE(lv_obj_has_flag(overlay, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(overlay));
     CHECK(lv_obj_get_x(overlay) ==
           (lv_obj_get_content_width(container) - lv_obj_get_width(overlay)) / 2);
 }
@@ -1312,7 +1492,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     settle();
     lv_obj_update_layout(h.root());
     lv_obj_t* glow = h.child("callout_bed_glow");
-    REQUIRE_FALSE(lv_obj_has_flag(glow, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(glow));
     // Spans the plate's near edge, ends at it, and rises above it.
     const CalloutRect img = fitted_image(h);
     const int x0 = img.x + int(0.308f * float(img.w));
@@ -1348,7 +1528,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: an untagged image draws no bed gl
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::Docked));
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "callout_bed_glow_level")) > 0);
-    CHECK(lv_obj_has_flag(h.child("callout_bed_glow"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(h.child("callout_bed_glow")));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

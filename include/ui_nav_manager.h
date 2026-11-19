@@ -8,15 +8,19 @@
 #include "ui_nav_panel_registry.h"
 #include "ui_nav_printer_badge.h"
 #include "ui_navbar_button.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/coalesced_timer.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
+#include "memory_utils.h"
 #include "panel_lifecycle.h"
 #include "subject_managed_panel.h"
 
 #include <array>
 #include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -226,6 +230,25 @@ class NavigationManager {
     lv_obj_t* get_panel_widget(helix::PanelId id) const;
 
     /**
+     * @brief Lend main panel @p id's widget tree to @p container
+     *
+     * A home full page (prestonbrown/helixscreen#1931) shows a main panel's own
+     * tree: built first if deferred, moved under @p container and shown, with its
+     * observers and callbacks as they are. Panel switches leave a lent tree alone
+     * until reclaim_panel(), and a switch to @p id itself reclaims it first.
+     *
+     * @return false, moving nothing, for the active panel, a panel already lent,
+     *         or one that has no tree
+     */
+    bool lend_panel(helix::PanelId id, lv_obj_t* container);
+
+    /// Move a lent tree back under the panel container, hidden; no-op when not lent.
+    void reclaim_panel(helix::PanelId id);
+
+    /// The container panel @p id is lent to, or nullptr.
+    lv_obj_t* panel_lent_to(helix::PanelId id) const;
+
+    /**
      * @brief Register a builder for panels that are instantiated lazily.
      *
      * On the ESP32 firmware only the home panel is built at boot (app_layout
@@ -263,6 +286,18 @@ class NavigationManager {
      * Safe to call on the LVGL main thread only.
      */
     void rebuild_active_views();
+
+    /**
+     * @brief Rebuild for a layout the views were not built at (a resize across a tier)
+     *
+     * Marks every built main panel stale; set_active() rebuilds a stale panel
+     * before it shows it. The visible panel and the closed overlays are rebuilt
+     * once nothing is in use: no overlay open or closing, no modal, no keyboard,
+     * not suspended. Until then a timer retries, so an open dialog, a running
+     * measurement or a half-typed field is never torn down. Call after the
+     * tokens are refreshed and the components re-registered.
+     */
+    void rebuild_for_layout_change();
 
     /**
      * @brief Activate the initial panel after all panels are registered
@@ -422,7 +457,9 @@ class NavigationManager {
      * Android navigation bar insetting the LVGL surface — #941). Each overlay's
      * resolved class is remembered, so this re-derives the pixel width from the
      * freshly-registered constants rather than guessing it back from the
-     * current width. Call after theme_manager_refresh_layout_constants(). #1178
+     * current width. The ultrawide content cap of every overlay and main panel
+     * is re-derived with it. Call after theme_manager_refresh_layout_constants().
+     * #1178
      */
     void reapply_overlay_widths();
 
@@ -621,6 +658,9 @@ class NavigationManager {
      */
     void trigger_add_printer();
 
+    /// Open or close the printer switch menu under the navbar's printer badge.
+    void toggle_printer_menu();
+
   private:
     // Private constructor/destructor for singleton
     NavigationManager() = default;
@@ -641,6 +681,10 @@ class NavigationManager {
     // Tear down what an overlay leaving the stack owns: its nested-overlay
     // backdrop is deleted and its close callback runs, both on the next tick.
     void retire_overlay(lv_obj_t* overlay);
+    /// Return a closed overlay's freed heap to the OS once closes settle:
+    /// kHeapTrimSettleMs after the last close, at most once per
+    /// kHeapTrimMinIntervalMs, on a worker. No-op without malloc_trim().
+    void request_heap_trim();
 
     // Run @p callback on the next tick, unless @p overlay's owner unregistered
     // in the meantime.
@@ -673,6 +717,12 @@ class NavigationManager {
     // re-entrant navigation from on_activate() can arm a fresh close cleanly.
     void activate_restored_target();
 
+    // Rebuild every overlay, and the active panel and the top modal if asked.
+    void rebuild_views(bool rebuild_panel, bool rebuild_top_modal);
+    // Nothing on screen is in use, so a layout rebuild loses nothing.
+    bool layout_rebuild_is_safe() const;
+    // Run a pending layout rebuild now if it is safe, else retry shortly.
+    void try_layout_rebuild();
     // The lifecycle on screen now: the topmost overlay's, else the active
     // main panel's. Null when the top overlay has none.
     IPanelLifecycle* visible_lifecycle();
@@ -754,15 +804,32 @@ class NavigationManager {
      * @param is_first_overlay True when nothing but the root panel is on the
      *                         stack, so the class comes from the nav root.
      * @return resolved class (true = destination), also stored in
-     *         overlay_is_destination_.
+     *         overlay_geometry_.
      */
     bool apply_overlay_width(lv_obj_t* overlay, bool is_first_overlay);
+
+    // What an overlay's geometry is derived from. is_destination is the
+    // resolved width class (#1178). base_pad_right is the right padding the
+    // widget was built with, read on its first push: the ultrawide content cap
+    // adds its overflow on top, and a resize re-derives that sum from it.
+    struct OverlayGeometry {
+        bool is_destination = false;
+        int32_t base_pad_right = 0;
+    };
+
+    /// Write @p geometry onto @p overlay: its class width, then the ultrawide
+    /// content cap unless its lifecycle opts out (uses_full_content_width()).
+    void write_overlay_geometry(lv_obj_t* overlay, const OverlayGeometry& geometry);
     static void nav_button_clicked_cb(lv_event_t* event);
 
     // Active panel tracking
-    lv_subject_t active_panel_subject_{};
+    helix::Subject active_panel_subject_{};
     helix::PanelId active_panel_ = helix::PanelId::Home;
     bool suspended_ = false; // True when screensaver has suspended lifecycle
+    bool layout_rebuild_pending_ = false;
+    helix::ui::CoalescedTimer layout_rebuild_retry_{250};
+    helix::ui::CoalescedTimer heap_trim_timer_{helix::kHeapTrimSettleMs};
+    std::optional<uint32_t> last_heap_trim_ms_;
     DeactivateReason suspend_reason_ = DeactivateReason::Suspended;
     IPanelLifecycle* suspended_view_ = nullptr; // what resume_active() wakes
 
@@ -800,11 +867,11 @@ class NavigationManager {
     // The dismiss backdrop behind the overlay stack, and its bookkeeping
     helix::ui::OverlayBackdrop backdrop_{[this] { refresh_overlay_backdrop(); }};
 
-    // Resolved width class per overlay (overlay → is_destination). Written by
-    // apply_overlay_width() on every push, read by the next push to inherit and
-    // by Application's resize handler to re-apply the right width without
-    // guessing from the current pixel width. #1178
-    std::unordered_map<lv_obj_t*, bool> overlay_is_destination_;
+    // Per overlay, written by apply_overlay_width() on every push, read by the
+    // next push to inherit and by Application's resize handler to re-apply the
+    // width and cap without guessing from the current pixels. Erased with the
+    // widget by scrub_deleted_widget().
+    std::unordered_map<lv_obj_t*, OverlayGeometry> overlay_geometry_;
 
     // Overlays exempt from push-time width management (deliberate custom
     // widths, e.g. the 70% widget catalog). #1178
@@ -863,7 +930,7 @@ class NavigationManager {
     bool subjects_initialized_ = false;
 
     // Overlay backdrop visibility subject (for modal dimming)
-    lv_subject_t overlay_backdrop_visible_subject_{};
+    helix::Subject overlay_backdrop_visible_subject_{};
 
     // Shutdown flag — overlays should skip destructive actions (e.g. ABORT)
     bool shutting_down_ = false;

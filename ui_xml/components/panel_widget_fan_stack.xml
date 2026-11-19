@@ -2,6 +2,18 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
+  <api>
+    <!-- Per-instance subject names, supplied by the widget at creation. They
+         must exist before this component is parsed: a binding whose subject is
+         missing at parse time is dropped permanently and silently. -->
+    <prop name="part_name_subject" type="string" default=""/>
+    <prop name="part_speed_subject" type="string" default=""/>
+    <prop name="hotend_name_subject" type="string" default=""/>
+    <prop name="hotend_speed_subject" type="string" default=""/>
+    <prop name="aux_name_subject" type="string" default=""/>
+    <prop name="aux_speed_subject" type="string" default=""/>
+    <prop name="has_aux_subject" type="string" default=""/>
+  </api>
   <!--
     Each fan row is [icon][name speed]. The name and speed live in their own
     inner row so the outer row can flip to a column at taller authored sizes
@@ -25,9 +37,11 @@
               width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
               style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
               style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-        <text_muted name="fan_stack_part_name" text="P" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+        <text_muted name="fan_stack_part_name"
+                    bind_text="$part_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
         <text_small name="fan_stack_part_speed"
-                    style_text_color="#text" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+                    bind_text="$part_speed_subject" style_text_color="#text" style_text_font="#font_xs"
+                    clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
 
@@ -42,9 +56,10 @@
               style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
               style_pad_gap="#space_xs" clickable="false" event_bubble="true">
         <text_muted name="fan_stack_hotend_name"
-                    text="H" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+                    bind_text="$hotend_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
         <text_small name="fan_stack_hotend_speed"
-                    style_text_color="#text" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+                    bind_text="$hotend_speed_subject" style_text_color="#text" style_text_font="#font_xs"
+                    clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
 
@@ -53,14 +68,17 @@
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
             style_pad_gap="#space_xs" clickable="false" event_bubble="true" hidden="true">
+      <bind_flag_if_eq subject="$has_aux_subject" flag="hidden" ref_value="0"/>
       <icon name="fan_stack_aux_icon" src="fan" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
       <lv_obj name="fan_stack_aux_value"
               width="content" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
               style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center"
               style_pad_gap="#space_xs" clickable="false" event_bubble="true">
-        <text_muted name="fan_stack_aux_name" text="A" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+        <text_muted name="fan_stack_aux_name"
+                    bind_text="$aux_name_subject" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
         <text_small name="fan_stack_aux_speed"
-                    style_text_color="#text" style_text_font="#font_xs" clickable="false" event_bubble="true"/>
+                    bind_text="$aux_speed_subject" style_text_color="#text" style_text_font="#font_xs" clickable="false"
+                    event_bubble="true"/>
       </lv_obj>
     </lv_obj>
   </view>

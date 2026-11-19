@@ -17,9 +17,16 @@ CompletionAlertPlan plan_completion_alert(PrintEnding ending, CompletionAlertMod
         // The saver shows the end; a toast would expire unseen behind it.
         plan.toast = false;
     } else {
-        plan.wake = plan.modal || plan.toast;
+        // The print status panel shows the result itself, but only on a lit display: a
+        // sleeping panel would go on showing the print as running until someone touched it.
+        plan.wake =
+            plan.modal || plan.toast || (on_print_status && mode != CompletionAlertMode::OFF);
     }
     return plan;
+}
+
+bool should_turn_heaters_off(PrintEnding ending, bool firmware_owns_error_heaters) {
+    return ending == PrintEnding::ERROR && !firmware_owns_error_heaters;
 }
 
 } // namespace helix

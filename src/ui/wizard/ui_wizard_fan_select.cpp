@@ -13,6 +13,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "printer_discovery.h"
@@ -31,7 +32,7 @@
 using namespace helix;
 
 // Global wizard subject for Next button state (defined in ui_wizard.cpp)
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Global Instance
@@ -70,12 +71,15 @@ void WizardFanSelectStep::init_subjects() {
 
     // Initialize subjects with default index 0
     // Actual selection will be restored from config during create() after hardware is discovered
-    helix::ui::wizard::init_int_subject(subjects_, &hotend_fan_selected_, 0, "hotend_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &part_fan_selected_, 0, "part_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &chamber_fan_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, hotend_fan_selected_, 0, "hotend_fan_selected");
+    helix::ui::wizard::init_int_subject(subjects_, part_fan_selected_, 0, "part_fan_selected");
+    helix::ui::wizard::init_int_subject(subjects_, chamber_fan_selected_, 0,
                                         "chamber_fan_selected");
-    helix::ui::wizard::init_int_subject(subjects_, &exhaust_fan_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, exhaust_fan_selected_, 0,
                                         "exhaust_fan_selected");
+    helix::ui::wizard::init_int_subject(subjects_, duplicate_, 0, "fan_select_duplicate");
+    helix::ui::wizard::init_int_subject(subjects_, optional_visible_, 1,
+                                        "fan_select_optional_visible");
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -94,20 +98,7 @@ static void update_next_button_state() {
     bool valid = step->is_validated();
     lv_subject_set_int(&connection_test_passed, valid ? 1 : 0);
 
-    // Update status text visibility and content
-    lv_obj_t* screen = step->get_screen_root();
-    if (screen) {
-        lv_obj_t* status_text =
-            helix::ui::find_required(screen, "fan_status_text", "WizardFanSelectStep");
-        if (status_text) {
-            if (valid) {
-                lv_obj_add_flag(status_text, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_label_set_text(status_text, lv_tr("Each fan can only be selected once"));
-                lv_obj_remove_flag(status_text, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-    }
+    lv_subject_set_int(step->get_duplicate_subject(), valid ? 0 : 1);
 
     spdlog::debug("[WizardFanSelectStep] Validation state: {} -> Next button {}",
                   valid ? "valid" : "invalid", valid ? "enabled" : "disabled");
@@ -273,12 +264,8 @@ lv_obj_t* WizardFanSelectStep::create(lv_obj_t* parent) {
     size_t fan_count = api ? api->hardware().fans().size() : 0;
     bool show_optional_fans = fan_count > 2;
 
-    lv_obj_t* optional_row =
-        helix::ui::find_required(screen_root_, "optional_fans_row", get_name());
+    lv_subject_set_int(&optional_visible_, show_optional_fans ? 1 : 0);
     if (!show_optional_fans) {
-        if (optional_row) {
-            lv_obj_add_flag(optional_row, LV_OBJ_FLAG_HIDDEN);
-        }
         spdlog::debug("[{}] Only {} fans, hiding optional fan row", get_name(), fan_count);
     } else {
         // Build chamber fan options - show ALL fans
@@ -383,7 +370,7 @@ void WizardFanSelectStep::cleanup() {
     lv_subject_set_int(&connection_test_passed, 1);
 
     // Reset UI references
-    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
 

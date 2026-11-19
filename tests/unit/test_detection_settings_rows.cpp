@@ -20,11 +20,14 @@
  * seeding anything, and each section then writes the values it asserts against.
  */
 
+#include "ui_settings_safety.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "core/update_queue.h"
 #include "detection_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "safety_settings_manager.h"
 #include "settings_manager.h"
 #include "u1_stock_detection_source.h"
 
@@ -111,15 +114,15 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Detection settings rows follow detection
     SECTION("no capable source: the container hides both rows") {
         lv_subject_set_int(avail_, 0);
         build();
-        CHECK(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(container()));
     }
 
     SECTION("a capable source shows the rows") {
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(applicable_, 1);
         build();
-        CHECK_FALSE(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
-        CHECK_FALSE(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(container()));
+        CHECK_FALSE(lv_obj_is_hidden(pause_container()));
         CHECK(pause_toggle() != nullptr);
     }
 
@@ -130,19 +133,19 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Detection settings rows follow detection
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(applicable_, 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(container()));
+        CHECK(lv_obj_is_hidden(pause_container()));
     }
 
     SECTION("pause row reappears when a HelixScreen-pausing source shows up") {
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(applicable_, 0);
         build();
-        REQUIRE(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        REQUIRE(lv_obj_is_hidden(pause_container()));
 
         lv_subject_set_int(applicable_, 1);
         process_lvgl(10);
-        CHECK_FALSE(lv_obj_has_flag(pause_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(pause_container()));
     }
 
     SECTION("pause row is disabled while detection is off") {
@@ -206,8 +209,8 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
         lv_subject_set_int(avail_, 1);
         lv_subject_set_int(bed_available, 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(container(), LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(bed_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(container()));
+        CHECK(lv_obj_is_hidden(bed_container()));
     }
 
     SECTION("a printer with a bed check shows the row, toggled to its state") {
@@ -215,7 +218,7 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
         lv_subject_set_int(bed_available, 1);
         lv_subject_set_int(bed_enabled, 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(bed_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(bed_container()));
         CHECK_FALSE(lv_obj_has_state(bed_toggle(), LV_STATE_CHECKED));
 
         lv_subject_set_int(bed_enabled, 1);
@@ -230,11 +233,52 @@ TEST_CASE_METHOD(DetectionRowsFixture, "Bed check row follows detection_bed_chec
         lv_subject_set_int(bed_enabled, 0);
         lv_subject_set_int(m.subject_bed_check_switchable(), 0);
         build();
-        CHECK_FALSE(lv_obj_has_flag(bed_container(), LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(bed_container()));
         CHECK(lv_obj_has_state(bed_toggle(), LV_STATE_DISABLED));
     }
 
     lv_subject_set_int(bed_available, 0);
     lv_subject_set_int(bed_enabled, 1);
     lv_subject_set_int(m.subject_bed_check_switchable(), 1);
+}
+
+TEST_CASE_METHOD(DetectionRowsFixture, "Safety rows write the motors-off and power settings",
+                 "[settings][safety][binding]") {
+    helix::settings::get_safety_settings_overlay().register_callbacks();
+    auto& safety = helix::SafetySettingsManager::instance();
+    const bool saved_motors = safety.get_motors_off_require_confirmation();
+    const bool saved_power = safety.get_power_require_confirmation();
+    const helix::PowerTarget saved_target = safety.get_power_target();
+    build();
+    auto inner = [this](const char* row, const char* widget) {
+        lv_obj_t* r = lv_obj_find_by_name(root_, row);
+        REQUIRE(r != nullptr);
+        lv_obj_t* w = lv_obj_find_by_name(r, widget);
+        REQUIRE(w != nullptr);
+        return w;
+    };
+    auto flip = [](lv_obj_t* toggle, bool on) {
+        if (on) {
+            lv_obj_add_state(toggle, LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(toggle, LV_STATE_CHECKED);
+        }
+        lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
+    };
+
+    for (bool on : {false, true}) {
+        CAPTURE(on);
+        flip(inner("row_motors_off_confirm", "toggle"), on);
+        CHECK(safety.get_motors_off_require_confirmation() == on);
+        flip(inner("row_power_confirm", "toggle"), on);
+        CHECK(safety.get_power_require_confirmation() == on);
+    }
+    lv_obj_t* target = inner("row_power_target", "dropdown");
+    lv_dropdown_set_selected(target, 2);
+    lv_obj_send_event(target, LV_EVENT_VALUE_CHANGED, nullptr);
+    CHECK(safety.get_power_target() == helix::PowerTarget::Screen);
+
+    safety.set_motors_off_require_confirmation(saved_motors);
+    safety.set_power_require_confirmation(saved_power);
+    safety.set_power_target(saved_target);
 }

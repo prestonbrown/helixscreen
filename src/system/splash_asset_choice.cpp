@@ -23,12 +23,26 @@ SplashChoice choose_splash_asset(int width, int height, bool dark_mode,
                                  const SplashAssetResolver& resolve) {
     SplashChoice choice;
     const std::string mode = dark_mode ? "dark" : "light";
+
+    // A portrait panel takes a portrait canvas when its package has one. The
+    // class it picks already fits, so no fit check follows. Without one the
+    // ladder below runs exactly as it does for a landscape panel.
+    if (const char* portrait = get_splash_3d_portrait_size_name(width, height)) {
+        const std::string found = resolve(canvas_path(mode, portrait));
+        if (!found.empty()) {
+            choice.size_class = portrait;
+            choice.kind = SplashAssetKind::FullScreen3DBin;
+            choice.path = found;
+            return choice;
+        }
+    }
+
     choice.size_class = get_splash_3d_size_name(width, height);
 
     std::string found = resolve(canvas_path(mode, choice.size_class));
 
     // A 480x400 panel takes the tiny canvas when its own is absent. The class
-    // moves with it, so the height check below and the logo lookup further down
+    // moves with it, so the fit check below and the logo lookup further down
     // both ask about the canvas actually in hand.
     if (found.empty() && choice.size_class == "small") {
         const std::string fallback = resolve(canvas_path(mode, "tiny"));
@@ -38,12 +52,15 @@ SplashChoice choose_splash_asset(int width, int height, bool dark_mode,
         }
     }
 
-    // A canvas is drawn at its own size, so one taller than the panel would be
-    // clipped. Discard it and take a scaled fallback instead.
+    // A canvas is drawn at its own size, so one wider or taller than the panel
+    // would overdraw it. A tier canvas is landscape and the class comes from the
+    // narrow axis, so a portrait panel fits the height and fails the width.
+    // Discard it and take a scaled fallback instead.
     if (!found.empty()) {
+        const int canvas_w = get_splash_3d_target_width(choice.size_class.c_str());
         const int canvas_h = get_splash_3d_target_height(choice.size_class.c_str());
-        if (canvas_h > 0 && canvas_h > height) {
-            choice.canvas_too_tall = true;
+        if ((canvas_w > 0 && canvas_w > width) || (canvas_h > 0 && canvas_h > height)) {
+            choice.canvas_does_not_fit = true;
             found.clear();
         }
     }

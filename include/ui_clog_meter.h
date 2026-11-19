@@ -9,7 +9,6 @@
 
 #include <optional>
 
-// Forward declarations
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;
 
@@ -25,19 +24,15 @@ namespace helix::ui {
  *   2 = flowguard (symmetrical, -100..+100 tangle..clog)
  *   3 = buffer fault countdown (0-100 fault proximity)
  *
- * The home widget draws the same subjects as a horizontal scale instead — see
- * UiClogBar (ui_clog_bar.h). This class had a second "fill mode" presentation
- * built for that widget, with a danger-zone arc, a peak-hold marker and
- * endpoint labels; the bar replaced it (#1017) and it went with it. The
- * readouts it drew are not lost — clog_bar_body.xml binds the labels directly,
- * and clog_bar_geometry() places the danger band and peak tick.
+ * The home widget draws the same subjects as a horizontal scale: see UiClogBar
+ * (ui_clog_bar.h), whose labels clog_bar_body.xml binds directly and whose
+ * danger band and peak tick clog_bar_geometry() places (#1017).
  */
 class UiClogMeter {
   public:
     explicit UiClogMeter(lv_obj_t* parent);
     ~UiClogMeter();
 
-    // Non-copyable, non-movable
     UiClogMeter(const UiClogMeter&) = delete;
     UiClogMeter& operator=(const UiClogMeter&) = delete;
 
@@ -51,11 +46,9 @@ class UiClogMeter {
     void resize_arc();
 
   private:
-    /// Redraw the arc for one sample: range and mode, sweep, colour, and the
-    /// check icon that stands in when there is nothing to report.
+    /// Redraw the arc for one sample: range and mode, sweep and colour.
     void apply(const ClogMeterSample& s);
     void update_arc_color(const ClogMeterSample& s);
-    void update_safe_state(const ClogMeterSample& s);
 
     static void on_card_size_changed(lv_event_t* e);
 
@@ -64,11 +57,13 @@ class UiClogMeter {
     lv_obj_t* arc_container_ = nullptr;
     bool in_resize_ = false;
 
-    lv_obj_t* safe_icon_ = nullptr;  ///< check_circle shown when there is nothing to report
-    lv_obj_t* value_text_ = nullptr; ///< XML-bound clog_value_text, hidden in the safe state
-
     /// Constructed last, once the named lookups above have succeeded.
     std::optional<ClogMeterModel> model_;
 };
+
+/// clog_meter_tint() with its tokens resolved against the live theme, for the
+/// two widgets that paint it (this arc and the clog bar), so they cannot drift
+/// into resolving it differently.
+lv_color_t resolve_clog_tint(int mode, int value, int warning);
 
 } // namespace helix::ui

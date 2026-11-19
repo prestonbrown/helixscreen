@@ -78,12 +78,12 @@
       "hall_filament_width_sensor",
       "timelapse",
       "mmu",
+      "mmu_machine",
       "cartographer",
       "probe",
       "filament_switch_sensor runout_sensor"
     ],
     "sensors": [
-      "temperature_sensor chamber",
       "temperature_sensor chamber",
       "temperature_sensor raspberry_pi",
       "temperature_sensor mcu_temp",
@@ -249,7 +249,8 @@
       "humidity"
     ],
     "controller_fan electronics_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "display_status": [
       "message",
@@ -269,10 +270,12 @@
       "nozzle_volume_type"
     ],
     "fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "fan_generic exhaust_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "filament_switch_sensor runout_sensor": [
       "filament_detected",
@@ -315,7 +318,8 @@
       "power"
     ],
     "heater_fan hotend_fan": [
-      "speed"
+      "speed",
+      "rpm"
     ],
     "htu21d dryer": [
       "temperature",
@@ -352,6 +356,7 @@
       "filament",
       "action",
       "reason_for_pause",
+      "pause_hint",
       "filament_pos",
       "gate_status",
       "gate_color_rgb",
@@ -380,6 +385,8 @@
       "sync_feedback_bias_modelled",
       "sync_feedback_bias_raw",
       "sync_feedback_flow_rate",
+      "sync_feedback_enabled",
+      "fans",
       "sync_drive",
       "spoolman_support",
       "pending_spool_id",
@@ -419,7 +426,8 @@
     "probe": [
       "last_query",
       "last_z_result",
-      "z_offset"
+      "z_offset",
+      "name"
     ],
     "stepper_enable": [
       "steppers"
@@ -442,11 +450,11 @@
     ],
     "tmc2240 stepper_x": [
       "temperature",
-      "humidity"
+      "drv_status"
     ],
     "tmc2240 stepper_y": [
       "temperature",
-      "humidity"
+      "drv_status"
     ],
     "toolhead": [
       "position",

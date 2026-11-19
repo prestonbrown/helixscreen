@@ -25,7 +25,6 @@
 
 #include <algorithm>
 #include <cstring>
-#include <optional>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -132,9 +131,8 @@ TEST_CASE("archive confirm sends one archived PATCH and the refetch drops the sp
     REQUIRE(served.size() == 1);
     REQUIRE(served[0].id == 42);
 
-    // Single-spool GET fidelity: real Spoolman keeps the archived spool and
-    // only filters it from LIST gets — the record itself stays fetchable
-    // (that is how its web UI offers the un-archive toggle).
+    // Real Spoolman filters an archived spool only from list GETs; the record
+    // stays fetchable by id, which is how its web UI offers un-archive.
     std::optional<SpoolInfo> single;
     f.api.spoolman().get_spoolman_spool(
         41, [&single](const std::optional<SpoolInfo>& s) { single = s; },
@@ -143,31 +141,20 @@ TEST_CASE("archive confirm sends one archived PATCH and the refetch drops the sp
     REQUIRE(single->id == 41);
 }
 
-TEST_CASE("archive error path records no PATCH and only toasts", "[spoolman][archive]") {
-    SpoolmanArchiveFixture f;
-    f.client.set_mock_spoolman_enabled(false);
-
-    SpoolmanPanel& panel = get_global_spoolman_panel();
-    SpoolmanPanelTestAccess::seed_cached_spools(panel, {make_spool(41, "Ambrosia Pink")});
-
-    SpoolmanPanelTestAccess::archive_spool(panel, 41);
-    f.answer_modal("btn_primary");
-
-    CHECK(f.client.spoolman_mock().spool_updates.empty());
-    CHECK(ModalStack::instance().stack_empty());
-}
-
-TEST_CASE("archive cancel fires no PATCH", "[spoolman][archive]") {
+TEST_CASE("an archive the user cancels, or the server refuses, changes nothing",
+          "[spoolman][archive]") {
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
     SpoolmanPanelTestAccess::seed_cached_spools(panel, {make_spool(41, "Ambrosia Pink")});
-
-    SpoolmanPanelTestAccess::archive_spool(panel, 41);
-    f.answer_modal("btn_secondary");
-
-    CHECK(f.client.spoolman_mock().spool_updates.empty());
-    CHECK(ModalStack::instance().stack_empty());
-    CHECK(server_serves(f.api, 41));
+    for (const char* button : {"btn_secondary", "btn_primary"}) {
+        CAPTURE(button);
+        // Cancel first, while the server is up; then a confirm it fails.
+        SpoolmanPanelTestAccess::archive_spool(panel, 41);
+        f.answer_modal(button);
+        CHECK(f.client.spoolman_mock().spool_updates.empty());
+        CHECK(ModalStack::instance().stack_empty());
+        f.client.set_mock_spoolman_enabled(false);
+    }
 }
 
 /// A row widget whose user_data carries the spool id, the contract
@@ -178,42 +165,69 @@ lv_obj_t* make_spool_row(int spool_id) {
     return row;
 }
 
-TEST_CASE("context menu hides Archive for the active spool", "[spoolman][archive]") {
+TEST_CASE("context menu withholds Archive from the active spool only, and titles the spool",
+          "[spoolman][archive]") {
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
-    SpoolmanPanelTestAccess::seed_cached_spools(
-        panel, {make_spool(41, "Ambrosia Pink"), make_spool(42, "Jet Black")});
+    // A refresh also learns Spoolman's currency (the mock's EUR) for the price line.
+    panel.init_subjects();
+    panel.refresh_spools();
+    helix::ui::UpdateQueue::instance().drain();
+    SpoolInfo priced = make_spool(41, "Ambrosia Pink");
+    priced.price = 24.5;
+    SpoolmanPanelTestAccess::seed_cached_spools(panel, {priced, make_spool(42, "")});
     SpoolmanPanelTestAccess::set_active_spool_id(panel, 41);
 
-    lv_obj_t* row = make_spool_row(41);
-    SpoolmanPanelTestAccess::open_context_menu(panel, row);
+    // The menu's subjects outlive each show, so each spool must get its own answer
+    // whichever was shown before it.
+    struct Case {
+        int id;
+        bool archive_shown;
+        const char* subtitle; ///< nullptr: hidden, the filament has no name
+    };
+    const Case cases[] = {
+        {41, false, "Ambrosia Pink"}, {42, true, nullptr}, {41, false, "Ambrosia Pink"}};
+    for (const Case& c : cases) {
+        CAPTURE(c.id);
+        lv_obj_t* row = make_spool_row(c.id);
+        SpoolmanPanelTestAccess::open_context_menu(panel, row);
 
-    lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
-    REQUIRE(archive != nullptr); // the menu actually built
-    CHECK(lv_obj_has_flag(archive, LV_OBJ_FLAG_HIDDEN));
+        lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
+        REQUIRE(archive != nullptr); // the menu actually built
+        CHECK(lv_obj_is_hidden(archive) == !c.archive_shown);
+        lv_obj_t* header = lv_obj_find_by_name(lv_screen_active(), "spool_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == "Polymaker PLA");
+        lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "spool_color_label");
+        REQUIRE(subtitle != nullptr);
+        CHECK(lv_obj_is_hidden(subtitle) == (c.subtitle == nullptr));
+        if (c.subtitle) {
+            CHECK(std::string(lv_label_get_text(subtitle)) == c.subtitle);
+            lv_obj_t* price = lv_obj_find_by_name(lv_screen_active(), "spool_price_label");
+            REQUIRE(price != nullptr);
+            CHECK(std::string(lv_label_get_text(price)) == "Price: €24.50");
+        }
 
-    SpoolmanPanelTestAccess::hide_context_menu(panel);
-    f.process_lvgl(50);
-    lv_obj_delete(row);
+        SpoolmanPanelTestAccess::hide_context_menu(panel);
+        f.process_lvgl(50);
+        lv_obj_delete(row);
+    }
 }
 
-TEST_CASE("context menu offers Archive for a non-active spool", "[spoolman][archive]") {
+TEST_CASE("the location filter shows only while a spool names a location", "[spoolman][location]") {
     SpoolmanArchiveFixture f;
     SpoolmanPanel& panel = get_global_spoolman_panel();
-    SpoolmanPanelTestAccess::seed_cached_spools(
-        panel, {make_spool(41, "Ambrosia Pink"), make_spool(42, "Jet Black")});
-    SpoolmanPanelTestAccess::set_active_spool_id(panel, 41);
-
-    lv_obj_t* row = make_spool_row(42);
-    SpoolmanPanelTestAccess::open_context_menu(panel, row);
-
-    lv_obj_t* archive = lv_obj_find_by_name(lv_screen_active(), "btn_archive");
-    REQUIRE(archive != nullptr); // the menu actually built
-    CHECK_FALSE(lv_obj_has_flag(archive, LV_OBJ_FLAG_HIDDEN));
-
-    SpoolmanPanelTestAccess::hide_context_menu(panel);
-    f.process_lvgl(50);
-    lv_obj_delete(row);
+    panel.init_subjects();
+    REQUIRE(panel.create(lv_screen_active()) != nullptr);
+    lv_obj_t* filter = lv_obj_find_by_name(panel.get_panel(), "location_filter");
+    REQUIRE(filter != nullptr);
+    for (const char* location : {"Shelf A", ""}) {
+        CAPTURE(location);
+        f.client.spoolman_mock().get_mock_spools()[0].location = location;
+        panel.refresh_spools();
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(lv_obj_is_hidden(filter) == (location[0] == '\0'));
+    }
 }
 
 TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolman][1402]") {
@@ -227,8 +241,10 @@ TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolm
     // The recycled-heap bytes its uninitialized subject carries in the crash:
     // the type field reads as INT (ASCII '2' landed on it) while the
     // observer-list head is a pointer made of name-string bytes.
+    lv_subject_t& node = SpoolmanPanelTestAccess::state_subject(shell);
+    const lv_subject_t pristine = node; // SUBJECT_API_OK: a byte snapshot, not storage
     SpoolmanPanelTestAccess::poison_state_subject_as_uninitialized(shell);
-    const lv_subject_t before = SpoolmanPanelTestAccess::state_subject(shell);
+    const lv_subject_t before = node; // SUBJECT_API_OK: a byte snapshot, not storage
 
     // The queued archive callback's refetch path: refresh_spools() on the
     // shell. Before the guard this wrote the uninitialized subject and
@@ -236,6 +252,40 @@ TEST_CASE("a queued refresh on a resurrected shell panel does nothing", "[spoolm
     // it must refuse the work instead.
     SpoolmanPanelTestAccess::refresh_spools(shell);
 
-    REQUIRE(0 == std::memcmp(&before, &SpoolmanPanelTestAccess::state_subject(shell),
-                             sizeof(lv_subject_t)));
+    REQUIRE(0 == std::memcmp(&before, &node, sizeof(lv_subject_t)));
+    node = pristine; // ~Subject frees this node
+}
+
+TEST_CASE("the spool menu prices a spool in the currency Spoolman reports", "[spoolman][price]") {
+    SpoolmanArchiveFixture f;
+    SpoolmanPanel& panel = get_global_spoolman_panel();
+    panel.init_subjects();
+    panel.register_callbacks();
+    REQUIRE(panel.create(lv_screen_active()) != nullptr);
+    SpoolInfo& spool = f.client.spoolman_mock().get_mock_spools()[0];
+    spool.price = 24.5;
+    panel.refresh_spools();
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Tap the spool's own row in the list.
+    lv_obj_t* row = nullptr;
+    const auto find_row = [&](auto&& self, lv_obj_t* obj) -> void {
+        if (lv_obj_get_user_data(obj) == reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)))
+            row = obj;
+        for (uint32_t i = 0; !row && i < lv_obj_get_child_count(obj); ++i)
+            self(self, lv_obj_get_child(obj, static_cast<int32_t>(i)));
+    };
+    find_row(find_row, panel.get_panel());
+    REQUIRE(row != nullptr);
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+
+    lv_obj_t* price = lv_obj_find_by_name(lv_screen_active(), "spool_price_label");
+    REQUIRE(price != nullptr);
+    // The mock Spoolman's currency is EUR.
+    CHECK(std::string(lv_label_get_text(price)) == "Price: \xE2\x82\xAC"
+                                                   "24.50");
+    lv_obj_send_event(lv_obj_find_by_name(lv_screen_active(), "context_backdrop"), LV_EVENT_CLICKED,
+                      nullptr);
+    f.process_lvgl(50);
+    CHECK(lv_obj_find_by_name(lv_screen_active(), "spool_price_label") == nullptr);
 }

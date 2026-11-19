@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -60,7 +60,7 @@ class UpgradeBanner {
 
     lv_obj_t* banner_ = nullptr;
     SubjectManager subjects_;
-    lv_subject_t message_subject_{};
+    helix::Subject message_subject_{};
     bool message_subject_initialized_ = false;
 
     ObserverGuard status_observer_;

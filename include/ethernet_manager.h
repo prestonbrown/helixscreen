@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "ethernet_backend.h"
 #include "helix_shared_callback.h"
 
@@ -187,7 +186,7 @@ class EthernetManager {
 
     std::vector<LinkObserver> link_observers_;
     helix::ui::LvglTimerGuard link_timer_;
-    std::unique_ptr<helix::ethernet::LinkEvents> link_events_;
+    std::unique_ptr<helix::net::LinkEvents> link_events_;
     /// Fallback probing: ticks since the last probe, one probe at a time, and
     /// the state the last probe found ("" until the first one lands).
     uint32_t ticks_since_probe_ = 0;

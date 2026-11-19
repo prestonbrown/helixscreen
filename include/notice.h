@@ -57,8 +57,14 @@ enum class UiRequestKind {
     OfferClearAfterUnverifiedInsert,      ///< Main thread; @ref UiRequest::slot is the lane
     PromptEndHeldNozzleOffsetCalibration, ///< Main thread
     OpenHardwareHealth,                   ///< Main thread
-    ExpectKlippyDisconnect,               ///< Any thread; in effect before publish returns
-    ExpectKlippyRestart, ///< Any thread; @ref UiRequest::api is the connection about to drop
+    OpenPrintStatus,        ///< Main thread; a no-op while print status is on the stack
+    ExpectKlippyDisconnect, ///< Any thread; in effect before publish returns
+    ExpectKlippyRestart,    ///< Any thread; @ref UiRequest::api is the connection about to drop
+    ExpectMoonrakerRestart, ///< Any thread; in effect before publish returns
+    ShowUpdateNotification, ///< Main thread; the release-notes subjects are already set
+    ShowPrintCompletion,    ///< Main thread; @ref UiRequest::code is the ended PrintJobState, @ref
+                            ///< UiRequest::text its display name
+    DismissPrintCompletion, ///< Main thread; a new job makes the last one's result stale
     kCount
 };
 
@@ -66,6 +72,8 @@ struct UiRequest {
     UiRequestKind kind;
     int slot = -1;
     IMoonrakerAPI* api = nullptr;
+    int code = 0;       ///< Kind-specific value, read only by a kind that names it
+    std::string text{}; ///< Kind-specific text, read only by a kind that names it
 };
 
 using UiRequestHandler = void (*)(const UiRequest&);

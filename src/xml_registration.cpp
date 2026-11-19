@@ -12,6 +12,7 @@
 #include "ui_belt_path_sketch.h"
 #include "ui_button.h"
 #include "ui_carousel.h"
+#include "ui_cold_pull_tip_sketch.h"
 #include "ui_color_picker.h"
 #include "ui_confetti.h"
 #include "ui_context_menu.h"
@@ -25,6 +26,7 @@
 #include "ui_leader_line.h"
 #include "ui_lock_screen.h"
 #include "ui_markdown.h"
+#include "ui_nav.h"
 #include "ui_notification_badge.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_home.h"
@@ -40,15 +42,18 @@
 #include "ui_swatch.h"
 #include "ui_switch.h"
 #include "ui_text.h"
+#include "ui_text_edit_menu.h"
 #include "ui_text_input.h"
+#include "ui_toolhead_view.h"
 #include "ui_z_offset_indicator.h"
 
 #include "async_lifetime_guard.h"
 #include "boot_yield.h"
+#include "core/data_root_resolver.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml_component_private.h"
 #include "helix_fs.h"
-#include "layout_manager.h"
 #include "page_scroll_auto_inject.h"
 #include "theme_manager.h"
 #include "z_offset_utils.h"
@@ -77,8 +82,7 @@ static void noop_event_callback(lv_event_t* /*e*/) {
  * LVGL tries to find a subject named "" which doesn't exist.
  * Registering this no-op subject silences those warnings.
  */
-static lv_subject_t s_noop_subject;
-static bool s_noop_subject_initialized = false;
+static helix::Subject s_noop_subject;
 
 /**
  * Register responsive constants for color picker sizing based on screen dimensions
@@ -217,6 +221,8 @@ static void on_toggle_password_visibility(lv_event_t* e) {
         return;
 
     bool was_password = lv_textarea_get_password_mode(textarea);
+    // Revealed is still secret: the clipboard must not offer it.
+    helix::ui::mark_secret_field(textarea);
     lv_textarea_set_password_mode(textarea, !was_password);
 
     // Swap icon: eye_off when hidden (password mode), eye when visible
@@ -229,16 +235,22 @@ static void on_toggle_password_visibility(lv_event_t* e) {
 }
 
 /**
- * Toggle visibility of a "description" label in setting rows.
- * Used on compact breakpoints where descriptions are hidden by default —
- * tapping the info icon reveals/hides the description text.
- * Walks up the parent chain to handle varying nesting depths across row types.
+ * The (i) on setting rows. With user_data, it names the event callback that explains the
+ * setting (a row's info_callback), and the tap goes there. Otherwise it toggles the row's
+ * "description" label, which compact breakpoints hide by default, walking up the parent
+ * chain to handle varying nesting depths across row types.
  */
 static void on_setting_info_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[Settings] on_setting_info_clicked");
     auto* info_btn = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
     if (!info_btn)
         return;
+    if (const auto* info_cb_name = static_cast<const char*>(lv_event_get_user_data(e))) {
+        if (lv_event_cb_t info_cb = lv_xml_get_event_cb(nullptr, info_cb_name)) {
+            info_cb(e);
+        }
+        return;
+    }
     // Walk up parent chain to find a level that contains "description" child
     auto* parent = lv_obj_get_parent(info_btn);
     lv_obj_t* desc = nullptr;
@@ -250,17 +262,21 @@ static void on_setting_info_clicked(lv_event_t* e) {
     }
     if (!desc)
         return;
-    if (lv_obj_has_flag(desc, LV_OBJ_FLAG_HIDDEN)) {
-        lv_obj_remove_flag(desc, LV_OBJ_FLAG_HIDDEN);
+    // One shared callback discloses the tapped row's description for every
+    // setting-row component; the open/closed state belongs to that row alone and
+    // no C++ object owns the row to publish it from.
+    if (lv_obj_is_hidden(desc)) {
+        // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
+        lv_obj_set_hidden(desc, false);
     } else {
-        lv_obj_add_flag(desc, LV_OBJ_FLAG_HIDDEN);
+        // DECLARATIVE_OK: per-row disclosure toggle with no owning object (see above)
+        lv_obj_set_hidden(desc, true);
     }
     LVGL_SAFE_EVENT_CB_END();
 }
 
 static bool register_xml(const char* filename) {
-    auto& lm = helix::LayoutManager::instance();
-    std::string path = "A:" + lm.resolve_xml_path(filename);
+    std::string path = "A:" + helix::asset_path(std::string("ui_xml/") + filename);
     const bool ok = lv_xml_register_component_from_file(path.c_str()) == LV_RESULT_OK;
     if (!ok) {
         spdlog::error("[XML Registration] Failed to register: {}", path);
@@ -299,8 +315,7 @@ static std::unordered_set<std::string> s_loaded;
 /**
  * The engine's component loader: registers a component the first time a tag,
  * an extends= base, lv_xml_create() or a C++ scope lookup names it. The file is
- * <name>.xml at the top of ui_xml/ or under components/, through the same
- * layout-variant resolution register_xml() applies.
+ * <name>.xml at the top of ui_xml/ or under components/.
  */
 static void register_on_first_use(const char* name) {
     if (!on_lvgl_thread()) {
@@ -310,10 +325,9 @@ static void register_on_first_use(const char* name) {
     }
     if (s_no_file.count(name))
         return;
-    auto& lm = helix::LayoutManager::instance();
     for (const char* dir : {"", "components/"}) {
         std::string file = std::string(dir) + name + ".xml";
-        if (helix::fs::exists(lm.resolve_xml_path(file))) {
+        if (helix::fs::exists(helix::asset_path("ui_xml/" + file))) {
             spdlog::debug("[XML Registration] Registering {} on first use", file);
             // A file that does not parse is not read again on every lookup; the
             // hot reloader registers a fixed copy from its own buffer.
@@ -351,11 +365,14 @@ static bool scope_holds_cpp_state(const char* name, lv_xml_component_scope_t* sc
     return false;
 }
 
-void unregister_idle_xml_components() {
+/// Drop the loaded components a copy from their file can replace; with
+/// @p keep_live, also keep any a live widget is built from.
+static void unregister_loaded_xml_components(bool keep_live) {
     s_no_file.clear();
     for (auto it = s_loaded.begin(); it != s_loaded.end();) {
         lv_xml_component_scope_t* scope = lv_xml_component_find_scope(it->c_str());
-        if (scope && (scope->instance_cnt > 0 || scope_holds_cpp_state(it->c_str(), scope))) {
+        if (scope &&
+            ((keep_live && scope->instance_cnt > 0) || scope_holds_cpp_state(it->c_str(), scope))) {
             ++it;
             continue;
         }
@@ -363,6 +380,17 @@ void unregister_idle_xml_components() {
             lv_xml_component_unregister(it->c_str());
         it = s_loaded.erase(it);
     }
+}
+
+void unregister_idle_xml_components() {
+    unregister_loaded_xml_components(true);
+}
+
+void reregister_xml_components_for_rebuild() {
+    unregister_loaded_xml_components(false);
+    // Its styles resolve theme tokens at registration. The old registration lent
+    // them to live widgets, so it is held until they are gone.
+    register_xml("styles.xml");
 }
 
 void register_xml_on_first_use() {
@@ -420,6 +448,8 @@ void register_xml_components() {
                              [](lv_event_t*) { get_global_home_panel().exit_grid_edit_mode(); });
     lv_xml_register_event_cb(nullptr, "on_edit_add_widget_clicked",
                              [](lv_event_t*) { get_global_home_panel().open_widget_catalog(); });
+    lv_xml_register_event_cb(nullptr, "on_nav_printer_badge_clicked",
+                             [](lv_event_t*) { helix::nav::toggle_printer_menu(); });
     lv_xml_register_event_cb(nullptr, "on_edit_delete_page_clicked", [](lv_event_t*) {
         get_global_home_panel().request_delete_edit_page();
     });
@@ -429,9 +459,12 @@ void register_xml_components() {
     helix::ui::ContextMenu::register_shared_callbacks();
     // plugin_feature_toggle_row: any settings page may place one.
     helix::ui::register_plugin_feature_row_callbacks();
-    lv_subject_init_int(&s_noop_subject, 0);
+    // A second registration in one process (test fixtures) keeps the live subject and
+    // its observers; only the XML name is registered again.
+    if (!s_noop_subject.is_live()) {
+        s_noop_subject.init_int(0);
+    }
     lv_xml_register_subject(nullptr, "", &s_noop_subject);
-    s_noop_subject_initialized = true;
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects,
@@ -439,10 +472,11 @@ void register_xml_components() {
 
     // Register custom widgets (BEFORE components that use them)
     helix::ui::gcode_viewer_register();
-    ui_spool_canvas_register();       // Needed by Spoolman panel (and AMS panel)
-    ui_hsv_picker_register();         // HSV color picker for edit filament modal
-    ui_z_offset_indicator_register(); // Z-offset nozzle indicator
-    ui_ams_current_tool_init();       // AMS current tool indicator callbacks
+    ui_spool_canvas_register();             // Needed by Spoolman panel (and AMS panel)
+    ui_hsv_picker_register();               // HSV color picker for edit filament modal
+    ui_z_offset_indicator_register();       // Z-offset nozzle indicator
+    helix::ui::ui_toolhead_view_register(); // <toolhead_view>: the configured head, fitted
+    ui_ams_current_tool_init();             // AMS current tool indicator callbacks
     // <fault_path> + its fault_path_segment subject, embedded by the modals
     // that can show a positioned lane fault.
     helix::ui::fault_path_register();
@@ -484,6 +518,7 @@ void register_xml_components() {
     helix::ui::register_belt_path_sketch_widget(); // before the panel XML that uses it
     helix::ui::register_belt_gap_gauge_widget();
 #endif
+    helix::ui::register_cold_pull_tip_sketch_widget(); // before the cold pull overlay XML
 
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]
 
@@ -497,9 +532,8 @@ void register_xml_components() {
 }
 
 void deinit_xml_subjects() {
-    if (s_noop_subject_initialized) {
-        lv_subject_deinit(&s_noop_subject);
-        s_noop_subject_initialized = false;
+    if (s_noop_subject.is_live()) {
+        s_noop_subject.reset();
         spdlog::debug("[XML Registration] No-op subject deinitialized");
     }
 }

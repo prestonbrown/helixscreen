@@ -3,22 +3,21 @@
 
 #include "moonraker_advanced_api.h"
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
-#include "ui_observer_guard.h"
-
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
+#include "core/error_reporting.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
+#include "core/operation_timeout_guard.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "gcode_response_lines.h"
 #include "gcode_unknown_command.h"
 #include "helix_regex.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_validation.h"
-#include "operation_timeout_guard.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "resonance_console.h"
@@ -65,14 +64,15 @@ void MoonrakerAdvancedAPI::update_bed_mesh(const json& bed_mesh) {
     }());
 
     // Parse active profile name
-    if (bed_mesh.contains("profile_name") && !bed_mesh["profile_name"].is_null()) {
-        active_bed_mesh_.name = bed_mesh["profile_name"].template get<std::string>();
+    const json* profile_name = json_util::find_member(bed_mesh, "profile_name");
+    if (profile_name && !profile_name->is_null()) {
+        active_bed_mesh_.name = profile_name->get<std::string>();
     }
 
     // Parse probed_matrix (2D array of Z heights)
-    if (bed_mesh.contains("probed_matrix") && bed_mesh["probed_matrix"].is_array()) {
+    if (const json* probed_matrix = json_util::find_array(bed_mesh, "probed_matrix")) {
         active_bed_mesh_.probed_matrix.clear();
-        for (const auto& row : bed_mesh["probed_matrix"]) {
+        for (const auto& row : *probed_matrix) {
             if (row.is_array()) {
                 std::vector<float> row_vec;
                 for (const auto& val : row) {
@@ -94,28 +94,26 @@ void MoonrakerAdvancedAPI::update_bed_mesh(const json& bed_mesh) {
     }
 
     // Parse mesh bounds (check that elements are numbers, not null)
-    if (bed_mesh.contains("mesh_min") && bed_mesh["mesh_min"].is_array() &&
-        bed_mesh["mesh_min"].size() >= 2 && bed_mesh["mesh_min"][0].is_number() &&
-        bed_mesh["mesh_min"][1].is_number()) {
-        active_bed_mesh_.mesh_min[0] = bed_mesh["mesh_min"][0].template get<float>();
-        active_bed_mesh_.mesh_min[1] = bed_mesh["mesh_min"][1].template get<float>();
+    if (const json* bound = json_util::find_array(bed_mesh, "mesh_min");
+        bound && bound->size() >= 2 && (*bound)[0].is_number() && (*bound)[1].is_number()) {
+        active_bed_mesh_.mesh_min[0] = (*bound)[0].get<float>();
+        active_bed_mesh_.mesh_min[1] = (*bound)[1].get<float>();
     }
 
-    if (bed_mesh.contains("mesh_max") && bed_mesh["mesh_max"].is_array() &&
-        bed_mesh["mesh_max"].size() >= 2 && bed_mesh["mesh_max"][0].is_number() &&
-        bed_mesh["mesh_max"][1].is_number()) {
-        active_bed_mesh_.mesh_max[0] = bed_mesh["mesh_max"][0].template get<float>();
-        active_bed_mesh_.mesh_max[1] = bed_mesh["mesh_max"][1].template get<float>();
+    if (const json* bound = json_util::find_array(bed_mesh, "mesh_max");
+        bound && bound->size() >= 2 && (*bound)[0].is_number() && (*bound)[1].is_number()) {
+        active_bed_mesh_.mesh_max[0] = (*bound)[0].get<float>();
+        active_bed_mesh_.mesh_max[1] = (*bound)[1].get<float>();
     }
 
     // Parse available profiles and their mesh data
-    if (bed_mesh.contains("profiles") && bed_mesh["profiles"].is_object()) {
+    if (const json* profiles = json_util::find_object(bed_mesh, "profiles")) {
         bed_mesh_profiles_.clear();
         stored_bed_mesh_profiles_.clear();
 
-        spdlog::debug("[MoonrakerAPI] Parsing {} bed mesh profiles", bed_mesh["profiles"].size());
+        spdlog::debug("[MoonrakerAPI] Parsing {} bed mesh profiles", profiles->size());
 
-        for (auto& [profile_name, profile_data] : bed_mesh["profiles"].items()) {
+        for (const auto& [profile_name, profile_data] : profiles->items()) {
             bed_mesh_profiles_.push_back(profile_name);
 
             // Parse and store mesh data for this profile (if available)
@@ -124,8 +122,8 @@ void MoonrakerAdvancedAPI::update_bed_mesh(const json& bed_mesh) {
                 profile.name = profile_name;
 
                 // Parse points array (Moonraker calls it "points", not "probed_matrix")
-                if (profile_data.contains("points") && profile_data["points"].is_array()) {
-                    for (const auto& row : profile_data["points"]) {
+                if (const json* points = json_util::find_array(profile_data, "points")) {
+                    for (const auto& row : *points) {
                         if (row.is_array()) {
                             std::vector<float> row_vec;
                             for (const auto& val : row) {
@@ -141,21 +139,19 @@ void MoonrakerAdvancedAPI::update_bed_mesh(const json& bed_mesh) {
                 }
 
                 // Parse mesh bounds
-                if (profile_data.contains("mesh_params") &&
-                    profile_data["mesh_params"].is_object()) {
-                    const auto& params = profile_data["mesh_params"];
-                    if (params.contains("min_x"))
-                        profile.mesh_min[0] = params["min_x"].template get<float>();
-                    if (params.contains("min_y"))
-                        profile.mesh_min[1] = params["min_y"].template get<float>();
-                    if (params.contains("max_x"))
-                        profile.mesh_max[0] = params["max_x"].template get<float>();
-                    if (params.contains("max_y"))
-                        profile.mesh_max[1] = params["max_y"].template get<float>();
-                    if (params.contains("x_count"))
-                        profile.x_count = params["x_count"].template get<int>();
-                    if (params.contains("y_count"))
-                        profile.y_count = params["y_count"].template get<int>();
+                if (const json* params = json_util::find_object(profile_data, "mesh_params")) {
+                    if (const json* v = json_util::find_member(*params, "min_x"))
+                        profile.mesh_min[0] = v->get<float>();
+                    if (const json* v = json_util::find_member(*params, "min_y"))
+                        profile.mesh_min[1] = v->get<float>();
+                    if (const json* v = json_util::find_member(*params, "max_x"))
+                        profile.mesh_max[0] = v->get<float>();
+                    if (const json* v = json_util::find_member(*params, "max_y"))
+                        profile.mesh_max[1] = v->get<float>();
+                    if (const json* v = json_util::find_member(*params, "x_count"))
+                        profile.x_count = v->get<int>();
+                    if (const json* v = json_util::find_member(*params, "y_count"))
+                        profile.y_count = v->get<int>();
                 }
 
                 if (!profile.probed_matrix.empty()) {
@@ -166,11 +162,9 @@ void MoonrakerAdvancedAPI::update_bed_mesh(const json& bed_mesh) {
     }
 
     // Parse algorithm from mesh_params (if available)
-    if (bed_mesh.contains("mesh_params") && bed_mesh["mesh_params"].is_object()) {
-        const json& params = bed_mesh["mesh_params"];
-        if (params.contains("algo") && params["algo"].is_string()) {
-            active_bed_mesh_.algo = params["algo"].template get<std::string>();
-        }
+    if (const json* params = json_util::find_object(bed_mesh, "mesh_params")) {
+        active_bed_mesh_.algo =
+            json_util::read_field<std::string>(*params, "algo").value_or(active_bed_mesh_.algo);
     }
 
     if (active_bed_mesh_.probed_matrix.empty()) {
@@ -230,14 +224,11 @@ void MoonrakerAdvancedAPI::get_excluded_objects(
         [on_success](const json& response) {
             std::set<std::string> excluded;
 
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("exclude_object")) {
-                const json& exclude_obj = response["result"]["status"]["exclude_object"];
-
+            if (const json* exclude_obj =
+                    json_util::find_path(response, "result", "status", "exclude_object")) {
                 // excluded_objects is an array of object names
-                if (exclude_obj.contains("excluded_objects") &&
-                    exclude_obj["excluded_objects"].is_array()) {
-                    for (const auto& obj : exclude_obj["excluded_objects"]) {
+                if (const json* names = json_util::find_array(*exclude_obj, "excluded_objects")) {
+                    for (const auto& obj : *names) {
                         if (obj.is_string()) {
                             excluded.insert(obj.get<std::string>());
                         }
@@ -263,15 +254,13 @@ void MoonrakerAdvancedAPI::get_available_objects(
         [on_success](const json& response) {
             std::vector<std::string> objects;
 
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("exclude_object")) {
-                const json& exclude_obj = response["result"]["status"]["exclude_object"];
-
+            if (const json* exclude_obj =
+                    json_util::find_path(response, "result", "status", "exclude_object")) {
                 // objects is an array of {name, center, polygon} objects
-                if (exclude_obj.contains("objects") && exclude_obj["objects"].is_array()) {
-                    for (const auto& obj : exclude_obj["objects"]) {
-                        if (obj.is_object() && obj.contains("name") && obj["name"].is_string()) {
-                            objects.push_back(obj["name"].get<std::string>());
+                if (const json* entries = json_util::find_array(*exclude_obj, "objects")) {
+                    for (const auto& obj : *entries) {
+                        if (auto name = json_util::read_field<std::string>(obj, "name")) {
+                            objects.push_back(std::move(*name));
                         }
                     }
                 }
@@ -717,11 +706,12 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     void on_gcode_response(const json& msg) {
         if (core_.completed())
             return;
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string())
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
+        }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[PIDCalibrateCollector] Received: {}", line);
 
         // Check for progress: "sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a"
@@ -888,11 +878,12 @@ class PACalibrateCollector : public std::enable_shared_from_this<PACalibrateColl
     void on_gcode_response(const json& msg) {
         if (completed_.load())
             return;
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string())
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
+        }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[PACalibrateCollector] Received: {}", line);
 
         // Result first: on firmwares that apply the value through
@@ -1039,12 +1030,13 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
     void on_gcode_response(const json& msg) {
         if (core_.completed())
             return;
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string())
+        const std::string* text_param = helix::first_gcode_response_param(msg);
+        if (!text_param) {
             return;
+        }
 
         // Kalico sends the whole result block as one multi-line respond_info.
-        const std::string& text = msg["params"][0].get_ref<const std::string&>();
+        const std::string& text = *text_param;
         for (std::string_view line : text_io::Lines(text, '\n')) {
             if (core_.completed())
                 return;
@@ -1337,12 +1329,12 @@ class ScrewsTiltCollector : public std::enable_shared_from_this<ScrewsTiltCollec
         }
 
         // notify_gcode_response format: {"method": "notify_gcode_response", "params": ["line"]}
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[ScrewsTiltCollector] Received: {}", line);
 
         // Check for unknown command error (screws_tilt_adjust not configured)
@@ -1549,12 +1541,12 @@ class InputShaperCollector : public std::enable_shared_from_this<InputShaperColl
             return;
         }
 
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[InputShaperCollector] Received: {}", line);
 
         // Activity watchdog. There is no line to match on for "the calibration
@@ -2050,12 +2042,12 @@ class BeltResonanceCollector : public std::enable_shared_from_this<BeltResonance
         if (core_.completed()) {
             return;
         }
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[BeltResonanceCollector] Received: {}", line);
 
         if (line.rfind("!! ", 0) == 0 || line.rfind("Error: ", 0) == 0) {
@@ -2189,12 +2181,12 @@ class NoiseCheckCollector : public std::enable_shared_from_this<NoiseCheckCollec
             return;
         }
 
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[NoiseCheckCollector] Received: {}", line);
 
         // Check for unknown command error (no accelerometer configured)
@@ -2372,12 +2364,12 @@ class BedMeshProgressCollector : public std::enable_shared_from_this<BedMeshProg
         }
 
         // notify_gcode_response format: {"method": "notify_gcode_response", "params": ["line"]}
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
 
-        const std::string& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         spdlog::trace("[BedMeshProgressCollector] Received: {}", line);
 
         // Check for errors first
@@ -2777,12 +2769,9 @@ void MoonrakerAdvancedAPI::get_input_shaper_config(InputShaperConfigCallback on_
                 }
             };
 
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("configfile") &&
-                response["result"]["status"]["configfile"].contains("config") &&
-                response["result"]["status"]["configfile"]["config"].contains("input_shaper")) {
-                const auto& shaper =
-                    response["result"]["status"]["configfile"]["config"]["input_shaper"];
+            if (const json* shaper_json = json_util::find_path(
+                    response, "result", "status", "configfile", "config", "input_shaper")) {
+                const auto& shaper = *shaper_json;
 
                 config.shaper_type_x = read_string(shaper, "shaper_type_x");
                 config.shaper_type_y = read_string(shaper, "shaper_type_y");
@@ -2831,8 +2820,9 @@ void MoonrakerAdvancedAPI::get_machine_limits(MachineLimitsCallback on_success,
     client_.send_jsonrpc(
         "printer.objects.query", params,
         [on_success, on_error](const json& response) {
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("toolhead")) {
+            const json* toolhead_json =
+                json_util::find_path(response, "result", "status", "toolhead");
+            if (!toolhead_json) {
                 spdlog::warn("[Moonraker API] Toolhead object not available in response");
                 if (on_error) {
                     MoonrakerError err = MoonrakerError::unknown("Toolhead object not available");
@@ -2841,7 +2831,7 @@ void MoonrakerAdvancedAPI::get_machine_limits(MachineLimitsCallback on_success,
                 return;
             }
 
-            const auto& toolhead = response["result"]["status"]["toolhead"];
+            const auto& toolhead = *toolhead_json;
             MachineLimits limits;
 
             // Extract limits with safe defaults
@@ -3005,9 +2995,9 @@ void MoonrakerAdvancedAPI::get_heater_pid_values(
     client_.send_jsonrpc(
         "printer.objects.query", params,
         [heater, on_complete, on_error](const json& response) {
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile") ||
-                !response["result"]["status"]["configfile"].contains("settings")) {
+            const json* settings_json =
+                json_util::find_path(response, "result", "status", "configfile", "settings");
+            if (!settings_json) {
                 spdlog::debug("[Moonraker API] configfile.settings not available in response");
                 if (on_error) {
                     on_error(MoonrakerError::unknown("configfile.settings not available",
@@ -3016,9 +3006,8 @@ void MoonrakerAdvancedAPI::get_heater_pid_values(
                 return;
             }
 
-            const json& settings = response["result"]["status"]["configfile"]["settings"];
-
-            if (!settings.contains(heater)) {
+            const json* heater_json = json_util::find_member(*settings_json, heater.c_str());
+            if (!heater_json) {
                 if (on_error) {
                     on_error(MoonrakerError::unknown("Heater '" + heater + "' not in config",
                                                      "get_pid_values"));
@@ -3026,11 +3015,14 @@ void MoonrakerAdvancedAPI::get_heater_pid_values(
                 return;
             }
 
-            const json& h = settings[heater];
-            if (h.contains("pid_kp") && h.contains("pid_ki") && h.contains("pid_kd")) {
-                const json& kp_v = h["pid_kp"];
-                const json& ki_v = h["pid_ki"];
-                const json& kd_v = h["pid_kd"];
+            const json& h = *heater_json;
+            const json* kp_p = json_util::find_member(h, "pid_kp");
+            const json* ki_p = json_util::find_member(h, "pid_ki");
+            const json* kd_p = json_util::find_member(h, "pid_kd");
+            if (kp_p && ki_p && kd_p) {
+                const json& kp_v = *kp_p;
+                const json& ki_v = *ki_p;
+                const json& kd_v = *kd_p;
                 if (!(kp_v.is_number() || kp_v.is_boolean()) ||
                     !(ki_v.is_number() || ki_v.is_boolean()) ||
                     !(kd_v.is_number() || kd_v.is_boolean())) {
@@ -3073,9 +3065,9 @@ void MoonrakerAdvancedAPI::get_heater_control_type(
     client_.send_jsonrpc(
         "printer.objects.query", params,
         [heater, on_complete, on_error](const json& response) {
-            if (!response.contains("result") || !response["result"].contains("status") ||
-                !response["result"]["status"].contains("configfile") ||
-                !response["result"]["status"]["configfile"].contains("settings")) {
+            const json* settings_json =
+                json_util::find_path(response, "result", "status", "configfile", "settings");
+            if (!settings_json) {
                 spdlog::debug(
                     "[Moonraker API] configfile.settings not available for control type query");
                 if (on_error) {
@@ -3085,9 +3077,8 @@ void MoonrakerAdvancedAPI::get_heater_control_type(
                 return;
             }
 
-            const json& settings = response["result"]["status"]["configfile"]["settings"];
-
-            if (!settings.contains(heater)) {
+            const json* heater_json = json_util::find_member(*settings_json, heater.c_str());
+            if (!heater_json) {
                 if (on_error) {
                     on_error(MoonrakerError::unknown("Heater '" + heater + "' not in config",
                                                      "get_heater_control_type"));
@@ -3095,11 +3086,13 @@ void MoonrakerAdvancedAPI::get_heater_control_type(
                 return;
             }
 
-            const json& h = settings[heater];
+            const json& h = *heater_json;
             std::string control = json_util::safe_string(h, "control", "pid");
-            spdlog::debug("[Moonraker API] Heater '{}' control type: {}", heater, control);
+            const bool names_cooling_fan = !json_util::safe_string(h, "cooling_fan", "").empty();
+            spdlog::debug("[Moonraker API] Heater '{}' control type: {}, cooling_fan named: {}",
+                          heater, control, names_cooling_fan);
             if (on_complete) {
-                on_complete(control);
+                on_complete(control, names_cooling_fan);
             }
         },
         [on_error](const MoonrakerError& err) {
@@ -3250,16 +3243,11 @@ void MoonrakerAdvancedAPI::detect_belt_hardware(BeltHardwareCallback on_complete
             client_.send_jsonrpc(
                 "printer.objects.query", query_params,
                 [hw, on_complete, on_error](const json& config_response) mutable {
-                    if (config_response.contains("result") &&
-                        config_response["result"].contains("status") &&
-                        config_response["result"]["status"].contains("configfile") &&
-                        config_response["result"]["status"]["configfile"].contains("settings")) {
-                        const auto& settings =
-                            config_response["result"]["status"]["configfile"]["settings"];
-
-                        if (settings.contains("printer") &&
-                            settings["printer"].contains("kinematics")) {
-                            const auto& kinematics = settings["printer"]["kinematics"];
+                    if (const json* settings = json_util::find_path(
+                            config_response, "result", "status", "configfile", "settings")) {
+                        if (const json* kinematics_json =
+                                json_util::find_path(*settings, "printer", "kinematics")) {
+                            const auto& kinematics = *kinematics_json;
                             if (!kinematics.is_string()) {
                                 spdlog::error(
                                     "[MoonrakerAPI] Failed to parse kinematics: not a string");

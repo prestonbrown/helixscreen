@@ -105,8 +105,9 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
         // Create row from XML component
         const char* type_label = lv_tr(helix::fan_type_label(fan.type));
         const char* attrs[] = {
-            "fan_name",   fan.display_name.c_str(), "fan_type", type_label,
-            "fan_object", fan.object_name.c_str(),  nullptr,
+            "fan_name",   fan.display_name.c_str(), "fan_type",  type_label,
+            "fan_object", fan.object_name.c_str(),  "fan_speed", speed_buf,
+            nullptr,
         };
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "fan_settings_row", attrs));
         if (!row) {
@@ -114,16 +115,10 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
             continue;
         }
 
-        // Update the speed label (not bound to a subject here — refreshed on populate)
-        lv_obj_t* speed_label = helix::ui::find_required(row, "speed_label", get_name());
-        if (speed_label) {
-            lv_label_set_text(speed_label, speed_buf);
-        }
-
         // Wire click callback on the entire row for rename
         {
             auto* obj_name = new std::string(fan.object_name);
-            lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(row, true);
             // Touch feedback: dim on press
             lv_obj_set_style_opa(row, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
             lv_obj_add_event_cb(
@@ -181,15 +176,15 @@ void FanSettingsOverlay::populate_fans() {
     lv_obj_t* auto_section = find_required(overlay_root_, "auto_section", get_name());
 
     if (controllable_section) {
-        lv_obj_set_flag(controllable_section, LV_OBJ_FLAG_HIDDEN, controllable_count == 0);
+        lv_obj_set_hidden(controllable_section, controllable_count == 0);
     }
     if (auto_section) {
-        lv_obj_set_flag(auto_section, LV_OBJ_FLAG_HIDDEN, auto_count == 0);
+        lv_obj_set_hidden(auto_section, auto_count == 0);
     }
 
     // Show empty state if no fans at all
     if (no_fans_placeholder_) {
-        lv_obj_set_flag(no_fans_placeholder_, LV_OBJ_FLAG_HIDDEN, !fans.empty());
+        lv_obj_set_hidden(no_fans_placeholder_, !fans.empty());
     }
 
     // Populate row lists
@@ -214,7 +209,7 @@ void FanSettingsOverlay::handle_fan_rename(const std::string& object_name,
     }
 
     pending_rename_object_ = object_name;
-    lv_subject_copy_string(&fan_rename_old_name_, current_name.c_str());
+    lv_subject_set_string(&fan_rename_old_name_, current_name.c_str());
 
     rename_modal_ = helix::ui::ComponentModal::show_owned("fan_rename_modal");
     if (!rename_modal_) {

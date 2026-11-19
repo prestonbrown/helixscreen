@@ -10,10 +10,14 @@
 
 #include "sensor_state.h"
 
+#include "json_utils.h"
+
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cmath>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -248,14 +252,11 @@ void SensorState::unsubscribe(IMoonrakerAPI& api) {
 void SensorState::on_sensor_update(const nlohmann::json& msg) {
     // Moonraker sends: {"method": "notify_sensor_update", "params": [{"sensor_id": {"key": value,
     // ...}, ...}]}
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const nlohmann::json* payload = json_util::notification_payload(msg);
+    if (!payload) {
         return;
     }
-
-    const auto& params = msg["params"][0];
-    if (!params.is_object()) {
-        return;
-    }
+    const auto& params = *payload;
 
     bool changed = false;
     {

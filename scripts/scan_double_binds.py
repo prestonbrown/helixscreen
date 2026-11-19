@@ -13,17 +13,27 @@ see that the population shrank.
 
     scripts/scan_double_binds.py                  # human-readable inventory
     scripts/scan_double_binds.py --emit-cpp       # the table the test iterates
+    scripts/scan_double_binds.py --check          # is the committed table current?
 
 `--emit-cpp` writes tests/unit/double_bind_widgets.inc, which
 tests/unit/test_xml_bind_compose.cpp includes. Regenerate it whenever ui_xml
-grows or loses one of these widgets; the test's own count assertion is what
-notices that you did not.
+grows or loses one of these widgets. `--check` renders the table in memory and
+fails, with a diff and the regenerate command, when the committed file differs;
+`--check --staged-only` reads both ui_xml/ and the table from the index. It is
+gated as qc_double_binds.
 """
 import argparse
+import difflib
 import re
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from staged_content import catfile_batch, tree_files  # noqa: E402
+
+INC_PATH = "tests/unit/double_bind_widgets.inc"
+REGEN_CMD = "python3 scripts/scan_double_binds.py --emit-cpp"
 
 # The elements that write a state or a flag, mapped to the comparison they make.
 # The value is (operator, negated) where the operator is applied as `subject OP ref`.
@@ -133,15 +143,121 @@ class Binding:
                                                               self.ref, inv)
 
 
-def scan(path):
-    """Yield (widget_name, kind, bits, [Binding]) for every composed property."""
-    text = STATE_ATTR_RE.sub(r"\1\2__\3=\4", path.read_text(encoding="utf-8"))
+def is_widget_element(el):
+    """Whether `el` builds an object: <style> and the bind_* and event_cb
+    children carry a name too, but none of them is a widget."""
+    return not el.tag.startswith("bind_") and el.tag not in ("style", "event_cb")
+
+
+# `<if cond="subject OP n">`: the structural conditional, decided once at build
+# time. Only this simple form is drivable; anything richer marks its subtree.
+IF_COND_RE = re.compile(r"^\s*(\w+)\s+(eq|not_eq|gt|ge|lt|le)\s+(-?\d+)\s*$")
+
+
+def comparison_value(subject, op, ref, want):
+    """A value of `subject` that makes `subject OP ref` evaluate to `want`, nearest zero."""
+    for value in sorted(set(range(-2, 5)) | {ref - 1, ref, ref + 1}, key=lambda v: (abs(v), v)):
+        if evaluate(op, ref, False, value) == want:
+            return subject, value
+    return None
+
+
+def branch_value(cond, want, exprs=None):
+    """The (subject, value) pairs that make `cond` evaluate to `want`, or None when
+    the cond is not a simple comparison.
+
+    A cond on a `<subject_expr>` the component declares is driven through the
+    subjects the expression reads, since the engine derives its value from them:
+    every comparison of an `and` chain for true, the first one alone for false.
+    """
+    m = IF_COND_RE.match(cond or "")
+    if m is None:
+        return None
+    subject, op, ref = m.group(1), "if_" + m.group(2), int(m.group(3))
+    picked = comparison_value(subject, op, ref, want)
+    if picked is None or subject not in (exprs or {}):
+        return None if picked is None else [picked]
+    terms = [IF_COND_RE.match(t) for t in exprs[subject].split(" and ")]
+    if any(t is None for t in terms):
+        return None
+    holds = picked[1] != 0
+    pairs = [comparison_value(t.group(1), "if_" + t.group(2), int(t.group(3)), holds)
+             for t in (terms if holds else terms[:1])]
+    return None if any(p is None for p in pairs) else pairs
+
+
+def branches(view, exprs=None):
+    """Map every element under `view` to the <if> branches it sits in, as a tuple
+    of (if element, taken branch, (subject, value) or None) from the outside in.
+
+    Children of an <if> before its <else/> are the true branch, the rest the
+    false one; the engine builds only the branch the condition picks.
+    """
+    out = {}
+
+    def walk(el, path):
+        out[el] = path
+        if el.tag == "if":
+            taken = True
+            for child in el:
+                if child.tag == "else":
+                    taken = False
+                    continue
+                walk(child,
+                     path + ((el, taken, branch_value(el.attrib.get("cond"), taken, exprs)),))
+        else:
+            for child in el:
+                walk(child, path)
+
+    walk(view, ())
+    return out
+
+
+def compatible(a, b):
+    """Whether two branch paths can be built together: every <if> both sit in
+    takes the same branch for both."""
+    taken = {id(el): t for el, t, _ in a}
+    return all(taken.get(id(el), t) == t for el, t, _ in b)
+
+
+def widget_ordinal(el, paths, view):
+    """`el`'s index among the same-named widgets built beside it.
+
+    A component can repeat a name, one copy per <if> branch or per layout, with
+    the bindings on only one of them. The engine builds widgets in document
+    order, so the index is also the match a depth-first walk of the built tree
+    reaches once the row's branch is selected.
+    """
+    name = el.attrib.get("name")
+    nth = 0
+    for other in view.iter():
+        if other is el:
+            return nth
+        if (other.attrib.get("name") == name and is_widget_element(other)
+                and compatible(paths.get(other, ()), paths.get(el, ()))):
+            nth += 1
+    return 0
+
+
+def scan(path, text):
+    """Yield (widget_name, nth, build, kind, bits, [Binding]) for every composed
+    property. `nth` is the widget's index among the same-named widgets built
+    with it, `build` the (subject, value) pairs that select its <if> branches,
+    or None when a branch condition is not a simple comparison."""
+    text = STATE_ATTR_RE.sub(r"\1\2__\3=\4", text)
     try:
         root = ET.fromstring(text)
     except ET.ParseError as exc:
         print("  ! %s: %s" % (path, exc), file=sys.stderr)
         return
 
+    # Only the <view> builds anything; <api> props and <styles> are named too.
+    view = root.find("view")
+    if view is None:
+        view = root
+    exprs = {e.attrib["name"]: e.attrib.get("expr", "")
+             for e in root.iter("subject_expr") if "name" in e.attrib}
+    paths = branches(view, exprs)
     for parent in root.iter():
         buckets = {}
         for child in parent:
@@ -169,19 +285,36 @@ def scan(path):
 
         for (kind, bits), binds in sorted(buckets.items()):
             if len(binds) > 1:
-                yield parent.attrib.get("name") or "<%s>" % parent.tag, kind, bits, binds
+                branch = paths.get(parent, ())
+                build = (None if any(sv is None for _, _, sv in branch)
+                         else [pair for _, _, sv in branch for pair in sv])
+                yield (parent.attrib.get("name") or "<%s>" % parent.tag,
+                       widget_ordinal(parent, paths, view), build, kind, bits, binds)
 
 
-def collect(roots):
+def disk_files(roots):
+    """(path, text) for every *.xml under `roots` in the working tree."""
     for root in roots:
-        for path in sorted(Path(root).rglob("*.xml")):
-            for row in scan(path):
-                yield (path,) + row
+        for path in Path(root).rglob("*.xml"):
+            yield path, path.read_text(encoding="utf-8")
+
+
+def staged_xml(roots):
+    """(path, text) for every *.xml under `roots` as the index holds it."""
+    for path, text in tree_files(None, tuple(roots)):
+        if path.endswith(".xml"):
+            yield Path(path), text
+
+
+def collect(files):
+    for path, text in sorted(files, key=lambda f: Path(f[0])):
+        for row in scan(path, text):
+            yield (path,) + row
 
 
 def report(rows):
     current = None
-    for path, name, kind, bits, binds in rows:
+    for path, name, _nth, _build, kind, bits, binds in rows:
         if path != current:
             print(path)
             current = path
@@ -192,8 +325,8 @@ def report(rows):
     print("widgets carrying 2+ bindings on one property: %d" % len(rows))
 
 
-def emit_cpp(rows, out):
-    """The DRIVABLE subset, as a table of C++ initialisers."""
+def render_cpp(rows):
+    """The DRIVABLE subset, as a table of C++ initialisers: (text, drivable, skipped)."""
     lines = [
         "// Generated by scripts/scan_double_binds.py --emit-cpp. Do not edit.",
         "//",
@@ -201,24 +334,28 @@ def emit_cpp(rows, out):
         "// A moves_machine=\"true\" attribute is one of them: the engine installs the",
         "// machine_motion_blocked -> disabled binding for the element itself, so a control",
         "// carrying the attribute and one hand-written state binding is a group of two.",
-        "// Each row names the component to build, the widget in it, the property, the",
-        "// subjects involved with a value that releases every binding on them, and one",
-        "// value per binding that makes exactly that binding ask for the property.",
+        "// Each row names the component to build, the widget in it, which of the",
+        "// component's widgets of that name it is (from 0, in document order, among",
+        "// those built with it), the subject values that select its <if> branches at",
+        "// build time, the property, the subjects involved with a value that releases",
+        "// every binding on them, and one value per binding that makes exactly that",
+        "// binding ask for the property.",
         "//",
         "// `orders_testable` is false when two bindings share a subject: they cannot be",
         "// held one at a time, so only the each-alone phase applies to that row.",
         "//",
-        "// Rows left out are counted in kUndrivableGroups - a cond= expression, a subject",
-        "// the instantiating parent supplies as $param, or a ref_value that is a",
-        "// per-iteration ${...} substitution.",
+        "// Rows left out are counted at the bottom - a cond= expression, a subject",
+        "// the instantiating parent supplies as $param, a ref_value that is a",
+        "// per-iteration ${...} substitution, or an <if> branch whose cond is more than",
+        "// one comparison.",
         "",
         "// clang-format off",
         "static const BindGroup kDoubleBindWidgets[] = {",
     ]
     drivable = skipped = 0
-    for path, name, kind, bits, binds in rows:
+    for path, name, nth, build, kind, bits, binds in rows:
         component = str(path).removeprefix("ui_xml/").removesuffix(".xml")
-        if any(b is None for b in binds):
+        if build is None or len(build) > 4 or any(b is None for b in binds):
             skipped += 1
             continue
 
@@ -235,8 +372,9 @@ def emit_cpp(rows, out):
         drivable += 1
         subj_src = ", ".join('{"%s", %d}' % (s, quiets[s]) for s in order)
         hold_src = ", ".join("{%d, %d}" % (order.index(b.subject), b.holds) for b in binds)
-        lines.append('    {"%s", "%s", %s, "%s", {%s}, %d, {%s}, %d, %s},'
-                     % (component, name,
+        build_src = ", ".join('{"%s", %d}' % sv for sv in build)
+        lines.append('    {"%s", "%s", %d, {%s}, %d, %s, "%s", {%s}, %d, {%s}, %d, %s},'
+                     % (component, name, nth, build_src, len(build),
                         "BindKind::State" if kind == "state" else "BindKind::Flag", bits,
                         subj_src, len(order), hold_src, len(binds),
                         "true" if len(order) == len(binds) else "false"))
@@ -244,33 +382,70 @@ def emit_cpp(rows, out):
         "};",
         "// clang-format on",
         "",
-        "// Groups the scan found but that no test can drive; see the header comment.",
-        "static constexpr int kUndrivableGroups = %d;" % skipped,
-        "",
-        "// Total groups in ui_xml/. A new double-bind widget moves this, which is the",
-        "// point: it has to be regenerated and re-run rather than silently uncovered.",
-        "static constexpr int kTotalGroups = %d;" % (drivable + skipped),
+        "// Groups in ui_xml/: %d drivable, %d that no test can drive (see the header"
+        % (drivable, skipped),
+        "// comment), %d total. qc_double_binds fails a commit that leaves this file"
+        % (drivable + skipped),
+        "// behind ui_xml/.",
         "",
     ]
-    Path(out).write_text("\n".join(lines))
+    return "\n".join(lines), drivable, skipped
+
+
+def emit_cpp(rows, out):
+    text, drivable, skipped = render_cpp(rows)
+    Path(out).write_text(text)
     print("wrote %s: %d drivable, %d undrivable, %d total"
           % (out, drivable, skipped, drivable + skipped))
+
+
+def check_cpp(rows, committed):
+    """0 when `committed` (the table's text, or None) is what ui_xml/ generates."""
+    want, drivable, skipped = render_cpp(rows)
+    if committed == want:
+        print("✅ %s matches ui_xml/: %d double-bind groups" % (INC_PATH, drivable + skipped))
+        return 0
+    print("❌ %s does not match ui_xml/" % INC_PATH)
+    diff = list(difflib.unified_diff((committed or "").splitlines(), want.splitlines(),
+                                     "committed", "generated", lineterm="", n=0))
+    for line in diff[:40]:
+        print("   " + line)
+    if len(diff) > 40:
+        print("   ... %d more diff lines" % (len(diff) - 40))
+    print("   Regenerate and commit it: %s && git add %s" % (REGEN_CMD, INC_PATH))
+    return 1
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("roots", nargs="*", default=["ui_xml"])
-    ap.add_argument("--emit-cpp", nargs="?", const="tests/unit/double_bind_widgets.inc",
+    ap.add_argument("--emit-cpp", nargs="?", const=INC_PATH,
                     metavar="PATH", help="write the C++ table instead of a report")
+    ap.add_argument("--check", action="store_true",
+                    help="exit 1 when %s differs from what ui_xml/ generates" % INC_PATH)
+    ap.add_argument("--staged-only", action="store_true",
+                    help="with --check, read ui_xml/ and the table from the index")
     args = ap.parse_args()
+    roots = args.roots or ["ui_xml"]
 
-    rows = list(collect(args.roots or ["ui_xml"]))
+    if args.check:
+        if args.staged_only:
+            rows = list(collect(staged_xml(roots)))
+            committed = dict(catfile_batch([(INC_PATH, ":" + INC_PATH)])).get(INC_PATH)
+        else:
+            rows = list(collect(disk_files(roots)))
+            inc = Path(INC_PATH)
+            committed = inc.read_text(encoding="utf-8") if inc.exists() else None
+        return check_cpp(rows, committed)
+
+    rows = list(collect(disk_files(roots)))
     if args.emit_cpp:
         emit_cpp(rows, args.emit_cpp)
     else:
         report(rows)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

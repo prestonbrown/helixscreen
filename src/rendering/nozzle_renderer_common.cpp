@@ -197,4 +197,62 @@ void nr_draw_filament_tip(lv_layer_t* layer, int32_t cx, int32_t top_y, int32_t 
     lv_draw_fill(layer, &glint_dsc, &glint);
 }
 
+void nr_draw_fan_ring(lv_layer_t* layer, int32_t fan_cx, int32_t fan_cy, int32_t fan_radius,
+                      lv_color_t front_mid, lv_color_t front_light, lv_color_t metal_base,
+                      lv_opa_t opa, bool blade_hints) {
+    lv_draw_arc_dsc_t arc_dsc;
+    lv_draw_arc_dsc_init(&arc_dsc);
+    arc_dsc.center.x = fan_cx;
+    arc_dsc.center.y = fan_cy;
+    arc_dsc.radius = fan_radius + 2;
+    arc_dsc.start_angle = 0;
+    arc_dsc.end_angle = 360;
+    arc_dsc.width = 2;
+    arc_dsc.color = nr_lighten(front_mid, 20);
+    arc_dsc.opa = LV_OPA_COVER;
+    lv_draw_arc(layer, &arc_dsc);
+
+    lv_draw_fill_dsc_t fill_dsc;
+    lv_draw_fill_dsc_init(&fill_dsc);
+    fill_dsc.color = nr_darken(metal_base, 80);
+    fill_dsc.opa = opa;
+    fill_dsc.radius = fan_radius;
+    lv_area_t fan_area = {fan_cx - fan_radius, fan_cy - fan_radius, fan_cx + fan_radius,
+                          fan_cy + fan_radius};
+    lv_draw_fill(layer, &fill_dsc, &fan_area);
+
+    int32_t hub_r = fan_radius / 3;
+    fill_dsc.color = nr_darken(metal_base, 40);
+    fill_dsc.radius = hub_r;
+    lv_area_t hub_area = {fan_cx - hub_r, fan_cy - hub_r, fan_cx + hub_r, fan_cy + hub_r};
+    lv_draw_fill(layer, &fill_dsc, &hub_area);
+
+    if (blade_hints) {
+        lv_draw_line_dsc_t blade_dsc;
+        lv_draw_line_dsc_init(&blade_dsc);
+        blade_dsc.color = nr_darken(metal_base, 55);
+        blade_dsc.width = 1;
+        blade_dsc.opa = LV_OPA_30;
+
+        blade_dsc.p1.x = fan_cx - fan_radius + 2;
+        blade_dsc.p1.y = fan_cy;
+        blade_dsc.p2.x = fan_cx + fan_radius - 2;
+        blade_dsc.p2.y = fan_cy;
+        lv_draw_line(layer, &blade_dsc);
+
+        blade_dsc.p1.x = fan_cx;
+        blade_dsc.p1.y = fan_cy - fan_radius + 2;
+        blade_dsc.p2.x = fan_cx;
+        blade_dsc.p2.y = fan_cy + fan_radius - 2;
+        lv_draw_line(layer, &blade_dsc);
+    }
+
+    arc_dsc.radius = fan_radius + 1;
+    arc_dsc.start_angle = 200;
+    arc_dsc.end_angle = 290;
+    arc_dsc.width = 1;
+    arc_dsc.color = nr_lighten(front_light, 50);
+    lv_draw_arc(layer, &arc_dsc);
+}
+
 } // namespace helix

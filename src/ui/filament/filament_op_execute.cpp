@@ -57,7 +57,8 @@ OpNozzle resolve_op_nozzle(AmsBackend* backend, int slot, PrinterState& state,
 
     OpNozzle nozzle;
     nozzle.extruder = extruder;
-    nozzle.target_c = target ? temperature::deci_to_degrees(lv_subject_get_int(target)) : 0;
+    nozzle.target_c =
+        target ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(target)) : 0;
     nozzle.floor_c = temperature::extrusion_floor_c(limits, extruder);
     nozzle.ceiling_c = temperature::nozzle_max_temp_c(limits, extruder);
     return nozzle;
@@ -503,9 +504,9 @@ void report_op_error(const MoonrakerError& error, const char* what) {
         return;
     }
     if (std::string(what) == "load") {
-        helix::ui::notify_error_tr(TR_NOOP("Failed to load filament: {}"), error);
+        helix::notify_error_tr(TR_NOOP("Failed to load filament: {}"), error);
     } else {
-        helix::ui::notify_error_tr(TR_NOOP("Failed to unload: {}"), error);
+        helix::notify_error_tr(TR_NOOP("Failed to unload: {}"), error);
     }
 }
 
@@ -703,6 +704,15 @@ void dispatch_load(AmsBackend* backend, int slot, const FilamentOpSurface& surfa
 }
 
 } // namespace
+
+bool load_is_by_hand(AmsBackend* backend, int slot, PrinterState& state) {
+    if (backend || job_holds_machine(state.print_state().get_print_lifecycle())) {
+        return false;
+    }
+    AmsSystemInfo sys;
+    const BackendCaps caps = read_backend_caps(backend, sys, slot);
+    return plan_live_load(sys, caps, slot).tier == FilamentTier::RawGcode;
+}
 
 void execute_filament_load(AmsBackend* backend, int slot, const FilamentOpSurface& surface) {
     // Where this head's load is the user's job, saying so is the whole op.
@@ -935,7 +945,7 @@ void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
     const auto purge_failed = [log_tag, ticket](const MoonrakerError& err) {
         heat_failed(ticket);
         spdlog::error("{} Failed to purge: {}", log_tag, err.message);
-        helix::ui::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
+        helix::notify_error_tr(TR_NOOP("Failed to purge: {}"), err);
     };
 
     // Two tiers, not three: no AmsBackend exposes a purge entry point, so there
@@ -973,7 +983,7 @@ void dispatch_purge(const char* log_tag, FilamentOpTicket ticket) {
         api, log_tag,
         [api, log_tag, ticket, purge_failed]() {
             api->execute_gcode(
-                helix::ui::filament_purge_fallback_gcode(),
+                helix::ui::filament_purge_fallback_gcode(AmsState::instance().get_backend()),
                 [log_tag, ticket]() {
                     spdlog::info("{} Purge fallback gcode sent", log_tag);
                     finished(FilamentOpSurface{}, nullptr, ticket);

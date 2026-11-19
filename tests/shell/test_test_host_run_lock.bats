@@ -108,6 +108,7 @@ case "$1" in
                 [ -e "$MOCK_SSH_RECONNECTED" ] || { echo job-never-reconnected; exit 9; }
                 echo job-done; exit 3
                 ;;
+            *MOCK-SIGTERM*) exit 143 ;;
             *) echo "[docker-exec] $*" >> "$MOCK_DOCKER_LOG" ;;
         esac ;;
     *) echo "unhandled docker call: $*" >&2; exit 1 ;;
@@ -120,6 +121,15 @@ exit 0'
 # checkout takes. If the script renames it, these tests must follow on purpose.
 lock_file() {
     printf '%s/helix-zeus-run-%s.lock\n' "$HELIX_TEST_LOCK_DIR" "$(basename "$HELIX_TEST_WORKDIR")"
+}
+
+# The run's lock is free, or comes free within 20s. The lock is not free the
+# instant the client exits: its holder is a shell on the host that lets go
+# once it reads the client's input closing, and the job's watchdog takes the
+# lock again for its last sweep up to one poll after the job ends. A lock
+# that stays held is a real leak, and fails here.
+lock_released() {
+    flock -w 20 "$(lock_file)" true
 }
 
 wait_for_file() { # <path>
@@ -144,8 +154,8 @@ wait_for_line() { # <substring> <file>
     grep -Eq 'held by pid [0-9]+: test 0123456 since ' "$(lock_file)"
 
     # The lock is advisory state, not liveness: the file outlives the run,
-    # but an immediate exclusive flock must succeed.
-    flock -n "$(lock_file)" -c true
+    # but nothing keeps holding it.
+    lock_released
 
     # Successive runs rewrite the holder line rather than appending.
     run "$SCRIPT" --commit test
@@ -160,6 +170,24 @@ wait_for_line() { # <substring> <file>
     run "$SCRIPT" --help
     [ "$status" -eq 0 ]
     contains "awake: -is $SCRIPT --help" "$output"
+}
+
+@test "a lock connection lost right after locking reports the failed start" {
+    mock_command_script ssh '
+while [ $# -gt 0 ]; do
+    case "$1" in -o) shift 2 ;; -*) shift ;; *) break ;; esac
+done
+shift
+if [ "$*" = "bash -s" ]; then
+    while IFS= read -r line; do [ "$line" = hold ] && break; done
+    echo LOCKED
+    exit 0
+fi
+exec "$@"'
+    run "$SCRIPT" --commit test "[tag]"
+    [ "$status" -eq 255 ]
+    contains "could not start the job" "$output"
+    ! contains "unbound variable" "$output"
 }
 
 @test "a run over the load ceiling waits, then starts when the load falls" {
@@ -270,6 +298,12 @@ wait_for_line() { # <substring> <file>
     ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
 }
 
+@test "a job a signal stopped says so, since the stopped process cannot" {
+    run "$SCRIPT" --commit exec -- MOCK-SIGTERM
+    [ "$status" -eq 143 ]
+    contains "the job ended with status 143: something in it was stopped by signal 15" "$output"
+}
+
 # A waiting run whose link drops, and whose holder then lets go. The run's pid
 # is left in RUNNER.
 drop_during_lock_wait() { # <out file>
@@ -294,7 +328,7 @@ drop_during_lock_wait() { # <out file>
     wait "$RUNNER"
     grep -qF "while waiting for the $HELIX_TEST_WORKDIR lock (ssh exit 255); reconnecting" "$out"
     [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
-    flock -n "$(lock_file)" true
+    lock_released
     ! ls -d "$HELIX_TEST_LOCK_DIR"/*.job-* 2>/dev/null
 }
 
@@ -307,8 +341,7 @@ drop_during_lock_wait() { # <out file>
     drop_during_lock_wait "$out"
     wait "$RUNNER"
     [ "$(grep -c "git reset" "$MOCK_DOCKER_LOG")" -eq 1 ]
-    for _ in $(seq 1 60); do flock -n "$(lock_file)" true && break; sleep 0.05; done
-    flock -n "$(lock_file)" true
+    lock_released
     kill $(cat "$BATS_TEST_TMPDIR/ssh-keepers") 2>/dev/null || true
 }
 
@@ -893,4 +926,54 @@ watchdog_fixture() { # <heartbeat age in seconds>
     for _ in $(seq 1 60); do kill -0 "$wd" 2>/dev/null || break; sleep 0.05; done
     ! kill -0 "$wd" 2>/dev/null
     kill "$WRAPPER"
+}
+
+@test "a finished job's last sweep spares the tree's next job and stops its own leftovers" {
+    watchdog_fixture 0
+    local tree="$BATS_TEST_TMPDIR/trees/tree-x" lock="$BATS_TEST_TMPDIR/tree-x.lock" holder next own
+    mkdir -p "$tree"
+    # The tree's next job: it holds the tree lock and runs in the tree, with a tag of its own.
+    holder=$(hold_flock "$lock" "$BATS_TEST_TMPDIR/ready" 'held by pid %s: the next job')
+    wait_for_file "$BATS_TEST_TMPDIR/ready"
+    (cd "$tree" && exec env HELIX_TEST_JOB=tag-next sleep 300) < /dev/null > /dev/null 2>&1 &
+    next=$!
+    # This job's own leftover, outside the tree.
+    env HELIX_TEST_JOB=tag-x sleep 300 < /dev/null > /dev/null 2>&1 &
+    own=$!
+    echo 0 > "$JOB/rc"
+    run timeout 20 bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x "$3" 1 50 30 0.1 "$4"' \
+        _ "$FUNCS" "$JOB" "$tree" "$lock"
+    local spared=0 stopped=1
+    kill -0 "$next" 2>/dev/null && spared=1
+    kill -0 "$own" 2>/dev/null && stopped=0
+    kill "$next" "$own" "$WRAPPER" "$holder" 2>/dev/null || true
+    [ "$status" -eq 0 ]
+    [ "$spared" = 1 ]
+    [ "$stopped" = 1 ]
+}
+
+@test "while this job's own hold shell keeps the tree lock, the last sweep still stops leftovers in the tree" {
+    watchdog_fixture 0
+    local tree="$BATS_TEST_TMPDIR/trees/tree-x" lock="$BATS_TEST_TMPDIR/tree-x.lock" hold left copy
+    mkdir -p "$tree" "$BATS_TEST_TMPDIR/trees/.tree-x.mutate-w1"
+    # This job's hold shell, as take_lock leaves it: it holds the lock until
+    # the run's client exits, and the lock's line names its own pid.
+    bash -c 'exec 9>>"$1"; flock 9; : > "$1"; printf "held by pid %s: this job\n" "$$" >&9
+             touch "$2"; exec sleep 300' _ "$lock" "$BATS_TEST_TMPDIR/ready" < /dev/null > /dev/null 2>&1 &
+    hold=$!
+    wait_for_file "$BATS_TEST_TMPDIR/ready"
+    # Leftovers whose environment lost the job's tag: in the tree, and in a mutate copy.
+    (cd "$tree" && exec env -u HELIX_TEST_JOB sleep 300) < /dev/null > /dev/null 2>&1 &
+    left=$!
+    (cd "$BATS_TEST_TMPDIR/trees/.tree-x.mutate-w1" && exec env -u HELIX_TEST_JOB sleep 300) < /dev/null > /dev/null 2>&1 &
+    copy=$!
+    echo 0 > "$JOB/rc"
+    run timeout 20 bash -c '. "$1"; helix_job_watchdog "$2" helix-test tag-x "$3" 1 50 30 0.1 "$4" "$5"' \
+        _ "$FUNCS" "$JOB" "$tree" "$lock" "$hold"
+    local stopped=1
+    kill -0 "$left" 2>/dev/null && stopped=0
+    kill -0 "$copy" 2>/dev/null && stopped=0
+    kill "$left" "$copy" "$WRAPPER" "$hold" 2>/dev/null || true
+    [ "$status" -eq 0 ]
+    [ "$stopped" = 1 ]
 }

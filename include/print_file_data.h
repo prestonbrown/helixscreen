@@ -77,9 +77,10 @@ struct PrintFileData {
     std::vector<std::string>
         filament_colors; ///< Hex colors per tool (e.g., ["#ED1C24", "#00C1AE"])
 
-    // Formatted strings (cached for performance)
+    // Formatted strings (cached for performance). Entries are built on the WebSocket
+    // thread, so nothing here reads the language or the time format: a view formats
+    // modified_timestamp where it draws it, and the panel fills print_time_str.
     std::string size_str;
-    std::string modified_str;
     std::string print_time_str;
     std::string filament_str;
     std::string layer_count_str;  ///< Formatted layer count string
@@ -120,10 +121,10 @@ struct PrintFileData {
     int success_count = 0; ///< Number of successful prints (shown as "N ✓")
 
 #if defined(HELIX_PLATFORM_ESP32)
-    // PSRAM-resident thumbnail (Task 11 R2). ESP32 has no disk thumbnail
-    // cache (Task 10 R6), so a fetched thumbnail lives here instead of at
-    // thumbnail_path. shared_ptr so list sort/merge copies share one PSRAM
-    // allocation rather than re-copying image bytes.
+    // PSRAM-resident thumbnail. ESP32 has no disk thumbnail cache, so a
+    // fetched thumbnail lives here instead of at thumbnail_path. shared_ptr so
+    // list sort/merge copies share one PSRAM allocation rather than re-copying
+    // image bytes.
     std::shared_ptr<helix::ui::EspPsramThumbnail> esp_thumbnail;
     /// A fetch was started for this file while its card has been on screen:
     /// in flight, done, or failed. Cleared when the card leaves the screen
@@ -200,6 +201,11 @@ struct UsbCopyTarget {
  *
  * @param existing Filenames already in the copy folder, with their sizes
  */
+/// Gives each file still waiting for its metadata the print time it shows meanwhile.
+/// This translates, so it runs on the main thread; the factories above leave the
+/// string empty because the file provider calls them on the WebSocket thread.
+void format_unfetched_print_times(std::vector<PrintFileData>& files);
+
 UsbCopyTarget choose_usb_copy_target(const std::string& filename, uint64_t size,
                                      const std::map<std::string, uint64_t>& existing);
 
@@ -316,7 +322,7 @@ inline void carry_forward_print_file_metadata(std::vector<PrintFileData>& files,
 
 /**
  * @brief Truncate a sorted print-file list to the newest max_files entries
- *        (ESP32 print-select cap, Task 11 R1).
+ *        (the ESP32 print-select cap).
  *
  * Assumes the list has already been sorted directories-first with newest
  * files first (see PrintSelectFileSorter::apply_sort — the is_dir tiebreak

@@ -14,10 +14,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "cleanup_hold.h"
 #include "cold_pull_flow.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "display_awake_hold.h"
 #include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
@@ -78,8 +79,7 @@ class ColdPullRunner {
 
     // User events, each forwarded to the flow with what it returns applied.
     void home_and_park();
-    void unload_lane();
-    void toolhead_clear();
+    void toolhead_ready();
     void extrude();
     void fed();
     void pulled();
@@ -124,9 +124,10 @@ class ColdPullRunner {
     void on_lifecycle();
     void on_connection();
     void on_sensor(int value);
-    void on_ams_action(int action);
-    void send_gcode(const std::string& gcode, bool report);
-    void dispatch_unload();
+    /// @param command_id The flow's name for this send; 0 expects no reply.
+    void send_gcode(const std::string& gcode, uint32_t command_id);
+    /// Tell the SIGTERM handler whether a heater is on that this runner can still turn off.
+    void sync_heater_cleanup_pending();
     void settle_owed();
     /// The owed cleanup, once the printer has answered with @p target_c, its heater's
     /// live target (nullopt when it did not say).
@@ -148,6 +149,7 @@ class ColdPullRunner {
     std::optional<ColdPullFlow> flow_;
     std::optional<Owed> owed_;
     bool owed_query_in_flight_ = false;
+    CleanupHold heater_hold_;
     /// Counts flows and owed queries, so a reply that lands late is matched to what
     /// sent it and ignored once that is gone.
     uint32_t flow_gen_ = 0;
@@ -155,9 +157,6 @@ class ColdPullRunner {
     ColdPullMaterial material_ = ColdPullMaterial::Pla;
     ColdPullTemps setup_temps_{};
     int last_sensor_ = -1;
-    int unload_last_action_ = -1;
-    bool unload_seen_busy_ = false;
-    bool unload_watching_ = false;
 
     DisplayAwakeToken awake_;
     ObserverGuard temp_observer_;
@@ -166,31 +165,32 @@ class ColdPullRunner {
     ObserverGuard connection_observer_;
     ObserverGuard klippy_observer_;
     ObserverGuard sensor_observer_;
-    ObserverGuard action_observer_;
     lv_timer_t* tick_timer_ = nullptr;
     AsyncLifetimeGuard lifetime_;
 
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
-    lv_subject_t stage_{};
-    lv_subject_t feed_stage_{};
-    lv_subject_t pass_{};
-    lv_subject_t end_reason_{};
-    lv_subject_t has_fan_{};
-    lv_subject_t can_home_park_{};
-    lv_subject_t busy_{};
-    lv_subject_t unload_failed_{};
-    lv_subject_t material_subject_{};
-    lv_subject_t hold_pressure_{};
-    lv_subject_t refusal_{};
-    lv_subject_t progress_{};
-    lv_subject_t soak_text_{};
+    helix::Subject stage_{};
+    helix::Subject feed_stage_{};
+    helix::Subject pass_{};
+    helix::Subject end_reason_{};
+    helix::Subject has_fan_{};
+    helix::Subject can_home_park_{};
+    helix::Subject busy_{};
+    helix::Subject toolhead_loaded_{};
+    helix::Subject feed_mode_{};
+    helix::Subject lane_needs_reseat_{};
+    helix::Subject material_subject_{};
+    helix::Subject hold_pressure_{};
+    helix::Subject refusal_{};
+    helix::Subject progress_{};
+    helix::Subject soak_text_{};
     char soak_text_buf_[16] = {};
-    lv_subject_t pull_text_{};
+    helix::Subject pull_text_{};
     char pull_text_buf_[16] = {};
-    lv_subject_t temp_text_{};
+    helix::Subject temp_text_{};
     char temp_text_buf_[32] = {};
-    lv_subject_t pass_text_{};
+    helix::Subject pass_text_{};
     char pass_text_buf_[32] = {};
     int ring_from_c_ = 0; ///< Where the ring's stage started, for its fill
 };

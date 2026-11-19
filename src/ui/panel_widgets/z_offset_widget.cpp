@@ -12,12 +12,14 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "lvgl.h"
 #include "panel_widget_registry.h"
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
 #include "text_measure.h"
 #include "theme_manager.h"
@@ -42,15 +44,15 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-lv_subject_t s_rung_subject{};
-lv_subject_t s_show_save_subject{};
-lv_subject_t s_show_steppers_subject{};
-lv_subject_t s_show_tool_label_subject{};
-lv_subject_t s_status_subject{};
-lv_subject_t s_value_text_subject{};
-lv_subject_t s_caption_text_subject{};
-lv_subject_t s_step_text_subject{};
-lv_subject_t s_tool_text_subject{};
+helix::Subject s_rung_subject{};
+helix::Subject s_show_save_subject{};
+helix::Subject s_show_steppers_subject{};
+helix::Subject s_show_tool_label_subject{};
+helix::Subject s_status_subject{};
+helix::Subject s_value_text_subject{};
+helix::Subject s_caption_text_subject{};
+helix::Subject s_step_text_subject{};
+helix::Subject s_tool_text_subject{};
 char s_value_text_buf[32];
 char s_caption_text_buf[48];
 char s_step_text_buf[16];
@@ -107,20 +109,6 @@ std::string step_text(int idx) {
     return buf;
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* body;
-    const lv_font_t* heading;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("font_body"), theme_manager_get_font("font_heading"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 /// The minimum content box each rung draws in. Mirrors panel_widget_z_offset.xml:
@@ -128,7 +116,7 @@ using helix::line_px;
 /// between the rows of the Full rung is the body's.
 helix::RungNeeds measure_needs(bool tool_changer) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never
@@ -355,7 +343,7 @@ void ZOffsetWidget::publish(const LiveState& live) {
         return;
     const auto set = [](lv_subject_t* subject, const std::string& text) {
         if (text != lv_subject_get_string(subject))
-            lv_subject_copy_string(subject, text.c_str());
+            lv_subject_set_string(subject, text.c_str());
     };
     set(&s_value_text_subject, format_z_offset_value(live.readings.microns, verdict_.decimals));
     set(&s_caption_text_subject, compose_caption(live.readings));

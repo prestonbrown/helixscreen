@@ -1,0 +1,120 @@
+{
+  "id": "box_turtle_enclosed",
+  "lanes": 2,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png",
+          "body": "full_lane1_body.png",
+          "glow": "full_lane1_glow.png"
+        }
+      ]
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png",
+          "body": "thumb_lane1_body.png"
+        }
+      ]
+    }
+  },
+  "drawn": [
+    0.22407,
+    0.19475,
+    0.74772,
+    0.81119
+  ],
+  "bottom_edge": [
+    0.22439,
+    0.75429,
+    0.50726,
+    0.80359
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.35738,
+        0.45112
+      ],
+      "near": [
+        0.46642,
+        0.47012
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.27802,
+        0.27841,
+        0.54579,
+        0.64282
+      ],
+      "outlet": [
+        0.3246,
+        0.61911
+      ]
+    },
+    {
+      "far": [
+        0.50568,
+        0.47696
+      ],
+      "near": [
+        0.61472,
+        0.49596
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.42631,
+        0.30426,
+        0.69409,
+        0.66867
+      ],
+      "outlet": [
+        0.47289,
+        0.64495
+      ]
+    }
+  ],
+  "lane_order": [
+    0,
+    1
+  ]
+}

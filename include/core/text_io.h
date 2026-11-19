@@ -53,8 +53,8 @@ enum class Durability {
 /// (`path.<pid>.<n>.tmp`), close, rename over `path`. Concurrent writers of one
 /// path each land whole; the last rename wins.
 /// On failure the tmp is removed, `path` is untouched, and errno holds the
-/// failing call's error. `path` is used as given; resolve symlinks
-/// (helix::paths::write_target) before calling if the caller needs that.
+/// failing call's error. A symlink at `path` is written through, not replaced:
+/// the save goes to helix::paths::write_target(path), so the link survives.
 bool write_file_atomic(const std::string& path, std::string_view data,
                        Durability durability = Durability::None);
 
@@ -312,6 +312,12 @@ inline bool equals_ignore_case(std::string_view a, std::string_view b) {
         }
     }
     return true;
+}
+
+/// Whether @p text ends with @p suffix, ignoring ASCII case.
+inline bool ends_with_ignore_case(std::string_view text, std::string_view suffix) {
+    return suffix.size() <= text.size() &&
+           equals_ignore_case(text.substr(text.size() - suffix.size()), suffix);
 }
 
 /// Whether @p haystack contains @p needle under to_lower().

@@ -16,11 +16,14 @@
 #include "display_settings_manager.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
+#include "main_loop_wake.h"
 #include "moonraker_manager.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 #include "spoolman_manager.h"
 #include "status_coalescer.h"
 
+#include <poll.h>
 #include <random>
 #include <string>
 #include <vector>
@@ -35,6 +38,10 @@ TEST_CASE("status_is_telemetry_only holds only listed attributes", "[status_hold
         {{"extruder", {{"temperature", 210.1}}}, {"heater_bed", {{"power", 0.4}}}}));
     CHECK(status_is_telemetry_only({{"extruder1", {{"temperature", 30.0}}},
                                     {"temperature_sensor chamber", {{"temperature", 31.0}}}}));
+    // Every board's MCUs report last_stats once a second, so an idle frame is otherwise
+    // never telemetry-only.
+    CHECK(status_is_telemetry_only({{"mcu", {{"last_stats", {{"srtt", 0.001}}}}},
+                                    {"mcu nozzle_mcu", {{"last_stats", {{"srtt", 0.002}}}}}}));
 
     CHECK_FALSE(status_is_telemetry_only(json::object()));
     CHECK_FALSE(status_is_telemetry_only({{"foo_sensor bar", {{"value", 1}}}}));
@@ -101,6 +108,7 @@ TEST_CASE("the telemetry list changes only by a reviewed edit", "[status_hold]")
         "system_stats.sysload",
         "system_stats.cputime",
         "system_stats.memavail",
+        "mcu.last_stats",
     };
     CHECK(helix::telemetry_attributes() == golden);
 }
@@ -173,7 +181,7 @@ class StatusHoldFixture : public ApplicationTestFixture {
     }
 
     ~StatusHoldFixture() override {
-        lv_observer_remove(bed_observer);
+        lv_observer_delete(bed_observer);
         mgr.shutdown();
         set_moonraker_api(nullptr);
         AmsState::instance().set_moonraker_api(nullptr);
@@ -212,6 +220,27 @@ TEST_CASE_METHOD(StatusHoldFixture, "without hold every status frame applies",
         mgr.process_notifications();
     }
     CHECK(bed_values == std::vector<int>{210, 220, 230});
+}
+
+TEST_CASE_METHOD(StatusHoldFixture,
+                 "queued status and connection changes wake a sleeping main loop at once",
+                 "[status_hold][moonraker_manager][sleep_input_wait]") {
+    helix::main_loop_wake::drain();
+    pollfd pfd{helix::main_loop_wake::fd(), POLLIN, 0};
+    REQUIRE(pfd.fd >= 0);
+    REQUIRE(poll(&pfd, 1, 0) == 0);
+    send_bed(40.0);
+    CHECK(poll(&pfd, 1, 0) == 1);
+
+    helix::main_loop_wake::drain();
+    REQUIRE(poll(&pfd, 1, 0) == 0);
+    // A refused connection changes state twice and delivers no status.
+    REQUIRE(client->get_connection_state() == ConnectionState::DISCONNECTED);
+    get_runtime_config()->simulate_disconnect = true;
+    client->connect("ws://mock/websocket", [] {}, [] {});
+    get_runtime_config()->simulate_disconnect = false;
+    CHECK(poll(&pfd, 1, 0) == 1);
+    helix::main_loop_wake::drain();
 }
 
 TEST_CASE_METHOD(StatusHoldFixture, "held telemetry applies once per interval, latest value",
@@ -263,7 +292,7 @@ TEST_CASE_METHOD(StatusHoldFixture,
     CHECK(lv_subject_get_int(print.get_print_state_enum_subject()) ==
           static_cast<int>(PrintJobState::PRINTING));
     CHECK(duration_at_edge == 120);
-    lv_observer_remove(edge);
+    lv_observer_delete(edge);
 }
 
 TEST_CASE_METHOD(StatusHoldFixture,
@@ -395,11 +424,11 @@ TEST_CASE_METHOD(AsleepWakeFixture,
     ui::UpdateQueue::instance().drain();
     REQUIRE_FALSE(dm.is_display_sleeping());
     CHECK(refreshes == 0);
-    CHECK(lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN)); // the panel is still dark
+    CHECK(lv_obj_is_hidden(lv_screen_active())); // the panel is still dark
 
     dm.check_display_sleep();
     CHECK(refreshes >= 1);
     CHECK(bed_at_first == 560);
     CHECK(text_at_first == "after");
-    CHECK_FALSE(lv_obj_has_flag(lv_screen_active(), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(lv_screen_active()));
 }

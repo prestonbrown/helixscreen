@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
 #include "print_job_ref.h"
 #include "print_lifecycle_state.h"
 
@@ -11,6 +10,14 @@
 
 namespace helix {
 class IMoonrakerAPI;
+
+/// Whether the print status screen is on the navigation stack. The UI installs
+/// it; with none installed the user counts as not watching.
+using PrintStatusShownQuery = bool (*)();
+
+/// Install @p query and return the previous one. Not synchronized: the UI installs
+/// it during static initialization, before any print can end.
+PrintStatusShownQuery set_print_status_shown_query(PrintStatusShownQuery query);
 
 /**
  * @brief Initialize print completion notification system
@@ -97,29 +104,6 @@ struct PreparingExitAction {
  * Cooling down on Superseded would sabotage the print that just took over.
  */
 PreparingExitAction decide_preparing_exit_action(PreparingExit reason);
-
-/**
- * @brief Rendered stat strings for the print-completion modal
- *
- * Optional fields are empty when the underlying value is unknown; the modal
- * binds their visibility off that.
- */
-struct CompletionStats {
-    std::string duration;
-    std::string estimate;
-    std::string layers;
-    std::string filament;
-};
-
-/**
- * @brief Build the completion modal's stat strings
- *
- * Pure: no subjects, no LVGL objects. Every value routes through the shared
- * formatters in ui_format_utils so the modal cannot disagree with the rest of
- * the UI about how a layer count or a filament length reads.
- */
-CompletionStats build_completion_stats(int duration_secs, int estimated_secs, int total_layers,
-                                       int filament_mm);
 
 /**
  * @brief Clean up stale staged copies on startup

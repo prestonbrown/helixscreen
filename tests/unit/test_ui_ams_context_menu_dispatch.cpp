@@ -26,6 +26,7 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
+#include "ams_lane_faults.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "filament_op_slot_resolver.h"
@@ -456,11 +457,23 @@ namespace {
 
 /// A backend latching a fault on one lane, the way AFC keeps error_state after
 /// the recovery that closed its dialog.
-class LatchedFaultMock : public helix::AmsBackendMock {
+class LatchedFaultMock : public helix::AmsBackendMock, public helix::ILaneFaults {
   public:
     using helix::AmsBackendMock::AmsBackendMock;
+    void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::ILaneFaults>()) {
+            return static_cast<helix::ILaneFaults*>(this);
+        }
+        return helix::AmsBackendMock::capability(tag);
+    }
     bool has_clearable_fault(int slot_index) const override {
         return slot_index == faulted_slot;
+    }
+    std::optional<helix::ErrorEvent> current_error_with_cause(const std::string&) const override {
+        return std::nullopt;
+    }
+    bool fault_concerns_carriage() const override {
+        return false;
     }
     helix::AmsError clear_fault(int slot_index) override {
         cleared_slots.push_back(slot_index);
@@ -480,6 +493,98 @@ LatchedFaultMock* install_latched_fault_mock() {
 }
 
 } // namespace
+
+// ============================================================================
+// Mark Available: a gate the firmware marked empty after a failed pickup
+// ============================================================================
+
+namespace {
+
+/// A selector backend with one gate the firmware has marked empty.
+class EmptyGateMock : public helix::AmsBackendMock {
+  public:
+    using helix::AmsBackendMock::AmsBackendMock;
+    bool gate_marked_empty(int slot_index) const override {
+        return slot_index == empty_slot;
+    }
+    helix::AmsError mark_gate_available(int slot_index) override {
+        marked_slots.push_back(slot_index);
+        return helix::AmsErrorHelper::success();
+    }
+    int empty_slot = 1;
+    std::vector<int> marked_slots;
+};
+
+EmptyGateMock* install_empty_gate_mock() {
+    helix::AmsState::instance().init_subjects(true);
+    auto owned = std::make_unique<EmptyGateMock>(4);
+    EmptyGateMock* backend = owned.get();
+    helix::AmsState::instance().set_backend(std::move(owned));
+    helix::AmsState::instance().sync_from_backend();
+    return backend;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: Mark Available reaches the gate selector",
+                 "[ui][ams][context_menu][dispatch][mark_available]") {
+    EmptyGateMock* backend = install_empty_gate_mock();
+
+    REQUIRE(helix::ui::ams_dispatch_backend_action(MenuAction::MARK_AVAILABLE, 1, nullptr));
+    REQUIRE(backend->marked_slots == std::vector<int>{1});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams context menu: Mark Available shows only on a gate marked empty",
+                 "[ui][ams][context_menu][mark_available]") {
+    EmptyGateMock* backend = install_empty_gate_mock();
+    REQUIRE(lv_xml_register_component_from_file("A:ui_xml/ams_context_menu.xml") == LV_RESULT_OK);
+    { helix::ui::AmsContextMenu registers_subjects; }
+    lv_subject_t* mark = lv_xml_get_subject(nullptr, "ams_slot_mark_available");
+    REQUIRE(mark != nullptr);
+
+    SECTION("the empty gate, idle") {
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 2);
+        lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_mark_available");
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(btn));
+        CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+        int tapped = -1;
+        menu.set_action_callback([&](MenuAction action, int slot) {
+            tapped = action == MenuAction::MARK_AVAILABLE ? slot : -2;
+        });
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(tapped == 1);
+    }
+
+    SECTION("the empty gate, paused") {
+        LifecycleGuard hold(PrintState::Paused);
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 2);
+    }
+
+    SECTION("the empty gate, printing") {
+        LifecycleGuard hold(PrintState::Printing);
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 1);
+    }
+
+    SECTION("another gate, after the empty one was shown") {
+        {
+            helix::ui::AmsContextMenu first;
+            REQUIRE(first.show_near_widget(test_screen(), 1, test_screen(), false, backend));
+            REQUIRE(lv_subject_get_int(mark) == 2);
+        }
+        helix::ui::AmsContextMenu menu;
+        REQUIRE(menu.show_near_widget(test_screen(), 0, test_screen(), false, backend));
+        CHECK(lv_subject_get_int(mark) == 0);
+    }
+}
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams dispatch: Clear error reaches the backend's clear_fault",
                  "[ui][ams][context_menu][dispatch][stale_fault]") {
@@ -506,7 +611,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(clear_error) == 2);
         lv_obj_t* btn = lv_obj_find_by_name(test_screen(), "btn_clear_error");
         REQUIRE(btn != nullptr);
-        CHECK_FALSE(lv_obj_has_flag(btn, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(btn));
         CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
     }
 
@@ -522,10 +627,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(clear_error) == 0);
     }
 
-    SECTION("the external spool menu never offers it") {
+    SECTION("the external spool menu never offers it, nor a lane's Check Slot") {
         lv_subject_set_int(clear_error, 2);
+        lv_subject_t* gate_check = lv_xml_get_subject(nullptr, "ams_slot_gate_check");
+        REQUIRE(gate_check != nullptr);
+        lv_subject_set_int(gate_check, 2);
         helix::ui::AmsContextMenu menu;
         REQUIRE(menu.show_for_external_spool(test_screen(), test_screen(), true));
         CHECK(lv_subject_get_int(clear_error) == 0);
+        lv_obj_t* btn_gate_check = lv_obj_find_by_name(test_screen(), "btn_gate_check");
+        REQUIRE(btn_gate_check != nullptr);
+        CHECK(lv_obj_is_hidden(btn_gate_check));
+        // Its own rows come on, under its own header.
+        lv_obj_t* btn_purge = lv_obj_find_by_name(test_screen(), "btn_purge");
+        REQUIRE(btn_purge != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(btn_purge));
+        lv_obj_t* header = lv_obj_find_by_name(test_screen(), "slot_header");
+        REQUIRE(header != nullptr);
+        CHECK(std::string(lv_label_get_text(header)) == "External Spool");
     }
 }

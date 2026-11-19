@@ -300,6 +300,15 @@ class BacklightBackendSysfs : public BacklightBackend {
                 continue;
             }
 
+            // A device this user cannot drive is not a usable backlight: claiming it
+            // would keep the display from falling back to its other sleep paths.
+            if (faccessat(AT_FDCWD, brightness_path.c_str(), W_OK, AT_EACCESS) != 0) {
+                spdlog::warn("[Backlight-Sysfs] Skipping {}: {} (service user needs write "
+                             "access, see 99-helixscreen-backlight.rules)",
+                             brightness_path, strerror(errno));
+                continue;
+            }
+
             // Read max brightness
             std::ifstream max_file(max_path);
             if (!max_file.is_open()) {

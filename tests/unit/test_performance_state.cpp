@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "../helix_test_fixture.h"
 #include "../test_helpers/performance_state_test_access.h"
+#include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "moonraker_performance_source.h"
 #include "performance_state.h"
@@ -242,14 +243,25 @@ TEST_CASE_METHOD(PerfStateFixture, "PerformanceState formats per-MCU text subjec
     PerfSample s;
     McuStat a;
     a.name = "mcu sb";
-    a.load = 0.22f;
     a.retransmits = 14;
-    s.mcus = {a};
-    PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
-    helix::ui::UpdateQueue::instance().drain();
-
-    const char* text = lv_subject_get_string(lv_xml_get_subject(nullptr, "perf_mcu_mcu_sb_text"));
-    REQUIRE(std::string(text) == "22% \xc2\xb7 14 retx");
+    // A bound label redraws only on a notification, so a new reading must send one.
+    int notes = 0;
+    ObserverGuard guard;
+    for (const float load : {0.22f, 0.5f}) {
+        a.load = load;
+        s.mcus = {a};
+        PerformanceStateTestAccess::apply_sample(PerformanceState::instance(), s);
+        helix::ui::UpdateQueue::instance().drain();
+        if (!guard) {
+            lv_subject_t* subject = lv_xml_get_subject(nullptr, "perf_mcu_mcu_sb_text");
+            REQUIRE(std::string(lv_subject_get_string(subject)) == "22% \xc2\xb7 14 retx");
+            guard = helix::ui::observe<const char*>(
+                subject, &notes, [](int* n, const char*) { ++*n; }, subject_never_freed(),
+                helix::ui::Dispatch::Immediate);
+            notes = 0;
+        }
+    }
+    CHECK(notes > 0);
 }
 
 TEST_CASE_METHOD(PerfStateFixture, "PerformanceState formats per-MCU text with no retransmits",

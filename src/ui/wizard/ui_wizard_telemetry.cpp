@@ -2,21 +2,19 @@
 
 #include "ui_wizard_telemetry.h"
 
-#include "ui_event_safety.h"
-#include "ui_modal.h"
-#include "ui_subject_registry.h"
-#include "ui_telemetry_info_modal.h"
-#include "ui_toast_manager.h"
+#include "ui_settings_system.h"
+#include "ui_settings_updates.h"
 #include "ui_wizard.h"
 
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
+#include "system/subject_registry.h"
+#include "system/update_checker.h"
 #include "system_settings_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstring>
-#include <memory>
 
 using namespace helix;
 
@@ -42,6 +40,12 @@ void WizardTelemetryStep::init_subjects() {
 }
 
 void WizardTelemetryStep::init_info_text_subject() {
+    // The text never changes, and both this step and the summary step ask for it on every
+    // visit: re-initializing a live subject would orphan its observers, so only re-publish it.
+    if (telemetry_info_text_.is_live()) {
+        helix::xml::register_subject_in_current_scope("telemetry_info_text", &telemetry_info_text_);
+        return;
+    }
     static const char* telemetry_info_md =
         "**HelixScreen is a free, open-source project** built by a tiny team. "
         "Anonymous telemetry helps us understand how the app is actually used "
@@ -73,10 +77,10 @@ void WizardTelemetryStep::init_info_text_subject() {
 
 void WizardTelemetryStep::register_callbacks() {
     spdlog::debug("[{}] Registering callbacks", get_name());
-    lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_changed",
-                             WizardTelemetryStep::on_wizard_telemetry_changed);
-    lv_xml_register_event_cb(nullptr, "on_wizard_telemetry_info",
-                             WizardTelemetryStep::on_wizard_telemetry_info);
+    // The rows reuse Settings > Updates' and Settings > System's callbacks, registered
+    // there only when those overlays first open.
+    helix::settings::get_updates_settings_overlay().register_callbacks();
+    helix::settings::get_system_settings_overlay().register_callbacks();
 }
 
 // ============================================================================
@@ -100,6 +104,8 @@ lv_obj_t* WizardTelemetryStep::create(lv_obj_t* parent) {
         spdlog::error("[{}] Failed to create screen from XML", get_name());
         return nullptr;
     }
+    helix::settings::UpdatesSettingsOverlay::sync_update_channel_rows(
+        root_, static_cast<int>(UpdateChecker::instance().get_channel()));
 
     spdlog::debug("[{}] Screen created successfully", get_name());
     return root_;
@@ -121,29 +127,4 @@ void WizardTelemetryStep::cleanup() {
 bool WizardTelemetryStep::should_skip() const {
     // Skip logic handled by the wizard orchestrator, not the step itself
     return false;
-}
-
-// ============================================================================
-// Static Callbacks
-// ============================================================================
-
-void WizardTelemetryStep::on_wizard_telemetry_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[WizardTelemetry] on_wizard_telemetry_changed");
-    auto* toggle = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    bool enabled = lv_obj_has_state(toggle, LV_STATE_CHECKED);
-    spdlog::info("[WizardTelemetry] Telemetry toggled: {}", enabled ? "ON" : "OFF");
-    SystemSettingsManager::instance().set_telemetry_enabled(enabled);
-    if (enabled) {
-        ToastManager::instance().show(
-            ToastSeverity::SUCCESS,
-            lv_tr("Thanks! Anonymous usage data helps improve HelixScreen."), 4000);
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void WizardTelemetryStep::on_wizard_telemetry_info(lv_event_t* /*e*/) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[WizardTelemetry] on_wizard_telemetry_info");
-    spdlog::debug("[WizardTelemetry] Showing telemetry info modal");
-    Modal::show_owned(std::make_unique<TelemetryInfoModal>(), lv_screen_active());
-    LVGL_SAFE_EVENT_CB_END();
 }

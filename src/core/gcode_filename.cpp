@@ -8,6 +8,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <ctime>
 #include <mutex>
@@ -29,9 +30,7 @@ const std::vector<std::string>& printable_extensions() {
 // Case-insensitive suffix match. A name exactly as long as the extension is a
 // hidden dotfile (".gcode"), not a printable file.
 bool ends_with_ci(const std::string& filename, const std::string& ext) {
-    return filename.size() > ext.size() &&
-           helix::text_io::equals_ignore_case(
-               std::string_view(filename).substr(filename.size() - ext.size()), ext);
+    return filename.size() > ext.size() && helix::text_io::ends_with_ignore_case(filename, ext);
 }
 
 } // namespace
@@ -54,7 +53,55 @@ std::string get_filename_basename(const std::string& path) {
     return last_sep == std::string::npos ? path : path.substr(last_sep + 1);
 }
 
+namespace {
+struct CjkRange {
+    unsigned first;
+    unsigned last;
+};
+#define HELIX_CJK_RANGE(first, last, policy) {first, last},
+constexpr CjkRange kCjkRanges[] = {
+#include "core/cjk_ranges.inc"
+};
+#undef HELIX_CJK_RANGE
+} // namespace
+
+bool contains_cjk(std::string_view text) {
+    // Every range lies in U+3000..U+FFFF: a 3-byte UTF-8 sequence with lead
+    // byte 0xE3..0xEF.
+    for (size_t i = 0; i + 2 < text.size(); ++i) {
+        const auto b0 = static_cast<unsigned char>(text[i]);
+        if (b0 < 0xE3 || b0 > 0xEF)
+            continue;
+        const auto b1 = static_cast<unsigned char>(text[i + 1]);
+        const auto b2 = static_cast<unsigned char>(text[i + 2]);
+        if ((b1 & 0xC0) != 0x80 || (b2 & 0xC0) != 0x80)
+            continue;
+        const unsigned cp = ((b0 & 0x0Fu) << 12) | ((b1 & 0x3Fu) << 6) | (b2 & 0x3Fu);
+        for (const auto& range : kCjkRanges) {
+            if (cp >= range.first && cp <= range.last)
+                return true;
+        }
+        i += 2;
+    }
+    return false;
+}
+
+namespace {
+std::atomic<DisplayedFilenameHook> g_displayed_filename_hook{nullptr};
+} // namespace
+
+void set_displayed_filename_hook(DisplayedFilenameHook hook) {
+    g_displayed_filename_hook.store(hook, std::memory_order_release);
+}
+
+void note_displayed_filename(std::string_view name) {
+    const DisplayedFilenameHook hook = g_displayed_filename_hook.load(std::memory_order_acquire);
+    if (hook && contains_cjk(name))
+        hook(name);
+}
+
 std::string strip_gcode_extension(const std::string& filename) {
+    note_displayed_filename(filename);
     // A QIDI print file is "Name.gcode.3mf": the whole double extension goes.
     if (filename.size() > 4 && is_3mf(filename)) {
         const std::string inner = filename.substr(0, filename.size() - 4);

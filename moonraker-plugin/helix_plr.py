@@ -157,6 +157,11 @@ class PlrProfile(NamedTuple):
     # Once the nozzle has let go of the part, prepare drops it this far under
     # the print temperature until commit.
     nozzle_standby_drop_c: float = DEFAULT_NOZZLE_STANDBY_DROP_C
+    # The app's database has a block for the model. An unlisted printer's
+    # tier is the app's default, which unlisted_guard() can veto.
+    listed: bool = True
+    # Why the model sits at tier 0, as the feature's reason code.
+    reason: Optional[str] = None
 
 
 def _num(value: Any) -> Optional[float]:
@@ -169,7 +174,9 @@ def _num(value: Any) -> Optional[float]:
 
 def parse_profile(record: Any) -> PlrProfile:
     """The app's plr_profile record. A missing record is tier 0, and a key
-    that is missing or of the wrong type takes its default."""
+    that is missing or of the wrong type takes its default. A record without
+    `listed` came from a database block: apps that do not write it resolve an
+    unlisted printer to tier 0."""
     if not isinstance(record, dict):
         return PlrProfile()
     d = PlrProfile()
@@ -183,6 +190,8 @@ def parse_profile(record: Any) -> PlrProfile:
     drop = _num(record.get("nozzle_standby_drop_c"))
     purge = record.get("purge_gcode")
     skip = _num(record.get("resume_skip_fraction"))
+    listed = record.get("listed")
+    reason = record.get("reason")
     macro_vars = {}  # type: Dict[str, Tuple[str, ...]]
     raw_vars = record.get("macro_vars")
     if isinstance(raw_vars, dict):
@@ -204,6 +213,8 @@ def parse_profile(record: Any) -> PlrProfile:
             skip if skip is not None and 0.0 <= skip <= 1.0 else d.resume_skip_fraction
         ),
         macro_vars=macro_vars,
+        listed=listed if isinstance(listed, bool) else d.listed,
+        reason=reason if isinstance(reason, str) and reason else None,
     )
 
 
@@ -288,6 +299,45 @@ def check_xy_homing(configfile_settings: Any, kinematics: str) -> HomingCheck:
     if problem is not None:
         return HomingCheck(False, problem, True)
     return HomingCheck(True, None, True)
+
+
+# Status fields a firmware's own power-loss recovery publishes; mainline
+# Klipper has none of them.
+FIRMWARE_RECOVERY_FIELDS = (("print_stats", "power_loss"), ("virtual_sdcard", "pl_env_valid"))
+# configfile sections of QIDI's stock recovery macros, as Klipper names them
+# (lowercased). The app's own QIDI detection looks for the same two macros.
+FIRMWARE_RECOVERY_SECTIONS = ("gcode_macro detect_interruption",
+                              "gcode_macro resume_interrupted")
+
+# The guard until unlisted_guard() runs over a configfile read on the current
+# Klippy connection: an unlisted printer is withheld until Klipper is read.
+GUARD_UNREAD = "klipper_config_unread"
+
+
+def unlisted_guard(configfile_settings: Any, status: Any, firmware_resume: bool) -> Optional[str]:
+    """Why a printer the app's database does not list must not act at its
+    default tier, or None.
+
+    - `gantry_drops`: a [quad_gantry_level] gantry hangs on four Z motors.
+      On belts it drops and racks when the power goes, and levelling it
+      again probes over the part.
+    - `firmware_recovery`: the firmware runs its own recovery (one of
+      FIRMWARE_RECOVERY_FIELDS or FIRMWARE_RECOVERY_SECTIONS, or a firmware
+      the print_state adapter serves).
+    """
+    if isinstance(configfile_settings, dict):
+        if "quad_gantry_level" in configfile_settings:
+            return "gantry_drops"
+        if any(str(name).lower() in FIRMWARE_RECOVERY_SECTIONS for name in configfile_settings):
+            return "firmware_recovery"
+    if firmware_resume:
+        return "firmware_recovery"
+    if isinstance(status, dict):
+        for obj, field in FIRMWARE_RECOVERY_FIELDS:
+            fields = status.get(obj)
+            if isinstance(fields, dict) and fields.get(field) is not None:
+                return "firmware_recovery"
+    return None
 
 
 def effective_tier(profile: PlrProfile, homing: HomingCheck) -> Tuple[int, Optional[str]]:
@@ -876,7 +926,9 @@ def uninstall_mesh_include(config_dir: Path) -> Optional[str]:
 # ============================================================================
 
 PLR_FEATURE = "plr"
-PLR_FEATURE_VERSION = 2
+# 3: an unlisted printer's profile (`listed` false) acts at its tier unless
+# unlisted_guard() vetoes it; a tier-0 profile's `reason` is the feature's.
+PLR_FEATURE_VERSION = 3
 
 # The app's settings namespace, where plr_profile and plr_user live.
 HELIX_SCREEN_NAMESPACE = "helix-screen"
@@ -933,9 +985,16 @@ class HelixPlr:
         self.status = {}  # type: Dict[str, Any]
         self.job = None  # type: Optional[Dict[str, Any]]
         self._switch = (False, float("-inf"))  # (value, read at)
-        # The profile's tier as last read, for availability(): a sync probe
-        # cannot read the database itself.
+        # The profile as last read, for availability(): a sync probe cannot
+        # read the database itself.
         self.listed_tier = 0
+        self.listed = True
+        self.listed_reason = None  # type: Optional[str]
+        self.listed_profile = PlrProfile()
+        # unlisted_guard() for this Klippy connection, GUARD_UNREAD until
+        # its configfile is read.
+        self.guard = GUARD_UNREAD  # type: Optional[str]
+        self.gantry_settings = None  # type: Optional[Dict[str, Any]]
         self._writing = False
         self._macro_vars = {}  # type: Dict[str, Tuple[str, ...]]
         self.follower = None  # type: Optional[LayerFollower]
@@ -993,6 +1052,9 @@ class HelixPlr:
         on the next status."""
         profile = parse_profile(await self._setting(PLR_PROFILE_KEY))
         self.listed_tier = profile.tier
+        self.listed = profile.listed
+        self.listed_reason = profile.reason
+        self.listed_profile = profile
         return profile
 
     async def verdict(self, profile: Optional[PlrProfile] = None) -> StorageVerdict:
@@ -1031,8 +1093,15 @@ class HelixPlr:
         if self.store_error is not None:
             return False, "store_unwritable"
         if self.listed_tier < 1:
-            # A printer the app's database does not list has no PLR profile.
-            return False, "not_listed"
+            # No profile yet, or a model the app's database lists at tier 0.
+            return False, self.listed_reason or "not_listed"
+        if not self.listed:
+            if self.guard is not None:
+                return False, self.guard
+            # An unlisted printer that can never home XY safely is not offered.
+            tier, reason = effective_tier(self.listed_profile, self.homing)
+            if tier < 1:
+                return False, reason
         return True, None
 
     def start(self) -> None:
@@ -1088,8 +1157,9 @@ class HelixPlr:
         connection, then announce the status they decide (PLR_STATUS_EVENT)."""
         token = object()
         self._ready_token = token
+        guard = GUARD_UNREAD  # type: Optional[str]
         try:
-            await self._klippy_ready()
+            guard = await self._klippy_ready()
         except Exception:
             # A status still answers, and is announced, with what was read.
             logging.exception("HelixPrint: PLR could not read Klipper at ready")
@@ -1098,35 +1168,60 @@ class HelixPlr:
             if self._ready_token is token:
                 self._ready_settled = True
         if self._ready_token is token:
+            if self._set_guard(guard):
+                # A screen that read the features before Klippy was ready
+                # reads an unlisted printer's availability again.
+                try:
+                    self.helix.notify_features_changed()
+                except Exception as e:
+                    logging.warning("HelixPrint: PLR could not announce the features: %s", e)
             try:
                 self._notify(PLR_STATUS_EVENT, await self.status_reply())
             except Exception as e:
                 logging.warning("HelixPrint: PLR could not announce its status: %s", e)
 
-    async def _klippy_ready(self) -> None:
+    async def _klippy_ready(self) -> Optional[str]:
+        """Read this connection's objects, config and backend; returns the
+        guard they decide, GUARD_UNREAD when any read that decides it fails."""
         apis = self.helix.klippy_apis
         if apis is None:
-            return
+            return GUARD_UNREAD
         try:
             objects = await apis.get_object_list()
         except Exception as e:
             logging.warning("HelixPrint: PLR could not list Klipper objects: %s", e)
-            return
+            return GUARD_UNREAD
         self.has_virtual_sdcard = "virtual_sdcard" in objects
         self.klippy_ready = True
         self._klippy_generation += 1
+        self.gantry_settings = None
+        # The guard is decided from this ready's own read: a superseded
+        # ready's write to gantry_settings can land during these awaits.
+        settings = None  # type: Optional[Dict[str, Any]]
         try:
-            await self._refresh_homing()
+            settings = await self._refresh_homing()
         except Exception as e:
             logging.warning("HelixPrint: PLR could not read the homing config: %s", e)
         try:
             status = await apis.subscribe_objects(snapshot_objects(objects))
         except Exception as e:
             logging.warning("HelixPrint: PLR could not subscribe: %s", e)
-            return
+            return GUARD_UNREAD
         self.status = {}
         self._merge(status)
         await self._detect_qidi(apis)
+        if settings is None:
+            return GUARD_UNREAD
+        return unlisted_guard(settings, self.status, self.qidi is not None)
+
+    def _set_guard(self, guard: Optional[str]) -> bool:
+        """Apply `guard`; True when it changed. The saving switch's cached
+        answer was decided under the old guard, so it is read afresh."""
+        if guard == self.guard:
+            return False
+        self.guard = guard
+        self._switch = (False, float("-inf"))
+        return True
 
     async def _detect_qidi(self, apis: Any) -> None:
         """Select the QIDI print_state adapter when Klipper is QIDI's fork AND
@@ -1169,11 +1264,15 @@ class HelixPlr:
         value, read_at = self._switch
         now = self.clock()
         if now - read_at >= SWITCH_CACHE_S:
+            guard = self.guard
             value = await self.saving_enabled() and self.availability()[0]
             profile = await self.profile()
             self._macro_vars = profile.macro_vars
             self._active_backend = self.backend(profile)[0]
-            self._switch = (value, now)
+            # A guard that changed during the awaits reset the cache; an answer
+            # decided under the old one is not kept.
+            if self.guard == guard:
+                self._switch = (value, now)
         return value
 
     async def on_status_update(self, status: Dict[str, Any], *args: Any) -> None:
@@ -1566,6 +1665,8 @@ class HelixPlr:
 
     def on_klippy_gone(self, *args: Any) -> None:
         self.klippy_ready = False
+        self.gantry_settings = None
+        self._set_guard(GUARD_UNREAD)
         self._ready_settled = False
         self._ready_token = None
         self._klippy_generation += 1
@@ -1608,7 +1709,9 @@ class HelixPlr:
             raise self._error("plr_klippy_error", str(e), 503)
         return result if isinstance(result, dict) else {}
 
-    async def _refresh_homing(self) -> None:
+    async def _refresh_homing(self) -> Optional[Dict[str, Any]]:
+        """Read the homing, axis and mesh config; returns configfile's
+        settings, or None when Klipper gave none."""
         status = await self._query({"configfile": ["settings"],
                                     "toolhead": ["axis_minimum", "axis_maximum"]})
         settings = _obj(status, "configfile").get("settings")
@@ -1616,6 +1719,7 @@ class HelixPlr:
         if isinstance(settings, dict) and isinstance(settings.get("printer"), dict):
             kinematics = str(settings["printer"].get("kinematics", ""))
         self.homing = check_xy_homing(settings, kinematics)
+        self.gantry_settings = settings if isinstance(settings, dict) else None
         th = _obj(status, "toolhead")
         self.axis_min = _vec(th.get("axis_minimum"), 3)
         self.axis_max = _vec(th.get("axis_maximum"), 3)
@@ -1629,6 +1733,7 @@ class HelixPlr:
         sy = settings.get("stepper_y") if isinstance(settings.get("stepper_y"), dict) else {}
         px, py = _num(sx.get("position_endstop")), _num(sy.get("position_endstop"))
         self.park_xy = (px, py) if px is not None and py is not None else None
+        return self.gantry_settings
 
     async def _newest_job_status(self, newest: Optional[Dict[str, Any]]) -> Optional[str]:
         if not newest:
@@ -1662,7 +1767,7 @@ class HelixPlr:
     def backend(self, profile: PlrProfile) -> Tuple[str, int]:
         """(backend, tier) PLR acts with; ("none", 0) when it does not act.
 
-        - tier 0 (an unlisted printer) never acts;
+        - tier 0 never acts, nor an unlisted printer unlisted_guard() vetoes;
         - tier 2 (trusted Z) needs z_holds_unpowered, else it acts at tier 1;
         - qidi_print_state needs QIDI's firmware and endpoint (self.qidi), and
           tier 2: QIDI's sequence declares the snapshot's Z itself, so there
@@ -1678,6 +1783,8 @@ class HelixPlr:
                 return "none", 0
             return "qidi_print_state", 2
         if profile.backend != "generic":
+            return "none", 0
+        if not profile.listed and self.guard is not None:
             return "none", 0
         homed_tier, _ = effective_tier(profile._replace(tier=tier), self.homing)
         return ("generic" if homed_tier >= 1 else "none"), homed_tier

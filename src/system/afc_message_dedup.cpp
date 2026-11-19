@@ -69,8 +69,8 @@ void AfcMessageDedup::init(const std::string& config_dir) {
             if (data.is_discarded()) {
                 spdlog::warn("[AfcMessageDedup] Unreadable seed file {}: not valid JSON", path);
                 last_error_by_printer_.clear();
-            } else if (data.contains("printers") && data["printers"].is_object()) {
-                for (const auto& [printer_id, text] : data["printers"].items()) {
+            } else if (const json* printers = helix::json_util::find_object(data, "printers")) {
+                for (const auto& [printer_id, text] : printers->items()) {
                     if (text.is_string()) {
                         last_error_by_printer_[printer_id] = text.get<std::string>();
                     }

@@ -24,12 +24,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Hardware page: Sensors row shows with no fi
     const int before = lv_subject_get_int(filament_sensors);
     lv_subject_set_int(filament_sensors, 0);
 
-    auto* root = static_cast<lv_obj_t*>(
-        lv_xml_create(test_screen(), "settings_hardware_overlay", nullptr));
+    auto* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "settings_hardware_overlay", nullptr));
     REQUIRE(root != nullptr);
     lv_obj_t* container = lv_obj_find_by_name(root, "container_filament_sensors");
     REQUIRE(container != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(container, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(container));
 
     lv_obj_delete(root);
     lv_subject_set_int(filament_sensors, before);

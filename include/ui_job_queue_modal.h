@@ -4,7 +4,8 @@
 #pragma once
 
 #include "ui_modal.h"
-#include "ui_observer_guard.h"
+
+#include "core/observer_guard.h"
 
 #include <string>
 
@@ -52,7 +53,6 @@ class JobQueueModal : public Modal {
     /// Hangs a job's id and filename on a job_queue_row for its callbacks.
     static void attach_row_data(lv_obj_t* row, const std::string& job_id,
                                 const std::string& filename);
-    void update_queue_state_ui();
     void toggle_queue();
     void remove_job(const std::string& job_id);
     void start_job(const std::string& job_id, const std::string& filename);

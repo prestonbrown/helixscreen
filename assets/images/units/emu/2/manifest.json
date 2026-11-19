@@ -1,0 +1,122 @@
+{
+  "id": "emu",
+  "lanes": 2,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png",
+          "silhouette": "full_lane0_silhouette.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png",
+          "body": "full_lane1_body.png",
+          "glow": "full_lane1_glow.png",
+          "silhouette": "full_lane1_silhouette.png"
+        }
+      ]
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png",
+          "body": "thumb_lane1_body.png"
+        }
+      ]
+    }
+  },
+  "drawn": [
+    0.22218,
+    0.10375,
+    0.74337,
+    0.81119
+  ],
+  "bottom_edge": [
+    0.22218,
+    0.75798,
+    0.52749,
+    0.81119
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.36762,
+        0.30556
+      ],
+      "near": [
+        0.47666,
+        0.32456
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.28826,
+        0.13286,
+        0.55603,
+        0.49727
+      ],
+      "outlet": [
+        0.33008,
+        0.758
+      ]
+    },
+    {
+      "far": [
+        0.50159,
+        0.32891
+      ],
+      "near": [
+        0.61063,
+        0.34791
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.42222,
+        0.1562,
+        0.69,
+        0.52061
+      ],
+      "outlet": [
+        0.46404,
+        0.78134
+      ]
+    }
+  ],
+  "lane_order": [
+    0,
+    1
+  ]
+}

@@ -169,7 +169,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     REQUIRE(shield != nullptr);
     CHECK(lv_obj_get_index(scene.widget) < lv_obj_get_index(shield));
     CHECK(lv_obj_get_index(scene.widget) == index_before);
-    CHECK_FALSE(lv_obj_has_flag(scene.widget, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(scene.widget));
     lv_obj_update_layout(scene.container);
     lv_area_t after;
     lv_obj_get_coords(scene.widget, &after);
@@ -194,7 +194,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     em.exit();
     CHECK(lv_obj_get_parent(scene.widget) == scene.container);
-    CHECK_FALSE(lv_obj_has_flag(scene.widget, LV_OBJ_FLAG_FLOATING));
+    CHECK_FALSE(lv_obj_is_floating(scene.widget));
 
     process_lvgl(50);
     lv_obj_delete(scene.container);

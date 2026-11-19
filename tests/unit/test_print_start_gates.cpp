@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "ams_types.h"
+#include "core/temperature_units.h"
 #include "filament_mapper.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
@@ -554,7 +555,7 @@ TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
 
 TEST_CASE("default gate list: names in behavior-preserving order", "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 11);
+    REQUIRE(gates.size() == 12);
     CHECK(gates[0].name == "printer_stopping_command");
     CHECK(gates[1].name == "fit_check");
     CHECK(gates[2].name == "mixed_temperature_materials");
@@ -568,12 +569,13 @@ TEST_CASE("default gate list: names in behavior-preserving order", "[print-start
     CHECK(gates[8].name == "unresolved_tools");
     CHECK(gates[9].name == "material_compatibility");
     CHECK(gates[10].name == "door_open");
+    CHECK(gates[11].name == "outer_wall_speed");
 }
 
 TEST_CASE("default gate list: the two new gates keep their relative order",
           "[print-start][gate-pipeline]") {
     auto& gates = default_print_start_gates();
-    REQUIRE(gates.size() == 11);
+    REQUIRE(gates.size() == 12);
     CHECK(gates[5].name == "bypass_engaged_lane_print");
     CHECK(gates[6].name == "unaccounted_toolhead_filament");
     CHECK(gates[7].name == "required_filament_present");
@@ -942,6 +944,13 @@ TEST_CASE("gate material_compatibility: warns with verbatim title",
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.title == "Material Mismatch");
     CHECK(r.proceed_label == "Start Anyway");
+    REQUIRE(r.body.find("°C") != std::string::npos);
+
+    // The per-test reset puts °C back.
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit);
+    const std::string f = gate_named("material_compatibility").evaluate(ctx).body;
+    CHECK(f.find("°F") != std::string::npos);
+    CHECK(f.find("°C") == std::string::npos);
 }
 
 TEST_CASE("gate material_compatibility: names the gcode tool, not the physical lane",
@@ -987,6 +996,12 @@ TEST_CASE("gate material_compatibility: names the gcode tool, not the physical l
     REQUIRE(r.verdict == CheckResult::Verdict::Warn);
     CHECK(r.body.find("T0") != std::string::npos);
     CHECK(r.body.find("T1") != std::string::npos);
+    REQUIRE(r.body.find("°C") != std::string::npos);
+
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Fahrenheit);
+    const std::string f = gate_named("material_compatibility").evaluate(ctx).body;
+    CHECK(f.find("°F") != std::string::npos);
+    CHECK(f.find("°C") == std::string::npos);
 }
 
 // ---------------------------------------------------------------------------

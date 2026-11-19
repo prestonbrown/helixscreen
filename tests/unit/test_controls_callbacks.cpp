@@ -17,15 +17,28 @@
 namespace {
 
 constexpr const char* kControlsCallbacks[] = {
-    "on_calibration_bed_mesh",   "on_calibration_zoffset",   "on_calibration_tool_offsets",
-    "on_calibration_pa",         "on_calibration_screws",    "on_calibration_motors",
-    "on_controls_home_all",      "on_controls_home_x",       "on_controls_home_y",
-    "on_controls_home_xy",       "on_controls_home_z",       "on_controls_qgl",
-    "on_controls_z_tilt",        "on_controls_macro",        "on_controls_fan_slider",
-    "on_controls_save_z_offset", "on_zoffset_tune",          "on_controls_quick_actions",
-    "on_nozzle_temp_clicked",    "on_bed_temp_clicked",      "on_chamber_temp_clicked",
-    "on_controls_cooling",       "on_controls_more_sensors", "on_controls_secondary_fans",
-    "on_nozzle_target_edit",     "on_bed_target_edit",       "on_chamber_target_edit",
+    "on_calibration_bed_mesh",
+    "on_calibration_zoffset",
+    "on_calibration_tool_offsets",
+    "on_calibration_pa",
+    "on_calibration_screws",
+    "on_calibration_motors",
+    "on_controls_home_all",
+    "on_controls_home_x",
+    "on_controls_home_y",
+    "on_controls_home_xy",
+    "on_controls_home_z",
+    "on_controls_qgl",
+    "on_controls_z_tilt",
+    "on_controls_macro",
+    "on_controls_fan_slider",
+    "on_controls_save_z_offset",
+    "on_zoffset_tune",
+    "on_controls_quick_actions",
+    "on_controls_cooling",
+    "on_controls_more_sensors",
+    "on_controls_secondary_fans",
+    "on_controls_target_tool_chip",
 };
 
 class ControlsCallbacksFixture : public LVGLUITestFixture {

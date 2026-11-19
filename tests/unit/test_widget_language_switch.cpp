@@ -30,6 +30,7 @@
 #include "preheat_widget.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "src/ui/panel_widgets/fan_stack_widget.h"
 #include "src/ui/panel_widgets/fan_widget.h"
 #include "src/ui/panel_widgets/print_status_widget.h"
@@ -39,6 +40,7 @@
 #include "temp_graph_controller.h"
 #include "temp_graph_internal.h"
 #include "tool_state.h"
+#include "ui/ams_drawing_utils.h"
 
 #include <algorithm>
 #include <functional>
@@ -257,6 +259,60 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
 
 // Only a real switch runs the handler: registering, or re-selecting the same
 // language, must not re-render everything that watches it.
+TEST_CASE_METHOD(LanguageSwitchFixture, "observe_language_change fires when numbering changes",
+                 "[i18n][observer][numbering]") {
+    struct Owner {
+        int renders = 0;
+    } owner;
+    ObserverGuard guard =
+        helix::ui::observe_language_change(&owner, [](Owner* o) { ++o->renders; });
+    auto drain = []() { helix::ui::UpdateQueue::instance().drain_until_empty(); };
+    drain();
+    CHECK(owner.renders == 0);
+
+    auto& settings = SettingsManager::instance();
+    settings.set_number_lanes_from_zero(true);
+    drain();
+    CHECK(owner.renders == 1);
+    CHECK(helix::ui::lane_number(0) == 0);
+    settings.set_number_lanes_from_zero(true);
+    drain();
+    CHECK(owner.renders == 1);
+    settings.set_number_lanes_from_zero(false);
+    drain();
+    CHECK(owner.renders == 2);
+    CHECK(helix::ui::lane_number(0) == 1);
+}
+
+// Slot badges repaint on slots_version, and a renumber changes no slot data.
+TEST_CASE_METHOD(LanguageSwitchFixture, "a numbering change repaints the slot badges",
+                 "[i18n][numbering]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>();
+    mock->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+    helix::ui::init_language_refresh();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    const int before = lv_subject_get_int(ams.get_slots_version_subject());
+    SettingsManager::instance().set_number_lanes_from_zero(true);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(lv_subject_get_int(ams.get_slots_version_subject()) != before);
+
+    SettingsManager::instance().set_number_lanes_from_zero(false);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    ams.set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(LanguageSwitchFixture, "a lane badge shows zero but not a missing number",
+                 "[numbering]") {
+    CHECK(ams_draw::lane_badge_text(0) == "0");
+    CHECK(ams_draw::lane_badge_text(3) == "3");
+    CHECK(ams_draw::lane_badge_text(-1).empty());
+}
+
 TEST_CASE_METHOD(LanguageSwitchFixture, "observe_language_change fires on a real switch only",
                  "[i18n][observer]") {
     struct Owner {
@@ -296,8 +352,8 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     fan.widget().select_fan("");
     sensor.widget().select_sensor("chamber");
     sensor.widget().select_sensor("");
-    lv_obj_t* fan_name = fan.child("fan_name");
-    lv_obj_t* sensor_name = sensor.child("thermistor_name");
+    lv_obj_t* fan_name = fan.child("fan_name_prompt");
+    lv_obj_t* sensor_name = sensor.child("thermistor_name_prompt");
     REQUIRE(fan_name != nullptr);
     REQUIRE(sensor_name != nullptr);
     REQUIRE(std::string(lv_label_get_text(fan_name)) == "Select fan");

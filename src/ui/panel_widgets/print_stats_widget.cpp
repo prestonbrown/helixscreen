@@ -6,10 +6,10 @@
 #include "ui_event_safety.h"
 #include "ui_next_tick.h"
 #include "ui_panel_history_dashboard.h"
-#include "ui_subject_registry.h"
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "i_moonraker_api.h"
 #include "locale_formats.h"
@@ -21,6 +21,7 @@
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
@@ -40,18 +41,18 @@ namespace {
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
 struct Subjects {
-    lv_subject_t rung{};
-    lv_subject_t content{};
-    lv_subject_t support{};
-    lv_subject_t show_bars{};
-    lv_subject_t show_day_labels{};
-    lv_subject_t side_by_side{};
-    lv_subject_t strip_text{};
-    lv_subject_t hero{};
-    lv_subject_t hero_label{};
-    lv_subject_t support_text{};
-    lv_subject_t day[helix::kActivityDays]{};
-    lv_subject_t day_label[helix::kActivityDays]{};
+    helix::Subject rung{};
+    helix::Subject content{};
+    helix::Subject support{};
+    helix::Subject show_bars{};
+    helix::Subject show_day_labels{};
+    helix::Subject side_by_side{};
+    helix::Subject strip_text{};
+    helix::Subject hero{};
+    helix::Subject hero_label{};
+    helix::Subject support_text{};
+    helix::Subject day[helix::kActivityDays]{};
+    helix::Subject day_label[helix::kActivityDays]{};
     char hero_buf[24]{};
     char hero_label_buf[96]{};
     char support_text_buf[160]{};
@@ -409,7 +410,7 @@ void PrintStatsWidget::refresh() {
         helix::ui::set_int_if_changed(&s_subj.day[i], bars[static_cast<size_t>(i)]);
         helix::ui::copy_string_if_changed(
             &s_subj.day_label[i],
-            weekday_initial(ui::format_localized_weekday_abbr(&local)).c_str());
+            weekday_initial(helix::locale::format_localized_weekday_abbr(&local)).c_str());
     }
 
     spdlog::debug("[PrintStatsWidget] refresh {}x{} content={} rung={} support={} week={} "

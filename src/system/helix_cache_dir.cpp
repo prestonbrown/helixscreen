@@ -9,6 +9,7 @@
  * rung 1 of the cascade. Declarations live in app_globals.h.
  */
 
+#include "app_constants.h"
 #include "app_globals.h"
 
 #ifdef __ANDROID__
@@ -16,6 +17,7 @@
 #endif
 
 #include "config.h"
+#include "system/device_identity.h"
 #include "system/helix_cache_dir_internal.h"
 #include "system/helix_paths.h"
 
@@ -51,13 +53,7 @@ using helix::cache_internal::is_deliberate;
 
 namespace helix::cache_internal {
 
-std::vector<CacheCandidate> board_cache_candidates(board::Board board, FlashForgeModTree tree,
-                                                   const std::string& subdir) {
-    const char* tier = board::info(board).key;
-    auto rung = [&](const std::string& root) {
-        return CacheCandidate{root + "/cache/" + subdir, tier, true};
-    };
-
+std::vector<std::string> board_state_roots(board::Board board, FlashForgeModTree tree) {
     switch (board) {
     case board::Board::Ad5m:
         // Dot-prefixed on purpose: /data is the only large writable partition on
@@ -65,41 +61,68 @@ std::vector<CacheCandidate> board_cache_candidates(board::Board board, FlashForg
         // root, so a plain-named directory shows up in the print-file picker.
         // Moonraker's listings hide dot-entries (the vendor's own .mod and .thumbs
         // rely on exactly that), no moonraker.conf edit needed.
-        return {rung("/data/.helixscreen")};
+        return {"/data/.helixscreen"};
     case board::Board::Cc1:
         // /user-resource is the 6.3GB ext4 partition. / is a read-only squashfs with
         // no /opt, so anything rooted there falls through to RAM-backed /tmp. The
-        // -state sibling keeps the cache off the payload, which every update deletes.
-        return {rung("/user-resource/helixscreen-state")};
+        // -state sibling keeps state off the payload, which every update deletes.
+        return {"/user-resource/helixscreen-state"};
     case board::Board::K2:
         // /mnt/UDISK is the 27.5GB user partition and carries both the payload and
-        // its state; the cache sits in the -state sibling because the payload is
+        // its state; state sits in the -state sibling because the payload is
         // what an update replaces. /usr/data is on the root overlay, only ~240MB
         // and shared with the firmware, so it is the fallback for a unit without
         // the mount. Same two roots plr_backend.cpp probes for Creality data.
-        return {rung("/mnt/UDISK/helixscreen-state"), rung("/usr/data/helixscreen-state")};
+        return {"/mnt/UDISK/helixscreen-state", "/usr/data/helixscreen-state"};
     case board::Board::K1:
-        // /usr/data IS the large user partition here, unlike on the K2. The cache
+        // /usr/data IS the large user partition here, unlike on the K2. State
         // sits in a sibling of the payload rather than inside it, because the
         // payload is what an update replaces.
-        return {rung("/usr/data/helixscreen-state")};
+        return {"/usr/data/helixscreen-state"};
     case board::Board::Ad5x:
     case board::Board::Creator5:
     case board::Board::Creator5Pro:
         // Z-Mod keeps state under /srv; the Forge-X chroot has neither /srv nor
         // /usr/data and keeps it in the mod's durable config directory.
         if (tree == FlashForgeModTree::ForgeX)
-            return {rung("/opt/config/mod_data/helixscreen-state")};
-        return {rung("/srv/helixscreen-state")};
+            return {"/opt/config/mod_data/helixscreen-state"};
+        return {"/srv/helixscreen-state"};
     case board::Board::SnapmakerU1:
-        return {rung("/userdata/helixscreen-state")};
+        return {"/userdata/helixscreen-state"};
     case board::Board::Generic:
         break;
     }
     return {};
 }
 
+std::vector<CacheCandidate> board_cache_candidates(board::Board board, FlashForgeModTree tree,
+                                                   const std::string& subdir) {
+    const char* tier = board::info(board).key;
+    std::vector<CacheCandidate> out;
+    for (const std::string& root : board_state_roots(board, tree))
+        out.push_back(CacheCandidate{root + "/cache/" + subdir, tier, true});
+    return out;
+}
+
+std::vector<std::string> state_root_candidates(board::Board board, FlashForgeModTree tree,
+                                               const std::string& state_dir,
+                                               const std::string& home_state_dir) {
+    std::vector<std::string> out = board_state_roots(board, tree);
+    out.push_back(state_dir);
+    out.push_back(home_state_dir);
+    return out;
+}
+
 } // namespace helix::cache_internal
+
+/// The mod tree only decides the FlashForge MIPS boards' state root, so no
+/// other board stats for it.
+static helix::FlashForgeModTree mod_tree_for(helix::board::Board board) {
+    const bool flashforge_mips = board == helix::board::Board::Ad5x ||
+                                 board == helix::board::Board::Creator5 ||
+                                 board == helix::board::Board::Creator5Pro;
+    return flashforge_mips ? helix::flashforge_mod_tree() : helix::FlashForgeModTree::None;
+}
 
 /// The cache cascade for `subdir`, in priority order. Pure: enumerating the
 /// candidates touches nothing on disk.
@@ -119,13 +142,8 @@ static std::vector<CacheCandidate> cache_path_candidates(const std::string& subd
 
     // 3. The board's own rung
     const helix::board::Board board = helix::board::current();
-    // The mod tree only decides the FlashForge MIPS boards' rung, so no other board stats for it.
-    const bool flashforge_mips = board == helix::board::Board::Ad5x ||
-                                 board == helix::board::Board::Creator5 ||
-                                 board == helix::board::Board::Creator5Pro;
-    const helix::FlashForgeModTree tree =
-        flashforge_mips ? helix::flashforge_mod_tree() : helix::FlashForgeModTree::None;
-    for (CacheCandidate& c : helix::cache_internal::board_cache_candidates(board, tree, subdir))
+    for (CacheCandidate& c :
+         helix::cache_internal::board_cache_candidates(board, mod_tree_for(board), subdir))
         out.push_back(std::move(c));
 #if defined(HELIX_PLATFORM_ANDROID) || defined(__ANDROID__)
     // Use SDL's Android internal storage path (app-private, no permissions needed)
@@ -339,6 +357,33 @@ int migrate_state_root(const std::string& legacy_root, const std::string& curren
     return actions;
 }
 
+std::optional<std::pair<std::string, std::string>>
+state_identity_migration(board::Board board, FlashForgeModTree tree) {
+    if (tree != FlashForgeModTree::ForgeX)
+        return std::nullopt;
+    const std::vector<std::string> zmod = board_state_roots(board, FlashForgeModTree::Zmod);
+    const std::vector<std::string> forgex = board_state_roots(board, FlashForgeModTree::ForgeX);
+    if (zmod.empty() || forgex.empty() || zmod.front() == forgex.front())
+        return std::nullopt;
+    return std::make_pair(zmod.front(), forgex.front());
+}
+
+bool migrate_state_identity(const std::string& legacy_root, const std::string& current_root) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::string from = legacy_root + "/" + telemetry::kDeviceIdentityFile;
+    const std::string to = current_root + "/" + telemetry::kDeviceIdentityFile;
+    if (!fs::exists(from, ec))
+        return false;
+    if (!helix::paths::ensure_dir(current_root)) {
+        spdlog::warn("[CacheDir] Cannot create {}; device identity stays in {}", current_root,
+                     legacy_root);
+        return false;
+    }
+    telemetry::move_device_identity(from, to);
+    return !fs::exists(from, ec) && fs::exists(to, ec);
+}
+
 } // namespace helix::cache_internal
 
 int sweep_stale_helix_cache_dirs() {
@@ -351,10 +396,34 @@ int sweep_stale_helix_cache_dirs() {
     return removed;
 }
 
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+std::string app_get_state_root() {
+#if defined(HELIX_PLATFORM_ANDROID) || defined(__ANDROID__)
+    // The redirected state dir is in Android's backup set, so per-device state
+    // there would be cloned onto a restored device. The config dir is excluded.
+    return {};
+#else
+    const helix::board::Board board = helix::board::current();
+    for (const std::string& root : helix::cache_internal::state_root_candidates(
+             board, mod_tree_for(board), helix::app_constants::update::state_dir(),
+             helix::app_constants::update::backup_fallback_dir())) {
+        if (helix::paths::can_create_dir(root) && helix::paths::ensure_dir(root) &&
+            helix::paths::probe_writable(root))
+            return root;
+    }
+    return {};
+#endif
+}
+
 namespace helix {
 
 void migrate_legacy_state_roots() {
-    if (board::current() != board::Board::Ad5m)
+    const board::Board board = board::current();
+    if (const auto moved = cache_internal::state_identity_migration(board, mod_tree_for(board))) {
+        cache_internal::migrate_state_identity(moved->first, moved->second);
+        return;
+    }
+    if (board != board::Board::Ad5m)
         return;
     // /data is this board's only large writable partition and the vendor
     // symlinks it whole into Moonraker's gcodes root, so the state root has to

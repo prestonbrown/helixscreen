@@ -116,7 +116,7 @@ config modal. It governs both prompts a run can raise:
 The two prompts collapse into one switch because they answer the same question:
 for a macro with parameters the param modal *is* the confirmation step, so a
 widget that wants one-tap execution has to suppress both. Note the asymmetry with
-the global Safety setting — that one only ever gated `KNOWN_NO_PARAMS` runs, and
+the global Safety setting - that one only ever gated `KNOWN_NO_PARAMS` runs, and
 still does; `require_confirmation` sits in front of it.
 
 `UNKNOWN` is worth calling out: macros registered through Klipper's
@@ -128,7 +128,7 @@ nothing, just run it".
 **Interaction with saved defaults.** The saved record carries its own
 `ask_for_params` toggle (below). On the widget the two switches multiply: the
 param modal appears only when `require_confirmation && ask_for_params`. Turning
-either off suppresses it — `require_confirmation` off because the whole widget is
+either off suppresses it - `require_confirmation` off because the whole widget is
 one-tap by design, `ask_for_params` off because the user saved these values
 precisely to stop retyping them. In both cases the saved values still go with the
 run; only the form disappears.
@@ -165,14 +165,14 @@ Parameters come in two types, handled differently at execution time:
 ### Saved parameter defaults
 
 `MacroParamDefaults` (`include/macro_param_defaults.h`) keeps one record per
-macro — a `values` map plus an `ask_for_params` toggle that defaults on — under
+macro - a `values` map plus an `ask_for_params` toggle that defaults on - under
 the active printer's config subtree, keyed by lowercased macro name exactly like
 MacroParamCache. A record with no values and ask still on is removed, so a macro
 whose fields were all cleared costs nothing. There is no config migration: the
 key simply appears the first time a record is saved.
 
 The run decision is `decide_macro_run()` (`include/macro_executor.h`), one pure
-function every surface calls — panel, favorite-macro widget, filament router,
+function every surface calls - panel, favorite-macro widget, filament router,
 quick buttons. Its rules, which the header comment states in full:
 
 - **Saved values never complete a run on their own.** A `KNOWN_PARAMS` macro
@@ -184,22 +184,22 @@ quick buttons. Its rules, which the header comment states in full:
   the saved values with `known_values` (e.g. a quick button's preset) winning
   on any parameter both supply.
 - A run that raises no modal carries the saved values overlaid by the caller's
-  known_values — a filament load's computed nozzle temp wins over a saved TEMP
-  on the same name — both filtered to the macro's declared names. A
+  known_values - a filament load's computed nozzle temp wins over a saved TEMP
+  on the same name - both filtered to the macro's declared names. A
   `Suppress`-policy surface passes no known values, so it keeps sending only
   the saved record's values (nothing without a record). Dangerous-macro
   confirmation is decided before any of this and cannot be disarmed by it.
 
 Each surface builds the same `MacroRunRequest`: `prompt_for_params` is the
-conjunction of its own policy and the record's `ask_for_params` — the panel
+conjunction of its own policy and the record's `ask_for_params` - the panel
 passes ask as-is, the widget `require_confirmation && ask`, the filament router
-`(policy != Suppress) && ask` — and `saved_values` carries the record's values.
+`(policy != Suppress) && ask` - and `saved_values` carries the record's values.
 
 **Editing a record.** Two entry points, both `KNOWN_PARAMS` macros only: the
 Macros panel's edit mode shows a tune action on those rows, and the widget
 config modal's Options tab shows a "Default Parameters" action row (hidden
 otherwise, via the `fav_macro_has_param_defaults` subject recomputed per macro).
-Both open `MacroParamModal::show_for_defaults()` — the same parameter fields
+Both open `MacroParamModal::show_for_defaults()` - the same parameter fields
 prefilled from the record, retitled "Default Parameters", with Save/Cancel and
 the "Ask for parameters" toggle under the fields.
 
@@ -214,15 +214,15 @@ the "Ask for parameters" toggle under the fields.
 
 ### Resolution Priority
 
-1. User configured (via Settings) — verified to exist on the printer before it is trusted
+1. User configured (via Settings) - verified to exist on the printer before it is trusted
 2. Auto-detected (pattern matching against discovered macros)
 3. HELIX fallback (built-in helper macros from `helix_macros.cfg`)
 4. Empty (slot not available)
 
 A configured name the printer does not define is demoted at init and the slot
 resolves as though unconfigured. In the Controls panel a demoted slot keeps its
-button in place but greys it out — a button that disappears reads as a bug in
-the screen, while a disabled one points at the assignment that needs fixing —
+button in place but greys it out - a button that disappears reads as a bug in
+the screen, while a disabled one points at the assignment that needs fixing -
 rather than sending a command Klipper would reject with "Unknown command".
 
 See `STANDARD_MACROS_SPEC.md` for the full specification.
@@ -312,12 +312,13 @@ Extends `overlay_panel` with:
 
 ### macro_card.xml
 
-Extends `lv_button` with API props:
+Extends `lv_button`. A pooled row: its API props name subjects (`name_subject`, `desc_subject`,
+`visible_subject`, `desc_hidden_subject`, `chevron_hidden_subject`, `defaults_hidden_subject`,
+`slot_hidden_subject`) plus `row_index`, so C++ rebinds a row by writing subjects, never widgets.
 
-- `macro_name` (string) -- displayed as bold text
-- `macro_description` (string) -- optional subtitle (hidden by default)
-- Icon: `code_tags`, chevron right indicator
-- Click callback: `on_macro_card_clicked`
+- Leading slot: `code_tags` icon, or a visibility checkbox while `macro_edit_mode` is 1
+- Click callback: `on_macro_row_clicked` (toggles visibility in edit mode, otherwise runs the macro);
+  `on_macro_card_long_press` and `on_macro_defaults_clicked` for the defaults button
 
 ---
 

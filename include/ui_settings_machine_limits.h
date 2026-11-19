@@ -25,10 +25,10 @@
 
 #include "calibration_types.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 
-// Forward declarations
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -103,7 +103,8 @@ class MachineLimitsOverlay : public OverlayBase {
      * - on_accel_to_decel_changed
      * - on_square_corner_velocity_changed
      * - on_limits_reset
-     * - on_limits_apply
+     * - on_extrude_speed_changed
+     * - on_limit_field_clicked
      */
     void register_callbacks() override;
 
@@ -119,10 +120,6 @@ class MachineLimitsOverlay : public OverlayBase {
         return true;
     }
 
-    /**
-     * @brief Get human-readable overlay name
-     * @return "Machine Limits"
-     */
     const char* get_name() const override {
         return "Machine Limits";
     }
@@ -240,7 +237,8 @@ class MachineLimitsOverlay : public OverlayBase {
     /**
      * @brief Apply current limits to printer immediately
      *
-     * Called on slider release to send SET_VELOCITY_LIMIT command.
+     * Sends SET_VELOCITY_LIMIT. Runs from the debounce timer, on reset, and
+     * when on_deactivating() flushes a pending debounced apply.
      * Does not show success toast (only errors).
      */
     void apply_limits();
@@ -295,11 +293,13 @@ class MachineLimitsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     // Display subjects for XML binding
-    lv_subject_t max_velocity_display_subject_{};
-    lv_subject_t max_accel_display_subject_{};
-    lv_subject_t accel_to_decel_display_subject_{};
-    lv_subject_t square_corner_velocity_display_subject_{};
-    lv_subject_t extrude_speed_display_subject_{};
+    helix::Subject max_velocity_display_subject_{};
+    helix::Subject max_accel_display_subject_{};
+    helix::Subject accel_to_decel_display_subject_{};
+    helix::Subject square_corner_velocity_display_subject_{};
+    helix::Subject extrude_speed_display_subject_{};
+    helix::Subject max_z_velocity_display_subject_{}; ///< read-only, reported by the printer
+    helix::Subject max_z_accel_display_subject_{};    ///< read-only, reported by the printer
 
     // String buffers for subject values
     char velocity_buf_[16]{};
@@ -307,6 +307,8 @@ class MachineLimitsOverlay : public OverlayBase {
     char a2d_buf_[16]{};
     char scv_buf_[16]{};
     char extrude_speed_buf_[16]{};
+    char z_velocity_buf_[32]{};
+    char z_accel_buf_[32]{};
 
     //
     // === Static Callbacks ===

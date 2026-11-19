@@ -18,14 +18,13 @@ namespace helix::printer {
 
 #if HELIX_HAS_CFS
 
-#include "ui_timer_guard.h"
-
 #include "ams_cfs_calibration.h"
 #include "ams_print_routing.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "cfs_daemon_sync.h"
 #include "cfs_status_parse.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
@@ -122,7 +121,7 @@ enum class CfsMacroVariant {
 ///
 /// Detected from the PAYLOAD, never from PrinterDetector: the affected printers
 /// report as stock K2 Plus hardware by every model signal, so the firmware swap
-/// is invisible to model detection. Bundle QJKZEMTS.
+/// is invisible to model detection.
 enum class CfsSchema {
     Stock,
     Flat,
@@ -162,6 +161,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// Records whether the printer publishes the K2's motorized belt tensioners.
     void set_discovery(const helix::PrinterDiscovery& discovery) override;
 
+    void refresh_translated_texts() override;
     [[nodiscard]] AmsType get_type() const override {
         return AmsType::CFS;
     }
@@ -209,6 +209,7 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
         // the box, and the next print feeds it back from there, so the toolhead
         // sensor reads empty for the whole time the printer sits idle.
         t.parks_filament_off_toolhead_when_idle = true;
+        t.firmware_owns_lane_identity = true;
         return t;
     }();
     /// kTraits, plus the pre-print send on Fork firmware with BOX_PRINT_MAP.
@@ -237,6 +238,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     AmsError reset() override;
     AmsError recover() override;
     AmsError cancel() override;
+    /// Every CFS operation is one Klipper script holding the gcode queue to its end, so
+    /// cancel()'s CANCEL_PRINT can only run after it: no Abort is offered.
+    [[nodiscard]] bool can_cancel_operation() const override {
+        return false;
+    }
     /// Also ends the phase tracking, so a later sensor or heater edge cannot
     /// synthesize a sub-phase of an operation the restart already ended.
     void on_klipper_restarted() override;
@@ -300,9 +306,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
      * swap plan (`runout.chain`), and that one edge is the relation (#1464).
      *
      * `enabled` comes from `box.auto_refill` (stock) / `box.runout_swap_enabled`
-     * (flat fork) via AmsSystemInfo::endless_spool_enabled, so on and off are now
-     * distinguishable; the old struct hardcoded `supported = true` and buried the
-     * real state in an untranslated `description` string. When auto-refill is on
+     * (flat fork) via AmsSystemInfo::endless_spool_enabled, so on and off are
+     * distinguishable. When auto-refill is on
      * AND the frame carried `same_material` AND no group pairs two lanes,
      * `enabled` degrades to OnWithoutBackup (#1391): a runout would stop the
      * print despite the setting, and advertising plain On is a promise the box
@@ -405,12 +410,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
     }
-    // CFS unloads filament from the toolhead at end-of-print and reloads it as
-    // part of the next print-start sequence, so the toolhead is expected to be
-    // empty at print-start. The runout sensor reading "no filament" then is by
-    // design, not a fault — suppress the pre-print runout warning modal.
+    // Stock CFS firmware unloads filament from the toolhead at end-of-print and
+    // reloads it as part of the next print-start sequence, so the toolhead is
+    // expected to be empty at print-start and the pre-print runout warning is
+    // suppressed. Fork firmware makes that unload an option and reports it as
+    // box.unload_after_print_enabled; with it off, filament stays in the
+    // toolhead and an empty one is worth the warning.
     [[nodiscard]] bool auto_unloads_after_print() const override {
-        return true;
+        return unload_after_print_.load() != 0;
     }
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
@@ -451,11 +458,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// start. @p cancel_requested is polled at each step boundary: once set,
     /// remaining steps are dropped without on_ready (the caller has already
     /// left the flow). @p on_failed fires on the main thread when any step's
-    /// gcode fails, with Klipper's message; the backend has already re-parked
-    /// Y when PREPARE had run.
+    /// gcode fails, with its error; the backend has already re-parked Y when
+    /// PREPARE had run.
     AmsError
     start_chute_calibration(std::function<void()> on_ready = nullptr,
-                            std::function<void(const std::string& klipper_msg)> on_failed = nullptr,
+                            ChuteStepFailed on_failed = nullptr,
                             std::shared_ptr<std::atomic<bool>> cancel_requested = nullptr) override;
 
     /// Jog Y by @p delta_mm using the stock screen's exact script form
@@ -473,11 +480,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// sends no coordinate) followed by Y_SAFE to re-park. Refused while a print
     /// holds the machine or X or Y is unhomed. on_saved fires on
     /// the main thread after both completed; @p on_failed when either gcode
-    /// fails (the backend has already sent Y_SAFE, which is an idempotent
-    /// park).
-    AmsError save_chute_position(
-        std::function<void()> on_saved = nullptr,
-        std::function<void(const std::string& klipper_msg)> on_failed = nullptr) override;
+    /// fails. A failed save is followed by Y_SAFE, an idempotent park; a failed
+    /// park after a good save reports position_saved, keeps the pair the
+    /// firmware wrote for last_chute_saved_position(), and sends nothing more.
+    AmsError save_chute_position(std::function<void()> on_saved = nullptr,
+                                 ChuteSaveFailed on_failed = nullptr) override;
 
     /// Abort path: re-park Y with CMD=Y_SAFE. Required once PREPARE has run,
     /// which is the point from which the toolhead is left off-park. Refused
@@ -593,6 +600,19 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
                                   bool fork_select_slot = false);
     static std::string unload_gcode(CfsMacroVariant variant = CfsMacroVariant::K2);
 
+    /// A manual purge of @p length_mm at @p feedrate_mm_min, made over the purge
+    /// chute: the same go-to-extrude-position / fan save / park / state restore
+    /// the stock dialect's own operations use, around a relative extrude. No
+    /// bay command (BOX_CHECK_MATERIAL, BOX_MODE_WAIT): a purge pushes whatever
+    /// is in the nozzle, which may be a bypass spool the box has no answer for.
+    /// No BOX_NOZZLE_CLEAN either, matching the load, which ends at its extrude.
+    static std::string chute_purge_gcode(int length_mm, int feedrate_mm_min);
+
+    /// chute_purge_gcode() when the stock dialect reports a configured chute
+    /// (`[box] has_extrude_pos`) and X and Y are homed; "" otherwise, so the
+    /// caller keeps its in-place extrude.
+    [[nodiscard]] std::string manual_purge_gcode(int length_mm, int feedrate_mm_min) const override;
+
     /// Unload the external / bypass spool on the stock (K1/K2) dialect.
     ///
     /// Not a variant of unload_gcode(). That script ends in the box's own
@@ -637,11 +657,14 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     static std::string swap_gcode(int global_slot_index,
                                   CfsMacroVariant variant = CfsMacroVariant::K2,
                                   bool fork_select_slot = false);
-    static std::string reset_gcode();
+    /// Clear a latched box error, or "" where the dialect has no such command
+    /// (the Fork's box.py registers none; its faults clear with the box state).
+    static std::string reset_gcode(CfsMacroVariant variant = CfsMacroVariant::K2);
 
     /// Resume the box after an error. Dialect-dependent: K1's box extension
-    /// registers no `cmd_error_resume_process`, so `BOX_ERROR_RESUME_PROCESS`
-    /// is an unknown command there. See the implementation for the evidence.
+    /// and the Fork's box.py register no `cmd_error_resume_process`, so
+    /// `BOX_ERROR_RESUME_PROCESS` is an unknown command there. See the
+    /// implementation for the evidence.
     static std::string recover_gcode(CfsMacroVariant variant = CfsMacroVariant::K2);
 
     /// Result of checking a finished operation against what it was supposed to
@@ -685,10 +708,13 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
                                                            bool filament_at_end,
                                                            bool bypass_unload = false);
 
-    /// Human-facing sentence for a non-Ok verdict, or empty for `Ok` /
+    /// Untranslated catalog key for a non-Ok verdict, or empty for `Ok` /
     /// `Unverifiable`. Separate from the rule so the wording can move without
-    /// touching the policy or its tests.
-    [[nodiscard]] static std::string phase_verdict_message(PhaseVerdict verdict);
+    /// touching the policy or its tests. @p spool_used_up (box.filament_useup)
+    /// turns UnloadLeftFilament into hand-removal guidance: the strand has left
+    /// the box, so no box retract can pull it back and retrying cannot help.
+    [[nodiscard]] static std::string phase_verdict_message(PhaseVerdict verdict,
+                                                           bool spool_used_up = false);
 
     /// True when the toolhead switch now contradicts the condition a failed
     /// verdict reported: filament gone after UnloadLeftFilament, or arrived
@@ -944,6 +970,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// Fork firmware registers BOX_PRINT_MAP (fork_has_print_map() of the
     /// merged flat state). Same writer and lifetime as fork_select_slot_.
     std::atomic<bool> fork_print_map_{false};
+    /// box.unload_after_print_enabled as last reported: -1 when the firmware
+    /// reports no such option (stock, which always unloads), else 0 or 1.
+    std::atomic<int> unload_after_print_{-1};
 
     /// Stock dialect only: a client has declared bypass intent (sidebar toggle
     /// ON after the chained unload). Held in Moonraker as kBypassDeclaredKey in
@@ -1185,6 +1214,10 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// None with no query to make (no client), so the empty-bus verdict
     /// follows the frames alone. Guarded by mutex_.
     UnitRegistration unit_registration_ = UnitRegistration::None;
+    /// configfile's `[box] has_extrude_pos` (cfs::has_chute_extrude_pos), read
+    /// with the unit registration. False until that answer lands. Guarded by
+    /// mutex_.
+    bool has_chute_extrude_pos_ = false;
     /// True once kRegisteredUnitSettle has passed this session without the
     /// frames showing a unit. Guarded by mutex_.
     bool unit_settle_expired_ = false;
@@ -1201,6 +1234,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// registration already known until the query answers. Main thread.
     void begin_unit_settle();
     void apply_unit_registration(UnitRegistration registration);
+    /// Adopt what box.cfg says about the purge chute: the wiper behind it and
+    /// whether it declares an extrude position. Main thread.
+    void apply_chute_config(const std::optional<ChuteWiperLine>& wiper, bool chute);
     void finish_unit_settle();
     /// Re-runs the empty-bus verdict outside a frame and announces a change.
     /// Main thread; takes mutex_.
@@ -1393,6 +1429,18 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     // The verdict behind a phase-verification ERROR, so a later sensor edge can
     // tell whether it resolves that fault. Ok when no such fault is raised.
     PhaseVerdict phase_fault_ = PhaseVerdict::Ok;
+    // The box reported its spool used up when phase_fault_ was raised, which
+    // picks the fault's wording (phase_verdict_message()).
+    bool phase_fault_spool_used_up_ = false;
+    // The fault's text as raised, so a language switch re-words only that text
+    // (refresh_translated_texts()).
+    std::string phase_fault_detail_;
+    /// A phase-verification ERROR is CFS's own judgement, so it may be cleared.
+    [[nodiscard]] bool fault_is_own_locked() const override {
+        return phase_fault_ != PhaseVerdict::Ok;
+    }
+    /// clear_fault() retired the ERROR, so the verdict behind it goes too.
+    void on_fault_cleared_locked() override;
     /// Drop a phase-verification fault the toolhead switch shows is fixed.
     /// **Caller must hold mutex_.**
     void retire_resolved_phase_fault_locked(bool filament_detected);
@@ -1432,6 +1480,8 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     // not). Takes mutex_ itself. Named rather than inline so tests drive the
     // real completion path instead of a copy of it.
     void finish_action();
+    // finish_action()'s verify-then-settle step, run with mutex_ held.
+    void settle_finished_action_locked();
 
     // Drive phase machine on signal changes. Caller must hold mutex_.
     void on_filament_transition_locked(bool new_detected);

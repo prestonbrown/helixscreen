@@ -9,7 +9,6 @@
 #if HELIX_HAS_TIMELAPSE_VIEWER
 
 #include "ui_callback_helpers.h"
-#include "ui_format_utils.h"
 #include "ui_gradient_canvas.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
@@ -18,6 +17,7 @@
 #include "app_globals.h"
 #include "core/run_capture.h"
 #include "core/static_panel_registry.h"
+#include "display_format.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
@@ -75,7 +75,7 @@ void init_global_timelapse_videos(helix::IMoonrakerAPI* api) {
 /// True when the overlay was pushed.
 static bool show_timelapse_videos() {
     spdlog::debug("[Timelapse Videos] Opening timelapse videos overlay");
-    return get_global_timelapse_videos().show(lv_display_get_screen_active(nullptr));
+    return get_global_timelapse_videos().show(lv_screen_active());
 }
 
 void open_timelapse_videos() {
@@ -105,6 +105,17 @@ bool helix::ui::timelapse_viewer_available() {
 // ============================================================================
 
 TimelapseVideosOverlay::TimelapseVideosOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+
+TimelapseVideosOverlay::~TimelapseVideosOverlay() {
+    subjects_.deinit_all();
+}
+
+void TimelapseVideosOverlay::init_subjects() {
+    init_subjects_guarded([this]() {
+        UI_MANAGED_SUBJECT_INT(videos_empty_subject_, 0, "timelapse_videos_empty", subjects_);
+        UI_MANAGED_SUBJECT_INT(can_play_subject_, 0, "timelapse_videos_can_play", subjects_);
+    });
+}
 
 // ============================================================================
 // LIFECYCLE
@@ -136,7 +147,8 @@ lv_obj_t* TimelapseVideosOverlay::create(lv_obj_t* parent) {
 
     video_grid_container_ =
         helix::ui::find_required(overlay_root_, "video_grid_container", get_name());
-    video_grid_empty_ = helix::ui::find_required(overlay_root_, "video_grid_empty", get_name());
+    // The grid shows, empty, until this open's listing says otherwise.
+    lv_subject_set_int(&videos_empty_subject_, 0);
 
     return overlay_root_;
 }
@@ -250,34 +262,33 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
     // Force layout so dimensions are computed
     lv_obj_update_layout(overlay_root_);
 
-    lv_coord_t overlay_height = lv_obj_get_height(overlay_root_);
+    int32_t overlay_height = lv_obj_get_height(overlay_root_);
 
     // Get header height (first child of overlay_root, from overlay_panel)
     lv_obj_t* header = lv_obj_get_child(overlay_root_, 0);
-    lv_coord_t header_height = header ? lv_obj_get_height(header) : 56;
+    int32_t header_height = header ? lv_obj_get_height(header) : 56;
 
     lv_obj_t* content = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
-    lv_coord_t content_pad_top = content ? lv_obj_get_style_pad_top(content, LV_PART_MAIN) : 0;
-    lv_coord_t content_pad_bottom =
-        content ? lv_obj_get_style_pad_bottom(content, LV_PART_MAIN) : 0;
+    int32_t content_pad_top = content ? lv_obj_get_style_pad_top(content, LV_PART_MAIN) : 0;
+    int32_t content_pad_bottom = content ? lv_obj_get_style_pad_bottom(content, LV_PART_MAIN) : 0;
 
     // Check if render section is visible and get its height
     lv_obj_t* render_section =
         helix::ui::find_required(overlay_root_, "render_section", get_name());
-    lv_coord_t render_height = 0;
-    if (render_section && !lv_obj_has_flag(render_section, LV_OBJ_FLAG_HIDDEN)) {
+    int32_t render_height = 0;
+    if (render_section && !lv_obj_is_hidden(render_section)) {
         render_height = lv_obj_get_height(render_section);
     }
 
     // Grid container top padding
-    lv_coord_t grid_pad_top = lv_obj_get_style_pad_top(video_grid_container_, LV_PART_MAIN);
+    int32_t grid_pad_top = lv_obj_get_style_pad_top(video_grid_container_, LV_PART_MAIN);
 
     // Content row gap (between render section and grid)
-    lv_coord_t content_gap = content ? lv_obj_get_style_pad_row(content, LV_PART_MAIN) : 0;
+    int32_t content_gap = content ? lv_obj_get_style_pad_row(content, LV_PART_MAIN) : 0;
 
     // Available height for video grid
-    lv_coord_t available_height = overlay_height - header_height - content_pad_top -
-                                  content_pad_bottom - render_height - grid_pad_top - content_gap;
+    int32_t available_height = overlay_height - header_height - content_pad_top -
+                               content_pad_bottom - render_height - grid_pad_top - content_gap;
 
     // Card gap from grid container
     int card_gap = lv_obj_get_style_pad_row(video_grid_container_, LV_PART_MAIN);
@@ -315,9 +326,9 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         entry.filename = file.filename;
         entry.size = file.size;
         entry.modified = file.modified;
-        entry.file_info = helix::ui::format_file_size(static_cast<size_t>(file.size)) +
-                          " \xC2\xB7 " +
-                          helix::ui::format_short_date(static_cast<time_t>(file.modified));
+        entry.file_info =
+            helix::display_format::format_file_size(static_cast<size_t>(file.size)) + " \xC2\xB7 " +
+            helix::display_format::format_short_date(static_cast<time_t>(file.modified));
         videos_.push_back(std::move(entry));
     }
 
@@ -327,26 +338,8 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
 
     spdlog::info("[{}] Found {} timelapse videos", get_name(), videos_.size());
 
-    if (videos_.empty()) {
-        // Show empty state, hide grid
-        if (video_grid_container_) {
-            lv_obj_add_flag(video_grid_container_, LV_OBJ_FLAG_HIDDEN);
-        }
-        if (video_grid_empty_) {
-            lv_obj_remove_flag(video_grid_empty_, LV_OBJ_FLAG_HIDDEN);
-        }
-        return;
-    }
-
-    // Show grid, hide empty state
-    if (video_grid_container_) {
-        lv_obj_remove_flag(video_grid_container_, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (video_grid_empty_) {
-        lv_obj_add_flag(video_grid_empty_, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (!video_grid_container_)
+    lv_subject_set_int(&videos_empty_subject_, videos_.empty() ? 1 : 0);
+    if (videos_.empty() || !video_grid_container_)
         return;
 
     // Calculate responsive card dimensions to fit 2 rows on screen
@@ -398,16 +391,6 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         lv_obj_add_event_cb(card, on_card_clicked, LV_EVENT_CLICKED, this);
         lv_obj_add_event_cb(card, on_card_long_pressed, LV_EVENT_LONG_PRESSED, this);
 
-        // Show/hide play overlay based on playback capability
-        lv_obj_t* play_overlay = helix::ui::find_required(card, "play_overlay", get_name());
-        if (play_overlay) {
-            if (can_play_) {
-                lv_obj_remove_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-
         // Load thumbnail (companion image) or show placeholder
         load_thumbnail_for_card(card, video.filename, available_files);
     }
@@ -418,19 +401,18 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
     lv_obj_t* thumbnail = helix::ui::find_required(card, "thumbnail", get_name());
     lv_obj_t* no_thumb_icon = helix::ui::find_required(card, "no_thumbnail_icon", get_name());
 
-    // Use the companion filename (e.g., "video.thumb.jpg") as the Moonraker path
-    // within the "timelapse" root for ThumbnailCache
-    auto companion = helix::timelapse::companion_filename(filename);
-
-    // Check if companion thumbnail file exists in the timelapse directory listing
-    if (available_files.find(companion) == available_files.end()) {
-        // No companion thumbnail available -- show placeholder
-        spdlog::debug("[{}] No companion thumbnail '{}' for '{}'", get_name(), companion, filename);
+    // The preview beside the video in the "timelapse" root, as Moonraker lists it.
+    const std::string companion =
+        helix::timelapse::find_companion_thumbnail(filename, available_files);
+    if (companion.empty()) {
+        spdlog::debug("[{}] No companion thumbnail for '{}'", get_name(), filename);
         if (no_thumb_icon) {
-            lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
+            lv_obj_set_hidden(no_thumb_icon, false);
         }
         if (thumbnail) {
-            lv_obj_add_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
+            lv_obj_set_hidden(thumbnail, true);
         }
         return;
     }
@@ -457,10 +439,12 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         spdlog::debug("[{}] Thumbnail cache hit for '{}'", get_name(), filename);
         if (thumbnail) {
             lv_image_set_src(thumbnail, cached.c_str());
-            lv_obj_remove_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
+            lv_obj_set_hidden(thumbnail, false);
         }
         if (no_thumb_icon) {
-            lv_obj_add_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
+            lv_obj_set_hidden(no_thumb_icon, true);
         }
         return;
     }
@@ -468,14 +452,16 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
     // Not cached -- download the companion file, pre-scale, and update
     if (!api_) {
         if (no_thumb_icon) {
-            lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+            // DECLARATIVE_OK: per-card thumbnail state on a generated collection
+            lv_obj_set_hidden(no_thumb_icon, false);
         }
         return;
     }
 
     // Show placeholder while loading
     if (no_thumb_icon) {
-        lv_obj_remove_flag(no_thumb_icon, LV_OBJ_FLAG_HIDDEN);
+        // DECLARATIVE_OK: per-card thumbnail state on a generated collection
+        lv_obj_set_hidden(no_thumb_icon, false);
     }
 
     std::string filename_copy = filename;
@@ -548,10 +534,12 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
                                     child, "no_thumbnail_icon", get_name());
                                 if (thumb) {
                                     lv_image_set_src(thumb, lvbin_path.c_str());
-                                    lv_obj_remove_flag(thumb, LV_OBJ_FLAG_HIDDEN);
+                                    // DECLARATIVE_OK: per-card thumbnail state
+                                    lv_obj_set_hidden(thumb, false);
                                 }
                                 if (icon) {
-                                    lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+                                    // DECLARATIVE_OK: per-card thumbnail state
+                                    lv_obj_set_hidden(icon, true);
                                 }
                                 spdlog::debug("[Timelapse Videos] Thumbnail loaded for '{}'",
                                               filename_copy);
@@ -607,6 +595,7 @@ void TimelapseVideosOverlay::detect_playback_capability() {
 
     can_play_ = cached_can_play;
     player_command_ = cached_player;
+    lv_subject_set_int(&can_play_subject_, can_play_ ? 1 : 0);
 
     // Remote vs same-host playback path follows the live connection verdict
     // (moonraker_is_remote subject) — replaces the hand-rolled websocket-URL

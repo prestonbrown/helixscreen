@@ -15,6 +15,7 @@
 #include "screensaver_highfly.h"
 #include "screensaver_hyperspace.h"
 #include "screensaver_maze.h"
+#include "screensaver_nixie_clock.h"
 #include "screensaver_pipes.h"
 #include "screensaver_starfield.h"
 #include "theme_manager.h"
@@ -46,6 +47,7 @@ using helix::ui::HighFlyScreensaver;
 using helix::ui::HyperspaceScreensaver;
 using helix::ui::MazeArtSources;
 using helix::ui::MazeScreensaver;
+using helix::ui::NixieClockScreensaver;
 
 namespace {
 
@@ -183,6 +185,16 @@ struct ClockSaverScope {
 uint64_t flip_clock_run(uint32_t start_offset_s, bool printing) {
     ClockSaverScope app;
     FlipClockScreensaver ss;
+    uint32_t elapsed_ms = start_offset_s * 1000;
+    ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
+    return saver_run(ss, 1, 120, 20, kSteadyMs, &elapsed_ms);
+}
+
+/// Like the flip clock, a start time stands in for a seed; the 25 s offset fades a numeral in
+/// five seconds into the run.
+uint64_t nixie_clock_run(uint32_t start_offset_s, bool printing) {
+    ClockSaverScope app;
+    NixieClockScreensaver ss;
     uint32_t elapsed_ms = start_offset_s * 1000;
     ss.set_input_source([&elapsed_ms, printing] { return clock_input_at(elapsed_ms, printing); });
     return saver_run(ss, 1, 120, 20, kSteadyMs, &elapsed_ms);
@@ -356,6 +368,15 @@ TEST_CASE_METHOD(LVGLTestFixture,
         const uint64_t print = flip_clock_run(25, true);
         check_replay("flip_clock", run, [] { return flip_clock_run(25, false); });
         check_replay("flip_clock_print", print, [] { return flip_clock_run(25, true); });
+        CHECK(run != other);
+        CHECK(run != print);
+    }
+    SECTION("nixie clock") {
+        const uint64_t other = nixie_clock_run(85, false);
+        const uint64_t run = nixie_clock_run(25, false);
+        const uint64_t print = nixie_clock_run(25, true);
+        check_replay("nixie_clock", run, [] { return nixie_clock_run(25, false); });
+        check_replay("nixie_clock_print", print, [] { return nixie_clock_run(25, true); });
         CHECK(run != other);
         CHECK(run != print);
     }

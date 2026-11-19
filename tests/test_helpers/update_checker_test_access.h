@@ -26,9 +26,11 @@ class UpdateCheckerTestAccess {
     /// must never reach the download thread, and a bogus host makes it obvious
     /// if something does. Pass @p download_url only when the test genuinely
     /// wants the worker to run (the download-worker lifetime tests point it at
-    /// a local socket that never answers).
+    /// a local socket that never answers). @p signed_release false seeds a
+    /// release as the GitHub fallback finds it: no signature, no hash.
     static void seed_available_update(UpdateChecker& c, const std::string& version = "9.9.9",
-                                      const std::string& download_url = "") {
+                                      const std::string& download_url = "",
+                                      bool signed_release = true) {
         std::lock_guard<std::mutex> lock(c.mutex_);
         UpdateChecker::ReleaseInfo info;
         info.version = version;
@@ -36,14 +38,13 @@ class UpdateCheckerTestAccess {
         info.download_url =
             download_url.empty() ? "https://invalid.test/helixscreen-pi.zip" : download_url;
         info.download_bytes = 1024;
+        // As a signed manifest delivers it: start_download() refuses anything else.
+        if (signed_release) {
+            info.sha256 = std::string(64, '0');
+            info.signature_verified = true;
+        }
         c.cached_info_ = std::move(info);
         c.status_ = UpdateChecker::Status::UpdateAvailable;
-    }
-
-    /// Undo seed_available_update(). The checker is a process singleton, so a
-    /// seeded release outlives the test that made it unless this runs.
-    static void clear(UpdateChecker& c) {
-        c.clear_cache();
     }
 
     /// sync_moonraker_channel() against @p install_root: the test link has no

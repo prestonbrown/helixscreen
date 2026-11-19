@@ -33,6 +33,7 @@
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 
 #include <algorithm>
@@ -647,7 +648,7 @@ TEST_CASE("AD5X IFS set_tool_mapping emits IFS_MAP_TOOL", "[ams][ad5x_ifs]") {
     // The wire owns the table: no optimistic local write, so a firmware
     // refusal (a lane with no filament) leaves get_tool_mapping() reporting
     // what the printer actually has until an echo frame lands.
-    REQUIRE(Ad5xIfsTestAccess::tool_map(backend)[2] == 3);
+    REQUIRE(backend.get_tool_mapping()[2] == 2);
 
     // The echo frame is what promotes the new mapping.
     backend.fire_status(make_ifs_frame(json{{"0", 1}, {"1", 2}, {"2", 4}, {"3", 4}}));
@@ -965,25 +966,25 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS slot status mapping", "[ams][ad5x_ifs]"
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS action state tracking", "[ams][ad5x_ifs]") {
     SECTION("LOADING + head sensor triggered → IDLE") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::LOADING);
 
         // Head sensor triggers → load complete
         backend.fire_status(make_head_sensor(true));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("UNLOADING + head sensor cleared → IDLE") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::UNLOADING);
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
 
         backend.fire_status(make_head_sensor(false));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("LOADING + head sensor NOT triggered → stays LOADING") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
         backend.fire_status(make_head_sensor(false));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     }
 }
 
@@ -1122,7 +1123,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", 
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
         backend.fire_status(wrap_notification(make_head_sensor(true)));
 
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("wrapped notification completes unload action") {
@@ -1132,7 +1133,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", 
         Ad5xIfsTestAccess::set_action(backend, AmsAction::UNLOADING);
         backend.fire_status(wrap_notification(make_head_sensor(false)));
 
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("unwrapped format still works (initial query response)") {
@@ -1146,35 +1147,60 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS handles wrapped notify_status_update", 
 // 18. Action timeout safety net
 // ==========================================================================
 
+TEST_CASE("AD5X IFS clear_fault releases the operation lock and sends no stop",
+          "[ams][ad5x_ifs][clear_fault]") {
+    helix::test::StartedBackend<GcodeCapturingBackend> backend;
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+
+    REQUIRE(backend.clear_fault(0).success());
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
+}
+
+TEST_CASE("AD5X IFS reset retires a fault with one release", "[ams][ad5x_ifs][clear_fault]") {
+    helix::test::StartedBackend<GcodeCapturingBackend> backend;
+    Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
+    Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+
+    // The sidebar's Reset skips clear_fault() on this promise.
+    REQUIRE(backend.reset_retires_fault());
+    REQUIRE(backend.reset().success());
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK(backend.captured_gcodes == std::vector<std::string>{"IFS_UNLOCK"});
+}
+
 TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS action timeout resets stuck operations",
                  "[ams][ad5x_ifs]") {
     SECTION("LOADING surfaces ERROR after timeout") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::LOADING);
 
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+        REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     }
 
     SECTION("UNLOADING surfaces ERROR after timeout") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::UNLOADING);
 
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+        REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     }
 
     SECTION("IDLE does not change on timeout check") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::IDLE);
 
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("action does not reset before timeout") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
 
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(30));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     }
 
     SECTION("get_system_info surfaces ERROR after timeout") {
@@ -1196,13 +1222,13 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     SECTION("does not ERROR within the dedicated budget (past the old 90 s window)") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::PURGING);
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(200));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::PURGING);
+        REQUIRE(backend.get_current_action() == AmsAction::PURGING);
     }
 
     SECTION("still ERRORs once the dedicated budget is exceeded") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::PURGING);
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(241));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+        REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     }
 }
 
@@ -1218,7 +1244,7 @@ TEST_CASE("AD5X IFS motion during PURGING resets the timeout clock (#1065 Bug 2)
         Ad5xIfsTestAccess::set_action_age(backend, std::chrono::seconds(300)); // past budget
         backend.fire_status(make_motion_sensor(true));                         // still moving
         Ad5xIfsTestAccess::run_action_timeout(backend);
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::PURGING);
+        REQUIRE(backend.get_current_action() == AmsAction::PURGING);
     }
 
     SECTION("a stalled purge with no motion still ERRORs") {
@@ -1226,7 +1252,7 @@ TEST_CASE("AD5X IFS motion during PURGING resets the timeout clock (#1065 Bug 2)
         Ad5xIfsTestAccess::set_action(backend, AmsAction::PURGING);
         Ad5xIfsTestAccess::set_action_age(backend, std::chrono::seconds(300));
         Ad5xIfsTestAccess::run_action_timeout(backend);
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+        REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     }
 }
 
@@ -1263,7 +1289,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     REQUIRE(Ad5xIfsTestAccess::operation_indeterminate(backend));
     // Still HEATING: this is the busy mitigation, not the coarse ERROR timeout
     // (HEATING's 300s ERROR budget is untouched; only the progress clock aged).
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
     REQUIRE(backend.get_system_info().operation_indeterminate);
 
     SECTION("a temp-VALUE change is progress and clears it") {
@@ -1273,7 +1299,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
 
     SECTION("completing the operation clears it") {
         Ad5xIfsTestAccess::finalize_op_after_macro(backend, /*is_unload=*/false);
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
         // get_system_info() re-runs the detector; with no active op the flag is off.
         CHECK_FALSE(backend.get_system_info().operation_indeterminate);
         CHECK_FALSE(Ad5xIfsTestAccess::operation_indeterminate(backend));
@@ -1388,19 +1414,19 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS motion sensor completes load/unload", "
     SECTION("LOADING + motion sensor detected → IDLE") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
         backend.fire_status(make_motion_sensor(true));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("UNLOADING + motion sensor cleared → IDLE") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::UNLOADING);
         backend.fire_status(make_motion_sensor(false));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("LOADING + motion sensor NOT detected → stays LOADING") {
         Ad5xIfsTestAccess::set_action(backend, AmsAction::LOADING);
         backend.fire_status(make_motion_sensor(false));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     }
 }
 
@@ -1416,7 +1442,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: unload sequence (temp + head sen
     // Begin a phased unload (firmware: HEATING → CUTTING → UNLOADING → IDLE).
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     // Before any temp or target seen — detail names neither. The backend has no
     // signal to name a target with, and asserting one it never observed would be
@@ -1425,23 +1451,23 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: unload sequence (temp + head sen
 
     // First temp frame: still heating, detail gains the live current temp.
     backend.fire_status(make_extruder(185.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
     REQUIRE(Ad5xIfsTestAccess::operation_detail(backend) == "Heating nozzle to 230°C (185°C)");
 
     // Temp reaches target → CUTTING.
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
     REQUIRE(Ad5xIfsTestAccess::operation_detail(backend) == "Cutting filament");
 
     // Head sensor drops (cut + retract started) → UNLOADING.
     backend.fire_status(make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
     REQUIRE(Ad5xIfsTestAccess::operation_detail(backend) == "Retracting filament from nozzle");
 
     // Action timeout backstop surfaces ERROR (firmware did not confirm completion;
     // detail is preserved as the error context for the error-center bridge).
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE_FALSE(Ad5xIfsTestAccess::operation_detail(backend).empty());
     REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
@@ -1452,26 +1478,26 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: load sequence (temp + head senso
     Ad5xIfsTestAccess::set_head_filament(backend, false);
 
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     // Heating not yet complete.
     backend.fire_status(make_extruder(190.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     // Temp reaches target → LOADING (feeding filament toward nozzle).
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     REQUIRE(Ad5xIfsTestAccess::operation_detail(backend) == "Feeding filament to nozzle");
 
     // Head sensor rises (filament reached nozzle) → PURGING.
     backend.fire_status(make_head_sensor(true));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::PURGING);
+    REQUIRE(backend.get_current_action() == AmsAction::PURGING);
     REQUIRE(Ad5xIfsTestAccess::operation_detail(backend) == "Purging old filament");
 
     // Timeout backstop surfaces ERROR; detail preserved for error-center bridge.
     // PURGING has a dedicated 240s budget (#1065 Bug 2), so age past it.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(250));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE_FALSE(Ad5xIfsTestAccess::operation_detail(backend).empty());
 }
 
@@ -1516,7 +1542,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: RESPOND line sets target before 
 
     // A temp frame whose target is 240 reaches target → CUTTING.
     backend.fire_status(make_extruder(240.0, 240.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 }
 
 TEST_CASE("AD5X IFS phase: RESPOND direction disambiguation", "[ams][ad5x_ifs][phase]") {
@@ -1528,7 +1554,7 @@ TEST_CASE("AD5X IFS phase: RESPOND direction disambiguation", "[ams][ad5x_ifs][p
         Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Unloading filament from IFS");
         // Reaching target on an unload op → CUTTING (not LOADING).
         backend.fire_status(make_extruder(230.0, 230.0));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+        REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
     }
 
     SECTION("\"Loading filament\" marks a load op") {
@@ -1539,7 +1565,7 @@ TEST_CASE("AD5X IFS phase: RESPOND direction disambiguation", "[ams][ad5x_ifs][p
         Ad5xIfsTestAccess::on_gcode_response_line(backend, "// Loading filament into IFS");
         // Reaching target on a load op → LOADING (not CUTTING).
         backend.fire_status(make_extruder(230.0, 230.0));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+        REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     }
 }
 
@@ -1551,16 +1577,16 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     Ad5xIfsTestAccess::set_head_filament(backend, true);
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
 
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     backend.fire_status(make_extruder(100.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     backend.fire_status(make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
 }
 
 TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: HEATING does not finalize before target at 90s",
@@ -1574,22 +1600,22 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: HEATING does not finalize before
 
     // Still heating (120°C of 230°C target).
     backend.fire_status(make_extruder(120.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     // 120s elapsed: under the 300s HEATING budget → must NOT finalize.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
 
     // Reach target → CUTTING. The transition resets the start clock, so a fresh
     // op clock now governs the 90s budget for this phase.
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     // 120s elapsed against the freshly-reset clock, with the 90s non-heating
     // budget → now surfaces ERROR (operation timed out).
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
@@ -1603,11 +1629,11 @@ TEST_CASE_METHOD(WiredAd5xIfs,
 
     backend.fire_status(make_extruder(150.0, 230.0));
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     // Immediately after the transition, a short elapsed must NOT finalize.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(30));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 }
 
 // ==========================================================================
@@ -1648,12 +1674,12 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     // a no-op and on_head_transition_locked would never run.
     Ad5xIfsTestAccess::set_head_filament(backend, true);
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     // Heat to target → LOADING begins. apply_phase_action_locked reset
     // action_start_time_ on the transition.
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
 
     // Simulate 100s of LOADING-phase time passing — past the 90s default
     // budget, so without a reset the next check_action_timeout fires ERROR.
@@ -1670,7 +1696,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     // Run check_action_timeout WITHOUT set_action_age's overwrite — uses
     // whatever action_start_time_ the head drop left behind: ~0s, so no timeout.
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
@@ -1690,7 +1716,7 @@ TEST_CASE_METHOD(
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
 
     // Stall the progress feed past the indeterminate threshold (~8s).
     Ad5xIfsTestAccess::set_progress_age(backend, std::chrono::seconds(15));
@@ -1715,10 +1741,10 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     backend.fire_status(make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
 }
 
 TEST_CASE_METHOD(
@@ -1734,12 +1760,12 @@ TEST_CASE_METHOD(
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/false);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
 
     // 100s elapsed > 90s LOADING budget → must surface ERROR. The swap
     // extension must NOT apply here.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(100));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
@@ -1765,19 +1791,19 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     Ad5xIfsTestAccess::set_swap_expected(backend, true);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
 
     // 100s elapsed > 90s default LOADING budget. With swap_expected the
     // extended budget applies → must NOT surface ERROR yet.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(100));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
 
     // Past the extended budget → ERROR fires (the extension is finite, not
     // unlimited — a genuinely stuck swap still surfaces). kSwapLoadingTimeoutSeconds
     // is 180; check at 190 to exceed it.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(190));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
@@ -1822,17 +1848,17 @@ TEST_CASE("AD5X IFS phase: GET_ZCOLOR quick-finishes an op only after its head t
             Ad5xIfsTestAccess::set_head_filament(backend, r.unload);
             Ad5xIfsTestAccess::begin_phase(backend, r.unload);
             backend.fire_status(make_extruder(230.0, 230.0));
-            REQUIRE(Ad5xIfsTestAccess::action(backend) ==
+            REQUIRE(backend.get_current_action() ==
                     (r.unload ? AmsAction::CUTTING : AmsAction::LOADING));
             if (r.head_transition) {
                 backend.fire_status(make_head_sensor(!r.unload));
-                REQUIRE(Ad5xIfsTestAccess::action(backend) ==
+                REQUIRE(backend.get_current_action() ==
                         (r.unload ? AmsAction::UNLOADING : AmsAction::PURGING));
             }
 
             Ad5xIfsTestAccess::apply_zcolor_result(backend, make_zcolor(r.extruder_slot, r.valid));
 
-            CHECK(Ad5xIfsTestAccess::action(backend) == r.expected);
+            CHECK(backend.get_current_action() == r.expected);
             const bool finished = r.expected == AmsAction::IDLE;
             CHECK(Ad5xIfsTestAccess::phase_active(backend) == !finished);
             if (finished) {
@@ -1852,7 +1878,7 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: inactive tracker preserves legac
 
     Ad5xIfsTestAccess::set_action(backend, AmsAction::UNLOADING);
     backend.fire_status(make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
 }
 
 // ==========================================================================
@@ -2240,7 +2266,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     AmsBackendAd5xIfs::ZColorSilentResult r;
     r.saw_valid_response = true;
     r.ifs_chan = 0;
-    r.ifs_ports = std::array<bool, 4>{false, false, false, false};
+    r.ifs_ports = std::vector<bool>{false, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
     REQUIRE(Ad5xIfsTestAccess::ifs_status_ports_seen(backend));
@@ -2520,7 +2546,7 @@ TEST_CASE_METHOD(
         r.saw_valid_response = true;
         r.ifs_active = true;
         r.ifs_chan = 0; // real IFS_STATUS frames carry Chan alongside Ports
-        r.ifs_ports = std::array<bool, 4>{true, true, true, true};
+        r.ifs_ports = std::vector<bool>{true, true, true, true};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
     }
     REQUIRE_FALSE(Ad5xIfsTestAccess::port_presence(backend, 0));
@@ -2533,7 +2559,7 @@ TEST_CASE_METHOD(
         r.saw_valid_response = true;
         r.ifs_active = true;
         r.ifs_chan = 0;
-        r.ifs_ports = std::array<bool, 4>{true, true, true, true};
+        r.ifs_ports = std::vector<bool>{true, true, true, true};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
     }
     REQUIRE(Ad5xIfsTestAccess::port_presence(backend, 0));
@@ -2557,8 +2583,8 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
         AmsBackendAd5xIfs::ZColorSilentResult r;
         r.saw_valid_response = true;
         r.ifs_active = true;
-        r.ifs_chan = 3;                                             // real seated lane = 3
-        r.ifs_ports = std::array<bool, 4>{true, true, true, false}; // lane 4 empty
+        r.ifs_chan = 3;                                           // real seated lane = 3
+        r.ifs_ports = std::vector<bool>{true, true, true, false}; // lane 4 empty
         r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "111111"};
         r.slots[1] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "222222"};
         r.slots[2] = AmsBackendAd5xIfs::ZColorSlot{"PETG", "333333"};
@@ -2567,8 +2593,8 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 
     // Seated follows the present lane (Chan=3), NOT the stale FFMInfo.channel=4.
     REQUIRE(Ad5xIfsTestAccess::seated_chan(backend) == 3);
-    REQUIRE(Ad5xIfsTestAccess::current_slot(backend) == 2); // lane 3 == slot index 2
-    REQUIRE_FALSE(backend.get_slot_info(3).is_present());   // lane 4 does not flash loaded
+    REQUIRE(backend.get_current_slot() == 2);             // lane 3 == slot index 2
+    REQUIRE_FALSE(backend.get_slot_info(3).is_present()); // lane 4 does not flash loaded
     REQUIRE(backend.get_slot_info(3).status == SlotStatus::EMPTY);
     REQUIRE(backend.get_slot_info(2).is_present());
 }
@@ -2754,7 +2780,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     // slot_index >= 0 guard: current_slot is 0 here, so -1 must NOT match it via
     // the active-slot short-circuit — and the base LOADED check rejects it too.
     REQUIRE_FALSE(backend.can_unload_from_toolhead(-1));
-    REQUIRE_FALSE(backend.can_unload_from_toolhead(AmsBackendAd5xIfs::kNumPorts));
+    REQUIRE_FALSE(backend.can_unload_from_toolhead(AmsBackendAd5xIfs::kDefaultPorts));
 }
 
 TEST_CASE_METHOD(WiredAd5xIfs,
@@ -2936,7 +2962,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     // Baseline: ch2 (slot 1) is seated -> Unload; ch1 (slot 0) is cold -> Eject.
@@ -2949,7 +2975,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     after_eject.saw_valid_response = true;
     after_eject.ifs_active = true;
     after_eject.ifs_chan = 1; // stale: engaged-but-now-empty lane
-    after_eject.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, true, true, true};
+    after_eject.ifs_ports = std::vector<bool>{false, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, after_eject);
 
     // Channel 2 is still the seated lane -> must still route to the heated
@@ -2994,7 +3020,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     // Baseline: ch2 (slot 1) seated -> Unload; ch3 (slot 2) cold -> Eject.
@@ -3008,8 +3034,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     dialog_select.saw_valid_response = true;
     dialog_select.ifs_active = true;
     dialog_select.ifs_chan = 3; // dialog-tracked, NOT a physical seating
-    dialog_select.ifs_ports =
-        std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    dialog_select.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, dialog_select);
 
     // Seated lane must still be channel 2. Lane 2 offers Unload; lane 3 stays cold.
@@ -3041,7 +3066,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(backend.get_system_info().current_slot == 1);
 
@@ -3053,7 +3078,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     moved.saw_valid_response = true;
     moved.ifs_active = true;
     moved.ifs_chan = 3; // stale dialog value, must be ignored
-    moved.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    moved.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, moved);
 
     // Seated followed FFMInfo.channel to channel 1 (slot 0).
@@ -3132,7 +3157,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     after_eject.saw_valid_response = true;
     after_eject.ifs_active = true;
     after_eject.ifs_chan = 3;
-    after_eject.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, false, true};
+    after_eject.ifs_ports = std::vector<bool>{true, true, false, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, after_eject);
 
     // No lane is seated: the empty head switch rejects the stale channel.
@@ -3191,7 +3216,7 @@ TEST_CASE_METHOD(
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(backend.get_system_info().current_slot == 1);
 
@@ -3230,7 +3255,7 @@ TEST_CASE_METHOD(
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 3;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     // Adopted as before (no switch authority to gate on).
@@ -3257,7 +3282,7 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 2;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    loaded.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(Ad5xIfsTestAccess::seated_chan(backend) == 2);
     REQUIRE(Ad5xIfsTestAccess::ffm_channel(backend) == 2);
@@ -3306,7 +3331,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.ifs_active = true;
     loaded.extruder_slot = 0; // "Extruder: 1" -> 0-based slot 0
     loaded.ifs_chan = 1;      // 1-based seated channel
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    loaded.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
 
     CHECK(Ad5xIfsTestAccess::head_filament(backend));
@@ -3326,7 +3351,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     none.ifs_active = true;
     // none.extruder_slot deliberately absent ("None")
     none.ifs_chan = 1;
-    none.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, false, false, false};
+    none.ifs_ports = std::vector<bool>{false, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, none);
 
     CHECK_FALSE(Ad5xIfsTestAccess::head_filament(backend));
@@ -3356,7 +3381,7 @@ TEST_CASE_METHOD(
     loaded.ifs_active = true;
     loaded.extruder_slot = 0;
     loaded.ifs_chan = 1;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    loaded.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
 
@@ -3368,8 +3393,7 @@ TEST_CASE_METHOD(
     none_seated.ifs_active = true;
     // extruder_slot deliberately absent ("None")
     none_seated.ifs_chan = 1;
-    none_seated.ifs_ports =
-        std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    none_seated.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, none_seated);
 
     // Head-loaded MUST be retained — the seated lane is still present.
@@ -3415,7 +3439,7 @@ TEST_CASE("AD5X IFS can_load gate: cold-seated stays loadable, truly-loaded does
         cold.saw_extruder_summary = true; // "Extruder: None"
         cold.ifs_active = true;
         cold.ifs_chan = 1;
-        cold.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+        cold.ifs_ports = std::vector<bool>{true, false, false, false};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, cold);
         REQUIRE_FALSE(Ad5xIfsTestAccess::head_filament(backend));
         // slot_unloads_to_toolhead false -> !toolhead_unload true -> Load enabled.
@@ -3431,8 +3455,7 @@ TEST_CASE("AD5X IFS can_load gate: cold-seated stays loadable, truly-loaded does
         loaded.ifs_active = true;
         loaded.extruder_slot = 0; // "Extruder: 1" -> head loaded
         loaded.ifs_chan = 1;
-        loaded.ifs_ports =
-            std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+        loaded.ifs_ports = std::vector<bool>{true, false, false, false};
         Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
         REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
         CHECK(backend.slot_unloads_to_toolhead(0, /*loaded_hint=*/true));
@@ -3463,7 +3486,7 @@ TEST_CASE_METHOD(
     loaded.ifs_active = true;
     loaded.extruder_slot = 0;
     loaded.ifs_chan = 1;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    loaded.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     REQUIRE(Ad5xIfsTestAccess::head_filament(backend));
 
@@ -3474,8 +3497,7 @@ TEST_CASE_METHOD(
     status_only.saw_silent_content = false;
     status_only.saw_extruder_summary = false; // no "// Extruder:" line this frame
     status_only.ifs_chan = 1;
-    status_only.ifs_ports =
-        std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    status_only.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, status_only);
 
     CHECK(Ad5xIfsTestAccess::head_filament(backend));
@@ -3533,7 +3555,7 @@ TEST_CASE_METHOD(
     cold.ifs_active = true;
     // extruder_slot absent: head empty
     cold.ifs_chan = 1;
-    cold.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    cold.ifs_ports = std::vector<bool>{true, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, cold);
 
     // Backend truth: filament present in the lane, head empty.
@@ -3569,7 +3591,7 @@ TEST_CASE_METHOD(
     boot.saw_valid_response = true;
     boot.ifs_active = true;
     boot.ifs_chan = 0; // firmware forgot the seated channel
-    boot.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, true, true};
+    boot.ifs_ports = std::vector<bool>{true, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, boot);
 
     // Channel 2 (slot 1) is restored as seated -> Unload on it, Eject on cold lanes.
@@ -3596,7 +3618,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     boot.ifs_active = true;
     boot.ifs_chan = 0;
     // Channel 2 (index 1) is now empty -> the remembered lane can't be seated.
-    boot.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, true, true};
+    boot.ifs_ports = std::vector<bool>{true, false, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, boot);
 
     // No false claim: the seated slot stays unknown.
@@ -3616,7 +3638,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     loaded.saw_valid_response = true;
     loaded.ifs_active = true;
     loaded.ifs_chan = 3;
-    loaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, false, true, false};
+    loaded.ifs_ports = std::vector<bool>{false, false, true, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, loaded);
     CHECK(Ad5xIfsTestAccess::persisted_seated_slot(backend) == std::optional<int>(2));
 
@@ -3626,7 +3648,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     unloaded.saw_valid_response = true;
     unloaded.ifs_active = true;
     unloaded.ifs_chan = 0;
-    unloaded.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, false, false, false};
+    unloaded.ifs_ports = std::vector<bool>{false, false, false, false};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, unloaded);
     CHECK_FALSE(Ad5xIfsTestAccess::persisted_seated_slot(backend).has_value());
 }
@@ -3686,7 +3708,7 @@ TEST_CASE_METHOD(
     r.saw_valid_response = true;
     r.ifs_active = true;
     r.ifs_chan = 1; // 1-based seated channel -> slot 0
-    r.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, true, false, true};
+    r.ifs_ports = std::vector<bool>{true, true, false, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
     // The seated channel — not the empty tool_map_ — resolves the loaded slot.
@@ -3730,7 +3752,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     prompt.is_prompt_fallback = true;
     prompt.saw_valid_response = true;
     prompt.ifs_chan = 2;
-    prompt.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, true, true, true};
+    prompt.ifs_ports = std::vector<bool>{false, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, prompt);
 
     // NOT demoted — the prompt was external (user menu), not our query degrading.
@@ -3747,17 +3769,17 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     backend.fire_status(make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
 
     AmsBackendAd5xIfs::ZColorSilentResult r;
     r.saw_valid_response = true;
     r.ifs_chan = 0; // nothing seated -> unload complete
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     REQUIRE_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
@@ -3771,13 +3793,13 @@ TEST_CASE_METHOD(WiredAd5xIfs,
     // reached_target_once and advance the phase past HEATING.
     Ad5xIfsTestAccess::set_head_filament(backend, true);
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
 
     // No temp ever reaches target. Head sensor drops (cut underway).
     backend.fire_status(make_head_sensor(false));
 
     // Must have advanced past HEATING despite never seeing a heat event.
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
 }
 
 TEST_CASE_METHOD(RegisteredAd5xIfs,
@@ -5388,7 +5410,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs, "AD5X IFS clear_slot_override rejects out-of
     REQUIRE(backend.get_slot_info(0).brand == "Polymaker");
 
     backend.clear_slot_override(-1);
-    backend.clear_slot_override(AmsBackendAd5xIfs::kNumPorts);
+    backend.clear_slot_override(AmsBackendAd5xIfs::kDefaultPorts);
     backend.clear_slot_override(999);
 
     // The rejected indices must not have been folded/clamped onto a real slot.
@@ -6038,7 +6060,7 @@ TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS eject_lane rejects out-of-range slots
     }
 
     SECTION("slot == NUM_PORTS (out of range)") {
-        AmsError err = backend.eject_lane(AmsBackendAd5xIfs::kNumPorts);
+        AmsError err = backend.eject_lane(AmsBackendAd5xIfs::kDefaultPorts);
         REQUIRE_FALSE(err.success());
         REQUIRE(backend.captured_gcodes.empty());
     }
@@ -6803,7 +6825,7 @@ TEST_CASE_METHOD(
     r.ifs_active = true;
     r.is_prompt_fallback = true; // GET_ZCOLOR degraded to a prompt this turn
     r.ifs_chan = 2;
-    r.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{false, true, true, true};
+    r.ifs_ports = std::vector<bool>{false, true, true, true};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
     // Ports established presence: ch1 empty, ch2-4 present.
@@ -7298,6 +7320,47 @@ TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS COLOR-menu slot row with the color in
     CHECK(info.color_rgb == 0x21CC3D);
 }
 
+// Z-Mod reports a freshly inserted lane's type as "?", its "nothing assigned"
+// marker. Taken in as a material it reaches lane_data and makes an unlabelled
+// lane look like it holds a spool (prestonbrown/helixscreen#2086).
+TEST_CASE("AD5X IFS GET_ZCOLOR reads Z-Mod's ? type as no material", "[ams][ad5x_ifs][2086]") {
+    std::vector<std::string> lines = {
+        "// Extruder: None (1) | IFS: True",
+        "// 1: PLA/FFFFFF",
+        "// 2: ?/",
+        "// 4: ?",
+    };
+    auto r = helix::ad5x::parse_zcolor_silent(lines);
+    REQUIRE(r.slots[0].has_value());
+    CHECK(r.slots[0]->material == "PLA");
+    REQUIRE(r.slots[1].has_value());
+    CHECK(r.slots[1]->material.empty());
+    REQUIRE(r.slots[3].has_value());
+    CHECK(r.slots[3]->material.empty());
+}
+
+TEST_CASE("AD5X IFS COLOR-menu row with Z-Mod's ? type leaves the lane unlabelled",
+          "[ams][ad5x_ifs][2086]") {
+    TestableAd5xIfsBackend backend;
+    Ad5xIfsTestAccess::set_running(backend, true);
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_port_presence(backend, 3, true);
+    REQUIRE_FALSE(backend.get_slot_info(3).has_filament_info());
+
+    // The root menu's row for a lane just inserted, verbatim from bundle KHACGM8W.
+    Ad5xIfsTestAccess::on_gcode_response_line(
+        backend, "// action:prompt_button 4: ?|RUN_ZCOLOR SLOT=4 HEX= TYPE=?|primary|");
+    // A CHANGE_ZCOLOR carrying the placeholder is no edit either.
+    Ad5xIfsTestAccess::on_gcode_response_line(backend, "CHANGE_ZCOLOR SLOT=4 TYPE=?");
+
+    const SlotInfo info = backend.get_slot_info(3);
+    CHECK(info.material.empty());
+    // has_filament_info() is what the "Same spool?" offer keys on.
+    CHECK_FALSE(info.has_filament_info());
+    CHECK(Ad5xIfsTestAccess::last_firmware_material(backend, 3).value_or("") != "?");
+    CHECK_FALSE(Ad5xIfsTestAccess::get_override(backend, 3).has_value());
+}
+
 namespace {
 // The exact swatch grid zmod renders for "Select color" (bundle 482NB943,
 // 17:34:19.0-19.2 and 17:35:29.6-29.9). Order matters: the bug landed the slot
@@ -7506,7 +7569,7 @@ TEST_CASE_METHOD(RunningAd5xIfs,
     REQUIRE(err.success());
 
     // The busy action is published synchronously, BEFORE any temp/sensor frame.
-    REQUIRE(Ad5xIfsTestAccess::action(backend) != AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() != AmsAction::IDLE);
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
     // And an EVENT_STATE_CHANGED fired on dispatch so the ams_action subject
     // updates immediately — this is the bit that was missing.
@@ -7528,7 +7591,7 @@ TEST_CASE_METHOD(RunningAd5xIfs,
     AmsError err = backend.load_filament(0);
     REQUIRE(err.success());
 
-    REQUIRE(Ad5xIfsTestAccess::action(backend) != AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() != AmsAction::IDLE);
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
     REQUIRE(state_changed_events >= 1);
 }
@@ -7592,22 +7655,22 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: operation_phase advances 0->1->2
 
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
     // HEATING → step 0.
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
+    REQUIRE(backend.get_current_action() == AmsAction::HEATING);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == 0);
 
     // Reach target → CUTTING → step 1.
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == 1);
 
     // Head drop → UNLOADING → step 2.
     backend.fire_status(make_head_sensor(false));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == 2);
 
     // Timeout → ERROR; tracker clears the step (no active step shown).
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == -1);
 }
 
@@ -7619,16 +7682,16 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: operation_phase advances 0->1->2
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == 0);
 
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::LOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::LOADING);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == 1);
 
     backend.fire_status(make_head_sensor(true));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::PURGING);
+    REQUIRE(backend.get_current_action() == AmsAction::PURGING);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == 2);
 
     // PURGING has a dedicated 240s budget (#1065 Bug 2), so age past it.
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(250));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE(Ad5xIfsTestAccess::operation_phase(backend) == -1);
 }
 
@@ -7641,16 +7704,16 @@ TEST_CASE_METHOD(WiredAd5xIfs, "AD5X IFS phase: operation_phase advances 0->1->2
 TEST_CASE_METHOD(WiredAd5xIfs,
                  "AD5X IFS error-center: a timed-out op raises a recoverable CRITICAL event",
                  "[ams][ad5x_ifs][error-center]") {
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     REQUIRE_FALSE(backend.current_error().has_value());
 
     Ad5xIfsTestAccess::set_head_filament(backend, true);
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(120));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
 
     auto ev = backend.current_error();
     REQUIRE(ev.has_value());
@@ -7790,7 +7853,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     r.saw_valid_response = true;
     r.ifs_active = true;
     r.ifs_chan = 1;
-    r.ifs_ports = std::array<bool, AmsBackendAd5xIfs::kNumPorts>{true, false, false, false};
+    r.ifs_ports = std::vector<bool>{true, false, false, false};
     r.slots[0] = AmsBackendAd5xIfs::ZColorSlot{"PLA", "00FF00"};
     Ad5xIfsTestAccess::apply_zcolor_result(backend, r);
 
@@ -7895,20 +7958,24 @@ TEST_CASE("AD5X IFS write_adventurer_json_local writes the firmware's slot encod
 
 // HEATING detail never asserts a target the printer has not reported: no frame
 // at all, the live temperature with the heater off, or the real target once a
-// pre-op extruder frame carries one (begin_phase seeds from it).
+// pre-op extruder frame carries one (begin_phase seeds from it). The line, and
+// its timed-out form, re-word on a language switch with no new frame.
 TEST_CASE("AD5X IFS phase: HEATING detail names only what the printer reported",
-          "[ams][ad5x_ifs][phase]") {
+          "[ams][ad5x_ifs][phase][i18n]") {
     struct Row {
         const char* name;
         bool extruder_frame;
         double temp;
         double target;
         const char* expected;
+        const char* french;
     };
     const Row rows[] = {
-        {"nothing known", false, 0, 0, "Heating nozzle"},
-        {"live temp, heater off", true, 62.0, 0.0, "Heating nozzle (62°C)"},
-        {"a real target", true, 62.0, 220.0, "Heating nozzle to 220°C (62°C)"},
+        {"nothing known", false, 0, 0, "Heating nozzle", "Chauffe de la buse"},
+        {"live temp, heater off", true, 62.0, 0.0, "Heating nozzle (62°C)",
+         "Chauffe de la buse (62°C)"},
+        {"a real target", true, 62.0, 220.0, "Heating nozzle to 220°C (62°C)",
+         "Chauffe de la buse à 220°C (62°C)"},
     };
     for (const Row& r : rows) {
         DYNAMIC_SECTION(r.name) {
@@ -7919,8 +7986,22 @@ TEST_CASE("AD5X IFS phase: HEATING detail names only what the printer reported",
                 backend.fire_status(make_extruder(r.temp, r.target));
             }
             Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
-            REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::HEATING);
-            CHECK(Ad5xIfsTestAccess::operation_detail(backend) == r.expected);
+            REQUIRE(backend.get_current_action() == AmsAction::HEATING);
+            const auto detail = [&] { return backend.get_system_info().operation_detail; };
+            CHECK(detail() == r.expected);
+            {
+                helix::ScopedLanguage fr("fr");
+                backend.refresh_translated_texts();
+                CHECK(detail() == r.french);
+                Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(600));
+            }
+            backend.refresh_translated_texts();
+            CHECK(detail() == std::string(r.expected) + " (timed out)");
+
+            // recover() and reset() retire the composed line: a later re-word leaves it gone.
+            REQUIRE((r.extruder_frame ? backend.reset() : backend.recover()).success());
+            backend.refresh_translated_texts();
+            CHECK(detail().empty());
         }
     }
 }
@@ -8208,7 +8289,7 @@ TEST_CASE("AD5X IFS eject_lane's seated refusal uses the same head predicate as 
 }
 
 TEST_CASE("AD5X IFS eject_lane maps each slot to its 1-based port", "[ams][ad5x_ifs]") {
-    for (int slot = 0; slot < AmsBackendAd5xIfs::kNumPorts; ++slot) {
+    for (int slot = 0; slot < AmsBackendAd5xIfs::kDefaultPorts; ++slot) {
         DYNAMIC_SECTION("slot " << slot) {
             TestableAd5xIfsBackend backend;
             Ad5xIfsTestAccess::set_running(backend, true);
@@ -8525,6 +8606,8 @@ TEST_CASE("AD5X IFS execute_gcode dispatches silent with the AMS timeout ceiling
         REQUIRE(client.last_send_timeout_ms() == 300000u);
         REQUIRE(client.current_send_intent().silent == true);
         REQUIRE(client.current_send_intent().surfaces_errors == false);
+        // The completion is queued; run it while `completed` is still in scope.
+        helix::ui::UpdateQueue::instance().drain();
     }
 }
 
@@ -8696,24 +8779,43 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     // runout. However long it stays empty, nothing is raised.
     Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     REQUIRE_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
 
     // Klipper's runout handling pauses the job. Now it is a runout.
     set_print_state(helix::PrintJobState::PAUSED);
     REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
-    REQUIRE(Ad5xIfsTestAccess::runout_active(backend));
+    REQUIRE(backend.runout_active());
     REQUIRE(Ad5xIfsTestAccess::filament_runout(backend));
     // AmsState reads the flag from the snapshot, not from the backend's fields.
     REQUIRE(backend.get_system_info().filament_runout);
     // ERROR is the only edge AmsErrorBridge watches, so it is the only route to
     // current_error() and the recovery modal.
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
     REQUIRE_FALSE(Ad5xIfsTestAccess::operation_detail(backend).empty());
 
     // Idempotent: re-evaluating must not report a second state change (which
     // would re-emit EVENT_STATE_CHANGED on every status frame).
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
+}
+
+TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS clear_fault retires a raised runout and its latch",
+                 "[ams][ad5x_ifs][runout][clear_fault]") {
+    helix::test::RegisteredWired<AmsBackendAd5xIfs> backend_reg;
+    auto& backend = *backend_reg;
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    set_print_state(helix::PrintJobState::PRINTING);
+    seat_then_drop_head(backend);
+    set_print_state(helix::PrintJobState::PAUSED);
+    REQUIRE(runs_out_after_dwell(backend));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+    REQUIRE(Ad5xIfsTestAccess::filament_runout(backend));
+
+    backend.clear_fault(0);
+
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
+    CHECK_FALSE(backend.runout_active());
+    CHECK_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the confirm dwell is load-bearing",
@@ -8728,10 +8830,10 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: the confirm dwell is load-
 
     // Freshly armed: every other condition holds, but the dwell has not elapsed.
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
 
     REQUIRE(runs_out_after_dwell(backend));
-    REQUIRE(Ad5xIfsTestAccess::runout_active(backend));
+    REQUIRE(backend.runout_active());
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: not raised while the print is not paused",
@@ -8746,8 +8848,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: not raised while the print
         seat_then_drop_head(backend);
         Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
         CHECK_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
-        CHECK_FALSE(Ad5xIfsTestAccess::runout_active(backend));
-        CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        CHECK_FALSE(backend.runout_active());
+        CHECK(backend.get_current_action() == AmsAction::IDLE);
     }
 }
 
@@ -8774,7 +8876,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
 
     REQUIRE_FALSE(Ad5xIfsTestAccess::head_empty_armed(backend));
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture,
@@ -8788,15 +8890,15 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
     backend.fire_status(make_head_sensor(true));
     Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
     backend.fire_status(make_extruder(230.0, 230.0));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::CUTTING);
+    REQUIRE(backend.get_current_action() == AmsAction::CUTTING);
 
     // The cut drops the head sensor. That is progress, not a runout.
     backend.fire_status(make_head_sensor(false));
     REQUIRE_FALSE(Ad5xIfsTestAccess::head_empty_armed(backend));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+    REQUIRE_FALSE(backend.runout_active());
 
     // Existing phase behaviour is untouched: CUTTING -> UNLOADING on the drop.
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::UNLOADING);
+    REQUIRE(backend.get_current_action() == AmsAction::UNLOADING);
     REQUIRE(Ad5xIfsTestAccess::operation_detail(backend) == "Retracting filament from nozzle");
     REQUIRE(Ad5xIfsTestAccess::phase_active(backend));
 }
@@ -8813,7 +8915,7 @@ TEST_CASE_METHOD(Ad5xRunoutOpFixture,
     backend->fire_status(make_head_sensor(true));
     REQUIRE(backend->change_tool(0).success());
     REQUIRE(backend->has_gcode_containing("A_CHANGE_FILAMENT CHANNEL=2"));
-    REQUIRE(Ad5xIfsTestAccess::action(*backend) == AmsAction::LOADING);
+    REQUIRE(backend->get_current_action() == AmsAction::LOADING);
 
     // Mid-swap the head empties, and the job is paused.
     set_print_state(helix::PrintJobState::PAUSED);
@@ -8822,8 +8924,8 @@ TEST_CASE_METHOD(Ad5xRunoutOpFixture,
     // Nothing armed: the action is LOADING, so an operation is in flight.
     REQUIRE_FALSE(Ad5xIfsTestAccess::head_empty_armed(*backend));
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(*backend));
-    REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(*backend));
-    REQUIRE(Ad5xIfsTestAccess::action(*backend) == AmsAction::LOADING);
+    REQUIRE_FALSE(backend->runout_active());
+    REQUIRE(backend->get_current_action() == AmsAction::LOADING);
 
     // Even if the action snaps back to IDLE (the legacy head-rise finalize) the
     // dispatch stamp still attributes the window to the swap.
@@ -8868,7 +8970,7 @@ TEST_CASE_METHOD(Ad5xRunoutOpFixture,
     // Once the window expires, the same state IS a runout.
     Ad5xIfsTestAccess::age_op_dispatch(op_backend, std::chrono::seconds(600));
     REQUIRE(Ad5xIfsTestAccess::evaluate_runout(op_backend));
-    REQUIRE(Ad5xIfsTestAccess::runout_active(op_backend));
+    REQUIRE(op_backend.runout_active());
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume and recover",
@@ -8877,7 +8979,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         set_print_state(helix::PrintJobState::PAUSED);
         seat_then_drop_head(b);
         REQUIRE(runs_out_after_dwell(b));
-        REQUIRE(Ad5xIfsTestAccess::action(b) == AmsAction::ERROR);
+        REQUIRE(b.get_current_action() == AmsAction::ERROR);
     };
 
     SECTION("filament back at the toolhead clears it") {
@@ -8885,9 +8987,9 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         raise(backend);
         backend.fire_status(make_head_sensor(true));
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE_FALSE(backend.runout_active());
         REQUIRE_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("resuming the print clears it (this is what dismisses the modal)") {
@@ -8896,8 +8998,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         raise(backend);
         set_print_state(helix::PrintJobState::PRINTING);
         REQUIRE(Ad5xIfsTestAccess::evaluate_runout(backend));
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE_FALSE(backend.runout_active());
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 
     SECTION("recover() clears it") {
@@ -8905,9 +9007,9 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS runout: clears on refill, resume a
         Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
         raise(backend);
         REQUIRE(backend.recover().success());
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE_FALSE(backend.runout_active());
         REQUIRE_FALSE(Ad5xIfsTestAccess::filament_runout(backend));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+        REQUIRE(backend.get_current_action() == AmsAction::IDLE);
     }
 }
 
@@ -8991,8 +9093,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         Ad5xIfsTestAccess::set_head_filament(backend, true);
         Ad5xIfsTestAccess::begin_phase(backend, /*is_unload=*/true);
         Ad5xIfsTestAccess::check_action_timeout(backend, std::chrono::seconds(600));
-        REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::ERROR);
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(backend));
+        REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+        REQUIRE_FALSE(backend.runout_active());
 
         auto ev = backend.current_error();
         REQUIRE(ev.has_value());
@@ -9018,7 +9120,19 @@ TEST_CASE("AD5X IFS runout actions follow the toolhead switch", "[ams][ad5x_ifs]
         CHECK(actions[1].gcode == "RESUME");
         CHECK(actions[1].style.empty());
     }
-    SECTION("head empty with no safe load: nothing is primary but the danger Recover") {
+    SECTION("Recover reads as danger only where it resets the module's driver") {
+        in.head_has_filament = true;
+        auto recover = [&] {
+            const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
+            REQUIRE_FALSE(actions.empty());
+            REQUIRE(actions.back().log_tag == "ifs::unlock");
+            return actions.back().style;
+        };
+        CHECK(recover().empty());
+        in.unlock_gcode = "IFS_RESET_DRIVER";
+        CHECK(recover() == "danger");
+    }
+    SECTION("head empty with no safe load: nothing is primary, Recover included") {
         in.head_has_filament = false;
         in.load_gcode.clear();
         const auto actions = AmsBackendAd5xIfs::runout_recovery_actions(in);
@@ -9155,8 +9269,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         // A too-short threshold raises here.
         Ad5xIfsTestAccess::age_head_empty(b, dwell - SLACK);
         REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(b));
-        REQUIRE_FALSE(Ad5xIfsTestAccess::runout_active(b));
-        REQUIRE(Ad5xIfsTestAccess::action(b) == AmsAction::IDLE);
+        REQUIRE_FALSE(b.runout_active());
+        REQUIRE(b.get_current_action() == AmsAction::IDLE);
         // The failed probe must leave the candidate armed, or the second probe
         // would be testing nothing.
         REQUIRE(Ad5xIfsTestAccess::head_empty_armed(b));
@@ -9164,8 +9278,8 @@ TEST_CASE_METHOD(Ad5xRunoutFixture,
         // Just past it. A too-long threshold fails to raise here.
         Ad5xIfsTestAccess::age_head_empty(b, dwell + SLACK);
         REQUIRE(Ad5xIfsTestAccess::evaluate_runout(b));
-        REQUIRE(Ad5xIfsTestAccess::runout_active(b));
-        REQUIRE(Ad5xIfsTestAccess::action(b) == AmsAction::ERROR);
+        REQUIRE(b.runout_active());
+        REQUIRE(b.get_current_action() == AmsAction::ERROR);
         return dwell;
     };
 
@@ -9520,7 +9634,7 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
     SECTION("self and out-of-range are never eligible") {
         using helix::printer::BackupEligibility;
         REQUIRE(backend.endless_spool_backup_eligibility(0, 0) == BackupEligibility::Incompatible);
-        REQUIRE(backend.endless_spool_backup_eligibility(0, AmsBackendAd5xIfs::kNumPorts) ==
+        REQUIRE(backend.endless_spool_backup_eligibility(0, AmsBackendAd5xIfs::kDefaultPorts) ==
                 BackupEligibility::Incompatible);
         REQUIRE(backend.endless_spool_backup_eligibility(-1, 0) == BackupEligibility::Incompatible);
     }
@@ -9864,7 +9978,7 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change that never
     REQUIRE(Ad5xIfsTestAccess::head_empty_armed(backend));
     set_print_state(helix::PrintJobState::PAUSED);
     backend.fire_status(zmod_change_frame(1));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    REQUIRE(backend.get_current_action() == AmsAction::SELECTING);
     Ad5xIfsTestAccess::age_head_empty(backend, std::chrono::seconds(600));
     REQUIRE_FALSE(Ad5xIfsTestAccess::evaluate_runout(backend));
     REQUIRE(backend.get_system_info().is_busy());
@@ -9872,25 +9986,25 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change that never
     // Past the swap budget the action goes back to IDLE, not ERROR.
     Ad5xIfsTestAccess::set_action_age(backend, std::chrono::seconds(181));
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     CHECK_FALSE(backend.get_system_info().is_busy());
     CHECK(backend.can_cancel_operation());
 
     // The runout prompt, the AD5X's only runout surface, can raise again.
     CHECK(Ad5xIfsTestAccess::evaluate_runout(backend));
-    CHECK(Ad5xIfsTestAccess::runout_active(backend));
+    CHECK(backend.runout_active());
 
     // The user resumes; the fault clears.
     set_print_state(helix::PrintJobState::PRINTING);
     Ad5xIfsTestAccess::evaluate_runout(backend);
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    REQUIRE(backend.get_current_action() == AmsAction::IDLE);
 
     // The stale channel is ignored until it reads idle; the next change counts.
     backend.fire_status(zmod_change_frame(1));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
     backend.fire_status(zmod_change_frame(99));
     backend.fire_status(zmod_change_frame(2));
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    CHECK(backend.get_current_action() == AmsAction::SELECTING);
 }
 
 TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change when the job ends",
@@ -9900,11 +10014,11 @@ TEST_CASE_METHOD(Ad5xRunoutFixture, "AD5X IFS gives up a Z-Mod change when the j
 
     set_print_state(helix::PrintJobState::PRINTING);
     backend.fire_status(zmod_change_frame(1));
-    REQUIRE(Ad5xIfsTestAccess::action(backend) == AmsAction::SELECTING);
+    REQUIRE(backend.get_current_action() == AmsAction::SELECTING);
 
     set_print_state(helix::PrintJobState::CANCELLED);
     Ad5xIfsTestAccess::run_action_timeout(backend);
-    CHECK(Ad5xIfsTestAccess::action(backend) == AmsAction::IDLE);
+    CHECK(backend.get_current_action() == AmsAction::IDLE);
 }
 
 // ============================================================================

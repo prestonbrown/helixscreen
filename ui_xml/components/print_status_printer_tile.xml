@@ -8,7 +8,8 @@
      ps_callout_mode: 0 ImageOnly, 1 Pinned (compact chips on the picture),
      2 Docked (untagged image, no lines or glows), 3 BothSides, 4 OneSide.
      A glow is strong while its chip's tone is Active (a heater climbing, a fan
-     spinning, the light on) and soft otherwise; ps_glow_<key> 0 hides it. -->
+     spinning, the light on) and soft otherwise; ps_glow_<key> 0 hides it. The bed
+     and chamber glow by how hot they are instead (heat_glow). -->
 <component>
   <view extends="ui_card" style_pad_all="0" style_radius="#border_radius" style_clip_corner="true" scrollable="false">
     <lv_obj name="ps_printer_area"
@@ -19,16 +20,13 @@
               width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
               clickable="false" ignore_layout="true">
         <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="0"/>
-        <!-- PrintStatusTiles paints the heater glows from the heat state. -->
+        <!-- PrintStatusTiles paints the nozzle's glow from the heat state. -->
         <region_glow name="ps_glow_nozzle" tone_subject="ps_chip_nozzle_tone" shown_subject="ps_glow_nozzle"/>
         <!-- ps_glow_bed is the plate's heat level: 0 hidden, 1 warm, 2 hot, 3 very hot. -->
-        <plate_glow name="ps_glow_bed" style_image_recolor="#warning" style_image_recolor_opa="255">
-          <style name="styles.plate_glow_warm"/>
-          <bind_style_if_eq name="styles.plate_glow_hot" subject="ps_glow_bed" ref_value="2"/>
-          <bind_style_if_eq name="styles.plate_glow_very_hot" subject="ps_glow_bed" ref_value="3"/>
-          <bind_flag_if_eq subject="ps_glow_bed" flag="hidden" ref_value="0"/>
-        </plate_glow>
-        <region_glow name="ps_glow_chamber" tone_subject="ps_chip_chamber_tone" shown_subject="ps_glow_chamber"/>
+        <heat_glow name="ps_glow_bed" level_subject="ps_glow_bed" hidden_when="ps_glow_bed eq 0"/>
+        <!-- Likewise the chamber's air: its level, drawn across the enclosure's windows. -->
+        <heat_glow name="ps_glow_chamber"
+                   color="#danger" level_subject="ps_glow_chamber" hidden_when="ps_glow_chamber eq 0"/>
         <region_glow name="ps_glow_part_fan"
                      color="#info" tone_subject="ps_chip_part_fan_tone" shown_subject="ps_glow_part_fan"/>
         <region_glow name="ps_glow_hotend_fan"

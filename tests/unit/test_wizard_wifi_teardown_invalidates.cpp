@@ -68,17 +68,13 @@ class WizardWifiTeardownFixture : public LVGLUITestFixture {
         return step_;
     }
 
-    /// Stands in for the XML dialog: the two widgets the connect handler looks
-    /// up by name, and nothing else.
+    /// Stands in for the XML dialog: the input the connect handler reads.
     lv_obj_t* make_modal() {
         lv_obj_t* modal = lv_obj_create(test_screen());
         REQUIRE(modal != nullptr);
         lv_obj_t* input = lv_textarea_create(modal);
         lv_obj_set_name(input, "password_input");
         lv_textarea_set_text(input, "some-password"); // the handler refuses an empty one
-        lv_obj_t* status = lv_label_create(modal);
-        lv_obj_set_name(status, "modal_status");
-        lv_label_set_text(status, "");
         return modal;
     }
 

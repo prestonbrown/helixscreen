@@ -18,10 +18,12 @@
 
 #include "ams_backend.h"
 #include "ams_bypass_policy.h"
+#include "ams_spool_retention.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "display_numbering.h"
 #include "lvgl.h"
 #include "settings_manager.h"
 #include "sort_small.h"
@@ -78,8 +80,8 @@ void AmsDeviceOperationsOverlay::init_subjects() {
                                subjects_);
 
         // The firmware's own spool-retention setting: whether it owns the
-        // behavior (firmware_owns_spool_retention()) and its value on every
-        // lane (printer_retains_spool_info()). Set in update_from_backend().
+        // behavior (ISpoolRetention::firmware_owns_spool_retention()) and its
+        // value on every lane (printer_retains_spool_info()). Set in update_from_backend().
         UI_MANAGED_SUBJECT_INT(printer_retains_spool_info_subject_, 0,
                                "ams_device_ops_printer_retains_spool_info", subjects_);
         UI_MANAGED_SUBJECT_INT(firmware_owns_spool_retention_subject_, 0,
@@ -183,8 +185,10 @@ void AmsDeviceOperationsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              const bool keep = event_checked(e);
              AmsBackend* backend = AmsState::instance().get_backend();
-             AmsError result = backend ? backend->set_firmware_spool_retention(keep)
-                                       : AmsErrorHelper::not_supported("Keep Spool Info");
+             auto* retention = backend ? backend->as<helix::ISpoolRetention>() : nullptr;
+             AmsError result = retention ? retention->set_firmware_spool_retention(keep)
+                               : backend ? AmsErrorHelper::not_supported("Firmware spool retention")
+                                         : AmsErrorHelper::not_supported("Keep Spool Info");
              auto& overlay = get_ams_device_operations_overlay();
              if (result.success()) {
                  // The firmware reports the value back on its next status
@@ -312,7 +316,7 @@ std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info) {
         if (unit.absent) {
             continue;
         }
-        const std::string name = ams_draw::get_unit_display_name(unit, static_cast<int>(i));
+        const std::string name = helix::ui::unit_display_name(unit, static_cast<int>(i));
         if (!unit.firmware_version.empty()) {
             rows.push_back(
                 {fmt::format(fmt::runtime(lv_tr("{} firmware")), name), unit.firmware_version});
@@ -376,10 +380,10 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&can_home_subject_, 0);
         lv_subject_set_int(&can_recover_subject_, 0);
         details_buf_[0] = '\0';
-        lv_subject_copy_string(&details_subject_, details_buf_);
+        lv_subject_set_string(&details_subject_, details_buf_);
         lv_subject_set_int(&has_details_subject_, 0);
         system_info_buf_[0] = '\0';
-        lv_subject_copy_string(&system_info_subject_, system_info_buf_);
+        lv_subject_set_string(&system_info_subject_, system_info_buf_);
 
         if (section_list_container_) {
             helix::ui::safe_clean_children(section_list_container_); // [L081]
@@ -403,7 +407,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         snprintf(system_info_buf_, sizeof(system_info_buf_), "%s: %s · v%s", lv_tr("System"),
                  info.type_name.c_str(), info.version.c_str());
     }
-    lv_subject_copy_string(&system_info_subject_, system_info_buf_);
+    lv_subject_set_string(&system_info_subject_, system_info_buf_);
 
     std::string details;
     for (const DeviceDetailRow& row : ams_device_detail_rows(info)) {
@@ -413,7 +417,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         details += row.label + ": " + row.value;
     }
     snprintf(details_buf_, sizeof(details_buf_), "%s", details.c_str());
-    lv_subject_copy_string(&details_subject_, details_buf_);
+    lv_subject_set_string(&details_subject_, details_buf_);
     lv_subject_set_int(&has_details_subject_, details.empty() ? 0 : 1);
 
     lv_subject_set_int(&supports_bypass_subject_,
@@ -449,10 +453,11 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
 
     // Firmware with its own per-lane retention setting owns Keep Spool Info:
     // the switch shows and writes that setting instead of HelixScreen's.
+    const auto* retention = backend->as<helix::ISpoolRetention>();
     lv_subject_set_int(&printer_retains_spool_info_subject_,
-                       backend->printer_retains_spool_info() ? 1 : 0);
+                       retention && retention->printer_retains_spool_info() ? 1 : 0);
     lv_subject_set_int(&firmware_owns_spool_retention_subject_,
-                       backend->firmware_owns_spool_retention() ? 1 : 0);
+                       retention && retention->firmware_owns_spool_retention() ? 1 : 0);
 
     // "Reset Endless Spool" lights up for any backend whose endless-spool
     // mapping the UI may write (editable() = available + not ReadOnly): AFC's

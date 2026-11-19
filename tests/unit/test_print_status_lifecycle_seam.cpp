@@ -27,6 +27,7 @@
 #include <memory>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 using json = nlohmann::json;
 using namespace helix;

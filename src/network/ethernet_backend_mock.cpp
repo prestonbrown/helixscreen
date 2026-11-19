@@ -62,30 +62,27 @@ EthernetInfo EthernetBackendMock::get_info() {
     info.status = connected ? "Connected" : "No cable";
 
     spdlog::trace("[EthernetMock] get_info() → {} ({})", info.ip_address, info.status);
+    std::unique_lock<std::mutex> lock(hold_mutex_);
+    if (hold_next_info_) {
+        hold_next_info_ = false;
+        info_held_ = true;
+        hold_cv_.wait(lock, [this] { return !info_held_; });
+    }
     return info;
 }
 
-namespace {
+void EthernetBackendMock::hold_next_info() {
+    std::lock_guard<std::mutex> lock(hold_mutex_);
+    hold_next_info_ = true;
+}
 
-class MockLinkEvents : public helix::ethernet::LinkEvents {
-  public:
-    explicit MockLinkEvents(std::shared_ptr<std::atomic<unsigned>> generation)
-        : generation_(std::move(generation)), seen_(generation_->load()) {}
+void EthernetBackendMock::release_held_info() {
+    std::lock_guard<std::mutex> lock(hold_mutex_);
+    hold_next_info_ = false;
+    info_held_ = false;
+    hold_cv_.notify_all();
+}
 
-    bool poll() override {
-        const unsigned now = generation_->load();
-        const bool changed = now != seen_;
-        seen_ = now;
-        return changed;
-    }
-
-  private:
-    std::shared_ptr<std::atomic<unsigned>> generation_;
-    unsigned seen_;
-};
-
-} // namespace
-
-std::unique_ptr<helix::ethernet::LinkEvents> EthernetBackendMock::open_link_events() {
-    return std::make_unique<MockLinkEvents>(link_generation_);
+std::unique_ptr<helix::net::LinkEvents> EthernetBackendMock::open_link_events() {
+    return std::make_unique<helix::net::CounterLinkEvents>(link_generation_);
 }

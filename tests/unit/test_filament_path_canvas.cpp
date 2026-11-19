@@ -3,6 +3,8 @@
 
 #include "ui_filament_path_canvas.h"
 
+#include "src/ui/filament/ui_filament_path_plan.h"
+
 #include "../catch_amalgamated.hpp"
 
 // ============================================================================
@@ -83,23 +85,6 @@ TEST_CASE("hub_box_hit: argument order is width-then-height", "[canvas][hit_test
 // ============================================================================
 
 namespace {
-// Mirror the buffer-coil rect the renderer records: box centered at
-// (center_x, buffer_y) with draw_buffer_coil()'s clamped dimensions
-// (w = max(hub_width*4/5, 36), h = max(hub_h, 16)), read with margin 4.
-bool buffer_hit(lv_point_t p, int32_t center_x, int32_t buffer_y, int32_t hub_width,
-                int32_t hub_h) {
-    int32_t w = hub_width * 4 / 5;
-    int32_t h = hub_h;
-    if (w < 36)
-        w = 36;
-    if (h < 16)
-        h = 16;
-    lv_area_t r{center_x - w / 2, buffer_y - h / 2, center_x + w / 2, buffer_y + h / 2};
-    int32_t cx = (r.x1 + r.x2) / 2;
-    int32_t cy = (r.y1 + r.y2) / 2;
-    return helix::ui::hub_box_hit(p, cx, cy, r.x2 - r.x1, r.y2 - r.y1, 4);
-}
-
 // Mirror the bypass rect the renderer records: half-extents sensor_r*3 (X) and
 // sensor_r*4 (Y) about (bypass_x, bypass_merge_y), read with margin 0.
 bool bypass_hit(lv_point_t p, int32_t bypass_x, int32_t merge_y, int32_t sensor_r) {
@@ -111,23 +96,18 @@ bool bypass_hit(lv_point_t p, int32_t bypass_x, int32_t merge_y, int32_t sensor_
 }
 } // namespace
 
-TEST_CASE("buffer hit rect: clamps small box to minimum 36x16", "[canvas][hit_test]") {
-    // hub_width=10 -> w=8 -> clamped to 36 (half 18); hub_h=4 -> clamped to 16 (half 8).
-    const int32_t cx = 200, by = 150;
-    REQUIRE(buffer_hit({cx, by}, cx, by, 10, 4));            // center hits
-    REQUIRE(buffer_hit({cx + 18 + 4, by}, cx, by, 10, 4));   // X: 18 half + 4 margin, inclusive
-    REQUIRE_FALSE(buffer_hit({cx + 23, by}, cx, by, 10, 4)); // 23 > 22 misses
-    REQUIRE(buffer_hit({cx, by + 8 + 4}, cx, by, 10, 4));    // Y: 8 half + 4 margin, inclusive
-    REQUIRE_FALSE(buffer_hit({cx, by + 13}, cx, by, 10, 4)); // 13 > 12 misses
-}
-
-TEST_CASE("buffer hit rect: large box uses unclamped dimensions", "[canvas][hit_test]") {
-    // hub_width=100 -> w=80 (half 40); hub_h=30 (half 15).
-    const int32_t cx = 200, by = 150;
-    REQUIRE(buffer_hit({cx + 44, by}, cx, by, 100, 30));       // 40 half + 4 margin, inclusive
-    REQUIRE_FALSE(buffer_hit({cx + 45, by}, cx, by, 100, 30)); // 45 > 44 misses
-    REQUIRE(buffer_hit({cx, by + 19}, cx, by, 100, 30));       // 15 half + 4 margin, inclusive
-    REQUIRE_FALSE(buffer_hit({cx, by + 20}, cx, by, 100, 30)); // 20 > 19 misses
+TEST_CASE("buffer control hit rect: capsule, button and the thumb's glow, 4 px to spare",
+          "[canvas][hit_test]") {
+    using helix::ui::fpath::buffer_control_hit;
+    const int32_t cx = 200, cy = 150;
+    // cap 14: track 35 either side, a 16 px button cell, a 20 px thumb whose glow reaches 13.
+    lv_area_t small = buffer_control_hit(cx, cy, 14);
+    CHECK((small.x1 == cx - 39 && small.x2 == cx + 55));
+    CHECK((small.y1 == cy - 17 && small.y2 == cy + 17));
+    // cap 20: track 50, a 22 px cell, the thumb's glow reaching 16.
+    lv_area_t large = buffer_control_hit(cx, cy, 20);
+    CHECK((large.x1 == cx - 54 && large.x2 == cx + 76));
+    CHECK((large.y1 == cy - 20 && large.y2 == cy + 20));
 }
 
 TEST_CASE("bypass hit rect: full-extent bounds preserved (margin 0)", "[canvas][hit_test]") {

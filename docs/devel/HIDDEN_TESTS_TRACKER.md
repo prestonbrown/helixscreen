@@ -46,13 +46,14 @@ The binary is the authority, so this document states no counts. These commands p
 
 | Tag | File(s) | Why it is hidden |
 |-----|---------|------------------|
-| `[.xml_required]` | `test_ui_panel_bindings.cpp`, `test_fan_settings_xml.cpp` | Subject-binding assertions needing the XML tree |
-| `[.ui_integration]` | 7 files (below) | Real widget tree built from `ui_xml/` |
+| `[.xml_required]` | `test_ui_panel_bindings.cpp` | Subject-binding assertions needing the XML tree |
+| `[.ui_integration]` | 6 files (below) | Real widget tree built from `ui_xml/` |
 | `[.slow]` | `test_wifi_manager.cpp` | WiFiManager integration against the mock backend (`use_mock_backend()`, since CoreWLAN on macOS refuses to start without Location Services); slow (2-3s simulated scan/connect per case) |
 | `[.]` (generic) | `test_moonraker_api_exclude_object.cpp`, `test_nozzle_render_gallery.cpp`, `test_swatch_gallery.cpp`, `test_example_plugin_calibration_bridge.cpp`, `test_screensaver_sim_contract.cpp`, `test_gcode_crease_bench.cpp`, `test_ams_paging_panel.cpp`, `test_ams_system_info_snapshot.cpp` | Security injection fixtures, galleries and screenshots that write files, cost benchmarks |
 | `[.memprobe]` | `test_gcode_memory_probe.cpp` | Memory measurement probe |
 | `[.integration]` | `test_moonraker_client_security.cpp` | Timeout-callback deadlock check |
 | `[.benchmark]` | `test_wizard_connection.cpp` | Performance measurement |
+| `[.subject_child]` | `test_subject_owner.cpp` | Bodies its `[subject][raii]` cases run in a fresh process with LVGL torn down; each skips unless that process set `HELIX_SUBJECT_CHILD_CASE` |
 
 ---
 
@@ -63,14 +64,13 @@ These build a real widget tree from `ui_xml/`. They are hidden because they depe
 | File | What it covers | Replaced by `tests/ui/`? |
 |------|----------------|--------------------------|
 | `test_action_prompt_modal_stress.cpp` | L081 crash family (#875 SIGBUS, #877 SEGV, #906 cluster): rapid show/hide, burst cadence, stacked modals, click-driven teardown, single-tick async-delete drain, `queue_update` racer. Every case ends on a **widget census** (recursive count over the screen + `lv_layer_top()` + `lv_layer_sys()`), `dialog() == nullptr` / `is_visible() == false`, `UpdateQueue::pending_count() == 0`, and a heap-growth ceiling. The top layer is the load-bearing part: `safe_delete_deferred_raw()` reparents there before `lv_obj_delete_async()`, so a dropped async delete strands the tree **off** the screen where a screen-child assertion cannot see it | **No.** In-process race harness; out-of-process `ctl` cannot drive it |
-| `test_wizard_connection_ui.cpp` | Wizard connection step XML structure: widget names, title text, flex layout | **No.** Wizard is pre-first-boot; `ctl` cannot reach it |
 | `test_wizard_step_stress.cpp` | Wizard step-transition churn (bounce 2↔3, full sweep) | **No.** Same reason |
 | `test_info_qr_modal_stress.cpp` | InfoQrModal open/close with the software render thread live and a synchronous refresh between cycles (#1673). An unbalanced free surfaces as an ASAN use-after-free | **No.** In-process race harness, same reason |
 | `test_wizard_welcome_font.cpp` | The Welcome header's per-breakpoint face: the ladder, the wiring from `wizard_language_chooser.xml`, and the restyle on a mid-wizard resize (#1599, #1612) | **No.** Wizard is pre-first-boot |
 | `test_spaghetti_detection_modal.cpp` | `SpaghettiDetectionModal` resume/abort/tune callbacks + self-delete on hide; Tune deliberately does *not* hide | **No.** Sole coverage of this modal |
 | `test_gcode_error_routing_e2e.cpp` | Uncoded jam while paused renders a modal holding the full untruncated message | **No.** File also holds a running `[ui_integration]` sibling test |
 
-`tests/ui/` (pytest driving a live binary via `helix-screen ctl`, added 2026-07-25) is **not** a replacement for any of these. It is a harness-validation suite — freeze/reset/text/navigation/screenshot mechanics — plus golden screenshots for 8 base panels. It has no wizard, modal, action-prompt, or crash-race coverage.
+`tests/ui/` (pytest driving a live binary via `helix-screen ctl`; see [UI_TESTING.md](UI_TESTING.md)) does not replace any of these: it has no wizard, action-prompt modal or crash-race coverage.
 
 ---
 

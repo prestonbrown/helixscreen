@@ -104,6 +104,8 @@ std::string snapshot(const DispatchCase& c) {
 }
 
 const std::vector<DispatchCase>& cases() {
+    // One row per case, however long its expected line: a reflow rewraps the whole table.
+    // clang-format off
     static const std::vector<DispatchCase> rows = {
         // --- thermal ---------------------------------------------------------
         {PT::VORON_24,
@@ -257,6 +259,14 @@ const std::vector<DispatchCase>& cases() {
          true,
          {"SET_PIN PIN=x VALUE=1"},
          R"G(SET_PIN PIN=x VALUE=1 => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+
+        // An LED on an output pin reports its new value, as Klipper does.
+        {PT::VORON_24,
+         nullptr,
+         nullptr,
+         true,
+         {"SET_PIN PIN=Enclosure_LEDs VALUE=0.0000", "SET_PIN PIN=Enclosure_LEDs VALUE=1.0000"},
+         R"G(SET_PIN PIN=Enclosure_LEDs VALUE=0.0000 => rc=0 err=[] {{"method":"notify_status_update","params":[{"output_pin Enclosure_LEDs":{"value":0.0}},0.0]}} ;; SET_PIN PIN=Enclosure_LEDs VALUE=1.0000 => rc=0 err=[] {{"method":"notify_status_update","params":[{"output_pin Enclosure_LEDs":{"value":1.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
 
         // --- display message -------------------------------------------------
         {PT::VORON_24, nullptr, nullptr, true, {"M117 hello"}, R"G(M117 hello => rc=0 err=[] {{"method":"notify_status_update","params":[{"display_status":{"message":"hello"}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
@@ -472,43 +482,44 @@ const std::vector<DispatchCase>& cases() {
          R"G(G2 X5 => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
 
         // --- tool change -----------------------------------------------------
-        {PT::VORON_24,
+        // On a persona with no MMU: the default persona's Happy Hare owns T<n>.
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
          {"T0"},
          R"G(T0 => rc=0 err=[] {{"method":"notify_status_update","params":[{"toolhead":{"extruder":"extruder"}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
-        {PT::VORON_24,
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
          {"T1"},
          R"G(T1 => rc=0 err=[] {{"method":"notify_status_update","params":[{"toolhead":{"extruder":"extruder1"}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
-        {PT::VORON_24,
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
          {"T12"},
          R"G(T12 => rc=0 err=[] {{"method":"notify_status_update","params":[{"toolhead":{"extruder":"extruder12"}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
-        {PT::VORON_24,
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
          {"T"},
          R"G(T => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
-        {PT::VORON_24,
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
          {"Tx"},
          R"G(Tx => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
-        {PT::VORON_24,
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
          {"t1"},
          R"G(t1 => rc=0 err=[] {{"method":"notify_status_update","params":[{"toolhead":{"extruder":"extruder1"}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
-        {PT::VORON_24,
+        {PT::ELEGOO_CC1,
          nullptr,
          nullptr,
          true,
@@ -607,7 +618,7 @@ const std::vector<DispatchCase>& cases() {
          nullptr,
          true,
          {"M106 S128"},
-         R"G(M106 S128 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.5019607843137255}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 S128 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":3413.0,"speed":0.5019607843137255}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
@@ -619,25 +630,25 @@ const std::vector<DispatchCase>& cases() {
          nullptr,
          true,
          {"M106 S300"},
-         R"G(M106 S300 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":1.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 S300 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":6800.0,"speed":1.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
          true,
          {"M106"},
-         R"G(M106 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":0.0,"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
          true,
          {"M106 S100 M107"},
-         R"G(M106 S100 M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.39215686274509803}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M106 S100 M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":2667.0,"speed":0.39215686274509803}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
          true,
          {"M107"},
-         R"G(M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+         R"G(M107 => rc=0 err=[] {{"method":"notify_status_update","params":[{"fan":{"rpm":0.0,"speed":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
         {PT::VORON_24,
          nullptr,
          nullptr,
@@ -905,6 +916,14 @@ const std::vector<DispatchCase>& cases() {
          true,
          {"SAVE_TOOL_PARAMETER T=1"},
          R"G(SAVE_TOOL_PARAMETER T=1 => rc=0 err=[] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
+        // Reforge (the creator5 persona) registers neither command.
+        {PT::FLASHFORGE_CREATOR5,
+         nullptr,
+         nullptr,
+         true,
+         {"SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=0.2",
+          "SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset"},
+         R"G(SET_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset VALUE=0.2 => rc=1 err=[Unknown command:"SET_TOOL_PARAMETER"] ;; SAVE_TOOL_PARAMETER T=1 PARAMETER=gcode_z_offset => rc=1 err=[Unknown command:"SAVE_TOOL_PARAMETER"] ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
 
         // --- LEDs ------------------------------------------------------------
         {PT::VORON_24, nullptr, nullptr, true, {"SET_LED LED=chamber_light RED=1 GREEN=0.5 BLUE=0"}, R"G(SET_LED LED=chamber_light RED=1 GREEN=0.5 BLUE=0 => rc=0 err=[] {{"method":"notify_status_update","params":[{"led caselight":{"color_data":[[0.0,0.0,0.0,0.0]]},"neopixel chamber_light":{"color_data":[[1.0,0.5,0.0,0.0]]},"neopixel status_led":{"color_data":[[0.0,0.0,0.0,0.0]]}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
@@ -1427,6 +1446,7 @@ const std::vector<DispatchCase>& cases() {
          {"G28", "M117 done", "M104 S0"},
          R"G(G28 => rc=0 err=[] {{"method":"notify_status_update","params":[{"toolhead":{"homed_axes":"xyz"}},0.0]}} ;; M117 done => rc=0 err=[] {{"method":"notify_status_update","params":[{"display_status":{"message":"done"}},0.0]}} ;; M104 S0 => rc=0 err=[] {{"method":"notify_status_update","params":[{"extruder":{"target":0.0}},0.0]}} ;; klippy=0 phase=0 excluded= mesh=default profiles=default,adaptive, tool=-1)G"},
     };
+    // clang-format on
     return rows;
 }
 

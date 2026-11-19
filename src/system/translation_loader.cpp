@@ -96,10 +96,11 @@ std::vector<uint32_t> code_points(std::string_view s) {
     return out;
 }
 
-const std::array<const char*, 24> kLanguageNames = {
-    "Deutsch", "English", "Español", "Français", "Italiano", "Português",  "Русский",    "中文",
-    "日本語",  "한국어",  "العربية", "हिन्दी",    "Türkçe",   "Nederlands", "Polski",     "Svenska",
-    "Norsk",   "Dansk",   "Suomi",   "Čeština",  "Magyar",   "Română",     "Українська", "Ελληνικά",
+const std::array<const char*, 25> kLanguageNames = {
+    "Deutsch",    "English", "English (UK)", "Español",  "Français", "Italiano", "Português",
+    "Русский",    "中文",    "日本語",       "한국어",   "العربية",  "हिन्दी",    "Türkçe",
+    "Nederlands", "Polski",  "Svenska",      "Norsk",    "Dansk",    "Suomi",    "Čeština",
+    "Magyar",     "Română",  "Українська",   "Ελληνικά",
 };
 
 bool listed_non_key(std::string_view text) {

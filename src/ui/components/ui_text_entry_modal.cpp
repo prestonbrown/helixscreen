@@ -4,6 +4,7 @@
 
 #include "ui_error_reporting.h"
 #include "ui_keyboard_manager.h"
+#include "ui_text_edit_menu.h"
 
 #include "lvgl.h"
 
@@ -42,6 +43,9 @@ void TextEntryModal::on_show() {
     if (config_.max_length > 0)
         lv_textarea_set_max_length(input_, config_.max_length);
     lv_textarea_set_password_mode(input_, config_.password);
+    if (config_.password) {
+        helix::ui::mark_secret_field(input_);
+    }
     lv_textarea_set_text(input_, config_.initial.c_str());
     KeyboardManager::instance().show(input_);
 }

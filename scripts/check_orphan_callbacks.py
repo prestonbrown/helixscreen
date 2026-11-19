@@ -42,6 +42,7 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+import ratchet  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_required_names import call_args  # noqa: E402
@@ -175,10 +176,12 @@ def main() -> int:
         return 1
     gone = sorted(accepted - set(found))
     if gone:
-        print(f"✅ Orphan callbacks: {len(found)} accepted, {len(gone)} fewer than "
-              f"{args.baseline}; re-run with --write-baseline to hold the gain "
-              f"({', '.join(gone)}).")
-        return 0
+        return ratchet.under_baseline(
+            "Orphan callbacks", f"{args.baseline} (re-run with --write-baseline)",
+            [f"{k}: no longer a finding" for k in gone],
+            f"✅ Orphan callbacks: {len(found)} accepted, {len(gone)} fewer than "
+            f"{args.baseline}; re-run with --write-baseline to hold the gain "
+            f"({', '.join(gone)}).")
     print(f"✅ Orphan callbacks: {len(found)} findings, all accepted debt in {args.baseline}")
     return 0
 

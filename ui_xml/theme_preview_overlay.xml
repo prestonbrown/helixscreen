@@ -42,7 +42,8 @@
         <lv_obj name="dark_mode_toggle_container"
                 width="content" height="content" flex_flow="column" style_pad_all="#space_xs" style_pad_gap="#space_xs"
                 scrollable="false">
-          <bind_flag_if_eq subject="settings_dark_mode_available" flag="hidden" ref_value="0"/>
+          <!-- Hidden while the active theme has one mode, until a pick in this explorer -->
+          <bind_flag_if cond="settings_dark_mode_available eq 0 and theme_explorer_picked eq 0" flag="hidden"/>
           <text_small name="preview_label_dark_mode" text="Dark Mode"/>
           <ui_switch name="preview_dark_mode_toggle" size="small" checked="true">
             <event_cb trigger="value_changed" callback="on_preview_dark_mode_toggled"/>

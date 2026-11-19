@@ -80,7 +80,7 @@ struct PlrSettingsRowFixture : LVGLUITestFixture {
 
     static bool visible(lv_obj_t* obj) {
         for (; obj != nullptr; obj = lv_obj_get_parent(obj)) {
-            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
+            if (lv_obj_is_hidden(obj)) {
                 return false;
             }
         }

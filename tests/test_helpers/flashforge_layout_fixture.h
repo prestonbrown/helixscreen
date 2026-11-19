@@ -33,6 +33,8 @@ namespace fs = std::filesystem;
 //   forgex-host : /usr/data/config/mod/.shell/platform.sh — the same mod tree
 //                 seen from outside the chroot (the rig binds /usr/data at
 //                 /opt, so exactly one spelling is reachable per side)
+//   forgex-prog : forgex plus a /usr/prog dir, a Forge-X chroot built from a
+//                 Z-Mod rootfs carries both, and Forge-X's own tree decides
 //   plain       : empty root (Pi / dev box / K1: none of the markers)
 //
 // A non-empty `machine` also writes /usr/prog/app_startup.sh with `MACHINE=<machine>`,
@@ -48,6 +50,10 @@ inline fs::path make_flashforge_layout(const fs::path& base, const std::string& 
         fs::create_directories(root / "usr/prog");
     } else if (layout == "forgex") {
         fs::create_directories(root / "opt/config/mod/.shell");
+        std::ofstream(root / "opt/config/mod/.shell/platform.sh") << "#!/bin/sh\n";
+    } else if (layout == "forgex-prog") {
+        fs::create_directories(root / "opt/config/mod/.shell");
+        fs::create_directories(root / "usr/prog");
         std::ofstream(root / "opt/config/mod/.shell/platform.sh") << "#!/bin/sh\n";
     } else if (layout == "forgex-host") {
         fs::create_directories(root / "usr/data/config/mod/.shell");

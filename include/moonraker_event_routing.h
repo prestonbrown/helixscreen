@@ -9,8 +9,8 @@ namespace helix {
 /**
  * @brief What MoonrakerManager should do with an incoming event
  *
- * One route per branch of the old inline handler, so the mapping is total and
- * testable without a client, a UI, or an event loop.
+ * One route per way MoonrakerManager handles an event, so the mapping is total
+ * and testable without a client, a UI, or an event loop.
  */
 enum class MoonrakerEventRoute {
     Ignore,                ///< Suppressed — caller logs the reason, shows nothing
@@ -25,7 +25,7 @@ enum class MoonrakerEventRoute {
 };
 
 /// Why an event was suppressed. Only meaningful when route == Ignore; lets the
-/// caller log the same messages the inline handler did.
+/// caller log a message that names the reason.
 enum class MoonrakerEventSuppression {
     None,
     DiscoveryDeferred, ///< Klippy not yet gate-acceptable; retried automatically

@@ -29,16 +29,17 @@ This doc focuses on the **settings overlay** tier (the most common real contribu
 
 The retraction settings overlay is about as small as a real contribution gets: four sliders, a toggle, and a G-code send. It lives in three files:
 
-| File | Lines | Purpose |
-|---|---|---|
-| `ui_xml/retraction_settings_overlay.xml` | 175 | Layout, styling, bindings |
-| `include/ui_overlay_retraction_settings.h` | 162 | Class declaration, subject + widget references |
-| `src/ui/settings/ui_overlay_retraction_settings.cpp` | 293 | Lifecycle, event handlers, G-code send |
+| File | Purpose |
+|---|---|
+| `ui_xml/retraction_settings_overlay.xml` | Layout, styling, bindings |
+| `include/ui_overlay_retraction_settings.h` | Class declaration, subject + widget references |
+| `src/ui/settings/ui_overlay_retraction_settings.cpp` | Lifecycle, event handlers, G-code send |
 
-You'll also touch three *other* files to wire it into the app:
+You'll also touch other files to wire it into the app:
 
-- `src/application/subject_initializer.cpp` — construct the global instance at boot
+- `src/application/subject_initializer.cpp` — hand the overlay its API and run `init_subjects()` at boot
 - `ui_xml/settings_printing_overlay.xml` — add a row that opens the overlay
+- `src/ui/settings/ui_settings_printing.cpp` — the row's click callback, which calls `show()`
 - (optional) translation YAML if you added user-visible strings
 
 Let's walk through each.
@@ -52,7 +53,6 @@ The top of every overlay XML looks like this:
   <view name="retraction_settings_overlay"
         extends="overlay_panel"
         title="Retraction Settings"
-        title_tag="Retraction Settings"
         bg_color="#screen_bg">
     <lv_obj name="overlay_content" width="100%" flex_grow="1"
             style_pad_all="#space_lg" scrollable="true"
@@ -66,12 +66,12 @@ The top of every overlay XML looks like this:
 Notes:
 
 - **`extends="overlay_panel"`** — inherits the standard overlay chrome: title bar, back button, backdrop. You almost always want this.
-- **`title_tag="..."`** — the translation key. `title` is the English source; `title_tag` is what gets looked up in other languages. Both must be present for user-visible strings.
+- **`title="..."`** — the English text, which is also its own translation key (see below).
 - **No `width`** — overlay width is not yours to set. `NavigationManager::push_overlay()` decides it from how the user reached the overlay: full width inside Settings, gapped when it is a tool opened over something else. See `include/overlay_class.h`.
 - **`#space_lg`, `#screen_bg`** — design tokens. Never hardcode pixel spacing or hex colors.
 - **Inner `<lv_obj name="overlay_content">`** — the scrollable content area. The `overlay_panel` base provides the frame; you provide what's inside.
 
-Inside the content area, each setting is structured consistently (lines 40–66 of the real file, slightly abbreviated):
+Inside the content area, each setting is structured consistently (abbreviated from the real file):
 
 ```xml
 <lv_obj name="retract_length_section"
@@ -86,11 +86,13 @@ Inside the content area, each setting is structured consistently (lines 40–66 
       <text_body text="Retract Length"/>
       <text_small text="0.4-2mm direct drive, 4-6mm bowden"/>
     </lv_obj>
-    <text_body name="retract_length_label" bind_text="retract_length_display"/>
+    <setting_value_field name="retract_length_field"
+                         value_subject="retract_length_display"
+                         callback="on_retraction_field_clicked" user_data="0"/>
   </lv_obj>
 
   <!-- Slider row -->
-  <lv_obj width="100%" height="50" flex_flow="row" style_flex_cross_place="center">
+  <lv_obj width="100%" height="#input_height" flex_flow="row" style_flex_cross_place="center">
     <text_small width="30" text="0"/>
     <lv_slider name="retract_length_slider" flex_grow="1"
                min_value="0" max_value="600" value="80">
@@ -104,7 +106,7 @@ Inside the content area, each setting is structured consistently (lines 40–66 
 
 Things worth noticing:
 
-- **`bind_text="retract_length_display"`** — this label's text comes from a subject named `retract_length_display`. The C++ side owns that subject and writes to it when the slider moves.
+- **`value_subject="retract_length_display"`** — the value field's text comes from a subject named `retract_length_display`. The C++ side owns that subject and writes to it when the slider moves. Tapping the field calls `on_retraction_field_clicked` and opens a numeric keypad.
 - **`<event_cb trigger="value_changed" callback="on_retraction_setting_changed"/>`** — when the slider value changes, call the C++ function registered under the name `on_retraction_setting_changed`. **No `lv_obj_add_event_cb()` in C++ — ever.**
 - **Callback naming** — the convention is `on_<component>_<action>`. Generic names like `on_changed` will collide. (See lesson **L039**.)
 - **A literal `text=` is translated as written.** The text is its own translation key, so no `translation_tag` is needed; write one only when the key differs from the text. (See `TRANSLATION_SYSTEM.md`.)
@@ -112,174 +114,138 @@ Things worth noticing:
 
 ### Step 2: The class declaration (`include/ui_overlay_retraction_settings.h`)
 
-The header declares a class that inherits `OverlayBase`:
+The header declares a class that inherits `OverlayBase` (`include/overlay_base.h`):
 
 ```cpp
 class RetractionSettingsOverlay : public OverlayBase {
   public:
-    explicit RetractionSettingsOverlay(IMoonrakerAPI* api);
+    explicit RetractionSettingsOverlay(helix::IMoonrakerAPI* api = nullptr);
     ~RetractionSettingsOverlay() override;
 
-    // OverlayBase virtuals
     void init_subjects() override;
-    lv_obj_t* create(lv_obj_t* parent) override;
-    [[nodiscard]] const char* get_name() const override {
-        return "Retraction Settings";
-    }
+    void register_callbacks() override;
+    lv_obj_t* create(lv_obj_t* parent) override;     // builds the tree, caches widgets
+    const char* get_name() const override { return "Retraction Settings"; }
+    const char* xml_component() const override { return "retraction_settings_overlay"; }
+    bool destroy_on_close() const override { return true; }
     void on_activate() override;
-    void cleanup() override;
-
-  protected:
-    void on_deactivating(DeactivateReason reason) override;
 
   private:
     void send_retraction_settings();
     void update_display_labels();
     void sync_from_printer_state();
 
-    static void on_enabled_changed(lv_event_t* e);
-    static void on_setting_changed(lv_event_t* e);
-
-    // Widget pointers — cached in create(), used by event handlers
+    // Widget pointers: cached in create(), cleared in on_ui_destroyed()
     lv_obj_t* enable_switch_ = nullptr;
     lv_obj_t* retract_length_slider_ = nullptr;
     // ... etc
 
-    // Subject manager for automatic cleanup
-    SubjectManager subjects_;
-
-    // Subjects that C++ writes to (label text)
-    lv_subject_t retract_length_display_;
+    SubjectManager subjects_;                // RAII cleanup for the subjects below
+    helix::Subject retract_length_display_;  // label text, written by C++
+    char retract_length_buf_[16];            // backing buffer for the string subject
     // ... etc
 
-    // Backing buffers for string subjects
-    char retract_length_buf_[16];
-    // ... etc
-
-    IMoonrakerAPI* api_ = nullptr;
+    helix::IMoonrakerAPI* api_ = nullptr;
     bool syncing_from_state_ = false;
 };
 
-// Global accessor — constructed once by subject_initializer at boot
-// (IMoonrakerAPI is the consumer-facing interface — panels never name the
-// concrete MoonrakerAPI class)
-RetractionSettingsOverlay& get_global_retraction_settings();
-void init_global_retraction_settings(helix::IMoonrakerAPI* api);
+// Process-lifetime accessor; the object is built on first use.
+inline RetractionSettingsOverlay& get_global_retraction_settings() {
+    return helix::lazy_global<RetractionSettingsOverlay>("RetractionSettingsOverlay", nullptr);
+}
 ```
 
 Patterns to internalize:
 
-- **Inherit `OverlayBase`.** It provides `lifetime_` (AsyncLifetimeGuard), `overlay_root_`, and virtual lifecycle hooks. Don't reinvent overlay chrome.
-- **Cache widget pointers in `create()`.** Don't re-lookup in event handlers.
-- **`SubjectManager subjects_`** — RAII wrapper for cleanup. When the overlay is destroyed, `subjects_.deinit_all()` handles it.
-- **Static event handlers.** LVGL callbacks are C-style function pointers. You'll need a way to reach the instance from inside them — the retraction overlay uses a global accessor, but see the note below on why that's legacy.
-
-> **Note on the singleton pattern:** The `get_global_retraction_settings()` + `init_global_retraction_settings()` shape you see here — static `std::unique_ptr` constructed at boot, lives for the app lifetime — is a **legacy pattern**. It exists because most overlays were written when the codebase was smaller and boot-time construction was simpler. **Going forward, new overlays should prefer dynamic allocation: construct on open, destroy on close.** Two reasons: (1) memory isn't wasted on overlays the user never opens, critical on small devices like AD5M (14–20MB RAM budget), and (2) if multiple instances ever become useful, nothing in the design blocks that. If you're writing a new overlay, don't reach for the global accessor shape reflexively — instantiate from the row-click handler, hand ownership to `NavigationManager`, let it destroy on pop. See "Going forward" at the end of this section for the sketch.
+- **Inherit `OverlayBase`.** It provides `lifetime_` (AsyncLifetimeGuard), `overlay_root_`, the lifecycle hooks and `show()`. Don't reinvent overlay chrome. A behaviour-free overlay is just a name and an XML component.
+- **Cache widget pointers in `create()`.** Don't re-lookup in event handlers. With `destroy_on_close()` the tree is freed whenever the overlay is popped, so `on_ui_destroyed()` must drop every cached pointer.
+- **`SubjectManager subjects_`** is the RAII wrapper that deinitializes the subjects on destruction.
+- **Handlers reach the instance through the accessor.** LVGL callbacks are C function pointers, so the registered lambdas call `get_global_retraction_settings()`. The object lives for the process, but its widget tree exists only while the overlay is open, so an overlay the user never opens costs no widgets.
 
 ### Step 3: The implementation (`src/ui/settings/ui_overlay_retraction_settings.cpp`)
 
 The interesting parts:
 
-**3a. Initialization (`init_subjects()`)**
+**3a. Subjects (`init_subjects()`)**
 
 ```cpp
 void RetractionSettingsOverlay::init_subjects() {
-    // Create the subjects the XML binds to
-    UI_MANAGED_SUBJECT_STRING(retract_length_display_, retract_length_buf_, "0.0mm",
-                              "retract_length_display", subjects_);
-    // ... same for the other three sliders ...
-
-    // Register the event callbacks the XML references by name
-    lv_xml_register_event_cb(nullptr, "on_retraction_row_clicked",
-                             on_retraction_row_clicked);
-    lv_xml_register_event_cb(nullptr, "on_retraction_enabled_changed",
-                             on_enabled_changed);
-    lv_xml_register_event_cb(nullptr, "on_retraction_setting_changed",
-                             on_setting_changed);
+    init_subjects_guarded([this]() {
+        UI_MANAGED_SUBJECT_STRING(retract_length_display_, retract_length_buf_, "0.00mm",
+                                  "retract_length_display", subjects_);
+        // ... same for the other three display subjects ...
+    });
 }
 ```
 
-Two things happen here:
+`UI_MANAGED_SUBJECT_STRING` creates a string subject, registers it globally under the given name, and hands it to `subjects_` for cleanup. The XML's `value_subject="retract_length_display"` resolves to it. `init_subjects()` runs before the XML is created, so bindings resolve.
 
-1. **Subject creation.** `UI_MANAGED_SUBJECT_STRING` creates a string subject, registers it globally under the given name, and tells `subjects_` to clean it up on destruction. The XML's `bind_text="retract_length_display"` resolves to this subject.
-2. **Callback registration.** Every string in `<event_cb callback="...">` must be registered with `lv_xml_register_event_cb()` *before* the XML is parsed. If the callback string doesn't match a registered name, the event silently does nothing — a common first-time mistake. (See `CONTRIBUTOR_GOTCHAS.md`.)
+**3b. Callbacks (`register_callbacks()`)**
 
-**3b. Widget creation (`create()`)**
+```cpp
+void RetractionSettingsOverlay::register_callbacks() {
+    register_xml_callbacks({
+        {"on_retraction_setting_changed",
+         [](lv_event_t*) {
+             auto& overlay = get_global_retraction_settings();
+             overlay.update_display_labels();
+             if (!overlay.syncing_from_state_) {
+                 overlay.send_retraction_settings();
+             }
+         }},
+        // ... enabled switch, tappable value fields ...
+    });
+}
+```
+
+Every `callback="..."` string in the XML must be registered by name before the XML is parsed. A name that does not match a registered one makes the event silently do nothing, a common first-contribution trap.
+
+**3c. Widget creation (`create()`)**
 
 ```cpp
 lv_obj_t* RetractionSettingsOverlay::create(lv_obj_t* parent) {
-    overlay_root_ = (lv_obj_t*)lv_xml_create(parent,
-                                             get_xml_component_name(),
-                                             nullptr);
-    if (!overlay_root_) return nullptr;
-
-    enable_switch_ = lv_obj_find_by_name(overlay_root_, "retraction_enabled_switch");
-    retract_length_slider_ = lv_obj_find_by_name(overlay_root_, "retract_length_slider");
+    if (!create_overlay_from_xml(parent, xml_component())) {
+        return nullptr;
+    }
+    enable_switch_ = helix::ui::find_required(overlay_root_, "retraction_enabled_switch", get_name());
+    retract_length_slider_ = helix::ui::find_required(overlay_root_, "retract_length_slider", get_name());
     // ... etc
-
     return overlay_root_;
 }
 ```
 
-`lv_xml_create()` parses your XML component into a real widget tree. After that, use `lv_obj_find_by_name()` to locate widgets you need to poke at from C++ (sliders for reading values, switches for setting checked state). The `name="..."` attributes in your XML are what make this lookup work — give a `name` to anything you'll touch from C++.
+`create_overlay_from_xml()` parses your XML component into a real widget tree. Then `find_required()` (a name lookup that logs when the widget is missing) locates the widgets C++ must read or set. The `name="..."` attributes in your XML are the contract.
 
 **Never use `lv_obj_get_child()`** — it's index-based and fragile. If someone reorders the XML, your code breaks silently.
 
-**3c. The lifecycle hooks**
+**3d. The lifecycle hooks**
 
 ```cpp
 void RetractionSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
+    if (returning_from_keypad_) { returning_from_keypad_ = false; return; }
     sync_from_printer_state();
 }
 ```
 
-`on_activate()` runs every time the overlay becomes visible. For a settings overlay, this is where you pull the current values from `PrinterState` and seed the UI. `on_deactivating(reason)` runs when it's dismissed — clean up timers, stop polling, etc. It is a hook, not an override of `on_deactivate()`: the base calls it and then invalidates `lifetime_` on its own, so there is no base call to make. `reason` says whether the user navigated away, the app is shutting down, or XML hot-reload is rebuilding the widget tree.
+`on_activate()` runs every time the overlay becomes visible. For a settings overlay this is where you pull the current values from `PrinterState` and seed the UI (here, except when returning from the overlay's own numeric keypad, which would discard the value just typed). `on_deactivating(reason)` runs when it is dismissed; use it to stop timers and polling.
 
-**3d. Event handlers**
+**3e. The feedback-loop guard**
 
-```cpp
-void RetractionSettingsOverlay::on_setting_changed(lv_event_t* /*e*/) {
-    auto& overlay = get_global_retraction_settings();
-    overlay.update_display_labels();
-
-    if (overlay.syncing_from_state_) return;
-    overlay.send_retraction_settings();
-}
-```
-
-Notice the `syncing_from_state_` guard. Without it, calling `lv_slider_set_value()` inside `sync_from_printer_state()` would fire `value_changed`, which would then send a G-code, which the printer would echo back, which would... it's a feedback loop. Flag-guard sync paths whenever the source-of-truth is external.
-
-**3e. The "open me" callback**
-
-```cpp
-static void on_retraction_row_clicked(lv_event_t* /*e*/) {
-    if (!g_retraction_settings) return;
-
-    if (!g_retraction_settings_panel) {
-        g_retraction_settings_panel =
-            g_retraction_settings->create(lv_display_get_screen_active(nullptr));
-        NavigationManager::instance().register_overlay_instance(
-            g_retraction_settings_panel, g_retraction_settings.get());
-    }
-
-    NavigationManager::instance().push_overlay(g_retraction_settings_panel);
-}
-```
-
-Lazy-create on first open (fast boot), reuse thereafter. `NavigationManager::push_overlay()` handles animation, backdrop, and the activation lifecycle.
+`sync_from_printer_state()` sets `syncing_from_state_ = true` around its `lv_slider_set_value()` calls. Without the flag, each of those would fire `value_changed`, which would send a G-code, which the printer would echo back, which would set the sliders again: a feedback loop. Flag-guard any handler whose widget you also write programmatically.
 
 ### Step 4: Wire it into the app
 
-Three edits. The XML component itself needs no registration: `lv_xml_create("retraction_settings_overlay", ...)` loads `ui_xml/retraction_settings_overlay.xml` on first use.
+The XML component itself needs no registration: `create_overlay_from_xml()` loads `ui_xml/retraction_settings_overlay.xml` on first use.
 
-**4a. Construct the global instance at boot** — `src/application/subject_initializer.cpp`:
+**4a. Give it its API and subjects at boot** — `src/application/subject_initializer.cpp`:
 
 ```cpp
 init_global_retraction_settings(api);
+get_global_retraction_settings().init_subjects();
 ```
 
-This is where every overlay's `init_global_*()` gets called during app startup. Order can matter if overlays depend on each other — follow the pattern of siblings.
+Every overlay's setup is called here during app startup; follow the pattern of the siblings.
 
 **4b. Add the row that opens it** — `ui_xml/settings_printing_overlay.xml`:
 
@@ -287,18 +253,26 @@ This is where every overlay's `init_global_*()` gets called during app startup. 
 <lv_obj name="container_firmware_retraction" width="100%" style_pad_all="0" scrollable="false">
   <bind_flag_if_eq subject="printer_has_firmware_retraction" flag="hidden" ref_value="0"/>
   <setting_action_row name="row_firmware_retraction"
-                      label="Retraction Settings"
-                      label_tag="Retraction Settings"
-                      icon="arrow_up_right"
+                      label="Retraction Settings" icon="arrow_up_right"
                       description="Configure G10/G11 firmware retraction"
-                      description_tag="Configure G10/G11 firmware retraction"
                       callback="on_retraction_row_clicked"/>
 </lv_obj>
 ```
 
-The `<bind_flag_if_eq>` wrapper hides the row on printers that don't support firmware retraction — this is how you conditionally expose features without a runtime C++ check.
+The `<bind_flag_if_eq>` wrapper hides the row on printers that don't support firmware retraction: this is how you conditionally expose features without a runtime C++ check.
 
-**4c. Run it**
+**4c. Open it from the row's callback** — `src/ui/settings/ui_settings_printing.cpp`:
+
+```cpp
+{"on_retraction_row_clicked",
+ [](lv_event_t*) {
+     get_global_retraction_settings().show(get_printing_settings_overlay().parent_screen_);
+ }},
+```
+
+`OverlayBase::show()` builds the tree if needed, registers the lifecycle and pushes the overlay through `NavigationManager`; with `destroy_on_close()` it also registers the callback that frees the tree on close.
+
+**4d. Run it**
 
 ```bash
 make -j
@@ -317,40 +291,15 @@ ui_xml/
 include/
   ui_overlay_retraction_settings.h       ← your class
 
-src/ui/
+src/ui/settings/
   ui_overlay_retraction_settings.cpp     ← your impl
+  ui_settings_printing.cpp               ← edit to add the row's callback
 
 src/
   application/subject_initializer.cpp    ← edit to call init_global_*()
 ```
 
-That's the full shape of a real settings overlay contribution. Every other overlay in `src/ui/**/ui_overlay_*.cpp` and every `ui_settings_*.cpp` follows this same pattern. If you're stuck, find the closest sibling, open its three files side-by-side, and diff against yours.
-
-### Going forward: dynamic overlays
-
-The retraction overlay is the pattern the codebase *has*. Here's the pattern it's moving *toward* — use this shape for new overlays:
-
-**What changes:**
-
-- **No global accessor, no `init_global_*`.** Drop the `static std::unique_ptr<...> g_instance` at the top of the .cpp file and the call site in `subject_initializer.cpp`.
-- **Construct from the row-click handler.** When the user taps the row that opens your overlay, instantiate on the spot and hand ownership to `NavigationManager`.
-- **Destroy on pop.** When the overlay is dismissed, the NavigationManager destroys the instance. Next open creates a fresh one.
-- **Event handlers need an instance pointer, not a global lookup.** The cleanest path is to capture `this` in the `<event_cb>` registration by using an instance method or a small adapter, so handlers don't need `get_global_*()` at all. Non-static member callbacks registered per-instance are preferred over static free functions that reach into globals.
-
-**What stays the same:**
-
-- Inheriting `OverlayBase`.
-- The `init_subjects()` / `create()` / `on_activate()` / `on_deactivating()` / `cleanup()` lifecycle.
-- The XML structure — this is purely a C++ pattern change.
-- `SubjectManager` for subject cleanup.
-
-**Why this matters:**
-
-1. **Memory.** On AD5M (14–20MB RAM budget) and similar small devices, an overlay the user never opens shouldn't occupy any bytes. Lazy-global saved boot time but pays a permanent memory tax.
-2. **Multi-instance becomes possible.** Nothing in the design forces one-instance-per-app. If two contexts ever want the same overlay shape with different data, dynamic allocation supports it; the global pattern doesn't.
-3. **Teardown is simpler.** No `StaticPanelRegistry::register_destroy` dance at shutdown. The overlay destroys when popped, full stop.
-
-This pattern isn't yet established in code — if you're writing a new overlay, you get to set the precedent. Flag it in your PR and Preston will help shape the exact API. Migrating the existing singleton overlays is tracked as post-1.0 work (prestonbrown/helixscreen#1329).
+That's the full shape of a real settings overlay contribution. If you're stuck, find the closest sibling `ui_overlay_*.cpp` or `ui_settings_*.cpp`, open its files side by side with these, and diff the structure.
 
 ---
 
@@ -358,7 +307,7 @@ This pattern isn't yet established in code — if you're writing a new overlay, 
 
 The AMS (Automatic Material System) panel is what a full-subsystem contribution looks like. You won't write one of these on your first PR, but knowing how it's decomposed helps you read it when you need to touch adjacent code, and it's the shape to aim for if you're proposing something big.
 
-AMS spans roughly 1700 lines of C++ (`src/ui/filament/ui_panel_ams.cpp`) and 13 XML files (12 components plus a feature-tokens file, `ams_tokens.xml`). It's not monolithic — it's a set of small components that compose:
+AMS is a large C++ panel (`src/ui/filament/ui_panel_ams.cpp`) plus a family of `ui_xml/ams_*.xml` files and a feature-tokens file, `ams_tokens.xml`. It's not monolithic — it's a set of small components that compose:
 
 | XML component | Role |
 |---|---|
@@ -418,7 +367,7 @@ If you're adding a new filament backend, the pattern is: implement a backend cla
 
 ### 5. Modals and overlays are peers, not children
 
-`ams_loading_error_modal.xml` and `ams_edit_overlay.xml` are standalone classes (`AmsLoadingErrorModal : Modal` and `AmsEditOverlay : OverlayBase` respectively). The main AMS panel launches them via `NavigationManager::push_overlay()` or `Modal::show()` — it doesn't own their widgets. This keeps each concern bounded.
+`ams_loading_error_modal.xml` and `ams_edit_overlay.xml` are standalone classes (`AmsLoadingErrorModal : Modal` and `AmsEditOverlay : OverlayBase` respectively). The main AMS panel launches them through `OverlayBase::show()` and `Modal` (`ComponentModal::show_owned()` for a plain component) — it doesn't own their widgets. This keeps each concern bounded.
 
 ---
 

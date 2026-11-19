@@ -12,6 +12,7 @@
 #include "ui_emergency_stop.h"
 #include "ui_modal.h"
 
+#include "json_utils.h"
 #include "rest_response.h"
 #include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_LABEL_PRINTER
@@ -83,6 +84,14 @@ void SpoolmanOverlay::init_subjects() {
         snprintf(scanner_status_buf_, sizeof(scanner_status_buf_), "%s", status);
         UI_MANAGED_SUBJECT_STRING(scanner_device_status_subject_, scanner_status_buf_,
                                   scanner_status_buf_, "scanner_device_status", subjects_);
+
+        UI_MANAGED_SUBJECT_STRING(setup_status_subject_, setup_status_buf_, "",
+                                  "spoolman_setup_status", subjects_);
+        UI_MANAGED_SUBJECT_INT(setup_status_error_subject_, 0, "spoolman_setup_status_error",
+                               subjects_);
+        UI_MANAGED_SUBJECT_STRING(server_url_subject_, server_url_buf_, lv_tr("Connected"),
+                                  "spoolman_server_url", subjects_);
+        UI_MANAGED_SUBJECT_INT(setup_editing_subject_, 0, "spoolman_setup_editing", subjects_);
     });
 }
 
@@ -118,12 +127,8 @@ void SpoolmanOverlay::register_callbacks() {
          [](lv_event_t*) { get_spoolman_overlay().handle_connect_clicked(); }},
         {"on_spoolman_cancel_setup_clicked",
          [](lv_event_t*) {
-             // Restore default visibility: the subject bindings take over again.
              auto& overlay = get_spoolman_overlay();
-             if (overlay.setup_card_)
-                 lv_obj_add_flag(overlay.setup_card_, LV_OBJ_FLAG_HIDDEN);
-             if (overlay.status_card_)
-                 lv_obj_remove_flag(overlay.status_card_, LV_OBJ_FLAG_HIDDEN);
+             lv_subject_set_int(&overlay.setup_editing_subject_, 0);
              overlay.set_setup_status("");
              overlay.set_connecting(false);
          }},
@@ -157,16 +162,16 @@ lv_obj_t* SpoolmanOverlay::create(lv_obj_t* parent) {
     // Server setup widgets
     host_input_ = helix::ui::find_required(overlay_root_, "spoolman_host_input", owner);
     port_input_ = helix::ui::find_required(overlay_root_, "spoolman_port_input", owner);
-    setup_status_text_ = helix::ui::find_required(overlay_root_, "setup_status_text", owner);
-    server_url_text_ = helix::ui::find_required(overlay_root_, "server_url_text", owner);
     connect_btn_ = helix::ui::find_required(overlay_root_, "connect_btn", owner);
-    setup_card_ = helix::ui::find_required(overlay_root_, "setup_card", owner);
-    status_card_ = helix::ui::find_required(overlay_root_, "status_card", owner);
 
     return overlay_root_;
 }
 
 void SpoolmanOverlay::before_show() {
+    // Every open starts on the configured state: a Change left by Back, or one
+    // whose verify never reported because the overlay closed, ends here.
+    lv_subject_set_int(&setup_editing_subject_, 0);
+    set_setup_status("");
     load_from_database();
     update_ui_from_subjects();
     update_server_url_display();
@@ -376,11 +381,7 @@ void SpoolmanOverlay::on_ui_destroyed() {
     interval_dropdown_ = nullptr;
     host_input_ = nullptr;
     port_input_ = nullptr;
-    setup_status_text_ = nullptr;
-    server_url_text_ = nullptr;
     connect_btn_ = nullptr;
-    setup_card_ = nullptr;
-    status_card_ = nullptr;
 }
 
 void SpoolmanOverlay::on_activate() {
@@ -404,31 +405,6 @@ void SpoolmanOverlay::on_deactivating(DeactivateReason) {
 }
 
 // ============================================================================
-// SERVER SETUP
-// ============================================================================
-
-void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
-    if (setup_status_text_) {
-        lv_label_set_text(setup_status_text_, text);
-        lv_obj_set_style_text_color(setup_status_text_,
-                                    theme_manager_get_color(is_error ? "danger" : "text_muted"),
-                                    LV_PART_MAIN);
-    }
-}
-
-void SpoolmanOverlay::set_connecting(bool connecting) {
-    if (!connect_btn_)
-        return;
-    if (connecting) {
-        lv_obj_add_state(connect_btn_, LV_STATE_DISABLED);
-        ui_button_set_text(connect_btn_, lv_tr("Connecting..."));
-    } else {
-        lv_obj_remove_state(connect_btn_, LV_STATE_DISABLED);
-        ui_button_set_text(connect_btn_, lv_tr("Connect"));
-    }
-}
-
-// ============================================================================
 // BARCODE SCANNER PICKER
 // ============================================================================
 
@@ -442,12 +418,29 @@ void SpoolmanOverlay::update_scanner_status_text() {
     auto name = helix::SettingsManager::instance().get_scanner_device_name();
     const char* status = id.empty() ? lv_tr("Auto-detect") : name.c_str();
     snprintf(scanner_status_buf_, sizeof(scanner_status_buf_), "%s", status);
-    lv_subject_copy_string(&scanner_device_status_subject_, scanner_status_buf_);
+    lv_subject_set_string(&scanner_device_status_subject_, scanner_status_buf_);
 }
 
 // ============================================================================
 // SERVER SETUP
 // ============================================================================
+
+void SpoolmanOverlay::set_setup_status(const char* text, bool is_error) {
+    lv_subject_set_string(&setup_status_subject_, text);
+    lv_subject_set_int(&setup_status_error_subject_, is_error ? 1 : 0);
+}
+
+void SpoolmanOverlay::set_connecting(bool connecting) {
+    if (!connect_btn_)
+        return;
+    if (connecting) {
+        lv_obj_add_state(connect_btn_, LV_STATE_DISABLED);
+        ui_button_set_text(connect_btn_, lv_tr("Connecting..."));
+    } else {
+        lv_obj_remove_state(connect_btn_, LV_STATE_DISABLED);
+        ui_button_set_text(connect_btn_, lv_tr("Connect"));
+    }
+}
 
 void SpoolmanOverlay::handle_connect_clicked() {
     const char* host_raw = host_input_ ? lv_textarea_get_text(host_input_) : "";
@@ -650,31 +643,31 @@ void SpoolmanOverlay::resolve_spoolman_target_with_root(const std::string& confi
             std::vector<helix::LoadedConfigFile> files;
 
             if (resp.data.is_object()) {
-                const json& root = resp.data.contains("result") ? resp.data["result"] : resp.data;
+                const json* result = helix::json_util::find_member(resp.data, "result");
+                const json& root = result ? *result : resp.data;
 
-                if (root.is_object() && root.contains("config") && root["config"].is_object()) {
-                    const json& cfg = root["config"];
-                    if (cfg.contains("server") && cfg["server"].is_object()) {
-                        const json& srv = cfg["server"];
+                if (const json* cfg = helix::json_util::find_object(root, "config")) {
+                    if (const json* srv = helix::json_util::find_object(*cfg, "server")) {
                         // Only newer Moonraker builds expose these. Most do not.
-                        if (srv.contains("config_file") && srv["config_file"].is_string())
-                            config_file = srv["config_file"].get<std::string>();
-                        if (srv.contains("data_path") && srv["data_path"].is_string())
-                            data_path = srv["data_path"].get<std::string>();
+                        config_file = helix::json_util::read_field<std::string>(*srv, "config_file")
+                                          .value_or(config_file);
+                        data_path = helix::json_util::read_field<std::string>(*srv, "data_path")
+                                        .value_or(data_path);
                     }
                 }
 
                 // files[] is the config chain Moonraker actually loaded, each entry
                 // carrying the sections it defines. This is the reliable signal.
-                if (root.is_object() && root.contains("files") && root["files"].is_array()) {
-                    for (const auto& entry : root["files"]) {
+                if (const json* files_arr = helix::json_util::find_array(root, "files")) {
+                    for (const auto& entry : *files_arr) {
                         if (!entry.is_object())
                             continue;
                         helix::LoadedConfigFile lcf;
-                        if (entry.contains("filename") && entry["filename"].is_string())
-                            lcf.filename = entry["filename"].get<std::string>();
-                        if (entry.contains("sections") && entry["sections"].is_array()) {
-                            for (const auto& sec : entry["sections"]) {
+                        lcf.filename = helix::json_util::read_field<std::string>(entry, "filename")
+                                           .value_or(lcf.filename);
+                        if (const json* sections =
+                                helix::json_util::find_array(entry, "sections")) {
+                            for (const auto& sec : *sections) {
                                 if (sec.is_string())
                                     lcf.sections.push_back(sec.get<std::string>());
                             }
@@ -1376,6 +1369,7 @@ void SpoolmanOverlay::verify_spoolman_connected() {
             token.defer("SpoolmanOverlay::verify_status", [this, connected]() {
                 if (connected) {
                     spdlog::info("[{}] Spoolman verified connected!", get_name());
+                    lv_subject_set_int(&setup_editing_subject_, 0);
                     set_setup_status("");
                     update_server_url_display();
                     ToastManager::instance().show(ToastSeverity::SUCCESS,
@@ -1403,19 +1397,16 @@ void SpoolmanOverlay::verify_spoolman_connected() {
 // ============================================================================
 
 void SpoolmanOverlay::update_server_url_display() {
-    if (!server_url_text_ || !api_)
+    if (!api_)
         return;
 
     resolve_spoolman_target([this](const SpoolmanConfigTarget& res) {
-        if (!server_url_text_)
-            return;
-
         if (res.status != SpoolmanConfigTarget::Status::Defined) {
             // Nothing configured, or we could not determine where it lives. Say
             // "Connected" without inventing a URL.
             if (res.status != SpoolmanConfigTarget::Status::Undefined)
                 spdlog::warn("[{}] Cannot show Spoolman URL: {}", get_name(), res.detail);
-            lv_label_set_text(server_url_text_, lv_tr("Connected"));
+            lv_subject_set_string(&server_url_subject_, lv_tr("Connected"));
             return;
         }
 
@@ -1423,11 +1414,11 @@ void SpoolmanOverlay::update_server_url_display() {
         auto url =
             helix::MoonrakerConfigManager::get_section_value(res.content, "spoolman", "server");
         if (url.empty()) {
-            lv_label_set_text(server_url_text_, lv_tr("Connected"));
+            lv_subject_set_string(&server_url_subject_, lv_tr("Connected"));
             return;
         }
         auto text = fmt::format("{} {}", lv_tr("Connected to"), url);
-        lv_label_set_text(server_url_text_, text.c_str());
+        lv_subject_set_string(&server_url_subject_, text.c_str());
     });
 }
 
@@ -1448,10 +1439,7 @@ void SpoolmanOverlay::handle_change_clicked() {
         });
     }
 
-    if (setup_card_)
-        lv_obj_remove_flag(setup_card_, LV_OBJ_FLAG_HIDDEN);
-    if (status_card_)
-        lv_obj_add_flag(status_card_, LV_OBJ_FLAG_HIDDEN);
+    lv_subject_set_int(&setup_editing_subject_, 1);
 }
 
 void SpoolmanOverlay::remove_spoolman_config() {
@@ -1505,6 +1493,7 @@ void SpoolmanOverlay::remove_spoolman_config() {
                     api_->restart_moonraker(
                         [this, tok2]() {
                             tok2.defer("SpoolmanOverlay::remove_restarted", [this]() {
+                                lv_subject_set_int(&setup_editing_subject_, 0);
                                 set_setup_status("");
                                 ToastManager::instance().show(ToastSeverity::SUCCESS,
                                                               lv_tr("Spoolman removed."), 3000);

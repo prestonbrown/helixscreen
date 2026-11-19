@@ -5,6 +5,7 @@
 
 #include "ui_ams_mini_status.h"
 #include "ui_notification.h"
+#include "ui_obj_flags.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -505,8 +506,8 @@ lv_obj_t* create_card_background(lv_obj_t* container, const CardRect& card,
     lv_obj_remove_style(card_bg, nullptr, LV_PART_MAIN);
     lv_obj_add_style(card_bg, ThemeManager::instance().get_style(StyleRole::Card), LV_PART_MAIN);
     lv_obj_set_style_pad_all(card_bg, 0, 0);
-    lv_obj_remove_flag(card_bg, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(card_bg, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(card_bg, false);
+    lv_obj_set_scrollable(card_bg, false);
     // Set initial size from the track dimensions so the card renders at
     // approximately the right shape on the first frame, before the grid layout
     // resolves. Grid STRETCH overrides once layout runs.
@@ -527,15 +528,28 @@ struct TileCell {
     int col, row, colspan, rowspan;
 };
 
+/// A tile's home page and the panel's main page, for cell_fills_extra_page().
+struct TilePage {
+    int index, main_index;
+};
+
+TilePage tile_page(PanelWidgetConfig& config, int page_index) {
+    return {page_index, static_cast<int>(config.main_page_index())};
+}
+
 // Tell a tile the cell it holds: its attached instance (if any) through
 // notify_size_changed(), which records the grant first so a widget that
 // rebuilds its contents later lays them out against the same cell, and the AMS
 // mini status (a pure XML widget) its width.
 void announce_tile_size(lv_obj_t* tile, const std::string& widget_id, PanelWidget* instance,
-                        const TileCell& cell, const CellMetrics& metrics) {
+                        const TileCell& cell, const CellMetrics& metrics, const TilePage& page) {
     const int width =
         static_cast<int>(grid_track_extent(metrics.cell_w, metrics.gutter, cell.colspan));
     if (instance) {
+        const TrackRect rect{cell.col, cell.row, cell.colspan, cell.rowspan};
+        instance->set_page_placement(
+            page.index,
+            cell_fills_extra_page(page.index, page.main_index, rect, metrics.cols, metrics.rows));
         instance->notify_size_changed(
             cell.colspan, cell.rowspan, width,
             static_cast<int>(grid_track_extent(metrics.cell_h, metrics.gutter, cell.rowspan)));
@@ -552,7 +566,7 @@ void announce_tile_size(lv_obj_t* tile, const std::string& widget_id, PanelWidge
 // the gated treatment or the attached PanelWidget (moved into @p result), and
 // the size notification. Returns the tile root, or nullptr if creation failed.
 lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cell,
-                      const CellMetrics& metrics,
+                      const CellMetrics& metrics, const TilePage& page,
                       std::vector<std::unique_ptr<PanelWidget>>& result) {
     const auto t_create = std::chrono::steady_clock::now();
 
@@ -577,7 +591,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
 
     // Mark the tile root so tree walks that only make sense at page
     // level stop here. See kPanelWidgetTileFlag in panel_widget.h.
-    lv_obj_add_flag(widget, kPanelWidgetTileFlag);
+    helix::ui::obj_set_flags(widget, kPanelWidgetTileFlag, true);
 
     spdlog::debug("[PanelWidgetManager] Placed widget '{}' at ({},{} {}x{})", slot.widget_id,
                   cell.col, cell.row, cell.colspan, cell.rowspan);
@@ -598,7 +612,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
         // indev hit test entirely, so the press walks up to the parent
         // instead. Safe without a restore path: an un-gate rebuilds the
         // tile from scratch (see the gate observers' rebuild).
-        lv_obj_remove_flag(widget, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(widget, false);
 
         const auto* gated_def = find_widget_def(slot.widget_id);
         const char* type_icon = (gated_def && gated_def->icon) ? gated_def->icon : "cancel";
@@ -613,7 +627,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
             "center", "clickable", "false", "event_bubble", "true",    nullptr};
         if (auto* type_overlay =
                 static_cast<lv_obj_t*>(lv_xml_create(widget, "icon", type_icon_attrs))) {
-            lv_obj_add_flag(type_overlay, LV_OBJ_FLAG_FLOATING);
+            lv_obj_set_floating(type_overlay, true);
             lv_obj_set_style_opa(type_overlay, LV_OPA_COVER, 0);
         }
 
@@ -621,7 +635,7 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
                                      "muted",        "align",  "center", "clickable", "false",
                                      "event_bubble", "true",   nullptr};
         if (auto* badge = static_cast<lv_obj_t*>(lv_xml_create(widget, "icon", badge_attrs))) {
-            lv_obj_add_flag(badge, LV_OBJ_FLAG_FLOATING);
+            lv_obj_set_floating(badge, true);
             lv_obj_set_style_opa(badge, LV_OPA_COVER, 0);
         }
 
@@ -635,11 +649,11 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
         if (auto* sizing = slot.instance->tile_sizing()) {
             sizing->set_content_root(widget);
         }
-        slot.instance->attach_tile(widget, lv_scr_act());
+        slot.instance->attach_tile(widget, lv_screen_active());
         attached = slot.instance.get();
         result.push_back(std::move(slot.instance));
     }
-    announce_tile_size(widget, slot.widget_id, attached, cell, metrics);
+    announce_tile_size(widget, slot.widget_id, attached, cell, metrics, page);
     log_if_slow_build(slot.widget_id.c_str(), t_create, t_attach);
     return widget;
 }
@@ -1523,7 +1537,8 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
         {
 #endif
             create_tile(container, enabled_widgets[p.slot_index],
-                        TileCell{p.col, p.row, p.colspan, p.rowspan}, metrics, result);
+                        TileCell{p.col, p.row, p.colspan, p.rowspan}, metrics,
+                        tile_page(widget_config, page_index), result);
 #if defined(__cpp_exceptions)
         } catch (const std::exception& e) {
             spdlog::error("[PanelWidgetManager] Widget '{}' creation failed: {}",
@@ -1630,7 +1645,7 @@ PanelWidgetManager::swap_gated_tiles(const std::string& panel_id, lv_obj_t* cont
         for (uint32_t i = 0; i < count && !tile; ++i) {
             lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
             const char* name = lv_obj_get_name(child);
-            if (lv_obj_has_flag(child, kPanelWidgetTileFlag) && name && id == name) {
+            if (helix::ui::obj_has_flags(child, kPanelWidgetTileFlag) && name && id == name) {
                 tile = child;
             }
         }
@@ -1674,7 +1689,9 @@ PanelWidgetManager::swap_gated_tiles(const std::string& panel_id, lv_obj_t* cont
 #else
         {
 #endif
-            if (lv_obj_t* tile = create_tile(container, *slot, t.cell, metrics, attached)) {
+            if (lv_obj_t* tile =
+                    create_tile(container, *slot, t.cell, metrics,
+                                tile_page(get_widget_config(panel_id), page_index), attached)) {
                 lv_obj_move_to_index(tile, static_cast<int32_t>(t.index));
             }
 #if defined(__cpp_exceptions)
@@ -1764,14 +1781,14 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
         lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
         // A hidden child is condemned: safe_delete_deferred() hides what it
         // queues for deletion.
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(child)) {
             continue;
         }
         const char* name = lv_obj_get_name(child);
-        if (!lv_obj_has_flag(child, kPanelWidgetTileFlag)) {
+        if (!helix::ui::obj_has_flags(child, kPanelWidgetTileFlag)) {
             // Card backgrounds are the unnamed grid children; edit mode's own
             // objects float.
-            if (!name && !lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING)) {
+            if (!name && !lv_obj_is_floating(child)) {
                 cards.push_back(child);
             }
             continue;
@@ -1868,13 +1885,14 @@ bool PanelWidgetManager::relayout_tiles_impl(const std::string& panel_id, lv_obj
     if (resized) {
         announce_tile_size(resized->tile, resized_id,
                            instance != widgets.end() ? instance->get() : nullptr, resized->cell,
-                           metrics);
+                           metrics, tile_page(get_widget_config(panel_id), page_index));
     }
     if (reseat_all) {
         for (const auto& seat : seats) {
             if (seat.span_changed) {
                 announce_tile_size(seat.tile, seat.entry->id, instance_for(seat.entry->id),
-                                   seat.cell, metrics);
+                                   seat.cell, metrics,
+                                   tile_page(get_widget_config(panel_id), page_index));
             }
         }
     }

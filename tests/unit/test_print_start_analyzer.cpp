@@ -1139,7 +1139,10 @@ TEST_CASE("PrintStartAnalyzer::analyze reads the macro from Klipper's configfile
         {{"gcode_macro START_PRINT",
           {{"gcode", "\n{% if params.SKIP_MESH|default(0)|int == 0 %}\nBED_MESH_CALIBRATE\n"
                      "{% endif %}\nG28\nHEAD_PREP\n"}}},
-         {"gcode_macro HEAD_PREP", {{"gcode", "\nCLEAN_NOZZLE\n"}}}});
+         {"gcode_macro HEAD_PREP", {{"gcode", "\nCLEAN_NOZZLE\n"}}},
+         // Sections with no usable body are skipped, not read.
+         {"gcode_macro NO_BODY", {{"description", "none"}}},
+         {"gcode_macro NUMERIC_BODY", {{"gcode", 5}}}});
 
     const ApiAnalysis run = run_api_analysis(api);
 

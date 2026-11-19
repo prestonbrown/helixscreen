@@ -50,7 +50,7 @@ const std::vector<SlotPatterns> kDetectionPatterns = {
     // printer that defines a conventionally-named load macro keeps it — this
     // only reaches printers where nothing else matched, which on stock Q2
     // firmware is every one of them: it ships no LOAD_FILAMENT, LOAD_MATERIAL
-    // or M701 for the earlier patterns to find (bundle in #1030).
+    // or M701 for the earlier patterns to find (#1030).
     {StandardMacroSlot::LoadFilament,   {"LOAD_FILAMENT", "LOAD_MATERIAL", "M701", "M604"}},
     // HELIX_UNLOAD_FILAMENT (from our macro pack) deliberately outranks
     // Creality's QUIT_MATERIAL — that stock macro purges filament forward and
@@ -105,9 +105,6 @@ const std::map<StandardMacroSlot, std::string> kFallbackMacros = {
 };
 // clang-format on
 
-/**
- * @brief Slot metadata
- */
 struct SlotMeta {
     std::string name;         ///< Config key: "load_filament"
     std::string display_name; ///< UI label: "Load Filament"
@@ -224,7 +221,6 @@ void StandardMacros::init_slot_definitions() {
     slots_.clear();
     slots_.reserve(static_cast<size_t>(StandardMacroSlot::COUNT));
 
-    // Initialize all slots with metadata
     for (int i = 0; i < static_cast<int>(StandardMacroSlot::COUNT); ++i) {
         auto slot = static_cast<StandardMacroSlot>(i);
         StandardMacroInfo info;
@@ -463,7 +459,6 @@ void StandardMacros::init(const helix::PrinterDiscovery& hardware,
         }
     }
 
-    // Load user configuration
     load_from_config();
 
     // A configured name is only usable if this printer defines it
@@ -485,7 +480,6 @@ void StandardMacros::init(const helix::PrinterDiscovery& hardware,
 
     initialized_ = true;
 
-    // Log summary
     int configured = 0, shipped = 0, detected = 0, fallback = 0, empty = 0;
     for (const auto& slot : slots_) {
         switch (slot.get_source()) {
@@ -564,7 +558,6 @@ std::string StandardMacros::try_detect(const helix::PrinterDiscovery& hardware,
 
     for (const auto& pattern : patterns) {
         std::string upper_pattern = helix::text_io::to_upper(pattern);
-        // Check if the pattern exists as a macro (both are uppercase)
         if (macros.find(upper_pattern) != macros.end()) {
             // Return the pattern as-is (Klipper macros are case-insensitive)
             return pattern;

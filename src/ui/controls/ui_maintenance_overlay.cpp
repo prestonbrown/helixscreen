@@ -12,50 +12,76 @@
 
 namespace helix {
 
-namespace {
-
-template <int Meter> void on_interval_changed(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceOverlay] on_interval_changed");
-    maintenance_model::set_interval_choice(Meter, ui::event_selected(e));
-    LVGL_SAFE_EVENT_CB_END();
+void MaintenanceOverlay::register_callbacks() {
+    register_xml_callbacks({
+        {"maintenance_card_cb",
+         [](lv_event_t* e) {
+             LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceOverlay] maintenance_card_cb");
+             if (auto meter = ui::event_user_int(e))
+                 maintenance_model::open_task_page(*meter);
+             LVGL_SAFE_EVENT_CB_END();
+         }},
+        {"maintenance_intervals_cb",
+         [](lv_event_t*) {
+             LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceOverlay] maintenance_intervals_cb");
+             get_maintenance_intervals_overlay().show(lv_screen_active());
+             LVGL_SAFE_EVENT_CB_END();
+         }},
+    });
 }
 
-} // namespace
+void MaintenanceTaskOverlay::register_callbacks() {
+    register_xml_callbacks({
+        {"maintenance_mark_done_cb",
+         [](lv_event_t*) {
+             LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceTaskOverlay] maintenance_mark_done_cb");
+             maintenance_model::confirm_reset(maintenance_model::task_meter());
+             LVGL_SAFE_EVENT_CB_END();
+         }},
+    });
+}
 
-void MaintenanceOverlay::apply_interval_options(lv_obj_t* root) {
+void MaintenanceIntervalsOverlay::apply_options(lv_obj_t* root) {
     if (!root)
         return;
-    const std::string options = maintenance_model::interval_options();
-    for (int i = 0; i < maintenance::kMeterCount; ++i) {
-        const std::string row_name = "row_interval_" + std::to_string(i);
-        lv_obj_t* row = lv_obj_find_by_name(root, row_name.c_str());
-        lv_obj_t* dropdown = row ? lv_obj_find_by_name(row, "dropdown") : nullptr;
+    const std::string hours = maintenance_model::interval_options();
+    const std::string days = maintenance_model::day_options();
+    const auto fill = [root](const std::string& name, const std::string& options, int selected) {
+        lv_obj_t* dropdown = lv_obj_find_by_name(root, name.c_str());
         if (!dropdown)
-            continue;
-        // DECLARATIVE_OK: the options are data, built from the one interval table
+            return;
+        // DECLARATIVE_OK: the options are data, built from the one choices table
         lv_dropdown_set_options(dropdown, options.c_str());
+        lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(selected));
+    };
+    for (int i = 0; i < maintenance::kMeterCount; ++i) {
         const auto& meter = maintenance_model::state().meters[static_cast<size_t>(i)];
-        lv_dropdown_set_selected(
-            dropdown, static_cast<uint32_t>(maintenance::interval_choice_index(meter.interval_h)));
+        fill("mt_hours_" + std::to_string(i), hours,
+             maintenance::interval_choice_index(meter.interval_h));
+        fill("mt_days_" + std::to_string(i), days, maintenance::day_choice_index(meter.interval_d));
     }
 }
 
-void MaintenanceOverlay::before_show() {
-    apply_interval_options(overlay_root_);
+void MaintenanceIntervalsOverlay::before_show() {
+    apply_options(overlay_root_);
 }
 
-void MaintenanceOverlay::register_callbacks() {
+void MaintenanceIntervalsOverlay::register_callbacks() {
     register_xml_callbacks({
-        {"maintenance_reset_cb",
+        {"maintenance_interval_cb",
          [](lv_event_t* e) {
-             LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceOverlay] maintenance_reset_cb");
+             LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceIntervals] maintenance_interval_cb");
              if (auto meter = ui::event_user_int(e))
-                 maintenance_model::confirm_reset(*meter);
+                 maintenance_model::set_interval_choice(*meter, ui::event_selected(e));
              LVGL_SAFE_EVENT_CB_END();
          }},
-        {"maintenance_interval_0_cb", on_interval_changed<0>},
-        {"maintenance_interval_1_cb", on_interval_changed<1>},
-        {"maintenance_interval_2_cb", on_interval_changed<2>},
+        {"maintenance_days_cb",
+         [](lv_event_t* e) {
+             LVGL_SAFE_EVENT_CB_BEGIN("[MaintenanceIntervals] maintenance_days_cb");
+             if (auto meter = ui::event_user_int(e))
+                 maintenance_model::set_days_choice(*meter, ui::event_selected(e));
+             LVGL_SAFE_EVENT_CB_END();
+         }},
     });
 }
 

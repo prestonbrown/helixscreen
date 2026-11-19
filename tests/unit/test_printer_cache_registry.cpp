@@ -18,6 +18,7 @@
 
 #include "../helix_test_fixture.h"
 #include "printer_cache_registry.h"
+#include "printer_state.h"
 
 #include <stdexcept>
 #include <string>
@@ -286,4 +287,50 @@ TEST_CASE_METHOD(PrinterCacheRegistryFixture,
     // The destroyed flag only flips during static destruction; it must read false
     // while the process is running so static-destruction guards are meaningful.
     REQUIRE_FALSE(PrinterCacheRegistry::is_destroyed());
+}
+
+TEST_CASE_METHOD(PrinterCacheRegistryFixture,
+                 "PrinterCacheRegistry: one name registered by two owners is two entries",
+                 "[printer_cache_registry][core]") {
+    auto& reg = PrinterCacheRegistry::instance();
+    int first_owner = 0;
+    int second_owner = 0;
+    int a = 0;
+    int b = 0;
+    reg.register_invalidator("Shared", [&a]() { a++; }, &first_owner);
+    reg.register_invalidator("Shared", [&b]() { b++; }, &second_owner);
+    REQUIRE(reg.count() == 2);
+
+    // Re-registering by the same owner still replaces in place.
+    reg.register_invalidator("Shared", [&a]() { a += 10; }, &first_owner);
+    REQUIRE(reg.count() == 2);
+
+    // One owner leaving takes only its own entry.
+    REQUIRE_FALSE(reg.unregister("Shared"));
+    REQUIRE(reg.unregister("Shared", &second_owner));
+    reg.invalidate_all();
+    CHECK(a == 10);
+    CHECK(b == 0);
+}
+
+TEST_CASE_METHOD(PrinterCacheRegistryFixture,
+                 "PrinterCacheRegistry: a PrinterState that dies without deinit leaves no "
+                 "invalidator and spares another instance's",
+                 "[printer_cache_registry][core][printer_state]") {
+    auto& reg = PrinterCacheRegistry::instance();
+    int survivor_fired = 0;
+    int survivor_owner = 0;
+    reg.register_invalidator(
+        "PrinterState", [&survivor_fired]() { survivor_fired++; }, &survivor_owner);
+
+    {
+        // MockPrinter's shape: initialized, then destroyed with its subjects still up.
+        helix::PrinterState state;
+        state.init_subjects(false);
+        REQUIRE(reg.count() == 2);
+    }
+
+    REQUIRE(reg.count() == 1);
+    reg.invalidate_all();
+    CHECK(survivor_fired == 1);
 }

@@ -121,10 +121,10 @@ struct BackendCaps {
 
     // Bypass turns requires_slot_selection_for_load() off, which is right when
     // the op targets the bypass spool and wrong when the user named a lane.
-    // Falling through sent the EXTERNAL holder's macro with no argument at all:
-    // on a K2 Plus that is LOAD_MATERIAL, whose heat step is gated on the
-    // toolhead sensor, so with nothing threaded it moved the head to the
-    // extrude position and stopped, reporting success having loaded nothing.
+    // Falling through would send the EXTERNAL holder's macro with no argument at
+    // all: on a K2 Plus that is LOAD_MATERIAL, whose heat step is gated on the
+    // toolhead sensor, so with nothing threaded it moves the head to the
+    // extrude position and stops, reporting success having loaded nothing.
     //
     // A lane tap is an explicit target, so honour it and let the backend stand
     // the box back up. The one case that cannot be honoured is a bypass spool

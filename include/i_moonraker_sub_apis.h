@@ -310,7 +310,8 @@ class IAdvancedAPI {
     using BedMeshProgressCallback = std::function<void(int current, int total)>;
     using NoiseCheckCallback = std::function<void(float noise_level)>;
     using InputShaperConfigCallback = std::function<void(const InputShaperConfig&)>;
-    using HeaterControlTypeCallback = helix::SharedCallback<void(const std::string& control_type)>;
+    using HeaterControlTypeCallback =
+        helix::SharedCallback<void(const std::string& control_type, bool names_cooling_fan)>;
     using PIDProgressCallback = std::function<void(int sample, float tolerance)>;
     using PIDCalibrateCallback = std::function<void(float kp, float ki, float kd)>;
 
@@ -642,6 +643,10 @@ class ISpoolmanAPI {
                                                     const std::string& display_name, double value,
                                                     SuccessCallback on_success,
                                                     ErrorCallback on_error) = 0;
+
+    /// The ISO 4217 code Spoolman's prices are in; empty when Spoolman has none set.
+    virtual void get_spoolman_currency(std::function<void(const std::string& currency)> on_success,
+                                       ErrorCallback on_error) = 0;
 
     virtual void get_spoolman_vendors(helix::VendorListCallback on_success,
                                       ErrorCallback on_error) = 0;

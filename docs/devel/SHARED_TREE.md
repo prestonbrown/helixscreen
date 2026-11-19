@@ -1,7 +1,7 @@
 # Sharing the Tree With Other Sessions
 
 Several agent sessions (Claude, opencode, a human) usually work in this repo at once, often in
-the main working tree. Root `CLAUDE.md` § "Sharing This Tree" holds the rules. This doc is the
+the main working tree. The `helix-ops` skill (`.claude/skills/helix-ops/SKILL.md`) holds the rules. This doc is the
 manual behind them: `scripts/helix-claim`, the git hooks that use it, and how to read a tree
 someone else may be in the middle of.
 
@@ -66,7 +66,10 @@ ninja or GNU parallel work with `helix-claim hold` or `scripts/pool-docker.sh`
 
 | Hook | Behaviour |
 |------|-----------|
-| `pre-commit` | If `MERGE_HEAD` exists, claims this tree under the **git process's** pid so the merge announces itself. Prints nothing unless another session already holds the tree. Then runs the quality checks. |
+| `pre-commit` | If `MERGE_HEAD` exists (a merge that stopped to be resolved), claims this tree under the **git process's** pid so the merge announces itself. Prints nothing unless another session already holds the tree. Then runs the staged-only quality checks. |
+| `pre-merge-commit` | The same claim for a clean `git merge`, which never runs `pre-commit`. |
+| `post-merge` | Mirror of `post-commit` for the merge path: drops only the claim this merge's own git process took. |
+| `pre-push` | The full quality sweep over the commits being pushed (a throwaway worktree when the tree is dirty), skipped for a commit that carries a land-gate stamp. See `BUILD_SYSTEM.md`. |
 | `post-commit` | Points any committed path's stale index entry back at HEAD's blob (`.githooks/lib/sync-index-to-head.sh`), then releases that claim **only if the claim names this commit's own pid**, so a session claim spanning several commits survives. |
 
 Ordinary human git use stays silent: the hooks speak only on a real conflict. They are advisory

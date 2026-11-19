@@ -556,6 +556,7 @@
   ["Encoder", true],
   ["Ended", true],
   ["English", false],
+  ["English (UK)", false],
   ["Enter G-code command...", true],
   ["Enter New PIN", true],
   ["Enter PIN", true],

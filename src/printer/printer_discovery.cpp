@@ -49,7 +49,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
                                    IMoonrakerClient* client) {
     spdlog::debug("[PrinterDiscovery] Initializing subsystems from hardware discovery");
 
-    // Initialize AMS backend (AFC, Happy Hare, ACE, Tool Changer)
     AmsState::instance().init_backend_from_hardware(hardware, api, client);
 
     // Sensor discovery is unconditional: an empty list is what clears the
@@ -60,11 +59,9 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
         m->load_settings();
     }
 
-    // Initialize multi-extruder temperature tracking
     auto& printer_state = get_printer_state();
     printer_state.temperature_state().init_extruders(hardware.heaters());
 
-    // Initialize tool changer state from discovered hardware
     helix::ToolState::instance().init_tools(hardware);
     // init_tools() mounts T0 and drops any backend topology. A backend started
     // above, or still running from the last discovery, already said which head
@@ -87,7 +84,6 @@ void init_subsystems_from_hardware(const PrinterDiscovery& hardware, IMoonrakerA
 
     remember_printer_hostname(hardware.hostname());
 
-    // Initialize standard macros
     // Type from Config, NOT PrinterState: this callback runs before
     // auto_detect_and_save sets PrinterState's copy, so reading that one hands
     // StandardMacros an empty string and the shipped tier never fills. Same trap

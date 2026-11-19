@@ -84,7 +84,8 @@ PrinterDiscovery plain_toolchanger_discovery() {
 // never unwound: is_busy() would refuse every later op until a restart, since
 // Moonraker republishes only changed fields. The refusal clears with Reset,
 // which sends INITIALIZE_TOOLCHANGER. An initializing changer is moving the
-// carriage, so it is busy too. The raw status names the state as detail.
+// carriage, so it is busy too. The detail is a catalog key for a word we know,
+// empty where the translated action says it, and the raw word otherwise.
 TEST_CASE("A toolchanger's status maps to an action, and the unready ones refuse a tap",
           "[ams][toolchanger][coldstart]") {
     struct Row {
@@ -92,21 +93,22 @@ TEST_CASE("A toolchanger's status maps to an action, and the unready ones refuse
         int tool;
         AmsAction action;
         bool refuses_tap;
+        const char* detail;
     };
     const Row rows[] = {
-        {"uninitialized", -1, AmsAction::RESETTING, true},
-        {"initializing", -1, AmsAction::RESETTING, true},
-        {"ready", 0, AmsAction::IDLE, false},
-        {"changing", 0, AmsAction::SELECTING, false},
-        {"error", -1, AmsAction::ERROR, false},
+        {"uninitialized", -1, AmsAction::RESETTING, true, "Not Initialized"},
+        {"initializing", -1, AmsAction::RESETTING, true, "Initializing..."},
+        {"ready", 0, AmsAction::IDLE, false, ""},
+        {"changing", 0, AmsAction::SELECTING, false, "Tool swap"},
+        {"error", -1, AmsAction::ERROR, false, ""},
     };
     for (const auto& row : rows) {
         INFO(row.status);
         ToolChangerHelper h(4);
         h.feed_status(row.status, row.tool);
         CHECK(h.get_current_action() == row.action);
+        CHECK(h.get_system_info().operation_detail == row.detail);
         if (row.refuses_tap) {
-            CHECK(h.get_system_info().operation_detail == row.status);
             CHECK(h.get_system_info().is_busy());
             CHECK_FALSE(h.change_tool(2).success());
             CHECK(h.sent().empty());
@@ -517,13 +519,17 @@ TEST_CASE("Irbis3D's opening 'changing' frame lights the swap's first step",
     // Latch the direction and the gripper, as a swap's own frames would.
     tc.feed(
         json{{"medusahc", {{"operation", "idle"}, {"current_tool", 0}, {"feeder_open", false}}}});
+    CHECK(tc.get_system_info().operation_detail.empty());
     REQUIRE(tc.change_tool(2).success());
 
+    // The detail is a catalog key for the word, never the raw word.
     tc.feed(json{{"medusahc", {{"operation", "changing"}, {"current_tool", 0}}}});
     CHECK(tc.get_system_info().operation_phase == 0); // Release filament
     CHECK(tc.get_system_info().action == AmsAction::SELECTING);
+    CHECK(tc.get_system_info().operation_detail == "Tool swap");
     tc.feed(json{{"medusahc", {{"operation", "dropping"}, {"current_tool", 0}}}});
     CHECK(tc.get_system_info().operation_phase == 1); // Dock tool
+    CHECK(tc.get_system_info().operation_detail == "Docking tool");
 }
 
 TEST_CASE("MedusaHC's fault dialog quotes the controller's own failure",

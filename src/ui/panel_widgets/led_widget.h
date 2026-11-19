@@ -3,13 +3,14 @@
 
 #pragma once
 
-#include "ui_context_menu.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "led/led_backend.h"
 #include "led/led_devices.h"
+#include "src/ui/panel_widgets/light_target_picker.h"
 #include "src/ui/panel_widgets/tile_sizing.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "subject_managed_panel.h"
@@ -34,6 +35,10 @@ int light_chevron_reserve_px();
 
 /// The devices the light-button picker lists, before its fixed "All lights" row.
 std::vector<led::LedStripInfo> light_picker_devices();
+
+/// The device the LEDs overlay opens on for a light whose `led` config is @p key:
+/// the chamber light for All lights, otherwise the first device @p key drives.
+std::string light_overlay_device(const std::string& key);
 
 /// How a light button's bulb reads for the devices it drives.
 struct LightIconLook {
@@ -105,36 +110,8 @@ class LedWidget : public TiledPanelWidget {
     // XML event callbacks (public for early registration in register_led_widget)
     static void light_toggle_cb(lv_event_t* e);
     static void light_more_cb(lv_event_t* e);
-    static void led_picker_row_cb(lv_event_t* e);
 
   private:
-    /// "This button controls": one row per switchable device, then All lights.
-    class LedPicker : public helix::ui::ContextMenu {
-        HELIX_CONTEXT_MENU_KIND(LedPicker)
-
-      public:
-        explicit LedPicker(LedWidget& owner) : owner_(owner) {}
-        LedWidget& owner() {
-            return owner_;
-        }
-        /// The device behind each row as the picker drew it, so a tap picks
-        /// what the user saw even if the device list changed since.
-        std::vector<std::string> row_ids;
-
-      protected:
-        const char* xml_component_name() const override {
-            return "led_picker";
-        }
-        /// Same clamp as the fan picker: readable on a 480px panel, not sprawling on 1024px.
-        CardWidth card_width() const override {
-            return {30, 160, 240};
-        }
-        void on_created(lv_obj_t* menu) override;
-
-      private:
-        LedWidget& owner_;
-    };
-
     /// Widgets that are attached now; an event's user_data is trusted only when
     /// it is one of these.
     static std::unordered_set<LedWidget*>& live_instances();
@@ -148,9 +125,9 @@ class LedWidget : public TiledPanelWidget {
     helix::ui::WidgetRef light_icon_;
 
     SubjectManager subjects_;
-    lv_subject_t name_subject_{};
+    helix::Subject name_subject_{};
     char name_buf_[64] = {};
-    lv_subject_t wide_subject_{};
+    helix::Subject wide_subject_{};
     std::string name_subject_name_;
     std::string wide_subject_name_;
     std::vector<std::string> attr_storage_;
@@ -159,7 +136,7 @@ class LedWidget : public TiledPanelWidget {
     ObserverGuard led_version_observer_;
     ObserverGuard led_state_observer_;
 
-    LedPicker picker_{*this};
+    LightTargetPicker picker_;
 
     // MUST stay declared LAST: reverse-declaration destruction makes this the
     // first member torn down, invalidating every captured token before any

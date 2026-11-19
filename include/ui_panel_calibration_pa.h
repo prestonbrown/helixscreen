@@ -3,16 +3,19 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "calibration_owned_heat.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "overlay_base.h"
 #include "pa_calibration.h"
+#include "pa_calibration_run.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
 #include <lvgl.h>
+#include <optional>
 #include <string>
 
 /**
@@ -144,6 +147,10 @@ class PACalibrationPanel : public OverlayBase {
         return result_k_;
     }
 
+    /// Ends a run while the client can still send, turning its heat off. Shutdown
+    /// and printer switches reach the panel only after the client is gone.
+    void before_disconnect();
+
     /// Whether this printer can measure pressure advance at all. The Controls
     /// entry is bound to the same capability through `printer_has_pa_cal`.
     static bool printer_supports_calibration();
@@ -153,6 +160,27 @@ class PACalibrationPanel : public OverlayBase {
     //
 
     /// Drive the state machine directly, without a printer.
+    void begin_run_for_test() {
+        begin_run();
+    }
+    bool heater_held_for_test() const {
+        return heat_.held();
+    }
+    void stop_run_for_test(bool user_requested) {
+        stop_run(user_requested);
+    }
+    bool owed_off_settling_for_test() const {
+        return heat_.settle_timer_armed();
+    }
+    void flush_owed_off_for_test() {
+        heat_.flush_owed();
+    }
+    lv_timer_t* run_timer_for_test() const {
+        return run_timer_;
+    }
+    void fire_run_timer_for_test() {
+        handle_run_timer();
+    }
     void set_state_for_test(State s) {
         set_state(s);
     }
@@ -176,16 +204,31 @@ class PACalibrationPanel : public OverlayBase {
     }
 
   private:
+    /// The nozzle heating alone never takes this long on a working machine.
+    static constexpr uint32_t kHeatDeadlineMs = 600000;
+    /// Past the firmware command's own limit, so a late result still lands.
+    static constexpr uint32_t kMeasureDeadlineGraceMs = 60000;
+
     // --- run control ---
     void confirm_and_start();
+    /// confirm_and_start() once the bed is known clear.
+    void confirm_once_bed_clear();
     void begin_run();
     void begin_measure();
     void stop_run(bool user_requested);
+    /// A run that stopped short gives its heat back. Skipped for a preheat the
+    /// run did not start; owed until reconnect when the link is down.
+    void abandon_run_heat();
+    /// Normal endings, where a preheat the run began on is cleared too.
+    void finish_run_heat();
+    static void send_heater_off(const std::string& heater);
     /// Typical minutes for a run on this printer, for the pre-run copy.
     int estimate_minutes() const;
     void on_result(float k);
     void on_error(const std::string& message);
-    void on_attempt(int attempt, int expected, float k_so_far);
+    void on_attempt(const helix::pacal::Attempt& attempt);
+    /// Stop the run in progress, if any, and forget it.
+    void stop_measurement();
 
     // --- state / display ---
     void set_state(State s);
@@ -215,6 +258,11 @@ class PACalibrationPanel : public OverlayBase {
     /// Cancel the ETA timer. Safe with none armed and safe from the
     /// destructor, which is why it is separate from stop_heat_tracking().
     void cancel_eta_timer();
+    /// The run's deadline while one is live.
+    void cancel_run_timer();
+    void arm_run_timer(uint32_t ms);
+    void handle_run_timer();
+    static void on_run_timer(lv_timer_t* timer);
     /// Start the once-a-second remaining-time tick, replacing any armed one.
     void arm_eta_timer();
     static void on_eta_tick(lv_timer_t* timer);
@@ -241,10 +289,15 @@ class PACalibrationPanel : public OverlayBase {
     int result_temp_ = 0;
     std::string result_material_;
 
-    /// Stops listening to the run in progress. Klipper cannot interrupt a
-    /// running command, so a stop mid-measurement leaves the firmware to
-    /// finish while the screen stops waiting for it.
-    std::function<void()> pa_cancel_;
+    /// The run in progress, whatever kind the printer needs. Its stop() ends it
+    /// at the next safe point and sends what the printer is owed.
+    std::shared_ptr<helix::pacal::Run> run_;
+
+    /// Target the nozzle already had when the run began. Nonzero means someone
+    /// else's heat, which shutdown leaves alone.
+    int prior_target_c_ = 0;
+
+    helix::CalibrationOwnedHeat heat_{"PACalibration", &PACalibrationPanel::send_heater_off};
 
     /// Ticks when the current phase began, for the remaining-time clock.
     uint32_t phase_start_tick_ms_ = 0;
@@ -255,65 +308,65 @@ class PACalibrationPanel : public OverlayBase {
     // Subjects
     SubjectManager subjects_;
 
-    lv_subject_t state_subject_{};
-    lv_subject_t multi_tool_{};
-    lv_subject_t tool_count_{};
-    lv_subject_t inputs_live_{};
-    lv_subject_t progress_{};
-    lv_subject_t result_plausible_{};
-    lv_subject_t action_is_stop_{};
-    lv_subject_t has_last_{};
+    helix::Subject state_subject_{};
+    helix::Subject multi_tool_{};
+    helix::Subject tool_count_{};
+    helix::Subject inputs_live_{};
+    helix::Subject progress_{};
+    helix::Subject result_plausible_{};
+    helix::Subject action_is_stop_{};
+    helix::Subject has_last_{};
 
-    lv_subject_t tool_selected_[kMaxTools]{};
-    lv_subject_t tool_sub_[kMaxTools]{};
+    helix::Subject tool_selected_[kMaxTools]{};
+    helix::Subject tool_sub_[kMaxTools]{};
     char tool_sub_buf_[kMaxTools][32] = {};
 
-    lv_subject_t preset_selected_[kPresetSlots]{};
-    lv_subject_t preset_temp_[kPresetSlots]{};
+    helix::Subject preset_selected_[kPresetSlots]{};
+    helix::Subject preset_temp_[kPresetSlots]{};
     char preset_temp_buf_[kPresetSlots][16] = {};
 
-    lv_subject_t phase_state_[kPhaseCount]{};
-    lv_subject_t phase_name_[kPhaseCount]{};
-    lv_subject_t phase_meta_[kPhaseCount]{};
+    helix::Subject phase_state_[kPhaseCount]{};
+    helix::Subject phase_name_[kPhaseCount]{};
+    helix::Subject phase_meta_[kPhaseCount]{};
     char phase_name_buf_[kPhaseCount][32] = {};
     char phase_meta_buf_[kPhaseCount][32] = {};
 
-    lv_subject_t temp_display_{};
+    helix::Subject temp_display_{};
     char temp_display_buf_[16] = {};
-    lv_subject_t temp_note_{};
+    helix::Subject temp_note_{};
     char temp_note_buf_[48] = {};
 
-    lv_subject_t phase_label_{};
+    helix::Subject phase_label_{};
     char phase_label_buf_[32] = {};
-    lv_subject_t big_{};
+    helix::Subject big_{};
     char big_buf_[16] = {};
-    lv_subject_t big_sub_{};
+    helix::Subject big_sub_{};
     char big_sub_buf_[24] = {};
-    lv_subject_t remaining_{};
+    helix::Subject remaining_{};
     char remaining_buf_[16] = {};
-    lv_subject_t prog_foot_{};
+    helix::Subject prog_foot_{};
     char prog_foot_buf_[192] = {};
 
-    lv_subject_t result_{};
+    helix::Subject result_{};
     char result_buf_[16] = {};
-    lv_subject_t result_sanity_{};
-    char result_sanity_buf_[128] = {};
-    lv_subject_t keep_note_{};
-    char keep_note_buf_[128] = {};
+    helix::Subject result_sanity_{};
+    char result_sanity_buf_[256] = {};
+    helix::Subject keep_note_{};
+    char keep_note_buf_[384] = {};
 
-    lv_subject_t error_title_{};
+    helix::Subject error_title_{};
     char error_title_buf_[64] = {};
-    lv_subject_t error_detail_{};
+    helix::Subject error_detail_{};
     char error_detail_buf_[320] = {};
-    lv_subject_t error_hint_{};
+    helix::Subject error_hint_{};
     char error_hint_buf_[160] = {};
 
-    lv_subject_t action_text_{};
+    helix::Subject action_text_{};
     char action_text_buf_[24] = {};
 
-    lv_subject_t last_value_{};
+    helix::Subject last_value_{};
     char last_value_buf_[16] = {};
-    lv_subject_t last_context_{};
+    helix::Subject last_context_{};
     char last_context_buf_[64] = {};
 
     /// Follows the printer's own active tool, so the chips show what is
@@ -324,6 +377,7 @@ class PACalibrationPanel : public OverlayBase {
     ObserverGuard temp_observer_;
     SubjectLifetime temp_lifetime_;
     lv_timer_t* eta_timer_ = nullptr;
+    lv_timer_t* run_timer_ = nullptr;
 };
 
 /// Singleton accessor (lazily created, destroyed via StaticPanelRegistry)

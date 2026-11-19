@@ -6,7 +6,6 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_format_utils.h"
 #include "ui_nav.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_panel_print_select.h"
@@ -24,7 +23,10 @@
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_numbering.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
@@ -58,6 +60,7 @@
 #include "thumbnail_processor.h"
 #include "tool_state.h"
 #include "tune_controller.h"
+#include "widget_subjects.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -70,7 +73,7 @@
 
 namespace {
 /// Owns the XML-published static subjects shared by every PrintStatusWidget.
-SubjectManager s_static_subjects;
+helix::WidgetSubjects s_static_subjects{"PrintStatusWidgetSubjects"};
 
 // The idle hero thumbnail is the same benchy image the print-thumbnail subject
 // publishes when a file has no thumbnail of its own, so both come from one
@@ -116,89 +119,82 @@ std::unordered_set<PrintStatusWidget*>& PrintStatusWidget::live_instances() {
 }
 
 void PrintStatusWidget::init_static_subjects() {
-    // Register subjects before XML parsing so bind_flag_if_eq / bind_style can find them.
-    // Idempotent — guarded by column_mode_subject_initialized_.
-    if (column_mode_subject_initialized_)
-        return;
+    // Registered before XML parsing so bind_flag_if_eq / bind_style can find them.
+    s_static_subjects.ensure_init([] {
+        column_mode_subject_.init_int(0);
+        s_static_subjects.publish("print_status_column_mode", &column_mode_subject_);
+        width_band_subject_.init_int(1); // 1 = normal, matches the old colspan=2 default
+        s_static_subjects.publish("print_status_width_band", &width_band_subject_);
 
-    lv_subject_init_int(&column_mode_subject_, 0);
-    s_static_subjects.publish("print_status_column_mode", &column_mode_subject_);
-    column_mode_subject_initialized_ = true;
-    lv_subject_init_int(&width_band_subject_, 1); // 1 = normal, matches the old colspan=2 default
-    s_static_subjects.publish("print_status_width_band", &width_band_subject_);
-    width_band_subject_initialized_ = true;
+        title_hidden_subject_.init_int(0);
+        s_static_subjects.publish("print_status_title_hidden", &title_hidden_subject_);
+        files_hidden_subject_.init_int(0);
+        s_static_subjects.publish("print_status_files_hidden", &files_hidden_subject_);
+        last_hidden_subject_.init_int(0);
+        s_static_subjects.publish("print_status_last_hidden", &last_hidden_subject_);
+        recent_hidden_subject_.init_int(0);
+        s_static_subjects.publish("print_status_recent_hidden", &recent_hidden_subject_);
+        queue_hidden_subject_.init_int(1); // queue starts hidden until jobs arrive
+        s_static_subjects.publish("print_status_queue_hidden", &queue_hidden_subject_);
+        actions_hidden_subject_.init_int(0);
+        s_static_subjects.publish("print_status_actions_hidden", &actions_hidden_subject_);
+        library_icon_only_subject_.init_int(0);
+        s_static_subjects.publish("print_status_library_icon_only", &library_icon_only_subject_);
+        library_grid_subject_.init_int(0);
+        s_static_subjects.publish("print_status_library_grid", &library_grid_subject_);
+        library_wrap_at_subject_.init_int(-1);
+        s_static_subjects.publish("print_status_library_wrap_at", &library_wrap_at_subject_);
 
-    lv_subject_init_int(&title_hidden_subject_, 0);
-    s_static_subjects.publish("print_status_title_hidden", &title_hidden_subject_);
-    lv_subject_init_int(&files_hidden_subject_, 0);
-    s_static_subjects.publish("print_status_files_hidden", &files_hidden_subject_);
-    lv_subject_init_int(&last_hidden_subject_, 0);
-    s_static_subjects.publish("print_status_last_hidden", &last_hidden_subject_);
-    lv_subject_init_int(&recent_hidden_subject_, 0);
-    s_static_subjects.publish("print_status_recent_hidden", &recent_hidden_subject_);
-    lv_subject_init_int(&queue_hidden_subject_, 1); // queue starts hidden until jobs arrive
-    s_static_subjects.publish("print_status_queue_hidden", &queue_hidden_subject_);
-    lv_subject_init_int(&actions_hidden_subject_, 0);
-    s_static_subjects.publish("print_status_actions_hidden", &actions_hidden_subject_);
-    lv_subject_init_int(&library_icon_only_subject_, 0);
-    s_static_subjects.publish("print_status_library_icon_only", &library_icon_only_subject_);
-    lv_subject_init_int(&library_grid_subject_, 0);
-    s_static_subjects.publish("print_status_library_grid", &library_grid_subject_);
-    lv_subject_init_int(&library_wrap_at_subject_, -1);
-    s_static_subjects.publish("print_status_library_wrap_at", &library_wrap_at_subject_);
-    visibility_subjects_initialized_ = true;
-
-    // Detailed-layout subjects
-    lv_subject_init_int(&layout_effective_subject_, 0);
-    // Observed through layout_effective_subject_for_test(), the width-gating guard.
-    s_static_subjects.publish(
-        "print_status_layout_effective",
-        &layout_effective_subject_); // SUBJECT_OK: read by test_widget_size_print_status
-    lv_subject_init_int(&show_filament_active_subject_, 0);
-    s_static_subjects.publish("print_status_show_filament_active", &show_filament_active_subject_);
-    lv_subject_init_int(&multi_tool_subject_, 0);
-    s_static_subjects.publish("print_status_multi_tool", &multi_tool_subject_);
-    lv_subject_init_int(&nozzle_pickable_subject_, 0);
-    s_static_subjects.publish("print_status_nozzle_pickable", &nozzle_pickable_subject_);
-    lv_subject_init_int(&nozzle_picker_fits_subject_, 1);
-    s_static_subjects.publish("print_status_nozzle_picker_fits", &nozzle_picker_fits_subject_);
-    lv_subject_init_int(&layer_z_fits_subject_, 1);
-    s_static_subjects.publish("print_status_layer_z_fits", &layer_z_fits_subject_);
-    lv_subject_init_int(&elapsed_fits_subject_, 1);
-    s_static_subjects.publish("print_status_elapsed_fits", &elapsed_fits_subject_);
-    lv_subject_init_int(&speed_fits_subject_, 1);
-    s_static_subjects.publish("print_status_speed_fits", &speed_fits_subject_);
-    lv_subject_init_int(&flow_fits_subject_, 1);
-    s_static_subjects.publish("print_status_flow_fits", &flow_fits_subject_);
-    // Initial value 0 = idle_library_full — matches the default ref_value=0
-    // on print_card_idle's bind_flag_if_not_eq so it shows by default
-    // before any state events fire.
-    lv_subject_init_int(&view_subject_, 0);
-    s_static_subjects.publish("print_status_view", &view_subject_);
-    // Default to benchy; reset_print_card_to_idle replaces with last-print
-    // thumbnail when history loads.
-    // Resolve the benchy default to its bundle-absolute path before the subject
-    // captures it (a raw "A:assets/images/..." literal misses the /assets mount
-    // on firmware and lv_image_set_src can't open it).
-    snprintf(idle_thumb_path_buf_, sizeof(idle_thumb_path_buf_), "%s", benchy_thumb_path());
-    lv_subject_init_string(&idle_thumb_path_subject_, idle_thumb_path_buf_, nullptr,
-                           sizeof(idle_thumb_path_buf_), idle_thumb_path_buf_);
-    s_static_subjects.publish("print_status_idle_thumb_path", &idle_thumb_path_subject_);
-    // Default to tier 2 (8px) — matches the previous hardcoded medium thickness
-    // until the arc lays out and C++ publishes the diameter-derived tier.
-    lv_subject_init_int(&arc_thickness_tier_subject_, 2);
-    s_static_subjects.publish( // SUBJECT_OK: attach_progress_arc() publishes into this by
-                               // pointer and helix_progress_arc.xml bind_styles read it
-        "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
-    detailed_subjects_initialized_ = true;
-
-    StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetSubjects", []() {
-        s_static_subjects.deinit_all();
-        detailed_subjects_initialized_ = false;
-        visibility_subjects_initialized_ = false;
-        width_band_subject_initialized_ = false;
-        column_mode_subject_initialized_ = false;
+        // Detailed-layout subjects
+        layout_effective_subject_.init_int(0);
+        // Observed through layout_effective_subject_for_test(), the width-gating guard.
+        s_static_subjects.publish(
+            "print_status_layout_effective",
+            &layout_effective_subject_); // SUBJECT_OK: read by test_widget_size_print_status
+        show_filament_active_subject_.init_int(0);
+        s_static_subjects.publish("print_status_show_filament_active",
+                                  &show_filament_active_subject_);
+        multi_tool_subject_.init_int(0);
+        s_static_subjects.publish("print_status_multi_tool", &multi_tool_subject_);
+        nozzle_pickable_subject_.init_int(0);
+        s_static_subjects.publish("print_status_nozzle_pickable", &nozzle_pickable_subject_);
+        nozzle_picker_fits_subject_.init_int(1);
+        s_static_subjects.publish("print_status_nozzle_picker_fits", &nozzle_picker_fits_subject_);
+        layer_z_fits_subject_.init_int(1);
+        s_static_subjects.publish("print_status_layer_z_fits", &layer_z_fits_subject_);
+        elapsed_fits_subject_.init_int(1);
+        s_static_subjects.publish("print_status_elapsed_fits", &elapsed_fits_subject_);
+        speed_fits_subject_.init_int(1);
+        s_static_subjects.publish("print_status_speed_fits", &speed_fits_subject_);
+        flow_fits_subject_.init_int(1);
+        s_static_subjects.publish("print_status_flow_fits", &flow_fits_subject_);
+        // Initial value 0 = idle_library_full — matches the default ref_value=0
+        // on print_card_idle's bind_flag_if_not_eq so it shows by default
+        // before any state events fire.
+        view_subject_.init_int(0);
+        s_static_subjects.publish("print_status_view", &view_subject_);
+        // Default to benchy; reset_print_card_to_idle replaces with last-print
+        // thumbnail when history loads.
+        // Resolve the benchy default to its bundle-absolute path before the subject
+        // captures it (a raw "A:assets/images/..." literal misses the /assets mount
+        // on firmware and lv_image_set_src can't open it).
+        snprintf(idle_thumb_path_buf_, sizeof(idle_thumb_path_buf_), "%s", benchy_thumb_path());
+        idle_thumb_path_subject_.init_string(idle_thumb_path_buf_, nullptr,
+                                             sizeof(idle_thumb_path_buf_), idle_thumb_path_buf_);
+        s_static_subjects.publish("print_status_idle_thumb_path", &idle_thumb_path_subject_);
+        // Default to tier 2 (8px) — matches the previous hardcoded medium thickness
+        // until the arc lays out and C++ publishes the diameter-derived tier.
+        arc_thickness_tier_subject_.init_int(2);
+        s_static_subjects.publish( // SUBJECT_OK: attach_progress_arc() publishes into this by
+                                   // pointer and helix_progress_arc.xml bind_styles read it
+            "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
+        picker_detailed_subject_.init_int(0);
+        s_static_subjects.publish("print_status_picker_detailed", &picker_detailed_subject_);
     });
+}
+
+bool PrintStatusWidget::static_subjects_initialized() {
+    return s_static_subjects.initialized();
 }
 
 PrintStatusWidget::PrintStatusWidget() : printer_state_(get_printer_state()) {
@@ -215,29 +211,20 @@ PrintStatusWidget::PrintStatusWidget() : printer_state_(get_printer_state()) {
 }
 
 void PrintStatusWidget::acquire_formatter() {
-    if (s_formatter_refcount_++ != 0) {
+    if (s_formatter_) {
         return;
     }
-    // Release the parked predecessor BEFORE building the replacement. Both
-    // formatters publish the same thirteen names into helix-xml's process-wide
-    // scope, and ~DetailedFormatter withdraws them by name — so constructing
-    // first would have the outgoing formatter's teardown delete the scope
-    // records that now point at the incoming one's subjects, leaving every
-    // bind_text on the Detailed card resolving to nothing for the rest of the
-    // session. Reached whenever the last print-status widget leaves the
-    // dashboard and one is added back.
-    s_formatter_.reset();
     s_formatter_ = std::make_unique<DetailedFormatter>();
+    // The formatter lives until StaticSubjectRegistry tears it down: after the
+    // panels are destroyed and before lv_deinit() or a printer rebuild, while
+    // spdlog, PrintHistoryManager and the observed subjects are still alive.
+    // The next widget constructed after that builds a fresh one.
+    StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetDetailedFormatter",
+                                                      []() { s_formatter_.reset(); });
 }
 
 PrintStatusWidget::~PrintStatusWidget() {
     detach();
-    // Pair the eager ctor refcount bump, but leave s_formatter_ standing at
-    // refcount==0: destroying it here would dangle the helix-xml scope's subject
-    // pointers for any XML still bound to them. It is released in
-    // acquire_formatter(), where a replacement is about to take over the names.
-    if (s_formatter_refcount_ > 0)
-        --s_formatter_refcount_;
 }
 
 void PrintStatusWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -516,12 +503,6 @@ void PrintStatusWidget::detach() {
     parent_screen_ = nullptr;
 
     spdlog::debug("[PrintStatusWidget] Detached");
-
-    // NOTE: s_formatter_refcount_ is decremented in ~PrintStatusWidget, not
-    // here, because the dtor ALSO calls detach(). Double-decrement would
-    // corrupt the count with multiple PrintStatusWidget instances live (panel
-    // manager may keep up to 4 — one per breakpoint variant). detach() is
-    // safely idempotent — re-entry resets observers that are already null.
 }
 
 // ============================================================================
@@ -754,9 +735,8 @@ void PrintStatusWidget::bind_active_branch() {
     // Nozzle reads the tool-pin-aware proxy subjects rather than the raw
     // active-extruder ones, so the icon tracks whichever tool the card is
     // showing. Bed and chamber use the PrinterState defaults. The proxy
-    // subjects live on s_formatter_, which is only ever replaced from
-    // acquire_formatter() — i.e. while no widget is attached — so they genuinely
-    // outlive this binder.
+    // subjects live on s_formatter_, which only its StaticSubjectRegistry entry
+    // destroys, after every panel and widget is gone, so they outlive this binder.
     nozzle_icon_binder_.bind_subjects(widget_obj_, "nozzle_icon_glyph",
                                       lv_xml_get_subject(nullptr, "print_status_nozzle_current"),
                                       lv_xml_get_subject(nullptr, "print_status_nozzle_target"));
@@ -1228,7 +1208,7 @@ void PrintStatusWidget::set_thumb_on_widgets(const char* src) {
         lv_image_set_src(hero, src);
     }
 #endif
-    lv_subject_copy_string(&idle_thumb_path_subject_, src);
+    lv_subject_set_string(&idle_thumb_path_subject_, src);
 }
 
 void PrintStatusWidget::on_edit_mode_exited() {
@@ -1247,10 +1227,10 @@ void PrintStatusWidget::update_last_print_availability() {
         if (!row)
             continue;
         if (last_print_available_) {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(row, true);
             lv_obj_set_style_opa(row, LV_OPA_100, 0);
         } else {
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(row, false);
             lv_obj_set_style_opa(row, LV_OPA_40, 0);
         }
     }
@@ -1645,8 +1625,8 @@ void PrintStatusWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
         lv_obj_set_style_pad_gap(row, space_xs, 0);
         lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_clickable(row, true);
 
         lv_obj_t* cb = lv_checkbox_create(row);
         lv_checkbox_set_text(cb, "");
@@ -1654,7 +1634,7 @@ void PrintStatusWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
         if (opt.checked) {
             lv_obj_add_state(cb, LV_STATE_CHECKED);
         }
-        lv_obj_remove_flag(cb, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(cb, false);
 
         lv_obj_t* label = lv_label_create(row);
         lv_label_set_text(label, opt.label);
@@ -1721,14 +1701,8 @@ void PrintStatusWidget::ConfigurePicker::apply_visuals() {
                      fmt::ptr(lib_btn), fmt::ptr(det_btn));
     }
 
-    // Show Sections only applies to the Library layout — hide in Detailed.
-    lv_obj_t* show_sections = lv_obj_find_by_name(backdrop, "show_sections_group");
-    if (show_sections) {
-        if (owner_.layout_style_ == "detailed")
-            lv_obj_add_flag(show_sections, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_remove_flag(show_sections, LV_OBJ_FLAG_HIDDEN);
-    }
+    // Show Sections only applies to the Library layout; the group hides on this.
+    lv_subject_set_int(&picker_detailed_subject_, owner_.layout_style_ == "detailed" ? 1 : 0);
 }
 
 void PrintStatusWidget::ConfigurePicker::apply_state() {
@@ -1862,13 +1836,13 @@ void PrintStatusWidget::fit_nozzle_picker() {
     int shown = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
         lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
-        if (!lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(child)) {
             need += lv_obj_get_width(child);
             ++shown;
         }
     }
     need += lv_obj_get_style_pad_column(row, LV_PART_MAIN) * std::max(0, shown - 1);
-    if (lv_obj_has_flag(chevron, LV_OBJ_FLAG_HIDDEN)) {
+    if (lv_obj_is_hidden(chevron)) {
         need += chevron_need;
     }
 
@@ -1952,7 +1926,7 @@ void PrintStatusWidget::fit_speed_row() {
     int need = row_h;
     for (uint32_t i = 0; i < lv_obj_get_child_count(col); ++i) {
         lv_obj_t* child = lv_obj_get_child(col, static_cast<int32_t>(i));
-        if (child == row || lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+        if (child == row || lv_obj_is_hidden(child)) {
             continue;
         }
         need += lv_obj_get_height(child) + gap;
@@ -2007,13 +1981,13 @@ void PrintStatusWidget::NozzleToolPicker::on_created(lv_obj_t* backdrop) {
         lv_obj_set_style_pad_all(row, space_sm, 0);
         lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(row, false);
+        lv_obj_set_clickable(row, true);
 
         lv_obj_t* lbl = lv_label_create(row);
         lv_label_set_text(lbl, label);
         lv_obj_set_style_text_color(lbl, theme_manager_get_color("text"), 0);
-        lv_obj_remove_flag(lbl, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(lbl, false);
 
         lv_obj_set_user_data(row, new RowPayload{this, tool_key});
 
@@ -2241,14 +2215,14 @@ void PrintStatusWidget::DetailedFormatter::update_layer_text() {
     auto& ps = get_printer_state();
     int cur = lv_subject_get_int(ps.print_state().get_print_layer_current_subject());
     int tot = lv_subject_get_int(ps.print_state().get_print_layer_total_subject());
-    std::string text =
-        helix::ui::format_layer_progress_compact(cur, tot, ps.print_state().layer_is_accurate(), 0);
+    std::string text = helix::display_format::format_layer_progress_compact(
+        cur, tot, ps.print_state().layer_is_accurate(), 0);
     snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
-    std::string z = helix::ui::format_layer_z(ps.print_state().layer_line_z_centimm(
+    lv_subject_set_string(&layer_text_subject_, layer_text_buf_);
+    std::string z = helix::display_format::format_layer_z(ps.print_state().layer_line_z_centimm(
         cur, lv_subject_get_int(ps.motion_state().get_gcode_position_z_subject())));
     snprintf(layer_z_text_buf_, sizeof(layer_z_text_buf_), "%s", z.c_str());
-    lv_subject_copy_string(&layer_z_text_subject_, layer_z_text_buf_);
+    lv_subject_set_string(&layer_z_text_subject_, layer_z_text_buf_);
     // The count and the Z both grow as the print climbs, so the room for the Z
     // is measured again each time they change.
     for (auto* widget : live_instances()) {
@@ -2263,10 +2237,10 @@ void PrintStatusWidget::DetailedFormatter::update_time_text() {
     const size_t old_len = strlen(elapsed_text_buf_) + strlen(remaining_text_buf_);
     snprintf(elapsed_text_buf_, sizeof(elapsed_text_buf_), "%s",
              helix::format::duration_padded(elapsed).c_str());
-    lv_subject_copy_string(&elapsed_text_subject_, elapsed_text_buf_);
+    lv_subject_set_string(&elapsed_text_subject_, elapsed_text_buf_);
     snprintf(remaining_text_buf_, sizeof(remaining_text_buf_), "%s",
              helix::format::duration_padded(remain).c_str());
-    lv_subject_copy_string(&remaining_text_subject_, remaining_text_buf_);
+    lv_subject_set_string(&remaining_text_subject_, remaining_text_buf_);
     // A time that gains or loses a field ("59m" to "1h 00m") changes what the
     // time row needs; ticks within one length do not.
     if (strlen(elapsed_text_buf_) + strlen(remaining_text_buf_) != old_len) {
@@ -2285,7 +2259,7 @@ void PrintStatusWidget::DetailedFormatter::update_filament_text() {
         std::string text = helix::format::format_filament_length(static_cast<double>(used_mm));
         snprintf(filament_text_buf_, sizeof(filament_text_buf_), "%s", text.c_str());
     }
-    lv_subject_copy_string(&filament_text_subject_, filament_text_buf_);
+    lv_subject_set_string(&filament_text_subject_, filament_text_buf_);
 
     // Keep the show_filament_active gate honest as filament accumulates.
     // on_size_changed handles the width-band side; this side handles the
@@ -2302,14 +2276,14 @@ void PrintStatusWidget::DetailedFormatter::update_speed_flow_text() {
              helix::tune::live_speed_text(
                  lv_subject_get_int(ps.motion_state().get_live_velocity_subject()))
                  .c_str());
-    lv_subject_copy_string(&speed_text_subject_, speed_text_buf_);
+    lv_subject_set_string(&speed_text_subject_, speed_text_buf_);
     snprintf(flow_text_buf_, sizeof(flow_text_buf_), "· %s",
              helix::tune::live_flow_text(
                  helix::tune::volumetric_flow_mm3_s(
                      lv_subject_get_int(ps.motion_state().get_live_extruder_velocity_subject()),
                      ps.get_discovery().filament_diameter_mm()))
                  .c_str());
-    lv_subject_copy_string(&flow_text_subject_, flow_text_buf_);
+    lv_subject_set_string(&flow_text_subject_, flow_text_buf_);
     // A rate gaining a digit can push the flow out of its row.
     if (strlen(speed_text_buf_) + strlen(flow_text_buf_) != speed_flow_len_) {
         speed_flow_len_ = strlen(speed_text_buf_) + strlen(flow_text_buf_);
@@ -2342,7 +2316,7 @@ void PrintStatusWidget::DetailedFormatter::update_nozzle_text() {
     // the pinning + auto-mode dispatch.
     helix::ui::temperature::format_temperature_pair(cd_to_c(temp_dd), cd_to_c(tgt_dd),
                                                     nozzle_text_buf_, sizeof(nozzle_text_buf_));
-    lv_subject_copy_string(&nozzle_text_subject_, nozzle_text_buf_);
+    lv_subject_set_string(&nozzle_text_subject_, nozzle_text_buf_);
 }
 
 bool PrintStatusWidget::DetailedFormatter::set_nozzle_tool_override(
@@ -2457,7 +2431,7 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
             nozzle_badge_text_buf_[0] = '\0';
         }
     }
-    lv_subject_copy_string(&nozzle_badge_text_subject_, nozzle_badge_text_buf_);
+    lv_subject_set_string(&nozzle_badge_text_subject_, nozzle_badge_text_buf_);
 }
 
 namespace helix {
@@ -2489,10 +2463,10 @@ LastPrintText describe_last_print(const PrintHistoryJob& job, double now_s) {
         const bool ended =
             job.status == PrintJobStatus::CANCELLED || job.status == PrintJobStatus::ERROR;
         const char* status = ended ? lv_tr(status_to_label(job.status)) : "";
-        const std::string age =
-            when_s > 0
-                ? ui::format_relative_time(static_cast<uint64_t>(std::max(0L, delta_s)) * 1000)
-                : "";
+        const std::string age = when_s > 0
+                                    ? helix::display_format::format_relative_time(
+                                          static_cast<uint64_t>(std::max(0L, delta_s)) * 1000)
+                                    : "";
         text.when = (*status && !age.empty()) ? fmt::format("{} • {}", status, age) : status + age;
     }
 
@@ -2524,20 +2498,20 @@ void PrintStatusWidget::DetailedFormatter::update_idle_fields() {
     // Reprint via print_status_idle_has_last).
     const PrintHistoryJob* newest = hm ? hm->get_newest_existing_job() : nullptr;
     if (!newest) {
-        lv_subject_copy_string(&idle_filename_subject_, "");
-        lv_subject_copy_string(&idle_when_subject_, lv_tr("No prints yet"));
-        lv_subject_copy_string(&idle_meta_subject_, "");
+        lv_subject_set_string(&idle_filename_subject_, "");
+        lv_subject_set_string(&idle_when_subject_, lv_tr("No prints yet"));
+        lv_subject_set_string(&idle_meta_subject_, "");
         lv_subject_set_int(&idle_has_last_subject_, 0);
         return;
     }
     const double now_s = wall_now_s();
     const LastPrintText text = describe_last_print(*newest, now_s);
     snprintf(idle_filename_buf_, sizeof(idle_filename_buf_), "%s", text.filename.c_str());
-    lv_subject_copy_string(&idle_filename_subject_, idle_filename_buf_);
+    lv_subject_set_string(&idle_filename_subject_, idle_filename_buf_);
     snprintf(idle_when_buf_, sizeof(idle_when_buf_), "%s", text.when.c_str());
-    lv_subject_copy_string(&idle_when_subject_, idle_when_buf_);
+    lv_subject_set_string(&idle_when_subject_, idle_when_buf_);
     snprintf(idle_meta_buf_, sizeof(idle_meta_buf_), "%s", text.meta.c_str());
-    lv_subject_copy_string(&idle_meta_subject_, idle_meta_buf_);
+    lv_subject_set_string(&idle_meta_subject_, idle_meta_buf_);
     lv_subject_set_int(&idle_has_last_subject_, 1);
 }
 
@@ -2569,36 +2543,6 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
     UI_MANAGED_SUBJECT_STRING(idle_meta_subject_, idle_meta_buf_, "", "print_status_idle_meta",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(idle_has_last_subject_, 0, "print_status_idle_has_last", subjects_);
-
-    // Tear down formatter-owned subjects + observers under lv_deinit() (while
-    // spdlog and PrintHistoryManager are still alive). ~DetailedFormatter runs
-    // at C++ atexit, which is too late: spdlog sinks may be gone (UAF in log
-    // calls) and helix-xml's scope is destroyed, so deinit_all() at atexit is
-    // a no-op but the dangling pointer window between lv_deinit and atexit is
-    // closed by this earlier teardown. Safe to fire multiple times since
-    // subjects_.deinit_all() and observer .reset() are idempotent.
-    StaticSubjectRegistry::instance().register_deinit("PrintStatusWidgetDetailedFormatter", []() {
-        if (!s_formatter_)
-            return;
-        if (auto* hm = get_print_history_manager()) {
-            hm->remove_observer(&s_formatter_->history_cb_);
-        }
-        s_formatter_->layer_current_observer_.reset();
-        s_formatter_->layer_total_observer_.reset();
-        s_formatter_->elapsed_observer_.reset();
-        s_formatter_->time_left_observer_.reset();
-        s_formatter_->filament_used_observer_.reset();
-        s_formatter_->live_velocity_observer_.reset();
-        s_formatter_->live_extruder_velocity_observer_.reset();
-        s_formatter_->nozzle_temp_observer_.reset();
-        s_formatter_->nozzle_target_observer_.reset();
-        s_formatter_->tools_version_observer_.reset();
-        s_formatter_->active_tool_observer_.reset();
-        s_formatter_->language_observer_.reset();
-        s_formatter_->nozzle_temp_lifetime_.reset();
-        s_formatter_->nozzle_target_lifetime_.reset();
-        s_formatter_->subjects_.deinit_all();
-    });
 
     using helix::ui::observe;
     auto& ps = get_printer_state();
@@ -2687,21 +2631,16 @@ PrintStatusWidget::DetailedFormatter::DetailedFormatter() {
         self->update_filament_text();
         self->update_idle_fields();
     });
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(
+        this, [](DetailedFormatter* self) { self->update_nozzle_text(); });
 
     spdlog::debug("[DetailedFormatter] subjects initialized");
 }
 
 PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
-    // Two destruction paths:
-    //   1. Production: never destructs at runtime (s_formatter_ lives forever).
-    //      At C++ atexit the dtor runs after spdlog teardown — so no spdlog
-    //      calls here. By that point register_deinit has already torn things
-    //      down under lv_deinit; the calls below are safe idempotent no-ops.
-    //   2. Tests: release_formatter_for_test() destroys the formatter between
-    //      runs to keep subjects from leaking across PrinterState resets.
-    //      In this path lv_deinit has NOT fired, so register_deinit has NOT
-    //      run; the cleanup below is the only thing that detaches observers
-    //      before subjects get reset by the next test.
+    // Runs from the StaticSubjectRegistry entry in production and from the test
+    // hooks; both leave LVGL alive. No spdlog here: a formatter a test leaves
+    // standing is destroyed at C++ atexit, after the sinks are gone.
     if (auto* hm = get_print_history_manager()) {
         hm->remove_observer(&history_cb_);
     }
@@ -2717,6 +2656,7 @@ PrintStatusWidget::DetailedFormatter::~DetailedFormatter() {
     tools_version_observer_.reset();
     active_tool_observer_.reset();
     language_observer_.reset();
+    temp_unit_observer_.reset();
     nozzle_temp_lifetime_.reset();
     nozzle_target_lifetime_.reset();
     subjects_.deinit_all();

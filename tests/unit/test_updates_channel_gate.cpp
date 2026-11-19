@@ -24,11 +24,16 @@
 
 #include "ui_panel_settings.h"
 #include "ui_settings_updates.h"
+#include "ui_wizard_summary.h"
+#include "ui_wizard_telemetry.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "../test_helpers/xml_stand_in_subject.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "system_settings_manager.h"
 
 #include <lvgl.h>
 #include <string>
@@ -54,11 +59,7 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         // this tree's condition would resolve to nothing and the container would
         // never hide. Supply it the way the stub supplies platform_host_power_supported:
         // register if absent, function-local static so it outlives the fixture.
-        static lv_subject_t beta_subject;
-        if (!lv_xml_get_subject(nullptr, "show_beta_features")) {
-            lv_subject_init_int(&beta_subject, 1);
-            lv_xml_register_subject(nullptr, "show_beta_features", &beta_subject);
-        }
+        helix::test::xml_stand_in("show_beta_features", 1);
         get_global_settings_panel().init_subjects();
         helix::settings::get_updates_settings_overlay().init_subjects();
         root_ = static_cast<lv_obj_t*>(
@@ -90,7 +91,7 @@ struct UpdatesChannelGateFixture : public LVGLUITestFixture {
         REQUIRE(root_ != nullptr);
         lv_obj_t* obj = lv_obj_find_by_name(root_, name);
         REQUIRE(obj != nullptr);
-        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(obj);
     }
 
     lv_obj_t* dropdown(const char* row_name) const {
@@ -227,4 +228,34 @@ TEST_CASE_METHOD(UpdatesChannelGateFixture, "Update channel picker shows the cha
         CHECK(lv_dropdown_get_selected(dropdown("row_update_channel")) == 1);
         CHECK(lv_dropdown_get_selected(dropdown("row_update_channel_dev")) == 1);
     }
+}
+
+TEST_CASE_METHOD(UpdatesChannelGateFixture,
+                 "The wizard's update channel rows show the channel and set it",
+                 "[wizard][updates][update][channel]") {
+    auto& system = SystemSettingsManager::instance();
+    const int before = system.get_update_channel();
+    set_gates(/*beta=*/0, /*update_settings=*/1);
+    helix::wizard::Step* steps[] = {get_wizard_telemetry_step(), get_wizard_summary_step()};
+    for (helix::wizard::Step* step : steps) {
+        system.set_update_channel(1);
+        step->init_subjects();
+        step->register_callbacks();
+        lv_obj_t* screen = step->create(test_screen());
+        REQUIRE(screen != nullptr);
+        process_lvgl(10);
+        lv_obj_t* row = lv_obj_find_by_name(screen, "row_update_channel");
+        REQUIRE(row != nullptr);
+        lv_obj_t* dd = lv_obj_find_by_name(row, "dropdown");
+        REQUIRE(dd != nullptr);
+        CHECK(lv_dropdown_get_selected(dd) == 1);
+
+        lv_dropdown_set_selected(dd, 0);
+        lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+        CHECK(system.get_update_channel() == 0);
+        step->cleanup();
+        lv_obj_delete(screen);
+        UpdateQueue::instance().drain();
+    }
+    system.set_update_channel(before);
 }

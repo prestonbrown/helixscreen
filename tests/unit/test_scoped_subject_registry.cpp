@@ -2,22 +2,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "../lvgl_test_fixture.h"
+#include "core/subject.h"
 #include "helix/xml/scoped_subject_registry.h"
 #include "lvgl/lvgl.h"
+
+#include <memory>
 
 #include "../catch_amalgamated.hpp"
 
 TEST_CASE_METHOD(LVGLTestFixture, "scoped_subject_registry defaults to global scope",
                  "[xml][scope]") {
-    lv_subject_t s;
-    lv_subject_init_int(&s, 42);
+    helix::Subject s;
+    s.init_int(42);
 
     // With no active scope, registration goes to global
     helix::xml::register_subject_in_current_scope("test_default_scope", &s);
 
     REQUIRE(lv_xml_get_subject(nullptr, "test_default_scope") == &s);
-
-    lv_subject_deinit(&s);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "scoped_subject_registry uses active scope when pushed",
@@ -33,9 +34,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "scoped_subject_registry uses active scope whe
     // false for anything handed in through lv_xml_register_subject(). This one
     // is BORROWED, so freeing it is our job (see the provenance rule above
     // lv_xml_subject_record_release, and lib/helix-xml's test_subject_provenance).
-    auto* s = static_cast<lv_subject_t*>(lv_malloc(sizeof(lv_subject_t)));
-    REQUIRE(s != nullptr);
-    lv_subject_init_int(s, 7);
+    auto owner = std::make_unique<helix::Subject>();
+    owner->init_int(7);
+    lv_subject_t* s = owner->get();
 
     {
         helix::xml::ScopedSubjectRegistryOverride push(scope);
@@ -48,7 +49,5 @@ TEST_CASE_METHOD(LVGLTestFixture, "scoped_subject_registry uses active scope whe
     lv_xml_component_unregister("test_scope_stub");
 
     // Ours to release: the record was borrowed, so retiring the scope dropped
-    // the reference without touching the storage. Omitting this leaks 72 bytes.
-    lv_subject_deinit(s);
-    lv_free(s);
+    // the reference without touching the storage. `owner` frees it.
 }

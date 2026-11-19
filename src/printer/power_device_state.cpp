@@ -13,8 +13,10 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -22,6 +24,8 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -60,7 +64,7 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
                 *it->second.lifetime = false;
             it->second.lifetime.reset();
             if (it->second.status_subject) {
-                lv_subject_deinit(it->second.status_subject.get());
+                it->second.status_subject->reset();
             }
             devices_.erase(it);
         }
@@ -85,8 +89,8 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         info.raw_status = status_string_to_int(dev.status);
         info.reported_off = dev.status == "off";
 
-        info.status_subject = std::make_unique<lv_subject_t>();
-        lv_subject_init_int(info.status_subject.get(), info.raw_status);
+        info.status_subject = std::make_unique<helix::Subject>();
+        info.status_subject->init_int(info.raw_status);
         info.lifetime = std::make_shared<bool>(true);
 
         spdlog::trace(
@@ -96,7 +100,6 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         devices_.emplace(dev.device, std::move(info));
     }
 
-    // Register with StaticSubjectRegistry on first init
     if (!subjects_initialized_) {
         subjects_initialized_ = true;
         StaticSubjectRegistry::instance().register_deinit(
@@ -107,7 +110,7 @@ void PowerDeviceState::set_devices(const std::vector<PowerDevice>& devices) {
         // where a prior test called deinit_subjects on the global singleton).
         auto& ps = get_printer_state();
         if (ps.are_subjects_initialized()) {
-            // print_lifecycle, not print_state_enum. The lock now covers the
+            // print_lifecycle, not print_state_enum. The lock covers the
             // preparing window, and the raw enum does not move on the
             // Idle -> Preparing edge - it holds standby, or the PREVIOUS job's
             // terminal state, for the whole of a host-side pre-start block. On
@@ -136,7 +139,7 @@ lv_subject_t* PowerDeviceState::get_status_subject(const std::string& device, Su
     auto it = devices_.find(device);
     if (it != devices_.end() && it->second.status_subject) {
         lt = it->second.lifetime;
-        return it->second.status_subject.get();
+        return it->second.status_subject->get();
     }
     lt.reset();
     return nullptr;
@@ -212,22 +215,22 @@ void PowerDeviceState::update_device_status(const std::string& device, const std
 void PowerDeviceState::on_power_changed(const nlohmann::json& msg) {
     // Moonraker sends: {"method": "notify_power_changed", "params": [{"device": "...", "status":
     // "on|off", ...}]}
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const nlohmann::json* params = json_util::find_array(msg, "params");
+    if (!params || params->empty()) {
         return;
     }
 
     auto tok = lifetime_.token();
 
-    for (const auto& param : msg["params"]) {
-        if (!param.is_object() || !param.contains("device") || !param.contains("status")) {
-            continue;
-        }
-        if (!param["device"].is_string() || !param["status"].is_string()) {
+    for (const auto& param : *params) {
+        auto device = json_util::read_field<std::string>(param, "device");
+        auto status = json_util::read_field<std::string>(param, "status");
+        if (!device || !status) {
             continue;
         }
 
-        std::string device_name = param["device"].get<std::string>();
-        std::string new_status = param["status"].get<std::string>();
+        std::string device_name = std::move(*device);
+        std::string new_status = std::move(*status);
         int new_raw = status_string_to_int(new_status);
 
         spdlog::debug("[PowerDeviceState] notify_power_changed: device='{}' status='{}'",
@@ -286,8 +289,8 @@ void PowerDeviceState::publish_effective_status(DeviceInfo& info) {
         effective = 2; // locked
     }
 
-    if (lv_subject_get_int(info.status_subject.get()) != effective) {
-        lv_subject_set_int(info.status_subject.get(), effective);
+    if (lv_subject_get_int(info.status_subject->get()) != effective) {
+        lv_subject_set_int(info.status_subject->get(), effective);
         spdlog::debug("[PowerDeviceState] '{}' effective status {}", info.name, effective);
     }
 }
@@ -317,10 +320,10 @@ void PowerDeviceState::deinit_subjects() {
         info.lifetime.reset();
     }
 
-    // Now safe to deinit subjects
+    // Safe to deinit subjects here
     for (auto& [name, info] : devices_) {
         if (info.status_subject) {
-            lv_subject_deinit(info.status_subject.get());
+            info.status_subject->reset();
         }
     }
     devices_.clear();

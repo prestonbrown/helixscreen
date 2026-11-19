@@ -5,13 +5,14 @@
 
 #include "ui_exclude_mode_controller.h"
 #include "ui_filament_mapping_card.h"
-#include "ui_observer_guard.h"
 #include "ui_plugin_items_menu.h"
 #include "ui_pre_print_options_renderer.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_widget_ref.h"
 
 #include "ams_remap.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "gcode_footer_summary.h"
 #include "gcode_preview_fetcher.h"
 #include "helix_shared_callback.h"
@@ -541,7 +542,7 @@ class PrintSelectDetailView : public OverlayBase {
      *
      * Single source of truth for "the per-tool color/material of the used
      * tools". Builds the full slicer palette via
-     * FilamentMappingCard::build_tool_info(current_filament_colors_,
+     * helix::filament_mapping::build_tool_info(current_filament_colors_,
      * current_filament_materials_) — the same Moonraker-metadata data the color
      * swatches use, populated on ALL platforms — then keeps only the entries
      * whose tool_index is in tools_used_effective() (original tool_index
@@ -820,20 +821,22 @@ class PrintSelectDetailView : public OverlayBase {
     lv_obj_t* purge_line_checkbox_ = nullptr;
     lv_obj_t* timelapse_checkbox_ = nullptr;
 
-    // History status display
-    lv_obj_t* history_status_row_ = nullptr;
-    lv_obj_t* history_status_icon_ = nullptr;
-    lv_obj_t* history_status_label_ = nullptr;
+    // History status display: the FileHistoryStatus value picks the row's icon in XML
+    helix::Subject detail_history_status_{};
+    helix::Subject detail_history_text_{};
+    char detail_history_text_buf_[64]{};
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
-    lv_subject_t detail_gcode_viewer_mode_{};
+    helix::Subject detail_gcode_viewer_mode_{};
+    // 1 while the viewer draws 2D although 3D was asked for
+    helix::Subject detail_preview_drawn_2d_{};
     // G-code loading indicator (0=hidden, 1=visible)
-    lv_subject_t detail_gcode_loading_{};
+    helix::Subject detail_gcode_loading_{};
 
     /// Indexing progress 0-100; 0 = nothing to show (spinner). Driven by
     /// progress_timer_ polling the viewer while detail_gcode_loading_ is 1.
-    lv_subject_t detail_gcode_progress_{};
-    lv_subject_t detail_gcode_progress_text_{};
+    helix::Subject detail_gcode_progress_{};
+    helix::Subject detail_gcode_progress_text_{};
     char detail_gcode_progress_text_buf_[64]{};
 
     /// Polls the viewer's load progress onto the subjects above. Raw lv_timer_t,
@@ -850,11 +853,11 @@ class PrintSelectDetailView : public OverlayBase {
     // 1 = the gcode viewer has rendered its first real frame. The thumbnail
     // (which sits on top of the viewer in z-order) stays visible until this
     // flips, covering the gray viewer during the load-to-render gap.
-    lv_subject_t detail_viewer_first_frame_{};
+    helix::Subject detail_viewer_first_frame_{};
 
     /// Whether the viewer widget is hidden, per preview_viewer_hidden(). Bound
     /// by print_file_detail.xml; kept in step by refresh_viewer_visibility().
-    lv_subject_t detail_viewer_hidden_{};
+    helix::Subject detail_viewer_hidden_{};
 
     /// Recompute detail_viewer_hidden from the render mode and first-frame
     /// state. Call after either changes - they are written from several places
@@ -862,19 +865,19 @@ class PrintSelectDetailView : public OverlayBase {
     void refresh_viewer_visibility();
     // 1 = show slicer-intended colors instead of loaded AMS slot colors.
     // View-local, resets to 0 (actual) on every show().
-    lv_subject_t detail_prefer_sliced_colors_{};
+    helix::Subject detail_prefer_sliced_colors_{};
     // 1 = the options scroll area has content below its visible bottom edge.
     // Drives the bottom fade cue's visibility binding in print_file_detail.xml;
     // updated by update_options_more_below() from the scroll area's
     // scroll/size/layout events and after the option rows are populated.
-    lv_subject_t detail_options_more_below_{};
+    helix::Subject detail_options_more_below_{};
     // 0 = mapping/swatch chips not authoritative yet (XML shows skeletons),
     // 1 = authoritative chip state rendered. Mirrors is_preflight_ready() —
     // the same readiness the print-start gate waits on. Flips 0→1 at show()
     // on a tools-used cache hit, else when the headless scan or the viewer
     // parse completes; back to 0 in on_deactivate(). Published ONLY via
     // publish_mapping_ready().
-    lv_subject_t detail_mapping_ready_{};
+    helix::Subject detail_mapping_ready_{};
     /// The file's objects with the pending picks as its excluded set. Private
     /// to this view: init_subjects(false) keeps it off the XML registry.
     helix::PrinterExcludedObjectsState exclude_objects_;
@@ -885,9 +888,9 @@ class PrintSelectDetailView : public OverlayBase {
     /// See hold_picks_for_start().
     bool picks_held_for_start_ = false;
     /// 1 when the skip button shows (pre_start_exclude_available()).
-    lv_subject_t detail_exclude_available_{};
-    lv_subject_t detail_exclude_pick_count_{};
-    lv_subject_t detail_exclude_pick_count_text_{};
+    helix::Subject detail_exclude_available_{};
+    helix::Subject detail_exclude_pick_count_{};
+    helix::Subject detail_exclude_pick_count_text_{};
     char detail_exclude_pick_count_text_buf_[8]{};
     /// Push the pick count and the viewer's faded set from the picks.
     void publish_exclude_picks();
@@ -967,47 +970,47 @@ class PrintSelectDetailView : public OverlayBase {
 
     // Pre-print option toggle state lives in `option_rows_renderer_` (one
     // heap-allocated subject per option), never in fixed per-option members.
-    lv_subject_t filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
+    helix::Subject filament_mapping_visible_{}; // 1 = filament card visible (AMS+tools)
     // 1 = tapping the filament card opens the remap picker. Drives BOTH the
     // chevron that advertises the tap and the card's own clickable flag, so a
     // card that cues a tap and a card that answers one can never disagree.
     // Published with filament_mapping_visible_ by publish_card_visibility().
-    lv_subject_t color_card_remappable_{};
+    helix::Subject color_card_remappable_{};
     // The rest of the card's remap story, published from the same place. One
     // RemapBlock decides all four, so the greyed card, its stated reason and the
     // affordance that fixes it cannot describe different states.
     // 1 = the one case where the card would otherwise lie: a job this printer
     // could remap, refused only because the plugin is absent. Drives the
     // disabled look AND the Set up affordance, because they are one condition.
-    lv_subject_t color_card_remap_needs_setup_{};
+    helix::Subject color_card_remap_needs_setup_{};
     // 1 = the card carries something worth explaining, so show the help icon.
     // Covers both the refusal and the "this will misfile your history" advisory;
     // the copy is chosen when the icon is tapped, not when it is published.
-    lv_subject_t color_card_remap_help_visible_{};
+    helix::Subject color_card_remap_help_visible_{};
     // The fit check's verdict for the shown file: 0 none, 1 notes only,
     // 2 warnings, 3 a block, and one line per finding.
-    lv_subject_t detail_fit_severity_{};
-    lv_subject_t detail_fit_text_{};
+    helix::Subject detail_fit_severity_{};
+    helix::Subject detail_fit_text_{};
     char detail_fit_text_buf_[512]{};
     // The plugin's analysis of the shown file, as the fit check reads it.
     std::optional<helix::FitFile> fit_record_;
     /// 1 while an enabled plugin declares a print_file menu item: the button row
     /// becomes Delete, more, Print as square icon buttons. Set on every show().
-    lv_subject_t print_detail_has_plugin_items_{};
+    helix::Subject print_detail_has_plugin_items_{};
     helix::ui::PluginItemsMenu plugin_items_menu_;
     // Whether a job rewrite can run, in the tri-state the pre-print option rows
     // that need one bind their visibility to: 1 yes, 0 no, -1 not known yet.
     // Published by publish_rewrite_availability().
-    lv_subject_t gcode_rewrite_available_{};
+    helix::Subject gcode_rewrite_available_{};
     // Cached backend-agnostic pre-flight validation result for the current file.
     // Computed in try_extract_gcode_colors() once the gcode is parsed (works
     // even when the mapping card is hidden, e.g. Snapmaker U1 / ACE). Read by the
     // print-start gate and the enriched pre-print modal. Empty until a file parses.
     helix::PreflightResult preflight_result_{};
-    lv_subject_t prep_time_estimate_subject_{}; // formatted prep time string for bind_text
-    lv_subject_t preprint_estimate_visible_{};  // 1 while the estimate line has text
-    char prep_time_estimate_buf_[64]{};         // buffer backing the string subject
-    SubjectManager subjects_;                   // RAII manager for subject cleanup
+    helix::Subject prep_time_estimate_subject_{}; // formatted prep time string for bind_text
+    helix::Subject preprint_estimate_visible_{};  // 1 while the estimate line has text
+    char prep_time_estimate_buf_[64]{};           // buffer backing the string subject
+    SubjectManager subjects_;                     // RAII manager for subject cleanup
     // Note: subjects_initialized_ inherited from OverlayBase
 
     // Live re-color when AMS slot colors/presence change while this view is open.

@@ -1,9 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_error_reporting.h"
-#include "ui_notification.h"
-
+#include "core/error_reporting.h"
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_api_internal.h"
@@ -37,11 +35,9 @@ void MoonrakerAPI::get_print_state(StringCallback on_result, ErrorCallback on_er
         "printer.objects.query", params,
         [on_result](const json& response) {
             std::string state = "unknown";
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("print_stats") &&
-                response["result"]["status"]["print_stats"].contains("state") &&
-                response["result"]["status"]["print_stats"]["state"].is_string()) {
-                state = response["result"]["status"]["print_stats"]["state"].get<std::string>();
+            if (const json* stats =
+                    helix::json_util::find_path(response, "result", "status", "print_stats")) {
+                state = helix::json_util::read_field<std::string>(*stats, "state").value_or(state);
             }
             on_result(state);
         },

@@ -115,4 +115,8 @@ std::vector<OverlayOpenRecord> overlay_open_records() {
     return g_tracker.records();
 }
 
+void reset_overlay_open_trace_for_test() {
+    g_tracker = OverlayOpenTracker{};
+}
+
 } // namespace helix::nav

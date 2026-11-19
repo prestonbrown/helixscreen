@@ -5,6 +5,7 @@
 #include "async_lifetime_guard.h"
 #include "bt_discovery_run.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "input_device_scanner.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -18,7 +19,7 @@ namespace helix::ui {
 /// Persistent settings overlay for barcode scanner selection and configuration.
 /// Twins LabelPrinterSettingsOverlay: keyboard-layout dropdown, USB device list,
 /// Bluetooth discovery + pairing, Auto-detect option. Reached from the Spoolman
-/// settings "Barcode Scanner" row. Replaces the former ScannerPickerModal.
+/// settings "Barcode Scanner" row.
 class BarcodeScannerSettingsOverlay : public OverlayBase {
   public:
     ~BarcodeScannerSettingsOverlay() override;
@@ -65,10 +66,10 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
 
     // Subjects (global scope — single-instance overlay)
     SubjectManager subjects_; // declared ahead: tears down after the subjects it owns
-    lv_subject_t bt_available_subject_{};
-    lv_subject_t bt_discovering_subject_{};
-    lv_subject_t keymap_index_subject_{};
-    lv_subject_t current_device_label_subject_{};
+    helix::Subject bt_available_subject_{};
+    helix::Subject bt_discovering_subject_{};
+    helix::Subject keymap_index_subject_{};
+    helix::Subject current_device_label_subject_{};
     char current_device_label_buf_[128]{};
 
     // Widget references (set in on_activate)
@@ -77,7 +78,7 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
     lv_obj_t* btn_bt_pair_ = nullptr;
     lv_obj_t* btn_bt_forget_ = nullptr;
 
-    // BT state (lifted from ScannerPickerModal)
+    // BT state
     struct BtDeviceInfo {
         std::string mac;
         std::string name;

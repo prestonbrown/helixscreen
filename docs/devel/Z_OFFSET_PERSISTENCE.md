@@ -23,7 +23,7 @@ Two things break if you believe the live value there:
 
 1. **Display.** The Z-Offset row shows 0.000 while a real offset is stored.
 2. **Adjustment.** A relative `SET_GCODE_OFFSET Z_ADJUST=` resolves against
-   `homing_origin`, so an idle nudge lands on just the delta — and firmware that
+   `homing_origin`, so an idle nudge lands on just the delta - and firmware that
    persists on every `SET_GCODE_OFFSET` then stores that, **discarding the user's
    real offset**. This is silent data loss, not a display glitch.
 
@@ -43,7 +43,7 @@ Behind an Abstraction"). It asks four capability questions:
 | `persistence_enable_gcode(hw)` | `Application` discovery-complete | empty string |
 | `status_refutes_persistence(hw, status)` | `PrinterState::update_from_status()` | `false` |
 
-Plus `should_enable_persistence(needs_enable, print_active, already_sent)` — the
+Plus `should_enable_persistence(needs_enable, print_active, already_sent)` - the
 once-per-session, idle-only gate on sending the enable command.
 
 ### Subjects
@@ -62,13 +62,13 @@ once-per-session, idle-only gate on sending the enable command.
 Both rules are pure functions in `helix::zoffset` (`include/z_offset_utils.h`),
 unit-tested in `tests/unit/test_z_offset_utils.cpp`:
 
-- `displayed_z_offset_microns(live, persisted, print_active)` — live during a print
+- `displayed_z_offset_microns(live, persisted, print_active)` - live during a print
   (baby steps land there first) or when nothing is stored; persisted otherwise.
-- `build_z_adjust_gcode(base, live, delta, all_homed)` — relative `Z_ADJUST=` when
+- `build_z_adjust_gcode(base, live, delta, all_homed)` - relative `Z_ADJUST=` when
   the base **is** the live offset, absolute `Z=` when it is not.
 
 The UI calls `displayed_z_offset_microns(PrinterState&)` so the rule lives in one
-place. **The base you adjust from must be the value you displayed** — that
+place. **The base you adjust from must be the value you displayed** - that
 equivalence is what makes the absolute form correct.
 
 ---
@@ -80,25 +80,32 @@ the module follows from that.
 
 | Mistake | Cost |
 |---------|------|
-| **Over-match** — a printer that does not persist is treated as if it does | the Save Z Offset button is hidden. Annoying, recoverable, no hardware risk |
-| **Under-match** — a printer that does persist is treated as if it does not | `Z_OFFSET_APPLY_PROBE` folds the gcode offset into the probe, `SAVE_CONFIG` restarts Klipper, the firmware re-applies the same offset on top. The probe value grows by the full offset on every save cycle — observed 0.060 → 2.515mm over five cycles, **ending nozzle-on-bed** (prestonbrown/helixscreen#1401) |
+| **Over-match** - a printer that does not persist is treated as if it does | the Save Z Offset button is hidden. Annoying, recoverable, no hardware risk |
+| **Under-match** - a printer that does persist is treated as if it does not | `Z_OFFSET_APPLY_PROBE` folds the gcode offset into the probe, `SAVE_CONFIG` restarts Klipper, the firmware re-applies the same offset on top. The probe value grows by the full offset on every save cycle - observed 0.060 → 2.515mm over five cycles, **ending nozzle-on-bed** (prestonbrown/helixscreen#1401) |
 
 So detection **latches immediately**: the moment a row matches, discovery calls
 `PrinterState::set_z_offset_external_persistence()` and the strategy becomes
 `FIRMWARE_MANAGED`. There is deliberately no "detect provisionally, confirm
-later" window — that window is the dangerous direction.
+later" window - that window is the dangerous direction.
+
+**Scanning probes still calibrate.** A Cartographer, Beacon or `probe_eddy_current`
+calibration is the probe's own paper test and sweep, which ACCEPT stages and
+`SAVE_CONFIG` alone keeps; it never folds the gcode offset into the probe. So the
+Z-offset panel runs that calibration under PROBE_CALIBRATE's sequence even on a
+`FIRMWARE_MANAGED` printer (`zoffset_cal::run_strategy()`, #1994). Baby-step saves
+and every other probe keep `FIRMWARE_MANAGED`.
 
 Most rows detect on a macro that belongs to exactly one firmware, so the match
 cannot be wrong. The Helper-Script row cannot: it keys on the **wrapper** object,
 which proves something shadows `SET_GCODE_OFFSET` but not that the shadow stores
-anything — wrapping the command for logging, clamping, or per-tool offsets is a
+anything - wrapping the command for logging, clamping, or per-tool offsets is a
 standard Voron / Klippain / toolchanger pattern, and such a wrapper persists
 nothing.
 
 Rows like that carry a **refutation**: a predicate over a status frame that
 proves the row's storage is *absent*. `PrinterState::update_from_status()` asks
 `status_refutes_persistence(hw, status)` and, when it fires, calls
-`clear_z_offset_external_persistence()` — the same release path rediscovery uses
+`clear_z_offset_external_persistence()` - the same release path rediscovery uses
 when a module has been uninstalled. Gated on the latch flag, so it fires once per
 latch rather than re-deciding on every frame.
 
@@ -114,7 +121,7 @@ value:
   must not, because the boot gcode will still re-apply whatever lands there. This
   is the boundary that keeps the relaxation off the damaging side.
 - A frame that does not carry `save_variables`, or carries it without its
-  `variables` member, is *no news* — never a refutation (same rule as the reader,
+  `variables` member, is *no news* - never a refutation (same rule as the reader,
   below).
 
 **Known gap.** A benign wrapper on a printer with no `[save_variables]` section
@@ -150,23 +157,23 @@ call site changes:
 //                                                                 reader   refutation
 ```
 
-- **detect macro** — matched via `PrinterDiscovery::has_macro()`, case-insensitive,
+- **detect macro** - matched via `PrinterDiscovery::has_macro()`, case-insensitive,
   exact (the mod's own `SET_MOD_PARAM` does not trip the `SET_MOD` row). The
   Helper-Script row keys on the WRAPPER object: Klipper lists a builtin command
   as a `gcode_macro` object only where a macro shadows it (which requires
   `rename_existing`), so `SET_GCODE_OFFSET` present in objects/list IS "a
-  renaming wrapper is installed" — the renamed original is a bare command,
+  renaming wrapper is installed" - the renamed original is a bare command,
   never an object.
-- **row order** — match priority. A box exposing two firmwares' macros resolves to
+- **row order** - match priority. A box exposing two firmwares' macros resolves to
   the first row; ZMOD stays first.
-- **reader** — pulls microns out of a status frame; must return `nullopt` for any
+- **reader** - pulls microns out of a status frame; must return `nullopt` for any
   frame that does not carry the value, and must tolerate the firmware's
   not-yet-set placeholder. Round rather than truncate: stored values accumulate
   relative deltas, so a nominal `-0.150` arrives as `-0.1499999`.
-- **refutation** — `nullptr` unless the detect macro is ambiguous. When present,
+- **refutation** - `nullptr` unless the detect macro is ambiguous. When present,
   it must answer `true` only on positive evidence that the row's storage is
   absent, and `false` for every "no news" frame and for the firmware's own
-  not-yet-used placeholder. See § "Latch conservatively, relax only on proof" —
+  not-yet-used placeholder. See § "Latch conservatively, relax only on proof" -
   a refutation that fires too eagerly re-enables a save path that damages
   hardware.
 
@@ -187,31 +194,31 @@ the macro-level detail: `SET_GCODE_OFFSET` override, `LOAD_GCODE_OFFSET` at
 
 ## Forge-X specifics
 
-Forge-X — the FlashForge Adventurer 5M / Pro firmware mod (DrA1ex/ff5m), never the
-AD5X — is the second row. Its klippy plugin (`mod_params`) keeps parameters in its
+Forge-X - the FlashForge Adventurer 5M / Pro firmware mod (DrA1ex/ff5m), never the
+AD5X - is the second row. Its klippy plugin (`mod_params`) keeps parameters in its
 own INI store (`/opt/config/mod_data/variables.cfg`), **not** klipper's
 `save_variables`, and mirrors them into the `mod_params` status object.
 
 - **Detection:** the `SET_MOD` macro (the plugin also registers `GET_MOD`,
   `LIST_MOD_PARAMS`, `SET_MOD_PARAM`; only `SET_MOD` is the signature). The mod's
-  migration path actively removes `SAVE_ZMOD_DATA`, so it cannot trip the ZMOD row —
+  migration path actively removes `SAVE_ZMOD_DATA`, so it cannot trip the ZMOD row -
   ZMOD nonetheless stays first in the table.
 
   **Never switch this predicate to object presence.** Rig-observed on ZMOD 1.7.2:
   this Moonraker build answers `objects/query` with success and an empty status for an
-  object it does not have — `mod_params`, `zmod_ifs` and `zmod_color` all "answer"
-  despite being absent from `objects/list` — and `SET_MOD` is likewise absent from its
+  object it does not have - `mod_params`, `zmod_ifs` and `zmod_color` all "answer"
+  despite being absent from `objects/list` - and `SET_MOD` is likewise absent from its
   `gcode/help`. A query response is never proof an object is registered; `objects/list`
   is the presence check. Even a stray empty frame stays harmless: `mod_params` is only
   subscribed when this row is the match, and the reader returns `nullopt` for an object
-  without `variables`. The mods share lineage — ZMOD keeps its own flat param dict
-  (`load_zoffset`, `fix_e0011`, …) inside klipper `save_variables` — so a key name is
+  without `variables`. The mods share lineage - ZMOD keeps its own flat param dict
+  (`load_zoffset`, `fix_e0011`, …) inside klipper `save_variables` - so a key name is
   never proof of which mod a printer runs.
-- **Read:** `mod_params.variables.z_offset`, a float in mm — the same accumulate-
+- **Read:** `mod_params.variables.z_offset`, a float in mm - the same accumulate-
   and-round-to-microns treatment as ZMOD, for the same reason.
 - **Write:** its `SET_GCODE_OFFSET` override auto-persists every `Z=` write, so
   saving needs no gcode from us.
-- **Enable:** `SET_MOD PARAM="load_zoffset" VALUE=1` — the semantic equivalent of
+- **Enable:** `SET_MOD PARAM="load_zoffset" VALUE=1` - the semantic equivalent of
   ZMOD's `SAVE_ZMOD_DATA LOAD_ZOFFSET=1`: make print start apply the stored offset.
 
 ---
@@ -253,8 +260,9 @@ or "Saved 1.250 mm, 1.230 mm after Save" once the session offset is non-zero
 (`include/z_offset_utils.h`) decides it:
 
 - **The saved value** is `PrinterState::get_configured_z_offset_microns()`: the Z probe's
-  `z_offset` on a probe printer, `stepper_z.position_endstop` otherwise, both from
-  `configfile.settings`, so what Klipper loaded at startup.
+  `z_offset` where the probe holds Z0 (`PrinterState::z_offset_reference_is_probe()`),
+  `stepper_z.position_endstop` otherwise, both from `configfile.settings`, so what
+  Klipper loaded at startup.
 - **The projection** is saved minus the session offset on both kinds of printer:
   `Z_OFFSET_APPLY_PROBE` stores `z_offset - homing_origin.z` and
   `Z_OFFSET_APPLY_ENDSTOP` stores `position_endstop - homing_origin.z`. It moves
@@ -267,6 +275,44 @@ or "Saved 1.250 mm, 1.230 mm after Save" once the session offset is non-zero
   `SAVE_CONFIG` straight after the apply, and the restart reseeds the value, so the
   window only opens when someone applies from a console and does not save.
 - The home widget keeps its caption: the line does not fit the widget's smaller rungs.
+
+---
+
+## Picking the calibration strategy
+
+`resolve_z_offset_calibration_strategy()` (`include/printer_profile_state.h`) is the one
+decision, a pure function unit-tested in `tests/unit/test_printer_profile_state.cpp`
+(`[zoffset_strategy]`). What a save must write is whatever holds Z0:
+
+| Printer database | stepper_z position_endstop | Probe | Kinematics | Strategy |
+|---|---|---|---|---|
+| names one | any | any | any | the database's |
+| none | a number | any | any | `ENDSTOP` |
+| none | null or absent | yes | any | `PROBE_CALIBRATE` |
+| none | null or absent | no | delta, rotary_delta, deltesian, winch | `FIRMWARE_MANAGED` |
+| none | null or absent | no | anything else | `ENDSTOP` |
+
+- **A number means a Z switch.** Klipper's klippy/stepper.py reads `position_endstop` only
+  when the endstop is not a probe's virtual endstop, and klippy/extras/manual_probe.py registers
+  `Z_ENDSTOP_CALIBRATE` and `Z_OFFSET_APPLY_ENDSTOP` only when it is set. A stock
+  Voron 2.4, a Klicky that homes Z on its switch, or an Ender with a mesh-only BLTouch
+  takes Z0 from that endstop, so `Z_OFFSET_APPLY_PROBE` there would write a `z_offset`
+  that moves nothing.
+- **A delta has no `[stepper_z]`.** klippy/extras/manual_probe.py registers only the delta form of
+  `Z_OFFSET_APPLY_ENDSTOP` there, never `Z_ENDSTOP_CALIBRATE`, so a delta without a
+  probe gets `FIRMWARE_MANAGED`, whose moves and `SET_GCODE_OFFSET` every kinematics
+  has. Its tune hint is temporary: stock Klipper persists no gcode offset. A delta with
+  a probe gets `PROBE_CALIBRATE`, which klippy/extras/probe.py registers on any kinematics.
+- **No probe and no reading yet** stays `ENDSTOP`: Klipper requires `position_endstop`
+  on a switch-homed `[stepper_z]`, so the reading is only late.
+- **An external persistence provider** still forces `FIRMWARE_MANAGED` on top (above).
+
+**When the inputs arrive.** Discovery reads `stepper_z.position_endstop` from the same
+`configfile.settings` query as the build volume (`PrinterDiscovery::z_position_endstop()`),
+so it is in the snapshot `PrinterState::set_hardware()` receives, and `set_hardware()`
+re-resolves a type set before it (the saved type at startup). The safety-limits fetch
+reads the same key after discovery completes and calls
+`PrinterState::set_z_position_endstop_known()`, which re-resolves if the answer differs.
 
 ---
 

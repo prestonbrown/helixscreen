@@ -687,7 +687,7 @@ print(sorted(b))
 @test "the ObserverGuard move gate fires when std::move comes back" {
     local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_moved.cpp"
     sed -e 's@std::exchange(other\.cleanup_, nullptr)@std::move(other.cleanup_)@' \
-        src/ui/ui_observer_guard.cpp > "$mutated"
+        src/core/observer_guard.cpp > "$mutated"
 
     run check_observer_guard_move_clears_cleanup "$mutated"
     [ "$status" -eq 1 ]
@@ -697,7 +697,7 @@ print(sorted(b))
 @test "the ObserverGuard move gate fails closed when a move path disappears" {
     local mutated="${BATS_TEST_TMPDIR}/ui_observer_guard_dropped.cpp"
     awk '/cleanup_.*other\.cleanup_/ && !seen { seen = 1; next } { print }' \
-        src/ui/ui_observer_guard.cpp > "$mutated"
+        src/core/observer_guard.cpp > "$mutated"
 
     run check_observer_guard_move_clears_cleanup "$mutated"
     [ "$status" -eq 1 ]
@@ -1743,7 +1743,7 @@ CPP
 }
 
 # The ratchet compares per-file counts to the baseline.
-@test "the vendor-branch gate fails above a nonzero baseline and passes at or below it" {
+@test "the vendor-branch gate fails above a nonzero baseline, passes at it, and fails below it only at a push" {
     local root="$BATS_TEST_TMPDIR/ratchet"
     mkdir -p "$root/src/ui" "$root/src/ui/filament" "$root/src/ui/print"
     printf 'bool a(AmsType t) { return t == AmsType::CFS; }\nbool b(AmsType t) { return t != AmsType::AFC; }\n' \
@@ -1755,9 +1755,12 @@ CPP
     run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
     [ "$status" -eq 0 ] || fail "two branches at a baseline of two failed: $output"
     printf '3 src/ui/x.cpp:amstype-branch\n' > "$root/base.txt"
-    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
-    [ "$status" -eq 0 ] || fail "below baseline failed: $output"
+    run env HELIX_RATCHET_STRICT=0 python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 0 ] || fail "below baseline failed at commit: $output"
     contains "lowered" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "below baseline passed at a push: $output"
+    contains "src/ui/x.cpp:amstype-branch: 3 -> 2" "$output"
 }
 
 @test "the vendor-branch gate is quiet on AmsType::NONE and on build-shape macros" {
@@ -1790,6 +1793,63 @@ CPP
     run python3 scripts/check_vendor_branches.py --root "$root"
     [ "$status" -eq 1 ] || fail "name() compares not counted"
     contains "2 branch" "$output"
+}
+
+@test "the vendor-name gate counts identifiers and acted-on strings, each mention once" {
+    local root="$BATS_TEST_TMPDIR/vname"
+    mkdir -p "$root/src/ui"
+    cat > "$root/src/ui/x.cpp" <<'CPP'
+bool a(Hw& hw) { return hw.has_zmod_afc() && hw.is_creality_k1(); }
+bool b(Hw& hw) { return hw.has_macro("SAVE_ZMOD_DATA"); }
+bool c(const std::string& n) { return n == "qidi_print_state"; }
+void d(Api& api) { api->execute_gcode("KALICO_THING"); }
+CPP
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "planted vendor names passed"
+    contains "x.cpp:vendor-name: 2 branch" "$output"
+    contains "x.cpp:vendor-string: 3 branch" "$output"
+}
+
+@test "the vendor-name gate ignores comments, text a user reads, and generic words" {
+    local root="$BATS_TEST_TMPDIR/vquiet"
+    mkdir -p "$root/src/ui"
+    cat > "$root/src/ui/x.cpp" <<'CPP'
+// Snapmaker and zmod printers keep this in a comment.
+/* creality
+   flashforge */
+#include "snapmaker_exceptions.h"
+const char* a = lv_tr("Connect your Snapmaker");
+void b() { spdlog::info("QIDI box found"); }
+const char* c = R"(zmod raw text)";
+bool d(int persisted_z_offset, int modulus) { return persisted_z_offset > modulus; }
+CPP
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 0 ] || fail "legitimate text reported: $output"
+}
+
+@test "the vendor-name gate exempts owning modules and honours VENDOR_OK and its baseline" {
+    local root="$BATS_TEST_TMPDIR/vowner"
+    mkdir -p "$root/src/printer" "$root/src/ui" "$root/include"
+    local plant='bool f() { return has_snapmaker_; }'
+    printf '%s\n' "$plant" > "$root/src/printer/ams_backend_foo.cpp"
+    printf '%s\n' "$plant" > "$root/src/printer/snapmaker_status_parse.cpp"
+    printf '%s\n' "$plant" > "$root/src/printer/z_offset_persistence.cpp"
+    printf '%s // VENDOR_OK: test\n' "$plant" > "$root/src/ui/ok.cpp"
+    printf '%s\n' "$plant" > "$root/src/ui/ams_state.cpp"
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "ams_state is generic and passed"
+    contains "ams_state.cpp:vendor-name" "$output"
+    ! contains "ams_backend_foo" "$output" || fail "owner flagged: $output"
+    ! contains "snapmaker_status_parse.cpp:" "$output" || fail "vendor-named file flagged: $output"
+    ! contains "z_offset_persistence" "$output" || fail "provider table flagged: $output"
+    ! contains "ok.cpp" "$output" || fail "VENDOR_OK ignored: $output"
+
+    printf '1 src/ui/ams_state.cpp:vendor-name\n' > "$root/base.txt"
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 0 ] || fail "at baseline failed: $output"
+    printf '%s\n%s\n' "$plant" "$plant" > "$root/src/ui/ams_state.cpp"
+    run python3 scripts/check_vendor_branches.py --root "$root" --baseline "$root/base.txt"
+    [ "$status" -eq 1 ] || fail "growth above the baseline passed"
 }
 
 @test "the short_clicked gate fires on an XML trigger and a C++ registration" {
@@ -2047,13 +2107,28 @@ EOF
     lacks "FMT_INCLUDE_OK" "$output"
 }
 
+@test "the json.hpp header lint catches the full library and stays quiet on json_fwd.h and opt-outs" {
+    local f="$BATS_TEST_TMPDIR/json.h"
+    cat > "$f" <<'EOF'
+#include "hv/json.hpp"
+#  include <hv/json.hpp>
+#include "json_fwd.h"
+// #include "hv/json.hpp" in prose
+#include "hv/json.hpp" // JSON_HPP_OK: test fixture
+EOF
+    run code_offenders "$(json_hpp_include_pattern)" JSON_HPP_OK "$f"
+    [ "${#lines[@]}" -eq 2 ]
+    lacks "json_fwd" "$output"
+    lacks "JSON_HPP_OK" "$output"
+}
+
 @test "the Z-offset save-rule lint fails closed on a tree with no save surfaces" {
     fixture_root
     mkdir -p ui_xml
     printf '<lv_obj name="unrelated"/>\n' | put ui_xml/panel.xml
     run lint_zoffset_save_rule
     [ "$status" -eq 1 ]
-    contains "fewer than 3" "$output"
+    contains "fewer than 2" "$output"
 }
 
 @test "the OverlayBase cleanup lint fails closed when it finds too few overrides" {
@@ -2184,6 +2259,25 @@ EOF
 }
 
 # --- The driver and its wiring into quality-checks.sh ---
+
+@test "the stripped-assets lint fires on a consumer of a stripped image and on losing the registered one" {
+    fixture_root
+    : | put mk/cross.mk
+    : | put assets/images/printer_400.png
+    echo 'const char* kImg = "A:assets/images/printer_400.png";' | put src/ui/printer_image.cpp
+    mkdir -p include ui_xml assets/config tests/unit
+    run lint_stripped_assets_unreferenced
+    [ "$status" -eq 0 ] || fail "$output"
+
+    echo '<img src="orcaslicer test cube.PNG"/>' | put ui_xml/cube.xml
+    echo 'auto p = "assets/images/printer.png";' | put tests/unit/test_thumb.cpp
+    echo '	rm -f $(STAGE)/assets/images/printer_400.png' | put mk/cross.mk
+    run lint_stripped_assets_unreferenced
+    [ "$status" -eq 1 ]
+    contains "ui_xml/cube.xml" "$output"
+    contains "tests/unit/test_thumb.cpp" "$output"
+    contains "mk/cross.mk deletes printer_400.png" "$output"
+}
 
 @test "every registered lint has a function and every lint function is registered" {
     local registered defined

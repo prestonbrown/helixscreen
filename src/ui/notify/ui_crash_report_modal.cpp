@@ -5,6 +5,7 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/subject.h"
 #include "display_manager.h"
 #include "system/crash_reporter.h"
 #include "system/debug_bundle_collector.h"
@@ -62,9 +63,9 @@ bool CrashReportModal::show_modal(lv_obj_t* parent) {
         details += "\nException: " + report_.exception_what;
     }
 
-    lv_subject_copy_string(&details_subject_, details.c_str());
-    lv_subject_copy_string(&status_subject_,
-                           lv_tr("Send this crash report to help improve HelixScreen."));
+    lv_subject_set_string(&details_subject_, details.c_str());
+    lv_subject_set_string(&status_subject_,
+                          lv_tr("Send this crash report to help improve HelixScreen."));
 
     return show(parent);
 }
@@ -125,9 +126,9 @@ void CrashReportModal::init_subjects() {
         return;
     }
 
-    lv_subject_init_string(&details_subject_, details_buf_, nullptr, sizeof(details_buf_), "");
-    lv_subject_init_string(&status_subject_, status_buf_, nullptr, sizeof(status_buf_), "");
-    lv_subject_init_int(&show_qr_subject_, 0);
+    details_subject_.init_string(details_buf_, nullptr, sizeof(details_buf_), "");
+    status_subject_.init_string(status_buf_, nullptr, sizeof(status_buf_), "");
+    show_qr_subject_.init_int(0);
 
     subjects_.publish("crash_report_details", &details_subject_);
     subjects_.publish("crash_report_status", &status_subject_);
@@ -225,7 +226,7 @@ void CrashReportModal::attempt_delivery() {
     // callback is marshaled back to the UI thread. If the bundle fails (no
     // network, worker down, etc.) the report still goes out — just without a
     // share code.
-    lv_subject_copy_string(&status_subject_, lv_tr("Collecting debug info..."));
+    lv_subject_set_string(&status_subject_, lv_tr("Collecting debug info..."));
 
     helix::BundleOptions options;
     // Don't pull Klipper/Moonraker logs in the crash-boot path — Moonraker
@@ -255,7 +256,7 @@ void CrashReportModal::attempt_delivery() {
 void CrashReportModal::send_with_bundle(const std::string& share_code) {
     auto& cr = reporter_;
 
-    lv_subject_copy_string(&status_subject_, lv_tr("Sending..."));
+    lv_subject_set_string(&status_subject_, lv_tr("Sending..."));
 
     // Copy so we don't mutate the original until we know the send happened.
     CrashReporter::CrashReport report = report_;
@@ -293,7 +294,7 @@ void CrashReportModal::show_local_fallback(const CrashReporter::CrashReport& rep
     } else {
         status = lv_tr("Report saved to crash_report.txt");
     }
-    lv_subject_copy_string(&status_subject_, status);
+    lv_subject_set_string(&status_subject_, status);
 
     cr.save_to_file(report);
     cr.consume_crash_file();
@@ -339,7 +340,7 @@ void CrashReportModal::show_qr_code(const std::string& url) {
     }
 #else
     spdlog::warn("[CrashReportModal] QR code support not compiled in (LV_USE_QRCODE=0)");
-    lv_subject_copy_string(&status_subject_, lv_tr("Saved to crash_report.txt (QR not available)"));
+    lv_subject_set_string(&status_subject_, lv_tr("Saved to crash_report.txt (QR not available)"));
     (void)url;
 #endif
 }

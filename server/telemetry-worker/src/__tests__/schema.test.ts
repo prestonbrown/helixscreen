@@ -273,6 +273,8 @@ describe("POINT_KINDS table", () => {
           "device_id": "blob1",
           "display": "blob6",
           "extruder_count": "double3",
+          "host_mod": "blob14",
+          "install_source": "blob13",
           "kinematics": "blob5",
           "locale": "blob7",
           "printer_model": "blob4",
@@ -546,6 +548,20 @@ describe("table-driven writer", () => {
 
   it("writes no screensaver points for an event with empty saver maps", () => {
     expect(mapEventToDataPoints({ event: "screensaver_usage", device_id: "dev" })).toEqual([]);
+  });
+
+  it("keeps install provenance to its allowlists and leaves older clients empty", () => {
+    const blobFor = (field: string, app: Record<string, unknown>) => {
+      const [dp] = mapEventToDataPoints({ event: "session", device_id: "d", app });
+      return dp.blobs![Number(col("session", field).slice(4)) - 1];
+    };
+    expect(blobFor("install_source", { install_source: "kiauh" })).toBe("kiauh");
+    expect(blobFor("install_source", { install_source: "unknown" })).toBe("unknown");
+    expect(blobFor("install_source", { install_source: "/home/alice" })).toBe("unknown");
+    expect(blobFor("install_source", {})).toBe("");
+    expect(blobFor("host_mod", { host_mod: "forge_x" })).toBe("forge_x");
+    expect(blobFor("host_mod", { host_mod: "my printer" })).toBe("unknown");
+    expect(blobFor("host_mod", {})).toBe("");
   });
 
   it("reads settings_snapshot's screensaver_type into its own blob", () => {

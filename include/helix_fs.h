@@ -63,6 +63,10 @@ std::optional<std::uint64_t> space_available(const std::string& p);
 /// the path does not exist. ESP32 has no symlinks, so there it only normalizes.
 std::optional<std::string> canonical(const std::string& p);
 
+/// readlink(): what the symlink at `p` points at, as stored (possibly relative).
+/// nullopt when `p` is not a symlink, and always on ESP32.
+std::optional<std::string> read_symlink(const std::string& p);
+
 // ---------------------------------------------------------------------------
 // Operations. false on failure with errno set by the failing call.
 // ---------------------------------------------------------------------------
@@ -74,6 +78,11 @@ bool create_directories(const std::string& p);
 /// Removes a file or an empty directory. true when something was removed; false
 /// with errno ENOENT when `p` did not exist, any other errno on a real failure.
 bool remove(const std::string& p);
+
+/// rm -r: removes `p` and everything under it. A symlink is removed, never
+/// followed, so nothing outside `p` is touched. true when `p` is gone
+/// afterwards, including when it never existed.
+bool remove_all(const std::string& p);
 
 bool rename(const std::string& from, const std::string& to);
 

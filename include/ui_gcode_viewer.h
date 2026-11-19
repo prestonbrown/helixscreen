@@ -151,6 +151,27 @@ void gcode_viewer_set_first_frame_callback(lv_obj_t* obj, gcode_viewer_load_call
                                            void* user_data);
 
 /**
+ * @brief Reports whether the viewer is drawing in 3D or 2D.
+ *
+ * Fires, deferred (UpdateQueue), after the first draw and then whenever the
+ * drawn path changes: the user's mode, the memory budget forcing 2D for a file,
+ * or the GPU path giving up (init failure, fatal GL error, too slow to rotate).
+ */
+typedef void (*gcode_viewer_render_path_callback_t)(lv_obj_t* viewer, void* user_data,
+                                                    bool drawn_3d);
+
+/**
+ * @brief Register the render-path callback (see gcode_viewer_render_path_callback_t).
+ *
+ * The next draw reports the current path. Pass a null callback to unregister,
+ * from any teardown that outlives the viewer widget, as with
+ * gcode_viewer_set_first_frame_callback().
+ */
+void gcode_viewer_set_render_path_callback(lv_obj_t* obj,
+                                           gcode_viewer_render_path_callback_t callback,
+                                           void* user_data);
+
+/**
  * @brief Frame this viewer's render the way the slicer thumbnail beside it is
  *        framed (THUMBNAIL_PARITY, include/gcode_projection.h).
  *

@@ -3,6 +3,7 @@
 
 #include "async_lifetime_guard.h"
 #include "capability_overrides.h"
+#include "core/subject.h"
 #include "moonraker_types.h"
 #include "printer_discovery.h"
 #include "subject_managed_panel.h"
@@ -56,6 +57,9 @@ enum class Capability : uint8_t {
     HideManualZCalibration,      ///< tool offset calibration also sets the reference tool's Z
     HasPaCal,                    ///< firmware measures pressure advance
     HasStepperResonanceCal,      ///< firmware calibrates stepper resonance (vertical artifacts)
+    CanTensionBelts,             ///< motorized belt tensioners the firmware drives
+    CanCalibrateCutter,          ///< firmware finds its filament cutter's position
+    SupportsRippleCheck,         ///< accelerometer + kinematics for the motor ripple speed sweep
     HasWebcam,                   ///< an enabled webcam is configured
     WebcamCount,                 ///< named webcams (what a picker can offer)
     HasExtraFans,                ///< controllable fans beyond part cooling
@@ -78,9 +82,8 @@ inline constexpr size_t kCapabilityCount = static_cast<size_t>(Capability::Count
  * @brief Manages printer capability subjects for UI feature visibility
  *
  * Tracks hardware capabilities (probe, heater bed, LED, accelerometer, etc.)
- * and feature availability (spoolman, timelapse, firmware retraction, etc.)
- * Provides 18+ subjects for reactive UI updates based on printer capabilities.
- * Extracted from PrinterState as part of god class decomposition.
+ * and feature availability (spoolman, timelapse, firmware retraction, etc.),
+ * one subject per Capability, for reactive UI updates.
  *
  * @note Capability values are set from hardware discovery on connect, with
  *       user overrides applied from CapabilityOverrides. Some capabilities
@@ -91,7 +94,6 @@ class PrinterCapabilitiesState {
     PrinterCapabilitiesState() = default;
     ~PrinterCapabilitiesState() = default;
 
-    // Non-copyable
     PrinterCapabilitiesState(const PrinterCapabilitiesState&) = delete;
     PrinterCapabilitiesState& operator=(const PrinterCapabilitiesState&) = delete;
 
@@ -349,12 +351,12 @@ class PrinterCapabilitiesState {
         return webcams_;
     }
 
-    /// MJPEG stream URL of first enabled webcam (empty if none)
+    /// MJPEG stream URL of the auto-picked webcam (empty if none)
     const std::string& get_webcam_stream_url() const {
         return webcam_stream_url_;
     }
 
-    /// Snapshot URL of first enabled webcam (empty if none)
+    /// Snapshot URL of the auto-picked webcam (empty if none)
     const std::string& get_webcam_snapshot_url() const {
         return webcam_snapshot_url_;
     }
@@ -397,12 +399,12 @@ class PrinterCapabilitiesState {
     ///
     /// Discovery runs on the WebSocket thread and its answers reach here through
     /// AsyncLifetimeGuard::defer(), so on a fast printer they can land before
-    /// init_subjects() has run. Writing an uninitialised lv_subject_t is already
+    /// init_subjects() has run. Writing a subject before its first init is already
     /// wrong, and INIT_SUBJECT_INT would then reset it to the hardcoded default
     /// anyway - the answer is simply lost, and nothing re-runs discovery in a
-    /// stable session. That is how a connected Spoolman stayed dark for five days
-    /// on a K2 Plus (2026-08-24): SpoolmanManager's observer watches this flag's
-    /// falling edge and drops the identity cache behind every slot's vendor and
+    /// stable session. A lost HasSpoolman keeps a connected Spoolman dark for
+    /// the whole session: SpoolmanManager's observer watches that flag's falling
+    /// edge and drops the identity cache behind every slot's vendor and
     /// material. Latch instead, and seed init_subjects() from what we already know.
     std::array<std::optional<int>, kCapabilityCount> pending_capability_values_{};
 
@@ -426,8 +428,8 @@ class PrinterCapabilitiesState {
     /// stepper_z position_endstop from configfile.settings (microns)
     int stepper_z_endstop_microns_ = 0;
 
-    std::array<lv_subject_t, kCapabilityCount> capability_subjects_{};
-    lv_subject_t tool_offset_cal_description_{};
+    std::array<helix::Subject, kCapabilityCount> capability_subjects_{};
+    helix::Subject tool_offset_cal_description_{};
     char tool_offset_cal_description_buf_[160] = {};
     /// The untranslated description set_hardware() chose; rendered through
     /// lv_tr() at init, on set_hardware() and on a language change.

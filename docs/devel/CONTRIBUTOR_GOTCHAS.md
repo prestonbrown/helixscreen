@@ -165,7 +165,7 @@ Full mechanism and the one-line `dots` alternative: `LVGL9_XML_GUIDE.md`, "Text 
 
 **Cause:** LVGL ellipsizes only when the wrapped text is taller than the label. A bare `<lv_label>` at content height grows to fit and wraps instead. A label with no width bound (no `width`, or `width="content"` without `style_max_width`) never wraps at all, so it runs past its parent and is clipped.
 
-**Fix:** Use a `text_*` widget (or `ui_button`), which holds a dotted content-height label to one line of its font, and give it a width bound: `width="100%"`, or `width="1" flex_grow="1"` in a row. In C++, call `helix::ui::label_hold_one_line(label)` after setting `LV_LABEL_LONG_MODE_DOTS`. An explicit px/% `height` or `style_max_height` opts out, for a deliberately multi-line dotted label. Text that should wrap must not use `dots`. Details: `LVGL9_XML_GUIDE.md`, "One-line labels: `long_mode="dots"`".
+**Fix:** Use a `text_*` widget (or `ui_button`), which holds a dotted content-height label to one line of its font, and give it a width bound: `width="100%"`, or `width="1" flex_grow="1"` in a row. In C++, call `lv_label_set_max_lines(label, 1)` with `LV_LABEL_LONG_MODE_DOTS`. An explicit px/% `height` or `style_max_height` opts out, for a deliberately multi-line dotted label. Text that should wrap must not use `dots`. Details: `LVGL9_XML_GUIDE.md`, "One-line labels: `long_mode="dots"`".
 
 ---
 
@@ -287,9 +287,9 @@ Reference: lesson **L008**.
 
 ### My `#token` resolves to nothing / the widget comes out 0px.
 
-**Cause:** The `_small`/`_medium`/`_large` declarations sit in a `ui_xml/` subdirectory — `ui_xml/components/`, `ui_xml/portrait/`, `ui_xml/micro/`. Token discovery is top-level-only: `theme_manager_find_xml_files()` skips directory entries, so only `ui_xml/*.xml` is ever scanned for `<px>` and `<string>` tokens. A suffixed token declared below the top level is never registered, and the `#reference` to it silently resolves to nothing. Neither side warns.
+**Cause:** The `_small`/`_medium`/`_large` declarations sit in a `ui_xml/` subdirectory such as `ui_xml/components/`. Token discovery is top-level-only: `theme_manager_find_xml_files()` skips directory entries, so only `ui_xml/*.xml` is ever scanned for `<px>` and `<string>` tokens. A suffixed token declared below the top level is never registered, and the `#reference` to it silently resolves to nothing. Neither side warns.
 
-**Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was — referencing a global token from a variant file is exactly what variants are for. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a portrait-only `nav_width_small` would shadow the base token globally instead of only while the portrait variant is active.
+**Fix:** Move the declarations to `ui_xml/globals.xml` (or another top-level token file) and keep the `#reference` where it was. Recursing into subdirectories is not the fix: discovery is alphabetical last-wins, so a component's `nav_width_small` would shadow the top-level token globally.
 
 Gate: `scripts/check_responsive_token_scope.py` (prestonbrown/helixscreen#1211).
 
@@ -354,7 +354,7 @@ Reference: lesson **L064**.
 
 ### The app crashes on reconnect, or on panel rebuild, in an observer callback.
 
-**Cause:** You're observing a **dynamic** subject (per-fan, per-sensor, per-extruder) and its `SubjectLifetime` token never reached the `observe_*` factory. The factory's `lifetime` parameter is required, but nothing stops you passing `{}` (or `subject_never_freed()`) instead of the token you fetched, and then the guard has no way to learn the subject was freed, so `reset()` calls `lv_observer_remove()` on freed memory.
+**Cause:** You're observing a **dynamic** subject (per-fan, per-sensor, per-extruder) and its `SubjectLifetime` token never reached the `observe_*` factory. The factory's `lifetime` parameter is required, but nothing stops you passing `{}` (or `subject_never_freed()`) instead of the token you fetched, and then the guard has no way to learn the subject was freed, so `reset()` calls `lv_observer_delete()` on freed memory.
 
 **Fix:**
 
@@ -372,7 +372,7 @@ auto* s = tsm.get_temp_subject(name, temp_lifetime_);
 temp_observer_ = observe<int>(s, this, handler, temp_lifetime_);  // <- token, not omitted
 ```
 
-Reference: lessons **L077**, **L084**, `include/ui_observer_guard.h`, and `docs/devel/THREADING.md` § 5 (which explains why the older "local lifetime = UAF" phrasing was wrong).
+Reference: lessons **L077**, **L084**, `include/core/observer_guard.h`, and `docs/devel/THREADING.md` § 5 (which explains why the older "local lifetime = UAF" phrasing was wrong).
 
 ---
 

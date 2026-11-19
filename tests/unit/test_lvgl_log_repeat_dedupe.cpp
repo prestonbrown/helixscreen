@@ -24,6 +24,8 @@
  */
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/log_capture.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "lvgl_log_handler.h"
 #include "subject_debug_registry.h"
@@ -52,21 +54,14 @@ class LevelCapture {
         prev_level_ = logger_->level();
         ring_->set_level(spdlog::level::debug);
         all_->set_level(spdlog::level::trace);
-        logger_->sinks().push_back(ring_);
-        logger_->sinks().push_back(all_);
+        helix::attach_log_sink(*logger_, ring_);
+        helix::attach_log_sink(*logger_, all_);
         logger_->set_level(spdlog::level::trace);
     }
 
     ~LevelCapture() {
-        auto& sinks = logger_->sinks();
-        for (auto* wanted : {&ring_, &all_}) {
-            for (auto it = sinks.begin(); it != sinks.end(); ++it) {
-                if (*it == *wanted) {
-                    sinks.erase(it);
-                    break;
-                }
-            }
-        }
+        helix::detach_log_sink(*logger_, ring_);
+        helix::detach_log_sink(*logger_, all_);
         logger_->set_level(prev_level_);
     }
 
@@ -276,13 +271,15 @@ TEST_CASE("LVGL log handler: English having no translation pack stays out of the
     CHECK(logs.in_ring(de_tag) == 1);
 }
 
-TEST_CASE("LVGL log handler: a subject type mismatch names the subject and maps to its anomaly",
-          "[logging][lvgl][subject]") {
+TEST_CASE_METHOD(
+    LVGLTestFixture,
+    "LVGL log handler: a subject type mismatch names the subject and maps to its anomaly",
+    "[logging][lvgl][subject]") {
     helix::logging::register_lvgl_log_handler();
     LevelCapture logs;
 
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
+    helix::Subject subject;
+    subject.init_int(0);
     SubjectDebugRegistry::instance().register_subject(&subject, "helix_type_probe",
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
@@ -299,7 +296,6 @@ TEST_CASE("LVGL log handler: a subject type mismatch names the subject and maps 
     CHECK(logs.total("Subject: \"helix_type_probe\"") == 1);
 
     SubjectDebugRegistry::instance().unregister_subject(&subject);
-    lv_subject_deinit(&subject);
 }
 
 TEST_CASE("LVGL log handler: a deprecation notice stays out of the ring", "[logging][lvgl]") {

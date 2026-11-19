@@ -3,19 +3,20 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
 #include "ui_context_menu.h"
 #include "ui_heater_icon_binder.h"
 #include "ui_job_queue_modal.h"
-#include "ui_observer_guard.h"
 #include "ui_runout_guidance_modal.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/coalesced_timer.h"
+#include "core/observer_guard.h"
 #include "panel_widget.h"
 #if defined(HELIX_PLATFORM_ESP32)
 #include "esp_psram_thumbnail.h"
 #endif
+#include "core/subject.h"
 #include "print_history_manager.h"
 #include "print_lifecycle_state.h" // PrintState, job_holds_machine
 #include "printer_temperature_state.h"
@@ -29,6 +30,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 namespace helix {
 
@@ -157,7 +160,11 @@ class PrintStatusWidget : public PanelWidget {
     /// Arc thickness tier (0..4 → 4/6/8/10/12 px). Driven by C++ when the arc
     /// resizes; consumed by XML bind_style entries in print_status_detailed_active.
     /// Public so the static helper in the .cpp can publish to it without a friend.
-    static inline lv_subject_t arc_thickness_tier_subject_{};
+    static inline helix::Subject arc_thickness_tier_subject_{};
+    // 1 while the open Layout picker shows Detailed, which hides its Show
+    // Sections group. Process-wide: ContextMenu keeps one picker open at a
+    // time, and apply_visuals() writes it before the user sees the card.
+    static inline helix::Subject picker_detailed_subject_{};
 
     // Test accessors (always compiled — used by unit tests)
     const std::string& layout_style_for_test() const {
@@ -188,15 +195,15 @@ class PrintStatusWidget : public PanelWidget {
     void on_print_state_changed_for_test(PrintState state) {
         on_print_state_changed(state);
     }
-    // Test-only — destroy the singleton formatter regardless of refcount. Used
-    // by test fixtures that reset PrinterState between cases so the next
-    // formatter's observers bind to fresh subjects rather than freed memory.
+    // Test-only — destroy the shared formatter, as its StaticSubjectRegistry
+    // entry does. Used by test fixtures that reset PrinterState between cases
+    // so the next formatter's observers bind to fresh subjects rather than
+    // freed memory.
     static void destroy_formatter_for_test() {
         s_formatter_.reset();
-        s_formatter_refcount_ = 0;
         // The view subject is shared and outlives every instance; a case left
         // printing would build the next case's tree in the active view.
-        if (detailed_subjects_initialized_) {
+        if (static_subjects_initialized()) {
             lv_subject_set_int(&view_subject_, 0);
         }
     }
@@ -233,19 +240,10 @@ class PrintStatusWidget : public PanelWidget {
                                                                const std::string& raw_file,
                                                                const std::string& identity_file,
                                                                const std::string& thumbnail_file);
-    // Take a reference on the shared DetailedFormatter, building it if this is
-    // the first. Shared by the ctor and ensure_formatter_for_test() so both go
-    // through the same replacement ordering (see the definition).
+    // Build the shared DetailedFormatter unless one is standing. Shared by the
+    // ctor and ensure_formatter_for_test() so both register its teardown.
     static void acquire_formatter();
 
-    // Floor at zero: destroy_formatter_for_test() zeroes the count outright, so a
-    // release_ that follows one would otherwise drive the count negative and leave
-    // the next acquire unable to recognise itself as the first.
-    static void release_formatter_for_test() {
-        if (s_formatter_refcount_ > 0 && --s_formatter_refcount_ == 0) {
-            s_formatter_.reset();
-        }
-    }
     // Test-only — forward nozzle override to active formatter; no-op if none alive
     static void set_nozzle_tool_override_for_test(const std::string& override_name) {
         if (s_formatter_)
@@ -345,15 +343,15 @@ class PrintStatusWidget : public PanelWidget {
     helix::ui::WidgetRef compact_row_last_;         // Compact Print Last row (for graying out)
 
     // Size-dependent subject for XML bindings (1 = column/2x2 mode, 0 = row/wide)
-    static inline lv_subject_t column_mode_subject_;
-    static inline bool column_mode_subject_initialized_ = false;
+    static inline helix::Subject column_mode_subject_;
+    /// Whether init_static_subjects() has published the shared subjects below.
+    static bool static_subjects_initialized();
 
     // Physical width band (0=compact, 1=normal, 2=wide) derived from width_px in
     // on_size_changed — see panel_widget_size.h. Exposed to XML so library_body's
     // per-tier gap (panel_widget_print_status.xml bind_style entries) can react to
     // it; the raw pixel value isn't meaningful to XML the way a small band enum is.
-    static inline lv_subject_t width_band_subject_;
-    static inline bool width_band_subject_initialized_ = false;
+    static inline helix::Subject width_band_subject_;
 
     // Per-element visibility subjects — 1 = hidden, 0 = visible. XML binds via
     // <bind_flag_if_eq ... ref_value="1"/>. apply_visibility_config() computes
@@ -361,49 +359,48 @@ class PrintStatusWidget : public PanelWidget {
     // these subjects; C++ no longer toggles LV_OBJ_FLAG_HIDDEN directly.
     // Initial values (0 visible, 1 hidden for queue) are safe defaults for the
     // first XML parse; apply_visibility_config() re-derives them on attach().
-    static inline lv_subject_t title_hidden_subject_;
-    static inline lv_subject_t files_hidden_subject_;
-    static inline lv_subject_t last_hidden_subject_;
-    static inline lv_subject_t recent_hidden_subject_;
-    static inline lv_subject_t queue_hidden_subject_;
-    static inline lv_subject_t actions_hidden_subject_;
-    static inline bool visibility_subjects_initialized_ = false;
+    static inline helix::Subject title_hidden_subject_;
+    static inline helix::Subject files_hidden_subject_;
+    static inline helix::Subject last_hidden_subject_;
+    static inline helix::Subject recent_hidden_subject_;
+    static inline helix::Subject queue_hidden_subject_;
+    static inline helix::Subject actions_hidden_subject_;
 
     // The library actions' measured fit (decide_library_actions_layout): 1 = every
     // label hidden; 1 = two rows of buttons instead of one column; and in two
     // rows, the action cell (0 files, 1 last, 2 recent, 3 queue) that starts the
     // second row, -1 otherwise.
-    static inline lv_subject_t library_icon_only_subject_;
-    static inline lv_subject_t library_grid_subject_;
-    static inline lv_subject_t library_wrap_at_subject_;
+    static inline helix::Subject library_icon_only_subject_;
+    static inline helix::Subject library_grid_subject_;
+    static inline helix::Subject library_wrap_at_subject_;
 
     // Detailed-layout subjects (static inline — shared across all widget instances)
-    static inline lv_subject_t layout_effective_subject_{}; // after width gating
+    static inline helix::Subject layout_effective_subject_{}; // after width gating
     // Combined gate: (width band == wide) AND (filament_used > 0). Avoids the
     // phantom-row gap when filament hasn't started extruding yet.
-    static inline lv_subject_t show_filament_active_subject_{};
-    static inline lv_subject_t multi_tool_subject_{}; // 1 when the readout names its nozzle
+    static inline helix::Subject show_filament_active_subject_{};
+    static inline helix::Subject multi_tool_subject_{}; // 1 when the readout names its nozzle
     /// 1 when there is more than one heater to pin the readout to.
-    static inline lv_subject_t nozzle_pickable_subject_{};
+    static inline helix::Subject nozzle_pickable_subject_{};
     // 1 when the detailed temperature row has room for the picker chevron.
-    static inline lv_subject_t nozzle_picker_fits_subject_{};
+    static inline helix::Subject nozzle_picker_fits_subject_{};
     // 1 when the detailed layer row has room for the Z height after the count.
-    static inline lv_subject_t layer_z_fits_subject_{};
+    static inline helix::Subject layer_z_fits_subject_{};
     // 1 when the detailed time row has room for the elapsed time before the remaining.
-    static inline lv_subject_t elapsed_fits_subject_{};
+    static inline helix::Subject elapsed_fits_subject_{};
     // 1 when the detailed data column has the height for the speed row.
-    static inline lv_subject_t speed_fits_subject_{};
+    static inline helix::Subject speed_fits_subject_{};
     // 1 when the filament row has room for the flow after the length used.
-    static inline lv_subject_t flow_fits_subject_{};
+    static inline helix::Subject flow_fits_subject_{};
     // Resolved thumbnail path for the detailed-idle hero; written by
     // reset_print_card_to_idle alongside the lv_image_set_src calls on the
     // Library-mode thumbs, so all three idle thumbnails share the same source.
     // The initializer here is never observed — init_static_subjects()
     // overwrites the buffer with the asset-root-resolved benchy path before
-    // lv_subject_init_string publishes it. A static array needs a constant
+    // init_string publishes it. A static array needs a constant
     // initializer, so the accessor cannot be called from this line.
     static inline char idle_thumb_path_buf_[512] = "A:assets/images/benchy_thumbnail_white.png";
-    static inline lv_subject_t idle_thumb_path_subject_{};
+    static inline helix::Subject idle_thumb_path_subject_{};
     // Single subject driving visibility of all five card-body siblings:
     //   0 = idle_library_full   (print_card_idle)
     //   1 = idle_library_compact (print_card_idle_compact)
@@ -411,8 +408,7 @@ class PrintStatusWidget : public PanelWidget {
     //   3 = active_library      (print_card_layout)
     //   4 = active_detailed     (print_card_printing_detailed)
     // C++ sets this; XML binds with bind_flag_if_not_eq per sibling.
-    static inline lv_subject_t view_subject_{};
-    static inline bool detailed_subjects_initialized_ = false;
+    static inline helix::Subject view_subject_{};
 
     // Compact mode and state tracking
     bool is_active_ = false; // job_holds_machine() (drives view_subject_)
@@ -483,7 +479,7 @@ class PrintStatusWidget : public PanelWidget {
     helix::ui::CoalescedTimer library_fit_timer_{0};
 
     // Thermal tint for the detailed-active heater icons. Plain by-value members
-    // of THIS instance — never on the shared/refcounted s_formatter_ below.
+    // of THIS instance — never on the shared s_formatter_ below.
     // Dashboard widget instances are recycled by the panel manager: attach A ->
     // detach A -> attach B, and A's deferred LV_EVENT_DELETE fires after B has
     // taken over. Per-instance ownership is what keeps that safe, since each
@@ -508,8 +504,8 @@ class PrintStatusWidget : public PanelWidget {
     // Job queue
     helix::JobQueueModal job_queue_modal_;
 
-    // First-instance formatter singleton — owns observers + formatted subjects for Detailed layout.
-    // Created on the first widget attach, destroyed on the last detach.
+    // Shared formatter: owns the observers and formatted subjects of the Detailed layout.
+    // Built by the first widget constructed, destroyed by its StaticSubjectRegistry entry.
     class DetailedFormatter {
       public:
         DetailedFormatter();
@@ -555,25 +551,25 @@ class PrintStatusWidget : public PanelWidget {
         char idle_meta_buf_[64]; // "12.4m filament • 4h 12m"
 
         // String + int subjects (XML-registered)
-        lv_subject_t layer_text_subject_{};
-        lv_subject_t layer_z_text_subject_{};
-        lv_subject_t elapsed_text_subject_{};
-        lv_subject_t remaining_text_subject_{};
-        lv_subject_t filament_text_subject_{};
-        lv_subject_t speed_text_subject_{};
-        lv_subject_t flow_text_subject_{};
-        lv_subject_t nozzle_text_subject_{};
-        lv_subject_t nozzle_badge_text_subject_{};
+        helix::Subject layer_text_subject_{};
+        helix::Subject layer_z_text_subject_{};
+        helix::Subject elapsed_text_subject_{};
+        helix::Subject remaining_text_subject_{};
+        helix::Subject filament_text_subject_{};
+        helix::Subject speed_text_subject_{};
+        helix::Subject flow_text_subject_{};
+        helix::Subject nozzle_text_subject_{};
+        helix::Subject nozzle_badge_text_subject_{};
         // Proxy temp subjects (decidegrees, int) so the temp_display widget in the
         // detailed XML follows the pinned tool when nozzle_tool_override is set.
         // The formatter's nozzle_temp/target observers re-bind on pin change and
         // copy the source value into these proxies; XML binds temp_display to them.
-        lv_subject_t nozzle_current_subject_{};
-        lv_subject_t nozzle_target_subject_{};
-        lv_subject_t idle_filename_subject_{};
-        lv_subject_t idle_when_subject_{};
-        lv_subject_t idle_meta_subject_{};
-        lv_subject_t idle_has_last_subject_{};
+        helix::Subject nozzle_current_subject_{};
+        helix::Subject nozzle_target_subject_{};
+        helix::Subject idle_filename_subject_{};
+        helix::Subject idle_when_subject_{};
+        helix::Subject idle_meta_subject_{};
+        helix::Subject idle_has_last_subject_{};
 
         // Print-state observers (wired in constructor, RAII cleanup via ObserverGuard)
         ObserverGuard layer_current_observer_;
@@ -599,6 +595,7 @@ class PrintStatusWidget : public PanelWidget {
         ObserverGuard tools_version_observer_;
         ObserverGuard active_tool_observer_;
         ObserverGuard language_observer_;
+        ObserverGuard temp_unit_observer_; ///< Re-formats the nozzle text on a °C/°F switch
 
         void update_layer_text();
         void update_time_text();
@@ -613,7 +610,6 @@ class PrintStatusWidget : public PanelWidget {
     };
 
     static inline std::unique_ptr<DetailedFormatter> s_formatter_;
-    static inline int s_formatter_refcount_ = 0;
 
     // Print card update methods
     [[nodiscard]] std::string get_last_print_thumbnail_path() const;

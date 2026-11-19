@@ -5,8 +5,10 @@
 #include "../test_helpers/panel_widget_manager_test_access.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/scoped_xml_component_stub.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "../ui_test_utils.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -155,11 +157,7 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
     // the hardware_gate_subject for every registered widget def. Any subject
     // that doesn't already exist gets created here so the observer chain has
     // something to attach to. nullptr scope = global.
-    static lv_subject_t klippy_state_subj;
-    if (!lv_xml_get_subject(nullptr, "klippy_state")) {
-        lv_subject_init_int(&klippy_state_subj, 0);
-        lv_xml_register_subject(nullptr, "klippy_state", &klippy_state_subj);
-    }
+    helix::test::xml_stand_in("klippy_state", 0);
 
     // Static so registrations persist across SECTION re-entries; otherwise the
     // second SECTION sees the global registrations from the first but its
@@ -185,10 +183,10 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
             if (auto* existing = lv_xml_get_subject(nullptr, name)) {
                 out.emplace_back(name, existing);
             } else {
-                auto* subj = new lv_subject_t;
-                lv_subject_init_int(subj, 0);
-                lv_xml_register_subject(nullptr, name, subj);
-                out.emplace_back(name, subj);
+                auto* subj = new helix::Subject;
+                subj->init_int(0);
+                lv_xml_register_subject(nullptr, name, subj->get());
+                out.emplace_back(name, subj->get());
             }
         }
         return out;
@@ -247,7 +245,7 @@ TEST_CASE("PanelWidgetManager coalesces multiple gate firings into one rebuild",
 
     // Cleanup observers so the test fixture's reset_all() doesn't see stale
     // state. setup_gate_observers stores the new vector under panel_id; the
-    // destructor of ObserverGuard will call lv_observer_remove which is safe
+    // destructor of ObserverGuard will call lv_observer_delete which is safe
     // because the subjects are still alive at this point.
     mgr.clear_gate_observers("test_panel");
 }
@@ -1262,13 +1260,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         "test_gate_swap_widget",
         "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\"/></component>");
 
-    lv_subject_t* gate = lv_xml_get_subject(nullptr, "led_controllable");
-    static lv_subject_t s_fallback_gate;
-    if (!gate) {
-        lv_subject_init_int(&s_fallback_gate, 0);
-        lv_xml_register_subject(nullptr, "led_controllable", &s_fallback_gate);
-        gate = &s_fallback_gate;
-    }
+    lv_subject_t* gate = helix::test::xml_stand_in("led_controllable", 0);
     const int gate_before = lv_subject_get_int(gate);
 
     const WidgetFactory orig_clock = helix::find_widget_def("clock")->factory;

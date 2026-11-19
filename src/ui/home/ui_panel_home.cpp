@@ -19,6 +19,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "first_run_tour.h"
@@ -170,7 +171,7 @@ void HomePanel::deinit_subjects() {
         page.visible_ids.reset();
     }
 
-    // SubjectManager handles all lv_subject_deinit() calls via RAII
+    // SubjectManager handles all reset() calls via RAII
     subjects_.deinit_all();
     subjects_initialized_ = false;
     spdlog::debug("[{}] Subjects deinitialized", get_name());
@@ -188,12 +189,12 @@ void HomePanel::init_panel_subjects() {
 
 void HomePanel::update_page_badge() {
     auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
-    // Format into a local first: lv_subject_copy_string copies into the
+    // Format into a local first: lv_subject_set_string copies into the
     // subject's own buffer, and copying that buffer onto itself is not defined.
     char text[sizeof(page_badge_buf_)];
     snprintf(text, sizeof(text), "%d / %d", active_page_index_ + 1,
              static_cast<int>(config.page_count()));
-    lv_subject_copy_string(&page_badge_subject_, text);
+    lv_subject_set_string(&page_badge_subject_, text);
 }
 
 void HomePanel::update_populated_pages_subject() {
@@ -312,8 +313,10 @@ void HomePanel::build_carousel(int initial_page) {
         return;
     }
 
-    // Init page subject and connect to carousel
-    lv_subject_init_int(&page_subject_, 0);
+    // The page subject outlives a rebuild. Drop the previous build's observer
+    // before the reset to page 0, or it would act on the old carousel.
+    page_observer_.reset();
+    page_subject_.publish_int(0);
     subjects_.register_subject(&page_subject_);
 
     CarouselState* cstate = ui_carousel_get_state(carousel_);
@@ -375,9 +378,9 @@ void HomePanel::build_carousel(int initial_page) {
             lv_obj_set_style_bg_opa(arrow, LV_OPA_80, LV_PART_MAIN | LV_STATE_PRESSED);
             lv_obj_set_style_border_width(arrow, 0, LV_PART_MAIN);
             lv_obj_align(arrow, align, 0, 0);
-            lv_obj_add_flag(arrow, LV_OBJ_FLAG_FLOATING);
-            lv_obj_add_flag(arrow, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_flag(arrow, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_floating(arrow, true);
+            lv_obj_set_clickable(arrow, true);
+            lv_obj_set_scrollable(arrow, false);
 
             lv_obj_t* label = lv_label_create(arrow);
             lv_label_set_text(label, helix::ui::icon::lookup_codepoint(icon_name));
@@ -869,27 +872,27 @@ void HomePanel::update_arrow_visibility(int page) {
     // Hide arrows entirely when there's only one page
     if (num_pages <= 1) {
         if (arrow_left_)
-            lv_obj_add_flag(arrow_left_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arrow_left_, true);
         if (arrow_right_)
-            lv_obj_add_flag(arrow_right_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arrow_right_, true);
         return;
     }
 
     // Left hidden on page 0
     if (arrow_left_) {
         if (page <= 0) {
-            lv_obj_add_flag(arrow_left_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arrow_left_, true);
         } else {
-            lv_obj_remove_flag(arrow_left_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arrow_left_, false);
         }
     }
 
     // Right hidden on last real page
     if (arrow_right_) {
         if (page >= num_pages - 1) {
-            lv_obj_add_flag(arrow_right_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arrow_right_, true);
         } else {
-            lv_obj_remove_flag(arrow_right_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(arrow_right_, false);
         }
     }
 }
@@ -1292,6 +1295,18 @@ void HomePanel::go_to_main_page() {
         spdlog::debug("[HomePanel] Navigating carousel to main page (page 0)");
         ui_carousel_goto_page(carousel_, 0, true);
     }
+}
+
+bool HomePanel::show_page(int page) {
+    if (!carousel_ || grid_edit_mode_.is_active() || page < 0 ||
+        page >= static_cast<int>(pages_.size())) {
+        return false;
+    }
+    if (ui_carousel_get_current_page(carousel_) != page) {
+        spdlog::debug("[HomePanel] Showing page {}", page);
+        ui_carousel_goto_page(carousel_, page, true);
+    }
+    return true;
 }
 
 void HomePanel::exit_grid_edit_mode() {

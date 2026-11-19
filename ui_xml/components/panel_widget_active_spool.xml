@@ -16,6 +16,7 @@
     <ui_button name="spoolman_btn"
                width="100%" height="100%" variant="ghost" style_pad_ver="0" style_pad_gap="#space_xxs"
                style_border_width="0" focusable="false">
+      <event_cb trigger="clicked" callback="active_spool_clicked_cb"/>
       <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
       <!-- Compact: the spool over its caption, or beside it when the box is
            too short to stack, sized by TileSizing like any other tile. -->
@@ -50,14 +51,24 @@
                widget stacks (panel_widget_nozzle_temps, nozzle_temp_row) carry
                no row gap either. -->
           <text_body name="spoolman_material"
-                     width="100%" text="" style_text_align="left" long_mode="scroll_circular" clickable="false"
-                     event_bubble="true"/>
+                     width="100%" bind_text="active_spool_material" style_text_align="left" long_mode="scroll_circular"
+                     clickable="false" event_bubble="true" hidden="true">
+            <bind_flag_if_eq subject="active_spool_loaded" flag="hidden" ref_value="0"/>
+          </text_body>
+          <text_body name="spoolman_no_spool_wide"
+                     width="100%" text="No Spool" style_text_align="center" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="active_spool_loaded" flag="hidden" ref_value="1"/>
+          </text_body>
           <text_small name="spoolman_brand_color"
-                      width="100%" text="" style_text_color="#text_muted" style_text_align="left"
-                      long_mode="scroll_circular" clickable="false" event_bubble="true"/>
+                      width="100%" bind_text="active_spool_brand" style_text_color="#text_muted" style_text_align="left"
+                      long_mode="scroll_circular" clickable="false" event_bubble="true" hidden="true">
+            <bind_flag_if_eq subject="active_spool_has_brand" flag="hidden" ref_value="0"/>
+          </text_small>
           <text_tiny name="spoolman_weight"
-                     width="100%" text="" style_text_color="#text_muted" style_text_align="left"
-                     long_mode="scroll_circular" clickable="false" event_bubble="true"/>
+                     width="100%" bind_text="active_spool_weight" style_text_color="#text_muted" style_text_align="left"
+                     long_mode="scroll_circular" clickable="false" event_bubble="true" hidden="true">
+            <bind_flag_if_eq subject="active_spool_has_weight" flag="hidden" ref_value="0"/>
+          </text_tiny>
         </lv_obj>
       </lv_obj>
 

@@ -25,8 +25,8 @@ lv_obj_t* make_loading_scrim();
 void reset_overlay_transform(lv_obj_t* obj);
 
 #if defined(HELIX_PLATFORM_ESP32)
-// RAII busy indicator wrapping a panel transition (the deferred first-build now
-// runs UNDER this scrim — one mechanism, not two). ctor shows the scrim and
+// RAII busy indicator wrapping a panel transition (the deferred first build
+// runs UNDER this scrim). ctor shows the scrim and
 // forces it to paint BEFORE the blocking transition body (the LVGL thread is
 // about to block; a state that only appears after is useless). dtor paints the
 // now-un-hidden new panel under the scrim, then lifts the scrim with

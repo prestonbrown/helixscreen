@@ -146,7 +146,7 @@ TEST_CASE_METHOD(
     CHECK(holder != lv_layer_top());
     CHECK(lv_obj_get_parent(holder) == lv_layer_top());
     CHECK(lv_obj_get_style_layout(raw, LV_PART_MAIN) == LV_LAYOUT_NONE);
-    CHECK(lv_obj_has_flag(holder, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(holder));
 
     // Free is still deferred — no sync delete in a close callback (#776).
     process_async_timers();

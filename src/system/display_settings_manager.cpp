@@ -3,18 +3,19 @@
 
 #include "display_settings_manager.h"
 
-#include "ui_toast_manager.h"
-
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
 #include "display_manager.h"
 #include "display_metrics.h"
 #include "helix-xml/src/xml/lv_xml_style.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "platform_capabilities.h"
 #include "platform_info.h"
+#include "preset_materials.h"
 #include "screensaver_canvas.h"
 #include "screensaver_registry.h"
 #include "screensaver_setting.h"
@@ -30,6 +31,7 @@
 #include <iterator>
 
 #ifdef __ANDROID__
+#include "core/temperature_units.h"
 #include "system/android_jni.h"
 
 #include <SDL_system.h>
@@ -237,6 +239,10 @@ static constexpr settings::PersistedSetting kDisplaySettings[] = {
      "glass_effects"},
     {"settings_screensaver_print_progress", "/display/screensaver_print_progress", Scope::Global,
      true, 1, 0, 1, "screensaver_print_progress"},
+    // 0=°C, 1=°F
+    {"settings_temp_unit", "/display/temp_unit", Scope::Global, false, 0, 0, 1, "temp_unit"},
+    // 0=DMY, 1=MDY, 2=YMD; while unsaved the subject holds the language's order
+    {"settings_date_format", "/display/date_format", Scope::Global, false, 1, 0, 2, "date_format"},
 };
 
 DisplaySettingsManager& DisplaySettingsManager::instance() {
@@ -277,8 +283,8 @@ void DisplaySettingsManager::init_subjects() {
 
     // Display dim (default: 600 seconds = 10 minutes)
     // Validate against allowed options to catch corrupt config values
-    int dim_sec = config->get<int>("/display/dim_sec", 600);
-    dim_sec = validate_timeout_option(dim_sec, kDimOptions, 600, "dim_sec");
+    int dim_sec = config->get<int>("/display/dim_sec", kDefaultDimSec);
+    dim_sec = validate_timeout_option(dim_sec, kDimOptions, kDefaultDimSec, "dim_sec");
     UI_MANAGED_SUBJECT_INT(display_dim_subject_, dim_sec, "settings_display_dim", subjects_);
 
     // Sync validated dim timeout to DisplayManager (it reads config directly at init,
@@ -295,6 +301,17 @@ void DisplaySettingsManager::init_subjects() {
     UI_MANAGED_SUBJECT_INT(display_sleep_subject_, sleep_sec, "settings_display_sleep", subjects_);
 
     settings_.init(subjects_);
+    units::set_display_temp_unit(get_temp_unit());
+    units::publish_temp_unit();
+    UI_MANAGED_SUBJECT_STRING(temp_unit_symbol_subject_, temp_unit_symbol_buf_,
+                              units::display_temp_symbol(), "settings_temp_unit_symbol", subjects_);
+    if (has_saved_date_format()) {
+        set_saved_date_format(get_date_format());
+    } else {
+        set_saved_date_format(std::nullopt);
+        lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
+    }
+    follow_language_clock();
 
     // Has backlight control subject (for UI visibility) - check DisplayManager
     bool has_backlight = false;
@@ -353,6 +370,8 @@ void DisplaySettingsManager::init_subjects() {
     // Presence is ephemeral: it is whatever the display backend opened this run.
     UI_MANAGED_SUBJECT_INT(hardware_keyboard_present_subject_, hardware_keyboard_present_ ? 1 : 0,
                            "settings_hardware_keyboard_present", subjects_);
+    // Ephemeral too: the keyboard starts down.
+    UI_MANAGED_SUBJECT_INT(soft_keyboard_visible_subject_, 0, "soft_keyboard_visible", subjects_);
 
 #ifdef __ANDROID__
     android_set_navbar_always_visible(get_keep_navbar_visible());
@@ -607,8 +626,7 @@ void DisplaySettingsManager::set_display_dim_sec(int seconds) {
         lv_subject_set_int(&display_sleep_subject_, seconds);
         config->set<int>("/display/sleep_sec", seconds);
         config->save();
-        ToastManager::instance().show(ToastSeverity::INFO,
-                                      lv_tr("Sleep adjusted to match dim timeout"), 2000);
+        publish_notice({NoticeSeverity::INFO, lv_tr("Sleep adjusted to match dim timeout"), 2000});
     }
 
     spdlog::debug("[DisplaySettingsManager] Display dim set to {}s", seconds);
@@ -633,8 +651,8 @@ void DisplaySettingsManager::set_display_sleep_sec(int seconds) {
             spdlog::info("[DisplaySettingsManager] Clamping sleep {}s to dim {}s", seconds,
                          dim_sec);
             seconds = dim_sec;
-            ToastManager::instance().show(ToastSeverity::INFO,
-                                          lv_tr("Sleep adjusted to match dim timeout"), 2000);
+            publish_notice(
+                {NoticeSeverity::INFO, lv_tr("Sleep adjusted to match dim timeout"), 2000});
         }
     }
 
@@ -792,6 +810,17 @@ void DisplaySettingsManager::set_hardware_keyboard_present(bool present) {
     }
 }
 
+void DisplaySettingsManager::set_soft_keyboard_visible(bool visible) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&soft_keyboard_visible_subject_, visible ? 1 : 0);
+    }
+}
+
+bool DisplaySettingsManager::soft_keyboard_visible() const {
+    return subjects_initialized_ &&
+           lv_subject_get_int(const_cast<lv_subject_t*>(&soft_keyboard_visible_subject_)) != 0;
+}
+
 bool DisplaySettingsManager::soft_keyboard_suppressed() const {
     return subjects_initialized_ && hardware_keyboard_present_ && get_hide_keyboard_with_hardware();
 }
@@ -840,6 +869,66 @@ void DisplaySettingsManager::set_ui_scale_percent(int percent) {
         "[DisplaySettingsManager] set_ui_scale_percent({}) -> {} (applies on next start)", percent,
         stored == helix::DisplayMetrics::kScaleSettingAutomatic ? std::string("automatic")
                                                                 : std::to_string(stored) + "%");
+}
+
+void DisplaySettingsManager::set_temp_unit(units::TempUnit unit) {
+    settings_.set(Key::TempUnit, static_cast<int>(unit));
+    units::set_display_temp_unit(get_temp_unit());
+    if (subjects_initialized_) {
+        lv_subject_set_string(&temp_unit_symbol_subject_, units::display_temp_symbol());
+    }
+    // Text formatted in C++ from cached Celsius values re-formats from this; the
+    // printer's temperature subjects are left alone.
+    units::publish_temp_unit();
+    // The preset labels are formatted once into shared subjects; redo them now.
+    presets::refresh_subjects();
+    spdlog::info("[DisplaySettingsManager] Temperature unit set to {}",
+                 units::temp_unit_symbol(get_temp_unit()));
+}
+
+bool DisplaySettingsManager::has_saved_date_format() const {
+    Config* config = Config::get_instance();
+    return config &&
+           config->exists(kDisplaySettings[static_cast<size_t>(Key::DateFormat)].json_path);
+}
+
+DateFormat DisplaySettingsManager::get_date_format() const {
+    if (!has_saved_date_format()) {
+        Config* config = Config::get_instance();
+        return default_date_format_for_language(config ? config->get_language() : "");
+    }
+    return static_cast<DateFormat>(std::clamp(settings_.get(Key::DateFormat), 0, 2));
+}
+
+void DisplaySettingsManager::set_date_format(DateFormat format) {
+    settings_.set(Key::DateFormat, static_cast<int>(format));
+    set_saved_date_format(get_date_format());
+}
+
+void DisplaySettingsManager::on_language_changed() {
+    if (subjects_initialized_ && !has_saved_date_format()) {
+        lv_subject_set_int(settings_.subject(Key::DateFormat), static_cast<int>(get_date_format()));
+    }
+    if (subjects_initialized_) {
+        follow_language_clock();
+    }
+}
+
+bool DisplaySettingsManager::has_saved_time_format() const {
+    Config* config = Config::get_instance();
+    return config &&
+           config->exists(kDisplaySettings[static_cast<size_t>(Key::TimeFormat)].json_path);
+}
+
+void DisplaySettingsManager::follow_language_clock() {
+    if (has_saved_time_format()) {
+        return;
+    }
+    // The subject holds the language's clock without saving it, so get_time_format(),
+    // which formatters on other threads call, reads it as it reads a saved choice.
+    Config* config = Config::get_instance();
+    const bool clock_24h = default_24h_clock_for_language(config ? config->get_language() : "");
+    lv_subject_set_int(settings_.subject(Key::TimeFormat), clock_24h ? 1 : 0);
 }
 
 void DisplaySettingsManager::set_gcode_render_mode(int mode) {
@@ -983,6 +1072,7 @@ void DisplaySettingsManager::set_screensaver_type(int type) {
     type = helix::ui::clamp_screensaver_type(type);
     spdlog::info("[DisplaySettingsManager] set_screensaver_type({})", type);
 
+    const bool was_enabled = screensaver_enabled();
     lv_subject_set_int(&screensaver_type_subject_, type);
     lv_subject_set_int(&dim_row_kind_subject_, static_cast<int>(dim_row_kind(
                                                    has_dimming_control(), screensaver_enabled())));
@@ -991,6 +1081,14 @@ void DisplaySettingsManager::set_screensaver_type(int type) {
     config->set<std::string>(helix::ui::kScreensaverSettingPath,
                              helix::ui::screensaver_name(static_cast<ScreensaverType>(type)));
     config->save();
+
+    // The saver starts only at the dim timeout, so turning one on while that is Never
+    // would do nothing. A Never chosen with a saver already on is the user's to keep.
+    if (!was_enabled && screensaver_enabled() && get_display_dim_sec() == 0) {
+        spdlog::info("[DisplaySettingsManager] Screensaver on with no timeout: using {}s",
+                     kDefaultDimSec);
+        set_display_dim_sec(kDefaultDimSec);
+    }
 }
 #endif
 
@@ -1022,10 +1120,12 @@ bool DisplaySettingsManager::get_bed_mesh_show_zero_plane() const {
 
 DisplaySettingsManager::DimRowKind DisplaySettingsManager::dim_row_kind(bool has_dimming,
                                                                         bool screensaver_enabled) {
-    if (has_dimming) {
-        return DimRowKind::ScreenDim;
+    // With a saver selected the timeout starts the saver (decide_idle prefers StartSaver
+    // over Dim), so the row is named for what the user will see.
+    if (screensaver_enabled) {
+        return DimRowKind::ScreensaverAfter;
     }
-    return screensaver_enabled ? DimRowKind::ScreensaverAfter : DimRowKind::Hidden;
+    return has_dimming ? DimRowKind::ScreenDim : DimRowKind::Hidden;
 }
 
 int DisplaySettingsManager::dim_seconds_to_index(int seconds) {

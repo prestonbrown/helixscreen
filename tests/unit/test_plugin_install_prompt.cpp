@@ -16,13 +16,13 @@
  * by a stub.
  */
 
-#include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_panel_advanced.h"
 #include "ui_panel_print_select.h"
 
 #include "../test_helpers/advanced_panel_test_access.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/display_manager_test_access.h"
 #include "../test_helpers/helix_plugin_installer_test_access.h"
 #include "../test_helpers/plugin_script_sandbox.h"
 #include "../test_helpers/plugin_self_heal_test_access.h"
@@ -36,12 +36,15 @@
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
 #include "discovery_steps.h"
+#include "display_manager.h"
+#include "display_settings_manager.h"
 #include "printer_state.h"
 
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -176,7 +179,8 @@ TEST_CASE_METHOD(PromptFixture, "the install prompt opens only when the plugin i
         set_plugin_installed(true);
         CHECK(prompt() == nullptr);
     }
-    SECTION("absent: the prompt opens") {
+    SECTION("absent, never answered: the prompt opens") {
+        prefs.cfg->get_json("").erase("plugin_install_declined");
         set_plugin_installed(false);
         CHECK(prompt() != nullptr);
     }
@@ -223,6 +227,18 @@ TEST_CASE_METHOD(PromptFixture, "closing the install prompt snoozes it for seven
     start_at(kReal + 7 * kDay - 1);
     CHECK(prompt() == nullptr);
     start_at(kReal + 7 * kDay);
+    CHECK(prompt() != nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture, "an install prompt the app closed is not snoozed",
+                 "[plugin_installer][print_select]") {
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+    Modal::hide(prompt(), ModalCloseReason::External);
+    drain();
+    REQUIRE(prompt() == nullptr);
+
+    start_at(kReal + kDay);
     CHECK(prompt() != nullptr);
 }
 
@@ -309,12 +325,9 @@ TEST_CASE_METHOD(PromptFixture, "a failed install from the prompt restarts nothi
     CHECK(moonraker_restarts() == restarts_before);
     CHECK(result_message().find("restarting") == std::string::npos);
 
-    // The result icon is a label, whose text the failure replaces.
-    lv_obj_t* expected = lv_label_create(test_screen());
-    helix::ui::icon::set_source(expected, "alert_circle");
-    lv_obj_t* icon = lv_obj_find_by_name(prompt(), "result_icon");
-    REQUIRE(icon != nullptr);
-    CHECK(std::string(lv_label_get_text(icon)) == lv_label_get_text(expected));
+    // The failure shows its own icon in place of the success one.
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(prompt(), "result_icon_failed")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(prompt(), "result_icon")));
 }
 
 TEST_CASE_METHOD(PromptFixture,
@@ -686,6 +699,21 @@ TEST_CASE_METHOD(SelfHealFixture,
     CHECK(moonraker_restarts() == api_restarts_before);
 }
 
+TEST_CASE_METHOD(SelfHealFixture,
+                 "a running plugin newer than the app ships is neither relinked nor restarted",
+                 "[plugin_installer][print_select][self_heal]") {
+    // The link would be re-pointed at this app's older plugin if the check ran it.
+    ship("0.9.0", 3);
+    const int api_restarts_before = moonraker_restarts();
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+
+    run_plugin_probe();
+    settle();
+
+    CHECK(calls().empty());
+    CHECK(moonraker_restarts() == api_restarts_before);
+}
+
 TEST_CASE_METHOD(SelfHealFixture, "a current plugin of the version the app ships is left alone",
                  "[plugin_installer][print_select][self_heal]") {
     ship("1.0.1", 0);
@@ -852,6 +880,57 @@ TEST_CASE_METHOD(SelfHealFixture,
     REQUIRE(messages.size() == 1);
     CHECK(messages[0].find("updated") != std::string::npos);
     CHECK(messages[0].find("restarting") == std::string::npos);
+}
+
+// Z-Mod's Moonraker names no service of its own, and a Snapmaker U1's accepts
+// a service restart it cannot carry out, so install.sh cannot restart it and
+// nothing in a web UI can either: only a reboot loads the new plugin
+// (prestonbrown/helixscreen#2086, #2090).
+TEST_CASE_METHOD(SelfHealFixture,
+                 "a Moonraker with no service of its own is advised a reboot, kept in the history",
+                 "[plugin_installer][print_select][self_heal][2086][2090]") {
+    ship("1.2.0", 0);
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+    set_restart_exit(8);
+    // A ui_notification_* call is the path that leaves a history row, and the
+    // toast it shows carries the same text.
+    std::vector<helix::ui::NotificationEvent> events;
+    helix::ui::set_test_notification_event_hook(
+        [&](const helix::ui::NotificationEvent& event) { events.push_back(event); });
+
+    run_plugin_probe();
+    settle();
+
+    REQUIRE(restarts() == 1);
+    REQUIRE(events.size() == 1);
+    CHECK(events[0].severity == ToastSeverity::WARNING);
+    CHECK(events[0].message == "Reboot the printer to finish the plugin update.");
+
+    // Nothing restarted, so the next start tries again and advises again
+    // until a reboot loads the plugin.
+    PluginSelfHealTestAccess::set_ran_this_start(false);
+    set_plugin_installed(false);
+    run_plugin_probe();
+    settle();
+    CHECK(restarts() == 2);
+    CHECK(events.size() == 2);
+}
+
+TEST_CASE_METHOD(SelfHealFixture, "a restart Moonraker refused is tried again on the next start",
+                 "[plugin_installer][print_select][self_heal][2090]") {
+    ship("1.2.0", 0);
+    ScopedEnv plugin("HELIX_MOCK_HELIX_PLUGIN", "1"); // the mock reports 1.0.1
+    set_restart_exit(9);
+
+    run_plugin_probe();
+    settle();
+    REQUIRE(restarts() == 1);
+
+    PluginSelfHealTestAccess::set_ran_this_start(false);
+    set_plugin_installed(false);
+    run_plugin_probe();
+    settle();
+    CHECK(restarts() == 2);
 }
 
 TEST_CASE_METHOD(SelfHealFixture,
@@ -1061,4 +1140,62 @@ TEST_CASE_METHOD(SelfHealFixture, "a remote Moonraker's plugin is only reported,
 
     CHECK(scripts.script_args().empty());
     CHECK(restarts() == restarts_before);
+}
+
+namespace {
+
+/// An active DisplayManager from before the panel's setup, so the panel subscribes to its
+/// sleep and wake. No init(): the test display sleeps under the software overlay.
+struct ActiveDisplay {
+    DisplayManager dm;
+    std::optional<ActiveDisplayManagerScope> published;
+    ActiveDisplay() {
+        published.emplace(&dm);
+    }
+    ~ActiveDisplay() {
+        published.reset(); // the settings reinit below must see no published manager
+        DisplaySettingsManager::instance().deinit_subjects();
+        DisplaySettingsManager::instance().init_subjects();
+    }
+    ActiveDisplay(const ActiveDisplay&) = delete;
+    ActiveDisplay& operator=(const ActiveDisplay&) = delete;
+};
+
+struct AsleepPromptFixture : ActiveDisplay, PromptFixture {
+    void sleep_display() {
+        Config* config = Config::get_instance();
+        config->set<int>("/display/screensaver_type", 0);
+        config->set<int>("/display/dim_sec", 600);
+        config->set<int>("/display/sleep_sec", 60);
+        DisplaySettingsManager::instance().deinit_subjects();
+        DisplaySettingsManager::instance().init_subjects();
+        dm.set_dim_timeout(600);
+        lv_display_trigger_activity(nullptr);
+        lv_tick_inc(61000);
+        dm.check_display_sleep();
+        REQUIRE(dm.is_display_sleeping());
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(AsleepPromptFixture,
+                 "a prompt waiting for the screen stops looking while asleep and looks on wake",
+                 "[plugin_installer][print_select][sleep]") {
+    lv_obj_t* busy = helix::ui::modal_alert("Busy", "a modal holds the screen");
+    drain();
+    set_plugin_installed(false);
+    REQUIRE(PrintSelectPanelTestAccess::plugin_prompt_waiting_for_screen(*panel_));
+
+    sleep_display();
+    CHECK_FALSE(PrintSelectPanelTestAccess::plugin_prompt_waiting_for_screen(*panel_));
+    Modal::hide(busy);
+    drain();
+    CHECK(prompt() == nullptr);
+
+    REQUIRE(dm.note_wake_press(10, 10));
+    dm.check_display_sleep();
+    drain();
+    REQUIRE_FALSE(dm.is_display_sleeping());
+    CHECK(prompt() != nullptr);
 }

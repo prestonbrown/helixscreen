@@ -5,6 +5,7 @@
 
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace helix::gcode {
@@ -86,6 +87,22 @@ std::string strip_gcode_extension(const std::string& filename);
  * @return Clean display name (e.g., "/path/to/benchy.gcode" -> "benchy")
  */
 std::string get_display_filename(const std::string& path);
+
+/// True when @p text (UTF-8) holds a codepoint in one of the ranges of
+/// core/cjk_ranges.inc: CJK punctuation, kana, the unified ideographs and
+/// extension A, fullwidth ASCII and halfwidth katakana. Malformed sequences
+/// are skipped.
+bool contains_cjk(std::string_view text);
+
+/// Called with a filename about to be shown, when it contains CJK. Registered
+/// once at startup by the layer that owns the fonts; it may run on any thread.
+using DisplayedFilenameHook = void (*)(std::string_view name);
+void set_displayed_filename_hook(DisplayedFilenameHook hook);
+
+/// Report a filename about to be shown. strip_gcode_extension() and so
+/// get_display_filename() call it; a site that shows a raw name (a folder, a
+/// history row) calls it directly. An all-ASCII name costs one scan.
+void note_displayed_filename(std::string_view name);
 
 /**
  * @brief Resolve a G-code filename to its original/canonical form

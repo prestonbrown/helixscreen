@@ -15,7 +15,24 @@
           <thermistor_picker_row prefix="thermistor_cfg" index="${i}" checkbox_hidden="false"/>
         </repeat>
       </lv_obj>
-      <!-- Separates the sensor list from the icon title and grid C++ appends below -->
+      <divider_horizontal color="#text_muted" opacity="38" clickable="false" event_bubble="true"/>
+      <!-- The unit after this tile's readings. A tap edits it; Default drops the
+           override and shows only while one is set. -->
+      <lv_obj name="unit_row"
+              width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="#space_xs"
+              style_pad_gap="#space_xs" scrollable="false" clickable="true">
+        <style name="styles.press_wash" selector="pressed"/>
+        <event_cb trigger="clicked" callback="thermistor_unit_row_cb"/>
+        <text_body text="Unit text" flex_grow="1" style_text_font="noto_sans_14" clickable="false" event_bubble="true"/>
+        <text_body name="unit_value"
+                   bind_text="thermistor_cfg_unit" style_text_font="noto_sans_14" style_text_opa="180" clickable="false"
+                   event_bubble="true"/>
+        <ui_button name="unit_reset" height="#button_height_sm" text="Default" variant="outline">
+          <bind_flag_if_eq subject="thermistor_cfg_unit_custom" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="thermistor_unit_reset_cb"/>
+        </ui_button>
+      </lv_obj>
+      <!-- Separates the unit row from the icon title and grid C++ appends below -->
       <divider_horizontal color="#text_muted" opacity="38" clickable="false" event_bubble="true"/>
     </context_menu_card>
   </view>

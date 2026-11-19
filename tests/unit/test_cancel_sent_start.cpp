@@ -557,3 +557,84 @@ TEST_CASE_METHOD(SentStartFixture, "Stop during a start the printer announced ca
     }
     ps().set_printer_side_pre_start(false);
 }
+
+TEST_CASE_METHOD(SentStartFixture, "A start the printer announced blocks a new start on its own",
+                 "[print_control][preparing_cancel][2054]") {
+    // No phase yet and no job of ours: only the announcement says the printer is busy.
+    report("standby", "previous.gcode");
+    REQUIRE(ps().can_start_new_print());
+    ps().set_printer_side_pre_start(true);
+    CHECK_FALSE(ps().can_start_new_print());
+    ps().set_printer_side_pre_start(false);
+    CHECK(ps().can_start_new_print());
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A start the printer announced names no file before it opens",
+                 "[print_control][preparing_cancel][2054]") {
+    report("complete", "previous.gcode");
+    REQUIRE(ps().get_effective_print_filename() == "previous.gcode");
+    ps().set_printer_side_pre_start(true);
+    CHECK(ps().get_effective_print_filename().empty());
+    ps().set_printer_side_pre_start(false);
+    CHECK(ps().get_effective_print_filename() == "previous.gcode");
+}
+
+TEST_CASE_METHOD(SentStartFixture, "The chamber phase keeps the chamber wait flag",
+                 "[print_control][preparing_cancel][chamber_wait]") {
+    ps().set_printer_side_pre_start(true);
+    ps().set_print_start_state(helix::PrintStartPhase::INITIALIZING, "Preparing...", 0);
+    drain();
+    ps().set_print_start_chamber_wait(true);
+    ps().set_print_start_state(helix::PrintStartPhase::HEATING_CHAMBER, "Heating chamber...", 10);
+    drain();
+    CHECK(lv_subject_get_int(ps().get_print_start_chamber_wait_subject()) == 1);
+    ps().set_print_start_state(helix::PrintStartPhase::HEATING_BED, "Heating Bed...", 20);
+    drain();
+    CHECK(lv_subject_get_int(ps().get_print_start_chamber_wait_subject()) == 0);
+    ps().set_printer_side_pre_start(false);
+    ps().reset_print_start_state();
+    drain();
+}
+
+TEST_CASE_METHOD(SentStartFixture, "A printer switch forgets the start this screen confirmed",
+                 "[print_control][preparing_cancel][2063]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    drain();
+    ps().note_start_plate("printer-a", "part.gcode", 3);
+    report("printing", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+
+    get_printer_state().deinit_subjects();
+    get_printer_state().init_subjects(false);
+    CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A job another client starts is not the one this screen confirmed",
+                 "[print_control][preparing_cancel][2063]") {
+    ps().begin_preparing(helix::PrintJobRef{"part.gcode", "", ""});
+    drain();
+    ps().note_start_plate("printer-a", "part.gcode", 3);
+    report("printing", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+
+    // Same file, started again from elsewhere with nothing of ours preparing.
+    report("complete", "part.gcode");
+    REQUIRE(ps().confirmed_start_plate("printer-a", "part.gcode") == 3);
+    report("printing", "part.gcode");
+    CHECK_FALSE(ps().confirmed_start_plate("printer-a", "part.gcode"));
+}
+
+TEST_CASE_METHOD(SentStartFixture,
+                 "A printer-announced reprint of the same file is named when it goes active",
+                 "[print_control][preparing_cancel][2054]") {
+    report("cancelled", "benchy.gcode");
+    ps().set_printer_side_pre_start(true);
+    REQUIRE(ps().get_effective_print_filename().empty());
+
+    // The file opens with the name print_stats already held: only the state moves.
+    get_printer_state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    drain();
+    CHECK(ps().get_effective_print_filename() == "benchy.gcode");
+    ps().set_printer_side_pre_start(false);
+}

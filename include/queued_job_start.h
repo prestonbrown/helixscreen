@@ -11,10 +11,9 @@
  * bookkeeping, with the file view's inputs computed from FileStartFacts.
  */
 
-#include "ui_timer_guard.h"
-
 #include "app_constants.h"
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "helix_shared_callback.h"
 #include "i_moonraker_sub_apis.h" // JobQueueEntry
 #include "print_start_inputs.h"
@@ -136,10 +135,8 @@ class QueuedJobStarter {
 
     /// Each gathering step (the options read, the metadata, the footer read,
     /// the operations scan) answers within the app's transfer stall window.
+    /// The file read itself is allowed file_facts_stall_ms().
     static constexpr uint32_t kStallMs = app_constants::transfer::STALL_MS;
-    /// A footer that cannot answer falls back to reading the whole file; that
-    /// read is allowed the file's size at this rate on top of kStallMs.
-    static constexpr uint64_t kSlowestReadBytesPerMs = 100; // 100 kB/s
 
     /// What the start in flight is still waiting on.
     struct Pending {

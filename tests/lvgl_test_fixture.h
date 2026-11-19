@@ -205,3 +205,9 @@ class LVGLTestFixture : public HelixTestFixture {
     static bool s_initialized;
     static lv_display_t* s_display;
 };
+
+namespace helix::test {
+/// Every panel widget's static subjects, as SubjectInitializer inits them before any
+/// widget attaches; a widget attached without them binds into a null subject.
+void init_panel_widget_subjects();
+} // namespace helix::test

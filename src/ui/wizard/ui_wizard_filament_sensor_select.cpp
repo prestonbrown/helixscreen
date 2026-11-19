@@ -5,13 +5,13 @@
 
 #include "ui_error_reporting.h"
 #include "ui_notification.h"
-#include "ui_timer_guard.h"
 #include "ui_wizard.h"
 #include "ui_wizard_helpers.h"
 
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
+#include "core/timer_guard.h"
 #include "filament_sensor_manager.h"
 #include "i_moonraker_client.h"
 #include "lvgl/lvgl.h"
@@ -94,7 +94,7 @@ void WizardFilamentSensorSelectStep::init_subjects() {
 
     // Each visit re-initializes; drop the previous visit's subjects and names first.
     subjects_.deinit_all();
-    helix::ui::wizard::init_int_subject(subjects_, &runout_sensor_selected_, 0,
+    helix::ui::wizard::init_int_subject(subjects_, runout_sensor_selected_, 0,
                                         "runout_sensor_selected");
 
     subjects_initialized_ = true;

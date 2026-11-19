@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -27,8 +28,8 @@ namespace helix {
 
 namespace {
 
-HELIX_PSRAM_BSS lv_subject_t s_slot_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_slot_text_subjects[kToolheadPresetSlotCount]{};
+HELIX_PSRAM_BSS helix::Subject s_slot_subject{};
+HELIX_PSRAM_BSS helix::Subject s_slot_text_subjects[kToolheadPresetSlotCount]{};
 HELIX_PSRAM_BSS char s_slot_text_bufs[kToolheadPresetSlotCount][64];
 bool s_registered = false;
 SubjectManager s_subjects;
@@ -60,12 +61,12 @@ void slot_tab_cb(lv_event_t* e, std::size_t index) {
 void register_toolhead_preset_config() {
     if (s_registered)
         return;
-    lv_subject_init_int(&s_slot_subject, 0);
+    s_slot_subject.init_int(0);
     s_subjects.publish("toolhead_preset_cfg_slot", &s_slot_subject);
     for (std::size_t i = 0; i < kToolheadPresetSlotCount; ++i) {
         s_slot_text_bufs[i][0] = '\0';
-        lv_subject_init_string(&s_slot_text_subjects[i], s_slot_text_bufs[i], nullptr,
-                               sizeof(s_slot_text_bufs[i]), "");
+        s_slot_text_subjects[i].init_string(s_slot_text_bufs[i], nullptr,
+                                            sizeof(s_slot_text_bufs[i]), "");
         s_subjects.publish(kSlotTextNames[i], &s_slot_text_subjects[i]);
     }
     // Registered once with the widget factories, so it outlives a printer switch.
@@ -172,7 +173,7 @@ void ToolheadPresetConfigModal::publish_slot_texts() {
         std::string text = toolhead_preset_slot_label(slots_[i]);
         if (text.empty())
             text = lv_tr("Empty");
-        lv_subject_copy_string(&s_slot_text_subjects[i], text.c_str());
+        lv_subject_set_string(&s_slot_text_subjects[i], text.c_str());
     }
 }
 

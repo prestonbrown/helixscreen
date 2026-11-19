@@ -3,13 +3,15 @@
 #pragma once
 
 #include "ui_fan_dial.h"
-#include "ui_observer_guard.h"
 
 #include "app_globals.h"
 #include "chamber_air_modes.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "printer_state.h"
+#include "subject_managed_panel.h"
 #include "ui/animated_value.h"
 
 #include <memory>
@@ -54,9 +56,8 @@ class FanControlOverlay : public OverlayBase {
     const char* xml_component() const override {
         return "fan_control_overlay";
     }
-    // Keeps its tree: opened during a print on slow boards, where rebuild cost is unmeasured.
     bool destroy_on_close() const override {
-        return false;
+        return true;
     }
     lv_obj_t* create(lv_obj_t* parent) override;
 
@@ -96,6 +97,10 @@ class FanControlOverlay : public OverlayBase {
     }
 
   private:
+    /// Drops the dials and cards on close. The root's delete hook cannot: the
+    /// close resets overlay_root_ before the deferred delete reaches it.
+    void on_ui_destroyed() override;
+
     /// LV_EVENT_DELETE on the root: drops the dials and cards while their
     /// widgets are still alive, so a tree deleted by anyone else leaves no
     /// pointer into freed memory and the next open recreates it.
@@ -191,7 +196,15 @@ class FanControlOverlay : public OverlayBase {
     struct AutoFanCard {
         std::string object_name;
         lv_obj_t* card = nullptr;
-        lv_obj_t* speed_label = nullptr;
+        /// The card's speed line, which its component binds. Heap-held so the
+        /// binding's address survives the vector growing.
+        struct SpeedText {
+            helix::Subject subject{};
+            char buf[32] = {};
+            std::string name;
+            SubjectManager manager;
+        };
+        std::unique_ptr<SpeedText> speed;
         lv_obj_t* arc = nullptr;      ///< Arc widget for live speed updates
         lv_obj_t* fan_icon = nullptr; ///< Fan icon for spin animation
         int last_speed_pct = 0;       ///< Cached speed for animation refresh
@@ -204,6 +217,7 @@ class FanControlOverlay : public OverlayBase {
 
     ObserverGuard fans_observer_;                    ///< Structural changes (fan discovery)
     std::vector<ObserverGuard> fan_speed_observers_; ///< Per-fan speed changes
+    ObserverGuard fan_rpm_observer_;                 ///< Any fan's tachometer reading
     ObserverGuard anim_settings_observer_;           ///< Animation settings changes
     ObserverGuard chamber_air_observer_;             ///< Chamber air accessory fitted or removed
     bool owned_confirm_open_ = false;                ///< A lower-speed confirmation is showing
@@ -214,6 +228,9 @@ class FanControlOverlay : public OverlayBase {
     //
 
     void update_auto_fan_animation(AutoFanCard& card, int speed_pct);
+    /// The card's speed line: "40%", or "40% · 3100 RPM" with a tachometer reading.
+    static void set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
+                                        std::optional<int> rpm);
     void refresh_all_auto_fan_animations();
 };
 

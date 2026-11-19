@@ -3,10 +3,9 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/coalesced_timer.h"
+#include "core/observer_guard.h"
 #include "helix_callback.h"
 #include "print_history_data.h"
 
@@ -322,7 +321,7 @@ class PrintHistoryManager {
      */
     void ensure_loaded(helix::HistoryScope scope);
 
-    /// From now on, each connection fetches history only after on_discovery_complete():
+    /// After this call, each connection fetches history only after on_discovery_complete():
     /// a history reply then never competes with discovery, and a reconnect does not ask
     /// for it before anything else. A fetch asked for earlier waits and runs then.
     void hold_until_discovery();
@@ -367,6 +366,16 @@ class PrintHistoryManager {
      * printer's history may show while the new one is fetched or unreachable.
      */
     void forget_printer();
+
+    /**
+     * @brief Drop one job the user deleted, and tell observers
+     *
+     * Moonraker sends no history notification for a deleted job, so without
+     * this the cache keeps serving it until the next full load.
+     *
+     * @param job_id Moonraker job id of the deleted record
+     */
+    void forget_job(const std::string& job_id);
 
     // ========================================================================
     // Observer Pattern

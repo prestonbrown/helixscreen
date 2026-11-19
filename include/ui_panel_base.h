@@ -15,6 +15,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "full_page_content.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 
@@ -76,7 +77,7 @@ class IMoonrakerAPI;
  *
  * @see TemperatureService for a complete implementation example
  */
-class PanelBase : public ViewLifecycleBase {
+class PanelBase : public ViewLifecycleBase, public helix::FullPageContent {
   public:
     /**
      * @brief Construct panel with injected dependencies
@@ -168,6 +169,29 @@ class PanelBase : public ViewLifecycleBase {
      * @return true if rebuilt, false if skipped (no widget yet, not registered)
      */
     bool rebuild() override;
+
+    //
+    // === Full page (prestonbrown/helixscreen#1931) ===
+    //
+    // A home full page shows this panel's one tree, lent by NavigationManager: the
+    // tree moves into the page and back, and is never built twice or freed by it.
+
+    /// Lend this panel's tree to @p container and activate it. False while this is
+    /// the active panel, already lent, or not registered with NavigationManager.
+    bool embed(lv_obj_t* container) override;
+    /// Deactivate and hand the tree back to the panel container.
+    void release_embed() override;
+    /// The tree while it is lent to a container, else nullptr.
+    lv_obj_t* embedded_root() const override;
+    /// Hands the tree back now, before LVGL deletes the page's children with it.
+    void host_deleting() override;
+
+    /// NavigationManager moved this panel's tree into a home full page (true) or
+    /// back to the panel container (false), on every path that moves it. A panel
+    /// whose layout differs on a page publishes a subject for its XML here.
+    virtual void on_lent_to_page(bool on_page) {
+        (void)on_page;
+    }
 
     //
     // === Public API ===

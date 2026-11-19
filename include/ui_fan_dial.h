@@ -7,6 +7,8 @@
 #include "lvgl.h"
 
 #include <functional>
+#include <memory>
+#include <optional>
 #include <string>
 
 /**
@@ -69,6 +71,12 @@ class FanDial {
         hold_until_release_ = hold;
     }
 
+    /// Shows the fan's tachometer reading under its speed, or nothing for a fan
+    /// without one (std::nullopt), one standing still (0) or one set to Off,
+    /// where the line would sit on the arc's zero knob. Leaves the speed, arc and
+    /// spin animation untouched.
+    void set_rpm(std::optional<int> rpm);
+
     /**
      * @brief Get current displayed speed
      * @return Current speed percentage (0-100)
@@ -118,6 +126,13 @@ class FanDial {
      */
     void refresh_animation();
 
+    // XML event callbacks, registered by register_fan_dial_callbacks() and shared by
+    // every dial; each finds its dial through from_event().
+    static void on_arc_value_changed(lv_event_t* e);
+    static void on_arc_released(lv_event_t* e);
+    static void on_switch_changed(lv_event_t* e);
+    static void on_icon_clicked(lv_event_t* e);
+
   private:
     void update_speed_label(int percent);
     void update_onoff_state(int percent);
@@ -131,11 +146,10 @@ class FanDial {
     void cancel_pending_send();
     void flush_pending_send();
 
-    // Static callbacks
-    static void on_arc_value_changed(lv_event_t* e);
-    static void on_arc_released(lv_event_t* e);
-    static void on_switch_changed(lv_event_t* e);
-    static void on_icon_clicked(lv_event_t* e);
+    /// The dial whose tree raised @p e, through its root's user_data; nullptr once
+    /// the dial is gone. The callbacks are XML-registered and shared by every dial.
+    static FanDial* from_event(lv_event_t* e);
+
     static void label_anim_exec_cb(void* var, int32_t value);
     static void anim_completed_cb(lv_anim_t* anim);
     static void on_debounce_timer(lv_timer_t* t);
@@ -145,10 +159,15 @@ class FanDial {
 
     helix::ui::WidgetRef root_;
     helix::ui::WidgetRef arc_;
-    lv_obj_t* speed_label_ = nullptr;
     helix::ui::WidgetRef fan_icon_;
     helix::ui::WidgetRef onoff_switch_;
-    lv_obj_t* onoff_label_ = nullptr;
+
+    /// This dial's subjects: the speed text and on state its component binds, and
+    /// the rpm label's reading (0 hides the label). Heap-held so their addresses,
+    /// which the bindings keep, survive a move of the dial.
+    struct Subjects;
+    std::unique_ptr<Subjects> subjects_;
+    void refresh_rpm_label();
 
     std::string name_;
     std::string fan_id_;
@@ -170,6 +189,7 @@ class FanDial {
  * @brief Register fan dial XML event callbacks
  *
  * Must be called before creating any FanDial widgets via XML.
- * Registers: on_fan_dial_switch_changed
+ * Registers: on_fan_dial_switch_changed, on_fan_dial_arc_changed,
+ * on_fan_dial_arc_released, on_fan_dial_icon_clicked
  */
 void register_fan_dial_callbacks();

@@ -21,6 +21,9 @@
 # Use bash for all shell commands (needed for [[ ]] and read -n)
 SHELL := /bin/bash
 
+# ENABLE_* flags given on the command line accept 1/0, true/false, on/off and empty.
+include mk/enable-flags.mk
+
 # GNU make >= 4.2 (the $(file ...) function). An older make parses this file
 # without complaint and silently skips every $(file) call: the test-link
 # response file is never written, so a link either dies on a missing @-file or
@@ -429,6 +432,12 @@ QUIRC_INC := -isystem $(QUIRC_DIR)/lib
 QUIRC_SRCS := $(wildcard $(QUIRC_DIR)/lib/*.c)
 QUIRC_OBJS := $(patsubst $(QUIRC_DIR)/%.c,$(OBJ_DIR)/quirc/%.o,$(QUIRC_SRCS))
 
+# Monocypher (BLAKE2b + Ed25519 for release manifest signatures)
+MONOCYPHER_DIR := lib/monocypher
+MONOCYPHER_INC := -isystem $(MONOCYPHER_DIR)
+MONOCYPHER_SRCS := $(wildcard $(MONOCYPHER_DIR)/*.c)
+MONOCYPHER_OBJS := $(patsubst $(MONOCYPHER_DIR)/%.c,$(OBJ_DIR)/monocypher/%.o,$(MONOCYPHER_SRCS))
+
 # ThorVG sources (.cpp files for SVG support)
 THORVG_SRCS := $(shell find $(LVGL_DIR)/src/libs/thorvg -name "*.cpp" 2>/dev/null)
 THORVG_OBJS := $(patsubst $(LVGL_DIR)/%.cpp,$(OBJ_DIR)/lvgl/%.o,$(THORVG_SRCS))
@@ -555,7 +564,7 @@ endif
 
 ifneq ($(ENABLE_MOCKS),yes)
     APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/mock/*_mock*.cpp $(SRC_DIR)/network/*_mock*.cpp $(SRC_DIR)/platform/usb/*_mock*.cpp),$(APP_SRCS))
-    APP_SRCS := $(filter-out $(SRC_DIR)/printer/ams_backend_mock.cpp,$(APP_SRCS))
+    APP_SRCS := $(filter-out $(wildcard $(SRC_DIR)/printer/ams_backend_mock*.cpp),$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/mock/moonraker_api_mock.cpp,$(APP_SRCS))
     APP_SRCS := $(filter-out $(SRC_DIR)/system/mock_performance_source.cpp,$(APP_SRCS))
 endif
@@ -881,7 +890,7 @@ FORCED_INCLUDE := -include $(INC_DIR)/lvgl_pch.h
 # This allows `make strict` to catch issues in project code while ignoring third-party header warnings
 # stb_image headers (used for thumbnail processing)
 STB_INC := -isystem lib/stb
-INCLUDES := -I. -I$(INC_DIR) -Isrc/generated -I$(BUILD_DIR)/generated -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(STB_INC) $(LV_MARKDOWN_INC) $(QUIRC_INC) $(WPA_INC) $(SDL2_INC)
+INCLUDES := -I. -I$(INC_DIR) -Isrc/generated -I$(BUILD_DIR)/generated -isystem lib -isystem lib/glm $(LVGL_INC) $(LIBHV_INC) $(SPDLOG_INC) $(STB_INC) $(LV_MARKDOWN_INC) $(QUIRC_INC) $(MONOCYPHER_INC) -isystem lib/libvterm/include $(WPA_INC) $(SDL2_INC)
 
 # The folded helixctl client (src/remote/remote_client.cpp) includes linenoise.h.
 ifeq ($(ENABLE_REMOTE_CONTROL),yes)
@@ -1215,6 +1224,14 @@ LUA_OBJS := $(patsubst $(LUA_DIR)/%.c,$(OBJ_DIR)/lua/%.o,$(LUA_SRCS))
 else
 LUA_OBJS :=
 endif
+# libvterm (vendored, MIT) parses the Host Terminal's output into a screen grid.
+VTERM_DIR := lib/libvterm
+ifeq ($(HELIX_HAS_HOST_TERMINAL),1)
+VTERM_SRCS := $(wildcard $(VTERM_DIR)/src/*.c)
+VTERM_OBJS := $(patsubst $(VTERM_DIR)/%.c,$(OBJ_DIR)/libvterm/%.o,$(VTERM_SRCS))
+else
+VTERM_OBJS :=
+endif
 # Lowest raw backlight level the panel renders visibly, as a percent of the raw
 # range. Nonzero percent scales across [floor, max] so the dimmest slider level
 # is the darkest visible level instead of black. settings.json's
@@ -1372,11 +1389,15 @@ help-all: help-build help-test help-cross help-remote
 	@echo "  material-icons-add     - Download and add icons (ICONS=...)"
 	@echo "  material-icons-convert - Convert SVGs to C arrays (SVGS=...)"
 
-# Documentation screenshot generation
-screenshots: $(BIN)
-	$(Q)$(ECHO) "$(CYAN)Generating documentation screenshots...$(RESET)"
-	$(Q)./scripts/generate-screenshots.sh
-	$(Q)$(ECHO) "$(GREEN)✓ Documentation screenshots generated in docs/images/$(RESET)"
+# Documentation screenshots: every app entry in docs/images/doc-screenshots.yml,
+# headless (scripts/doc_screenshots.py). ONLY='<glob>' narrows it to some paths.
+DOC_SCREENSHOTS_PY := $(if $(wildcard .venv/bin/python3),.venv/bin/python3,python3)
+.PHONY: doc-screenshots screenshots
+doc-screenshots: $(BIN)
+	$(Q)$(ECHO) "$(CYAN)Regenerating doc screenshots$(if $(ONLY), matching $(ONLY))...$(RESET)"
+	$(Q)$(DOC_SCREENSHOTS_PY) scripts/doc_screenshots.py $(if $(ONLY),--only '$(ONLY)')
+	$(Q)$(DOC_SCREENSHOTS_PY) scripts/gen_gallery.py
+screenshots: doc-screenshots
 
 # =============================================================================
 # Symbol extraction and stripping (for crash backtrace resolution)
@@ -1570,6 +1591,8 @@ PRINT_COMPILE_RULES := \
 	$(if $(SPDLOG_DIR),$(SPDLOG_DIR)/src/%.cpp=SPDLOG_COMPILE) \
 	$(LV_MARKDOWN_DIR)/%.c=LV_MARKDOWN_COMPILE \
 	$(QUIRC_DIR)/%.c=QUIRC_COMPILE \
+	$(MONOCYPHER_DIR)/%.c=MONOCYPHER_COMPILE \
+	$(VTERM_DIR)/%.c=VTERM_COMPILE \
 	$(LUA_DIR)/%.c=LUA_COMPILE \
 	assets/fonts/%.c=FONT_COMPILE
 print_compile_rule = $(firstword $(foreach r,$(PRINT_COMPILE_RULES),$(if $(filter $(firstword $(subst =, ,$(r))),$(1)),$(lastword $(subst =, ,$(r))))))
@@ -1593,7 +1616,7 @@ $(foreach f,$(filter $(TEST_DIR)/%,$(F)),$(eval print-compile-command/$(f).pcc: 
 # generated headers under $(BUILD_DIR)/generated. A syntax-only check of a tree
 # that was never built makes this and nothing else.
 .PHONY: compile-prereqs
-compile-prereqs: $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) $(PATCH_MARKER_STAMP) $(CONTRIBUTORS_H) $(GIT_HASH_H)
+compile-prereqs: lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) $(PATCH_MARKER_STAMP) $(CONTRIBUTORS_H) $(GIT_HASH_H)
 
 # =============================================================================
 # Install target — stages binary + assets under $(DESTDIR)/opt/helixscreen/

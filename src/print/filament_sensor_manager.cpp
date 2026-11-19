@@ -3,11 +3,10 @@
 
 #include "filament_sensor_manager.h"
 
-#include "ui_error_reporting.h"
-
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "core/error_reporting.h"
 #include "core/text_io.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
@@ -594,6 +593,17 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
     // its tools. Matching either index counts as being fed, so a sensor is set
     // aside only when it can be neither.
     const int current_tool = backend ? backend->get_current_tool() : -1;
+    // A running or paused job is drawing from the lane being fed, so that
+    // lane's sensor going empty is a runout even once the backend reads the
+    // lane EMPTY: a spool that ran dry leaves nothing in its lane.
+    const auto& print_state = get_printer_state().print_state();
+    const PrintState lifecycle = print_state.get_print_lifecycle();
+    const bool job_running = print_job_running(lifecycle);
+    // The lane the firmware's own pause cause names as run out. That head need
+    // be neither the current one nor still hold filament: the job is waiting on
+    // it, so its empty sensor is the runout whatever the lane reads.
+    const int paused_runout_lane =
+        lifecycle == PrintState::Paused ? print_state.get_pause_runout_lane() : -1;
 
     for (const auto& sensor : candidates) {
         // This sensor reports no filament. Decide whether it is a real runout.
@@ -604,8 +614,19 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
         const SlotInfo slot =
             backend && sensor.lane >= 0 ? backend->get_slot_info(sensor.lane) : SlotInfo{};
         const int lane = slot.slot_index >= 0 ? sensor.lane : -1;
+        if (lane >= 0 && lane == paused_runout_lane) {
+            spdlog::debug("[FilamentSensorManager] has_real_runout: TRUE - {} - the pause "
+                          "cause names lane {}",
+                          sensor.sensor_name, lane);
+            return lane;
+        }
         if (lane >= 0) {
-            if (!slot.is_present()) {
+            const bool fed = lane == current_slot || lane == current_tool;
+            // Only the current slot vouches for an empty lane: a lane that
+            // merely shares the active tool's number may be one the job never
+            // draws from.
+            const bool feeding_the_job = job_running && current_slot >= 0 && lane == current_slot;
+            if (!slot.is_present() && !feeding_the_job) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is empty/never-loaded (not a runout)",
                               sensor.sensor_name, lane);
@@ -616,7 +637,6 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
             // is idle, whatever the backend says sits in that lane: a head
             // whose filament waits in its feeder, never loaded to the nozzle,
             // reads empty at its own switch without anything running out.
-            const bool fed = lane == current_slot || lane == current_tool;
             if (current_slot >= 0 && !fed) {
                 spdlog::debug("[FilamentSensorManager] has_real_runout: ignoring {} - lane {} "
                               "is not the one being fed (slot {}, tool {})",
@@ -1020,11 +1040,12 @@ void FilamentSensorManager::update_from_status(const json& status) {
             std::string key = sensor.klipper_name;
 
             // Moonraker keys status by the full object name
-            if (!status.contains(key)) {
+            const json* sensor_json = json_util::find_member(status, key.c_str());
+            if (!sensor_json) {
                 continue;
             }
 
-            const auto& sensor_data = status[key];
+            const auto& sensor_data = *sensor_json;
             auto& state = readings_[sensor.klipper_name];
             FilamentSensorState old_state = state;
             state.reported = true;
@@ -1088,9 +1109,11 @@ void FilamentSensorManager::update_from_status(const json& status) {
                     observed_runouts_.erase(sensor.klipper_name);
                 }
 
-                // Log at WARN if this is a runout (filament gone) on an active sensor
-                if (!state.filament_detected && filament_role(sensor) != FilamentSensorRole::NONE &&
-                    sensor.enabled && state.enabled) {
+                // Log at WARN if this is a runout (filament gone) on an active sensor.
+                // A first reading of empty is the sensor's state, not an edge.
+                if (!state.filament_detected && old_state.reported &&
+                    filament_role(sensor) != FilamentSensorRole::NONE && sensor.enabled &&
+                    state.enabled) {
                     spdlog::warn("[FilamentSensorManager] RUNOUT: {} ({}) filament gone",
                                  sensor.display_name, role_to_config_string(filament_role(sensor)));
                 } else {

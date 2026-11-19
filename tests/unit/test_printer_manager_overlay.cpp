@@ -64,7 +64,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "[printer_manager]") {
     // ~PrinterManagerOverlay() -> deinit_subjects_base() -> lv_subject_deinit()
     // on every subject the overlay published. lv_subject_deinit() walks the
-    // subject's observer list and calls lv_observer_remove(), which for an
+    // subject's observer list and calls lv_observer_delete(), which for an
     // obj-bound observer strips the LV_EVENT_DELETE hook that
     // lv_subject_add_observer_obj() installed on the target widget.
     //
@@ -135,7 +135,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "PrinterManagerOverlay: destructor safe withou
 
     // Owner is still alive; drop the observer before the sentinel so teardown
     // order cannot matter.
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
     lv_obj_delete(sentinel);
 }
 
@@ -222,11 +222,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(lv_subject_get_int(editing) == 0);
     }
 
-    // A tap on the input itself keeps editing.
-    PrinterManagerOverlayTestAccess::start_name_edit(pm);
-    lv_obj_send_event(lv_obj_find_by_name(root, "pm_printer_name_input"), LV_EVENT_CLICKED,
-                      nullptr);
-    CHECK(lv_subject_get_int(editing) == 1);
+    // A tap on the input itself keeps editing; the keyboard's OK and cancel end it.
+    lv_obj_t* input = lv_obj_find_by_name(root, "pm_printer_name_input");
+    for (const lv_event_code_t ends : {LV_EVENT_READY, LV_EVENT_CANCEL}) {
+        PrinterManagerOverlayTestAccess::start_name_edit(pm);
+        lv_obj_send_event(input, LV_EVENT_CLICKED, nullptr);
+        CHECK(lv_subject_get_int(editing) == 1);
+        lv_obj_send_event(input, ends, nullptr);
+        CHECK(lv_subject_get_int(editing) == 0);
+    }
 
     destroy_printer_manager_overlay();
 }
@@ -324,7 +328,7 @@ void count_chips(lv_obj_t* obj, int& count) {
 }
 
 bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj && !lv_obj_is_hidden(obj);
 }
 
 /// The chips a group shows, named, so a failure says which one leaked.

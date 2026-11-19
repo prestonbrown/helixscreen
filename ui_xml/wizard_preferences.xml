@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- First-Run Wizard: taste-only preference toggles. Every row shares its subject and
+  <!-- First-Run Wizard: taste-only preferences. Every row shares its subject and
        callback with the settings overlay that owns the same setting. -->
   <consts>
     <str name="step_title" value="Preferences" value_tag="Preferences"/>
@@ -51,6 +51,18 @@
                           subject="settings_sounds_enabled" callback="on_sounds_changed">
         <bind_flag_if_eq subject="wizard_prefs_show_sounds" flag="hidden" ref_value="0"/>
       </setting_toggle_row>
+      <setting_slider_row name="row_volume"
+                          label="Volume" icon="volume_high" description="Master volume level" min="0" max="100"
+                          value="80" value_subject="settings_volume" value_format="%d%%" min_icon="volume_off"
+                          max_icon="volume_high" callback="on_volume_changed" commit_callback="on_volume_commit">
+        <bind_flag_if cond="wizard_prefs_show_sounds eq 0 or settings_sounds_enabled eq 0" flag="hidden"/>
+      </setting_slider_row>
+      <setting_dropdown_row name="row_completion_alert"
+                            label="Print Completion Alert" icon="notifications" description="Notify when print finishes"
+                            options="Off&#10;Notification&#10;Alert" options_tag="Off&#10;Notification&#10;Alert"
+                            bind_selected="settings_completion_alert" callback="on_completion_alert_changed">
+        <bind_flag_if_eq subject="wizard_prefs_show_global" flag="hidden" ref_value="0"/>
+      </setting_dropdown_row>
     </ui_card>
   </view>
 </component>

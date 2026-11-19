@@ -121,7 +121,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
 
     ~PrintStartCollector();
 
-    // Non-copyable
     PrintStartCollector(const PrintStartCollector&) = delete;
     PrintStartCollector& operator=(const PrintStartCollector&) = delete;
 
@@ -288,7 +287,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * @brief Whether current_layer has increased since collection began.
      *
      * A stale positive carried over from the previous print is static, so it
-     * can never satisfy this — which is what the layer-zero latch was guarding
+     * can never satisfy this, the same stale value the layer-zero latch guards
      * against.
      */
     [[nodiscard]] bool has_seen_layer_advance() const {
@@ -418,9 +417,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
   private:
     PrintStartCollector(helix::IMoonrakerClient& client, helix::PrinterState& state);
 
-    /**
-     * @brief Handle incoming G-code response
-     */
     void on_gcode_response(const nlohmann::json& msg);
 
     /// Register on_gcode_response() with the client once; detach() removes it.
@@ -447,9 +443,6 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      */
     bool is_own_pre_start_echo_locked(const std::string& line) const;
 
-    /**
-     * @brief Check line against phase patterns
-     */
     void check_phase_patterns(const std::string& line);
 
     /**
@@ -571,6 +564,28 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
      * @return true if a HELIX:PHASE signal was detected and handled
      */
     bool check_helix_phase_signal(const std::string& line);
+
+    /// Consume a HELIX:PLAN line; false when @p line is not one.
+    bool check_helix_plan_signal(const std::string& line);
+
+    /// Merge @p durations into this run's plan and reprice it. @p restored marks a
+    /// plan read back from the printer, which a live line then replaces.
+    void accept_plan(const helix::PreprintDeclaredDurations& durations, bool restored);
+
+    /// Read back a plan the printer holds, for a screen that restarted mid-start.
+    void query_stored_plan();
+
+    /// What a phase entry owes the plan, computed under state_mutex_ and acted
+    /// on after it is released.
+    struct PlanPhaseEntry {
+        std::chrono::seconds hold{0};
+        bool release_wait = false;
+    };
+    [[nodiscard]] PlanPhaseEntry plan_phase_entered_locked(helix::PrintStartPhase previous);
+    void finish_plan_phase_entry(const PlanPhaseEntry& entry);
+
+    /// Recompute the weights on the main thread, for code on the WebSocket thread.
+    void queue_reprice(bool release_anchor);
 
     /**
      * @brief Check the line against the profile's tag patterns
@@ -878,6 +893,18 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     /// reset with the rest of the per-run state.
     std::optional<helix::PreprintPhaseOverrides> phase_overrides_;
 
+    /// Durations this run's macro declared, as the predictor takes them.
+    helix::PreprintDeclaredDurations declared_;
+    bool plan_seen_ = false;
+    /// declared_ came from the printer's stored copy, not a live line.
+    bool plan_restored_ = false;
+    /// Next start's macro chain calls _HELIX_PLAN; consumed by start().
+    bool macro_declares_plan_ = false;
+    /// While set, no estimate is shown: a plan is on its way. Ends at the plan,
+    /// the first phase signal, or this time.
+    std::optional<helix::sim::SimulatedClock::time_point> plan_wait_until_;
+    static constexpr std::chrono::seconds kPlanWaitSeconds{10};
+
     // Duration-proportional progress weights (protected by state_mutex_)
     std::map<int, float> predicted_phase_weights_; ///< Phase -> fraction of total (0.0-1.0)
     float predicted_total_seconds_ = 0.0f;         ///< Total predicted pre-print duration
@@ -1082,7 +1109,7 @@ class PrintStartCollector : public std::enable_shared_from_this<PrintStartCollec
     // calibration from isolated PROBE commands (e.g. nozzle wipe on AD5M
     // Klipper mod). Counting points rather than lines matters because Klipper
     // emits two lines per touch on firmware that reports z_compensation
-    // separately, which halved the effective threshold.
+    // separately, which would halve the effective threshold.
     helix::ProbePointCounter pre_mesh_points_;
     helix::sim::SimulatedClock::time_point pre_mesh_last_probe_time_;
 

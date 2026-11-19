@@ -13,11 +13,11 @@
 // RECENT history has loaded, the last occupying job stands in for the newest job, and a
 // failed load is retried every kHistoryRetryMs while connected. Main thread only.
 
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
 #include "bed_occupancy.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "print_history_manager.h"
 #include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
@@ -108,8 +108,8 @@ class BedOccupancyState {
     helix::HistoryChangedCallback history_cb_;
 
     SubjectManager subjects_;
-    lv_subject_t occupied_{};
-    lv_subject_t version_{};
+    helix::Subject occupied_{};
+    helix::Subject version_{};
     bool subjects_initialized_ = false;
 
     void bump_version();

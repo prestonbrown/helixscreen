@@ -33,4 +33,5 @@ TEST_CASE("GuidedLoadModal: each stage maps to the view that offers its buttons"
     CHECK(GuidedLoadModal::view_for(GuidedLoadStage::ConfirmOutput) == View::Confirm);
     CHECK(GuidedLoadModal::view_for(GuidedLoadStage::Feeding) == View::Working);
     CHECK(GuidedLoadModal::view_for(GuidedLoadStage::Finishing) == View::Working);
+    CHECK(GuidedLoadModal::view_for(GuidedLoadStage::Heating) == View::Heating);
 }

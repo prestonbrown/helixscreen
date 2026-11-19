@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -160,8 +161,8 @@ class LabelPrinterSettingsManager {
 
     SubjectManager subjects_;
 
-    lv_subject_t printer_configured_subject_{}; // int: 0/1
-    lv_subject_t printer_type_subject_{};       // int: 0=network, 1=usb, 2=bluetooth
+    helix::Subject printer_configured_subject_{}; // int: 0/1
+    helix::Subject printer_type_subject_{};       // int: 0=network, 1=usb, 2=bluetooth
 
     bool subjects_initialized_ = false;
 };
@@ -179,11 +180,9 @@ inline lv_subject_t* label_printer_configured_subject() {
     settings.init_subjects();
     return settings.subject_printer_configured();
 #else
-    static lv_subject_t unsupported{};
-    static bool initialized = false;
-    if (!initialized) {
-        lv_subject_init_int(&unsupported, 0);
-        initialized = true;
+    static helix::Subject unsupported{};
+    if (!unsupported.is_live()) {
+        unsupported.init_int(0);
     }
     return &unsupported;
 #endif

@@ -45,7 +45,7 @@ lv_obj_t* ui_panel_setup_content_padding(lv_obj_t* panel, lv_obj_t* parent_scree
 
     lv_obj_t* content = lv_obj_find_by_name(panel, content_name);
     if (content) {
-        lv_coord_t vertical_padding = ui_get_header_content_padding();
+        int32_t vertical_padding = ui_get_header_content_padding();
 
         // Set vertical padding (top/bottom) responsively, keep horizontal at space_md
         lv_obj_set_style_pad_top(content, vertical_padding, 0);
@@ -74,7 +74,7 @@ static void panel_resize_callback_wrapper(ui_panel_resize_context_t* context) {
 
     lv_obj_t* content = lv_obj_find_by_name(context->panel, context->content_name);
     if (content) {
-        lv_coord_t vertical_padding = ui_get_header_content_padding();
+        int32_t vertical_padding = ui_get_header_content_padding();
 
         // Update vertical padding (top/bottom) responsively, keep horizontal at space_md
         lv_obj_set_style_pad_top(content, vertical_padding, 0);
@@ -154,12 +154,12 @@ lv_obj_t* create_xml_hidden(lv_obj_t* parent, const char* component, const char*
     // A child of parent filling its content box, so the tree sees the same
     // screen and resolves percentages and layout as it will once reparented.
     lv_obj_t* holder = lv_obj_create(parent);
-    lv_obj_add_flag(holder, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(holder, true);
     lv_obj_remove_style_all(holder);
     lv_obj_set_size(holder, lv_pct(100), lv_pct(100));
     auto* root = static_cast<lv_obj_t*>(lv_xml_create(holder, component, attrs));
     if (root) {
-        lv_obj_add_flag(root, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: built under the holder
+        lv_obj_set_hidden(root, true); // XML_HIDDEN_OK: built under the holder
         lv_obj_set_parent(root, parent);
     }
     lv_obj_delete(holder);
@@ -170,7 +170,7 @@ lv_obj_t* create_xml_laid_out(lv_obj_t* parent, const char* component, const cha
     lv_obj_t* root = create_xml_hidden(parent, component, attrs);
     if (root) {
         lv_obj_update_layout(root);
-        lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root, false);
     }
     return root;
 }

@@ -9,6 +9,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_drying_controller.h"
+#include "core/temperature_units.h"
 #include "display_manager.h"
 #include "filament_op_execute.h"
 #include "i_moonraker_api.h"
@@ -26,7 +27,7 @@ namespace helix::ui {
 using namespace bed_drying;
 
 std::string BedDryingModal::material_label(const Material& m, int bed_c) {
-    return fmt::format("{}  {}°C  {}h", m.name, bed_c, m.hours);
+    return fmt::format("{}  {}  {}h", m.name, helix::units::format_display_temp(bed_c), m.hours);
 }
 
 bool BedDryingModal::show_owned() {

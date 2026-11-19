@@ -20,6 +20,7 @@
 
 #include "remote_client.h"
 
+#include "json_utils.h"
 #include "screensaver_registry.h"
 
 #include <cctype>
@@ -95,8 +96,8 @@ static const HelpEntry HELP[] = {
     {nullptr, "wake", "Reset idle timer / dismiss the screensaver", nullptr},
     {nullptr, "screensaver <name|off>", "Preview a screensaver by name, as Test Screensaver does",
      "toasters, starfield, pipes, bounce, fireworks, logo, maze,\n"
-     "hyperspace, flipclock, fireflies; a saver too heavy for the board\n"
-     "runs its fallback. `off` is wake"},
+     "hyperspace, flipclock, fireflies, aqua, highfly, nixie; a saver\n"
+     "too heavy for the board runs its fallback. `off` is wake"},
     {nullptr, "demo <name>", "Show a sample-data overlay unreachable in mock mode",
      "preflight-check, runout-modal, lock-screen, print-status,\n"
      "print-tune, ams, camera"},
@@ -165,6 +166,8 @@ static const HelpEntry HELP[] = {
      "skips the update-queue and display-refresh timers so the channel\n"
      "stays alive"},
     {nullptr, "unfreeze", "Reverse freeze: resume paused timers, re-enable animations", nullptr},
+    {nullptr, "resize <w> <h>", "Resize the display, as a window resize does",
+     "the views follow once the 250ms resize debounce settles"},
     {nullptr, "log [-n N]", "Tail the app's in-memory log ring", "default 50 lines"},
     {nullptr, "shutdown, quit", "Ask the running app to exit", nullptr},
     {nullptr, "reset", "Return to home with no overlays/modals",
@@ -380,8 +383,8 @@ static int handle_response(const std::string& raw_response, nlohmann::json* out_
     try {
         auto response = nlohmann::json::parse(raw_response);
 
-        if (response.contains("error")) {
-            const auto& error = response["error"];
+        if (const nlohmann::json* error_field = helix::json_util::find_member(response, "error")) {
+            const auto& error = *error_field;
             if (g_json_output) {
                 // dump() is safe for any JSON type, including the non-object
                 // errors the human path guards against below.
@@ -408,21 +411,22 @@ static int handle_response(const std::string& raw_response, nlohmann::json* out_
             return 1;
         }
 
-        if (response.contains("result")) {
+        if (const nlohmann::json* result_field =
+                helix::json_util::find_member(response, "result")) {
             if (out_result) {
-                *out_result = response["result"];
+                *out_result = *result_field;
             } else if (g_json_output) {
                 // Raw, single-line. Callers pipe this to jq or json.loads.
-                printf("%s\n", response["result"].dump().c_str());
+                printf("%s\n", result_field->dump().c_str());
             } else {
-                auto& result = response["result"];
+                const auto& result = *result_field;
                 if (result.is_string()) {
                     printf("%s\n", result.get<std::string>().c_str());
-                } else if (result.is_object() && result.contains("lines") &&
-                           result["lines"].is_array()) {
+                } else if (const nlohmann::json* lines =
+                               helix::json_util::find_array(result, "lines")) {
                     // Log tail: print the lines as lines. JSON-escaped log output
                     // is unreadable and defeats piping it to grep.
-                    for (const auto& line : result["lines"]) {
+                    for (const auto& line : *lines) {
                         if (line.is_string()) {
                             printf("%s\n", line.get<std::string>().c_str());
                         }
@@ -638,6 +642,13 @@ static nlohmann::json build_request_from_tokens(const std::vector<std::string>& 
         return build_request("freeze");
     } else if (cmd == "unfreeze") {
         return build_request("unfreeze");
+    } else if (cmd == "resize") {
+        if (tokens.size() < 3 || !is_int(tokens[1]) || !is_int(tokens[2])) {
+            fprintf(stderr, "Error: resize requires a width and a height\n");
+            return {};
+        }
+        return build_request("resize", {{"width", std::atoi(tokens[1].c_str())},
+                                        {"height", std::atoi(tokens[2].c_str())}});
     } else if (cmd == "tap" ||
                (cmd == "click" && tokens.size() >= 3 && is_int(tokens[1]) && is_int(tokens[2]))) {
         if (tokens.size() < 3) {
@@ -861,6 +872,7 @@ static const char* kReplCommands[] = {"ping",
                                       "wait_idle",
                                       "freeze",
                                       "unfreeze",
+                                      "resize",
                                       "ls",
                                       "describe_screen",
                                       "click",
@@ -919,11 +931,12 @@ static std::vector<std::string> widget_names_here() {
     if (!query_result(g_repl_socket, build_request("describe_screen", params), r)) {
         return names;
     }
-    if (!r.contains("widgets") || !r["widgets"].is_array()) {
+    const nlohmann::json* widgets = helix::json_util::find_array(r, "widgets");
+    if (!widgets) {
         return names;
     }
     std::set<std::string> seen;
-    for (const auto& w : r["widgets"]) {
+    for (const auto& w : *widgets) {
         const std::string name = w.value("name", std::string());
         if (!name.empty() && seen.insert(name).second) {
             names.push_back(name);
@@ -1072,8 +1085,8 @@ static void repl_populate_caches(int fd) {
     if (repl_rpc(fd, "list_subjects", {}, result) && result.is_array()) {
         g_cached_subjects.clear();
         for (const auto& entry : result) {
-            if (entry.contains("name")) {
-                g_cached_subjects.push_back(entry["name"].get<std::string>());
+            if (const nlohmann::json* name = helix::json_util::find_member(entry, "name")) {
+                g_cached_subjects.push_back(name->get<std::string>());
             }
         }
     }
@@ -1082,8 +1095,8 @@ static void repl_populate_caches(int fd) {
     if (repl_rpc(fd, "list_scenarios", {}, result) && result.is_array()) {
         g_cached_scenarios.clear();
         for (const auto& entry : result) {
-            if (entry.contains("name")) {
-                g_cached_scenarios.push_back(entry["name"].get<std::string>());
+            if (const nlohmann::json* name = helix::json_util::find_member(entry, "name")) {
+                g_cached_scenarios.push_back(name->get<std::string>());
             } else if (entry.is_string()) {
                 g_cached_scenarios.push_back(entry.get<std::string>());
             }
@@ -1177,8 +1190,8 @@ static std::string build_prompt(const std::string& socket_path) {
     }
 
     std::string crumb = r.value("panel", std::string("?"));
-    if (r.contains("overlays") && r["overlays"].is_array()) {
-        for (auto& o : r["overlays"]) {
+    if (const nlohmann::json* overlays = helix::json_util::find_array(r, "overlays")) {
+        for (const auto& o : *overlays) {
             if (o.is_string()) {
                 crumb += " / " + o.get<std::string>();
             }
@@ -1239,11 +1252,12 @@ static void repl_cd(const std::string& socket_path, const std::vector<std::strin
 // widget. Duplicate-named widgets get their @path appended so they stay
 // addressable.
 static void print_describe_grouped(const nlohmann::json& result) {
-    if (!result.contains("widgets") || !result["widgets"].is_array()) {
+    const nlohmann::json* widgets_arr = helix::json_util::find_array(result, "widgets");
+    if (!widgets_arr) {
         printf("%s\n", result.dump(2).c_str());
         return;
     }
-    const auto& widgets = result["widgets"];
+    const auto& widgets = *widgets_arr;
     std::map<std::string, int> name_count;
     for (const auto& w : widgets) {
         name_count[w.value("name", std::string())]++;
@@ -1274,9 +1288,8 @@ static void print_describe_grouped(const nlohmann::json& result) {
             if (name_count[name] > 1) {
                 label += " @" + w.value("path", std::string());
             }
-            if (w.contains("value")) {
-                label += "=" + (w["value"].is_string() ? w["value"].get<std::string>()
-                                                       : w["value"].dump());
+            if (const nlohmann::json* value = helix::json_util::find_member(w, "value")) {
+                label += "=" + (value->is_string() ? value->get<std::string>() : value->dump());
             }
             items.push_back(label);
         }
@@ -1321,9 +1334,8 @@ static void print_describe_grouped(const nlohmann::json& result) {
         printf("\n");
     }
 
-    if (result.contains("scope") && result["scope"].is_string()) {
-        printf("  (%zu widgets under %s)\n", widgets.size(),
-               result["scope"].get<std::string>().c_str());
+    if (auto scope = helix::json_util::read_field<std::string>(result, "scope")) {
+        printf("  (%zu widgets under %s)\n", widgets.size(), scope->c_str());
     } else {
         printf("  (%zu widgets — `ls` shows all; @path targets any one)\n", widgets.size());
     }
@@ -1411,8 +1423,9 @@ static int run_repl(const std::string& socket_path) {
             if (query_result(socket_path, build_request("get_current"), r)) {
                 printf("  panel:   %s\n", r.value("panel", std::string("?")).c_str());
                 std::string overlays;
-                if (r.contains("overlays") && r["overlays"].is_array()) {
-                    for (const auto& o : r["overlays"]) {
+                if (const nlohmann::json* overlay_list =
+                        helix::json_util::find_array(r, "overlays")) {
+                    for (const auto& o : *overlay_list) {
                         if (o.is_string()) {
                             overlays += (overlays.empty() ? "" : ", ") + o.get<std::string>();
                         }

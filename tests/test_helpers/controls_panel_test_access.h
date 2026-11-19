@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h" // ObserverGuard, SubjectLifetime
 #include "ui_panel_controls.h"
+
+#include "core/observer_guard.h" // ObserverGuard, SubjectLifetime
 
 #include <string>
 #include <utility>
@@ -23,11 +24,10 @@ namespace helix::ui {
 struct ControlsPanelTestAccess {
     using SecondaryFanRow = ControlsPanel::SecondaryFanRow;
 
-    static void confirm_custom_nozzle(ControlsPanel& p, float celsius) {
-        p.handle_custom_nozzle_confirmed(celsius);
-    }
-    static int cached_extruder_target(const ControlsPanel& p) {
-        return p.cached_extruder_target_;
+    /// Subjects and observers without the XML tree: the nozzle row's logic.
+    static void init_and_observe(ControlsPanel& p) {
+        p.init_subjects();
+        p.register_observers();
     }
 
     static std::vector<SecondaryFanRow>& rows(ControlsPanel& p) {
@@ -99,15 +99,6 @@ struct ControlsPanelTestAccess {
 
     static bool guard_active(ControlsPanel& p) {
         return p.operation_guard_.is_active();
-    }
-
-    // --- Target-edit keypad ceiling ------------------------------------------
-    //
-    // The three heater keypads derive their maximum from the shared
-    // keypad-ceiling authority; this lets a test ask the panel the same
-    // question the keypad will be shown with (#1619).
-    static int target_edit_max(ControlsPanel& p, helix::HeaterType type, int fallback_deg) {
-        return p.target_edit_max(type, fallback_deg);
     }
 };
 

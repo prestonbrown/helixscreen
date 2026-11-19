@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_numbering.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -224,10 +225,11 @@ void TempGraphWidget::on_deactivate() {
 }
 
 void TempGraphWidget::refresh_series_names() {
-    if (!controller_ || !config_.contains("sensors") || !config_["sensors"].is_array()) {
+    const nlohmann::json* sensors = helix::json_util::find_array(config_, "sensors");
+    if (!controller_ || !sensors) {
         return;
     }
-    for (const auto& entry : config_["sensors"]) {
+    for (const auto& entry : *sensors) {
         if (auto name = helix::json_util::read_field<std::string>(entry, "name")) {
             controller_->set_series_name(*name, TempGraphConfigModal::sensor_display_name(*name));
         }
@@ -336,7 +338,8 @@ uint32_t TempGraphWidget::features_for_size(int width_px, int height_px, UiBreak
 
 std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() const {
     std::vector<TempGraphSeriesSpec> specs;
-    if (!config_.contains("sensors"))
+    const nlohmann::json* sensors = helix::json_util::find_member(config_, "sensors");
+    if (!sensors)
         return specs;
 
     // Follow mode overrides per-sensor `enabled` with the overlay's last
@@ -345,7 +348,7 @@ std::vector<TempGraphSeriesSpec> TempGraphWidget::build_series_from_config() con
     const bool use_snapshot = follow_overlay_ && snapshot.has_value();
 
     int color_idx = 0;
-    for (const auto& entry : config_["sensors"]) {
+    for (const auto& entry : *sensors) {
         auto name = helix::json_util::read_field<std::string>(entry, "name");
         if (!name)
             continue;
@@ -509,16 +512,16 @@ using helix::xml::IndexedSubjectPool;
 IndexedSubjectPool s_cfg_name{"temp_graph_cfg", IndexedSubjectPool::Type::String, 96, "_name"};
 IndexedSubjectPool s_cfg_color{"temp_graph_cfg", IndexedSubjectPool::Type::Color, 0, "_color"};
 IndexedSubjectPool s_cfg_on{"temp_graph_cfg", IndexedSubjectPool::Type::Int, 0, "_on"};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_count_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_cfg_follow_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_count_subject{};
+HELIX_PSRAM_BSS helix::Subject s_cfg_follow_subject{};
 helix::WidgetSubjects s_cfg_subjects{"TempGraphConfigSubjects"};
 
 void temp_graph_config_init_subjects() {
     s_cfg_subjects.ensure_init(
         [] {
-            lv_subject_init_int(&s_cfg_count_subject, 0);
+            s_cfg_count_subject.init_int(0);
             s_cfg_subjects.publish("temp_graph_cfg_rows", &s_cfg_count_subject);
-            lv_subject_init_int(&s_cfg_follow_subject, 0);
+            s_cfg_follow_subject.init_int(0);
             s_cfg_subjects.publish("temp_graph_cfg_follow", &s_cfg_follow_subject);
         },
         [] {

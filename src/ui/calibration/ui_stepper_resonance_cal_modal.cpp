@@ -5,6 +5,7 @@
 #include "ui_error_reporting.h"
 
 #include "app_globals.h"
+#include "bed_plate_context.h"
 #include "display_numbering.h"
 #include "macro_executor.h"
 #include "printer_state.h"
@@ -37,7 +38,10 @@ std::string confirm_message(const cal::Procedure& procedure) {
     return message;
 }
 
-void on_row_clicked(lv_event_t*) {
+/// Owns nothing: the row's follow-ups reach only global state.
+AsyncLifetimeGuard s_row_lifetime;
+
+void confirm_stepper_resonance_cal() {
     const cal::Procedure procedure = cal::resolve(get_printer_state().get_discovery());
     if (!procedure.present()) {
         return;
@@ -52,6 +56,13 @@ void on_row_clicked(lv_event_t*) {
     }
     modal_confirm(lv_tr(cal::entry_name()), message.c_str(), ModalSeverity::Warning, lv_tr("Start"),
                   []() { start_stepper_resonance_cal(0); });
+}
+
+void on_row_clicked(lv_event_t*) {
+    if (!cal::resolve(get_printer_state().get_discovery()).present()) {
+        return;
+    }
+    ensure_bed_clear_then(s_row_lifetime.token(), confirm_stepper_resonance_cal);
 }
 
 } // namespace

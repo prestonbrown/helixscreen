@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ams_unit_shell.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -92,6 +94,16 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology);
  * run, which is the honest shape for a mid-machine merge unit.
  */
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead);
+
+/// Draw the unit's on-head selector as a fixed block with one port per lane.
+void ui_filament_path_canvas_set_port_block(lv_obj_t* obj, bool port_block);
+
+/// Draw @p unit_id's head-on art: in the LINEAR selector bar's place, or as a pass-through unit
+/// above a hub. @p has_carriage says the art has a carriage layer that rides to the active gate.
+/// nullptr keeps the plain drawing.
+void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
+                                               const helix::ui::tray::RailFaceArt* art,
+                                               bool has_carriage);
 
 /**
  * @brief Whether the LINEAR/HUB path continues past the hub to a toolhead
@@ -276,6 +288,23 @@ int ui_filament_path_canvas_get_slot_filament(lv_obj_t* obj, int slot_index);
 void ui_filament_path_canvas_set_slot_prep_sensor(lv_obj_t* obj, int slot, bool has_sensor);
 
 /**
+ * @brief Start a lane's tube @p rise px above the lane entry (set_lane_entry)
+ *
+ * Under a drawn unit whose bottom edge slants, the lane entry is the edge's lowest point and
+ * each lane starts where the edge crosses its column.
+ */
+void ui_filament_path_canvas_set_lane_entry_rise(lv_obj_t* obj, int slot, int32_t rise);
+
+/// Stand a lane's prep band @p drop px below where its tube starts, held a band's width above
+/// the lane's row.
+void ui_filament_path_canvas_set_lane_band_drop(lv_obj_t* obj, int slot, int32_t drop);
+
+/// The screen rows of @p slot's tube start and prep band, as the canvas lays them out; either
+/// out pointer may be null. False off a hub or selector path.
+bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* start_out,
+                                           int32_t* band_out);
+
+/**
  * @brief Set whether a slot has a load sensor between its prep sensor and the
  *        hub (AFC's per-lane `load`); the HUB layout draws its band, read as LANE
  */
@@ -401,6 +430,11 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out);
  * widget has a size.
  */
 bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out);
+
+/// The height the canvas needs to lay its path out at full size, its top where it is
+/// (linear_hub_required_height()): its own height when that fits. 0 for a topology without a
+/// hub-and-toolhead path.
+int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj);
 
 /**
  * @brief Set the unit's hub (or selector) output sensor

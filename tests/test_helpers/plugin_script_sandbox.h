@@ -19,7 +19,7 @@ namespace helix::test {
 /// a stub there that records its arguments and then runs the given body.
 struct PluginScriptSandbox {
     explicit PluginScriptSandbox(HelixPluginInstaller& installer)
-        : root(unique_temp_dir("helix_plugin_installer")) {
+        : root(unique_temp_dir("helix_plugin_installer")), installer_(installer) {
         std::filesystem::create_directories(root + "/moonraker-plugin");
         HelixPluginInstallerTestAccess::set_script_search_root(installer, root);
         installer.set_websocket_url("ws://localhost:7125/websocket");
@@ -43,6 +43,12 @@ struct PluginScriptSandbox {
                                      << body << "\n";
     }
 
+    /// A stub that outlives the installer's script timeout, cut to one second.
+    void write_script_past_timeout() const {
+        HelixPluginInstallerTestAccess::set_script_timeout_seconds(installer_, 1);
+        write_script("exec sleep 30");
+    }
+
     /// The arguments the stub was run with, space-separated; empty if it never ran.
     std::string script_args() const {
         std::ifstream in(root + "/args");
@@ -50,6 +56,9 @@ struct PluginScriptSandbox {
     }
 
     std::string root;
+
+  private:
+    HelixPluginInstaller& installer_;
 };
 
 } // namespace helix::test

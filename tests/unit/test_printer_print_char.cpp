@@ -1078,7 +1078,7 @@ TEST_CASE("Print: string observer sees updated enum (issue #125 regression)",
     // Verify can_start_new_print is true after the full update
     REQUIRE(state.print_state().can_start_new_print() == true);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -1602,10 +1602,17 @@ TEST_CASE("A live preparing job keeps phase updates flowing while the printer is
     }
 
     SECTION("retiring the job stops accepting phases again") {
+        state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
+        state.print_state().set_print_start_time_left("~2 min left");
+        helix::ui::UpdateQueue::instance().drain();
+        state.print_state().clear_print_start_time_left();
         state.print_state().retire_preparing(helix::PreparingExit::Cancelled);
         helix::ui::UpdateQueue::instance().drain();
         REQUIRE_FALSE(state.print_state().has_preparing_job());
         REQUIRE(phase() == PrintStartPhase::IDLE);
+        auto text = [](lv_subject_t* s) { return std::string(lv_subject_get_string(s)); };
+        CHECK(text(state.print_state().get_print_start_message_subject()).empty());
+        CHECK(text(state.print_state().get_print_start_time_left_subject()).empty());
 
         state.print_state().set_print_start_state(PrintStartPhase::HOMING, "Homing...", 10);
         helix::ui::UpdateQueue::instance().drain();

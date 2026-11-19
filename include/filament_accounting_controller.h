@@ -8,9 +8,8 @@
 // load; this covers the tools that print from their own extruder with a spool
 // assigned to the tool.
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_accounting.h"
 
 #include <optional>

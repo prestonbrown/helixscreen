@@ -32,10 +32,11 @@ constexpr const char* PRINTER_NAME = "printer_name";
 // The hostname the printer's Klipper reports; how mDNS re-finds it at a new address
 constexpr const char* kHostname = "hostname";
 constexpr const char* PRINTER_TYPE = "type";
-// Which saved printer type the one-time saved-vs-detected mismatch warning
-// (HardwareSetupPrompter::maybe_warn_type_mismatch) was last shown for. Changing the
-// saved type re-arms the warning once.
+// The saved and detected printer types the saved-vs-detected mismatch warning
+// (HardwareSetupPrompter::maybe_warn_type_mismatch) was last answered for. A change to
+// either one re-arms the warning once.
 constexpr const char* TYPE_MISMATCH_SHOWN_FOR = "type_mismatch_shown_for";
+constexpr const char* kTypeMismatchShownForDetected = "type_mismatch_shown_for_detected";
 
 // Bed hardware
 constexpr const char* BED_HEATER = "heaters/bed";

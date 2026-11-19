@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "dryer_summary.h"
 #include "panel_widget.h"
 #include "src/ui/panel_widgets/dryer_layout.h"
@@ -52,6 +51,7 @@ class DryerWidget : public PanelWidget {
 
     ObserverGuard version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard temp_unit_observer_;
 
     // Declared last so it is torn down first, expiring every token the observer
     // captured before it is destroyed.

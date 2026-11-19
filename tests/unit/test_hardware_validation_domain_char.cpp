@@ -30,6 +30,7 @@
 
 #include "../test_helpers/fresh_printer_state.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/subject_notifications.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "hardware_validator.h"
@@ -154,6 +155,18 @@ TEST_CASE_METHOD(FreshRegisteredPrinterState,
                     state.hardware_validation_state().get_hardware_issues_label_subject())) ==
                 "2 Hardware Issues");
     }
+}
+
+TEST_CASE_METHOD(FreshRegisteredPrinterState,
+                 "Hardware validation characterization: a new verdict repaints both status labels",
+                 "[characterization][hardware-validation][setter]") {
+    SubjectNotifications title(get_subject_by_name("hardware_status_title"));
+    SubjectNotifications detail(get_subject_by_name("hardware_status_detail"));
+    HardwareValidationResult result;
+    result.critical_missing.push_back(make_critical("extruder", "Extruder not responding"));
+    state.hardware_validation_state().set_hardware_validation_result(result);
+    CHECK(title.count == 1);
+    CHECK(detail.count == 1);
 }
 
 // ============================================================================

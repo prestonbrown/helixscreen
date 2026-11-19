@@ -166,11 +166,12 @@ namespace helix {
 /// Four lanes, gcode captured, driven only by fed status frames.
 class AfcStatusDispatchHelper : public AmsBackendAfc {
   public:
-    AfcStatusDispatchHelper() : AmsBackendAfc(nullptr, nullptr) {
+    explicit AfcStatusDispatchHelper(std::vector<std::string> names = {"lane1", "lane2", "lane3",
+                                                                       "lane4"})
+        : AmsBackendAfc(nullptr, nullptr) {
         // initialize_slots() gives every lane mapped_tool == slot_index and
         // status UNKNOWN, which is what a freshly subscribed backend holds
         // before the per-lane AFC_stepper frames land.
-        std::vector<std::string> names{"lane1", "lane2", "lane3", "lane4"};
         AfcTestAccess::initialize_slots(*this, names);
         running_ = true;
     }
@@ -417,5 +418,42 @@ TEST_CASE("Per-extruder actions resolve names discovered from the status payload
 
         REQUIRE(bare.execute_device_action("led_extruder"));
         CHECK(bare.sent("AFC_SET_EXTRUDER_LED EXTRUDER=extruder TURN_ON=1"));
+    }
+}
+
+TEST_CASE("AFC toolchanger: Reforge's Creator 5 is one standalone lane per head",
+          "[ams][afc][toolchanger][reforge]") {
+    // Reforge's ff-afc.cfg (Klipper4FlashForge/firmware eda86c1): one
+    // [AFC_Toolchanger Tools] unit and an [AFC_extruder e<n>] per head with
+    // map T<n>. AFC builds the lane `e<n>` itself, in unit Tools, hub direct
+    // (AFC_extruder.py).
+    const std::vector<std::string> heads{"e0", "e1", "e2", "e3"};
+    AfcStatusDispatchHelper afc(heads);
+    nlohmann::json frame = {{"AFC",
+                             {{"current_state", "Idle"},
+                              {"units", {"Toolchanger Tools"}},
+                              {"lanes", heads},
+                              {"extruders", heads},
+                              {"hubs", nlohmann::json::array()}}},
+                            {"AFC_Toolchanger Tools", {{"lanes", heads}, {"extruders", heads}}}};
+    for (std::size_t i = 0; i < heads.size(); ++i) {
+        frame["AFC_lane " + heads[i]] = {{"unit", "Tools"},      {"hub", "direct"},
+                                         {"extruder", heads[i]}, {"map", "T" + std::to_string(i)},
+                                         {"prep", true},         {"load", true}};
+    }
+    afc.feed(frame);
+
+    REQUIRE(afc.get_system_info().total_slots == 4);
+    CHECK(afc.get_topology() == PathTopology::PARALLEL);
+
+    SECTION("a tool change mounts that T number's head through AFC") {
+        REQUIRE(afc.change_tool(2));
+        CHECK(afc.captured == std::vector<std::string>{"AFC_SELECT_TOOL TOOL=e2"});
+    }
+
+    SECTION("SET_MAP moves a T number to another head and the tool change follows") {
+        afc.feed({{"AFC_lane e2", {{"map", "T0"}}}, {"AFC_lane e0", {{"map", "T2"}}}});
+        REQUIRE(afc.change_tool(0));
+        CHECK(afc.captured == std::vector<std::string>{"AFC_SELECT_TOOL TOOL=e2"});
     }
 }

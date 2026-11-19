@@ -88,11 +88,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     process_lvgl(100);
     REQUIRE(lv_anim_get(spinner, nullptr) != nullptr);
 
-    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, true);
     process_lvgl(100);
     CHECK(lv_anim_get(spinner, nullptr) == nullptr);
 
-    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, false);
     lv_refr_now(nullptr);
     CHECK(lv_anim_get(spinner, nullptr) != nullptr);
     process_lvgl(100);
@@ -173,7 +173,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_refr_now(nullptr);
     process_lvgl(600); // mid-cycle: both edges have left their first-frame angles
-    lv_obj_add_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, true);
     process_lvgl(50);
     REQUIRE(lv_anim_get(spinner, nullptr) == nullptr);
 
@@ -183,7 +183,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(parked_start != 0);
     REQUIRE(parked_end != 45);
 
-    lv_obj_remove_flag(box, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(box, false);
     lv_refr_now(nullptr);
     REQUIRE(lv_anim_get(spinner, nullptr) != nullptr);
     CHECK(lv_arc_get_angle_start(spinner) == parked_start);

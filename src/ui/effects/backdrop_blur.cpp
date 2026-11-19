@@ -825,8 +825,8 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
     lv_image_set_src(img, result_buf);
     lv_image_set_inner_align(img, LV_IMAGE_ALIGN_STRETCH);
-    lv_obj_add_flag(img, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(img, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(img, true);
+    lv_obj_set_scrollable(img, false);
 
     // Free draw buffer when image is deleted
     lv_obj_add_event_cb(img, on_backdrop_image_deleted, LV_EVENT_DELETE, result_buf);
@@ -845,8 +845,8 @@ lv_obj_t* create_dim_layer(lv_obj_t* parent, lv_opa_t dim_opacity) {
     lv_obj_set_style_border_width(layer, 0, LV_PART_MAIN);
     lv_obj_set_style_radius(layer, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_all(layer, 0, LV_PART_MAIN);
-    lv_obj_add_flag(layer, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(layer, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(layer, true);
+    lv_obj_set_scrollable(layer, false);
     return layer;
 }
 
@@ -908,8 +908,8 @@ lv_obj_t* create_darkened_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
     lv_image_set_src(img, snapshot);
     lv_image_set_inner_align(img, LV_IMAGE_ALIGN_STRETCH);
-    lv_obj_add_flag(img, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(img, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(img, true);
+    lv_obj_set_scrollable(img, false);
 
     // Free draw buffer when image is deleted
     lv_obj_add_event_cb(img, on_backdrop_image_deleted, LV_EVENT_DELETE, snapshot);

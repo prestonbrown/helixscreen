@@ -330,7 +330,7 @@ void AmsPanel::init_subjects() {
         observe<int>(AmsState::instance().get_path_topology_subject(), this, path_handler,
                      AmsState::instance().get_subjects_lifetime());
 
-    // The path canvas's buffer box follows the buffer reading while the panel is open.
+    // The path canvas's buffer control follows the buffer reading while the panel is open.
     auto& ams_state = AmsState::instance();
     buffer_present_observer_ = observe<int>(ams_state.get_buffer_present_subject(), this,
                                             path_handler, ams_state.get_subjects_lifetime());
@@ -490,12 +490,6 @@ void AmsPanel::on_activate() {
     if (slot_count != current_slot_count_) {
         create_slots(slot_count);
     }
-
-    // path_container is shown unconditionally; bypass_row visibility is managed
-    // by bind_flag_if_eq on the ams_supports_bypass subject.
-    lv_obj_t* path_container = helix::ui::find_required(panel_, "path_container", get_name());
-    if (path_container)
-        lv_obj_remove_flag(path_container, LV_OBJ_FLAG_HIDDEN);
 
     // Re-read non-subject slot fields on reactivation. The MATERIAL label has no
     // backing subject (unlike color, which self-refreshes via sync_from_backend()
@@ -689,12 +683,10 @@ void AmsPanel::rebuild_backend_selector() {
     auto& ams = AmsState::instance();
     int count = ams.backend_count();
 
+    // The row hides itself below two backends (backend_count in ams_panel.xml).
     if (count <= 1) {
-        lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
         return;
     }
-
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
 
     // Clear existing children. rebuild_backend_selector runs from
     // backend_count_observer_ via object_lifetime_.defer (UpdateQueue batch). [L081]
@@ -824,7 +816,14 @@ void AmsPanel::create_slots(int count) {
 
     // Update tray
     ams_detail_update_tray(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits);
-    helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_);
+    // A unit too tall for its path is laid out again at the size that fits; the drawing
+    // scales with its spools only roughly, so it may take a second pass.
+    if (helix::ui::ams_detail_sync_lane_entry(path_canvas_, slot_grid_) &&
+        relayout_passes_ < kMaxRelayoutPasses) {
+        ++relayout_passes_;
+        create_slots(count);
+        --relayout_passes_;
+    }
 }
 
 void AmsPanel::setup_slot_path_observers(int slot_count) {
@@ -892,13 +891,28 @@ void AmsPanel::setup_path_canvas() {
     ui_filament_path_canvas_set_buffer_callback(path_canvas_, on_buffer_clicked, this);
 
     // Configure from backend using shared helper
-    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits);
+    relayout_if_capped(ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits));
 
     spdlog::debug("[{}] Path canvas setup complete", get_name());
 }
 
 void AmsPanel::update_path_canvas_from_backend() {
-    ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits);
+    relayout_if_capped(ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits));
+}
+
+void AmsPanel::relayout_if_capped(bool capped) {
+    // The path is set up from observers of the slots themselves, so the slots are made again
+    // only after the callback returns.
+    if (!capped || relayout_pending_)
+        return;
+    relayout_pending_ = true;
+    object_lifetime_.defer("AmsPanel::relayout_if_capped", [this]() {
+        relayout_pending_ = false;
+        if (!panel_)
+            return;
+        create_slots(current_slot_count_);
+        update_path_canvas_from_backend();
+    });
 }
 
 void AmsPanel::setup_bypass_spool() {
@@ -1000,7 +1014,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
     AmsBackend* backend = AmsState::instance().get_backend();
     if (!backend) {
         ui_endless_spool_arrows_clear(endless_arrows_);
-        lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -1008,7 +1021,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
     auto capabilities = backend->get_endless_spool_capabilities();
     if (!capabilities.available()) {
         ui_endless_spool_arrows_clear(endless_arrows_);
-        lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
@@ -1020,7 +1032,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
         helix::ui::endless_spool_marks(config, slot_count).empty()) {
         spdlog::trace("[{}] No endless spool backups configured - hiding arrows", get_name());
         ui_endless_spool_arrows_clear(endless_arrows_);
-        lv_obj_add_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
     spdlog::trace("[{}] Endless spool relation has {} group(s) over {} slots", get_name(),
@@ -1047,10 +1058,8 @@ void AmsPanel::update_endless_arrows_from_backend() {
     ui_endless_spool_arrows_set_slot_width(endless_arrows_, slot_width);
     ui_endless_spool_arrows_set_slot_overlap(endless_arrows_, overlap);
     ui_endless_spool_arrows_set_slot_offset(endless_arrows_, offset);
+    // Shows the widget: the relation draws at least one mark.
     ui_endless_spool_arrows_set_groups(endless_arrows_, config);
-
-    // Show the canvas
-    lv_obj_remove_flag(endless_arrows_, LV_OBJ_FLAG_HIDDEN);
 
     spdlog::debug("[{}] Endless arrows updated with {} slots", get_name(), slot_count);
 }
@@ -1084,7 +1093,8 @@ void AmsPanel::refresh_slots() {
     // early when canvas/backend is null) and never writes slot subjects, so it
     // can't recurse back into a slots_version bump.
     if (backend && info)
-        ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, backend, *info);
+        relayout_if_capped(
+            ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, backend, *info));
 }
 
 // ============================================================================
@@ -1101,11 +1111,11 @@ void AmsPanel::update_slot_colors() {
 
         if (i >= slot_count) {
             // Hide slots beyond configured count
-            lv_obj_add_flag(slot_widgets_[i], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(slot_widgets_[i], true);
             continue;
         }
 
-        lv_obj_remove_flag(slot_widgets_[i], LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(slot_widgets_[i], false);
 
         // Material and fill are no longer pushed here: the ams_slot widget
         // observes its own per-slot subjects (AmsState::get_slot_material_subject
@@ -1116,63 +1126,6 @@ void AmsPanel::update_slot_colors() {
         // container re-reads them imperatively. Only non-subject state (tool
         // badge, error indicator) is refreshed from the backend here.
         ui_ams_slot_refresh(slot_widgets_[i]);
-
-        // Update status indicator
-        update_slot_status(i);
-    }
-}
-
-void AmsPanel::update_slot_status(int slot_index) {
-    if (slot_index < 0 || slot_index >= kMaxVisibleSlots || !slot_widgets_[slot_index]) {
-        return;
-    }
-
-    int backend_idx = AmsState::instance().active_backend_index();
-    lv_subject_t* status_subject =
-        AmsState::instance().get_slot_status_subject(backend_idx, slot_index);
-    if (!status_subject) {
-        return;
-    }
-
-    auto status = static_cast<SlotStatus>(lv_subject_get_int(status_subject));
-
-    // Find status indicator icon within slot
-    lv_obj_t* status_icon = lv_obj_find_by_name(slot_widgets_[slot_index], "status_icon");
-    if (!status_icon) {
-        return;
-    }
-
-    // Update icon based on status
-    switch (status) {
-    case SlotStatus::EMPTY:
-        // Show empty indicator
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_30, 0);
-        break;
-
-    case SlotStatus::AVAILABLE:
-    case SlotStatus::FROM_BUFFER:
-        // Show filament available
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_100, 0);
-        break;
-
-    case SlotStatus::LOADED:
-        // Show loaded (highlighted)
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_100, 0);
-        break;
-
-    case SlotStatus::BLOCKED:
-        // Show error state
-        lv_obj_remove_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_set_style_opa(status_icon, LV_OPA_100, 0);
-        break;
-
-    case SlotStatus::UNKNOWN:
-    default:
-        lv_obj_add_flag(status_icon, LV_OBJ_FLAG_HIDDEN);
-        break;
     }
 }
 
@@ -1203,7 +1156,8 @@ void AmsPanel::on_bypass_spool_clicked(void* user_data) {
 
 void AmsPanel::handle_bypass_spool_click() {
     helix::ui::show_external_spool_menu(parent_screen_, path_canvas_, context_menu_,
-                                        helix::ui::sidebar_external_spool_hooks(sidebar_.get()));
+                                        helix::ui::sidebar_external_spool_hooks(sidebar_.get()),
+                                        /*at_tap=*/true);
 }
 
 void AmsPanel::on_buffer_clicked(void* user_data) {
@@ -1307,18 +1261,11 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AmsPanel] on_slot_clicked");
     auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
     if (self) {
-        // Capture click point from the input device while event is still active
-        lv_point_t click_pt = {0, 0};
-        lv_indev_t* indev = lv_indev_active();
-        if (indev) {
-            lv_indev_get_point(indev, &click_pt);
-        }
-
         // Use current_target (widget callback was registered on) not target (originally clicked
         // child)
         lv_obj_t* slot = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
         auto slot_index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)));
-        self->handle_slot_tap(slot_index, click_pt);
+        self->handle_slot_tap(slot_index);
     }
     LVGL_SAFE_EVENT_CB_END();
 }
@@ -1334,7 +1281,7 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
 // Action Handlers
 // ============================================================================
 
-void AmsPanel::handle_slot_tap(int slot_index, lv_point_t click_pt) {
+void AmsPanel::handle_slot_tap(int slot_index) {
     spdlog::info("[{}] Slot {} tapped", get_name(), slot_index);
 
     // Validate slot index against configured slot count
@@ -1347,7 +1294,7 @@ void AmsPanel::handle_slot_tap(int slot_index, lv_point_t click_pt) {
 
     // Show context menu near the tapped slot
     if (slot_index >= 0 && slot_index < kMaxVisibleSlots && slot_widgets_[slot_index]) {
-        show_context_menu(slot_index, slot_widgets_[slot_index], click_pt);
+        show_context_menu(slot_index, slot_widgets_[slot_index]);
     }
 }
 
@@ -1355,7 +1302,8 @@ void AmsPanel::handle_slot_tap(int slot_index, lv_point_t click_pt) {
 // Context Menu Management (delegates to helix::ui::open_slot_context_menu)
 // ============================================================================
 
-void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt) {
+void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget,
+                                 std::optional<lv_point_t> tap) {
     if (!parent_screen_ || !near_widget) {
         return;
     }
@@ -1370,7 +1318,7 @@ void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point
     host.log_tag = "[AmsPanel]";
     host.path_canvas = [this]() -> lv_obj_t* { return path_canvas_; };
     host.sidebar = [this] { return sidebar_.get(); };
-    helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, click_pt);
+    helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget, tap);
 }
 
 void AmsPanel::show_loading_error_modal() {
@@ -1399,7 +1347,8 @@ void AmsPanel::show_loading_error_modal() {
 
     // Get error details from backend
     AmsSystemInfo info = backend->get_system_info();
-    std::string error_message = info.operation_detail;
+    // A fixed phrase is stored as its catalog key; firmware text passes through.
+    std::string error_message = lv_tr(info.operation_detail.c_str());
     if (error_message.empty()) {
         error_message = lv_tr("An error occurred during filament loading.");
     }
@@ -1581,7 +1530,7 @@ AmsPanel& get_global_ams_panel() {
         AmsState::instance().init_subjects(true);
 
         // Create the panel on the active screen
-        lv_obj_t* screen = lv_scr_act();
+        lv_obj_t* screen = lv_screen_active();
         s_ams_panel_obj = helix::ui::create_xml_hidden(screen, "ams_panel");
 
         if (s_ams_panel_obj) {
@@ -1592,7 +1541,7 @@ AmsPanel& get_global_ams_panel() {
 
             // Setup the panel
             panel.setup(s_ams_panel_obj, screen);
-            lv_obj_add_flag(s_ams_panel_obj, LV_OBJ_FLAG_HIDDEN); // Hidden by default
+            lv_obj_set_hidden(s_ams_panel_obj, true); // Hidden by default
 
             // Kept alive between opens: building it is most of an open's cost on
             // slow hardware. Closing runs AmsPanel::on_closed(); memory pressure, a

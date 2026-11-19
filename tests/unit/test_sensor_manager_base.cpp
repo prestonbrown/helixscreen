@@ -296,7 +296,7 @@ TEST_CASE_METHOD(SensorManagerFixture,
 
     const int before = mgr.refresh_count;
     mgr.update_from_status(json{{"temperature_sensor chamber", {{"temperature", 33}}}});
-    lv_observer_remove(obs);
+    lv_observer_delete(obs);
 
     CHECK(ctx.fired);
     CHECK(role_of_name("temperature_sensor board") == kChamber);
@@ -511,7 +511,8 @@ TEST_CASE("Only managers that read config sections rediscover on the configfile 
     for (auto* m : sensor_managers()) {
         const std::string name = m->name();
         const bool reads_sections = name == "AccelSensorManager" || name == "ProbeSensorManager" ||
-                                    name == "InputSensorManager";
+                                    name == "InputSensorManager" ||
+                                    name == "TemperatureSensorManager";
         INFO(name);
         CHECK(m->rediscovers_on_config() == reads_sections);
     }

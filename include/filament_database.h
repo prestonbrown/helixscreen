@@ -448,8 +448,8 @@ struct MaterialComfortRange {
  *
  * The drying temperature and time that get_comfort_range() reports are NOT listed
  * here — they come from get_drying_presets_by_group(), which derives them from
- * the `types` table. Adding dry_temp/dry_time columns to this table would recreate the
- * third drying source that this layout exists to eliminate.
+ * the `types` table. Adding dry_temp/dry_time columns to this table would create a
+ * second, independent drying source, which this layout exists to prevent.
  */
 struct GroupHumidityRange {
     const char* group;

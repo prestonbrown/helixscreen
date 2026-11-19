@@ -371,7 +371,7 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(user_data[0] >= 2);     // At least one more notification
     REQUIRE(user_data[1] == 15050); // 150.5mm in centimm
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE_METHOD(FreshPrinterState,
@@ -403,7 +403,7 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(callback_count >= 2);
     REQUIRE(last_value == "xyz");
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE_METHOD(FreshPrinterState,
@@ -433,7 +433,7 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] == 150);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -678,8 +678,8 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(speed_count >= 2);
     REQUIRE(position_count == position_count_after_first);
 
-    lv_observer_remove(position_observer);
-    lv_observer_remove(speed_observer);
+    lv_observer_delete(position_observer);
+    lv_observer_delete(speed_observer);
 }
 
 TEST_CASE_METHOD(FreshPrinterState,
@@ -712,9 +712,9 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(count2 >= 2);
     REQUIRE(count3 >= 2);
 
-    lv_observer_remove(observer1);
-    lv_observer_remove(observer2);
-    lv_observer_remove(observer3);
+    lv_observer_delete(observer1);
+    lv_observer_delete(observer2);
+    lv_observer_delete(observer3);
 }
 
 // ============================================================================
@@ -836,5 +836,5 @@ TEST_CASE_METHOD(FreshPrinterState,
     REQUIRE(user_data[0] >= 2);     // At least one more notification
     REQUIRE(user_data[1] == 15050); // 150.5mm in centimm
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }

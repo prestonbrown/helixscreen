@@ -4,11 +4,13 @@
 #include "ui_print_select_list_view.h"
 
 #include "ui_panel_print_select.h" // For PrintFileData
-#include "ui_subject_registry.h"
 #include "ui_virtual_list.h"
 
 #include "core/gcode_filename.h"
+#include "core/subject.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -62,17 +64,17 @@ bool PrintSelectListView::setup(lv_obj_t* container, FileClickCallback on_file_c
 }
 
 void PrintSelectListView::clear_cached_state() {
-    // Deinitialize subjects - this properly removes all attached observers.
-    // We use lv_subject_deinit() instead of lv_observer_remove() because
+    // Reset subjects - this properly removes all attached observers.
+    // We reset each subject instead of calling lv_observer_delete() because
     // widget-bound observers can be auto-removed by LVGL when widgets are
     // deleted, leaving dangling pointers.
     if (lv_is_initialized()) {
         for (auto& data : list_data_pool_) {
             if (data) {
-                lv_subject_deinit(&data->filename_subject);
-                lv_subject_deinit(&data->size_subject);
-                lv_subject_deinit(&data->modified_subject);
-                lv_subject_deinit(&data->time_subject);
+                data->filename_subject.reset();
+                data->size_subject.reset();
+                data->modified_subject.reset();
+                data->time_subject.reset();
             }
         }
     }
@@ -130,8 +132,7 @@ void PrintSelectListView::init_pool() {
             static_cast<lv_obj_t*>(lv_xml_create(container_, "print_file_list_row", attrs));
 
         if (row) {
-            lv_obj_add_flag(
-                row, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, built once with its list
+            lv_obj_set_hidden(row, true); // XML_HIDDEN_OK: pooled row, built once with its list
 
             // Attach click handler ONCE at pool creation
             lv_obj_add_event_cb(row, on_row_clicked, LV_EVENT_CLICKED, this);
@@ -139,14 +140,12 @@ void PrintSelectListView::init_pool() {
             // Create per-row data with subjects
             auto data = std::make_unique<ListRowWidgetData>();
 
-            lv_subject_init_string(&data->filename_subject, data->filename_buf, nullptr,
-                                   sizeof(data->filename_buf), "");
-            lv_subject_init_string(&data->size_subject, data->size_buf, nullptr,
-                                   sizeof(data->size_buf), "--");
-            lv_subject_init_string(&data->modified_subject, data->modified_buf, nullptr,
-                                   sizeof(data->modified_buf), "--");
-            lv_subject_init_string(&data->time_subject, data->time_buf, nullptr,
-                                   sizeof(data->time_buf), "--");
+            data->filename_subject.init_string(data->filename_buf, nullptr,
+                                               sizeof(data->filename_buf), "");
+            data->size_subject.init_string(data->size_buf, nullptr, sizeof(data->size_buf), "--");
+            data->modified_subject.init_string(data->modified_buf, nullptr,
+                                               sizeof(data->modified_buf), "--");
+            data->time_subject.init_string(data->time_buf, nullptr, sizeof(data->time_buf), "--");
 
             lv_obj_t* filename_label =
                 helix::ui::find_required(row, "row_filename", "PrintSelectListView");
@@ -193,28 +192,6 @@ void PrintSelectListView::init_pool() {
     spdlog::debug("[PrintSelectListView] Pool initialized with {} rows", list_pool_.size());
 }
 
-void PrintSelectListView::create_spacers() {
-    if (!container_) {
-        return;
-    }
-
-    if (!leading_spacer_) {
-        leading_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(leading_spacer_);
-        lv_obj_remove_flag(leading_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(leading_spacer_, lv_pct(100));
-        lv_obj_set_height(leading_spacer_, 0);
-    }
-
-    if (!trailing_spacer_) {
-        trailing_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(trailing_spacer_);
-        lv_obj_remove_flag(trailing_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(trailing_spacer_, lv_pct(100));
-        lv_obj_set_height(trailing_spacer_, 0);
-    }
-}
-
 // ============================================================================
 // Row Configuration
 // ============================================================================
@@ -230,6 +207,8 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
         return;
     }
 
+    if (file.is_dir)
+        helix::gcode::note_displayed_filename(file.filename);
     std::string display_name =
         file.is_dir ? file.filename + "/" : strip_gcode_extension(file.filename);
 
@@ -237,7 +216,11 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
     // unchanged text and indicators must not redraw it.
     copy_string_if_changed(&data->filename_subject, display_name.c_str());
     copy_string_if_changed(&data->size_subject, file.size_str.c_str());
-    copy_string_if_changed(&data->modified_subject, file.modified_str.c_str());
+    const std::string modified =
+        file.modified_timestamp > 0
+            ? helix::display_format::format_modified_date(file.modified_timestamp)
+            : "";
+    copy_string_if_changed(&data->modified_subject, modified.c_str());
     copy_string_if_changed(&data->time_subject, file.print_time_str.c_str());
 
     // One status indicator for the file's history; directories have none.
@@ -245,7 +228,7 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
         file.is_dir ? FileHistoryStatus::NEVER_PRINTED : file.history_status;
     const auto show = [](lv_obj_t* obj, bool shown) {
         if (obj) {
-            lv_obj_set_flag(obj, LV_OBJ_FLAG_HIDDEN, !shown);
+            lv_obj_set_hidden(obj, !shown);
         }
     };
     show(data->status_printing_icon, status == FileHistoryStatus::CURRENTLY_PRINTING);
@@ -265,7 +248,7 @@ void PrintSelectListView::configure_row(lv_obj_t* row, size_t pool_index, size_t
     // Store file index for click handler
     lv_obj_set_user_data(row, reinterpret_cast<void*>(file_index));
 
-    lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(row, false);
 }
 
 // ============================================================================
@@ -289,7 +272,7 @@ void PrintSelectListView::populate(const std::vector<PrintFileData>& file_list,
         init_pool();
     }
 
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     // Cache row dimensions on first populate (after pool exists but before hiding all rows)
     // We need a visible, laid-out row to measure correctly
@@ -331,7 +314,7 @@ void PrintSelectListView::populate(const std::vector<PrintFileData>& file_list,
 void PrintSelectListView::update_visible(const std::vector<PrintFileData>& file_list) {
     if (!container_ || list_pool_.empty() || file_list.empty()) {
         for (auto* row : list_pool_) {
-            lv_obj_add_flag(row, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(row, true);
         }
         std::fill(list_pool_indices_.begin(), list_pool_indices_.end(), static_cast<ssize_t>(-1));
         if (container_) {
@@ -383,7 +366,7 @@ void PrintSelectListView::update_visible(const std::vector<PrintFileData>& file_
             configure_row(list_pool_[slot], slot, static_cast<size_t>(file_idx),
                           file_list[static_cast<size_t>(file_idx)]);
         },
-        [this](size_t slot) { lv_obj_add_flag(list_pool_[slot], LV_OBJ_FLAG_HIDDEN); });
+        [this](size_t slot) { lv_obj_set_hidden(list_pool_[slot], true); });
 
     visible_start_ = first_visible;
     visible_end_ = last_visible;
@@ -420,7 +403,7 @@ void PrintSelectListView::animate_entrance() {
     // Skip animation if disabled
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         for (lv_obj_t* row : list_pool_) {
-            if (!lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+            if (!lv_obj_is_hidden(row)) {
                 lv_obj_set_style_translate_y(row, 0, LV_PART_MAIN);
                 lv_obj_set_style_opa(row, LV_OPA_COVER, LV_PART_MAIN);
             }
@@ -433,7 +416,7 @@ void PrintSelectListView::animate_entrance() {
     for (size_t i = 0; i < list_pool_.size() && animated_count < kMaxAnimatedRows; i++) {
         lv_obj_t* row = list_pool_[i];
 
-        if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(row)) {
             continue;
         }
 

@@ -11,6 +11,7 @@
 
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "device_display_name.h"
 #include "favorite_macro_config.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -34,11 +35,11 @@
 namespace helix {
 
 namespace {
-lv_subject_t s_tab_subject{};
-lv_subject_t s_require_confirm_subject{};
+helix::Subject s_tab_subject{};
+helix::Subject s_require_confirm_subject{};
 /// 1 while the configured macro takes parameters (declared or free-form), so
 /// the Options tab shows the "Default Parameters" row only for those.
-lv_subject_t s_has_param_defaults_subject{};
+helix::Subject s_has_param_defaults_subject{};
 bool s_subjects_registered = false;
 SubjectManager s_subjects;
 
@@ -57,11 +58,11 @@ static constexpr size_t kCuratedIconCount = std::size(kCuratedIcons);
 void register_favorite_macro_config_subjects() {
     if (s_subjects_registered)
         return;
-    lv_subject_init_int(&s_tab_subject, 0);
+    s_tab_subject.init_int(0);
     // Default 1 mirrors FavoriteMacroConfig::require_confirmation, so the toggle
     // reads correctly even before on_show() loads a widget's config.
-    lv_subject_init_int(&s_require_confirm_subject, 1);
-    lv_subject_init_int(&s_has_param_defaults_subject, 0);
+    s_require_confirm_subject.init_int(1);
+    s_has_param_defaults_subject.init_int(0);
     s_subjects.publish("fav_macro_config_tab", &s_tab_subject);
     s_subjects.publish("fav_macro_require_confirm", &s_require_confirm_subject);
     s_subjects.publish("fav_macro_has_param_defaults", &s_has_param_defaults_subject);

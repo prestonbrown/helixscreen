@@ -418,10 +418,27 @@ TEST_CASE("a Creator 5 Pro is refused a release with no mips asset on the main t
     CHECK(shown.find("no build for the FlashForge Creator 5 Pro") != std::string::npos);
     CHECK(shown.find("v1.0.5") != std::string::npos);
 
-    // An error with no release attached keeps its own text.
-    UpdateCheckerTestAccess::report_result(checker, UpdateChecker::Status::Error, std::nullopt,
-                                           "boom");
-    helix::ui::UpdateQueue::instance().drain();
+    // new_version names the release on offer and is cleared by any other result; an
+    // error with no release attached keeps its own text.
+    UpdateChecker::ReleaseInfo offered;
+    offered.version = "9.9.9";
+    struct Report {
+        UpdateChecker::Status status;
+        std::optional<UpdateChecker::ReleaseInfo> info;
+        const char* error;
+        const char* new_version;
+    };
+    const Report reports[] = {
+        {UpdateChecker::Status::UpdateAvailable, offered, "", "9.9.9"},
+        {UpdateChecker::Status::UpToDate, std::nullopt, "", ""},
+        {UpdateChecker::Status::UpdateAvailable, offered, "", "9.9.9"},
+        {UpdateChecker::Status::Error, std::nullopt, "boom", ""},
+    };
+    for (const Report& r : reports) {
+        UpdateCheckerTestAccess::report_result(checker, r.status, r.info, r.error);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(std::string(lv_subject_get_string(checker.new_version_subject())) == r.new_version);
+    }
     CHECK(std::string(lv_subject_get_string(checker.version_text_subject())).find("boom") !=
           std::string::npos);
 
@@ -1376,7 +1393,7 @@ TEST_CASE("UpdateChecker get_platform_asset_name format", "[update_checker]") {
     checker.shutdown();
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires cached update",
+TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires a signed, cached update",
                  "[update_checker]") {
     auto& checker = UpdateChecker::instance();
     checker.init();
@@ -1386,17 +1403,15 @@ TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker download requires cached updat
     checker.start_download();
     REQUIRE(checker.get_download_status() == UpdateChecker::DownloadStatus::Error);
 
-    checker.shutdown();
-}
+    // A release the GitHub fallback found can announce an update, never install one.
+    checker.report_download_status(UpdateChecker::DownloadStatus::Idle, 0, "");
+    UpdateCheckerTestAccess::seed_available_update(checker, "9.9.9", "", false);
+    checker.start_download();
+    CHECK(checker.get_download_status() == UpdateChecker::DownloadStatus::Error);
+    CHECK(checker.get_download_error() == "The release list's signature could not be verified");
+    CHECK_FALSE(checker.download_in_flight());
 
-TEST_CASE("UpdateChecker cancel_download sets cancelled flag", "[update_checker]") {
-    auto& checker = UpdateChecker::instance();
-    checker.init();
-
-    checker.cancel_download();
-    // Verify it doesn't crash and state is not Downloading
-    REQUIRE(checker.get_download_status() != UpdateChecker::DownloadStatus::Downloading);
-
+    checker.clear_cache();
     checker.shutdown();
 }
 
@@ -2113,7 +2128,7 @@ TEST_CASE("platform table marks which platforms name printer hardware",
     }
 }
 
-TEST_CASE("mips platform validates MIPS32 LE and captures the AD5X zmod files",
+TEST_CASE("mips platform validates MIPS32 LE and captures both boards' files",
           "[update_checker][platform]") {
     const auto* p = helix::platform::find("mips");
     REQUIRE(p != nullptr);
@@ -2123,8 +2138,19 @@ TEST_CASE("mips platform validates MIPS32 LE and captures the AD5X zmod files",
 
     const auto* ad5x = helix::platform::find("ad5x");
     REQUIRE(ad5x != nullptr);
+    const auto* k1 = helix::platform::find("k1");
+    REQUIRE(k1 != nullptr);
     REQUIRE(!ad5x->diagnostic_files.empty());
-    REQUIRE(p->diagnostic_files == ad5x->diagnostic_files);
+    REQUIRE(!k1->diagnostic_files.empty());
+    for (const auto* board : {ad5x, k1}) {
+        for (const auto& path : board->diagnostic_files) {
+            INFO(path);
+            CHECK(std::find(p->diagnostic_files.begin(), p->diagnostic_files.end(), path) !=
+                  p->diagnostic_files.end());
+        }
+    }
+    CHECK(p->diagnostic_files.size() ==
+          ad5x->diagnostic_files.size() + k1->diagnostic_files.size());
 }
 
 TEST_CASE("elf_header_matches checks class, endianness and machine", "[update_checker][platform]") {
@@ -2937,7 +2963,7 @@ TEST_CASE_METHOD(GlobalPrintStateFixture,
 
     server.release();
     CHECK(wait_until_true([&] { return !checker.download_in_flight(); }, std::chrono::seconds(20)));
-    UpdateCheckerTestAccess::clear(checker);
+    checker.clear_cache();
     helix::ui::UpdateQueue::instance().drain();
     checker.shutdown();
 }
@@ -2966,7 +2992,7 @@ TEST_CASE_METHOD(GlobalPrintStateFixture,
     // socket closes the worker still has to unwind.
     server.release();
     CHECK(wait_until_true([&] { return !checker.download_in_flight(); }, std::chrono::seconds(20)));
-    UpdateCheckerTestAccess::clear(checker);
+    checker.clear_cache();
     helix::ui::UpdateQueue::instance().drain();
 }
 

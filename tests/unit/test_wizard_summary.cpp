@@ -14,7 +14,15 @@
  * On some platforms this corrupted the data, causing blank summary screens.
  */
 
-#include "ui_subject_registry.h"
+#include "ui_wizard_summary.h"
+#include "ui_wizard_telemetry.h"
+
+#include "../lvgl_ui_test_fixture.h"
+#include "config.h"
+#include "core/subject.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "system/subject_registry.h"
+#include "system_settings_manager.h"
 
 #include <cstring>
 #include <string>
@@ -25,132 +33,104 @@
 // Subject Macro Tests
 // ============================================================================
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING with separate pointers",
-          "[wizard][summary][subjects]") {
-    // This is the CORRECT usage pattern - source and dest are different
-    static lv_subject_t test_subject;
-    static char buffer[64];
-    const char* initial_value = "Test Value 123";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, initial_value, "test_subject_1");
-
-    // Verify the buffer contains the initial value
-    REQUIRE(std::string(buffer) == "Test Value 123");
-
-    // Verify the subject can retrieve the value
-    const char* retrieved = lv_subject_get_string(&test_subject);
-    REQUIRE(std::string(retrieved) == "Test Value 123");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING with c_str() from std::string",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "UI_SUBJECT_INIT_AND_REGISTER_STRING copies a separate source into the buffer",
+                 "[wizard][summary][subjects]") {
+    // Config values arrive as std::string::c_str(), never the buffer itself.
+    static helix::Subject test_subject;
     static char buffer[128];
-    std::string config_value = "FlashForge Adventurer 5M Pro";
-
-    // Pass the c_str() as initial_value, buffer as destination
-    // This is safe because they point to different memory
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, config_value.c_str(),
-                                        "test_subject_2");
-
-    REQUIRE(std::string(buffer) == "FlashForge Adventurer 5M Pro");
-    REQUIRE(std::string(lv_subject_get_string(&test_subject)) == "FlashForge Adventurer 5M Pro");
+    for (const std::string value : {"FlashForge Adventurer 5M Pro", "", "Unnamed Printer",
+                                    "Heater: extruder, Sensor: heater_bed"}) {
+        CAPTURE(value);
+        test_subject.reset();
+        UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, value.c_str(), "test_subject");
+        CHECK(std::string(buffer) == value);
+        CHECK(std::string(lv_subject_get_string(&test_subject)) == value);
+    }
 }
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING handles empty string",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
-    static char buffer[64];
-    std::string empty_value = "";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, empty_value.c_str(),
-                                        "test_subject_3");
-
-    REQUIRE(std::string(buffer) == "");
-    REQUIRE(std::string(lv_subject_get_string(&test_subject)) == "");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING handles default values",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
-    static char buffer[64];
-
-    // Simulate what happens when config returns a default
-    std::string default_value = "Unnamed Printer";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, default_value.c_str(),
-                                        "test_subject_4");
-
-    REQUIRE(std::string(buffer) == "Unnamed Printer");
-    REQUIRE(std::string(lv_subject_get_string(&test_subject)) == "Unnamed Printer");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_STRING handles special characters",
-          "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
-    static char buffer[128];
-
-    // Config values might contain special characters
-    std::string special_value = "Heater: extruder, Sensor: heater_bed";
-
-    UI_SUBJECT_INIT_AND_REGISTER_STRING(test_subject, buffer, special_value.c_str(),
-                                        "test_subject_5");
-
-    REQUIRE(std::string(buffer) == "Heater: extruder, Sensor: heater_bed");
-}
-
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_INT works correctly", "[wizard][summary][subjects]") {
-    static lv_subject_t test_subject;
+TEST_CASE_METHOD(LVGLTestFixture, "UI_SUBJECT_INIT_AND_REGISTER_INT works correctly",
+                 "[wizard][summary][subjects]") {
+    static helix::Subject test_subject;
 
     UI_SUBJECT_INIT_AND_REGISTER_INT(test_subject, 42, "test_int_subject");
 
     REQUIRE(lv_subject_get_int(&test_subject) == 42);
 }
 
-TEST_CASE("UI_SUBJECT_INIT_AND_REGISTER_INT visibility flag pattern",
-          "[wizard][summary][subjects]") {
-    // Test the visibility flag pattern used in wizard summary
-    static lv_subject_t visible_subject;
-    static lv_subject_t hidden_subject;
+// ============================================================================
+// Summary screen
+// ============================================================================
 
-    // Part fan visible (has a value)
-    std::string part_fan = "fan_generic part_fan";
-    int visible = (part_fan != "None") ? 1 : 0;
-    UI_SUBJECT_INIT_AND_REGISTER_INT(visible_subject, visible, "test_visible_1");
-    REQUIRE(lv_subject_get_int(&visible_subject) == 1);
+TEST_CASE_METHOD(LVGLUITestFixture, "Summary asks for telemetry only on the first printer",
+                 "[wizard][summary]") {
+    auto* cfg = Config::get_instance();
+    const nlohmann::json printers_before = cfg->get<nlohmann::json>("/printers", nlohmann::json());
+    auto* step = get_wizard_summary_step();
+    step->register_callbacks();
 
-    // LED strip not visible (set to "None")
-    std::string led_strip = "None";
-    int hidden = (led_strip != "None") ? 1 : 0;
-    UI_SUBJECT_INIT_AND_REGISTER_INT(hidden_subject, hidden, "test_visible_2");
-    REQUIRE(lv_subject_get_int(&hidden_subject) == 0);
+    auto row_shown = [&](const char* name) {
+        lv_obj_t* root = step->create(test_screen());
+        REQUIRE(root != nullptr);
+        lv_obj_t* obj = lv_obj_find_by_name(root, name);
+        REQUIRE(obj != nullptr);
+        const bool shown = !lv_obj_is_hidden(obj);
+        step->cleanup();
+        lv_obj_delete(root);
+        return shown;
+    };
+
+    nlohmann::json one = nlohmann::json::object();
+    one["default"] = nlohmann::json::object();
+    cfg->set<nlohmann::json>("/printers", one);
+    CHECK(row_shown("telemetry_opt_in_rows"));
+    CHECK(row_shown("telemetry_divider"));
+
+    nlohmann::json two = one;
+    two["second"] = nlohmann::json::object();
+    cfg->set<nlohmann::json>("/printers", two);
+    CHECK_FALSE(row_shown("telemetry_opt_in_rows"));
+    CHECK_FALSE(row_shown("telemetry_divider"));
+
+    cfg->set<nlohmann::json>("/printers", printers_before);
 }
 
-// ============================================================================
-// Moonraker Connection String Format Test
-// ============================================================================
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "The wizard's update channel row opens on the stored channel, wired to Settings'",
+                 "[wizard][summary][update_channel]") {
+    auto* cfg = Config::get_instance();
+    const nlohmann::json printers_before = cfg->get<nlohmann::json>("/printers", nlohmann::json());
+    nlohmann::json one = nlohmann::json::object();
+    one["default"] = nlohmann::json::object();
+    cfg->set<nlohmann::json>("/printers", one);
+    auto& system = helix::SystemSettingsManager::instance();
+    const int channel_before = system.get_update_channel();
+    system.set_update_channel(1); // Beta
 
-TEST_CASE("Moonraker connection string formatting", "[wizard][summary]") {
-    // Test the pattern used for moonraker_connection subject
-    std::string moonraker_host = "192.168.1.100";
-    int moonraker_port = 7125;
+    auto check_step = [&](helix::wizard::Step* step, const char* holder) {
+        CAPTURE(holder != nullptr);
+        // Each step registers the row's callback itself, whichever page opened first.
+        lv_xml_register_event_cb(nullptr, "on_about_update_channel_changed", nullptr);
+        REQUIRE(lv_xml_get_event_cb(nullptr, "on_about_update_channel_changed") == nullptr);
+        step->register_callbacks();
+        CHECK(lv_xml_get_event_cb(nullptr, "on_about_update_channel_changed") != nullptr);
+        lv_obj_t* root = step->create(test_screen());
+        REQUIRE(root != nullptr);
+        if (holder) {
+            // Asked beside the telemetry opt-in, which the first printer shows.
+            lv_obj_t* box = lv_obj_find_by_name(root, holder);
+            REQUIRE(box != nullptr);
+            CHECK_FALSE(lv_obj_is_hidden(box));
+        }
+        lv_obj_t* row = lv_obj_find_by_name(root, "row_update_channel");
+        REQUIRE(row != nullptr);
+        CHECK(lv_dropdown_get_selected(lv_obj_find_by_name(row, "dropdown")) == 1);
+        step->cleanup();
+        lv_obj_delete(root);
+    };
+    check_step(get_wizard_summary_step(), "telemetry_opt_in_rows");
+    check_step(get_wizard_telemetry_step(), nullptr);
 
-    std::string moonraker_connection;
-    if (moonraker_host != "Not configured") {
-        moonraker_connection = moonraker_host + ":" + std::to_string(moonraker_port);
-    } else {
-        moonraker_connection = "Not configured";
-    }
-
-    REQUIRE(moonraker_connection == "192.168.1.100:7125");
-
-    // Test default case
-    moonraker_host = "Not configured";
-    if (moonraker_host != "Not configured") {
-        moonraker_connection = moonraker_host + ":" + std::to_string(moonraker_port);
-    } else {
-        moonraker_connection = "Not configured";
-    }
-
-    REQUIRE(moonraker_connection == "Not configured");
+    system.set_update_channel(channel_before);
+    cfg->set<nlohmann::json>("/printers", printers_before);
 }

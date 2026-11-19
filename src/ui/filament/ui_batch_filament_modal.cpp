@@ -8,6 +8,7 @@
 #include "ams_types.h"
 #include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_op_execute.h"
@@ -31,8 +32,8 @@ namespace {
 // subjects): the XML tree bound to these outlives each one-shot instance's
 // exit animation, and an instance-owned subject would be deinit'd out from
 // under a live binding.
-lv_subject_t s_title_text{};
-lv_subject_t s_action_text{};
+helix::Subject s_title_text{};
+helix::Subject s_action_text{};
 std::string s_title_owned;
 std::string s_action_owned;
 bool s_direction_subjects_initialized = false;
@@ -42,8 +43,8 @@ void init_direction_subjects() {
     if (s_direction_subjects_initialized) {
         return;
     }
-    lv_subject_init_pointer(&s_title_text, nullptr);
-    lv_subject_init_pointer(&s_action_text, nullptr);
+    s_title_text.init_pointer(nullptr);
+    s_action_text.init_pointer(nullptr);
     s_subjects.publish("batch_filament_title_text", &s_title_text);
     s_subjects.publish("batch_filament_action_text", &s_action_text);
     s_direction_subjects_initialized = true;
@@ -84,8 +85,8 @@ bool BatchFilamentModal::show_owned(HeadPickOp op, Confirm on_confirm) {
         action = lv_tr("Unload");
         break;
     case HeadPickOp::Mount:
-        title = lv_tr("Mount which tool?");
-        action = lv_tr("Mount");
+        title = lv_tr("Pick up which tool?");
+        action = lv_tr("Pick up");
         break;
     case HeadPickOp::SeatByHand:
         title = lv_tr("Seat which tool by hand?");
@@ -110,6 +111,10 @@ bool BatchFilamentModal::show_owned(HeadPickOp op, Confirm on_confirm) {
     return true;
 }
 
+bool BatchFilamentModal::show_select_all(size_t enabled_rows, size_t cap, bool single_select) {
+    return !single_select && enabled_rows >= 2 && (cap == 0 || cap >= enabled_rows);
+}
+
 std::vector<int> BatchFilamentModal::selected_slots(const std::vector<std::string>& keys) {
     std::vector<int> slots;
     slots.reserve(keys.size());
@@ -129,8 +134,18 @@ namespace {
 /// What is in the lane and where it stands, or empty when nothing can be said.
 std::string contents_suffix(const SlotInfo& info, std::optional<bool> present, bool at_toolhead) {
     if (!info.material.empty()) {
-        const char* where = at_toolhead ? lv_tr("loaded") : lv_tr("ready to load");
-        return " (" + info.material + " - " + where + ")"; // material: no i18n
+        // Readiness is the sensor's to claim: with no reading, name the
+        // material alone.
+        const char* where = nullptr;
+        if (at_toolhead) {
+            where = lv_tr("loaded");
+        } else if (present) {
+            where = *present ? lv_tr("ready to load") : lv_tr("empty");
+        }
+        if (!where) {
+            return " (" + info.material + ")"; // material: no i18n
+        }
+        return " (" + info.material + " - " + where + ")";
     }
     if (present && !*present) {
         return std::string(" (") + lv_tr("Empty") + ")";
@@ -227,6 +242,11 @@ void BatchFilamentModal::on_show() {
         items.push_back(
             {std::to_string(row.head), head_row_label(text), row.preselected, row.enabled});
     }
+    const auto enabled_rows = static_cast<size_t>(std::count_if(
+        rows_.begin(), rows_.end(), [](const HeadPickRow& row) { return row.enabled; }));
+    const auto cap = static_cast<size_t>(std::max(view.max_heads_per_op, 1));
+    multiselect_.set_select_all_label(
+        show_select_all(enabled_rows, cap, single_select(op_)) ? lv_tr("All") : "");
     multiselect_.attach(container);
     multiselect_.set_max_selected(
         single_select(op_) ? 1 : static_cast<size_t>(std::max(view.max_heads_per_op, 1)));

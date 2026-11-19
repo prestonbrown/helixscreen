@@ -14,6 +14,7 @@
 #include "core/gcode_filename.h"
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "gcode_edit_list.h"
@@ -311,7 +312,7 @@ bool PrintPreparationManager::restart_stale_macro_analysis() {
 
 void PrintPreparationManager::ensure_estimate_subject_initialized() {
     if (!estimate_subject_initialized_) {
-        lv_subject_init_int(&preprint_estimate_subject_, 0);
+        preprint_estimate_subject_.init_int(0);
         subjects_.register_subject(&preprint_estimate_subject_);
         estimate_subject_initialized_ = true;
     }
@@ -339,10 +340,10 @@ void PrintPreparationManager::recalculate_estimate(const FileMetadata* file_meta
     }
 
     auto& temps = printer_state_->temperature_state();
-    const float ext_temp = helix::ui::temperature::deci_to_degrees_f(
+    const float ext_temp = helix::temperature_rules::deci_to_degrees_f(
         lv_subject_get_int(temps.get_active_extruder_temp_subject()));
-    const float bed_temp =
-        helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temps.get_bed_temp_subject()));
+    const float bed_temp = helix::temperature_rules::deci_to_degrees_f(
+        lv_subject_get_int(temps.get_bed_temp_subject()));
     const auto nozzle_target = static_cast<float>(file_metadata->first_layer_extr_temp);
     const auto bed_target = static_cast<float>(file_metadata->first_layer_bed_temp);
 
@@ -2144,8 +2145,7 @@ void PrintPreparationManager::modify_and_print(
                          std::strerror(errno));
         }
         if (!result.success) {
-            helix::ui::notify_error_tr(TR_NOOP("Failed to modify G-code: {}"),
-                                       result.error_message);
+            helix::notify_error_tr(TR_NOOP("Failed to modify G-code: {}"), result.error_message);
             return RewriteResult{RewriteResult::Kind::Failed, {}};
         }
         spdlog::info("[PrintPreparationManager] Modification complete ({} lines modified)",
@@ -2215,7 +2215,7 @@ void PrintPreparationManager::modify_and_print_with_remap(
         // take the same exit.
         if (helix::text_io::file_size(download_path).value_or(0) == 0) {
             hfs::remove(download_path);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to read G-code for Filament Mapping"));
+            helix::notify_error_tr(TR_NOOP("Failed to read G-code for Filament Mapping"));
             return RewriteResult{RewriteResult::Kind::Failed, {}};
         }
 
@@ -2234,8 +2234,8 @@ void PrintPreparationManager::modify_and_print_with_remap(
 
         if (!rewrite) {
             hfs::remove(modified_path);
-            helix::ui::notify_error_tr(TR_NOOP("Failed to rewrite G-code for Filament Mapping: {}"),
-                                       std::string("could not write ") + modified_path);
+            helix::notify_error_tr(TR_NOOP("Failed to rewrite G-code for Filament Mapping: {}"),
+                                   std::string("could not write ") + modified_path);
             return RewriteResult{RewriteResult::Kind::Failed, {}};
         }
         // Identity remap (nothing changes): print the original directly,
@@ -2373,7 +2373,7 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
                         if (space == storage::UploadSpace::TooFull) {
                             BusyOverlay::hide();
                             hfs::remove(modified_path);
-                            helix::ui::notify_error_tr(storage::kNoUploadSpaceMessage);
+                            helix::notify_error_tr(storage::kNoUploadSpaceMessage);
                             abandon_start("no_upload_space", on_completion);
                             return;
                         }
@@ -2408,7 +2408,7 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
                              on_completion](const MoonrakerError& error) {
                                 queue_busy_hide();
                                 hfs::remove(modified_path);
-                                helix::ui::notify_error_tr(job->upload_error, error);
+                                helix::notify_error_tr(job->upload_error, error);
                                 LOG_ERROR_INTERNAL("[PrintPreparationManager] Upload failed: {}",
                                                    error.message);
                                 token.defer("PrintPreparationManager::upload_fail_clear_progress",
@@ -2427,7 +2427,7 @@ void PrintPreparationManager::rewrite_and_print(RewriteRoute route,
         [this, token, job, on_completion](const MoonrakerError& error) {
             queue_busy_hide();
             hfs::remove(job->local_download_path);
-            helix::ui::notify_error_tr(job->download_error, error);
+            helix::notify_error_tr(job->download_error, error);
             LOG_ERROR_INTERNAL("[PrintPreparationManager] Download failed for {}: {}",
                                job->file_path, error.message);
             token.defer(
@@ -2505,8 +2505,7 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                             return;
                         }
                         queue_busy_hide();
-                        helix::ui::notify_error_tr(storage::print_start_failure_tag(error.code),
-                                                   error);
+                        helix::notify_error_tr(storage::print_start_failure_tag(error.code), error);
                         LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for "
                                            "{}: {}",
                                            remote_temp_path, error.message);
@@ -2583,7 +2582,7 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                                     return;
                                 }
                                 queue_busy_hide();
-                                helix::ui::notify_error_tr(
+                                helix::notify_error_tr(
                                     TR_NOOP("The printer did not confirm the print started ({}). "
                                             "It may still start: check the printer before "
                                             "starting it again."),
@@ -2596,7 +2595,7 @@ void PrintPreparationManager::start_staged_print(std::shared_ptr<const RewriteRo
                 return;
             case gcode::EditedPrintFailure::Refused:
                 queue_busy_hide();
-                helix::ui::notify_error_tr(storage::print_start_failure_tag(error.code), error);
+                helix::notify_error_tr(storage::print_start_failure_tag(error.code), error);
                 LOG_ERROR_INTERNAL("[PrintPreparationManager] print_edited refused for {}: {}",
                                    job->file_path, error.message);
                 break;
@@ -2697,17 +2696,17 @@ PrintPreparationManager::rewrite_archive_plate(const RewriteRoute& job) {
             gcode::GCodeFileModifier::generate_temp_path(gcode::get_filename_basename(
                 three_mf::extracted_gcode_name(job.file_path, job.archive_plate, true)));
         if (out.empty()) {
-            helix::ui::notify_error_tr(TR_NOOP("Could not extract plate {} of {}: {}"),
-                                       job.archive_plate, job.file_path,
-                                       std::string("no temp directory"));
+            helix::notify_error_tr(TR_NOOP("Could not extract plate {} of {}: {}"),
+                                   job.archive_plate, job.file_path,
+                                   std::string("no temp directory"));
             return {};
         }
         const zip::ZipError err =
             three_mf::ThreeMfReader::extract_plate(job.local_download_path, job.archive_plate, out);
         if (err != zip::ZipError::None) {
-            helix::ui::notify_error_tr(TR_NOOP("Could not extract plate {} of {}: {}"),
-                                       job.archive_plate, job.file_path,
-                                       std::string(zip::zip_error_name(err)));
+            helix::notify_error_tr(TR_NOOP("Could not extract plate {} of {}: {}"),
+                                   job.archive_plate, job.file_path,
+                                   std::string(zip::zip_error_name(err)));
             return {};
         }
         return out;
@@ -2841,7 +2840,7 @@ void PrintPreparationManager::start_print_directly(const std::string& filename,
                     if (held_unanswered(ps, epoch, error)) {
                         return;
                     }
-                    helix::ui::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);
+                    helix::notify_error_tr(TR_NOOP("Failed to start print: {}"), error);
                     LOG_ERROR_INTERNAL("[PrintPreparationManager] Print start failed for {}: {} "
                                        "({})",
                                        filename, error.message, error.get_type_string());

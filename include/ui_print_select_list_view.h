@@ -5,6 +5,8 @@
 
 #include "ui_container_delete_net.h"
 
+#include "core/subject.h"
+
 #include <functional>
 #include <lvgl.h>
 #include <memory>
@@ -33,16 +35,16 @@ namespace helix::ui {
  * @brief Per-row widget data for declarative text binding
  */
 struct ListRowWidgetData {
-    lv_subject_t filename_subject{};
+    helix::Subject filename_subject{};
     char filename_buf[128] = {0};
 
-    lv_subject_t size_subject{};
+    helix::Subject size_subject{};
     char size_buf[16] = {0};
 
-    lv_subject_t modified_subject{};
+    helix::Subject modified_subject{};
     char modified_buf[32] = {0};
 
-    lv_subject_t time_subject{};
+    helix::Subject time_subject{};
     char time_buf[32] = {0};
 
     // Observer handles (saved for cleanup before DELETE)
@@ -77,7 +79,7 @@ class PrintSelectListView : public ContainerDeleteNet {
     PrintSelectListView();
     ~PrintSelectListView();
 
-    // Non-copyable, movable
+    // Non-copyable
     PrintSelectListView(const PrintSelectListView&) = delete;
     PrintSelectListView& operator=(const PrintSelectListView&) = delete;
     // Non-movable: the container's LV_EVENT_DELETE net is keyed to this
@@ -120,7 +122,8 @@ class PrintSelectListView : public ContainerDeleteNet {
      * @param file_list Reference to file data vector
      * @param preserve_scroll If true, preserve scroll position; otherwise reset to top
      *
-     * Resets scroll position and visible range, then updates visible rows.
+     * Resets the visible range, updates visible rows, then restores the scroll
+     * position or resets it to the top.
      */
     void populate(const std::vector<PrintFileData>& file_list, bool preserve_scroll = false);
 
@@ -186,19 +189,14 @@ class PrintSelectListView : public ContainerDeleteNet {
     void init_pool();
     void configure_row(lv_obj_t* row, size_t pool_index, size_t file_index,
                        const PrintFileData& file);
-    void create_spacers();
-
     /// Drop every cached pointer/counter WITHOUT touching any widget. Safe to
     /// run while the tree those pointers refer to is mid-deletion.
     void clear_cached_state();
 
-    /// ContainerDeleteNet: the watched tree died — drop the pool
-    /// before its pointers dangle.
+    /// ContainerDeleteNet: the tree the pool was built under is being deleted
+    /// (panel rebuild, teardown, shutdown). Drop the pool before its pointers
+    /// dangle; it must not outlive the tree (prestonbrown/helixscreen#1396).
     void on_netted_container_destroyed() override;
-
-    /// LV_EVENT_DELETE net on the container: the tree the pool was built under
-    /// is being deleted (panel rebuild, teardown, shutdown). The pool must not
-    /// outlive it (prestonbrown/helixscreen#1396).
 
     // === Static Callbacks ===
     static void on_row_clicked(lv_event_t* e);

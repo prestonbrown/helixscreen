@@ -319,7 +319,7 @@
                     <div class="attr"><code>inner_align</code> <span class="type">enum</span> <span class="hint">within bounds</span></div>
                     <div class="attr"><code>pivot</code> <span class="type">x y</span> <span class="hint">rotation center</span></div>
                 </div>
-                <div class="enum-values">inner_align: center, stretch, tile, top_*, bottom_*</div>
+                <div class="enum-values">inner_align: center, stretch, tile, contain, contain_downscale, cover, top_*, bottom_*</div>
                 <div class="note"><strong>⚠️ zoom doesn't exist!</strong> Use scale_x/scale_y</div>
             </div>
 
@@ -455,8 +455,9 @@
                     <div class="attr"><code>style_text_letter_space</code> <span class="hint">kerning</span></div>
                     <div class="attr"><code>style_text_line_space</code> <span class="hint">leading</span></div>
                     <div class="attr"><code>style_text_decor</code></div>
+                    <div class="attr"><code>style_text_leading_trim</code> <span class="hint">glyph-tight box</span></div>
                 </div>
-                <div class="enum-values">align: left, right, center, auto | decor: none, underline, strikethrough</div>
+                <div class="enum-values">align: left, right, center, auto | decor: none, underline, strikethrough | leading_trim: none, capital_baseline, lower_baseline, capital, lower</div>
             </div>
 
             <!-- Border & Shadow -->

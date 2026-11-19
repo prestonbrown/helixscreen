@@ -1,0 +1,122 @@
+[
+ {
+  "fmt": "[FavoriteMacroConfigModal] Selected color: 0x{:06X}",
+  "line": "$AgAB+KzRAQ",
+  "text": "[FavoriteMacroConfigModal] Selected color: 0x1A2B3C",
+  "token": 0
+ },
+ {
+  "fmt": "[GCode::Builder]     Raw toolpath segments:    {:>8}",
+  "line": "$AjkCwMQH",
+  "text": "[GCode::Builder]     Raw toolpath segments:      123456",
+  "token": 57
+ },
+ {
+  "fmt": "[SPIN] start={:3d} end={:3d} sweep={:3d} [range: {:3d}-{:3d}]",
+  "line": "$AoIBAQoBswEBnAQBAAHQBQ",
+  "text": "[SPIN] start=  5 end=-90 sweep=270 [range:   0-360]",
+  "token": 130
+ },
+ {
+  "fmt": "[MoonrakerClientMock] SET_FAN_SPEED FAN={} SPEED={:.2f}",
+  "line": "$AskBBwhwYXJ0X2ZhbgMAAAAAAADgPw",
+  "text": "[MoonrakerClientMock] SET_FAN_SPEED FAN=part_fan SPEED=0.50",
+  "token": 201
+ },
+ {
+  "fmt": "[K2StockSource] capable: poll every {} s at prob >= {:.3}",
+  "line": "$AqwCATwDAAAAAAAA6j8",
+  "text": "[K2StockSource] capable: poll every 30 s at prob >= 0.812",
+  "token": 300
+ },
+ {
+  "fmt": "[LabelPrinterSettings] set_usb_vid(0x{:04x})",
+  "line": "$Ap8DAsOWAQ",
+  "text": "[LabelPrinterSettings] set_usb_vid(0x4b43)",
+  "token": 415
+ },
+ {
+  "fmt": "[MoonrakerClientMock] T{} offsets calibrated: x={:.4f} y={:.4f} z={:.4f}",
+  "line": "$Av9/AQIDmpmZmZmZib8DboYb8PkhCUAEAAAAAA",
+  "text": "[MoonrakerClientMock] T1 offsets calibrated: x=-0.0125 y=3.1416 z=0.0000",
+  "token": 16383
+ },
+ {
+  "fmt": "[Fbdev Backend] Cleared framebuffer to 0x{:08X} ({}x{}, {}bpp)",
+  "line": "$AoCAAQKAgID4DwHADAHABwFA",
+  "text": "[Fbdev Backend] Cleared framebuffer to 0xFF000000 (800x480, 32bpp)",
+  "token": 16384
+ },
+ {
+  "fmt": "{} Refusing homing G-code during active print (state={}): '{}'",
+  "line": "$AvCiBAcHW0djb2RlXQcIcHJpbnRpbmcHA0cyOA",
+  "text": "[Gcode] Refusing homing G-code during active print (state=printing): 'G28'",
+  "token": 70000
+ },
+ {
+  "fmt": "[BeltDsp] {}-point PSD at {} Hz bandwidth took {:.1f} ms - {}",
+  "line": "$AvGiBAGAQAMAAAAAAACpQAQfhUVBBQE",
+  "text": "[BeltDsp] 4096-point PSD at 3200 Hz bandwidth took 12.3 ms - true",
+  "token": 70001
+ },
+ {
+  "fmt": "[Moonraker API] {}: {}",
+  "line": "$AvKiBAcUcHJpbnRlci5nY29kZS5zY3JpcHQHJ0tsaXBwZXIgcmVwb3J0czogIk11c3QgaG9tZSBheGlzIGZpcnN0Ig",
+  "text": "[Moonraker API] printer.gcode.script: Klipper reports: \"Must home axis first\"",
+  "token": 70002
+ },
+ {
+  "fmt": "[Temp] extruder {}°C target {} ({:+} / {:+.1f})",
+  "line": "$AvOiBAMAAAAAAPBqQAMAAAAAAABZQAEKAwAAAAAAAALA",
+  "text": "[Temp] extruder 215.5°C target 100 (+5 / -2.2)",
+  "token": 70003
+ },
+ {
+  "fmt": "flag={} c={} min={} max={}",
+  "line": "$AvSiBAUABngB////////////AQL///////////8B",
+  "text": "flag=false c=x min=-9223372036854775808 max=18446744073709551615",
+  "token": 70004
+ },
+ {
+  "fmt": "ratio={} eps={} big={} third={}",
+  "line": "$AvWiBATNzMw9A0ivvJry13o+A0CMtXgdrxVEA1VVVVVVVdU/",
+  "text": "ratio=0.1 eps=1e-07 big=1e+20 third=0.3333333333333333",
+  "token": 70005
+ },
+ {
+  "fmt": "nan={} inf={} neg0={}",
+  "line": "$AvaiBAMAAAAAAAD4fwMAAAAAAADw/wMAAAAAAAAAgA",
+  "text": "nan=nan inf=-inf neg0=-0",
+  "token": 70006
+ },
+ {
+  "fmt": "braces {{literal}} {1} before {0}",
+  "line": "$AveiBAcBYQcBYg",
+  "text": "braces {literal} b before a",
+  "token": 70007
+ },
+ {
+  "fmt": "[{:>{}}|{:<6}|{:^7}|{:*^9}]",
+  "line": "$AviiBAcBeAEIBwJhYgcDbWlkAVQ",
+  "text": "[   x|ab    |  mid  |***42****]",
+  "token": 70008
+ },
+ {
+  "fmt": "ptr={} hex={:#x} oct={:o} bin={:b}",
+  "line": "$AvmiBAmAwKL+AwH+AwEQAgU",
+  "text": "ptr=0x3fc8a000 hex=0xff oct=10 bin=101",
+  "token": 70009
+ },
+ {
+  "fmt": "byte={} short={} char-as-int={:d}",
+  "line": "$AvqiBALIAQHXBAZB",
+  "text": "byte=200 short=-300 char-as-int=65",
+  "token": 70010
+ },
+ {
+  "fmt": "no arguments at all",
+  "line": "$AvuiBA",
+  "text": "no arguments at all",
+  "token": 70011
+ }
+]

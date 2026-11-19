@@ -3,6 +3,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/config_dir_guard.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "macro_manager.h"
 #include "moonraker_api.h"
@@ -10,15 +11,39 @@
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "signal_macro_names.h"
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <optional>
+#include <sstream>
 #include <thread>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
+
+namespace {
+
+bool is_word_char(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+}
+
+/// Occurrences of `name` with no word character on either side.
+int standalone_mentions(const std::string& text, const std::string& name) {
+    int n = 0;
+    for (size_t pos = text.find(name); pos != std::string::npos; pos = text.find(name, pos + 1)) {
+        const size_t end = pos + name.size();
+        if ((pos == 0 || !is_word_char(text[pos - 1])) &&
+            (end == text.size() || !is_word_char(text[end]))) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+} // namespace
 
 // ============================================================================
 // Test Fixtures
@@ -38,7 +63,7 @@ class MacroManagerTestFixture {
             {"gcode_macro HELIX_READY", "gcode_macro HELIX_ENDED", "gcode_macro HELIX_RESET",
              "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
              "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT",
-             "gcode_macro _HELIX_STATE", "bed_mesh"});
+             "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN", "bed_mesh"});
         hardware_.parse_objects(objects);
     }
 
@@ -230,66 +255,71 @@ TEST_CASE("MacroManager - a printer without HELIX_READY gets the hidden signal n
                      "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
 
     CHECK(MacroManager::macro_content_for(hidden) == content);
+    CHECK(content == MacroManager::get_macro_content());
 }
 
-TEST_CASE("MacroManager - a printer with HELIX_READY keeps every name its macros can call",
+TEST_CASE("MacroManager - a printer with HELIX_READY gets the hidden pack plus forwarders",
           "[config][content]") {
     PrinterDiscovery existing;
     existing.parse_objects(
         json::array({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT"}));
 
+    const std::string base = MacroManager::get_macro_content();
     const std::string content = MacroManager::macro_content_for(existing);
 
-    // A PRINT_START macro instrumented by HelixScreen 1.0 calls these directly,
-    // from lines it wrote into the macro itself. Our docs tell people to add
-    // HELIX_ENDED and HELIX_RESET by hand. No producer of this list exists in
-    // the tree, so it is enumerated here.
-    static const std::vector<std::string> called_names = {"HELIX_PHASE_HOMING",
-                                                          "HELIX_PHASE_QGL",
-                                                          "HELIX_PHASE_Z_TILT",
-                                                          "HELIX_PHASE_BED_MESH",
-                                                          "HELIX_PHASE_CLEANING",
-                                                          "HELIX_PHASE_PURGING",
-                                                          "HELIX_PHASE_HEATING_NOZZLE",
-                                                          "HELIX_PHASE_HEATING_BED",
-                                                          "HELIX_READY",
-                                                          "HELIX_ENDED",
-                                                          "HELIX_RESET"};
-
-    for (const auto& macro_name : called_names) {
-        INFO("existing printers call " << macro_name);
-        CHECK(content.find("[gcode_macro " + macro_name + "]") != std::string::npos);
-        CHECK(content.find("_" + macro_name) == std::string::npos);
-    }
-    // The state container is hidden on every printer.
-    CHECK(content.find("[gcode_macro _HELIX_STATE]") != std::string::npos);
+    // The base pack goes up unchanged, hidden names and all; the forwarders follow it.
+    REQUIRE(content.rfind(base, 0) == 0);
+    const std::string block = content.substr(base.size());
     CHECK(content.find("MACRO=_HELIX_STATE") != std::string::npos);
+
+    for (auto visible : signal_macros::kVisibleNames) {
+        const std::string name(visible);
+        INFO(name);
+        CHECK(base.find("[gcode_macro _" + name + "]") != std::string::npos);
+        CHECK(block.find("[gcode_macro " + name +
+                         "]\n"
+                         "description: HelixScreen alias for _" +
+                         name +
+                         "\n"
+                         "gcode:\n"
+                         "    RESPOND TYPE=command MSG=\"HELIX:ALIAS:" +
+                         name +
+                         "\"\n"
+                         "    _" +
+                         name + "\n") != std::string::npos);
+        // Outside its own header, description and announcement the visible
+        // spelling appears nowhere: every call in the pack goes to the hidden name.
+        CHECK(standalone_mentions(content, name) == 2);
+    }
 }
 
-TEST_CASE("MacroManager - with_visible_signal_names rewrites only the signal names",
-          "[config][content]") {
-    const std::string input = "[gcode_macro _HELIX_READY]\n"
-                              "    _HELIX_ENDED\n"
-                              "    _HELIX_RESET\n"
-                              "    _HELIX_PHASE_Z_TILT\n"
-                              "    _HELIX_READY\n"
-                              "MACRO=_HELIX_STATE\n"
-                              "_HELIX_PREP\n"
-                              "_HELIX_BASE_BED_MESH_CALIBRATE\n"
-                              "HELIX_START_PRINT\n"
-                              "RESPOND MSG=\"HELIX:READY\"\n";
+TEST_CASE("MacroManager - the forwarded content has one section per name", "[config][content]") {
+    PrinterDiscovery existing;
+    existing.parse_objects(json::array({"gcode_macro HELIX_READY"}));
 
-    CHECK(MacroManager::with_visible_signal_names(input) == "[gcode_macro HELIX_READY]\n"
-                                                            "    HELIX_ENDED\n"
-                                                            "    HELIX_RESET\n"
-                                                            "    HELIX_PHASE_Z_TILT\n"
-                                                            "    HELIX_READY\n"
-                                                            "MACRO=_HELIX_STATE\n"
-                                                            "_HELIX_PREP\n"
-                                                            "_HELIX_BASE_BED_MESH_CALIBRATE\n"
-                                                            "HELIX_START_PRINT\n"
-                                                            "RESPOND MSG=\"HELIX:READY\"\n");
-    CHECK(MacroManager::with_visible_signal_names("").empty());
+    // Klipper merges same-named sections, so a forwarder sharing a header with a
+    // pack section would turn into that section.
+    std::vector<std::string> headers;
+    std::istringstream in(MacroManager::macro_content_for(existing));
+    std::string line;
+    while (std::getline(in, line)) {
+        if (!line.empty() && line[0] == '[') {
+            headers.push_back(text_io::to_lower(line));
+        }
+    }
+    REQUIRE(headers.size() > signal_macros::kVisibleNames.size());
+    std::sort(headers.begin(), headers.end());
+    CHECK(std::adjacent_find(headers.begin(), headers.end()) == headers.end());
+}
+
+TEST_CASE("MacroManager - the forwarders leave the pack version alone", "[config][content]") {
+    PrinterDiscovery forwarded;
+    forwarded.parse_objects(
+        json::array({"gcode_macro HELIX_READY", "gcode_macro _HELIX_READY",
+                     "gcode_macro _HELIX_STATE", "gcode_macro _HELIX_PLAN",
+                     "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+
+    CHECK(MacroManager::evaluate_status(forwarded) == MacroInstallStatus::INSTALLED);
 }
 
 TEST_CASE("MacroManager - the hidden pack still reads as the current version",
@@ -297,12 +327,51 @@ TEST_CASE("MacroManager - the hidden pack still reads as the current version",
     // The pack's version is inferred from which macros exist, and a printer on
     // the hidden names must not be offered an update for lacking HELIX_READY.
     PrinterDiscovery hidden;
-    hidden.parse_objects(
-        json::array({"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY",
-                     "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
-                     "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+    hidden.parse_objects(json::array(
+        {"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY", "gcode_macro HELIX_START_PRINT",
+         "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+         "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN"}));
 
     CHECK(MacroManager::evaluate_status(hidden) == MacroInstallStatus::INSTALLED);
+}
+
+TEST_CASE("MacroManager - the pack carries the plan signals, hidden only", "[config][content]") {
+    const std::string pack = MacroManager::get_macro_content();
+    CHECK(pack.rfind("# helix_macros v2.2.0", 0) == 0);
+    for (const char* section :
+         {"_HELIX_PLAN", "_HELIX_PHASE_SOAKING", "_HELIX_PHASE_HEATING_CHAMBER"}) {
+        INFO(section);
+        CHECK(pack.find(std::string("[gcode_macro ") + section + "]") != std::string::npos);
+    }
+    CHECK(pack.find("variable_plan") != std::string::npos);
+
+    PrinterDiscovery visible;
+    visible.parse_objects(json::array({"gcode_macro HELIX_READY"}));
+    const std::string shipped = MacroManager::macro_content_for(visible);
+    CHECK(shipped.find("[gcode_macro _HELIX_PHASE_SOAKING]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro _HELIX_PHASE_HEATING_CHAMBER]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro _HELIX_PLAN]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro HELIX_PHASE_SOAKING]") == std::string::npos);
+    CHECK(shipped.find("[gcode_macro HELIX_PHASE_QGL]") != std::string::npos);
+    CHECK(shipped.find("[gcode_macro HELIX_PLAN]") == std::string::npos);
+}
+
+TEST_CASE("MacroManager - the plan macro marks the 2.2.0 pack", "[config][content]") {
+    auto discovered = [](std::vector<const char*> extra) {
+        json objects = json::array(
+            {"gcode_macro _HELIX_STATE", "gcode_macro _HELIX_READY",
+             "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
+             "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT"});
+        for (const char* name : extra) {
+            objects.push_back(name);
+        }
+        PrinterDiscovery hardware;
+        hardware.parse_objects(objects);
+        return hardware;
+    };
+    CHECK(MacroManager::evaluate_status(discovered({})) == MacroInstallStatus::OUTDATED);
+    CHECK(MacroManager::evaluate_status(discovered({"gcode_macro _HELIX_PLAN"})) ==
+          MacroInstallStatus::INSTALLED);
 }
 
 TEST_CASE("MacroManager - get_macro_names ignores a commented-out section header",
@@ -549,8 +618,9 @@ TEST_CASE_METHOD(MacroUploadFixture, "MacroManager - install reaches the upload 
     CHECK_FALSE(error->message.empty());
 }
 
-TEST_CASE_METHOD(MacroUploadFixture, "MacroManager - update reaches the upload step",
-                 "[config][install]") {
+TEST_CASE_METHOD(MacroUploadFixture,
+                 "MacroManager - update stops when the installed file cannot be read",
+                 "[config][install][timelapse]") {
     hardware_.parse_objects(
         json::array({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT",
                      "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
@@ -565,7 +635,8 @@ TEST_CASE_METHOD(MacroUploadFixture, "MacroManager - update reaches the upload s
 
     REQUIRE_FALSE(success_called);
     REQUIRE(error.has_value());
-    CHECK(error->method == "upload_file");
+    // It reads helix_macros.cfg first, so a regeneration never drops what that file carries.
+    CHECK(error->method == "download_file");
     CHECK(error->type == MoonrakerErrorType::CONNECTION_LOST);
     CHECK_FALSE(error->message.empty());
 }
@@ -633,7 +704,7 @@ TEST_CASE_METHOD(MacroStageFixture, "install_files stages the hidden signal name
     CHECK(macros->find("[gcode_macro HELIX_READY]") == std::string::npos);
 }
 
-TEST_CASE_METHOD(MacroStageFixture, "install_files keeps the visible names a printer has",
+TEST_CASE_METHOD(MacroStageFixture, "install_files forwards the visible names a printer has",
                  "[config][install]") {
     hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
 
@@ -642,13 +713,13 @@ TEST_CASE_METHOD(MacroStageFixture, "install_files keeps the visible names a pri
 
     auto macros = api_.get_uploaded_config("helix_macros.cfg");
     REQUIRE(macros.has_value());
-    CHECK(macros->find("[gcode_macro HELIX_READY]") != std::string::npos);
-    CHECK(macros->find("[gcode_macro _HELIX_READY]") == std::string::npos);
+    CHECK(macros->find("[gcode_macro _HELIX_READY]") != std::string::npos);
+    CHECK(macros->find(signal_macros::alias_block({"HELIX_READY"})) != std::string::npos);
 }
 
 TEST_CASE_METHOD(MacroStageFixture, "update_files keeps the signal names the printer has",
                  "[config][install]") {
-    SECTION("visible names stay visible") {
+    SECTION("visible names keep working through forwarders") {
         hardware_.parse_objects(
             json::array({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT"}));
 
@@ -657,8 +728,8 @@ TEST_CASE_METHOD(MacroStageFixture, "update_files keeps the signal names the pri
 
         auto macros = api_.get_uploaded_config("helix_macros.cfg");
         REQUIRE(macros.has_value());
-        CHECK(macros->find("[gcode_macro HELIX_READY]") != std::string::npos);
-        CHECK(macros->find("[gcode_macro _HELIX_READY]") == std::string::npos);
+        CHECK(macros->find("[gcode_macro _HELIX_READY]") != std::string::npos);
+        CHECK(macros->find(signal_macros::alias_block({"HELIX_READY"})) != std::string::npos);
     }
 
     SECTION("hidden names stay hidden") {
@@ -887,4 +958,107 @@ TEST_CASE_METHOD(MacroStageFixture, "a commented-out include is neither counted 
         CHECK(api_.get_uploaded_config("printer.cfg").value_or("") ==
               std::string("#[include helix_skips.cfg]\n") + kPrinterCfg);
     }
+}
+
+// ============================================================================
+// moonraker-timelapse's macros through helix_macros.cfg
+// ============================================================================
+
+namespace {
+constexpr const char* kTimelapseRepo = "/home/biqu/moonraker-timelapse";
+constexpr const char* kTimelapseLine =
+    "[include /home/biqu/moonraker-timelapse/klipper_macro/timelapse.cf[g]]";
+} // namespace
+
+TEST_CASE("the timelapse include names the checkout's file, never the config-root symlink",
+          "[config][timelapse]") {
+    // The config-root timelapse.cfg is a symlink into the checkout: a glob still
+    // matches it once the checkout is gone, and Klipper cannot open it.
+    CHECK(MacroManager::timelapse_include_line(kTimelapseRepo) == kTimelapseLine);
+
+    const std::string pack = "# helix_macros v2.0.0\n[gcode_macro HELIX_READY]\ngcode:\n";
+    const std::string with = MacroManager::with_timelapse_include(pack, kTimelapseLine);
+    CHECK(with.rfind(pack, 0) == 0);
+    CHECK(MacroManager::find_timelapse_include(with) == kTimelapseLine);
+    CHECK(MacroManager::with_timelapse_include(with, kTimelapseLine) == with);
+    CHECK_FALSE(MacroManager::has_timelapse_include(pack));
+    CHECK_FALSE(MacroManager::has_timelapse_include(std::string("#") + kTimelapseLine + "\n"));
+    CHECK_FALSE(MacroManager::has_timelapse_include("[include timelapse.cf[g]]\n"));
+    CHECK_FALSE(MacroManager::has_timelapse_include("[include timelapse.cfg]\n"));
+}
+
+TEST_CASE_METHOD(MacroStageFixture,
+                 "include_timelapse_macros adds the line to helix_macros.cfg only",
+                 "[config][install][timelapse]") {
+    const std::string pack = "# helix_macros v2.0.0\n[gcode_macro HELIX_READY]\ngcode:\n";
+    const std::string printer_cfg = std::string("[include helix_macros.cfg]\n") + kPrinterCfg;
+    api_.set_config_files({{"printer.cfg", printer_cfg}, {"helix_macros.cfg", pack}});
+
+    bool done = false;
+    std::optional<MoonrakerError> error;
+    manager_.include_timelapse_macros(
+        kTimelapseRepo, [&] { done = true; }, [&](const MoonrakerError& err) { error = err; });
+    settle();
+
+    REQUIRE_FALSE(error.has_value());
+    REQUIRE(done);
+    const std::string staged = api_.get_uploaded_config("helix_macros.cfg").value_or("");
+    CHECK(staged == MacroManager::with_timelapse_include(pack, kTimelapseLine));
+    CHECK(api_.get_uploaded_config("printer.cfg").value_or("") == printer_cfg);
+    CHECK(backup_count() == 0);
+
+    SECTION("a second run writes nothing new") {
+        done = false;
+        manager_.include_timelapse_macros(
+            kTimelapseRepo, [&] { done = true; }, [](const MoonrakerError&) {});
+        settle();
+        CHECK(done);
+        CHECK(api_.get_uploaded_config("helix_macros.cfg").value_or("") == staged);
+    }
+    SECTION("update_files keeps it in the regenerated pack") {
+        hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
+        bool updated = false;
+        manager_.update_files([&] { updated = true; }, [](const MoonrakerError&) {});
+        settle();
+        REQUIRE(updated);
+        const std::string regenerated = api_.get_uploaded_config("helix_macros.cfg").value_or("");
+        CHECK(regenerated.find("[gcode_macro HELIX_CLEAN_NOZZLE]") != std::string::npos);
+        CHECK(MacroManager::find_timelapse_include(regenerated) == kTimelapseLine);
+    }
+    SECTION("uninstall removes it with the file") {
+        manager_.uninstall([] {}, [](const MoonrakerError&) {});
+        settle();
+        const auto& deleted = api_.files_mock().deleted_files();
+        CHECK(std::find(deleted.begin(), deleted.end(), "config/helix_macros.cfg") !=
+              deleted.end());
+    }
+}
+
+TEST_CASE_METHOD(MacroStageFixture, "update_files adds no timelapse include the pack never had",
+                 "[config][install][timelapse]") {
+    hardware_.parse_objects(json::array({"gcode_macro HELIX_READY", "bed_mesh"}));
+    bool updated = false;
+    std::optional<MoonrakerError> error;
+    manager_.update_files([&] { updated = true; }, [&](const MoonrakerError& err) { error = err; });
+    settle();
+    // No installed helix_macros.cfg to read is a fresh printer: the update still lands.
+    REQUIRE_FALSE(error.has_value());
+    CHECK(updated);
+    const auto staged = api_.get_uploaded_config("helix_macros.cfg");
+    REQUIRE(staged.has_value());
+    CHECK(staged->find("[gcode_macro HELIX_READY]") != std::string::npos);
+    CHECK_FALSE(MacroManager::has_timelapse_include(*staged));
+}
+
+TEST_CASE_METHOD(MacroStageFixture, "include_timelapse_macros fails without a helix_macros.cfg",
+                 "[config][install][timelapse]") {
+    bool done = false;
+    std::optional<MoonrakerError> error;
+    manager_.include_timelapse_macros(
+        kTimelapseRepo, [&] { done = true; }, [&](const MoonrakerError& err) { error = err; });
+    settle();
+    CHECK_FALSE(done);
+    REQUIRE(error.has_value());
+    CHECK(error->type == MoonrakerErrorType::FILE_NOT_FOUND);
+    CHECK_FALSE(api_.get_uploaded_config("helix_macros.cfg").has_value());
 }

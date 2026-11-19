@@ -19,8 +19,8 @@
  * Each profile contains signal format mappings (exact prefix matching) and
  * regex response patterns, loaded from JSON config files.
  *
- * @see config/print_start_profiles/default.json - Generic patterns for unknown printers
- * @see config/print_start_profiles/forge_x.json - FlashForge AD5M Forge-X mod
+ * @see assets/config/print_start_profiles/default.json - Generic patterns for unknown printers
+ * @see assets/config/print_start_profiles/forge_x.json - FlashForge AD5M Forge-X mod
  */
 class PrintStartProfile {
     friend class PrintStartProfileTestAccess;
@@ -342,8 +342,8 @@ class PrintStartProfile {
     /// phase state. When set, the collector reads the declared field out of
     /// every status frame carrying the object and maps the state string to a
     /// phase through the state_patterns — the same matching pipeline a console
-    /// line takes. Absent declaration means exactly today's behavior: the
-    /// collector never consults status frames for phases.
+    /// line takes. Without a declaration the collector never consults status
+    /// frames for phases.
     bool has_phase_object() const {
         return !phase_object_name_.empty();
     }
@@ -389,7 +389,7 @@ class PrintStartProfile {
     // =========================================================================
 
     /// Rules declared under "status_signals", in file order. Empty for
-    /// profiles that declare none — which is exactly the pre-feature behavior.
+    /// profiles that declare none.
     const std::vector<StatusSignalRule>& status_signals() const {
         return status_signals_;
     }

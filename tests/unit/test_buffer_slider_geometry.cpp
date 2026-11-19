@@ -67,13 +67,13 @@ TEST_CASE("buffer_slider_geometry: the target window holds the block while on ta
     CHECK(off.y + off.h > g.target.y + g.target.h);
 }
 
-TEST_CASE("buffer_slider_geometry: the end stops cover block centres past the fault band",
+TEST_CASE("buffer_slider_geometry: the end stops cover block centres past the end-stop band",
           "[buffer][slider][geometry]") {
     const auto g = buffer_slider_geometry(0.0f, kW, kH);
     CHECK(g.danger_top.y == 9);
-    CHECK(g.danger_top.h == 20); // down to the centre at +0.7
-    CHECK(g.danger_bottom.y == 85);
-    CHECK(g.danger_bottom.h == 20);
+    CHECK(g.danger_top.h == 12); // down to the centre at +0.9
+    CHECK(g.danger_bottom.y == 93);
+    CHECK(g.danger_bottom.h == 12);
     CHECK(g.danger_top.x == 2);
     CHECK(g.danger_top.w == 20);
 }
@@ -135,27 +135,26 @@ TEST_CASE("buffer_trace_polylines: newest at x = 0, each reading a step",
 
 TEST_CASE("buffer_trace_polylines: each reading carries its own band",
           "[buffer][trace][geometry]") {
-    // Oldest to newest: danger, warning, ok. Each step is judged by its own
-    // reading, not by the newest one.
+    // Oldest to newest: at the end stop, off center, near center. Each step is judged by
+    // its own reading, not by the newest one.
     const std::vector<BufferTracePoint> w = {
-        {10000, -0.9f, true}, {40000, 0.5f, true}, {70000, 0.1f, true}};
+        {10000, -0.95f, true}, {40000, 0.5f, true}, {70000, 0.1f, true}};
     const auto lines = buffer_trace_polylines(w, 100000, 120, 100);
     REQUIRE(lines.size() == 1);
     const auto& l = lines[0];
     REQUIRE(l.size() == 6);
     CHECK(l[0].status == ClogMeterStatus::Ok);
     CHECK(l[1].status == ClogMeterStatus::Ok);
-    CHECK(l[2].status == ClogMeterStatus::Warning);
-    CHECK(l[3].status == ClogMeterStatus::Warning);
-    CHECK(l[4].status == ClogMeterStatus::Fault);
-    CHECK(l[5].status == ClogMeterStatus::Fault);
+    CHECK(l[2].status == ClogMeterStatus::Ok);
+    CHECK(l[3].status == ClogMeterStatus::Ok);
+    CHECK(l[4].status == ClogMeterStatus::Warning);
+    CHECK(l[5].status == ClogMeterStatus::Warning);
     // The hold at each reading takes that reading's band; the step between two
     // takes the worse.
     CHECK(buffer_trace_segment_status(l[0], l[1]) == ClogMeterStatus::Ok);
-    CHECK(buffer_trace_segment_status(l[1], l[2]) == ClogMeterStatus::Warning);
-    CHECK(buffer_trace_segment_status(l[2], l[3]) == ClogMeterStatus::Warning);
-    CHECK(buffer_trace_segment_status(l[3], l[4]) == ClogMeterStatus::Fault);
-    CHECK(buffer_trace_segment_status(l[4], l[5]) == ClogMeterStatus::Fault);
+    CHECK(buffer_trace_segment_status(l[2], l[3]) == ClogMeterStatus::Ok);
+    CHECK(buffer_trace_segment_status(l[3], l[4]) == ClogMeterStatus::Warning);
+    CHECK(buffer_trace_segment_status(l[4], l[5]) == ClogMeterStatus::Warning);
 }
 
 TEST_CASE("buffer_trace_polylines: a gap breaks the line", "[buffer][trace][geometry]") {

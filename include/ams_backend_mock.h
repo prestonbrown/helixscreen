@@ -102,11 +102,11 @@ class AmsBackendMock : public AmsBackend,
      *
      * Mirrors AmsBackendToolChanger::can_unload_from_toolhead(). Without this the
      * mock inherits AmsBackend's PARALLEL rule (slot.is_present()), which holds for
-     * every toolhead forever — so the context menu offered Unload on tools parked in
-     * their docks and, through decide_can_load()'s inverted `!toolhead_unload`
-     * factor, disabled Load on all of them. That is prestonbrown/helixscreen#1199,
-     * fixed in the real backend but never reproduced here, which left the fix
-     * unguarded against regression in every mock-driven check.
+     * every toolhead forever — so the context menu would offer Unload on tools
+     * parked in their docks and, through decide_can_load()'s inverted
+     * `!toolhead_unload` factor, disable Load on all of them
+     * (prestonbrown/helixscreen#1199). Mirroring the real backend keeps that fix
+     * guarded in every mock-driven check.
      *
      * Scoped to tool-changer mode: the mock also stands in for lane-based systems,
      * where the inherited LOADED-status rule is the correct one.
@@ -134,11 +134,16 @@ class AmsBackendMock : public AmsBackend,
 
     /**
      * @brief Test hook: make get_slot_for_extruder / tracks_consumption_natively() return
-     *        the given value. Test-only setter on the mock, not on a production backend
-     *        (per CLAUDE L065 the mock is test infrastructure).
+     *        the given value. Test-only setter on the mock, not on a production backend:
+     *        the mock is test infrastructure.
      */
     void set_tracks_consumption_natively_for_testing(bool value) {
         tracks_consumption_natively_ = value;
+    }
+
+    /// Test hook: answer firmware_owns_lane_identity() as a box-held backend does.
+    void set_firmware_owns_lane_identity_for_testing(bool value) {
+        firmware_owns_lane_identity_ = value;
     }
 
     /**
@@ -189,6 +194,8 @@ class AmsBackendMock : public AmsBackend,
     AmsError clear_fault(int slot_index) override;
     AmsError recover_with_state(const RecoverStateRequest& request) override;
     AmsError preload_lane(int slot_index) override;
+    [[nodiscard]] bool gate_marked_empty(int slot_index) const override;
+    AmsError mark_gate_available(int slot_index) override;
 
     // Gate select / check (Happy Hare selector-based systems only)
     AmsError select_gate(int slot_index) override;
@@ -245,6 +252,10 @@ class AmsBackendMock : public AmsBackend,
     /// Report as an Anycubic ACE, so screens that draw that unit can be exercised.
     void set_ace_identity();
 
+    /// Report as OpenAMS, so screens that draw its units (named by family, e.g. "AMS2") can be
+    /// exercised.
+    void set_openams_identity();
+
     [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
     AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
     /// Runs the same simulated cycle as start_drying(); the target is logged, not simulated.
@@ -271,8 +282,8 @@ class AmsBackendMock : public AmsBackend,
     // Endless spool. The mock keeps its edges in the SlotRegistry, so its config
     // is the same one-liner AFC uses. reset_endless_spool() is NOT overridden -
     // the base's clear-every-slot loop is exactly the behaviour the mock wants,
-    // and its absence is why the mock used to advertise editable=true while
-    // returning NOT_SUPPORTED from reset.
+    // and without it the mock would advertise editable=true while returning
+    // NOT_SUPPORTED from reset.
     /// @note Takes `mutex_`; callers must NOT hold it.
     [[nodiscard]] helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const override;
@@ -285,10 +296,10 @@ class AmsBackendMock : public AmsBackend,
     /// In Snapmaker mode that gate is AmsBackendSnapmaker::task_routing(): empty
     /// until a task is configured, because the U1's idle table is a firmware
     /// default and not a statement about any file. Returning the attachment map
-    /// there published a confident [0,1,2,3] the real machine never publishes,
+    /// there would publish a confident [0,1,2,3] the real machine never publishes,
     /// and FilamentMapper::effective_routing() takes any non-empty answer as the
-    /// truth - so every --test run resolved each tool to its own head index and
-    /// rehearsed a branch the hardware does not take.
+    /// truth - so every --test run would resolve each tool to its own head index
+    /// and rehearse a branch the hardware does not take.
     [[nodiscard]] std::vector<int> get_tool_mapping() const override;
     /// Four fixed heads in Snapmaker mode, lane-per-tool otherwise. The
     /// inherited identity agrees for T0-T3 and diverges from T4 up, which is
@@ -299,10 +310,8 @@ class AmsBackendMock : public AmsBackend,
     /// mode stands in for a backend that owns its tool->slot table and writes it
     /// directly (AFC, CFS, Happy Hare, QIDI, the tool changer).
     ///
-    /// It used to answer None for all of those while its retired capability
-    /// query answered "editable", which is the contradiction this pair of knobs
-    /// exists to stop. The cost was not cosmetic: every `can this backend remap`
-    /// gate was dead under --test, so the remap picker those five backends reach
+    /// Answering None for those modes would leave every `can this backend remap`
+    /// gate dead under --test, so the remap picker those five backends reach
     /// could not be opened in a mock run at all.
     [[nodiscard]] RemapStrategy get_remap_strategy() const override;
     [[nodiscard]] bool remap_ready() const override;
@@ -329,12 +338,6 @@ class AmsBackendMock : public AmsBackend,
     /// Emulate a firmware that picks each tool's lane itself at print time.
     void set_firmware_picks_lanes_at_print(bool picks);
     [[nodiscard]] bool firmware_picks_lanes_at_print() const override;
-
-    /// Emulate a print start that takes the print's tool map, each slot as
-    /// its 1-based port (Z-Mod on the AD5X).
-    void set_print_start_takes_tool_slots(bool takes);
-    [[nodiscard]] helix::PrintStartParams
-    print_start_params(const std::map<int, int>& tool_slots) const override;
 
     /// Emulate a backend built to remap through a firmware object it has not
     /// discovered yet: AD5X IFS before `_IFS_VARS`. Declared route, unusable.
@@ -367,10 +370,6 @@ class AmsBackendMock : public AmsBackend,
     // Mock-specific methods (for testing)
     // ========================================================================
 
-    /**
-     * @brief Simulate an error condition
-     * @param error The error to trigger
-     */
     void simulate_error(AmsResult error);
 
     /**
@@ -426,6 +425,9 @@ class AmsBackendMock : public AmsBackend,
      * @param status New status
      */
     void force_slot_status(int slot_index, SlotStatus status);
+
+    /// Clear a slot to an empty bay with nothing known about a spool (for testing).
+    void force_slot_cleared(int slot_index);
 
     /**
      * @brief Force a slot's remaining filament length in metres (for testing)
@@ -622,6 +624,13 @@ class AmsBackendMock : public AmsBackend,
      */
     void set_afc_mode(bool enabled);
 
+    /// Report unit 0 under @p name, as AFC reports "<type> <instance>".
+    void set_afc_unit_name(const std::string& name);
+
+    /// Set the hardware model the first unit reports, as a real Happy Hare vendor would, and
+    /// the path that unit's lanes take.
+    void set_unit_model(const std::string& model, PathTopology topology = PathTopology::LINEAR);
+
     /**
      * @brief Check if AFC mode is enabled
      * @return true if simulating an AFC Box Turtle
@@ -673,8 +682,16 @@ class AmsBackendMock : public AmsBackend,
     void set_stealth_mode(bool enabled);
 
     /**
-     * @brief Check if multi-unit mode is active
+     * @brief Enable the direct-tool AFC toolchanger profile
+     * (HELIX_MOCK_AMS=afc_direct).
+     *
+     * Six units / 19 lanes / 4 extruders: five hub units plus a one-lane
+     * "Tools" unit wired straight to its own extruder. Unit topologies come
+     * from helix::printer::afc_unit_topology(), the rule the AFC backend
+     * applies, so the overview draws what a real rig of this shape gets.
      */
+    void set_afc_direct_mode(bool enabled);
+
     [[nodiscard]] bool is_multi_unit_mode() const;
 
     /**
@@ -689,9 +706,6 @@ class AmsBackendMock : public AmsBackend,
      */
     void set_mixed_topology_mode(bool enabled);
 
-    /**
-     * @brief Check if mixed topology mode is active
-     */
     [[nodiscard]] bool is_mixed_topology_mode() const;
 
     /**
@@ -764,9 +778,6 @@ class AmsBackendMock : public AmsBackend,
      */
     [[nodiscard]] bool is_vivid_mixed_mode() const;
 
-    /**
-     * @brief Check if HTLF+Toolchanger mode is active
-     */
     [[nodiscard]] bool is_htlf_toolchanger_mode() const;
 
     /**
@@ -805,9 +816,6 @@ class AmsBackendMock : public AmsBackend,
      */
     [[nodiscard]] std::pair<std::string, std::any> get_last_executed_action() const;
 
-    /**
-     * @brief Clear the last executed action state
-     */
     void clear_last_executed_action();
 
     /**
@@ -843,8 +851,8 @@ class AmsBackendMock : public AmsBackend,
     /**
      * @brief "Transport" for the mock: write the edge straight to the registry.
      *
-     * Every guard the mock used to carry (support, editability, both ranges,
-     * self-backup) now lives in AmsBackend::set_endless_spool_backup().
+     * Every guard (support, editability, both ranges, self-backup) lives in
+     * AmsBackend::set_endless_spool_backup().
      *
      * @note Takes `mutex_`; the base calls this with no lock held.
      */
@@ -1127,7 +1135,6 @@ class AmsBackendMock : public AmsBackend,
     /// non-Snapmaker mode stands in for a table-owning backend.
     RemapStrategy remap_strategy_ = RemapStrategy::Native;
     bool firmware_picks_lanes_at_print_ = false;
-    bool print_start_takes_tool_slots_ = false;
     bool remap_ready_ = true; ///< Cleared to emulate AD5X IFS before `_IFS_VARS`
     /// The emulated print_task_config, in the firmware's own two fields so
     /// AmsBackendSnapmaker::task_routing() can gate on them unchanged. Both
@@ -1161,10 +1168,11 @@ class AmsBackendMock : public AmsBackend,
     // Test override for native-tracking capability. False in production; tests
     // flip this to exercise the FilamentConsumptionTracker gating path.
     bool tracks_consumption_natively_ = false;
+    bool firmware_owns_lane_identity_ = false;
 
     // Test override for tool->slot identity mapping. False in production;
-    // Phase 5 routing tests set this true to simulate a tool-changer and
-    // exercise per-extruder dispatch.
+    // routing tests set this true to simulate a tool-changer and exercise
+    // per-extruder dispatch.
     bool identity_extruder_mapping_ = false;
 };
 

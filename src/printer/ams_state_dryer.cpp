@@ -33,7 +33,6 @@ void AmsState::sync_dryer_from_backend() {
 
     auto* backend = get_backend(0);
     if (!backend) {
-        // No backend - clear dryer state
         lv_subject_set_int(&dryer_supported_, 0);
         lv_subject_set_int(&dryer_active_, 0);
         return;
@@ -41,7 +40,6 @@ void AmsState::sync_dryer_from_backend() {
 
     DryerInfo dryer = helix::dryer_info(*backend, dryer_mirror_unit_);
 
-    // Update integer subjects
     int new_supported = dryer.supported ? 1 : 0;
     lv_subject_set_int(&dryer_supported_, new_supported);
     int new_dryer_active = dryer.active ? 1 : 0;
@@ -65,7 +63,6 @@ void AmsState::sync_dryer_from_backend() {
 void AmsState::adjust_modal_temp(int delta_c) {
     assert_main_thread();
 
-    // Get limits from backend if available, fallback to constants
     float min_temp = static_cast<float>(kMinDryerTempC);
     float max_temp = static_cast<float>(kMaxDryerTempC);
     auto* backend = get_backend(0);
@@ -86,7 +83,6 @@ void AmsState::adjust_modal_temp(int delta_c) {
 void AmsState::adjust_modal_duration(int delta_min) {
     assert_main_thread();
 
-    // Get max duration from backend if available, fallback to constant
     int max_duration = kMaxDryerDurationMin;
     auto* backend = get_backend(0);
     if (backend) {

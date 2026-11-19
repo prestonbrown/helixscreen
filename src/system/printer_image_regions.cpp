@@ -21,10 +21,62 @@ namespace helix {
 
 namespace {
 
-std::optional<NormPoint> read_point(const nlohmann::json& v) {
+/// Two numbers, as written.
+std::optional<NormPoint> read_pair(const nlohmann::json& v) {
     if (!v.is_array() || v.size() != 2 || !v[0].is_number() || !v[1].is_number())
         return std::nullopt;
     return NormPoint{v[0].get<float>(), v[1].get<float>()};
+}
+
+/// A point on the picture. A little outside it is a hand's slip; far outside is a
+/// broken file, held near the picture so no glow or layout reaches for it.
+std::optional<NormPoint> read_point(const nlohmann::json& v) {
+    const auto p = read_pair(v);
+    if (!p)
+        return std::nullopt;
+    const auto clamp = [](float f) { return std::clamp(f, -1.f, 2.f); };
+    return NormPoint{clamp(p->x), clamp(p->y)};
+}
+
+/// True when the quad turns the same way at every corner: no bowtie, no dent.
+bool is_convex(const std::array<NormPoint, 4>& q) {
+    int sign = 0;
+    for (size_t i = 0; i < q.size(); ++i) {
+        const NormPoint& a = q[i];
+        const NormPoint& b = q[(i + 1) % q.size()];
+        const NormPoint& c = q[(i + 2) % q.size()];
+        const float cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+        const int s = cross > 0.f ? 1 : cross < 0.f ? -1 : 0;
+        if (s == 0 || (sign != 0 && s != sign))
+            return false;
+        sign = s;
+    }
+    return true;
+}
+
+/// Each well-formed quad under `v` (`what` names them in the log); a malformed one
+/// is dropped with a warning.
+std::vector<std::array<NormPoint, 4>> read_quads(const nlohmann::json& v, const std::string& name,
+                                                 const char* what) {
+    std::vector<std::array<NormPoint, 4>> out;
+    if (!v.is_array())
+        return out;
+    for (const auto& quad : v) {
+        std::array<NormPoint, 4> pts{};
+        bool ok = quad.is_array() && quad.size() == pts.size();
+        for (size_t i = 0; ok && i < pts.size(); ++i) {
+            const auto p = read_point(quad[i]);
+            ok = p.has_value();
+            if (ok)
+                pts[i] = *p;
+        }
+        if (ok && is_convex(pts))
+            out.push_back(pts);
+        else
+            spdlog::warn("[PrinterImageRegions] '{}': skipping a malformed or non-convex {}", name,
+                         what);
+    }
+    return out;
 }
 
 /// One regions file, read on first use. Main-thread only.
@@ -112,6 +164,20 @@ nlohmann::json entry_json(const ImageRegions& r) {
         e["chamber"] = point_json(*r.chamber);
     if (r.light)
         e["light"] = point_json(*r.light);
+    const auto quads_json = [](const std::vector<std::array<NormPoint, 4>>& quads) {
+        nlohmann::json out = nlohmann::json::array();
+        for (const auto& quad : quads) {
+            nlohmann::json q = nlohmann::json::array();
+            for (const NormPoint& p : quad)
+                q.push_back(point_json(p));
+            out.push_back(std::move(q));
+        }
+        return out;
+    };
+    if (!r.windows.empty())
+        e["windows"] = quads_json(r.windows);
+    if (!r.cutouts.empty())
+        e["cutouts"] = quads_json(r.cutouts);
     return e;
 }
 
@@ -146,11 +212,12 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         return out;
     }
     for (const auto& [name, e] : doc.items()) {
-        const auto size =
-            e.is_object() && e.contains("size") ? read_point(e["size"]) : std::nullopt;
-        const auto nozzle =
-            e.is_object() && e.contains("nozzle") ? read_point(e["nozzle"]) : std::nullopt;
-        const auto& bed = e.is_object() && e.contains("bed") ? e["bed"] : nlohmann::json();
+        const auto* size_field = helix::json_util::find_member(e, "size");
+        const auto* nozzle_field = helix::json_util::find_member(e, "nozzle");
+        const auto* bed_field = helix::json_util::find_member(e, "bed");
+        const auto size = size_field ? read_pair(*size_field) : std::nullopt;
+        const auto nozzle = nozzle_field ? read_point(*nozzle_field) : std::nullopt;
+        const auto& bed = bed_field ? *bed_field : nlohmann::json();
         // Two points are the plate's near edge; four go on round its far edge.
         const bool bed_ok = bed.is_array() && (bed.size() == 2 || bed.size() == 4);
         const auto bl = bed_ok ? read_point(bed[0]) : std::nullopt;
@@ -169,12 +236,16 @@ std::unordered_map<std::string, ImageRegions> parse_image_regions(const std::str
         r.bed_right = *br;
         if (fr && fl)
             r.bed_far = ImageRegions::FarEdge{*fr, *fl};
-        if (e.contains("part_fan"))
-            r.part_fan = read_point(e["part_fan"]);
-        if (e.contains("chamber"))
-            r.chamber = read_point(e["chamber"]);
-        if (e.contains("light"))
-            r.light = read_point(e["light"]);
+        if (const auto* part_fan = helix::json_util::find_member(e, "part_fan"))
+            r.part_fan = read_point(*part_fan);
+        if (const auto* chamber = helix::json_util::find_member(e, "chamber"))
+            r.chamber = read_point(*chamber);
+        if (const auto* light = helix::json_util::find_member(e, "light"))
+            r.light = read_point(*light);
+        if (const auto* windows = helix::json_util::find_member(e, "windows"))
+            r.windows = read_quads(*windows, name, "window");
+        if (const auto* cutouts = helix::json_util::find_member(e, "cutouts"))
+            r.cutouts = read_quads(*cutouts, name, "cutout");
         out.emplace(name, r);
     }
     return out;
@@ -285,7 +356,7 @@ std::array<NormPoint, 4> plate_quad(const ImageRegions& r) {
 bool ImageTagSession::can_skip() const {
     const auto p = prompt();
     return p == TagPrompt::PartFan || p == TagPrompt::BedFarRight || p == TagPrompt::BedFarLeft ||
-           p == TagPrompt::Chamber || p == TagPrompt::Light;
+           p == TagPrompt::Chamber || p == TagPrompt::WindowTopLeft || p == TagPrompt::Light;
 }
 
 void ImageTagSession::tap(NormPoint p) {
@@ -297,13 +368,20 @@ void ImageTagSession::tap(NormPoint p) {
 bool ImageTagSession::skip() {
     if (!can_skip())
         return false;
-    points_[step_++].reset();
+    const int run = prompt() == TagPrompt::WindowTopLeft ? kWindowCorners : 1;
+    for (int i = 0; i < run; ++i)
+        points_[step_++].reset();
     return true;
 }
 
 void ImageTagSession::undo() {
-    if (step_ > 0)
-        points_[--step_].reset();
+    if (step_ == 0)
+        return;
+    points_[--step_].reset();
+    // A skipped window's corners are all empty: step back over them as one.
+    const int first = static_cast<int>(TagPrompt::WindowTopLeft);
+    if (step_ > first && step_ < first + kWindowCorners && !points_[first])
+        step_ = first;
 }
 
 ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
@@ -320,6 +398,26 @@ ImageRegions ImageTagSession::regions(int natural_w, int natural_h) const {
     r.part_fan = at(TagPrompt::PartFan);
     r.chamber = at(TagPrompt::Chamber);
     r.light = at(TagPrompt::Light);
+    std::array<NormPoint, 4> window;
+    bool all_corners = true;
+    for (int i = 0; i < kWindowCorners; ++i) {
+        const auto p = points_[static_cast<int>(TagPrompt::WindowTopLeft) + i];
+        all_corners = all_corners && p.has_value();
+        window[i] = p.value_or(NormPoint{});
+    }
+    if (all_corners) {
+        // Corners tapped out of order still bound one window: walk them around their centre.
+        const float cx = (window[0].x + window[1].x + window[2].x + window[3].x) / 4.f;
+        const float cy = (window[0].y + window[1].y + window[2].y + window[3].y) / 4.f;
+        std::sort(window.begin(), window.end(), [cx, cy](const NormPoint& a, const NormPoint& b) {
+            return std::atan2(a.y - cy, a.x - cx) < std::atan2(b.y - cy, b.x - cx);
+        });
+        if (is_convex(window))
+            r.windows.push_back(window);
+        else
+            spdlog::info("[PrinterImageRegions] tagged window corners do not bound an area; "
+                         "the window is left out");
+    }
     return r;
 }
 

@@ -117,6 +117,12 @@ class UpdateQueue {
         return instance;
     }
 
+    /// True once the singleton has been destroyed in the atexit chain. A destructor that
+    /// may run after it (a static's member) checks this before calling instance().
+    static bool destroyed() {
+        return s_destroyed_.load(std::memory_order_acquire);
+    }
+
     /**
      * @brief Initialize the update queue (call once at startup)
      *
@@ -399,13 +405,33 @@ class UpdateQueue {
      * itself queues further work) can read 0 while callbacks from that same
      * batch are still running.
      */
+    /// True after shutdown() until the next init(): queue() drops (and logs) every callback.
+    bool is_shut_down() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return shut_down_;
+    }
+
     size_t pending_count() const {
         std::lock_guard<std::mutex> lock(mutex_);
         return pending_.size() + frozen_buffer_.size();
     }
 
+    /// Called after each enqueue from any thread, outside the lock; nullptr for none. A
+    /// sleeping main loop sets it so queued work wakes it instead of waiting for the
+    /// drain timer.
+    void set_enqueue_hook(void (*hook)()) {
+        enqueue_hook_.store(hook, std::memory_order_release);
+    }
+
   private:
     void queue_impl(const char* tag, UpdateCallback callback, const char* file, int line) {
+        enqueue_locked(tag, std::move(callback), file, line);
+        if (void (*hook)() = enqueue_hook_.load(std::memory_order_acquire)) {
+            hook();
+        }
+    }
+
+    void enqueue_locked(const char* tag, UpdateCallback callback, const char* file, int line) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (shut_down_) {
             if (tag)
@@ -426,7 +452,9 @@ class UpdateQueue {
 
     friend class UpdateQueueTestAccess;
     UpdateQueue() = default;
+    static inline std::atomic<bool> s_destroyed_{false};
     ~UpdateQueue() {
+        s_destroyed_.store(true, std::memory_order_release);
         // Discard without draining. This runs from __run_exit_handlers, and the
         // singleton is constructed during static initialization — earlier than
         // PrinterState and spdlog's registry, so it is destroyed after them.
@@ -602,6 +630,7 @@ class UpdateQueue {
     int freeze_depth_ = 0;
     /// process_pending() calls on the stack. Main thread only.
     int drain_depth_ = 0;
+    std::atomic<void (*)()> enqueue_hook_{nullptr};
 
     /// Tag of the currently executing callback (read by crash handler).
     /// Only written from the main LVGL thread; read by the crash signal handler.

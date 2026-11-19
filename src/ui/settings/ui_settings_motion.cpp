@@ -265,7 +265,7 @@ void MotionSettingsOverlay::format_display(size_t i) {
 void MotionSettingsOverlay::refresh_displays() {
     for (size_t i = 0; i < kFieldCount; ++i) {
         format_display(i);
-        lv_subject_copy_string(&display_subjects_[i], display_buffers_[i]);
+        lv_subject_set_string(&display_subjects_[i], display_buffers_[i]);
     }
 }
 
@@ -316,7 +316,7 @@ void MotionSettingsOverlay::refresh_sliders() {
     };
 
     std::snprintf(jog_speed_max_buf_, sizeof(jog_speed_max_buf_), "%d", max_mm_s);
-    lv_subject_copy_string(&jog_speed_max_subject_, jog_speed_max_buf_);
+    lv_subject_set_string(&jog_speed_max_subject_, jog_speed_max_buf_);
 
     for (const auto& row : rows) {
         lv_obj_t* slider = lv_obj_find_by_name(overlay_root_, row.slider);
@@ -343,7 +343,7 @@ void MotionSettingsOverlay::handle_jog_speed_changed(bool is_z, int mm_s) {
     persist_timer_.schedule([this]() { persist_pending_speed(); });
 
     std::snprintf(display_buffers_[i], sizeof(display_buffers_[i]), "%d mm/s", mm_s);
-    lv_subject_copy_string(&display_subjects_[i], display_buffers_[i]);
+    lv_subject_set_string(&display_subjects_[i], display_buffers_[i]);
 }
 
 void MotionSettingsOverlay::persist_pending_speed() {
@@ -380,12 +380,15 @@ void MotionSettingsOverlay::handle_field_clicked(Field field) {
         config.max_value = bounds.max;
         config.initial_value = static_cast<float>(mm_min_to_mm_s(effective_mm_min(
             spec.is_z ? settings.get_jog_speed_z() : settings.get_jog_speed_xy())));
+        config.default_value = static_cast<float>(
+            mm_min_to_mm_s(effective_mm_min(settings.get_jog_speed_default(spec.is_z))));
         config.allow_decimal = false;
         config.unit_label = "mm/s";
     } else if (spec.kind == Kind::Clearance) {
         config.initial_value = static_cast<float>(settings.get_bed_map_clearance_mm());
         config.min_value = static_cast<float>(kBedMapClearanceMinMm);
         config.max_value = static_cast<float>(kBedMapClearanceMaxMm);
+        config.default_value = static_cast<float>(settings.get_bed_map_clearance_default_mm());
         config.allow_decimal = false;
         config.unit_label = "mm";
     } else {
@@ -395,6 +398,8 @@ void MotionSettingsOverlay::handle_field_clicked(Field field) {
         config.initial_value = settings.get_jog_distance(spec.mode, spec.outer);
         config.min_value = bounds.min;
         config.max_value = bounds.max;
+        // The other ring bounds this one, so a default past it shows no reset key.
+        config.default_value = SettingsManager::get_jog_distance_default(spec.mode, spec.outer);
         config.allow_decimal = true;
         config.unit_label = "mm";
     }
@@ -419,7 +424,7 @@ void MotionSettingsOverlay::handle_keypad_value(Field field, double value) {
         SettingsManager::instance().set_bed_map_clearance_mm(static_cast<int>(value));
         const size_t i = static_cast<size_t>(field);
         format_display(i);
-        lv_subject_copy_string(&display_subjects_[i], display_buffers_[i]);
+        lv_subject_set_string(&display_subjects_[i], display_buffers_[i]);
         return;
     }
     if (spec.kind == Kind::Speed) {
@@ -438,7 +443,7 @@ void MotionSettingsOverlay::handle_keypad_value(Field field, double value) {
                                                      static_cast<float>(value));
         const size_t i = static_cast<size_t>(field);
         format_display(i);
-        lv_subject_copy_string(&display_subjects_[i], display_buffers_[i]);
+        lv_subject_set_string(&display_subjects_[i], display_buffers_[i]);
     }
 }
 

@@ -81,6 +81,23 @@
 #define HELIX_HAS_HIDPI_FONTS 1
 #endif
 
+// The G-code console: the Advanced row, the console overlay and its settings, and the home
+// Console widget.
+#ifndef HELIX_HAS_CONSOLE
+#define HELIX_HAS_CONSOLE 1
+#endif
+
+// The Host Terminal: a shell on the machine HelixScreen runs on, behind an opt-in setting
+// in Advanced, with the libvterm emulator it draws through.
+#ifndef HELIX_HAS_HOST_TERMINAL
+#define HELIX_HAS_HOST_TERMINAL 1
+#endif
+
+// The Snake easter egg behind seven taps on the About page's printer name.
+#ifndef HELIX_HAS_SNAKE_GAME
+#define HELIX_HAS_SNAKE_GAME 1
+#endif
+
 // Chinese and Japanese in the language list; a build without a CJK font face drops them.
 #ifndef HELIX_HAS_CJK
 #define HELIX_HAS_CJK 1

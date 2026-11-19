@@ -1,10 +1,20 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Advanced > HelixPrint Plugin: read-only. PluginOverviewOverlay fills it
-     with the plugin's version and one line per feature in its status map;
-     a feature with a setting leads to the page that holds it. -->
+<!-- Advanced > HelixPrint Plugin: read-only. The plugin's version, then its
+     features grouped by state: running, off, and not available here.
+     PluginOverviewOverlay fills each group with one dense row per feature in
+     the plugin's status map; only an unavailable feature carries a second
+     line, its reason. A feature with a setting leads to the page that holds
+     it. Running features, whose names are short, sit up to three to a row
+     where the width allows; off and unavailable rows take the full width for
+     their longer names and reasons. -->
 <component>
+  <consts>
+    <px name="plugin_overview_col_min_small" value="200"/>
+    <px name="plugin_overview_col_min_medium" value="220"/>
+    <px name="plugin_overview_col_min_large" value="280"/>
+  </consts>
   <api>
     <prop name="title" type="string" default="HelixPrint Plugin"/>
     <prop name="title_tag" type="string" default="HelixPrint Plugin"/>
@@ -14,9 +24,28 @@
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
-      <lv_obj name="overview_rows"
+      <setting_info_row name="plugin_overview_version"
+                        label="Version" icon="puzzle_outline" bind_value="plugin_overview_version"
+                        style_pad_top="#space_sm" style_pad_bottom="#space_sm"/>
+      <setting_section_header name="running_header" style_pad_top="#space_md" title="RUNNING" hide_icon="true">
+        <bind_flag_if_eq subject="plugin_overview_running_count" flag="hidden" ref_value="0"/>
+      </setting_section_header>
+      <responsive_grid name="running_rows"
+                       width="100%" height="content" min_col_width="#plugin_overview_col_min" max_cols="3"
+                       style_pad_all="0" style_pad_column="0" style_pad_row="0" scrollable="false"/>
+      <setting_section_header name="off_header" style_pad_top="#space_md" title="OFF" hide_icon="true">
+        <bind_flag_if_eq subject="plugin_overview_off_count" flag="hidden" ref_value="0"/>
+      </setting_section_header>
+      <lv_obj name="off_rows"
               width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-              flex_flow="column"/>
+              flex_flow="column" style_pad_row="0"/>
+      <setting_section_header name="unavailable_header"
+                              style_pad_top="#space_md" title="NOT AVAILABLE HERE" hide_icon="true">
+        <bind_flag_if_eq subject="plugin_overview_unavailable_count" flag="hidden" ref_value="0"/>
+      </setting_section_header>
+      <lv_obj name="unavailable_rows"
+              width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+              flex_flow="column" style_pad_row="0"/>
     </lv_obj>
   </view>
 </component>

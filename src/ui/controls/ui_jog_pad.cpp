@@ -28,7 +28,7 @@ static constexpr float kInnerZoneBoundaryRatio = 0.60f; // Inner/outer zone boun
 
 // Responsive font selection using theme system
 // Returns icon font for home button (radius-based for icon sizing)
-static const lv_font_t* get_icon_font(lv_coord_t radius) {
+static const lv_font_t* get_icon_font(int32_t radius) {
     if (radius >= 120)
         return &mdi_icons_32;
     if (radius >= 80)
@@ -37,13 +37,13 @@ static const lv_font_t* get_icon_font(lv_coord_t radius) {
 }
 
 // Axis labels (X+, Y-, etc) - use small font from theme
-static const lv_font_t* get_label_font([[maybe_unused]] lv_coord_t radius) {
+static const lv_font_t* get_label_font([[maybe_unused]] int32_t radius) {
     const lv_font_t* font = theme_manager_get_font("font_small");
     return font ? font : &noto_sans_14; // Fallback if theme not ready
 }
 
 // Distance labels (1mm, 10mm) - use extra small font from theme
-static const lv_font_t* get_distance_font([[maybe_unused]] lv_coord_t radius) {
+static const lv_font_t* get_distance_font([[maybe_unused]] int32_t radius) {
     const lv_font_t* font = theme_manager_get_font("font_xs");
     return font ? font : &noto_sans_10; // Fallback if theme not ready
 }
@@ -152,7 +152,7 @@ static void load_colors(jog_pad_state_t* state, const char* /*component_scope_na
 }
 
 // Helper: Calculate angle from center point (0° = North, clockwise)
-static float calculate_angle(lv_coord_t dx, lv_coord_t dy) {
+static float calculate_angle(int32_t dx, int32_t dy) {
     // atan2 gives us angle with 0° = East, counter-clockwise
     // We need 0° = North, clockwise
     float angle =
@@ -228,10 +228,10 @@ JogPadZone jog_pad_zone_for_offset(int dx, int dy, int radius, const JogPadZoneO
 static JogPadZone jog_pad_zone_at(lv_obj_t* obj, jog_pad_state_t* st, const lv_point_t& point) {
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
-    lv_coord_t width = lv_area_get_width(&obj_coords);
-    lv_coord_t center_x = obj_coords.x1 + width / 2;
-    lv_coord_t center_y = obj_coords.y1 + width / 2; // square pad: width is the height too
-    lv_coord_t radius = width / 2;
+    int32_t width = lv_area_get_width(&obj_coords);
+    int32_t center_x = obj_coords.x1 + width / 2;
+    int32_t center_y = obj_coords.y1 + width / 2; // square pad: width is the height too
+    int32_t radius = width / 2;
 
     jog_pad_recompute_zones(st, radius);
     return jog_pad_zone_for_offset(point.x - center_x, point.y - center_y, radius,
@@ -291,15 +291,15 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     // Get container dimensions and center point
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
-    lv_coord_t width = lv_area_get_width(&obj_coords);
-    lv_coord_t height = lv_area_get_height(&obj_coords);
-    lv_coord_t center_x = obj_coords.x1 + width / 2;
-    lv_coord_t center_y = obj_coords.y1 + height / 2;
-    lv_coord_t radius = width / 2;
+    int32_t width = lv_area_get_width(&obj_coords);
+    int32_t height = lv_area_get_height(&obj_coords);
+    int32_t center_x = obj_coords.x1 + width / 2;
+    int32_t center_y = obj_coords.y1 + height / 2;
+    int32_t radius = width / 2;
 
     // Zone boundary: Inner circle at kInnerZoneBoundaryRatio of total radius
     jog_pad_recompute_zones(state, radius);
-    lv_coord_t inner_boundary = state->inner_boundary_px;
+    int32_t inner_boundary = state->inner_boundary_px;
 
     // LAYERED APPROACH: Draw from back to front
     // Layer 1: Full light gray background circle (0% to 100% radius)
@@ -353,7 +353,7 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     lv_draw_line(layer, &line_dsc);
 
     // Draw center home button area
-    lv_coord_t home_radius = state->home_radius_px;
+    int32_t home_radius = state->home_radius_px;
 
     // Draw filled background circle for home area
     lv_draw_arc_dsc_t home_bg_dsc;
@@ -435,9 +435,9 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     lv_area_t label_area;
 
     // Scale label box sizes proportionally (approx 0.25 * radius for width)
-    lv_coord_t dist_label_w = (lv_coord_t)(radius * 0.30f);
-    lv_coord_t dist_label_h = (lv_coord_t)(radius * 0.12f);
-    lv_coord_t dist_offset_y = (lv_coord_t)(radius * 0.05f);
+    int32_t dist_label_w = (int32_t)(radius * 0.30f);
+    int32_t dist_label_h = (int32_t)(radius * 0.12f);
+    int32_t dist_offset_y = (int32_t)(radius * 0.05f);
 
     // Distance labels from current mode (Fine: 0.1/1, Coarse: 1/10, Turbo: 10/50)
     const auto& mode_dist = get_jog_mode_distances(state->current_mode);
@@ -446,9 +446,9 @@ static void jog_pad_draw_cb(lv_event_t* e) {
 
     label_dsc.text = inner_label;
     label_dsc.color = state->jog_color_inner_distance_label;
-    lv_coord_t inner_label_radius = (lv_coord_t)((home_radius + inner_boundary) * 0.5f);
-    label_area.x1 = center_x + (lv_coord_t)(inner_label_radius * 0.707f);
-    label_area.y1 = center_y - (lv_coord_t)(inner_label_radius * 0.707f) + dist_offset_y;
+    int32_t inner_label_radius = (int32_t)((home_radius + inner_boundary) * 0.5f);
+    label_area.x1 = center_x + (int32_t)(inner_label_radius * 0.707f);
+    label_area.y1 = center_y - (int32_t)(inner_label_radius * 0.707f) + dist_offset_y;
     label_area.x2 = label_area.x1 + dist_label_w;
     label_area.y2 = label_area.y1 + dist_label_h;
     lv_draw_label(layer, &label_dsc, &label_area);
@@ -456,9 +456,9 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     // Outer ring distance label
     label_dsc.text = outer_label;
     label_dsc.color = state->jog_color_distance_labels;
-    lv_coord_t outer_label_radius = (lv_coord_t)((radius + inner_boundary) * 0.5f);
-    label_area.x1 = center_x + (lv_coord_t)(outer_label_radius * 0.707f);
-    label_area.y1 = center_y - (lv_coord_t)(outer_label_radius * 0.707f) + dist_offset_y;
+    int32_t outer_label_radius = (int32_t)((radius + inner_boundary) * 0.5f);
+    label_area.x1 = center_x + (int32_t)(outer_label_radius * 0.707f);
+    label_area.y1 = center_y - (int32_t)(outer_label_radius * 0.707f) + dist_offset_y;
     label_area.x2 = label_area.x1 + dist_label_w + 10; // Slightly wider for longer labels
     label_area.y2 = label_area.y1 + dist_label_h;
     lv_draw_label(layer, &label_dsc, &label_area);
@@ -471,9 +471,9 @@ static void jog_pad_draw_cb(lv_event_t* e) {
     label_dsc.font = get_label_font(radius);
 
     // Scale axis label positions and sizes proportionally
-    lv_coord_t axis_label_w = (lv_coord_t)(radius * 0.18f);
-    lv_coord_t axis_label_h = (lv_coord_t)(radius * 0.14f);
-    lv_coord_t axis_offset = (lv_coord_t)(radius * 0.08f);
+    int32_t axis_label_w = (int32_t)(radius * 0.18f);
+    int32_t axis_label_h = (int32_t)(radius * 0.14f);
+    int32_t axis_offset = (int32_t)(radius * 0.08f);
 
     // Y+ (North)
     label_dsc.text = "Y+";
@@ -515,7 +515,7 @@ static void jog_pad_draw_cb(lv_event_t* e) {
             lv_draw_arc_dsc_init(&highlight_dsc);
             highlight_dsc.color = state->jog_color_highlight;
             highlight_dsc.opa = LV_OPA_60; // ~23% opacity
-            lv_coord_t highlight_home_radius = state->home_radius_px;
+            int32_t highlight_home_radius = state->home_radius_px;
             highlight_dsc.width = static_cast<uint16_t>(highlight_home_radius * 2);
             highlight_dsc.center.x = center_x;
             highlight_dsc.center.y = center_y;
@@ -545,8 +545,8 @@ static void jog_pad_draw_cb(lv_event_t* e) {
 
             if (state->pressed_is_inner) {
                 // Inner zone: Draw arc ring from 25% to 60%
-                lv_coord_t highlight_inner_boundary = state->inner_boundary_px;
-                lv_coord_t home_edge = state->home_radius_px;
+                int32_t highlight_inner_boundary = state->inner_boundary_px;
+                int32_t home_edge = state->home_radius_px;
 
                 highlight_dsc.width =
                     static_cast<uint16_t>(highlight_inner_boundary - home_edge); // 35% thickness
@@ -559,7 +559,7 @@ static void jog_pad_draw_cb(lv_event_t* e) {
                 lv_draw_arc(layer, &highlight_dsc);
             } else {
                 // Outer zone: Draw arc ring from 60% to 100%
-                lv_coord_t highlight_outer_inner_boundary = state->inner_boundary_px;
+                int32_t highlight_outer_inner_boundary = state->inner_boundary_px;
 
                 highlight_dsc.width =
                     static_cast<uint16_t>(radius - highlight_outer_inner_boundary); // 40% thickness
@@ -763,10 +763,10 @@ static void jog_pad_delete_cb(lv_event_t* e) {
 
 // Public API Implementation
 namespace helix {
-lv_area_t jog_pad_home_icon_area(lv_coord_t center_x, lv_coord_t center_y, lv_coord_t home_radius,
+lv_area_t jog_pad_home_icon_area(int32_t center_x, int32_t center_y, int32_t home_radius,
                                  const lv_font_t* font) {
-    lv_coord_t icon_half_w = (lv_coord_t)(home_radius * 0.6f);
-    lv_coord_t icon_half_h = lv_font_get_line_height(font) / 2;
+    int32_t icon_half_w = (int32_t)(home_radius * 0.6f);
+    int32_t icon_half_h = lv_font_get_line_height(font) / 2;
     lv_area_t area;
     area.x1 = center_x - icon_half_w;
     area.y1 = center_y - icon_half_h;
@@ -807,8 +807,8 @@ lv_obj_t* ui_jog_pad_create(lv_obj_t* parent) {
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
     lv_obj_set_style_radius(obj, 160, 0); // Circular appearance
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     lv_obj_add_event_cb(obj, jog_pad_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, jog_pad_press_cb, LV_EVENT_PRESSED, nullptr);

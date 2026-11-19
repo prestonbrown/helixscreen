@@ -79,7 +79,7 @@ lv_obj_t* create_ams_slot(lv_obj_t* parent, int slot_index) {
 bool shown(lv_obj_t* slot, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(slot, name);
     REQUIRE(obj != nullptr);
-    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(obj);
 }
 
 } // namespace

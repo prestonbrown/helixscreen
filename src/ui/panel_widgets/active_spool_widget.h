@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 #include "subject_managed_panel.h"
 
@@ -44,12 +45,18 @@ class ActiveSpoolWidget : public TiledPanelWidget {
 
     // Wide mode elements
     helix::ui::WidgetRef spool_wide_;
-    helix::ui::WidgetRef material_label_;
-    helix::ui::WidgetRef brand_color_label_;
-    helix::ui::WidgetRef weight_label_;
 
-    lv_subject_t wide_subject_{};   ///< 1 while the wide row is shown
-    lv_subject_t loaded_subject_{}; ///< 1 while a spool is active
+    helix::Subject wide_subject_{};   ///< 1 while the wide row is shown
+    helix::Subject loaded_subject_{}; ///< 1 while a spool is active
+    // The wide row's three text lines. An empty brand or weight line hides.
+    helix::Subject material_subject_{};
+    char material_buf_[64] = {};
+    helix::Subject brand_subject_{};
+    char brand_buf_[128] = {};
+    helix::Subject has_brand_subject_{};
+    helix::Subject weight_subject_{};
+    char weight_buf_[32] = {};
+    helix::Subject has_weight_subject_{};
     SubjectManager subjects_;
 
     ObserverGuard spool_color_observer_;

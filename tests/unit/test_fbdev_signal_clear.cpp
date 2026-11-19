@@ -10,6 +10,7 @@
  */
 
 #include "fbdev_signal_clear.h"
+#include "framebuffer_fill.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -107,4 +108,26 @@ TEST_CASE("cache_framebuffer_for_signal rejects a zero length and an oversized p
     CHECK(helix::cache_framebuffer_for_signal(missing, 4096, 32));
     helix::clear_framebuffer_signal_safe();
     helix::cache_framebuffer_for_signal("", 0, 0);
+}
+
+TEST_CASE("fill_framebuffer writes the depth's pixel", "[fbdev][display]") {
+    std::vector<uint32_t> fb(4, 0xDEADBEEFu);
+
+    SECTION("32bpp stores ARGB unchanged") {
+        helix::fill_framebuffer(fb.data(), 16, 32, 0xFF102030u);
+        CHECK(std::all_of(fb.begin(), fb.end(), [](uint32_t p) { return p == 0xFF102030u; }));
+    }
+    SECTION("16bpp converts to RGB565") {
+        helix::fill_framebuffer(fb.data(), 16, 16, 0xFFFF8040u);
+        const auto* px = reinterpret_cast<const uint16_t*>(fb.data());
+        CHECK(std::all_of(px, px + 8, [](uint16_t p) { return p == 0xFC08u; }));
+    }
+    SECTION("any other depth is zeroed") {
+        helix::fill_framebuffer(fb.data(), 16, 24, 0xFFFFFFFFu);
+        CHECK(std::all_of(fb.begin(), fb.end(), [](uint32_t p) { return p == 0u; }));
+    }
+    SECTION("the depth comes from the stride, 32 without a width") {
+        CHECK(helix::framebuffer_fill_bpp(800, 1600) == 16);
+        CHECK(helix::framebuffer_fill_bpp(0, 1600) == 32);
+    }
 }

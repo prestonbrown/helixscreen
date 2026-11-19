@@ -246,6 +246,7 @@ TEST_CASE("CFS brand fallback reads the tag record's supplier, never the record"
         REQUIRE(slots[3].brand.empty());
         CHECK(cfs::brand_from_vender("04A1B2C3D4E5F6").empty());
         CHECK(cfs::brand_from_vender("ACE") == "ACE");
+        CHECK(cfs::brand_from_vender("Elegoo2") == "Elegoo2"); // a digit alone is no UID
     }
 }
 
@@ -474,4 +475,16 @@ TEST_CASE("CFS status parse reads the wiper from box.cfg's clean positions",
         CHECK_FALSE(cfs::parse_chute_wiper(json::parse(R"({"auto_addr": {}})")));
         CHECK_FALSE(cfs::parse_chute_wiper(json::array()));
     }
+}
+
+TEST_CASE("CFS status parse reads whether box.cfg declares a purge chute position",
+          "[cfs][status_parse][purge_chute]") {
+    // configfile.settings lowercases sections and options; box.cfg on the K1 Max
+    // capture carries has_extrude_pos 1.
+    CHECK(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"has_extrude_pos": 1}})")));
+    CHECK(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"has_extrude_pos": "1"}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"has_extrude_pos": 0}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::parse(R"({"box": {"extrude_pos_x": 184.5}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::parse(R"({"printer": {}})")));
+    CHECK_FALSE(cfs::has_chute_extrude_pos(json::array()));
 }

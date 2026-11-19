@@ -51,8 +51,8 @@ void populate_icon_grid(lv_obj_t* grid, const char* const* icons, size_t count,
     for (size_t i = 0; i < count; ++i) {
         lv_obj_t* cell = lv_obj_create(grid);
         lv_obj_set_size(cell, kIconCellSize, kIconCellSize);
-        lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(cell, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_scrollable(cell, false);
+        lv_obj_set_clickable(cell, true);
         lv_obj_set_style_bg_opa(cell, 0, 0);
         lv_obj_set_style_radius(cell, 4, 0);
         lv_obj_set_style_pad_all(cell, 0, 0);
@@ -67,8 +67,8 @@ void populate_icon_grid(lv_obj_t* grid, const char* const* icons, size_t count,
             lv_obj_set_style_text_font(glyph, &mdi_icons_24, 0);
             lv_obj_set_style_text_color(glyph, theme_manager_get_color("text"), 0);
             lv_obj_center(glyph);
-            lv_obj_remove_flag(glyph, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_flag(glyph, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_obj_set_clickable(glyph, false);
+            lv_obj_set_event_bubble(glyph, true);
         }
 
         // The DELETE hook owns the allocation through its own user_data. The

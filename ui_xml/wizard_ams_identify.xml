@@ -23,8 +23,8 @@
              style_flex_track_place="center">
 
       <!-- Logo image - 64x64 icons, use min_width/min_height to prevent clipping -->
-      <lv_image name="ams_logo"
-                width="64" height="64" style_min_width="64" style_min_height="64" inner_align="center" hidden="true">
+      <lv_image name="ams_logo" width="64" height="64" style_min_width="64" style_min_height="64" inner_align="center">
+        <bind_flag_if_eq subject="wizard_ams_logo_visible" flag="hidden" ref_value="0"/>
         <bind_style_if_eq name="styles.ams_logo_mono" subject="wizard_ams_logo_color" ref_value="0"/>
       </lv_image>
 

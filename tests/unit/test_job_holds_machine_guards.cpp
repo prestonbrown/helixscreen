@@ -192,7 +192,7 @@ class UpgradeNudgeFixture : public LVGLTestFixture {
     }
 
     ~UpgradeNudgeFixture() override {
-        UpdateCheckerTestAccess::clear(UpdateChecker::instance());
+        UpdateChecker::instance().clear_cache();
         helix::ui::UpdateQueue::instance().drain();
         PrinterStateTestAccess::reset(printer_state);
         printer_state.init_subjects(false);

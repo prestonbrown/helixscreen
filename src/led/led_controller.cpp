@@ -7,6 +7,7 @@
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "device_display_name.h"
@@ -86,11 +87,11 @@ void LedController::init(IMoonrakerAPI* api, IMoonrakerClient* client) {
     // Initialize subjects for UI binding (idempotent).
     // led_controllable is registered globally so XML can bind it by name.
     if (!version_subject_initialized_) {
-        lv_subject_init_int(&led_config_version_, 0);
-        lv_subject_init_int(&led_controllable_, 0);
-        lv_subject_init_int(&led_has_devices_, 0);
-        lv_subject_init_int(&led_command_in_flight_, 0);
-        lv_subject_init_int(&led_state_version_, 0);
+        led_config_version_.init_int(0);
+        led_controllable_.init_int(0);
+        led_has_devices_.init_int(0);
+        led_command_in_flight_.init_int(0);
+        led_state_version_.init_int(0);
         helix::xml::register_subject_in_current_scope("led_controllable", &led_controllable_);
         helix::xml::register_subject_in_current_scope("led_has_devices", &led_has_devices_);
         helix::xml::register_subject_in_current_scope("led_command_in_flight",
@@ -415,8 +416,9 @@ void LedController::discover_wled_strips() {
 
                     // Use strip name from response data, or fall back to key
                     std::string raw_name;
-                    if (it.value().is_object() && it.value().contains("strip")) {
-                        raw_name = helix::json_util::as_string(it.value()["strip"], it.key());
+                    if (const json* strip_name =
+                            helix::json_util::find_member(it.value(), "strip")) {
+                        raw_name = helix::json_util::as_string(*strip_name, it.key());
                     } else {
                         raw_name = it.key();
                     }
@@ -509,11 +511,12 @@ void LedController::update_effect_targets(const nlohmann::json& configfile_confi
             continue;
         }
 
-        if (!it.value().is_object() || !it.value().contains("leds")) {
+        const nlohmann::json* leds_field = helix::json_util::find_member(it.value(), "leds");
+        if (!leds_field) {
             continue;
         }
 
-        const auto& leds_val = it.value()["leds"];
+        const auto& leds_val = *leds_field;
         std::string leds_str;
         if (leds_val.is_string()) {
             leds_str = leds_val.get<std::string>();
@@ -561,15 +564,16 @@ void LedController::update_output_pin_config(const nlohmann::json& configfile_co
     }
 
     for (const auto& pin : output_pin_.pins()) {
-        if (!configfile_config.contains(pin.id)) {
+        const nlohmann::json* pin_cfg =
+            helix::json_util::find_member(configfile_config, pin.id.c_str());
+        if (!pin_cfg) {
             continue;
         }
         // Klipper's output_pin reads `pwm` as getboolean('pwm', False): a section
         // with no pwm line is a digital pin.
-        const auto& pin_cfg = configfile_config[pin.id];
         bool is_pwm = false;
-        if (pin_cfg.is_object() && pin_cfg.contains("pwm")) {
-            const auto& pwm_val = pin_cfg["pwm"];
+        if (const nlohmann::json* pwm = helix::json_util::find_member(*pin_cfg, "pwm")) {
+            const auto& pwm_val = *pwm;
             if (pwm_val.is_boolean()) {
                 is_pwm = pwm_val.get<bool>();
             } else if (pwm_val.is_string()) {
@@ -675,10 +679,14 @@ void NativeBackend::update_pin_config(const nlohmann::json& config_section) {
             continue;
         }
 
-        bool has_red = led_cfg.contains("red_pin") && !led_cfg["red_pin"].is_null();
-        bool has_green = led_cfg.contains("green_pin") && !led_cfg["green_pin"].is_null();
-        bool has_blue = led_cfg.contains("blue_pin") && !led_cfg["blue_pin"].is_null();
-        bool has_white = led_cfg.contains("white_pin") && !led_cfg["white_pin"].is_null();
+        const auto has_pin = [&led_cfg](const char* key) {
+            const nlohmann::json* pin = helix::json_util::find_member(led_cfg, key);
+            return pin && !pin->is_null();
+        };
+        bool has_red = has_pin("red_pin");
+        bool has_green = has_pin("green_pin");
+        bool has_blue = has_pin("blue_pin");
+        bool has_white = has_pin("white_pin");
 
         if (has_red || has_green || has_blue || has_white) {
             strip.has_red_pin = has_red;
@@ -854,14 +862,16 @@ void LedEffectBackend::set_effect_targets(const std::string& effect_name,
 bool LedEffectBackend::update_from_status(const nlohmann::json& status) {
     bool carried = false;
     for (auto& effect : effects_) {
-        if (!status.contains(effect.name))
+        const nlohmann::json* effect_data =
+            helix::json_util::find_member(status, effect.name.c_str());
+        if (!effect_data)
             continue;
 
-        const auto& effect_data = status[effect.name];
-        if (!effect_data.is_object() || !effect_data.contains("enabled"))
+        const nlohmann::json* enabled = helix::json_util::find_member(*effect_data, "enabled");
+        if (!enabled)
             continue;
 
-        const bool new_enabled = helix::json_util::as_bool(effect_data["enabled"], effect.enabled);
+        const bool new_enabled = helix::json_util::as_bool(*enabled, effect.enabled);
         carried = true;
         if (new_enabled != effect.enabled) {
             spdlog::debug("[LedEffectBackend] Effect '{}' enabled: {} -> {}", effect.name,
@@ -1130,10 +1140,11 @@ void WledBackend::poll_status(helix::SharedCallback<void()> on_complete) {
                         auto& val = it.value();
                         if (val.is_object()) {
                             // Parse status field: "on"/"off" or boolean "state"
-                            if (val.contains("status")) {
-                                state.is_on = helix::json_util::as_string(val["status"]) == "on";
-                            } else if (val.contains("state")) {
-                                state.is_on = helix::json_util::as_bool(val["state"]);
+                            if (const json* status = helix::json_util::find_member(val, "status")) {
+                                state.is_on = helix::json_util::as_string(*status) == "on";
+                            } else if (const json* on_state =
+                                           helix::json_util::find_member(val, "state")) {
+                                state.is_on = helix::json_util::as_bool(*on_state);
                             }
                             state.brightness = helix::json_util::safe_int(val, "brightness", 255);
                             state.active_preset = helix::json_util::safe_int(val, "preset", -1);
@@ -1315,11 +1326,11 @@ void OutputPinBackend::set_brightness(const std::string& pin_id, int brightness_
 bool OutputPinBackend::update_from_status(const nlohmann::json& status) {
     bool carried = false;
     for (const auto& pin : pins_) {
-        if (!status.contains(pin.id))
+        const nlohmann::json* pin_status = helix::json_util::find_member(status, pin.id.c_str());
+        if (!pin_status)
             continue;
-        const auto& pin_status = status[pin.id];
-        if (pin_status.contains("value") && pin_status["value"].is_number()) {
-            pin_values_[pin.id] = pin_status["value"].get<double>();
+        if (auto value = helix::json_util::read_field<double>(*pin_status, "value")) {
+            pin_values_[pin.id] = *value;
             carried = true;
         }
     }
@@ -1442,8 +1453,8 @@ void LedController::load_config() {
             }
 
             // Parse presets (new format: macro-only) or legacy (name+macro pairs / custom_actions)
-            if (m.contains("presets") && m["presets"].is_array()) {
-                for (const auto& p : m["presets"]) {
+            if (const nlohmann::json* presets = helix::json_util::find_array(m, "presets")) {
+                for (const auto& p : *presets) {
                     if (p.is_object()) {
                         // Handle both old {name, macro} and new {macro} formats
                         auto macro_val = helix::json_util::safe_string(p, "macro");
@@ -1458,9 +1469,10 @@ void LedController::load_config() {
                 if (!info.presets.empty() && type_str.empty()) {
                     info.type = MacroLedType::PRESET;
                 }
-            } else if (m.contains("custom_actions") && m["custom_actions"].is_array()) {
+            } else if (const nlohmann::json* custom_actions =
+                           helix::json_util::find_array(m, "custom_actions")) {
                 // Legacy format: custom_actions -> presets
-                for (const auto& a : m["custom_actions"]) {
+                for (const auto& a : *custom_actions) {
                     if (a.is_object()) {
                         auto macro_val = helix::json_util::safe_string(a, "macro");
                         if (!macro_val.empty()) {
@@ -1988,11 +2000,12 @@ void LedController::query_led_state() {
 }
 
 void LedController::apply_query_response(const nlohmann::json& response) {
-    if (!response.contains("result") || !response["result"].contains("status")) {
+    const nlohmann::json* status_field = helix::json_util::find_path(response, "result", "status");
+    if (!status_field) {
         spdlog::warn("[LedController] query_led_state: no result/status in response");
         return;
     }
-    const auto& status = response["result"]["status"];
+    const auto& status = *status_field;
     spdlog::debug("[LedController] query_led_state: got {}",
                   helix::json_util::safe_dump(status).substr(0, 200));
     helix::ui::queue_update("LedController::query_led_state",

@@ -5,8 +5,11 @@
 
 #include "afc_config_manager.h"
 #include "afc_status_parse.h"
+#include "ams_dryer.h"
+#include "ams_lane_faults.h"
 #include "ams_lane_recovery.h"
 #include "ams_narration_matcher.h"
+#include "ams_spool_retention.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -157,14 +160,26 @@ struct AfcUnitInfo {
 
 class AmsBackendAfc : public AmsSubscriptionBackend,
                       public helix::ILaneRecovery,
-                      public helix::INarrationMatcher {
+                      public helix::INarrationMatcher,
+                      public helix::IDryer,
+                      public helix::ISpoolRetention,
+                      public helix::ILaneFaults {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
+        if (tag == helix::type_tag<helix::IDryer>()) {
+            return static_cast<helix::IDryer*>(this);
+        }
         if (tag == helix::type_tag<helix::ILaneRecovery>()) {
             return static_cast<helix::ILaneRecovery*>(this);
         }
         if (tag == helix::type_tag<helix::INarrationMatcher>()) {
             return static_cast<helix::INarrationMatcher*>(this);
+        }
+        if (tag == helix::type_tag<helix::ISpoolRetention>()) {
+            return static_cast<helix::ISpoolRetention*>(this);
+        }
+        if (tag == helix::type_tag<helix::ILaneFaults>()) {
+            return static_cast<helix::ILaneFaults*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }
@@ -184,6 +199,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// Drops an in-flight lane reset's console watch while the client is still
     /// alive; the destructor cannot, since the client may already be gone.
     void on_stopping() override;
+
+    /**
+     * @brief Apply a printer.gcode.help reply (full JSON-RPC envelope)
+     *
+     * Sets the command-presence flags the device actions and lane edits read.
+     *
+     * @return true when the reply carried a command table
+     */
+    bool apply_gcode_help_response(const nlohmann::json& response);
 
   public:
     /**
@@ -251,6 +275,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     // State queries
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    void refresh_translated_texts() override;
 
     [[nodiscard]] AmsType get_type() const override;
     /// Constant capability answers; see BackendTraits.
@@ -291,12 +316,32 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     }();
     [[nodiscard]] BackendTraits traits() const override {
         BackendTraits t = kTraits;
-        // Only OpenAMS units carry a temperature/humidity sensor.
+        // Only OpenAMS and ACE units carry a temperature/humidity sensor.
         t.has_environment_sensors = has_unit_environment_;
+        t.carriage_can_be_empty = carriage_can_be_empty_;
         return t;
     }
 
-    AmsError clear_message_queue() override;
+    // ========================================================================
+    // Dryer (ACE Pro units run through AFC; every other unit reports none)
+    // ========================================================================
+
+    /// The ACE unit's dryer, supported only once its object has published
+    /// `ace_dryer`; every other unit, and AFC without ACE support, has none.
+    [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
+    /// `AFC_ACE_DRY UNIT=<name> TEMP=<C> DURATION=<min>`. AFC keeps FAN at its
+    /// own default: the ACE Pro firmware runs its fan at a fixed speed.
+    AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
+    /// `AFC_ACE_DRY_STOP UNIT=<name>`.
+    AmsError stop_drying(int unit = 0) override;
+    /// Stop and restart: AFC has no command that retargets a running cycle.
+    AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
+                           int unit = 0) override;
+
+    /// AFC_CLEAR_MESSAGE. AFC keeps a persistent message queue that will not
+    /// clear until it is sent; without it the error dialog re-fires at once
+    /// because AFC keeps reporting ERROR (#497). clear_fault() sends it.
+    AmsError clear_message_queue();
     [[nodiscard]] bool manages_active_spool() const override {
         return true;
     }
@@ -343,6 +388,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// tool_loaded. See toolhead_is_free_unlocked() for why these three
     /// signals and NOT system_info_.filament_loaded.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+
+    /// Only klipper-toolchanger's own `status: error` is a carriage fault. A
+    /// lane fault (a jam, a load that timed out) leaves the docked heads where
+    /// they are.
+    [[nodiscard]] bool fault_concerns_carriage() const override;
 
     /// Status-driven fault, surfaced by AmsErrorBridge on the AmsAction::ERROR
     /// edge. Keyed on AFC's error_state, which upstream sets in lockstep with
@@ -418,12 +468,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// True when AFC names a still-existing lane as active (AFC.current_lane /
     /// current_load). The BoxTurtle hub sensor is shared across every lane on
     /// the unit, so an unattributed trigger cannot say whose filament caused it
-    /// — and can_recover_lane_position() now offers nothing at all in that case,
+    /// — and can_recover_lane_position() offers nothing at all in that case,
     /// so this is implied by it rather than merely ranking it.
     [[nodiscard]] bool lane_recovery_is_attributed() const override;
 
-    /// Delete this slot's user override ("Clear Spool"). AFC previously
-    /// inherited the no-op default, so the button did nothing here.
+    /// Delete this slot's user override ("Clear Spool"). Without this override
+    /// AFC inherits the base's no-op and the button does nothing.
     void clear_slot_override(int slot_index) override;
 
     AmsError eject_lane(int slot_index) override;
@@ -473,7 +523,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     /// Per-lane remember_spool = true on EVERY reporting lane (ALL
     /// semantics — a mixed config still leaves the toggle governing the
-    /// false lanes). See AmsBackend::printer_retains_spool_info().
+    /// false lanes). See ISpoolRetention::printer_retains_spool_info().
     [[nodiscard]] bool printer_retains_spool_info() const override;
 
     /// Every lane reports remember_spool, so AFC's setting decides.
@@ -614,8 +664,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
      * Ranges, self-backup and editability are already settled by
      * AmsBackend::set_endless_spool_backup(). This resolves the two lane names,
      * screens them for G-code injection, sends, and only then mirrors the edge
-     * into the SlotRegistry - the old order updated the registry first, so a
-     * rejected write left the registry claiming a backup the printer never got.
+     * into the SlotRegistry: mirroring first would leave a rejected write's
+     * registry claiming a backup the printer never got.
      *
      * @note Takes `mutex_` twice (name lookup, then the post-send mirror) and
      *       holds it across neither the injection check nor the G-code send.
@@ -663,7 +713,7 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     // boot and full-POSTs each lane record, so our data would not survive and
     // AFC's records would be ingested as if the user had authored them.
     //
-    // This is also what restores retention across an eject now that
+    // This is also what restores retention across an eject, since
     // apply_lane_status honours AFC's clears: firmware truth clears, and the
     // override re-supplies the identity the user attached.
     static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";
@@ -755,7 +805,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// clock, flapping between busy and ERROR indefinitely. Released the moment
     /// AFC reports a genuinely different string, and by clear_fault().
     std::optional<std::string> timed_out_state_;
+    /// The status line the timeout showed, and what was happening when it fired
+    /// (a catalog key or AFC's own text; empty for the bare timeout key), so a
+    /// language switch re-words the line while it is still the one shown.
     std::string timed_out_detail_;
+    std::string timed_out_what_;
 
     /// Flip a busy action that has outlived its budget to ERROR and latch it.
     /// No-op while already latched, and for IDLE / ERROR / PAUSED. Caller holds
@@ -955,15 +1009,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// action backed by one learns whether the installed AFC has it.
     void detect_afc_commands();
 
-    /**
-     * @brief Apply a printer.gcode.help reply (full JSON-RPC envelope)
-     *
-     * Sets the command-presence flags the device actions read.
-     *
-     * @return true when the reply carried a command table
-     */
-    bool apply_gcode_help_response(const nlohmann::json& response);
-
     /// Issue the one-shot unscoped query that check_afc_feature_level() needs.
     /// @param lane_object Full Klipper object name, e.g. "AFC_stepper lane1".
     void probe_feature_level(const std::string& lane_object);
@@ -1029,6 +1074,8 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// True when AFC publishes a `Toolchanger` unit: its heads are mounted by
     /// AFC_SELECT_TOOL, not by T{n}. @pre mutex_ held.
     [[nodiscard]] bool has_toolchanger_unit_locked() const;
+    /// Recompute carriage_can_be_empty_ from the units and the mount state. Caller holds mutex_.
+    void refresh_carriage_can_be_empty_locked();
 
     /// False only when configfile has answered and no AFC_extruder section
     /// named, or resolving to, @p klipper_name sets `toolchanger_unit`. AFC_SELECT_TOOL on such a
@@ -1065,6 +1112,20 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
      * topology, and reorganizes once every unit has lanes.
      */
     void apply_unit_object(AfcUnitInfo& unit_info, const afc::UnitObjectDelta& data);
+
+    /// Derive one unit's topology from its lists, the lanes' hub routing and
+    /// the printer's extruder count.
+    void refresh_unit_topology(AfcUnitInfo& unit_info);
+
+    /// Re-derive every unit that has lanes; for a change in a lane's hub routing
+    /// or the printer's extruder count, which no unit object re-announces.
+    void refresh_all_unit_topologies();
+
+    /// Whether a unit object already applied lists this lane.
+    [[nodiscard]] bool lane_in_applied_unit(const std::string& lane_name) const;
+
+    /// rebuild_unit_map_from_klipper() once every known unit has lanes.
+    void rebuild_unit_map_when_complete();
 
     /**
      * @brief Rebuild unit_lane_map_ from unit_infos_ and reorganize slots
@@ -1209,6 +1270,11 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     /// AFC_TOOLHEAD_CALIBRATION is registered (from printer.gcode.help). Guarded by mutex_.
     bool has_toolhead_calibration_{false};
+    /// AFC_SET_SPOOL_TEMP is registered: a lane's temperatures can be sent. Guarded by mutex_.
+    bool has_spool_temp_command_{false};
+    /// SET_FILAMENT_INFO is registered (AFC DEV): AFC holds a lane's vendor and
+    /// filament name. Guarded by mutex_.
+    bool has_filament_info_command_{false};
 
     /// "AFC_stepper " or "AFC_lane ", learned from the first status frame that
     /// carries a lane. Only the prefix is learnable from a frame; the fields are
@@ -1217,6 +1283,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
 
     // Per-lane hub routing: lane_name → hub name ("direct" for direct lanes)
     std::unordered_map<std::string, std::string> lane_hub_routing_;
+    /// An input to unit topology changed after its unit object was applied;
+    /// handle_status() re-derives every unit once the frame's units are in.
+    bool unit_topology_stale_ = false;
 
     // Lanes whose "map" field listed more than one tool (AFC virtual tools, #605)
     // — dedupes the "extras are not tracked" warning so it fires once per lane,
@@ -1257,6 +1326,15 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     // opt-in to virtual tools and defaults false, so only presence is a version
     // signal.
     bool afc_reset_mapping_renamed_{false};
+
+    // multiple_tool_mapping's VALUE: AFC's enable_multiple_mapping opt-in (#832).
+    // On, SET_MAP adds the tool to the target lane and leaves that lane's other
+    // tools and current_map alone, so a remap from here is refused rather than
+    // sent as an edit that appears to do nothing.
+    bool afc_multiple_tool_mapping_{false};
+
+    // toolchanger.status reads "error": the carriage itself has faulted.
+    bool toolchanger_error_{false};
 
     /// The firmware behind these objects picks each tool's lane at print time
     /// (toolchanger_addon::firmware_picks_lanes_at_print()), and its SET_MAP
@@ -1436,6 +1514,39 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     /// Lowercased AFC_OpenAMS unit name -> lowercased [AFC_OAMS] name, from configfile.
     std::unordered_map<std::string, std::string> unit_oams_names_;
     std::atomic<bool> has_unit_environment_{false};
+    /// True on a toolchanger: an AFC_Toolchanger unit is configured, or a
+    /// carriage has reported its mount state (toolchanger.status/tool_number,
+    /// or AFC_extruder on_shuttle on a multi-extruder machine). Its heads dock,
+    /// so a current tool of -1 means every head is parked. A single-toolhead
+    /// AFC never reports a carriage and keeps -1 meaning "no lane loaded".
+    /// Set by refresh_carriage_can_be_empty_locked().
+    std::atomic<bool> carriage_can_be_empty_{false};
+
+    /// An ACE Pro unit's hardware state, keyed by the unit's display name
+    /// ("ACE Ace_1", the AmsUnit::name rebuild_unit_map_from_klipper() gives it).
+    struct AfcAceUnit {
+        std::string name;       ///< AFC's unit name, the `UNIT=` of AFC_ACE_DRY
+        bool has_dryer = false; ///< The object has published `ace_dryer`
+        DryerInfo dryer;
+        std::optional<EnvironmentData> environment;
+        /// Each ACE slot's RFID tag, by 0-based slot; nullopt where none was read.
+        std::vector<std::optional<ams::TagReading>> slot_tags;
+    };
+    std::unordered_map<std::string, AfcAceUnit> ace_units_;
+
+    /// Folds one ACE unit object's hardware fields in. Caller holds mutex_.
+    void apply_ace_unit(const AfcUnitInfo& unit_info, const afc::AceUnitDelta& data);
+    /// Each lane's 1-based position in its unit (`AFC_lane.lane`), by lane name.
+    std::unordered_map<std::string, int> lane_unit_positions_;
+    /// The tag a CFS unit last read for each lane, by lane name; absent when none.
+    std::unordered_map<std::string, ams::TagReading> cfs_lane_tags_;
+    /// The RFID tag AFC reports for @p lane_name (an ACE slot's or a CFS lane's),
+    /// or nullopt. Caller holds mutex_.
+    [[nodiscard]] std::optional<ams::TagReading>
+    lane_rfid_tag_locked(const std::string& lane_name) const;
+
+    /// The ACE unit behind @p unit, or nullptr. Caller holds mutex_.
+    [[nodiscard]] const AfcAceUnit* ace_unit_locked(int unit) const;
 
     /// What AFC itself has said about a lane, per observation source, built up
     /// field by field across status frames and keyed by lane name the way the

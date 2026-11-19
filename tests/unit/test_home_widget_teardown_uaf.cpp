@@ -356,25 +356,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 // ============================================================================
 
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
-                 "thermistor drops cached labels when the page tree is deleted raw",
-                 "[thermistor][teardown][uaf]") {
-    helix::sensors::TemperatureSensorManager::instance().discover(
-        helix::test::discovery_of({kThermistorSensorA}));
-
-    auto widget = std::make_unique<ThermistorWidget>("thermistor");
-    widget->set_config({{"sensors", std::vector<std::string>{kThermistorSensorA}}});
-    lv_obj_t* page = make_page();
-    widget->attach(make_tile(page, "panel_widget_thermistor"), test_screen());
-    UpdateQueue::instance().drain();
-
-    REQUIRE(ThermistorTestAccess::name_label(*widget) != nullptr);
-
-    lv_obj_delete(page);
-
-    CHECK(ThermistorTestAccess::name_label(*widget) == nullptr);
-}
-
-TEST_CASE_METHOD(HomeWidgetTeardownFixture,
                  "thermistor queued temp apply survives a drain after the tree dies",
                  "[thermistor][teardown][uaf]") {
     helix::sensors::TemperatureSensorManager::instance().discover(
@@ -385,7 +366,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_t* page = make_page();
     widget->attach(make_tile(page, "panel_widget_thermistor"), test_screen());
     UpdateQueue::instance().drain();
-    REQUIRE(ThermistorTestAccess::name_label(*widget) != nullptr);
 
     // The sensor's temp subject fires temp_observer_ synchronously; the handler
     // (on_temp_changed) is queued.
@@ -399,7 +379,8 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_delete(page);
     UpdateQueue::instance().drain();
 
-    CHECK(ThermistorTestAccess::name_label(*widget) == nullptr);
+    // The tree's delete expired the queued handler, so the reading never landed.
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "thermistor_thermistor_temp")) != 425);
 }
 
 TEST_CASE_METHOD(HomeWidgetTeardownFixture,
@@ -499,15 +480,11 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     // The tile must have actually populated the pointers under test, or the
     // null checks below would pass for the wrong reason.
     REQUIRE(helix::CameraWidgetTestAccess::camera_image(*attached.widget) != nullptr);
-    REQUIRE(helix::CameraWidgetTestAccess::camera_overlay(*attached.widget) != nullptr);
-    REQUIRE(helix::CameraWidgetTestAccess::camera_status(*attached.widget) != nullptr);
 
     // No detach(): the widget hears only on_hooked_root_deleted().
     lv_obj_delete(attached.page);
 
     CHECK(helix::CameraWidgetTestAccess::camera_image(*attached.widget) == nullptr);
-    CHECK(helix::CameraWidgetTestAccess::camera_overlay(*attached.widget) == nullptr);
-    CHECK(helix::CameraWidgetTestAccess::camera_status(*attached.widget) == nullptr);
     CHECK(helix::CameraWidgetTestAccess::widget_obj(*attached.widget) == nullptr);
 }
 
@@ -581,7 +558,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     lv_obj_t* overlay = CameraWidgetTestAccess::fullscreen_overlay(*attached.widget);
     REQUIRE(overlay != nullptr);
     REQUIRE(CameraWidgetTestAccess::fullscreen_image(*attached.widget) != nullptr);
-    REQUIRE(CameraWidgetTestAccess::fullscreen_spinner(*attached.widget) != nullptr);
     REQUIRE(attached.widget->has_overlay_open());
 
     lv_obj_delete(overlay);
@@ -589,13 +565,20 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
 
     CHECK(CameraWidgetTestAccess::fullscreen_overlay(*attached.widget) == nullptr);
     CHECK(CameraWidgetTestAccess::fullscreen_image(*attached.widget) == nullptr);
-    CHECK(CameraWidgetTestAccess::fullscreen_spinner(*attached.widget) == nullptr);
     CHECK_FALSE(attached.widget->has_overlay_open());
 
-    // The single-owner slot is free again: a second overlay opens.
+    // The single-owner slot is free again: a second overlay opens, connecting
+    // even though the last view drew frames.
+    lv_subject_t* connecting = lv_xml_get_subject(nullptr, "camera_fullscreen_connecting");
+    REQUIRE(connecting != nullptr);
+    lv_subject_set_int(connecting, 0);
     CameraWidgetTestAccess::show_fullscreen_overlay(*attached.widget);
     UpdateQueue::instance().drain();
-    REQUIRE(CameraWidgetTestAccess::fullscreen_overlay(*attached.widget) != nullptr);
+    lv_obj_t* reopened = CameraWidgetTestAccess::fullscreen_overlay(*attached.widget);
+    REQUIRE(reopened != nullptr);
+    lv_obj_t* spinner = lv_obj_find_by_name(reopened, "fullscreen_spinner");
+    REQUIRE(spinner != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(spinner));
 
     // detach() deletes the live overlay and nothing else.
     attached.widget.reset();
@@ -686,7 +669,6 @@ TEST_CASE_METHOD(HomeWidgetTeardownFixture,
     UpdateQueue::instance().drain();
 
     CHECK(ShutdownWidgetTestAccess::widget_obj(*widget) == nullptr);
-    CHECK(ShutdownWidgetTestAccess::shutdown_btn(*widget) == nullptr);
     CHECK(ShutdownWidgetTestAccess::parent_screen(*widget) == nullptr);
 
     // The path that would have written into the freed tile.

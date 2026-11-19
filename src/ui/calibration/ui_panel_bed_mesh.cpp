@@ -20,7 +20,6 @@
 #include "ui_event_safety.h"
 #include "ui_modal.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -31,19 +30,24 @@
 #include "bed_mesh_probe_temp.h"
 #include "bed_mesh_profile_name.h"
 #include "bed_mesh_stats.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
+#include "gcode_response_lines.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "layout_manager.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "standard_macros.h"
+#include "system/subject_registry.h"
 #include "temperature_controller.h"
 #include "theme_manager.h"
 #include "toolhead_homing.h"
@@ -72,6 +76,8 @@ static void on_profile_delete_cb(lv_event_t* e);
 // Constructor / Destructor
 // ============================================================================
 
+static constexpr const char* kBedHeater = "heater_bed";
+
 BedMeshPanel::BedMeshPanel() {
     // Initialize buffer contents
     std::memset(rename_old_name_buf_, 0, sizeof(rename_old_name_buf_));
@@ -96,7 +102,7 @@ BedMeshPanel::~BedMeshPanel() {
     // CRITICAL: Check if LVGL is still initialized before calling LVGL functions.
     // During static destruction, LVGL may already be torn down.
     if (lv_is_initialized()) {
-        // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_del()!
+        // Modal dialogs: use helix::ui::modal_hide() - NOT lv_obj_delete()!
         // See docs/DEVELOPER_QUICK_REFERENCE.md "Modal Dialog Lifecycle"
         if (calibrate_modal_widget_) {
             helix::ui::modal_hide(calibrate_modal_widget_);
@@ -147,19 +153,19 @@ void BedMeshPanel::init_subjects() {
             char* range_buf = profile_range_bufs_[idx].data();
 
             // Initialize with 5-arg form: (subject, buf, prev_buf, size, initial_value)
-            lv_subject_init_string(&profile_name_subjects_[idx], name_buf, nullptr,
-                                   profile_name_bufs_[idx].size(), "");
+            profile_name_subjects_[idx].init_string(name_buf, nullptr,
+                                                    profile_name_bufs_[idx].size(), "");
             helix::xml::register_subject_in_current_scope(name_key.c_str(),
                                                           &profile_name_subjects_[idx]);
             subjects_.register_subject(&profile_name_subjects_[idx], name_key.c_str());
 
-            lv_subject_init_string(&profile_range_subjects_[idx], range_buf, nullptr,
-                                   profile_range_bufs_[idx].size(), "");
+            profile_range_subjects_[idx].init_string(range_buf, nullptr,
+                                                     profile_range_bufs_[idx].size(), "");
             helix::xml::register_subject_in_current_scope(range_key.c_str(),
                                                           &profile_range_subjects_[idx]);
             subjects_.register_subject(&profile_range_subjects_[idx], range_key.c_str());
 
-            lv_subject_init_int(&profile_active_subjects_[idx], 0);
+            profile_active_subjects_[idx].init_int(0);
             helix::xml::register_subject_in_current_scope(active_key.c_str(),
                                                           &profile_active_subjects_[idx]);
             subjects_.register_subject(&profile_active_subjects_[idx], active_key.c_str());
@@ -625,8 +631,15 @@ void BedMeshPanel::ensure_async_rendering() {
     ui_bed_mesh_redraw(canvas_);
 }
 
-void BedMeshPanel::on_deactivating(DeactivateReason) {
+void BedMeshPanel::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[{}] on_deactivating()", get_name());
+
+    // Anything but Suspended invalidates the callbacks that would end this run,
+    // so its heat is given back here. Klipper runs gcode one at a time: the offs
+    // wait behind a probe or heat wait already running.
+    if (reason != DeactivateReason::Suspended) {
+        cooldown_after_probing();
+    }
 
     // Stop the render thread when panel is not visible to avoid wasting CPU
     if (canvas_) {
@@ -673,20 +686,20 @@ void BedMeshPanel::update_profile_list_subjects() {
             profile_names_[idx] = profiles[idx];
 
             // Set name
-            lv_subject_copy_string(&profile_name_subjects_[idx], profiles[idx].c_str());
+            lv_subject_set_string(&profile_name_subjects_[idx], profiles[idx].c_str());
 
             // Calculate and set range (mm without suffix for profile lists)
             float range = calculate_profile_range(profiles[idx]);
             std::snprintf(profile_range_bufs_[idx].data(), 32, "%.3f", range);
-            lv_subject_copy_string(&profile_range_subjects_[idx], profile_range_bufs_[idx].data());
+            lv_subject_set_string(&profile_range_subjects_[idx], profile_range_bufs_[idx].data());
 
             // Set active state
             int is_active = (profiles[idx] == active_name) ? 1 : 0;
             lv_subject_set_int(&profile_active_subjects_[idx], is_active);
         } else {
             profile_names_[idx].clear();
-            lv_subject_copy_string(&profile_name_subjects_[idx], "");
-            lv_subject_copy_string(&profile_range_subjects_[idx], "");
+            lv_subject_set_string(&profile_name_subjects_[idx], "");
+            lv_subject_set_string(&profile_range_subjects_[idx], "");
             lv_subject_set_int(&profile_active_subjects_[idx], 0);
         }
     }
@@ -754,12 +767,12 @@ void BedMeshPanel::setup_moonraker_subscription() {
     SubscriptionId id =
         api->subscribe_notifications([this, api, token](const nlohmann::json& notification) {
             // Check if this notification contains bed_mesh data BEFORE deferring to main thread
-            if (!notification.contains("params") || !notification["params"].is_array() ||
-                notification["params"].empty()) {
+            const nlohmann::json* params_arr = json_util::find_array(notification, "params");
+            if (!params_arr || params_arr->empty()) {
                 return;
             }
-            const nlohmann::json& params = notification["params"][0];
-            if (!params.contains("bed_mesh") || !params["bed_mesh"].is_object()) {
+            const nlohmann::json& params = (*params_arr)[0];
+            if (!json_util::find_object(params, "bed_mesh")) {
                 return;
             }
 
@@ -966,19 +979,26 @@ void BedMeshPanel::rename_profile(int index) {
     show_rename_modal(name);
 }
 
-void BedMeshPanel::remember_heaters_probing_turns_on() {
-    auto& state = get_printer_state();
-    // A target of 0 means the heater is off.
-    preheat_turned_on_nozzle_ =
-        lv_subject_get_int(state.temperature_state().get_active_extruder_target_subject()) == 0;
-    preheat_turned_on_bed_ =
-        lv_subject_get_int(state.temperature_state().get_bed_target_subject()) == 0;
+void BedMeshPanel::remember_heaters_probing_turns_on(int nozzle_c, int bed_c) {
+    auto& temps = get_printer_state().temperature_state();
+    const std::string nozzle = temps.active_extruder_name();
+    // A target of 0 means the heater is off. Heat an earlier run still owes an off
+    // for is this panel's own, whatever target it reports.
+    if (lv_subject_get_int(temps.get_active_extruder_target_subject()) == 0 ||
+        heat_.owes_off(nozzle)) {
+        heat_.own(nozzle, nozzle_c);
+    }
+    if (lv_subject_get_int(temps.get_bed_target_subject()) == 0 || heat_.owes_off(kBedHeater)) {
+        heat_.own(kBedHeater, bed_c);
+    }
 }
 
 void BedMeshPanel::preheat_for_probing() {
-    remember_heaters_probing_turns_on();
+    remember_heaters_probing_turns_on(static_cast<int>(kProbeNozzleTemp),
+                                      static_cast<int>(kProbeBedTemp));
 
     auto& state = get_printer_state();
+    const std::string nozzle = state.temperature_state().active_extruder_name();
 
     // Subject values are decidegrees (value * 10)
     int nozzle_target =
@@ -995,47 +1015,39 @@ void BedMeshPanel::preheat_for_probing() {
         }
     };
 
-    if (preheat_turned_on_nozzle_) {
+    if (heat_.owns(nozzle)) {
         spdlog::info("[BedMeshPanel] Preheating nozzle to {}°C for probing", kProbeNozzleTemp);
-        set_temp(state.temperature_state().active_extruder_name(), kProbeNozzleTemp, "nozzle");
+        set_temp(nozzle, kProbeNozzleTemp, "nozzle");
     } else {
         spdlog::info("[BedMeshPanel] Nozzle already heating (target={}°C), skipping",
                      helix::units::from_decidegrees(nozzle_target));
     }
 
-    if (preheat_turned_on_bed_) {
+    if (heat_.owns(kBedHeater)) {
         spdlog::info("[BedMeshPanel] Preheating bed to {}°C for probing", kProbeBedTemp);
-        set_temp("heater_bed", kProbeBedTemp, "bed");
+        set_temp(kBedHeater, kProbeBedTemp, "bed");
     } else {
         spdlog::info("[BedMeshPanel] Bed already heating (target={}°C), skipping",
                      helix::units::from_decidegrees(bed_target));
     }
 }
 
+void BedMeshPanel::send_heater_off(const std::string& heater) {
+    if (auto* c = get_temperature_controller()) {
+        c->set_target(heater, 0.0,
+                      {.toast = false, .on_error = [heater](const MoonrakerError& err) {
+                           spdlog::warn("[BedMeshPanel] Failed to turn off {}: {}", heater,
+                                        err.message);
+                       }});
+    }
+}
+
 void BedMeshPanel::cooldown_after_probing() {
-    if (!preheat_turned_on_nozzle_ && !preheat_turned_on_bed_)
-        return;
+    heat_.turn_off();
+}
 
-    auto turn_off = [](const std::string& heater, const char* label) {
-        spdlog::info("[BedMeshPanel] Turning off {} (was off before probing)", label);
-        if (auto* c = get_temperature_controller()) {
-            c->set_target(heater, 0.0,
-                          {.toast = false, .on_error = [label](const MoonrakerError& err) {
-                               spdlog::warn("[BedMeshPanel] Failed to turn off {}: {}", label,
-                                            err.message);
-                           }});
-        }
-    };
-
-    if (preheat_turned_on_nozzle_) {
-        turn_off(get_printer_state().temperature_state().active_extruder_name(), "nozzle");
-        preheat_turned_on_nozzle_ = false;
-    }
-
-    if (preheat_turned_on_bed_) {
-        turn_off("heater_bed", "bed");
-        preheat_turned_on_bed_ = false;
-    }
+void BedMeshPanel::before_disconnect() {
+    heat_.before_disconnect();
 }
 
 void BedMeshPanel::start_calibration() {
@@ -1051,9 +1063,13 @@ void BedMeshPanel::start_calibration() {
         return;
     }
 
+    ensure_bed_clear_then(lifetime_.token(), [this]() { ask_calibration_name(); });
+}
+
+void BedMeshPanel::ask_calibration_name() {
     // The mesh is named before anything is probed, so the calibration itself
     // stores it there. The field starts on the profile Klipper loads at startup.
-    lv_subject_copy_string(&bed_mesh_calibrate_name_, helix::bed_mesh::kDefaultProfile);
+    lv_subject_set_string(&bed_mesh_calibrate_name_, helix::bed_mesh::kDefaultProfile);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::NAMING));
     calibrate_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_calibrate_modal");
@@ -1106,7 +1122,7 @@ void BedMeshPanel::begin_calibration(const std::string& name) {
                        static_cast<int>(BedMeshCalibrationState::PROBING));
     lv_subject_set_int(&bed_mesh_probe_progress_, 0);
     lv_subject_set_int(&bed_mesh_probe_indeterminate_, 0);
-    lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+    lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
 
     IMoonrakerAPI* api = api_;
     if (!api) {
@@ -1140,7 +1156,7 @@ void BedMeshPanel::prepare_and_probe() {
         spdlog::info("[BedMeshPanel] Sequence prepares the printer itself; no preheat or homing");
         // What it heats stays on after it, so the heaters that were off are
         // turned off again once probing is done.
-        remember_heaters_probing_turns_on();
+        remember_heaters_probing_turns_on(0, 0);
         start_calibration_probing();
         return;
     }
@@ -1149,20 +1165,20 @@ void BedMeshPanel::prepare_and_probe() {
     preheat_for_probing();
 
     // If we turned on any heaters, wait for them to reach target before proceeding
-    if (preheat_turned_on_nozzle_ || preheat_turned_on_bed_) {
+    if (heat_.any()) {
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 1);
-        lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Heating..."));
+        lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Heating..."));
 
         // Build TEMPERATURE_WAIT command for heaters we turned on
         std::string wait_cmd;
-        if (preheat_turned_on_nozzle_) {
+        const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
+        if (heat_.owns(nozzle)) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=%s MINIMUM=%.0f\n",
-                          get_printer_state().temperature_state().active_extruder_name().c_str(),
-                          kProbeNozzleTemp);
+                          nozzle.c_str(), kProbeNozzleTemp);
             wait_cmd += buf;
         }
-        if (preheat_turned_on_bed_) {
+        if (heat_.owns(kBedHeater)) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=%.0f",
                           kProbeBedTemp);
@@ -1204,7 +1220,7 @@ void BedMeshPanel::start_home_and_probe() {
     if (!toolhead_is_homed(get_printer_state())) {
         spdlog::info("[BedMeshPanel] Not fully homed, sending G28 first");
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 1);
-        lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Homing..."));
+        lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Homing..."));
     }
 
     ensure_homed_then(
@@ -1227,7 +1243,13 @@ void BedMeshPanel::start_calibration_probing() {
         return;
     }
 
-    lv_subject_copy_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+    lv_subject_set_string(&bed_mesh_probe_text_, lv_tr("Preparing..."));
+
+    // A wrapper around BED_MESH_CALIBRATE may set targets of its own from here on.
+    const std::string nozzle = get_printer_state().temperature_state().active_extruder_name();
+    for (const std::string& heater : {nozzle, std::string(kBedHeater)}) {
+        heat_.let_firmware_set(heater);
+    }
 
     auto token = lifetime_.token();
 
@@ -1247,8 +1269,9 @@ void BedMeshPanel::start_calibration_probing() {
             try {
                 const json& settings =
                     response.contains(kSettings) ? response[kSettings] : kNoSettings;
-                if (settings.contains("bed_mesh") && settings["bed_mesh"].contains("probe_count")) {
-                    const auto& pc = settings["bed_mesh"]["probe_count"];
+                if (const json* probe_count =
+                        json_util::find_path(settings, "bed_mesh", "probe_count")) {
+                    const auto& pc = *probe_count;
                     if (pc.is_array() && pc.size() >= 2) {
                         expected = pc[0].template get<int>() * pc[1].template get<int>();
                     } else if (pc.is_number_integer()) {
@@ -1261,8 +1284,9 @@ void BedMeshPanel::start_calibration_probing() {
                 // load_cell_probe (Centauri Carbon's mainline-Klipper strain
                 // gauge module) has its own samples key.
                 for (const char* section : {"probe", "bltouch", "load_cell_probe"}) {
-                    if (settings.contains(section) && settings[section].contains("samples")) {
-                        int s = settings[section]["samples"].template get<int>();
+                    if (const json* samples_v =
+                            json_util::find_path(settings, section, "samples")) {
+                        int s = samples_v->template get<int>();
                         if (s > 1) {
                             samples = s;
                             break;
@@ -1331,7 +1355,7 @@ void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, i
 
 void BedMeshPanel::show_rename_modal(const std::string& profile_name) {
     pending_rename_old_ = profile_name;
-    lv_subject_copy_string(&bed_mesh_rename_old_name_, profile_name.c_str());
+    lv_subject_set_string(&bed_mesh_rename_old_name_, profile_name.c_str());
 
     rename_modal_widget_ = helix::ui::ComponentModal::show_owned("bed_mesh_rename_modal");
     spdlog::debug("[{}] Showing rename modal for: {}", get_name(), profile_name);
@@ -1570,7 +1594,7 @@ void BedMeshPanel::on_probe_progress(int current, int total) {
         std::snprintf(probe_text_buf_, sizeof(probe_text_buf_), "%s", text.c_str());
         spdlog::debug("[BedMeshPanel] Probe progress: {} points (total unknown)", current);
     }
-    lv_subject_copy_string(&bed_mesh_probe_text_, probe_text_buf_);
+    lv_subject_set_string(&bed_mesh_probe_text_, probe_text_buf_);
 }
 
 void BedMeshPanel::on_calibration_complete() {
@@ -1622,10 +1646,9 @@ void BedMeshPanel::read_stored_meshes(std::function<void(helix::bed_mesh::Stored
         [token, on_read](const json& response) {
             // BG: parse here, hand the result to the main thread.
             auto meshes = std::make_shared<helix::bed_mesh::StoredMeshes>();
-            if (response.contains("result") && response["result"].contains("status") &&
-                response["result"]["status"].contains("bed_mesh")) {
-                *meshes = helix::bed_mesh::stored_meshes_from_status(
-                    response["result"]["status"]["bed_mesh"]);
+            if (const json* bed_mesh =
+                    json_util::find_path(response, "result", "status", "bed_mesh")) {
+                *meshes = helix::bed_mesh::stored_meshes_from_status(*bed_mesh);
             }
             token.defer("BedMeshPanel::stored_meshes_read",
                         [on_read, meshes]() { on_read(std::move(*meshes)); });
@@ -1684,11 +1707,11 @@ void BedMeshPanel::save_profile_as(const std::string& name, std::function<void()
     static std::atomic<uint64_t> s_watch_id{0};
     const std::string watch = "bed_mesh_profile_save_" + std::to_string(++s_watch_id);
     api->register_method_callback("notify_gcode_response", watch, [refusal](const json& msg) {
-        if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty() ||
-            !msg["params"][0].is_string()) {
+        const std::string* line_param = helix::first_gcode_response_param(msg);
+        if (!line_param) {
             return;
         }
-        const auto& line = msg["params"][0].get_ref<const std::string&>();
+        const std::string& line = *line_param;
         if (!helix::bed_mesh::is_profile_save_refusal(line)) {
             return;
         }
@@ -1733,7 +1756,7 @@ void BedMeshPanel::on_calibration_error(const std::string& message) {
     std::string clean = MoonrakerError::friendly_error_line(message);
     std::strncpy(error_message_buf_, clean.c_str(), sizeof(error_message_buf_) - 1);
     error_message_buf_[sizeof(error_message_buf_) - 1] = '\0';
-    lv_subject_copy_string(&bed_mesh_error_message_, error_message_buf_);
+    lv_subject_set_string(&bed_mesh_error_message_, error_message_buf_);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::ERROR));
 }
@@ -1742,8 +1765,7 @@ void BedMeshPanel::handle_emergency_stop() {
     spdlog::warn("[BedMeshPanel] Emergency stop during bed mesh calibration");
 
     // E-stop kills all heaters — just reset preheat tracking flags
-    preheat_turned_on_nozzle_ = false;
-    preheat_turned_on_bed_ = false;
+    heat_.forget();
 
     // Suppress recovery dialog — user intentionally triggered E-Stop from this modal
     EmergencyStopOverlay::instance().suppress_recovery_dialog(recovery_suppression::LONG);

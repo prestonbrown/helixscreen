@@ -3,10 +3,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <!--
-    Maintenance meters home tile. maintenance_model publishes the meters (maintenance_m<i>_*)
-    and the one closest to due (maintenance_worst_*); MaintenanceWidget publishes
-    maintenance_rung (SizeRung), maintenance_show_total and maintenance_ring_d. A tap opens the detail overlay,
-    where meters are reset and their intervals set.
+    Maintenance meters home tile. maintenance_model publishes the most-due meters as ranked
+    rows (maintenance_r<k>_*) and the one closest to due (maintenance_worst_*);
+    MaintenanceWidget publishes maintenance_rung (SizeRung), maintenance_show_total,
+    maintenance_ring_d and maintenance_tile_rows (how many ranked rows fit). A tap opens the
+    overview, where meters' tasks and reminder intervals are.
 
     Rungs: 0 glance (the ring with the hours left inside), 1 strip (the meter's short name
     and hours on one line), 2 column and 3 cell (the ring over the name), 4 wide (the ring
@@ -57,23 +58,23 @@
                  bind_text="maintenance_worst_name" style_text_color="#text_muted" clickable="false" event_bubble="true">
         <bind_flag_if cond="maintenance_rung eq 0 or maintenance_rung eq 4" flag="hidden"/>
       </text_tiny>
-      <!-- Wide: a row per meter beside the ring. -->
+      <!-- Wide: the most-due meters beside the ring, as many as fit. -->
       <pass_through name="mt_list"
                     width="100%" height="content" flex_grow="1" flex_flow="column" style_flex_main_place="center"
                     style_pad_row="#space_xxs">
         <bind_flag_if_not_eq subject="maintenance_rung" flag="hidden" ref_value="4"/>
-        <repeat count="3">
+        <repeat count="4">
           <pass_through name="mt_list_row_${i}"
                         width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
                         style_flex_cross_place="center" style_pad_column="#space_xs">
-            <bind_flag_if_eq subject="maintenance_m${i}_on" flag="hidden" ref_value="0"/>
+            <bind_flag_if cond="maintenance_r${i}_on eq 0 or maintenance_tile_rows le ${i}" flag="hidden"/>
             <text_small name="mt_list_name_${i}"
-                        bind_text="maintenance_m${i}_short" style_text_color="#text_muted" clickable="false"
+                        bind_text="maintenance_r${i}_short" style_text_color="#text_muted" clickable="false"
                         event_bubble="true"/>
             <text_small name="mt_list_hours_${i}"
-                        bind_text="maintenance_m${i}_left" clickable="false" event_bubble="true">
-              <bind_style_if_eq name="styles.maint_text_warn" subject="maintenance_m${i}_status" ref_value="1"/>
-              <bind_style_if_eq name="styles.maint_text_danger" subject="maintenance_m${i}_status" ref_value="2"/>
+                        bind_text="maintenance_r${i}_left" clickable="false" event_bubble="true">
+              <bind_style_if_eq name="styles.maint_text_warn" subject="maintenance_r${i}_status" ref_value="1"/>
+              <bind_style_if_eq name="styles.maint_text_danger" subject="maintenance_r${i}_status" ref_value="2"/>
             </text_small>
           </pass_through>
         </repeat>
@@ -94,7 +95,7 @@
       </text_small>
     </pass_through>
 
-    <!-- Full: a title, then a row and a bar per meter, then the total. -->
+    <!-- Full: a title, then a row and a bar per most-due meter, then the total. -->
     <pass_through name="mt_full"
                   width="100%" height="100%" flex_flow="column" style_flex_main_place="space_evenly"
                   style_flex_cross_place="start" style_pad_row="#space_xxs">
@@ -105,30 +106,30 @@
         <icon name="mt_title_icon" src="wrench" size="xs" variant="secondary" clickable="false" event_bubble="true"/>
         <text_small name="mt_title" text="Maintenance" clickable="false" event_bubble="true"/>
       </pass_through>
-      <repeat count="3">
+      <repeat count="4">
         <pass_through name="mt_row_${i}" width="100%" height="content" flex_flow="column" style_pad_row="#space_xxs">
-          <bind_flag_if_eq subject="maintenance_m${i}_on" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="maintenance_r${i}_on eq 0 or maintenance_tile_rows le ${i}" flag="hidden"/>
           <pass_through width="100%"
                         height="content" flex_flow="row" style_flex_main_place="space_between"
                         style_flex_cross_place="center" style_pad_column="#space_xs">
             <text_small name="mt_row_name_${i}"
-                        bind_text="maintenance_m${i}_name" style_text_color="#text_muted" clickable="false"
+                        bind_text="maintenance_r${i}_name" style_text_color="#text_muted" clickable="false"
                         event_bubble="true"/>
             <text_small name="mt_row_hours_${i}"
-                        bind_text="maintenance_m${i}_left" clickable="false" event_bubble="true">
-              <bind_style_if_eq name="styles.maint_text_warn" subject="maintenance_m${i}_status" ref_value="1"/>
-              <bind_style_if_eq name="styles.maint_text_danger" subject="maintenance_m${i}_status" ref_value="2"/>
+                        bind_text="maintenance_r${i}_left" clickable="false" event_bubble="true">
+              <bind_style_if_eq name="styles.maint_text_warn" subject="maintenance_r${i}_status" ref_value="1"/>
+              <bind_style_if_eq name="styles.maint_text_danger" subject="maintenance_r${i}_status" ref_value="2"/>
             </text_small>
           </pass_through>
           <lv_bar name="mt_row_bar_${i}"
-                  width="100%" height="#space_xs" min_value="0" max_value="100" bind_value="maintenance_m${i}_pct"
+                  width="100%" height="#space_xs" min_value="0" max_value="100" bind_value="maintenance_r${i}_pct"
                   style_bg_color="#border" style_bg_opa="255" style_radius="#border_radius" style_bg_opa-indicator="255"
                   style_radius-indicator="#border_radius" clickable="false" event_bubble="true">
             <style name="styles.maint_bar_normal" selector="indicator"/>
             <bind_style_if_eq name="styles.maint_bar_warn"
-                              subject="maintenance_m${i}_status" ref_value="1" selector="indicator"/>
+                              subject="maintenance_r${i}_status" ref_value="1" selector="indicator"/>
             <bind_style_if_eq name="styles.maint_bar_danger"
-                              subject="maintenance_m${i}_status" ref_value="2" selector="indicator"/>
+                              subject="maintenance_r${i}_status" ref_value="2" selector="indicator"/>
           </lv_bar>
         </pass_through>
       </repeat>

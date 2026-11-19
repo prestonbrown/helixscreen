@@ -20,6 +20,8 @@
 #include <mutex>
 #include <optional>
 
+#include "hv/json.hpp"
+
 namespace helix::snapmaker::nozzle_offset {
 
 namespace {
@@ -514,6 +516,8 @@ void Runner::set_phase(Phase phase) {
         s_live_runner = nullptr;
     }
     phase_ = phase;
+    // leave_live_run() sends EXIT from these two; Finishing's is already in flight.
+    heater_hold_.set(phase == Phase::Running || phase == Phase::AwaitingUser);
     if (hooks_.changed) {
         hooks_.changed();
     }

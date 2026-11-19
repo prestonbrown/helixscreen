@@ -43,6 +43,14 @@ class IGateSelector {
     /// without loading it to the toolhead.
     virtual AmsError preload_lane(int slot_index) = 0;
 
+    /// Whether the firmware has gate @p slot_index marked empty, so mark_gate_available()
+    /// is the way back after a failed load left a spool in it.
+    [[nodiscard]] virtual bool gate_marked_empty(int slot_index) const = 0;
+
+    /// Tell the firmware gate @p slot_index has filament again. Bookkeeping only: nothing
+    /// moves, and the gate keeps its material, colour and spool.
+    virtual AmsError mark_gate_available(int slot_index) = 0;
+
     /// Re-sync the firmware's tracked state to what the user says is true.
     ///
     /// State-only, like clear_fault(): tells the firmware which gate is selected and whether

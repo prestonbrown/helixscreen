@@ -84,6 +84,13 @@ CrossPageStep cross_page_step(CrossPageState& state, const CrossPageInput& in) {
         state.zone_spent = false;
     }
 
+    // The dwell kept counting through this step's elapsed time unless the zone
+    // changed under it.
+    const int prev_dwell = zone_changed ? 0 : state.dwell_dir;
+    if (prev_dwell != 0) {
+        state.dwell_ms += in.elapsed_ms;
+    }
+
     const int half = in.widget_width / 2;
     if (zone != 0) {
         int64_t push = state.push_mpx;
@@ -110,11 +117,27 @@ CrossPageStep cross_page_step(CrossPageState& state, const CrossPageInput& in) {
 
     if (!majority_left && !majority_right) {
         state.crossing_armed = true;
+        if (state.crossing_pending) {
+            out.cancel_crossing = true;
+            if (state.crossing_spent_zone) {
+                state.zone_spent = false;
+            }
+            state.crossing_pending = false;
+            state.crossing_spent_zone = false;
+        }
     } else if (state.crossing_armed) {
         state.crossing_armed = false;
         const int cross_dir = majority_right ? 1 : -1;
         if (!(state.zone_spent && zone == cross_dir)) {
             out.flip_dir = cross_dir;
+            out.flip_delay_ms = kCrossPageCrossingDelayMs;
+            if (prev_dwell == cross_dir) {
+                const uint32_t dwell_left =
+                    state.dwell_ms < kCrossPageDwellMs ? kCrossPageDwellMs - state.dwell_ms : 0;
+                out.flip_delay_ms = std::min(out.flip_delay_ms, dwell_left);
+            }
+            state.crossing_pending = true;
+            state.crossing_spent_zone = zone != 0 && !state.zone_spent;
             if (zone != 0) {
                 state.zone_spent = true;
             }
@@ -127,12 +150,21 @@ CrossPageStep cross_page_step(CrossPageState& state, const CrossPageInput& in) {
     out.dwell_changed = dwell != state.dwell_dir;
     out.dwell_dir = dwell;
     state.dwell_dir = dwell;
+    if (out.dwell_changed || zone_changed) {
+        state.dwell_ms = 0;
+    }
     return out;
+}
+
+void cross_page_note_crossing_flip(CrossPageState& state) {
+    state.crossing_pending = false;
+    state.crossing_spent_zone = false;
 }
 
 void cross_page_note_dwell_flip(CrossPageState& state) {
     state.zone_spent = true;
     state.dwell_dir = 0;
+    state.dwell_ms = 0;
 }
 
 } // namespace helix

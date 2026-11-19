@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "helix_shared_callback.h"
 #include "led/led_backend.h"
 #include "led/led_devices.h"
@@ -19,7 +19,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: configfile_config_ held by value
 
 namespace helix {
 class IMoonrakerAPI;
@@ -649,13 +649,13 @@ class LedController {
     /// strips arriving, a macro device added, edited or deleted.
     void bump_config_version();
 
-    lv_subject_t led_config_version_{};    // Bumped on discover/config changes
-    lv_subject_t led_controllable_{};      // 0/1: at least one switchable device exists
-    lv_subject_t led_has_devices_{};       // 0/1: the LEDs overlay has a device, PRESET included
-    lv_subject_t led_command_in_flight_{}; // 0/1: a light toggle is awaiting its gcode ACK
-    lv_subject_t led_state_version_{};     // Bumped when device state may have changed
-    int in_flight_count_ = 0;              // outstanding toggle commands awaiting ACK
-    ObserverGuard conn_observer_;          // clears in-flight count on any non-CONNECTED transition
+    helix::Subject led_config_version_{};    // Bumped on discover/config changes
+    helix::Subject led_controllable_{};      // 0/1: at least one switchable device exists
+    helix::Subject led_has_devices_{};       // 0/1: the LEDs overlay has a device, PRESET included
+    helix::Subject led_command_in_flight_{}; // 0/1: a light toggle is awaiting its gcode ACK
+    helix::Subject led_state_version_{};     // Bumped when device state may have changed
+    int in_flight_count_ = 0;                // outstanding toggle commands awaiting ACK
+    ObserverGuard conn_observer_; // clears in-flight count on any non-CONNECTED transition
     // Clears in-flight count on any exit from klippy READY. A Klipper restart leaves
     // the Moonraker WebSocket up, so conn_observer_ above never sees it (#1129).
     // No paired SubjectLifetime: PrinterState::get_klippy_state_subject() is a static

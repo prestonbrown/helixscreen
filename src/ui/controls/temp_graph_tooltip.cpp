@@ -3,8 +3,8 @@
 
 #include "temp_graph_tooltip.h"
 
-#include "ui_format_utils.h"
-
+#include "core/temperature_units.h"
+#include "display_format.h"
 #include "temp_graph_internal.h"
 #include "theme_manager.h"
 
@@ -88,7 +88,7 @@ std::optional<TempGraphHit> tooltip_hit_test(ui_temp_graph_t* graph, int32_t x, 
         if (!meta->chart_series || !meta->visible) {
             continue;
         }
-        int32_t* y_data = lv_chart_get_y_array(graph->chart, meta->chart_series);
+        int32_t* y_data = lv_chart_get_series_y_array(graph->chart, meta->chart_series);
         if (!y_data) {
             continue;
         }
@@ -259,18 +259,20 @@ void temp_graph_tooltip_draw_cb(lv_event_t* e) {
     static char l2_target[16];
     strncpy(l1_name, meta->name, sizeof(l1_name) - 1);
     l1_name[sizeof(l1_name) - 1] = '\0';
-    snprintf(l1_temp, sizeof(l1_temp), "%.1f°", pin->deci_temp / 10.0f);
+    snprintf(l1_temp, sizeof(l1_temp), "%.1f°",
+             helix::units::to_display_temp(pin->deci_temp / 10.0));
 
     time_t sec = static_cast<time_t>(pin->timestamp_ms / 1000);
     struct tm tm_buf {};
     localtime_r(&sec, &tm_buf);
-    std::string t = helix::ui::format_time_with_seconds(&tm_buf);
+    std::string t = helix::display_format::format_time_with_seconds(&tm_buf);
     strncpy(l2_time, t.c_str(), sizeof(l2_time) - 1);
     l2_time[sizeof(l2_time) - 1] = '\0';
 
     const bool has_target = pin->deci_target != 0;
     if (has_target) {
-        snprintf(l2_target, sizeof(l2_target), "%.0f°", pin->deci_target / 10.0f);
+        snprintf(l2_target, sizeof(l2_target), "%.0f°",
+                 helix::units::to_display_temp(pin->deci_target / 10.0));
     }
 
     // ---- measure ----
@@ -481,7 +483,7 @@ void ui_temp_graph_set_tooltip_enabled(ui_temp_graph_t* graph, bool enabled) {
             spdlog::error("[TempGraph] Failed to allocate tooltip state");
             return;
         }
-        lv_obj_add_flag(graph->chart, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(graph->chart, true);
         // CLICKED (release without scroll), not PRESSED, so a scroll gesture that
         // happens to begin over the chart does not raise a caption.
         // DECLARATIVE_OK: the chart is a C++-created widget with no XML layer,
@@ -498,7 +500,7 @@ void ui_temp_graph_set_tooltip_enabled(ui_temp_graph_t* graph, bool enabled) {
         helix::temp_graph_internal::temp_graph_tooltip_clear(graph);
         lv_obj_remove_event_cb_with_user_data(graph->chart,
                                               helix::temp_graph_internal::tooltip_press_cb, graph);
-        lv_obj_remove_flag(graph->chart, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(graph->chart, false);
         helix::temp_graph_internal::temp_graph_tooltip_free_state(graph);
     }
 }

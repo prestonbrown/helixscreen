@@ -5,8 +5,6 @@
  * @file test_filament_widget_modal_wiring.cpp
  * @brief What the Filament Sensor tile's tap modal actually wires, per print state.
  *
- * Run with: ./build/bin/helix-tests "[filament][widget_tap][wiring]"
- *
  * test_filament_widget_tap_policy.cpp pins WHERE a tap goes. This file pins what
  * the dialog does once it is up, because the two are only correct together and
  * the seam between them is invisible at the UI:
@@ -16,8 +14,7 @@
  *   Cancel Print / Resume Print row instead. RunoutGuidanceModal::on_cancel()
  *   and on_tertiary() null-check their callback and then hide() regardless — so
  *   a surface that shows that row without wiring it presents a live "Resume
- *   Print" button that closes the dialog and leaves the print paused. That is
- *   what shipped: three reviews read the diff and none caught it, because
+ *   Print" button that closes the dialog and leaves the print paused, and
  *   nothing about the rendered dialog distinguishes wired from unwired.
  *
  * Mutation checks, each verified:
@@ -39,6 +36,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "filament_sensor_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -74,6 +72,8 @@ class TapModalFixture : public LVGLUITestFixture {
         // mock's gcode history can see them.
         helix::AmsState::instance().clear_backends();
 
+        // The sensor roles the tile mirrors, published as in the app.
+        helix::FilamentSensorManager::instance().init_subjects();
         widget.attach(test_screen(), test_screen());
     }
 
@@ -149,7 +149,7 @@ TEST_CASE_METHOD(TapModalFixture, "Paused tap modal wires the buttons its paused
     // row, so the buttons are reachable. Without this the wiring assertions
     // below would pass just as happily against a row nobody can press.
     for (lv_obj_t* o = resume; o != dialog; o = lv_obj_get_parent(o)) {
-        CHECK_FALSE(lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(o));
     }
 
     // The other half: reachable buttons are wired ones.
@@ -318,10 +318,8 @@ TEST_CASE_METHOD(TapModalFixture, "Detach closes an open tap modal",
 
 TEST_CASE_METHOD(TapModalFixture, "Tile taps do not latch the advisory icon on",
                  "[filament][widget_tap][wiring]") {
-    // runout_is_advisory is static and global: it outlives every show.
-    // The tile sets it to 1; nothing used to set it back, so one tap swapped the
-    // warning icon for the neutral one on every later runout dialog, including
-    // the one that pops when a print pauses.
+    // runout_is_advisory is static and global, so a 1 left by a tile tap would put
+    // the neutral icon on every later runout dialog, the pause-time one included.
     //
     // Read through the class accessor rather than an XML scope lookup: this
     // fixture re-registers every component per test case, minting a fresh scope,

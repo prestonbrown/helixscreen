@@ -23,7 +23,7 @@
  *       animated_temp_.bind(
  *           printer_state_.get_active_extruder_temp_subject(),
  *           [this](int deci) {
- *               int deg = helix::ui::temperature::deci_to_degrees(deci);
+ *               int deg = helix::temperature_rules::deci_to_degrees(deci);
  *               snprintf(buf_, sizeof(buf_), "%d°", deg);
  *               lv_label_set_text(label_, buf_);
  *           },
@@ -35,9 +35,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "display_settings_manager.h"
 #include "lvgl/lvgl.h"
 

@@ -17,11 +17,13 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "observe_language.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
@@ -82,7 +84,32 @@ using namespace helix;
 using helix::ui::measure_text_px;
 
 FanStackWidget::FanStackWidget(const std::string& instance_id, PrinterState& printer_state)
-    : instance_id_(instance_id), printer_state_(printer_state) {}
+    : instance_id_(instance_id), printer_state_(printer_state) {
+    // Published before the manager parses the component, which drops a binding
+    // whose subject is missing at parse time.
+    publish_row(part_text_, "part", "P");
+    publish_row(hotend_text_, "hotend", "H");
+    publish_row(aux_text_, "aux", "A");
+    has_aux_subject_.init_int(0);
+    const std::string has_aux = instance_id_ + "_has_aux";
+    subjects_.publish(has_aux.c_str(), &has_aux_subject_);
+    attr_storage_.insert(attr_storage_.end(), {"has_aux_subject", has_aux});
+    for (const auto& a : attr_storage_) {
+        attrs_.push_back(a.c_str());
+    }
+    attrs_.push_back(nullptr);
+}
+
+void FanStackWidget::publish_row(RowText& row, const char* role, const char* initial_name) {
+    row.name.init_string(row.name_buf, nullptr, sizeof(row.name_buf), initial_name);
+    const std::string name = instance_id_ + "_" + role + "_name";
+    subjects_.publish(name.c_str(), &row.name);
+    row.speed.init_string(row.speed_buf, nullptr, sizeof(row.speed_buf), "");
+    const std::string speed = instance_id_ + "_" + role + "_speed";
+    subjects_.publish(speed.c_str(), &row.speed);
+    attr_storage_.insert(attr_storage_.end(), {std::string(role) + "_name_subject", name,
+                                               std::string(role) + "_speed_subject", speed});
+}
 
 FanStackWidget::~FanStackWidget() {
     detach();
@@ -90,12 +117,8 @@ FanStackWidget::~FanStackWidget() {
 
 void FanStackWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    if (config.contains("fan") && config["fan"].is_string()) {
-        selected_fan_ = config["fan"].get<std::string>();
-    }
-    if (config.contains("icon") && config["icon"].is_string()) {
-        icon_name_ = config["icon"].get<std::string>();
-    }
+    selected_fan_ = json_util::read_field<std::string>(config, "fan").value_or(selected_fan_);
+    icon_name_ = json_util::read_field<std::string>(config, "icon").value_or(icon_name_);
     spdlog::debug("[FanStackWidget] Config: {} fan={} icon={}", instance_id_,
                   selected_fan_.empty() ? "(auto)" : selected_fan_,
                   icon_name_.empty() ? "fan (default)" : icon_name_);
@@ -115,10 +138,7 @@ bool FanStackWidget::on_edit_configure() {
 }
 
 bool FanStackWidget::is_carousel_mode() const {
-    if (config_.contains("display_mode") && config_["display_mode"].is_string()) {
-        return config_["display_mode"].get<std::string>() == "carousel";
-    }
-    return false;
+    return json_util::read_field<std::string>(config_, "display_mode") == "carousel";
 }
 
 void FanStackWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
@@ -149,16 +169,13 @@ void FanStackWidget::attach_stack(lv_obj_t* /*widget_obj*/) {
     part_label_ = lv_obj_find_by_name(widget_obj_, "fan_stack_part_speed");
     hotend_label_ = lv_obj_find_by_name(widget_obj_, "fan_stack_hotend_speed");
     aux_label_ = lv_obj_find_by_name(widget_obj_, "fan_stack_aux_speed");
-    aux_row_ = lv_obj_find_by_name(widget_obj_, "fan_stack_aux_row");
     part_icon_ = lv_obj_find_by_name(widget_obj_, "fan_stack_part_icon");
     hotend_icon_ = lv_obj_find_by_name(widget_obj_, "fan_stack_hotend_icon");
     aux_icon_ = lv_obj_find_by_name(widget_obj_, "fan_stack_aux_icon");
 
-    // Set initial text — text_small is a registered widget so XML inner content
-    // isn't reliably applied. Observers update with real values on next tick.
-    for (lv_obj_t* label : {part_label_.get(), hotend_label_.get(), aux_label_.get()}) {
-        if (label)
-            lv_label_set_text(label, "0%");
+    // Observers update with real values on next tick.
+    for (RowText* row : {&part_text_, &hotend_text_, &aux_text_}) {
+        update_speed(*row, 0);
     }
 
     // Set rotation pivots on icons (center of 16px icon)
@@ -220,7 +237,6 @@ void FanStackWidget::detach() {
     part_label_ = nullptr;
     hotend_label_ = nullptr;
     aux_label_ = nullptr;
-    aux_row_ = nullptr;
     part_icon_ = nullptr;
     hotend_icon_ = nullptr;
     aux_icon_ = nullptr;
@@ -259,7 +275,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
     int visible_rows = 0;
     for (const char* rn : row_names) {
         lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-        if (row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+        if (row && !lv_obj_is_hidden(row))
             visible_rows++;
     }
 
@@ -308,14 +324,15 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         const char* compact;        // narrow: single letter
         const std::string* display; // wider: resolved fan display name
         const char* short_word;     // one word; also the fallback when unresolved
+        lv_subject_t* text;         // the name the label binds
     };
     const NameMapping name_map[] = {
         {"fan_stack_part_row", "fan_stack_part_name", "P", &part_display_name_,
-         fan_role_label(FanRole::Part, FanLabelLength::Word)},
+         fan_role_label(FanRole::Part, FanLabelLength::Word), &part_text_.name},
         {"fan_stack_hotend_row", "fan_stack_hotend_name", "H", &hotend_display_name_,
-         fan_role_label(FanRole::Hotend, FanLabelLength::Word)},
+         fan_role_label(FanRole::Hotend, FanLabelLength::Word), &hotend_text_.name},
         {"fan_stack_aux_row", "fan_stack_aux_name", "A", &aux_display_name_,
-         fan_role_label(FanRole::Aux, FanLabelLength::Word)},
+         fan_role_label(FanRole::Aux, FanLabelLength::Word), &aux_text_.name},
     };
 
     auto name_text = [&](const NameMapping& m, NameForm f) -> const char* {
@@ -351,7 +368,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         auto fits_every_row = [&](NameForm f) {
             for (const auto& m : name_map) {
                 lv_obj_t* row = lv_obj_find_by_name(widget_obj_, m.row_name);
-                if (!row || lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN))
+                if (!row || lv_obj_is_hidden(row))
                     continue;
                 if (measure_text_px(name_text(m, f), text_font) > avail_px)
                     return false;
@@ -372,11 +389,9 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
             continue;
         lv_obj_set_style_text_font(lbl, text_font, 0);
 
-        if (icon_above) {
-            lv_label_set_text(lbl, name_text(m, stacked_form));
-        } else {
-            lv_label_set_text(lbl, name_text(m, bigger ? NameForm::Resolved : NameForm::Letter));
-        }
+        lv_subject_set_string(
+            m.text, name_text(m, icon_above ? stacked_form
+                                            : (bigger ? NameForm::Resolved : NameForm::Letter)));
     }
 
     // DECLARATIVE_OK: measured layout. Which way a row flows depends on the
@@ -435,11 +450,11 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         lv_obj_t* name_labels[] = {lv_obj_find_by_name(widget_obj_, "fan_stack_part_name"),
                                    lv_obj_find_by_name(widget_obj_, "fan_stack_hotend_name"),
                                    lv_obj_find_by_name(widget_obj_, "fan_stack_aux_name")};
-        // lv_coord_t, not int: it is compared with sz.x in std::max below, and
-        // on the xtensa ESP32 toolchain int32_t (lv_coord_t) is long - a
+        // int32_t, not int: it is compared with sz.x in std::max below, and
+        // on the xtensa ESP32 toolchain int32_t (int32_t) is long - a
         // plain int makes the max() template deduction fail there while
         // compiling clean on desktop builds.
-        lv_coord_t name_w = 0;
+        int32_t name_w = 0;
         for (lv_obj_t* lbl : name_labels) {
             const char* text = lbl ? lv_label_get_text(lbl) : nullptr;
             if (!text)
@@ -468,7 +483,7 @@ void FanStackWidget::on_size_changed(int colspan, int rowspan, int width_px, int
         int max_w = 0;
         for (const char* rn : row_names) {
             lv_obj_t* row = lv_obj_find_by_name(widget_obj_, rn);
-            if (row && !lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) {
+            if (row && !lv_obj_is_hidden(row)) {
                 int w = lv_obj_get_width(row);
                 if (w > max_w)
                     max_w = w;
@@ -531,26 +546,23 @@ void FanStackWidget::bind_fans() {
     // Bind part fan
     part_observer_ = bind_fan_observer(part_fan_name_, [this](int speed) {
         part_speed_ = speed;
-        update_label(part_label_, speed);
+        update_speed(part_text_, speed);
         update_fan_animation(part_icon_, speed);
     });
 
     // Bind hotend fan
     hotend_observer_ = bind_fan_observer(hotend_fan_name_, [this](int speed) {
         hotend_speed_ = speed;
-        update_label(hotend_label_, speed);
+        update_speed(hotend_text_, speed);
         update_fan_animation(hotend_icon_, speed);
     });
 
-    // Bind aux fan (hide row if none)
-    if (!aux_fan_name_.empty() && aux_row_)
-        lv_obj_remove_flag(aux_row_, LV_OBJ_FLAG_HIDDEN);
-    else if (aux_row_)
-        lv_obj_add_flag(aux_row_, LV_OBJ_FLAG_HIDDEN);
+    // Bind aux fan (its row shows only with one)
+    lv_subject_set_int(&has_aux_subject_, aux_fan_name_.empty() ? 0 : 1);
 
     aux_observer_ = bind_fan_observer(aux_fan_name_, [this](int speed) {
         aux_speed_ = speed;
-        update_label(aux_label_, speed);
+        update_speed(aux_text_, speed);
         update_fan_animation(aux_icon_, speed);
     });
 
@@ -631,7 +643,7 @@ void FanStackWidget::bind_carousel_fans() {
 
     for (const auto& entry : entries) {
         // Thin wrapper page: column layout with arc core + tiny name label
-        lv_obj_t* page = lv_obj_create(lv_scr_act());
+        lv_obj_t* page = lv_obj_create(lv_screen_active());
         lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));
         lv_obj_set_style_pad_all(page, 0, 0);
         lv_obj_set_style_pad_bottom(page, theme_manager_get_spacing("space_lg"), 0);
@@ -640,8 +652,8 @@ void FanStackWidget::bind_carousel_fans() {
         lv_obj_set_style_flex_cross_place(page, LV_FLEX_ALIGN_CENTER, 0);
         lv_obj_set_style_border_width(page, 0, 0);
         lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
-        lv_obj_remove_flag(page, LV_OBJ_FLAG_SCROLLABLE);
-        lv_obj_add_flag(page, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+        lv_obj_set_scrollable(page, false);
+        lv_obj_set_overflow_visible(page, true);
 
         // Create the core arc widget (no card chrome, no buttons)
         char val_str[16];
@@ -690,17 +702,20 @@ void FanStackWidget::bind_carousel_fans() {
             lv_obj_set_style_pad_all(cp.arc, theme_manager_get_spacing("space_xxs"), LV_PART_KNOB);
         }
 
-        // Auto-controlled fans: hide knob, disable arc interaction
+        // Auto-controlled fans: hide knob, disable arc interaction.
+        // DECLARATIVE_OK (this block and the page's speed label and arc
+        // handler below): each carousel page is built here, one per discovered
+        // fan, and its per-fan state lands on that page's own widgets.
         if (!entry.is_controllable && cp.arc) {
-            lv_obj_remove_flag(cp.arc, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_set_style_bg_opa(cp.arc, LV_OPA_TRANSP, LV_PART_KNOB);
-            lv_obj_set_style_shadow_width(cp.arc, 0, LV_PART_KNOB);
-            lv_obj_set_style_outline_width(cp.arc, 0, LV_PART_KNOB);
+            lv_obj_set_clickable(cp.arc, false);
+            lv_obj_set_style_bg_opa(cp.arc, LV_OPA_TRANSP, LV_PART_KNOB); // DECLARATIVE_OK: page
+            lv_obj_set_style_shadow_width(cp.arc, 0, LV_PART_KNOB);       // DECLARATIVE_OK: page
+            lv_obj_set_style_outline_width(cp.arc, 0, LV_PART_KNOB);      // DECLARATIVE_OK: page
         }
 
         // Make whole page clickable → open fan control overlay (when the user
         // taps somewhere that isn't the arc itself: label, icon, empty area).
-        lv_obj_add_flag(page, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(page, true);
         lv_obj_set_user_data(page, this);
         lv_obj_add_event_cb(
             page,
@@ -721,6 +736,7 @@ void FanStackWidget::bind_carousel_fans() {
         // the page-level overlay-open handler.
         if (entry.is_controllable && cp.arc && !entry.object_name.empty()) {
             lv_obj_set_user_data(cp.arc, this);
+            // DECLARATIVE_OK: the page index rides in the handler's user data.
             lv_obj_add_event_cb(cp.arc, on_carousel_arc_value_changed, LV_EVENT_VALUE_CHANGED,
                                 reinterpret_cast<void*>(static_cast<uintptr_t>(page_idx)));
         }
@@ -750,6 +766,7 @@ void FanStackWidget::bind_carousel_fans() {
             }
             if (cp.speed_label) {
                 char buf[8];
+                // DECLARATIVE_OK: a carousel page's own label, built per fan.
                 lv_label_set_text(cp.speed_label,
                                   lv_tr(helix::format::format_fan_speed(speed, buf, sizeof(buf))));
             }
@@ -843,13 +860,10 @@ void FanStackWidget::setup_common_observers(std::function<void()> on_anim_change
         printer_state_.get_subjects_lifetime());
 }
 
-void FanStackWidget::update_label(lv_obj_t* label, int speed_pct) {
-    if (!label)
-        return;
-
+void FanStackWidget::update_speed(RowText& row, int speed_pct) {
     char buf[8];
     helix::format::format_percent(speed_pct, buf, sizeof(buf));
-    lv_label_set_text(label, buf);
+    lv_subject_set_string(&row.speed, buf);
 }
 
 void FanStackWidget::update_fan_animation(lv_obj_t* icon, int speed_pct) {
@@ -892,6 +906,7 @@ void FanStackWidget::on_carousel_arc_value_changed(lv_event_t* e) {
     // Optimistic local reflection before the Moonraker echo arrives.
     if (cp.speed_label) {
         char buf[8];
+        // DECLARATIVE_OK: a carousel page's own label, built per fan.
         lv_label_set_text(cp.speed_label,
                           lv_tr(helix::format::format_fan_speed(speed, buf, sizeof(buf))));
     }
@@ -921,7 +936,7 @@ void FanStackWidget::send_carousel_fan_speed(const std::string& object_name, int
     api->set_fan_speed(
         object_name, static_cast<double>(speed_percent), []() {},
         [object_name](const MoonrakerError& err) {
-            helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
         });
 }
 

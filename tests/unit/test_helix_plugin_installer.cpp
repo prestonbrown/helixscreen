@@ -18,7 +18,9 @@
 #include "../../include/helix_plugin_installer.h"
 #include "../../include/helix_version.h"
 #include "../test_helpers/helix_plugin_installer_test_access.h"
+#include "../test_helpers/install_tree_fixture.h"
 #include "../test_helpers/plugin_script_sandbox.h"
+#include "../test_helpers/scoped_board.h"
 #include "../test_helpers/scoped_env.h"
 
 #include <chrono>
@@ -231,6 +233,49 @@ TEST_CASE("decide_plugin_self_heal: what the startup check does about the plugin
         f.memory.relinked_for = "/home/pi/helixscreen/moonraker-plugin/helix_print.py";
         CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
     }
+    SECTION("a running plugin newer than the one this app ships is kept, whatever the link") {
+        f.bundled_version = "1.4.1";
+        f.reported_version = "1.5.0";
+        for (const auto link : {PluginLinkCheck::Current, PluginLinkCheck::Relinked,
+                                PluginLinkCheck::NotOurs, PluginLinkCheck::Failed}) {
+            f.link = link;
+            CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        }
+        f.job_holds = true;
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        // A remote one is not reported as a mismatch to fix by downgrading.
+        f.local = false;
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+    }
+    SECTION("versions compare numerically and by prerelease, not as text") {
+        f.link = PluginLinkCheck::Current;
+        f.bundled_version = "1.9.0";
+        f.reported_version = "1.10.0";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        f.reported_version = "1.5.0-dev.3";
+        f.bundled_version = "1.4.1";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::KeepNewer);
+        // Older is reloaded: a numeric component and a prerelease of the bundled triple.
+        f.bundled_version = "1.10.0";
+        f.reported_version = "1.9.0";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+        f.bundled_version = "1.4.1";
+        f.reported_version = "1.4.1-beta.2";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+    }
+    SECTION("versions of equal precedence are no mismatch") {
+        f.link = PluginLinkCheck::Current;
+        f.reported_version = "v1.2.0+g0f1e2d3";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::Nothing);
+        // A re-pointed link still needs its restart.
+        f.link = PluginLinkCheck::Relinked;
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+    }
+    SECTION("an unparseable running version is reloaded, as any other mismatch") {
+        f.link = PluginLinkCheck::Current;
+        f.reported_version = "main";
+        CHECK(decide_plugin_self_heal(f) == PluginSelfHealStep::RestartNow);
+    }
     SECTION("a remote Moonraker's mismatch is only reported, whatever the link") {
         f.local = false;
         f.link = PluginLinkCheck::Relinked;
@@ -414,6 +459,34 @@ TEST_CASE("HelixPluginInstaller script path", "[plugin_installer]") {
     }
 }
 
+TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs from",
+          "[plugin_installer][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    helix::test::ScopedBoard u1(helix::board::Board::SnapmakerU1);
+    helix::HelixPluginInstaller installer;
+    const auto run_from = [&](const std::filesystem::path& exe) {
+        helix::HelixPluginInstallerTestAccess::set_running_exe(installer, exe.string(), tree.root);
+    };
+
+    SECTION("a PAXX package launched through its bind mount over /usr/bin/gui") {
+        const auto gui = tree.make_paxx_bind_mount("1.1.0");
+        run_from(gui);
+        // Not canonicalized: install.sh links the plugin by the path it is run
+        // from, and the path through latest survives a package upgrade.
+        CHECK(installer.get_install_script_path() ==
+              tree.root + "/oem/apps/helixscreen/latest/moonraker-plugin/install.sh");
+    }
+
+    SECTION("our own install, launched by its path") {
+        const auto ours = tree.make_tree("userdata/helixscreen");
+        run_from(ours);
+        CHECK(installer.get_install_script_path() ==
+              std::filesystem::canonical(tree.root +
+                                         "/userdata/helixscreen/moonraker-plugin/install.sh")
+                  .string());
+    }
+}
+
 // ============================================================================
 // Test: Install State Machine
 // ============================================================================
@@ -499,8 +572,7 @@ TEST_CASE("HelixPluginInstaller install_local_sync runs the script it finds",
     }
 
     SECTION("a script that outlives the timeout is killed and reported as timed out") {
-        HelixPluginInstallerTestAccess::set_script_timeout_seconds(installer, 1);
-        sandbox.write_script("exec sleep 30");
+        sandbox.write_script_past_timeout();
         const auto started = std::chrono::steady_clock::now();
         const auto result = installer.install_local_sync();
         const auto waited = std::chrono::steady_clock::now() - started;
@@ -522,9 +594,17 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Restarted);
         CHECK(sandbox.script_args() == "--restart-moonraker ");
     }
-    SECTION("Moonraker refused, or still runs the old plugin") {
+    SECTION("Moonraker restarted but still runs the old plugin") {
         sandbox.write_script("exit 3");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NeedsManual);
+    }
+    SECTION("Moonraker refused the restart") {
+        sandbox.write_script("exit 9");
+        CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Refused);
+    }
+    SECTION("Moonraker names no service of its own") {
+        sandbox.write_script("exit 8");
+        CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::NoService);
     }
     SECTION("a print holds it off") {
         sandbox.write_script("exit 4");
@@ -560,14 +640,14 @@ TEST_CASE("restart_moonraker_for_plugin reads install.sh --restart-moonraker's e
     }
     SECTION("an inherited HELIX_JOB_STATE never reaches the script, which asks Moonraker") {
         helix::ScopedEnv inherited("HELIX_JOB_STATE", "idle");
-        sandbox.write_script("[ -z \"${HELIX_JOB_STATE+set}\" ] && exit 0\nexit 9");
+        sandbox.write_script("[ -z \"${HELIX_JOB_STATE+set}\" ] && exit 0\nexit 5");
         CHECK(helix::restart_moonraker_for_plugin(script, 10) == Outcome::Restarted);
     }
 }
 
-TEST_CASE("plugin_restart_finished: a finished restart, or one needing a manual restart, is "
-          "not repeated for the same versions",
-          "[plugin_installer]") {
+TEST_CASE("plugin_restart_finished: only a restart that happened is not repeated for the same "
+          "versions",
+          "[plugin_installer][2090]") {
     using Outcome = helix::PluginRestartOutcome;
     CHECK(helix::plugin_restart_finished(Outcome::Restarted, true));
     CHECK(helix::plugin_restart_finished(Outcome::Restarted, false));
@@ -575,6 +655,9 @@ TEST_CASE("plugin_restart_finished: a finished restart, or one needing a manual 
     // With no plugin loaded, a restart that did not load one is tried again.
     CHECK_FALSE(helix::plugin_restart_finished(Outcome::NeedsManual, false));
     for (const bool loaded : {true, false}) {
+        // Moonraker never went down: nothing restarted (#2090).
+        CHECK_FALSE(helix::plugin_restart_finished(Outcome::NoService, loaded));
+        CHECK_FALSE(helix::plugin_restart_finished(Outcome::Refused, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::HeldForPrint, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::JobUnknown, loaded));
         CHECK_FALSE(helix::plugin_restart_finished(Outcome::NotAnswering, loaded));
@@ -680,8 +763,7 @@ TEST_CASE("HelixPluginInstaller uninstall_local runs the script it finds", "[plu
     }
 
     SECTION("a script that outlives the timeout is reported as timed out") {
-        HelixPluginInstallerTestAccess::set_script_timeout_seconds(installer, 1);
-        sandbox.write_script("exec sleep 30");
+        sandbox.write_script_past_timeout();
         installer.uninstall_local(record);
         REQUIRE(called);
         CHECK(outcome == Outcome::FAILED);

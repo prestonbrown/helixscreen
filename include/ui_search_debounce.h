@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_coalesced_timer.h"
+#include "core/coalesced_timer.h"
 
 #include <functional>
 #include <string>
 
 namespace helix::ui {
 
-/// Quiet period shared by every search input. One constant, not three kept in
-/// sync by comments.
+/// Quiet period shared by every search input.
 inline constexpr uint32_t kDefaultSearchDebounceMs = 300;
 
 /// Search-input policy on top of CoalescedTimer, shared by the search inputs

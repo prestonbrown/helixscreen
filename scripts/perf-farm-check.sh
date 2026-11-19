@@ -13,6 +13,10 @@
 # such as -o ProxyJump=user@host from off the printers' network. A device whose budget row
 # names password_env uses sshpass with that variable; every other device uses keys.
 #
+# PERF_RESULTS names a file to append one JSON record per device to: its status, the raw
+# samples of each phase, its budgets and the version the device reported.
+# perf-farm-scheduled.sh keeps those records across runs.
+#
 #   0  every device inside budget
 #   1  a device over budget
 #   2  a device produced no usable sample - NOT a pass
@@ -56,6 +60,10 @@
 #   whatever is on screen. The whole run must fit inside the device's dim timeout.
 # * Percent of one core is (delta_jiffies / HZ) / window * 100. A jiffie delta is
 #   NOT a percentage unless the window is exactly one second.
+# * A device row may name a "chroot": the root the service runs the app under.
+#   Then binary and every path the app sees are paths inside that root, the app
+#   is launched with `chroot <root>`, and its config and work dirs live in the
+#   root's /tmp. Paths the host reads directly are prefixed with the root.
 
 set -uo pipefail
 
@@ -82,6 +90,11 @@ command -v jq >/dev/null || { echo "${RED}jq is required${RESET}" >&2; exit 2; }
 read -r -d '' REMOTE <<'REMOTE_EOF'
 set -u
 BIN="$1"; FLAGS="$2"; STOP="$3"; START="$4"; SETTLE="$5"; WINDOW="$6"; SAMPLES="$7"; IDLE_ONLY="$8"
+CHROOT="${9:-}"
+# Unquoted as a command prefix, so a backgrounded launch execs straight into the app
+# and $! is the app's own PID, not a wrapper's.
+INROOT=""
+[ -n "$CHROOT" ] && INROOT="chroot $CHROOT"
 
 say() { echo "RESULT $*"; }
 find_pid() { ps w 2>/dev/null | grep '[h]elix-screen' | grep -v watchdog | grep -v ' ctl ' \
@@ -116,21 +129,32 @@ refuse_unless_idle
 
 # Does this build carry the mock? CC1 ships without it and cannot do the print phase.
 HAS_MOCK=0
-strings -a "$BIN" 2>/dev/null | grep -q HELIX_MOCK_AUTO_PRINT && HAS_MOCK=1
+strings -a "$CHROOT$BIN" 2>/dev/null | grep -q HELIX_MOCK_AUTO_PRINT && HAS_MOCK=1
+echo "VERSION $($INROOT "$BIN" --version 2>/dev/null | head -n 1)"
 
+# WORK is the path the app sees; HWORK is the same directory as the host sees it.
 WORK=/tmp/.hsperf
-rm -rf "$WORK"; mkdir -p "$WORK/gc" "$WORK/cfg"
+HWORK="$CHROOT$WORK"
+rm -rf "$HWORK"; mkdir -p "$HWORK/gc" "$HWORK/cfg"
 MYPID=""
 
+WATCHER=""
 restore() {
+    [ -n "$WATCHER" ] && kill "$WATCHER" 2>/dev/null
     [ -n "$MYPID" ] && { kill "$MYPID" 2>/dev/null; sleep 3; kill -9 "$MYPID" 2>/dev/null; }
-    rm -rf "$WORK"
+    rm -rf "$HWORK"
     sh -c "$START" >/dev/null 2>&1
     sleep 4
     if [ -n "$(find_pid)" ]; then echo "RESTORED ok"; else echo "RESTORED FAILED"; fi
 }
 refuse_unless_idle
 trap restore EXIT HUP INT TERM
+# A dropped SSH connection sends no signal to a shell with no terminal, so the run would
+# carry on and leave test instances beside the restarted service. The watcher writes to
+# the connection; once a write fails the connection is gone, and it ends the run so the
+# trap brings the service back.
+( trap '' PIPE; while echo KEEPALIVE 2>/dev/null; do sleep 2; done; kill -TERM $$ 2>/dev/null ) &
+WATCHER=$!
 
 sh -c "$STOP" >/dev/null 2>&1
 sleep 5
@@ -138,13 +162,15 @@ sleep 5
 # One sample = SAMPLES windows against a freshly launched instance.
 measure() {
     _extra="$1"; _anim="$2"; _auto="${3:-0}"
-    rm -rf "$WORK/cfg"; mkdir -p "$WORK/cfg"
-    cp "$(dirname "$(dirname "$BIN")")/config/settings.json" "$WORK/cfg/settings-test.json" 2>/dev/null
-    [ -f "$WORK/cfg/settings-test.json" ] || return 1
-    sed -i "s/\"animations_enabled\"[[:space:]]*:[[:space:]]*[a-z]*/\"animations_enabled\": $_anim/" "$WORK/cfg/settings-test.json"
+    rm -rf "$HWORK/cfg"; mkdir -p "$HWORK/cfg"
+    # Copied inside the root: an install's settings.json may be a symlink that only
+    # resolves there.
+    $INROOT cp "$(dirname "$(dirname "$BIN")")/config/settings.json" "$WORK/cfg/settings-test.json" 2>/dev/null
+    [ -f "$HWORK/cfg/settings-test.json" ] || return 1
+    sed -i "s/\"animations_enabled\"[[:space:]]*:[[:space:]]*[a-z]*/\"animations_enabled\": $_anim/" "$HWORK/cfg/settings-test.json"
     # shellcheck disable=SC2086
     HELIX_CONFIG_DIR="$WORK/cfg" HELIX_MOCK_AUTO_PRINT="$_auto" \
-        $BIN --test $FLAGS $_extra \
+        $INROOT $BIN --test $FLAGS $_extra \
         --log-level=warn --log-dest=file --log-file="$WORK/run.log" >/dev/null 2>&1 &
     MYPID=$!
     sleep "$SETTLE"
@@ -174,10 +200,11 @@ fi
 # First match in this order: the printer's own files, then the install's test gcode.
 # ls sorts its operands, so the order is kept by testing each candidate in turn.
 GC=""
-for _gc in /usr/data/printer_data/gcodes/*.gcode /mnt/UDISK/printer_data/gcodes/*.gcode \
-        /usr/data/printer_data/gcodes/**/*.gcode /usr/data/gcodes/*.gcode \
-        "$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode"; do
-    [ -f "$_gc" ] && { GC="$_gc"; break; }
+for _gc in "$CHROOT"/usr/data/printer_data/gcodes/*.gcode "$CHROOT"/mnt/UDISK/printer_data/gcodes/*.gcode \
+        "$CHROOT"/usr/data/printer_data/gcodes/**/*.gcode "$CHROOT"/usr/data/gcodes/*.gcode \
+        "$CHROOT"/root/printer_data/gcodes/*.gcode \
+        "$CHROOT$(dirname "$(dirname "$BIN")")/assets/test_gcodes/3DBenchy.gcode"; do
+    [ -f "$_gc" ] && { GC="${_gc#"$CHROOT"}"; break; }
 done
 if [ -z "$GC" ]; then
     say "MEASURED hz=$HZ idle=$IDLE print= printoff= (no gcode on device for the print phase)"
@@ -185,7 +212,7 @@ if [ -z "$GC" ]; then
 fi
 LONG="$WORK/gc/Delta_filament_barrel_base_Hyper_PLA_49m_overflowing_name.gcode"
 # A link, not a copy: /tmp is RAM, and a large gcode copied there squeezes a small board.
-ln -s "$GC" "$LONG" 2>/dev/null || cp "$GC" "$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
+ln -s "$GC" "$CHROOT$LONG" 2>/dev/null || cp "$CHROOT$GC" "$CHROOT$LONG" 2>/dev/null || { say "MEASURED hz=$HZ idle=$IDLE print= printoff= (could not stage a gcode)"; exit 0; }
 
 refuse_unless_idle
 PRINT=$(measure "--sim-speed 3 --gcode-file $LONG" true 1)  || PRINT=""
@@ -198,6 +225,24 @@ median() { printf '%s\n' "$@" | sort -n | awk '{a[NR]=$1} END{print a[int((NR+1)
 
 overall=0
 declare -a SUMMARY=()
+PERF_RESULTS="${PERF_RESULTS:-}"
+RUN_TS="${PERF_RUN_TS:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+
+samples_json() { # "3.6 3.5" -> [3.6,3.5]
+    jq -cn --arg v "$1" '$v | split(" ") | map(select(length > 0) | tonumber)'
+}
+
+# record <device index> <name> <status> [detail version idle print printoff]
+record() {
+    [[ -n "$PERF_RESULTS" ]] || return 0
+    jq -cn --arg ts "$RUN_TS" --arg device "$2" --arg status "$3" --arg detail "${4:-}" \
+        --arg version "${5:-}" --argjson idle "$(samples_json "${6:-}")" \
+        --argjson print "$(samples_json "${7:-}")" --argjson poff "$(samples_json "${8:-}")" \
+        --argjson budget "$(jq -c ".devices[$1] | {idle: .idle_budget_pct, print: .print_budget_pct,
+                                    print_anim_off: .print_anim_off_budget_pct}" "$BUDGETS")" \
+        '{ts: $ts, device: $device, status: $status, version: $version, detail: $detail,
+          idle: $idle, print: $print, print_anim_off: $poff, budget: $budget}' >>"$PERF_RESULTS"
+}
 
 score() { # name phase values budget
     local name="$1" phase="$2" vals="$3" budget="$4" med
@@ -220,6 +265,7 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     stop=$(jq -r  ".devices[$i].service_stop // \"\"" "$BUDGETS")
     start=$(jq -r ".devices[$i].service_start // \"\"" "$BUDGETS")
     flags=$(jq -r ".devices[$i].extra_flags // \"\"" "$BUDGETS")
+    croot=$(jq -r ".devices[$i].chroot // \"\"" "$BUDGETS")
     b_idle=$(jq -r ".devices[$i].idle_budget_pct" "$BUDGETS")
     b_print=$(jq -r ".devices[$i].print_budget_pct // empty" "$BUDGETS")
     b_poff=$(jq -r  ".devices[$i].print_anim_off_budget_pct // empty" "$BUDGETS")
@@ -233,18 +279,20 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
     printf '%s%-6s%s\n' "$BOLD" "$name" "$RESET"
     if ! "${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" true 2>/dev/null; then
         printf '    %sUNREACHABLE%s (%s)\n' "$RED" "$RESET" "$host"
-        SUMMARY+=("$name UNREACHABLE"); overall=2; continue
+        SUMMARY+=("$name UNREACHABLE"); overall=2; record "$i" "$name" unreachable "$host"; continue
     fi
 
     out=$("${device_ssh[@]}" "${SSH_OPTS[@]}" "$host" \
-          "sh -s -- '$bin' '$flags' '$stop' '$start' $SETTLE $WINDOW $SAMPLES $IDLE_ONLY" \
+          "sh -s -- '$bin' '$flags' '$stop' '$start' $SETTLE $WINDOW $SAMPLES $IDLE_ONLY '$croot'" \
           <<<"$REMOTE" 2>/dev/null)
     res=$(grep '^RESULT ' <<<"$out" | head -n 1 | sed 's/^RESULT //')
     restored=$(grep '^RESTORED ' <<<"$out" | head -n 1 | sed 's/^RESTORED //')
+    version=$(grep '^VERSION ' <<<"$out" | head -n 1 | sed 's/^VERSION //')
 
     if [[ -n "$restored" && "$restored" != "ok" ]]; then
         printf '    %sSERVICE DID NOT RESTART%s - fix this device by hand before anything else\n' "$RED" "$RESET"
-        SUMMARY+=("$name SERVICE-DOWN"); overall=2; continue
+        SUMMARY+=("$name SERVICE-DOWN"); overall=2
+        record "$i" "$name" service_down "$res" "$version"; continue
     fi
 
     case "$res" in
@@ -259,15 +307,17 @@ for i in $(seq 0 $(($(jq -r '.devices | length' "$BUDGETS") - 1))); do
                 score "$name" print-off "$poff" "$b_poff";                r=$?; [[ $r -gt $worst ]] && worst=$r
             fi
             case $worst in
-                0) SUMMARY+=("$name ok") ;;
-                1) SUMMARY+=("$name OVER BUDGET"); [[ $overall -eq 0 ]] && overall=1 ;;
-                *) SUMMARY+=("$name INCOMPLETE"); overall=2 ;;
-            esac ;;
+                0) SUMMARY+=("$name ok"); status=ok ;;
+                1) SUMMARY+=("$name OVER BUDGET"); status=over; [[ $overall -eq 0 ]] && overall=1 ;;
+                *) SUMMARY+=("$name INCOMPLETE"); status=incomplete; overall=2 ;;
+            esac
+            record "$i" "$name" "$status" "$res" "$version" "$idle" "$pr" "$poff" ;;
         SKIPPED*|INCONCLUSIVE*|"")
             printf '    %s%s%s\n' "$YELLOW" "${res:-NO RESPONSE}" "$RESET"
-            SUMMARY+=("$name ${res:-NO-RESPONSE}"); overall=2 ;;
+            SUMMARY+=("$name ${res:-NO-RESPONSE}"); overall=2
+            status=$(tr '[:upper:]' '[:lower:]' <<<"${res%% *}"); record "$i" "$name" "${status:-no_response}" "$res" "$version" ;;
         *)  printf '    %sUNPARSED:%s %s\n' "$YELLOW" "$RESET" "$res"
-            SUMMARY+=("$name UNPARSED"); overall=2 ;;
+            SUMMARY+=("$name UNPARSED"); overall=2; record "$i" "$name" unparsed "$res" "$version" ;;
     esac
 done
 

@@ -28,9 +28,12 @@
             height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
             style_pad_bottom="#space_sm" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
             style_pad_gap="#space_sm" scrollable="false">
-      <!-- ERROR icon - default-hidden; toggled imperatively in populate_content() for severity="error" -->
-      <icon name="icon_error" src="alert_octagon" size="md" variant="danger" hidden="true"/>
-      <text_heading name="dialog_title" text="Action Required" flex_grow="1"/>
+      <!-- ERROR icon: only for severity="error" -->
+      <icon name="icon_error" src="alert_octagon" size="md" variant="danger">
+        <bind_flag_if_eq subject="action_prompt_error" flag="hidden" ref_value="0"/>
+      </icon>
+      <!-- The printer's title text, which may start with '#', so it rides a subject -->
+      <text_heading name="dialog_title" bind_text="action_prompt_title" flex_grow="1"/>
     </lv_obj>
     <!-- Horizontal divider below title -->
     <divider_horizontal/>
@@ -44,6 +47,7 @@
               width="100%" height="content" style_min_height="40" style_pad_left="#space_lg" style_pad_right="#space_lg"
               style_pad_top="#space_md" style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xs"
               scrollable="false">
+        <bind_flag_if_eq subject="action_prompt_has_text" flag="hidden" ref_value="0"/>
         <!-- Text lines will be added dynamically -->
       </lv_obj>
       <!-- AFC filament position diagram: self-hides unless the prompt's text
@@ -60,15 +64,18 @@
               width="100%" height="content" style_pad_left="#space_md" style_pad_right="#space_md"
               style_pad_top="#space_sm" style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_sm"
               scrollable="false">
+        <bind_flag_if_eq subject="action_prompt_has_buttons" flag="hidden" ref_value="0"/>
         <!-- Rows are added dynamically based on PromptData.buttons -->
       </lv_obj>
     </lv_obj>
     <!-- Horizontal divider above footer -->
-    <divider_horizontal name="footer_divider" hidden="true"/>
+    <divider_horizontal name="footer_divider">
+      <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
+    </divider_horizontal>
     <!-- Footer button container (modal-style: full width, no gaps, dividers between) -->
     <lv_obj name="footer_container"
-            width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row" scrollable="false"
-            hidden="true">
+            width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row" scrollable="false">
+      <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
       <!-- Footer buttons will be added dynamically -->
     </lv_obj>
   </view>

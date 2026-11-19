@@ -2,6 +2,7 @@
 #include "ui_chamber_dryer_modal.h"
 
 #include "app_globals.h"
+#include "core/temperature_units.h"
 #include "exception_policy.h"
 #include "temperature_controller.h"
 
@@ -15,8 +16,9 @@ namespace helix::ui {
 
 std::string ChamberDryerModal::preset_label(const DryingPreset& preset, const DryerInfo& dryer) {
     const int hours = dryer.clamp_duration(preset.duration_min) / 60;
-    return fmt::format("{} {}°C/{}h", preset.name,
-                       static_cast<int>(dryer.clamp_temp(preset.temp_c)), hours);
+    return fmt::format(
+        "{} {}/{}h", preset.name,
+        units::format_display_temp(static_cast<int>(dryer.clamp_temp(preset.temp_c))), hours);
 }
 
 bool ChamberDryerModal::show_owned() {
@@ -27,10 +29,10 @@ bool ChamberDryerModal::show_owned() {
     }
     // A mistranslated {} must never abort through the LVGL C dispatch frame:
     // the unformatted text stands in if formatting fails.
-    std::string bed_label = lv_tr("Heat the bed to {}°C");
+    std::string bed_label = lv_tr("Heat the bed to {}");
     helix::contain_exceptions("[ChamberDryerModal] Bed label format", [&] {
-        bed_label = fmt::format(fmt::runtime(lv_tr("Heat the bed to {}°C")),
-                                tc->chamber_dryer_bed_assist_c());
+        bed_label = fmt::format(fmt::runtime(lv_tr("Heat the bed to {}")),
+                                units::format_display_temp(tc->chamber_dryer_bed_assist_c()));
     });
     const char* attrs[] = {"bed_label", bed_label.c_str(), nullptr};
 

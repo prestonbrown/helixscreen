@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "helix_lvgl_anomaly.h"
 
+#include <spdlog/sinks/stdout_sinks.h>
+#include <spdlog/spdlog.h>
+
+#include <atomic>
 #include <cstdio>
+#include <cstdlib>
+#include <memory>
 #include <string>
 
 // Stack trace support (glibc Linux / macOS only).
@@ -37,9 +43,35 @@ std::string capture_backtrace_hex() {
     return std::string{};
 #endif
 }
+
+std::atomic<helix_lvgl_anomaly_observer_fn> g_observer{nullptr};
 } // namespace
 
+// NAMESPACE_OK: C-linkage API beside helix_lvgl_anomaly(), declared in a C header
+extern "C" void helix_lvgl_anomaly_set_observer(helix_lvgl_anomaly_observer_fn observer) {
+    g_observer.store(observer, std::memory_order_release);
+}
+
 extern "C" void helix_lvgl_anomaly(const char* code, const char* context) {
+    if (auto observer = g_observer.load(std::memory_order_acquire)) {
+        observer(code, context);
+    }
+    // HELIX_LOG_ANOMALIES=1 also writes each anomaly to the log. Telemetry drops them in
+    // tests and rate-limits them in the app, so this is how a run counts them.
+    static const bool log_anomalies = [] {
+        const char* v = std::getenv("HELIX_LOG_ANOMALIES");
+        return v != nullptr && v[0] == '1';
+    }();
+    if (log_anomalies) {
+        // Its own stderr logger, not the default one: the default can be a null sink (the
+        // test binary installs one). Held for good: an anomaly can be reported from the
+        // atexit chain, after spdlog's registry is gone.
+        static const auto* logger =
+            new std::shared_ptr<spdlog::logger>(std::make_shared<spdlog::logger>(
+                "lvgl_anomaly", std::make_shared<spdlog::sinks::stderr_sink_mt>()));
+        (*logger)->warn("[LvglAnomaly] {}: {}", code ? code : "unknown_anomaly",
+                        context ? context : "");
+    }
     // Use "display" category — it's on the TelemetryManager allow-list and
     // semantically correct for LVGL/render-layer anomalies. Per-category rate
     // limit (1/5min) applies, so we share the budget with other display errors.

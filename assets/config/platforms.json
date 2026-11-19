@@ -15,6 +15,7 @@
     "used rotated and a stored effective size loses that distinction.",
     "",
     "storage.state_root is where cache/ and logs/ live. It is never the payload root nor inside it: the payload is what an update replaces, and Moonraker's type:web entry rmtree()s it before extracting. cache_dir and log_file stay authoritative per platform because AD5X deliberately splits them - its log has to land where the mod's archiver looks.",
+    "storage.user_config_dir (or user_config_dir_by_firmware) is where the user's own config files really live; <root>/config holds per-file links into it. Like state_root it is never inside the payload root: that is the directory Moonraker's type:web entry rmtree()s. config/restore-user-config.sh resolves the same directory on the device. \"detected\" means the installer resolves it on the device (<klipper config dir>/helixscreen, setup_config_symlink). A platform whose payload no update replaces says so with null and a user_config_dir_reason; leaving the field out fails the gate.",
     "storage.previous_root and previous_state_root declare where a platform used to keep its payload and state. An install found at previous_root is migrated to root rather than adopted, so a relocation is a manifest edit. Both stay in HELIX_INSTALL_DIRS and kInstallRoots for as long as unmigrated devices exist, because the updater, the debug bundle collector and uninstall all have to keep finding them.",
     "Size class names are the UiBreakpoint tiers from include/ui_breakpoint.h."
   ],
@@ -34,7 +35,12 @@
       "",
       "src/system/prerender_size_class.cpp is the compiled implementation and",
       "scripts/platform_manifest.py the build-time one; tests/unit/test_prerender_size_class.cpp",
-      "asserts both agree with these rules and that the thresholds still match ui_breakpoint.h."
+      "asserts both agree with these rules and that the thresholds still match ui_breakpoint.h.",
+      "",
+      "Every class above is a landscape canvas. A panel taller than it is wide first tries",
+      "splash_portrait, largest first, and takes the first canvas that fits it on both axes; with",
+      "none that fits it keeps its tier class. Only packages for a panel set at runtime (pi, pi32,",
+      "x86) carry the portrait canvases: every fixed panel is landscape once rotated."
     ],
     "splash": [
       {
@@ -73,8 +79,28 @@
       "medium": 480,
       "large": 600,
       "xlarge": 720,
-      "ultrawide": 440
+      "ultrawide": 440,
+      "medium-portrait": 800,
+      "large-portrait": 1024,
+      "xlarge-portrait": 1280
     },
+    "splash_composite_width": {
+      "micro": 480,
+      "tiny": 480,
+      "small": 480,
+      "medium": 800,
+      "large": 1024,
+      "xlarge": 1280,
+      "ultrawide": 1920,
+      "medium-portrait": 480,
+      "large-portrait": 600,
+      "xlarge-portrait": 720
+    },
+    "splash_portrait": [
+      "xlarge-portrait",
+      "large-portrait",
+      "medium-portrait"
+    ],
     "splash_2d_logo_classes": [
       "tiny",
       "medium",
@@ -103,6 +129,7 @@
       },
       "storage": {
         "root": "/mnt/UDISK/helixscreen",
+        "user_config_dir": "/mnt/UDISK/printer_data/config/helixscreen",
         "state_root": "/mnt/UDISK/helixscreen-state",
         "cache_dir": "/mnt/UDISK/helixscreen-state/cache",
         "log_file": "/mnt/UDISK/helixscreen-state/logs/helix.log",
@@ -164,6 +191,7 @@
       },
       "storage": {
         "root": "/usr/data/helixscreen",
+        "user_config_dir": "/usr/data/printer_data/config/helixscreen",
         "state_root": "/usr/data/helixscreen-state",
         "cache_dir": "/usr/data/helixscreen-state/cache",
         "log_file": "/usr/data/helixscreen-state/logs/helix.log"
@@ -226,6 +254,7 @@
       },
       "storage": {
         "root": "/usr/data/helixscreen",
+        "user_config_dir": "/usr/data/printer_data/config/helixscreen",
         "state_root": "/usr/data/helixscreen-state",
         "cache_dir": "/usr/data/helixscreen-state/cache",
         "log_file": "/usr/data/helixscreen-state/logs/helix.log"
@@ -302,6 +331,7 @@
       },
       "storage": {
         "root": "detected",
+        "user_config_dir": "detected",
         "state_root": "detected",
         "cache_dir": "detected",
         "log_file": "detected",
@@ -352,6 +382,7 @@
       },
       "storage": {
         "root": "/srv/helixscreen",
+        "user_config_dir": "/srv/helixscreen-state/config",
         "state_root": "/srv/helixscreen-state",
         "cache_dir": "/srv/helixscreen-state/cache",
         "log_file": "/opt/config/mod_data/log/helix.log",
@@ -409,6 +440,11 @@
           "klipper_mod": "/root/printer_software/helixscreen if that dir exists, else /opt/helixscreen",
           "zmod": "/srv/helixscreen",
           "forge_x": "/opt/helixscreen"
+        },
+        "user_config_dir_by_firmware": {
+          "klipper_mod": "/root/printer_data/config/helixscreen",
+          "zmod": "/srv/helixscreen-state/config",
+          "forge_x": "/root/printer_data/config/helixscreen"
         },
         "cache_dir": "/data/.helixscreen/cache",
         "log_file_by_firmware": {
@@ -476,6 +512,7 @@
       },
       "storage": {
         "root": "/user-resource/helixscreen",
+        "user_config_dir": "/etc/klipper/config/helixscreen",
         "state_root": "/user-resource/helixscreen-state",
         "cache_dir": "/user-resource/helixscreen-state/cache",
         "log_file": "/user-resource/helixscreen-state/logs/helix.log",
@@ -526,6 +563,7 @@
       },
       "storage": {
         "root": "/userdata/helixscreen",
+        "user_config_dir": "/home/lava/printer_data/config/helixscreen",
         "state_root": "/userdata/helixscreen-state",
         "cache_dir": "/userdata/helixscreen-state/cache",
         "log_file": null
@@ -575,6 +613,7 @@
       },
       "storage": {
         "root": "detected",
+        "user_config_dir": "detected",
         "root_fallback": "/opt/helixscreen",
         "cache_dir": null,
         "log_file": null,
@@ -622,6 +661,7 @@
       },
       "storage": {
         "root": "detected",
+        "user_config_dir": "detected",
         "root_fallback": "/opt/helixscreen",
         "cache_dir": null,
         "log_file": null
@@ -668,6 +708,7 @@
       },
       "storage": {
         "root": "detected",
+        "user_config_dir": "detected",
         "root_fallback": "/opt/helixscreen",
         "cache_dir": null,
         "log_file": null,
@@ -715,6 +756,7 @@
       },
       "storage": {
         "root": "detected",
+        "user_config_dir": "detected",
         "root_fallback": "/opt/helixscreen",
         "cache_dir": null,
         "log_file": null
@@ -760,6 +802,8 @@
       },
       "storage": {
         "root": "${XDG_DATA_HOME:-$HOME/.local/share}/helixscreen",
+        "user_config_dir": null,
+        "user_config_dir_reason": "No Moonraker update_manager entry manages this root (moonraker.update_manager is false), so nothing rmtree()s it on an update: the user's config stays in <root>/config.",
         "cache_dir": null,
         "log_file": null,
         "notes": "Per-user root from desktop_install_root (scripts/lib/installer/desktop.sh); never in HELIX_INSTALL_DIRS, so no uninstall sweep reaches a home directory. The installer's log goes to ${XDG_STATE_HOME:-$HOME/.local/state}/helixscreen."

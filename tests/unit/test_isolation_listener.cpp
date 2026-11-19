@@ -18,20 +18,20 @@
 // can also serve as a passive regression tripwire); grep stderr for
 // "[ISOLATION-LEAK]".
 
-#include "ui_observer_guard.h"
-
 #include "../helix_test_fixture.h"
 #include "../test_helpers/live_thread_count.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/thumbnail_processor_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "../ui_test_utils.h"
 #include "core/http_executor.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "moonraker_client_mock.h"
 #include "system/lvgl_thread_check.h"
 #include "thumbnail_processor.h"
 
-#include <spdlog/sinks/null_sink.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -197,8 +197,11 @@ class IsolationListener : public Catch::EventListenerBase {
         // registry::s_instance). Installed exactly once here, single-threaded.
         // Capture-style tests still swap in their own logger and restore this
         // one — those swaps stay, but this baseline removes the per-test one.
-        auto null_sink = std::make_shared<spdlog::sinks::null_sink_mt>();
-        auto null_logger = std::make_shared<spdlog::logger>("null", null_sink);
+        //
+        // Its one sink is the capture hub, which drops records until a capture
+        // joins it. A capture that pushed onto this logger's sinks() instead
+        // would race every worker thread iterating that unguarded vector.
+        auto null_logger = std::make_shared<spdlog::logger>("null", helix::log_capture_hub());
         spdlog::set_default_logger(std::move(null_logger));
 
         // The first LVGL call made off the LVGL thread aborts the run;
@@ -266,7 +269,7 @@ class IsolationListener : public Catch::EventListenerBase {
 
         // Production teardown calls ObserverGuard::invalidate_all() before LVGL is
         // torn down so surviving singletons release their observers instead of
-        // calling lv_observer_remove() on freed state. The test binary has no such
+        // calling lv_observer_delete() on freed state. The test binary has no such
         // hook, so global panel singletons (e.g. PrintStatusPanel) held in
         // function-local statics destruct during __run_exit_handlers and crash in
         // lv_ll_remove (SIGSEGV at exit, after every test passed). Bumping the
@@ -350,7 +353,7 @@ class IsolationListener : public Catch::EventListenerBase {
         // one closing over a per-test object is a real UAF awaiting the next drain.
         if (std::vector<helix::ui::UpdateQueueTestAccess::DroppedCallback> dropped =
                 helix::ui::UpdateQueueTestAccess::discard_pending(
-                    helix::ui::UpdateQueue::instance());
+                    helix::ui::UpdateQueue::instance(), helix::kSubjectReleaseTag);
             !dropped.empty()) {
             // Collapse repeats — a loop-driven test queues the same tag N times —
             // but match tags EXACTLY. A substring test would hide any producer

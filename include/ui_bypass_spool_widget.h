@@ -21,18 +21,17 @@ namespace helix::ui {
  * @brief Whether the bypass node belongs on the filament path at all.
  *
  * AFC publishes a virtual bypass sensor whether or not the user has a bypass
- * wired, so `supports_bypass` is effectively always true there and the node was
- * drawn permanently — then painted from the external-spool slot, which put the
- * currently-loaded lane's material and colour on it. The green "ASA / Bypass" in
- * #1229 was lane1's spool on a machine with no bypass at all.
+ * wired, so `supports_bypass` is effectively always true there. Drawn anyway,
+ * the node is painted from the external-spool slot, which carries the
+ * currently-loaded lane's material and colour, on a machine that may have no
+ * bypass at all (#1229).
  *
  * On AFC the node is therefore hidden while bypass is disengaged, unless the
  * user opts back in via the AMS setting. Other backends are unaffected: their
  * bypass is a real physical position, so it stays visible whenever supported.
  *
- * Pure by design. The render sites are LVGL-bound and previously carried this
- * condition inline in four places, where it could neither be tested nor kept
- * consistent — three of the four had already drifted apart.
+ * Pure, so the LVGL-bound render sites share one tested rule instead of each
+ * carrying the condition inline.
  *
  * @param supports_bypass Backend reports a bypass position at all
  * @param bypass_active Bypass is currently engaged (firmware state, not a proxy)
@@ -77,16 +76,16 @@ struct BypassSpoolWidgets {
     WeakWidget spool_canvas;   ///< The spool icon inside the box
     WeakWidget bypass_label;   ///< "Bypass" text below the box
     WeakWidget material_label; ///< Material name above the box (hidden if empty)
+    int32_t box_size = 0;      ///< Box edge: the lane spool size plus padding
 
     // Cached state for change-detection (avoids spurious invalidates on every
     // panel refresh). Not part of the public API surface — read via setters.
     /// Paired with cached_color_rgb because black IS 0: without a separate
     /// "has it ever been painted" bit, a black spool reads as unchanged from
     /// the default and the canvas keeps its own creation-time 0xE0E0E0, so the
-    /// bypass swatch renders white forever (K2 Plus, spool 86 "Black ASA").
-    /// The same black-is-not-unset trap is already handled in
-    /// AmsState::notify_external_spool_changed() and
-    /// filament_slot_override_store's identity check; this widget was missed.
+    /// bypass swatch renders white forever. The same black-is-not-unset rule
+    /// applies in AmsState::notify_external_spool_changed() and
+    /// filament_slot_override_store's identity check.
     bool color_painted = false;
     uint32_t cached_color_rgb = 0;
     bool cached_has_spool = false;
@@ -102,6 +101,10 @@ struct BypassSpoolWidgets {
         return box != nullptr;
     }
 };
+
+/// Edge of the bypass card in px: a lane-sized spool plus the card's padding.
+/// The path canvases keep the spool's centre this far from what it must clear.
+[[nodiscard]] int32_t bypass_spool_box_size();
 
 /// Create the bypass spool overlay widgets as floating children of `parent`.
 /// Clicks dispatch to the caller-supplied `on_click` LVGL event handler with
@@ -131,8 +134,13 @@ void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material);
 /// ams_draw::set_active_ring(). No-op when unchanged.
 void bypass_spool_set_active(BypassSpoolWidgets& w, bool active);
 
-/// Position the spool box so its center sits at (`cx`, `cy`) in parent-relative
-/// coordinates. The material label is placed above, the "Bypass" label below.
+/// How far above the bypass merge line the spool's bottom edge stands: its tube leaves
+/// the spool there and turns along the merge line, between the spool and its label.
+int32_t bypass_spool_bottom_above_merge();
+
+/// Place the overlay on the bypass merge line at (`cx`, `cy`), parent-relative: the spool
+/// box stands above it (bypass_spool_bottom_above_merge()), the material label above the
+/// box, and the "Bypass" label below the line, clear of the tube.
 void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy);
 
 /// Bring the whole overlay in line with AmsState: shown only where the bypass node

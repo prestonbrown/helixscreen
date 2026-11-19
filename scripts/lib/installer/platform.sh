@@ -1401,7 +1401,7 @@ resolve_platform_hook_key() {
 # These are the files users may want to edit from Fluidd/Mainsail, and that
 # the app writes to at runtime. All other files in INSTALL_DIR/config/ are
 # static assets reinstalled on each update.
-HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route"
+HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_spools.json pending_remap.json crash_history.json user_filaments.json .webcams_backup.json .camera_migrated .klipper_includes .k2cam_webcam_disabled .seeded_settings .platform_hook .nginx_webcam_accesslog .nginx_remote_screen .remote_screen_route .install_source"
 
 # User-writable config DIRECTORIES that live in printer_data/config/helixscreen/.
 #
@@ -1418,6 +1418,16 @@ HELIX_USER_CONFIG_FILES="settings.json helixscreen.env .disabled_services tool_s
 #                                                   separately in assets/config/themes/defaults)
 #   printer_database.d  writable_path("printer_database.d")  (user DB extensions)
 HELIX_USER_CONFIG_DIRS="custom_images themes printer_database.d"
+
+# Whether a name under config/ is the user's (HELIX_USER_CONFIG_FILES or
+# HELIX_USER_CONFIG_DIRS) rather than a file the release ships and owns.
+helix_is_user_config_name() { # name
+    local _n
+    for _n in $HELIX_USER_CONFIG_FILES $HELIX_USER_CONFIG_DIRS; do
+        [ "$_n" = "$1" ] && return 0
+    done
+    return 1
+}
 
 # Default content for runtime-created state files that have no packaged default.
 #

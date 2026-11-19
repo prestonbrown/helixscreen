@@ -160,7 +160,7 @@ endif
 
 # Link binary (SDL2_LIB is empty if using system SDL2)
 # Keep broad filtering so non-object prerequisites can be added safely later.
-$(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP_C_OBJS) $(APP_OBJS) $(APP_MODULE_OBJS) $(REMOTE_LINENOISE_OBJ) $(OBJCPP_OBJS) $(LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(SPDLOG_OBJS) $(LVGL_OPENGLES_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(APP_DNS_RESOLV_OBJ) $(WPA_DEPS)
+$(TARGET): $(SDL2_LIB) $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(CONTRIBUTORS_H) $(APP_C_OBJS) $(APP_OBJS) $(APP_MODULE_OBJS) $(REMOTE_LINENOISE_OBJ) $(OBJCPP_OBJS) $(LVGL_OBJS) $(HELIX_XML_OBJS) $(THORVG_OBJS) $(SPDLOG_OBJS) $(LVGL_OPENGLES_OBJS) $(LV_MARKDOWN_OBJS) $(QUIRC_OBJS) $(MONOCYPHER_OBJS) $(VTERM_OBJS) $(LUA_OBJS) $(FONT_OBJS) $(APP_DNS_RESOLV_OBJ) $(WPA_DEPS)
 	$(call check_abi_unchanged)
 	$(Q)mkdir -p $(BIN_DIR)
 	$(ECHO) "$(MAGENTA)$(BOLD)[LD]$(RESET) $@"
@@ -228,13 +228,19 @@ HELIX_XML_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 SPDLOG_COMPILE = $(CXX) $(SUBMODULE_CXXFLAGS) $(1) $(SPDLOG_DEFINES) $(SPDLOG_INC)
 LV_MARKDOWN_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 QUIRC_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES)
+MONOCYPHER_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES)
+VTERM_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) -I$(VTERM_DIR)/include
 LUA_COMPILE = $(CXX) -x c++ $(SUBMODULE_CXXFLAGS) $(1) $(INCLUDES)
 FONT_COMPILE = $(CC) $(SUBMODULE_CFLAGS) $(1) $(INCLUDES) $(LV_CONF)
 
 # Compile app C sources
-# Uses DEPFLAGS to generate .d files for header dependency tracking
+# Uses DEPFLAGS to generate .d files for header dependency tracking.
+# lv_conf.h is a prerequisite of every object that includes LVGL: GCC's -MMD leaves it out
+# of the .d file (it is reached through LVGL's -isystem headers), and its options change
+# the layout of LVGL structs the app reads (LV_OBJ_STYLE_CACHE adds fields to lv_obj_t),
+# so an app object built against a stale lv_conf.h crashes at run time.
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CC]$(RESET) $<"
 ifeq ($(V),1)
@@ -304,7 +310,7 @@ endif
 # Compile app C++ sources (depend on libhv and the LVGL patch stamp)
 # Uses DEPFLAGS to generate .d files for header dependency tracking
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[CXX]$(RESET) $<"
 ifeq ($(V),1)
@@ -347,7 +353,7 @@ LFS_CXXFLAGS := -D_FILE_OFFSET_BITS=64
 # Compile app Objective-C++ sources (macOS .mm files)
 # Uses DEPFLAGS to generate .d files for header dependency tracking
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.mm $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.mm lv_conf.h $(LIBHV_LIB) $(LIBHV_JSON_HEADER) $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(BLUE)[OBJCXX]$(RESET) $<"
 ifeq ($(V),1)
@@ -441,7 +447,7 @@ $(LVGL_OPENGLES_OBJS): $(OBJ_DIR)/lvgl/%.o: $(LVGL_DIR)/%.c lv_conf.h $(PATCHES_
 
 # Compile lv_markdown sources (vendored C library - use SUBMODULE_CFLAGS)
 # Includes both src/*.c and deps/md4c/md4c.c
-$(OBJ_DIR)/lv_markdown/%.o: $(LV_MARKDOWN_DIR)/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/lv_markdown/%.o: $(LV_MARKDOWN_DIR)/%.c lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
 ifeq ($(V),1)
@@ -463,6 +469,26 @@ $(OBJ_DIR)/quirc/%.o: $(QUIRC_DIR)/%.c
 	}
 	$(call emit-compile-command,$(call QUIRC_COMPILE),$<,$@)
 
+# Compile Monocypher sources (vendored C library - use SUBMODULE_CFLAGS)
+$(OBJ_DIR)/monocypher/%.o: $(MONOCYPHER_DIR)/%.c $(ABI_STAMP) $(FLAGS_STAMP)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
+	$(Q)$(call MONOCYPHER_COMPILE) -c $< -o $@ || { \
+		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
+		exit 1; \
+	}
+	$(call emit-compile-command,$(call MONOCYPHER_COMPILE),$<,$@)
+
+# Compile libvterm sources (vendored C library - use SUBMODULE_CFLAGS)
+$(OBJ_DIR)/libvterm/%.o: $(VTERM_DIR)/%.c $(ABI_STAMP) $(FLAGS_STAMP)
+	$(Q)mkdir -p $(dir $@)
+	$(ECHO) "$(CYAN)[CC]$(RESET) $<"
+	$(Q)$(call VTERM_COMPILE) -c $< -o $@ || { \
+		echo "$(RED)$(BOLD)✗ Compilation failed:$(RESET) $<"; \
+		exit 1; \
+	}
+	$(call emit-compile-command,$(call VTERM_COMPILE),$<,$@)
+
 # Compile Lua sources (vendored C compiled as C++ so a Lua error unwinds as an exception)
 $(OBJ_DIR)/lua/%.o: $(LUA_DIR)/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
@@ -475,7 +501,7 @@ $(OBJ_DIR)/lua/%.o: $(LUA_DIR)/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) 
 
 # Compile font sources (generated by lv_font_conv - use SUBMODULE flags)
 # Emits .ccj fragment for incremental compile_commands.json generation
-$(OBJ_DIR)/assets/fonts/%.o: assets/fonts/%.c $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
+$(OBJ_DIR)/assets/fonts/%.o: assets/fonts/%.c lv_conf.h $(PATCHES_STAMP) $(ABI_STAMP) $(FLAGS_STAMP) | $(PATCH_MARKER_STAMP)
 	$(Q)mkdir -p $(dir $@)
 	$(ECHO) "$(GREEN)[FONT]$(RESET) $<"
 	$(Q)$(call FONT_COMPILE) -c $< -o $@ || { \

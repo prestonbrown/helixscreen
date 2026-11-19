@@ -3,10 +3,12 @@
 
 #pragma once
 
+#include "json_utils.h"
+
 #include <algorithm>
 #include <cstdint>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline reader of the json
 
 /**
  * @file led_color_utils.h
@@ -40,13 +42,13 @@ struct RgbwF {
  *         empty, fewer than 3 channels, or a non-numeric RGB channel).
  */
 inline bool parse_color_data(const nlohmann::json& led_obj, RgbwF& out) {
-    if (!led_obj.contains("color_data") || !led_obj["color_data"].is_array() ||
-        led_obj["color_data"].empty()) {
+    const nlohmann::json* color_data = helix::json_util::find_array(led_obj, "color_data");
+    if (!color_data || color_data->empty()) {
         return false;
     }
 
     // color_data is an array of [R, G, B, W] arrays (one per LED in the strip).
-    const auto& first = led_obj["color_data"][0];
+    const auto& first = (*color_data)[0];
     if (!first.is_array() || first.size() < 3) {
         return false;
     }

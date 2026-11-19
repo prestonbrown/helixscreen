@@ -18,6 +18,7 @@
 #include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "json_utils.h"
 #include "klipper_error_table.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
@@ -45,10 +46,11 @@ constexpr const char* kFaultNotifyHandlerName = "fault_raise_notifier";
 /// Moonraker notify frames carry their payload as the first element of a
 /// params array; a frame without a non-empty one has nothing to read.
 const nlohmann::json* first_notify_param(const nlohmann::json& msg) {
-    if (!msg.contains("params") || !msg["params"].is_array() || msg["params"].empty()) {
+    const nlohmann::json* params = helix::json_util::find_array(msg, "params");
+    if (!params || params->empty()) {
         return nullptr;
     }
-    return &msg["params"][0];
+    return &(*params)[0];
 }
 
 /// How long a coded raise displaces a pending prose copy of the same fault.
@@ -601,12 +603,13 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     spdlog::error("[GcodeError] sev={} src={} code={}: {}", static_cast<int>(ev->severity),
                   static_cast<int>(ev->source), ev->code.empty() ? "-" : ev->code, ev->detail);
 
-    // Release an optimistic Pause/Resume spinner. Klipper aborts a rejected
-    // RESUME by broadcasting `!!` and returning normally, so the gcode.script
-    // RPC still answers `ok` and the dispatch error path never runs; the button
-    // would otherwise sit disabled on "Resuming..." for the full 150s backstop.
-    // Deliberately BEFORE the RPC-dedup return below — that suppression is about
-    // avoiding a duplicate *toast*, not about whether the command failed.
+    // Release an optimistic Pause/Resume spinner. A RESUME macro can refuse by
+    // printing `!!` and returning normally, so the gcode.script RPC still
+    // answers `ok` and the dispatch error path never runs; the button would
+    // otherwise sit disabled on "Resuming..." until the backstop. The buttons
+    // decide whether this error ended the action. Deliberately BEFORE the
+    // RPC-dedup return below: that suppression is about avoiding a duplicate
+    // *toast*, not about whether the command failed.
     ui::PrintControlButtons::instance().notify_printer_error(ev->detail);
 
     // Cross-source dedup: when an RPC caller triggered the gcode that
@@ -633,11 +636,13 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // bridge itself guards against. Only the toast arms defer to it: a modal
     // carries the recovery actions, so standing it down because a transient
     // toast got there first would drop the only actionable thing on screen.
+    // The same check stands down a toast that only wraps one already shown,
+    // such as "Filament change error: <the cause just toasted>".
     // Checked BEFORE record_surfaced() below, so our own record can never
     // suppress the presentation that wrote it.
     if ((how == PresentAs::TOAST || how == PresentAs::TOAST_WITH_RECOVER) &&
-        (fault_surface_correlation::was_recently_surfaced(ev->detail) ||
-         fault_surface_correlation::was_recently_surfaced(ev->raw_detail))) {
+        (fault_surface_correlation::was_recently_surfaced_within(ev->detail) ||
+         fault_surface_correlation::was_recently_surfaced_within(ev->raw_detail))) {
         spdlog::info("[GcodeError] Suppressing duplicate toast (already surfaced): {}", ev->detail);
         return;
     }

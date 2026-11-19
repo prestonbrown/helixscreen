@@ -4,11 +4,14 @@
 #include "ui_print_status_tiles.h"
 
 #include "ui_event_safety.h"
+#include "ui_plate_glow.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
+#include "core/timer_guard.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
@@ -85,7 +88,7 @@ void set_string(lv_subject_t* s, char* buf, size_t size, const std::string& v) {
         return;
     }
     std::snprintf(buf, size, "%s", v.c_str());
-    lv_subject_copy_string(s, buf);
+    lv_subject_set_string(s, buf);
 }
 
 bool lined_or_pinned(CalloutMode m) {
@@ -156,27 +159,26 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         names[4] = "ps_chip_" + key + "_progress";
         names[5] = "ps_line_" + key;
         names[6] = "ps_chip_" + key + "_state";
-        lv_subject_init_int(&c.shown, 0);
-        lv_subject_init_string(&c.text, c.text_buf, nullptr, sizeof(c.text_buf), "");
-        lv_subject_init_int(&c.tone, static_cast<int>(ChipTone::Normal));
-        lv_subject_init_int(&c.glow, 0);
-        lv_subject_init_int(&c.progress, -1);
-        lv_subject_init_int(&c.line, 0);
-        lv_subject_init_int(&c.state, 0);
+        c.shown.init_int(0);
+        c.text.init_string(c.text_buf, nullptr, sizeof(c.text_buf), "");
+        c.tone.init_int(static_cast<int>(ChipTone::Normal));
+        c.glow.init_int(0);
+        c.progress.init_int(-1);
+        c.line.init_int(0);
+        c.state.init_int(0);
         lv_subject_t* each[] = {&c.shown,    &c.text, &c.tone, &c.glow,
                                 &c.progress, &c.line, &c.state};
         for (size_t n = 0; n < kChipSubjectCount; ++n) {
             subjects.publish(names[n].c_str(), each[n]);
         }
     }
-    lv_subject_init_string(&image_src_, image_src_buf_, nullptr, sizeof(image_src_buf_), "");
+    image_src_.init_string(image_src_buf_, nullptr, sizeof(image_src_buf_), "");
     subjects.publish("ps_printer_image_src", &image_src_);
-    lv_subject_init_int(&callout_mode_, static_cast<int>(CalloutMode::ImageOnly));
+    callout_mode_.init_int(static_cast<int>(CalloutMode::ImageOnly));
     subjects.publish("ps_callout_mode", &callout_mode_);
-    lv_subject_init_int(&toolhead_merged_, 0);
+    toolhead_merged_.init_int(0);
     subjects.publish("ps_toolhead_merged", &toolhead_merged_);
-    lv_subject_init_string(&toolhead_text_, toolhead_text_buf_, nullptr, sizeof(toolhead_text_buf_),
-                           "");
+    toolhead_text_.init_string(toolhead_text_buf_, nullptr, sizeof(toolhead_text_buf_), "");
     subjects.publish("ps_chip_toolhead_text", &toolhead_text_);
 
     for (size_t i = 0; i < kPreprintChecklistMaxRows; ++i) {
@@ -185,23 +187,22 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         names[0] = "ps_step_" + std::to_string(i) + "_name";
         names[1] = "ps_step_" + std::to_string(i) + "_time";
         names[2] = "ps_step_" + std::to_string(i) + "_status";
-        lv_subject_init_string(&s.name, s.name_buf, nullptr, sizeof(s.name_buf), "");
-        lv_subject_init_string(&s.time, s.time_buf, nullptr, sizeof(s.time_buf), "");
-        lv_subject_init_int(&s.status, static_cast<int>(PreprintStepStatus::Upcoming));
+        s.name.init_string(s.name_buf, nullptr, sizeof(s.name_buf), "");
+        s.time.init_string(s.time_buf, nullptr, sizeof(s.time_buf), "");
+        s.status.init_int(static_cast<int>(PreprintStepStatus::Upcoming));
         subjects.publish(names[0].c_str(), &s.name);
         subjects.publish(names[1].c_str(), &s.time);
         subjects.publish(names[2].c_str(), &s.status);
     }
-    lv_subject_init_int(&step_count_, 0);
+    step_count_.init_int(0);
     subjects.publish("ps_step_count", &step_count_);
-    lv_subject_init_string(&step_position_text_, step_position_buf_, nullptr,
-                           sizeof(step_position_buf_), "");
+    step_position_text_.init_string(step_position_buf_, nullptr, sizeof(step_position_buf_), "");
     subjects.publish("ps_step_position_text", &step_position_text_);
-    lv_subject_init_string(&step_current_name_, step_current_name_buf_, nullptr,
-                           sizeof(step_current_name_buf_), "");
+    step_current_name_.init_string(step_current_name_buf_, nullptr, sizeof(step_current_name_buf_),
+                                   "");
     subjects.publish("ps_step_current_name", &step_current_name_);
-    lv_subject_init_string(&step_current_time_, step_current_time_buf_, nullptr,
-                           sizeof(step_current_time_buf_), "");
+    step_current_time_.init_string(step_current_time_buf_, nullptr, sizeof(step_current_time_buf_),
+                                   "");
     subjects.publish("ps_step_current_time", &step_current_time_);
     subjects_ready_ = true;
 
@@ -226,6 +227,9 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         observe<int>(printer_state_.get_heater_power_subject(HeaterType::Bed), this, heaters, ps);
     chamber_power_observer_ = observe<int>(
         printer_state_.get_heater_power_subject(HeaterType::Chamber), this, heaters, ps);
+    // The chips format their readings in the display unit.
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(
+        this, [](PrintStatusTiles* self) { self->request_update(); });
     // The other-tools chip follows every head, and which heads there are.
     const auto heads_changed = [](PrintStatusTiles* self, int) {
         self->watch_extruders();
@@ -270,6 +274,7 @@ void PrintStatusTiles::deinit() {
     nozzle_power_observer_.reset();
     bed_power_observer_.reset();
     chamber_power_observer_.reset();
+    temp_unit_observer_.reset();
     extruder_version_observer_.reset();
     tools_version_observer_.reset();
     extruder_watches_.clear();
@@ -471,9 +476,12 @@ ChipContent PrintStatusTiles::heater(PrintStatusChip chip, bool show_power) {
     ChipContent c =
         heater_chip(present, current, target, status, printing, show_power, badge,
                     heat_start(chip, current, target), chip == PrintStatusChip::Chamber);
-    // The plate glows by how hot it is, at target or cooling as much as climbing.
+    // The plate and the chamber glow by how hot they are, at target or cooling as
+    // much as climbing.
     if (chip == PrintStatusChip::Bed && present)
         c.glow = bed_glow_level(current);
+    if (chip == PrintStatusChip::Chamber && present)
+        c.glow = chamber_glow_level(current);
     return c;
 }
 
@@ -587,13 +595,13 @@ void PrintStatusTiles::paint_heat_chip(PrintStatusChip chip, const ChipContent& 
     if (chip == PrintStatusChip::Nozzle) {
         paint(lv_obj_find_by_name(root, "ps_chip_toolhead"));
     }
-    // The plate glow takes its color from the XML; the region discs take the heat's.
-    lv_obj_t* glow = chip == PrintStatusChip::Bed
+    // Bed and chamber glows take their color from the XML; the others take the heat's.
+    lv_obj_t* glow = chip == PrintStatusChip::Bed || chip == PrintStatusChip::Chamber
                          ? nullptr
                          : lv_obj_find_by_name(root, ("ps_glow_" + key).c_str());
     if (glow) {
         // DECLARATIVE_OK: heat color comes from get_heating_state_color()
-        lv_obj_set_style_bg_color(glow, color, LV_PART_MAIN);
+        lv_obj_set_style_image_recolor(glow, color, LV_PART_MAIN);
     }
 }
 
@@ -845,7 +853,14 @@ void PrintStatusTiles::place_and_publish(const std::string& th_text) {
             }
         }
         const ChipContent& shown = out.unlabeled && is_fan(chip) ? lo.bare[i] : lo.contents[i];
-        publish(chip, shown, shown.shown && !dropped, glows && shown.glow, line);
+        // A warm chamber's glow covers the same windows as the light's, and heat wins.
+        const bool yields = chip == PrintStatusChip::Light &&
+                            light_glow_yields(lo.contents[index_of(PrintStatusChip::Chamber)]);
+        const bool glow = glows && shown.glow && !yields;
+        publish(chip, shown, shown.shown && !dropped, glow, line);
+        if (chip == PrintStatusChip::Bed || chip == PrintStatusChip::Chamber) {
+            ui::heat_glow_update_pulse(lo.parts.chips[i].glow, shown.heat, glow);
+        }
     }
     set_string(&toolhead_text_, toolhead_text_buf_, sizeof(toolhead_text_buf_), th_text);
     set_int(&toolhead_merged_, out.toolhead_merged ? 1 : 0);
@@ -879,8 +894,10 @@ void PrintStatusTiles::update_heater_chips() {
         const size_t i = index_of(c);
         const int icons = chip_icons_px(m, i);
         const ChipContent plain = heater(c, false);
+        // heater_shown() returns one of its arguments, so both outlive `shown`.
+        const ChipContent with_power = heater(c, true);
         const ChipContent& shown =
-            heater_shown(plain, heater(c, true), m, icons, laid_out_.column_w, last_mode_);
+            heater_shown(plain, with_power, m, icons, laid_out_.column_w, last_mode_);
         CalloutPresenter::Chip& part = laid_out_.parts.chips[i];
         part.active = shown.shown;
         part.expendable = shown.expendable;

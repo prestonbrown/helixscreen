@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h" // SubjectLifetime
-
 #include "async_lifetime_guard.h"
 #include "axis.h"
+#include "core/observer_guard.h" // SubjectLifetime
+#include "core/subject.h"
 #include "json_fwd.h"
 #include "subject_managed_panel.h"
 #include "tool_offsets.h"
@@ -158,6 +158,9 @@ class ToolState {
 
     void init_subjects(bool register_xml = true);
     void deinit_subjects();
+    [[nodiscard]] bool subjects_initialized() const {
+        return subjects_initialized_;
+    }
 
     void init_tools(const helix::PrinterDiscovery& hardware);
 
@@ -199,6 +202,10 @@ class ToolState {
         return tools_;
     }
     [[nodiscard]] const ToolInfo* active_tool() const;
+    /// The part fan named by the tool that prints through @p extruder, as the tool
+    /// reports it ("T1_part_fan" or a full object name). Empty unless the tools
+    /// carry part fans of their own, which takes two tools naming different fans.
+    [[nodiscard]] std::string own_part_fan_for_extruder(const std::string& extruder) const;
     [[nodiscard]] int active_tool_index() const {
         return active_tool_index_;
     }
@@ -254,6 +261,8 @@ class ToolState {
     /// Returns "Nozzle" for single-tool, "Nozzle 1" for multi-tool (active tool),
     /// or the tool's configured Klipper name ("Nozzle Left") when it has one.
     [[nodiscard]] std::string nozzle_label() const;
+    /// nozzle_label() for @p tool_index's nozzle rather than the mounted one.
+    [[nodiscard]] std::string nozzle_label(int tool_index) const;
 
     /// Whether a nozzle readout must say which nozzle it means: several
     /// extruders, or several nozzles taking turns on one shared heater. False
@@ -316,6 +325,12 @@ class ToolState {
     /// printers where a tool number appears at all.
     lv_subject_t* get_names_mounted_nozzle_subject() {
         return &names_mounted_nozzle_;
+    }
+    /// extruder_count() as a subject, published as "extruder_count": refreshed
+    /// whenever the head list is invalidated, so a control shown only on a
+    /// multi-nozzle printer follows the hardware rather than its attach-time value.
+    lv_subject_t* get_extruder_count_subject() {
+        return &extruder_count_;
     }
 
     // ---- Per-tool offsets (helix::tool_offsets) -----------------------------
@@ -385,7 +400,8 @@ class ToolState {
 
   private:
     /// The X, Y or Z member of a subject trio.
-    static lv_subject_t* axis_member(Axis axis, lv_subject_t& x, lv_subject_t& y, lv_subject_t& z) {
+    static lv_subject_t* axis_member(Axis axis, helix::Subject& x, helix::Subject& y,
+                                     helix::Subject& z) {
         lv_subject_t* members[] = {&x, &y, &z};
         return members[axis_index(axis)];
     }
@@ -393,8 +409,18 @@ class ToolState {
     /// Whether init_tools() found a per-tool offset on any axis.
     [[nodiscard]] bool per_tool_offsets_supported() const;
 
+    /// Whether status frames update tools_' offsets on @p axis: an axis the UI
+    /// may edit, or one the firmware's own calibration stages for SAVE_CONFIG
+    /// (tool_offsets::firmware_stages_axis), which Save must see without an
+    /// edit control HelixScreen cannot send.
+    [[nodiscard]] bool follows_axis(Axis axis) const;
+    [[nodiscard]] bool follows_any_axis() const;
+
     /// Recompute any_tool_offset_dirty from tools_.
     void refresh_any_tool_dirty();
+    /// Drop heads_cache_ after anything it derives from changed, and republish
+    /// extruder_count_ from the rebuilt list.
+    void invalidate_heads();
 
     ToolState() = default;
 
@@ -404,31 +430,34 @@ class ToolState {
     /// The offset model init_tools() resolved from the hardware, so the
     /// status path - which has no PrinterDiscovery - reads by direct lookup.
     helix::tool_offsets::OffsetReader offset_reader_;
+    /// Per axis, tool_offsets::firmware_stages_axis() as init_tools() found it.
+    std::array<bool, 3> firmware_staged_axes_{};
 
     /// Expires the tool-offset query callbacks, which fire from the WebSocket
     /// thread long after the request was issued. Declared after
     /// `subjects_` so reverse-order member destruction invalidates it before the
     /// subjects it protects; also invalidated by deinit_subjects() (#1165, #1146).
     helix::AsyncLifetimeGuard async_lifetime_;
-    lv_subject_t active_tool_{};
-    lv_subject_t tool_count_{};
-    lv_subject_t tools_version_{};
+    helix::Subject active_tool_{};
+    helix::Subject tool_count_{};
+    helix::Subject tools_version_{};
 
     // Tool badge subjects for nozzle_icon component (XML-bound).
     // Updated automatically by update_from_status() and init_tools().
-    lv_subject_t tool_badge_text_{};
+    helix::Subject tool_badge_text_{};
     char tool_badge_text_buf_[16] = {};
-    lv_subject_t show_tool_badge_{};
-    lv_subject_t names_mounted_nozzle_{};
+    helix::Subject show_tool_badge_{};
+    helix::Subject names_mounted_nozzle_{};
+    helix::Subject extruder_count_{};
 
     // Per-tool offsets (helix::tool_offsets). Only a tool changer has any; on
     // every other printer the *_supported trio stays 0 and the aggregate is
     // never published. Individual members rather than arrays because
     // INIT_SUBJECT_INT derives the XML name from the member name.
-    lv_subject_t per_tool_x_supported_{};
-    lv_subject_t per_tool_y_supported_{};
-    lv_subject_t per_tool_z_supported_{};
-    lv_subject_t any_tool_offset_dirty_{};
+    helix::Subject per_tool_x_supported_{};
+    helix::Subject per_tool_y_supported_{};
+    helix::Subject per_tool_z_supported_{};
+    helix::Subject any_tool_offset_dirty_{};
 
     std::vector<ToolInfo> tools_;
     /// physical_heads() of tools_, built on first ask after the list changes.

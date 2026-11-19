@@ -2,11 +2,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-#include "ui_timer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "lvgl/lvgl.h"
 #include "moonraker_job_api.h"
 #include "printer_recovery_service.h"
@@ -259,8 +260,8 @@ class AbortManager {
     std::string last_result_message_;
 
     // Subject for UI binding
-    lv_subject_t abort_state_subject_{};
-    lv_subject_t progress_message_subject_{};
+    helix::Subject abort_state_subject_{};
+    helix::Subject progress_message_subject_{};
     char progress_message_buf_[128]{};
     bool subjects_initialized_ = false;
 

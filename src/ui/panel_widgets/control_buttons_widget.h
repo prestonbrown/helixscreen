@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"
 
@@ -66,9 +66,9 @@ class ControlButtonsWidget : public PanelWidget {
     std::string labels_name_{"control_buttons_labels"};
     std::string column_name_{"control_buttons_column"};
     std::string fill_name_{"control_buttons_fill"};
-    lv_subject_t labels_subject_{};
-    lv_subject_t column_subject_{};
-    lv_subject_t fill_subject_{};
+    helix::Subject labels_subject_{};
+    helix::Subject column_subject_{};
+    helix::Subject fill_subject_{};
     SubjectManager subjects_;
     std::vector<std::string> attr_storage_;
     std::vector<const char*> attrs_;

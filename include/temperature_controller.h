@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "heater_limits.h"
 #include "heater_type.h" // helix::HeaterType, kHeaterTypeCount
 #include "json_fwd.h"
@@ -143,10 +142,6 @@ class TemperatureController {
     /// Send a temperature target by explicit klipper object name (e.g. "heater_generic
     /// chamber_heater" or "extruder").  Returns immediately if api_ is null or name is empty.
     void set_target(const std::string& klipper_name, double celsius, SendOptions opts = {});
-
-    /// Send nozzle/bed/chamber targets in a single call.  Chamber is skipped when its resolved
-    /// name is empty or chamber == 0.
-    void apply_material(double nozzle, double bed, double chamber, SendOptions opts = {});
 
     /// Backend-provided chamber action surface (issue #1290). Wired by
     /// PrinterState when the resolved chamber heater is the discovery pick;

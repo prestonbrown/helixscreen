@@ -52,19 +52,18 @@ void RotationProbe::set_subtitle(Phase phase, int rot_deg, int secs, int step, i
         snprintf(buf, sizeof(buf), lv_tr("Rotation: %d\xc2\xb0 - %ds remaining (or wait to retry)"),
                  rot_deg, secs);
     }
-    lv_subject_copy_string(&m_subtitle_subject, buf);
+    lv_subject_set_string(&m_subtitle_subject, buf);
 }
 
 void RotationProbe::show_screen(Phase phase, int rot_deg, int step, int steps,
                                 uint32_t timeout_ms) {
     if (phase == Phase::Scan) {
-        lv_subject_copy_string(&m_main_subject,
-                               lv_tr("Tap anywhere if this text is right-side up"));
-        lv_subject_copy_string(&m_help_subject,
-                               lv_tr("HelixScreen is detecting your display orientation"));
+        lv_subject_set_string(&m_main_subject, lv_tr("Tap anywhere if this text is right-side up"));
+        lv_subject_set_string(&m_help_subject,
+                              lv_tr("HelixScreen is detecting your display orientation"));
     } else {
-        lv_subject_copy_string(&m_main_subject, lv_tr("Tap again to confirm this orientation"));
-        lv_subject_copy_string(&m_help_subject, "");
+        lv_subject_set_string(&m_main_subject, lv_tr("Tap again to confirm this orientation"));
+        lv_subject_set_string(&m_help_subject, "");
     }
     set_subtitle(phase, rot_deg, static_cast<int>(timeout_ms / 1000), step, steps);
 
@@ -214,8 +213,8 @@ int RotationProbe::run() {
             }
 
             spdlog::info("[RotationProbe] testing {}° ({}x{})", kRotationDegrees[i],
-                         lv_display_get_horizontal_resolution(nullptr),
-                         lv_display_get_vertical_resolution(nullptr));
+                         lv_display_get_horizontal_resolution(lv_display_get_default()),
+                         lv_display_get_vertical_resolution(lv_display_get_default()));
 
             show_screen(Phase::Scan, kRotationDegrees[i], i, kNumRotations, m_host.scan_timeout_ms);
             if (!wait_for_tap(Phase::Scan, m_host.scan_timeout_ms, kRotationDegrees[i], i,

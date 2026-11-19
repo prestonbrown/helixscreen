@@ -337,10 +337,15 @@ history header.
 
 ### The overview
 
-Advanced > HelixPrint Plugin (`PluginOverviewOverlay`) shows the plugin version and one line per
-status-map feature, built by `plugin_feature_lines()`: Active, Off, or "Unavailable: <reason>".
-A feature whose `kKnownPluginFeatures` row names a `PluginFeatureHome` leads to that page; a
-feature with no setting, or one this app does not know (shown by its key), shows status only.
+Advanced > HelixPrint Plugin (`PluginOverviewOverlay`) shows the plugin version and one dense
+row per status-map feature, built by `plugin_feature_lines()`, under three headers: RUNNING,
+OFF and NOT AVAILABLE HERE. A header with no features is hidden. `plugin_overview_row()` decides
+each row's group and its reason: only an unavailable feature gets a second, muted line, its
+reason in words, or "The plugin didn't say why." when it gave none. Running rows, whose names
+are short, sit up to three to a row where the width allows (`responsive_grid`); off and
+unavailable rows take the full width for their longer names and reasons. A feature whose `kKnownPluginFeatures` row names a `PluginFeatureHome` leads to
+that page with a chevron; a feature with no setting, or one this app does not know (shown by its
+key), takes no tap.
 A feature that serves one kind of hardware lists, in its `kKnownPluginFeatures` row's
 `hidden_reasons`, the reasons that mean that hardware is absent. While it is unavailable for one
 of them it gets no line (`hidden_on_overview`), so a printer lists only the vendor transport it
@@ -359,24 +364,33 @@ its row there.
 | `plugin_disabled` | every feature, `enabled: False` in `[helix_print]` | The plugin is turned off in moonraker.conf. |
 | `module_missing` | a feature whose module file is absent | Part of the plugin is missing. Reinstall the plugin. |
 | `load_failed` | a feature whose module raised on import | Part of the plugin failed to load. Reinstall the plugin. |
-| `start_failed` | a feature whose start raised | This feature failed to start. The Moonraker log says why. |
-| `stopped` | `convert_3mf`, its converter stopped | This feature stopped. Restart Moonraker to start it again. |
-| `needs_file_analysis` | `fit_check_blocks_autostart` | This needs the plugin's file analysis, which isn't running. |
-| `upload_hook_unsupported` | `fit_check_blocks_autostart` | This Moonraker version can't hold uploads. Update Moonraker. |
+| `start_failed` | a feature whose start raised | Failed to start. See the Moonraker log. |
+| `stopped` | `convert_3mf`, its converter stopped | Stopped. Restart Moonraker to start it again. |
+| `needs_file_analysis` | `fit_check_blocks_autostart` | Needs file analysis, which isn't running. |
+| `upload_hook_unsupported` | `fit_check_blocks_autostart` | Needs a newer Moonraker to hold uploads. |
 | `no_gcodes_dir` | `file_analysis` | Moonraker has no G-code folder. |
 | `python_too_old` | `plr` | Moonraker's Python is too old for this feature. |
 | `no_virtual_sdcard` | `plr` | Klipper has no [virtual_sdcard] section. |
 | `store_unwritable` | `plr` | The plugin can't save its recovery data to disk. |
-| `not_listed` | `plr` | Power-loss recovery isn't supported on this printer yet. |
+| `not_listed` | `plr` | Not set up for this printer model yet. |
+| `gantry_drops` | `plr` | This printer's gantry drops when the power is cut, so a print can't be resumed. |
+| `delta_kinematics` | `plr` | A delta printer can't home X and Y without moving Z, so a print can't be resumed. |
+| `firmware_recovery` | `plr` | This printer's firmware has its own power-loss recovery. |
+| `klipper_config_unread` | `plr` | Waiting to read the printer's configuration from Klipper. |
+| `override_homes_z` | `plr` | This printer's homing override homes Z along with X and Y, so a print can't be resumed. |
+| `override_sets_z` | `plr` | This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed. |
+| `override_unknown` | `plr` | This printer's homing override runs commands that may move Z, so a print can't be resumed. |
 | `snapshot_unreachable` | `photos` | The plugin can't reach the camera, so this screen takes the photos. |
+| `unsafe_staging_dir` | `storage`, `storage_auto_cleanup` | A folder name in moonraker.conf is unsafe. |
+| `unsafe_root` | `storage`, `storage_auto_cleanup` | Timelapse or logs folder overlaps a protected one. |
 | `no_adventurer_json` | `vendor_ad5x` (hidden) | This printer has no IFS. |
 | `adventurer_json_unreadable` | `vendor_ad5x` | The IFS state file can't be read. |
 | `no_ace_bridge` | `vendor_ace` (hidden) | No ACE unit was found. |
 | `ace_objects_carry_slots` | `vendor_ace` (hidden) | Klipper already reports the ACE slots. |
 | `bridge_unreadable` | `vendor_ace` | The ACE state can't be read. |
 
-`storage` and `storage_auto_cleanup` report a sentence (`root_problem` in `helix_storage.py`),
-not a code, so it shows as written.
+`storage` and `storage_auto_cleanup` report `root_problem()`'s code with the offending name or
+path after the colon (`helix_storage.py`).
 
 ### One fallback sender per printer
 
@@ -762,7 +776,7 @@ Who already switches the active spool (source survey, 2026-10-20):
 | `include/filament_accounting.h`, `src/printer/filament_accounting.cpp` | The same rules in C++, `printer_switches_active_spool`, `app_sets_spool_on_edit`, `filament_spools_record`, `extruder_feed_signal`, `filament_accounting_sender`, `filament_usage_available`, `parse_filament_usage`, `describe_spool_usage`; exception-free, compiled for the K-Touch |
 | `include/filament_accounting_controller.h`, `src/printer/filament_accounting_controller.cpp` | `active_spool_owner_now`, `helix_sets_active_spool`, `helix_sets_active_spool_on_edit` (every app path that sets the active spool asks one of these); `FilamentAccountingController` keeps the map current and is the app fallback at a tool change |
 | `include/ams_backend.h#feed_slot_signals` | Capability: the status fields that say which slot feeds now. INDX: `save_variables.variables.active_tool` (one extruder with docked nozzles, so `toolhead.extruder` never changes) |
-| `include/ams_backend.h#sets_active_spool_on_link` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
+| `include/ams_backend.h#"bool sets_active_spool_on_link() const"` | Capability: the firmware sets the active spool itself when the loaded lane is linked (AFC) |
 | `src/printer/ams_state.cpp#commit_slot_edit`, `src/printer/ams_state_external_spool.cpp` | The explicit edits: a lane link or unlink, the external spool |
 | `src/ui/print/ui_panel_history_list.cpp#fetch_spool_usage` | History detail's Spools lines |
 
@@ -1244,6 +1258,44 @@ moonraker-plugin/tests/test_helix_vendor_ace.py`; `make t F='[plugin_vendor]'` (
 also carry `[ad5x_ifs]` / `[ace]`; the REST-thread case sleeps about a second of real time).
 Backend details: [FILAMENT_BACKEND_AD5X_IFS.md](FILAMENT_BACKEND_AD5X_IFS.md),
 [FILAMENT_BACKEND_ACE.md](FILAMENT_BACKEND_ACE.md).
+
+---
+
+## Signal Macro Migration (`signal_macro_migration` v1)
+
+HelixScreen names its eleven signal macros with a leading underscore so Fluidd and Mainsail
+leave them out of their macro lists. Printers instrumented by HelixScreen before 1.1 call the
+visible names from marker blocks inside `PRINT_START`. At every `klippy_ready` the plugin
+renames each block's call line to the hidden name, so the printer keeps every phase and ready
+signal and the app's scan of `configfile.settings` stops counting those calls as reasons to keep
+a visible alias (#2006). Own switch: `[helix_print] migrate_signal_macros`, default on.
+
+| File | Role |
+|------|------|
+| `moonraker-plugin/strip_phase_tracking.py` | `compute_renamed_content`, `process_file(mode="rename", dry_run, allowed_names)`, `run_tree`, `TreeReport` (`names_needed`, `summary_line`, `exit_status`); the strip uninstall runs |
+| `moonraker-plugin/helix_signal_migration.py` | `missing_hidden_names` (the gate), `firmware_managed`, `HelixSignalMigration` (`run_once`, the report, the endpoint) |
+
+**Order of a run** (one `asyncio.Lock`, file work in a thread): a dry `run_tree` and its one log
+line; nothing planned ends it; switched off or firmware-managed ends it as `disabled` /
+`firmware_managed`; `configfile.settings` must define every name in `names_needed()`, else
+`waiting_for_pack`; then the real `run_tree`, restricted to those checked names
+(`allowed_names`), so a file that changed in between into calling another name is skipped
+rather than renamed past the gate. The edit rules, backups and concurrent-change check are the
+strip's (`safe_replace_file`). The report is stored in the `helix_print` namespace; a
+`nothing` run does not replace a stored `done`. A change of state sends
+`notify_helix_features_changed`.
+
+**Firmware-managed installs** (the markers of
+`scripts/lib/installer/main.sh#_refuse_if_firmware_managed`): report only. Whether the firmware's own config should
+be renamed there is open in #2006.
+
+**Endpoint.** `server.helix.signal_migration`: README § Signal Macro Migration has the shape.
+It is on the Lua read-only allowlist. The app names the feature in the overview
+(`kKnownPluginFeatures`, `PluginFeatureHome::None`: it has no switch on the screen); the mock
+reports it ready and answers `state: "nothing"`.
+
+**Testing.** `pytest moonraker-plugin/tests/test_strip_phase_tracking.py
+moonraker-plugin/tests/test_helix_signal_migration.py`.
 
 ---
 

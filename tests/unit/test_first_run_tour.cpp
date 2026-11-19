@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_button.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_print_select.h"
@@ -10,7 +11,10 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
 #include "first_run_tour.h"
+#include "printer_image_manager.h"
 #include "tour_overlay.h"
 #include "tour_steps.h"
 
@@ -39,34 +43,59 @@ void reset_tour_settings() {
     cfg->set<bool>("/wizard_completed", true);
     // Edit mode gates the tour, and the subject is global, so a case that leaves
     // it set would decide every case that runs after it.
-    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    if (helix::subject_is_live(&get_home_edit_mode_subject())) {
+        lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    }
     FirstRunTour::instance().set_printer_ready(true);
     // In-memory singleton state is left clean by the public API used in these
     // tests: start()/skip() always pair, and advance() past the last step calls
     // finish() which resets running_. No explicit reset needed.
 }
+
+/// A running tour drives the real navigation, so it gets the app's: every panel
+/// exists and Home is active. Without it start() binds whatever screen and
+/// navigation an earlier case left behind.
+class TourNavFixture : public LVGLUITestFixture {
+  public:
+    TourNavFixture() {
+        reset_tour_settings();
+        std::array<lv_obj_t*, kUiPanelCount> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        nav.set_panels(panels.data());
+        nav.set_active(helix::PanelId::Home);
+    }
+    ~TourNavFixture() override {
+        nav.shutdown();
+    }
+    NavigationManager& nav = NavigationManager::instance();
+};
 } // namespace
 
-TEST_CASE("FirstRunTour gate: blocks when tour already completed", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: blocks when tour already completed",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", helix::tour::kTourVersion);
     REQUIRE(FirstRunTour::should_auto_start() == false);
 }
 
-TEST_CASE("FirstRunTour gate: blocks when wizard not complete", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: blocks when wizard not complete",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/wizard_completed", false);
     REQUIRE(FirstRunTour::should_auto_start() == false);
 }
 
-TEST_CASE("FirstRunTour gate: allows auto-start when fresh and wizards done", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour gate: allows auto-start when fresh and wizards done", "[tour]") {
     reset_tour_settings();
     REQUIRE(FirstRunTour::should_auto_start() == true);
 }
 
-TEST_CASE("FirstRunTour gate: re-triggers when last_seen_version is behind TOUR_VERSION",
-          "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour gate: re-triggers when last_seen_version is behind TOUR_VERSION",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", 0);
@@ -84,7 +113,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: blocks while home grid e
     lv_subject_set_int(&get_home_edit_mode_subject(), 1);
     REQUIRE(FirstRunTour::should_auto_start() == false);
 
-    lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    if (helix::subject_is_live(&get_home_edit_mode_subject())) {
+        lv_subject_set_int(&get_home_edit_mode_subject(), 0);
+    }
     REQUIRE(FirstRunTour::should_auto_start() == true);
 }
 
@@ -159,6 +190,9 @@ const TourStep& step_titled(const std::vector<TourStep>& steps, const std::strin
     REQUIRE(it != steps.end());
     return *it;
 }
+// The returned reference points into the vector, so a temporary one dies before
+// the caller can read it.
+const TourStep& step_titled(std::vector<TourStep>&& steps, const std::string& title) = delete;
 } // namespace
 
 TEST_CASE("Tour steps: the filament system step exists only with a filament system", "[tour]") {
@@ -170,9 +204,10 @@ TEST_CASE("Tour steps: the filament system step exists only with a filament syst
 }
 
 TEST_CASE("Tour steps: the at-a-glance step targets AMS when present, nozzle otherwise", "[tour]") {
-    CHECK(step_titled(build_tour_steps(true), "Your printer at a glance").target_name == "ams");
-    CHECK(step_titled(build_tour_steps(false), "Your printer at a glance").target_name ==
-          "nozzle_temps");
+    const auto with_ams = build_tour_steps(true);
+    const auto without = build_tour_steps(false);
+    CHECK(step_titled(with_ams, "Your printer at a glance").target_name == "ams");
+    CHECK(step_titled(without, "Your printer at a glance").target_name == "nozzle_temps");
 }
 
 TEST_CASE("Tour steps: the full tour opens with welcome and ends on the navbar", "[tour]") {
@@ -181,6 +216,8 @@ TEST_CASE("Tour steps: the full tour opens with welcome and ends on the navbar",
     CHECK(steps.front().target_name.empty());
     CHECK(steps.back().target_name == "nav_btn_settings");
     CHECK(step_titled(steps, "Customize your home screen").target_name == "fan_stack");
+    CHECK(step_titled(steps, "Customize your home screen").fallback_target_name == "printer_image");
+    CHECK(step_titled(steps, "Your printer at a glance").fallback_target_name == "print_status");
     CHECK_FALSE(has_title(steps, "New in 1.1"));
 }
 
@@ -206,9 +243,10 @@ TEST_CASE("Tour steps: the filament system step directly follows the Filament pa
 }
 
 TEST_CASE("Tour steps: Print Status is shown as a picture", "[tour]") {
-    const auto& s = step_titled(build_tour_steps(false), "A new Print Status screen");
+    const auto steps = build_tour_steps(false);
+    const auto& s = step_titled(steps, "A new Print Status screen");
     CHECK(s.target_name.empty());
-    CHECK_FALSE(s.preview_image.empty());
+    CHECK(s.shows_print_status_preview);
 }
 
 TEST_CASE("Tour steps: a 1.0 upgrader sees only what is new", "[tour]") {
@@ -230,7 +268,8 @@ TEST_CASE("auto_start_seen_version: only a finished tour counts as seen", "[tour
     CHECK(helix::tour::auto_start_seen_version(true, 1) == 1);
 }
 
-TEST_CASE("FirstRunTour gate: waits until the printer has been discovered", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour gate: waits until the printer has been discovered", "[tour]") {
     reset_tour_settings();
     FirstRunTour::instance().set_printer_ready(false);
     CHECK_FALSE(FirstRunTour::should_auto_start());
@@ -238,7 +277,8 @@ TEST_CASE("FirstRunTour gate: waits until the printer has been discovered", "[to
     CHECK(FirstRunTour::should_auto_start());
 }
 
-TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour gate: a 1.0 upgrader is offered the tour",
+                 "[tour]") {
     reset_tour_settings();
     Config::get_instance()->set<bool>("/tour/completed", true);
     Config::get_instance()->set<int>("/tour/last_seen_version", 1);
@@ -246,16 +286,23 @@ TEST_CASE("FirstRunTour gate: a 1.0 upgrader is offered the tour", "[tour]") {
     CHECK(FirstRunTour::should_auto_start());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip returns Home",
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: navigating elsewhere cancels and stays there",
                  "[tour]") {
-    reset_tour_settings();
-    auto& nav = NavigationManager::instance();
-    std::array<lv_obj_t*, kUiPanelCount> panels{};
-    for (auto& p : panels)
-        p = lv_obj_create(lv_screen_active());
-    nav.set_panels(panels.data());
-    nav.set_active(helix::PanelId::Home);
+    auto& t = FirstRunTour::instance();
+    t.start();
+    REQUIRE(t.is_running());
 
+    nav.set_active(helix::PanelId::Controls);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+
+    CHECK_FALSE(t.is_running());
+    CHECK(nav.get_active() == helix::PanelId::Controls);
+    CHECK(Config::get_instance()->get<bool>("/tour/completed", false));
+}
+
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: steps open their panel, skip returns Home",
+                 "[tour]") {
     auto& t = FirstRunTour::instance();
     t.start();
     const auto t_list = titles(build_tour_steps(helix::tour::hardware_has_ams()));
@@ -273,8 +320,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "FirstRunTour: steps open their panel, skip 
     CHECK_FALSE(t.is_running());
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[tour]") {
-    reset_tour_settings();
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: start() sets is_running", "[tour]") {
     auto& t = FirstRunTour::instance();
     REQUIRE(!t.is_running());
     t.start();
@@ -283,16 +329,14 @@ TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: start() sets is_running", "[to
     REQUIRE(!t.is_running());
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: skip writes tour.completed", "[tour]") {
-    reset_tour_settings();
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: skip writes tour.completed", "[tour]") {
     auto& t = FirstRunTour::instance();
     t.start();
     t.skip();
     REQUIRE(Config::get_instance()->get<bool>("/tour/completed", false) == true);
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: advance past last step finishes", "[tour]") {
-    reset_tour_settings();
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: advance past last step finishes", "[tour]") {
     auto& t = FirstRunTour::instance();
     t.start();
     const auto count = build_tour_steps(helix::tour::hardware_has_ams()).size();
@@ -334,12 +378,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: a missing target falls back to
     named_box("fallback_target", 40, 200);
     auto with_fallback = plain_step("absent_target");
     with_fallback.fallback_target_name = "fallback_target";
-    helix::tour::TourOverlay overlay({with_fallback, plain_step("absent_target")}, {}, {});
+    int nexts = 0, skips = 0;
+    helix::tour::TourOverlay overlay(
+        {with_fallback, plain_step("absent_target")}, [&] { ++nexts; }, [&] { ++skips; });
+    lv_obj_t* card = tooltip_of(overlay);
+    auto text = [&](const char* name) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(card, name)));
+    };
+    lv_obj_t* next = lv_obj_find_by_name(card, "tour_next_btn");
+    REQUIRE(next != nullptr);
 
     overlay.show_step(0);
-    CHECK_FALSE(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(highlight_of(overlay)));
+    CHECK(text("tour_title") == "Title");
+    CHECK(text("tour_counter") == "1 / 2");
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(next))) == "Next");
     overlay.show_step(1);
-    CHECK(lv_obj_has_flag(highlight_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(highlight_of(overlay)));
+    CHECK(text("tour_counter") == "2 / 2");
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(next))) == "Done");
+
+    // The card's buttons reach the tour's own callbacks.
+    lv_obj_send_event(next, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(card, "tour_skip_btn"), LV_EVENT_CLICKED, nullptr);
+    CHECK((nexts == 1 && skips == 1));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: LeftNarrowed fits the card beside its target",
@@ -379,29 +441,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: the preview belongs only to it
                  "[tour]") {
     REQUIRE(lv_display_get_vertical_resolution(nullptr) >= 400);
     auto with_picture = plain_step("");
-    with_picture.preview_image = "A:assets/images/tour/print_status_preview.png";
+    with_picture.shows_print_status_preview = true;
     helix::tour::TourOverlay overlay({with_picture, plain_step("")}, {}, {});
     lv_obj_t* preview = lv_obj_find_by_name(tooltip_of(overlay), "tour_preview");
     REQUIRE(preview != nullptr);
 
     overlay.show_step(0);
-    CHECK_FALSE(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(preview));
+    lv_obj_t* printer = lv_obj_find_by_name(preview, "tour_preview_printer");
+    REQUIRE(printer != nullptr);
+    const std::string expected = helix::PrinterImageManager::instance().get_displayed_image_path(
+        lv_display_get_horizontal_resolution(nullptr));
+    REQUIRE_FALSE(expected.empty());
+    CHECK(static_cast<const char*>(lv_image_get_src(printer)) == expected);
     overlay.show_step(1);
-    CHECK(lv_obj_has_flag(preview, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(preview));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "TourOverlay: hide_card lasts until the next step", "[tour]") {
     helix::tour::TourOverlay overlay({plain_step("")}, {}, {});
     overlay.show_step(0);
     overlay.hide_card();
-    CHECK(lv_obj_has_flag(tooltip_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(tooltip_of(overlay)));
     overlay.show_step(0);
-    CHECK_FALSE(lv_obj_has_flag(tooltip_of(overlay), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(tooltip_of(overlay)));
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "FirstRunTour: a running tour holds back the plugin prompt",
+TEST_CASE_METHOD(TourNavFixture, "FirstRunTour: a running tour holds back the plugin prompt",
                  "[tour]") {
-    reset_tour_settings();
     CHECK_FALSE(PrintSelectPanel::plugin_screen_state().modal_up);
     auto& t = FirstRunTour::instance();
     t.start();

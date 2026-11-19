@@ -27,6 +27,7 @@
 #include "ui_filament_path_internal.h"
 #include "ui_filament_path_plan.h"
 
+#include "baked_art.h"
 #include "helix_psram_attr.h"
 
 #include <spdlog/spdlog.h>
@@ -36,6 +37,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 #include <utility>
 
 namespace helix::ui::fpath {
@@ -186,7 +188,8 @@ void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, in
         char tool_label[16];
         int tool = (data->mapped_tool[i] >= 0) ? data->mapped_tool[i] : i;
         format_tool_badge_label(data, i, tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, slot_x, toolhead_y, tool_scale, tool_label);
+        draw_tool_badge(ctx, slot_x + path_toolhead_inlet(toolhead_y, tool_scale).dx, toolhead_y,
+                        tool_scale, tool_label);
         return;
     }
 
@@ -201,7 +204,8 @@ void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, in
     // Flow particles for the active slot are painted separately in
     // draw_animation_parallel (DRAW_POST) so per-frame ticks don't bust the
     // overlay canvas cache.
-    draw_toolhead(ctx.layer, slot_x, toolhead_y, noz_color, tool_scale, toolhead_opa);
+    draw_toolhead(ctx.layer, slot_x + path_toolhead_inlet(toolhead_y, tool_scale).dx, toolhead_y,
+                  noz_color, tool_scale, toolhead_opa);
 }
 
 // A fed lane's upstream caption, on the row its prep sensor band would take:
@@ -236,14 +240,16 @@ void render_parallel(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     PathPlan& plan = plan_scratch();
     plan_parallel(*data, ctx.geo, plan);
     warn_if_dropped(plan);
-    paint_tubes(layer, plan, tube_palette(*data));
 
     const ParallelRows rows = parallel_rows(*data, ctx.geo);
     const SlotRenderStates states = compute_slot_render_states(data);
-    for (ToolPass pass : {ToolPass::Glyph, ToolPass::Badge}) {
-        for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); i++)
-            draw_parallel_tool(ctx, states, i, rows, pass);
-    }
+    const int tools = LV_MIN(data->slot_count, FilamentPathData::kMaxSlots);
+    // Heads first: each tube is painted over its head, down to the inlet.
+    for (int i = 0; i < tools; i++)
+        draw_parallel_tool(ctx, states, i, rows, ToolPass::Glyph);
+    paint_tubes(layer, plan, tube_palette(*data));
+    for (int i = 0; i < tools; i++)
+        draw_parallel_tool(ctx, states, i, rows, ToolPass::Badge);
     draw_upstream_captions(ctx, rows);
 }
 
@@ -292,7 +298,8 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     if (pass == ToolPass::Badge) {
         char tool_label[16];
         format_tool_badge_label(data, hub_badge_lane, hub_tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, f.hub_cx, f.toolhead_y, f.tool_scale, tool_label);
+        draw_tool_badge(ctx, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                        f.toolhead_y, f.tool_scale, tool_label);
         return;
     }
 
@@ -300,7 +307,8 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
     std::optional<lv_color_t> noz_color;
     if (any_hub_at_nozzle)
         noz_color = hub_nozzle_color;
-    draw_toolhead(ctx.layer, f.hub_cx, f.toolhead_y, noz_color, f.tool_scale, LV_OPA_COVER);
+    draw_toolhead(ctx.layer, f.hub_cx + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                  f.toolhead_y, noz_color, f.tool_scale, LV_OPA_COVER);
 }
 
 // A direct lane's own nozzle and badge.
@@ -313,7 +321,8 @@ void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i
         char tool_label[16];
         int tool = (data->mapped_tool[i] >= 0) ? data->mapped_tool[i] : i;
         format_tool_badge_label(data, i, tool, tool_label, sizeof(tool_label));
-        draw_tool_badge(ctx, slot_x, f.toolhead_y, f.tool_scale, tool_label);
+        draw_tool_badge(ctx, slot_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                        f.toolhead_y, f.tool_scale, tool_label);
         return;
     }
 
@@ -321,32 +330,71 @@ void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i
     if (s.at_nozzle)
         noz_color = s.color;
     lv_opa_t toolhead_opa = s.is_mounted ? LV_OPA_COVER : LV_OPA_40;
-    draw_toolhead(ctx.layer, slot_x, f.toolhead_y, noz_color, f.tool_scale, toolhead_opa);
+    draw_toolhead(ctx.layer, slot_x + path_toolhead_inlet(f.toolhead_y, f.tool_scale).dx,
+                  f.toolhead_y, noz_color, f.tool_scale, toolhead_opa);
 }
+
+namespace {
+
+// One baked layer of a rail's head-on art, scaled to @p w x @p h. nullptr when it cannot load.
+lv_draw_buf_t* rail_layer(const FilamentPathData& data, const char* layer, int32_t w, int32_t h) {
+    const std::string path = std::string("assets/images/units/") + data.rail_unit + "/face/" +
+                             std::to_string(data.rail_art->lanes) + "/" + layer + ".png";
+    return helix::ui::baked_art_cached(
+        path + "#" + std::to_string(w) + "x" + std::to_string(h), [&] {
+            return helix::ui::baked_art_buffer(helix::ui::baked_art_decode(path, "RailArt"), w, h);
+        });
+}
+
+// Art laid out at @p r whose layers do not load gives the layout back to the plain drawing:
+// marks the art failed and says so, so the caller lays out again. Art with a carriage also needs
+// that layer.
+bool drop_unloadable_art(FilamentPathData& data, const RailArtRect& r) {
+    if (r.w <= 0 || (rail_layer(data, "body", r.w, r.h) &&
+                     (!data.rail_carriage || rail_layer(data, "carriage", r.w, r.h))))
+        return false;
+    data.rail_art_failed = true;
+    return true;
+}
+
+// A pass-through unit's art, drawn over the lanes that run behind its face.
+void draw_through_art(const RenderCtx& ctx, const RailArtRect& r) {
+    if (lv_draw_buf_t* body = rail_layer(*ctx.data, "body", r.w, r.h))
+        helix::ui::baked_art_draw(ctx.layer, body, r.x, r.y);
+}
+
+} // namespace
 
 void render_mixed(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
-    const MixedFrame f = compute_mixed_frame(*data, ctx.geo);
+    MixedFrame f = compute_mixed_frame(*data, ctx.geo);
+    if (drop_unloadable_art(*data, f.through))
+        f = compute_mixed_frame(*data, ctx.geo);
     PathPlan& plan = plan_scratch();
     plan_mixed(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
     const TubePalette pal = tube_palette(*data);
-    paint_tubes(layer, plan, pal);
-
-    if (f.hub_count > 0) {
-        draw_hub_box(ctx, f.hub_cx, f.hub_cy, f.hub_w, f.hub_h, data->theme.color_hub_bg,
-                     data->theme.color_hub_border, "HUB");
-    }
-    paint_box_bands(layer, plan, pal);
-
-    for (ToolPass pass : {ToolPass::Glyph, ToolPass::Badge}) {
+    // Heads first: each tube is painted over its head, down to the inlet.
+    const auto draw_tools = [&](ToolPass pass) {
         if (f.hub_count > 0)
             draw_mixed_shared_toolhead(ctx, f, pass);
         for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); i++) {
             if (!data->slot_is_hub_routed[i])
                 draw_mixed_direct_toolhead(ctx, f, i, pass);
         }
+    };
+    draw_tools(ToolPass::Glyph);
+    paint_tubes(layer, plan, pal);
+    // Over the lanes, which run behind its face between inlet and outlet.
+    if (f.through.w > 0)
+        draw_through_art(ctx, f.through);
+
+    if (f.hub_count > 0) {
+        draw_hub_box(ctx, f.hub_cx, f.hub_cy, f.hub_w, f.hub_h, data->theme.color_hub_bg,
+                     data->theme.color_hub_border, "HUB");
     }
+    paint_box_bands(layer, plan, pal);
+    draw_tools(ToolPass::Badge);
 }
 
 // ============================================================================
@@ -407,10 +455,96 @@ bool hub_has_filament(const FilamentPathData* data, const LinearHubFrame& f) {
     return false;
 }
 
+void fill_rect(lv_layer_t* layer, int32_t x1, int32_t y1, int32_t x2, int32_t y2, uint32_t rgb,
+               int32_t radius = 0) {
+    lv_draw_fill_dsc_t dsc;
+    lv_draw_fill_dsc_init(&dsc);
+    dsc.color = lv_color_hex(rgb);
+    dsc.radius = radius;
+    lv_area_t area = {x1, y1, x2, y2};
+    lv_draw_fill(layer, &dsc, &area);
+}
+
+// The selector rail as seen from the front. The carriage is the per-frame overlay's, so a
+// slide never repaints this layer. False when the art cannot load.
+bool draw_selector_rail(const RenderCtx& ctx, const LinearHubFrame& f) {
+    FilamentPathData* data = ctx.data;
+    lv_draw_buf_t* body = rail_layer(*data, "body", f.rail.w, f.rail.h);
+    if (!body)
+        return false;
+    helix::ui::baked_art_draw(ctx.layer, body, f.rail.x, f.rail.y);
+    data->rail_drawn = true;
+    data->rail_left = f.rail.x - ctx.geo.x_off;
+    data->rail_top = f.rail.y - ctx.geo.y_off;
+    data->rail_w = f.rail.w;
+    data->rail_h = f.rail.h;
+    if (data->hub_callback) {
+        data->hits.hub = {f.rail.x, f.rail.y, f.rail.x + f.rail.w, f.rail.y + f.rail.h};
+        data->hits.hub_valid = true;
+    }
+    return true;
+}
+
+void draw_rail_carriage(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data) {
+    if (!data->rail_art || !data->rail_drawn || !data->rail_carriage)
+        return;
+    lv_draw_buf_t* carriage = rail_layer(*data, "carriage", data->rail_w, data->rail_h);
+    if (!carriage)
+        return;
+    const BaseGeometry g = compute_base_geometry(obj, data);
+    const RailArtRect r{g.x_off + data->rail_left, g.y_off + data->rail_top, data->rail_w,
+                        data->rail_h};
+    int32_t exits[FilamentPathData::kMaxSlots] = {};
+    const int n = LV_MIN(data->slot_count, FilamentPathData::kMaxSlots);
+    for (int i = 0; i < n; ++i)
+        exits[i] = rail_outlet_x(*data->rail_art, r, i);
+    // output_x_current was recorded at the last paint's origin.
+    const int32_t current = data->anim.output_x_current + g.x_off - data->path_cache.origin.x;
+    const int32_t at =
+        rail_carriage_x(exits, n, data->active_slot, current, data->anim.output_x_active);
+    helix::ui::baked_art_draw(layer, carriage, r.x + at - exits[0], r.y);
+}
+
+// A fixed selector block: one port on each lane's own line, the active lane's lit.
+int32_t draw_fixed_selector(const RenderCtx& ctx, int32_t cy, int32_t w, int32_t h,
+                            const BoxColors& tint) {
+    const FilamentPathData* data = ctx.data;
+    const BaseGeometry& g = ctx.geo;
+    const int32_t x0 = data->slot_count > 0 ? g.slot_x[0] : 0;
+    const int32_t x1 = data->slot_count > 0 ? g.slot_x[data->slot_count - 1] : 0;
+    const int32_t mid = (x0 + x1) / 2;
+    const int32_t y0 = cy - h / 2, y1 = cy + h / 2;
+    lv_layer_t* layer = ctx.layer;
+    fill_rect(layer, mid - w / 2, y0, mid + w / 2, y1, lv_color_to_u32(tint.bg) & 0xFFFFFF, 5);
+    lv_draw_border_dsc_t border;
+    lv_draw_border_dsc_init(&border);
+    border.color = tint.border;
+    border.width = 1;
+    border.radius = 5;
+    lv_area_t outline = {mid - w / 2, y0, mid + w / 2, y1};
+    lv_draw_border(layer, &border, &outline);
+    const int32_t r = LV_MAX(4, h * 3 / 10);
+    for (int i = 0; i < LV_MIN(data->slot_count, FilamentPathData::kMaxSlots); ++i) {
+        const bool lit = i == data->active_slot;
+        const int32_t x = g.slot_x[i];
+        const lv_color_t ring = lit ? data->theme.color_selected : tint.border;
+        fill_rect(layer, x - r, cy - r, x + r, cy + r, lv_color_to_u32(ring) & 0xFFFFFF, r);
+        fill_rect(layer, x - r + 1, cy - r + 1, x + r - 1, cy + r - 1,
+                  lv_color_to_u32(lv_color_darken(tint.bg, LV_OPA_50)) & 0xFFFFFF, r);
+        const int32_t dot = r * 2 / 5;
+        fill_rect(layer, x - dot, cy - dot, x + dot, cy + dot,
+                  lv_color_to_u32(lit ? ring : tint.border) & 0xFFFFFF, dot);
+    }
+    return w;
+}
+
 // Hub/selector box: state-tinted fill, label, optional gear affordance and
 // the recorded hub hit rect.
 void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     FilamentPathData* data = ctx.data;
+    data->rail_drawn = false;
+    if (f.rail.w > 0 && draw_selector_rail(ctx, f))
+        return;
     const BaseGeometry& g = ctx.geo;
 
     // Hub box - tint based on an error at the hub, or filament color
@@ -439,9 +573,13 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
             int32_t slot_pad = LV_MAX(data->slot_width, f.sensor_r * 4);
             sel_w = (last_slot_x - first_slot_x) + slot_pad;
         }
-        sel_w = draw_hub_box(ctx, f.center_x, f.selector_y, sel_w, f.hub_h, hub_bg_tinted,
-                             hub_border_final, "SELECTOR", LV_OPA_60,
-                             /*interactive=*/data->hub_callback != nullptr);
+        if (data->fixed_selector) {
+            sel_w = draw_fixed_selector(ctx, f.selector_y, sel_w, f.hub_h, hub_tint);
+        } else {
+            sel_w = draw_hub_box(ctx, f.center_x, f.selector_y, sel_w, f.hub_h, hub_bg_tinted,
+                                 hub_border_final, "SELECTOR", LV_OPA_60,
+                                 /*interactive=*/data->hub_callback != nullptr);
+        }
         // The unit's own box is the management target; the hub on the head is
         // not a separate control.
         data->hits.hub = {f.center_x - sel_w / 2, f.selector_y - f.hub_h / 2,
@@ -451,7 +589,7 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
 
     hub_w = draw_hub_box(ctx, f.center_x, f.hub_y, hub_w, f.hub_h, hub_bg_tinted, hub_border_final,
                          hub_label, hub_opa,
-                         /*interactive=*/data->hub_callback != nullptr);
+                         /*interactive=*/data->hub_callback != nullptr && !data->fixed_selector);
 
     // Single source of truth for the selector/hub hit-test: record the exact
     // box we just drew (absolute display coords), gear included. On-toolhead
@@ -463,19 +601,23 @@ void draw_hub_section(const RenderCtx& ctx, const LinearHubFrame& f) {
     }
 }
 
-// Buffer (TurtleNeck / eSpooler) "BUF" box over the trunk, plus its recorded
-// hit rect. Mirrors draw_buffer_coil()'s internal clamping so the click
-// handler never re-derives the geometry.
-void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f, const PathPlan& plan) {
-    FilamentPathData* data = ctx.data;
-    draw_buffer_coil(ctx, f.center_x, f.buffer_y, f.hub_h, plan.buffer_has_filament,
-                     plan.buffer_fill);
-
-    int32_t buf_hit_w = LV_MAX(36, data->theme.hub_width * 4 / 5);
-    int32_t buf_hit_h = LV_MAX(16, f.hub_h);
-    data->hits.buffer = {f.center_x - buf_hit_w / 2, f.buffer_y - buf_hit_h / 2,
-                         f.center_x + buf_hit_w / 2, f.buffer_y + buf_hit_h / 2};
+// A tap on the hub's outlet band opens the buffer detail when the band stands in for a buffer
+// the trunk has no room for.
+void record_outlet_buffer_hit(FilamentPathData* data, const LinearHubFrame& f) {
+    const int32_t w = LV_MAX(36, data->theme.hub_width * 4 / 5);
+    const int32_t h = LV_MAX(16, f.hub_h);
+    data->hits.buffer = {f.output_x - w / 2, f.output_y - h / 2, f.output_x + w / 2,
+                         f.output_y + h / 2};
     data->hits.buffer_valid = true;
+}
+
+// The buffer's tension control where the planner placed it, on the trunk's final drop, sized
+// from the hub chip so the two read as one family.
+void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f) {
+    lv_area_t hit{};
+    draw_buffer_tension(ctx, f.center_x, f.buffer_y, buffer_capsule_height(f.hub_h), &hit);
+    ctx.data->hits.buffer = hit;
+    ctx.data->hits.buffer_valid = true;
 }
 
 // Bypass spool hit region (absolute coords). The spool is a sibling widget,
@@ -500,7 +642,7 @@ void draw_nozzle_glyph(const RenderCtx& ctx, const LinearHubFrame& f) {
         noz_color =
             (f.has_error && f.error_seg == PathSegment::NOZZLE) ? f.error_color : f.active_color;
     }
-    draw_toolhead(ctx.layer, f.center_x, f.nozzle_y, noz_color, data->theme.extruder_scale);
+    draw_toolhead(ctx.layer, f.head_x, f.nozzle_y, noz_color, f.tool_scale);
 }
 
 // LINEAR/HUB renderer: frame → plan → tubes → boxes and glyphs. Hit-rect
@@ -513,43 +655,53 @@ void render_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData* data)
 
     apply_debug_flow_override(obj, data);
     RenderCtx ctx{layer, data, compute_base_geometry(obj, data)};
+    // Rail art whose images do not load gives way to the bar before anything is laid out for it.
+    drop_unloadable_art(*data, rail_art_rect(*data, ctx.geo));
 
-    // LINEAR: the output exit snaps under the active slot unless it is sliding there.
+    // LINEAR: the output exit snaps to the active slot unless it is sliding there.
     const int active = data->active_slot;
     if (data->topology == 0 && active >= 0 && active < ctx.geo.slot_count &&
         !data->anim.output_x_active) {
-        data->anim.output_x_current = ctx.geo.slot_x[active];
-        data->anim.output_x_target = ctx.geo.slot_x[active];
+        data->anim.output_x_current = linear_exit_x(*data, ctx.geo, active);
+        data->anim.output_x_target = data->anim.output_x_current;
     }
 
-    const LinearHubFrame f = compute_linear_hub_frame(
-        *data, ctx.geo,
-        toolhead_top_y(ctx.geo.y_off + (int32_t)(ctx.geo.height * kNozzleYRatio),
-                       data->theme.extruder_scale));
+    const int32_t glyph_top =
+        toolhead_top_y(linear_hub_nozzle_y(*data, ctx.geo), data->theme.extruder_scale);
+    LinearHubFrame f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
+    if (drop_unloadable_art(*data, f.through))
+        f = compute_linear_hub_frame(*data, ctx.geo, glyph_top);
     PathPlan& plan = plan_scratch();
     plan_linear_hub(f, *data, ctx.geo, plan);
     warn_if_dropped(plan);
 
+    // A hub that feeds no toolhead ends at the hub: nothing below it is drawn.
+    const bool feeds = data->feeds_toolhead;
+    // The tube is painted over the head, so it stays visible across the top surface to the inlet.
+    if (feeds)
+        draw_nozzle_glyph(ctx, f);
+
     const TubePalette pal = tube_palette(*data);
     paint_tubes(layer, plan, pal);
+    if (f.through.w > 0)
+        draw_through_art(ctx, f.through);
     draw_offpage_stubs(ctx, f);
 
     draw_hub_section(ctx, f);
-    // A hub that feeds no toolhead ends at the hub: nothing below it is drawn.
-    const bool feeds = data->feeds_toolhead;
     if (feeds && f.has_buffer)
-        draw_buffer_section(ctx, f, plan);
+        draw_buffer_section(ctx, f);
+    else if (feeds && f.sync_on_output) // the outlet band stands in for the buffer
+        record_outlet_buffer_hit(data, f);
     // Bands on the hub/selector edges clamp the tube where it enters the box.
     paint_box_bands(layer, plan, pal);
     if (feeds && data->show_bypass)
         record_bypass_hit(ctx, f);
-    if (feeds)
-        draw_nozzle_glyph(ctx, f);
 
     data->path_cache.path = (plan.active_route >= 0) ? filled_prefix(plan.routes[plan.active_route])
                                                      : pg::FilamentPath{};
     data->path_cache.center_x = f.center_x;
     data->path_cache.nozzle_y = f.nozzle_y;
+    data->path_cache.tool_scale = f.tool_scale;
     data->path_cache.sensor_r = f.sensor_r;
     data->path_cache.origin = {ctx.geo.x_off, ctx.geo.y_off};
     for (int i = 0; i < pg::FilamentPath::kMaxSegs; ++i)
@@ -583,17 +735,8 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
 
     // Flow chevrons along the active filament path.
     if (flow_visible(*data) && data->active_slot >= 0) {
-        // The route drops into the toolhead from above; the glyph covers the
-        // run inside it, so the stream ends at the glyph's top.
-        pg::FilamentPath flow_path = path;
-        if (data->feeds_toolhead && flow_path.count > 0) {
-            pg::PathSeg& last = flow_path.segs[flow_path.count - 1];
-            const float top =
-                static_cast<float>(toolhead_top_y(nozzle_y, data->theme.extruder_scale));
-            if (last.type == pg::PathSeg::LINE && std::fabs(last.p1.x - last.p0.x) < 0.5f &&
-                last.p1.y > top)
-                last.p1.y = std::max(last.p0.y, top);
-        }
+        // The route ends at the head's filament inlet, painted over the head like the tube.
+        const pg::FilamentPath flow_path = path;
         // The hub and buffer boxes are drawn over the tube with their labels.
         pg::PathBox avoid[2];
         int n_avoid = 0;
@@ -612,8 +755,10 @@ void draw_animation_linear_hub(lv_obj_t* obj, lv_layer_t* layer, FilamentPathDat
 
     // Heat glow halo around the nozzle tip.
     if (data->anim.heat_active && data->feeds_toolhead) {
-        int32_t tip_y = toolhead_tip_y(nozzle_y, data->theme.extruder_scale);
-        draw_heat_glow(layer, center_x, tip_y, sensor_r, data->anim.heat_pulse_opa);
+        int32_t tip_y = toolhead_tip_y(nozzle_y, data->path_cache.tool_scale);
+        const int32_t head_x =
+            center_x + path_toolhead_inlet(nozzle_y, data->path_cache.tool_scale).dx;
+        draw_heat_glow(layer, head_x, tip_y, sensor_r, data->anim.heat_pulse_opa);
     }
 
     // Segment transition tip — interpolated along the path.
@@ -689,6 +834,7 @@ void render_animation_overlay(lv_obj_t* obj, lv_layer_t* layer, FilamentPathData
         draw_animation_parallel(layer, g, states, data);
     } else if (topo == static_cast<int>(PathTopology::LINEAR) ||
                topo == static_cast<int>(PathTopology::HUB)) {
+        draw_rail_carriage(obj, layer, data);
         draw_animation_linear_hub(obj, layer, data);
     }
     // MIXED has no per-frame animation — nothing to paint here.

@@ -114,6 +114,46 @@ gcode:
     _HELIX_READY
 ```
 
+### Declaring Phase Durations
+
+An adaptive `PRINT_START` often knows exactly how long a soak or a chamber wait will take. Say so
+once and the countdown trusts it instead of pricing the phase from past prints:
+
+```
+[gcode_macro PRINT_START]
+gcode:
+    {% set bed = params.BED|int %}
+    {% set soak = 600 if bed >= 100 else 0 %}
+    {% set mesh = params.MESH|default(1)|int %}
+    _HELIX_PLAN SOAKING={soak} BED_MESH={90 if mesh else 0}
+    _HELIX_PHASE_HOMING
+    G28
+    _HELIX_PHASE_HEATING_BED
+    M190 S{bed}
+    {% if soak > 0 %}
+    _HELIX_PHASE_SOAKING
+    G4 P{soak * 1000}
+    {% endif %}
+    {% if mesh %}
+    _HELIX_PHASE_BED_MESH
+    BED_MESH_CALIBRATE
+    {% endif %}
+    _HELIX_READY
+```
+
+- `_HELIX_PLAN NAME=SECONDS ...` takes any phase name from the table above, without the
+  `_HELIX_PHASE_` prefix, or its alias (`SOAK`, `HEAT_CHAMBER`, `QUAD_GANTRY_LEVEL`). Durations are
+  per phase; there is no total, because the sum of the phases you declare is the total you know.
+- A value of 0 means the phase will not run. A phase you leave out keeps its usual estimate.
+- The most a phase may declare is 6 hours (21600); a larger value is dropped with a warning.
+- You may call it again from a sub-macro. A later value for a phase replaces the earlier one. For
+  the phase already running, the value means the seconds left from now, so a plan just before
+  `G4 P600000` is right whether it comes before or after the phase signal. A finished phase ignores it.
+- Also signal the phase with its `_HELIX_PHASE_*` macro, so the countdown knows when it starts. While a
+  declared phase runs, a silent macro will not trip the timeouts; if it runs past its declared length,
+  the time label says it is running over.
+- The plan is kept in `_HELIX_STATE`, so a screen that restarts mid-start picks it back up.
+
 ### Option 2: Add Variables to Existing Macro
 
 If you have an existing `_START_PRINT` or `START_PRINT` macro, add state tracking:
@@ -144,7 +184,31 @@ If your slicer supports it, enable layer info in your G-code:
 
 When `helix_macros.cfg` is installed, these macros are available:
 
-The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. A printer that already has the pack under the names without an underscore (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) keeps those names when it updates, because its own macros and sliced files may call them, so an existing `PRINT_START` needs no change. `MacroManager::macro_content_for` makes that choice when the app installs or updates the pack. Copying the file over by hand always gives the underscore names, so a printer that calls the old names needs those calls changed as well.
+The signal and phase macros below start with an underscore so Fluidd and Mainsail leave them out of their macro lists. Every printer gets the pack under the underscore names; a printer that still needs the old visible names gets forwarders, described in [Visible names and forwarders](#visible-names-and-forwarders). Copying `helix_macros.cfg` over by hand gives only the underscore names, so a printer that calls the old names needs those calls changed as well.
+
+### Visible names and forwarders
+
+A printer may call the visible spellings (`HELIX_READY`, `HELIX_PHASE_HOMING` and so on) from its own macros or its sliced files (#2006). When the app installs or updates the pack, `MacroManager::macro_content_for` appends one forwarder per visible name it keeps, after the pack in the same `helix_macros.cfg`, so a single upload carries both and no include has to agree with a second file:
+
+```
+[gcode_macro HELIX_READY]
+description: HelixScreen alias for _HELIX_READY
+gcode:
+    RESPOND TYPE=command MSG="HELIX:ALIAS:HELIX_READY"
+    _HELIX_READY
+```
+
+Which names a printer keeps is pure logic in `include/signal_macro_names.h` (`helix::signal_macros`):
+
+- **The scan.** `scan()` reads `configfile.settings` at discovery (`src/api/moonraker_discovery_sequence.cpp`, beside the other configfile analyzers). It looks at every string option of every section, so `[delayed_gcode]`, `[gcode_button]` and `[idle_timeout]` count as well as macro bodies, and it over-matches on purpose: a missed call answers `Unknown command`, a spurious one only keeps a name visible. A `[gcode_macro HELIX_*]` section is our forwarder by its description (`kAliasDescriptionPrefix`), an earlier pack's macro by that name's `kPackDescriptions` entry, and the user's own otherwise. The user's own lands in `foreign` and is never forwarded, since a forwarder would merge into it.
+- **All eleven or none.** `names_to_alias()` keeps all eleven when the visible names were loaded, the config calls one, or a sliced file was heard calling one, because the scan cannot see sliced files and a file may call any of them. A printer that never had them gets none.
+- **Dropping unused forwarders.** Each forwarder announces itself with `HELIX:ALIAS:<name>`. `SlicedSignalWatcher` (`include/sliced_signal_names.h`) counts, per printer, the completed prints each loaded forwarder went unheard; after `kAliasDropAfterPrints` (5) the name is retired and the next update drops it, unless the config still calls it. A print counts only if it completed, had run no more than 60 seconds when the app saw it start (the probes `src/application/gcode_response_routing.cpp` wires in), and had announcing forwarders loaded with `[respond]` present. Any hit clears the count. The console panel hides the announcement lines.
+- **Sliced files.** The same watcher reads `Unknown command:"HELIX_X"` responses during a print (`unknown_signal_command`), records the names under the printer's `helix_macros/sliced_signal_names` setting when the print ends, shows one toast per print, and the next update forwards them again (`extra_names`).
+- **Status.** `drift()` compares what is loaded with what an update would stage (the old visible pack, a called name with no forwarder, or a forwarder that would be dropped); anything but `None` reads the helper macros as outdated, so the update is offered. The helper macros row states the outcome through `signal_names_line()`.
+
+The HelixPrint plugin renames the visible calls the pre-1.1 instrumentation wrote inside `HELIX_TRACKING` marker blocks: [HELIXPRINT_PLUGIN.md § Signal Macro Migration](HELIXPRINT_PLUGIN.md#signal-macro-migration-signal_macro_migration-v1). `configfile.settings` carries no comments, so the app cannot see the blocks; a visible call in `PRINT_START`, `START_PRINT` or `_PRINT_START` stands in for them (`marker_callers_present`).
+
+**Known limit.** A pre-1.2 HelixScreen run against a printer the plugin has renamed sees the forwarders' `HELIX_READY`, so a helper macro update from that app writes the old visible pack, which defines no hidden names. The renamed calls then answer `Unknown command` until the app is updated again or the `.bak.<stamp>` backup is restored.
 
 ### Core Signals
 
@@ -160,6 +224,8 @@ The signal and phase macros below start with an underscore so Fluidd and Mainsai
 |-------|-----------------|
 | `_HELIX_PHASE_HOMING` | "Homing..." |
 | `_HELIX_PHASE_HEATING_BED` | "Heating Bed..." |
+| `_HELIX_PHASE_HEATING_CHAMBER` | "Heating Chamber..." |
+| `_HELIX_PHASE_SOAKING` | "Heat Soaking..." |
 | `_HELIX_PHASE_HEATING_NOZZLE` | "Heating Nozzle..." |
 | `_HELIX_PHASE_BED_MESH` | "Loading Bed Mesh..." |
 | `_HELIX_PHASE_QGL` | "Leveling Gantry..." |

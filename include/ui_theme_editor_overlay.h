@@ -12,8 +12,10 @@
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
+#include "subject_managed_panel.h"
 #include "theme_loader.h"
 
 #include <array>
@@ -28,9 +30,14 @@
  */
 class ThemeEditorOverlay : public OverlayBase {
   public:
+    ~ThemeEditorOverlay() override;
+
     //
     // === OverlayBase Implementation ===
     //
+
+    void init_subjects() override;
+    void deinit_subjects();
 
     /**
      * @brief Create overlay UI from XML, rewire the back button and find the swatches
@@ -107,8 +114,8 @@ class ThemeEditorOverlay : public OverlayBase {
   private:
     void update_swatch_colors();
     void update_property_sliders();
-    void update_slider_value_label(const char* row_name, int value);
-    void update_slider_value_label(const char* row_name, const char* text);
+    void publish_property_values();
+    void show_save_as_status(const char* text);
     void mark_dirty();
     void clear_dirty();
 
@@ -167,6 +174,20 @@ class ThemeEditorOverlay : public OverlayBase {
 
     // Save As dialog tracking
     helix::ui::WidgetRef save_as_dialog_;
+
+    // theme_editor_overlay.xml and theme_save_as_modal.xml bind these
+    SubjectManager subjects_;
+    helix::Subject title_subject_{};       ///< header title, "(Modified)" while dirty
+    helix::Subject dirty_subject_{};       ///< 1 while there are unsaved edits
+    helix::Subject radius_name_subject_{}; ///< border radius size, by name
+    helix::Subject border_width_subject_{};
+    helix::Subject border_opacity_subject_{};
+    helix::Subject shadow_subject_{};
+    helix::Subject save_as_status_subject_{};       ///< Save As dialog's error line
+    helix::Subject save_as_status_shown_subject_{}; ///< 1 while that line shows
+    char title_buf_[96]{};
+    char radius_name_buf_[32]{};
+    char save_as_status_buf_[96]{};
 };
 
 /**

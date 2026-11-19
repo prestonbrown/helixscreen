@@ -6,6 +6,7 @@
 #include "ams_fault_event.h"
 #include "core/update_queue.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lane_apply.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
@@ -49,6 +50,28 @@ std::string describe_fault(const std::string& code, const std::string& text) {
     }
     return !text.empty() ? text
                          : (!code.empty() ? code : std::string(lv_tr("Filament System Error")));
+}
+
+/// Marks each unit's faulted slots with the fault in the current language: a
+/// fault naming a bay marks that slot, one without marks every slot of the unit.
+/// Returns whether any unit reports a fault.
+bool apply_unit_faults(std::vector<AmsUnit>& units,
+                       const std::vector<std::vector<openams::UnitFault>>& faults) {
+    bool any_fault = false;
+    for (std::size_t u = 0; u < units.size() && u < faults.size(); ++u) {
+        for (const openams::UnitFault& fault : faults[u]) {
+            any_fault = true;
+            SlotError error;
+            error.message = describe_fault(fault.code, fault.text);
+            error.severity = SlotError::ERROR;
+            for (auto& slot : units[u].slots) {
+                if (fault.bay < 0 || fault.bay == slot.slot_index) {
+                    slot.error = error;
+                }
+            }
+        }
+    }
+    return any_fault;
 }
 
 std::string string_member(const json& object, const char* key) {
@@ -235,21 +258,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     };
     drop_inactive(requested_dry_min_);
 
-    bool any_fault = false;
-    for (std::size_t u = 0; u < next.units.size(); ++u) {
-        AmsUnit& unit = next.units[u];
-        for (const UnitFault& fault : parsed.faults[u]) {
-            any_fault = true;
-            SlotError error;
-            error.message = describe_fault(fault.code, fault.text);
-            error.severity = SlotError::ERROR;
-            for (auto& slot : unit.slots) {
-                if (fault.bay < 0 || fault.bay == slot.slot_index) {
-                    slot.error = error;
-                }
-            }
-        }
-    }
+    const bool any_fault = apply_unit_faults(next.units, parsed.faults);
 
     remote_slot_ids_ = std::move(parsed.remote_slot_ids);
     slot_groups_ = std::move(parsed.slot_groups);
@@ -266,7 +275,7 @@ void AmsBackendOpenAms::parse_snapshot_locked() {
     topology_ = parsed.topology;
 
     // A T<n> group names the slots that can serve tool n. Exactly one of them
-    // serves it now and carries the tool. The others are its runout backups and
+    // serves it and carries the tool. The others are its runout backups and
     // carry none, so a Load on a backup dispatches that exact slot, not a tool
     // change that would load the serving slot instead.
     for (const auto& group : groups_) {
@@ -757,6 +766,16 @@ bool AmsBackendOpenAms::has_clearable_fault_locked() const {
     });
 }
 
+void AmsBackendOpenAms::refresh_translated_texts() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    apply_unit_faults(system_info_.units, unit_faults_);
+    // A failed operation's text is the macro's own; only the fault summary
+    // this backend composed is re-worded.
+    if (failure_detail_.empty() && !system_info_.operation_detail.empty()) {
+        system_info_.operation_detail = fault_detail_locked();
+    }
+}
+
 std::string AmsBackendOpenAms::fault_detail_locked() const {
     std::string detail;
     for (std::size_t u = 0; u < unit_faults_.size() && u < system_info_.units.size(); ++u) {
@@ -972,7 +991,8 @@ void AmsBackendOpenAms::query_component_status() {
     client_->send_jsonrpc(
         "server.openams_spoolman.status", json::object(),
         [this, token](const json& response) {
-            json status = response.contains("result") ? response["result"] : response;
+            const json* result = json_util::find_member(response, "result");
+            json status = result ? *result : response;
             token.defer("AmsBackendOpenAms::component_status",
                         [this, status]() { adopt_component_status(status); });
         },

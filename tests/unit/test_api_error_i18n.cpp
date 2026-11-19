@@ -84,7 +84,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "notify_error_tr translates on the main thread
 
     const MoonrakerError err = MoonrakerError::timeout("printer.gcode.script", 30000);
     std::thread ws(
-        [err]() { helix::ui::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err); });
+        [err]() { helix::notify_error_tr(TR_NOOP("Failed to set print speed: {}"), err); });
     ws.join();
     // Nothing is formatted or shown on the calling thread.
     CHECK(calls == 0);

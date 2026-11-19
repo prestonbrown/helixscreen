@@ -31,9 +31,10 @@
           <text_heading bind_text="probe_display_name"/>
           <text_small bind_text="probe_type_label" style_text_color="#text_muted"/>
           <!-- Z Offset value -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" style_pad_top="#space_xs" flex_flow="row"
+          <lv_obj name="probe_z_offset_row"
+                  width="100%" height="content" style_pad_all="0" style_pad_top="#space_xs" flex_flow="row"
                   style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+            <bind_flag_if_eq subject="probe_z_offset_known" flag="hidden" ref_value="0"/>
             <text_small text="Z Offset" style_text_color="#text_muted"/>
             <text_body bind_text="probe_z_offset_display" style_text_color="#primary"/>
           </lv_obj>

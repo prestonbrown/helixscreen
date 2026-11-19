@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "host_identity.h"
@@ -94,11 +95,11 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
         adding ? helix::kDefaultMoonrakerPort
                : config->get<int>(config->df() + "moonraker_port", helix::kDefaultMoonrakerPort);
 
-    lv_subject_copy_string(&host_ip_subject_, host.c_str());
-    lv_subject_copy_string(&host_port_subject_, std::to_string(port).c_str());
+    lv_subject_set_string(&host_ip_subject_, host.c_str());
+    lv_subject_set_string(&host_port_subject_, std::to_string(port).c_str());
     // The key belongs to the active printer's entry; a printer being added starts without one.
     const std::string api_key = adding ? std::string{} : active_printer_credential().api_key;
-    lv_subject_copy_string(&api_key_subject_, api_key.c_str());
+    lv_subject_set_string(&api_key_subject_, api_key.c_str());
 
     bool result = show(parent);
     if (result && dialog()) {
@@ -170,15 +171,17 @@ void ChangeHostModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_string(&host_ip_subject_, host_ip_buf_, nullptr, sizeof(host_ip_buf_), "");
-    lv_subject_init_string(&host_port_subject_, host_port_buf_, nullptr, sizeof(host_port_buf_),
-                           std::to_string(kDefaultMoonrakerPort).c_str());
-    lv_subject_init_string(&api_key_subject_, api_key_buf_, nullptr, sizeof(api_key_buf_), "");
-    lv_subject_init_int(&testing_subject_, 0);
-    lv_subject_init_int(&validated_subject_, 0);
-    lv_subject_init_int(&adding_subject_, 0);
-    lv_subject_init_int(&save_locked_subject_, 1);
-    lv_subject_init_int(&discovery_active_subject_, 0);
+    host_ip_subject_.init_string(host_ip_buf_, nullptr, sizeof(host_ip_buf_), "");
+    host_port_subject_.init_string(host_port_buf_, nullptr, sizeof(host_port_buf_),
+                                   std::to_string(kDefaultMoonrakerPort).c_str());
+    api_key_subject_.init_string(api_key_buf_, nullptr, sizeof(api_key_buf_), "");
+    testing_subject_.init_int(0);
+    validated_subject_.init_int(0);
+    adding_subject_.init_int(0);
+    save_locked_subject_.init_int(1);
+    discovery_active_subject_.init_int(0);
+    status_kind_subject_.init_int(static_cast<int>(StatusKind::None));
+    status_text_subject_.init_string(status_text_buf_, nullptr, sizeof(status_text_buf_), "");
 
     // Register subjects for XML binding
     subjects_.publish("change_host_ip", &host_ip_subject_);
@@ -189,6 +192,8 @@ void ChangeHostModal::init_subjects() {
     subjects_.publish("change_host_adding", &adding_subject_);
     subjects_.publish("change_host_save_locked", &save_locked_subject_);
     subjects_.publish("change_host_discovery_active", &discovery_active_subject_);
+    subjects_.publish("change_host_status_kind", &status_kind_subject_);
+    subjects_.publish("change_host_status_text", &status_text_subject_);
 
     subjects_initialized_ = true;
     spdlog::trace("[ChangeHostModal] Subjects initialized");
@@ -199,7 +204,7 @@ void ChangeHostModal::deinit_subjects() {
         return;
 
     // release() because subjects are about to be destroyed —
-    // calling reset() (which does lv_observer_remove) on a dead subject = crash.
+    // calling reset() (which does lv_observer_delete) on a dead subject = crash.
     host_ip_observer_.release();
     host_port_observer_.release();
     api_key_observer_.release();
@@ -228,7 +233,7 @@ void ChangeHostModal::handle_test_connection() {
     }
 
     lv_subject_set_int(&testing_subject_, 1);
-    set_status("icon_question_circle", "text_muted", "Testing connection...");
+    set_status(StatusKind::Testing, "Testing connection...");
 
     // The live client stays on the saved printer: only Save moves it.
     const std::string host(helix::text_io::trim(ip));
@@ -255,18 +260,18 @@ void ChangeHostModal::on_test_success(const std::string& host,
     const std::string port_text = std::to_string(result.port);
     if (sanitize_port(lv_subject_get_string(&host_port_subject_)) != port_text) {
         port_set_by_app_ = true;
-        lv_subject_copy_string(&host_port_subject_, port_text.c_str());
+        lv_subject_set_string(&host_port_subject_, port_text.c_str());
         port_set_by_app_ = false;
     }
 
     lv_subject_set_int(&testing_subject_, 0);
     if (result.login_required) {
         // Saving an address Moonraker refuses would leave the screen empty.
-        set_status("icon_close_circle", result.key_sent ? "danger" : "warning",
+        set_status(result.key_sent ? StatusKind::Error : StatusKind::Warning,
                    connection_test_status(host, result).c_str());
         return;
     }
-    set_status("icon_check_circle", "success", connection_test_status(host, result).c_str());
+    set_status(StatusKind::Success, connection_test_status(host, result).c_str());
     lv_subject_set_int(&validated_subject_, 1);
     update_save_lock();
 
@@ -279,8 +284,7 @@ void ChangeHostModal::on_test_failure(const MoonrakerConnectionTest::Result& res
     if (!is_visible())
         return;
 
-    set_status("icon_close_circle", "danger",
-               connect_failure_status(result.failure, result.tried).c_str());
+    set_status(StatusKind::Error, connect_failure_status(result.failure, result.tried).c_str());
     lv_subject_set_int(&testing_subject_, 0);
 
     spdlog::debug("[ChangeHostModal] Test failed, keeping Save disabled");
@@ -288,19 +292,19 @@ void ChangeHostModal::on_test_failure(const MoonrakerConnectionTest::Result& res
 
 bool ChangeHostModal::input_valid(const char* ip, const std::string& port_clean) {
     if (!ip || strlen(ip) == 0) {
-        set_status(nullptr, nullptr, "Please enter a host address");
+        set_status(StatusKind::None, "Please enter a host address");
         return false;
     }
     if (!is_valid_ip_or_hostname(ip)) {
-        set_status("icon_close_circle", "danger", "Invalid IP address or hostname");
+        set_status(StatusKind::Error, "Invalid IP address or hostname");
         return false;
     }
     if (!is_valid_port(port_clean)) {
-        set_status("icon_close_circle", "danger", "Invalid port (must be 1-65535)");
+        set_status(StatusKind::Error, "Invalid port (must be 1-65535)");
         return false;
     }
     if (const std::string problem = api_key_problem(entered_api_key()); !problem.empty()) {
-        set_status("icon_close_circle", "danger", problem.c_str());
+        set_status(StatusKind::Error, problem.c_str());
         return false;
     }
     return true;
@@ -393,28 +397,13 @@ void ChangeHostModal::handle_cancel() {
 // Status Display
 // ============================================================================
 
-void ChangeHostModal::set_status(const char* icon_name, const char* color_token, const char* text) {
-    if (!dialog())
+void ChangeHostModal::set_status(StatusKind kind, const char* text) {
+    if (!subjects_initialized_) {
         return;
-
-    lv_obj_t* icon_label = helix::ui::find_required(dialog(), "status_icon", get_name());
-    if (icon_label) {
-        if (icon_name) {
-            const char* icon_text = lv_xml_get_const(nullptr, icon_name);
-            lv_label_set_text(icon_label, icon_text ? icon_text : "");
-        } else {
-            lv_label_set_text(icon_label, "");
-        }
-        if (color_token) {
-            lv_obj_set_style_text_color(icon_label, theme_manager_get_color(color_token),
-                                        LV_PART_MAIN);
-        }
     }
-
-    lv_obj_t* text_label = helix::ui::find_required(dialog(), "status_text", get_name());
-    if (text_label) {
-        lv_label_set_text(text_label, text ? text : "");
-    }
+    // The status line's icon and text bind these
+    lv_subject_set_int(&status_kind_subject_, static_cast<int>(kind));
+    lv_subject_set_string(&status_text_subject_, text ? text : "");
 }
 
 // ============================================================================
@@ -432,7 +421,7 @@ void ChangeHostModal::on_input_changed_cb(lv_observer_t* observer, lv_subject_t*
         self->port_origin_ = helix::PortOrigin::Typed;
     }
     // A status line describes the address it was shown for, so an edit clears it.
-    self->set_status(nullptr, nullptr, "");
+    self->set_status(StatusKind::None, "");
     // Reset validation when user edits the host, port or key after a successful test
     lv_subject_t* validated = lv_xml_get_subject(nullptr, "change_host_validated");
     if (validated && lv_subject_get_int(validated) != 0) {
@@ -538,10 +527,10 @@ void ChangeHostModal::handle_printer_picked(uint32_t selected) {
                  picked->port);
     const std::string host = picked->ip_address;
     const std::string port = std::to_string(picked->port);
-    lv_subject_copy_string(&host_ip_subject_, host.c_str());
+    lv_subject_set_string(&host_ip_subject_, host.c_str());
     // The discovered port is where Moonraker answered, not something the user typed.
     port_set_by_app_ = true;
-    lv_subject_copy_string(&host_port_subject_, port.c_str());
+    lv_subject_set_string(&host_port_subject_, port.c_str());
     port_set_by_app_ = false;
     port_origin_ = helix::PortOrigin::Discovered;
 }

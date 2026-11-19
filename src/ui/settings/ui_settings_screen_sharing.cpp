@@ -7,8 +7,20 @@
 #include "ui_modal.h"
 
 #include "remote_screen_settings_manager.h"
+#include "screen_secrets.h"
 
 namespace helix::settings {
+
+lv_obj_t* ScreenSharingSettingsOverlay::create(lv_obj_t* parent) {
+    lv_obj_t* root = OverlayBase::create(parent);
+    if (root) {
+        // The screen server hides the shared screen while the code row is on the
+        // display. Without the row, the whole page counts as the secret.
+        lv_obj_t* row = lv_obj_find_by_name(root, "row_remote_pair_code");
+        helix::ui::mark_screen_secret(row ? row : root);
+    }
+    return root;
+}
 
 void ScreenSharingSettingsOverlay::register_callbacks() {
     register_xml_callbacks({

@@ -52,12 +52,13 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
     info.remaining_length_m = remaining_length_mm / 1000.0;
 
     // Parse nested filament object
-    if (spool_json.contains("filament") && spool_json["filament"].is_object()) {
-        const auto& filament = spool_json["filament"];
+    if (const json* filament_json = json_util::find_object(spool_json, "filament")) {
+        const auto& filament = *filament_json;
 
         info.filament_id = safe_int(filament, "id", 0);
         info.material = safe_string(filament, "material");
         info.filament_name = safe_string(filament, "name");
+        info.filament_price = safe_double(filament, "price");
         info.color_hex = safe_string(filament, "color_hex");
         info.multi_color_hexes = safe_string(filament, "multi_color_hexes");
 
@@ -70,12 +71,11 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
         info.nozzle_temp_min = info.nozzle_temp_max = info.nozzle_temp_recommended;
         info.bed_temp_min = info.bed_temp_max = info.bed_temp_recommended;
 
-        if (filament.contains("extra") && filament["extra"].is_object()) {
-            if (auto k = parse_extra_number(filament["extra"], kSpoolmanPaExtraKey)) {
+        if (const json* extra = json_util::find_object(filament, "extra")) {
+            if (auto k = parse_extra_number(*extra, kSpoolmanPaExtraKey)) {
                 info.pressure_advance = static_cast<float>(*k);
             }
-            info.orca_filament_id =
-                helix::spoolman_detail::parse_extra_orca_filament_id(filament["extra"]);
+            info.orca_filament_id = helix::spoolman_detail::parse_extra_orca_filament_id(*extra);
         }
 
         // Fallback: use filament definition weight when spool initial_weight is null/0.
@@ -86,9 +86,9 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
         }
 
         // Nested vendor
-        if (filament.contains("vendor") && filament["vendor"].is_object()) {
-            info.vendor = safe_string(filament["vendor"], "name");
-            info.vendor_id = safe_int(filament["vendor"], "id", 0);
+        if (const json* vendor = json_util::find_object(filament, "vendor")) {
+            info.vendor = safe_string(*vendor, "name");
+            info.vendor_id = safe_int(*vendor, "id", 0);
         }
     }
 
@@ -221,9 +221,9 @@ static FilamentInfo parse_filament_info(const nlohmann::json& filament_json) {
     info.vendor_id = safe_int(filament_json, "vendor_id", 0);
 
     // Nested vendor object (may override vendor_id, adds vendor_name)
-    if (filament_json.contains("vendor") && filament_json["vendor"].is_object()) {
-        info.vendor_id = safe_int(filament_json["vendor"], "id", info.vendor_id);
-        info.vendor_name = safe_string(filament_json["vendor"], "name");
+    if (const json* vendor = json_util::find_object(filament_json, "vendor")) {
+        info.vendor_id = safe_int(*vendor, "id", info.vendor_id);
+        info.vendor_name = safe_string(*vendor, "name");
     }
 
     return info;
@@ -245,11 +245,12 @@ void MoonrakerSpoolmanAPI::get_spoolman_status(std::function<void(bool, int)> on
             bool connected = false;
             int active_spool_id = 0;
 
-            if (response.contains("result")) {
-                const auto& result = response["result"];
+            if (const json* reply = json_util::find_member(response, "result")) {
+                const auto& result = *reply;
                 connected = result.value("spoolman_connected", false);
-                if (result.contains("spool_id") && !result["spool_id"].is_null()) {
-                    active_spool_id = result["spool_id"].get<int>();
+                const json* spool_id = json_util::find_member(result, "spool_id");
+                if (spool_id && !spool_id->is_null()) {
+                    active_spool_id = spool_id->get<int>();
                 }
             }
 
@@ -278,8 +279,8 @@ void MoonrakerSpoolmanAPI::get_spoolman_spools(SpoolListCallback on_success,
             std::vector<SpoolInfo> spools;
 
             // The proxy returns the Spoolman response in "result"
-            if (response.contains("result") && response["result"].is_array()) {
-                for (const auto& spool_json : response["result"]) {
+            if (const json* result = json_util::find_array(response, "result")) {
+                for (const auto& spool_json : *result) {
                     // Parse each spool independently: a single malformed entry
                     // must not abort the whole list (a null numeric field once
                     // threw type_error and left the picker stuck loading, #1087).
@@ -314,8 +315,8 @@ void MoonrakerSpoolmanAPI::get_spoolman_spool(int spool_id, SpoolCallback on_suc
     client_.send_jsonrpc(
         "server.spoolman.proxy", params,
         [on_success, spool_id](const json& response) {
-            if (response.contains("result") && response["result"].is_object()) {
-                SpoolInfo spool = parse_spool_info(response["result"]);
+            if (const json* result = json_util::find_object(response, "result")) {
+                SpoolInfo spool = parse_spool_info(*result);
                 spdlog::trace("[SpoolmanAPI] Got spool {}: {} {}", spool_id, spool.vendor,
                               spool.material);
                 if (on_success) {
@@ -462,7 +463,8 @@ void MoonrakerSpoolmanAPI::set_spoolman_filament_extra_number(
              on_error](const json& response) {
                 // Without the filament there is nothing to merge into, and an
                 // older Spoolman would take the one-key dict as all there is.
-                if (!response.contains("result") || !response["result"].is_object()) {
+                const json* filament_json = json_util::find_object(response, "result");
+                if (!filament_json) {
                     spdlog::warn("[SpoolmanAPI] Filament {} read back no object; not writing",
                                  filament_id);
                     if (on_error) {
@@ -472,10 +474,8 @@ void MoonrakerSpoolmanAPI::set_spoolman_filament_extra_number(
                     return;
                 }
                 nlohmann::json extra = nlohmann::json::object();
-                const auto& filament = response["result"];
-                const auto it = filament.find("extra");
-                if (it != filament.end() && it->is_object()) {
-                    extra = *it;
+                if (const json* current = json_util::find_object(*filament_json, "extra")) {
+                    extra = *current;
                 }
                 extra[key] = spoolman_detail::encode_extra_number(field_type, value);
                 nlohmann::json body;
@@ -491,8 +491,8 @@ void MoonrakerSpoolmanAPI::set_spoolman_filament_extra_number(
     client_.send_jsonrpc(
         "server.spoolman.proxy", list_params,
         [this, key, display_name, patch, on_error](const json& response) {
-            if (response.contains("result") && response["result"].is_array()) {
-                for (const auto& field : response["result"]) {
+            if (const json* result = json_util::find_array(response, "result")) {
+                for (const auto& field : *result) {
                     if (safe_string(field, "key") == key) {
                         // Write in whatever type the field already has: a user
                         // who defined it as text gets text, never a type change.
@@ -541,6 +541,39 @@ void MoonrakerSpoolmanAPI::update_spoolman_filament_color(int filament_id,
 // Spoolman CRUD Operations
 // ============================================================================
 
+std::string helix::spoolman_detail::parse_spoolman_currency(const nlohmann::json& setting) {
+    if (!setting.is_object()) {
+        return {};
+    }
+    const std::string encoded = safe_string(setting, "value");
+    const json decoded = json::parse(encoded, nullptr, false);
+    if (decoded.is_discarded() || !decoded.is_string()) {
+        return {};
+    }
+    return decoded.get<std::string>();
+}
+
+void MoonrakerSpoolmanAPI::get_spoolman_currency(
+    std::function<void(const std::string& currency)> on_success, ErrorCallback on_error) {
+    json params;
+    params["request_method"] = "GET";
+    params["path"] = "/v1/setting/currency";
+
+    client_.send_jsonrpc(
+        "server.spoolman.proxy", params,
+        [on_success](const json& response) {
+            const auto it = response.find("result");
+            const std::string currency = it == response.end()
+                                             ? std::string{}
+                                             : helix::spoolman_detail::parse_spoolman_currency(*it);
+            spdlog::debug("[SpoolmanAPI] Spoolman currency: '{}'", currency);
+            if (on_success) {
+                on_success(currency);
+            }
+        },
+        on_error, 0, /*silent=*/true);
+}
+
 void MoonrakerSpoolmanAPI::get_spoolman_vendors(VendorListCallback on_success,
                                                 ErrorCallback on_error) {
     spdlog::debug("[SpoolmanAPI] get_spoolman_vendors()");
@@ -554,8 +587,8 @@ void MoonrakerSpoolmanAPI::get_spoolman_vendors(VendorListCallback on_success,
         [on_success](const json& response) {
             std::vector<VendorInfo> vendors;
 
-            if (response.contains("result") && response["result"].is_array()) {
-                for (const auto& vendor_json : response["result"]) {
+            if (const json* result = json_util::find_array(response, "result")) {
+                for (const auto& vendor_json : *result) {
                     vendors.push_back(parse_vendor_info(vendor_json));
                 }
             }
@@ -582,8 +615,8 @@ void MoonrakerSpoolmanAPI::get_spoolman_filaments(FilamentListCallback on_succes
         [on_success](const json& response) {
             std::vector<FilamentInfo> filaments;
 
-            if (response.contains("result") && response["result"].is_array()) {
-                for (const auto& filament_json : response["result"]) {
+            if (const json* result = json_util::find_array(response, "result")) {
+                for (const auto& filament_json : *result) {
                     filaments.push_back(parse_filament_info(filament_json));
                 }
             }
@@ -611,8 +644,8 @@ void MoonrakerSpoolmanAPI::create_spoolman_vendor(const nlohmann::json& vendor_d
     client_.send_jsonrpc(
         "server.spoolman.proxy", params,
         [on_success, on_error](const json& response) {
-            if (response.contains("result") && response["result"].is_object()) {
-                VendorInfo vendor = parse_vendor_info(response["result"]);
+            if (const json* result = json_util::find_object(response, "result")) {
+                VendorInfo vendor = parse_vendor_info(*result);
                 spdlog::debug("[SpoolmanAPI] Created vendor {}: {}", vendor.id, vendor.name);
                 if (on_success) {
                     on_success(vendor);
@@ -642,8 +675,8 @@ void MoonrakerSpoolmanAPI::create_spoolman_filament(const nlohmann::json& filame
     client_.send_jsonrpc(
         "server.spoolman.proxy", params,
         [on_success, on_error](const json& response) {
-            if (response.contains("result") && response["result"].is_object()) {
-                FilamentInfo filament = parse_filament_info(response["result"]);
+            if (const json* result = json_util::find_object(response, "result")) {
+                FilamentInfo filament = parse_filament_info(*result);
                 spdlog::debug("[SpoolmanAPI] Created filament {}: {}", filament.id,
                               filament.display_name());
                 if (on_success) {
@@ -673,8 +706,8 @@ void MoonrakerSpoolmanAPI::create_spoolman_spool(const nlohmann::json& spool_dat
     client_.send_jsonrpc(
         "server.spoolman.proxy", params,
         [on_success, on_error](const json& response) {
-            if (response.contains("result") && response["result"].is_object()) {
-                SpoolInfo spool = parse_spool_info(response["result"]);
+            if (const json* result = json_util::find_object(response, "result")) {
+                SpoolInfo spool = parse_spool_info(*result);
                 spdlog::debug("[SpoolmanAPI] Created spool {}: {}", spool.id, spool.display_name());
                 if (on_success) {
                     on_success(spool);
@@ -722,8 +755,8 @@ void MoonrakerSpoolmanAPI::get_spoolman_filaments(int vendor_id, FilamentListCal
         [on_success, vendor_id](const json& response) {
             std::vector<FilamentInfo> filaments;
 
-            if (response.contains("result") && response["result"].is_array()) {
-                for (const auto& filament_json : response["result"]) {
+            if (const json* result = json_util::find_array(response, "result")) {
+                for (const auto& filament_json : *result) {
                     filaments.push_back(parse_filament_info(filament_json));
                 }
             }

@@ -295,14 +295,6 @@ TEST_CASE(
             CHECK(error_fired);
             CHECK(f.client.gcode_script_history().empty());
         }
-
-        SECTION("a material's chamber temperature is left out of apply_material") {
-            f.controller.apply_material(210.0, 60.0, 50.0, helix::SendOptions{.toast = false});
-
-            // The nozzle send proves apply_material ran.
-            REQUIRE_FALSE(f.client.gcode_script_history().empty());
-            CHECK_FALSE(sent("chamber_heater"));
-        }
     }
 }
 

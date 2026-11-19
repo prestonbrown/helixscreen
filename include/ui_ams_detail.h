@@ -115,12 +115,14 @@ void ams_detail_update_badges(AmsDetailWidgets& w, helix::ui::WidgetRef slot_wid
  * @param canvas     The filament_path_canvas widget
  * @param slot_grid  The slot grid (for sizing sync) — may be nullptr
  * @param unit_index Backend unit index (-1 = whole backend)
+ * @return true when the drawn unit is too tall for the path below it and its spools were
+ *         capped (ams_detail_sync_lane_entry()): the caller lays its slots out again.
  */
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index);
+bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index);
 
 /// The same, for a caller that already holds the system info it just read from @p backend.
 // NAMESPACE_OK: an overload of the global three-argument ams_detail_setup_path_canvas
-void ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
+bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int unit_index,
                                   const helix::AmsBackend* backend,
                                   const helix::AmsSystemInfo& info);
 
@@ -150,11 +152,23 @@ bool ams_detail_error_in_view(const AmsSystemInfo& info, int unit_index);
 /// Tell the path canvas where the spool box's front edge is, so its lanes enter
 /// there. Call after ams_detail_update_tray(); no box leaves the canvas's own
 /// entry row.
-void ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
+///
+/// Under a drawn unit the path needs its full-size height
+/// (ui_filament_path_canvas_required_height()). A path of fixed height (portrait) grows to it;
+/// where the diagram then runs past what is on screen, or a path that fills the column is
+/// short of it, the unit must shrink: the spool size that fits is recorded for this unit and
+/// screen, and true asks the caller to lay the unit out again. False when it fits.
+bool ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 
 /// Slot sizing for the detail view: in a box, spools stand at the tray pitch
 /// (ams_tray_projection.h) instead of spreading across the width.
 AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);
+
+/// Spool size for the detail view. A drawn unit's spools grow until the unit fills
+/// @p available_width, up to a fifth of the screen's shorter side so the filament path
+/// keeps its room below (in portrait the diagram shares the height with the sidebar);
+/// flat spools keep the ams_slot_spool_size token.
+int32_t ams_detail_spool_size(int32_t available_width, int slot_count);
 
 /// Whether a unit reports temperature, humidity or a dryer, which means it is closed up.
 bool unit_reports_climate(int unit_index);
@@ -178,6 +192,14 @@ struct BufferBoxState {
 /// The buffer box for @p unit_index; -1 is the whole-backend view, which shows
 /// the system-level reading (buffer_reading(info, -1)).
 BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index);
+
+/// A unit's lane whose filament has gone furthest along its path; global -1 when none has any.
+struct UnitLane {
+    int global = -1;
+    PathSegment segment = PathSegment::NONE;
+    uint32_t color = 0;
+};
+UnitLane unit_furthest_lane(const AmsBackend& backend, const AmsUnit& unit);
 
 /**
  * @brief Disable the slot widgets of bays in an absent unit, enable the rest

@@ -136,10 +136,11 @@ TEST_CASE_METHOD(MacrosSettingsFixture, "helix_macros_status maps every discover
     state().set_hardware(discovery_with({"gcode_macro START_PRINT", "bed_mesh"}));
     REQUIRE(macros_status() == static_cast<int>(S::NotInstalled));
 
-    state().set_hardware(discovery_with(
-        {"gcode_macro HELIX_READY", "gcode_macro HELIX_ENDED", "gcode_macro HELIX_RESET",
-         "gcode_macro HELIX_START_PRINT", "gcode_macro HELIX_CLEAN_NOZZLE",
-         "gcode_macro HELIX_BED_MESH_IF_NEEDED", "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+    state().set_hardware(
+        discovery_with({"gcode_macro HELIX_READY", "gcode_macro HELIX_ENDED",
+                        "gcode_macro HELIX_RESET", "gcode_macro HELIX_START_PRINT",
+                        "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
+                        "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN"}));
     REQUIRE(macros_status() == static_cast<int>(S::Installed));
 
     state().set_hardware(
@@ -183,7 +184,7 @@ TEST_CASE_METHOD(MacrosSettingsFixture,
     state().set_hardware(
         discovery_with({"gcode_macro HELIX_READY", "gcode_macro HELIX_START_PRINT",
                         "gcode_macro HELIX_CLEAN_NOZZLE", "gcode_macro HELIX_BED_MESH_IF_NEEDED",
-                        "gcode_macro HELIX_UNLOAD_FILAMENT"}));
+                        "gcode_macro HELIX_UNLOAD_FILAMENT", "gcode_macro _HELIX_PLAN"}));
     REQUIRE(macros_status() == static_cast<int>(S::Installed));
 
     // Pending set while the macros are active never masks the truth.
@@ -409,7 +410,7 @@ TEST_CASE_METHOD(MacrosSettingsFixture, "helper macro rows follow helix_macros_s
     REQUIRE(installed_row != nullptr);
     REQUIRE(pending_row != nullptr);
 
-    auto hidden = [](lv_obj_t* o) { return lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN); };
+    auto hidden = [](lv_obj_t* o) { return lv_obj_is_hidden(o); };
     lv_subject_t* status = state().plugin_status_state().get_helix_macros_status_subject();
 
     // UNKNOWN: everything hidden - no install button on a vacuum.

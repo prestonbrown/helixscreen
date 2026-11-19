@@ -3,6 +3,10 @@
 
 #include "ui_nav_panel_registry.h"
 
+#include "ui_panel_base.h"
+
+#include "theme_manager.h"
+
 #include <spdlog/spdlog.h>
 
 namespace helix::ui {
@@ -17,6 +21,7 @@ void PanelRegistry::set_widgets(lv_obj_t* const* panels) {
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = panels[i];
     }
+    stale_.fill(false);
 }
 
 lv_obj_t* PanelRegistry::widget(int idx) const {
@@ -29,7 +34,25 @@ lv_obj_t* PanelRegistry::replace_widget(int idx, lv_obj_t* widget) {
     }
     lv_obj_t* displaced = widgets_[idx].get();
     widgets_[idx] = widget;
+    stale_[idx] = false;
+    apply_content_cap(idx);
     return displaced;
+}
+
+void PanelRegistry::mark_stale_except(int keep) {
+    for (int i = 0; i < kCount; i++) {
+        stale_[i] = i != keep && widgets_[i].get() != nullptr;
+    }
+}
+
+bool PanelRegistry::is_stale(int idx) const {
+    return in_range(idx) && stale_[idx];
+}
+
+void PanelRegistry::clear_stale(int idx) {
+    if (in_range(idx)) {
+        stale_[idx] = false;
+    }
 }
 
 int PanelRegistry::index_of(const lv_obj_t* obj) const {
@@ -46,19 +69,89 @@ int PanelRegistry::index_of(const lv_obj_t* obj) const {
 
 void PanelRegistry::show_only(int idx) {
     for (int i = 0; i < kCount; i++) {
-        if (widgets_[i]) {
+        if (widgets_[i] && !lent_to_[i]) {
             if (i == idx) {
-                lv_obj_remove_flag(widgets_[i], LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(widgets_[i], false);
+                apply_content_cap(i);
             } else {
-                lv_obj_add_flag(widgets_[i], LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(widgets_[i], true);
             }
         }
     }
 }
 
+bool PanelRegistry::lend(int idx, lv_obj_t* container) {
+    if (!in_range(idx) || !container || !widgets_[idx] || lent_to_[idx]) {
+        return false;
+    }
+    lv_obj_t* panel = widgets_[idx].get();
+    lent_from_[idx] = lv_obj_get_parent(panel);
+    lent_index_[idx] = lv_obj_get_index(panel);
+    lent_to_[idx] = container;
+    lv_obj_set_parent(panel, container);
+    lv_obj_set_hidden(panel, false);
+    if (instances_[idx]) {
+        instances_[idx]->on_lent_to_page(true);
+    }
+    return true;
+}
+
+bool PanelRegistry::reclaim(int idx) {
+    if (!in_range(idx) || !lent_to_[idx]) {
+        return false;
+    }
+    lent_to_[idx] = nullptr;
+    if (instances_[idx]) {
+        instances_[idx]->on_lent_to_page(false);
+    }
+    lv_obj_t* panel = widgets_[idx].get();
+    lv_obj_t* home = lent_from_[idx].get();
+    lent_from_[idx] = nullptr;
+    if (!panel) {
+        return true;
+    }
+    lv_obj_set_hidden(panel, true);
+    if (!home) {
+        // The panel container is being deleted with everything in it (a printer
+        // switch tears the whole layout down), so the tree goes with the page and
+        // the slot clears itself.
+        spdlog::debug("[NavigationManager] Panel {} lent out: its container is going, so is it",
+                      idx);
+        return true;
+    }
+    lv_obj_set_parent(panel, home);
+    lv_obj_move_to_index(panel, lent_index_[idx]);
+    return true;
+}
+
+lv_obj_t* PanelRegistry::lent_to(int idx) const {
+    return in_range(idx) ? lent_to_[idx].get() : nullptr;
+}
+
 void PanelRegistry::set_instance(int idx, PanelBase* panel) {
     if (in_range(idx)) {
         instances_[idx] = panel;
+        apply_content_cap(idx);
+    }
+}
+
+void PanelRegistry::apply_content_cap(int idx) {
+    lv_obj_t* panel = widget(idx);
+    const PanelBase* inst = instance(idx);
+    if (!panel || !inst || lent_to_[idx] || lv_obj_is_hidden(panel)) {
+        return;
+    }
+    lv_obj_t* container = lv_obj_get_parent(panel);
+    if (container_.get() != container) {
+        container_ = container;
+        container_base_pad_right_ = content_cap_base_pad(container);
+    }
+    helix::apply_content_cap(container, container_base_pad_right_, content_capped(inst));
+}
+
+void PanelRegistry::reapply_content_caps() {
+    for (int i = 0; i < kCount; i++) {
+        apply_content_cap(i); // acts only for the panel shown
     }
 }
 
@@ -102,9 +195,13 @@ void PanelRegistry::clear_instances() {
 }
 
 void PanelRegistry::reset() {
+    container_ = nullptr;
     for (int i = 0; i < kCount; i++) {
         widgets_[i] = nullptr;
+        lent_to_[i] = nullptr;
+        lent_from_[i] = nullptr;
     }
+    stale_.fill(false);
     clear_instances();
 }
 

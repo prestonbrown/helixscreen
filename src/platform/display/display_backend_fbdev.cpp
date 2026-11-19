@@ -11,6 +11,7 @@
 #include "env_knobs.h"
 #include "fbdev_signal_clear.h"
 #include "fbdev_size_helper.h"
+#include "framebuffer_fill.h"
 #include "input_device_scanner.h"
 #include "pending_startup_warnings.h"
 #include "touch_calibration.h"
@@ -109,16 +110,6 @@ DetectedResolution DisplayBackendFbdev::detect_resolution() const {
     return {static_cast<int>(vinfo.xres), static_cast<int>(vinfo.yres), true};
 }
 
-namespace {
-
-/// Bits per pixel the clear fills by, read from the stride (32 when xres is 0).
-/// clear_framebuffer() and the signal-safe clear must agree on it.
-uint32_t fill_bits_per_pixel(const fb_var_screeninfo& vinfo, const fb_fix_screeninfo& finfo) {
-    return vinfo.xres > 0 ? (finfo.line_length * 8) / vinfo.xres : 32;
-}
-
-} // namespace
-
 lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
     spdlog::info("[Fbdev Backend] Creating framebuffer display on {}", fb_device_);
 
@@ -189,8 +180,9 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
         struct fb_var_screeninfo vinfo {};
         if (ioctl(fb_fd, FBIOGET_FSCREENINFO, &finfo) == 0 &&
             ioctl(fb_fd, FBIOGET_VSCREENINFO, &vinfo) == 0) {
-            helix::cache_framebuffer_for_signal(fb_device_, finfo.smem_len,
-                                                fill_bits_per_pixel(vinfo, finfo));
+            helix::cache_framebuffer_for_signal(
+                fb_device_, finfo.smem_len,
+                helix::framebuffer_fill_bpp(vinfo.xres, finfo.line_length));
         }
         close(fb_fd);
     }
@@ -225,6 +217,14 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
         }
     }
 
+    // Off by default until hardware tests settle which panels gain from the wait: it blocks
+    // the LVGL thread up to one refresh interval per frame.
+    const bool fbdev_vsync = helix::env_flag("HELIX_FBDEV_VSYNC");
+    lv_linux_fbdev_set_vsync(display_, fbdev_vsync);
+    spdlog::info("[Fbdev Backend] {} (HELIX_FBDEV_VSYNC)",
+                 fbdev_vsync ? "Each frame waits for vertical blank"
+                             : "Frames do not wait for vertical blank");
+
     // Suppress kernel console output to framebuffer.
     // Prevents dmesg/undervoltage warnings from bleeding through LVGL's partial repaints.
     suppress_console();
@@ -232,6 +232,21 @@ lv_display_t* DisplayBackendFbdev::create_display(int width, int height) {
     spdlog::info("[Fbdev Backend] Framebuffer display created: {}x{} on {}", width, height,
                  fb_device_);
     return display_;
+}
+
+lv_indev_t* DisplayBackendFbdev::open_evdev(lv_indev_type_t type, const char* path) {
+    // Opened here rather than by lv_evdev_create() so the fd is known: the main loop
+    // waits on it while the display sleeps.
+    const int fd = open(path, O_RDONLY | O_NOCTTY | O_CLOEXEC);
+    if (fd < 0) {
+        spdlog::warn("[Fbdev Backend] Cannot open input device {}: {}", path, strerror(errno));
+        return nullptr;
+    }
+    lv_indev_t* indev = lv_evdev_create_fd(type, fd); // closes fd on failure
+    if (indev) {
+        input_wake_sources_.add(indev, fd);
+    }
+    return indev;
 }
 
 lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
@@ -251,7 +266,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     spdlog::info("[Fbdev Backend] Creating evdev touch input on {}", touch_path);
 
     // LVGL's evdev driver for touch input
-    touch_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path.c_str());
+    touch_ = open_evdev(LV_INDEV_TYPE_POINTER, touch_path.c_str());
 
     if (touch_ == nullptr) {
         spdlog::error("[Fbdev Backend] Failed to create evdev touch input on {}", touch_path);
@@ -600,7 +615,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     std::string mouse_path;
     const char* mouse_env = std::getenv("HELIX_MOUSE_DEVICE");
     if (mouse_env && mouse_env[0] != '\0') {
-        mouse_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, mouse_env);
+        mouse_ = open_evdev(LV_INDEV_TYPE_POINTER, mouse_env);
         if (mouse_) {
             mouse_path = mouse_env;
             spdlog::info("[Fbdev Backend] Mouse created on {} (env override)", mouse_env);
@@ -610,7 +625,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     if (!mouse_) {
         auto mouse_dev = helix::input::find_mouse_device();
         if (mouse_dev) {
-            mouse_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
+            mouse_ = open_evdev(LV_INDEV_TYPE_POINTER, mouse_dev->path.c_str());
             if (mouse_) {
                 mouse_path = mouse_dev->path;
                 spdlog::info("[Fbdev Backend] Mouse created on {} ({})", mouse_dev->path,
@@ -627,7 +642,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         lv_obj_set_style_bg_opa(cursor_obj, LV_OPA_80, 0);
         lv_obj_set_style_border_width(cursor_obj, 1, 0);
         lv_obj_set_style_border_color(cursor_obj, lv_color_black(), 0);
-        lv_obj_clear_flag(cursor_obj, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_set_clickable(cursor_obj, false);
         lv_indev_set_cursor(mouse_, cursor_obj);
         spdlog::info("[Fbdev Backend] Mouse cursor enabled");
     }
@@ -653,7 +668,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
     // Priority 1: Environment variable override
     const char* env_device = std::getenv("HELIX_KEYBOARD_DEVICE");
     if (env_device && env_device[0] != '\0') {
-        keyboard_ = lv_evdev_create(LV_INDEV_TYPE_KEYPAD, env_device);
+        keyboard_ = open_evdev(LV_INDEV_TYPE_KEYPAD, env_device);
         if (keyboard_) {
             spdlog::info("[Fbdev Backend] Keyboard created on {} (env override)", env_device);
             return keyboard_;
@@ -664,7 +679,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
     // Priority 2: Auto-detect via sysfs scanning
     auto kb_dev = helix::input::find_keyboard_device();
     if (kb_dev) {
-        keyboard_ = lv_evdev_create(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
+        keyboard_ = open_evdev(LV_INDEV_TYPE_KEYPAD, kb_dev->path.c_str());
         if (keyboard_) {
             spdlog::info("[Fbdev Backend] Keyboard created on {} ({})", kb_dev->path, kb_dev->name);
             return keyboard_;
@@ -811,33 +826,8 @@ bool DisplayBackendFbdev::clear_framebuffer(uint32_t color) {
         return false;
     }
 
-    const uint32_t bpp = fill_bits_per_pixel(vinfo, finfo);
-
-    // Fill framebuffer with the specified color
-    // Color is in ARGB format (0xAARRGGBB)
-    if (bpp == 32) {
-        // 32-bit: fill with ARGB pixels
-        uint32_t* pixels = static_cast<uint32_t*>(fbp);
-        size_t pixel_count = screensize / 4;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = color;
-        }
-    } else if (bpp == 16) {
-        // 16-bit RGB565: convert ARGB to RGB565
-        uint16_t r = ((color >> 16) & 0xFF) >> 3; // 5 bits
-        uint16_t g = ((color >> 8) & 0xFF) >> 2;  // 6 bits
-        uint16_t b = (color & 0xFF) >> 3;         // 5 bits
-        uint16_t rgb565 = (r << 11) | (g << 5) | b;
-
-        uint16_t* pixels = static_cast<uint16_t*>(fbp);
-        size_t pixel_count = screensize / 2;
-        for (size_t i = 0; i < pixel_count; i++) {
-            pixels[i] = rgb565;
-        }
-    } else {
-        // Fallback: just zero the buffer (black)
-        memset(fbp, 0, screensize);
-    }
+    const uint32_t bpp = helix::framebuffer_fill_bpp(vinfo.xres, finfo.line_length);
+    helix::fill_framebuffer(fbp, screensize, bpp, color);
 
     spdlog::info("[Fbdev Backend] Cleared framebuffer to 0x{:08X} ({}x{}, {}bpp)", color,
                  vinfo.xres, vinfo.yres, bpp);
@@ -921,8 +911,11 @@ bool DisplayBackendFbdev::supports_power_off() const {
     // The framebuffer node must be readable+writable for FBIOBLANK to work.
     // We can't reliably detect ahead of time whether the panel driver honors
     // FB_BLANK_POWERDOWN, but on real fbdev HDMI/DSI panels it is the standard
-    // power-down request; drivers that ignore it simply leave the panel lit,
-    // which is no worse than the software-overlay fallback (#1049).
+    // power-down request (#1049). A driver that ignores it leaves the panel lit
+    // and still reports success, and sleep then stops all flushes, so the lit
+    // panel holds its last frame until a wake. That is worse than the software
+    // overlay, which stays black. /display/panel_power_off = 0 selects the
+    // overlay on such hardware.
     return access(fb_device_.c_str(), R_OK | W_OK) == 0;
 }
 

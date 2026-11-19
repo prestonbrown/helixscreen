@@ -9,6 +9,7 @@
 #include "ui_toast_manager.h"
 #include "ui_widget_ref.h"
 
+#include "core/subject.h"
 #include "helix/ui/text_metrics.h"
 #include "lua_bindings.h"
 #include "lvgl.h"
@@ -53,7 +54,7 @@ struct ObserverCtx {
 
 struct SubjectEntry {
     std::string full_name;
-    lv_subject_t subject{};
+    helix::Subject subject{};
     std::vector<char> buf;
     std::vector<char> prev;
     bool is_string = false;
@@ -99,8 +100,8 @@ std::vector<std::unique_ptr<SubjectEntry>>& retired_subjects() {
     return *list;
 }
 
-bool unobserved(lv_subject_t& s) {
-    return lv_ll_get_head(&s.subs_ll) == nullptr;
+bool unobserved(const helix::Subject& s) {
+    return lv_ll_get_head(&s.get()->subs_ll) == nullptr;
 }
 
 void on_subject_change(lv_observer_t* obs, lv_subject_t* subject) {
@@ -139,7 +140,7 @@ int subject_set(lua_State* L) {
         size_t len = 0;
         const char* v = luaL_checklstring(L, 2, &len);
         luaL_argcheck(L, len < kMaxString, 2, "string longer than 1023 bytes");
-        lv_subject_copy_string(&s.subject, v);
+        lv_subject_set_string(&s.subject, v);
     } else {
         lua_Integer v = luaL_checkinteger(L, 2);
         luaL_argcheck(L, v >= INT32_MIN && v <= INT32_MAX, 2, "integer out of range");
@@ -192,12 +193,11 @@ int make_subject(lua_State* L, bool is_string) {
                               full.c_str());
         entry->buf.assign(kMaxString, 0);
         entry->prev.assign(kMaxString, 0);
-        lv_subject_init_string(&entry->subject, entry->buf.data(), entry->prev.data(), kMaxString,
-                               init);
+        entry->subject.init_string(entry->buf.data(), entry->prev.data(), kMaxString, init);
     } else {
         lua_Integer init = luaL_optinteger(L, 2, 0);
         luaL_argcheck(L, init >= INT32_MIN && init <= INT32_MAX, 2, "integer out of range");
-        lv_subject_init_int(&entry->subject, static_cast<int32_t>(init));
+        entry->subject.init_int(static_cast<int32_t>(init));
     }
     lv_xml_register_subject(nullptr, full.c_str(), &entry->subject);
 
@@ -537,8 +537,8 @@ int ui_edit_number(lua_State* L) {
     const char* fn = "helix.ui.edit_number";
     auto refs = start_editor(L, fn, true);
     EditorOpts o{L, 1, fn};
-    o.check_keys(
-        {"title", "value", "min", "max", "decimals", "unit", "validate", "on_accept", "on_cancel"});
+    o.check_keys({"title", "value", "min", "max", "decimals", "default", "unit", "validate",
+                  "on_accept", "on_cancel"});
     const std::string title = o.str("title", "", kMaxEditorTitle);
     const std::string unit = o.str("unit", "", kMaxEditorUnit);
     const auto min = o.num("min");
@@ -554,6 +554,14 @@ int ui_edit_number(lua_State* L) {
                           static_cast<int>(kMaxKeypadValue));
     if (decimals != 0 && decimals != 1 && decimals != 2)
         return luaL_error(L, "%s: decimals must be 0, 1 or 2", fn);
+    const auto default_value = o.num("default");
+    if (default_value) {
+        const double scale = std::pow(10.0, decimals);
+        if (*default_value < *min || *default_value > *max ||
+            std::round(*default_value * scale) / scale != *default_value)
+            return luaL_error(
+                L, "%s: default must be within min and max, with at most decimals places", fn);
+    }
     o.check_fn("on_accept", true);
     o.check_fn("on_cancel", false);
     o.check_fn("validate", false);
@@ -576,7 +584,8 @@ int ui_edit_number(lua_State* L) {
         });
     };
     queue_editor(
-        context(L), refs, [refs, title, unit, value, min = *min, max = *max, places, push_value] {
+        context(L), refs,
+        [refs, title, unit, value, min = *min, max = *max, places, default_value, push_value] {
             // The keypad is one widget for the whole app.
             if (ui_keypad_is_visible())
                 return false;
@@ -592,6 +601,8 @@ int ui_edit_number(lua_State* L) {
             // A range reaching below zero gets the keypad's sign key.
             config.allow_negative = min < 0;
             config.max_fraction_digits = places > 0 ? places : 1;
+            if (default_value)
+                config.default_value = static_cast<float>(*default_value);
             config.validate = [refs, push_value](float v) { return refs->judge(push_value(v)); };
             config.on_confirm = [refs, push_value](float v) { refs->run_accept(push_value(v)); };
             config.on_cancel = [refs] { refs->run_cancel(); };
@@ -853,7 +864,7 @@ void sweep_retired_subjects() {
     auto& list = retired_subjects();
     for (auto it = list.begin(); it != list.end();) {
         if (unobserved((*it)->subject)) {
-            lv_subject_deinit(&(*it)->subject);
+            (*it)->subject.reset();
             it = list.erase(it);
         } else {
             ++it;
@@ -885,7 +896,7 @@ void install_ui_bindings(PluginContext& ctx) {
         }
         for (auto& o : state->observers) {
             if (o->handle)
-                lv_observer_remove(o->handle);
+                lv_observer_delete(o->handle);
         }
         for (auto& s : state->subjects) {
             // A later registration under the same name replaced the record's pointer, so
@@ -893,7 +904,7 @@ void install_ui_bindings(PluginContext& ctx) {
             if (lv_xml_find_subject(nullptr, s->full_name.c_str()) == &s->subject)
                 lv_xml_unregister_subject(nullptr, s->full_name.c_str());
             if (unobserved(s->subject))
-                lv_subject_deinit(&s->subject);
+                s->subject.reset();
             else
                 retired_subjects().push_back(std::move(s));
         }

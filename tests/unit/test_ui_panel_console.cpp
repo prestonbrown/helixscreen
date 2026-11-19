@@ -5,14 +5,27 @@
  * @file test_ui_panel_console.cpp
  * @brief Unit tests for ConsolePanel G-code history functionality
  *
- * Tests the static helper methods and logic for parsing G-code console entries.
- * These tests don't require LVGL initialization since they test pure C++ logic.
+ * Tests the static helpers that parse G-code console entries as pure C++, and
+ * the overlay's input and history list over the mock printer.
  */
 
+#include "ui_nav_manager.h"
+#include "ui_utils.h"
+
+#include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/update_queue.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "printer_cache_registry.h"
+#include "printer_state.h"
+
 #include <algorithm>
-#include <cctype>
+#include <array>
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -39,393 +52,126 @@ const auto parse_html_spans = &helix::ui::parse_console_html_spans;
 // Error Message Detection Tests
 // ============================================================================
 
-TEST_CASE("Console: is_error_message() with empty string", "[ui][error_detection]") {
-    REQUIRE(is_error_message("") == false);
+TEST_CASE("Console: is_error_message() flags !! and a leading Error, any case",
+          "[ui][error_detection]") {
+    for (const char* line : {"!! Error: Heater not responding", "!!Thermistor disconnected", "!! ",
+                             "Error: Command failed", "ERROR: Unknown G-code",
+                             "error: invalid parameter", "ErRoR: mixed case", "Error", "Errorx",
+                             "!! Move out of range: 0.000 250.000 0.500 [0.000]",
+                             "!! MCU 'mcu' shutdown: Timer too close"}) {
+        CAPTURE(line);
+        CHECK(is_error_message(line));
+    }
+    for (const char* line : {"", "ok", "// Klipper state: Ready", "B:60.0 /60.0 T0:210.0 /210.0",
+                             "No error detected", "G-code M112 for error stop", "!", "E", "Err",
+                             "Erro", "echo: G28 homing completed", "Recv: ok"}) {
+        CAPTURE(line);
+        CHECK_FALSE(is_error_message(line));
+    }
 }
 
-TEST_CASE("Console: is_error_message() with !! prefix", "[ui][error_detection]") {
-    REQUIRE(is_error_message("!! Error: Heater not responding") == true);
-    REQUIRE(is_error_message("!!Thermistor disconnected") == true);
-    REQUIRE(is_error_message("!! ") == true);
-}
-
-TEST_CASE("Console: is_error_message() with Error prefix", "[ui][error_detection]") {
-    REQUIRE(is_error_message("Error: Command failed") == true);
-    REQUIRE(is_error_message("ERROR: Unknown G-code") == true);
-    REQUIRE(is_error_message("error: invalid parameter") == true);
-    REQUIRE(is_error_message("ErRoR: mixed case") == true);
-}
-
-TEST_CASE("Console: is_error_message() with normal responses", "[ui][error_detection]") {
-    // Normal OK responses
-    REQUIRE(is_error_message("ok") == false);
-    REQUIRE(is_error_message("// Klipper state: Ready") == false);
-    REQUIRE(is_error_message("B:60.0 /60.0 T0:210.0 /210.0") == false);
-
-    // Messages containing "error" but not at start
-    REQUIRE(is_error_message("No error detected") == false);
-    REQUIRE(is_error_message("G-code M112 for error stop") == false);
-}
-
-TEST_CASE("Console: is_error_message() with single character", "[ui][error_detection]") {
-    REQUIRE(is_error_message("!") == false); // Only one !, not two
-    REQUIRE(is_error_message("E") == false); // Not enough characters for "Error"
-}
-
-TEST_CASE("Console: is_error_message() with boundary cases", "[ui][error_detection]") {
-    REQUIRE(is_error_message("Err") == false);   // Too short for "Error"
-    REQUIRE(is_error_message("Erro") == false);  // Still too short
-    REQUIRE(is_error_message("Error") == true);  // Exactly "Error"
-    REQUIRE(is_error_message("Errorx") == true); // Starts with "Error"
-}
-
-// ============================================================================
-// Real-World Error Message Tests
-// ============================================================================
-
-TEST_CASE("Console: typical Klipper error messages", "[ui][error_detection]") {
-    // Real Klipper error message patterns
-    REQUIRE(is_error_message("!! Move out of range: 0.000 250.000 0.500 [0.000]") == true);
-    REQUIRE(is_error_message("!! Timer too close") == true);
-    REQUIRE(is_error_message("!! MCU 'mcu' shutdown: Timer too close") == true);
-    REQUIRE(is_error_message("Error: Bed heater not responding") == true);
-}
-
-TEST_CASE("Console: typical Klipper info messages", "[ui][error_detection]") {
-    // Normal Klipper messages that should NOT be flagged as errors
-    REQUIRE(is_error_message("// Klipper state: Ready") == false);
-    REQUIRE(is_error_message("// probe at 150.000,150.000 is z=1.234567") == false);
-    REQUIRE(is_error_message("echo: G28 homing completed") == false);
-    REQUIRE(is_error_message("Recv: ok") == false);
-}
-
-// ============================================================================
-// Temperature Message Detection Tests
-// ============================================================================
-
-TEST_CASE("Console: is_temp_message() with empty string", "[ui][temp_filter]") {
-    REQUIRE(is_temp_message("") == false);
-}
-
-TEST_CASE("Console: is_temp_message() with standard temp reports", "[ui][temp_filter]") {
-    // Standard Klipper temperature reports
-    REQUIRE(is_temp_message("T:210.0 /210.0 B:60.0 /60.0") == true);
-    REQUIRE(is_temp_message("ok T:210.5 /210.0 B:60.2 /60.0") == true);
-    REQUIRE(is_temp_message("B:60.0 /60.0 T0:210.0 /210.0") == true);
-    REQUIRE(is_temp_message("T0:200.0 /200.0 T1:0.0 /0.0 B:55.0 /55.0") == true);
-}
-
-TEST_CASE("Console: is_temp_message() with partial temp formats", "[ui][temp_filter]") {
-    // Partial formats that should still be detected
-    REQUIRE(is_temp_message("T:25.0 /0.0") == true); // Cold extruder
-    REQUIRE(is_temp_message("B:22.0 /0.0") == true); // Cold bed
-}
-
-TEST_CASE("Console: is_temp_message() with non-temp messages", "[ui][temp_filter]") {
-    // These should NOT be flagged as temperature messages
-    REQUIRE(is_temp_message("ok") == false);
-    REQUIRE(is_temp_message("// Klipper state: Ready") == false);
-    REQUIRE(is_temp_message("echo: G28 completed") == false);
-    REQUIRE(is_temp_message("!! Error: Heater failed") == false);
-    REQUIRE(is_temp_message("M104 S200") == false); // Temp command, not status
-    REQUIRE(is_temp_message("G28 X Y") == false);
-}
-
-TEST_CASE("Console: is_temp_message() edge cases", "[ui][temp_filter]") {
-    // Edge cases that look like temps but aren't
-    REQUIRE(is_temp_message("T:") == false);               // No value or slash
-    REQUIRE(is_temp_message("B:60") == false);             // No slash
-    REQUIRE(is_temp_message("Setting T: value") == false); // No digit after T:
-
-    // Edge cases that might have slashes but no temp
-    REQUIRE(is_temp_message("path/to/file") == false); // No T: or B:
-    REQUIRE(is_temp_message("50/50 complete") == false);
-}
-
-TEST_CASE("Console: is_temp_message() tightened heuristic rejects non-digit after T:/B:",
+TEST_CASE("Console: is_temp_message() needs a digit right after T: or B: and a slash",
           "[ui][temp_filter]") {
-    // These have T: or B: with "/" but no digit after the colon
-    // Old heuristic would match, new one correctly rejects
-    REQUIRE(is_temp_message("T: see docs/here") == false);
-    REQUIRE(is_temp_message("B: test/path") == false);
-    REQUIRE(is_temp_message("T: abc/def") == false);
-    REQUIRE(is_temp_message("Set T: to 200/250") == false); // space after T:
-
-    // These should still match (digit immediately follows colon)
-    REQUIRE(is_temp_message("T:0 /0") == true);
-    REQUIRE(is_temp_message("B:0.0 /0.0") == true);
-    REQUIRE(is_temp_message("ok T:25.3 /210.0") == true);
-}
-
-// ============================================================================
-// Timestamp Formatting Tests
-// ============================================================================
-
-#include <ctime>
-
-static std::string format_timestamp(double timestamp) {
-    time_t t;
-    if (timestamp > 0.0) {
-        t = static_cast<time_t>(timestamp);
-    } else {
-        t = std::time(nullptr);
+    for (const char* line :
+         {"T:210.0 /210.0 B:60.0 /60.0", "ok T:210.5 /210.0 B:60.2 /60.0",
+          "B:60.0 /60.0 T0:210.0 /210.0", "T0:200.0 /200.0 T1:0.0 /0.0 B:55.0 /55.0", "T:25.0 /0.0",
+          "B:22.0 /0.0", "T:0 /0", "B:0.0 /0.0", "ok T:25.3 /210.0"}) {
+        CAPTURE(line);
+        CHECK(is_temp_message(line));
     }
-    struct tm tm_buf {};
-    localtime_r(&t, &tm_buf);
-    char buf[12];
-    std::snprintf(buf, sizeof(buf), "%02d:%02d:%02d ", tm_buf.tm_hour, tm_buf.tm_min,
-                  tm_buf.tm_sec);
-    return std::string(buf);
-}
-
-TEST_CASE("Console: format_timestamp() with known timestamp", "[ui][timestamp]") {
-    // Use a known UTC timestamp and convert to local time for comparison
-    // 2024-01-01 00:00:00 UTC = 1704067200
-    double ts = 1704067200.0;
-    std::string result = format_timestamp(ts);
-
-    // Should be in HH:MM:SS format with trailing space
-    REQUIRE(result.size() == 9); // "HH:MM:SS "
-    REQUIRE(result[2] == ':');
-    REQUIRE(result[5] == ':');
-    REQUIRE(result[8] == ' ');
-    // All characters should be digits or colons or space
-    for (size_t i = 0; i < 8; i++) {
-        REQUIRE((std::isdigit(result[i]) || result[i] == ':'));
+    for (const char* line :
+         {"", "ok", "// Klipper state: Ready", "echo: G28 completed", "!! Error: Heater failed",
+          "M104 S200", "G28 X Y", "T:", "B:60", "Setting T: value", "path/to/file",
+          "50/50 complete", "T: see docs/here", "B: test/path", "T: abc/def",
+          "Set T: to 200/250"}) {
+        CAPTURE(line);
+        CHECK_FALSE(is_temp_message(line));
     }
-}
-
-TEST_CASE("Console: format_timestamp() with zero uses current time", "[ui][timestamp]") {
-    std::string result = format_timestamp(0.0);
-
-    // Should produce valid format
-    REQUIRE(result.size() == 9);
-    REQUIRE(result[2] == ':');
-    REQUIRE(result[5] == ':');
-    REQUIRE(result[8] == ' ');
-
-    // Hour should be 00-23
-    int hour = std::stoi(result.substr(0, 2));
-    REQUIRE(hour >= 0);
-    REQUIRE(hour <= 23);
-
-    // Minute should be 00-59
-    int minute = std::stoi(result.substr(3, 2));
-    REQUIRE(minute >= 0);
-    REQUIRE(minute <= 59);
-
-    // Second should be 00-59
-    int second = std::stoi(result.substr(6, 2));
-    REQUIRE(second >= 0);
-    REQUIRE(second <= 59);
 }
 
 // ============================================================================
 // Command History Buffer Tests
 // ============================================================================
 
-TEST_CASE("Console: command history deque operations", "[ui][command_history]") {
-    std::deque<std::string> history;
-    constexpr size_t kMaxHistory = 20;
+TEST_CASE("Console: Up and Down walk the history cursor and stop at its ends",
+          "[ui][command_history]") {
+    const auto step = &ConsolePanel::next_history_index;
+    // From the typed input (-1), Up reaches the newest command, then older ones.
+    CHECK(step(-1, 3, LV_KEY_UP) == 0);
+    CHECK(step(1, 3, LV_KEY_UP) == 2);
+    CHECK(step(2, 3, LV_KEY_UP) == std::nullopt);  // the oldest
+    CHECK(step(-1, 0, LV_KEY_UP) == std::nullopt); // no history
+    // Down returns toward the typed input and stops there.
+    CHECK(step(2, 3, LV_KEY_DOWN) == 1);
+    CHECK(step(0, 3, LV_KEY_DOWN) == -1);
+    CHECK(step(-1, 3, LV_KEY_DOWN) == std::nullopt);
+    CHECK(step(0, 3, LV_KEY_ENTER) == std::nullopt);
+}
 
-    SECTION("push and recall") {
-        history.push_front("G28");
-        history.push_front("M104 S200");
-        history.push_front("G1 X10 Y10");
+// ============================================================================
+// HTML spans
+// ============================================================================
 
-        REQUIRE(history.size() == 3);
-        REQUIRE(history[0] == "G1 X10 Y10"); // Most recent
-        REQUIRE(history[1] == "M104 S200");
-        REQUIRE(history[2] == "G28"); // Oldest
-    }
+namespace {
 
-    SECTION("overflow at MAX_HISTORY") {
-        for (int i = 0; i < 25; i++) {
-            history.push_front("CMD_" + std::to_string(i));
-            if (history.size() > kMaxHistory) {
-                history.pop_back();
-            }
+/// parse_html_spans() as one string: segments joined by '|', a coloured one as "class:text".
+std::string spans(const std::string& line) {
+    std::string out;
+    for (const auto& seg : parse_html_spans(line)) {
+        if (!out.empty()) {
+            out += '|';
         }
-
-        REQUIRE(history.size() == kMaxHistory);
-        REQUIRE(history[0] == "CMD_24"); // Most recent
-        // Oldest should be CMD_5 (0-4 were popped)
-        REQUIRE(history.back() == "CMD_5");
+        out += seg.color_class.empty() ? seg.text : seg.color_class + ":" + seg.text;
     }
+    return out;
+}
 
-    SECTION("up/down navigation simulation") {
-        history.push_front("G28");
-        history.push_front("M104 S200");
-        history.push_front("G1 X10");
+} // namespace
 
-        int index = -1;
-        std::string saved_input = "partial";
-
-        // Up: save input, go to most recent
-        index = 0;
-        REQUIRE(history[static_cast<size_t>(index)] == "G1 X10");
-
-        // Up again: go to older
-        index = 1;
-        REQUIRE(history[static_cast<size_t>(index)] == "M104 S200");
-
-        // Up again: go to oldest
-        index = 2;
-        REQUIRE(history[static_cast<size_t>(index)] == "G28");
-
-        // Up again: should stay at 2 (bounds check)
-        int next = index + 1;
-        REQUIRE(next >= static_cast<int>(history.size()));
-        // Index stays at 2
-
-        // Down: go to newer
-        index = 1;
-        REQUIRE(history[static_cast<size_t>(index)] == "M104 S200");
-
-        // Down: go to most recent
-        index = 0;
-        REQUIRE(history[static_cast<size_t>(index)] == "G1 X10");
-
-        // Down: restore saved input
-        index = -1;
-        REQUIRE(saved_input == "partial");
+TEST_CASE("Console: contains_html_spans() needs a span with a known colour class",
+          "[ui][html_parse]") {
+    for (const char* plain : {"", "ok", "!! Error message", "<span>no class</span>",
+                              "<span class=other>unknown</span>", "<div>not a span</div>"}) {
+        CAPTURE(plain);
+        CHECK_FALSE(contains_html_spans(plain));
+    }
+    for (const char* html : {"<span class=success--text>LOADED</span>",
+                             "Text <span class=error--text>ERROR</span> more",
+                             "lane1: <span class=info--text>ready</span>"}) {
+        CAPTURE(html);
+        CHECK(contains_html_spans(html));
     }
 }
 
-// ============================================================================
-// HTML Span Detection Tests
-// ============================================================================
-
-TEST_CASE("Console: contains_html_spans() with no HTML", "[ui][html_parse]") {
-    REQUIRE(contains_html_spans("") == false);
-    REQUIRE(contains_html_spans("ok") == false);
-    REQUIRE(contains_html_spans("Normal text message") == false);
-    REQUIRE(contains_html_spans("!! Error message") == false);
-}
-
-TEST_CASE("Console: contains_html_spans() with HTML spans", "[ui][html_parse]") {
-    REQUIRE(contains_html_spans("<span class=success--text>LOADED</span>") == true);
-    REQUIRE(contains_html_spans("Text <span class=error--text>ERROR</span> more") == true);
-    REQUIRE(contains_html_spans("lane1: <span class=info--text>ready</span>") == true);
-}
-
-TEST_CASE("Console: contains_html_spans() with partial/invalid HTML", "[ui][html_parse]") {
-    REQUIRE(contains_html_spans("<span>no class</span>") == false);
-    REQUIRE(contains_html_spans("<span class=other>unknown</span>") == false);
-    REQUIRE(contains_html_spans("<div>not a span</div>") == false);
-}
-
-// ============================================================================
-// HTML Span Parsing Tests
-// ============================================================================
-
-TEST_CASE("Console: parse_html_spans() plain text only", "[ui][html_parse]") {
-    auto segments = parse_html_spans("Hello world");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "Hello world");
-    REQUIRE(segments[0].color_class.empty());
-}
-
-TEST_CASE("Console: parse_html_spans() single span", "[ui][html_parse]") {
-    auto segments = parse_html_spans("<span class=success--text>LOADED</span>");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "LOADED");
-    REQUIRE(segments[0].color_class == "success");
-}
-
-TEST_CASE("Console: parse_html_spans() mixed content", "[ui][html_parse]") {
-    auto segments = parse_html_spans("lane1: <span class=success--text>LOCKED</span> done");
-    REQUIRE(segments.size() == 3);
-    REQUIRE(segments[0].text == "lane1: ");
-    REQUIRE(segments[0].color_class.empty());
-    REQUIRE(segments[1].text == "LOCKED");
-    REQUIRE(segments[1].color_class == "success");
-    REQUIRE(segments[2].text == " done");
-    REQUIRE(segments[2].color_class.empty());
-}
-
-TEST_CASE("Console: parse_html_spans() multiple spans", "[ui][html_parse]") {
-    auto segments =
-        parse_html_spans("<span class=success--text>OK</span><span class=error--text>FAIL</span>");
-    REQUIRE(segments.size() == 2);
-    REQUIRE(segments[0].text == "OK");
-    REQUIRE(segments[0].color_class == "success");
-    REQUIRE(segments[1].text == "FAIL");
-    REQUIRE(segments[1].color_class == "error");
-}
-
-TEST_CASE("Console: parse_html_spans() all color classes", "[ui][html_parse]") {
-    auto seg1 = parse_html_spans("<span class=success--text>a</span>");
-    REQUIRE(seg1[0].color_class == "success");
-
-    auto seg2 = parse_html_spans("<span class=info--text>b</span>");
-    REQUIRE(seg2[0].color_class == "info");
-
-    auto seg3 = parse_html_spans("<span class=warning--text>c</span>");
-    REQUIRE(seg3[0].color_class == "warning");
-
-    auto seg4 = parse_html_spans("<span class=error--text>d</span>");
-    REQUIRE(seg4[0].color_class == "error");
-}
-
-TEST_CASE("Console: parse_html_spans() preserves newlines", "[ui][html_parse]") {
-    auto segments = parse_html_spans("<span class=success--text>line1\nline2</span>");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "line1\nline2");
-}
-
-TEST_CASE("Console: parse_html_spans() real AFC output", "[ui][html_parse]") {
-    // Real example from printer
-    auto segments = parse_html_spans("lane1 tool cmd: T0  <span class=success--text>LOCKED</span>"
-                                     "<span class=success--text> AND LOADED</span>");
-    REQUIRE(segments.size() == 3);
-    REQUIRE(segments[0].text == "lane1 tool cmd: T0  ");
-    REQUIRE(segments[1].text == "LOCKED");
-    REQUIRE(segments[1].color_class == "success");
-    REQUIRE(segments[2].text == " AND LOADED");
-    REQUIRE(segments[2].color_class == "success");
-}
-
-// ============================================================================
-// Edge Case Tests
-// ============================================================================
-
-TEST_CASE("Console: parse_html_spans() empty span content", "[ui][html_parse]") {
-    // Span with empty content should be skipped
-    auto segments = parse_html_spans("<span class=success--text></span>");
-    REQUIRE(segments.empty());
-}
-
-TEST_CASE("Console: parse_html_spans() malformed no closing bracket", "[ui][html_parse]") {
-    // Missing > should return rest as plain text
-    auto segments = parse_html_spans("<span class=success--text");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "<span class=success--text");
-    REQUIRE(segments[0].color_class.empty());
-}
-
-TEST_CASE("Console: parse_html_spans() malformed no closing tag", "[ui][html_parse]") {
-    // Missing </span> should still extract content with color
-    auto segments = parse_html_spans("<span class=success--text>content");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "content");
-    REQUIRE(segments[0].color_class == "success");
-}
-
-TEST_CASE("Console: parse_html_spans() unknown class extracts text plain", "[ui][html_parse]") {
-    // Unknown class should still parse, just with empty color_class
-    auto segments = parse_html_spans("<span class=unknown--text>text</span>");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "text");
-    REQUIRE(segments[0].color_class.empty());
-}
-
-TEST_CASE("Console: parse_html_spans() quoted class attribute", "[ui][html_parse]") {
-    // Quoted class attribute - class name includes quotes but still matches
-    auto segments = parse_html_spans("<span class=\"success--text\">OK</span>");
-    REQUIRE(segments.size() == 1);
-    REQUIRE(segments[0].text == "OK");
-    REQUIRE(segments[0].color_class == "success");
+TEST_CASE("Console: parse_html_spans() splits a line into coloured segments", "[ui][html_parse]") {
+    struct Case {
+        const char* line;
+        const char* segments;
+    };
+    for (const Case& c : {
+             Case{"Hello world", "Hello world"},
+             Case{"lane1: <span class=success--text>LOCKED</span> done",
+                  "lane1: |success:LOCKED| done"},
+             Case{"<span class=success--text>OK</span><span class=error--text>FAIL</span>",
+                  "success:OK|error:FAIL"},
+             Case{"<span class=info--text>b</span>", "info:b"},
+             Case{"<span class=warning--text>c</span>", "warning:c"},
+             Case{"<span class=success--text>line1\nline2</span>", "success:line1\nline2"},
+             // Real AFC output.
+             Case{"lane1 tool cmd: T0  <span class=success--text>LOCKED</span>"
+                  "<span class=success--text> AND LOADED</span>",
+                  "lane1 tool cmd: T0  |success:LOCKED|success: AND LOADED"},
+             // An empty span is dropped; no '>' leaves the rest plain; no </span>
+             // still colours the content; an unknown class parses plain; quotes match.
+             Case{"<span class=success--text></span>", ""},
+             Case{"<span class=success--text", "<span class=success--text"},
+             Case{"<span class=success--text>content", "success:content"},
+             Case{"<span class=unknown--text>text</span>", "text"},
+             Case{"<span class=\"success--text\">OK</span>", "success:OK"},
+         }) {
+        CAPTURE(c.line);
+        CHECK(spans(c.line) == c.segments);
+    }
 }
 
 // ============================================================================
@@ -452,61 +198,26 @@ GcodeEntry& push(std::deque<GcodeEntry>& entries, uint64_t& next_id, const std::
 
 } // namespace
 
-TEST_CASE("Console: find_entry_by_id resolves a live entry", "[ui][tap_to_paste]") {
+TEST_CASE("Console: find_entry_by_id resolves live entries only, never 0 or a pruned id",
+          "[ui][tap_to_paste]") {
     std::deque<GcodeEntry> entries;
     uint64_t next_id = 1;
-
-    push(entries, next_id, "G28");
-    uint64_t wanted = push(entries, next_id, "BED_MESH_CALIBRATE").id;
-    push(entries, next_id, "M104 S210");
-
-    const GcodeEntry* found = ConsolePanel::find_entry_by_id(entries, wanted);
-    REQUIRE(found != nullptr);
-    REQUIRE(found->message == "BED_MESH_CALIBRATE");
-}
-
-TEST_CASE("Console: find_entry_by_id rejects id 0", "[ui][tap_to_paste]") {
-    std::deque<GcodeEntry> entries;
-    uint64_t next_id = 1;
-    push(entries, next_id, "G28");
-
-    // An entry that never entered entries_ keeps id 0. A widget carrying 0 must
-    // never resolve, even though a default-constructed entry sits in the buffer.
+    // The lookup is type-agnostic: a response resolves as a command does.
+    const uint64_t resp = push(entries, next_id, "ok", GcodeEntry::Type::RESPONSE).id;
+    // An entry that never entered entries_ keeps id 0, and 0 never resolves.
     GcodeEntry unassigned;
     unassigned.message = "NEVER_TAPPABLE";
     entries.push_back(unassigned);
+    CHECK(ConsolePanel::find_entry_by_id(entries, 0) == nullptr);
+    CHECK(ConsolePanel::find_entry_by_id(entries, 9999) == nullptr);
+    const GcodeEntry* found = ConsolePanel::find_entry_by_id(entries, resp);
+    REQUIRE(found != nullptr);
+    CHECK(found->type == GcodeEntry::Type::RESPONSE);
+    entries.clear();
 
-    REQUIRE(ConsolePanel::find_entry_by_id(entries, 0) == nullptr);
-}
-
-TEST_CASE("Console: find_entry_by_id returns null for an unknown id", "[ui][tap_to_paste]") {
-    std::deque<GcodeEntry> entries;
-    uint64_t next_id = 1;
-    push(entries, next_id, "G28");
-
-    REQUIRE(ConsolePanel::find_entry_by_id(entries, 9999) == nullptr);
-}
-
-TEST_CASE("Console: find_entry_by_id returns null once the entry is pruned", "[ui][tap_to_paste]") {
-    std::deque<GcodeEntry> entries;
-    uint64_t next_id = 1;
-
-    uint64_t oldest = push(entries, next_id, "G28").id;
-    push(entries, next_id, "M104 S210");
-
-    // add_entry() prunes from the front when over MAX_ENTRIES. A widget can
-    // outlive its entry, so the lookup must fail closed rather than resolve to
-    // whatever slid into that position.
-    entries.pop_front();
-
-    REQUIRE(ConsolePanel::find_entry_by_id(entries, oldest) == nullptr);
-}
-
-TEST_CASE("Console: pruned ids are never reused by later entries", "[ui][tap_to_paste]") {
-    std::deque<GcodeEntry> entries;
-    uint64_t next_id = 1;
+    // add_entry() prunes from the front. A widget can outlive its entry, so a
+    // retired id fails closed rather than resolving to whatever took its place.
     constexpr size_t kCap = 4;
-
     std::vector<uint64_t> retired;
     for (int i = 0; i < 20; i++) {
         push(entries, next_id, "CMD_" + std::to_string(i));
@@ -515,90 +226,129 @@ TEST_CASE("Console: pruned ids are never reused by later entries", "[ui][tap_to_
             entries.pop_front();
         }
     }
-
     REQUIRE(entries.size() == kCap);
     REQUIRE_FALSE(retired.empty());
-
-    // This is the safety property that makes an integer id safe where a raw
-    // pointer would not be: no retired id ever resolves again.
     for (uint64_t gone : retired) {
-        REQUIRE(ConsolePanel::find_entry_by_id(entries, gone) == nullptr);
+        CHECK(ConsolePanel::find_entry_by_id(entries, gone) == nullptr);
     }
-
-    // ...and every surviving entry still resolves to its own text.
     for (const auto& entry : entries) {
-        const GcodeEntry* found = ConsolePanel::find_entry_by_id(entries, entry.id);
-        REQUIRE(found != nullptr);
-        REQUIRE(found->message == entry.message);
+        const GcodeEntry* live = ConsolePanel::find_entry_by_id(entries, entry.id);
+        REQUIRE(live != nullptr);
+        CHECK(live->message == entry.message);
     }
-}
-
-TEST_CASE("Console: find_entry_by_id resolves responses too", "[ui][tap_to_paste]") {
-    // The lookup itself is type-agnostic; only create_entry_widget() decides what
-    // gets a click handler. Keeping the lookup general means a future "tap a
-    // response" feature does not need it changed.
-    std::deque<GcodeEntry> entries;
-    uint64_t next_id = 1;
-
-    uint64_t resp = push(entries, next_id, "ok", GcodeEntry::Type::RESPONSE).id;
-
-    const GcodeEntry* found = ConsolePanel::find_entry_by_id(entries, resp);
-    REQUIRE(found != nullptr);
-    REQUIRE(found->type == GcodeEntry::Type::RESPONSE);
 }
 
 // ============================================================================
 // should_display() — the one filtering decision, shared by the history and live
-// paths. Calls the real ConsolePanel static (not a replica) because the bug this
-// replaced was precisely two copies of the rule disagreeing: the live path
-// filtered and populate_entries() did not, so opening the console showed a
-// screenful of the noise the filters existed to remove.
+// paths. Calls the real ConsolePanel static (not a replica) because the history
+// and live paths must agree on what the filters drop.
 // ============================================================================
 
-TEST_CASE("Console: should_display() suppresses firmware noise", "[ui][console_filter]") {
+TEST_CASE("Console: should_display() drops noise and temperatures only under their toggles",
+          "[ui][console_filter]") {
     helix::ui::ConsoleFilterEngine eng;
     REQUIRE(eng.add("prefix:// data_send:"));
-
     const std::string noise = "// data_send:b'\\x83\\x05' recv_result:None";
-    const std::string real = "// Klipper state: Printer is ready";
-
-    CHECK_FALSE(ConsolePanel::should_display(noise, false, true, true, eng));
-    CHECK(ConsolePanel::should_display(real, false, true, true, eng));
-}
-
-TEST_CASE("Console: should_display() honours the firmware-noise toggle", "[ui][console_filter]") {
-    helix::ui::ConsoleFilterEngine eng;
-    REQUIRE(eng.add("prefix:// data_send:"));
-    const std::string noise = "// data_send:b'\\x83' recv_result:None";
-
-    CHECK_FALSE(ConsolePanel::should_display(noise, false, true, true, eng));
-    // Toggle off: the engine still matches, but nothing may be dropped.
-    CHECK(ConsolePanel::should_display(noise, false, true, false, eng));
-}
-
-TEST_CASE("Console: should_display() honours the temperature toggle", "[ui][console_filter]") {
-    helix::ui::ConsoleFilterEngine eng; // empty — temps are a separate switch
     const std::string temps = "ok T:210.0 /210.0 B:60.0 /60.0";
+    const auto shown = [&eng](const std::string& m, bool is_temp, bool temps_off, bool noise_off) {
+        return ConsolePanel::should_display(m, is_temp, temps_off, noise_off, eng);
+    };
 
-    CHECK_FALSE(ConsolePanel::should_display(temps, true, true, true, eng));
-    CHECK(ConsolePanel::should_display(temps, true, false, true, eng));
+    CHECK_FALSE(shown(noise, false, true, true));
+    CHECK(shown(noise, false, true, false)); // the engine matches, the toggle is off
+    CHECK(shown("// Klipper state: Printer is ready", false, true, true));
+    CHECK_FALSE(shown(temps, true, true, true));
+    CHECK(shown(temps, true, false, true));
+    CHECK(shown(noise, true, false, false));
+    // Errors that match no pattern always show.
+    CHECK(shown("!! Move out of range", false, true, true));
+    // A forwarder's announcement is bookkeeping, whatever the toggles.
+    CHECK_FALSE(shown("// HELIX:ALIAS:HELIX_READY", false, false, false));
+    CHECK(shown("// HELIX:READY", false, false, false));
 }
 
-TEST_CASE("Console: should_display() keeps everything when both filters are off",
-          "[ui][console_filter]") {
-    helix::ui::ConsoleFilterEngine eng;
-    REQUIRE(eng.add("prefix:// data_send:"));
+// ============================================================================
+// The overlay: input and history list
+// ============================================================================
 
-    CHECK(ConsolePanel::should_display("// data_send:b'\\x01'", true, false, false, eng));
-    CHECK(ConsolePanel::should_display("ok T:210.0 /210.0", true, false, false, eng));
+using namespace helix;
+
+namespace {
+
+/// The mock printer as the app's globals, so the console fetches its stored history.
+struct ConsoleOverlayFx : LVGLUITestFixture {
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    std::unique_ptr<MoonrakerAPIMock> api;
+    helix::IMoonrakerAPI* previous_api = nullptr;
+    helix::IMoonrakerClient* previous_client = nullptr;
+
+    ConsoleOverlayFx() {
+        client.connect("ws://mock/websocket", []() {}, []() {});
+        api = std::make_unique<MoonrakerAPIMock>(client, get_printer_state());
+        previous_api = get_moonraker_api();
+        previous_client = get_moonraker_client();
+        set_moonraker_api(api.get());
+        set_moonraker_client(&client);
+        std::array<lv_obj_t*, kUiPanelCount> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        NavigationManager::instance().set_panels(panels.data());
+    }
+
+    ~ConsoleOverlayFx() override {
+        helix::PrinterCacheRegistry::instance().invalidate_all();
+        helix::ui::destroy_static_panels();
+        helix::ui::UpdateQueue::instance().drain();
+        set_moonraker_client(previous_client);
+        set_moonraker_api(previous_api);
+        client.stop_temperature_simulation();
+        client.disconnect();
+    }
+
+    lv_obj_t* open() {
+        REQUIRE(get_global_console_panel().show(lv_screen_active()));
+        // The push, then the fetched history's own deferral.
+        for (int i = 0; i < 3; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+        lv_obj_t* root = get_global_console_panel().get_root();
+        REQUIRE(root != nullptr);
+        return root;
+    }
+};
+
+lv_obj_t* named(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return obj;
 }
 
-TEST_CASE("Console: should_display() never drops errors that match no pattern",
-          "[ui][console_filter]") {
-    helix::ui::ConsoleFilterEngine eng;
-    REQUIRE(eng.add("prefix:// data_send:"));
+} // namespace
 
-    CHECK(ConsolePanel::should_display("!! Move out of range", false, true, true, eng));
-    CHECK(ConsolePanel::should_display("!! Shutdown due to webhooks request", false, true, true,
-                                       eng));
+TEST_CASE_METHOD(
+    ConsoleOverlayFx,
+    "Console: Enter sends the typed command, Up recalls it, history hides the empty state",
+    "[ui][console_overlay]") {
+    lv_obj_t* root = open();
+    lv_obj_t* input = named(root, "gcode_input");
+    CHECK(lv_obj_is_hidden(named(root, "empty_state")));
+
+    for (const char* cmd : {"M105", "M114"}) {
+        lv_textarea_set_text(input, cmd);
+        lv_obj_send_event(input, LV_EVENT_READY, nullptr);
+        CHECK(std::string(lv_textarea_get_text(input)).empty());
+    }
+    // One Up press is one step back: the newest command first.
+    uint32_t up = LV_KEY_UP;
+    lv_obj_send_event(input, LV_EVENT_KEY, &up);
+    CHECK(std::string(lv_textarea_get_text(input)) == "M114");
+    lv_obj_send_event(input, LV_EVENT_KEY, &up);
+    CHECK(std::string(lv_textarea_get_text(input)) == "M105");
+
+    // Reopened over a full history, the rebuilt list does not show its empty state.
+    NavigationManager::instance().go_back();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    root = open();
+    CHECK(lv_obj_is_hidden(named(root, "empty_state")));
 }

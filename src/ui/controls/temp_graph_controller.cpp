@@ -72,8 +72,8 @@ std::vector<int> decimate_indices(const std::vector<int64_t>& timestamps_ms, int
 
 namespace helix {
 
+using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
-using helix::ui::temperature::deci_to_degrees_f;
 
 // ============================================================================
 // Shared color palette
@@ -191,7 +191,7 @@ TempGraphController::~TempGraphController() {
 // ============================================================================
 
 void TempGraphController::set_features(uint32_t features) {
-    if (graph_) {
+    if (is_valid()) {
         ui_temp_graph_set_features(graph_, features);
     }
 }
@@ -363,7 +363,7 @@ void TempGraphController::reattach_observers() {
 void TempGraphController::set_series_name(const std::string& klipper_name,
                                           const std::string& display_name) {
     const SeriesId id = series_id_for(klipper_name);
-    if (graph_ && id != SeriesId::None) {
+    if (is_valid() && id != SeriesId::None) {
         temp_graph_set_series_name(graph_, id, display_name.c_str());
     }
 }
@@ -398,8 +398,8 @@ void TempGraphController::create_graph() {
         lv_obj_set_style_bg_color(chart, theme_manager_get_color("card_bg"), 0);
         lv_obj_set_style_bg_opa(chart, LV_OPA_COVER, 0);
         // Let clicks pass through chart to parent container
-        lv_obj_remove_flag(chart, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(chart, LV_OBJ_FLAG_EVENT_BUBBLE);
+        lv_obj_set_clickable(chart, false);
+        lv_obj_set_event_bubble(chart, true);
     }
 
     ui_temp_graph_set_axis_size(graph_, config_.axis_size);
@@ -550,7 +550,7 @@ void TempGraphController::resolve_pending_series() {
         if (s.provisional || dead) {
             // Drop the stand-in before re-resolving, or the series ends up with
             // two observers pushing into the same chart slot. A dead guard's
-            // reset() skips lv_observer_remove(): the subject freed it already.
+            // reset() skips lv_observer_delete(): the subject freed it already.
             s.temp_obs.reset();
             s.target_obs.reset();
         }
@@ -628,7 +628,7 @@ bool TempGraphController::attach_series_observers(size_t i) {
                 [token, gen, idx](TempGraphController* self, int temp_deci) {
                     if (token.expired() || gen != self->generation_)
                         return;
-                    if (self->paused_ || self->suppress_attach_fire_ || !self->graph_)
+                    if (self->paused_ || self->suppress_attach_fire_ || !self->is_valid())
                         return;
 
                     auto& si = self->series_[idx];
@@ -691,7 +691,7 @@ bool TempGraphController::attach_series_observers(size_t i) {
                 [token, gen, idx](TempGraphController* self, int target_deci) {
                     if (token.expired() || gen != self->generation_)
                         return;
-                    if (!self->graph_)
+                    if (!self->is_valid())
                         return;
 
                     auto& si = self->series_[idx];
@@ -765,7 +765,7 @@ void TempGraphController::setup_connection_observer() {
 
 void TempGraphController::backfill_history() {
     auto* history_mgr = get_temperature_history_manager();
-    if (!graph_ || !history_mgr)
+    if (!is_valid() || !history_mgr)
         return;
 
     int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -837,7 +837,7 @@ void TempGraphController::backfill_history() {
 // ============================================================================
 
 void TempGraphController::apply_auto_range() {
-    if (!graph_)
+    if (!is_valid())
         return;
 
     // Find max relevant temperature (from data and targets)

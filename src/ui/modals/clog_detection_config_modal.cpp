@@ -2,10 +2,13 @@
 
 #include "clog_detection_config_modal.h"
 
+#include "ams_clog_detection.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "moonraker_error.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
@@ -51,26 +54,29 @@ void ClogDetectionConfigModal::init_subjects() {
     if (subjects_initialized_)
         return;
 
-    lv_subject_init_int(&mode_subject_, 2); // default auto
+    mode_subject_.init_int(2); // default auto
 
-    lv_subject_init_string(&threshold_text_subject_, threshold_text_buf_, nullptr,
-                           sizeof(threshold_text_buf_), lv_tr("Default"));
+    threshold_text_subject_.init_string(threshold_text_buf_, nullptr, sizeof(threshold_text_buf_),
+                                        lv_tr("Default"));
 
-    lv_subject_init_string(&det_length_text_subject_, det_length_text_buf_, nullptr,
-                           sizeof(det_length_text_buf_), "---");
+    det_length_text_subject_.init_string(det_length_text_buf_, nullptr,
+                                         sizeof(det_length_text_buf_), "---");
 
     // Default 0 (hidden): on_show() raises it only once the active backend is
     // known to take the detection-mode gcode. Failing closed keeps the controls
     // out of the way when there is no backend at all.
-    lv_subject_init_int(&mode_supported_subject_, 0);
+    mode_supported_subject_.init_int(0);
 
     // Per-button boolean subjects for bind_style selected/unselected
-    lv_subject_init_int(&src_auto_active_, 1); // auto selected by default
-    lv_subject_init_int(&src_encoder_active_, 0);
-    lv_subject_init_int(&src_flowguard_active_, 0);
-    lv_subject_init_int(&src_afc_active_, 0);
-    lv_subject_init_int(&mode_auto_active_, 1); // auto selected by default
-    lv_subject_init_int(&mode_manual_active_, 0);
+    src_auto_active_.init_int(1); // auto selected by default
+    src_encoder_active_.init_int(0);
+    src_flowguard_active_.init_int(0);
+    src_afc_active_.init_int(0);
+    mode_auto_active_.init_int(1); // auto selected by default
+    mode_manual_active_.init_int(0);
+    src_encoder_available_.init_int(0);
+    src_flowguard_available_.init_int(0);
+    src_afc_available_.init_int(0);
 
     // Register globally so XML bindings find them
     subjects_.publish("clog_cfg_mode", &mode_subject_);
@@ -83,6 +89,9 @@ void ClogDetectionConfigModal::init_subjects() {
     subjects_.publish("clog_src_afc_active", &src_afc_active_);
     subjects_.publish("clog_mode_auto_active", &mode_auto_active_);
     subjects_.publish("clog_mode_manual_active", &mode_manual_active_);
+    subjects_.publish("clog_src_encoder_available", &src_encoder_available_);
+    subjects_.publish("clog_src_flowguard_available", &src_flowguard_available_);
+    subjects_.publish("clog_src_afc_available", &src_afc_available_);
 
     subjects_initialized_ = true;
 }
@@ -106,10 +115,9 @@ void ClogDetectionConfigModal::on_show() {
     auto& wc = helix::PanelWidgetManager::instance().get_widget_config(panel_id_);
     auto config = wc.get_widget_config(widget_id_);
 
-    if (config.contains("source") && config["source"].is_number_integer())
-        source_ = config["source"].get<int>();
-    if (config.contains("danger_threshold") && config["danger_threshold"].is_number_integer())
-        danger_threshold_ = config["danger_threshold"].get<int>();
+    source_ = helix::json_util::read_integer_field(config, "source").value_or(source_);
+    danger_threshold_ = helix::json_util::read_integer_field(config, "danger_threshold")
+                            .value_or(danger_threshold_);
 
     // Read current state from AmsState backend
     auto& ams = helix::AmsState::instance();
@@ -119,8 +127,10 @@ void ClogDetectionConfigModal::on_show() {
         detection_mode_ = info.encoder_info.detection_mode;
         // The length a manual-mode write sets, where the backend reports it;
         // the live encoder length is a different number on some firmware.
-        detection_length_ =
-            backend->clog_detection_length_setting().value_or(info.encoder_info.detection_length);
+        const auto* clog = backend->as<helix::IClogDetectionConfig>();
+        const std::optional<float> setting =
+            clog ? clog->clog_detection_length_setting() : std::nullopt;
+        detection_length_ = setting.value_or(info.encoder_info.detection_length);
 
         has_encoder_ = info.encoder_info.enabled;
         has_flowguard_ = info.flowguard_info.enabled;
@@ -140,8 +150,10 @@ void ClogDetectionConfigModal::on_show() {
         detection_length_ = 30.0f;
     original_detection_length_ = detection_length_;
 
-    // Hide source buttons that aren't available
-    update_source_visibility();
+    // A source the backend lacks hides its button
+    lv_subject_set_int(&src_encoder_available_, has_encoder_ ? 1 : 0);
+    lv_subject_set_int(&src_flowguard_available_, has_flowguard_ ? 1 : 0);
+    lv_subject_set_int(&src_afc_available_, has_afc_ ? 1 : 0);
 
     // If current source override points to an unavailable source, reset to auto
     if ((source_ == 1 && !has_encoder_) || (source_ == 2 && !has_flowguard_) ||
@@ -210,44 +222,17 @@ void ClogDetectionConfigModal::sync_mode_subjects() {
     lv_subject_set_int(&mode_manual_active_, detection_mode_ == 1 ? 1 : 0);
 }
 
-void ClogDetectionConfigModal::update_source_visibility() {
-    if (!dialog())
-        return;
-    auto* btn_enc = helix::ui::find_required(dialog(), "btn_source_encoder", get_name());
-    auto* btn_fg = helix::ui::find_required(dialog(), "btn_source_flowguard", get_name());
-    auto* btn_afc = helix::ui::find_required(dialog(), "btn_source_afc", get_name());
-
-    if (btn_enc) {
-        if (has_encoder_)
-            lv_obj_remove_flag(btn_enc, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(btn_enc, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (btn_fg) {
-        if (has_flowguard_)
-            lv_obj_remove_flag(btn_fg, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(btn_fg, LV_OBJ_FLAG_HIDDEN);
-    }
-    if (btn_afc) {
-        if (has_afc_)
-            lv_obj_remove_flag(btn_afc, LV_OBJ_FLAG_HIDDEN);
-        else
-            lv_obj_add_flag(btn_afc, LV_OBJ_FLAG_HIDDEN);
-    }
-}
-
 void ClogDetectionConfigModal::sync_threshold_text() {
     if (danger_threshold_ == 0)
         snprintf(threshold_text_buf_, sizeof(threshold_text_buf_), "%s", lv_tr("Default"));
     else
         snprintf(threshold_text_buf_, sizeof(threshold_text_buf_), "%d%%", danger_threshold_);
-    lv_subject_copy_string(&threshold_text_subject_, threshold_text_buf_);
+    lv_subject_set_string(&threshold_text_subject_, threshold_text_buf_);
 }
 
 void ClogDetectionConfigModal::sync_det_length_text() {
     snprintf(det_length_text_buf_, sizeof(det_length_text_buf_), "%.0fmm", detection_length_);
-    lv_subject_copy_string(&det_length_text_subject_, det_length_text_buf_);
+    lv_subject_set_string(&det_length_text_subject_, det_length_text_buf_);
 }
 
 std::optional<std::string>
@@ -255,8 +240,9 @@ ClogDetectionConfigModal::build_detection_mode_gcode(const helix::AmsBackend* ba
                                                      float det_length) {
     // The clog widget is offered whenever clog_meter_mode > 0, which includes
     // AFC buffer fault detection, so backends with no detection mode reach this
-    // modal too; they answer nullopt.
-    return backend ? backend->clog_detection_mode_gcode(mode, det_length) : std::nullopt;
+    // modal too; they have no IClogDetectionConfig and send nothing.
+    const auto* clog = backend ? backend->as<helix::IClogDetectionConfig>() : nullptr;
+    return clog ? clog->clog_detection_mode_gcode(mode, det_length) : std::nullopt;
 }
 
 std::optional<std::string>

@@ -842,7 +842,8 @@ state, constructed with representative sample data and the real lifecycle:
 dialog, with AFC's position diagram or all four of Happy Hare's recovery buttons),
 `spaghetti-detection`, `bed-check` (the modal a printer bed check raises when it stops a
 print), `guided-load` and `guided-load-confirm` (the steps a stock load wizard leaves to
-the screen, opened on the hand-push step or on the extrusion question).
+the screen, opened on the hand-push step or on the extrusion question), `manual-load` (the
+manual load on the active nozzle, heating on the mock's heater, then the hand push).
 `spaghetti-detection` fetches its camera still from the mock's unreachable webcam, so set
 `HELIX_DEMO_SNAPSHOT_URL` to a JPEG URL to see the preview.
 
@@ -874,6 +875,7 @@ way to see either.
 | `wait_idle [--timeout N]` | Block until `UpdateQueue`, `HttpExecutor`, and `ThumbnailProcessor` are all quiet (default 10s), so a script can gate on real async work instead of a fixed `sleep` |
 | `freeze` | Stop the moving parts for a reproducible capture: `lv_anim_delete_all()` plus `animations_enabled = 0`, pause every periodic `lv_timer` except two, and park the mock printer's simulation loop (see below). Returns `{"frozen": true, "timers_paused": N}` |
 | `unfreeze` | Reverse `freeze`: resume exactly the timers it paused, re-enable animations. Returns `{"frozen": false, "timers_resumed": N}` |
+| `resize <w> <h>` | Set the display resolution, the call the SDL driver makes on a window resize. The resize fan-out runs once the 250ms debounce settles; across a breakpoint or layout tier it rebuilds the views once no overlay, modal or keyboard is open (#1214). Returns `{"width": W, "height": H}` |
 | `log [-n N]` | Tail the app's in-memory log ring buffer (default 50 lines). Printed as raw lines, so it pipes to `grep`. **Gated**: same diagnostic-upload switch as the bundle/crash pipes — refused with a JSON-RPC error in any build that may not ship diagnostics (see below) |
 | `shutdown` | Ask the app to exit its main loop (`app_request_quit`), running the normal shutdown path |
 | `reset` | Return to the home panel with no overlays or modals open. Returns `{"panel": "home", "overlays_popped": N, "modals_cleared": N, "toasts_cleared": N}` |
@@ -1173,7 +1175,7 @@ apply — set them on the launch, then navigate to the panel with the client.
 
 The exact navigation recipe for each documentation screen lives in
 `scripts/screenshot-recipes.sh` (the single source of truth), used by both
-`scripts/screenshot.sh` (single shot) and `scripts/screenshot-all.sh` (batch).
+`scripts/screenshot.sh` (single shot) and `make doc-screenshots` (every doc image, from `docs/images/doc-screenshots.yml`).
 
 ## Screenshots
 

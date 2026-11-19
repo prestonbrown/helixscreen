@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "grid_edit_mode.h"
 #include "panel_widget.h"
 #include "subject_managed_panel.h"
@@ -63,6 +64,11 @@ class HomePanel : public PanelBase {
     const char* get_name() const override {
         return "Home Panel";
     }
+
+    /// The widget grid fills the width by design: more width is more columns.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
+    }
     const char* get_xml_component_name() const override {
         return "home_panel";
     }
@@ -84,6 +90,10 @@ class HomePanel : public PanelBase {
 
     /// Navigate the carousel to page 0 (main page) if not already there
     void go_to_main_page();
+
+    /// Move the carousel to config page @p page, animated. False, moving nothing,
+    /// for a page the carousel does not have or while edit mode holds the pages.
+    bool show_page(int page);
 
     /// Leave grid edit mode: the one exit, used by the navbar Done button,
     /// deactivation and page deletion. A live gesture ends uncommitted first,
@@ -161,7 +171,7 @@ class HomePanel : public PanelBase {
     /// One per config page, in page order.
     std::vector<CarouselPage> pages_;
     int active_page_index_ = 0;
-    lv_subject_t page_subject_{};
+    helix::Subject page_subject_{};
     ObserverGuard page_observer_;
 
     // Panel-lifetime subjects, construction-registered in the global XML scope
@@ -171,9 +181,9 @@ class HomePanel : public PanelBase {
     // rebuild_carousel() calls subjects_.deinit_all(), and these outlive
     // carousel rebuilds (the badge label sits outside carousel_host).
     SubjectManager panel_subjects_;
-    lv_subject_t page_badge_subject_{};
+    helix::Subject page_badge_subject_{};
     char page_badge_buf_[16]{};
-    lv_subject_t populated_pages_subject_{};
+    helix::Subject populated_pages_subject_{};
     void init_panel_subjects();
     void update_page_badge();
     void update_populated_pages_subject();

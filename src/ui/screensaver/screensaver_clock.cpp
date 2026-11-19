@@ -4,8 +4,7 @@
 
 #include "screensaver_clock.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "locale_formats.h"
@@ -86,7 +85,7 @@ ClockPrintPhase clock_print_phase(PrintState state, PrintOutcome outcome) {
 
 std::string clock_minute_text(int32_t minute_of_day) {
     const struct tm tm_info = tm_at_minute(screensaver::wrap_index(minute_of_day, 1440));
-    return format_time(&tm_info);
+    return display_format::format_time(&tm_info);
 }
 
 ClockPrintText clock_print_text(const ClockReading& reading) {
@@ -131,7 +130,8 @@ ClockDateText clock_date_text(const ClockDate& date) {
     tm_info.tm_mon = date.month - 1;
     tm_info.tm_mday = date.day;
     tm_info.tm_wday = date.weekday;
-    return {format_localized_long_date(&tm_info), format_localized_weekday(&tm_info)};
+    return {locale::format_localized_long_date(&tm_info),
+            locale::format_localized_weekday(&tm_info)};
 }
 
 bool clock_text_same(const ClockReading& a, const ClockReading& b) {

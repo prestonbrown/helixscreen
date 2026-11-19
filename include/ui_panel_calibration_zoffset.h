@@ -3,16 +3,18 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "calibration_owned_heat.h"
+#include "core/observer_guard.h"
+#include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
-#include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
 #include "z_offset_utils.h"
 
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -29,6 +31,7 @@ class PrinterState;
  * - PROBE_CALIBRATE: Klipper's PROBE_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - ENDSTOP: Z_ENDSTOP_CALIBRATE -> TESTZ -> ACCEPT -> SAVE_CONFIG
  * - FIRMWARE_MANAGED: G28 -> move to center -> G1 Z adjustments -> SET_GCODE_OFFSET
+ *   (a scanning probe runs PROBE_CALIBRATE's sequence with its own calibrate command)
  *
  * ## State Machine:
  * - IDLE: Shows instructions and Start button
@@ -112,6 +115,14 @@ class ZOffsetCalibrationPanel : public OverlayBase {
      */
     void cleanup() override;
 
+    /// Clear a bed this run warmed while the client can still send.
+    void before_disconnect();
+
+    /// Whether this panel still owns a heater target it must turn off.
+    [[nodiscard]] bool holds_owned_heat() const {
+        return heat_.held();
+    }
+
     /// Freed on close; the next open rebuilds it. The calibration state lives in
     /// state_ and the zoffset_cal_state subject, never in the widgets.
     bool destroy_on_close() const override {
@@ -161,6 +172,11 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // State management
     State state_ = State::IDLE;
+    void show_saved_z_offset();
+    /// The printer is still running a probe this panel started.
+    [[nodiscard]] bool run_in_progress() const {
+        return state_ == State::PROBING || state_ == State::ADJUSTING;
+    }
     void set_state(State new_state);
 
     // UI setup (called by create())
@@ -168,6 +184,8 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     // Strategy-aware gcode command helpers
     void start_calibration();
+    /// start_calibration() once the bed is known clear.
+    void start_once_bed_clear();
     /// Warm-up or probing: the start once every check has passed.
     void begin_calibration();
     /// Ask before calibrating with a tool other than the probe's reference tool.
@@ -177,10 +195,22 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     bool can_begin_now() const;
     /// Close the mounted-tool question, if it is open, without starting anything.
     void close_tool_confirm();
+    /// The printer's strategy as this panel runs it: a scanning probe runs its
+    /// own calibrate command even on a FIRMWARE_MANAGED printer
+    /// (zoffset_cal::run_strategy()). Read live from the profile and the probe list.
+    helix::ZOffsetCalibrationStrategy resolve_run_strategy() const;
+    /// The strategy of the run in progress, latched when it starts, so a probe
+    /// rediscovery mid-session cannot switch its jogs, Accept or Abort to another
+    /// strategy's commands; resolve_run_strategy() while no run is latched.
+    helix::ZOffsetCalibrationStrategy run_strategy() const;
+    /// Fix the strategy for the run starting now. Released when the panel
+    /// reaches IDLE, COMPLETE or ERROR.
+    void latch_run_strategy();
     void begin_probe_sequence(); ///< Start homing/probing (called after warming or directly)
     void adjust_z(float delta);
     void send_accept();
     void send_abort();
+    void send_bed_off();
     /// Puts ABORT on the wire and leaves the panel state alone.
     void send_manual_probe_abort();
     /// Ends a manual probe session this panel's run left open. Klipper registers
@@ -199,24 +229,39 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// Turn off bed heater if we turned it on for calibration
     void turn_off_bed_if_needed();
 
-    // Interactive elements
-    lv_obj_t* saved_z_offset_display_ = nullptr;
-    lv_obj_t* z_position_display_ = nullptr;
-    lv_obj_t* final_offset_label_ = nullptr;
-    lv_obj_t* error_message_ = nullptr;
+    /// The readouts' texts: zoffset_saved_text, zoffset_z_text, zoffset_final_text and
+    /// zoffset_error_text. A no-op until init_subjects().
+    void set_readout(helix::Subject& subject, const char* text);
+    /// The result texts a freshly built overlay shows
+    void reset_result_texts();
+
+    /// 0=IDLE, 1=PROBING, 2=ADJUSTING, 3=SAVING, 4=COMPLETE, 5=ERROR
+    helix::Subject cal_state_subject_{};
+    /// Warm bed toggle: 0=off, 1=on
+    helix::Subject warm_bed_subject_{};
+    helix::Subject saved_text_subject_{};
+    helix::Subject z_text_subject_{};
+    helix::Subject final_text_subject_{};
+    helix::Subject error_text_subject_{};
+    char saved_text_buf_[32] = {0};
+    char z_text_buf_[32] = {0};
+    char final_text_buf_[96] = {0};
+    char error_text_buf_[512] = {0};
 
     // Current Z position during calibration
     float current_z_ = 0.0f;
     float final_offset_ = 0.0f;
+    std::optional<helix::ZOffsetCalibrationStrategy> latched_strategy_;
     float cumulative_z_delta_ = 0.0f; ///< Tracks total Z adjustment in gcode_offset mode
 
     // Warm bed for calibration
     bool tool_confirm_pending_ = false;       ///< The mounted-tool question is on screen
     lv_obj_t* tool_confirm_dialog_ = nullptr; ///< That question's dialog, while open
-    bool bed_was_warmed_ = false;             ///< True if we sent M140 to warm bed this session
-    int warm_bed_target_deci_ = 0;            ///< Target temp in decidegrees during WARMING
-    SubjectLifetime bed_temp_lifetime_;       ///< Lifetime token for bed temp subject (#734)
-    ObserverGuard bed_temp_observer_;         ///< Watches bed temp during WARMING phase
+    /// The bed this panel warmed, until something turns it off.
+    helix::CalibrationOwnedHeat heat_{"ZOffsetCal", [this](const std::string&) { send_bed_off(); }};
+    int warm_bed_target_deci_ = 0;      ///< Target temp in decidegrees during WARMING
+    SubjectLifetime bed_temp_lifetime_; ///< Lifetime token for bed temp subject (#734)
+    ObserverGuard bed_temp_observer_;   ///< Watches bed temp during WARMING phase
 
     // Subject manager for automatic cleanup
     SubjectManager subjects_;

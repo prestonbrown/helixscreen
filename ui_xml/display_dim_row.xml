@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- When the screen dims, shared by Settings > Display and the setup wizard. Shown while
+       no screensaver is selected on a dimmable backlight; display_screensaver_after_row
+       edits the same timeout otherwise. select_dim_rows() selects the stored value. -->
+  <view name="row_display_dim"
+        extends="setting_dropdown_row" label="Screen Dim" icon="lightbulb_on_50"
+        description="Screen dims to lower brightness after period of inactivity"
+        options="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
+        options_tag="Never&#10;30 seconds&#10;1 minute&#10;2 minutes&#10;5 minutes&#10;10 minutes"
+        callback="on_dim_changed">
+    <bind_flag_if_not_eq subject="settings_dim_row_kind" flag="hidden" ref_value="1"/>
+  </view>
+</component>

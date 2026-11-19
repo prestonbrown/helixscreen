@@ -17,6 +17,7 @@
 #pragma once
 
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 #include "theme_loader.h"
@@ -88,7 +89,10 @@ class AppearanceSettingsOverlay : public OverlayBase {
     SubjectManager subjects_;
 
     /// Subject for theme Apply button disabled state (1=disabled, 0=enabled)
-    lv_subject_t theme_apply_disabled_subject_{};
+    helix::Subject theme_apply_disabled_subject_{};
+    /// 1 once a theme has been picked in the open explorer: its dark mode row
+    /// then shows even while the active theme has a single mode.
+    helix::Subject theme_explorer_picked_subject_{};
 };
 
 inline AppearanceSettingsOverlay& get_appearance_settings_overlay() {

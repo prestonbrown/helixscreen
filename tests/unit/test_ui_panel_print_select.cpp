@@ -1,10 +1,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_format_utils.h"
 #include "ui_panel_print_select.h"
 
 #include "core/gcode_filename.h"
+#include "display_format.h"
 
 #include <algorithm>
 #include <ctime>
@@ -14,10 +14,9 @@
 #include "../catch_amalgamated.hpp"
 
 using Catch::Approx;
-using helix::ui::format_filament_weight;
-using helix::ui::format_file_size;
-using helix::ui::format_modified_date;
-using helix::ui::format_print_time;
+using helix::display_format::format_filament_weight;
+using helix::display_format::format_file_size;
+using helix::display_format::format_print_time;
 
 // ============================================================================
 // PrintFileData - now defined in ui_panel_print_select.h
@@ -77,7 +76,6 @@ PrintFileData create_test_file(const std::string& name, size_t size_bytes, int d
     file.is_dir = false;
 
     file.size_str = format_file_size(size_bytes);
-    file.modified_str = format_modified_date(file.modified_timestamp);
     file.print_time_str = format_print_time(print_mins);
     file.filament_str = format_filament_weight(filament_g);
 
@@ -95,7 +93,6 @@ PrintFileData create_test_directory(const std::string& name, int days_ago = 1) {
     dir.is_dir = true;
 
     dir.size_str = "";
-    dir.modified_str = format_modified_date(dir.modified_timestamp);
     dir.print_time_str = "";
     dir.filament_str = "";
 
@@ -527,18 +524,6 @@ TEST_CASE("Print Select: Metadata - file size formatting", "[ui][metadata]") {
         PrintFileData file =
             create_test_file("test.gcode", 1024ULL * 1024 * 1024 * 3, 1, 100, 50.0f);
         REQUIRE(file.size_str == "3.00 GB");
-    }
-}
-
-TEST_CASE("Print Select: Metadata - modified date formatting", "[ui][metadata]") {
-    SECTION("Recent file") {
-        PrintFileData file = create_test_file("test.gcode", 1024, 1, 100, 50.0f);
-        REQUIRE(!file.modified_str.empty());
-    }
-
-    SECTION("Old file") {
-        PrintFileData file = create_test_file("test.gcode", 1024, 365, 100, 50.0f);
-        REQUIRE(!file.modified_str.empty());
     }
 }
 

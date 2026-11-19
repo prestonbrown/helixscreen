@@ -6,8 +6,10 @@
 #include "ams_backend_afc.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_indx.h"
+#include "ams_backend_lane_status.h"
 #include "ams_backend_openams.h"
 #include "ams_dryer.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
 #include "settings_manager.h"
@@ -15,7 +17,6 @@
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
-#include "env_knobs.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
 #endif
@@ -198,8 +199,8 @@ constexpr bool http_poll_ams_backends_supported() {
 
 namespace {
 
-/// The one self-backup rejection. Three backends used to phrase this three
-/// different ways for the same condition.
+/// The one self-backup rejection, so every backend phrases the condition the same
+/// way.
 AmsError endless_spool_self_backup_error(int slot_index) {
     return AmsError(AmsResult::INVALID_SLOT,
                     "Slot " + std::to_string(slot_index) +
@@ -417,6 +418,16 @@ DryerInfo dryer_info(const AmsBackend& backend, int unit) {
     return dryer ? dryer->get_dryer_info(unit) : DryerInfo{.supported = false};
 }
 
+std::optional<int> upstream_slot(const AmsBackend& backend, int slot_index) {
+    const auto* const shared = backend.as<ISharedSpoolLanes>();
+    return shared ? shared->upstream_slot(slot_index) : std::nullopt;
+}
+
+int spool_display_number(const AmsBackend& backend, int slot_index) {
+    const auto* const shared = backend.as<ISharedSpoolLanes>();
+    return shared ? shared->spool_display_number(slot_index) : ui::lane_number(slot_index);
+}
+
 HeadFilamentOps AmsBackend::head_filament_ops(int /*head*/) const {
     HeadFilamentOps ops;
     if (unload_is_manual()) {
@@ -440,7 +451,7 @@ std::optional<int> AmsBackend::head_source_slot(int head, const AmsSystemInfo& i
 AmsError AmsBackend::unload_active_filament() {
     // Single source of truth for "unload active slot". Reads current_slot ONCE
     // from the same get_system_info() snapshot the caller would use, then
-    // forwards. Backends' unload_filament overrides no longer re-resolve -1 →
+    // forwards. Backends' unload_filament overrides do not re-resolve -1 →
     // current_slot themselves, so the UI's "is anything loaded?" check and the
     // unload call can't diverge on different snapshots.
     //
@@ -501,8 +512,10 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // An edit that keeps a spool cannot move what the spool states about
     // itself. A catalog pick names the product of the spool that was bound, so
     // binding a different spool takes it off the slot; an unlink keeps it.
-    SlotInfo applied = helix::ams::keep_spool_owned_identity(
-        original, info, helix::ams::lane_sources(lane).spoolman);
+    SlotInfo applied = firmware_owns_lane_identity()
+                           ? info
+                           : helix::ams::keep_spool_owned_identity(
+                                 original, info, helix::ams::lane_sources(lane).spoolman);
     if (binding_changed && info.spoolman_id > 0) {
         applied.catalog_id.clear();
         applied.product_name.clear();
@@ -512,7 +525,8 @@ AmsError AmsBackend::commit_user_edit(int slot_index, const SlotInfo& original,
     // lands. The edit states the new binding, so an earlier Pending it amends
     // names the new spool too.
     const std::uint64_t filed_before = helix::ams::pending_filings(lane);
-    helix::ams::file_pending(lane, helix::ams::user_edit_observation(original, applied));
+    helix::ams::file_pending(
+        lane, helix::ams::user_edit_observation(original, applied, !firmware_owns_lane_identity()));
 
     AmsError err = apply_user_edit(slot_index, applied);
     // A partly applied edit still changed what it applied.
@@ -622,6 +636,38 @@ std::string AmsBackend::normalize_material(const std::string& material) const {
 
 #ifdef HELIX_ENABLE_MOCKS
 
+namespace {
+
+/// A HELIX_MOCK_AMS value that shows one Happy Hare unit of a vendor we have art for: the
+/// vendor string Happy Hare publishes, and the path its selector type gives the lanes.
+struct MockVendorUnit {
+    std::string_view mock_value;
+    const char* vendor;
+    PathTopology topology;
+};
+
+const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
+    static constexpr MockVendorUnit kRows[] = {
+        {"kms", "KMS", PathTopology::HUB},
+        {"hh_vivid", "VVD", PathTopology::LINEAR},
+        {"hh_qidi", "QIDI", PathTopology::HUB},
+        {"hh_htlf", "HTLF", PathTopology::LINEAR},
+        {"hh_night_owl", "NightOwl", PathTopology::HUB},
+        {"hh_box_turtle", "BoxTurtle", PathTopology::HUB},
+        {"hh_mmx", "MMX", PathTopology::LINEAR},
+        {"hh_3ms", "3MS", PathTopology::HUB},
+        {"hh_emu", "EMU", PathTopology::HUB},
+        {"hh_yammu", "YAMMU", PathTopology::HUB},
+    };
+    for (const MockVendorUnit& row : kRows) {
+        if (row.mock_value == mock_value)
+            return &row;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 // Helper to create mock backend with optional features.
 //
 // `mock_client` (when non-null) is the client the caller wants the AMS mock
@@ -630,12 +676,21 @@ std::string AmsBackend::normalize_material(const std::string& material) const {
 // printer.mmu.tool / toolchanger.tool_number).
 static std::unique_ptr<AmsBackendMock>
 create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullptr) {
+    const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
+                                                                 std::getenv("HELIX_MOCK_PRINTER"));
+    const bool quattro_box = ams_type == "quattro_box" || ams_type == "quattrobox";
+    if (const int real = helix::mock::mock_real_lane_count(ams_type, gate_count);
+        real != gate_count) {
+        spdlog::info("[AMS Backend] Mock {} is built with {} lanes; ignoring {} gates", ams_type,
+                     real, gate_count);
+        gate_count = real;
+    }
     auto mock = std::make_unique<AmsBackendMock>(gate_count);
 
     // Find the moonraker mock to subscribe to. get_moonraker_client_mock() is
     // the registered client narrowed to the concrete mock type — non-null only
-    // when the client really is a MoonrakerClientMock, which is what the
-    // dynamic_cast here used to establish (the firmware builds -fno-rtti).
+    // when the client really is a MoonrakerClientMock, which is what a
+    // dynamic_cast would establish (the firmware builds -fno-rtti).
     // When the caller named a client explicitly, it only counts if it is that
     // same object. The AmsState init path calls AmsBackend::create(NONE, null,
     // null) before the factory hooks up specific backends, so the registered
@@ -659,16 +714,17 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
     // ========================================================================
     // HELIX_MOCK_AMS — topology/type selection
     // ========================================================================
-    const std::string ams_type = helix::mock::effective_mock_ams(std::getenv("HELIX_MOCK_AMS"),
-                                                                 std::getenv("HELIX_MOCK_PRINTER"));
-
     if (!ams_type.empty()) {
-        if (ams_type == "afc" || ams_type == "box_turtle" || ams_type == "boxturtle") {
+        if (quattro_box) {
             mock->set_afc_mode(true);
-            spdlog::info("[AMS Backend] Mock AFC mode enabled");
-        } else if (ams_type == "toolchanger" || ams_type == "tool_changer" || ams_type == "tc") {
-            mock->set_tool_changer_mode(true);
-            spdlog::info("[AMS Backend] Mock tool changer mode enabled");
+            mock->set_afc_unit_name("Quattro_Box QuattroBox_1");
+            spdlog::info("[AMS Backend] Mock Quattro Box mode enabled");
+        } else if (ams_type == "ercf" || ams_type == "tradrack") {
+            mock->set_unit_model(ams_type == "ercf" ? "ERCF" : "Tradrack");
+            spdlog::info("[AMS Backend] Mock selector rail: {}", ams_type);
+        } else if (const MockVendorUnit* vendor = mock_vendor_unit(ams_type)) {
+            mock->set_unit_model(vendor->vendor, vendor->topology);
+            spdlog::info("[AMS Backend] Mock Happy Hare {} unit", vendor->vendor);
         } else if (ams_type == "mixed") {
             mock->set_mixed_topology_mode(true);
             spdlog::info("[AMS Backend] Mock mixed topology mode enabled");
@@ -681,20 +737,15 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         } else if (ams_type == "stealth") {
             mock->set_stealth_mode(true);
             spdlog::info("[AMS Backend] Mock stealth profile enabled (5 units / 7 toolheads)");
+        } else if (ams_type == "afc_direct") {
+            mock->set_afc_direct_mode(true);
+            spdlog::info("[AMS Backend] Mock direct-tool profile enabled (6 units / 4 extruders)");
         } else if (ams_type == "vivid") {
             mock->set_vivid_mixed_mode(true);
             spdlog::info("[AMS Backend] Mock ViViD mixed mode enabled");
-        } else if (ams_type == "ifs" || ams_type == "ad5x" || ams_type == "ad5x_ifs") {
-            mock->set_ifs_mode(true);
-            // Z-Mod with its built-in AFC: the print start carries the map.
-            mock->set_print_start_takes_tool_slots(helix::env_flag("HELIX_MOCK_ZMOD_AFC"));
-            spdlog::info("[AMS Backend] Mock AD5X IFS mode enabled");
         } else if (ams_type == "htlf_toolchanger" || ams_type == "htlf_tc" || ams_type == "htlf") {
             mock->set_htlf_toolchanger_mode(true);
             spdlog::info("[AMS Backend] Mock HTLF+Toolchanger mode enabled");
-        } else if (ams_type == "snapmaker" || ams_type == "snapswap" || ams_type == "u1") {
-            mock->set_snapmaker_mode(true);
-            spdlog::info("[AMS Backend] Mock Snapmaker U1 mode enabled");
         }
     }
 
@@ -795,6 +846,26 @@ create_mock_with_features(int gate_count, IMoonrakerClient* mock_client = nullpt
         spdlog::info("[AMS Backend] Mock ACE identity enabled");
     }
 
+    // HELIX_MOCK_AMS_FILL=<pct>,<pct>,...: each lane's remaining weight as a share of its spool;
+    // "empty" clears that lane to a bare bay.
+    if (const char* fill_env = std::getenv("HELIX_MOCK_AMS_FILL")) {
+        std::string_view rest(fill_env);
+        for (int slot = 0; !rest.empty(); ++slot) {
+            const size_t comma = rest.find(',');
+            const std::string_view item = rest.substr(0, comma);
+            rest = comma == std::string_view::npos ? std::string_view{} : rest.substr(comma + 1);
+            if (item == "empty") {
+                mock->force_slot_cleared(slot);
+                continue;
+            }
+            const auto pct = helix::text_io::parse_leading<float>(std::string(item));
+            const float total = mock->get_slot_info(slot).total_weight_g;
+            if (pct && total > 0.0f)
+                mock->update_slot_weight(slot, total * *pct / 100.0f, total, false);
+        }
+        spdlog::info("[AMS Backend] Mock lane fill: {}", fill_env);
+    }
+
     // Simulate mid-print tool change progress (3rd of 5 swaps) for visual testing
     mock->set_toolchange_progress(2, 5);
 
@@ -814,38 +885,24 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
         spdlog::info("[AMS Backend] Mock AMS disabled via HELIX_MOCK_AMS=none");
         return nullptr;
     }
-    // The MedusaHC modes are mock HARDWARE, not a mock backend: MoonrakerClientMock
-    // seeds the discovery objects and status a real hotend changer publishes, and
-    // the point is to exercise the production AmsBackendToolChanger +
-    // toolchanger_addon path against them. Declining here is what lets real
-    // discovery run, the same escape hatch HELIX_MOCK_AMS=none uses.
-    if (helix::mock::medusa_variant(mode) != helix::mock::MedusaVariant::NONE) {
-        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
-                     "backend - deferring to real discovery",
-                     mode);
-        return nullptr;
-    }
-    // multiACE on a U1 and INDX: mock hardware the same way. MoonrakerClientMock
-    // seeds their objects and frames, and the production AmsBackendMultiAce /
-    // AmsBackendIndx run against them (multiACE pairs with
-    // HELIX_MOCK_PRINTER=snapmaker_u1).
-    if (mode == "multiace" || mode == "indx") {
-        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware, not a mock "
-                     "backend - deferring to real discovery",
-                     mode);
-        return nullptr;
-    }
-    // Personas that model firmware HelixScreen talks to through a production
-    // backend are mock hardware too: decline, and real discovery builds that
-    // backend against the mock's objects. Decided from the header-only persona table: the
-    // firmware build's link check reads this object and must find no MoonrakerClientMock symbol.
+    // Mock HARDWARE, not a mock backend: MoonrakerClientMock seeds the objects and
+    // frames that firmware publishes, and declining here lets real discovery build
+    // the production backend against them, the same escape hatch
+    // HELIX_MOCK_AMS=none uses.
     const char* printer_env = std::getenv("HELIX_MOCK_PRINTER");
-    if (mode.empty() && printer_env && helix::mock::is_hardware_persona(printer_env)) {
-        spdlog::info("[AMS Backend] Mock printer persona is mock hardware - deferring to real "
-                     "discovery");
+    if (const char* backend = helix::mock::mock_hardware_backend(mode, printer_env)) {
+        spdlog::info("[AMS Backend] HELIX_MOCK_AMS={} selects mock hardware ({}), not a mock "
+                     "backend - deferring to real discovery",
+                     mode, backend);
         return nullptr;
     }
 
+    // Everything else stays on AmsBackendMock. The fictional screenshot topologies
+    // (mixed, multi, torture, stealth, vivid, htlf_toolchanger) model no single
+    // firmware: they combine units no one controller publishes, to fill and overflow
+    // the panel's layouts, so there is no production backend for mock frames to drive.
+    // The default Happy Hare lands here too when a scenario knob only this mock
+    // serves (helix::mock::kMockBackendKnobs) is set.
     spdlog::debug("[AMS Backend] Creating mock backend with {} gates (mock mode enabled)",
                   config->mock_ams_gate_count);
     return create_mock_with_features(config->mock_ams_gate_count, mock_client);
@@ -869,6 +926,8 @@ constexpr BackendClassOps kOpenAmsOps{construct_backend<AmsBackendOpenAms>, null
 // Sized and wired by set_discovery() before start().
 constexpr BackendClassOps kIndxOps{construct_backend<AmsBackendIndx>, nullptr,
                                    AmsBackendIndx::required_status_objects};
+constexpr BackendClassOps kLaneStatusOps{construct_backend<AmsBackendLaneStatus>, nullptr,
+                                         AmsBackendLaneStatus::required_status_objects};
 // The caller names the tools through set_discovered_tools() after creation.
 constexpr BackendClassOps kToolChangerOps{construct_backend<AmsBackendToolChanger>};
 
@@ -884,6 +943,7 @@ constexpr std::string_view kAceAliases[] = {"valgace", "ValgACE", "bunnyace", "B
                                             "duckace", "DuckACE", "ace",      "ACE Pro"};
 constexpr std::string_view kQidiAliases[] = {"qidi_box", "QIDI Box", "qidibox"};
 constexpr std::string_view kSnapmakerAliases[] = {"snapmaker", "Snapmaker", "snapswap", "SnapSwap"};
+constexpr std::string_view kLaneStatusAliases[] = {"lane_status", "Lane Status"};
 constexpr std::string_view kToolChangerAliases[] = {"toolchanger", "tool_changer", "Tool Changer"};
 
 constexpr AmsBackendRow make_row(AmsType type, const BackendClassOps& ops, bool needs_http_poll,
@@ -918,6 +978,7 @@ constexpr AmsBackendRow kBackendRows[] = {
     make_row(AmsType::QIDI_BOX, kQidiOps, false, false, true, kQidiAliases),
     // A U1 is both: it swaps heads and feeds each from a lane.
     make_row(AmsType::SNAPMAKER, kSnapmakerOps, false, true, true, kSnapmakerAliases),
+    make_row(AmsType::LANE_STATUS, kLaneStatusOps, false, false, true, kLaneStatusAliases),
     make_row(AmsType::TOOL_CHANGER, kToolChangerOps, false, true, false, kToolChangerAliases,
              "tool_changer"),
 };

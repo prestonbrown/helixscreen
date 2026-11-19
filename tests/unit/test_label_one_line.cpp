@@ -8,9 +8,9 @@
  * LVGL's DOTS mode ellipsizes only when the wrapped text is taller than the
  * label. A label at content height grows to fit whatever it wraps to, so it
  * never ellipsizes: the text wraps onto two or three lines and pushes its
- * siblings out of the way (prestonbrown/helixscreen#1775). These tests pin the
- * one-line height that text_* and ui_button give a dotted label, and the cases
- * that opt out of it.
+ * siblings out of the way (prestonbrown/helixscreen#1775). text_* and ui_button
+ * cap a dotted label with lv_label_set_max_lines() (prestonbrown/helixscreen#2110).
+ * These tests pin the height that cap gives, and the cases that opt out of it.
  */
 
 #include "ui_text.h"
@@ -163,7 +163,7 @@ TEST_CASE_METHOD(XMLTestFixture, "an explicit height opts a dotted label out of 
     REQUIRE(label != nullptr);
     settle(label);
     CHECK(lv_obj_get_height(label) == 57);
-    CHECK(lv_obj_get_style_max_height(label, LV_PART_MAIN) == LV_COORD_MAX);
+    CHECK(lv_label_get_max_lines(label) == 0);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "text_button honours max_lines",
@@ -267,93 +267,4 @@ TEST_CASE_METHOD(XMLTestFixture, "ui_button with dots holds its label to one lin
                                           lv_obj_get_style_space_top(label, LV_PART_MAIN) +
                                           lv_obj_get_style_space_bottom(label, LV_PART_MAIN));
     CHECK(ends_with_dots(label));
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "holding a label twice registers one hook and settles",
-                 "[ui_text][one_line]") {
-    lv_obj_t* label = build(*this, "one_line_twice",
-                            std::string("<text_small name=\"l\" width=\"100%\""
-                                        " long_mode=\"dots\" text=\"") +
-                                kLongText + "\"/>",
-                            "l");
-    REQUIRE(label != nullptr);
-    const uint32_t hooks = lv_obj_get_event_count(label);
-    helix::ui::label_hold_one_line(label);
-    helix::ui::label_hold_one_line(label);
-    CHECK(lv_obj_get_event_count(label) == hooks);
-
-    const int32_t before = lv_obj_get_height(label);
-    for (int i = 0; i < 3; ++i) {
-        lv_obj_send_event(label, LV_EVENT_STYLE_CHANGED, nullptr);
-        settle(label);
-    }
-    CHECK(lv_obj_get_height(label) == before);
-    CHECK(before == line_height("font_small"));
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "label_hold_one_line pins a plain lv_label",
-                 "[ui_text][one_line]") {
-    lv_obj_t* label = lv_label_create(test_screen());
-    lv_obj_set_width(label, 80);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
-    lv_label_set_text(label, kLongText);
-    helix::ui::label_hold_one_line(label);
-    settle(label);
-    const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
-    CHECK(lv_obj_get_height(label) == lv_font_get_line_height(font));
-    CHECK(ends_with_dots(label));
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "a held label that leaves DOTS is no longer pinned",
-                 "[ui_text][one_line]") {
-    lv_obj_t* label = lv_label_create(test_screen());
-    lv_obj_set_width(label, 80);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
-    lv_label_set_text(label, kLongText);
-    helix::ui::label_hold_one_line(label);
-    settle(label);
-    const int32_t one_line = lv_obj_get_height(label);
-    REQUIRE(one_line == lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN)));
-
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_height(label, LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(label, theme_manager_get_font("font_heading"), LV_PART_MAIN);
-    settle(label);
-    CHECK(lv_obj_get_style_height(label, LV_PART_MAIN) == LV_SIZE_CONTENT);
-    CHECK(lv_obj_get_height(label) > line_height("font_heading"));
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "an any-mode hold pins a wrapping label and follows its font",
-                 "[ui_text][one_line]") {
-    lv_obj_t* label = lv_label_create(test_screen());
-    lv_obj_set_width(label, 80);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
-    lv_label_set_text(label, kLongText);
-    helix::ui::label_hold_one_line(label, helix::ui::LineHold::AnyMode);
-    settle(label);
-    CHECK(lv_obj_get_height(label) ==
-          lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN)));
-
-    lv_obj_set_style_text_font(label, theme_manager_get_font("font_heading"), LV_PART_MAIN);
-    settle(label);
-    CHECK(lv_obj_get_height(label) == line_height("font_heading"));
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "a released label is no longer pinned", "[ui_text][one_line]") {
-    lv_obj_t* label = lv_label_create(test_screen());
-    lv_obj_set_width(label, 80);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
-    lv_label_set_text(label, kLongText);
-    helix::ui::label_hold_one_line(label, helix::ui::LineHold::AnyMode);
-    settle(label);
-    REQUIRE(lv_obj_get_height(label) ==
-            lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN)));
-
-    helix::ui::label_release_lines(label);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
-    lv_obj_set_height(label, LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(label, theme_manager_get_font("font_heading"), LV_PART_MAIN);
-    settle(label);
-    CHECK(lv_obj_get_style_height(label, LV_PART_MAIN) == LV_SIZE_CONTENT);
-    CHECK(lv_obj_get_height(label) > line_height("font_heading"));
 }

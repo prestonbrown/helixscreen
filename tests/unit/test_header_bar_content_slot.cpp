@@ -39,8 +39,8 @@ TEST_CASE_METHOD(XMLTestFixture, "header_bar content slot exists and stays empty
     // is visible, takes no layout width (content of nothing, no padding) and
     // does not steal taps from the back button's huge touch target.
     REQUIRE(lv_obj_get_child_count(slot) == 0);
-    REQUIRE_FALSE(lv_obj_has_flag(slot, LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(slot, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE_FALSE(lv_obj_is_hidden(slot));
+    REQUIRE_FALSE(lv_obj_is_clickable(slot));
     lv_obj_update_layout(slot);
     REQUIRE(lv_obj_get_width(slot) == 0);
 

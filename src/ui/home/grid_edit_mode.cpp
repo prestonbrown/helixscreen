@@ -4,12 +4,12 @@
 
 #include "ui_next_tick.h"
 #include "ui_tile_edit_callout.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 #include "ui_widget_catalog_overlay.h"
 
 #include "app_globals.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "grid_layout.h"
 #include "lvgl.h"
@@ -45,8 +45,8 @@ static void ensure_outline(std::array<helix::ui::WeakWidget, 4>& bars, lv_obj_t*
     lv_obj_t* layer = lv_display_get_layer_top(lv_obj_get_display(screen_obj));
     for (helix::ui::WeakWidget& bar : bars) {
         bar = lv_obj_create(layer);
-        lv_obj_remove_flag(bar, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_clickable(bar, false);
+        lv_obj_set_scrollable(bar, false);
         lv_obj_set_style_border_width(bar, 0, 0);
         lv_obj_set_style_radius(bar, 0, 0);
         lv_obj_set_style_pad_all(bar, 0, 0);
@@ -166,11 +166,7 @@ void GridEditMode::finish_resize_snap() {
 }
 
 void GridEditMode::stop_page_flip_timers() {
-    crossing_flip_dir_ = 0;
-    if (crossing_flip_timer_) {
-        helix::ui::lv_timer_cancel_safe(crossing_flip_timer_);
-        crossing_flip_timer_ = nullptr;
-    }
+    cancel_crossing_flip();
     if (dwell_flip_timer_) {
         helix::ui::lv_timer_cancel_safe(dwell_flip_timer_);
         dwell_flip_timer_ = nullptr;
@@ -178,14 +174,18 @@ void GridEditMode::stop_page_flip_timers() {
 }
 
 // Both flip timers are one-shots: each trigger asks for exactly one flip.
-void GridEditMode::start_crossing_flip(int dir) {
+void GridEditMode::cancel_crossing_flip() {
+    crossing_flip_dir_ = 0;
     if (crossing_flip_timer_) {
         helix::ui::lv_timer_cancel_safe(crossing_flip_timer_);
         crossing_flip_timer_ = nullptr;
     }
+}
+
+void GridEditMode::start_crossing_flip(int dir, uint32_t delay_ms) {
+    cancel_crossing_flip();
     crossing_flip_dir_ = dir;
-    crossing_flip_timer_ =
-        lv_timer_create(crossing_flip_cb, helix::kCrossPageCrossingDelayMs, this);
+    crossing_flip_timer_ = lv_timer_create(crossing_flip_cb, delay_ms, this);
     lv_timer_set_repeat_count(crossing_flip_timer_, 1);
 }
 
@@ -209,6 +209,7 @@ void GridEditMode::crossing_flip_cb(lv_timer_t* timer) {
     self->crossing_flip_timer_ = nullptr; // one-shot: the runner retires it
     const int dir = self->crossing_flip_dir_;
     self->crossing_flip_dir_ = 0;
+    helix::cross_page_note_crossing_flip(self->cross_page_);
     self->request_page_flip("crossing", dir);
 }
 
@@ -510,7 +511,7 @@ void GridEditMode::handle_click(lv_event_t* /*e*/) {
             continue;
         }
         // Skip floating objects (they are overlays, not grid widgets)
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING)) {
+        if (lv_obj_is_floating(child)) {
             continue;
         }
         // Skip decoration objects (merged card backgrounds have no name)
@@ -606,11 +607,11 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
     selection_overlay_ = lv_obj_create(container_);
     lv_obj_set_pos(selection_overlay_, rel_x1, rel_y1);
     lv_obj_set_size(selection_overlay_, widget_w, widget_h);
-    lv_obj_add_flag(selection_overlay_, LV_OBJ_FLAG_FLOATING);
-    lv_obj_remove_flag(selection_overlay_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_floating(selection_overlay_, true);
+    lv_obj_set_scrollable(selection_overlay_, false);
     // Let touch events pass through to the container for long-press drag detection.
     // The X button child is independently clickable.
-    lv_obj_remove_flag(selection_overlay_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(selection_overlay_, false);
     lv_obj_set_style_bg_opa(selection_overlay_, LV_OPA_TRANSP, 0);
     // No overlay border — edge bars provide the visual for resizable widgets,
     // non-resizable get just corner brackets with no connecting lines.
@@ -631,8 +632,8 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         lv_obj_set_style_border_width(bar, 0, 0);
         lv_obj_set_style_radius(bar, 0, 0);
         lv_obj_set_style_pad_all(bar, 0, 0);
-        lv_obj_remove_flag(bar, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_clickable(bar, false);
+        lv_obj_set_scrollable(bar, false);
         bar_count++;
     };
 
@@ -663,8 +664,8 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
             lv_obj_set_style_border_width(bar, 0, 0);
             lv_obj_set_style_radius(bar, 0, 0);
             lv_obj_set_style_pad_all(bar, 0, 0);
-            lv_obj_remove_flag(bar, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_clickable(bar, false);
+            lv_obj_set_scrollable(bar, false);
             bar_count++;
         };
 
@@ -701,7 +702,7 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
         lv_anim_set_values(&anim, LV_OPA_COVER, LV_OPA_20);
         lv_anim_set_duration(&anim, 1000);
         lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
-        lv_anim_set_playback_duration(&anim, 1000);
+        lv_anim_set_reverse_duration(&anim, 1000);
         lv_anim_set_exec_cb(&anim, [](void* obj, int32_t val) {
             auto* overlay = static_cast<lv_obj_t*>(obj);
             // Only pulse the corner brackets, skip edge bars
@@ -834,7 +835,7 @@ GridLayout GridEditMode::page_occupancy(const std::string& exclude_id, Occupants
             lv_obj_t* child = lv_obj_get_child(container_, static_cast<int32_t>(i));
             // Floating children are the shield, the chrome, the previews and a
             // dragged widget, none of which holds a cell.
-            if (!child || lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING)) {
+            if (!child || lv_obj_is_floating(child)) {
                 continue;
             }
             const char* name = lv_obj_get_name(child);
@@ -884,7 +885,7 @@ void GridEditMode::sync_config_from_screen() {
         if (!child || child == shield_ || child == selection_overlay_) {
             continue;
         }
-        if (lv_obj_has_flag(child, LV_OBJ_FLAG_FLOATING)) {
+        if (lv_obj_is_floating(child)) {
             continue;
         }
 
@@ -1967,9 +1968,12 @@ void GridEditMode::handle_drag_move(lv_event_t* /*e*/) {
 
     // Both flips wait on timers, since both are deadlines: the dwell runs out
     // while the pointer may rest, and a crossing flips only if the finger is
-    // still down when kCrossPageCrossingDelayMs runs out.
+    // still down, with the widget still past the line, when its delay runs out.
+    if (step.cancel_crossing) {
+        cancel_crossing_flip();
+    }
     if (step.flip_dir != 0) {
-        start_crossing_flip(step.flip_dir);
+        start_crossing_flip(step.flip_dir, step.flip_delay_ms);
     }
     if (step.dwell_changed) {
         restart_dwell_flip(step.dwell_dir);
@@ -2006,7 +2010,7 @@ void GridEditMode::lift_dragged_widget() {
     lifted_had_h_ = lv_obj_get_local_style_prop(selected_, LV_STYLE_HEIGHT, &lifted_h_,
                                                 LV_PART_MAIN) == LV_STYLE_RES_FOUND;
     lv_obj_t* layer = lv_display_get_layer_top(lv_obj_get_display(selected_));
-    lv_obj_add_flag(selected_, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(selected_, true);
     lv_obj_set_parent(selected_, layer);
     lv_obj_set_size(selected_, lv_area_get_width(&area), lv_area_get_height(&area));
     if (selection_overlay_) {
@@ -2047,7 +2051,7 @@ void GridEditMode::settle_dragged_widget() {
     } else {
         lv_obj_remove_local_style_prop(selected_, LV_STYLE_HEIGHT, LV_PART_MAIN);
     }
-    lv_obj_remove_flag(selected_, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(selected_, false);
     if (!page) {
         // No page left to take it back: the one it came from was deleted.
         helix::ui::safe_delete_deferred(selection_overlay_);
@@ -2146,6 +2150,11 @@ helix::DropInput GridEditMode::drop_input() const {
         settled_content_area().x2, drag_widget_pos_.x, lv_area_get_width(&widget_area));
     in.past_left_border = helix::cross_page_past_left_border(
         settled_content_area().x1, drag_widget_pos_.x, lv_area_get_width(&widget_area));
+    // A release while a crossing flip waits stays on the visible page (#2070).
+    if (crossing_flip_timer_) {
+        in.past_right_border = false;
+        in.past_left_border = false;
+    }
     return in;
 }
 
@@ -2947,7 +2956,7 @@ void GridEditMode::ensure_shield() {
         // schedules after its release and a cancel after it ended the gesture.
         shield_ = lv_obj_create(container_);
         lv_obj_set_size(shield_, LV_PCT(100), LV_PCT(100));
-        lv_obj_add_flag(shield_, LV_OBJ_FLAG_FLOATING);
+        lv_obj_set_floating(shield_, true);
         // CLICKABLE + EVENT_BUBBLE makes this a genuine event shield: as the
         // top-most full-grid child it becomes the hit target for every touch,
         // so no widget underneath ever receives a press/click while editing
@@ -2957,9 +2966,9 @@ void GridEditMode::ensure_shield() {
         // the AMS mini-status), launching them mid-edit. The selection's
         // configure and remove buttons are created after this overlay, so
         // they stay on top.
-        lv_obj_add_flag(shield_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_flag(shield_, LV_OBJ_FLAG_EVENT_BUBBLE);
-        lv_obj_remove_flag(shield_, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_clickable(shield_, true);
+        lv_obj_set_event_bubble(shield_, true);
+        lv_obj_set_scrollable(shield_, false);
         lv_obj_set_style_bg_opa(shield_, LV_OPA_TRANSP, 0);
         lv_obj_set_style_border_width(shield_, 0, 0);
         lv_obj_set_style_pad_all(shield_, 0, 0);

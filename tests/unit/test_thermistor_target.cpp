@@ -6,6 +6,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
+#include "../test_helpers/keypad_reset_key.h"
 #include "../test_helpers/thermistor_test_access.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -82,6 +83,7 @@ TEST_CASE_METHOD(ThermistorTargetFixture,
     ThermistorTestAccess::click(widget);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(ui_keypad_is_visible());
+    CHECK_FALSE(helix::test::keypad_reset_key_shown()); // a free target has no default
 
     ThermistorTestAccess::keypad_confirm(55.0f);
     CHECK(sent("SET_HEATER_TEMPERATURE HEATER=filament_dryer TARGET=55"));
@@ -113,7 +115,7 @@ lv_obj_t* build_tile(ThermistorWidget& widget, lv_obj_t* screen) {
 bool shown(lv_obj_t* tile, const char* name) {
     lv_obj_t* obj = lv_obj_find_by_name(tile, name);
     REQUIRE(obj != nullptr);
-    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_is_hidden(obj);
 }
 } // namespace
 

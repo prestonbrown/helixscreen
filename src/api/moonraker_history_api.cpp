@@ -3,12 +3,8 @@
 
 #include "moonraker_history_api.h"
 
-#include "ui_format_utils.h"
-
-#include "display_settings_manager.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
-#include "locale_formats.h"
 #include "moonraker_api_internal.h"
 #include "print_history_parse.h"
 #include "print_photos.h"
@@ -23,16 +19,6 @@
 using namespace helix;
 
 namespace {
-
-/**
- * @brief Format Unix timestamp to human-readable date
- * @param timestamp Unix timestamp (seconds since epoch)
- * @return Formatted string like "Dec 1, 2:30 PM" (12H) or "Dec 1, 14:30" (24H)
- */
-std::string format_history_date(double timestamp) {
-    time_t t = static_cast<time_t>(timestamp);
-    return helix::ui::format_modified_date(t);
-}
 
 /**
  * @brief Format filament usage in mm to human-readable string
@@ -78,8 +64,8 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
     job.exists = helix::json_util::safe_bool(job_json, "exists", false);
 
     // Metadata (may be nested or null)
-    if (job_json.contains("metadata") && job_json["metadata"].is_object()) {
-        const auto& meta = job_json["metadata"];
+    if (const json* meta_json = helix::json_util::find_object(job_json, "metadata")) {
+        const json& meta = *meta_json;
         job.filament_type = moonraker_internal::json_string_list_or(meta, "filament_type");
         job.layer_count = moonraker_internal::json_count_or_zero(meta, "layer_count");
         job.layer_height = helix::json_util::safe_double(meta, "layer_height");
@@ -88,8 +74,8 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
         job.bed_temp = helix::json_util::safe_double(meta, "first_layer_bed_temp");
 
         // Parse all available thumbnails with dimensions
-        if (meta.contains("thumbnails") && meta["thumbnails"].is_array()) {
-            for (const auto& t : meta["thumbnails"]) {
+        if (const json* thumbnails = helix::json_util::find_array(meta, "thumbnails")) {
+            for (const auto& t : *thumbnails) {
                 ThumbnailInfo info;
                 info.relative_path = helix::json_util::safe_string(t, "relative_path", "");
                 // safe_int also coerces the string-encoded dimensions some
@@ -117,8 +103,8 @@ PrintHistoryJob helix::parse_history_job(const nlohmann::json& job_json) {
         job.photos = helix::parse_photo_aux(*aux);
     }
 
-    // Pre-format display strings
-    job.date_str = format_history_date(job.start_time);
+    // This runs on the WebSocket thread: format nothing that reads settings,
+    // subjects or the UI language here.
     job.filament_str = format_history_filament(job.filament_used);
 
     return job;
@@ -153,24 +139,23 @@ void MoonrakerHistoryAPI::get_history_list(int limit, int start, double since, d
             std::vector<PrintHistoryJob> jobs;
             uint64_t total_count = 0;
 
-            if (response.contains("result")) {
-                const auto& result = response["result"];
+            if (const json* reply = helix::json_util::find_member(response, "result")) {
+                const json& result = *reply;
                 // Use null-safe access - count might be null in edge cases
-                if (result.contains("count") && result["count"].is_number()) {
-                    total_count = result["count"].get<uint64_t>();
-                }
+                total_count =
+                    helix::json_util::read_field<uint64_t>(result, "count").value_or(total_count);
 
-                if (result.contains("jobs") && result["jobs"].is_array()) {
+                if (const json* jobs_json = helix::json_util::find_array(result, "jobs")) {
                     // A page's length is the server's to decide; on the firmware
                     // a vector that cannot grow aborts the board. This covers the
                     // page's buffer; each job's strings still allocate as parsed.
-                    if (!helix::try_reserve(jobs, result["jobs"].size())) {
+                    if (!helix::try_reserve(jobs, jobs_json->size())) {
                         moonraker_internal::report_error(on_error, MoonrakerErrorType::UNKNOWN,
                                                          "get_history_list",
                                                          "not enough memory for the history page");
                         return;
                     }
-                    for (const auto& job_json : result["jobs"]) {
+                    for (const auto& job_json : *jobs_json) {
                         jobs.push_back(parse_history_job(job_json));
                     }
                 }
@@ -195,22 +180,20 @@ void MoonrakerHistoryAPI::get_history_totals(HistoryTotalsCallback on_success,
         [on_success](const json& response) {
             PrintHistoryTotals totals;
 
-            if (response.contains("result") && response["result"].contains("job_totals") &&
-                response["result"]["job_totals"].is_object()) {
-                const auto& jt = response["result"]["job_totals"];
+            const json* job_totals = helix::json_util::find_path(response, "result", "job_totals");
+            if (job_totals && job_totals->is_object()) {
+                const json& jt = *job_totals;
                 // Null-safe numeric access for all fields
-                if (jt.contains("total_jobs") && jt["total_jobs"].is_number()) {
-                    totals.total_jobs = jt["total_jobs"].get<uint64_t>();
+                totals.total_jobs = helix::json_util::read_field<uint64_t>(jt, "total_jobs")
+                                        .value_or(totals.total_jobs);
+                if (auto total_time = helix::json_util::read_field<double>(jt, "total_time")) {
+                    totals.total_time = static_cast<uint64_t>(*total_time);
                 }
-                if (jt.contains("total_time") && jt["total_time"].is_number()) {
-                    totals.total_time = static_cast<uint64_t>(jt["total_time"].get<double>());
-                }
-                if (jt.contains("total_filament_used") && jt["total_filament_used"].is_number()) {
-                    totals.total_filament_used = jt["total_filament_used"].get<double>();
-                }
-                if (jt.contains("longest_job") && jt["longest_job"].is_number()) {
-                    totals.longest_job = jt["longest_job"].get<double>();
-                }
+                totals.total_filament_used =
+                    helix::json_util::read_field<double>(jt, "total_filament_used")
+                        .value_or(totals.total_filament_used);
+                totals.longest_job = helix::json_util::read_field<double>(jt, "longest_job")
+                                         .value_or(totals.longest_job);
                 // Note: Moonraker doesn't provide breakdown counts (completed/cancelled/failed)
                 // These must be calculated client-side from the job list if needed
             }

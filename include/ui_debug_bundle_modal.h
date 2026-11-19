@@ -13,6 +13,8 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
+
 #include <lvgl.h>
 
 class DebugBundleModal : public Modal {
@@ -46,11 +48,11 @@ class DebugBundleModal : public Modal {
   private:
     // Subject state machine: 0=consent, 1=uploading, 2=success, 3=error
     SubjectManager subjects_;
-    lv_subject_t state_subject_{};
-    lv_subject_t status_subject_{};
-    lv_subject_t share_code_subject_{};
-    lv_subject_t error_subject_{};
-    lv_subject_t include_logs_subject_{};
+    helix::Subject state_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject share_code_subject_{};
+    helix::Subject error_subject_{};
+    helix::Subject include_logs_subject_{};
     bool subjects_initialized_ = false;
 
     // Subject string buffers
@@ -58,7 +60,6 @@ class DebugBundleModal : public Modal {
     char share_code_buf_[32] = {};
     char error_buf_[256] = {};
 
-    // Subject management
     void init_subjects();
     void deinit_subjects();
 
@@ -66,13 +67,11 @@ class DebugBundleModal : public Modal {
     static void register_callbacks();
     static bool callbacks_registered_;
 
-    // Static event callbacks
     static void on_upload_cb(lv_event_t* e);
     static void on_cancel_cb(lv_event_t* e);
     static void on_done_cb(lv_event_t* e);
     static void on_close_cb(lv_event_t* e);
 
-    // Instance handlers
     void handle_upload();
     void handle_cancel();
     void handle_done();

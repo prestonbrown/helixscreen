@@ -8,6 +8,7 @@ HelixScreen's translation system is built on LVGL's native XML translations. Sou
 |------|------------|
 | de   | German     |
 | en   | English    |
+| en-GB | British English (a regional variant of `en`) |
 | es   | Spanish    |
 | fr   | French     |
 | it   | Italian    |
@@ -79,6 +80,8 @@ translations:
 - **Singular translations** - Direct string-to-string mapping
 - **Plural translations** - A locale whose count words inflect beyond one/other turns the
   plural key's value into a dictionary of CLDR categories (see [Plural Rules](#plural-rules))
+- **One line per entry** - `key: value` on one line, never folded, in the shape Weblate
+  writes (see [Weblate](#weblate)); `make translation-normalize` fixes a file that drifted
 
 ### Example: Russian with Complex Plurals
 
@@ -94,6 +97,182 @@ translations:
     many: "{} печатей"              # 0, 5-20, 25-30...
     other: "{} печати"              # required: the fallback for any missing category
 ```
+
+## Regional Variants
+
+A locale code is a language (`en`, `pt`), optionally followed by a hyphen and a region
+(`en-GB`, `pt-BR`). A code with a region is a **variant** of its base language. The hyphen
+form is the one canonical spelling: the YAML file name and its `locale:` line, the
+generated pack (`ui_xml/translations/en-GB.xml`), the LVGL language name and the
+`/language` setting all use it. `helix::locale_base_language()` (`include/core/locale_code.h`)
+and `base_locale()` (`scripts/translations/locale_variants.py`) also read an underscore, so a
+POSIX name (`pt_BR`) resolves the same way.
+
+**The file.** `translations/en-GB.yml` carries every key `en.yml` has, like any locale, but
+only the strings the region writes differently get a value. An empty value means "inherit
+from the base language", not "untranslated". `make translation-sync` adds new keys to a
+variant with an empty value, as it does for every other locale, so a variant needs no extra
+upkeep: a new string inherits until someone gives it a regional spelling.
+
+**The fallback chain.** For a key, the UI shows the first of:
+
+1. the variant's own value;
+2. the base language's value;
+3. the tag, which is the English source text.
+
+The generator resolves steps 1 and 2 when it writes the variant's pack
+(`scripts/translations/locale_variants.py#merge_variant`): the pack holds the base's entries
+overlaid with the variant's. Base entries equal to their own key are left out, since the tag
+already says the same thing, so `en-GB.xml` holds only the strings British English respells.
+A variant value replaces the base entry whole: a flat string in `pt-BR` drops `pt`'s plural
+forms for that key. Step 3 is LVGL's own fallback for a key no pack holds. The runtime
+therefore loads one pack per language, as for any other locale. A variant whose base has no
+YAML file fails generation.
+
+**Coverage.** The coverage report and the two coverage gates
+(`tests/python/test_cpp_translation_coverage.py`, `tests/python/test_explicit_tag_coverage.py`)
+count a variant's empty value as translated when its base has a value
+(`scripts/translations/locale_variants.py#effective_value`). The key must still exist in the variant's file. A plain
+language's empty value stays a missing translation, so the gate is as strict for `de` as it
+was. `make translation-coverage` lists a variant with the number of strings it defines itself:
+`en-GB ... variant: N own, rest inherited`.
+
+**Code that branches on a language.** Plural rules, day and month names, the CJK font
+switch, the screensaver's English state words and the long-date wording all read the base
+language, so a variant behaves like its base without a row of its own. The region defaults
+(`src/system/region_defaults.cpp#find_language_defaults`) look up the full code first and
+then the base, so a variant gets its own date order or clock only when it has its own row:
+`en-GB` writes day-month-year and reads a 24-hour clock, while `en` stays month first and
+12-hour.
+
+**Adding one.** Copy `en.yml` with every value emptied (or `make translation-sync` after
+creating a file holding `locale: <code>` and `translations: {}`), fill in the strings that
+differ, and register the code in `SystemSettingsManager`'s language list right after its base,
+named in its own words ("English (UK)"). Add the name to `kLanguageNames`
+(`src/system/translation_loader.cpp`), `LANGUAGE_NAMES` (`scripts/translations/extractor.py`)
+and `tests/fixtures/translation_key_cases.json` so it is never extracted as a key. If the
+region writes dates or reads the clock differently from the base, give it a row in
+`kLanguageDefaults`. The first-run picker (`ui_xml/wizard_language_chooser.xml`) takes a button
+whose `user_data` is the Settings index, plus a flag image registered in
+`src/application/asset_manager.cpp`. Packaging needs nothing: every packager ships every
+`<lang>.xml` but the merged catalogue and `en.xml`.
+
+## Weblate
+
+Translators can edit the locale files on a hosted Weblate project instead of in git
+(prestonbrown/helixscreen#1909). Weblate never touches the build: it commits to its own
+copy of the repository and opens a pull request, and that pull request runs the same Code
+Quality checks as any other, so the format-specifier, coverage, CJK font and locale-file
+gates still decide what lands.
+
+### Component settings
+
+One component covers every language. These are the settings the repository is prepared
+for; anything not listed keeps Weblate's default.
+
+| Setting | Value | Why |
+|---|---|---|
+| Version control system | GitHub pull request | Weblate pushes to its fork and opens a PR against `main` |
+| Repository branch | `main` | |
+| File format | **YAML file** (`yaml`), not Ruby YAML | Ruby YAML expects the language code as the single root key; ours has `locale:` and `translations:` |
+| File mask | `translations/*.yml` | |
+| Monolingual base language file | `translations/en.yml` | English keys are the source strings |
+| Edit base file | Off | `en.yml` is written by `make translation-sync` from the code |
+| Template for new translations | Empty | |
+| Adding new translation | Contact maintainers | A language needs code and font work first, see below |
+| Language filter | `^(?!en-GB$).*$` | Regional variants stay in git, see below |
+| File format parameters | YAML indentation `2`, Long lines wrapping **No line wrapping**, Line breaks UNIX | The shape the committed files are in |
+| Translation flags | the `placeholders:` flag below | Weblate highlights printf and `{}` fields and warns when a translation drops one |
+| Add-ons | Neither "Cleanup translation files" nor "Remove blank strings" | Cleanup deletes every plural form (below); blank values are meaningful here |
+
+The component's translation flag, so Weblate marks the format fields a translation must keep:
+
+```text
+placeholders:r"%(\d+\$)?[-+#0]*\d*(\.\d+)?(hh|h|ll|l|z|j|t)?[diouxXeEfFgGcsp]|%%|\{\}"
+```
+
+Its warning is advisory. `scripts/check_translation_format_specifiers.py` in the pull
+request's checks is the one that fails a broken format string.
+
+Weblate maps `zh.yml` to Chinese (Simplified) through its own alias, and every other file
+name is already a code it knows.
+
+### Unit IDs and read-only strings
+
+translate-toolkit flattens nested keys with `->`, so the string for `Cancel` has the ID
+`translations->Cancel`, and the top-level `locale` field shows up as a string of its own.
+Two kinds of string need the `read-only` flag, set on the source string (Weblate's
+"Edit string flags" on the English string, or Bulk edit with a `key:` search):
+
+- **`locale`.** Weblate would offer it for translation. A changed value would make
+  `make translation-sync` treat that file as the wrong language; `scripts/check_translation_files.py`
+  fails one that no longer matches its file name.
+- **Plural keys.** Weblate's YAML format has no plural support. A locale that writes a
+  key as a mapping of CLDR categories (`one:`/`few:`/`many:`/`other:`, see
+  [Plural Rules](#plural-rules)) has no unit matching the flat English source, so Weblate
+  lists the string as untranslated, and translating it there replaces the whole mapping with
+  one flat string. `scripts/check_translation_files.py --list-plural-keys` prints the current
+  set; mark those read-only and edit their plural forms in git. The gate also compares each
+  locale with the branch's fork point and fails a pull request in which a plural mapping
+  became a flat string.
+
+### The file shape Weblate writes
+
+Weblate re-serializes a whole locale file on every commit through translate-toolkit, which
+dumps with ruamel's round-trip mode: quotes preserved, block style, 2-space indent, and the
+component's wrap width. With "No line wrapping" that width is 65535, so no value is folded
+across lines, and a key longer than 128 characters is written in YAML's explicit form:
+
+```yaml
+  ? "The printer homes X and Y if needed, then drives the toolhead into the cutter ..."
+  : "Der Drucker referenziert X und Y bei Bedarf ..."
+```
+
+The committed files are kept in exactly that shape, so a Weblate commit changes only the
+lines a translator edited. `canonical_text()` (`scripts/translations/yaml_manager.py`) is
+that serialization, and `_render_entry_lines()` renders each entry `make translation-sync`
+splices in through the same settings, so the splicer and Weblate never reflow each other's
+lines. `qc_translation_files` (`scripts/check_translation_files.py`) fails a file in any other
+shape, naming the first line that differs; `make translation-normalize` rewrites it. A
+hand edit in a text editor is fine as long as each entry stays on one line, as
+`key: value`.
+
+New keys reach Weblate the usual way: `make translation-sync` adds each one to every
+locale file, English with its own text and the rest blank, and Weblate picks up the blank
+entries as untranslated strings on its next update from `main`. Every locale file keeps
+every key, so Weblate never has to add an entry itself.
+
+### Regional variants
+
+Weblate has no notion of a value that inherits from another language. In `en-GB.yml` a
+blank means "use the `en` text", which Weblate would show as 5,000 untranslated strings,
+and copying the English text into them would freeze each one against later fixes to `en`.
+So the language filter leaves variants out and they are edited in git, where the blank
+keeps its meaning. A future variant of a translated language (`pt-BR`) gets the same
+treatment unless it is a full translation in its own right, in which case it is a plain
+language and drops the region from its file name.
+
+### New languages
+
+A new language is added in git before anyone translates it on Weblate: it needs a
+rule in `helix::ui::plural_category()` (`src/core/i18n_plural.cpp`), a Settings entry, a flag and, outside Latin and CJK scripts, font
+coverage (`check_font_tier_coverage.py`); right-to-left and complex-shaping scripts are
+out of scope for now. The steps are in
+[TRANSLATION_CONTRIBUTOR_GUIDE.md](TRANSLATION_CONTRIBUTOR_GUIDE.md#adding-a-new-language).
+Once the file exists on `main`, Weblate finds it through the file mask.
+
+### Glossary
+
+`translations/GLOSSARY.md` pins the canonical rendering of recurring terms. The same
+selection exports as one multilingual TBX file for Weblate's glossary:
+
+```bash
+.venv/bin/python scripts/translation_sync.py glossary --tbx /tmp/helixscreen-glossary.tbx
+```
+
+Upload it to each language of the project's glossary component. The prose in
+`GLOSSARY.md` (the position-noun rules, the loanword policy) does not travel with the TBX
+file; the glossary component's description links to it.
 
 ## Build Pipeline
 
@@ -113,10 +292,13 @@ These are the generator's only outputs.
 Translation generation is integrated into the build via `mk/translations.mk`:
 
 ```makefile
-# Regenerate the XML packs if YAML or script changes
-$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT)
-    python generate_translations.py
+# Regenerate the XML packs if the YAML, the script or HELIX_LANG changes
+$(TRANS_XML): $(TRANS_YAML) $(TRANS_SCRIPT) $(TRANS_LANG_STAMP)
+    $(VENV_PYTHON_TRANS) $(TRANS_SCRIPT) $(TRANS_LANG_FLAG)
 ```
+
+`HELIX_LANG` limits which locales a build packs; the stamp file forces a regeneration when it
+changes.
 
 Run manually with:
 
@@ -150,11 +332,10 @@ so it never has to parse every language up front.
 **English never loads a pack.** English tags ARE the English UI text, and
 `lv_translation_get()` returns the tag unchanged when no pack matches, so
 `ensure_translation_loaded()` skips the identity locale entirely (heap + lookup
-scan savings — see `kIdentityLocale`). The hard consequence: **every key in
+scan savings - see `kIdentityLocale`). The hard consequence: **every key in
 `translations/en.yml` must be its own English text.** A "semantic" key whose
 value differs from the key (`pre_print_option.timelapse.label: Timelapse`)
-renders as the raw dotted identifier in the English UI — that exact bug shipped
-in v0.99.114 (timelapse toggle row, first-run tour). If the English text already
+renders as the raw dotted identifier in the English UI. If the English text already
 exists as a tag, point the reference (C++ / XML / `printer_database.json`) at
 the existing tag instead of adding a near-duplicate key.
 `scripts/check_translation_identity.py` (wired into `quality-checks.sh`) fails
@@ -265,7 +446,7 @@ std::string msg = fmt::format(lv_tr("Nozzle: {}°C"), temp);
 ```
 
 Wrapping a C++ string literal in `lv_tr(...)` (or `fmt::format(lv_tr("..{}.."), arg)`
-for format strings) is exactly how a C++ string becomes translatable — the
+for format strings) is exactly how a C++ string becomes translatable - the
 wrapped literal is also picked up by `make translation-sync`.
 
 ### Loading a locale and changing language
@@ -353,16 +534,16 @@ form against the format it replaces.
 
 ### Adding New Translatable Strings
 
-1. **Add to XML with translation_tag:**
+1. **Add the literal to XML** (the literal is its own tag; see "Static Text" above):
    ```xml
-   <text_body text="New Feature" translation_tag="New Feature"/>
+   <text_body text="New Feature"/>
    ```
 
 2. **Extract to YAML files:**
    ```bash
    make translation-sync
    ```
-   This scans XML files and adds new keys to all YAML files with the English value as placeholder.
+   This scans XML and C++ and adds new keys to every YAML file: the English text in `en.yml`, an empty value (needs translation) in the others.
 
 3. **Translate in YAML files:**
    Edit each `translations/*.yml` file to add proper translations:
@@ -377,7 +558,7 @@ form against the format it replaces.
    When translating a recurring domain term, reuse the rendering in
    `translations/GLOSSARY.md` for that language. For terms not in the glossary,
    grep the target `translations/<lang>.yml` and reuse the dominant existing
-   rendering — never coin a new word for a concept that's already translated.
+   rendering - never coin a new word for a concept that's already translated.
 
 4. **Regenerate the XML translation packs:**
    ```bash
@@ -386,7 +567,7 @@ form against the format it replaces.
 
 5. **Rebuild and test:**
    ```bash
-   make -j && ./build/bin/helix-screen --test -vv
+   make && ./build/bin/helix-screen --test -vv
    ```
 
 ### Preview Changes Before Sync
@@ -406,6 +587,7 @@ This shows what keys would be added without modifying files.
 | `make translation-sync-dry-run` | Preview sync without modifying files |
 | `make translation-coverage` | Show translation coverage statistics |
 | `make translation-glossary` | Regenerate `translations/GLOSSARY.md` from the YAML |
+| `make translation-normalize` | Rewrite `translations/*.yml` into the shape Weblate writes (see [Weblate](#weblate)) |
 | `make translation-obsolete` | Find translation keys not referenced anywhere |
 
 ### How `obsolete` decides a key is unused
@@ -414,10 +596,10 @@ Extraction and obsolete-detection ask opposite questions, so they use different
 oracles:
 
 - **`sync`** asks *"should this string be translated?"* It is tuned for
-  **precision** — the `lv_tr()` / `text="…"` patterns in `scripts/translations/extractor.py`
+  **precision** - the `lv_tr()` / `text="…"` patterns in `scripts/translations/extractor.py`
   keep junk (subject names, hex colors, numbers) out of the YAML.
 - **`obsolete`** asks *"is this key mentioned at all?"* It is tuned for
-  **recall** — `collect_referenced_strings()` in `scripts/translations/obsolete.py`
+  **recall** - `collect_referenced_strings()` in `scripts/translations/obsolete.py`
   scans `src/`, `include/`, `ui_xml/`, `assets/`, `config/`, and `tests/` for the
   key as a delimited literal (a complete C/JSON string, an XML attribute value,
   or an XML text node).
@@ -431,7 +613,7 @@ dead, because keys reached *indirectly* are invisible to it:
 | Tag stored as JSON data | pre-print option labels in `assets/config/printer_database.json` |
 | Label text declared in a header | `include/ui_panel_controls.h` |
 
-Matching is deliberately **delimited, not substring** — otherwise the word
+Matching is deliberately **delimited, not substring** - otherwise the word
 `Unlink` inside a code comment would count as a use of the `Unlink` key and hide
 a genuinely dead entry. The scan errs toward reporting a reference: a key that
 also appears in an unrelated log message just leaves a stale entry behind,
@@ -442,7 +624,7 @@ Two categories are reported obsolete **by design**:
 - Strings that live only in a dev/test panel carrying an `<!-- i18n: skip-file -->`
   marker: the marker opts the file out, so its strings should not be keys.
 - Strings containing a literal `\n` (multi-line dropdown option labels), which
-  `should_skip_text()` no longer extracts.
+  `should_skip_text()` does not extract.
 
 The generated packs under `ui_xml/translations/` are excluded from the scan;
 they list every key by definition and so can never prove usage.
@@ -451,12 +633,36 @@ If a key is being wrongly reported, prefer making the reference visible (or add
 an `// i18n:` note explaining the indirection, as in `tour_steps.cpp`) over
 re-adding it after a delete.
 
+## Temperature Units, Date Order and Region Defaults
+
+Two display settings sit beside the language: the temperature unit and the date order. Neither changes what the printer or the config stores.
+
+### Temperature unit
+
+Every temperature in state, settings and G-code stays in Celsius. Only what is shown and what is typed crosses `include/core/temperature_units.h`: `helix::units::to_display_temp()` and `format_display_temp()` for readings, `display_temp_to_celsius()` for a typed target, `to_display_temp_delta()` for a band or a rate (a difference scales and has no offset), and `temp_axis_ticks()` for a graph axis, whose Fahrenheit ticks fall on round values. Both directions round with `std::lround`. New temperature UI calls these and never converts by hand.
+
+The setting is `/display/temp_unit` (0 Celsius, 1 Fahrenheit), owned by `DisplaySettingsManager` (`src/system/display_settings_manager.cpp#set_temp_unit`) and shown as a row in Settings > Appearance. A change sets the process-wide display unit, updates the `settings_temp_unit_symbol` subject that XML labels bind for their "(°C)" suffix, refreshes the preset labels, and calls `units::publish_temp_unit()`.
+
+A string formatted in C++ from a cached Celsius value keeps its unit until its owner formats it again. `include/core/temp_unit_subject.h` is the trigger for that: `helix::ui::observe_temp_unit_change(owner, on_change)` runs `on_change` only when the unit really changes, never on registration, and queues it so it runs on the main thread. A panel, widget or state object that caches formatted temperature text observes it and reformats (examples: `src/ui/controls/temperature_service.cpp`, `src/printer/printer_temperature_state.cpp`, `src/ui/panel_widgets/nozzle_temps_widget.cpp`). The printer's own temperature subjects are not touched by a unit switch, so their observers do not fire.
+
+### Date order
+
+`/display/date_format` holds 0 for day-month-year, 1 for month-day-year and 2 for year-month-day. `src/system/locale_formats.cpp#get_date_pattern` takes the arrangement from the saved order and falls back to the language's default while none is saved; the language still supplies day and month names and the punctuation German writes. The order is kept in an atomic (`saved_date_format()` in `include/region_defaults.h`) because dates are also formatted off the main thread. The row lives in Settings > Language & Time, and `DisplaySettingsManager::on_language_changed` updates it while it still follows the language.
+
+### Region defaults and the wizard step
+
+`src/system/region_defaults.cpp#region_defaults` turns a language and an IANA timezone into the defaults: a United States zone reads Fahrenheit and month-first, every other zone reads Celsius, an English speaker in a known non-US zone writes the day first, and with no zone the language alone decides the date order (Chinese and Japanese year first, US English month first, British English and the other languages day first). The same table answers the clock: `default_24h_clock_for_language()` is 12-hour for US English and 24-hour for every other offered language, British English included. `/display/time_format` follows it the way the date order follows the language: while nothing is saved, `DisplaySettingsManager` (`src/system/display_settings_manager.cpp#follow_language_clock`) sets the clock subject to the language's format at startup and on every language change without saving it, so the Settings row and the wizard's row both show it. A pick on either row saves it and stops it following. `helix::locale::locale_default_24h()` reads the same table.
+
+The setup wizard's Appearance & Region step (`src/ui/wizard/ui_wizard_appearance.cpp`, `ui_xml/wizard_appearance.xml`) follows the Language step. It offers timezone, 12 or 24-hour clock, theme (applied live), dark mode, speed and flow units, temperature unit and date order. Each row reuses its Settings twin's subject and callback, so there is one copy of the state. Picking a timezone applies the region defaults to the unit rows that still follow the region, meaning rows nobody had saved when the page opened and nobody has picked on it since. A pick on a row stops that row following the region. The step is skipped when a printer is added after the first run, because every row is global.
+
 ## Key Files Reference
 
 | File | Purpose |
 |------|---------|
-| `translations/*.yml` | Source translation files (one per language) |
+| `translations/*.yml` | Source translation files (one per language or regional variant) |
+| `scripts/translations/locale_variants.py`, `include/core/locale_code.h` | Regional variants: base language, pack merge, coverage inheritance |
 | `translations/GLOSSARY.md` | Canonical per-language renderings of recurring terms (generated) |
+| `scripts/check_translation_files.py` | Locale files in Weblate's shape, `locale:` matching the file name, no collapsed plural entry |
 | `scripts/generate_translations.py` | Main pack generator |
 | `scripts/translation_sync.py` | String extraction, sync, and glossary tool |
 | `scripts/translations/` | Support modules for sync tool |
@@ -464,6 +670,8 @@ re-adding it after a delete.
 | `ui_xml/translations/translations.xml` | Generated combined LVGL XML pack |
 | `ui_xml/translations/<lang>.xml` | Generated per-locale packs (loaded at runtime) |
 | `src/system/translation_loader.cpp` | Per-locale pack loader (`ensure_translation_loaded()`) |
+| `include/core/temperature_units.h`, `include/core/temp_unit_subject.h` | Celsius/Fahrenheit conversion and the unit-change observer |
+| `include/region_defaults.h`, `src/system/region_defaults.cpp` | Region defaults for temperature unit and date order |
 | `src/application/application.cpp` | Translation startup / language switching |
 | `src/system/system_settings_manager.cpp` | Locale switching (`ensure_translation_loaded()` + `lv_translation_set_language()`) |
 
@@ -490,9 +698,11 @@ Fill in missing translations in the appropriate YAML files.
 
 The runtime CJK fonts (`assets/fonts/cjk/*.bin`) are subset to the characters `scripts/translations/cjk_charset.py` finds in the translations, C++ sources, XML layouts and `assets/config/printer_database.json`; `scripts/check_cjk_font_staleness.sh` (run by the commit hook) fails when that set holds a character the baked manifest lacks, and `make regen-text-fonts` fixes it. The first-run language chooser renders before any `.bin` loads, from the compiled `.c` fonts, so its characters must also be in `WIZARD_CJK` in `scripts/regen_text_fonts.sh`; the same gate enforces that (#1622).
 
+Print filenames are user text, so they get a second, larger set whatever the UI language (#2093). `scripts/translations/cjk_filename_fonts.py` defines it from `include/core/cjk_ranges.inc`, the ranges `contains_cjk()` detects: every codepoint of an `ALL` range (CJK punctuation, kana, fullwidth ASCII, halfwidth katakana), and from a `LISTED` range only level 1 of the Table of General Standard Chinese Characters (`scripts/translations/hanzi_level1.txt`, 3,500 hanzi) and the Joyo kanji (`joyo_kanji.txt`, 2,136). Traditional-only hanzi and rarer kanji render as boxes. The bins under `assets/fonts/cjk/filename/` hold only the part of that set the translation bins lack, one per pixel size that `font_body`, `font_small` or `font_xs` (the `text_body`, `text_small` and `text_xs` widgets every filename label is) takes at any breakpoint and any UI scale. The scale steps a face up through `DisplayMetrics::scaled_font_name()`; `scripts/translations/font_scale_reach.txt` lists what each face can become, and `[display_metrics]` fails when it disagrees with that function. A scaled face is adopted only when AssetManager registers it at the breakpoint: `scripts/translations/registered_text_fonts.txt` lists those names per breakpoint, written from `AssetManager::text_font_names_for_breakpoint()` (the registration table in `src/application/asset_manager.cpp`) and pinned by `[font_tier]`. `HELIX_UPDATE_GOLDEN=1` rewrites either file. Nothing loads until a filename containing CJK is formatted for display: `strip_gcode_extension()` and `get_display_filename()` in `include/core/gcode_filename.h` call `note_displayed_filename()`, as do the sites that show a raw name (a folder, a history row), and the hook `init_cjk_fonts()` (`src/application/cjk_filename_glyphs.cpp`) registers makes `CjkFontManager::ensure_filename_glyphs()` chain each size's filename bin behind a translation bin of the same size. A load then refreshes every object's style, so a label laid out before it, measured with missing glyphs, measures and wraps its text again. `check_cjk_font_coverage.py` fails when a size has no bin, a character of the set is in neither bin, or a listed character lies outside every `LISTED` range, and `platform_manifest.py prune-assets` ships a fixed panel only the sizes its breakpoint reaches at any scale in a build of its font tier. The ESP32 build (`HELIX_HAS_CJK=0`) loads none of it.
+
 ### Plural form not working
 
 1. Verify the call site uses `helix::ui::tr_plural()` with the plural key as a literal
 2. Verify the dictionary sits on the plural (`other_key`) entry and has an `other` form
-3. Check the language has a rule in `helix::ui::plural_category()` (`src/ui/i18n_plural.cpp`)
+3. Check the language has a rule in `helix::ui::plural_category()` (`src/core/i18n_plural.cpp`)
 4. Check the regenerated `ui_xml/translations/<lang>.xml` carries the `<key>_<category>` tags

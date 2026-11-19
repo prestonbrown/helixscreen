@@ -5,9 +5,9 @@
 
 #include "ui_ams_context_menu.h"
 #include "ui_bypass_toggle_controller.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
 #include <memory>

@@ -27,13 +27,13 @@
         <setting_slider_row name="row_scroll_limit"
                             label="Scroll Engage Distance" icon="swap_vertical"
                             description="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" min="1"
-                            max="20" value="10" min_icon="minus" max_icon="plus" trigger="released"
-                            callback="on_scroll_limit_changed"/>
+                            max="20" value="10" value_subject="settings_scroll_limit" min_icon="minus" max_icon="plus"
+                            trigger="released" callback="on_scroll_limit_changed"/>
         <setting_slider_row name="row_long_press_time"
                             label="Long Press Time" icon="hourglass"
                             description="How long to hold before a press counts as a long-press, in ms (raise if edit mode or other long-press actions trigger by accident)"
-                            min="300" max="1500" value="500" min_icon="minus" max_icon="plus" trigger="released"
-                            callback="on_long_press_time_changed"/>
+                            min="300" max="1500" value="500" value_subject="settings_long_press_time" min_icon="minus"
+                            max_icon="plus" trigger="released" callback="on_long_press_time_changed"/>
         <setting_toggle_row name="row_home_edit_mode"
                             label="Allow Home Screen Editing" icon="pencil"
                             description="Long-press the home grid to rearrange widgets (turn off if it triggers by accident)"

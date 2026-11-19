@@ -11,6 +11,9 @@ namespace helix::config_trust {
 struct UpdateUrls {
     std::string r2_url;
     std::string dev_url;
+    /// A minisign public key (base64 key line) release manifests must be signed with in place
+    /// of the compiled-in release key; for a test server signing with its own key.
+    std::string release_pubkey;
 };
 
 /// Read update_urls.json. The file only counts when it and its directory are

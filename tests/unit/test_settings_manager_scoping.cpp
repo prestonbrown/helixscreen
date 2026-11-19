@@ -46,6 +46,7 @@
 #include "ams_backend_cfs.h"
 #include "ams_state.h"
 #include "config.h"
+#include "display_numbering.h"
 #include "settings_manager.h"
 #include "wizard_config_paths.h"
 
@@ -521,6 +522,33 @@ TEST_CASE_METHOD(SettingsScopeFixture,
     sm.set_toolhead_style(ToolheadStyle::AUTO);
 }
 
+TEST_CASE("SettingsManager: a dropdown index outside the style list reads as Auto",
+          "[settings][toolhead]") {
+    CHECK(SettingsManager::dropdown_index_to_toolhead_style(-1) == ToolheadStyle::AUTO);
+    CHECK(SettingsManager::dropdown_index_to_toolhead_style(kLastToolheadStyle + 1) ==
+          ToolheadStyle::AUTO);
+    CHECK(SettingsManager::dropdown_index_to_toolhead_style(kLastToolheadStyle) ==
+          static_cast<ToolheadStyle>(kLastToolheadStyle));
+}
+
+TEST_CASE_METHOD(
+    SettingsScopeFixture,
+    "SettingsManager: a config reload hands the printer's lane numbering to the labels",
+    "[settings][multi-printer]") {
+    sm.set_number_lanes_from_zero(true);
+    REQUIRE(helix::ui::lane_numbering_from_zero());
+
+    activate(kPrinterB);
+    sm.reload_from_config();
+    CHECK_FALSE(helix::ui::lane_numbering_from_zero());
+
+    activate(kPrinterA);
+    sm.reload_from_config();
+    CHECK(helix::ui::lane_numbering_from_zero());
+
+    sm.set_number_lanes_from_zero(false);
+}
+
 // ============================================================================
 // Persistence — the on-disk shape a reboot actually sees
 // ============================================================================
@@ -625,7 +653,10 @@ TEST_CASE_METHOD(SettingsScopeFixture,
         CHECK(effective("PFA Micron") == ToolheadStyle::ANTHEAD);
         CHECK(effective("PFA Stealthfork") == ToolheadStyle::ANTHEAD);
         CHECK(effective("Creality K1") == ToolheadStyle::CREALITY_K1);
-        CHECK(effective("Voron 2.4") == ToolheadStyle::DEFAULT);
+        CHECK(effective("Voron 2.4") == ToolheadStyle::STEALTHBURNER);
+        CHECK(effective("Prusa MK4") == ToolheadStyle::DEFAULT);
+        CHECK(effective("Creality Ender 3") == ToolheadStyle::ENDER3);
+        CHECK(effective("Creality Ender-3 V3") == ToolheadStyle::ENDER3);
     }
 
     SECTION("a backend hint applies only where the database has no style") {

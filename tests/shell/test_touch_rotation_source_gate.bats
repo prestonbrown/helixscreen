@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_touch_rotation_source.py — the gate keeping the
+# Meta-tests for the touch-rotation-source rule of scripts/check_source_rules.py — the gate keeping the
 # display backends' stored-touch-range check on the APPLIED display rotation
 # rather than the `/display/rotate` config key.
 #
@@ -20,7 +20,7 @@
 
 load helpers
 
-GATE="scripts/check_touch_rotation_source.py"
+GATE="scripts/check_source_rules.py --rule touch-rotation-source"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -44,7 +44,7 @@ EOF
 }
 
 run_gate() {
-    run python3 "$GATE" --repo-root "$ROOT"
+    run python3 $GATE --root "$ROOT"
 }
 
 # ------------------------------------------------------------- the quiet half

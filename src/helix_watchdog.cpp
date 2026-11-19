@@ -34,6 +34,7 @@
 #include "app_constants.h"
 #include "helix_version.h"
 #include "logging_init.h"
+#include "proc_comm.h"
 #include "system/crash_record.h"
 #include "watchdog_isolated_dialog.h"
 #include "watchdog_restart_policy.h"
@@ -338,28 +339,7 @@ static pid_t start_splash_process(const WatchdogArgs& args) {
  * — better to leak a splash than kill the wrong process.
  */
 static bool pid_is_our_splash(pid_t pid) {
-    if (pid <= 0) {
-        return false;
-    }
-    char comm_path[64];
-    snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
-    FILE* f = fopen(comm_path, "r");
-    if (!f) {
-        return false;
-    }
-    char comm[64] = {0};
-    bool got_line = (fgets(comm, sizeof(comm), f) != nullptr);
-    fclose(f);
-    if (!got_line) {
-        return false;
-    }
-    // Strip trailing newline
-    size_t n = strlen(comm);
-    if (n > 0 && comm[n - 1] == '\n') {
-        comm[n - 1] = '\0';
-    }
-    // Linux truncates /proc/<pid>/comm to 15 chars. "helix-splash" is 12, fits.
-    return strcmp(comm, "helix-splash") == 0;
+    return helix::proc_comm_is(pid, "helix-splash");
 }
 
 /**
@@ -802,7 +782,7 @@ static bool write_safe_mode_marker() {
 static void on_screen_pressed(lv_event_t* /*e*/) {
     if (g_countdown_seconds > 0 && g_countdown_label) {
         g_countdown_seconds = 0;
-        lv_obj_add_flag(g_countdown_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(g_countdown_label, true);
         spdlog::debug("[Watchdog] Countdown cancelled by touch");
     }
 }
@@ -844,7 +824,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
     // Dark background
     lv_obj_set_style_bg_color(screen, lv_color_hex(kBgColorDark), 0);
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(screen, false);
 
     // Touch anywhere cancels countdown
     lv_obj_add_event_cb(screen, on_screen_pressed, LV_EVENT_PRESSED, nullptr);
@@ -862,7 +842,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                           LV_FLEX_ALIGN_CENTER);
-    lv_obj_clear_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
 
     // Warning icon
     lv_obj_t* icon = lv_label_create(container);
@@ -896,8 +876,9 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
         lv_obj_t* hint = lv_label_create(container);
         lv_label_set_text(hint, "Same crash 3+ times in a row. Try Safe Mode\n"
                                 "(boots without connecting to the printer) so\n"
-                                "you can adjust settings.");
-        lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+                                "you can adjust settings. Safe Mode starts\n"
+                                "by itself in 2 minutes.");
+        lv_label_set_long_mode(hint, LV_LABEL_LONG_MODE_WRAP);
         lv_obj_set_width(hint, LV_PCT(100));
         lv_obj_set_style_text_font(hint, &noto_sans_14, 0);
         lv_obj_set_style_text_color(hint, lv_color_hex(kTextSecondary), 0);
@@ -918,7 +899,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
         lv_obj_set_style_pad_top(g_countdown_label, 12, 0);
     } else {
         g_countdown_seconds = 0;
-        lv_obj_add_flag(g_countdown_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(g_countdown_label, true);
     }
 
     // Button container
@@ -932,7 +913,7 @@ static void create_crash_dialog(lv_obj_t* screen, int /*width*/, int /*height*/,
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_top(btn_container, 24, 0);
     lv_obj_set_style_pad_column(btn_container, 16, 0);
-    lv_obj_clear_flag(btn_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(btn_container, false);
 
     if (crash_loop_detected) {
         // Loop dialog: Safe Mode is the primary action since plain restart
@@ -992,8 +973,16 @@ static DialogChoice run_crash_dialog(int width, int height, int rotation, const 
 
     // Apply rotation to crash dialog display
     if (rotation != 0) {
-        lv_display_set_rotation(display, degrees_to_lv_rotation(rotation));
-        spdlog::info("[Watchdog] Crash dialog rotated {}°", rotation);
+        const bool rotated =
+            helix::settle_standalone_rotation(backend, display, rotation, width, height, [] {
+                return DisplayBackend::create(DisplayBackendType::FBDEV);
+            });
+        if (!display) {
+            spdlog::error("[Watchdog] No display left after the rotation fallback");
+            return DialogChoice::RESTART_APP;
+        }
+        spdlog::info("[Watchdog] Crash dialog {} {}° on {}",
+                     rotated ? "rotated" : "left unrotated, wanted", rotation, backend->name());
     }
 
     // Turn on backlight
@@ -1013,10 +1002,18 @@ static DialogChoice run_crash_dialog(int width, int height, int rotation, const 
     // Event loop with countdown
     g_dialog_choice = DialogChoice::NONE;
     uint32_t last_second = get_ticks_ms() / 1000;
+    const uint32_t shown_at_ms = get_ticks_ms();
 
     while (g_dialog_choice == DialogChoice::NONE && !g_quit) {
         lv_timer_handler();
         usleep(kFrameDelayUs);
+
+        if (helix::watchdog::crash_loop_deadline_passed(crash_loop_detected, shown_at_ms,
+                                                        get_ticks_ms())) {
+            spdlog::warn("[Watchdog] Nobody answered the crash-loop dialog, starting Safe Mode");
+            g_dialog_choice = DialogChoice::RESTART_SAFE_MODE;
+            break;
+        }
 
         // Update countdown every second
         uint32_t current_second = get_ticks_ms() / 1000;

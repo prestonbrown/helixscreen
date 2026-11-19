@@ -115,21 +115,22 @@ print(len(d['translations']), d['translations']['Print cancelled'])
     done
 }
 
-@test "no locale file in the tree defines a key twice" {
-    run $PY -c "
-import sys, pathlib
-sys.path.insert(0, 'scripts')
-from translations.yaml_manager import load_yaml_file, DuplicateTranslationKey
-bad = []
-for f in sorted(pathlib.Path('translations').glob('*.yml')):
-    try:
-        load_yaml_file(f)
-    except DuplicateTranslationKey as e:
-        bad.append(str(e))
-print('\n'.join(bad) if bad else 'CLEAN')
-"
-    [ "$status" -eq 0 ]
-    [ "$output" = "CLEAN" ]
+@test "the locale lint names a file that defines a key twice and fails on no locales" {
+    # lint_translation_duplicate_keys (scripts/code_lint.sh) is the verdict over
+    # the real translations/, run by qc_code_lint; here it reads a fixture root.
+    . scripts/code_lint.sh
+    mkdir -p "$FIX/root/translations"
+    ln -s "$PWD/scripts" "$FIX/root/scripts"
+    write_dup_fixture
+    cd "$FIX/root" || return 1
+    run lint_translation_duplicate_keys
+    [ "$status" -eq 1 ]
+    contains "no translations/*.yml" "$output"
+
+    cp "$FIX/dup.yml" translations/ja.yml
+    run lint_translation_duplicate_keys
+    [ "$status" -eq 1 ]
+    contains "ja.yml" "$output"
 }
 
 @test "every locale carries the same key set" {

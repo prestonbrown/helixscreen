@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/operation_timeout_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "moonraker_error.h"
-#include "operation_timeout_guard.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
@@ -101,6 +101,8 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
     /// Confirm, then run CALIBRATE_TOOL_OFFSETS (no-op while a run is in flight)
     void start_calibration();
+    /// start_calibration() once the bed is known clear: the run confirmation.
+    void confirm_calibration();
     /// The run itself, once the user has confirmed
     void begin_run();
     /// The rpc failed. A TIMEOUT while Klipper still reports idle_timeout
@@ -159,14 +161,14 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
 
     char status_buffer_[160] = "";
     char hint_buffer_[320] = "";
-    lv_subject_t status_{};
-    lv_subject_t hint_{};
-    lv_subject_t active_{};
+    helix::Subject status_{};
+    helix::Subject hint_{};
+    helix::Subject active_{};
     /// Drives the XML <repeat>: one row per tool, however many the printer
     /// has. Published LAST by refresh_rows(), after the pools below hold every
     /// row's values, so a rebuild binds to populated subjects (the macros
     /// panel's rule for its own list).
-    lv_subject_t tool_count_{};
+    helix::Subject tool_count_{};
 
     // === Per-row subject pools (grow-only; reclaimed when the UI goes) ===
     helix::xml::IndexedSubjectPool row_x_{"tool_cal_x",

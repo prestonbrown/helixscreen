@@ -33,6 +33,8 @@ class SnapmakerNozzleOffsetOverlay : public OverlayBase {
 
     void init_subjects() override;
     void register_callbacks() override;
+    /// Start, once the bed is known clear.
+    void start_clicked();
 
     const char* get_name() const override {
         return "Toolhead Offset Calibration";

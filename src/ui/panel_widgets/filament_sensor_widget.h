@@ -4,14 +4,15 @@
 #pragma once
 
 #include "ui_context_menu.h"
-#include "ui_observer_guard.h"
 #include "ui_runout_guidance_modal.h"
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "filament_widget_tap_policy.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 namespace helix {
 
@@ -121,13 +122,12 @@ class FilamentSensorWidget : public TiledPanelWidget {
     helix::AsyncLifetimeGuard lifetime_;
 
     /// Mirror of the selected role subject; the XML's single binding target.
-    static inline lv_subject_t tile_state_subject_{};
+    static inline helix::Subject tile_state_subject_{};
     /// Which row the source picker's check icon sits on; mirrors source_ so the
     /// picker reflects the current selection whenever it is reopened. int, 0-3,
     /// matching ui::FilamentTileSource's enum order - see the static_assert next
     /// to init_static_subjects().
-    static inline lv_subject_t source_subject_{};
-    static inline bool subjects_initialized_ = false;
+    static inline helix::Subject source_subject_{};
 
     static void init_static_subjects();
 

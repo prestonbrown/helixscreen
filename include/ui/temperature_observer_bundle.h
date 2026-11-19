@@ -15,9 +15,8 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
-
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "printer_state.h"
 
 namespace helix::ui {
@@ -37,13 +36,13 @@ namespace helix::ui {
  * temp_observers_.setup_sync(
  *     this,
  *     printer_state_,
- *     [](MyPanel* p, int v) { p->nozzle_current_ = helix::ui::temperature::deci_to_degrees(v);
+ *     [](MyPanel* p, int v) { p->nozzle_current_ = helix::temperature_rules::deci_to_degrees(v);
  * p->update_display(); },
- *     [](MyPanel* p, int v) { p->nozzle_target_ = helix::ui::temperature::deci_to_degrees(v);
+ *     [](MyPanel* p, int v) { p->nozzle_target_ = helix::temperature_rules::deci_to_degrees(v);
  * p->update_display(); },
- *     [](MyPanel* p, int v) { p->bed_current_ = helix::ui::temperature::deci_to_degrees(v);
+ *     [](MyPanel* p, int v) { p->bed_current_ = helix::temperature_rules::deci_to_degrees(v);
  * p->update_display(); },
- *     [](MyPanel* p, int v) { p->bed_target_ = helix::ui::temperature::deci_to_degrees(v);
+ *     [](MyPanel* p, int v) { p->bed_target_ = helix::temperature_rules::deci_to_degrees(v);
  * p->update_display(); }
  * );
  * @endcode
@@ -76,7 +75,7 @@ template <typename Panel> class TemperatureObserverBundle {
         // this bundle routinely outlive a PrinterState::deinit_subjects() cycle
         // (printer switch in production, per-fixture teardown in tests). Without
         // the token, deinit frees the observer nodes and the next clear() calls
-        // lv_observer_remove() on freed memory.
+        // lv_observer_delete() on freed memory.
         const SubjectLifetime lifetime = state.get_subjects_lifetime();
 
         nozzle_temp_observer_ =

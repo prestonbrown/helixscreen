@@ -146,7 +146,7 @@ XML
 
 # ------------------------------------------------------------- the ratchet
 
-@test "fails above a nonzero baseline, passes at or below it" {
+@test "fails above a nonzero baseline, passes at it, and fails below it only at a push" {
     printf '<component><view extends="lv_obj"><lv_obj name="a_swatch" style_radius="9999"/><lv_obj name="b_swatch" style_radius="9999"/></view></component>\n' \
         > "$ROOT/ui_xml/x.xml"
     printf '1 ui_xml/x.xml:xml-named-swatch\n' > "$ROOT/base.txt"
@@ -156,9 +156,12 @@ XML
     run_gate
     [ "$status" -eq 0 ] || fail "two sites at a baseline of two failed: $output"
     printf '3 ui_xml/x.xml:xml-named-swatch\n' > "$ROOT/base.txt"
-    run_gate
-    [ "$status" -eq 0 ] || fail "below baseline failed: $output"
+    HELIX_RATCHET_STRICT=0 run_gate
+    [ "$status" -eq 0 ] || fail "below baseline failed at commit: $output"
     contains "lowered" "$output"
+    HELIX_RATCHET_STRICT=1 run_gate
+    [ "$status" -eq 1 ] || fail "below baseline passed at a push: $output"
+    contains "ui_xml/x.xml:xml-named-swatch: 3 -> 2" "$output"
 }
 
 @test "the gate runs for staged sources, XML and its own files" {

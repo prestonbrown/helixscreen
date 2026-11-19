@@ -20,6 +20,8 @@
 //                                which the settings sliders bind two-way
 
 #include "chamber_air_modes.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -96,15 +98,20 @@ class ChamberAirState {
     chamber_air::Reading last_{};
     PresenceEdge on_edge_;
 
-    lv_subject_t chamber_air_available_{};
-    lv_subject_t chamber_air_mode_{};
-    lv_subject_t chamber_air_exhaust_pct_{};
-    lv_subject_t chamber_air_recirculate_pct_{};
-    lv_subject_t chamber_air_has_targets_{};
-    lv_subject_t chamber_air_filter_minutes_{};
-    lv_subject_t chamber_air_target_c_{};
-    lv_subject_t chamber_air_exhaust_target_pct_{};
-    lv_subject_t chamber_air_recirculate_target_pct_{};
+    helix::Subject chamber_air_available_{};
+    helix::Subject chamber_air_mode_{};
+    helix::Subject chamber_air_exhaust_pct_{};
+    helix::Subject chamber_air_recirculate_pct_{};
+    helix::Subject chamber_air_has_targets_{};
+    helix::Subject chamber_air_filter_minutes_{};
+    helix::Subject chamber_air_target_c_{};
+    helix::Subject chamber_air_exhaust_target_pct_{};
+    helix::Subject chamber_air_recirculate_target_pct_{};
+    /// chamber_air_target_c as the user reads it ("50°C", "122°F").
+    helix::Subject chamber_air_target_text_{};
+    char chamber_air_target_text_buf_[16] = {};
+    ObserverGuard target_text_observer_;
+    ObserverGuard unit_observer_; ///< re-formats the target text on a °C/°F switch
 };
 
 } // namespace helix

@@ -194,7 +194,7 @@ void HeatingIconAnimator::start_pulse() {
     lv_anim_set_values(&anim, kPulseOpaMin, kPulseOpaMax);
     lv_anim_set_duration(&anim, kPulseDurationMs);
     lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
-    lv_anim_set_playback_duration(&anim, kPulseDurationMs);
+    lv_anim_set_reverse_duration(&anim, kPulseDurationMs);
     lv_anim_set_path_cb(&anim, lv_anim_path_ease_in_out);
     lv_anim_set_exec_cb(&anim, pulse_anim_cb);
     lv_anim_start(&anim);

@@ -6,32 +6,12 @@
 <!-- Emergency buttons pinned in non-scrolling bottom bar -->
 <!-- Features are conditionally shown based on printer capabilities -->
 <component>
-  <!-- Emergency bar orientation. Portrait is too narrow to seat E-Stop, Restart
-       Klipper and Firmware Restart in one row: each button gets a third of the
-       width and all three labels clip mid-word. Stacking them full-width keeps
-       the labels readable, and these are the three controls someone reaches for
-       when things are going wrong.
-
-       Only container flex direction and child sizing differ, so this is a
-       bind_style_if toggle on ui_is_portrait rather than an if/else structural
-       branch. An if/else would have to duplicate all three buttons and their
-       event_cb wiring inside one file, where no gate can see the copies drift
-       apart (see the same reasoning in motion_panel.xml).
-
-       Both orientations need an explicit style: an inline flex_flow or
-       flex_grow attribute outranks a bound style, so leaving the landscape
-       values inline would silently win over the portrait binding.
-
-       layout="flex" is not redundant with flex_flow. The inline flex_flow=
-       attribute routes through lv_obj_set_flex_flow(), which sets the layout
-       AND the flow; a style sets only the property named. Without layout the
-       container runs no layout at all and all three buttons land on top of
-       each other at the same y. -->
+  <!-- Emergency bar: the four buttons sit two to a row in every orientation.
+       min_width forces the wrap, because four in one row clip their labels even
+       at 800x480. These are the controls someone reaches for when things are
+       going wrong, and their labels have to stay readable. -->
   <styles>
-    <style name="estop_bar_row" layout="flex" flex_flow="row_wrap"/>
-    <style name="estop_bar_column" layout="flex" flex_flow="column"/>
-    <style name="estop_btn_inline" flex_grow="1" min_width="content" pad_hor="#space_sm"/>
-    <style name="estop_btn_stacked" width="100%" flex_grow="0"/>
+    <style name="estop_btn_inline" min_width="45%" flex_grow="1" pad_hor="#space_sm"/>
   </styles>
   <view name="advanced_panel"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_gap="0" flex_flow="column"
@@ -57,7 +37,16 @@
         <!-- Console / G-code Terminal -->
         <setting_action_row name="row_console"
                             label="G-code Console" icon="console" description="Send commands directly to printer">
+          <bind_flag_if_eq subject="platform_console_supported" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_console_row_clicked"/>
+        </setting_action_row>
+        <!-- Host Terminal (#1573): a shell on the machine HelixScreen runs on. Offered only
+             where it can run and once the owner turns it on in HOST ACCESS below. -->
+        <setting_action_row name="row_host_terminal"
+                            label="Host Terminal" icon="console"
+                            description="A shell on the machine running this screen">
+          <bind_flag_if cond="platform_host_terminal_supported eq 0 or host_terminal_enabled eq 0" flag="hidden"/>
+          <event_cb trigger="clicked" callback="on_host_terminal_row_clicked"/>
         </setting_action_row>
         <!-- Guided cold pull (#2011) -->
         <setting_action_row name="row_cold_pull"
@@ -198,12 +187,64 @@
           <setting_info_row name="row_helix_macros_restart_pending"
                             label="Helper Macros" icon="script_text" value="Restart pending"/>
         </lv_obj>
+        <!-- What the signal macro names look like on this printer: one line per
+             helix_macros_signal_names value (signal_macros::SignalNamesLine);
+             0 says nothing. The outer container hides on 0 and each line on
+             any value but its own, nested so two bindings never share a flag. -->
+        <lv_obj name="container_helix_macros_signal_names"
+                width="100%" height="content" style_pad_top="0" style_pad_left="0" style_pad_bottom="0"
+                scrollable="false">
+          <bind_flag_if_eq subject="helix_macros_signal_names" flag="hidden" ref_value="0"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_left="#space_xl" style_pad_right="#space_lg" style_pad_top="0"
+                  style_pad_bottom="#space_md" scrollable="false" flex_flow="row" style_flex_cross_place="start"
+                  style_pad_gap="#space_sm">
+            <icon src="info" size="xs" variant="secondary"/>
+            <lv_obj height="content" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column">
+              <text_small name="signal_names_all_hidden"
+                          width="100%" text="Signal macros are hidden from Fluidd and Mainsail macro lists."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="1"/>
+              </text_small>
+              <text_small name="signal_names_aliases_kept"
+                          width="100%" text="Signal macros keep their old names too, so older calls still work."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="2"/>
+              </text_small>
+              <text_small name="signal_names_plugin_renames"
+                          width="100%" text="The HelixPrint plugin moves old PRINT_START calls to the hidden names."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="3"/>
+              </text_small>
+              <text_small name="signal_names_update_plugin"
+                          width="100%" text="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls."
+                          long_mode="wrap" style_text_color="#text_muted">
+                <bind_flag_if_not_eq subject="helix_macros_signal_names" flag="hidden" ref_value="4"/>
+              </text_small>
+            </lv_obj>
+          </lv_obj>
+        </lv_obj>
       </setting_group>
       <!-- ================================================================== -->
       <!-- CALIBRATION SECTION -->
       <!-- ================================================================== -->
       <setting_group name="group_calibration">
         <setting_group_header title="CALIBRATION" icon="tune" hide_icon="false"/>
+        <!-- Motorized belt tensioning and cutter calibration: printers whose
+             firmware runs them on its own (helix::belt_cutter_cal decides).
+             First in the list, ahead of the resonance-based Belt Tension check. -->
+        <setting_action_row name="row_belt_tension_auto"
+                            label="Auto Belt Tension" icon="vibrate"
+                            description="Let the printer's tensioners set the belts">
+          <bind_flag_if_eq subject="printer_can_tension_belts" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_belt_tension_auto_clicked"/>
+        </setting_action_row>
+        <setting_action_row name="row_cutter_calibration"
+                            label="Cutter Calibration" icon="content_cut"
+                            description="Find the filament cutter's position">
+          <bind_flag_if_eq subject="printer_can_calibrate_cutter" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_cutter_calibration_clicked"/>
+        </setting_action_row>
         <!-- Bed Leveling (hidden if screws_tilt_adjust not configured) -->
         <lv_obj name="container_bed_leveling" width="100%" style_pad_all="0" scrollable="false">
           <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>
@@ -255,6 +296,14 @@
           <bind_flag_if cond="printer_has_accelerometer eq 0 or printer_supports_belt_compare eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_belt_tension_row_clicked"/>
         </setting_action_row>
+        <!-- Vertical Artifact Check (hidden without an accelerometer, a supported
+             kinematics or the steppers' geometry) -->
+        <setting_action_row name="row_motor_ripple"
+                            label="Vertical Artifact Check" icon="vibrate"
+                            description="Find the print speeds that shake the printer">
+          <bind_flag_if_eq subject="printer_supports_ripple_check" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_motor_ripple_row_clicked"/>
+        </setting_action_row>
         <!-- Probe Management (hidden if no probe) -->
         <setting_action_row name="row_probe"
                             label="Probe Management" icon="target"
@@ -283,10 +332,25 @@
         </setting_action_row>
       </setting_group>
       <!-- ================================================================== -->
+      <!-- HOST ACCESS SECTION -->
+      <!-- ================================================================== -->
+      <!-- The opt-in for the Host Terminal row in TOOLS. Off by default: the shell runs
+           as the user HelixScreen runs as, which is root on most printer firmware. -->
+      <setting_group name="group_host_access">
+        <bind_flag_if_eq subject="platform_host_terminal_supported" flag="hidden" ref_value="0"/>
+        <setting_group_header title="HOST ACCESS" icon="console" hide_icon="false"/>
+        <setting_toggle_row name="row_host_terminal_enabled"
+                            label="Host Terminal" icon="console"
+                            description="Show a shell on this machine under Tools. Anyone at the screen can then run commands on it."
+                            subject="host_terminal_enabled" callback="on_host_terminal_enabled_changed"/>
+      </setting_group>
+      <!-- ================================================================== -->
       <!-- POWER SECTION -->
       <!-- ================================================================== -->
       <!-- Both rows open the same dialog the home-panel power widget uses,
-           which handles single-/dual-host scope and confirms the action.
+           which handles single-/dual-host scope and confirms the action. With
+           Safety's power confirmation off, a single-host screen skips the
+           dialog and runs the row's own action.
            Hidden whole (header + rows) on platforms without host power
            controls (Android) — see platform_host_power_supported in
            app_globals.cpp. -->
@@ -297,10 +361,10 @@
            both actions plus, on dual-host, the printer/screen/both scope). -->
         <setting_action_row name="row_shutdown"
                             label="Shutdown" icon="power" description="Power off the printer or screen">
-          <event_cb trigger="clicked" callback="on_advanced_power_clicked"/>
+          <event_cb trigger="clicked" callback="on_advanced_shutdown_clicked"/>
         </setting_action_row>
         <setting_action_row name="row_reboot" label="Reboot" icon="restart" description="Restart the printer or screen">
-          <event_cb trigger="clicked" callback="on_advanced_power_clicked"/>
+          <event_cb trigger="clicked" callback="on_advanced_reboot_clicked"/>
         </setting_action_row>
       </setting_group>
       <!-- Bottom padding for scroll -->
@@ -310,27 +374,27 @@
     <!-- PINNED EMERGENCY BAR (non-scrolling, always enabled) -->
     <!-- ================================================================== -->
     <lv_obj width="100%"
-            height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-            style_pad_bottom="#space_sm" style_pad_gap="#space_sm" scrollable="false">
-      <bind_style_if name="estop_bar_column" cond="ui_is_portrait"/>
-      <bind_style_if name="estop_bar_row" cond="ui_is_portrait" invert="true"/>
+            height="content" flex_flow="row_wrap" style_pad_left="#space_md" style_pad_right="#space_md"
+            style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_gap="#space_sm" scrollable="false">
       <ui_button name="advanced_estop_btn"
                  height="#button_height_sm" icon="alert_octagon" text="E-Stop (M112)" variant="danger">
-        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
-        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <style name="estop_btn_inline"/>
         <event_cb trigger="clicked" callback="advanced_estop_clicked"/>
       </ui_button>
       <ui_button name="advanced_restart_klipper_btn"
                  height="#button_height_sm" icon="refresh" text="Restart Klipper" variant="warning">
-        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
-        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <style name="estop_btn_inline"/>
         <event_cb trigger="clicked" callback="advanced_restart_klipper_clicked"/>
       </ui_button>
       <ui_button name="advanced_firmware_restart_btn"
                  height="#button_height_sm" icon="cog_refresh" text="Firmware Restart" variant="secondary">
-        <bind_style_if name="estop_btn_stacked" cond="ui_is_portrait"/>
-        <bind_style_if name="estop_btn_inline" cond="ui_is_portrait" invert="true"/>
+        <style name="estop_btn_inline"/>
         <event_cb trigger="clicked" callback="advanced_firmware_restart_clicked"/>
+      </ui_button>
+      <ui_button name="advanced_restart_moonraker_btn"
+                 height="#button_height_sm" icon="refresh" text="Restart Moonraker" variant="secondary">
+        <style name="estop_btn_inline"/>
+        <event_cb trigger="clicked" callback="advanced_restart_moonraker_clicked"/>
       </ui_button>
     </lv_obj>
   </view>

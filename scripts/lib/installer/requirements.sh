@@ -92,6 +92,12 @@ install_missing_unzip() {
     return "$rc"
 }
 
+# The Debian packages the Pi build cannot start without: DRM display, libinput,
+# and the GPU libraries behind DRM+EGL rendering. OpenSSL is statically linked,
+# so no libssl. An image install checks the same list against the image's own
+# package database (image.sh).
+HELIX_PI_RUNTIME_DEPS="libdrm2 libinput10 libgbm1 libegl1 libgles2"
+
 # Runtime libraries the Pi build needs that are not installed yet. Read-only:
 # sets MISSING_RUNTIME_DEPS (space-separated package names, empty if none).
 # Required for DRM display and evdev input handling; AD5M uses framebuffer
@@ -112,7 +118,7 @@ detect_missing_runtime_deps() {
     # libturbojpeg: SIMD-accelerated JPEG decode for camera MJPEG streams
     #   Debian names it libturbojpeg0, Ubuntu names it libturbojpeg
     # Note: OpenSSL is statically linked for Pi builds, no runtime libssl needed
-    local deps="libdrm2 libinput10 libgbm1 libegl1 libgles2"
+    local deps="$HELIX_PI_RUNTIME_DEPS"
 
     # turbojpeg: package name varies by distro (Debian=libturbojpeg0, Ubuntu=libturbojpeg)
     local turbo_pkg=""

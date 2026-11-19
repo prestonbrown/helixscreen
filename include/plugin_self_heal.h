@@ -3,9 +3,8 @@
 
 #pragma once
 
-#include "ui_timer_guard.h"
-
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "helix_plugin_installer.h"
 
 #include <functional>
@@ -25,12 +24,13 @@ struct PluginSelfHealTestAccess; // test-only friend (tests/test_helpers/)
  * (decide_plugin_turn(), as the install prompt does), and goes through
  * install.sh --restart-moonraker: Moonraker's own server.restart keeps the
  * plugin module it already imported, so only a new process loads the new
- * code. One the script holds off for a print waits for the job again. A version pair or a
- * re-pointed link a finished restart did not fix is remembered in the config
- * (PluginSelfHealMemory) and only warned about on later starts. A plugin set
- * to `enabled: False` is left to the install prompt. A remote Moonraker is
- * only reported in the log. decide_plugin_self_heal() holds the rule; this
- * class gathers its facts and acts. Main thread only.
+ * code. A running plugin newer than the one bundled here is never relinked
+ * or restarted for: that would downgrade it. One the script holds off for a print waits for the job
+ * again. A version pair or a re-pointed link a finished restart did not fix is remembered in the
+ * config (PluginSelfHealMemory) and only warned about on later starts. A plugin set to `enabled:
+ * False` is left to the install prompt. A remote Moonraker is only reported in the log.
+ * decide_plugin_self_heal() holds the rule; this class gathers its facts and acts. Main thread
+ * only.
  */
 class PluginSelfHeal {
   public:
@@ -56,6 +56,7 @@ class PluginSelfHeal {
     friend struct PluginSelfHealTestAccess;
 
     void act(bool local, PluginLinkCheck link);
+    static void log_keeping_newer(const std::string& reported, const std::string& bundled);
     /// A pending restart looks again: on a lifecycle change or a timer tick.
     void recheck_restart();
     void restart_moonraker();

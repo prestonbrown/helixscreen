@@ -5,18 +5,18 @@
  * @file test_subject_deinit_refuses_observers.cpp
  * @brief A deinitialized subject refuses observers until it is initialized again.
  *
- * lv_subject_deinit() empties the observer list but leaves the subject's type set,
- * and every lv_subject_init_*() starts from a fresh list without freeing the old
- * one. An observer attached in between would be orphaned by the next init, along
- * with the context its user_data owns (prestonbrown/helixscreen#1279). The refusal
- * is logged, so an attach in that window is visible rather than silent.
+ * helix::Subject::reset() empties the observer list but leaves the subject's type
+ * set, and every init_*() starts from a fresh list without freeing the old one. An observer
+ * attached in between would be orphaned by the next init, along with the context its user_data owns
+ * (prestonbrown/helixscreen#1279). The refusal is logged, so an attach in that window is visible
+ * rather than silent.
  */
-
-#include "ui_observer_guard.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl_log_handler.h"
 
 #include <string>
@@ -67,25 +67,25 @@ struct Owner {
 
 TEST_CASE_METHOD(LVGLTestFixture, "Deinitialized subject refuses lv_subject_add_observer",
                  "[observer][subject_lifetime][1279]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 7);
-    lv_subject_deinit(&subject);
+    helix::Subject subject;
+    subject.init_int(7);
+    subject.reset();
 
     ScopedRefusalCounter refusals;
     g_raw_calls = 0;
     lv_observer_t* observer = lv_subject_add_observer(&subject, counting_cb, nullptr);
 
     CHECK(observer == nullptr);
-    CHECK(lv_ll_get_len(&subject.subs_ll) == 0);
+    CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 0);
     CHECK(g_raw_calls == 0);
     CHECK(ScopedRefusalCounter::count() == 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Deinitialized subject refuses a widget-bound observer",
                  "[observer][subject_lifetime][1279]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
-    lv_subject_deinit(&subject);
+    helix::Subject subject;
+    subject.init_int(0);
+    subject.reset();
 
     lv_obj_t* obj = lv_obj_create(test_screen());
     const uint32_t events_before = lv_obj_get_event_count(obj);
@@ -94,7 +94,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Deinitialized subject refuses a widget-bound 
     lv_observer_t* observer = lv_subject_add_observer_obj(&subject, counting_cb, obj, nullptr);
 
     CHECK(observer == nullptr);
-    CHECK(lv_ll_get_len(&subject.subs_ll) == 0);
+    CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 0);
     // A refused bind must not leave an unsubscribe-on-delete callback on the widget.
     CHECK(lv_obj_get_event_count(obj) == events_before);
     CHECK(ScopedRefusalCounter::count() == 1);
@@ -104,9 +104,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "Deinitialized subject refuses a widget-bound 
 
 TEST_CASE_METHOD(LVGLTestFixture, "observe<int> on a deinitialized subject returns an empty guard",
                  "[observer][subject_lifetime][factory][1279]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 3);
-    lv_subject_deinit(&subject);
+    helix::Subject subject;
+    subject.init_int(3);
+    subject.reset();
 
     Owner owner;
     ScopedRefusalCounter refusals;
@@ -116,66 +116,66 @@ TEST_CASE_METHOD(LVGLTestFixture, "observe<int> on a deinitialized subject retur
 
     CHECK_FALSE(guard);
     CHECK(owner.notifications == 0);
-    CHECK(lv_ll_get_len(&subject.subs_ll) == 0);
+    CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 0);
     CHECK(ScopedRefusalCounter::count() == 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Re-initializing a deinitialized subject accepts observers again",
                  "[observer][subject_lifetime][1279]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 0);
-    lv_subject_deinit(&subject);
+    helix::Subject subject;
+    subject.init_int(0);
+    subject.reset();
 
     SECTION("int") {
-        lv_subject_init_int(&subject, 5);
+        subject.init_int(5);
     }
     SECTION("string") {
         static char buf[16];
         static char prev[16];
-        lv_subject_init_string(&subject, buf, prev, sizeof(buf), "x");
+        subject.init_string(buf, prev, sizeof(buf), "x");
     }
     SECTION("pointer") {
-        lv_subject_init_pointer(&subject, nullptr);
+        subject.init_pointer(nullptr);
     }
 
     g_raw_calls = 0;
     lv_observer_t* observer = lv_subject_add_observer(&subject, counting_cb, nullptr);
     REQUIRE(observer != nullptr);
     CHECK(g_raw_calls == 1);
-    CHECK(lv_ll_get_len(&subject.subs_ll) == 1);
-
-    lv_subject_deinit(&subject);
+    CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "Re-initializing a deinitialized group subject accepts observers",
                  "[observer][subject_lifetime][1279]") {
-    lv_subject_t a;
-    lv_subject_t b;
-    lv_subject_init_int(&a, 1);
-    lv_subject_init_int(&b, 2);
+    helix::Subject a;
+    helix::Subject b;
+    a.init_int(1);
+    b.init_int(2);
     lv_subject_t* members[] = {&a, &b};
 
-    lv_subject_t group;
-    lv_subject_init_group(&group, members, 2);
-    lv_subject_deinit(&group);
-    REQUIRE(lv_subject_add_observer(&group, counting_cb, nullptr) == nullptr);
-
-    lv_subject_init_group(&group, members, 2);
+    // helix::Subject has no group form, and LVGL's own group deinit and re-init are what
+    // this case pins, so the node is created and deleted here directly.
+    lv_subject_t* group = lv_subject_create(LV_SUBJECT_TYPE_GROUP);
+    lv_subject_set_group_list_static(group, members, 2);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    lv_subject_deinit(group); // SUBJECT_API_OK: the group deinit this case pins
+    REQUIRE(lv_subject_add_observer(group, counting_cb, nullptr) == nullptr);
+    lv_subject_init_group(group, members, 2); // SUBJECT_API_OK: the group re-init it pins
+#pragma GCC diagnostic pop
     g_raw_calls = 0;
-    lv_observer_t* observer = lv_subject_add_observer(&group, counting_cb, nullptr);
+    lv_observer_t* observer = lv_subject_add_observer(group, counting_cb, nullptr);
     REQUIRE(observer != nullptr);
     CHECK(g_raw_calls == 1);
 
-    lv_subject_deinit(&group);
-    lv_subject_deinit(&a);
-    lv_subject_deinit(&b);
+    lv_subject_delete(group);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "A deinitialized subject still reads and writes its value",
                  "[observer][subject_lifetime][1279]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 11);
-    lv_subject_deinit(&subject);
+    helix::Subject subject;
+    subject.init_int(11);
+    subject.reset();
 
     CHECK(lv_subject_get_int(&subject) == 11);
     lv_subject_set_int(&subject, 12);
@@ -186,9 +186,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "A deinitialized subject still reads and write
 // leave no NULL dereference, no applied style and no allocation behind.
 TEST_CASE_METHOD(LVGLTestFixture, "Style and span binders survive a deinitialized subject",
                  "[observer][subject_lifetime][1279]") {
-    lv_subject_t subject;
-    lv_subject_init_int(&subject, 1);
-    lv_subject_deinit(&subject);
+    helix::Subject subject;
+    subject.init_int(1);
+    subject.reset();
 
     static lv_style_t style;
     lv_style_init(&style);
@@ -205,7 +205,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Style and span binders survive a deinitialize
     }
     SECTION("lv_obj_bind_flag_if_eq") {
         CHECK(lv_obj_bind_flag_if_eq(obj, &subject, LV_OBJ_FLAG_HIDDEN, 1) == nullptr);
-        CHECK_FALSE(lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(obj));
     }
     SECTION("lv_obj_bind_state_if_eq") {
         CHECK(lv_obj_bind_state_if_eq(obj, &subject, LV_STATE_DISABLED, 1) == nullptr);
@@ -223,7 +223,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "Style and span binders survive a deinitialize
         CHECK(lv_spangroup_bind_span_text(group, span, &subject, "%d") == nullptr);
         lv_obj_delete(group);
     }
-    CHECK(lv_ll_get_len(&subject.subs_ll) == 0);
+    CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 0);
 
     lv_obj_delete(obj);
     lv_style_reset(&style);
@@ -242,11 +242,10 @@ constexpr const char* kBindStyleXml = R"(<component>
   </view>
 </component>)";
 
-lv_subject_t& deinit_probe_subject() {
-    static lv_subject_t subject;
+helix::Subject& deinit_probe_subject() {
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
-        lv_subject_init_int(&subject, 0);
         lv_xml_register_subject(nullptr, "deinit_probe_subject", &subject);
         registered = true;
     }
@@ -272,20 +271,18 @@ lv_obj_t* create_bind_style_probe(lv_obj_t* parent) {
 TEST_CASE("XML bind_style_if_eq on a deinitialized subject leaves the style off",
           "[observer][subject_lifetime][xml][1279]") {
     XMLTestFixture fixture;
-    lv_subject_t& subject = deinit_probe_subject();
+    helix::Subject& subject = deinit_probe_subject();
 
     // The binding applies the style while its subject is live, so the refusal case
     // below is the one that decides the outcome.
-    lv_subject_init_int(&subject, 0);
+    subject.init_int(0);
     lv_obj_t* live = create_bind_style_probe(fixture.test_screen());
     REQUIRE(lv_obj_get_style_bg_opa(live, LV_PART_MAIN) == 77);
 
-    lv_subject_deinit(&subject);
+    subject.reset();
     lv_obj_t* refused = create_bind_style_probe(fixture.test_screen());
     CHECK(lv_obj_get_style_bg_opa(refused, LV_PART_MAIN) != 77);
-    CHECK(lv_ll_get_len(&subject.subs_ll) == 0);
-
-    lv_subject_init_int(&subject, 0);
+    CHECK(lv_ll_get_len(&subject.get()->subs_ll) == 0);
 }
 
 TEST_CASE("A refused observer maps to one anomaly code whatever subject it names",

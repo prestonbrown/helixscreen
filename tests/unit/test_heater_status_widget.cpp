@@ -12,6 +12,7 @@
 #include "ui_temperature_utils.h"
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
 #include "../catch_amalgamated.hpp"
@@ -22,7 +23,7 @@ class HeaterStatusFixture : public XMLTestFixture {
   public:
     HeaterStatusFixture() : XMLTestFixture() {
         if (!lv_xml_get_subject(nullptr, "hs_state")) {
-            lv_subject_init_int(&state_subject_, 0);
+            state_subject_.init_int(0);
             lv_xml_register_subject(nullptr, "hs_state", &state_subject_);
         }
         state_ = lv_xml_get_subject(nullptr, "hs_state");
@@ -37,14 +38,14 @@ class HeaterStatusFixture : public XMLTestFixture {
     static bool hidden(const char* name) {
         lv_obj_t* icon = lv_obj_find_by_name(lv_screen_active(), name);
         REQUIRE(icon != nullptr);
-        return lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN);
+        return lv_obj_is_hidden(icon);
     }
 
     lv_subject_t* state_ = nullptr;
 
   private:
     lv_obj_t* widget_ = nullptr;
-    lv_subject_t state_subject_{};
+    helix::Subject state_subject_{};
 };
 
 } // namespace

@@ -38,6 +38,8 @@
     <prop name="visible" type="subject" default="ams_env_ind_0_visible"/>
     <prop name="drying_active" type="subject" default="ams_env_ind_0_drying_active"/>
     <prop name="drying_text" type="subject" default="ams_env_ind_0_drying_text"/>
+    <!-- "true" drops the reading icons, for a readout small enough to sit over a unit's art. -->
+    <prop name="hide_icons" type="string" default="false"/>
   </api>
   <view name="ams_environment_indicator"
         extends="lv_obj" width="content" height="content" style_margin_top="#space_xs" style_pad_top="#space_xs"
@@ -60,7 +62,7 @@
               height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
               style_flex_cross_place="center" style_pad_gap="#space_xxs" scrollable="false" clickable="false"
               event_bubble="true">
-        <icon src="thermometer" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
+        <icon src="thermometer" size="sm" variant="secondary" clickable="false" event_bubble="true" hidden="$hide_icons"/>
         <text_small bind_text="$temp_text" clickable="false" event_bubble="true"/>
       </lv_obj>
 
@@ -70,7 +72,8 @@
               style_flex_cross_place="center" style_pad_gap="#space_xxs" scrollable="false" clickable="false"
               event_bubble="true" hidden="true">
         <bind_flag_if_not_eq subject="$humidity_visible" flag="hidden" ref_value="1"/>
-        <humidity_drop name="env_humidity_drop" bind_value="$humidity" size="sm" clickable="false" event_bubble="true"/>
+        <humidity_drop name="env_humidity_drop"
+                       bind_value="$humidity" size="sm" clickable="false" event_bubble="true" hidden="$hide_icons"/>
         <!-- OK (green/default) — visible when status=0 -->
         <text_small bind_text="$humidity_text" clickable="false" event_bubble="true" hidden="true">
           <bind_flag_if_not_eq subject="$humidity_status" flag="hidden" ref_value="0"/>

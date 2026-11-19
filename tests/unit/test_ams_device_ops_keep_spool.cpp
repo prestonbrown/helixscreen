@@ -10,6 +10,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_backend_mock.h"
+#include "ams_spool_retention.h"
 #include "ams_state.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
@@ -28,10 +29,16 @@ using helix::ui::get_ams_device_operations_overlay;
 namespace {
 
 /// A backend whose firmware keeps its own per-lane retention setting.
-class FirmwareRetentionMock : public AmsBackendMock {
+class FirmwareRetentionMock : public AmsBackendMock, public ISpoolRetention {
   public:
     FirmwareRetentionMock(bool owns, bool keeps, std::vector<bool>* writes)
         : AmsBackendMock(4), owns_(owns), keeps_(keeps), writes_(writes) {}
+    [[nodiscard]] void* capability(TypeTag tag) override {
+        if (tag == type_tag<ISpoolRetention>()) {
+            return static_cast<ISpoolRetention*>(this);
+        }
+        return AmsBackendMock::capability(tag);
+    }
     [[nodiscard]] bool firmware_owns_spool_retention() const override {
         return owns_;
     }
@@ -123,8 +130,8 @@ TEST_CASE_METHOD(DeviceOpsKeepSpoolFixture,
     std::vector<bool> writes;
     show_with(std::make_unique<FirmwareRetentionMock>(true, false, &writes));
 
-    CHECK(lv_obj_has_flag(row(kOwnRow), LV_OBJ_FLAG_HIDDEN));
-    REQUIRE_FALSE(lv_obj_has_flag(row(kFirmwareRow), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row(kOwnRow)));
+    REQUIRE_FALSE(lv_obj_is_hidden(row(kFirmwareRow)));
     lv_obj_t* sw = toggle_of(row(kFirmwareRow));
     CHECK_FALSE(lv_obj_has_state(sw, LV_STATE_CHECKED)); // the firmware's value, not ours
 
@@ -145,7 +152,7 @@ TEST_CASE_METHOD(DeviceOpsKeepSpoolFixture,
     std::vector<bool> writes;
     show_with(std::make_unique<FirmwareRetentionMock>(false, false, &writes));
 
-    CHECK(lv_obj_has_flag(row(kFirmwareRow), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row(kFirmwareRow)));
     flip(toggle_of(row(kOwnRow)), false);
     CHECK_FALSE(SettingsManager::instance().get_ams_keep_spool_info_on_eject());
     CHECK(writes.empty());

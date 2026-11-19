@@ -45,7 +45,7 @@
  *
  * Override init_subjects() for owned subjects, register_callbacks() for XML
  * callbacks, before_show() for per-open work that needs the root, and
- * destroy_on_close() to free the widget tree whenever the overlay is popped.
+ * on_ui_destroyed() to drop cached widgets when the tree is freed on close.
  *
  * @see NetworkSettingsOverlay for reference implementation
  */
@@ -54,6 +54,7 @@
 
 #include "ui_widget_ref.h"
 
+#include "full_page_content.h"
 #include "helix_type_tag.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
@@ -77,7 +78,7 @@
  * @implements IPanelLifecycle for NavigationManager dispatch
  * @see ViewLifecycleBase for the two lifetime guards and which one to use
  */
-class OverlayBase : public ViewLifecycleBase {
+class OverlayBase : public ViewLifecycleBase, public helix::FullPageContent {
   public:
     /**
      * @brief Virtual destructor for proper cleanup
@@ -125,10 +126,11 @@ class OverlayBase : public ViewLifecycleBase {
      * @brief Free the widget tree every time show()'s overlay is popped
      *
      * The object (subjects, state) survives and the next show() re-creates the
-     * tree (#1329, #1246). Default: built once, retained for the session.
+     * tree (#1329, #1246). An overlay whose widgets must outlive the pop that
+     * takes it off the stack returns false and keeps its tree for the session.
      */
     virtual bool destroy_on_close() const {
-        return false;
+        return true;
     }
 
     /**
@@ -150,6 +152,46 @@ class OverlayBase : public ViewLifecycleBase {
      * @return false (after a toast) when the root could not be created
      */
     bool show(lv_obj_t* parent_screen);
+
+    /**
+     * @brief Build this overlay's tree inside @p container, off the navigation stack
+     *
+     * The full-page form of a home widget (prestonbrown/helixscreen#1931) hosts the
+     * overlay it would otherwise open: the same create(), callbacks and subjects,
+     * parented to the page instead of the screen. The root fills the container, the
+     * header's back affordance is disarmed (there is nothing to go back to), and the
+     * overlay is activated. Nothing is pushed or registered with NavigationManager.
+     *
+     * @return false, building nothing, while the overlay's tree already exists (it is
+     *         open on the stack, or embedded elsewhere)
+     */
+    bool embed(lv_obj_t* container) override;
+
+    /**
+     * @brief Deactivate and free a tree embed() built; no-op when none is embedded
+     */
+    void release_embed() override;
+
+    /// The root embed() built, or nullptr.
+    lv_obj_t* embedded_root() const override {
+        return is_embedded() ? overlay_root_.get() : nullptr;
+    }
+
+    /// The tree dies with the page, so only the deactivate and the cleanup are
+    /// left: they run on the next tick, unless a page has embedded it again by then.
+    void host_deleting() override;
+
+    /// Whether embed() keeps the header bar. An overlay whose header carries
+    /// only its title returns false: on a home page the title repeats the tile,
+    /// and the page needs the height for the controls under it.
+    virtual bool embed_keeps_header() const {
+        return true;
+    }
+
+    /// Whether the current tree was built by embed().
+    bool is_embedded() const {
+        return embedded_ && overlay_root_;
+    }
 
     /**
      * @brief Close this overlay through NavigationManager::close_overlay()
@@ -314,6 +356,15 @@ class OverlayBase : public ViewLifecycleBase {
         return subjects_initialized_;
     }
 
+    /// Runs init_subjects() unless it already ran: what show() does, for code that
+    /// needs the subjects before the overlay is shown.
+    void ensure_subjects() {
+        if (!subjects_initialized_) {
+            init_subjects();
+            subjects_initialized_ = true;
+        }
+    }
+
   protected:
     /**
      * @brief Default constructor (protected - use derived classes)
@@ -455,6 +506,11 @@ class OverlayBase : public ViewLifecycleBase {
     /// a root freed with its screen still reads non-null in overlay_root_.
     lv_obj_t* shown_root_ = nullptr;
     helix::ui::WidgetRef shown_root_ref_;
+
+    /// The tree was built by embed(); show() releases it before building its own.
+    bool embedded_ = false;
+    /// parent_screen_ as it was before embed() pointed it at the host container.
+    helix::ui::WidgetRef screen_before_embed_;
 
     /// Expires only with this object: destroy_overlay_ui() hands it to
     /// teardown_overlay_ui() as the owner that must outlive its drain.

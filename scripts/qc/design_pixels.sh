@@ -33,7 +33,7 @@ else
   PIXELS_ARGS=""
 fi
 # shellcheck disable=SC2086
-if python3 scripts/check_hardcoded_pixels.py --max-allowed 150 --summary $PIXELS_ARGS \
+if python3 scripts/check_hardcoded_pixels.py --max-allowed 120 --summary $PIXELS_ARGS \
     >/tmp/hardcoded_pixels.out 2>&1; then
   tail -1 /tmp/hardcoded_pixels.out
 else
@@ -42,37 +42,6 @@ else
   echo "   Use a token; see .claude/rules/declarative-ui.md § Design Tokens."
   EXIT_CODE=1
 fi
-
-echo ""
-
-echo "🪟 Checking layout-variant parity..."
-
-# A ui_xml/<variant>/ file replaces its base wholesale, so nothing else notices
-# when the base grows a binding the variant never gets. Those failures are
-# silent at runtime (prestonbrown/helixscreen#1203). Always whole-tree: parity
-# is a property of a file PAIR, so staging only one half still has to be checked.
-if python3 scripts/check_variant_parity.py >/tmp/variant_parity.out 2>&1; then
-  echo "✅ Layout variants match their base wiring"
-else
-  cat /tmp/variant_parity.out
-  EXIT_CODE=1
-fi
-
-echo ""
-
-echo "🎭 Checking layout-variant content drift (warning only)..."
-
-# Wiring parity (above) doesn't catch a font bump, an icon src= swap, or an
-# edited translation_tag= in a base file whose ui_xml/<variant>/ sibling
-# didn't get the same edit -- check_variant_parity.py deliberately does not
-# compare attributes. WARNING ONLY, never fails: additive divergence (e.g.
-# portrait's temperature section, absent from the landscape base) is
-# legitimate, and this gate cannot tell that apart from rot -- only a human
-# glancing at the named file/attribute can. Staged-diff scoped by design: a
-# base+variant pair staged TOGETHER is the human already keeping them in sync.
-python3 scripts/check_variant_content_drift.py
-# NOTE: intentionally not gating -- see docstring in the script.
-# EXIT_CODE=1
 
 echo ""
 

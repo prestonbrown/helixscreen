@@ -3,11 +3,10 @@
 
 #include "glass_gate.h"
 
-#include "ui_timer_guard.h"
-
 #include "board_fingerprint.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "display_backend.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
@@ -143,7 +142,7 @@ double measure_glass_frame_ms(int32_t width, int32_t height) {
         return 0;
     }
     lv_display_t* disp = lv_display_get_default();
-    const lv_color_format_t cf = disp ? lv_display_get_color_format(disp) : LV_COLOR_FORMAT_NATIVE;
+    const lv_color_format_t cf = disp ? lv_display_get_color_format(disp) : LV_COLOR_FORMAT_DEFAULT;
     lv_draw_buf_t* buf = lv_draw_buf_create(static_cast<uint32_t>(width),
                                             static_cast<uint32_t>(height), cf, LV_STRIDE_AUTO);
     if (buf == nullptr) {
@@ -153,7 +152,7 @@ double measure_glass_frame_ms(int32_t width, int32_t height) {
     // A hidden canvas on the system layer: the layer round-trip needs an object, and a hidden
     // one never reaches the display.
     lv_obj_t* canvas = lv_canvas_create(lv_layer_sys());
-    lv_obj_add_flag(canvas, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: offscreen probe canvas
+    lv_obj_set_hidden(canvas, true); // DECLARATIVE_OK: offscreen probe canvas
     lv_canvas_set_draw_buf(canvas, buf);
 
     std::array<double, kProbeRepetitions> ms{};

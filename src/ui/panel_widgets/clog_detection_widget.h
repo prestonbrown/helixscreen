@@ -9,7 +9,7 @@
 #include <memory>
 #include <string>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: config_ held by value
 
 class ClogDetectionConfigModal;
 

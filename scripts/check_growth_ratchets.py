@@ -25,7 +25,8 @@ to conflict on. A count may fall; a branch may not raise it.
   active instance  Static-storage pointers that hand an XML callback "the
                    current instance" (`static Foo* active_instance_;`,
                    `static Foo* s_active_`, an anonymous-namespace
-                   `Foo* s_active_ctx = nullptr;`, ...). The branch's total may
+                   `Foo* s_active_ctx = nullptr;`, `static Foo* s_current_`,
+                   `static Foo* current_instance_`, ...). The branch's total may
                    not rise; an out-of-line `Foo* Foo::active_instance_ =`
                    definition is not a second pointer and is not counted, and
                    a name containing `inactive` is not the pattern at all. A
@@ -93,14 +94,18 @@ def _param_re(type_re: str) -> re.Pattern:
 
 # "inactive" names the opposite of the pattern, so a name containing it is not one.
 _NOT_INACTIVE = r"(?!\w*inactive)"
-_ACTIVE_NAME = rf"(?:s_|g_)?{_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?"
+# "current" is the other word for the same slot: `s_current_panel`, a member `current_`,
+# `current_instance_`. A bare `s_instance` is a singleton slot, not this pattern.
+_CURRENT_NAME = r"(?:s_|g_)current\w*|current_|current_instance\w*"
+_ACTIVE_NAME = rf"(?:s_|g_)?{_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?|{_CURRENT_NAME}"
 ACTIVE_OPT_OUT = "ACTIVE_INSTANCE_OK:"
 _KEYWORDS = {"return", "delete", "throw", "case", "goto", "else", "new"}
 ACTIVE_STATIC_RE = re.compile(
     rf"^[ \t]*(?:inline\s+)?static\s+(?:inline\s+)?(?:const\s+)?([\w:<>]+)\s*\*\s*(?:const\s+)?"
     rf"({_ACTIVE_NAME})\s*(?:=\s*nullptr\s*|\{{\s*(?:nullptr)?\s*\}}\s*)?;", re.M)
 ACTIVE_GLOBAL_RE = re.compile(
-    rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_){_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?)"
+    rf"^[ \t]*(?:const\s+)?([\w:<>]+)\s*\*\s*((?:s_|g_){_NOT_INACTIVE}\w*active\w*|(?:s_|g_)\w+_instance_?"
+    rf"|(?:s_|g_)current\w*)"
     rf"\s*(?:=\s*nullptr\s*|\{{\s*\}}\s*)?;", re.M)
 
 VALIDITY_NAMES = ("lv_obj_is_valid", "lv_obj_is_in_widget_tree")
@@ -270,7 +275,8 @@ def active_instances(text: str) -> list[str]:
     names = []
     for rx in (ACTIVE_STATIC_RE, ACTIVE_GLOBAL_RE):
         for m in rx.finditer(code):
-            if m.group(1) not in _KEYWORDS:
+            # A `char*` is a C string (a tag, a name), never an instance.
+            if m.group(1) not in _KEYWORDS and m.group(1) != "char":
                 names.append(m.group(2))
     return names
 

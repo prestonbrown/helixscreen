@@ -4,6 +4,7 @@
 // Status schema verified live against the U1 rig 2026-09-16 (issue #1290).
 #include "chamber_heater_backend.h"
 #include "core/text_io.h"
+#include "json_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -121,43 +122,36 @@ class PandaBreathBackend : public ChamberHeaterBackend {
         // is up. A value we cannot read is not evidence the appliance is gone,
         // so a malformed slot engages as connected rather than raising the
         // offline banner.
-        if (status.contains("connected")) {
-            d.device_connected =
-                status["connected"].is_boolean() ? status["connected"].get<bool>() : true;
+        if (const auto* connected = json_util::find_member(status, "connected")) {
+            d.device_connected = json_util::read_scalar<bool>(*connected).value_or(true);
         }
         // Only the Klipper-target mode is our target closing the loop; the auto
         // and drying cycles are the appliance running itself. work_mode latches
         // at its last value once the output stops, so work_on is what makes the
         // answer present-tense. Both halves are needed for an answer, and a
         // value we cannot read fails toward not raising the badge.
-        if (status.contains("work_mode") && status.contains("work_on")) {
-            int work_mode = kWorkModeKlipperTarget;
-            if (status["work_mode"].is_number_integer()) {
-                work_mode = status["work_mode"].get<int>();
-            }
-            bool work_on = false;
-            if (status["work_on"].is_boolean()) {
-                work_on = status["work_on"].get<bool>();
-            }
+        const auto* work_mode_value = json_util::find_member(status, "work_mode");
+        const auto* work_on_value = json_util::find_member(status, "work_on");
+        if (work_mode_value && work_on_value) {
+            const int work_mode =
+                json_util::read_integer(*work_mode_value).value_or(kWorkModeKlipperTarget);
+            const bool work_on = json_util::read_scalar<bool>(*work_on_value).value_or(false);
             d.externally_controlled = work_on && work_mode != kWorkModeKlipperTarget;
         }
         // The drying cycle: filament_temp is its target, filament_timer its
         // length in whole hours, remaining_seconds the countdown. A value we
         // cannot read is no report.
-        if (status.contains("filament_drying_active") &&
-            status["filament_drying_active"].is_boolean()) {
-            d.drying_active = status["filament_drying_active"].get<bool>();
+        if (const auto v = json_util::read_field<bool>(status, "filament_drying_active")) {
+            d.drying_active = *v;
         }
-        if (status.contains("remaining_seconds") &&
-            status["remaining_seconds"].is_number_integer()) {
-            d.drying_remaining_s = std::max(status["remaining_seconds"].get<int>(), 0);
+        if (const auto v = json_util::read_integer_field(status, "remaining_seconds")) {
+            d.drying_remaining_s = std::max(*v, 0);
         }
-        if (status.contains("filament_temp") && status["filament_temp"].is_number()) {
-            d.drying_target_c =
-                static_cast<int>(std::lround(status["filament_temp"].get<double>()));
+        if (const auto v = json_util::read_field<double>(status, "filament_temp")) {
+            d.drying_target_c = static_cast<int>(std::lround(*v));
         }
-        if (status.contains("filament_timer") && status["filament_timer"].is_number_integer()) {
-            d.drying_duration_min = status["filament_timer"].get<int>() * 60;
+        if (const auto v = json_util::read_integer_field(status, "filament_timer")) {
+            d.drying_duration_min = *v * 60;
         }
         return d;
     }

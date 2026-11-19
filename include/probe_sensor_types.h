@@ -47,10 +47,11 @@ struct ProbeSensorConfig {
 
 /// @brief Runtime state for a probe sensor
 struct ProbeSensorState {
-    bool triggered = false;     ///< Last QUERY_PROBE result (status key last_query)
-    float last_z_result = 0.0f; ///< Last Z probe result in mm
-    float z_offset = 0.0f;      ///< Z offset in mm
-    bool available = false;     ///< Sensor available in current config
+    bool triggered = false;      ///< Last QUERY_PROBE result (status key last_query)
+    float last_z_result = 0.0f;  ///< Last Z probe result in mm
+    float z_offset = 0.0f;       ///< Z offset in mm
+    bool z_offset_known = false; ///< z_offset came from status or a config section
+    bool available = false;      ///< Sensor available in current config
 };
 
 inline constexpr EnumName<ProbeSensorRole> kProbeSensorRoles[] = {

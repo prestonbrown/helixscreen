@@ -16,9 +16,11 @@
 #include "ams_backend_cfs.h"
 #include "ams_backend_toolchanger.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "lane_source_store.h"
+#include "printer_state.h"
 #include "test_helpers/registered_backend.h"
 
 #include <filesystem>
@@ -110,27 +112,30 @@ SlotInfo petg_spool() {
 
 // --- No filament backend: AmsState keeps the record in lane_data ----------
 
-TEST_CASE_METHOD(LVGLTestFixture, "the bypass spool is the bypass record Moonraker holds",
-                 "[bypass][lane][refresh]") {
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the bypass spool is the bypass record Moonraker holds, as it changes",
+                 "[bypass][lane][refresh][ready][2097]") {
+    auto& ams = AmsState::instance();
+    ams.deinit_subjects();
+    get_printer_state().init_subjects(false);
+    ams.init_subjects(false);
     MockPrinter printer;
     printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
+    // Lane editing (the spool editor's Save) waits for the record's first read.
+    printer.client.fail_next("server.database.get_item");
     OwnBypassStore store(printer);
-
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 0);
+    ams.refresh_bypass_record();
+    settle();
+    CHECK(lv_subject_get_int(ams.get_ams_lane_records_ready_subject()) == 1);
     const auto spool = AmsState::instance().get_external_spool_info();
     REQUIRE(spool.has_value());
     CHECK(spool->material == "PETG");
     CHECK(spool->color_rgb == 0x1E5AA8u);
     CHECK(spool->slot_index == helix::ams::kBypassSlotIndex);
     CHECK(helix::ams::lane_sources(helix::ams::kBypassLaneId).record.has_value());
-}
 
-TEST_CASE_METHOD(LVGLTestFixture,
-                 "another client's change to the bypass record shows on the next read",
-                 "[bypass][lane][refresh]") {
-    MockPrinter printer;
-    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
-    OwnBypassStore store(printer);
-    REQUIRE(AmsState::instance().get_external_spool_info()->material == "PETG");
+    // Another client's change shows on the next read.
 
     printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ABS", "#FF0000"));
     AmsState::instance().refresh_bypass_record();
@@ -141,6 +146,29 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // Deleted elsewhere: no spool recorded.
     printer.client.mock_db_set("lane_data", "lane1", nullptr);
     AmsState::instance().refresh_bypass_record();
+    settle();
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+    ams.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a bypass read still out when the backends clear is not filed",
+                 "[bypass][lane][refresh][multi-printer]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "PETG", "#1E5AA8"));
+    OwnBypassStore store(printer);
+    REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+
+    // A read is answered but not yet filed when the printer goes away; the
+    // next printer holds no bypass record.
+    AmsState::instance().refresh_bypass_record();
+    printer.client.mock_db_set("lane_data", "lane1", nullptr);
+    AmsState::instance().clear_backends();
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+
+    // The first pass files what is answered: the departed read must not be.
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
+    CHECK_FALSE(helix::ams::lane_sources(helix::ams::kBypassLaneId).record.has_value());
     settle();
     CHECK_FALSE(AmsState::instance().get_external_spool_info().has_value());
 }

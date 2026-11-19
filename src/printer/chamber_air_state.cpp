@@ -3,6 +3,10 @@
 #include "chamber_air_state.h"
 
 #include "chamber_air_settings.h"
+#include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
 #include "printer_discovery.h"
 #include "state/subject_macros.h"
 
@@ -39,13 +43,27 @@ void ChamberAirState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(chamber_air_recirculate_pct, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_has_targets, 0, subjects_, register_xml);
     // Read from C++ only (the maintenance model observes it), so it takes no XML name.
-    lv_subject_init_int(&chamber_air_filter_minutes_, -1);
+    chamber_air_filter_minutes_.init_int(-1);
     subjects_.register_subject(&chamber_air_filter_minutes_, nullptr);
     const chamber_air::ModeTargets d{};
     INIT_SUBJECT_INT(chamber_air_target_c, static_cast<int>(d.target_c), subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_exhaust_target_pct, d.exhaust_pct, subjects_, register_xml);
     INIT_SUBJECT_INT(chamber_air_recirculate_target_pct, d.recirculate_pct, subjects_,
                      register_xml);
+    INIT_SUBJECT_STRING(chamber_air_target_text, "", subjects_, register_xml);
+    // Immediate: the handler only copies a string, and the slider drags it live.
+    target_text_observer_ = ui::observe<int>(
+        &chamber_air_target_c_, this,
+        [](ChamberAirState* self, int celsius) {
+            lv_subject_set_string(&self->chamber_air_target_text_,
+                                  units::format_display_temp(celsius).c_str());
+        },
+        subjects_.get_subjects_lifetime(), ui::Dispatch::Immediate);
+    unit_observer_ = ui::observe_temp_unit_change(this, [](ChamberAirState* self) {
+        lv_subject_set_string(
+            &self->chamber_air_target_text_,
+            units::format_display_temp(lv_subject_get_int(&self->chamber_air_target_c_)).c_str());
+    });
     subjects_initialized_ = true;
 }
 
@@ -53,6 +71,8 @@ void ChamberAirState::deinit_subjects() {
     if (!subjects_initialized_) {
         return;
     }
+    target_text_observer_.reset();
+    unit_observer_.reset();
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }

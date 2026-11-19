@@ -3,14 +3,13 @@
 
 #pragma once
 
-#include "ui_subscription_guard.h"
-#include "ui_timer_guard.h"
-
 #include "ams_backend.h"
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override_store.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "subscription_guard.h"
 
 #include <spdlog/spdlog.h>
 
@@ -99,11 +98,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     // --- Filament operations (final -- derived backends implement do_*) ---
     //
     // Non-virtual interface. The public entry point runs the print-active gate,
-    // then dispatches to the backend's do_* hook. Invoking the gate used to be
-    // opt-in, hand-written at ~24 call sites: 329e731e9 added it to seven
-    // backends and missed the eighth, which shipped with no gate at all
-    // (180a71c7d). A backend cannot forget it here, because it never writes the
-    // entry point.
+    // then dispatches to the backend's do_* hook. A backend cannot forget the
+    // gate, because it never writes the entry point; a gate hand-written at each
+    // call site is easy to miss on one backend.
     //
     // The gate is a CLAIM, not a test: run_filament_op() test-and-sets an
     // in-flight flag in the same critical section as the busy read and holds it
@@ -148,6 +145,12 @@ class AmsSubscriptionBackend : public AmsBackend {
     AmsError run_edit_follow_up(int slot_index, const SlotInfo& before,
                                 const SlotInfo& after) final;
     AmsError unload_filament_batch(const std::vector<int>& slots) final;
+
+    /// Retires an ERROR this backend raised itself (fault_is_own_locked()) and
+    /// sends nothing. An ERROR that mirrors a fault the firmware still reports
+    /// is left standing and answered not_supported: clearing the mirror would
+    /// only hide it until the next status frame raised it again.
+    AmsError clear_fault(int slot_index) override;
 
     // --- Shared utilities (public for AmsState and tests) ---
     void emit_event(const std::string& event, const std::string& data = "");
@@ -348,9 +351,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// the lane and announces the slot when identity_slot_locked() finds no
     /// SlotInfo for the index: a slot not cached yet, before the first frame or
     /// after a topology change. Default false: the clear is logged and nothing
-    /// moves.
-    [[nodiscard]] virtual bool clears_override_without_slot() const {
-        return false;
+    /// moves. A BackendTraits field.
+    [[nodiscard]] bool clears_override_without_slot() const {
+        return traits().clears_override_without_slot;
     }
 
     /// Extra checks before subscribing (e.g., ToolChanger requires tools discovered).
@@ -362,6 +365,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// Unwrap a notify_status_update frame (`{"params": [{status}, eventtime]}`)
     /// and hand its status object to handle_status(). Any other shape is ignored.
     void handle_status_update(const nlohmann::json& notification);
+
+    /// Klipper's eventtime (reactor clock, seconds) of the frame handle_status()
+    /// is reading; 0 for a frame that carries none, such as the subscription's
+    /// first snapshot.
+    double status_eventtime_ = 0.0;
 
     /// Parse one status object, `{<object_name>: <fields>, ...}`, as a notify
     /// frame or a printer.objects.query result carries it. Runs on the main
@@ -414,12 +422,12 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// it gets got wrong: Happy Hare's MMU_SELECT drives the gate selector and
     /// never touches the carriage, while on a Snapmaker U1 a slot select IS a
     /// physical tool change (do_select_slot forwards to do_change_tool, which
-    /// emits `T{n}`). Override to true when yours moves the toolhead.
+    /// emits `T{n}`). Set the BackendTraits field when yours moves the toolhead.
     ///
     /// This can only ADD motion, never remove it. There is deliberately no hook
     /// for declaring an operation gate-free.
-    [[nodiscard]] virtual bool select_slot_moves_toolhead() const {
-        return false;
+    [[nodiscard]] bool select_slot_moves_toolhead() const {
+        return traits().select_slot_moves_toolhead;
     }
 
     /// Which gate the public filament operations run. Neither value means
@@ -536,6 +544,16 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// backend that keeps state derived from the records (a fingerprint
     /// baseline, a seated lane).
     virtual void on_lane_records_read_locked() {}
+
+    /// Whether the current ERROR is one this backend raised from its own
+    /// judgement, which clear_fault() may retire. Runs under mutex_.
+    [[nodiscard]] virtual bool fault_is_own_locked() const {
+        return false;
+    }
+
+    /// clear_fault() retired this backend's ERROR. Runs under mutex_, for a
+    /// backend that keeps state behind the fault (CFS's phase verdict).
+    virtual void on_fault_cleared_locked() {}
 
     /// Read the lane records again and repaint every slot from the reply,
     /// for a backend whose reading of the records changed (it learned what
@@ -689,6 +707,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// The poll: withdraw expired pending edits, then refresh. Main thread.
     void poll_lane_records();
 
+    /// @p slot_index's record as last read, before the extras narrowing, or
+    /// nullptr when no read held one. Main thread.
+    [[nodiscard]] const nlohmann::json* lane_record_wire(int slot_index) const {
+        const auto it = lane_wire_seen_.find(slot_index);
+        return it == lane_wire_seen_.end() ? nullptr : &it->second;
+    }
+
   private:
     /// How often the lane records are read while the backend runs.
     static constexpr std::chrono::seconds kLaneRecordPollPeriod{10};
@@ -776,10 +801,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// backend that publishes an optimistic action does it inside the do_* hook,
     /// in a LATER critical section (AFC/ToolChanger begin_dispatch_locked, ACE,
     /// CFS, AD5X), and Happy Hare, Snapmaker and QIDI never set it at all and
-    /// wait for firmware to echo. So "check busy, then act" was two steps with a
-    /// window between them long before the NVI refactor moved the check out of
-    /// the hook's lock — holding mutex_ across the check never closed it,
-    /// because the write that closes it happens after the lock is dropped.
+    /// wait for firmware to echo. So "check busy, then act" is two steps with a
+    /// window between them, and holding mutex_ across the check does not close
+    /// it, because the write that closes it happens after the lock is dropped.
     /// The claim closes the check→dispatch half of that window outright, for
     /// every backend, without extending mutex_ across the gcode send.
     bool filament_op_in_flight_ = false;

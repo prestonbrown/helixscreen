@@ -9,7 +9,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_notification_history.h"
-#include "ui_observer_guard.h"
+#include "ui_overlay_open_trace.h"
 #include "ui_test_utils.h"
 #include "ui_toast_manager.h"
 
@@ -21,6 +21,9 @@
 #include "board_identity.h"
 #include "config.h"
 #include "core/http_executor.h"
+#include "core/observer_guard.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "fault_surface_correlation.h"
@@ -34,6 +37,9 @@
 #include "macro_param_cache.h"
 #include "panel_widget_manager.h"
 #include "pending_startup_warnings.h"
+#include "post_op_cooldown_manager.h"
+#include "printer_discovery.h"
+#include "region_defaults.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
@@ -45,6 +51,7 @@
 #include "standing_print_options.h"
 #include "system/crash_error_log_sink.h"
 #include "system_settings_manager.h"
+#include "target_tool.h"
 #include "temperature_sensor_manager.h"
 #include "test_helpers/ams_state_test_access.h"
 #include "test_helpers/config_test_access.h"
@@ -54,6 +61,9 @@
 #include "test_helpers/print_control_buttons_test_access.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/tips_manager_test_access.h"
+#include "thermal_rate_model.h"
+#include "tool_heads_model.h"
+#include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -362,6 +372,10 @@ void HelixTestFixture::reset_all() {
     // Nulled, its `if (printer_state_ && ...)` guard makes that callback a no-op.
     EmergencyStopOverlay& estop = EmergencyStopOverlay::instance();
     EmergencyStopOverlayTestAccess::reset_dependencies(estop);
+    // The target tool and the per-head model hold the PrinterState a surface
+    // attached them to, and the target's pick: neither may reach the next case.
+    helix::ui::ToolHeadsModel::instance().deinit_subjects();
+    helix::ui::TargetTool::instance().deinit_subjects();
 
     // The same singleton also carries two wall-clock deadlines — the suppression
     // window and the user-restart window — and the reason a window is holding
@@ -392,6 +406,10 @@ void HelixTestFixture::reset_all() {
     // derived fixture did, which is what the scattered clear_path() calls in
     // individual tests were working around.
     helix::test::reset_config_singleton();
+    // The heating rates are process-wide and price every pre-print phase and
+    // its fallback timeout, so a rate one test set would stretch or shorten
+    // the next test's deadlines.
+    ThermalRateManager::instance().reset();
     // A backend's start reads this cache to pick its firmware's command dialect.
     helix::MacroParamCache::instance().clear();
     // StandardMacros holds each slot's user-configured macro, and reset() keeps
@@ -402,10 +420,18 @@ void HelixTestFixture::reset_all() {
     StandardMacros::instance().load_from_config();
     helix::SystemSettingsManager::instance().init_subjects();
     helix::SystemSettingsManager::instance().set_language("en");
+    // Every formatter reads the display unit; a test that shows °F must not
+    // leave the rest of the binary reading it.
+    helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
+    helix::units::publish_temp_unit();
+    helix::set_saved_date_format(std::nullopt);
 
     // A same-spool notice asked in one test would otherwise hold its lane's
     // quiet window open into the next, and that test's insert would ask nothing.
     helix::ui::reset_insert_offers_for_test();
+
+    // A whole suite opens more overlay names than the open trace has records for.
+    helix::nav::reset_overlay_open_trace_for_test();
 
     // Global RuntimeConfig's --real-*/--no-ams/--disconnected opt-out flags back
     // to their off-by-default state. Every test that exercises RuntimeConfig
@@ -469,7 +495,7 @@ void HelixTestFixture::reset_all() {
     // subject; lv_subject_deinit frees the observer node, leaving the
     // controller's ObserverGuard with a dangling lv_observer_t*. The next
     // destructor that walks it (the singleton's own static teardown at exit, or
-    // the next fixture's reset()) calls lv_observer_remove() on freed memory →
+    // the next fixture's reset()) calls lv_observer_delete() on freed memory →
     // SIGSEGV / heap corruption. This surfaced as nightly [slow] crashes:
     // a segfault in ~PrintControlButtons at process exit, plus mid-run
     // "malloc(): unaligned tcache chunk detected" aborts. Removing the observer
@@ -515,6 +541,12 @@ void HelixTestFixture::reset_all() {
     // A displaced tool map one test leaves pending would be the next test's
     // print-start snapshot and seed routing.
     helix::AmsState::instance().clear_pending_tool_map_restore();
+
+    // ToolState is a singleton: the tools one case installs would be every later
+    // case's (a toolhead chip on Print Status, a multi-tool dropdown).
+    if (helix::ToolState::instance().subjects_initialized()) {
+        helix::ToolState::instance().init_tools(helix::PrinterDiscovery{});
+    }
 
     // DisplaySettingsManager's animations_enabled is a process-global subject
     // that defaults to the platform value (true on desktop). A fixture-less
@@ -714,6 +746,11 @@ void HelixTestFixture::reset_all() {
     // clear it. A motion sensor left enabled turns the clog meter on for every
     // later test that syncs a snapshot with no backend detector.
     helix::FilamentSensorManagerTestAccess::clear_sensors(helix::FilamentSensorManager::instance());
+
+    // A pending post-op cooldown holds a CleanupHold, which every later case would
+    // read as SIGTERM's graceful path. After the drains, so no queued schedule()
+    // re-arms it. Cases that schedule cooldowns init() the manager themselves.
+    PostOpCooldownManager::instance().shutdown();
 
     // NOTE: NavigationManager has no public reset API (clear_overlay_stack is
     // private; shutdown() is a one-way teardown for app exit). Add a reset

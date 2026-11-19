@@ -4,6 +4,7 @@
 #include "sound_theme.h"
 
 #include "core/text_io.h"
+#include "json_utils.h"
 
 #include <spdlog/spdlog.h>
 
@@ -14,6 +15,7 @@
 #include "hv/json.hpp"
 
 using json = nlohmann::json;
+namespace json_util = helix::json_util;
 
 // ============================================================================
 // Note name -> semitone offset from C
@@ -67,14 +69,10 @@ static float clamp_velocity(float vel) {
 
 static ADSREnvelope parse_envelope(const json& j, const ADSREnvelope& defaults) {
     ADSREnvelope env = defaults;
-    if (j.contains("a") && j["a"].is_number())
-        env.attack_ms = j["a"].get<float>();
-    if (j.contains("d") && j["d"].is_number())
-        env.decay_ms = j["d"].get<float>();
-    if (j.contains("s") && j["s"].is_number())
-        env.sustain_level = j["s"].get<float>();
-    if (j.contains("r") && j["r"].is_number())
-        env.release_ms = j["r"].get<float>();
+    env.attack_ms = json_util::read_field<float>(j, "a").value_or(env.attack_ms);
+    env.decay_ms = json_util::read_field<float>(j, "d").value_or(env.decay_ms);
+    env.sustain_level = json_util::read_field<float>(j, "s").value_or(env.sustain_level);
+    env.release_ms = json_util::read_field<float>(j, "r").value_or(env.release_ms);
     return env;
 }
 
@@ -84,12 +82,9 @@ static ADSREnvelope parse_envelope(const json& j, const ADSREnvelope& defaults) 
 
 static LFOParams parse_lfo(const json& j) {
     LFOParams lfo;
-    if (j.contains("target") && j["target"].is_string())
-        lfo.target = j["target"].get<std::string>();
-    if (j.contains("rate") && j["rate"].is_number())
-        lfo.rate = j["rate"].get<float>();
-    if (j.contains("depth") && j["depth"].is_number())
-        lfo.depth = j["depth"].get<float>();
+    lfo.target = json_util::read_field<std::string>(j, "target").value_or(lfo.target);
+    lfo.rate = json_util::read_field<float>(j, "rate").value_or(lfo.rate);
+    lfo.depth = json_util::read_field<float>(j, "depth").value_or(lfo.depth);
     return lfo;
 }
 
@@ -99,10 +94,8 @@ static LFOParams parse_lfo(const json& j) {
 
 static SweepParams parse_sweep(const json& j) {
     SweepParams sweep;
-    if (j.contains("target") && j["target"].is_string())
-        sweep.target = j["target"].get<std::string>();
-    if (j.contains("end") && j["end"].is_number())
-        sweep.end_value = j["end"].get<float>();
+    sweep.target = json_util::read_field<std::string>(j, "target").value_or(sweep.target);
+    sweep.end_value = json_util::read_field<float>(j, "end").value_or(sweep.end_value);
     return sweep;
 }
 
@@ -112,12 +105,9 @@ static SweepParams parse_sweep(const json& j) {
 
 static FilterParams parse_filter(const json& j) {
     FilterParams filter;
-    if (j.contains("type") && j["type"].is_string())
-        filter.type = j["type"].get<std::string>();
-    if (j.contains("cutoff") && j["cutoff"].is_number())
-        filter.cutoff = j["cutoff"].get<float>();
-    if (j.contains("sweep_to") && j["sweep_to"].is_number())
-        filter.sweep_to = j["sweep_to"].get<float>();
+    filter.type = json_util::read_field<std::string>(j, "type").value_or(filter.type);
+    filter.cutoff = json_util::read_field<float>(j, "cutoff").value_or(filter.cutoff);
+    filter.sweep_to = json_util::read_field<float>(j, "sweep_to").value_or(filter.sweep_to);
     return filter;
 }
 
@@ -130,23 +120,23 @@ static SoundStep parse_step(const json& j, float bpm, Waveform default_wave, flo
     SoundStep step;
 
     // Pause step
-    if (j.contains("pause") && j["pause"].is_number()) {
+    if (auto pause = json_util::read_field<float>(j, "pause")) {
         step.is_pause = true;
         step.freq_hz = 0;
-        step.duration_ms = clamp_duration(j["pause"].get<float>());
+        step.duration_ms = clamp_duration(*pause);
         return step;
     }
 
     // Frequency: either "note" name or raw "freq" Hz
-    if (j.contains("note") && j["note"].is_string()) {
-        step.freq_hz = SoundThemeParser::note_to_freq(j["note"].get<std::string>());
-    } else if (j.contains("freq") && j["freq"].is_number()) {
-        step.freq_hz = clamp_freq(j["freq"].get<float>());
+    if (auto note = json_util::read_field<std::string>(j, "note")) {
+        step.freq_hz = SoundThemeParser::note_to_freq(*note);
+    } else if (auto freq = json_util::read_field<float>(j, "freq")) {
+        step.freq_hz = clamp_freq(*freq);
     }
 
     // Polyphonic: "notes" array takes priority over single "note"/"freq"
-    if (j.contains("notes") && j["notes"].is_array()) {
-        auto& notes_arr = j["notes"];
+    if (const json* notes = json_util::find_array(j, "notes")) {
+        const json& notes_arr = *notes;
         step.chord_count = static_cast<uint8_t>(std::min(notes_arr.size(), size_t(4)));
         for (uint8_t i = 0; i < step.chord_count; ++i) {
             if (notes_arr[i].is_string()) {
@@ -163,12 +153,12 @@ static SoundStep parse_step(const json& j, float bpm, Waveform default_wave, flo
     }
 
     // Duration: either musical notation string or raw ms number
-    if (j.contains("dur")) {
-        if (j["dur"].is_string() && bpm > 0) {
+    if (const json* dur = json_util::find_member(j, "dur")) {
+        if (dur->is_string() && bpm > 0) {
             step.duration_ms =
-                SoundThemeParser::musical_duration_to_ms(j["dur"].get<std::string>(), bpm);
-        } else if (j["dur"].is_number()) {
-            step.duration_ms = clamp_duration(j["dur"].get<float>());
+                SoundThemeParser::musical_duration_to_ms(dur->get<std::string>(), bpm);
+        } else if (dur->is_number()) {
+            step.duration_ms = clamp_duration(dur->get<float>());
         }
     }
     // Clamp musical durations too (after conversion)
@@ -177,39 +167,39 @@ static SoundStep parse_step(const json& j, float bpm, Waveform default_wave, flo
     }
 
     // Waveform (default from theme)
-    if (j.contains("wave") && j["wave"].is_string()) {
-        step.wave = parse_waveform(j["wave"].get<std::string>());
+    if (auto wave = json_util::read_field<std::string>(j, "wave")) {
+        step.wave = parse_waveform(*wave);
     } else {
         step.wave = default_wave;
     }
 
     // Velocity (default from theme)
-    if (j.contains("vel") && j["vel"].is_number()) {
-        step.velocity = clamp_velocity(j["vel"].get<float>());
+    if (auto vel = json_util::read_field<float>(j, "vel")) {
+        step.velocity = clamp_velocity(*vel);
     } else {
         step.velocity = default_vel;
     }
 
     // ADSR envelope (default from theme)
-    if (j.contains("env") && j["env"].is_object()) {
-        step.envelope = parse_envelope(j["env"], default_env);
+    if (const json* env = json_util::find_object(j, "env")) {
+        step.envelope = parse_envelope(*env, default_env);
     } else {
         step.envelope = default_env;
     }
 
     // LFO
-    if (j.contains("lfo") && j["lfo"].is_object()) {
-        step.lfo = parse_lfo(j["lfo"]);
+    if (const json* lfo = json_util::find_object(j, "lfo")) {
+        step.lfo = parse_lfo(*lfo);
     }
 
     // Sweep
-    if (j.contains("sweep") && j["sweep"].is_object()) {
-        step.sweep = parse_sweep(j["sweep"]);
+    if (const json* sweep = json_util::find_object(j, "sweep")) {
+        step.sweep = parse_sweep(*sweep);
     }
 
     // Filter
-    if (j.contains("filter") && j["filter"].is_object()) {
-        step.filter = parse_filter(j["filter"]);
+    if (const json* filter = json_util::find_object(j, "filter")) {
+        step.filter = parse_filter(*filter);
     }
 
     return step;
@@ -225,7 +215,8 @@ static std::optional<SoundTheme> parse_theme(const json& j) {
         return std::nullopt;
     }
 
-    if (!j.contains("sounds") || !j["sounds"].is_object()) {
+    const json* sounds = json_util::find_object(j, "sounds");
+    if (!sounds) {
         spdlog::warn("[SoundTheme] Missing or invalid 'sounds' key");
         return std::nullopt;
     }
@@ -233,31 +224,25 @@ static std::optional<SoundTheme> parse_theme(const json& j) {
     SoundTheme theme;
 
     // Metadata
-    if (j.contains("name") && j["name"].is_string()) {
-        theme.name = j["name"].get<std::string>();
-    }
-    if (j.contains("description") && j["description"].is_string()) {
-        theme.description = j["description"].get<std::string>();
-    }
-    if (j.contains("version") && j["version"].is_number_integer()) {
-        theme.version = j["version"].get<int>();
-    }
+    theme.name = json_util::read_field<std::string>(j, "name").value_or(theme.name);
+    theme.description =
+        json_util::read_field<std::string>(j, "description").value_or(theme.description);
+    theme.version = json_util::read_integer_field(j, "version").value_or(theme.version);
 
     // Theme-level defaults
-    if (j.contains("defaults") && j["defaults"].is_object()) {
-        auto& defs = j["defaults"];
-        if (defs.contains("wave") && defs["wave"].is_string()) {
-            theme.default_wave = parse_waveform(defs["wave"].get<std::string>());
+    if (const json* defs = json_util::find_object(j, "defaults")) {
+        if (auto wave = json_util::read_field<std::string>(*defs, "wave")) {
+            theme.default_wave = parse_waveform(*wave);
         }
-        if (defs.contains("vel") && defs["vel"].is_number()) {
-            theme.default_velocity = clamp_velocity(defs["vel"].get<float>());
+        if (auto vel = json_util::read_field<float>(*defs, "vel")) {
+            theme.default_velocity = clamp_velocity(*vel);
         }
-        if (defs.contains("env") && defs["env"].is_object()) {
-            theme.default_envelope = parse_envelope(defs["env"], theme.default_envelope);
+        if (const json* env = json_util::find_object(*defs, "env")) {
+            theme.default_envelope = parse_envelope(*env, theme.default_envelope);
         }
     }
 
-    for (auto& [key, val] : j["sounds"].items()) {
+    for (auto& [key, val] : sounds->items()) {
         if (!val.is_object()) {
             spdlog::warn("[SoundTheme] Sound '{}' is not an object, skipping", key);
             continue;
@@ -266,21 +251,16 @@ static std::optional<SoundTheme> parse_theme(const json& j) {
         SoundDefinition def;
         def.name = key;
 
-        if (val.contains("description") && val["description"].is_string()) {
-            def.description = val["description"].get<std::string>();
-        }
-        if (val.contains("repeat") && val["repeat"].is_number_integer()) {
-            def.repeat = val["repeat"].get<int>();
-        }
-        if (val.contains("bpm") && val["bpm"].is_number()) {
-            def.bpm = val["bpm"].get<float>();
-        }
+        def.description =
+            json_util::read_field<std::string>(val, "description").value_or(def.description);
+        def.repeat = json_util::read_integer_field(val, "repeat").value_or(def.repeat);
+        def.bpm = json_util::read_field<float>(val, "bpm").value_or(def.bpm);
 
         // BPM for duration calculation: sound-level overrides theme-level
         float effective_bpm = def.bpm;
 
-        if (val.contains("steps") && val["steps"].is_array()) {
-            for (auto& step_json : val["steps"]) {
+        if (const json* steps = json_util::find_array(val, "steps")) {
+            for (const auto& step_json : *steps) {
                 if (step_json.is_object()) {
                     def.steps.push_back(parse_step(step_json, effective_bpm, theme.default_wave,
                                                    theme.default_velocity, theme.default_envelope));

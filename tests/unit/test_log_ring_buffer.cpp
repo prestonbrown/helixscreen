@@ -8,6 +8,8 @@
 // (the AD5X failure mode — debug IFS logs never reach /var/log/messages so
 // every bundle shipped stale, WARN-only context; #raza616).
 
+#include "../helix_test_fixture.h"
+#include "../test_helpers/log_capture.h"
 #include "hv/hlog.h"
 #include "logging_init.h"
 #include "system/log_collector.h"
@@ -15,8 +17,10 @@
 #include <spdlog/sinks/sink.h>
 #include <spdlog/spdlog.h>
 
+#include <atomic>
 #include <cstdlib>
 #include <string>
+#include <thread>
 
 #include "../catch_amalgamated.hpp"
 
@@ -225,4 +229,43 @@ TEST_CASE("init_early sends libhv's log lines into the ring", "[log_ring][libhv]
     // init_early() left the production handler installed; the logger goes back
     // to the console setup the other cases in this file use.
     init_console_logging(spdlog::level::warn);
+}
+
+// The process-lifetime worker pools log at any moment, through the default
+// logger's sink list. A capture that edits that list while one of them iterates
+// it is a data race; ThreadSanitizer reports it here, and a plain build checks
+// that the list is never edited at all.
+TEST_CASE_METHOD(
+    HelixTestFixture,
+    "a log capture joins the default logger without editing its sink list while a worker "
+    "logs",
+    "[log_capture]") {
+    const auto logger = spdlog::default_logger();
+    const auto baseline = logger->sinks();
+    REQUIRE(baseline.size() == 1);
+    REQUIRE(baseline.front() == helix::log_capture_hub());
+
+    // What logging::set_runtime_level(warn) leaves behind on the hub.
+    helix::log_capture_hub()->set_level(spdlog::level::warn);
+    {
+        helix::LogCapture capture(8);
+        spdlog::info("log-capture-probe");
+        CHECK(capture.count_containing("log-capture-probe") == 1);
+        CHECK(logger->sinks() == baseline);
+    }
+
+    std::atomic<bool> stop{false};
+    std::thread worker([&stop] {
+        while (!stop.load(std::memory_order_relaxed)) {
+            spdlog::trace("log-capture-worker");
+        }
+    });
+    bool sink_list_untouched = true;
+    for (int i = 0; i < 200; ++i) {
+        helix::LogCapture capture(8);
+        sink_list_untouched &= logger->sinks() == baseline;
+    }
+    stop.store(true, std::memory_order_relaxed);
+    worker.join();
+    CHECK(sink_list_untouched);
 }

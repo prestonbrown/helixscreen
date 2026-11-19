@@ -3,8 +3,6 @@
 
 #include "system/telemetry_manager.h"
 
-#include "ui_temperature_utils.h"
-
 #include "accel_sensor_manager.h"
 #include "ams_backend_row.h"
 #include "ams_state.h"
@@ -24,6 +22,7 @@
 #include "hv/requests.h"
 #include "i_moonraker_api.h"
 #include "i_moonraker_client.h"
+#include "install_provenance.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "load_cell_manager.h"
@@ -41,10 +40,12 @@
 #include "sensor_manager.h"
 #include "system/crash_handler.h"
 #include "system/crash_history.h"
+#include "system/device_identity.h"
 #include "system/ingest_client.h"
 #include "system/sha256_util.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
+#include "temperature_rules.h"
 #include "temperature_sensor_manager.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
@@ -67,6 +68,7 @@
 #include <string_view>
 #include <sys/utsname.h>
 #include <unistd.h>
+#include <utility>
 
 // glibc ptmalloc introspection for heap-fragmentation telemetry (#758 class).
 // mallinfo2() (glibc 2.33+) returns size_t fields — preferred.
@@ -225,7 +227,7 @@ TelemetryManager::~TelemetryManager() {
 // Lifecycle
 // =============================================================================
 
-void TelemetryManager::init(const std::string& config_dir) {
+void TelemetryManager::init(const std::string& config_dir, const std::string& identity_dir) {
     if (initialized_.load()) {
         spdlog::debug("[TelemetryManager] Already initialized, skipping");
         return;
@@ -234,6 +236,7 @@ void TelemetryManager::init(const std::string& config_dir) {
     spdlog::info("[TelemetryManager] Initializing with config dir: {}", config_dir);
 
     config_dir_ = config_dir;
+    identity_dir_ = identity_dir.empty() ? config_dir : identity_dir;
 
     // Reset in-memory state for clean initialization
     enabled_.store(false);
@@ -281,6 +284,15 @@ void TelemetryManager::init(const std::string& config_dir) {
     } catch (const fs::filesystem_error& e) {
         spdlog::error("[TelemetryManager] Failed to create config dir '{}': {}", config_dir_,
                       e.what());
+    }
+
+    if (identity_dir_ != config_dir_) {
+        std::error_code ec;
+        fs::create_directories(identity_dir_, ec);
+        if (ec) {
+            spdlog::error("[TelemetryManager] Failed to create identity dir '{}': {}",
+                          identity_dir_, ec.message());
+        }
     }
 
     ensure_device_id();
@@ -1222,9 +1234,9 @@ void TelemetryManager::check_previous_crash() {
 
     // Client-side dedup: skip if we already sent a report with the same fingerprint
     std::string bt0;
-    if (crash_data.contains("backtrace") && crash_data["backtrace"].is_array() &&
-        !crash_data["backtrace"].empty()) {
-        bt0 = crash_data["backtrace"][0].get<std::string>();
+    const json* backtrace = helix::json_util::find_array(crash_data, "backtrace");
+    if (backtrace && !backtrace->empty()) {
+        bt0 = (*backtrace)[0].get<std::string>();
     }
     std::string fp = helix::crash_fingerprint(crash_data.value("signal_name", ""),
                                               crash_data.value("app_version", ""), bt0);
@@ -1275,30 +1287,32 @@ nlohmann::json TelemetryManager::build_crash_event(const nlohmann::json& crash_d
     event["device_id"] = get_hashed_device_id();
 
     // Use timestamp from crash file if available, otherwise current time
-    event["timestamp"] =
-        crash_data.contains("timestamp") ? crash_data["timestamp"] : json(get_timestamp());
+    const json* timestamp = helix::json_util::find_member(crash_data, "timestamp");
+    event["timestamp"] = timestamp ? *timestamp : json(get_timestamp());
 
     // Copy crash-specific fields (signal info, backtrace, register state).
     // "app_version" is in this list on purpose: it carries the version that crashed.
     for (const char* key : {"signal", "signal_name", "app_version", "uptime_sec", "recorded_by",
                             "backtrace", "fault_addr", "fault_code", "fault_code_name", "reg_pc",
                             "reg_sp", "reg_lr", "reg_bp", "load_base"}) {
-        if (crash_data.contains(key)) {
-            event[key] = crash_data[key];
+        if (const json* value = helix::json_util::find_member(crash_data, key)) {
+            event[key] = *value;
         }
     }
     // MIPS spells the link register "ra". Forward it under "reg_lr" so the
     // crash worker's Registers table shows the return address alongside PC.
-    if (!event.contains("reg_lr") && crash_data.contains("reg_ra")) {
-        event["reg_lr"] = crash_data["reg_ra"];
+    if (!event.contains("reg_lr")) {
+        if (const json* reg_ra = helix::json_util::find_member(crash_data, "reg_ra")) {
+            event["reg_lr"] = *reg_ra;
+        }
     }
 
     // Filter memory map to executable mappings (.so files, main binary) to keep
     // telemetry payload small while retaining the data needed to identify which
     // library a crash PC belongs to.
-    if (crash_data.contains("memory_map") && crash_data["memory_map"].is_array()) {
+    if (const json* memory_map = helix::json_util::find_array(crash_data, "memory_map")) {
         json filtered_maps = json::array();
-        for (const auto& line : crash_data["memory_map"]) {
+        for (const auto& line : *memory_map) {
             const auto& s = line.get_ref<const std::string&>();
             // Only include executable mappings (r-xp) that map a file
             if (s.find("r-xp") != std::string::npos &&
@@ -1486,6 +1500,9 @@ nlohmann::json TelemetryManager::build_session_event() const {
         return "none";
     }();
     app["zip_tool"] = zip_tool;
+
+    app["install_source"] = helix::install_provenance::read_install_source(config_dir_);
+    app["host_mod"] = helix::install_provenance::detect_host_mod();
 
     event["app"] = app;
 
@@ -2359,26 +2376,83 @@ std::string TelemetryManager::get_timestamp() const {
     return std::string(buf);
 }
 
+namespace {
+
+/// The uuid and salt a device identity document holds, or nullopt when it is
+/// unreadable or lacks either.
+std::optional<std::pair<std::string, std::string>> read_device_identity(const std::string& path) {
+    const json data = json::parse(helix::text_io::read_file(path).value_or(""), nullptr, false);
+    if (!data.is_object()) {
+        return std::nullopt;
+    }
+    std::string uuid = helix::json_util::safe_string(data, "uuid", "");
+    std::string salt = helix::json_util::safe_string(data, "salt", "");
+    if (uuid.empty() || salt.empty()) {
+        return std::nullopt;
+    }
+    return std::make_pair(std::move(uuid), std::move(salt));
+}
+
+} // namespace
+
+void helix::telemetry::move_device_identity(const std::string& from, const std::string& to) {
+    std::error_code ec;
+    if (from == to || !fs::exists(from, ec)) {
+        return;
+    }
+    const auto old_identity = read_device_identity(from);
+    if (old_identity && fs::exists(to, ec) && !read_device_identity(to)) {
+        const auto stamp = std::chrono::duration_cast<std::chrono::seconds>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+        const std::string aside = fmt::format("{}.unreadable-{}", to, stamp);
+        fs::rename(to, aside, ec);
+        if (ec) {
+            spdlog::error("[TelemetryManager] Keeping {}: could not set unreadable {} aside: {}",
+                          from, to, ec.message());
+            return;
+        }
+        spdlog::warn("[TelemetryManager] Set unreadable device identity {} aside as {}", to, aside);
+    }
+    if (fs::exists(to, ec)) {
+        if (old_identity && read_device_identity(to) == old_identity) {
+            fs::remove(from, ec);
+            spdlog::info("[TelemetryManager] Removed duplicate device identity {}", from);
+        } else {
+            spdlog::warn("[TelemetryManager] Keeping {}: {} already holds a different identity",
+                         from, to);
+        }
+        return;
+    }
+    if (!old_identity) {
+        spdlog::warn("[TelemetryManager] Not moving unreadable device identity {}", from);
+        return;
+    }
+    const auto bytes = helix::text_io::read_file(from);
+    if (!bytes ||
+        !helix::text_io::write_file_atomic(to, *bytes, helix::text_io::Durability::Fsync)) {
+        spdlog::error("[TelemetryManager] Could not move device identity {} -> {}", from, to);
+        return;
+    }
+    fs::remove(from, ec);
+    spdlog::info("[TelemetryManager] Moved device identity {} -> {}", from, to);
+}
+
 void TelemetryManager::ensure_device_id() {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    std::string device_path = get_device_id_path();
+    const std::string device_path = get_device_id_path();
+    helix::telemetry::move_device_identity(
+        config_dir_ + "/" + helix::telemetry::kDeviceIdentityFile, device_path);
 
-    try {
-        std::ifstream file(device_path);
-        if (file.good()) {
-            json data = json::parse(file);
-            if (data.contains("uuid") && data["uuid"].is_string() && data.contains("salt") &&
-                data["salt"].is_string()) {
-                device_uuid_ = data["uuid"].get<std::string>();
-                device_salt_ = data["salt"].get<std::string>();
-                spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
-                return;
-            }
-            spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
-        }
-    } catch (const std::exception& e) {
-        spdlog::warn("[TelemetryManager] Failed to load device identity: {}", e.what());
+    if (const auto identity = read_device_identity(device_path)) {
+        device_uuid_ = identity->first;
+        device_salt_ = identity->second;
+        spdlog::info("[TelemetryManager] Loaded device identity from {}", device_path);
+        return;
+    }
+    if (std::error_code ec; fs::exists(device_path, ec)) {
+        spdlog::warn("[TelemetryManager] Device file missing uuid/salt, regenerating");
     }
 
     device_uuid_ = generate_uuid_v4();
@@ -2386,20 +2460,14 @@ void TelemetryManager::ensure_device_id() {
 
     spdlog::info("[TelemetryManager] Generated new device identity");
 
-    try {
-        json data;
-        data["uuid"] = device_uuid_;
-        data["salt"] = device_salt_;
-
-        std::ofstream file(device_path);
-        if (file.good()) {
-            file << helix::json_util::safe_dump(data, 2);
-            spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
-        } else {
-            spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
-        }
-    } catch (const std::exception& e) {
-        spdlog::error("[TelemetryManager] Failed to persist device identity: {}", e.what());
+    json data;
+    data["uuid"] = device_uuid_;
+    data["salt"] = device_salt_;
+    if (helix::text_io::write_file_atomic(device_path, helix::json_util::safe_dump(data, 2),
+                                          helix::text_io::Durability::Fsync)) {
+        spdlog::debug("[TelemetryManager] Saved device identity to {}", device_path);
+    } else {
+        spdlog::error("[TelemetryManager] Failed to write device identity to {}", device_path);
     }
 }
 
@@ -2412,7 +2480,7 @@ std::string TelemetryManager::get_queue_path() const {
 }
 
 std::string TelemetryManager::get_device_id_path() const {
-    return config_dir_ + "/telemetry_device.json";
+    return identity_dir_ + "/" + helix::telemetry::kDeviceIdentityFile;
 }
 
 // =============================================================================
@@ -3017,8 +3085,8 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         int nozzle_temp_deci =
             lv_subject_get_int(ps.temperature_state().get_active_extruder_target_subject());
         int bed_temp_deci = lv_subject_get_int(ps.temperature_state().get_bed_target_subject());
-        int nozzle_temp = helix::ui::temperature::deci_to_degrees(nozzle_temp_deci);
-        int bed_temp = helix::ui::temperature::deci_to_degrees(bed_temp_deci);
+        int nozzle_temp = helix::temperature_rules::deci_to_degrees(nozzle_temp_deci);
+        int bed_temp = helix::temperature_rules::deci_to_degrees(bed_temp_deci);
 
         // Use filament data cached at print start from file metadata
         float filament_used_mm = s_telemetry_filament_used_mm;

@@ -207,7 +207,7 @@ class Q2CompressionFixture : public XMLTestFixture {
 
         root_ = overlay_->create(screen_);
         REQUIRE(root_ != nullptr);
-        lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(root_, false);
 
         // The runtime overlay_width_transient token is not registered in the
         // unit-test XML scope; pin full-screen geometry deterministically.
@@ -467,7 +467,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     lv_obj_t* capture = lv_obj_find_by_name(screen_, "touch_capture_overlay");
     REQUIRE(capture != nullptr);
     // The capture surface MUST stay hidden in VERIFY or it covers Accept/Retry.
-    CHECK(lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(capture));
 
     lv_obj_t* content = lv_obj_find_by_name(screen_, "calibration_content");
     REQUIRE(content != nullptr);
@@ -498,7 +498,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
 
     lv_obj_t* chip = lv_obj_find_by_name(screen_, "cancel_chip");
     REQUIRE(chip != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chip));
 
     lv_area_t a{};
     lv_obj_get_coords(chip, &a);
@@ -586,7 +586,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
 
     lv_obj_t* hint = lv_obj_find_by_name(screen_, "hold_hint");
     REQUIRE(hint != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(hint, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(hint));
 
     lv_area_t h{};
     lv_obj_get_coords(hint, &h);
@@ -617,7 +617,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     CHECK_FALSE(overlaps_chip);
 
     // It must not eat touches meant for the capture surface.
-    CHECK_FALSE(lv_obj_has_flag(hint, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(hint));
 
     // Visible exactly during active capture, like the Cancel chip.
     struct StateVis {
@@ -629,7 +629,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
         lv_subject_set_int(state_, sv.st);
         lv_obj_update_layout(screen_);
         INFO("hold hint in state " << sv.st << " expected hidden=" << sv.hidden);
-        CHECK(lv_obj_has_flag(hint, LV_OBJ_FLAG_HIDDEN) == sv.hidden);
+        CHECK(lv_obj_is_hidden(hint) == sv.hidden);
     }
 }
 
@@ -717,7 +717,7 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     REQUIRE(capture != nullptr);
     // The surface that carried the VERIFY press handler is hidden in VERIFY (it
     // has to be, or it covers Accept), which is why the counters never moved.
-    REQUIRE(lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(capture));
 
     REQUIRE(helix::TouchCalibrationPanelTestAccess::verify_raw_touch_count(*panel_) == 0);
 
@@ -727,14 +727,14 @@ TEST_CASE_METHOD(Q2CompressionFixture,
     // report_verify_touch() and the fast-revert net's counters stayed at zero.
     lv_obj_t* content = lv_obj_find_by_name(screen_, "calibration_content");
     REQUIRE(content != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(content, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(content));
 
     INFO("calibration_content event count = " << lv_obj_get_event_count(content));
     CHECK(lv_obj_get_event_count(content) > 0);
     CHECK(has_event_for(content, LV_EVENT_PRESSED));
     CHECK(has_event_for(content, LV_EVENT_RELEASED));
     // ...and it must be clickable, or LVGL never hit-tests it in the first place.
-    CHECK(lv_obj_has_flag(content, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(content));
 
     // --- Counting: a delivered VERIFY press arms the fast-revert heuristic ----
     overlay_->handle_screen_touched(nullptr);

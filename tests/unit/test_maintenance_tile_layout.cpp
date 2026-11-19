@@ -85,3 +85,29 @@ TEST_CASE("maintenance tile: the ring takes the largest square its rung leaves",
     CHECK(decide_maintenance_tile_layout(input(120, 20)).ring_d == 0);
     CHECK(decide_maintenance_tile_layout(input(300, 300)).ring_d == 0);
 }
+
+TEST_CASE("maintenance tile: the ranked rows that fit, whatever the rung's budget",
+          "[maintenance][layout]") {
+    MaintenanceTileLayoutInput in = input(220, 97);
+    in.list_row_h = 20;
+    in.full_row_h = 30;
+    in.row_gap = 4;
+    in.full_title_h = 20;
+    CHECK(decide_maintenance_tile_layout(in).rung == SizeRung::Wide);
+    CHECK(decide_maintenance_tile_layout(in).rows == 4);
+    in.content_h = 76;
+    CHECK(decide_maintenance_tile_layout(in).rows == 3);
+    MaintenanceTileLayoutInput full = in;
+    full.content_w = 200;
+    full.content_h = 180;
+    CHECK(decide_maintenance_tile_layout(full).rung == SizeRung::Full);
+    CHECK(decide_maintenance_tile_layout(full).rows == 4);
+    // Above the 3-row budget the fourth row needs its own room.
+    full.content_h = 150;
+    full.needs.full.h = 100;
+    CHECK(decide_maintenance_tile_layout(full).rows == 3);
+    // Row counts never exceed the slots, and rungs without rows report none.
+    full.content_h = 900;
+    CHECK(decide_maintenance_tile_layout(full).rows == maintenance::kTileRows);
+    CHECK(decide_maintenance_tile_layout(input(50, 44)).rows == 0);
+}

@@ -3,17 +3,17 @@
 
 #pragma once
 
-#include "ui_coalesced_timer.h"
-#include "ui_timer_guard.h"
-
 #include "backlight_backend.h"
 #include "color_transform.h"
+#include "core/coalesced_timer.h"
+#include "core/timer_guard.h"
 #include "display_backend.h"
 #include "display_sleep_controller.h"
 #include "indev_delete_watch.h"
 #include "refresh_timing.h"
 #include "remote_screen_manager.h"
 #include "scroll_click_guard.h"
+#include "sleep_input_wait.h"
 #include "touch_calibration.h"
 #include "touch_calibration_session.h"
 #include "touch_calibration_wrapper.h"
@@ -61,6 +61,14 @@ namespace helix::ui {
 struct SaverHost;
 }
 #endif
+
+/**
+ * The one LVGL teardown order: lv_deinit(), then the XML engine. Every path that ends LVGL
+ * goes through it, and helix::Subject learns here that its nodes are gone.
+ */
+namespace helix::ui {
+void teardown_lvgl();
+} // namespace helix::ui
 
 class DisplayManager : public helix::ICalibrationSink {
   public:
@@ -549,6 +557,14 @@ class DisplayManager : public helix::ICalibrationSink {
      */
     static void delay(uint32_t ms);
 
+    /**
+     * @brief The main loop's wait between passes
+     *
+     * Awake, a plain delay(). While the display sleeps, waits on the input devices and
+     * the main-loop wake fd as well, returning early when one turns readable.
+     */
+    void wait_for_work(uint32_t ms);
+
     // ========================================================================
     // Window Resize Handler (Desktop/SDL)
     // ========================================================================
@@ -633,6 +649,8 @@ class DisplayManager : public helix::ICalibrationSink {
     std::unique_ptr<DisplayBackend> m_backend;
     lv_display_t* m_display = nullptr;
     lv_indev_t* m_pointer = nullptr;
+    /// Where debug_touch_tick() last drew a ripple; a press within 5px of it draws none.
+    lv_point_t m_debug_touch_last{-100, -100};
     lv_indev_t* m_keyboard = nullptr;
     lv_group_t* m_input_group = nullptr;
     // Clears m_pointer/m_keyboard the moment LVGL deletes the indev underneath
@@ -663,6 +681,9 @@ class DisplayManager : public helix::ICalibrationSink {
     // m_settle_for_wake_frame through references, so it must be declared after them.
     helix::DisplaySleepController m_sleep;
 
+    // Pauses fd-backed input read timers while the display sleeps; wait_for_work() polls.
+    helix::SleepInputWait m_input_wait;
+
     bool m_touch_calibration_active = false; // suppresses the debug-touches ripple (#943)
     // Original pointer read callback (before sleep-aware wrapper)
     lv_indev_read_cb_t m_original_pointer_read_cb = nullptr;
@@ -684,6 +705,14 @@ class DisplayManager : public helix::ICalibrationSink {
     lv_obj_t* m_resize_screen = nullptr;
     // Its callback dereferences this manager, so it must not outlive it.
     helix::ui::LvglTimerGuard m_brightness_reassert_timer;
+    // Armed while the pointer device is gone, retrying the backend's reopen
+    // every kPointerReopenPeriodMs (#2069). Its callback dereferences this
+    // manager, so it must not outlive it.
+    helix::ui::LvglTimerGuard m_pointer_reopen_timer;
+    static constexpr uint32_t kPointerReopenPeriodMs = 1000;
+    // The scroll setup init() gave the pointer, for a reopened one to get the same.
+    int m_scroll_throw = 0;
+    int m_scroll_limit = 0;
 
     static void resize_event_cb(lv_event_t* e);
     void on_screen_size_changed(lv_obj_t* screen);
@@ -705,6 +734,13 @@ class DisplayManager : public helix::ICalibrationSink {
     /// the device is created.
     void watch_pointer();
     void watch_keyboard();
+
+    /// m_indev_delete_watch's callback for m_pointer: starts the reopen retry,
+    /// except while shutting down, when lv_deinit() is deleting every indev.
+    static void on_pointer_deleted(void* ctx, const lv_indev_t* indev);
+    /// One reopen attempt; on success adopts the device with init()'s pointer
+    /// setup and stops the retry. Named so a test can run it directly.
+    static void pointer_reopen_tick(lv_timer_t* t);
 
     /**
      * @brief Create the debug-touch ripple timer

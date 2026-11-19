@@ -20,19 +20,9 @@ namespace {
 
 using helix::ui::SliderScale;
 
-/// Per-row facts the slider cannot answer. Bounds are read from each row's own
-/// lv_slider at tap time, so retraction_settings_overlay.xml stays the single
-/// source of truth for the ranges.
-struct FieldSpec {
-    const char* title; ///< Keypad header
-    const char* unit;  ///< Suffix beside the keypad display
-    int divisor;       ///< Slider positions per real unit (see SliderScale)
-    bool allow_decimal;
-};
-
 /// Indexed by RetractionSettingsOverlay::Field. The distance sliders hold
 /// hundredths of a millimetre, matching the centimm arithmetic below.
-constexpr FieldSpec kFieldSpecs[] = {
+constexpr helix::ui::SliderFieldSpec kFieldSpecs[] = {
     {"Retract Length", "mm", 100, true},
     {"Retract Speed", "mm/s", 1, false},
     {"Unretract Extra", "mm", 100, true},
@@ -203,25 +193,25 @@ void RetractionSettingsOverlay::update_display_labels() {
         // Two decimals to match the slider's 0.01mm resolution and the %.2f
         // the G-code sends. One decimal displayed a typed 0.85 as "0.8mm".
         snprintf(retract_length_buf_, sizeof(retract_length_buf_), "%.2fmm", centimm / 100.0);
-        lv_subject_copy_string(&retract_length_display_, retract_length_buf_);
+        lv_subject_set_string(&retract_length_display_, retract_length_buf_);
     }
 
     if (retract_speed_slider_) {
         int speed = lv_slider_get_value(retract_speed_slider_);
         snprintf(retract_speed_buf_, sizeof(retract_speed_buf_), "%dmm/s", speed);
-        lv_subject_copy_string(&retract_speed_display_, retract_speed_buf_);
+        lv_subject_set_string(&retract_speed_display_, retract_speed_buf_);
     }
 
     if (unretract_extra_slider_) {
         int centimm = lv_slider_get_value(unretract_extra_slider_);
         snprintf(unretract_extra_buf_, sizeof(unretract_extra_buf_), "%.2fmm", centimm / 100.0);
-        lv_subject_copy_string(&unretract_extra_display_, unretract_extra_buf_);
+        lv_subject_set_string(&unretract_extra_display_, unretract_extra_buf_);
     }
 
     if (unretract_speed_slider_) {
         int speed = lv_slider_get_value(unretract_speed_slider_);
         snprintf(unretract_speed_buf_, sizeof(unretract_speed_buf_), "%dmm/s", speed);
-        lv_subject_copy_string(&unretract_speed_display_, unretract_speed_buf_);
+        lv_subject_set_string(&unretract_speed_display_, unretract_speed_buf_);
     }
 }
 
@@ -279,26 +269,9 @@ void RetractionSettingsOverlay::handle_field_clicked(Field field) {
         return;
     }
 
-    const FieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
-    const SliderScale scale{spec.divisor};
     pending_keypad_field_ = field;
-
-    ui_keypad_config_t config = {
-        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
-        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
-        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
-        // Titles are the same strings the rows already declare as
-        // translation_tag in XML, so this resolves with no new keys.
-        .title_label = lv_tr(spec.title),
-        .unit_label = spec.unit,
-        .allow_decimal = spec.allow_decimal,
-        .allow_negative = false,
-        .callback = on_keypad_value,
-        .user_data = this};
-
-    spdlog::debug("[{}] Keypad for {} ({}-{})", get_name(), spec.title, config.min_value,
-                  config.max_value);
-    ui_keypad_show(&config);
+    helix::ui::show_keypad_for_slider(slider, kFieldSpecs[static_cast<size_t>(field)],
+                                      on_keypad_value, this, get_name());
 }
 
 void RetractionSettingsOverlay::handle_keypad_value(Field field, double value) {
@@ -314,7 +287,7 @@ void RetractionSettingsOverlay::handle_keypad_value(Field field, double value) {
         return;
     }
 
-    const FieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
+    const helix::ui::SliderFieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
     lv_slider_set_value(
         slider,
         SliderScale{spec.divisor}.to_slider_clamped(value, lv_slider_get_min_value(slider),

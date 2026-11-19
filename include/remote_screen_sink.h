@@ -23,6 +23,19 @@ enum class RemoteScreenPixelFormat {
 };
 
 /**
+ * @brief Whether a secret (the remote-screen pairing code) was on the display when a
+ * frame was drawn.
+ *
+ * The producer fills it from `helix::ui::screen_secret_state()` on the main thread.
+ * Unknown is treated as Shown: a frame nobody vouched for is never served live.
+ */
+enum class ScreenSecret : uint8_t {
+    Unknown = 0,
+    Absent, ///< No secret was on the display.
+    Shown,  ///< A secret was on the display.
+};
+
+/**
  * @brief A single dirty-area frame update handed to remote-screen sinks.
  *
  * A non-owning view of the rendered pixels for one LVGL flush area. It is
@@ -73,6 +86,8 @@ struct RemoteScreenFrame {
     /// refresh arrives as a run of stripes, and only after the last one is the
     /// mirrored screen whole.
     bool last_in_refresh = true;
+    /// Whether a secret was on the display while this refresh was drawn.
+    ScreenSecret secret = ScreenSecret::Unknown;
 };
 
 /**

@@ -29,8 +29,8 @@ struct ChipContent {
     /// Showing an expected value, so a tile too small for every chip drops it first.
     bool expendable = false;
     /// How its region on the picture glows: 0 not at all, otherwise 1, or for
-    /// the bed its bed_glow_level() (1-3). A heater's region glows while
-    /// heater_region_glows().
+    /// the bed and chamber their heat level (bed_glow_level(), chamber_glow_level(): 1-3).
+    /// The nozzle's region glows while heater_region_glows().
     int glow = 0;
     /// 0-100 heat-up progress for a climbing heater, -1 for no bar.
     int progress_pct = -1;
@@ -127,6 +127,11 @@ struct OtherToolReading {
 
 /// The light chip: Active when on, expendable when off.
 [[nodiscard]] ChipContent light_chip(bool controllable, bool on);
+
+/// The light and a warm chamber light the same windows; heat wins, so the light's glow yields.
+[[nodiscard]] inline bool light_glow_yields(const ChipContent& chamber) {
+    return chamber.glow != 0;
+}
 
 /// Whether the layout may shed this chip's room in this phase. This is the
 /// budget's expendable: constant per phase, so the callout mode cannot change

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -15,7 +16,7 @@
  * @file ui_wizard_heater_select.h
  * @brief Wizard heater selection step - configures bed and hotend heaters
  *
- * Uses hardware discovery from MoonrakerClient to populate dropdowns.
+ * Uses hardware discovery from IMoonrakerAPI to populate dropdowns.
  *
  * ## Subject Bindings (2 total):
  *
@@ -50,7 +51,7 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
     WizardHeaterSelectStep();
     ~WizardHeaterSelectStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardHeaterSelectStep(const WizardHeaterSelectStep&) = delete;
     WizardHeaterSelectStep& operator=(const WizardHeaterSelectStep&) = delete;
@@ -115,8 +116,8 @@ class WizardHeaterSelectStep : public helix::wizard::Step {
 
     // Subjects
     SubjectManager subjects_;
-    lv_subject_t bed_heater_selected_{};
-    lv_subject_t hotend_heater_selected_{};
+    helix::Subject bed_heater_selected_{};
+    helix::Subject hotend_heater_selected_{};
 
     // Dynamic options storage (for event callback mapping)
     std::vector<std::string> bed_heater_items_;

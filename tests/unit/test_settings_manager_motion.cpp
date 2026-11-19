@@ -7,28 +7,21 @@
 
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE_METHOD(HelixTestFixture, "Jog speeds default to today's hardcoded values",
+TEST_CASE_METHOD(HelixTestFixture, "Jog speeds default, round-trip and clamp to a sane range",
                  "[settings_motion]") {
     auto& s = helix::SettingsManager::instance();
     s.init_subjects();
-    REQUIRE(s.get_jog_speed_xy() == 6000);
-    REQUIRE(s.get_jog_speed_z() == 600);
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "Jog speeds round-trip", "[settings_motion]") {
-    auto& s = helix::SettingsManager::instance();
-    s.init_subjects();
+    CHECK(s.get_jog_speed_xy() == 6000);
+    CHECK(s.get_jog_speed_z() == 600);
     s.set_jog_speed_z(1500);
-    REQUIRE(s.get_jog_speed_z() == 1500);
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "Jog speeds clamp to a sane range", "[settings_motion]") {
-    auto& s = helix::SettingsManager::instance();
-    s.init_subjects();
-    s.set_jog_speed_xy(0);
-    REQUIRE(s.get_jog_speed_xy() == 60);
-    s.set_jog_speed_xy(999999);
-    REQUIRE(s.get_jog_speed_xy() == 60000);
+    CHECK(s.get_jog_speed_z() == 1500);
+    for (const int ask : {0, 999999}) {
+        const int expected = ask == 0 ? 60 : 60000;
+        s.set_jog_speed_xy(ask);
+        CHECK(s.get_jog_speed_xy() == expected);
+        s.set_jog_speed_z(ask);
+        CHECK(s.get_jog_speed_z() == expected);
+    }
 }
 
 #include "../../include/ui_panel_motion.h"
@@ -44,21 +37,23 @@ TEST_CASE_METHOD(HelixTestFixture, "Jog distances default to today's table", "[s
     REQUIRE(s.get_jog_distance(helix::JogMode::Turbo, true) == Catch::Approx(50.0f));
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "Jog distances round-trip and clamp", "[settings_motion]") {
+TEST_CASE_METHOD(HelixTestFixture, "Jog distances round-trip, clamp and reset",
+                 "[settings_motion]") {
     auto& s = helix::SettingsManager::instance();
     s.init_subjects();
     s.set_jog_distance(helix::JogMode::Turbo, true, 25.0f);
-    REQUIRE(s.get_jog_distance(helix::JogMode::Turbo, true) == Catch::Approx(25.0f));
+    CHECK(s.get_jog_distance(helix::JogMode::Turbo, true) == Catch::Approx(25.0f));
     s.set_jog_distance(helix::JogMode::Turbo, true, 0.0f);
-    REQUIRE(s.get_jog_distance(helix::JogMode::Turbo, true) == Catch::Approx(0.01f));
-}
+    CHECK(s.get_jog_distance(helix::JogMode::Turbo, true) == Catch::Approx(0.01f));
+    s.set_jog_distance(helix::JogMode::Turbo, true, 999.0f);
+    // The persisted value, not get_jog_distance(): the getter clamps on read,
+    // which would mask the write clamp.
+    CHECK(helix::Config::get_instance()->get<float>(helix::Config::get_instance()->df() +
+                                                    "motion/turbo_outer") == Catch::Approx(200.0f));
 
-TEST_CASE_METHOD(HelixTestFixture, "Reset restores the shipped distances", "[settings_motion]") {
-    auto& s = helix::SettingsManager::instance();
-    s.init_subjects();
     s.set_jog_distance(helix::JogMode::Fine, false, 5.0f);
     s.reset_jog_distances();
-    REQUIRE(s.get_jog_distance(helix::JogMode::Fine, false) == Catch::Approx(0.1f));
+    CHECK(s.get_jog_distance(helix::JogMode::Fine, false) == Catch::Approx(0.1f));
 }
 
 #include "../../include/ui_settings_motion.h"
@@ -66,18 +61,26 @@ TEST_CASE_METHOD(HelixTestFixture, "Reset restores the shipped distances", "[set
 using helix::settings::Field;
 using helix::settings::keypad_bounds;
 
-TEST_CASE_METHOD(HelixTestFixture, "keypad_bounds: outer floor is the paired inner step",
+TEST_CASE_METHOD(HelixTestFixture, "keypad_bounds: each step is bounded by its pair",
                  "[settings_motion]") {
-    const auto b = keypad_bounds(Field::TurboOuter, 10.0f, 50.0f);
-    CHECK(b.min == Catch::Approx(10.0f));
-    CHECK(b.max == Catch::Approx(helix::settings::kJogDistanceMaxMm));
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "keypad_bounds: inner ceiling is the paired outer step",
-                 "[settings_motion]") {
-    const auto b = keypad_bounds(Field::FineInner, 0.1f, 1.0f);
-    CHECK(b.min == Catch::Approx(helix::settings::kJogDistanceMinMm));
-    CHECK(b.max == Catch::Approx(1.0f));
+    struct Row {
+        const char* name;
+        Field field;
+        float inner, outer, min, max;
+    };
+    const Row rows[] = {
+        {"outer floor is the paired inner step", Field::TurboOuter, 10.0f, 50.0f, 10.0f,
+         helix::settings::kJogDistanceMaxMm},
+        {"inner ceiling is the paired outer step", Field::FineInner, 0.1f, 1.0f,
+         helix::settings::kJogDistanceMinMm, 1.0f},
+        {"speed rows pass the slider range through", Field::JogSpeedZ, 1.0f, 500.0f, 1.0f, 500.0f},
+    };
+    for (const auto& r : rows) {
+        INFO(r.name);
+        const auto b = keypad_bounds(r.field, r.inner, r.outer);
+        CHECK(b.min == Catch::Approx(r.min));
+        CHECK(b.max == Catch::Approx(r.max));
+    }
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "keypad_bounds: an equal pair still allows either value",
@@ -89,32 +92,6 @@ TEST_CASE_METHOD(HelixTestFixture, "keypad_bounds: an equal pair still allows ei
     const auto inner = keypad_bounds(Field::CoarseInner, 5.0f, 5.0f);
     CHECK(inner.max == Catch::Approx(5.0f));
     CHECK(inner.min <= inner.max);
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "keypad_bounds: speed rows pass the slider range through",
-                 "[settings_motion]") {
-    const auto b = keypad_bounds(Field::JogSpeedZ, 1.0f, 500.0f);
-    CHECK(b.min == Catch::Approx(1.0f));
-    CHECK(b.max == Catch::Approx(500.0f));
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "Jog distance clamps at the upper bound", "[settings_motion]") {
-    auto& s = helix::SettingsManager::instance();
-    s.init_subjects();
-    s.set_jog_distance(helix::JogMode::Turbo, true, 999.0f);
-    // The persisted value, not get_jog_distance(): the getter clamps on read,
-    // which would mask the write clamp this case exists to falsify.
-    CHECK(helix::Config::get_instance()->get<float>(helix::Config::get_instance()->df() +
-                                                    "motion/turbo_outer") == Catch::Approx(200.0f));
-}
-
-TEST_CASE_METHOD(HelixTestFixture, "Z jog speed clamps at both bounds", "[settings_motion]") {
-    auto& s = helix::SettingsManager::instance();
-    s.init_subjects();
-    s.set_jog_speed_z(0);
-    REQUIRE(s.get_jog_speed_z() == 60);
-    s.set_jog_speed_z(999999);
-    REQUIRE(s.get_jog_speed_z() == 60000);
 }
 
 TEST_CASE_METHOD(HelixTestFixture, "Bed map clearance defaults to 5mm and clamps",

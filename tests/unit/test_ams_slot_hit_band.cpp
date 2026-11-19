@@ -79,7 +79,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         for (const char* name : {"empty_placeholder", "error_indicator"}) {
             lv_obj_t* child = UITest::find_by_name(slots[i], name);
             REQUIRE(child != nullptr);
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(child, false);
         }
     }
     lv_obj_update_layout(row);
@@ -109,8 +109,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_set_style_pad_column(row, -layout.overlap, LV_PART_MAIN);
     for (int i = 0; i < kCount; ++i) {
         lv_obj_set_width(slots[i], layout.slot_width);
-        const helix::ui::AmsSlotHitBand band = helix::ui::ams_slot_hit_band(layout, i, kCount);
-        helix::ui::ams_slot_set_hit_band(slots[i], band.left_inset, band.right_inset);
+        helix::ui::ams_slot_set_hit_band(slots[i], helix::ui::ams_slot_hit_band(layout, i, kCount));
     }
     lv_obj_update_layout(row);
     lv_area_t bands[kCount];
@@ -157,7 +156,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* label = UITest::find_by_name(slot, "material_label");
     REQUIRE(label != nullptr);
-    REQUIRE(lv_obj_has_flag(label, LV_OBJ_FLAG_IGNORE_LAYOUT)); // staggered: out of the flow
+    REQUIRE(lv_obj_is_ignore_layout(label)); // staggered: out of the flow
 
     lv_obj_t* badge = UITest::find_by_name(slot, "status_badge");
     REQUIRE(badge != nullptr);

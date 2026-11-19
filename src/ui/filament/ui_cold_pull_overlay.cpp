@@ -8,6 +8,7 @@
 #include "ui_nav.h"
 #include "ui_progress_arc.h"
 
+#include "bed_plate_context.h"
 #include "cold_pull_runner.h"
 #include "core/static_panel_registry.h"
 
@@ -37,6 +38,18 @@ ColdPullOverlay& get_cold_pull_overlay() {
     return lazy_global<ColdPullOverlay>("ColdPullOverlay");
 }
 
+void ColdPullOverlay::start_clicked() {
+    // Start parks a homed printer straight away.
+    ensure_bed_clear_then(lifetime_.token(), []() {
+        with_runner([](ColdPullRunner& r) { (void)r.start_from_setup(); });
+    });
+}
+
+void ColdPullOverlay::home_and_park_clicked() {
+    ensure_bed_clear_then(lifetime_.token(),
+                          []() { with_runner([](ColdPullRunner& r) { r.home_and_park(); }); });
+}
+
 void ColdPullOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_cold_pull_material",
@@ -58,14 +71,11 @@ void ColdPullOverlay::register_callbacks() {
              const int d = user_int(e);
              with_runner([d](ColdPullRunner& r) { r.adjust_pull(d); });
          }},
-        {"on_cold_pull_start",
-         [](lv_event_t*) { with_runner([](ColdPullRunner& r) { (void)r.start_from_setup(); }); }},
+        {"on_cold_pull_start", [](lv_event_t*) { get_cold_pull_overlay().start_clicked(); }},
         {"on_cold_pull_home_park",
-         [](lv_event_t*) { with_runner([](ColdPullRunner& r) { r.home_and_park(); }); }},
-        {"on_cold_pull_unload",
-         [](lv_event_t*) { with_runner([](ColdPullRunner& r) { r.unload_lane(); }); }},
+         [](lv_event_t*) { get_cold_pull_overlay().home_and_park_clicked(); }},
         {"on_cold_pull_continue",
-         [](lv_event_t*) { with_runner([](ColdPullRunner& r) { r.toolhead_clear(); }); }},
+         [](lv_event_t*) { with_runner([](ColdPullRunner& r) { r.toolhead_ready(); }); }},
         {"on_cold_pull_extrude",
          [](lv_event_t*) { with_runner([](ColdPullRunner& r) { r.extrude(); }); }},
         {"on_cold_pull_fed", [](lv_event_t*) { with_runner([](ColdPullRunner& r) { r.fed(); }); }},
@@ -120,7 +130,7 @@ void open_cold_pull_overlay() {
 void register_cold_pull_flow() {
     GuidedDeviceFlow flow;
     flow.start = [](const std::string&) { open_cold_pull_overlay(); };
-    register_guided_device_flow("cold_pull", std::move(flow));
+    register_guided_device_flow(kColdPullFlowId, std::move(flow));
 }
 
 } // namespace helix::ui

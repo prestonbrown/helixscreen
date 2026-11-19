@@ -1122,7 +1122,11 @@ class HelixAnalysis(file_queue.FileTracker):
         await self.backfill()
 
     async def close(self) -> None:
+        # Waits for the queue to end: a worker it is still starting would
+        # otherwise outlive close(), and a loop torn down after it hangs on
+        # that spawn's pipes.
         self._queue.cancel()
+        await self._queue.wait_idle()
         await self._runner.stop()
         if self._executor is not None:
             self._executor.shutdown(wait=False)

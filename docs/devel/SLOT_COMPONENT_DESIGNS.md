@@ -1,10 +1,9 @@
 # Slot Component Designs
 
-**Status**: Unbuilt proposals. Nothing in this document has shipped, and two of the four
-original designs no longer describe anything in the tree.
+**Status**: Unbuilt proposals. Nothing in this document has shipped.
 
-**What this is**: two XML duplication patterns that are still real, plus a record of what
-happened to the two that are not, plus the measured capability of the expression evaluator so
+**What this is**: two XML duplication patterns that are still real, one pattern that already
+removes the need for a third, and the measured capability of the expression evaluator so
 nobody re-proposes moving string formatting into XML.
 
 **What this is not**: a plan of record. There is no scheduled work behind it.
@@ -18,10 +17,9 @@ nobody re-proposes moving string formatting into XML.
 
 ### There is no slot system
 
-The engine has the `<component-slotname>` **usage** syntax and nothing behind it. The fork
-inherited it from upstream LVGL's `f38718108` ("feat(xml): add slot support", lvgl/lvgl#9193);
-the current implementation is `lib/helix-xml/src/xml/lv_xml.c`, in the "If not a component
-either, check if it is a slot" branch of the view element handler.
+The engine has the `<component-slotname>` **usage** syntax and nothing behind it, inherited from
+upstream LVGL (lvgl/lvgl#9193). The implementation is `lib/helix-xml/src/xml/lv_xml.c`, in the
+"If not a component either, check if it is a slot" branch of the view element handler.
 
 What it does: split the tag on `-`, look up the component scope, then
 `lv_obj_find_by_name(state->parent, slot_name)`. That is the whole mechanism.
@@ -45,15 +43,14 @@ that first.
 
 ### What the engine does have
 
-Two features shipped after this document was first written, and they cover most of what slots
-were wanted for:
+These cover most of what slots were wanted for:
 
 - `<repeat count="4">` / `<repeat count="a_subject">` for repeated fragments, with `$i` /
   `${i}` substitution. Reactive form rebuilds on subject change.
 - `<if cond="...">` / `<else/>` structural conditionals, which build only the matching branch.
 - `<subject_expr name="x" expr="a or b gt c"/>` for derived subjects.
 
-See `LVGL9_XML_GUIDE.md` and rules 7 and 8 in the root `CLAUDE.md`. Before proposing a slot
+See `LVGL9_XML_GUIDE.md` and rules 2 and 8 in `.claude/rules/declarative-ui.md`. Before proposing a slot
 component, check whether `<repeat>` or `<if>` already expresses it.
 
 ---
@@ -91,8 +88,8 @@ the component build the icons itself.
             variants="disabled,warning,secondary,secondary,secondary,success"/>
 ```
 
-This is buildable today - it is a C++ custom widget registered with `lv_xml_register_widget`,
-not an XML component - and it is the version worth doing first if the pattern ever earns the
+This is buildable today (it is a C++ custom widget registered with `lv_xml_register_widget`,
+not an XML component), and it is the version worth doing first if the pattern ever earns the
 work. It is also the only variant that could stop building all six icons up front.
 
 ## 2. Conditional row wrapper (still real, unbuilt)
@@ -114,18 +111,13 @@ a `bind_flag_if_eq` over the real row.
 with the row itself in a slot.
 
 **Caveat**: `<if cond="...">` is not a substitute here. It decides at build time and builds one
-branch; these gates are reactive - `filament_sensor_count` and `power_device_count` change
+branch; these gates are reactive: `filament_sensor_count` and `power_device_count` change
 after discovery lands. `bind_flag_if_eq` is the correct primitive for this case per rule 2 in
-the root `CLAUDE.md`. The proposal is only about not retyping the wrapper.
+`.claude/rules/declarative-ui.md`. The proposal is only about not retyping the wrapper.
 
-## 3. Z-offset dual icons (solved by a different route, no work remaining)
+## 3. Bound icon subject (the pattern that needs no slot)
 
-The original design targeted six z-offset buttons in `ui_xml/print_tune_panel.xml`, each
-embedding two `<icon>` elements gated on `printer_bed_moves` so the arrow direction followed
-the printer's kinematics.
-
-That XML no longer exists. The panel now has two direction buttons that take the icon from a
-subject:
+The tune overlay's two Z-offset direction buttons take their icon from a subject:
 
 ```xml
 <ui_button name="btn_z_farther" width="100%" icon="arrow_up" bind_icon="tune_z_farther_icon">
@@ -134,33 +126,19 @@ subject:
 
 `tune_z_closer_icon` and `tune_z_farther_icon` are registered in
 `src/ui/print/ui_print_tune_overlay.cpp`. C++ decides the kinematics once and writes the icon name;
-the XML binds it. No duplicated icon pairs, no slot needed, and the proposed `z_offset_button`
-and `kinematics_icon` components were never created.
+the XML binds it. **A bound icon subject beats a pair of mutually-hidden icons** wherever the
+choice is computed rather than per-instance.
 
-Worth keeping as the pattern: **a bound icon subject beats a pair of mutually-hidden icons**
-wherever the choice is computed rather than per-instance.
-
-## 4. Tune slider card (pattern gone, design obsolete)
-
-The original design targeted `speed_card` and `flow_card` in `ui_xml/print_tune_panel.xml` -
-two near-identical `ui_card` structures each wrapping an `lv_slider`. Its own heading conceded
-"No Slots Needed - Props Sufficient", so it was never a slot design.
-
-That XML no longer exists either. Speed and flow are now a `text_heading` bound to
-`tune_speed_display` / `tune_flow_display` plus a row of four `ui_button` step adjusters. There
-are no sliders and no cards on that panel.
-
-Sliders inside cards do still appear in `ui_xml/retraction_settings_overlay.xml` and
-`ui_xml/machine_limits_overlay.xml`. Whether those two are similar enough to share a component
-is unverified - nobody has looked.
+Sliders still repeat in `ui_xml/retraction_settings_overlay.xml` and
+`ui_xml/machine_limits_overlay.xml`. Whether those are similar enough to share a component is
+unverified.
 
 ---
 
 ## Formula migration: measured, and the answer is no
 
-An earlier version of this document carried a "String Subject Audit" proposing that C++ string
-formatting (`"%d%%"`, `"%dh %02dm"`, temperature pairs) move into XML formulas, pending an
-expression evaluator. The evaluator shipped. It does not support this, and it is not close.
+Moving C++ string formatting (`"%d%%"`, `"%dh %02dm"`, temperature pairs) into XML formulas is
+not possible with the expression evaluator, and it is not close.
 
 `lib/helix-xml/src/xml/lv_xml_expr.c` is an **integer-only** expression evaluator. The lexer
 recognises integer literals, identifiers, and operators. There is no string literal token, no
@@ -174,7 +152,7 @@ string type, and no function-call syntax in the grammar.
 | Subject references (reactive) | any binding | Supported, via `<subject_expr>` |
 | String literals | `'%'`, `'h '`, `'mm'` suffixes | **Not supported** |
 | String concatenation | attaching any suffix | **Not supported** |
-| `pad()` / zero-padding | `%02d` minutes | **Not supported** - no functions at all |
+| `pad()` / zero-padding | `%02d` minutes | **Not supported**: no functions at all |
 | Ternary | heater-off fallback | **Not supported**; use `<if>` or a `cond=` bind |
 
 So none of `print_progress_text`, `print_speed_text`, `print_flow_text`, `tune_speed_display`,
@@ -186,33 +164,19 @@ be looked up as a translation unit.
 
 ### What to do instead: a widget that owns the formatting rule
 
-The temperature pair is the worked example. Two string subjects, `nozzle_temp_text` and
-`bed_temp_text`, formatted a current/target pair in `PrintStatusPanel`. Neither was ever bound
-by any XML, so both were removed rather than migrated. The rule now lives in a widget:
+The temperature pair is the worked example. The rule lives in a widget:
 
 ```xml
 <temp_display size="sm" show_target="true" hide_target_when_off="true"
               bind_current="bed_temp" bind_target="bed_target"/>
 ```
 
-and in exactly one function, `format_temperature_pair()` in `src/ui/controls/ui_temperature_utils.cpp`.
-The heater-off form is an em dash, not `--`:
+and in exactly one function, `format_temperature_pair()` in
+`src/ui/controls/ui_temperature_utils.cpp`, which converts to the display unit and renders a
+heater that is off (target 0 or below) with a dash in place of the target.
 
-```cpp
-char* format_temperature_pair(int current, int target, char* buffer, size_t buffer_size) {
-    if (target == 0) {
-        snprintf(buffer, buffer_size, "%d / —°C", current);
-    } else {
-        snprintf(buffer, buffer_size, "%d / %d°C", current, target);
-    }
-    return buffer;
-}
-```
-
-Note the unit conversion. `PrinterState` stores temperatures as **decidegrees** (degrees x10),
-so display divides by **10**, via `helix::ui::temperature::deci_to_degrees()`
-(`include/ui_temperature_utils.h`). An earlier draft of this section taught `/100`; a formula
-written from that would have rendered 210°C as 2°C.
+`PrinterState` stores temperatures as **decidegrees** (degrees x10), so display divides by
+**10**, via `helix::temperature_rules::deci_to_degrees()` (`include/temperature_rules.h`).
 
 A shared widget beats a formula on every axis that matters here: it needs no conditional
 operator, keeps one implementation of the heater-off case, and translates.

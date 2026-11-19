@@ -11,10 +11,13 @@
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/toast_log.h"
 #include "core/update_queue.h"
 #include "hardware_validator.h"
 #include "notice.h"
+#include "print_completion.h"
+#include "print_start_navigation.h"
 
 #include <string>
 #include <thread>
@@ -99,15 +102,12 @@ TEST_CASE("A notice reaches the toast of its severity and duration", "[toast][no
     CHECK(log.shown[3].severity == ToastSeverity::ERROR);
     // Matches ToastManager::show()'s own default.
     CHECK(log.shown[3].duration_ms == 4000);
-}
 
-TEST_CASE("A notice with no subscriber is dropped", "[toast][notification]") {
-    ToastLog log;
     const helix::NoticeSubscriber previous = helix::set_notice_subscriber(nullptr);
     publish_notice({NoticeSeverity::ERROR, "nobody is listening"});
     helix::set_notice_subscriber(previous);
     drain();
-    CHECK(log.shown.empty());
+    CHECK(log.shown.size() == 4);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -220,16 +220,43 @@ TEST_CASE("The UI installs a handler for every request kind", "[notification][no
         CAPTURE(k);
         CHECK(installed != nullptr);
     }
+    const auto query = helix::set_print_status_shown_query(nullptr);
+    helix::set_print_status_shown_query(query);
+    CHECK(query != nullptr);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "A power device going off holds the recovery dialog back",
+TEST_CASE_METHOD(LVGLUITestFixture, "A print start asks the UI for the print status screen",
+                 "[notification][notice][print][navigation]") {
+    using helix::PrintJobState;
+    CapturedRequests requests(UiRequestKind::OpenPrintStatus);
+    ObserverGuard nav = helix::init_print_start_navigation_observer();
+    drain();
+    REQUIRE(g_requests.empty());
+    helix::test::set_wire_state(state(), PrintJobState::PRINTING);
+    helix::test::set_wire_state(state(), PrintJobState::PAUSED);
+    CHECK(g_requests.empty()); // queued for the UI thread, not run inline
+    drain();
+    CHECK(g_requests.size() == 1);
+
+    // A job already running when the observer starts asks too.
+    nav = helix::init_print_start_navigation_observer();
+    drain();
+    CHECK(g_requests.size() == 2);
+    helix::test::set_wire_state(state(), PrintJobState::STANDBY);
+    drain();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A power device going off or a Moonraker restart holds the recovery dialog back",
                  "[notification][notice][recovery]") {
     auto& estop = EmergencyStopOverlay::instance();
-    estop.suppress_recovery_dialog(0);
-    REQUIRE_FALSE(estop.is_recovery_suppressed());
-
-    publish_ui_request({UiRequestKind::ExpectKlippyDisconnect});
-
-    CHECK(estop.is_recovery_suppressed());
+    for (UiRequestKind kind :
+         {UiRequestKind::ExpectKlippyDisconnect, UiRequestKind::ExpectMoonrakerRestart}) {
+        CAPTURE(static_cast<int>(kind));
+        estop.suppress_recovery_dialog(0);
+        REQUIRE_FALSE(estop.is_recovery_suppressed());
+        publish_ui_request({kind});
+        CHECK(estop.is_recovery_suppressed());
+    }
     estop.suppress_recovery_dialog(0);
 }

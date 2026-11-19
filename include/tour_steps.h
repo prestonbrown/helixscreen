@@ -47,8 +47,8 @@ struct TourStep {
     /// Shown only to someone who has already seen an earlier tour.
     bool upgrade_only = false;
 
-    /// LVGL image path shown inside the card; empty for none.
-    std::string preview_image;
+    /// Show the sample Print Status screen, with this printer's picture, in the card.
+    bool shows_print_status_preview = false;
 
     /// Tried when target_name is absent (a screen with two layouts names them differently).
     std::string fallback_target_name;

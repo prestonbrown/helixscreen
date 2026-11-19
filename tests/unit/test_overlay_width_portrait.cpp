@@ -17,7 +17,7 @@
  * backdrop down the side of every overlay — 54px of 320 on the Waveshare 11.9".
  *
  * The layout classification itself lives in layout_manager so that the
- * threshold that picks ui_xml/portrait/ and the threshold that sizes overlays
+ * threshold that sets ui_is_portrait and the threshold that sizes overlays
  * can never disagree.
  */
 
@@ -49,7 +49,7 @@ constexpr int32_t kGap = 16;
 } // namespace
 
 // ============================================================================
-// Classification — shared with resolve_xml_path's portrait/ selection
+// Classification — shared with ui_is_portrait
 // ============================================================================
 
 TEST_CASE("is_portrait_layout covers every portrait class", "[layout-manager][portrait]") {

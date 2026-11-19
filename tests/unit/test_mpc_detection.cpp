@@ -109,7 +109,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture,
 
     api_->advanced().get_heater_control_type(
         "extruder",
-        [&](const std::string& type) {
+        [&](const std::string& type, bool) {
             control_type = type;
             cb_fired.store(true);
         },
@@ -127,7 +127,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns pid f
 
     api_->advanced().get_heater_control_type(
         "heater_bed",
-        [&](const std::string& type) {
+        [&](const std::string& type, bool) {
             control_type = type;
             cb_fired.store(true);
         },
@@ -150,7 +150,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture,
     std::string error_message;
 
     api_->advanced().get_heater_control_type(
-        "nonexistent_heater", [&](const std::string&) { success_fired.store(true); },
+        "nonexistent_heater", [&](const std::string&, bool) { success_fired.store(true); },
         [&](const MoonrakerError& err) {
             error_message = err.message;
             error_fired.store(true);
@@ -177,7 +177,7 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns mpc o
 
     api_->advanced().get_heater_control_type(
         "extruder",
-        [&](const std::string& type) {
+        [&](const std::string& type, bool) {
             control_type = type;
             success_fired.store(true);
         },
@@ -187,4 +187,21 @@ TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type returns mpc o
     REQUIRE(success_fired.load());
     REQUIRE_FALSE(error_fired.load());
     REQUIRE(control_type == "mpc");
+}
+
+TEST_CASE_METHOD(MPCDetectionTestFixture, "get_heater_control_type reports a named cooling_fan",
+                 "[mpc_detection]") {
+    ScopedKalico kalico("1");
+    auto query = [&]() {
+        std::atomic<int> names_fan{-1};
+        api_->advanced().get_heater_control_type(
+            "extruder", [&](const std::string&, bool names) { names_fan.store(names ? 1 : 0); },
+            [&](const MoonrakerError&) {});
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        return names_fan.load();
+    };
+
+    CHECK(query() == 0);
+    mock_client_.set_extruder_cooling_fan("fan");
+    CHECK(query() == 1);
 }

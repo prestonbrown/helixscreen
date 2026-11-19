@@ -16,6 +16,8 @@
 #include "connection_state.h"
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "exception_policy.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
@@ -32,49 +34,51 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "hv/json.hpp"
+
 namespace helix::ui {
 
 // Static like the other guided overlays' subjects: XML bindings resolve them
 // by name, and SubjectManager deinit on the singleton keeps observers
 // disconnected across rebuilds.
-static lv_subject_t s_plr_step;
-static lv_subject_t s_plr_tier;
+static helix::Subject s_plr_step;
+static helix::Subject s_plr_tier;
 /// PlrZStepKind of the plan.
-static lv_subject_t s_plr_z_kind;
-static lv_subject_t s_plr_continue_text;
+static helix::Subject s_plr_z_kind;
+static helix::Subject s_plr_continue_text;
 static char s_plr_continue_text_buf[48];
-static lv_subject_t s_plr_file;
+static helix::Subject s_plr_file;
 static char s_plr_file_buf[128];
-static lv_subject_t s_plr_position;
+static helix::Subject s_plr_position;
 static char s_plr_position_buf[64];
-static lv_subject_t s_plr_outage;
+static helix::Subject s_plr_outage;
 static char s_plr_outage_buf[96];
-static lv_subject_t s_plr_bed;
+static helix::Subject s_plr_bed;
 static char s_plr_bed_buf[64];
-static lv_subject_t s_plr_bed_live;
+static helix::Subject s_plr_bed_live;
 static char s_plr_bed_live_buf[48];
-static lv_subject_t s_plr_progress;
+static helix::Subject s_plr_progress;
 static char s_plr_progress_buf[96];
-static lv_subject_t s_plr_z;
+static helix::Subject s_plr_z;
 static char s_plr_z_buf[24];
-static lv_subject_t s_plr_error;
+static helix::Subject s_plr_error;
 static char s_plr_error_buf[256];
-static lv_subject_t s_plr_warn_layer_start;
-static lv_subject_t s_plr_jog_step;
+static helix::Subject s_plr_warn_layer_start;
+static helix::Subject s_plr_jog_step;
 /// 1 once the plugin reports the resumed print starting.
-static lv_subject_t s_plr_print_starting;
+static helix::Subject s_plr_print_starting;
 /// 1 once a downward jog has landed on the tier-1 Z step.
-static lv_subject_t s_plr_z_jogged;
-static lv_subject_t s_plr_need_part;
-static lv_subject_t s_plr_ack_part;
-static lv_subject_t s_plr_need_nozzle;
-static lv_subject_t s_plr_ack_nozzle;
-static lv_subject_t s_plr_need_no_mesh;
-static lv_subject_t s_plr_ack_no_mesh;
-static lv_subject_t s_plr_need_next_layer;
-static lv_subject_t s_plr_ack_next_layer;
-static lv_subject_t s_plr_need_cold_bed;
-static lv_subject_t s_plr_ack_cold_bed;
+static helix::Subject s_plr_z_jogged;
+static helix::Subject s_plr_need_part;
+static helix::Subject s_plr_ack_part;
+static helix::Subject s_plr_need_nozzle;
+static helix::Subject s_plr_ack_nozzle;
+static helix::Subject s_plr_need_no_mesh;
+static helix::Subject s_plr_ack_no_mesh;
+static helix::Subject s_plr_need_next_layer;
+static helix::Subject s_plr_ack_next_layer;
+static helix::Subject s_plr_need_cold_bed;
+static helix::Subject s_plr_ack_cold_bed;
 
 namespace {
 
@@ -302,7 +306,7 @@ void PlrWizardOverlay::open(IMoonrakerAPI* api) {
         lv_subject_set_int(s, 0);
     }
     lv_subject_set_int(&s_plr_jog_step, kDefaultJogStep);
-    lv_subject_copy_string(&s_plr_progress, "");
+    lv_subject_set_string(&s_plr_progress, "");
     set_step(PlrWizardStep::Offer);
     listen_for_notifications();
     request_plan();
@@ -411,7 +415,7 @@ void PlrWizardOverlay::enter_step(PlrWizardStep step) {
         publish_plan();
         break;
     case PlrWizardStep::Preparing:
-        lv_subject_copy_string(&s_plr_progress, lv_tr("Waiting for the printer"));
+        lv_subject_set_string(&s_plr_progress, lv_tr("Waiting for the printer"));
         update_bed_live();
         plr_rpc::prepare(*api_, plan_->plan_id, false, std::move(on_ok), std::move(on_error));
         break;
@@ -420,12 +424,12 @@ void PlrWizardOverlay::enter_step(PlrWizardStep step) {
         lv_subject_set_int(&s_plr_z_jogged, 0);
         break;
     case PlrWizardStep::Committing:
-        lv_subject_copy_string(&s_plr_progress, lv_tr("Waiting for the printer"));
+        lv_subject_set_string(&s_plr_progress, lv_tr("Waiting for the printer"));
         plr_rpc::commit(*api_, plan_->plan_id, given(), plan_->tier, std::move(on_ok),
                         std::move(on_error));
         break;
     case PlrWizardStep::Failed:
-        lv_subject_copy_string(&s_plr_error, error_text_.c_str());
+        lv_subject_set_string(&s_plr_error, error_text_.c_str());
         stop_listening();
         // Nothing is held for the user to watch once the sequence has ended.
         awake_.reset();
@@ -531,7 +535,7 @@ void PlrWizardOverlay::on_progress(const PlrProgressEvent& event) {
         awake_.reset();
     }
     if (const char* text = plr_progress_step_text(event.step)) {
-        lv_subject_copy_string(&s_plr_progress, text);
+        lv_subject_set_string(&s_plr_progress, text);
     }
 }
 
@@ -671,26 +675,27 @@ void PlrWizardOverlay::publish_plan() {
     const PlrPlanReply& reply = *plan_reply_;
     lv_subject_set_int(&s_plr_tier, plan_->tier);
     lv_subject_set_int(&s_plr_z_kind, static_cast<int>(plr_z_step_kind(*plan_)));
-    lv_subject_copy_string(&s_plr_continue_text, plr_prepare_moves_head(*plan_)
-                                                     ? lv_tr("Heat and Home")
-                                                     : lv_tr("Start Heating"));
+    lv_subject_set_string(&s_plr_continue_text, plr_prepare_moves_head(*plan_)
+                                                    ? lv_tr("Heat and Home")
+                                                    : lv_tr("Start Heating"));
 
     const std::string& path =
         reply.filename.empty() && status_.snapshot ? status_.snapshot->filename : reply.filename;
     const std::string file =
         helix::gcode::get_display_filename(helix::gcode::resolve_gcode_filename(path));
-    lv_subject_copy_string(&s_plr_file, file.c_str());
+    lv_subject_set_string(&s_plr_file, file.c_str());
     const std::string position =
         reply.layer ? tr_format(lv_tr("Layer {}, Z {:.2f} mm"), *reply.layer, reply.z_gcode)
                     : tr_format(lv_tr("Z {:.2f} mm"), reply.z_gcode);
-    lv_subject_copy_string(&s_plr_position, position.c_str());
+    lv_subject_set_string(&s_plr_position, position.c_str());
     const std::string outage = outage_text(status_.snapshot ? status_.snapshot->age_s : -1.0);
-    lv_subject_copy_string(&s_plr_outage, outage.c_str());
+    lv_subject_set_string(&s_plr_outage, outage.c_str());
     const std::string bed = reply.bed_target > 0.0f
-                                ? tr_format(lv_tr("Bed is at {:.0f}°C, the print needs {:.0f}°C."),
-                                            reply.bed_current, reply.bed_target)
+                                ? tr_format(lv_tr("Bed is at {}, the print needs {}."),
+                                            helix::units::format_display_temp(reply.bed_current),
+                                            helix::units::format_display_temp(reply.bed_target))
                                 : std::string();
-    lv_subject_copy_string(&s_plr_bed, bed.c_str());
+    lv_subject_set_string(&s_plr_bed, bed.c_str());
     lv_subject_set_int(&s_plr_warn_layer_start,
                        std::find(reply.warnings.begin(), reply.warnings.end(),
                                  kLayerStartWarning) != reply.warnings.end() ||
@@ -714,15 +719,16 @@ void PlrWizardOverlay::update_bed_live() {
         units::from_decidegrees(lv_subject_get_int(temps.get_bed_temp_subject()));
     const double target =
         units::from_decidegrees(lv_subject_get_int(temps.get_bed_target_subject()));
-    const std::string text = target > 0.0
-                                 ? tr_format(lv_tr("Bed {:.0f} / {:.0f}°C"), current, target)
-                                 : tr_format(lv_tr("Bed {:.0f}°C"), current);
-    lv_subject_copy_string(&s_plr_bed_live, text.c_str());
+    const std::string text =
+        target > 0.0 ? tr_format(lv_tr("Bed {} / {}"), helix::units::to_display_temp_whole(current),
+                                 helix::units::format_display_temp(target))
+                     : tr_format(lv_tr("Bed {}"), helix::units::format_display_temp(current));
+    lv_subject_set_string(&s_plr_bed_live, text.c_str());
 }
 
 void PlrWizardOverlay::update_z_display(int centimm) {
     position::format_position(centimm, s_plr_z_buf, sizeof(s_plr_z_buf));
-    lv_subject_copy_string(&s_plr_z, s_plr_z_buf);
+    lv_subject_set_string(&s_plr_z, s_plr_z_buf);
 }
 
 // ============================================================================

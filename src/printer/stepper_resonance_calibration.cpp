@@ -20,7 +20,7 @@ struct Row {
 
 // --- Firmware wrapper: CALIBRATE_VFA ----------------------------------------
 //
-// Z-Mod's CALIBRATE_VFA T=<n> (c5pro_generic.cfg) mounts head n, zeroes the
+// Z-Mod's CALIBRATE_VFA T=<n> (c5pro_display_off.cfg) mounts head n, zeroes the
 // gcode offset, moves to the bed centre, runs the stock
 // STEPPER_RESONANCE_FACTORY_CALIBRATE, parks the head and ends in SAVE_CONFIG.
 // It homes as part of mounting, so nothing has to come first.
@@ -104,6 +104,21 @@ std::string calibrate_gcode(const PrinterDiscovery& hw, int tool) {
         return {};
     }
     return p.build(hw, tool);
+}
+
+CompensationToggle compensation_toggle(const PrinterDiscovery& hw) {
+    // The stock printer.vibration.cfg pair. Its enable sets fixed numbers; a
+    // firmware whose routine saves a calibration restores that instead.
+    constexpr const char* kEnable = "STEPPER_RESONANCE_DAMP_ENABLE";
+    constexpr const char* kDisable = "STEPPER_RESONANCE_DAMP_DISABLE";
+    CompensationToggle t;
+    if (!hw.has_macro(kEnable) || !hw.has_macro(kDisable)) {
+        return t;
+    }
+    t.enable_gcode = kEnable;
+    t.disable_gcode = kDisable;
+    t.applies_factory_values = !wrapper_detect(hw) && !compensation_detect(hw);
+    return t;
 }
 
 const char* entry_name() {

@@ -12,9 +12,12 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temperature_units.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "lvgl.h"
 #include "macro_executor.h"
 #include "material_settings_manager.h"
@@ -55,7 +58,13 @@ void register_preheat_widget() {
     lv_xml_register_event_cb(nullptr, "preheat_tool_target_cb", PreheatWidget::tool_target_cb);
 }
 
-PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {}
+PreheatWidget::PreheatWidget(PrinterState& printer_state) : printer_state_(printer_state) {
+    // Published before the manager parses the component, which drops a binding
+    // whose subject is missing at parse time.
+    tool_target_text_.init_string(tool_target_text_buf_, nullptr, sizeof(tool_target_text_buf_),
+                                  "");
+    subjects_.publish("preheat_tool_target_text", &tool_target_text_);
+}
 
 PreheatWidget::~PreheatWidget() {
     detach();
@@ -63,8 +72,8 @@ PreheatWidget::~PreheatWidget() {
 
 void PreheatWidget::set_config(const nlohmann::json& config) {
     config_ = config;
-    if (config_.contains("material_index") && config_["material_index"].is_number_integer()) {
-        selected_material_ = config_["material_index"].get<int>();
+    if (auto index = helix::json_util::read_integer_field(config_, "material_index")) {
+        selected_material_ = *index;
         if (selected_material_ < 0 || selected_material_ >= kPresetCount) {
             selected_material_ = 0;
         }
@@ -81,13 +90,6 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         update_button_label();
     }
 
-    // Clamp tool_target_ to prevent a stale index when the printer's extruder
-    // count changes between sessions. PanelWidget instances are recycled across
-    // home-panel rebuilds, so tool_target_ outlives any one attach.
-    if (tool_target_ >= static_cast<int>(ToolState::instance().heated_heads().size())) {
-        tool_target_ = -1; // Reset to "all" if stale
-    }
-
     // Update label when widget resizes (e.g. breakpoint change, initial layout)
     lv_obj_add_event_cb(
         widget_obj_,
@@ -98,21 +100,23 @@ void PreheatWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         LV_EVENT_SIZE_CHANGED, nullptr);
 
-    // Tool target button - only visible when the printer has more than one
-    // nozzle to aim a preheat at. Counts extruders, not tools: an AMS expands
-    // ToolState's tool list to one entry per filament lane, and every lane on a
-    // single-hotend printer shares the one heater, so "T0 / T1 / T2 / T3" would
-    // offer four names for the same thing.
-    tool_target_btn_ = lv_obj_find_by_name(widget_obj_, "preheat_tool_target");
-    tool_target_label_ = lv_obj_find_by_name(widget_obj_, "tool_target_label");
-    if (tool_target_btn_) {
-        if (!ToolState::instance().has_multiple_extruders()) {
-            lv_obj_add_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_remove_flag(tool_target_btn_, LV_OBJ_FLAG_HIDDEN);
-            update_tool_target_label();
-        }
-    }
+    // The tool target button shows only when the printer has more than one
+    // nozzle to aim a preheat at: the component binds ToolState's
+    // extruder_count. Extruders, not tools: an AMS expands ToolState's tool
+    // list to one entry per filament lane, and every lane on a single-hotend
+    // printer shares the one heater, so "T0 / T1 / T2 / T3" would offer four
+    // names for the same thing. The target and caption follow both the tool
+    // list and the nozzle count: a shared-heater flip changes the count
+    // without a new tool list.
+    sync_tool_target();
+    tools_version_obs_ = helix::ui::observe<int>(
+        ToolState::instance().get_tools_version_subject(), this,
+        [](PreheatWidget* self, int /*version*/) { self->sync_tool_target(); },
+        ToolState::instance().get_subjects_lifetime());
+    extruder_count_obs_ = helix::ui::observe<int>(
+        ToolState::instance().get_extruder_count_subject(), this,
+        [](PreheatWidget* self, int /*count*/) { self->sync_tool_target(); },
+        ToolState::instance().get_subjects_lifetime());
 
     // Tint the two heater glyphs. The numbers beside them already carry the
     // 4-state thermal color, so leaving the icons flat made them disagree
@@ -155,10 +159,10 @@ void PreheatWidget::detach() {
     bed_target_lifetime_.reset();
     bed_target_obs_.reset();
     language_obs_.reset();
+    tools_version_obs_.reset();
+    extruder_count_obs_.reset();
 
     split_btn_ = nullptr;
-    tool_target_btn_ = nullptr;
-    tool_target_label_ = nullptr;
     widget_obj_ = nullptr;
     parent_screen_ = nullptr;
 
@@ -172,7 +176,7 @@ PreheatWidget::PreheatTargets PreheatWidget::targets_for_slot(int slot) {
     if (!mat) {
         return {};
     }
-    return {mat->nozzle_recommended(), mat->bed_temp};
+    return {mat->nozzle_recommended(), mat->bed_temp, mat->chamber_temp_c};
 }
 
 std::string PreheatWidget::label_for_slot(int slot, bool heaters_active, int32_t width_px) {
@@ -216,10 +220,16 @@ void PreheatWidget::update_heater_state() {
     }
 }
 
-void PreheatWidget::update_tool_target_label() {
-    if (!tool_target_label_)
-        return;
+void PreheatWidget::sync_tool_target() {
+    // tool_target_ outlives any one attach and any one head list, so a head it
+    // names can be gone: aim at all of them again.
+    if (tool_target_ >= ToolState::instance().extruder_count()) {
+        tool_target_ = -1;
+    }
+    update_tool_target_label();
+}
 
+void PreheatWidget::update_tool_target_label() {
     // Holds ToolInfo::display_label, a translated noun plus a number:
     // Russian renders LaneNoun::Toolhead as "Печатающая головка 16" at 40 bytes.
     char label[64];
@@ -235,7 +245,7 @@ void PreheatWidget::update_tool_target_label() {
     } else {
         label[0] = '\0';
     }
-    lv_label_set_text(tool_target_label_, label);
+    lv_subject_set_string(&tool_target_text_, label);
 }
 
 void PreheatWidget::handle_selection_changed() {
@@ -257,18 +267,42 @@ void PreheatWidget::handle_selection_changed() {
     }
 }
 
-void PreheatWidget::set_temperatures(int nozzle, int bed) {
+void PreheatWidget::set_temperatures(int nozzle, int bed, int chamber) {
     auto* c = get_temperature_controller();
     if (!c)
         return;
     c->set_target(helix::HeaterType::Nozzle, static_cast<double>(nozzle),
                   {.toast = true, .on_success = [nozzle]() {
-                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}°C"), nozzle);
+                       NOTIFY_SUCCESS(lv_tr("Nozzle target set to {}"),
+                                      helix::units::format_display_temp(nozzle));
                    }});
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
-                  {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
-                   }});
+    send_bed_and_chamber(bed, chamber);
+}
+
+bool PreheatWidget::send_bed_and_chamber(int bed, int chamber) {
+    auto* c = get_temperature_controller();
+    if (!c) {
+        return false;
+    }
+    // With "Material presets heat the bed and chamber" off, a preset heats the
+    // nozzle alone.
+    const auto targets = presets::heater_targets(
+        bed, presets::chamber_request(chamber, printer_state_.temperature_state()));
+    if (targets.bed) {
+        c->set_target(helix::HeaterType::Bed, static_cast<double>(*targets.bed),
+                      {.toast = true, .on_success = [t = *targets.bed]() {
+                           NOTIFY_SUCCESS(lv_tr("Bed target set to {}"),
+                                          helix::units::format_display_temp(t));
+                       }});
+    }
+    if (targets.chamber) {
+        c->set_target(helix::HeaterType::Chamber, static_cast<double>(*targets.chamber),
+                      {.toast = true, .on_success = [t = *targets.chamber]() {
+                           NOTIFY_SUCCESS(lv_tr("Chamber target set to {}"),
+                                          helix::units::format_display_temp(t));
+                       }});
+    }
+    return targets.bed.has_value();
 }
 
 void PreheatWidget::handle_apply() {
@@ -300,13 +334,13 @@ void PreheatWidget::handle_apply() {
             const PreheatTargets t = targets_for_slot(selected_material_);
             // Multiple lanes sharing one hotend still use the active nozzle.
             if (ToolState::instance().has_multiple_extruders()) {
-                set_temperatures_multi(t.nozzle, t.bed);
+                set_temperatures_multi(t.nozzle, t.bed, t.chamber);
             } else {
-                set_temperatures(t.nozzle, t.bed);
+                set_temperatures(t.nozzle, t.bed, t.chamber);
             }
-            spdlog::info(
-                "[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, tool_target={})",
-                material_name, t.nozzle, t.bed, tool_target_);
+            spdlog::info("[PreheatWidget] Preheat {} applied (nozzle={}°C, bed={}°C, "
+                         "chamber={}°C, tool_target={})",
+                         material_name, t.nozzle, t.bed, t.chamber, tool_target_);
         },
         "[PreheatWidget]", hw);
 }
@@ -322,9 +356,9 @@ void PreheatWidget::handle_cooldown() {
         helix::ui::temperature::resolve_cooldown_gcode(printer_state_.temperature_state());
     spdlog::info("[PreheatWidget] Cooldown requested - executing: {}", gcode);
     api->execute_gcode(
-        gcode, []() { helix::ui::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
+        gcode, []() { helix::notify_tr(ToastSeverity::SUCCESS, TR_NOOP("Heaters off")); },
         [](const MoonrakerError& error) {
-            helix::ui::notify_error_tr(TR_NOOP("Failed to cool down: {}"), error);
+            helix::notify_error_tr(TR_NOOP("Failed to cool down: {}"), error);
         });
 }
 
@@ -372,7 +406,7 @@ std::vector<std::string> PreheatWidget::collect_preheat_heaters(const std::vecto
     return heaters;
 }
 
-void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
+void PreheatWidget::set_temperatures_multi(int nozzle, int bed, int chamber) {
     auto* c = get_temperature_controller();
     if (!c)
         return;
@@ -386,36 +420,40 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed) {
     auto refused = std::make_shared<bool>(false);
     for (const auto& heater : heaters) {
         spdlog::debug("[PreheatWidget] Setting {} to {}°C", heater, nozzle);
-        c->set_target(heater, static_cast<double>(nozzle),
-                      {.toast = false,
-                       .on_success =
-                           [heater, nozzle]() {
-                               spdlog::info("[PreheatWidget] {} target set to {}°C", heater,
-                                            nozzle);
-                           },
-                       .on_error =
-                           [heater, refused](const MoonrakerError& error) {
-                               *refused = true;
-                               helix::ui::notify_error_tr(TR_NOOP("Failed to set {} temp: {}"),
-                                                          heater, error);
-                           }});
+        c->set_target(
+            heater, static_cast<double>(nozzle),
+            {.toast = false,
+             .on_success =
+                 [heater, nozzle]() {
+                     spdlog::info("[PreheatWidget] {} target set to {}°C", heater, nozzle);
+                 },
+             .on_error =
+                 [heater, refused](const MoonrakerError& error) {
+                     *refused = true;
+                     helix::notify_error_tr(TR_NOOP("Failed to set {} temp: {}"), heater, error);
+                 }});
     }
 
-    c->set_target(helix::HeaterType::Bed, static_cast<double>(bed),
-                  {.toast = true, .on_success = [bed]() {
-                       NOTIFY_SUCCESS(lv_tr("Bed target set to {}°C"), bed);
-                   }});
+    const bool bed_sent = send_bed_and_chamber(bed, chamber);
 
     if (*refused) {
         return;
     }
     int tool_count = static_cast<int>(heaters.size());
-    if (tool_target_ == -1) {
+    // One literal per message: the extractor cannot see keys chosen inside a
+    // ternary.
+    if (tool_target_ == -1 && bed_sent) {
         NOTIFY_SUCCESS(fmt::runtime(helix::ui::tr_plural(nullptr, "Preheat: all {} tools + bed set",
                                                          static_cast<uint64_t>(tool_count))),
                        tool_count);
-    } else if (target_tool >= 0) {
+    } else if (tool_target_ == -1) {
+        NOTIFY_SUCCESS(fmt::runtime(helix::ui::tr_plural(nullptr, "Preheat: all {} tools set",
+                                                         static_cast<uint64_t>(tool_count))),
+                       tool_count);
+    } else if (target_tool >= 0 && bed_sent) {
         NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"), tools[target_tool].display_label);
+    } else if (target_tool >= 0) {
+        NOTIFY_SUCCESS(lv_tr("Preheat: {} set"), tools[target_tool].display_label);
     }
 }
 

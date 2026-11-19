@@ -2,6 +2,7 @@
 #include "platform_info.h"
 
 #include "board_identity.h"
+#include "helix_features.h"
 
 #include <spdlog/spdlog.h>
 
@@ -37,7 +38,7 @@ bool platform_defaults_to_external_updates() {
     if (s_external_updates_default_override >= 0) {
         return s_external_updates_default_override != 0;
     }
-    return board::current_info().firmware_manages_updates;
+    return board::firmware_manages_updates(board::current());
 }
 
 void set_external_updates_default_override(int override_value) {
@@ -46,6 +47,10 @@ void set_external_updates_default_override(int override_value) {
 
 bool platform_host_power_supported() {
     return !is_android_platform();
+}
+
+bool platform_host_terminal_supported() {
+    return HELIX_HAS_HOST_TERMINAL && !is_android_platform();
 }
 
 // -1 = use compile-time default, 0 = force "beside the printer", 1 = force "on it"
@@ -89,22 +94,23 @@ const char* flashforge_mod_tree_name(FlashForgeModTree tree) {
 }
 
 FlashForgeModTree flashforge_mod_tree(const std::string& probe_root) {
-    // ZMOD hosts carry FlashForge's /usr/prog dir or the /ZMOD marker file. A
-    // Forge-X chroot has neither — and not even /usr/data, which the chroot
-    // binds at /opt — but the mod's git tree stays reachable, and
-    // .shell/platform.sh in it is the same evidence the installer's
-    // host_profile probe keys on. scripts/helix-launcher.sh answers this same
-    // rule for its heap-diag gate; keep the two (and their tests) in step.
+    // Forge-X's own descriptor decides first: its mod git tree stays reachable
+    // from the chroot (and host-side), and .shell/platform.sh in it is the same
+    // evidence the installer's host_profile probe keys on, ahead of /ZMOD. A
+    // Forge-X chroot built from a Z-Mod rootfs carries FlashForge's /usr/prog
+    // too, so /usr/prog alone only means Z-Mod once Forge-X's tree is absent.
+    // scripts/helix-launcher.sh answers "any mod tree" from the same markers
+    // for its heap-diag gate; keep the two (and their tests) in step.
     struct ::stat st {};
-    if ((::stat(rooted(probe_root, "/ZMOD").c_str(), &st) == 0 && S_ISREG(st.st_mode)) ||
-        (::stat(rooted(probe_root, "/usr/prog").c_str(), &st) == 0 && S_ISDIR(st.st_mode))) {
-        return FlashForgeModTree::Zmod;
-    }
     for (const char* mod_tree : {"/opt/config/mod", "/usr/data/config/mod"}) {
         const std::string probe = rooted(probe_root, mod_tree) + "/.shell/platform.sh";
         if (::stat(probe.c_str(), &st) == 0 && S_ISREG(st.st_mode)) {
             return FlashForgeModTree::ForgeX;
         }
+    }
+    if ((::stat(rooted(probe_root, "/ZMOD").c_str(), &st) == 0 && S_ISREG(st.st_mode)) ||
+        (::stat(rooted(probe_root, "/usr/prog").c_str(), &st) == 0 && S_ISDIR(st.st_mode))) {
+        return FlashForgeModTree::Zmod;
     }
     return FlashForgeModTree::None;
 }

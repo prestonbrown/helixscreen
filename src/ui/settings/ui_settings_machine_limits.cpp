@@ -29,26 +29,20 @@ namespace {
 
 using helix::ui::SliderScale;
 
-/// Per-row facts the slider itself cannot answer. The bounds deliberately do
-/// NOT live here: they are read from the row's lv_slider at tap time so the
-/// XML stays the single source of truth for each range.
 struct FieldSpec {
     const char* slider_name;
-    const char* title; ///< Keypad header, so the user knows what they are typing
-    const char* unit;  ///< Suffix beside the keypad's display
-    int divisor;       ///< Slider positions per real unit (see SliderScale)
-    bool allow_decimal;
+    helix::ui::SliderFieldSpec keypad;
 };
 
 /// Indexed by MachineLimitsOverlay::Field.
 constexpr FieldSpec kFieldSpecs[] = {
-    {"max_velocity_slider", "Max Velocity", "mm/s", 1, false},
-    {"max_accel_slider", "Max Acceleration", "mm/s²", 1, false},
-    {"accel_to_decel_slider", "Accel to Decel", "mm/s²", 1, false},
+    {"max_velocity_slider", {"Max Velocity", "mm/s", 1, false}},
+    {"max_accel_slider", {"Max Acceleration", "mm/s²", 1, false}},
+    {"accel_to_decel_slider", {"Accel to Decel", "mm/s²", 1, false}},
     // Tenths: square corner velocity is tuned in 0.5 steps, which an integer
     // slider cannot express. See SCV_DIVISOR uses below.
-    {"square_corner_velocity_slider", "Square Corner Velocity", "mm/s", 10, true},
-    {"extrude_speed_slider", "Extrude Speed", "mm/s", 1, false},
+    {"square_corner_velocity_slider", {"Square Corner Velocity", "mm/s", 10, true}},
+    {"extrude_speed_slider", {"Extrude Speed", "mm/s", 1, false}},
 };
 
 static_assert(sizeof(kFieldSpecs) / sizeof(kFieldSpecs[0]) ==
@@ -120,6 +114,11 @@ void MachineLimitsOverlay::init_subjects() {
     std::snprintf(extrude_speed_buf_, sizeof(extrude_speed_buf_), "%d mm/s", extrude_speed);
     UI_MANAGED_SUBJECT_STRING(extrude_speed_display_subject_, extrude_speed_buf_,
                               extrude_speed_buf_, "extrude_speed_display", subjects_);
+
+    UI_MANAGED_SUBJECT_STRING(max_z_velocity_display_subject_, z_velocity_buf_, "--",
+                              "max_z_velocity_display", subjects_);
+    UI_MANAGED_SUBJECT_STRING(max_z_accel_display_subject_, z_accel_buf_, "--",
+                              "max_z_accel_display", subjects_);
 }
 
 void MachineLimitsOverlay::register_callbacks() {
@@ -236,33 +235,12 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
                     update_display();
                     update_sliders();
 
-                    // Update read-only Z values
-                    if (overlay_root_) {
-                        lv_obj_t* z_vel_row = helix::ui::find_required(
-                            overlay_root_, "row_max_z_velocity", get_name());
-                        if (z_vel_row) {
-                            lv_obj_t* value =
-                                helix::ui::find_required(z_vel_row, "value", get_name());
-                            if (value) {
-                                char buf[32];
-                                helix::format::format_speed_mm_s(limits.max_z_velocity, buf,
-                                                                 sizeof(buf));
-                                lv_label_set_text(value, buf);
-                            }
-                        }
-                        lv_obj_t* z_accel_row =
-                            helix::ui::find_required(overlay_root_, "row_max_z_accel", get_name());
-                        if (z_accel_row) {
-                            lv_obj_t* value =
-                                helix::ui::find_required(z_accel_row, "value", get_name());
-                            if (value) {
-                                char buf[32];
-                                helix::format::format_accel_mm_s2(limits.max_z_accel, buf,
-                                                                  sizeof(buf));
-                                lv_label_set_text(value, buf);
-                            }
-                        }
-                    }
+                    // Read-only Z values: their rows bind these subjects
+                    char buf[32];
+                    helix::format::format_speed_mm_s(limits.max_z_velocity, buf, sizeof(buf));
+                    lv_subject_set_string(&max_z_velocity_display_subject_, buf);
+                    helix::format::format_accel_mm_s2(limits.max_z_accel, buf, sizeof(buf));
+                    lv_subject_set_string(&max_z_accel_display_subject_, buf);
                 }),
             lifetime_.bg_cb(
                 "MachineLimitsOverlay::query_and_show_error", [this](const MoonrakerError& err) {
@@ -284,21 +262,21 @@ void MachineLimitsOverlay::update_display() {
     // Update max velocity display
     helix::format::format_speed_mm_s(current_limits_.max_velocity, velocity_buf_,
                                      sizeof(velocity_buf_));
-    lv_subject_copy_string(&max_velocity_display_subject_, velocity_buf_);
+    lv_subject_set_string(&max_velocity_display_subject_, velocity_buf_);
 
     // Update max accel display
     helix::format::format_accel_mm_s2(current_limits_.max_accel, accel_buf_, sizeof(accel_buf_));
-    lv_subject_copy_string(&max_accel_display_subject_, accel_buf_);
+    lv_subject_set_string(&max_accel_display_subject_, accel_buf_);
 
     // Update accel to decel display
     helix::format::format_accel_mm_s2(current_limits_.max_accel_to_decel, a2d_buf_,
                                       sizeof(a2d_buf_));
-    lv_subject_copy_string(&accel_to_decel_display_subject_, a2d_buf_);
+    lv_subject_set_string(&accel_to_decel_display_subject_, a2d_buf_);
 
     // Update square corner velocity display (one decimal: it is tuned in halves)
     helix::format::format_speed_mm_s_float(current_limits_.square_corner_velocity, kScvDecimals,
                                            scv_buf_, sizeof(scv_buf_));
-    lv_subject_copy_string(&square_corner_velocity_display_subject_, scv_buf_);
+    lv_subject_set_string(&square_corner_velocity_display_subject_, scv_buf_);
 }
 
 void MachineLimitsOverlay::update_sliders() {
@@ -348,7 +326,7 @@ void MachineLimitsOverlay::update_sliders() {
         int speed = helix::SettingsManager::instance().get_extrude_speed();
         lv_slider_set_value(extrude_slider, speed, LV_ANIM_OFF);
         std::snprintf(extrude_speed_buf_, sizeof(extrude_speed_buf_), "%d mm/s", speed);
-        lv_subject_copy_string(&extrude_speed_display_subject_, extrude_speed_buf_);
+        lv_subject_set_string(&extrude_speed_display_subject_, extrude_speed_buf_);
     }
 }
 
@@ -360,21 +338,21 @@ void MachineLimitsOverlay::handle_velocity_changed(int value) {
     current_limits_.max_velocity = static_cast<double>(value);
     helix::format::format_speed_mm_s(static_cast<double>(value), velocity_buf_,
                                      sizeof(velocity_buf_));
-    lv_subject_copy_string(&max_velocity_display_subject_, velocity_buf_);
+    lv_subject_set_string(&max_velocity_display_subject_, velocity_buf_);
     schedule_apply_limits();
 }
 
 void MachineLimitsOverlay::handle_accel_changed(int value) {
     current_limits_.max_accel = static_cast<double>(value);
     helix::format::format_accel_mm_s2(static_cast<double>(value), accel_buf_, sizeof(accel_buf_));
-    lv_subject_copy_string(&max_accel_display_subject_, accel_buf_);
+    lv_subject_set_string(&max_accel_display_subject_, accel_buf_);
     schedule_apply_limits();
 }
 
 void MachineLimitsOverlay::handle_a2d_changed(int value) {
     current_limits_.max_accel_to_decel = static_cast<double>(value);
     helix::format::format_accel_mm_s2(static_cast<double>(value), a2d_buf_, sizeof(a2d_buf_));
-    lv_subject_copy_string(&accel_to_decel_display_subject_, a2d_buf_);
+    lv_subject_set_string(&accel_to_decel_display_subject_, a2d_buf_);
     schedule_apply_limits();
 }
 
@@ -384,7 +362,7 @@ void MachineLimitsOverlay::handle_scv_changed(int slider_pos) {
     const double value = SliderScale{SCV_DIVISOR}.to_value(slider_pos);
     current_limits_.square_corner_velocity = value;
     helix::format::format_speed_mm_s_float(value, kScvDecimals, scv_buf_, sizeof(scv_buf_));
-    lv_subject_copy_string(&square_corner_velocity_display_subject_, scv_buf_);
+    lv_subject_set_string(&square_corner_velocity_display_subject_, scv_buf_);
     schedule_apply_limits();
 }
 
@@ -402,29 +380,15 @@ void MachineLimitsOverlay::handle_field_clicked(Field field) {
         return;
     }
 
-    const FieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
-    const SliderScale scale{spec.divisor};
-
-    // Bounds come from the slider, not from a second copy in this file. A range
-    // edited in machine_limits_overlay.xml stays correct here for free.
     pending_keypad_field_ = field;
-
-    ui_keypad_config_t config = {
-        .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
-        .min_value = static_cast<float>(scale.to_value(lv_slider_get_min_value(slider))),
-        .max_value = static_cast<float>(scale.to_value(lv_slider_get_max_value(slider))),
-        // Titles are the same strings the rows already declare as
-        // translation_tag in XML, so this resolves with no new keys.
-        .title_label = lv_tr(spec.title),
-        .unit_label = spec.unit,
-        .allow_decimal = spec.allow_decimal,
-        .allow_negative = false,
-        .callback = on_keypad_value,
-        .user_data = this};
-
-    spdlog::debug("[{}] Keypad for {} ({}-{})", get_name(), spec.title, config.min_value,
-                  config.max_value);
-    ui_keypad_show(&config);
+    // Only the extrude speed is the app's own setting; the printer owns the limits'.
+    std::optional<float> default_value;
+    if (field == Field::ExtrudeSpeed) {
+        default_value =
+            static_cast<float>(helix::SettingsManager::instance().get_extrude_speed_default());
+    }
+    helix::ui::show_keypad_for_slider(slider, kFieldSpecs[static_cast<size_t>(field)].keypad,
+                                      on_keypad_value, this, get_name(), default_value);
 }
 
 void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {
@@ -440,9 +404,9 @@ void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {
         return;
     }
 
-    const FieldSpec& spec = kFieldSpecs[static_cast<size_t>(field)];
-    const int pos = SliderScale{spec.divisor}.to_slider_clamped(
-        value, lv_slider_get_min_value(slider), lv_slider_get_max_value(slider));
+    const int divisor = kFieldSpecs[static_cast<size_t>(field)].keypad.divisor;
+    const int pos = SliderScale{divisor}.to_slider_clamped(value, lv_slider_get_min_value(slider),
+                                                           lv_slider_get_max_value(slider));
     lv_slider_set_value(slider, pos, LV_ANIM_OFF);
 
     // Route through the drag handler rather than duplicating its work, so a
@@ -539,7 +503,7 @@ void MachineLimitsOverlay::on_keypad_value(float value, void* user_data) {
 void MachineLimitsOverlay::handle_extrude_speed_changed(int value) {
     helix::SettingsManager::instance().set_extrude_speed(value);
     std::snprintf(extrude_speed_buf_, sizeof(extrude_speed_buf_), "%d mm/s", value);
-    lv_subject_copy_string(&extrude_speed_display_subject_, extrude_speed_buf_);
+    lv_subject_set_string(&extrude_speed_display_subject_, extrude_speed_buf_);
 }
 
 } // namespace helix::settings

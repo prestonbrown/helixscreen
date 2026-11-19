@@ -95,7 +95,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_t* root = overlay.create(screen);
     REQUIRE(root != nullptr);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
 
     // Force full-screen geometry (the runtime overlay_width_transient token is not
     // registered in the unit-test XML scope; pin it deterministically).
@@ -194,7 +194,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         lv_subject_set_int(state, sv.st);
         lv_obj_update_layout(screen);
         INFO("cancel chip in state " << sv.st << " hidden=expected " << sv.hidden);
-        CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN) == sv.hidden);
+        CHECK(lv_obj_is_hidden(chip) == sv.hidden);
     }
     // --- VERIFY: capture surface is hidden and Accept is reachable -------------
     // In VERIFY (state 4) the full-screen capture surface must hide so its taps
@@ -207,8 +207,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     {
         lv_subject_set_int(state, 4); // kStateVerify
         lv_obj_update_layout(screen);
-        INFO("capture surface in VERIFY hidden=" << lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
-        CHECK(lv_obj_has_flag(capture, LV_OBJ_FLAG_HIDDEN));
+        INFO("capture surface in VERIFY hidden=" << lv_obj_is_hidden(capture));
+        CHECK(lv_obj_is_hidden(capture));
 
         lv_obj_t* accept = lv_obj_find_by_name(screen, "btn_accept");
         REQUIRE(accept != nullptr);

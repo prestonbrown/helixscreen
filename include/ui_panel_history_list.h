@@ -5,11 +5,12 @@
 
 #include "ui_history_list_view.h"
 #include "ui_history_photos.h"
-#include "ui_observer_guard.h"
 #include "ui_search_debounce.h"
 #include "ui_widget_ref.h"
 
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "in_flight_guard.h"
 #include "overlay_base.h"
 #include "print_history_data.h"
@@ -130,7 +131,7 @@ class HistoryListPanel : public OverlayBase {
     /**
      * @brief Deinitialize subjects for cleanup
      *
-     * Calls lv_subject_deinit() on all subjects. Must be called
+     * Calls reset() on all subjects. Must be called
      * before destructor to avoid dangling observers.
      */
     void deinit_subjects();
@@ -167,6 +168,16 @@ class HistoryListPanel : public OverlayBase {
     void on_deactivating(DeactivateReason reason) override;
     void on_ui_destroyed() override;
 
+  protected:
+    /**
+     * @brief Start a fresh session: default filters, top of the list
+     *
+     * Runs on every show() from the dashboard, and never on Back from the
+     * detail overlay, which returns to the list as the user left it.
+     */
+    void before_show() override;
+
+  public:
     //
     // === Public API ===
     //
@@ -277,14 +288,14 @@ class HistoryListPanel : public OverlayBase {
     // === Subject for panel state binding ===
     //
 
-    lv_subject_t subject_panel_state_{};      ///< 0 = LOADING, 1 = EMPTY, 2 = HAS_JOBS
-    lv_subject_t subject_filters_expanded_{}; ///< 0 = filter dropdowns collapsed, 1 = expanded
-    lv_subject_t subject_filter_active_{}; ///< 1 when a status/search/sort filter is active (drives
-                                           ///< funnel accent)
+    helix::Subject subject_panel_state_{};      ///< 0 = LOADING, 1 = EMPTY, 2 = HAS_JOBS
+    helix::Subject subject_filters_expanded_{}; ///< 0 = filter dropdowns collapsed, 1 = expanded
+    helix::Subject subject_filter_active_{};    ///< 1 when a status/search/sort filter is active
+                                                ///< (drives funnel accent)
 
     // Empty state message subjects (for dynamic text based on filter state)
-    lv_subject_t subject_empty_message_{}; ///< Empty state message text
-    lv_subject_t subject_empty_hint_{};    ///< Empty state hint text
+    helix::Subject subject_empty_message_{}; ///< Empty state message text
+    helix::Subject subject_empty_hint_{};    ///< Empty state hint text
 
     // Buffers for empty state string subjects
     char empty_message_buf_[64] = {};
@@ -302,26 +313,27 @@ class HistoryListPanel : public OverlayBase {
     std::atomic<uint32_t> detail_overlay_generation_{0};
 
     // Detail overlay subjects (string subjects for reactive binding)
-    lv_subject_t detail_filename_{};
-    lv_subject_t detail_status_{};
-    lv_subject_t detail_status_icon_{};
-    lv_subject_t detail_status_variant_{};
-    lv_subject_t detail_start_date_{};
-    lv_subject_t detail_start_time_{};
-    lv_subject_t detail_end_date_{};
-    lv_subject_t detail_end_time_{};
-    lv_subject_t detail_duration_{};
-    lv_subject_t detail_layers_{};
-    lv_subject_t detail_layer_height_{};
-    lv_subject_t detail_nozzle_temp_{};
-    lv_subject_t detail_bed_temp_{};
-    lv_subject_t detail_filament_{};
-    lv_subject_t detail_filament_type_{};
-    lv_subject_t detail_can_reprint_{};   ///< 1 if file exists, 0 otherwise
-    lv_subject_t detail_status_code_{};   ///< 0=completed, 1=cancelled, 2=error, 3=in_progress
-    lv_subject_t detail_has_timelapse_{}; ///< 1 if timelapse available, 0 otherwise
-    lv_subject_t detail_spools_{};        ///< The job's per-spool lines, newline-joined
-    lv_subject_t detail_has_spools_{};    ///< 1 once the plugin reported the job's spools
+    helix::Subject detail_filename_{};
+    helix::Subject detail_status_{};
+    helix::Subject detail_status_icon_{};
+    helix::Subject detail_status_variant_{};
+    helix::Subject detail_start_date_{};
+    helix::Subject detail_start_time_{};
+    helix::Subject detail_end_date_{};
+    helix::Subject detail_end_time_{};
+    helix::Subject detail_duration_{};
+    helix::Subject detail_layers_{};
+    helix::Subject detail_layer_height_{};
+    helix::Subject detail_nozzle_temp_{};
+    helix::Subject detail_bed_temp_{};
+    helix::Subject detail_filament_{};
+    helix::Subject detail_filament_type_{};
+    helix::Subject detail_can_reprint_{};   ///< 1 if file exists, 0 otherwise
+    helix::Subject detail_status_code_{};   ///< 0=completed, 1=cancelled, 2=error, 3=in_progress
+    helix::Subject detail_has_timelapse_{}; ///< 1 if timelapse available, 0 otherwise
+    helix::Subject detail_spools_{};        ///< The job's per-spool lines, newline-joined
+    helix::Subject detail_has_spools_{};    ///< 1 once the plugin reported the job's spools
+    helix::Subject detail_thumb_loaded_{};  ///< 1 once the job's thumbnail is on the image
     /// Bumped per detail open, so a spool record still in flight for an
     /// earlier job is dropped.
     uint32_t detail_spools_request_ = 0;
@@ -345,7 +357,7 @@ class HistoryListPanel : public OverlayBase {
     char detail_nozzle_temp_buf_[kSmallBufSize] = {};
     char detail_bed_temp_buf_[kSmallBufSize] = {};
     char detail_filament_buf_[kSmallBufSize] = {};
-    char detail_filament_type_buf_[kSmallBufSize] = {};
+    char detail_filament_type_buf_[kDetailBufSize] = {};
     char detail_spools_buf_[512] = {};
 
     //
@@ -367,6 +379,9 @@ class HistoryListPanel : public OverlayBase {
      * @brief Clear all row widgets from the list
      */
     void clear_list();
+
+    /// Default filters and sort, first page, no rows: the state a fresh open starts from.
+    void reset_view_state();
 
     /**
      * @brief Update the empty state visibility and message

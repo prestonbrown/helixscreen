@@ -4,19 +4,19 @@
 #include "ui_panel_notification_history.h"
 
 #include "ui_event_safety.h"
-#include "ui_format_utils.h"
 #include "ui_nav.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
-#include "ui_subject_registry.h"
+#include "ui_update_notify_modal.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "display_format.h"
 #include "lvgl.h"
 #include "printer_state.h"
-#include "system/update_checker.h"
+#include "system/subject_registry.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -194,7 +194,7 @@ std::string NotificationHistoryPanel::format_timestamp(uint64_t timestamp_ms) {
     // Handle edge case where timestamp is in future (shouldn't happen)
     uint64_t diff_ms = (timestamp_ms > now) ? 0 : (now - timestamp_ms);
 
-    return helix::ui::format_relative_time(diff_ms);
+    return helix::display_format::format_relative_time(diff_ms);
 }
 
 // ============================================================================
@@ -247,7 +247,7 @@ void NotificationHistoryPanel::dispatch_action(const char* action) {
     if (strcmp(action, "show_update_modal") == 0) {
         // Close notification history overlay first, then show update modal
         helix::nav::go_back();
-        UpdateChecker::instance().show_update_notification();
+        helix::ui::show_update_notification();
     } else if (auto handler = helix::ui::notification_action_handler(action)) {
         helix::nav::go_back();
         handler();

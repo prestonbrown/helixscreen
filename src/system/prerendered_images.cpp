@@ -51,38 +51,6 @@ bool prerendered_exists(const std::string& path) {
     return helix::fs::exists(asset_path(path));
 }
 
-std::string get_prerendered_splash_3d_path(int screen_width, int screen_height, bool dark_mode) {
-    const char* size_name = get_splash_3d_size_name(screen_width, screen_height);
-    const char* mode_name = dark_mode ? "dark" : "light";
-
-    // Path relative to install directory
-    std::string path = "assets/images/prerendered/splash-3d-";
-    path += mode_name;
-    path += "-";
-    path += size_name;
-    path += ".bin";
-
-    if (prerendered_exists(path)) {
-        spdlog::debug("[Prerendered] Using 3D splash: {}", path);
-        return asset_component_uri(path);
-    }
-
-    // A 480x400 panel takes the tiny canvas when its own is absent.
-    if (std::string(size_name) == "small") {
-        path = "assets/images/prerendered/splash-3d-";
-        path += mode_name;
-        path += "-tiny.bin";
-        if (prerendered_exists(path)) {
-            spdlog::debug("[Prerendered] Using 3D splash (tiny fallback): {}", path);
-            return asset_component_uri(path);
-        }
-    }
-
-    spdlog::debug("[Prerendered] 3D splash not found for {} {} ({}x{}), falling back", mode_name,
-                  size_name, screen_width, screen_height);
-    return "";
-}
-
 std::string get_prerendered_splash_path(int screen_width, int screen_height) {
     const char* size_name = get_splash_size_name(screen_width, screen_height);
 

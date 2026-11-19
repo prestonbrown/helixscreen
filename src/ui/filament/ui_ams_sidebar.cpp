@@ -3,6 +3,7 @@
 
 #include "ui_ams_sidebar.h"
 
+#include "ui_ams_context_menu.h"
 #include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_batch_filament_modal.h"
@@ -23,11 +24,14 @@
 #include "ams_gate_selector.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
+#include "ams_tip_label.h"
 #include "ams_types.h"
 #include "app_constants.h"
 #include "app_globals.h"
+#include "buffer_status_modal.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "filament_database.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
@@ -44,6 +48,7 @@
 #include "subject_managed_panel.h"
 #include "temperature_controller.h"
 #include "tool_change_request.h"
+#include "tool_state.h"
 #include "toolhead_homing.h"
 #include "ui/ui_cleanup_helpers.h"
 
@@ -51,6 +56,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace helix::ui {
 
@@ -205,22 +211,29 @@ void dispatch_backend_unload(int slot_index, int target_slot, FilamentOpTicket t
  * live binding. Registered once, deinit'd via StaticSubjectRegistry (which runs
  * before lv_deinit()), same shape as ScrewsTiltShareModal's row subjects.
  */
-HELIX_PSRAM_BSS lv_subject_t s_unload_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_load_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_reset_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_check_gates_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_load_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_unload_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_unload_picks{};
-HELIX_PSRAM_BSS lv_subject_t s_mount_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_mount_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_park_hidden{};
-HELIX_PSRAM_BSS lv_subject_t s_park_disabled{};
-HELIX_PSRAM_BSS lv_subject_t s_action_reason{};
-HELIX_PSRAM_BSS lv_subject_t s_action_reason_shown{};
+HELIX_PSRAM_BSS helix::Subject s_unload_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_load_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_reset_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_check_gates_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_load_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_unload_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_unload_picks{};
+HELIX_PSRAM_BSS helix::Subject s_mount_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_mount_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_park_hidden{};
+HELIX_PSRAM_BSS helix::Subject s_park_disabled{};
+HELIX_PSRAM_BSS helix::Subject s_action_reason{};
+HELIX_PSRAM_BSS helix::Subject s_action_reason_shown{};
 HELIX_PSRAM_BSS char s_action_reason_buf[192];
-HELIX_PSRAM_BSS lv_subject_t s_supports_reset{};
-HELIX_PSRAM_BSS lv_subject_t s_cancel_shown{};
+HELIX_PSRAM_BSS helix::Subject s_supports_reset{};
+HELIX_PSRAM_BSS helix::Subject s_cancel_shown{};
+/// 1 where the backend can check its gates: Check Slots shows.
+HELIX_PSRAM_BSS helix::Subject s_check_gates_shown{};
+/// 1 while an operation's step bar is shown.
+HELIX_PSRAM_BSS helix::Subject s_stepper_shown{};
+HELIX_PSRAM_BSS helix::Subject s_mounted_shown{};
+HELIX_PSRAM_BSS helix::Subject s_mounted_text{};
+HELIX_PSRAM_BSS char s_mounted_text_buf[64];
 bool s_gating_subjects_initialized = false;
 SubjectManager s_subjects;
 
@@ -246,27 +259,37 @@ void reset_button_gating_subjects() {
     lv_subject_set_int(&s_mount_disabled, 1);
     lv_subject_set_int(&s_park_hidden, 1);
     lv_subject_set_int(&s_park_disabled, 1);
-    lv_subject_copy_string(&s_action_reason, "");
+    lv_subject_set_string(&s_action_reason, "");
     lv_subject_set_int(&s_action_reason_shown, 0);
     // Shown by default, as on most backends; refresh_button_gating() hides it
     // where Reset has nothing to clear.
     lv_subject_set_int(&s_supports_reset, 1);
     lv_subject_set_int(&s_cancel_shown, 0);
+    lv_subject_set_int(&s_check_gates_shown, 0);
+    lv_subject_set_int(&s_stepper_shown, 0);
+    lv_subject_set_int(&s_mounted_shown, 0);
+    lv_subject_set_string(&s_mounted_text, "");
 }
 
 void init_button_gating_subjects() {
     if (s_gating_subjects_initialized) {
         return;
     }
-    for (lv_subject_t* subject :
-         {&s_unload_disabled, &s_load_disabled, &s_reset_disabled, &s_check_gates_disabled,
-          &s_load_hidden, &s_unload_hidden, &s_unload_picks, &s_mount_hidden, &s_mount_disabled,
-          &s_park_hidden, &s_park_disabled, &s_action_reason_shown, &s_supports_reset,
-          &s_cancel_shown}) {
-        lv_subject_init_int(subject, 0);
+    // The statics are built before lv_init(), so `&` is null until init: take the Subjects.
+    for (helix::Subject* subject :
+         {std::addressof(s_unload_disabled), std::addressof(s_load_disabled),
+          std::addressof(s_reset_disabled), std::addressof(s_check_gates_disabled),
+          std::addressof(s_load_hidden), std::addressof(s_unload_hidden),
+          std::addressof(s_unload_picks), std::addressof(s_mount_hidden),
+          std::addressof(s_mount_disabled), std::addressof(s_park_hidden),
+          std::addressof(s_park_disabled), std::addressof(s_action_reason_shown),
+          std::addressof(s_supports_reset), std::addressof(s_cancel_shown),
+          std::addressof(s_check_gates_shown), std::addressof(s_stepper_shown),
+          std::addressof(s_mounted_shown)}) {
+        subject->init_int(0);
     }
-    lv_subject_init_string(&s_action_reason, s_action_reason_buf, nullptr,
-                           sizeof(s_action_reason_buf), "");
+    s_action_reason.init_string(s_action_reason_buf, nullptr, sizeof(s_action_reason_buf), "");
+    s_mounted_text.init_string(s_mounted_text_buf, nullptr, sizeof(s_mounted_text_buf), "");
     reset_button_gating_subjects();
     s_subjects.publish("ams_sidebar_unload_disabled", &s_unload_disabled);
     s_subjects.publish("ams_sidebar_load_disabled", &s_load_disabled);
@@ -283,6 +306,10 @@ void init_button_gating_subjects() {
     s_subjects.publish("ams_sidebar_action_reason_shown", &s_action_reason_shown);
     s_subjects.publish("ams_sidebar_supports_reset", &s_supports_reset);
     s_subjects.publish("ams_sidebar_cancel_shown", &s_cancel_shown);
+    s_subjects.publish("ams_sidebar_check_gates_shown", &s_check_gates_shown);
+    s_subjects.publish("ams_sidebar_stepper_shown", &s_stepper_shown);
+    s_subjects.publish("ams_sidebar_mounted_shown", &s_mounted_shown);
+    s_subjects.publish("ams_sidebar_mounted_text", &s_mounted_text);
     s_gating_subjects_initialized = true;
 
     // The subjects are created once, from the AMS panels' process-once XML
@@ -370,6 +397,13 @@ void AmsOperationSidebar::register_callbacks_static() {
          }},
         {"ams_sidebar_settings_clicked", on_settings_clicked_cb},
         {"ams_sidebar_cancel_clicked", [](lv_event_t*) { helix::ui::abort_ams_operation(); }},
+        {"ams_sidebar_buffer_clicked", [](lv_event_t*) { BufferStatusModal::show_for(-1); }},
+        {"ams_sidebar_loaded_card_clicked",
+         [](lv_event_t* e) {
+             if (auto* self = from_event(e)) {
+                 self->handle_loaded_card_tap();
+             }
+         }},
         {"ams_sidebar_load_clicked",
          [](lv_event_t* e) {
              if (auto* self = from_event(e)) {
@@ -630,6 +664,12 @@ void AmsOperationSidebar::init_observers() {
         },
         AmsState::instance().get_subjects_lifetime());
 
+    // The mounted line follows the carriage.
+    active_tool_observer_ = observe<int>(
+        ToolState::instance().get_active_tool_subject(), this,
+        [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
+        ToolState::instance().get_subjects_lifetime());
+
     // Bypass spool color observer: refreshes loaded card when external spool changes
     bypass_spool_observer_ = observe<int>(
         AmsState::instance().get_external_spool_color_subject(), this,
@@ -828,16 +868,8 @@ void AmsOperationSidebar::update_check_gates_visibility() {
     if (!active_ || !sidebar_root_) {
         return;
     }
-    lv_obj_t* btn = lv_obj_find_by_name(sidebar_root_, "btn_check_gates");
-    if (!btn) {
-        return;
-    }
     AmsBackend* backend = AmsState::instance().get_backend();
-    if (backend && backend->supports_gate_check()) {
-        lv_obj_remove_flag(btn, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&s_check_gates_shown, backend && backend->supports_gate_check() ? 1 : 0);
 }
 
 // ============================================================================
@@ -943,9 +975,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
         // toolhead, and the status line above already names what it is doing.
         if (current_step_model_.suppressed) {
             current_step_count_ = 0;
-            if (step_progress_container_) {
-                lv_obj_add_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-            }
+            lv_subject_set_int(&s_stepper_shown, 0);
             spdlog::debug("[AmsSidebar] Backend suppressed the step bar for op_type={}",
                           static_cast<int>(op_type));
             return;
@@ -1186,9 +1216,9 @@ void AmsOperationSidebar::refresh_live_temp_step_label(int current_index) {
             int current_deci = lv_subject_get_int(temp_subject);
             int target_deci = lv_subject_get_int(target_subject);
             char temp_buf[32];
-            temperature::format_temperature_pair(temperature::deci_to_degrees(current_deci),
-                                                 temperature::deci_to_degrees(target_deci),
-                                                 temp_buf, sizeof(temp_buf));
+            temperature::format_temperature_pair(
+                helix::temperature_rules::deci_to_degrees(current_deci),
+                helix::temperature_rules::deci_to_degrees(target_deci), temp_buf, sizeof(temp_buf));
             snprintf(label_buf, sizeof(label_buf), "%s %s", base_label, temp_buf);
         }
         ui_step_progress_set_label(step_progress_, live_temp_step_index_, label_buf);
@@ -1336,9 +1366,7 @@ void AmsOperationSidebar::start_operation(StepOperationType op_type, int target_
     // layout pass runs against a visible (non-collapsed) container. The step
     // connectors also relayout on SIZE_CHANGED, but revealing first keeps the
     // very first paint correct.
-    if (step_progress_container_) {
-        lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&s_stepper_shown, 1);
 
     // An operation this UI starts begins now: no narration from before it
     // belongs to it.
@@ -1431,10 +1459,8 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
     // hardcoded lists that disagreed about both SELECTING and PURGING, so a tool
     // changer's bar appeared for the dock half of a swap and vanished for the
     // pick half.
-    if (is_active_action) {
-        lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-    } else {
-        lv_obj_add_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_subject_set_int(&s_stepper_shown, is_active_action ? 1 : 0);
+    if (!is_active_action) {
         target_load_slot_ = -1;
         if (heat_label_showing_temp_) {
             int reset_idx = (live_temp_step_index_ >= 0) ? live_temp_step_index_ : 0;
@@ -1466,9 +1492,9 @@ void AmsOperationSidebar::update_step_progress(AmsAction action) {
         int target_deci = lv_subject_get_int(
             printer_state_.temperature_state().get_active_extruder_target_subject());
         char temp_buf[32];
-        temperature::format_temperature_pair(temperature::deci_to_degrees(current_deci),
-                                             temperature::deci_to_degrees(target_deci), temp_buf,
-                                             sizeof(temp_buf));
+        temperature::format_temperature_pair(
+            helix::temperature_rules::deci_to_degrees(current_deci),
+            helix::temperature_rules::deci_to_degrees(target_deci), temp_buf, sizeof(temp_buf));
         char label_buf[64];
         snprintf(label_buf, sizeof(label_buf), "%s %s", lv_tr("Heat nozzle"), temp_buf);
         ui_step_progress_set_label(step_progress_, 0, label_buf);
@@ -1534,6 +1560,13 @@ helix::ui::MachineOpGating AmsOperationSidebar::read_machine_op_gating() const {
         /*reset_moves_filament=*/backend && backend->reset_moves_filament());
 }
 
+std::string mounted_tool_text(LaneNoun tool_noun, int active_tool) {
+    if (active_tool < 0) {
+        return lv_tr("No tool mounted");
+    }
+    return fmt::format(fmt::runtime(lv_tr("Mounted: {}")), lane_label(tool_noun, active_tool));
+}
+
 void AmsOperationSidebar::refresh_button_gating() {
     if (!s_gating_subjects_initialized) {
         return;
@@ -1555,7 +1588,7 @@ void AmsOperationSidebar::refresh_button_gating() {
     const std::string& reason =
         !actions.load.reason.empty() ? actions.load.reason : actions.unload.reason;
     if (reason != lv_subject_get_string(&s_action_reason)) {
-        lv_subject_copy_string(&s_action_reason, reason.c_str());
+        lv_subject_set_string(&s_action_reason, reason.c_str());
     }
     lv_subject_set_int(&s_action_reason_shown, reason.empty() ? 0 : 1);
 
@@ -1573,6 +1606,16 @@ void AmsOperationSidebar::refresh_button_gating() {
     lv_subject_set_int(
         &s_cancel_shown,
         backend && ams_action_is_busy(action) && backend->can_cancel_operation() ? 1 : 0);
+
+    // Where several heads dock, which one is on the carriage is the first
+    // thing the sidebar answers.
+    const auto& tools = ToolState::instance();
+    lv_subject_set_int(&s_mounted_shown, tools.has_multiple_toolheads() ? 1 : 0);
+    const std::string mounted = mounted_tool_text(backend ? backend->tool_noun() : LaneNoun::Tool,
+                                                  tools.active_tool_index());
+    if (mounted != lv_subject_get_string(&s_mounted_text)) {
+        lv_subject_set_string(&s_mounted_text, mounted.c_str());
+    }
 }
 
 bool AmsOperationSidebar::refuse_if_busy_or_printing(bool load) const {
@@ -1812,17 +1855,43 @@ void AmsOperationSidebar::handle_reset() {
     }
 
     // Clear any latched fault before re-prepping. AFC_RESET alone leaves
-    // printer.AFC.message populated, so the sidebar kept showing an error the
-    // user had just asked to reset away.
-    AmsError cleared = backend->clear_fault(backend->get_system_info().current_slot);
-    if (!cleared.success()) {
-        spdlog::warn("[AmsSidebar] Fault clear during reset failed: {}", cleared.user_msg);
+    // printer.AFC.message populated, so the sidebar would keep showing an error
+    // the user had just asked to reset away.
+    if (!backend->reset_retires_fault()) {
+        AmsError cleared = backend->clear_fault(backend->get_system_info().current_slot);
+        if (cleared.result == AmsResult::NOT_SUPPORTED) {
+            // A fault the firmware itself reports; reset() below is what addresses it.
+            spdlog::debug("[AmsSidebar] Fault clear before reset: {}", cleared.technical_msg);
+        } else if (!cleared.success()) {
+            spdlog::warn("[AmsSidebar] Fault clear during reset failed: {}", cleared.user_msg);
+        }
     }
 
     AmsError error = backend->reset();
     if (error.result != AmsResult::SUCCESS) {
         helix::ui::notify_ams_error(error, lv_tr("Reset failed"));
     }
+}
+
+void AmsOperationSidebar::handle_loaded_card_tap() {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        return;
+    }
+    // The card binds its clickable flag to ams_filament_loaded; this re-check
+    // covers a tap that lands as the lane unloads.
+    const AmsSystemInfo info = backend->get_system_info();
+    if (!info.filament_loaded || info.current_slot < 0) {
+        spdlog::debug("[AmsSidebar] Loaded card tapped with no lane loaded");
+        return;
+    }
+    const SlotInfo slot = backend->get_slot_info(info.current_slot);
+    lv_subject_t* spoolman = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    const bool has_spoolman = spoolman && lv_subject_get_int(spoolman) == 1;
+    const bool open_on_picker = has_spoolman && slot.spoolman_id <= 0;
+    spdlog::info("[AmsSidebar] Loaded card tapped: slot {} spoolman_id {} -> {}", info.current_slot,
+                 slot.spoolman_id, open_on_picker ? "picker" : "editor");
+    open_slot_editor(lv_screen_active(), get_moonraker_api(), info.current_slot, open_on_picker);
 }
 
 void AmsOperationSidebar::handle_check_gates() {
@@ -2082,9 +2151,7 @@ void AmsOperationSidebar::show_preheat_feedback(int current_temp, int target_tem
         preheat_status_text(step_progress_ != nullptr, current_temp, target_temp);
     AmsState::instance().set_action_detail(status);
 
-    if (step_progress_container_) {
-        lv_obj_remove_flag(step_progress_container_, LV_OBJ_FLAG_HIDDEN);
-    }
+    lv_subject_set_int(&s_stepper_shown, 1);
     if (step_progress_) {
         ui_step_progress_set_current(step_progress_, 0);
     }

@@ -3,11 +3,12 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/timer_guard.h"
 #include "filament_mapper.h"
 #include "helix_shared_callback.h"
 #include "print_lifecycle_state.h"
@@ -235,8 +236,41 @@ class PrintStartController {
     [[nodiscard]] helix::PrintStartParams print_start_params() const;
 
   private:
-    /// Reads a reprinted file's tools when its caller has none; created on that use.
+    /// Reads a file's tools for read_file_tools(); created on that use.
     std::unique_ptr<helix::FileStartFactsLoader> reprint_facts_;
+    /// Reads a reprinted file's facts for the gates; created on that use.
+    std::unique_ptr<helix::FileStartFactsLoader> reprint_gate_facts_;
+    /// A reprint's facts load has not answered yet.
+    bool reprint_pending_ = false;
+    /// That reprint's on_error, which may itself be empty.
+    helix::SharedCallback<void()> pending_reprint_on_error_;
+
+    /// The tool-to-head map a reprint's pre-print send writes on @p backend:
+    /// @p routing when the caller knows it, else the last print's routing
+    /// (FilamentMapper::reprint_remap()), else the empty map on a backend whose
+    /// default routing is identity. Unset when none is known.
+    [[nodiscard]] static std::optional<std::map<int, int>>
+    reprint_routing(const AmsBackend& backend, const std::optional<std::map<int, int>>& routing,
+                    const std::set<int>& tools_used);
+
+    /// Drop a reprint whose facts load has not answered, telling its caller
+    /// through its on_error. Nothing when none is pending.
+    void abandon_pending_reprint();
+
+    /// End a reprint whose gates are running (reprint_gates_): its dialog
+    /// closes and its caller hears through on_error. Nothing when none runs.
+    void end_live_reprint_gates();
+
+    /// How much of a reprinted file its gate facts load may read.
+    [[nodiscard]] static helix::FileRead reprint_file_read(const std::set<int>& tools_used,
+                                                           int archive_plate);
+
+    /// Ends a reprint whose facts load has not answered within @p ms
+    /// (abandon_pending_reprint()), with a toast naming @p filename. Re-arming
+    /// replaces the deadline.
+    void arm_reprint_stall_watchdog(const std::string& filename, uint32_t ms);
+    helix::ui::LvglTimerGuard reprint_stall_;
+    std::string reprint_stall_file_;
 
     // Test-only access to the gate-pipeline runner (toy-gate injection and
     // dialog introspection).
@@ -245,6 +279,9 @@ class PrintStartController {
     /// With spools latched on the bed, opens the drying banner's prompt instead
     /// of a start the API layer would refuse. True when the start must stop.
     bool divert_to_spool_removal();
+    /// The printer cannot take a new print (can_start_new_print()): toasts
+    /// why. True when the start must stop.
+    bool refuse_while_printer_busy();
     /// A filament operation this screen sequences is running
     /// (AmsState::any_operation_running_here()): say so instead of starting a
     /// print it would keep sending moves into.
@@ -288,6 +325,15 @@ class PrintStartController {
                       helix::SharedCallback<void()> on_error, int archive_plate,
                       std::optional<int> native_plate = std::nullopt);
 
+    /// reprint_impl() past its gates: arms the preparing window, then the
+    /// backend's pre-print send where it needs one, then job().start_print.
+    void start_reprint(const std::string& filename, const std::string& path,
+                       const std::set<int>& tools_used,
+                       const std::optional<std::map<int, int>>& routing,
+                       helix::SharedCallback<void()> on_started,
+                       helix::SharedCallback<void()> on_error, int archive_plate,
+                       std::optional<int> native_plate);
+
     /// The plate a Reprint of the .3mf @p filename, which printed as itself,
     /// names: the plate of the job this session confirmed starting
     /// (PrinterPrintState::confirmed_start_plate()), else the one the printer's
@@ -311,8 +357,13 @@ class PrintStartController {
     /// Ordered gate pipeline. Runs gates[index..], shows ONE modal at the
     /// first non-Pass verdict; proceed resumes at the next index with a
     /// freshly gathered context. All-Pass falls through to
-    /// execute_print_start().
+    /// execute_print_start(), or to the reprint's own start while a reprint
+    /// runs the gates (reprint_gates_).
     void run_gates_from(size_t index);
+
+    /// A gate run ended without a print: the reprint's on_error while a
+    /// reprint runs the gates, else end_without_print().
+    void end_gate_run_without_print();
 
     /// Snapshot every input a gate may read (single source of truth — gates
     /// never fetch singletons themselves). Gathered per pipeline entry so a
@@ -358,6 +409,22 @@ class PrintStartController {
     std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests
     size_t gate_resume_index_ = 0;                 ///< gate the open modal belongs to
     helix::ui::WidgetRef print_gate_modal_;        ///< the ONE gate dialog handle
+
+    /// A reprint running the gates. Its facts answer the gates in place of the
+    /// detail view's file and file_facts_: the controller a reprint goes
+    /// through is Print Files' own, whose file state belongs to the file the
+    /// user has open there. All-Pass runs @c start, an ended run @c on_end.
+    struct ReprintGateRun {
+        helix::FileStartFacts facts;
+        std::function<void()> start;
+        helix::SharedCallback<void()> on_end;
+        /// The heads the reprint will print on: its pre-print send's routing,
+        /// or identity when the routing is unknown and the firmware returns to
+        /// identity at each print end. Unset when neither is known (or no
+        /// pre-print send happens), and the auto-seeded mapping stands.
+        std::optional<std::map<int, int>> remap;
+    };
+    std::optional<ReprintGateRun> reprint_gates_;
 
     // === Callbacks ===
     PrintStartedCallback on_print_started_;

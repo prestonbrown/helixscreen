@@ -47,8 +47,7 @@ int32_t measured_text_height(lv_obj_t* progress) {
     int32_t rows = 0;
     for (uint32_t i = 0; i < lv_obj_get_child_count(progress); ++i) {
         lv_obj_t* row = lv_obj_get_child(progress, static_cast<int32_t>(i));
-        if (lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN) ||
-            lv_obj_has_flag(row, LV_OBJ_FLAG_IGNORE_LAYOUT)) {
+        if (lv_obj_is_hidden(row) || lv_obj_is_ignore_layout(row)) {
             continue;
         }
         h += lv_obj_get_height(row);
@@ -63,6 +62,12 @@ int32_t measured_text_height(lv_obj_t* progress) {
 int32_t strip_text_height(lv_obj_t* progress, bool up_next) {
     const int32_t measured = measured_text_height(progress);
     return measured > 0 ? measured : estimated_text_height(up_next);
+}
+
+/// The ultrawide class, as the XML's `<if cond="ui_is_ultrawide eq 1">` sees it.
+bool is_ultrawide() {
+    lv_subject_t* uw = lv_xml_get_subject(nullptr, "ui_is_ultrawide");
+    return uw && lv_subject_get_int(uw) == 1;
 }
 
 /// The strip is a ui_card: its padding and border on both sides.
@@ -98,10 +103,14 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     if (w <= 0 || h <= 0) {
         return last_;
     }
-    lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
-    last_ =
-        decide_print_status_tile_layout(w, h, theme_manager_get_spacing("space_md"),
-                                        strip_row_height(progress), strip_stacked_height(progress));
+    const int32_t gap = theme_manager_get_spacing("space_md");
+    if (is_ultrawide()) {
+        last_ = decide_print_status_ultrawide_layout(w, h, gap);
+    } else {
+        lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
+        last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
+                                                strip_stacked_height(progress));
+    }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {
             lv_subject_set_int(s, v);
@@ -110,6 +119,10 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     set(subjects_.arrangement, static_cast<int>(last_.arrangement));
     set(subjects_.strip_stacked, last_.strip_stacked ? 1 : 0);
     set(subjects_.checklist_compact, last_.checklist_compact ? 1 : 0);
+    set(subjects_.preview_w, last_.columns.preview_w);
+    set(subjects_.printer_w, last_.columns.printer_w);
+    set(subjects_.readouts_w, last_.columns.readouts_w);
+    set(subjects_.actions_w, last_.columns.actions_w);
     spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}",
                   log_tag_, w, h,
                   last_.arrangement == PrintStatusArrangement::Stacked ? "stacked" : "side by side",

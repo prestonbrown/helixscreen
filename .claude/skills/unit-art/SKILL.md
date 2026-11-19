@@ -23,6 +23,7 @@ A unit is defined once in `scripts/unit_art/units/<id>.py`. `make unit-art` turn
 | Side profile | One list of `(y, z)` points. Art uses it directly; `kit.tray_profile` converts it for `dome` |
 | `TrayShellDef` | `cheek` is the body's top edge; `dome` the lid, empty for an open unit; `corner` is 0 for none |
 | Wordmarks | None. Text never goes in art |
+| `combiner` | Where the lanes merge into one output: `"internal"`, `"external"` or `"none"`, from Preston's table in `docs/devel/UNIT_ART.md` § "Combiner". A unit not in it: ask him, never guess. The path screen draws an external combiner as a hub box below the unit, and an internal one as a merge inside it |
 
 Match the lid to the real unit's profile, whatever the spool shape suggests.
 
@@ -33,6 +34,10 @@ The camera is `kit.ART_CAMERA` for every unit, set by the bake. A unit never pic
 Add a row to `kShellRows` in `src/ui/filament/ams_unit_shell.cpp`: backend slug, a lowercase part of the unit's name when one backend covers several kinds of unit, the shell id, and an enclosed variant's id if there is one. Hardware that cannot be identified gets no row and keeps its logo.
 
 Add the unit to `UNITS` in `scripts/unit_art/build.py`.
+
+A unit built in several lane counts sets `lane_variants` on its `UnitDef` and draws from `len(colors)`, as left cap, N lanes, right cap. Each count bakes to `assets/images/units/<id>/<n>/`. Lane counts without a baked set keep the live tray shell and lose only the picture.
+
+A unit with a moving selector has no spools: it draws one `lane` stub per gate and puts the moving part in `scene.layer = "carriage"` at gate 0, and sets `carriage_step` on its `UnitDef`. The build writes a `CarriageTrack` row per gate count for the widget. `rail_face` gives its colours for the flat rail the path screen draws in place of the selector bar. `scripts/unit_art/units/rail.py` is the model.
 
 ## Tray rules
 

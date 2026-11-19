@@ -65,13 +65,13 @@ void register_ams_widgets_and_xml_once() {
     done = true;
 }
 
-// Read slot 0's material-label text. Scoped to slot_grid so we don't pick up the
-// "Currently Loaded" card's material text — slot 0 is the first slot widget in
-// the grid, so the first material_label under slot_grid is its label.
+// Read slot 0's material-label text: the first slot widget's own label, wherever
+// the unit view has placed it.
 std::string slot0_material_text(AmsPanel& panel) {
     lv_obj_t* slot_grid = lv_obj_find_by_name(panel.get_panel(), "slot_grid");
     REQUIRE(slot_grid != nullptr);
-    lv_obj_t* material_label = lv_obj_find_by_name(slot_grid, "material_label");
+    REQUIRE(lv_obj_get_child_count(slot_grid) > 0);
+    lv_obj_t* material_label = ui_ams_slot_get_material_label(lv_obj_get_child(slot_grid, 0));
     REQUIRE(material_label != nullptr);
     return std::string(lv_label_get_text(material_label));
 }

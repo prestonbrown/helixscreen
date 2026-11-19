@@ -9,12 +9,12 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_panel_print_status.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
 #include "bed_dimensions.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
 #include "observe_language.h"
@@ -24,7 +24,9 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "widget_subjects.h"
@@ -43,18 +45,18 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_placeholder_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_map_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_skip_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_name_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_has_current_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_count_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_objects_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_skipped_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_printing_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_current_name_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_placeholder_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_placeholder_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_map_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_skip_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_name_subject{};
+HELIX_PSRAM_BSS helix::Subject s_has_current_subject{};
+HELIX_PSRAM_BSS helix::Subject s_count_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_objects_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_skipped_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_printing_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_current_name_subject{};
+HELIX_PSRAM_BSS helix::Subject s_placeholder_text_subject{};
 HELIX_PSRAM_BSS char s_count_text_buf[16];
 HELIX_PSRAM_BSS char s_objects_text_buf[32];
 HELIX_PSRAM_BSS char s_skipped_text_buf[32];
@@ -127,17 +129,6 @@ helix::ExcludeCounts widest_counts(int digits) {
     return {nines, nines};
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* icon;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("icon_font_xs")};
-}
-
 using helix::line_px;
 
 /// The minimum content box each rung draws in. Mirrors panel_widget_exclude_map.xml:
@@ -145,7 +136,7 @@ using helix::line_px;
 /// beside the Wide rung's map takes half the width.
 helix::RungNeeds measure_needs(helix::ExcludeMapState state, int digits) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never

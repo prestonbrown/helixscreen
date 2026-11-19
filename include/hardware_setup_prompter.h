@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/observer_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h" // helix::wizard::StepId
@@ -81,9 +82,10 @@ class HardwareSetupPrompter {
         /// sessions: cleared as soon as the user answers either way.
         bool deferred_prompt_shown = false;
         /// The saved-vs-detected type mismatch warning (toast + history entry) is raised
-        /// at most once per session. The persisted TYPE_MISMATCH_SHOWN_FOR flag, written
-        /// by an answer in the review modal or by closing the toast (both mean "keep my
-        /// type"), covers cross-boot. Not re-armed on reconnect, only on a new printer.
+        /// at most once per session. The persisted answered pair (TYPE_MISMATCH_SHOWN_FOR
+        /// and kTypeMismatchShownForDetected), written by an answer in the review modal or
+        /// by closing the toast, covers cross-boot for that saved and detected pair. Not
+        /// re-armed on reconnect, only on a new printer.
         bool type_mismatch_shown = false;
     };
     Guards guards;
@@ -112,7 +114,8 @@ class HardwareSetupPrompter {
 
     /// Remote-control demo: raise the mismatch warning for these names without the
     /// detection that decides it. @p open_review opens the review at once, skipping
-    /// the saved-type checks a demo's names would fail against the mock's config.
+    /// the saved-type checks a demo's names would fail against the mock's config. A
+    /// type change does not retire the demo's toast.
     void show_type_mismatch_demo(const std::string& detected, int confidence,
                                  const std::string& saved, bool open_review);
 
@@ -132,7 +135,9 @@ class HardwareSetupPrompter {
     void launch_deferred_hardware_setup();
     void settle_deferred_hardware_setup();
     void maybe_warn_type_mismatch(const PrinterDiscovery& hardware);
-    void warn_type_mismatch(TypeMismatchReview review);
+    /// @p retire_on_type_change watches the printer type and takes the toast down
+    /// once the saved type is no longer the one warned about.
+    void warn_type_mismatch(TypeMismatchReview review, bool retire_on_type_change = true);
     /// Build the review modal for the pending warning, unless one is already open.
     void open_type_mismatch_review();
     void launch_type_reidentify_wizard();
@@ -144,6 +149,10 @@ class HardwareSetupPrompter {
     /// saved type. A spent warning is dropped here; @p what names the caller in
     /// the log line that says why nothing happened.
     bool pending_review_current(uint32_t generation, const char* what);
+    /// The printer type changed: a pending warning about the type it replaced is
+    /// spent, so its sticky toast comes down. The history entry stays, and its
+    /// Review then opens nothing.
+    void retire_warning_if_type_changed();
     /// Run @p launch once the confirming modal's exit animation is over. One launch is
     /// pending at a time; the destructor cancels it.
     void launch_after_modal_exit(void (HardwareSetupPrompter::*launch)());
@@ -164,6 +173,8 @@ class HardwareSetupPrompter {
     /// The review modal is up: set when it opens, cleared by either button and by any
     /// other dismissal.
     bool review_open_ = false;
+    /// Watches the printer type while a warning is pending; re-armed by every warning.
+    ObserverGuard type_change_observer_;
 
     lv_timer_t* launch_timer_ = nullptr;
     void (HardwareSetupPrompter::*pending_launch_)() = nullptr;

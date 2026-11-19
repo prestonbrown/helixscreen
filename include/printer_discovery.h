@@ -6,22 +6,26 @@
  * @file printer_discovery.h
  * @brief Single source of truth for all discovered printer hardware
  *
- * This class consolidates:
- * - Hardware lists (heaters, fans, sensors, leds, steppers) from MoonrakerClient
- * - Capability flags (has_qgl, has_probe, etc.) from PrinterCapabilities
- * - Macros from PrinterCapabilities
- * - AMS/MMU detection from PrinterCapabilities
+ * Holds:
+ * - Hardware lists (heaters, fans, sensors, leds, steppers)
+ * - Capability flags (has_qgl, has_probe, etc.)
+ * - Macros
+ * - AMS/MMU detection
  */
 
 #include "ams_type.h"
-#include "core/text_io.h"      // helix::text_io::to_upper
+#include "core/text_io.h" // helix::text_io::to_upper
+#include "fan_heaters.h"
+#include "fan_tachometers.h"
 #include "filament_database.h" // filament::kDefaultDiameterMm
 #include "fit_check.h"
 #include "hardware_object_table.h"
 #include "json_fwd.h"
 #include "leveling_probe_points.h"
+#include "motor_ripple_types.h"
 #include "preprint_skip_wrappers.h"
 #include "printer_detector.h" // For BuildVolume struct
+#include "signal_macro_names.h"
 
 #include <algorithm>
 #include <cctype>
@@ -110,7 +114,7 @@ class PrinterDiscovery {
      * @brief Derive the build volume from the configfile [stepper_*] sections
      *
      * The X/Y travel limits and the Z height are the most discriminating
-     * evidence PrinterDetector has: 63 of the 94 database entries carry a
+     * evidence PrinterDetector has: most database entries carry a
      * build_volume_range heuristic. configfile.settings reports the resolved
      * value for every stepper key, so this is available as soon as the
      * configfile query returns — long before the safety-limits fetch that is
@@ -261,8 +265,6 @@ class PrinterDiscovery {
         return has_afc_object_ && has_zmod_color_ && !has_zmod_afclite_;
     }
 
-    /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
-    /// for subscribing to it. Empty when there is none.
     /// The [medusahc] object exists. A plain fact about the object list; what
     /// it means is helix::toolchanger_addon's business.
     [[nodiscard]] bool has_medusahc() const {
@@ -280,6 +282,13 @@ class PrinterDiscovery {
         return has_indx_;
     }
 
+    /// A Lane Status Surface producer publishes a `lane_status` object
+    /// (lane-status-spec RFC 0001). Claims the printer only when no backend of
+    /// its own does (register_detected_ams_systems()).
+    [[nodiscard]] bool has_lane_status() const {
+        return has_lane_status_;
+    }
+
     /// The `save_variables` object exists.
     [[nodiscard]] bool has_save_variables() const {
         return has_save_variables_;
@@ -291,6 +300,14 @@ class PrinterDiscovery {
         return has_spoollink_;
     }
 
+    /// A `[pa_adjust]` configfile section. It has no status object, so this is
+    /// the only evidence of it. What it means is helix::pacal's business.
+    [[nodiscard]] bool has_pa_adjust() const {
+        return has_pa_adjust_;
+    }
+
+    /// Full Klipper object name of the pin_watch section (e.g. "pin_watch io"),
+    /// for subscribing to it. Empty when there is none.
     [[nodiscard]] const std::string& pin_watch_object_name() const {
         return pin_watch_object_name_;
     }
@@ -354,6 +371,23 @@ class PrinterDiscovery {
     }
     [[nodiscard]] const std::unordered_map<std::string, double>& fan_max_power() const {
         return fan_max_power_;
+    }
+
+    /// Which fan each separately published tachometer reading measures, resolved
+    /// from configfile.settings (fan_tach::map_from_config).
+    void set_fan_tachometers(fan_tach::TachMap map) {
+        fan_tachometers_ = std::move(map);
+    }
+    [[nodiscard]] const fan_tach::TachMap& fan_tachometers() const {
+        return fan_tachometers_;
+    }
+
+    /// Each [heater_fan] and the heaters that drive it, from configfile.settings.
+    void set_heater_fans(fan_heaters::HeaterFanMap map) {
+        heater_fans_ = std::move(map);
+    }
+    [[nodiscard]] const fan_heaters::HeaterFanMap& heater_fans() const {
+        return heater_fans_;
     }
 
     [[nodiscard]] bool has_led() const {
@@ -462,7 +496,7 @@ class PrinterDiscovery {
         return mmu_type_;
     }
 
-    /// @brief Alias for mmu_type() - compatibility with PrinterCapabilities API
+    /// @brief Alias for mmu_type()
     [[nodiscard]] AmsType get_mmu_type() const {
         return mmu_type_;
     }
@@ -499,8 +533,8 @@ class PrinterDiscovery {
     /// @brief Every filament-system presence flag and count, for the same
     /// purpose. A new flag or count joins here beside its member.
     [[nodiscard]] std::vector<int> filament_system_facts() const {
-        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,   has_zmod_afc(),
-                has_indx_,      has_openams_manager_, qidi_box_slot_count_};
+        return {has_snapmaker_, has_afc_lite_,        has_zmod_afclite_,    has_zmod_afc(),
+                has_indx_,      has_openams_manager_, qidi_box_slot_count_, has_lane_status_};
     }
 
     /// @brief All detected AMS/filament systems (may include multiple backends)
@@ -512,7 +546,7 @@ class PrinterDiscovery {
         return afc_lane_names_;
     }
 
-    /// @brief Alias for afc_lane_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for afc_lane_names()
     [[nodiscard]] const std::vector<std::string>& get_afc_lane_names() const {
         return afc_lane_names_;
     }
@@ -521,7 +555,7 @@ class PrinterDiscovery {
         return afc_hub_names_;
     }
 
-    /// @brief Alias for afc_hub_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for afc_hub_names()
     [[nodiscard]] const std::vector<std::string>& get_afc_hub_names() const {
         return afc_hub_names_;
     }
@@ -575,7 +609,7 @@ class PrinterDiscovery {
         return tool_numbers_.size() == tool_names_.size() ? tool_numbers_ : std::vector<int>{};
     }
 
-    /// @brief Alias for tool_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for tool_names()
     [[nodiscard]] const std::vector<std::string>& get_tool_names() const {
         return tool_names_;
     }
@@ -584,7 +618,7 @@ class PrinterDiscovery {
         return filament_sensor_names_;
     }
 
-    /// @brief Alias for filament_sensor_names() - compatibility with PrinterCapabilities API
+    /// @brief Alias for filament_sensor_names()
     [[nodiscard]] const std::vector<std::string>& get_filament_sensor_names() const {
         return filament_sensor_names_;
     }
@@ -623,7 +657,7 @@ class PrinterDiscovery {
         return macros_;
     }
 
-    /// @brief Alias for macros() - compatibility with PrinterCapabilities API
+    /// @brief Alias for macros()
     [[nodiscard]] const std::unordered_set<std::string>& get_macros() const {
         return macros_;
     }
@@ -687,6 +721,23 @@ class PrinterDiscovery {
      */
     void parse_extruder_dimensions(const nlohmann::json& settings);
 
+    /**
+     * @brief Read [stepper_x] / [stepper_y] rotation_distance, gear_ratio and
+     * full_steps_per_rotation, the geometry behind a motor's ripple frequencies
+     *
+     * Replaces both: a section without a numeric rotation_distance leaves that
+     * motor unknown.
+     *
+     * @param settings JSON object from a configfile.settings response
+     */
+    void parse_stepper_geometry(const nlohmann::json& settings);
+
+    [[nodiscard]] std::optional<calibration::ripple::MotorGeometry>
+    motor_geometry(calibration::ripple::MotorId m) const {
+        return m == calibration::ripple::MotorId::StepperX ? stepper_x_geometry_
+                                                           : stepper_y_geometry_;
+    }
+
     /// Nozzle diameter in mm, [extruder] nozzle_diameter.
     [[nodiscard]] float nozzle_diameter_mm() const {
         return nozzle_diameter_mm_;
@@ -735,6 +786,30 @@ class PrinterDiscovery {
      * @param settings JSON object from a configfile.settings response
      */
     void parse_probe_xy_offset(const nlohmann::json& settings);
+
+    /**
+     * @brief stepper_z's position_endstop from a configfile.settings object
+     *
+     * A number means Z homes on a switch: Klipper's stepper.py reads the option
+     * only when the endstop is not a probe's virtual endstop, and only then
+     * registers Z_ENDSTOP_CALIBRATE and Z_OFFSET_APPLY_ENDSTOP
+     * (klippy/extras/manual_probe.py). A virtual endstop leaves the key out or
+     * null, and a kinematics without a [stepper_z] (delta) has no section.
+     * 0.0 is a legal endstop, so absence is nullopt rather than a sentinel.
+     */
+    [[nodiscard]] static std::optional<double>
+    read_z_position_endstop(const nlohmann::json& settings);
+
+    /// Record read_z_position_endstop() for z_position_endstop().
+    void parse_z_position_endstop(const nlohmann::json& settings) {
+        z_position_endstop_ = read_z_position_endstop(settings);
+    }
+
+    /// stepper_z's position_endstop in mm; nullopt when Z homes on a probe or
+    /// the printer has no [stepper_z].
+    [[nodiscard]] std::optional<double> z_position_endstop() const {
+        return z_position_endstop_;
+    }
 
     /// Read whether the firmware runs its print-start macro before streaming
     /// the file (start_macro_injection.h).
@@ -824,6 +899,17 @@ class PrinterDiscovery {
         return skip_active_;
     }
 
+    /// Which signal names this printer's config calls and which forwarders it
+    /// has loaded; signal_macros::scan() over configfile.settings.
+    void set_signal_macro_scan(signal_macros::SignalMacroScan scan) {
+        signal_macro_scan_ = std::move(scan);
+    }
+
+    /// nullopt until configfile.settings was read.
+    [[nodiscard]] const std::optional<signal_macros::SignalMacroScan>& signal_macro_scan() const {
+        return signal_macro_scan_;
+    }
+
     /// Macros that set LEDs, directly or through another macro, from
     /// helix::analyze_led_driving_macros(); stored uppercased like macros_.
     void set_led_driving_macros(std::unordered_set<std::string> macros) {
@@ -848,7 +934,7 @@ class PrinterDiscovery {
         return nozzle_clean_macro_;
     }
 
-    /// @brief Alias for nozzle_clean_macro() - compatibility with PrinterCapabilities API
+    /// @brief Alias for nozzle_clean_macro()
     [[nodiscard]] std::string get_nozzle_clean_macro() const {
         return nozzle_clean_macro_;
     }
@@ -857,7 +943,7 @@ class PrinterDiscovery {
         return purge_line_macro_;
     }
 
-    /// @brief Alias for purge_line_macro() - compatibility with PrinterCapabilities API
+    /// @brief Alias for purge_line_macro()
     [[nodiscard]] std::string get_purge_line_macro() const {
         return purge_line_macro_;
     }
@@ -866,7 +952,7 @@ class PrinterDiscovery {
         return heat_soak_macro_;
     }
 
-    /// @brief Alias for heat_soak_macro() - compatibility with PrinterCapabilities API
+    /// @brief Alias for heat_soak_macro()
     [[nodiscard]] std::string get_heat_soak_macro() const {
         return heat_soak_macro_;
     }
@@ -1076,7 +1162,7 @@ class PrinterDiscovery {
     // "HOME" hits STATUS_LED_HOMING, dropping LED macros that are perfectly valid.
     static bool contains_word(const std::string& name, const std::string& needle);
 
-    // Helper: check if name matches any pattern
+    // Helper: true when name equals one of patterns exactly
     static bool matches_any(const std::string& name, const std::vector<std::string>& patterns) {
         for (const auto& pattern : patterns) {
             if (name == pattern) {
@@ -1133,6 +1219,7 @@ class PrinterDiscovery {
     std::unordered_set<std::string> led_driving_macros_;     ///< Macros that set LEDs
     std::vector<skip_wrappers::Op> skip_wrappable_;
     std::vector<skip_wrappers::Op> skip_active_;
+    std::optional<signal_macros::SignalMacroScan> signal_macro_scan_;
     std::string sensor_toggle_command_; ///< Empty = the SET_FILAMENT_SENSOR builtin
     std::string screws_tilt_builtin_;   ///< Empty = no SCREWS_TILT_CALCULATE wrapper
     std::unordered_set<std::string> helix_macros_;
@@ -1163,8 +1250,10 @@ class PrinterDiscovery {
     bool has_medusahc_ = false;
     std::string medusahc_object_name_;
     bool has_indx_ = false;
+    bool has_lane_status_ = false;
     bool has_save_variables_ = false;
     bool has_spoollink_ = false;
+    bool has_pa_adjust_ = false;
     bool has_chamber_heater_ = false;
     bool has_chamber_sensor_ = false;
     std::string chamber_sensor_name_;
@@ -1180,15 +1269,20 @@ class PrinterDiscovery {
                                              ///< target, not the heater's.
     float filament_diameter_mm_ = filament::kDefaultDiameterMm; ///< [extruder] filament_diameter
     static constexpr float kDefaultNozzleDiameterMm = 0.4f;
-    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm;   ///< [extruder] nozzle_diameter
+    float nozzle_diameter_mm_ = kDefaultNozzleDiameterMm; ///< [extruder] nozzle_diameter
+    std::optional<calibration::ripple::MotorGeometry> stepper_x_geometry_;
+    std::optional<calibration::ripple::MotorGeometry> stepper_y_geometry_;
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check
     std::vector<LevelingProbePoint> leveling_probe_points_; ///< [quad_gantry_level]/[z_tilt] points
     std::optional<ProbeXYOffset> probe_xy_offset_;          ///< Z probe x_offset/y_offset
+    std::optional<double> z_position_endstop_;              ///< stepper_z position_endstop (mm)
     bool firmware_runs_start_macro_before_file_ = false;    ///< start_macro_injection.h
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
                                        ///< (decidegrees), from configfile.settings
                                        ///< target_temp. 0 = unknown. M141 S0 returns here.
     std::unordered_map<std::string, int> configured_tool_numbers_;
+    fan_tach::TachMap fan_tachometers_;
+    fan_heaters::HeaterFanMap heater_fans_;
     std::unordered_map<std::string, double> fan_max_power_; ///< Per-fan max_power from
                                                             ///< configfile.settings, keyed by
                                                             ///< lowercased object name. Used to
@@ -1230,7 +1324,7 @@ class PrinterDiscovery {
 
 } // namespace helix
 
-// Forward declarations for init_subsystems_from_hardware (global scope)
+// Forward declarations for init_subsystems_from_hardware
 namespace helix {
 class IMoonrakerAPI;
 class IMoonrakerClient;

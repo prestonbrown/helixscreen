@@ -17,13 +17,19 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "core/update_queue.h"
+#include "material_settings_manager.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "preset_materials.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "subject_debug_registry.h"
+#include "target_tool.h"
 #include "temperature_controller.h"
 #include "temperature_sensor_manager.h"
 #include "temperature_service.h"
+#include "tool_state.h"
 
 #include <algorithm>
 #include <cmath>
@@ -31,6 +37,7 @@
 #include <optional>
 
 #include "../catch_amalgamated.hpp"
+#include "hv/json.hpp"
 
 // =============================================================================
 // Y-axis auto-scaling helper
@@ -111,60 +118,55 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 TEST_CASE_METHOD(
     LVGLTestFixture,
-    "TempGraphOverlay: init_subjects publishes its six subjects, destructor withdraws them",
+    "TempGraphOverlay: init_subjects publishes its subjects, destructor withdraws them",
     "[temp_graph_overlay]") {
-    // init_subjects() publishes six subjects - temp_graph_mode (strip
-    // visibility and graph_outer width, see temp_graph_overlay.xml's <subjects>
-    // block), temp_graph_nozzle_badge (the tool number the nozzle digit
-    // shows), temp_graph_nozzle_temp/temp_graph_nozzle_target (the nozzle
-    // card's current/target, mirrored from whichever extruder it displays),
-    // and temp_graph_nozzle_status_state/temp_graph_nozzle_status (that same
-    // card's status glyph + duty). The SubjectManager destructor (deinit_all,
-    // run from ~TempGraphOverlay via the subjects_ member) must withdraw all
-    // six names so they do not outlive the overlay. This pins both halves:
-    // the publish count AND the destructor cleanup. If another subject is
-    // ever added, bump the +6 and name the newcomer here so the withdrawal
-    // stays covered too.
-    auto name_present = [](const std::string& needle) {
+    // init_subjects() publishes temp_graph_mode (strip visibility and
+    // graph_outer width, see temp_graph_overlay.xml's <subjects> block) and
+    // the chamber presets' visibility and text. The nozzle card binds the
+    // shared target tool's subjects (TargetTool), so it publishes none of its
+    // own. The SubjectManager destructor (deinit_all, run from
+    // ~TempGraphOverlay via the subjects_ member) must withdraw every name so
+    // none outlives the overlay. This pins both halves: the publish count AND
+    // the destructor cleanup. If another subject is ever added, add its name
+    // here so the withdrawal stays covered too.
+    const std::vector<std::string> published = {"temp_graph_mode",
+                                                "temp_graph_chamber_preset_0_visible",
+                                                "temp_graph_chamber_preset_1_visible",
+                                                "temp_graph_chamber_preset_2_visible",
+                                                "temp_graph_chamber_preset_3_visible",
+                                                "temp_graph_chamber_preset_1_text",
+                                                "temp_graph_chamber_preset_2_text",
+                                                "temp_graph_chamber_preset_3_text"};
+    // Entries under these names, counted per subject: the app's global overlay holds
+    // its own set whenever an earlier case in the process has initialized it.
+    auto present = [&published]() {
         auto all = SubjectDebugRegistry::instance().list_all();
-        return std::any_of(all.begin(), all.end(),
-                           [&](const auto& entry) { return entry.first == needle; });
+        size_t n = 0;
+        for (const auto& name : published) {
+            n += std::count_if(all.begin(), all.end(),
+                               [&](const auto& entry) { return entry.first == name; });
+        }
+        return n;
     };
 
     const size_t before = SubjectDebugRegistry::instance().list_all().size();
-    REQUIRE_FALSE(name_present("temp_graph_mode"));
+    const size_t baseline = present();
 
     {
         TempGraphOverlay overlay;
-        overlay.init_subjects();
-
-        // Exactly six subjects published: temp_graph_mode,
-        // temp_graph_nozzle_badge, temp_graph_nozzle_temp,
-        // temp_graph_nozzle_target, temp_graph_nozzle_status_state,
-        // temp_graph_nozzle_status.
-        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + 6);
-        REQUIRE(name_present("temp_graph_mode"));
-        REQUIRE(name_present("temp_graph_nozzle_badge"));
-        REQUIRE(name_present("temp_graph_nozzle_temp"));
-        REQUIRE(name_present("temp_graph_nozzle_target"));
-        REQUIRE(name_present("temp_graph_nozzle_status_state"));
-        REQUIRE(name_present("temp_graph_nozzle_status"));
+        overlay.ensure_subjects();
+        REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before + published.size());
+        REQUIRE(present() == baseline + published.size());
         // Destructor runs here.
     }
-
     REQUIRE(SubjectDebugRegistry::instance().list_all().size() == before);
-    REQUIRE_FALSE(name_present("temp_graph_mode"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_badge"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_temp"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_target"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_status_state"));
-    REQUIRE_FALSE(name_present("temp_graph_nozzle_status"));
+    REQUIRE(present() == baseline);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "TempGraphOverlay: cleanup after init_subjects does not crash",
                  "[temp_graph_overlay]") {
     TempGraphOverlay overlay;
-    overlay.init_subjects();
+    overlay.ensure_subjects();
 
     overlay.cleanup();
 
@@ -190,40 +192,6 @@ class TempGraphOverlayTestAccess {
     static void set_mode(TempGraphOverlay& o, TempGraphOverlay::Mode mode) {
         o.mode_ = mode;
     }
-    static void set_picked(TempGraphOverlay& o, const std::string& name) {
-        o.picked_extruder_ = name;
-    }
-    static const std::string& picked(TempGraphOverlay& o) {
-        return o.picked_extruder_;
-    }
-    static void select(TempGraphOverlay& o, const std::string& name) {
-        o.select_extruder(name);
-    }
-    static void repoint(TempGraphOverlay& o) {
-        o.repoint_nozzle_card();
-    }
-    /// Arm the rediscovery watch the way on_activate does. Tests cannot call
-    /// on_activate() directly - it resolves the GLOBAL printer state, not the
-    /// fixture's - so this is the fixture's stand-in for that half of
-    /// activation.
-    static void arm_version_watch(TempGraphOverlay& o) {
-        o.watch_extruder_version();
-    }
-    static int card_temp(TempGraphOverlay& o) {
-        return lv_subject_get_int(&o.nozzle_card_temp_subject_);
-    }
-    static int card_target(TempGraphOverlay& o) {
-        return lv_subject_get_int(&o.nozzle_card_target_subject_);
-    }
-    static int status_state(TempGraphOverlay& o) {
-        return lv_subject_get_int(&o.nozzle_card_status_state_subject_);
-    }
-    static const char* status_text(TempGraphOverlay& o) {
-        return lv_subject_get_string(&o.nozzle_card_status_subject_);
-    }
-    static const char* badge(TempGraphOverlay& o) {
-        return lv_subject_get_string(&o.nozzle_badge_subject_);
-    }
     /// The custom-entry keypad's opening click (the XML callback ignores its
     /// event, so a null one exercises the production path).
     static void custom_clicked(TempGraphOverlay& o) {
@@ -232,6 +200,18 @@ class TempGraphOverlayTestAccess {
     /// The keypad's confirm, delivered the way ui_component_keypad does.
     static void keypad_confirm(TempGraphOverlay& o, float value) {
         TempGraphOverlay::keypad_value_cb(value, &o.keypad_ctx_);
+    }
+    /// A tap on the nozzle strip's preset button @p name ("preset_1" is the
+    /// first material slot), sending @p deg as that button's target.
+    static void preset_clicked(TempGraphOverlay& o, const char* name, int deg, lv_obj_t* parent) {
+        const int idx = name[std::string(name).size() - 1] - '0';
+        o.preset_data_[static_cast<size_t>(idx)] = {&o, deg};
+        lv_obj_t* btn = lv_obj_create(parent);
+        lv_obj_set_name(btn, name);
+        lv_obj_add_event_cb(btn, TempGraphOverlay::on_temp_graph_preset_clicked, LV_EVENT_CLICKED,
+                            nullptr);
+        lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+        lv_obj_delete(btn);
     }
     static void discover(TempGraphOverlay& o) {
         o.discover_series();
@@ -282,33 +262,34 @@ class TempGraphOverlayPickFixture : public LVGLTestFixture {
 
 TEST_CASE_METHOD(
     TempGraphOverlayPickFixture,
-    "TempGraphOverlay: a custom-entry send reaches the picked tool, not the active one",
-    "[temp_graph_overlay][active-extruder]") {
+    "TempGraphOverlay: a custom-entry send reaches the target tool, not the active one",
+    "[temp_graph_overlay][active-extruder][target_tool]") {
     // The static XML callbacks resolve the global overlay instance.
     TempGraphOverlay& overlay = get_global_temp_graph_overlay();
+    helix::ToolState::instance().init_subjects(true);
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json{"extruder", "extruder1"});
+    helix::ToolState::instance().init_tools(hw);
+    helix::ToolState::instance().update_from_status({{"toolhead", {{"extruder", "extruder"}}}});
     seed_two_tools();
+    helix::ui::TargetTool::instance().attach(state);
+    helix::ui::TargetTool::instance().pick(1);
+    helix::ui::UpdateQueue::instance().drain();
 
     TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
     TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
-    TempGraphOverlayTestAccess::set_picked(overlay, "extruder1");
 
-    // The regression's precondition: the card displays tool 2 while the
-    // machine's active tool is tool 1.
+    // The precondition: the card shows tool 2 while the machine's active
+    // tool is tool 1.
     REQUIRE(state.temperature_state().active_extruder_name() == "extruder");
-
     client.clear_gcode_script_history();
 
-    // The click that opens the custom-entry keypad captures the displayed
+    // The click that opens the custom-entry keypad captures the target's
     // extruder before the keypad's stacked push deactivates this overlay.
     TempGraphOverlayTestAccess::custom_clicked(overlay);
-
-    // That stacked push reports NavigateAway - the same reason a real close
-    // reports - and the pick must survive it: the user is still mid-entry on
-    // this card.
     overlay.on_deactivate(DeactivateReason::NavigateAway);
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
 
-    // The user confirms 200C. The gcode must name the PICKED extruder.
+    // The user confirms 200C. The gcode must name the TARGET extruder.
     TempGraphOverlayTestAccess::keypad_confirm(overlay, 200.0f);
 
     const auto& hist = client.gcode_script_history();
@@ -317,149 +298,11 @@ TEST_CASE_METHOD(
     };
     REQUIRE(std::any_of(hist.begin(), hist.end(),
                         mentions("SET_HEATER_TEMPERATURE HEATER=extruder1 TARGET=200")));
-    // Not the machine's active tool, and nothing else either.
     REQUIRE(std::none_of(hist.begin(), hist.end(), mentions("HEATER=extruder ")));
     REQUIRE(hist.size() == 1);
 
-    // Leave the fixture's state reachable only through live objects again.
-    TempGraphOverlayTestAccess::set_picked(overlay, "");
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
-}
-
-TEST_CASE_METHOD(
-    TempGraphOverlayPickFixture,
-    "TempGraphOverlay: the card mirrors the pick and open() restarts on the active tool",
-    "[temp_graph_overlay][active-extruder]") {
-    TempGraphOverlay overlay;
-    overlay.init_subjects();
-    seed_two_tools();
-
-    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
-    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
-    TempGraphOverlayTestAccess::repoint(overlay);
-
-    // No pick: the card mirrors the machine's active tool.
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 550);
-    REQUIRE(std::string(TempGraphOverlayTestAccess::badge(overlay)) == "1");
-
-    // Pick tool 2: card, target and digit all follow it.
-    TempGraphOverlayTestAccess::select(overlay, "extruder1");
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2600);
-    REQUIRE(TempGraphOverlayTestAccess::card_target(overlay) == 2600);
-    REQUIRE(std::string(TempGraphOverlayTestAccess::badge(overlay)) == "2");
-
-    // Status keeps flowing into the card for the PICKED tool while the
-    // machine's tool is the other one.
-    state.update_from_status(
-        {{"extruder", {{"temperature", 60.0}}}, {"extruder1", {{"temperature", 261.0}}}});
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2610);
-
-    // Leaving the overlay KEEPS the pick: the custom-entry keypad stacks on
-    // top of this overlay, and its confirm must still reach the picked tool.
-    overlay.on_deactivate(DeactivateReason::NavigateAway);
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay) == "extruder1");
-
-    // Reopening is the fresh view: open() drops the pick so the card starts on
-    // the machine's active tool. A null parent on a never-created overlay
-    // skips both lazy creation and the NavigationManager push, so this call
-    // exercises exactly the pick-clear.
-    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
-
-    TempGraphOverlayTestAccess::repoint(overlay);
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 600);
-    REQUIRE(std::string(TempGraphOverlayTestAccess::badge(overlay)) == "1");
-}
-
-TEST_CASE_METHOD(TempGraphOverlayPickFixture,
-                 "TempGraphOverlay: a pick whose extruder vanishes on rediscovery falls back",
-                 "[temp_graph_overlay][active-extruder]") {
-    TempGraphOverlay overlay;
-    overlay.init_subjects();
-    seed_two_tools();
-
-    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
-    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
-    TempGraphOverlayTestAccess::arm_version_watch(overlay);
-    TempGraphOverlayTestAccess::repoint(overlay);
-
-    TempGraphOverlayTestAccess::select(overlay, "extruder1");
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2600);
-
-    // Rediscovery rebuilds the extruder map WITHOUT the picked tool; the
-    // version bump the rebuild makes is what repoints the card here.
-    state.temperature_state().init_extruders({"extruder"});
-    state.update_from_status({{"extruder", {{"temperature", 56.0}, {"target", 56.0}}}});
-    helix::ui::UpdateQueue::instance().drain();
-
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 560);
-    REQUIRE(TempGraphOverlayTestAccess::card_target(overlay) == 560);
-}
-
-TEST_CASE_METHOD(TempGraphOverlayPickFixture,
-                 "TempGraphOverlay: the card's status glyph and duty follow the picked tool",
-                 "[temp_graph_overlay][active-extruder][heater_status]") {
-    using helix::ui::temperature::HeaterStatusState;
-
-    TempGraphOverlay overlay;
-    overlay.init_subjects();
-
-    // Machine tool = tool 1, at temp and idle. Picked tool 2 heating from
-    // cold at full power, so which tool the status answers from is observable.
-    state.temperature_state().init_extruders({"extruder", "extruder1"});
-    state.update_from_status(
-        {{"extruder", {{"temperature", 55.0}, {"target", 55.0}, {"power", 0.0}}},
-         {"extruder1", {{"temperature", 100.0}, {"target", 210.0}, {"power", 1.0}}}});
-    helix::ui::UpdateQueue::instance().drain();
-
-    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
-    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
-    TempGraphOverlayTestAccess::select(overlay, "extruder1");
-    helix::ui::UpdateQueue::instance().drain();
-
-    REQUIRE(state.temperature_state().active_extruder_name() == "extruder");
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 1000);
-    REQUIRE(TempGraphOverlayTestAccess::status_state(overlay) ==
-            static_cast<int>(HeaterStatusState::Heating));
-    REQUIRE(std::string(TempGraphOverlayTestAccess::status_text(overlay)) == "100%");
-
-    // open() drops the pick: the status follows the machine's active tool,
-    // which is at temp with no duty to report.
-    overlay.open(TempGraphOverlay::Mode::Nozzle, nullptr);
-    REQUIRE(TempGraphOverlayTestAccess::picked(overlay).empty());
-    TempGraphOverlayTestAccess::repoint(overlay);
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 550);
-    REQUIRE(TempGraphOverlayTestAccess::status_state(overlay) ==
-            static_cast<int>(HeaterStatusState::Ready));
-    REQUIRE(std::string(TempGraphOverlayTestAccess::status_text(overlay)).empty());
-}
-
-TEST_CASE_METHOD(TempGraphOverlayPickFixture,
-                 "TempGraphOverlay: activation settles - the update queue drains to empty",
-                 "[temp_graph_overlay][active-extruder]") {
-    // lv_subject_add_observer notifies on attach, and observe<int> defers
-    // the handler through UpdateQueue, so arming the version watch queues one
-    // repoint. That repoint must not re-arm the watch: a re-arming repoint
-    // queues another repoint on every drain and the queue never empties while
-    // the overlay is up. Arm, pick, drain three times, then demand a quiet
-    // queue.
-    TempGraphOverlay overlay;
-    overlay.init_subjects();
-    seed_two_tools();
-
-    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
-    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
-    TempGraphOverlayTestAccess::arm_version_watch(overlay);
-    TempGraphOverlayTestAccess::select(overlay, "extruder1");
-
-    helix::ui::UpdateQueue::instance().drain_until_empty();
-
-    REQUIRE(helix::ui::UpdateQueue::instance().pending_count() == 0);
-    // The drains delivered the real work too: the card sits on the pick.
-    REQUIRE(TempGraphOverlayTestAccess::card_temp(overlay) == 2600);
-    REQUIRE(std::string(TempGraphOverlayTestAccess::badge(overlay)) == "2");
+    helix::ui::TargetTool::instance().deinit_subjects();
 }
 
 // =============================================================================
@@ -610,4 +453,85 @@ TEST_CASE_METHOD(TempGraphOverlayPickFixture,
 
     TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
     tsm.discover({});
+}
+
+TEST_CASE_METHOD(
+    TempGraphOverlayPickFixture,
+    "TempGraphOverlay: a nozzle material preset heats the bed only while the setting is on",
+    "[temp_graph_overlay][preset_bed]") {
+    TempGraphOverlay& overlay = get_global_temp_graph_overlay();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+    const bool heat_bed = GENERATE(true, false);
+    CAPTURE(heat_bed);
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed);
+    const auto slot = helix::presets::slot_temps(0);
+    REQUIRE(slot.has_value());
+    client.clear_gcode_script_history();
+
+    TempGraphOverlayTestAccess::preset_clicked(overlay, "preset_1", 215, lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto& hist = client.gcode_script_history();
+    auto sent = [&](const std::string& needle) {
+        return std::any_of(hist.begin(), hist.end(), [&](const std::string& g) {
+            return g.find(needle) != std::string::npos;
+        });
+    };
+    CHECK(sent("TARGET=215"));
+    CHECK(sent("HEATER=heater_bed TARGET=" + std::to_string(slot->bed)) == heat_bed);
+    CHECK(sent("HEATER=heater_bed") == heat_bed);
+
+    sm.set_material_presets_heat_bed_and_chamber(saved);
+    TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
+}
+
+TEST_CASE_METHOD(
+    TempGraphOverlayPickFixture,
+    "TempGraphOverlay: a nozzle material preset heats the chamber only while the setting is on",
+    "[temp_graph_overlay][preset_bed][chamber]") {
+    auto& sm = helix::SettingsManager::instance();
+    sm.init_subjects();
+    const bool saved = sm.get_material_presets_heat_bed_and_chamber();
+    const bool heat_bed_and_chamber = GENERATE(true, false);
+    CAPTURE(heat_bed_and_chamber);
+    sm.set_material_presets_heat_bed_and_chamber(heat_bed_and_chamber);
+    sm.set_chamber_heater_assignment("auto");
+    auto& materials = helix::MaterialSettingsManager::instance();
+    materials.init();
+    filament::MaterialOverride abs;
+    abs.chamber_temp = 45;
+    materials.set_override("ABS", abs);
+    materials.set_preset_material(0, "ABS");
+    REQUIRE(helix::presets::slot_temps(0)->chamber == 45);
+
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(
+        nlohmann::json{"extruder", "extruder1", "heater_bed", "heater_generic chamber_heater"});
+    state.set_hardware(hw);
+    REQUIRE(controller_->resolved_name(helix::HeaterType::Chamber) ==
+            "heater_generic chamber_heater");
+    TempGraphOverlay& overlay = get_global_temp_graph_overlay();
+    seed_two_tools();
+    TempGraphOverlayTestAccess::set_deps(overlay, &state, &service);
+    TempGraphOverlayTestAccess::set_mode(overlay, TempGraphOverlay::Mode::Nozzle);
+    client.clear_gcode_script_history();
+
+    TempGraphOverlayTestAccess::preset_clicked(overlay, "preset_1", 215, lv_screen_active());
+    helix::ui::UpdateQueue::instance().drain();
+
+    const auto& hist = client.gcode_script_history();
+    const bool chamber_sent = std::any_of(hist.begin(), hist.end(), [](const std::string& g) {
+        return g.find("HEATER=chamber_heater TARGET=45") != std::string::npos;
+    });
+    CHECK(chamber_sent == heat_bed_and_chamber);
+
+    materials.clear_override("ABS");
+    materials.reset_preset_materials();
+    sm.set_material_presets_heat_bed_and_chamber(saved);
+    TempGraphOverlayTestAccess::set_deps(overlay, nullptr, nullptr);
 }

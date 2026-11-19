@@ -53,6 +53,7 @@ void ui_ams_lane_spool_register(void);
 #ifdef __cplusplus
 
 #include "ams_lane_state.h"
+#include "spool_spin.h"
 
 namespace helix::ui {
 
@@ -60,6 +61,15 @@ namespace helix::ui {
 /// aligned to its corner, is not clipped. A caller laying out a fixed-width
 /// cell around the widget subtracts this to know what is left beside it.
 inline constexpr int32_t kAmsLaneSpoolBadgeMarginPx = 8;
+
+/**
+ * @brief Edge of a lane's spool graphic in px at the current breakpoint
+ *
+ * The ams_slot_spool_size token, or four space_lg when a theme leaves it out.
+ * Every spool drawn on a filament path asks this, so the bypass spool and the
+ * lanes beside it stay one size.
+ */
+[[nodiscard]] int32_t ams_slot_spool_size();
 
 /// True when /ams/spool_style asks for the pseudo-3D spools (the default),
 /// false for flat concentric rings. Every AMS surface that draws differently
@@ -102,6 +112,9 @@ enum class SpoolHighlight { None, Steady, Pulse };
  */
 void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight);
 
+/// Turn the lane's spool as @p spin says. Survives a size or style rebuild.
+void ams_lane_spool_set_spin(lv_obj_t* spool, const SpoolSpin& spin);
+
 /**
  * @brief Resize the spool graphic (px; <= 0 is refused)
  *
@@ -111,6 +124,18 @@ void ams_lane_spool_set_highlight(lv_obj_t* spool, SpoolHighlight highlight);
  * size and style already match.
  */
 void ams_lane_spool_set_size(lv_obj_t* spool, int32_t spool_size);
+
+/// Whether the lane's spool glows (current lane or error), and in what color.
+bool ams_lane_spool_glow(lv_obj_t* spool, lv_color_t& color);
+
+/// Whether the lane shows as empty.
+bool ams_lane_spool_empty(lv_obj_t* spool);
+
+/// Whether the lane shows its error as a dot (an empty lane in error), and how severe.
+bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& severity);
+
+/// Call @p listener with @p user whenever what the lane shows changes; nullptr stops it.
+void ams_lane_spool_set_listener(lv_obj_t* spool, void (*listener)(void*), void* user);
 
 /**
  * @brief The spool family's material-label rule

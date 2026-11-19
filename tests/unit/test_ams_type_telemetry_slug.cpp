@@ -37,7 +37,7 @@ TEST_CASE("Expected-hardware names are stable and round-trip", "[ams][hardware][
 }
 
 TEST_CASE("Every AmsType has exactly one traits row", "[ams]") {
-    for (int v = 0; v <= static_cast<int>(AmsType::INDX); ++v) {
+    for (int v = 0; v <= static_cast<int>(AmsType::LANE_STATUS); ++v) {
         const auto type = static_cast<AmsType>(v);
         int rows = 0;
         for (const auto& row : helix::kAmsTypeTraits) {
@@ -75,6 +75,7 @@ TEST_CASE("Each backend row keeps its classification, spellings and telemetry na
         {AmsType::QIDI_BOX, "qidi_box", false, false, true, false, nullptr, {"qidi_box", "QIDI Box", "qidibox"}},
         {AmsType::OPENAMS, "openams", false, false, true, false, nullptr, {"openams", "OpenAMS", "oams_manager"}},
         {AmsType::INDX, "indx", false, true, false, false, nullptr, {"indx", "INDX"}},
+        {AmsType::LANE_STATUS, "lane_status", false, false, true, false, nullptr, {"lane_status", "Lane Status"}},
     };
     // clang-format on
     REQUIRE(std::size(rows) == std::size(helix::kAmsTypeTraits));

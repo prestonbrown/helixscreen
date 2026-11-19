@@ -6,6 +6,7 @@
 #include "bluetooth_plugin.h"
 #include "bt_discovery_run.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "mdns_discovery.h"
 #include "overlay_base.h"
@@ -88,12 +89,6 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     void on_usb_printers_detected(const std::vector<helix::UsbPrinterInfo>& printers);
     void update_ipp_selected_subject();
 
-    /// A rebuilt tree has none of the input callbacks the guard below stands for.
-    void on_ui_destroyed() override {
-        inputs_initialized_ = false;
-    }
-
-    bool inputs_initialized_ = false; ///< Guard against stacking duplicate event callbacks
     /// The saved network printer was chosen by discovery, not the user, so a
     /// better-ranked printer found later replaces it.
     bool auto_picked_ = false;
@@ -104,8 +99,8 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     std::vector<DiscoveredPrinter> raw_printers_;        ///< temp buffer for raw TCP results
     std::vector<DiscoveredPrinter> ipp_printers_;        ///< temp buffer for IPP results
     std::vector<DiscoveredNetworkPrinter> discovered_network_printers_; ///< merged list
-    SubjectManager subjects_;             // declared ahead: tears down after the subjects it owns
-    lv_subject_t ipp_selected_subject_{}; ///< 0=not IPP, 1=IPP protocol selected
+    SubjectManager subjects_;               // declared ahead: tears down after the subjects it owns
+    helix::Subject ipp_selected_subject_{}; ///< 0=not IPP, 1=IPP protocol selected
 
     // USB printer detection
     std::unique_ptr<helix::UsbPrinterDetector> usb_detector_;
@@ -127,8 +122,8 @@ class LabelPrinterSettingsOverlay : public OverlayBase {
     helix::bluetooth::DiscoveryRun bt_discovery_;
     std::vector<BtDeviceInfo> bt_devices_;
     bool bt_discovering_ = false;
-    lv_subject_t bt_scanning_subject_{};   ///< 0=idle, 1=scanning
-    lv_subject_t test_printing_subject_{}; ///< 0=idle, 1=printing
+    helix::Subject bt_scanning_subject_{};   ///< 0=idle, 1=scanning
+    helix::Subject test_printing_subject_{}; ///< 0=idle, 1=printing
 
   public:
     void test_printing_subject_set(int val) {

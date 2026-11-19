@@ -3,11 +3,16 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
 
 namespace helix {
+
+/// What the Advanced panel's Shutdown and Reboot rows act on when the screen
+/// and the printer are different computers. Values are the dropdown's indexes.
+enum class PowerTarget : int { Ask = 0, Printer = 1, Screen = 2 };
 
 /**
  * @brief Domain-specific manager for safety settings
@@ -19,6 +24,9 @@ namespace helix {
  * - macro_require_confirmation (0/1)
  * - allow_cold_extrude (0/1)
  * - tool_change_require_confirmation (0/1)
+ * - motors_off_require_confirmation (0/1)
+ * - power_require_confirmation (0/1)
+ * - power_target (PowerTarget: 0=ask, 1=printer, 2=this screen)
  * - min_toast_severity (dropdown index 0=All / 1=Warnings & errors / 2=Errors only, #1213)
  *
  * Thread safety: Single-threaded, main LVGL thread only.
@@ -87,6 +95,30 @@ class SafetySettingsManager {
         settings_.set(Key::ToolChangeConfirm, require);
     }
 
+    /** @brief Whether Disable Motors asks before releasing the steppers */
+    bool get_motors_off_require_confirmation() const {
+        return settings_.get_bool(Key::MotorsOffConfirm);
+    }
+    void set_motors_off_require_confirmation(bool require) {
+        settings_.set(Key::MotorsOffConfirm, require);
+    }
+
+    /** @brief Whether the Advanced panel's Shutdown and Reboot rows ask first */
+    bool get_power_require_confirmation() const {
+        return settings_.get_bool(Key::PowerConfirm);
+    }
+    void set_power_require_confirmation(bool require) {
+        settings_.set(Key::PowerConfirm, require);
+    }
+
+    /** @brief Remote-screen power target for the Advanced Shutdown and Reboot rows */
+    PowerTarget get_power_target() const {
+        return static_cast<PowerTarget>(settings_.get(Key::PowerTarget));
+    }
+    void set_power_target(PowerTarget target) {
+        settings_.set(Key::PowerTarget, static_cast<int>(target));
+    }
+
     /** @brief Get the minimum toast severity index (0=All, 1=Warnings & errors, 2=Errors only) */
     int get_min_toast_severity() const;
 
@@ -128,6 +160,21 @@ class SafetySettingsManager {
         return settings_.subject(Key::ToolChangeConfirm);
     }
 
+    /** @brief Motors-off confirmation subject (integer: 0=disable at once, 1=confirm) */
+    lv_subject_t* subject_motors_off_require_confirmation() {
+        return settings_.subject(Key::MotorsOffConfirm);
+    }
+
+    /** @brief Shutdown/reboot confirmation subject (integer: 0=act at once, 1=confirm) */
+    lv_subject_t* subject_power_require_confirmation() {
+        return settings_.subject(Key::PowerConfirm);
+    }
+
+    /** @brief Power target subject (integer: PowerTarget dropdown index) */
+    lv_subject_t* subject_power_target() {
+        return settings_.subject(Key::PowerTarget);
+    }
+
     /** @brief Minimum toast severity subject (integer: dropdown index 0/1/2, #1213) */
     lv_subject_t* subject_min_toast_severity() {
         return &min_toast_severity_subject_;
@@ -143,14 +190,17 @@ class SafetySettingsManager {
         MacroConfirm,
         AllowColdExtrude,
         ToolChangeConfirm,
+        MotorsOffConfirm,
+        PowerConfirm,
+        PowerTarget,
         COUNT
     };
 
     SubjectManager subjects_;
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
 
-    lv_subject_t cancel_escalation_timeout_subject_{};
-    lv_subject_t min_toast_severity_subject_{};
+    helix::Subject cancel_escalation_timeout_subject_{};
+    helix::Subject min_toast_severity_subject_{};
 
     bool subjects_initialized_ = false;
 };

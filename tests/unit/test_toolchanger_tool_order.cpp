@@ -14,6 +14,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/scoped_env.h"
 #include "core/update_queue.h"
+#include "fan_heaters.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
 
@@ -175,7 +176,8 @@ TEST_CASE("discovery orders the tools by the numbers in Klipper's first status",
     CHECK(client.hardware().tool_names() == std::vector<std::string>{"T3", "T2", "T1", "T0"});
 }
 
-TEST_CASE("the mock toolchanger reports every tool in number order", "[toolchanger][tool_order]") {
+TEST_CASE("the mock toolchanger reports every tool in number order, each fan on its heater",
+          "[toolchanger][tool_order]") {
     LVGLTestFixture fixture;
     helix::ScopedEnv ams("HELIX_MOCK_AMS", "toolchanger");
 
@@ -188,4 +190,9 @@ TEST_CASE("the mock toolchanger reports every tool in number order", "[toolchang
     CHECK(tc["tool_numbers"] == json::array({0, 1, 2, 3}));
     CHECK(tc["tool_names"] == json::array({"tool T0", "tool T1", "tool T2", "tool T3"}));
     CHECK(client.hardware().tool_names() == std::vector<std::string>{"T0", "T1", "T2", "T3"});
+    // Discovery reads which heater drives each tool's hotend fan from the configfile.
+    CHECK_FALSE(
+        helix::fan_heaters::only_fan_for(client.hardware().heater_fans(), [](const std::string& h) {
+            return h == "extruder3";
+        }).empty());
 }

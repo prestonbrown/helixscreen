@@ -13,15 +13,19 @@
     <!-- Opt-in identity-edit pencil (AMS editor's picker only; the AMS panel
          list keeps it hidden). Shown on the highlighted/current row. -->
     <prop name="hide_edit_pencil" type="boolean" default="true"/>
+    <!-- The linked spool's check mark, and the remaining weight ("850g", or ""). -->
+    <prop name="hide_check" type="boolean" default="true"/>
+    <prop name="weight" type="string" default=""/>
   </api>
   <consts>
     <!-- Picker-row sizing. Component-scoped (only this component uses them),
          resolved responsively as #spool_row_min_height / #spool_swatch_size. -->
-    <!-- spool_row_min_height: touch-target min height. _small=44 is the hard
-         floor for a reliable touch target; scales up on larger panels. -->
-    <px name="spool_row_min_height_micro" value="40"/>
-    <px name="spool_row_min_height_tiny" value="42"/>
-    <px name="spool_row_min_height_small" value="44"/>
+    <!-- spool_row_min_height: touch-target min height. A 480x320 panel shows
+         one more spool per screen at 34 than at 44, and 34px is still a
+         fingertip-sized row on those 4-5" screens. -->
+    <px name="spool_row_min_height_micro" value="32"/>
+    <px name="spool_row_min_height_tiny" value="34"/>
+    <px name="spool_row_min_height_small" value="40"/>
     <px name="spool_row_min_height_medium" value="46"/>
     <px name="spool_row_min_height_large" value="60"/>
     <px name="spool_row_min_height_xlarge" value="68"/>
@@ -61,13 +65,13 @@
       <lv_obj height="content"
               style_pad_all="0" flex_flow="row" style_flex_main_place="start" style_pad_gap="#space_xs"
               scrollable="false" clickable="false">
-        <text_small name="spool_weight" text="" clickable="false"/>
+        <text_small name="spool_weight" text="$weight" translation_tag="" clickable="false"/>
       </lv_obj>
     </lv_obj>
     <icon name="edit_pencil" src="pencil" size="sm" variant="muted" hidden="$hide_edit_pencil" clickable="true">
       <event_cb trigger="clicked" callback="spoolman_spool_item_edit_cb"/>
     </icon>
-    <!-- Checkmark for current selection (hidden by default) -->
-    <icon name="selected_icon" src="check_circle" size="sm" variant="success" hidden="true" clickable="false"/>
+    <!-- Checkmark for the spool linked to this slot -->
+    <icon name="selected_icon" src="check_circle" size="sm" variant="success" hidden="$hide_check" clickable="false"/>
   </view>
 </component>

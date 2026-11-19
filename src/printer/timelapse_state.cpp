@@ -3,13 +3,13 @@
 
 #include "timelapse_state.h"
 
-#include "ui_error_reporting.h"
-#include "ui_format_utils.h"
-
 #include "app_globals.h"
+#include "core/error_reporting.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
+#include "display_format.h"
+#include "json_utils.h"
 #include "notice.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -18,6 +18,8 @@
 #include <spdlog/spdlog.h>
 
 #include <cstring>
+
+#include "hv/json.hpp"
 
 namespace helix {
 
@@ -150,44 +152,30 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
             int current = lv_subject_get_int(&timelapse_frame_count_);
             lv_subject_set_int(&timelapse_frame_count_, current + 1);
 
-            // On first frame, set capture info with print filename and timestamp
             if (current == 0) {
                 auto* fn_subject = get_printer_state().print_state().get_print_filename_subject();
                 const char* filename = fn_subject ? lv_subject_get_string(fn_subject) : "";
-                auto date_str = helix::ui::format_short_date(std::time(nullptr));
+                auto date_str = helix::display_format::format_short_date(std::time(nullptr));
                 std::string info;
                 if (filename && filename[0] != '\0') {
                     info = std::string(filename) + " \xC2\xB7 " + date_str;
                 } else {
                     info = date_str;
                 }
-                lv_subject_copy_string(&timelapse_capture_info_, info.c_str());
+                lv_subject_set_string(&timelapse_capture_info_, info.c_str());
             }
         });
 
         spdlog::debug("[TimelapseState] New frame captured");
 
     } else if (action == "render") {
-        std::string status;
-        int progress = 0;
-        std::string error_msg;
-        std::string filename;
-
-        if (event.contains("status") && event["status"].is_string()) {
-            status = event["status"].get<std::string>();
-        }
-        if (event.contains("progress") && event["progress"].is_number()) {
-            progress = event["progress"].get<int>();
-        }
-        if (event.contains("msg") && event["msg"].is_string()) {
-            error_msg = event["msg"].get<std::string>();
-        }
-        if (event.contains("filename") && event["filename"].is_string()) {
-            filename = event["filename"].get<std::string>();
-        }
+        const std::string status = json_util::read_field<std::string>(event, "status").value_or("");
+        const int progress = json_util::read_field<int>(event, "progress").value_or(0);
+        const std::string error_msg = json_util::read_field<std::string>(event, "msg").value_or("");
+        const std::string filename =
+            json_util::read_field<std::string>(event, "filename").value_or("");
 
         if (status == "running") {
-            // Show start toast on first progress event
             if (last_notified_progress_ < 0) {
                 publish_notice({NoticeSeverity::INFO, lv_tr("Rendering timelapse..."), 3000});
             }
@@ -195,7 +183,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
 
             async_lifetime_.defer("TimelapseState::render_progress", [this, progress]() {
                 lv_subject_set_int(&timelapse_render_progress_, progress);
-                lv_subject_copy_string(&timelapse_render_status_, lv_tr("rendering"));
+                lv_subject_set_string(&timelapse_render_status_, lv_tr("rendering"));
             });
 
             spdlog::debug("[TimelapseState] Render progress: {}%", progress);
@@ -212,8 +200,8 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
                 "TimelapseState::render_complete", [this, filename, cb = std::move(cb)]() {
                     lv_subject_set_int(&timelapse_render_progress_, 0);
                     lv_subject_set_int(&timelapse_frame_count_, 0);
-                    lv_subject_copy_string(&timelapse_render_status_, lv_tr("complete"));
-                    lv_subject_copy_string(&timelapse_capture_info_, "");
+                    lv_subject_set_string(&timelapse_render_status_, lv_tr("complete"));
+                    lv_subject_set_string(&timelapse_capture_info_, "");
                     if (cb) {
                         cb(filename);
                     }
@@ -227,7 +215,7 @@ void TimelapseState::handle_timelapse_event(const nlohmann::json& event) {
 
         } else if (status == "error") {
             async_lifetime_.defer("TimelapseState::render_error", [this]() {
-                lv_subject_copy_string(&timelapse_render_status_, lv_tr("error"));
+                lv_subject_set_string(&timelapse_render_status_, lv_tr("error"));
             });
 
             last_notified_progress_ = -1;
@@ -253,8 +241,8 @@ void TimelapseState::reset() {
     async_lifetime_.defer("TimelapseState::reset", [this]() {
         lv_subject_set_int(&timelapse_frame_count_, 0);
         lv_subject_set_int(&timelapse_render_progress_, 0);
-        lv_subject_copy_string(&timelapse_render_status_, lv_tr("idle"));
-        lv_subject_copy_string(&timelapse_capture_info_, "");
+        lv_subject_set_string(&timelapse_render_status_, lv_tr("idle"));
+        lv_subject_set_string(&timelapse_capture_info_, "");
     });
 
     last_notified_progress_ = -1;

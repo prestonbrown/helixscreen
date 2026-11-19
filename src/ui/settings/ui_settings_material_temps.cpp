@@ -13,12 +13,14 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "core/temperature_units.h"
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "material_settings_manager.h"
 #include "printer_state.h"
 #include "sort_small.h"
 #include "temperature_controller.h"
+#include "translation_loader.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -35,6 +37,13 @@ namespace helix::settings {
 constexpr int kNozzleInputAbsMaxC = 500;
 constexpr int kBedInputAbsMaxC = 200;
 constexpr int kChamberInputAbsMaxC = 120;
+
+// A field's bounds as its error states them: the lower one bare, the upper one
+// with its unit ("100-500°C" / "212-932°F"), each in the display unit.
+static void temp_input_range_msg(char* msg, size_t size, const char* fmt, int min_c, int max_c) {
+    snprintf(msg, size, lv_tr(fmt), helix::units::to_display_temp_whole(min_c),
+             helix::units::format_display_temp(max_c).c_str());
+}
 
 // ============================================================================
 // INITIALIZATION
@@ -146,7 +155,8 @@ void MaterialTempsOverlay::populate_material_list() {
         helix::ui::temperature::format_temperature_range(nozzle_min, nozzle_max, nozzle_buf,
                                                          sizeof(nozzle_buf), false);
         char temp_buf[48];
-        snprintf(temp_buf, sizeof(temp_buf), "%s / %d°C", nozzle_buf, bed_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "%s / %s", nozzle_buf,
+                 helix::units::format_display_temp(bed_temp).c_str());
 
         const char* attrs[] = {
             "temps_text", temp_buf, "hide_override", has_override ? "false" : "true", nullptr,
@@ -190,7 +200,7 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
 
     // Update name subject
     snprintf(edit_name_buf_, sizeof(edit_name_buf_), "%s", material_name.c_str());
-    lv_subject_copy_string(&edit_name_subject_, edit_name_buf_);
+    lv_subject_set_string(&edit_name_subject_, edit_name_buf_);
 
     // Update defaults hint. It mentions the chamber exactly when the chamber column
     // is shown, so it reads the capability that column binds.
@@ -201,13 +211,15 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
                                                      nozzle_range, sizeof(nozzle_range));
     if (has_chamber) {
         snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
-                 lv_tr("Default: %s nozzle, %d°C bed, %d°C chamber"), nozzle_range, default_bed,
-                 default_chamber);
+                 lv_tr("Default: %s nozzle, %s bed, %s chamber"), nozzle_range,
+                 helix::units::format_display_temp(default_bed).c_str(),
+                 helix::units::format_display_temp(default_chamber).c_str());
     } else {
         snprintf(edit_defaults_buf_, sizeof(edit_defaults_buf_),
-                 lv_tr("Default: %s nozzle, %d°C bed"), nozzle_range, default_bed);
+                 lv_tr("Default: %s nozzle, %s bed"), nozzle_range,
+                 helix::units::format_display_temp(default_bed).c_str());
     }
-    lv_subject_copy_string(&edit_defaults_subject_, edit_defaults_buf_);
+    lv_subject_set_string(&edit_defaults_subject_, edit_defaults_buf_);
 
     // Populate input fields. The chamber input is always filled even when its
     // column is hidden: handle_save() reads it back, which keeps a stored
@@ -224,19 +236,19 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
 
         char buf[8];
         if (nozzle_min_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_nozzle_min);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_nozzle_min));
             lv_textarea_set_text(nozzle_min_input, buf);
         }
         if (nozzle_max_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_nozzle_max);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_nozzle_max));
             lv_textarea_set_text(nozzle_max_input, buf);
         }
         if (bed_temp_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_bed);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_bed));
             lv_textarea_set_text(bed_temp_input, buf);
         }
         if (chamber_temp_input) {
-            snprintf(buf, sizeof(buf), "%d", cur_chamber);
+            snprintf(buf, sizeof(buf), "%d", helix::units::to_display_temp_whole(cur_chamber));
             lv_textarea_set_text(chamber_temp_input, buf);
         }
     }
@@ -319,10 +331,11 @@ void MaterialTempsOverlay::handle_save() {
         return;
     }
 
-    int nozzle_min = atoi(min_text);
-    int nozzle_max = atoi(max_text);
-    int bed_temp = atoi(bed_text);
-    int chamber_temp = atoi(chamber_text);
+    // The fields hold the display unit; the material stores Celsius.
+    int nozzle_min = helix::units::display_temp_to_celsius(atoi(min_text));
+    int nozzle_max = helix::units::display_temp_to_celsius(atoi(max_text));
+    int bed_temp = helix::units::display_temp_to_celsius(atoi(bed_text));
+    int chamber_temp = helix::units::display_temp_to_celsius(atoi(chamber_text));
 
     // The edit view enforces only the fields' own bounds. The printer's live
     // ceiling is applied where a target is sent (TemperatureController), so a
@@ -331,19 +344,22 @@ void MaterialTempsOverlay::handle_save() {
     if (nozzle_min < 100 || nozzle_max < 100 || nozzle_min > kNozzleInputAbsMaxC ||
         nozzle_max > kNozzleInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Nozzle temp must be 100-%d°C"), kNozzleInputAbsMaxC);
+        temp_input_range_msg(msg, sizeof(msg), TR_NOOP("Nozzle temp must be %d-%s"), 100,
+                             kNozzleInputAbsMaxC);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (bed_temp < 0 || bed_temp > kBedInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Bed temp must be 0-%d°C"), kBedInputAbsMaxC);
+        temp_input_range_msg(msg, sizeof(msg), TR_NOOP("Bed temp must be %d-%s"), 0,
+                             kBedInputAbsMaxC);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }
     if (chamber_temp < 0 || chamber_temp > kChamberInputAbsMaxC) {
         char msg[kToastBufBytes];
-        snprintf(msg, sizeof(msg), lv_tr("Chamber temp must be 0-%d°C"), kChamberInputAbsMaxC);
+        temp_input_range_msg(msg, sizeof(msg), TR_NOOP("Chamber temp must be %d-%s"), 0,
+                             kChamberInputAbsMaxC);
         ToastManager::instance().show(ToastSeverity::WARNING, msg, 3000);
         return;
     }

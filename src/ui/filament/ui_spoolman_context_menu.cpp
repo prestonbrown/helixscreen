@@ -6,8 +6,11 @@
 #include "ui_callback_helpers.h"
 #include "ui_plugin_menu_rows.h"
 
+#include "core/subject.h"
+#include "helix_psram_attr.h"
 #include "plugin_menu_context.h"
 #include "ui/ui_widget_helpers.h"
+#include "widget_subjects.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -15,6 +18,42 @@
 #include "hv/json.hpp"
 
 namespace helix::ui {
+
+namespace {
+// Bound only by the menu's XML and written only by on_created(); one menu is on
+// screen at a time, so every owner shares them.
+helix::WidgetSubjects s_subjects{"SpoolmanContextMenuSubjects",
+                                 StaticSubjectRegistry::Lifetime::Process};
+HELIX_PSRAM_BSS helix::Subject s_header_subject;
+HELIX_PSRAM_BSS char s_header_buf[128];
+// Spoolman's filament.name, the subtitle under a header that already carries
+// vendor + material; hidden when the filament has no name.
+HELIX_PSRAM_BSS helix::Subject s_filament_subject;
+HELIX_PSRAM_BSS char s_filament_buf[128];
+HELIX_PSRAM_BSS helix::Subject s_filament_shown_subject;
+// 0 for the active spool: it is feeding the printer.
+HELIX_PSRAM_BSS helix::Subject s_archive_shown_subject;
+// "Price: €24.99", hidden when neither the spool nor its filament has a price.
+HELIX_PSRAM_BSS helix::Subject s_price_subject;
+HELIX_PSRAM_BSS char s_price_buf[64];
+HELIX_PSRAM_BSS helix::Subject s_price_shown_subject;
+
+void init_menu_subjects() {
+    s_subjects.ensure_init([] {
+        UI_MANAGED_SUBJECT_STRING(s_header_subject, s_header_buf, "", "spoolman_menu_header",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_filament_subject, s_filament_buf, "", "spoolman_menu_filament",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_filament_shown_subject, 0, "spoolman_menu_filament_shown",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_archive_shown_subject, 1, "spoolman_menu_archive_shown",
+                               s_subjects);
+        UI_MANAGED_SUBJECT_STRING(s_price_subject, s_price_buf, "", "spoolman_menu_price",
+                                  s_subjects);
+        UI_MANAGED_SUBJECT_INT(s_price_shown_subject, 0, "spoolman_menu_price_shown", s_subjects);
+    });
+}
+} // namespace
 
 // Static member initialization
 bool SpoolmanContextMenu::callbacks_registered_ = false;
@@ -24,6 +63,7 @@ bool SpoolmanContextMenu::callbacks_registered_ = false;
 // ============================================================================
 
 SpoolmanContextMenu::SpoolmanContextMenu() {
+    init_menu_subjects();
     spdlog::debug("[SpoolmanContextMenu] Constructed");
 }
 
@@ -33,7 +73,8 @@ SpoolmanContextMenu::~SpoolmanContextMenu() {
 
 SpoolmanContextMenu::SpoolmanContextMenu(SpoolmanContextMenu&& other) noexcept
     : ContextMenu(std::move(other)), action_callback_(std::move(other.action_callback_)),
-      pending_spool_(std::move(other.pending_spool_)), archive_allowed_(other.archive_allowed_) {}
+      pending_spool_(std::move(other.pending_spool_)), archive_allowed_(other.archive_allowed_),
+      currency_(std::move(other.currency_)) {}
 
 SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other) noexcept {
     if (this != &other) {
@@ -42,6 +83,7 @@ SpoolmanContextMenu& SpoolmanContextMenu::operator=(SpoolmanContextMenu&& other)
         action_callback_ = std::move(other.action_callback_);
         pending_spool_ = std::move(other.pending_spool_);
         archive_allowed_ = other.archive_allowed_;
+        currency_ = std::move(other.currency_);
     }
     return *this;
 }
@@ -55,17 +97,19 @@ void SpoolmanContextMenu::set_action_callback(ActionCallback callback) {
 }
 
 bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spool,
-                                         lv_obj_t* near_widget, bool allow_archive) {
+                                         lv_obj_t* near_widget, bool allow_archive,
+                                         const std::string& currency) {
     register_callbacks();
 
     // Store spool info before base class calls on_created
     pending_spool_ = spool;
     archive_allowed_ = allow_archive;
+    currency_ = currency;
 
     // Base class handles: XML creation, on_created callback, positioning, and
     // claiming the active-menu slot the static callbacks resolve through.
     // item_index = spool.id for action dispatch
-    return ContextMenu::show_near_widget(parent, spool.id, near_widget);
+    return show_around_widget(parent, spool.id, near_widget);
 }
 
 // ============================================================================
@@ -74,59 +118,27 @@ bool SpoolmanContextMenu::show_for_spool(lv_obj_t* parent, const SpoolInfo& spoo
 
 void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     // Header: "Vendor Material" (e.g., "Polymaker PLA")
-    lv_obj_t* header = lv_obj_find_by_name(menu_obj, "spool_header");
-    if (header) {
-        std::string name;
-        if (!pending_spool_.vendor.empty()) {
-            name = pending_spool_.vendor;
+    std::string name = pending_spool_.vendor;
+    if (!pending_spool_.material.empty()) {
+        if (!name.empty()) {
+            name += " ";
         }
-        if (!pending_spool_.material.empty()) {
-            if (!name.empty()) {
-                name += " ";
-            }
-            name += pending_spool_.material;
-        }
-        if (name.empty()) {
-            name = fmt::format(lv_tr("Spool #{}"), pending_spool_.id);
-        }
-        lv_label_set_text(header, name.c_str());
+        name += pending_spool_.material;
     }
+    if (name.empty()) {
+        name = fmt::format(lv_tr("Spool #{}"), pending_spool_.id);
+    }
+    lv_subject_set_string(&s_header_subject, name.c_str());
 
-    // Filament-name subtitle (e.g., "PLA Matte Charcoal") -- hidden when the
-    // spool's filament has no name. The XML widget is still called
-    // "spool_color_label" for compatibility; the string it has always shown is
-    // Spoolman's filament.name, which is the useful subtitle under a header
-    // that already carries vendor + material.
-    lv_obj_t* color_label =
-        helix::ui::find_required(menu_obj, "spool_color_label", "SpoolmanContextMenu");
-    if (color_label) {
-        if (pending_spool_.filament_name.empty()) {
-            lv_obj_add_flag(color_label, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_label_set_text(color_label, pending_spool_.filament_name.c_str());
-        }
-    }
+    lv_subject_set_string(&s_filament_subject, pending_spool_.filament_name.c_str());
+    lv_subject_set_int(&s_filament_shown_subject, pending_spool_.filament_name.empty() ? 0 : 1);
+    lv_subject_set_int(&s_archive_shown_subject, archive_allowed_ ? 1 : 0);
 
-    // Vendor subtitle is unused (vendor already in header); hide the XML element
-    lv_obj_t* vendor_label =
-        helix::ui::find_required(menu_obj, "spool_vendor_label", "SpoolmanContextMenu");
-    if (vendor_label) {
-        lv_obj_add_flag(vendor_label, LV_OBJ_FLAG_HIDDEN);
-    }
-
-    if (!archive_allowed_) {
-        lv_obj_t* btn_archive =
-            helix::ui::find_required(menu_obj, "btn_archive", "SpoolmanContextMenu");
-        if (btn_archive) {
-            // Per-instance decision at menu-creation time, next to the imperative
-            // header fill above. No subject models the Spoolman active-spool id,
-            // so a bind_flag_if has nothing to bind to; the panel passes the
-            // decision per show (the AMS menu's on_created does the same for its
-            // conditional entries).
-            // DECLARATIVE_OK: per-show visibility decision with no subject to bind
-            lv_obj_add_flag(btn_archive, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    const std::string price =
+        helix::format_price_with_currency(pending_spool_.effective_price(), currency_);
+    const std::string price_line = price.empty() ? "" : fmt::format(lv_tr("Price: {}"), price);
+    lv_subject_set_string(&s_price_subject, price_line.c_str());
+    lv_subject_set_int(&s_price_shown_subject, price.empty() ? 0 : 1);
 
     if (plugin_menu::any_declared(plugin_menu::MenuKind::Spool)) {
         const plugin_menu::json context = plugin_menu::spool_context(pending_spool_);
@@ -135,15 +147,15 @@ void SpoolmanContextMenu::on_created(lv_obj_t* menu_obj) {
     }
 
     // Prevent context menu buttons from triggering scroll on the underlying list
-    lv_obj_remove_flag(menu_obj, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+    lv_obj_set_scroll_on_focus(menu_obj, false);
     lv_obj_t* card = helix::ui::find_required(menu_obj, "context_menu", "SpoolmanContextMenu");
     if (card) {
-        lv_obj_remove_flag(card, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+        lv_obj_set_scroll_on_focus(card, false);
         uint32_t card_children = lv_obj_get_child_count(card);
         for (uint32_t i = 0; i < card_children; i++) {
             lv_obj_t* child = lv_obj_get_child(card, static_cast<int32_t>(i));
             if (child) {
-                lv_obj_remove_flag(child, LV_OBJ_FLAG_SCROLL_ON_FOCUS);
+                lv_obj_set_scroll_on_focus(child, false);
             }
         }
     }

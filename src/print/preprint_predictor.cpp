@@ -265,8 +265,31 @@ int PreprintPredictor::predicted_homing_seconds() const {
     return std::max(predicted, kMinHomingSeconds);
 }
 
-PreprintEstimate PreprintPredictor::estimate(const PreprintHeating& heating,
-                                             const PreprintPhaseOverrides& overrides) const {
+PreprintHeating
+PreprintPredictor::with_declared_heating(PreprintHeating heating,
+                                         const PreprintDeclaredDurations& declared) {
+    if (const auto it = declared.find(static_cast<int>(PrintStartPhase::HEATING_BED));
+        it != declared.end()) {
+        heating.bed_seconds = static_cast<float>(it->second);
+    }
+    if (const auto it = declared.find(static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+        it != declared.end()) {
+        heating.nozzle_seconds = static_cast<float>(it->second);
+        heating.nozzle_target_known = true;
+    }
+    return heating;
+}
+
+PreprintEstimate PreprintPredictor::estimate(const PreprintHeating& priced_heating,
+                                             const PreprintPhaseOverrides& requested_overrides,
+                                             const PreprintDeclaredDurations& declared) const {
+    const PreprintHeating heating = with_declared_heating(priced_heating, declared);
+    // The plan is what the macro is about to do with this print's parameters;
+    // an override is only what the user asked for before the macro rendered.
+    PreprintPhaseOverrides overrides = requested_overrides;
+    for (const auto& [phase, _] : declared) {
+        overrides.erase(phase);
+    }
     const int nozzle_phase = static_cast<int>(PrintStartPhase::HEATING_NOZZLE);
     const int bed_phase = static_cast<int>(PrintStartPhase::HEATING_BED);
 
@@ -319,6 +342,14 @@ PreprintEstimate PreprintPredictor::estimate(const PreprintHeating& heating,
         }
     }
 
+    for (const auto& [phase, secs] : declared) {
+        if (secs > 0) {
+            durations[phase] = static_cast<float>(secs);
+        } else {
+            durations.erase(phase);
+        }
+    }
+
     // A bed-first macro issues its M109 after homing and leveling; without a
     // placeholder the known phases would carry all the weight.
     if (!heating.nozzle_target_known && durations.find(nozzle_phase) == durations.end()) {
@@ -332,6 +363,11 @@ PreprintEstimate PreprintPredictor::estimate(const PreprintHeating& heating,
 
     if (!history) {
         result.total_seconds = durations_sum;
+        return result;
+    }
+
+    if (!declared.empty()) {
+        result.total_seconds = planned_total(declared, durations).value_or(durations_sum);
         return result;
     }
 
@@ -406,6 +442,49 @@ int PreprintPredictor::predicted_total() const {
                                        }).value_or(0.0)));
 }
 
+std::optional<float> PreprintPredictor::planned_total(const PreprintDeclaredDurations& declared,
+                                                      const std::map<int, float>& durations) const {
+    const int nozzle_phase = static_cast<int>(PrintStartPhase::HEATING_NOZZLE);
+    const int bed_phase = static_cast<int>(PrintStartPhase::HEATING_BED);
+
+    // Only entries that declared a plan can be split: an unplanned wall clock
+    // holds its soak unattributed, and subtracting a learned mean would miss it.
+    // A declared heater is already inside the entry's priced heating.
+    const std::optional<double> residual =
+        weighted_entry_mean([&](const PreprintEntry& e) -> std::optional<double> {
+            if (!e.declared || !e.heating_seconds) {
+                return std::nullopt;
+            }
+            double left =
+                static_cast<double>(e.total_seconds) - static_cast<double>(*e.heating_seconds);
+            for (const auto& [phase, secs] : *e.declared) {
+                if (phase == nozzle_phase || phase == bed_phase) {
+                    continue;
+                }
+                const auto recorded = e.phase_durations.find(phase);
+                left -= static_cast<double>(recorded != e.phase_durations.end() ? recorded->second
+                                                                                : secs);
+            }
+            return std::max(0.0, left);
+        });
+    if (!residual) {
+        return std::nullopt;
+    }
+
+    float total = static_cast<float>(*residual);
+    for (const int heater : {nozzle_phase, bed_phase}) {
+        if (const auto it = durations.find(heater); it != durations.end()) {
+            total += it->second;
+        }
+    }
+    for (const auto& [phase, secs] : declared) {
+        if (phase != nozzle_phase && phase != bed_phase) {
+            total += static_cast<float>(secs);
+        }
+    }
+    return total;
+}
+
 bool PreprintPredictor::every_entry_skipped(int phase) const {
     return !entries_.empty() &&
            std::all_of(entries_.begin(), entries_.end(), [phase](const PreprintEntry& e) {
@@ -446,7 +525,8 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
     // A record with a wrongly typed field is dropped; the rest of the history
     // stays, and a zero-filled record never enters a prediction.
     const auto wrongly_typed = [](const nlohmann::json& ej, const char* key) {
-        return ej.contains(key) && !ej[key].is_number();
+        const auto* v = json_util::find_member(ej, key);
+        return v && !v->is_number();
     };
     for (const auto& ej : entries_json) {
         if (!ej.is_object() || wrongly_typed(ej, "total") || wrongly_typed(ej, "timestamp") ||
@@ -473,8 +553,8 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
             ++dropped_legacy;
             continue;
         }
-        if (ej.contains("phases") && ej["phases"].is_object()) {
-            for (auto& [key, val] : ej["phases"].items()) {
+        if (const auto* phases = json_util::find_object(ej, "phases")) {
+            for (const auto& [key, val] : phases->items()) {
                 // A name this build does not know belongs to a newer one.
                 // The rest of the entry is still a real measurement, so the
                 // key is dropped rather than the entry.
@@ -486,12 +566,12 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
                 entry.phase_durations[static_cast<int>(*phase)] = val.get<int>();
             }
         }
-        if (ej.contains("heating") && ej["heating"].is_number()) {
-            entry.heating_seconds = ej["heating"].get<int>();
+        if (auto heating = json_util::read_field<int>(ej, "heating")) {
+            entry.heating_seconds = *heating;
         }
-        if (ej.contains("skipped") && ej["skipped"].is_array()) {
+        if (const auto* skipped_names = json_util::find_array(ej, "skipped")) {
             std::set<int> skipped;
-            for (const auto& name : ej["skipped"]) {
+            for (const auto& name : *skipped_names) {
                 const auto phase = name.is_string()
                                        ? print_start_phase_from_name(name.get<std::string>())
                                        : std::nullopt;
@@ -502,6 +582,21 @@ std::vector<PreprintEntry> PreprintPredictor::load_entries_from_config() {
                 }
             }
             entry.skipped_phases = std::move(skipped);
+        }
+        if (const auto* declared_json = json_util::find_object(ej, "declared")) {
+            PreprintDeclaredDurations declared;
+            for (const auto& [key, val] : declared_json->items()) {
+                const auto phase = print_start_phase_from_name(key);
+                const auto seconds = val.is_number()
+                                         ? declared_seconds_from_number(val.get<double>())
+                                         : std::nullopt;
+                if (phase && seconds && phase_accepts_declared_duration(*phase)) {
+                    declared[static_cast<int>(*phase)] = *seconds;
+                } else {
+                    ++dropped_phases;
+                }
+            }
+            entry.declared = std::move(declared);
         }
         entries.push_back(std::move(entry));
     }
@@ -557,6 +652,17 @@ json PreprintPredictor::entries_to_json(const std::vector<PreprintEntry>& entrie
                 }
             }
             entry_json["skipped"] = std::move(skipped_json);
+        }
+        // Omitted without a plan, so an absent field and an empty plan differ.
+        if (e.declared) {
+            json declared_json = json::object();
+            for (const auto& [phase, seconds] : *e.declared) {
+                const auto name = print_start_phase_name(static_cast<PrintStartPhase>(phase));
+                if (!name.empty()) {
+                    declared_json[std::string(name)] = seconds;
+                }
+            }
+            entry_json["declared"] = std::move(declared_json);
         }
         entries_json.push_back(std::move(entry_json));
     }

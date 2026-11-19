@@ -16,10 +16,12 @@
 #include "helix_thread.h"
 #include "home_layout_share.h"
 #include "input_sensor_types.h"
+#include "json_utils.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "mock_planted_gcodes.h"
 #include "moonraker_client_mock_internal.h"
+#include "moonraker_status_notification.h"
 #include "printer_state.h"
 #include "runtime_config.h"
 #include "shaper_response.h"
@@ -142,6 +144,17 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     if (type == PrinterType::CREALITY_K2_PLUS) {
         set_config_settings_section("gcode_macro product_param", {{"variable_bed_size_x", "350"},
                                                                   {"variable_bed_size_y", "350"}});
+        // The stock tachometer pins (K2 printer_params.cfg) and the fans they
+        // measure: fan0 the chamber heater's PTC fan, fan1 the hotend fan, fan2
+        // the part fan. This persona's M106 drives the bare [fan].
+        set_config_settings_section("fan_feedback", {{"fan0_pin", json::array({"PC6"})},
+                                                     {"fan1_pin", "nozzle_mcu:PA12"},
+                                                     {"fan2_pin", "nozzle_mcu:PC13"}});
+        set_config_settings_section("fan", {{"pin", "!nozzle_mcu:PB15"}});
+        set_config_settings_section(
+            "heater_fan chamber_fan",
+            {{"pin", "!PB14"}, {"heater", json::array({"chamber_heater"})}});
+        set_config_settings_section("heater_generic chamber_heater", {{"heater_pin", "PC12"}});
     }
     // A pick of T0 failed before the screen connected: the hot end is on the
     // carriage while its dock switch still reads seated, so pin_watch cannot
@@ -174,6 +187,9 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
         purifier_.present = !(top && std::string(top) == "0");
     }
     panda_breath_auto_ = helix::env_flag("HELIX_MOCK_PANDA_BREATH_AUTO");
+    if (const char* chamber = std::getenv("HELIX_MOCK_CHAMBER_TARGET"); chamber && *chamber) {
+        chamber_target_.store(helix::text_io::parse_leading<int>(chamber).value_or(0));
+    }
     // Another screen's toolhead offset calibration, already holding the state at connect.
     nozzle_cal_active_ = helix::env_flag("HELIX_MOCK_NOZZLE_CAL_HELD");
 
@@ -213,47 +229,14 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
     spdlog::debug("[MoonrakerClientMock] Registered {} RPC method handlers",
                   method_handlers_.size());
 
-    // MedusaHC drives the real AmsBackendToolChanger, and klipper-toolchanger
-    // reports no material, colour, brand or weight - the override store is the
-    // whole of filament identity there. Without these records every lane renders
-    // at kAmsDefaultSlotColor, which makes colour and ghost bugs invisible.
-    // Outer key style is T<n> (lane_key_style_for), inner "lane" is 0-based.
-    if (mock_medusa_variant() != MedusaVariant::NONE) {
-        // Each lane mirrors a spool from the mock Spoolman inventory - id,
-        // vendor, material, colour and weights - so the active-spool card and
-        // the lane it names cannot describe different filament.
-        struct Lane {
-            int spoolman_id;
-            const char* material;
-            const char* brand;
-            const char* spool_name;
-            const char* color;
-            double remaining_g;
-        };
-        static constexpr Lane kLanes[] = {
-            {2, "Silk PLA", "eSUN", "Silk Blue", "#26DCD9", 750.0},
-            {4, "ABS", "Flashforge", "Fire Engine Red", "#D20000", 100.0},
-            {13, "PETG", "Bambu Lab", "Translucent Green PETG", "#29A261", 1000.0},
-            {5, "PETG", "Kingroon", "Signal Yellow", "#F4E111", 1000.0},
-            {3, "ASA", "Elegoo", "Pop Blue", "#00AEFF", 500.0},
-            {15, "PLA", "Bambu Lab", "Red PLA", "#C12E1F", 1000.0},
-        };
-        static_assert(std::size(kLanes) == kMedusaMaxTools);
-        for (int i = 0; i < medusa_tool_count(); ++i) {
-            const Lane& l = kLanes[i];
-            mock_db_set("lane_data",
-                        "T" + std::to_string(i), // DISPLAY_NUMBERING_OK: database key mirrors
-                                                 // the T<n> wire format, not a display label
-                        json{{"lane", std::to_string(i)},
-                             {"spoolman_id", l.spoolman_id},
-                             {"material", l.material},
-                             {"brand", l.brand},
-                             {"spool_name", l.spool_name},
-                             {"color", l.color},
-                             {"remaining_weight_g", l.remaining_g},
-                             {"total_weight_g", 1000.0}});
-        }
+    if (is_mock_lane_status()) {
+        seed_lane_status_records();
     }
+    seed_tool_lane_records();
+    if (is_mock_afc_boxturtle()) {
+        init_afc_boxturtle(get_runtime_config()->mock_ams_gate_count);
+    }
+    init_happy_hare(get_runtime_config()->mock_ams_gate_count);
 
     // Filament in the head that no lane claims: what a firmware that lost its
     // loaded-lane record leaves behind.
@@ -279,6 +262,8 @@ MoonrakerClientMock::MoonrakerClientMock(PrinterType type, double speedup_factor
             }
         }
     }
+
+    init_ifs_jacker_from_env();
 
     // OpenAMS reads no identity off its spools: color and material come from the
     // override store, which reads the shared lane_data namespace (laneN keys,
@@ -516,10 +501,10 @@ bool MoonrakerClientMock::arm_event_replay(const std::string& json_path) {
         }
         // Optional: serve configfile.settings.bed_mesh.probe_count so the
         // collector's denominator query answers like the real printer did.
-        if (script.contains("config_probe_count") && script["config_probe_count"].is_array() &&
-            script["config_probe_count"].size() == 2) {
-            set_config_bed_mesh_probe_count(script["config_probe_count"][0].get<int>(),
-                                            script["config_probe_count"][1].get<int>());
+        if (const json* probe_count = json_util::find_array(script, "config_probe_count");
+            probe_count && probe_count->size() == 2) {
+            set_config_bed_mesh_probe_count((*probe_count)[0].get<int>(),
+                                            (*probe_count)[1].get<int>());
         }
     } catch (const std::exception& e) {
         replay_events_.clear();
@@ -602,23 +587,23 @@ void MoonrakerClientMock::fire_replay_event(const ReplayEvent& event) {
             mapped = 5;
         }
         print_state_.store(mapped);
-        if (event.payload.contains("filename") && event.payload["filename"].is_string()) {
+        if (auto filename = json_util::read_field<std::string>(event.payload, "filename")) {
             std::lock_guard<std::mutex> lock(print_mutex_);
-            print_filename_ = event.payload["filename"].get<std::string>();
+            print_filename_ = std::move(*filename);
         }
     } else if (event.object == "extruder") {
-        if (event.payload.contains("target") && event.payload["target"].is_number()) {
-            extruder_target_.store(event.payload["target"].get<double>());
+        if (auto target = json_util::read_field<double>(event.payload, "target")) {
+            extruder_target_.store(*target);
         }
-        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
-            extruder_temp_.store(event.payload["temperature"].get<double>());
+        if (auto temperature = json_util::read_field<double>(event.payload, "temperature")) {
+            extruder_temp_.store(*temperature);
         }
     } else if (event.object == "heater_bed") {
-        if (event.payload.contains("target") && event.payload["target"].is_number()) {
-            bed_target_.store(event.payload["target"].get<double>());
+        if (auto target = json_util::read_field<double>(event.payload, "target")) {
+            bed_target_.store(*target);
         }
-        if (event.payload.contains("temperature") && event.payload["temperature"].is_number()) {
-            bed_temp_.store(event.payload["temperature"].get<double>());
+        if (auto temperature = json_util::read_field<double>(event.payload, "temperature")) {
+            bed_temp_.store(*temperature);
         }
     }
 
@@ -858,7 +843,18 @@ void MoonrakerClientMock::append_k2_status(json& status) const {
     // Creality's motor controller and fan tachometer modules, in the fields
     // cfs::parse_motor_control and PrinterFanState read.
     status["motor_control"] = {{"motor_ready", true}};
-    status["fan_feedback"] = {{"fan0_speed", 0}, {"fan1_speed", 0}, {"fan2_speed", 0}};
+    double part = 0.0;
+    {
+        std::lock_guard<std::mutex> lock(fan_mutex_);
+        auto it = fan_speeds_.find("fan");
+        if (it != fan_speeds_.end())
+            part = it->second;
+    }
+    status["fan_feedback"] = {{"fan0_speed", 0},
+                              {"fan1_speed", 0},
+                              {"fan2_speed", mock_internal::part_fan_status(part)["rpm"]},
+                              {"fan3_speed", 0},
+                              {"fan4_speed", 0}};
 }
 
 namespace {
@@ -885,12 +881,15 @@ nlohmann::json MoonrakerClientMock::defect_detection_status() const {
     };
     return nlohmann::json{{"main_enable", u1_defect_main_enable_.load()},
                           {"clean_bed", feature(u1_clean_bed_enable_.load())},
-                          {"noodle", feature(true)},
+                          {"noodle", feature(u1_noodle_enable_.load())},
                           {"residue", feature(false)},
                           {"nozzle", feature(false)}};
 }
 
 json MoonrakerClientMock::zmod_color_status() const {
+    if (is_mock_zmod_ifs()) {
+        return ifs_jacker_zmod_color_json();
+    }
     std::lock_guard<std::mutex> lock(zmod_mutex_);
     json slots = json::array();
     for (std::size_t i = 0; i < zmod_slots_.size(); ++i) {
@@ -920,6 +919,93 @@ void MoonrakerClientMock::push_zmod_builtin_afc_objects(json& objects) {
     for (int i = 1; i <= 4; ++i) {
         objects.push_back("AFC_lane lane" + std::to_string(i));
     }
+}
+
+json MoonrakerClientMock::pa_latch_pin_status(const std::string& object) const {
+    if (printer_type_ != PrinterType::FLASHFORGE_CREATOR5_ZMOD) {
+        return json::object();
+    }
+    if (object == "output_pin enable_pin_tmc_x") {
+        return {{"value", pa_latch_x_.load()}};
+    }
+    if (object == "output_pin enable_pin_tmc_y") {
+        return {{"value", pa_latch_y_.load()}};
+    }
+    return json::object();
+}
+
+std::string MoonrakerClientMock::toolhead_extruder() const {
+    const int tool =
+        printer_type_ == PrinterType::FLASHFORGE_CREATOR5_ZMOD ? zmod_active_tool_.load() : 0;
+    return tool <= 0 ? "extruder" : "extruder" + std::to_string(tool);
+}
+
+void MoonrakerClientMock::set_pa_verdicts(std::vector<int> verdicts) {
+    std::lock_guard<std::mutex> lock(pa_mutex_);
+    pa_verdicts_ = std::move(verdicts);
+    pa_verdict_next_ = 0;
+}
+
+// [pa_adjust] (creator5_zmod persona). PA_ACTION is accepted and ignored; the
+// eBoard's verdict comes from the scripted list. Returns nullopt so the line
+// handlers after this one still see the moves and limits in the same script.
+MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_pa_adjust(const std::string& script) {
+    size_t start = 0;
+    while (start < script.size()) {
+        size_t end = script.find('\n', start);
+        if (end == std::string::npos) {
+            end = script.size();
+        }
+        const std::string line = script.substr(start, end - start);
+        start = end + 1;
+        if (line == "PA_GET") {
+            int verdict = 0;
+            {
+                std::lock_guard<std::mutex> lock(pa_mutex_);
+                if (pa_verdicts_.empty()) {
+                    std::string spec = "0,9,0,9,0,0,0";
+                    if (const char* env = std::getenv("HELIX_MOCK_PA_VERDICTS")) {
+                        spec = env;
+                    }
+                    size_t at = 0;
+                    while (at < spec.size()) {
+                        size_t comma = spec.find(',', at);
+                        if (comma == std::string::npos) {
+                            comma = spec.size();
+                        }
+                        pa_verdicts_.push_back(
+                            helix::text_io::parse_leading<int>(spec.substr(at, comma - at))
+                                .value_or(0));
+                        at = comma + 1;
+                    }
+                }
+                verdict = pa_verdicts_[pa_verdict_next_ % pa_verdicts_.size()];
+                ++pa_verdict_next_;
+            }
+            // A negative entry stands for an eBoard that never answers.
+            if (verdict >= 0) {
+                dispatch_gcode_response("// Result is value=" + std::to_string(verdict));
+            }
+            continue;
+        }
+        for (auto [pin, store] : {std::pair{"PIN=enable_pin_tmc_x ", &pa_latch_x_},
+                                  std::pair{"PIN=enable_pin_tmc_y ", &pa_latch_y_}}) {
+            if (line.rfind("SET_PIN ", 0) != 0 || line.find(pin) == std::string::npos) {
+                continue;
+            }
+            const size_t v = line.find("VALUE=");
+            const float value =
+                v == std::string::npos
+                    ? 0.f
+                    : helix::text_io::parse_leading<float>(line.substr(v + 6)).value_or(0.f);
+            store->store(value);
+            const std::string object =
+                std::string("output_pin ") +
+                (store == &pa_latch_x_ ? "enable_pin_tmc_x" : "enable_pin_tmc_y");
+            dispatch_status_update({{object, {{"value", value}}}});
+        }
+    }
+    return std::nullopt;
 }
 
 // Z-Mod commands (creator5_zmod persona): the zmod_color extra's macros.
@@ -1081,103 +1167,22 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_zmod(const std::stri
     return std::nullopt;
 }
 
-nlohmann::json MoonrakerClientMock::u1_feed_side_json(int ext) const {
-    // "filament_feed left" carries extruders 0/1, "right" carries 2/3.
-    const int first = (ext < 2) ? 0 : 2;
-    nlohmann::json channels = nlohmann::json::object();
-    for (int i = first; i < first + 2; ++i) {
-        channels["extruder" + std::to_string(i)] = {
-            {"channel_state", u1_channel_state_[static_cast<size_t>(i)]},
-            {"channel_error", "ok"},
-            {"channel_error_state", "none"},
-            {"channel_action_state", u1_channel_state_[static_cast<size_t>(i)]},
-            {"disable_auto", false},
-            {"filament_detected", u1_filament_detected_[static_cast<size_t>(i)]},
-            {"module_exist", true},
-        };
-    }
-    return channels;
-}
-
-void MoonrakerClientMock::publish_u1_channel_frame(int ext) {
-    const std::string side = (ext < 2) ? "left" : "right";
-    dispatch_status_update({{"filament_feed " + side, u1_feed_side_json(ext)}});
-}
-
-bool MoonrakerClientMock::apply_u1_feeding_gcode(const std::string& gcode) {
-    const size_t token_end = gcode.find_first_of(" \t");
-    const std::string cmd = gcode.substr(0, token_end);
-    // AUTO_FEEDING and AUTO_FEEDING_BATCH ACTION=DOING both drive a channel.
-    // The BATCH START/END lines name no EXTRUDER, so they land in the "feeder
-    // command, nothing to walk" branch and change no channel state.
-    if (cmd.rfind("AUTO_FEEDING", 0) != 0) {
-        return false;
-    }
-    const size_t e = gcode.find("EXTRUDER=");
-    if (e == std::string::npos) {
-        return true;
-    }
-    int ext = -1;
-    try {
-        ext = std::stoi(gcode.substr(e + 9));
-    } catch (...) {
-        return true;
-    }
-    if (ext < 0 || ext >= kU1Channels) {
-        return true;
-    }
-    // "UNLOAD=1" contains "LOAD=1" as a substring; the direction must be read
-    // unload-first.
-    const bool unload = gcode.find("UNLOAD=1") != std::string::npos;
-
-    int fail_slot = -1;
-    if (const char* fail_env = std::getenv("HELIX_MOCK_BATCH_FAIL_SLOT")) {
-        try {
-            fail_slot = std::stoi(fail_env);
-        } catch (...) {
-            fail_slot = -1;
-        }
-    }
-
-    const size_t ext_idx = static_cast<size_t>(ext);
-    // The state sequences the firmware's own filament_feed walks: preload then
-    // load for a feed, heat then retract for an unload.
-    u1_channel_state_[ext_idx] = unload ? "unload_heat_finish" : "preload_finish";
-    if (!unload) {
-        u1_filament_detected_[ext_idx] = true;
-    }
-    publish_u1_channel_frame(ext);
-
-    const char* terminal = unload ? "unload_finish" : "load_finish";
-    if (ext == fail_slot) {
-        terminal = unload ? "unload_fail" : "load_fail";
-    }
-    u1_channel_state_[ext_idx] = terminal;
-    if (unload && ext != fail_slot) {
-        u1_filament_detected_[ext_idx] = false;
-    }
-    publish_u1_channel_frame(ext);
-    spdlog::info("[MoonrakerClientMock] U1 feeder: extruder {} {} -> {}", ext,
-                 unload ? "unload" : "load", terminal);
-    return true;
-}
-
 void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
     // Parse bed mesh JSON from dispatch_status_update into active_bed_mesh_
     // This mirrors the JSON format sent by real Moonraker
 
-    if (bed_mesh.contains("profile_name")) {
-        if (bed_mesh["profile_name"].is_string()) {
-            active_bed_mesh_.name = bed_mesh["profile_name"].get<std::string>();
-        } else if (bed_mesh["profile_name"].is_null()) {
+    if (const json* profile_name = json_util::find_member(bed_mesh, "profile_name")) {
+        if (profile_name->is_string()) {
+            active_bed_mesh_.name = profile_name->get<std::string>();
+        } else if (profile_name->is_null()) {
             active_bed_mesh_.name = "";
         }
     }
 
     // Parse probed_matrix (2D array of Z heights)
-    if (bed_mesh.contains("probed_matrix") && bed_mesh["probed_matrix"].is_array()) {
+    if (const json* probed_matrix = json_util::find_array(bed_mesh, "probed_matrix")) {
         active_bed_mesh_.probed_matrix.clear();
-        const auto& matrix = bed_mesh["probed_matrix"];
+        const auto& matrix = *probed_matrix;
 
         for (const auto& row : matrix) {
             if (!row.is_array()) {
@@ -1204,39 +1209,37 @@ void MoonrakerClientMock::parse_incoming_bed_mesh(const json& bed_mesh) {
     }
 
     // Parse mesh_min (array [x, y])
-    if (bed_mesh.contains("mesh_min") && bed_mesh["mesh_min"].is_array() &&
-        bed_mesh["mesh_min"].size() >= 2) {
-        if (bed_mesh["mesh_min"][0].is_number()) {
-            active_bed_mesh_.mesh_min[0] = bed_mesh["mesh_min"][0].get<float>();
+    if (const json* mesh_min = json_util::find_array(bed_mesh, "mesh_min");
+        mesh_min && mesh_min->size() >= 2) {
+        if ((*mesh_min)[0].is_number()) {
+            active_bed_mesh_.mesh_min[0] = (*mesh_min)[0].get<float>();
         }
-        if (bed_mesh["mesh_min"][1].is_number()) {
-            active_bed_mesh_.mesh_min[1] = bed_mesh["mesh_min"][1].get<float>();
+        if ((*mesh_min)[1].is_number()) {
+            active_bed_mesh_.mesh_min[1] = (*mesh_min)[1].get<float>();
         }
     }
 
     // Parse mesh_max (array [x, y])
-    if (bed_mesh.contains("mesh_max") && bed_mesh["mesh_max"].is_array() &&
-        bed_mesh["mesh_max"].size() >= 2) {
-        if (bed_mesh["mesh_max"][0].is_number()) {
-            active_bed_mesh_.mesh_max[0] = bed_mesh["mesh_max"][0].get<float>();
+    if (const json* mesh_max = json_util::find_array(bed_mesh, "mesh_max");
+        mesh_max && mesh_max->size() >= 2) {
+        if ((*mesh_max)[0].is_number()) {
+            active_bed_mesh_.mesh_max[0] = (*mesh_max)[0].get<float>();
         }
-        if (bed_mesh["mesh_max"][1].is_number()) {
-            active_bed_mesh_.mesh_max[1] = bed_mesh["mesh_max"][1].get<float>();
+        if ((*mesh_max)[1].is_number()) {
+            active_bed_mesh_.mesh_max[1] = (*mesh_max)[1].get<float>();
         }
     }
 
     // Parse algorithm from mesh_params
-    if (bed_mesh.contains("mesh_params") && bed_mesh["mesh_params"].is_object()) {
-        const auto& params = bed_mesh["mesh_params"];
-        if (params.contains("algo") && params["algo"].is_string()) {
-            active_bed_mesh_.algo = params["algo"].get<std::string>();
-        }
+    if (const json* params = json_util::find_object(bed_mesh, "mesh_params")) {
+        active_bed_mesh_.algo =
+            json_util::read_field<std::string>(*params, "algo").value_or(active_bed_mesh_.algo);
     }
 
     // Parse profiles list
-    if (bed_mesh.contains("profiles") && bed_mesh["profiles"].is_object()) {
+    if (const json* profiles = json_util::find_object(bed_mesh, "profiles")) {
         bed_mesh_profiles_.clear();
-        for (const auto& [key, value] : bed_mesh["profiles"].items()) {
+        for (const auto& [key, value] : profiles->items()) {
             bed_mesh_profiles_.push_back(key);
         }
     }
@@ -1489,9 +1492,9 @@ MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
     last_send_method_ = method;
     last_send_timeout_ms_ = timeout_ms;
     last_send_silent_ = silent;
-    if (method == "printer.gcode.script" && params.contains("script") &&
-        params["script"].is_string()) {
-        last_send_script_ = params["script"].get<std::string>();
+    if (method == "printer.gcode.script") {
+        last_send_script_ =
+            json_util::read_field<std::string>(params, "script").value_or(last_send_script_);
     }
 
     std::optional<MoonrakerError> injected_error;
@@ -1684,6 +1687,7 @@ bool MoonrakerClientMock::start_print_internal(const std::string& filename) {
                 "[MoonrakerClientMock] Active gcode tool: T{} (from per-tool weights, max {:.2f}g)",
                 dominant, max_w);
             notify_active_gcode_tool_observers(dominant);
+            happy_hare_load_tool_now(dominant);
         }
     }
 
@@ -2271,9 +2275,14 @@ void MoonrakerClientMock::dispatch_initial_state() {
         }
     }
     // Add output_pin status (uses {value:} format, not color_data)
-    for (const auto& led : discovery_.leds()) {
-        if (led.rfind("output_pin ", 0) == 0) {
-            led_json[led] = {{"value", 0.75}}; // Mock: enclosure at 75% brightness
+    {
+        std::lock_guard<std::mutex> lock(led_mutex_);
+        for (const auto& led : discovery_.leds()) {
+            if (led.rfind("output_pin ", 0) == 0) {
+                const auto it = led_pin_values_.find(led);
+                led_json[led] = {
+                    {"value", it != led_pin_values_.end() ? it->second : kMockLedPinValue}};
+            }
         }
     }
 
@@ -2316,7 +2325,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
           {"speed_factor", speed / 100.0},
           {"extrude_factor", flow / 100.0},
           {"homing_origin", {gcode_offset_x_.load(), gcode_offset_y_.load(), z_offset, 0.0}}}},
-        {"fan", {{"speed", fan / 255.0}}},
+        {"fan", mock_internal::part_fan_status(fan / 255.0)},
         {"webhooks",
          {{"state", klippy_str},
           {"state_message", klippy == KlippyState::SHUTDOWN ? std::string(kM112ShutdownMessage)
@@ -2346,6 +2355,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
                 initial_status[fan_name] = {{"speed", hotend_fan_speed}};
             }
         }
+        initial_status.merge_patch(toolchanger_fan_status(fan / 255.0));
     }
 
     // Override fan speeds with explicitly-set values from fan_speeds_ map
@@ -2353,7 +2363,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
         std::lock_guard<std::mutex> lock(fan_mutex_);
         for (const auto& [name, spd] : fan_speeds_) {
             if (name == "fan") {
-                initial_status["fan"] = {{"speed", spd}};
+                initial_status["fan"] = mock_internal::part_fan_status(spd);
             } else {
                 initial_status[name] = {{"speed", spd}};
             }
@@ -2385,10 +2395,10 @@ void MoonrakerClientMock::dispatch_initial_state() {
                 {"temperature", 35.0},
                 {"target", is_chamber_fan ? mock_internal::kMockK2ChamberFanRestingC : 40.0},
                 {"speed", 0.0}};
-        } else if (s.rfind("tmc2240 ", 0) == 0 || s.rfind("tmc5160 ", 0) == 0) {
-            // TMC stepper drivers with built-in temperature
-            double temp = 55.0 + (std::hash<std::string>{}(s) % 20);
-            initial_status[s] = {{"temperature", temp}};
+        } else if (s.rfind("tmc", 0) == 0) {
+            initial_status[s] = {{"drv_status", helix::mock::mock_tmc_drv_status(s)}};
+            if (s.rfind("tmc2240 ", 0) == 0)
+                initial_status[s]["temperature"] = 55.0 + (std::hash<std::string>{}(s) % 20);
         }
     }
 
@@ -2472,6 +2482,11 @@ void MoonrakerClientMock::dispatch_initial_state() {
         std::lock_guard<std::mutex> lock(indx_mutex_);
         indx_published_ = indx;
     }
+
+    if (is_mock_lane_status()) {
+        initial_status["lane_status"] = lane_status_json();
+    }
+    merge_mock_ams_hardware_status(initial_status);
 
     // multiACE mock: the `ace` object and both filament_feed sides at rest, so
     // the production backend's first parse sees what a booted rig reports.
@@ -2793,7 +2808,7 @@ void MoonrakerClientMock::set_fan_speed_internal(const std::string& fan_name, do
     json fan_status;
     if (fan_name == "fan") {
         // Part cooling fan uses simple format
-        fan_status["fan"] = {{"speed", speed}};
+        fan_status["fan"] = mock_internal::part_fan_status(speed);
     } else {
         // Generic/heater fans use full name as key
         fan_status[fan_name] = {{"speed", speed}};

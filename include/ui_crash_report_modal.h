@@ -15,6 +15,7 @@
 
 #include "ui_modal.h"
 
+#include "core/subject.h"
 #include "system/crash_reporter.h"
 
 #include <lvgl.h>
@@ -52,9 +53,9 @@ class CrashReportModal : public Modal {
   private:
     // Subjects for XML data binding
     SubjectManager subjects_;
-    lv_subject_t details_subject_{};
-    lv_subject_t status_subject_{};
-    lv_subject_t show_qr_subject_{};
+    helix::Subject details_subject_{};
+    helix::Subject status_subject_{};
+    helix::Subject show_qr_subject_{};
     bool subjects_initialized_ = false;
 
     // Subject string buffers

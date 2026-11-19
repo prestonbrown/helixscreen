@@ -631,7 +631,7 @@ class TileStartFixture : public helix::test::QueuedStartMockedFixture {
         tile.resize(1, 1, w, h);
         lv_obj_t* button = tile.child(button_name);
         REQUIRE(button != nullptr);
-        REQUIRE_FALSE(lv_obj_has_flag(button, LV_OBJ_FLAG_HIDDEN));
+        REQUIRE_FALSE(lv_obj_is_hidden(button));
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
         CHECK(helix::queue::queued_job_starter().in_flight());
         REQUIRE(wait_until([] { return !helix::queue::queued_job_starter().in_flight(); }, 5000));
@@ -685,7 +685,7 @@ TEST_CASE_METHOD(TileStartFixture, "the tile reads Starting with no button while
     tile.resize(1, 1, test::kCell.w, test::kCell.h);
     lv_obj_t* button = tile.child("jq_action");
     REQUIRE(button != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(button, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(button));
     auto state = []() { return lv_subject_get_int(lv_xml_get_subject(nullptr, "jq_tile_state")); };
 
     mock_client_.defer_next("server.database.get_item"); // hold the saved-options read
@@ -694,7 +694,7 @@ TEST_CASE_METHOD(TileStartFixture, "the tile reads Starting with no button while
     process_lvgl(30); // the tile refreshes on the next tick
     REQUIRE(helix::queue::queued_job_starter().in_flight());
     CHECK(state() == static_cast<int>(helix::JobQueueTileState::Starting));
-    CHECK(lv_obj_has_flag(button, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(button));
 
     // The printer takes another job meanwhile, which ends the start.
     set_wire_state(get_printer_state(), PrintJobState::PRINTING);
@@ -747,4 +747,40 @@ TEST_CASE_METHOD(helix::test::QueuedStartMockedFixture,
     CHECK(*pending == "0001");
     CHECK_FALSE(helix::queue::queued_job_starter().in_flight());
     CHECK(starts() == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the job queue modal's state line and empty state follow the queue",
+                 "[job_queue]") {
+    JobQueueState jqs{nullptr, nullptr};
+    helix::ScopedJobQueueSubjects subject_guard;
+    jqs.init_subjects();
+    auto* modal = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "job_queue_modal", nullptr));
+    REQUIRE(modal != nullptr);
+    auto shown = [modal](const char* name) {
+        return !lv_obj_is_hidden(lv_obj_find_by_name(modal, name));
+    };
+    auto set = [](const char* subject, int v) {
+        lv_subject_set_int(lv_xml_get_subject(nullptr, subject), v);
+    };
+
+    set("job_queue_count", 0);
+    set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Ready));
+    CHECK(shown("modal_empty_state"));
+    CHECK(shown("queue_state_label"));
+    CHECK_FALSE(shown("queue_paused_label"));
+    CHECK(shown("btn_toggle_queue"));
+    CHECK_FALSE(shown("btn_start_queue"));
+
+    set("job_queue_count", 2);
+    set("job_queue_run_state", static_cast<int>(helix::QueueRunState::Paused));
+    set("job_queue_loaded", 0); // disconnected: the count is a stale fetch's
+    CHECK(shown("modal_empty_state"));
+    set("job_queue_loaded", 1);
+    CHECK_FALSE(shown("modal_empty_state"));
+    CHECK_FALSE(shown("queue_state_label"));
+    CHECK(shown("queue_paused_label"));
+    CHECK_FALSE(shown("btn_toggle_queue"));
+    CHECK(shown("btn_start_queue"));
+    lv_obj_delete(modal);
 }

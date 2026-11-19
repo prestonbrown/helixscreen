@@ -5,14 +5,15 @@
 
 #include "ui_gradient_canvas.h"
 #include "ui_panel_print_select.h" // For PrintFileData, CardDimensions
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 #include "ui_virtual_list.h"
 
 #include "core/gcode_filename.h"
+#include "core/subject.h"
 #include "helix_fs.h"
 #include "lv_draw_buf_guard.h"
 #include "sound_manager.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "thumbnail_processor.h"
 
@@ -92,19 +93,19 @@ bool PrintSelectCardView::setup(lv_obj_t* container, FileClickCallback on_file_c
 void PrintSelectCardView::clear_cached_state() {
     stop_prebuild();
 
-    // Deinitialize subjects - this properly removes all attached observers.
-    // We use lv_subject_deinit() instead of lv_observer_remove() because
+    // Reset subjects - this properly removes all attached observers.
+    // We reset each subject instead of calling lv_observer_delete() because
     // widget-bound observers (from lv_label_bind_text, lv_obj_bind_flag_if_*)
     // can be auto-removed by LVGL when widgets are deleted, leaving dangling
     // pointers. Working from the subject side is always safe since we own them.
     if (lv_is_initialized()) {
         for (auto& data : card_data_pool_) {
             if (data) {
-                lv_subject_deinit(&data->filename_subject);
-                lv_subject_deinit(&data->time_subject);
-                lv_subject_deinit(&data->filament_subject);
-                lv_subject_deinit(&data->folder_type_subject);
-                lv_subject_deinit(&data->thumbnail_state_subject);
+                data->filename_subject.reset();
+                data->time_subject.reset();
+                data->filament_subject.reset();
+                data->folder_type_subject.reset();
+                data->thumbnail_state_subject.reset();
             }
         }
     }
@@ -281,8 +282,7 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             lv_obj_set_width(card, dims.card_width);
             lv_obj_set_height(card, dims.card_height);
             lv_obj_set_style_flex_grow(card, 0, LV_PART_MAIN);
-            lv_obj_add_flag(
-                card, LV_OBJ_FLAG_HIDDEN); // XML_HIDDEN_OK: pooled row, built once with its list
+            lv_obj_set_hidden(card, true); // XML_HIDDEN_OK: pooled row, built once with its list
 
             // Tap and hold handlers attached ONCE at pool creation.
             lv_obj_add_event_cb(card, on_card_clicked, LV_EVENT_CLICKED, this);
@@ -291,16 +291,15 @@ void PrintSelectCardView::grow_pool(size_t count, const CardDimensions& dims) {
             // Create per-card data with subjects for declarative text binding
             auto data = std::make_unique<CardWidgetData>();
 
-            lv_subject_init_string(&data->filename_subject, data->filename_buf, nullptr,
-                                   sizeof(data->filename_buf), "");
-            lv_subject_init_string(&data->time_subject, data->time_buf, nullptr,
-                                   sizeof(data->time_buf), "--");
-            lv_subject_init_string(&data->filament_subject, data->filament_buf, nullptr,
-                                   sizeof(data->filament_buf), "--");
+            data->filename_subject.init_string(data->filename_buf, nullptr,
+                                               sizeof(data->filename_buf), "");
+            data->time_subject.init_string(data->time_buf, nullptr, sizeof(data->time_buf), "--");
+            data->filament_subject.init_string(data->filament_buf, nullptr,
+                                               sizeof(data->filament_buf), "--");
             // folder_type: 0=file, 1=directory, 2=parent directory (..)
-            lv_subject_init_int(&data->folder_type_subject, 0);
+            data->folder_type_subject.init_int(0);
             // thumbnail_state: 0=real thumbnail, 1=placeholder (show icon), 2=directory
-            lv_subject_init_int(&data->thumbnail_state_subject, 1);
+            data->thumbnail_state_subject.init_int(1);
 
             lv_obj_t* filename_label = lv_obj_find_by_name(card, "filename_label");
             if (filename_label) {
@@ -382,7 +381,7 @@ void PrintSelectCardView::prebuild(const CardDimensions& dims, size_t expected_f
         return;
     }
     init_pool(dims);
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     // An unknown count is bounded by the rows one screen can show.
     const size_t files = std::min<size_t>(expected_files, 1U << 16);
@@ -418,30 +417,6 @@ void PrintSelectCardView::on_prebuild_tick(lv_timer_t* timer) {
     }
     if (self->card_pool_.size() >= self->prebuild_target_ || self->card_pool_.size() == before) {
         self->stop_prebuild();
-    }
-}
-
-void PrintSelectCardView::create_spacers() {
-    if (!container_) {
-        return;
-    }
-
-    // Leading spacer - fills space before visible cards
-    if (!leading_spacer_) {
-        leading_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(leading_spacer_);
-        lv_obj_remove_flag(leading_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(leading_spacer_, lv_pct(100));
-        lv_obj_set_height(leading_spacer_, 0);
-    }
-
-    // Trailing spacer - enables scrolling to end
-    if (!trailing_spacer_) {
-        trailing_spacer_ = lv_obj_create(container_);
-        lv_obj_remove_style_all(trailing_spacer_);
-        lv_obj_remove_flag(trailing_spacer_, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_set_width(trailing_spacer_, lv_pct(100));
-        lv_obj_set_height(trailing_spacer_, 0);
     }
 }
 
@@ -584,6 +559,7 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
     if (file.filename == "..") {
         display_name = "..";
     } else if (file.is_dir) {
+        helix::gcode::note_displayed_filename(file.filename);
         display_name = file.filename + "/";
     } else {
         display_name = strip_gcode_extension(file.filename);
@@ -611,7 +587,7 @@ void PrintSelectCardView::configure_card(lv_obj_t* card, size_t pool_index, size
     // Store file index for click handler
     lv_obj_set_user_data(card, reinterpret_cast<void*>(file_index));
 
-    lv_obj_remove_flag(card, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(card, false);
 }
 
 // ============================================================================
@@ -633,7 +609,7 @@ void PrintSelectCardView::populate(const std::vector<PrintFileData>& file_list,
     // Shared pool state on first call; cards are created by update_visible()
     init_pool(dims);
 
-    create_spacers();
+    create_spacers(container_, leading_spacer_, trailing_spacer_);
 
     cards_per_row_ = dims.num_columns;
 
@@ -674,7 +650,7 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
     if (!container_ || !pool_initialized_ || file_list.empty()) {
         for (lv_obj_t* card : card_pool_) {
             if (card) {
-                lv_obj_add_flag(card, LV_OBJ_FLAG_HIDDEN);
+                lv_obj_set_hidden(card, true);
             }
         }
         std::fill(card_pool_indices_.begin(), card_pool_indices_.end(), -1);
@@ -733,7 +709,7 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
                            file_list[static_cast<size_t>(file_idx)], dims);
         },
         [this](size_t slot) {
-            lv_obj_add_flag(card_pool_[slot], LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(card_pool_[slot], true);
 #if defined(HELIX_PLATFORM_ESP32)
             release_esp_thumbnail(card_pool_[slot], *card_data_pool_[slot]);
 #endif

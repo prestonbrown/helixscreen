@@ -9,6 +9,7 @@
 #include "../test_helpers/grid_edit_scene.h"
 #include "../test_helpers/scoped_whole_cell_def.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
 #include "config.h"
 #include "grid_edit_mode.h"
 #include "grid_layout.h"
@@ -63,6 +64,8 @@ TEST_CASE("PanelWidgetEntry::disable_and_unplace surrenders the cell with the fl
 
 TEST_CASE_METHOD(LVGLTestFixture, "GridEditMode: enter, exit and selection are tracked and guarded",
                  "[grid_edit][edit_mode][selection][catalog]") {
+    // enter() and exit() publish the navbar's edit-mode subjects; idempotent.
+    app_globals_init_subjects();
     GridEditMode em;
     REQUIRE_FALSE(em.is_active());
     REQUIRE_FALSE(em.is_catalog_open());
@@ -737,7 +740,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     const int cell = GridLayout::TRACKS_PER_CELL;
 
     lv_obj_t* container = lv_obj_create(test_screen());
-    lv_obj_remove_flag(container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(container, false);
     lv_obj_set_style_pad_all(container, 0, 0);
     lv_obj_set_style_border_width(container, 0, 0);
     lv_obj_set_size(container, 640, 400);
@@ -748,13 +751,13 @@ TEST_CASE_METHOD(XMLTestFixture,
 
     lv_obj_t* temperature_widget = lv_obj_create(container);
     lv_obj_set_name(temperature_widget, "temperature");
-    lv_obj_remove_flag(temperature_widget, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(temperature_widget, false);
     lv_obj_set_grid_cell(temperature_widget, LV_GRID_ALIGN_STRETCH, 0, 2, LV_GRID_ALIGN_STRETCH, 0,
                          2);
 
     lv_obj_t* shutdown_widget = lv_obj_create(container);
     lv_obj_set_name(shutdown_widget, "shutdown");
-    lv_obj_remove_flag(shutdown_widget, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(shutdown_widget, false);
     lv_obj_set_grid_cell(shutdown_widget, LV_GRID_ALIGN_STRETCH, 2, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
     lv_obj_update_layout(container);
 

@@ -5,7 +5,7 @@
 
 #include "ams_types.h"
 #include "bed_drying.h"
-#include "display_numbering.h"
+#include "core/tool_number_style.h"
 #include "lvgl/lvgl.h"
 #include "maintenance_meters.h"
 #include "mount_feed_sequence.h"
@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <optional>
 #include <string>
 #include <vector>
@@ -22,10 +23,9 @@
 namespace helix {
 class IMoonrakerClient;
 
-/// Jog step mode selector — defined in ui_panel_motion.h. Declared here so the
-/// jog-distance accessors can take it without pulling the motion panel's UI
-/// machinery into every settings consumer.
-enum class JogMode;
+/// Jog step mode selector. The setting stores it; the motion panel offers it.
+enum class JogMode { Fine = 0, Coarse = 1, Turbo = 2 };
+constexpr int kJogModeCount = 3;
 
 /** @brief Z movement style override (Auto=detect from kinematics, or force) */
 enum class ZMovementStyle { AUTO = 0, BED_MOVES = 1, NOZZLE_MOVES = 2 };
@@ -224,7 +224,8 @@ class SettingsManager {
 
     /** @brief Get toolhead rendering style */
     ToolheadStyle get_toolhead_style() const {
-        return static_cast<ToolheadStyle>(std::clamp(settings_.get(Key::ToolheadStyle), 0, 7));
+        return static_cast<ToolheadStyle>(
+            std::clamp(settings_.get(Key::ToolheadStyle), 0, kLastToolheadStyle));
     }
 
     /** @brief Get effective toolhead style (resolves AUTO using printer detection) */
@@ -286,6 +287,10 @@ class SettingsManager {
     // EXTRUDE/RETRACT SPEED (owned by SettingsManager — persisted)
     // =========================================================================
 
+    /// Quick choices the Filament panel offers for extrude_speed, in mm/s. Each
+    /// lies inside the setting's 1-50 range; Machine Limits sets any value in it.
+    static constexpr int kExtrudeSpeedPresets[] = {1, 2, 3, 5, 8, 10, 15, 20, 30, 50};
+
     /** @brief Get extrude/retract speed in mm/s (default 5, range 1-50) */
     int get_extrude_speed() const {
         return settings_.get(Key::ExtrudeSpeed);
@@ -296,9 +301,50 @@ class SettingsManager {
         settings_.set(Key::ExtrudeSpeed, mm_per_sec);
     }
 
+    /// Shipped extrude speed in mm/s.
+    int get_extrude_speed_default() const {
+        return settings_.default_of(Key::ExtrudeSpeed);
+    }
+
+    /// Sets extrude_speed to kExtrudeSpeedPresets[@p index]; an index outside the
+    /// list changes nothing.
+    void set_extrude_speed_preset(uint32_t index) {
+        if (index < std::size(kExtrudeSpeedPresets)) {
+            set_extrude_speed(kExtrudeSpeedPresets[index]);
+        }
+    }
+
     /** @brief Extrude speed subject (integer: mm/s) for UI binding */
     lv_subject_t* subject_extrude_speed() {
         return settings_.subject(Key::ExtrudeSpeed);
+    }
+
+    // =========================================================================
+    // EXTRUDE/RETRACT LENGTH PRESETS (persisted per-printer)
+    // =========================================================================
+
+    /// The Filament panel's three length buttons, each a persisted length in mm
+    /// (defaults 5, 10, 25). XML binds their labels to settings_extrude_length_<i>.
+    static constexpr int kExtrudeLengthPresetCount = 3;
+    static constexpr int kExtrudeLengthMinMm = 1;
+    static constexpr int kExtrudeLengthMaxMm = 500;
+
+    /// Length of preset button @p index in mm; an index outside the presets reads 0.
+    int get_extrude_length_preset(int index) const {
+        return extrude_length_key(index) ? settings_.get(*extrude_length_key(index)) : 0;
+    }
+
+    /// Shipped length of preset button @p index in mm; an index outside the presets reads 0.
+    int get_extrude_length_default(int index) const {
+        return extrude_length_key(index) ? settings_.default_of(*extrude_length_key(index)) : 0;
+    }
+
+    /// Sets preset button @p index to @p mm (clamped to kExtrudeLengthMinMm..MaxMm,
+    /// persisted); an index outside the presets changes nothing.
+    void set_extrude_length_preset(int index, int mm) {
+        if (const auto key = extrude_length_key(index)) {
+            settings_.set(*key, mm);
+        }
     }
 
     // =========================================================================
@@ -323,6 +369,11 @@ class SettingsManager {
     /** @brief Set Z jog feedrate in mm/min (clamped 60-60000, persisted) */
     void set_jog_speed_z(int mm_per_min) {
         settings_.set(Key::JogSpeedZ, mm_per_min);
+    }
+
+    /// Shipped jog feedrate in mm/min, Z's when @p z.
+    int get_jog_speed_default(bool z) const {
+        return settings_.default_of(z ? Key::JogSpeedZ : Key::JogSpeedXy);
     }
 
     /** @brief Get whether the motion readout shows actual (live) position
@@ -352,6 +403,11 @@ class SettingsManager {
         settings_.set(Key::BedMapClearance, mm);
     }
 
+    /// Shipped Bed-tab clearance height in mm.
+    int get_bed_map_clearance_default_mm() const {
+        return settings_.default_of(Key::BedMapClearance);
+    }
+
     /** @brief Motion panel Jog-tab layout (default Pad) */
     MotionLayout get_motion_layout() const {
         return static_cast<MotionLayout>(settings_.get(Key::MotionLayout));
@@ -377,6 +433,9 @@ class SettingsManager {
 
     /** @brief Set the jog step distance in mm (clamped 0.01-200, persisted) */
     void set_jog_distance(JogMode mode, bool outer, float mm);
+
+    /** @brief Shipped jog step distance in mm for a mode and ring */
+    static float get_jog_distance_default(JogMode mode, bool outer);
 
     /**
      * @brief Re-read every persisted setting and the jog distance cache from Config.
@@ -704,6 +763,44 @@ class SettingsManager {
         return settings_.subject(Key::FilamentAutoOpenEditor);
     }
 
+    /**
+     * @brief Whether a material preset heats the bed and chamber along with the nozzle.
+     *
+     * Default true. Per-printer setting. Off, every material preset (the
+     * Filament panel's, the Home preheat tile's, the temperature graph's)
+     * heats the nozzle alone. helix::presets::heater_targets() reads it.
+     */
+    bool get_material_presets_heat_bed_and_chamber() const {
+        return settings_.get_bool(Key::MaterialPresetsHeatBedAndChamber);
+    }
+
+    /** @brief Set whether material presets heat the bed and chamber */
+    void set_material_presets_heat_bed_and_chamber(bool enabled) {
+        settings_.set(Key::MaterialPresetsHeatBedAndChamber, enabled);
+    }
+
+    /** @brief Presets-heat-bed-and-chamber subject (integer: 0=off, 1=on) */
+    lv_subject_t* subject_material_presets_heat_bed_and_chamber() {
+        return settings_.subject(Key::MaterialPresetsHeatBedAndChamber);
+    }
+
+    /**
+     * @brief Show filament positions counted from 0 rather than 1.
+     *
+     * Default false. Per-printer setting. Display only; helix::ui::lane_number() reads it.
+     */
+    bool get_number_lanes_from_zero() const {
+        return settings_.get_bool(Key::NumberLanesFromZero);
+    }
+
+    /** @brief Set whether filament positions count from 0 */
+    void set_number_lanes_from_zero(bool enabled);
+
+    /** @brief Number-lanes-from-zero subject (integer: 0=off, 1=on) */
+    lv_subject_t* subject_number_lanes_from_zero() {
+        return settings_.subject(Key::NumberLanesFromZero);
+    }
+
     // =========================================================================
     // CONSOLE FILTERS (owned by SettingsManager — gcode console noise toggles)
     // =========================================================================
@@ -833,6 +930,16 @@ class SettingsManager {
     void mark_detection_seeded();
 
     /**
+     * @brief Whether the printer's own detection switch has been read into the
+     *        setting once. Until then the first read adopts the printer's value
+     *        instead of overriding it; afterwards the setting drives the printer.
+     */
+    bool is_detection_switch_adopted() const;
+
+    /** @brief Mark the printer's detection switch as adopted (one-time) */
+    void mark_detection_switch_adopted();
+
+    /**
      * @brief Get per-source policy for the Snapmaker U1 built-in detector
      *        0=Off, 1=NotifyOnly, 2=DeferToSource (default)
      */
@@ -884,6 +991,63 @@ class SettingsManager {
     }
 
     // =========================================================================
+    // TEMPERATURE GRAPH
+    // =========================================================================
+
+    /** @brief Whether the temperature graph shows MCU temperatures (default false) */
+    bool get_temp_graph_show_mcu() const {
+        return settings_.get_bool(Key::TempGraphShowMcu);
+    }
+
+    /** @brief Set whether the temperature graph shows MCU temperatures (persisted) */
+    void set_temp_graph_show_mcu(bool show) {
+        settings_.set(Key::TempGraphShowMcu, show);
+    }
+
+    /** @brief Whether the temperature graph shows host temperatures (default false) */
+    bool get_temp_graph_show_host() const {
+        return settings_.get_bool(Key::TempGraphShowHost);
+    }
+
+    /** @brief Set whether the temperature graph shows host temperatures (persisted) */
+    void set_temp_graph_show_host(bool show) {
+        settings_.set(Key::TempGraphShowHost, show);
+    }
+
+    /** @brief Whether the temperature graph shows stepper driver temperatures (default false) */
+    bool get_temp_graph_show_drivers() const {
+        return settings_.get_bool(Key::TempGraphShowDrivers);
+    }
+
+    /** @brief Set whether the temperature graph shows stepper driver temperatures (persisted) */
+    void set_temp_graph_show_drivers(bool show) {
+        settings_.set(Key::TempGraphShowDrivers, show);
+    }
+
+    // =========================================================================
+    // HOST TERMINAL
+    // =========================================================================
+
+    /// Whether Advanced offers the Host Terminal row (default false, #1573).
+    bool get_host_terminal_enabled() const {
+        return settings_.get_bool(Key::HostTerminalEnabled);
+    }
+    void set_host_terminal_enabled(bool enabled) {
+        settings_.set(Key::HostTerminalEnabled, enabled);
+    }
+    lv_subject_t* subject_host_terminal_enabled() {
+        return settings_.subject(Key::HostTerminalEnabled);
+    }
+
+    /// Whether the terminal's first-open warning was acknowledged (default false).
+    bool get_host_terminal_warning_seen() const {
+        return settings_.get_bool(Key::HostTerminalWarningSeen);
+    }
+    void set_host_terminal_warning_seen(bool seen) {
+        settings_.set(Key::HostTerminalWarningSeen, seen);
+    }
+
+    // =========================================================================
     // BARCODE SCANNER (owned by SettingsManager — manual device selection)
     // =========================================================================
 
@@ -932,6 +1096,9 @@ class SettingsManager {
         ZMovementStyle,
         EnclosureStyle,
         ExtrudeSpeed,
+        ExtrudeLength0,
+        ExtrudeLength1,
+        ExtrudeLength2,
         JogSpeedXy,
         JogSpeedZ,
         MotionShowActualPosition,
@@ -952,6 +1119,8 @@ class SettingsManager {
         AmsForceBypassControls,
         FilamentAutoCooldown,
         FilamentAutoOpenEditor,
+        MaterialPresetsHeatBedAndChamber,
+        NumberLanesFromZero,
         ConsoleFilterTemps,
         ConsoleFilterFirmwareNoise,
         DetectionEnabled,
@@ -959,9 +1128,21 @@ class SettingsManager {
         DetectionPolicyU1,
         ZOffsetSaveMode,
         BeltLayout,
+        TempGraphShowMcu,
+        TempGraphShowHost,
+        TempGraphShowDrivers,
+        HostTerminalEnabled,
+        HostTerminalWarningSeen,
         COUNT
     };
     settings::PersistedSettings<Key, static_cast<size_t>(Key::COUNT)> settings_;
+
+    static constexpr std::optional<Key> extrude_length_key(int index) {
+        if (index < 0 || index >= kExtrudeLengthPresetCount) {
+            return std::nullopt;
+        }
+        return static_cast<Key>(static_cast<int>(Key::ExtrudeLength0) + index);
+    }
 
     // Jog step distances in mm, [static_cast<int>(JogMode)][outer]. Cached
     // config values rather than subjects: read on every jog, not widget-bound.

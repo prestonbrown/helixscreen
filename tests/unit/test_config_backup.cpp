@@ -1,14 +1,19 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "app_constants.h"
 #include "config_backup.h"
 #include "core/text_io.h"
 
+#include <spdlog/sinks/ringbuffer_sink.h>
+#include <spdlog/spdlog.h>
+
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <string>
 #include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
@@ -181,6 +186,30 @@ TEST_CASE("write_rolling_backup handles both paths failing gracefully", "[config
 
     REQUIRE_FALSE(fs::exists(dir.file("a")));
     REQUIRE_FALSE(fs::exists(dir.file("b")));
+}
+
+TEST_CASE("write_rolling_backup warns only when an existing source could not be saved",
+          "[config_backup]") {
+    TmpDir dir("rolling_warn");
+    auto sink = std::make_shared<spdlog::sinks::ringbuffer_sink_mt>(8);
+    sink->set_level(spdlog::level::warn);
+    auto attached = std::make_unique<helix::ScopedLogSink>(sink);
+
+    // helixscreen.env is optional, so a config without one has nothing to protect.
+    write_rolling_backup(dir.file("absent.env"), dir.file("a"), dir.file("b"));
+    const bool absent_source_silent = sink->last_formatted().empty();
+
+    // A plain file as the parent directory defeats both tiers for a real source.
+    const std::string src = dir.file("present.env");
+    write_file(src, "HELIX=1");
+    write_file(dir.file("blocker"), "");
+    write_rolling_backup(src, dir.file("blocker/a"), dir.file("blocker/b"));
+    const auto logged = sink->last_formatted();
+
+    attached.reset();
+    CHECK(absent_source_silent);
+    REQUIRE(logged.size() == 1);
+    CHECK(logged[0].find("failed at both") != std::string::npos);
 }
 
 // ─── find_backup ──────────────────────────────────────────────────────────────

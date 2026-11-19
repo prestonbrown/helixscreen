@@ -25,6 +25,7 @@
 #include "../ui_test_utils.h"
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "core/observer_factory.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -922,8 +923,17 @@ TEST_CASE_METHOD(AbortManagerTestFixture,
                  "AbortManager: Progress messages update during state machine",
                  "[abort][progress][ui]") {
     SECTION("Initial message on start") {
+        // The modal's label redraws only on a notification of the subject.
+        AbortManager::instance().init_subjects();
+        int notes = 0;
+        ObserverGuard guard = helix::ui::observe<const char*>(
+            AbortManager::instance().get_progress_message_subject(), &notes,
+            [](int* n, const char*) { ++*n; }, subject_never_freed(),
+            helix::ui::Dispatch::Immediate);
+        notes = 0;
         AbortManager::instance().start_abort();
         REQUIRE_FALSE(AbortManager::instance().get_progress_message().empty());
+        CHECK(notes > 0);
     }
 
     SECTION("Message changes during escalation") {
@@ -1020,7 +1030,7 @@ TEST_CASE_METHOD(AbortManagerTestFixture, "AbortManager: State subject updates d
             static_cast<int>(AbortManager::State::PROBE_QUEUE));
 
     // Remove observer before callback_count goes out of scope
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================

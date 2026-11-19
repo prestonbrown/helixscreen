@@ -26,7 +26,7 @@ Running HelixScreen on a K1 SE? Report what works and what does not in a [new is
 | Storage | 8 GB eMMC |
 | Display | 480x800 portrait, 32bpp ARGB8888, fbdev (`/dev/fb0`) |
 | Stock UI | `/usr/bin/display-server` (must be stopped to use framebuffer) |
-| OS | Creality OS (Buildroot 2020.02.1), Linux 5.4.x |
+| OS | Creality OS (Buildroot 2020.02.1), Linux 4.4.94 |
 | glibc | 2.29 (important for ABI compatibility) |
 | Python | 3.8.2 |
 | Init System | SysV init (NOT systemd, NOT procd) |
@@ -109,8 +109,8 @@ The K1 target uses MIPS32r2 with fully static musl linking. There is also an adv
 ### Build via Docker (Recommended)
 
 ```bash
-# Static build — single self-contained binary (recommended)
-make k1-docker
+# Static build: the unified mips binary (K1 series, AD5X, Creator 5); k1-docker is an alias
+make mips-docker
 
 # Dynamic build — links against K1's glibc 2.29 (advanced)
 make k1-dynamic-docker
@@ -119,18 +119,18 @@ make k1-dynamic-docker
 ### Build Directly (Requires Toolchain)
 
 ```bash
-make PLATFORM_TARGET=k1 -j           # Static (musl)
-make PLATFORM_TARGET=k1-dynamic -j   # Dynamic (glibc)
+make mips                           # Static (musl); `k1` and `ad5x` are aliases
+make PLATFORM_TARGET=k1-dynamic     # Dynamic (glibc)
 ```
 
 ### Build Configuration
 
-#### Static Build (PLATFORM_TARGET=k1) — Recommended
+#### Static Build (PLATFORM_TARGET=mips), recommended
 
 | Setting | Value |
 |---------|-------|
-| Toolchain | Bootlin mips32el-musl-stable-2024.02-1 |
-| Architecture | MIPS32r2 (little-endian, hard-float) |
+| Toolchain | crosstool-NG musl (`helixscreen/toolchain-mips`: GCC 13.2, musl 1.2.4) |
+| Architecture | MIPS32r2 little-endian, `-mnan=2008 -mfp64` (the encoding the K1 and AD5X kernels both exec) |
 | Linking | Fully static (musl) |
 | Optimization | `-Os` with LTO (size-optimized) |
 | Display backend | fbdev (`/dev/fb0`) |
@@ -155,7 +155,7 @@ The static build is recommended for its simplicity — no ABI compatibility conc
 The K1 target is included in the GitHub Actions release pipeline. Release artifacts are built automatically:
 
 ```bash
-# Manual packaging
+# Manual packaging (same package as package-mips)
 make package-k1
 ```
 
@@ -172,7 +172,7 @@ make package-k1
 
 ```bash
 # SSH into the printer, then:
-wget -O - https://dl.helixscreen.org/install.sh | sh
+wget -O - http://dl.helixscreen.org/install.sh | sh
 ```
 
 Or with a local package:
@@ -229,7 +229,7 @@ This lasts until the next boot. `config/helixscreen.init` calls `platform_stop_c
 
 ## Platform Hooks
 
-Platform hooks are in `config/platform/hooks-k1.sh`. Key behaviors:
+Platform hooks are in `assets/config/platform/hooks-k1.sh`. Key behaviors:
 
 ### Stock UI Shutdown
 
@@ -237,7 +237,7 @@ The stock K1 UI is managed by `/etc/init.d/S99start_app`, which launches `displa
 
 1. Stop `S99start_app` via its init script
 2. `chmod a-x` the init script to prevent reboot respawn (reversible)
-3. Kill only the lingering framebuffer contenders (`Monitor` first, then `display-server`)
+3. Kill only the lingering framebuffer contenders (`Monitor` first, then `display-server`); `boot_display` is killed unconditionally, since SimpleAF removes `S99start_app` but leaves `S12boot_display`
 
 Only `display-server`, `Monitor` and `boot_display` contend for the framebuffer. The backend servers (`master-server`, `app-server`, `web-server`) are what Creality Print and the Creality Cloud app talk to, so the hooks spare them and the installer deploys `/etc/init.d/S99creality-backend` (`config/creality-backend.init` in the repo) to start the trio at boot ([#1468](https://github.com/prestonbrown/helixscreen/issues/1468)). `Monitor` dies before `display-server` because it is a watchdog that respawns `display-server`. Uninstall removes the backend init script and re-enables `S99start_app`, so the whole stock stack returns.
 
@@ -246,18 +246,22 @@ Only `display-server`, `Monitor` and `boot_display` contend for the framebuffer.
 **Critical**: `S99start_app` also manages dropbear (SSH) on stock firmware. Disabling it would kill SSH on next reboot. The hooks detect this and:
 
 1. Check if dropbear is running after disabling S99start_app
-2. If not, start dropbear directly
+2. If not, try any existing `S*dropbear*` init script, then start the dropbear binary directly
 3. Create `/etc/init.d/S50dropbear` for future boot persistence
+
+Each launch logs dropbear's state to `helixscreen-ssh.log` in Moonraker's logs folder
+(`/usr/data/printer_data/logs`, else `/usr/data/helixscreen-state/logs`), so a user with no
+shell can download it.
 
 ### Cache Directory
 
-Sets `HELIX_CACHE_DIR=/usr/data/helixscreen/cache` since `/usr/data/` is the writable partition.
+Sets `HELIX_CACHE_DIR=/usr/data/helixscreen-state/cache`: `/usr/data/` is the writable partition, and the cache stays outside the install root that an update replaces. It also sets `HELIX_IMAGE_CACHE_KB=2048` (thumbnail decode cache, measured on a K1C).
 
 ## Display Backend
 
 HelixScreen renders directly to `/dev/fb0`. The framebuffer is 480x800 portrait (virtual size 480x1600 for double-buffering). Software rotation to landscape yields an effective resolution of 800x480.
 
-The K1, K1C and K1 Max mount that panel the same way, so a first boot applies 270° from the board's known-panel entry (`src/application/display_metrics.cpp#kKnownPanels`) and saves it, without the interactive rotation probe. It applies only on a 480x800 framebuffer: Board::K1 is also what any unrecognised mips box resolves to, and those keep the probe. The k1/k1c presets carry no rotation of their own. An explicit `/display/rotate`, `--rotate` or `HELIX_DISPLAY_ROTATION` still wins, and `HELIX_FORCE_ROTATION_PROBE=1` brings the probe back.
+The K1, K1C and K1 Max mount that panel the same way, so a first boot applies 270° from the board's known-panel entry (`src/application/display_metrics.cpp#"kKnownPanels[]"`) and saves it, without the interactive rotation probe. It applies only on a 480x800 framebuffer: Board::K1 is also what any unrecognised mips box resolves to, and those keep the probe. The k1/k1c presets carry no rotation of their own. An explicit `/display/rotate`, `--rotate` or `HELIX_DISPLAY_ROTATION` still wins, and `HELIX_FORCE_ROTATION_PROBE=1` brings the probe back.
 
 ## Touch Input
 
@@ -265,29 +269,30 @@ HelixScreen uses evdev and auto-detects the capacitive touch controller. Running
 
 ## Auto-Detection
 
-HelixScreen auto-detects K1 printers using heuristics from `config/printer_database.json`:
+HelixScreen auto-detects K1 printers using heuristics from `assets/config/printer_database.json`:
 
 | Heuristic | Confidence | Description |
 |-----------|------------|-------------|
-| Hostname contains `k1` | 80 | Unique to K1 series |
-| Hostname contains `creality` | 60 | Brand indicator |
-| Chamber fan object | 75 | K1-exclusive feature |
+| Hostname `k1c` | 95 | K1C entry |
+| Hostname `k1-max` / `k1max` | 90 | K1 Max entry |
+| Hostname contains `k1` | 80 | K1 entry, which excludes the `k1c`, `k1-max`, `k1max`, `k1se`, `k1-se` hostnames |
+| Chamber fan object | 75-80 | `fan chamber_fan` / `temperature_fan chamber_fan` |
 | Chamber temp sensor | 70 | Enclosed printer signature |
+| Build volume 280-320 mm | 70 | K1 Max |
+| Hostname contains `creality` | 60 | Brand indicator |
+| `camera` object | 60 | K1 Max |
+| Build volume 200-230 mm | 50 | K1 |
 | CoreXY kinematics | 40 | Common in several printers |
-| Build volume ~220mm | 50 | K1/K1C standard |
-| Build volume ~300mm | 70 | K1 Max |
-| AI camera object | 60 | K1 Max distinctive |
+| MCU `STM32H723` | 35 | K1-family mainboard |
+
+The `_cfs` entries (`creality_k1_cfs`, `creality_k1_max_cfs`, `creality_k1c_cfs`) add the CFS
+`box` object to the same signals, and `creality_k1_se` has its own entry.
 
 ### Print Start Profile
 
-All K1 models use the `creality_k1` print start profile:
-
-```json
-{
-  "macro_name": "START_PRINT",
-  "pre_start_gcode": "PRINT_PREPARED"
-}
-```
+All K1 models use the `creality_k1` print start profile
+(`assets/config/print_start_profiles/creality_k1.json`). Their database entries' `pre_print_options`
+name `START_PRINT` as the macro and send `PRINT_PREPARED` as its `setup_gcode`.
 
 ## Klipper Configuration
 
@@ -407,18 +412,14 @@ public CrealityOfficial source does not contain it, and we have not checked its 
 
 ## Sound
 
-The board has an ALSA codec (`card 0: icodecsoundcard`, `/dev/snd/pcmC0D0p`) and the
-rootfs ships alsa-utils, but the static musl binary links no libasound and cannot dlopen
-the device's `libasound.so.2`. The `mips` build therefore reaches the card through the PCM
-pipe backend: a child `/usr/bin/aplay -t raw -f S16_LE -c 1 -r 44100 -` per sound burst,
-fed from the same in-process synthesis the Pi's ALSA backend uses
-(`docs/devel/SOUND_SYSTEM.md` § Backend Auto-Detection). The Settings > Sound row appears
-only when `aplay` is executable and a playback node exists under `/dev/snd`;
-`HELIX_PCM_PLAYER` names another player or disables the backend. Klipper on the K1 has no
-`M300` handler, so forcing the speaker capability override on is not a substitute.
-
-`aplay` and the card were confirmed by hand on a K1 Max ([#1895](https://github.com/prestonbrown/helixscreen/issues/1895));
-the backend itself has not yet run on a printer.
+The K1 series has no speaker. The board has an ALSA codec (`card 0: icodecsoundcard`,
+`/dev/snd/pcmC0D0p`), and ALSA opens and accepts samples, but nothing is audible
+([#1895](https://github.com/prestonbrown/helixscreen/issues/1895)). The MIPS and K1 builds
+link no ALSA backend: the static musl binary has no libasound. The only sound path they carry
+is the PCM pipe backend (a child `aplay` per sound burst, `docs/devel/SOUND_SYSTEM.md`
+§ Backend Auto-Detection), which probes an executable `aplay` and a playback node under
+`/dev/snd`; `HELIX_PCM_PLAYER` names another player or disables it. Klipper on the K1 has no
+`M300` handler either.
 
 ## Known Limitations
 

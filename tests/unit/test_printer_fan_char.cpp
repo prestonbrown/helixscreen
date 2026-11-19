@@ -40,15 +40,20 @@ using namespace helix;
 using json = nlohmann::json;
 using helix::FanType;
 
+static PrinterState& fresh_printer_state() {
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    return state;
+}
+
 namespace {
 
 /// The process-wide PrinterState, reset and with its subjects initialised
 /// without XML registration.
 PrinterState& fresh_state() {
     lv_init_safe();
-    PrinterState& state = get_printer_state();
-    PrinterStateTestAccess::reset(state);
-    state.init_subjects(false);
+    PrinterState& state = fresh_printer_state();
     return state;
 }
 
@@ -176,6 +181,98 @@ TEST_CASE("Fan characterization: a status speed becomes a percent on the fan's s
     }
 }
 
+TEST_CASE("Main fan speed returns to the bare fan when the active tool names no fan",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+    fans.init_fans({"fan", "fan_generic T1_part_fan"});
+    // Both fans steady: a differential feed reports neither again.
+    state.update_from_status(
+        {{"fan", {{"speed", 0.3}}}, {"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject()) == 30);
+
+    fans.set_active_tool_fans("extruder1", "T1_part_fan");
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject()) == 80);
+
+    // T0 names no fan of its own, so the main speed reads the bare [fan] again.
+    fans.set_active_tool_fans("extruder", "");
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 30);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
+TEST_CASE("Main fan speed ignores the bare fan while the active tool has its own part fan",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+    fans.init_fans({"fan", "fan_generic T1_part_fan"});
+    fans.set_active_tool_fans("extruder1", "T1_part_fan");
+
+    SECTION("bare fan reported after the tool fan") {
+        state.update_from_status({{"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+        state.update_from_status({{"fan", {{"speed", 0.2}}}});
+    }
+    SECTION("bare fan reported before the tool fan") {
+        state.update_from_status({{"fan", {{"speed", 0.2}}}});
+        state.update_from_status({{"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    }
+    SECTION("both in one frame") {
+        state.update_from_status(
+            {{"fan", {{"speed", 0.2}}}, {"fan_generic T1_part_fan", {{"speed", 0.8}}}});
+    }
+
+    // The bare fan's reading arrived; only the main speed leaves it out.
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject("fan")) == 20);
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 80);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
+TEST_CASE("Main fan speed follows the active tool's part fan over the configured one",
+          "[fan][fan_state][tool_state]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+
+    // The wizard left the part role on T0's fan; T1 is mounted. fan_generic
+    // fans report "speed", output_pin fans report "value".
+    struct Kind {
+        const char* t0;
+        const char* t1;
+        const char* field;
+    };
+    const Kind kind = GENERATE(Kind{"fan_generic T0_part_fan", "fan_generic T1_part_fan", "speed"},
+                               Kind{"output_pin fan0", "output_pin fan1", "value"});
+    CAPTURE(kind.t1);
+    FanRoleConfig roles;
+    roles.part_fan = kind.t0;
+    fans.init_fans({kind.t0, kind.t1}, roles);
+    fans.set_active_tool_fans("extruder1", kind.t1);
+
+    state.update_from_status({{kind.t1, {{kind.field, 0.6}}}});
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 60);
+
+    state.update_from_status({{kind.t0, {{kind.field, 0.3}}}});
+    REQUIRE(lv_subject_get_int(fans.get_fan_speed_subject(kind.t0)) == 30);
+    CHECK(lv_subject_get_int(fans.get_fan_speed_subject()) == 60);
+
+    fans.set_active_tool_fans("", "");
+    fans.init_fans({});
+}
+
 TEST_CASE("Fan characterization: each fan keeps its own speed, and the part fan turns off",
           "[characterization][fan][update][per-fan]") {
     PrinterState& state = fresh_state();
@@ -278,7 +375,7 @@ TEST_CASE("Fan characterization: observer fires when fan_speed changes",
     REQUIRE(user_data[0] >= 2); // At least one more notification
     REQUIRE(user_data[1] == 75);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("Fan characterization: observer fires on per-fan subject change",
@@ -313,7 +410,7 @@ TEST_CASE("Fan characterization: observer fires on per-fan subject change",
     REQUIRE(user_data[0] >= 2);
     REQUIRE(user_data[1] == 50);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
@@ -349,7 +446,7 @@ TEST_CASE("Fan characterization: fans_version observer fires on init_fans",
     REQUIRE(user_data[0] >= 3);
     REQUIRE(user_data[1] == 2);
 
-    lv_observer_remove(observer);
+    lv_observer_delete(observer);
 }
 
 // ============================================================================
@@ -562,8 +659,8 @@ TEST_CASE("Fan characterization: observers on different fan subjects are indepen
     REQUIRE(main_count >= 2);
     REQUIRE(per_fan_count >= 2);
 
-    lv_observer_remove(main_observer);
-    lv_observer_remove(per_fan_observer);
+    lv_observer_delete(main_observer);
+    lv_observer_delete(per_fan_observer);
 }
 
 // ============================================================================
@@ -1071,19 +1168,20 @@ TEST_CASE("Fan characterization: fan_feedback RPM updates",
     PrinterState& state = fresh_state();
 
     state.fan_state().init_fans({"output_pin fan0", "output_pin fan1", "output_pin fan2"});
+    // The slot-to-fan map comes from the printer's config (test_fan_tachometers.cpp);
+    // here it is given so only the routing is under test.
+    state.fan_state().set_tachometers({{"fan_feedback", "fan2_speed", "output_pin fan0"},
+                                       {"fan_feedback", "fan0_speed", "output_pin fan1"}});
 
-    SECTION("fan_feedback maps fanN_speed to output_pin fanN rpm") {
+    SECTION("fan_feedback fields land on the fans the map names") {
         json status = {
             {"fan_feedback", {{"fan0_speed", 16000}, {"fan1_speed", 3692}, {"fan2_speed", 0}}}};
         state.update_from_status(status);
 
         const auto& fans = state.fan_state().get_fans();
-        REQUIRE(fans[0].rpm.has_value());
-        REQUIRE(fans[0].rpm.value() == 16000);
-        REQUIRE(fans[1].rpm.has_value());
-        REQUIRE(fans[1].rpm.value() == 3692);
-        REQUIRE(fans[2].rpm.has_value());
-        REQUIRE(fans[2].rpm.value() == 0);
+        REQUIRE(fans[0].rpm == std::optional<int>(0));
+        REQUIRE(fans[1].rpm == std::optional<int>(16000));
+        REQUIRE_FALSE(fans[2].rpm.has_value());
     }
 
     SECTION("fan_feedback for unknown fanN is ignored") {
@@ -1095,11 +1193,113 @@ TEST_CASE("Fan characterization: fan_feedback RPM updates",
     }
 
     SECTION("fan_feedback with non-numeric value is ignored") {
-        json status = {{"fan_feedback", {{"fan0_speed", nullptr}}}};
+        json status = {{"fan_feedback", {{"fan2_speed", nullptr}}}};
         state.update_from_status(status);
 
         const auto& fans = state.fan_state().get_fans();
         REQUIRE_FALSE(fans[0].rpm.has_value());
+    }
+}
+
+TEST_CASE("Fan characterization: Klipper rpm field on tachometer fans (#2071)",
+          "[characterization][fan][update][rpm]") {
+    lv_init_safe();
+
+    PrinterState& state = fresh_printer_state();
+
+    state.fan_state().init_fans({"fan", "heater_fan hotend_fan", "fan_generic aux",
+                                 "controller_fan board_fan", "temperature_fan chamber"});
+
+    const auto& fans = state.fan_state().get_fans();
+
+    SECTION("every speed-reporting fan type reads rpm, rounded to an integer") {
+        state.update_from_status({{"fan", {{"speed", 0.5}, {"rpm", 4200.4}}},
+                                  {"heater_fan hotend_fan", {{"speed", 1.0}, {"rpm", 7800.6}}},
+                                  {"fan_generic aux", {{"speed", 0.3}, {"rpm", 1500.0}}},
+                                  {"controller_fan board_fan", {{"speed", 1.0}, {"rpm", 3000.0}}},
+                                  {"temperature_fan chamber", {{"speed", 0.2}, {"rpm", 900.0}}}});
+
+        REQUIRE(fans[0].rpm == std::optional<int>(4200));
+        REQUIRE(fans[1].rpm == std::optional<int>(7801));
+        REQUIRE(fans[2].rpm == std::optional<int>(1500));
+        REQUIRE(fans[3].rpm == std::optional<int>(3000));
+        REQUIRE(fans[4].rpm == std::optional<int>(900));
+    }
+
+    SECTION("rpm arrives in an update without speed") {
+        state.update_from_status({{"heater_fan hotend_fan", {{"rpm", 6000.0}}}});
+        REQUIRE(fans[1].rpm == std::optional<int>(6000));
+    }
+
+    SECTION("a fan with no tachometer reports rpm null: no reading, never 0") {
+        state.update_from_status({{"fan", {{"speed", 0.5}, {"rpm", nullptr}}}});
+        REQUIRE_FALSE(fans[0].rpm.has_value());
+    }
+
+    SECTION("a stopped tachometer fan reads 0, not no reading") {
+        state.update_from_status({{"fan", {{"speed", 0.0}, {"rpm", 0.0}}}});
+        REQUIRE(fans[0].rpm == std::optional<int>(0));
+    }
+
+    SECTION("an update without rpm keeps the last known value") {
+        state.update_from_status({{"fan", {{"speed", 0.5}, {"rpm", 4200.0}}},
+                                  {"heater_fan hotend_fan", {{"rpm", 7000.0}}}});
+        state.update_from_status(
+            {{"fan", {{"speed", 0.6}}}, {"heater_fan hotend_fan", {{"speed", 1.0}}}});
+        REQUIRE(fans[0].rpm == std::optional<int>(4200));
+        REQUIRE(fans[1].rpm == std::optional<int>(7000));
+    }
+
+    SECTION("rpm null after a reading clears it") {
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        state.update_from_status({{"fan", {{"rpm", nullptr}}}});
+        REQUIRE_FALSE(fans[0].rpm.has_value());
+    }
+
+    SECTION("fan_rpm_version ticks only when a reading changes") {
+        lv_subject_t* ver = state.fan_state().get_fan_rpm_version_subject();
+        const int v0 = lv_subject_get_int(ver);
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 1);
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 1);
+        state.update_from_status({{"fan", {{"rpm", nullptr}}}});
+        CHECK(lv_subject_get_int(ver) == v0 + 2);
+    }
+
+    SECTION("a non-numeric rpm is ignored") {
+        state.update_from_status({{"fan", {{"rpm", 4200.0}}}});
+        state.update_from_status({{"fan", {{"rpm", "fast"}}}});
+        REQUIRE(fans[0].rpm == std::optional<int>(4200));
+    }
+}
+
+TEST_CASE("Fan characterization: fan_feedback and Klipper rpm on one printer (#2071)",
+          "[characterization][fan][update][rpm][fan_feedback]") {
+    lv_init_safe();
+
+    PrinterState& state = fresh_printer_state();
+
+    state.fan_state().init_fans(
+        {"output_pin fan0", "heater_fan hotend_fan", "heater_fan chamber_fan"});
+    state.fan_state().set_tachometers({{"fan_feedback", "fan2_speed", "output_pin fan0"},
+                                       {"fan_feedback", "fan0_speed", "heater_fan chamber_fan"}});
+    const auto& fans = state.fan_state().get_fans();
+
+    // The tachometer map owns the fans it names; Klipper's rpm reaches only the fan
+    // objects that publish it, so neither source overwrites the other.
+    state.update_from_status({{"fan_feedback", {{"fan2_speed", 16000}, {"fan0_speed", 2400}}},
+                              {"output_pin fan0", {{"value", 1.0}, {"rpm", 5.0}}},
+                              {"heater_fan hotend_fan", {{"speed", 1.0}, {"rpm", 7000.0}}}});
+
+    REQUIRE(fans[0].rpm == std::optional<int>(16000));
+    REQUIRE(fans[1].rpm == std::optional<int>(7000));
+    REQUIRE(fans[2].rpm == std::optional<int>(2400));
+
+    SECTION("the fan object's own null rpm does not erase a tachometer reading") {
+        // Klipper publishes rpm null for a heater_fan without a tachometer_pin.
+        state.update_from_status({{"heater_fan chamber_fan", {{"speed", 1.0}, {"rpm", nullptr}}}});
+        REQUIRE(fans[2].rpm == std::optional<int>(2400));
     }
 }
 

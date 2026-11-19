@@ -61,7 +61,7 @@ F=filament-runout simulation.
 | Flag | Effect |
 |------|--------|
 | `-w`, `--wizard` | Force the first-run configuration wizard |
-| `--wizard-step <step>` | Jump to a specific wizard step (0-14) for testing |
+| `--wizard-step <step>` | Jump to a specific wizard step (0-15) for testing |
 
 `--wizard` is **destructive to wizard-managed config** — it is meant to fully re-run setup, not just re-open it. On startup with `--wizard`, the app clears all wizard-managed state in `settings.json` so a stale or wrong install-time seed is recoverable:
 
@@ -321,9 +321,8 @@ Key points for UI contributors:
 
 | Path | Contents |
 |------|----------|
-| `ui_xml/` | All XML layouts (230+ files) |
+| `ui_xml/` | All top-level XML layouts |
 | `ui_xml/components/` | Reusable XML components |
-| `ui_xml/ultrawide/` | Ultrawide layout overrides |
 | `ui_xml/globals.xml` | Design tokens and global variables (shared, never override) |
 | `assets/config/themes/defaults/` | Shipped theme JSON files (color palettes). `config/themes/` is the user layer and holds nothing in the repo |
 
@@ -438,7 +437,7 @@ Do not write:
 - `// ===== Section =====` banners. Declarations and namespaces carry the structure
 - commented-out code. Git has it
 - history: what the code used to do and which bug changed it belong in the commit
-  message (CLAUDE.md § "Comments describe the code, not its past")
+  message (CLAUDE.md § Code Standards, "Comment archaeology")
 
 Existing `@brief`/`@param` blocks are trimmed per subsystem when that code is next
 being reworked, not in a tree-wide sweep.

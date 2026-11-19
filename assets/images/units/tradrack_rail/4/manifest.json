@@ -1,0 +1,54 @@
+{
+  "id": "tradrack_rail",
+  "lanes": 4,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png"
+        },
+        {
+          "color": "full_lane2.png",
+          "shade": "full_lane2_shade.png"
+        },
+        {
+          "color": "full_lane3.png",
+          "shade": "full_lane3_shade.png"
+        }
+      ],
+      "carriage": "full_carriage.png"
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png"
+        },
+        {
+          "color": "thumb_lane2.png",
+          "shade": "thumb_lane2_shade.png"
+        },
+        {
+          "color": "thumb_lane3.png",
+          "shade": "thumb_lane3_shade.png"
+        }
+      ],
+      "carriage": "thumb_carriage.png"
+    }
+  }
+}

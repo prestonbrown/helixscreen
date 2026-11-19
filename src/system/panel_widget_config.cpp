@@ -3,11 +3,10 @@
 
 #include "panel_widget_config.h"
 
-#include "ui_timer_guard.h"
-
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "default_layout_resolver.h"
 #include "grid_layout.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -99,18 +98,20 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
     std::set<std::string> seen_ids;
 
     for (const auto& item : arr) {
-        if (!item.is_object() || !item.contains("id") || !item.contains("enabled")) {
+        const nlohmann::json* id_field = helix::json_util::find_member(item, "id");
+        const nlohmann::json* enabled_field = helix::json_util::find_member(item, "enabled");
+        if (!id_field || !enabled_field) {
             continue;
         }
 
         // Validate field types before extraction
-        if (!item["id"].is_string() || !item["enabled"].is_boolean()) {
+        if (!id_field->is_string() || !enabled_field->is_boolean()) {
             spdlog::debug(
                 "[PanelWidgetConfig] Skipping malformed widget entry (wrong field types)");
             continue;
         }
 
-        std::string id = item["id"].get<std::string>();
+        std::string id = id_field->get<std::string>();
 
         // Migration: favorite_macro_N -> favorite_macro:N
         {
@@ -134,7 +135,7 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
             id = "active_spool";
         }
 
-        bool enabled = item["enabled"].get<bool>();
+        bool enabled = enabled_field->get<bool>();
 
         // Skip duplicates
         if (seen_ids.count(id) > 0) {
@@ -164,8 +165,8 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
         // that path used to ship a JSON null and crash the widget on lookup
         // (json::type_error::306, regression introduced in v0.99.54 by 5ac58e051).
         nlohmann::json widget_config = nlohmann::json::object();
-        if (item.contains("config") && item["config"].is_object()) {
-            widget_config = item["config"];
+        if (const nlohmann::json* config = helix::json_util::find_object(item, "config")) {
+            widget_config = *config;
         }
 
         // Load grid placement coordinates (default to -1 = auto-place).
@@ -177,18 +178,10 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
         int row_val = -1;
         int colspan = span_def ? span_def->colspan : 1;
         int rowspan = span_def ? span_def->rowspan : 1;
-        if (item.contains("col") && item["col"].is_number_integer()) {
-            col = item["col"].get<int>();
-        }
-        if (item.contains("row") && item["row"].is_number_integer()) {
-            row_val = item["row"].get<int>();
-        }
-        if (item.contains("colspan") && item["colspan"].is_number_integer()) {
-            colspan = item["colspan"].get<int>();
-        }
-        if (item.contains("rowspan") && item["rowspan"].is_number_integer()) {
-            rowspan = item["rowspan"].get<int>();
-        }
+        col = helix::json_util::read_integer_field(item, "col").value_or(col);
+        row_val = helix::json_util::read_integer_field(item, "row").value_or(row_val);
+        colspan = helix::json_util::read_integer_field(item, "colspan").value_or(colspan);
+        rowspan = helix::json_util::read_integer_field(item, "rowspan").value_or(rowspan);
 
         result.push_back({id, enabled, widget_config, col, row_val, colspan, rowspan});
     }
@@ -278,7 +271,7 @@ void PanelWidgetConfig::load() {
     }
 
     // Format detection: object with "pages" key = new multi-page format
-    if (saved.is_object() && saved.contains("pages") && saved["pages"].is_array()) {
+    if (const json* saved_pages = helix::json_util::find_array(saved, "pages")) {
         // New multi-page format.
         //
         // settings.json is hand-editable, so every read here goes through the
@@ -316,7 +309,7 @@ void PanelWidgetConfig::load() {
         legacy_rows_ = helix::json_util::safe_int(saved, "legacy_rows");
 
         size_t page_idx = 0;
-        for (const auto& page_json : saved["pages"]) {
+        for (const auto& page_json : *saved_pages) {
             // Degrade per-page, not per-dashboard. `"pages": ["main"]` — an
             // easy hand-edit slip — makes page_json a string, and .value() on a
             // non-object throws type_error.306.
@@ -328,13 +321,12 @@ void PanelWidgetConfig::load() {
             }
             PageConfig page;
             page.id = helix::json_util::safe_string(page_json, "id");
-            if (page_json.contains("widgets") && page_json["widgets"].is_array()) {
+            if (const json* widgets = helix::json_util::find_array(page_json, "widgets")) {
                 // Only append registry defaults for the first page (main/default
                 // page). Keyed off pages_ rather than page_idx so a skipped
                 // leading entry doesn't cost the first real page its defaults.
                 bool append_defaults = pages_.empty();
-                page.widgets =
-                    parse_widget_array(page_json["widgets"], append_defaults, &page.retained);
+                page.widgets = parse_widget_array(*widgets, append_defaults, &page.retained);
             }
             pages_.push_back(std::move(page));
             ++page_idx;
@@ -1321,16 +1313,15 @@ void PanelWidgetConfig::restore_pages(const nlohmann::json& payload) {
     read_default_block(payload);
     main_page_index_ = static_cast<size_t>(helix::json_util::safe_int(payload, "main_page_index"));
     next_page_id_ = helix::json_util::safe_int(payload, "next_page_id");
-    if (payload.contains("pages") && payload["pages"].is_array()) {
-        for (const auto& page_json : payload["pages"]) {
+    if (const json* pages = helix::json_util::find_array(payload, "pages")) {
+        for (const auto& page_json : *pages) {
             if (!page_json.is_object()) {
                 continue;
             }
             PageConfig page;
             page.id = helix::json_util::safe_string(page_json, "id");
-            if (page_json.contains("widgets") && page_json["widgets"].is_array()) {
-                page.widgets =
-                    parse_widget_array(page_json["widgets"], pages_.empty(), &page.retained);
+            if (const json* widgets = helix::json_util::find_array(page_json, "widgets")) {
+                page.widgets = parse_widget_array(*widgets, pages_.empty(), &page.retained);
             }
             pages_.push_back(std::move(page));
         }

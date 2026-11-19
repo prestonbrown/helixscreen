@@ -9,12 +9,12 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
-#include "../test_helpers/controls_panel_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/registered_backend.h"
 #include "../test_helpers/toolchanger_test_helper.h"
 #include "../test_helpers/wizard_ams_identify_test_access.h"
 #include "ams_backend_indx.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -56,6 +56,29 @@ TEST_CASE_METHOD(LVGLTestFixture, "AMS wizard names INDX by its display name",
     CHECK(helix::ui::WizardAmsIdentifyStepTestAccess::type_name(step) == "INDX");
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "AMS wizard shows a logo only for a system with logo art",
+                 "[ams][wizard]") {
+    helix::AmsState::instance().init_subjects(true);
+    WizardAmsIdentifyStep step;
+    step.init_subjects();
+    auto logo_shown = [&]() {
+        lv_obj_t* root = step.create(test_screen());
+        REQUIRE(root != nullptr);
+        lv_obj_t* logo = lv_obj_find_by_name(root, "ams_logo");
+        REQUIRE(logo != nullptr);
+        const bool shown = !lv_obj_is_hidden(logo);
+        step.cleanup();
+        lv_obj_delete(root);
+        return shown;
+    };
+    {
+        helix::test::RegisteredBackend<helix::AmsBackendMock> mock(4);
+        REQUIRE(helix::AmsState::get_logo(mock->get_system_info().type_name).path != nullptr);
+        CHECK(logo_shown());
+    }
+    CHECK_FALSE(logo_shown());
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "Extruder PID calibration does not start on a blocked nozzle",
                  "[ams][indx][heat][pid]") {
     EmptyHeadIndx indx;
@@ -74,24 +97,4 @@ TEST_CASE_METHOD(LVGLTestFixture, "Extruder PID calibration does not start on a 
     for (const auto& line : client.gcode_script_history()) {
         CHECK(line.find("CALIBRATE") == std::string::npos);
     }
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "Controls keypad keeps the printer's target after a refusal",
-                 "[controls][indx][heat]") {
-    EmptyHeadIndx indx;
-    // Wired the way SubjectInitializer wires them at boot: the panel reads its
-    // controller through the temperature service.
-    auto controller = std::make_shared<helix::TemperatureController>(state(), &api());
-    TemperatureService service(state(), &api());
-    service.set_controller(controller.get());
-    {
-        ControlsPanel panel(state(), &api());
-        panel.set_temp_control_panel(&service);
-
-        helix::ui::ControlsPanelTestAccess::confirm_custom_nozzle(panel, 230.0f);
-        helix::ui::UpdateQueue::instance().drain();
-        CHECK(helix::ui::ControlsPanelTestAccess::cached_extruder_target(panel) == 0);
-    }
-    helix::ui::UpdateQueue::instance().drain();
-    service.set_controller(nullptr);
 }

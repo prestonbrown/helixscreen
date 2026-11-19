@@ -21,62 +21,6 @@
 // Object color palette token tests
 // ============================================================================
 
-TEST_CASE_METHOD(XMLTestFixture, "object_color_1 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_1");
-    // #7c8aff — periwinkle blue: red=0x7c, non-black
-    REQUIRE(color.red != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_2 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_2");
-    // #4ecdc4 — teal: green=0xcd, non-black
-    REQUIRE(color.green != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_3 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_3");
-    // #f9c74f — golden yellow: red=0xf9, non-black
-    REQUIRE(color.red != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_4 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_4");
-    // #a78bfa — soft purple: red=0xa7, non-black
-    REQUIRE(color.red != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_5 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_5");
-    // #f472b6 — pink: red=0xf4, non-black
-    REQUIRE(color.red != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_6 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_6");
-    // #fb923c — orange: red=0xfb, non-black
-    REQUIRE(color.red != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_7 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_7");
-    // #34d399 — emerald: green=0xd3, non-black
-    REQUIRE(color.green != 0);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "object_color_8 token returns non-black color",
-                 "[exclude_map][tokens]") {
-    lv_color_t color = theme_manager_get_color("object_color_8");
-    // #60a5fa — sky blue: blue=0xfa, non-black
-    REQUIRE(color.blue != 0);
-}
-
 TEST_CASE_METHOD(XMLTestFixture, "all 8 object color tokens are registered",
                  "[exclude_map][tokens]") {
     // Verify all 8 tokens return non-zero colors (not black fallback)
@@ -362,7 +306,7 @@ TEST_CASE_METHOD(
 
     lv_obj_t* rect = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1");
     REQUIRE(rect != nullptr);
-    CHECK(lv_obj_has_flag(rect, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(rect));
     lv_obj_send_event(rect, LV_EVENT_CLICKED, nullptr);
     REQUIRE(taps.size() == 1);
     CHECK(taps[0] == "OBJ_1");
@@ -387,7 +331,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Map view in exclude-only mode drops an exclude
 
     lv_obj_t* rect = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1");
     REQUIRE(rect != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(rect, LV_OBJ_FLAG_CLICKABLE));
+    CHECK_FALSE(lv_obj_is_clickable(rect));
 
     view.destroy();
     process_lvgl(20);
@@ -429,6 +373,41 @@ TEST_CASE_METHOD(XMLTestFixture, "Each open map view's close button closes only 
     }
 }
 
+TEST_CASE_METHOD(XMLTestFixture, "Two map views keep their own plate size and empty message",
+                 "[exclude_map]") {
+    REQUIRE(register_component("components/exclude_object_map"));
+    auto& st = state().excluded_objects_state();
+    seed_objects(st);
+    helix::PrinterExcludedObjectsState bare;
+    bare.init_subjects(false);
+
+    ExcludeObjectMapView with_objects;
+    ExcludeObjectMapView without;
+    with_objects.create(test_screen(), &st,
+                        helix::bed_dimensions_from_volume(0.0f, 235.0f, 0.0f, 235.0f), {},
+                        ExcludeTapMode::ExcludeOnly, nullptr);
+    without.create(test_screen(), &bare,
+                   helix::bed_dimensions_from_volume(0.0f, 300.0f, 0.0f, 200.0f), {},
+                   ExcludeTapMode::ExcludeOnly, nullptr);
+    process_lvgl(20);
+    auto dims = [](ExcludeObjectMapView& v) {
+        return std::string(lv_label_get_text(lv_obj_find_by_name(v.root(), "plate_dims_label")));
+    };
+    auto empty_shown = [](ExcludeObjectMapView& v) {
+        return !lv_obj_is_hidden(lv_obj_find_by_name(v.root(), "empty_message"));
+    };
+
+    CHECK(dims(without) == "300×200 mm");
+    CHECK_FALSE(dims(with_objects).empty());
+    CHECK(dims(with_objects) != dims(without));
+    CHECK(empty_shown(without));
+    CHECK_FALSE(empty_shown(with_objects));
+
+    with_objects.destroy();
+    without.destroy();
+    process_lvgl(20);
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "A picked object's outline fades on the map like an excluded one",
                  "[exclude_map][pre_start_exclude]") {
     REQUIRE(register_component("components/exclude_object_map"));
@@ -453,8 +432,7 @@ TEST_CASE_METHOD(XMLTestFixture, "A picked object's outline fades on the map lik
     CHECK(picked <= static_cast<int>(helix::ui::object_badge_opa(true)));
     // Its neighbour keeps a full-strength outline, and the picked rect stays tappable.
     CHECK(ExcludeObjectMapViewTestAccess::outline_alpha_near(view, 115.0f, 100.0f) == unpicked);
-    CHECK(lv_obj_has_flag(ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1"),
-                          LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1")));
 
     view.destroy();
     process_lvgl(20);
@@ -612,7 +590,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Mini map takes a layout slot and offers nothin
     REQUIRE(view.is_active());
     process_lvgl(30);
 
-    CHECK_FALSE(lv_obj_has_flag(view.root(), LV_OBJ_FLAG_IGNORE_LAYOUT));
+    CHECK_FALSE(lv_obj_is_ignore_layout(view.root()));
     CHECK(lv_obj_get_width(view.root()) == 120);
     CHECK(lv_obj_get_height(view.root()) == 100);
     CHECK(ExcludeObjectMapViewTestAccess::rect_count(view) == 0);

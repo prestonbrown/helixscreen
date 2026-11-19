@@ -17,6 +17,7 @@
 #include "chamber_air_modes.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -116,7 +117,7 @@ void on_fan_rename_data_delete(lv_event_t* e) {
 void attach_long_press_rename(lv_obj_t* widget, const std::string& object_name,
                               const std::string& display_name) {
     auto* data = new FanRenameData{object_name, display_name};
-    lv_obj_add_flag(widget, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(widget, true);
     lv_obj_add_event_cb(widget, on_fan_pressed, LV_EVENT_PRESSED, data);
     lv_obj_add_event_cb(widget, on_fan_long_pressed, LV_EVENT_LONG_PRESSED, data);
     lv_obj_add_event_cb(widget, on_fan_rename_data_delete, LV_EVENT_DELETE, data);
@@ -304,6 +305,12 @@ void FanControlOverlay::release_fan_widgets() {
     auto_fan_cards_.clear();
 }
 
+void FanControlOverlay::on_ui_destroyed() {
+    // The tree is detached but not yet freed, so the dials can still unhook.
+    release_fan_widgets();
+    fans_container_ = nullptr;
+}
+
 void FanControlOverlay::on_root_deleted(lv_event_t* e) {
     // Resolved through the global, not user_data: a printer switch destroys the
     // overlay before freeing its tree, and the re-created overlay can be opened
@@ -323,6 +330,17 @@ void FanControlOverlay::on_root_deleted(lv_event_t* e) {
 // ============================================================================
 // PRIVATE HELPERS
 // ============================================================================
+
+void FanControlOverlay::set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
+                                                std::optional<int> rpm) {
+    char text[sizeof(speed.buf)];
+    if (rpm.has_value() && *rpm > 0) {
+        std::snprintf(text, sizeof(text), "%d%% \xC2\xB7 %d RPM", speed_pct, *rpm);
+    } else {
+        helix::format::format_percent(speed_pct, text, sizeof(text));
+    }
+    lv_subject_set_string(&speed.subject, text);
+}
 
 void FanControlOverlay::populate_fans() {
     if (!fans_container_) {
@@ -374,6 +392,7 @@ void FanControlOverlay::populate_fans() {
             afd.owned_role = role;
             afd.dial = std::make_unique<FanDial>(fans_container_, fan.display_name, fan.object_name,
                                                  fan.speed_percent);
+            afd.dial->set_rpm(fan.rpm);
 
             // Set callback for user-initiated speed changes (dial interaction)
             if (role) {
@@ -436,38 +455,26 @@ void FanControlOverlay::populate_fans() {
             char speed_num_str[16];
             std::snprintf(speed_num_str, sizeof(speed_num_str), "%d", fan.speed_percent);
 
-            const char* attrs[] = {"fan_name", fan.display_name.c_str(), "speed_percent",
-                                   speed_num_str, nullptr};
+            // Published before the card is parsed, which binds the name.
+            auto speed = std::make_unique<AutoFanCard::SpeedText>();
+            static unsigned next_card_id = 0;
+            speed->name = "fan_status_card_" + std::to_string(next_card_id++) + "_speed";
+            speed->subject.init_string(speed->buf, nullptr, sizeof(speed->buf), "");
+            speed->manager.publish(speed->name.c_str(), &speed->subject);
+            set_auto_fan_speed_text(*speed, fan.speed_percent, fan.rpm);
+
+            const char* attrs[] = {"fan_name",    fan.display_name.c_str(), "speed_percent",
+                                   speed_num_str, "speed_subject",          speed->name.c_str(),
+                                   nullptr};
 
             lv_obj_t* card =
                 static_cast<lv_obj_t*>(lv_xml_create(fans_container_, "fan_status_card", attrs));
 
             if (card) {
-                // Find speed label and format with % suffix, including RPM when available
-                lv_obj_t* speed_label = helix::ui::find_required(card, "speed_label", get_name());
-                if (speed_label) {
-                    if (fan.rpm.has_value() && fan.rpm.value() > 0) {
-                        char speed_str[32];
-                        std::snprintf(speed_str, sizeof(speed_str), "%d%% \xC2\xB7 %d RPM",
-                                      fan.speed_percent, fan.rpm.value());
-                        lv_label_set_text(speed_label, speed_str);
-                    } else {
-                        char speed_str[16];
-                        helix::format::format_percent(fan.speed_percent, speed_str,
-                                                      sizeof(speed_str));
-                        lv_label_set_text(speed_label, speed_str);
-                    }
-                }
-
-                // Find arc and make read-only (fan_arc_core is interactive by default)
-                // Also bubble events so long-press reaches the card
+                // The arc is read-only; bubble its events so a long press reaches the card
                 lv_obj_t* arc = helix::ui::find_required(card, "dial_arc", get_name());
                 if (arc) {
-                    lv_obj_remove_flag(arc, LV_OBJ_FLAG_CLICKABLE);
-                    lv_obj_add_flag(arc, LV_OBJ_FLAG_EVENT_BUBBLE);
-                    lv_obj_set_style_bg_opa(arc, LV_OPA_TRANSP, LV_PART_KNOB);
-                    lv_obj_set_style_shadow_width(arc, 0, LV_PART_KNOB);
-                    lv_obj_set_style_outline_width(arc, 0, LV_PART_KNOB);
+                    lv_obj_set_event_bubble(arc, true);
                 }
 
                 // Find fan icon for spin animation
@@ -486,7 +493,7 @@ void FanControlOverlay::populate_fans() {
                 AutoFanCard afc;
                 afc.object_name = fan.object_name;
                 afc.card = card;
-                afc.speed_label = speed_label;
+                afc.speed = std::move(speed);
                 afc.arc = arc;
                 afc.fan_icon = fan_icon;
                 afc.last_speed_pct = fan.speed_percent;
@@ -511,32 +518,34 @@ void FanControlOverlay::populate_fans() {
 void FanControlOverlay::update_fan_speeds() {
     const auto& fans = printer_state_.fan_state().get_fans();
 
-    // Note: FanDial widgets are updated via AnimatedValue bindings in subscribe_to_fan_speeds()
-    // This method only updates auto fan cards which don't need animation
+    // FanDial speeds follow their AnimatedValue bindings in subscribe_to_fan_speeds(); only
+    // the tachometer reading is pushed here.
+    for (auto& afd : animated_fan_dials_) {
+        if (afd.synthetic || !afd.dial) {
+            continue;
+        }
+        for (const auto& fan : fans) {
+            if (fan.object_name == afd.object_name) {
+                afd.dial->set_rpm(fan.rpm);
+                break;
+            }
+        }
+    }
 
     // Update auto fan card labels and arcs (immediate, no animation)
     for (auto& card_info : auto_fan_cards_) {
         for (const auto& fan : fans) {
             if (fan.object_name == card_info.object_name) {
-                // Update speed label with RPM when available
-                if (card_info.speed_label) {
-                    if (fan.rpm.has_value() && fan.rpm.value() > 0) {
-                        char speed_str[32];
-                        std::snprintf(speed_str, sizeof(speed_str), "%d%% \xC2\xB7 %d RPM",
-                                      fan.speed_percent, fan.rpm.value());
-                        lv_label_set_text(card_info.speed_label, speed_str);
-                    } else {
-                        char speed_str[16];
-                        helix::format::format_percent(fan.speed_percent, speed_str,
-                                                      sizeof(speed_str));
-                        lv_label_set_text(card_info.speed_label, speed_str);
-                    }
+                if (card_info.speed) {
+                    set_auto_fan_speed_text(*card_info.speed, fan.speed_percent, fan.rpm);
                 }
                 if (card_info.arc) {
                     lv_arc_set_value(card_info.arc, fan.speed_percent);
                 }
-                // Update fan icon spin animation
-                update_auto_fan_animation(card_info, fan.speed_percent);
+                // fan_spin_start() restarts from 0 degrees, and an rpm change alone lands here.
+                if (fan.speed_percent != card_info.last_speed_pct) {
+                    update_auto_fan_animation(card_info, fan.speed_percent);
+                }
                 break;
             }
         }
@@ -569,7 +578,7 @@ void FanControlOverlay::send_fan_speed(const std::string& object_name, int speed
             // Silent success
         },
         [object_name](const MoonrakerError& err) {
-            helix::ui::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
+            helix::notify_error_tr(TR_NOOP("Fan control failed: {}"), err);
         });
 }
 
@@ -716,6 +725,16 @@ void FanControlOverlay::subscribe_to_fan_speeds() {
         }
     }
 
+    // A tachometer reading changes at a steady speed, which no speed subject reports.
+    fan_rpm_observer_ = observe<int>(
+        printer_state_.fan_state().get_fan_rpm_version_subject(), this,
+        [](FanControlOverlay* self, int /*version*/) {
+            if (self->is_visible()) {
+                self->update_fan_speeds();
+            }
+        },
+        printer_state_.get_subjects_lifetime());
+
     spdlog::trace("[{}] Bound {} animated fan dials, subscribed to {} auto fan subjects",
                   get_name(), animated_fan_dials_.size(), fan_speed_observers_.size());
 }
@@ -728,6 +747,7 @@ void FanControlOverlay::unsubscribe_from_fan_speeds() {
 
     // Clear auto fan observers
     fan_speed_observers_.clear();
+    fan_rpm_observer_.reset();
 
     spdlog::trace("[{}] Unsubscribed from fan speed subjects", get_name());
 }

@@ -45,16 +45,16 @@ class SoundSettingsOverlay : public OverlayBase {
     void handle_test_tracker();
 
   private:
-    void init_volume_slider();
     void init_sound_theme_dropdown();
     void init_audio_device_dropdown();
-
-    /// Volume value label text
-    char volume_value_buf_[8]; // e.g., "100%"
 };
 
 inline SoundSettingsOverlay& get_sound_settings_overlay() {
     return lazy_global<SoundSettingsOverlay>("SoundSettingsOverlay");
 }
+
+/// Moves the slider of the row_volume under @p root (Settings > Sound or the setup
+/// wizard) to the stored volume; the readout binds settings_volume.
+void select_volume_slider(lv_obj_t* root);
 
 } // namespace helix::settings

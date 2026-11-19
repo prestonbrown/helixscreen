@@ -6,7 +6,10 @@
      The list shows ps_step_count rows of ps_step_<i>_name / _time / _status
      (PreprintStepStatus: 0 Done, 1 Current, 2 Upcoming). Where the tile is
      too small for the list (ps_checklist_compact = 1) it shows the current
-     step large, its countdown and a dot per step instead. -->
+     step large, its countdown and a dot per step instead.
+     A file with no thumbnail of its own shows the toolpath instead: once the
+     viewer is up the list turns see-through, and each line of text sits on
+     its own pill so it stays readable over the model. -->
 <component>
   <styles>
     <style name="step_done" text_color="#success"/>
@@ -15,11 +18,15 @@
     <style name="dot_done" bg_color="#success"/>
     <style name="dot_current" bg_color="#warning"/>
     <style name="dot_upcoming" bg_color="#text_subtle"/>
+    <style name="list_solid" bg_opa="255"/>
+    <style name="list_clear" bg_opa="0"/>
+    <style name="text_pill" bg_color="#card_bg" bg_opa="255" radius="32767" pad_left="#space_xs" pad_right="#space_xs"/>
   </styles>
   <view extends="lv_obj"
-        width="100%" height="100%" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="0"
-        style_radius="#border_radius" style_clip_corner="true" style_pad_all="#space_sm" scrollable="false"
-        clickable="false">
+        width="100%" height="100%" style_bg_color="#card_bg" style_border_width="0" style_radius="#border_radius"
+        style_clip_corner="true" style_pad_all="#space_sm" scrollable="false" clickable="false">
+    <bind_style_if name="list_solid" cond="print_has_thumbnail ne 0 or gcode_viewer_mode eq 0"/>
+    <bind_style_if name="list_clear" cond="print_has_thumbnail eq 0 and gcode_viewer_mode gt 0"/>
     <!-- The thumbnail, large and dim on the right so the list reads over it,
          and the fade that runs it out under the list from the left. A print
          without a thumbnail of its own shows no picture rather than the
@@ -33,7 +40,9 @@
             width="75%" height="100%" ignore_layout="true" align="left_mid" style_bg_color="#card_bg"
             style_bg_grad_color="#card_bg" style_bg_grad_dir="hor" style_bg_main_opa="255" style_bg_grad_opa="0"
             style_bg_main_stop="120" style_bg_grad_stop="255" style_border_width="0" style_radius="0" style_pad_all="0"
-            scrollable="false" clickable="false"/>
+            scrollable="false" clickable="false">
+      <bind_flag_if_eq subject="print_has_thumbnail" flag="hidden" ref_value="0"/>
+    </lv_obj>
 
     <!-- The list. -->
     <lv_obj name="ps_checklist_list"
@@ -44,8 +53,13 @@
               height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
               style_flex_cross_place="center" style_pad_gap="#space_xs" scrollable="false">
         <text_small name="ps_checklist_file"
-                    bind_text="print_display_filename" style_text_color="#text" long_mode="dots" style_max_width="70%"/>
-        <text_small text="preparing" style_text_color="#text_muted" long_mode="dots" flex_grow="1"/>
+                    bind_text="print_display_filename" style_text_color="#text" long_mode="dots" style_max_width="70%">
+          <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+        </text_small>
+        <text_small name="ps_checklist_preparing"
+                    text="preparing" style_text_color="#text_muted" long_mode="dots" style_max_width="30%">
+          <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+        </text_small>
       </lv_obj>
       <repeat count="8">
         <lv_obj name="ps_step_row_${i}"
@@ -66,15 +80,21 @@
               <bind_flag_if_not_eq subject="ps_step_${i}_status" flag="hidden" ref_value="2"/>
             </lv_obj>
           </lv_obj>
-          <text_small name="ps_step_name_${i}" bind_text="ps_step_${i}_name" flex_grow="1" long_mode="dots">
-            <bind_style_if_eq name="step_done" subject="ps_step_${i}_status" ref_value="0"/>
-            <bind_style_if_eq name="step_current" subject="ps_step_${i}_status" ref_value="1"/>
-            <bind_style_if_eq name="step_upcoming" subject="ps_step_${i}_status" ref_value="2"/>
-          </text_small>
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" clickable="false">
+            <text_small name="ps_step_name_${i}" bind_text="ps_step_${i}_name" long_mode="dots" style_max_width="100%">
+              <bind_style_if_eq name="step_done" subject="ps_step_${i}_status" ref_value="0"/>
+              <bind_style_if_eq name="step_current" subject="ps_step_${i}_status" ref_value="1"/>
+              <bind_style_if_eq name="step_upcoming" subject="ps_step_${i}_status" ref_value="2"/>
+              <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+            </text_small>
+          </lv_obj>
           <text_small name="ps_step_time_${i}" bind_text="ps_step_${i}_time">
             <bind_style_if_eq name="step_done" subject="ps_step_${i}_status" ref_value="0"/>
             <bind_style_if_eq name="step_current" subject="ps_step_${i}_status" ref_value="1"/>
             <bind_style_if_eq name="step_upcoming" subject="ps_step_${i}_status" ref_value="2"/>
+            <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
           </text_small>
         </lv_obj>
       </repeat>
@@ -86,12 +106,22 @@
             style_pad_gap="#space_xs" scrollable="false" clickable="false" hidden="true">
       <bind_flag_if_eq subject="ps_checklist_compact" flag="hidden" ref_value="0"/>
       <text_small name="ps_checklist_compact_file"
-                  width="100%" bind_text="print_display_filename" style_text_color="#text_muted" long_mode="dots"/>
+                  style_max_width="100%" bind_text="print_display_filename" style_text_color="#text_muted"
+                  long_mode="dots">
+        <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+      </text_small>
       <text_small name="ps_checklist_position"
-                  width="100%" bind_text="ps_step_position_text" style_text_color="#text_muted" long_mode="dots"/>
+                  style_max_width="100%" bind_text="ps_step_position_text" style_text_color="#text_muted"
+                  long_mode="dots">
+        <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+      </text_small>
       <text_body name="ps_checklist_current"
-                 width="100%" bind_text="ps_step_current_name" style_text_color="#warning" long_mode="wrap"/>
-      <text_small name="ps_checklist_current_time" bind_text="ps_step_current_time" style_text_color="#warning"/>
+                 style_max_width="100%" bind_text="ps_step_current_name" style_text_color="#warning" long_mode="wrap">
+        <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+      </text_body>
+      <text_small name="ps_checklist_current_time" bind_text="ps_step_current_time" style_text_color="#warning">
+        <bind_style_if_eq name="text_pill" subject="print_has_thumbnail" ref_value="0"/>
+      </text_small>
       <lv_obj name="ps_checklist_dots"
               width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
               style_pad_gap="#space_xs" scrollable="false">

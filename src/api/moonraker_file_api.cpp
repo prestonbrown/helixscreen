@@ -3,8 +3,7 @@
 
 #include "moonraker_file_api.h"
 
-#include "ui_error_reporting.h"
-
+#include "core/error_reporting.h"
 #include "core/gcode_filename.h"
 #include "core/text_io.h"
 #include "i_moonraker_client.h"
@@ -28,9 +27,8 @@ std::vector<FileRoot> parse_file_roots(const json& response) {
     const json* list = nullptr;
     if (response.is_array()) {
         list = &response;
-    } else if (response.is_object() && response.contains("result") &&
-               response["result"].is_array()) {
-        list = &response["result"];
+    } else {
+        list = helix::json_util::find_array(response, "result");
     }
     if (!list)
         return roots;
@@ -39,12 +37,10 @@ std::vector<FileRoot> parse_file_roots(const json& response) {
         if (!entry.is_object())
             continue;
         FileRoot r;
-        if (entry.contains("name") && entry["name"].is_string())
-            r.name = entry["name"].get<std::string>();
-        if (entry.contains("path") && entry["path"].is_string())
-            r.path = entry["path"].get<std::string>();
-        if (entry.contains("permissions") && entry["permissions"].is_string())
-            r.permissions = entry["permissions"].get<std::string>();
+        r.name = helix::json_util::read_field<std::string>(entry, "name").value_or(r.name);
+        r.path = helix::json_util::read_field<std::string>(entry, "path").value_or(r.path);
+        r.permissions =
+            helix::json_util::read_field<std::string>(entry, "permissions").value_or(r.permissions);
         // A root with no name cannot be asked for, and one with no path cannot be
         // compared against a config path. Either way it tells us nothing.
         if (r.name.empty() || r.path.empty())
@@ -410,19 +406,20 @@ void MoonrakerFileAPI::delete_directory(const std::string& path, bool force,
 std::optional<std::vector<FileInfo>> MoonrakerFileAPI::parse_file_list(const json& response) {
     std::vector<FileInfo> files;
 
-    if (!response.contains("result")) {
+    const json* reply = helix::json_util::find_member(response, "result");
+    if (!reply) {
         return files;
     }
 
-    const json& result = response["result"];
+    const json& result = *reply;
 
     size_t entries = 0;
     if (result.is_array()) {
         entries = result.size();
     } else if (result.is_object()) {
         for (const char* key : {"dirs", "files"}) {
-            if (result.contains(key) && result[key].is_array()) {
-                entries += result[key].size();
+            if (const json* list = helix::json_util::find_array(result, key)) {
+                entries += list->size();
             }
         }
     }
@@ -438,10 +435,7 @@ std::optional<std::vector<FileInfo>> MoonrakerFileAPI::parse_file_list(const jso
     // single wrong-typed entry from a Moonraker fork would otherwise throw and
     // abort the entire listing rather than degrading that one row.
     auto get_string = [](const json& obj, const char* key) -> std::string {
-        if (obj.contains(key) && obj[key].is_string()) {
-            return obj[key].get<std::string>();
-        }
-        return {};
+        return helix::json_util::safe_string(obj, key);
     };
 
     // Moonraker returns a flat array of file/directory objects in "result"
@@ -471,8 +465,8 @@ std::optional<std::vector<FileInfo>> MoonrakerFileAPI::parse_file_list(const jso
 
     // Legacy format: result is an object with "dirs" and "files" arrays
     // (may be used by server.files.get_directory or older Moonraker versions)
-    if (result.contains("dirs") && result["dirs"].is_array()) {
-        for (const auto& dir : result["dirs"]) {
+    if (const json* dirs = helix::json_util::find_array(result, "dirs")) {
+        for (const auto& dir : *dirs) {
             if (!dir.is_object()) {
                 continue;
             }
@@ -492,8 +486,8 @@ std::optional<std::vector<FileInfo>> MoonrakerFileAPI::parse_file_list(const jso
         }
     }
 
-    if (result.contains("files") && result["files"].is_array()) {
-        for (const auto& file : result["files"]) {
+    if (const json* file_list = helix::json_util::find_array(result, "files")) {
+        for (const auto& file : *file_list) {
             if (!file.is_object()) {
                 continue;
             }
@@ -517,18 +511,16 @@ std::optional<std::vector<FileInfo>> MoonrakerFileAPI::parse_file_list(const jso
 FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
     FileMetadata metadata;
 
-    if (!response.contains("result")) {
+    const json* reply = helix::json_util::find_member(response, "result");
+    if (!reply) {
         return metadata;
     }
 
-    const json& result = response["result"];
+    const json& result = *reply;
 
     // Helper lambdas to safely extract values (Moonraker returns null for missing metadata)
     auto get_string = [&result](const char* key) -> std::string {
-        if (result.contains(key) && result[key].is_string()) {
-            return result[key].get<std::string>();
-        }
-        return {};
+        return helix::json_util::safe_string(result, key);
     };
 
     // Numbers go through json_util, which also coerces the JSON strings ("0.2")
@@ -577,8 +569,8 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
 
     // Filament colors (array of hex strings from slicer metadata)
     // Newer Moonraker versions return "filament_colors" as a JSON array.
-    if (result.contains("filament_colors") && result["filament_colors"].is_array()) {
-        for (const auto& color : result["filament_colors"]) {
+    if (const json* colors = helix::json_util::find_array(result, "filament_colors")) {
+        for (const auto& color : *colors) {
             if (color.is_string()) {
                 metadata.filament_colors.push_back(color.get<std::string>());
             }
@@ -657,11 +649,12 @@ FileMetadata MoonrakerFileAPI::parse_file_metadata(const json& response) {
     metadata.plate_index = std::max(helix::json_util::safe_int(result, "plate_index"), 0);
 
     // Thumbnails - parse with dimensions for selecting largest
-    if (result.contains("thumbnails") && result["thumbnails"].is_array()) {
-        for (const auto& thumb : result["thumbnails"]) {
-            if (thumb.contains("relative_path") && thumb["relative_path"].is_string()) {
+    if (const json* thumbnails = helix::json_util::find_array(result, "thumbnails")) {
+        for (const auto& thumb : *thumbnails) {
+            if (auto relative_path =
+                    helix::json_util::read_field<std::string>(thumb, "relative_path")) {
                 ThumbnailInfo info;
-                info.relative_path = thumb["relative_path"].get<std::string>();
+                info.relative_path = std::move(*relative_path);
                 info.width = helix::json_util::safe_int(thumb, "width");
                 info.height = helix::json_util::safe_int(thumb, "height");
                 metadata.thumbnails.push_back(info);

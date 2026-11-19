@@ -165,6 +165,22 @@ TEST_CASE("ACE returns correct type", "[ams][ace][type]") {
     REQUIRE(helper.get_type() == AmsType::ACE);
 }
 
+TEST_CASE("ACE clear_fault leaves a fault the unit still reports and sends nothing",
+          "[ams][ace][clear_fault]") {
+    AmsBackendAceTestHelper helper;
+    helper.set_test_action(AmsAction::ERROR);
+
+    REQUIRE(helper.get_test_system_info().action == AmsAction::ERROR);
+    const AmsError result = helper.clear_fault(0);
+    INFO("clear_fault answered: " << result.technical_msg);
+
+    // ACE mirrors the unit's own status, so clearing only the mirror would
+    // hide the fault until the next frame raised it again.
+    CHECK(result.result == AmsResult::NOT_SUPPORTED);
+    CHECK(helper.get_test_system_info().action == AmsAction::ERROR);
+    CHECK(helper.captured_gcodes.empty());
+}
+
 TEST_CASE("ACE uses hub topology", "[ams][ace][topology]") {
     // ACE uses hub topology (4 slots merge to single output)
     AmsBackendAceTestHelper helper;
@@ -1217,10 +1233,11 @@ TEST_CASE("ACE apply_user_edit writes to store", "[ams][ace][filament_slot_overr
     MockPrinter mock_printer;
     auto& api = mock_printer.api;
 
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
+    // Started, so the backend opens its own lane record store.
+    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, &mock_printer.client);
     AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    AceTestAccess::inject_override_store(backend, std::move(store));
+    REQUIRE(backend.start().success());
+    helix::ui::UpdateQueue::instance().drain();
 
     // Prime the backend with 4 slots so apply_user_edit's index check passes.
     AceTestAccess::parse_ace(backend, json{{"model", "ACE Pro"},
@@ -1773,28 +1790,6 @@ TEST_CASE("ACE hands the temperatures back to the hub with the override",
     AceTestAccess::parse_slots(backend, rest(205, 225));
     CHECK(backend.get_slot_info(0).nozzle_temp_min == 205);
     CHECK(backend.get_slot_info(0).nozzle_temp_max == 225);
-}
-
-TEST_CASE("ACE clear_slot_override is a no-op when no override is present",
-          "[ams][ace][filament_slot_override]") {
-    AceTmpCacheDir tmp("task16_clear_slot_override_noop");
-    MockPrinter mock_printer;
-    auto& api = mock_printer.api;
-
-    helix::test::RegisteredBackend<AmsBackendAce> backend_reg(&api, nullptr);
-    AmsBackendAce& backend = *backend_reg;
-    auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ace");
-    AceTestAccess::inject_override_store(backend, std::move(store));
-
-    AceTestAccess::parse_ace(backend, make_ace_slot_payload("loaded", 0xAA55FF, "PETG"));
-
-    // No override staged. Should not crash, should not touch firmware state.
-    backend.clear_slot_override(0);
-
-    CHECK_FALSE(AceTestAccess::get_override(backend, 0).has_value());
-    auto info = backend.get_slot_info(0);
-    CHECK(info.color_rgb == 0xAA55FFu);
-    CHECK(info.material == "PETG");
 }
 
 TEST_CASE("ACE clear_slot_override drops the whole Spoolman link",
@@ -3867,6 +3862,34 @@ TEST_CASE("ACE on the ACEPRO driver shows the hub's colour over a record from an
         status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
     CHECK(b.get_slot_info(0).material == "PLA");
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}
+
+TEST_CASE("ACE a Clear while the hub write is out waits for the hub's answer",
+          "[ams][ace][kobra][filament_slot_override]") {
+    helix::test::RegisteredBackend<AmsBackendAceTestHelper> harness;
+    AmsBackendAceTestHelper& b = *harness;
+    b.test_handle_status_update(
+        status_notification("ace_instance_0", json{{"slots", slot_reading("PLA", "#FF5500")}}));
+    const auto edit = [&b](const char* brand) {
+        SlotInfo info = b.get_slot_info(0);
+        info.brand = brand;
+        REQUIRE(b.commit_user_edit(0, b.get_slot_info(0), info).success());
+    };
+    edit("Sunlu");
+    b.pending_ack();
+    REQUIRE(b.get_slot_info(0).brand == "Sunlu");
+
+    // A second edit is out when the Clear arrives; nothing is erased yet.
+    edit("Elegoo");
+    b.clear_slot_override(0);
+    SECTION("the hub runs the write: the record is erased, not saved") {
+        b.pending_ack();
+        CHECK(b.get_slot_info(0).brand.empty());
+    }
+    SECTION("the hub rejects it: the record stands") {
+        b.pending_error(MoonrakerError{});
+        CHECK(b.get_slot_info(0).brand == "Sunlu");
+    }
 }
 
 TEST_CASE("ACE on the ACEPRO driver refuses an edit the inventory cannot hold",

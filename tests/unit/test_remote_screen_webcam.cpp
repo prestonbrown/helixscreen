@@ -9,6 +9,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "host_identity.h"
+#include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -17,6 +18,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -30,7 +32,7 @@ using json = nlohmann::json;
 TEST_CASE("webcam item: view-only with route is mjpegstreamer on stream.mjpg, relative snapshot",
           "[remote_screen][webcam]") {
     auto item = remote_screen_webcam_item(kRemoteScreenWebcamName, true, false,
-                                          "/helixscreen/screen/", "10.0.0.5", 7130);
+                                          "/helixscreen/screen/", "10.0.0.5", 7130, 800, 480);
     REQUIRE(item.has_value());
     CHECK((*item)["name"] == kRemoteScreenWebcamName);
     CHECK((*item)["service"] == "mjpegstreamer");
@@ -44,7 +46,7 @@ TEST_CASE("webcam item: view-only with route is mjpegstreamer on stream.mjpg, re
 TEST_CASE("webcam item: control with route is iframe pointing at the route",
           "[remote_screen][webcam]") {
     auto item = remote_screen_webcam_item(kRemoteScreenWebcamName, true, true,
-                                          "/helixscreen/screen/", "10.0.0.5", 7130);
+                                          "/helixscreen/screen/", "10.0.0.5", 7130, 800, 480);
     REQUIRE(item.has_value());
     CHECK((*item)["service"] == "iframe");
     CHECK((*item)["stream_url"] == "/helixscreen/screen/");
@@ -52,26 +54,56 @@ TEST_CASE("webcam item: control with route is iframe pointing at the route",
 }
 
 TEST_CASE("webcam item: LAN mode uses http://ip:port", "[remote_screen][webcam]") {
-    auto view =
-        remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", "192.168.1.40", 7130);
+    auto view = remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", "192.168.1.40",
+                                          7130, 800, 480);
     REQUIRE(view.has_value());
     CHECK((*view)["snapshot_url"] == "http://192.168.1.40:7130/snapshot.jpg");
-    auto control =
-        remote_screen_webcam_item(kRemoteScreenWebcamName, true, true, "", "192.168.1.40", 7131);
+    auto control = remote_screen_webcam_item(kRemoteScreenWebcamName, true, true, "",
+                                             "192.168.1.40", 7131, 800, 480);
     REQUIRE(control.has_value());
     CHECK((*control)["stream_url"] == "http://192.168.1.40:7131/");
 }
 
 TEST_CASE("webcam item: disabled is nullopt", "[remote_screen][webcam]") {
-    CHECK_FALSE(
-        remote_screen_webcam_item(kRemoteScreenWebcamName, false, false, "/r/", "10.0.0.5", 7130)
-            .has_value());
-    CHECK_FALSE(
-        remote_screen_webcam_item(kRemoteScreenWebcamName, false, true, "", "10.0.0.5", 7130)
-            .has_value());
+    CHECK_FALSE(remote_screen_webcam_item(kRemoteScreenWebcamName, false, false, "/r/", "10.0.0.5",
+                                          7130, 800, 480)
+                    .has_value());
+    CHECK_FALSE(remote_screen_webcam_item(kRemoteScreenWebcamName, false, true, "", "10.0.0.5",
+                                          7130, 800, 480)
+                    .has_value());
     // LAN mode with no address a browser could reach: registering would only mislead.
     CHECK_FALSE(
-        remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", "", 7130).has_value());
+        remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", "", 7130, 800, 480)
+            .has_value());
+}
+
+TEST_CASE("webcam aspect ratio: the frame size in lowest terms", "[remote_screen][webcam]") {
+    CHECK(remote_screen_aspect_ratio(800, 480) == "5:3");
+    CHECK(remote_screen_aspect_ratio(480, 800) == "3:5");
+    CHECK(remote_screen_aspect_ratio(1024, 600) == "128:75");
+    CHECK(remote_screen_aspect_ratio(1920, 1080) == "16:9");
+    CHECK(remote_screen_aspect_ratio(480, 480) == "1:1");
+    // Nothing known: no ratio, so Moonraker keeps its own default.
+    CHECK(remote_screen_aspect_ratio(0, 480).empty());
+    CHECK(remote_screen_aspect_ratio(800, 0).empty());
+    CHECK(remote_screen_aspect_ratio(-800, 480).empty());
+}
+
+TEST_CASE("webcam item: aspect ratio follows the screen", "[remote_screen][webcam]") {
+    for (const bool control : {false, true}) {
+        auto nginx = remote_screen_webcam_item(kRemoteScreenWebcamName, true, control,
+                                               "/helixscreen/screen/", "", 7130, 1024, 600);
+        REQUIRE(nginx.has_value());
+        CHECK((*nginx)["aspect_ratio"] == "128:75");
+        auto lan = remote_screen_webcam_item(kRemoteScreenWebcamName, true, control, "",
+                                             "192.168.1.40", 7130, 480, 800);
+        REQUIRE(lan.has_value());
+        CHECK((*lan)["aspect_ratio"] == "3:5");
+    }
+    auto unknown = remote_screen_webcam_item(kRemoteScreenWebcamName, true, true, "",
+                                             "192.168.1.40", 7130, 0, 0);
+    REQUIRE(unknown.has_value());
+    CHECK_FALSE(unknown->contains("aspect_ratio"));
 }
 
 TEST_CASE("select_lan_ipv4 skips 127.x, 169.254.x and IPv6", "[remote_screen][webcam]") {
@@ -112,7 +144,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "mock: post then list round-trips; delete remo
     };
 
     auto item = remote_screen_webcam_item(kRemoteScreenWebcamName, true, false,
-                                          "/helixscreen/screen/", "", 7130);
+                                          "/helixscreen/screen/", "", 7130, 800, 480);
     REQUIRE(item.has_value());
     bool posted = false;
     api.timelapse().post_webcam(
@@ -162,7 +194,8 @@ TEST_CASE("the nginx route only applies when Moonraker is on this host",
 
 TEST_CASE("webcam item carries the screen marker; parse and is_own_screen_webcam read it",
           "[remote_screen][webcam]") {
-    auto item = remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "/r/", "", 7130);
+    auto item =
+        remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "/r/", "", 7130, 800, 480);
     REQUIRE(item.has_value());
     json renamed = *item;
     renamed["name"] = "Printer screen";
@@ -191,7 +224,8 @@ struct WebcamReconcileHarness {
     }
 
     std::optional<json> item(const std::string& lan_ip = "192.168.1.40") const {
-        return remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", lan_ip, 7130);
+        return remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", lan_ip, 7130,
+                                         800, 480);
     }
 
     void reconcile(const std::optional<json>& want) {
@@ -218,6 +252,23 @@ struct WebcamReconcileHarness {
     void rename(const std::string& to) {
         api->timelapse().post_webcam(
             json{{"uid", uid}, {"name", to}, {"target_fps", 5}}, [](const WebcamInfo&) {},
+            [](const MoonrakerError&) {});
+    }
+    /// What Moonraker stored for the tracked entry, aspect_ratio included.
+    json stored() {
+        auto& posted = client.posted_webcams();
+        std::lock_guard<std::mutex> lock(posted.mutex);
+        for (const auto& e : posted.items) {
+            if (json_util::safe_string(e, "uid", "") == uid) {
+                return e;
+            }
+        }
+        return json();
+    }
+    /// What the user does when the screen tile looks wrong: pick another aspect ratio.
+    void set_aspect(const std::string& ratio) {
+        api->timelapse().post_webcam(
+            json{{"uid", uid}, {"aspect_ratio", ratio}}, [](const WebcamInfo&) {},
             [](const MoonrakerError&) {});
     }
     void remove_in_moonraker() {
@@ -297,4 +348,40 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(screens.size() == 1);
     CHECK(screens[0].name == "Printer screen");
     CHECK(h.uid == legacy_uid);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "screen webcam: the aspect ratio is set on create and the user's choice is kept",
+                 "[remote_screen][webcam]") {
+    WebcamReconcileHarness h;
+    h.reconcile(h.item());
+    REQUIRE_FALSE(h.uid.empty());
+    CHECK(json_util::safe_string(h.stored(), "aspect_ratio", "") == "5:3");
+
+    h.set_aspect("16:9");
+    // Later connects refresh the entry by uid, and a screen that reports another size
+    // still leaves the user's ratio alone.
+    h.reconcile(h.item("192.168.1.77"));
+    h.reconcile(remote_screen_webcam_item(kRemoteScreenWebcamName, true, false, "", "192.168.1.77",
+                                          7130, 1024, 600));
+    CHECK(json_util::safe_string(h.stored(), "aspect_ratio", "") == "16:9");
+    CHECK(json_util::safe_string(h.stored(), "snapshot_url", "") ==
+          "http://192.168.1.77:7130/snapshot.jpg");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "screen webcam: adopting an existing entry keeps its aspect ratio",
+                 "[remote_screen][webcam]") {
+    WebcamReconcileHarness h;
+    json legacy = *h.item();
+    legacy["aspect_ratio"] = "4:3";
+    h.api->timelapse().post_webcam(
+        legacy, [&](const WebcamInfo& cam) { h.uid = cam.uid; }, [](const MoonrakerError&) {});
+    REQUIRE_FALSE(h.uid.empty());
+    const std::string legacy_uid = h.uid;
+    h.uid.clear();
+
+    h.reconcile(h.item());
+    CHECK(h.uid == legacy_uid);
+    CHECK(json_util::safe_string(h.stored(), "aspect_ratio", "") == "4:3");
 }

@@ -1788,6 +1788,9 @@
         "hide_target_when_off": {
           "type": "bool"
         },
+        "trailing_target": {
+          "type": "string"
+        },
         "align_current": {
           "type": "string"
         },
@@ -1806,7 +1809,13 @@
         "bind_target": {
           "type": "string"
         },
+        "bind_raw": {
+          "type": "string"
+        },
         "bind_mode": {
+          "type": "string"
+        },
+        "bind_unit": {
           "type": "string"
         },
         "event_cb": {
@@ -1953,7 +1962,11 @@
       "inherits": "lv_obj"
     },
     "z_offset_indicator": {
-      "attributes": {},
+      "attributes": {
+        "bind_microns": {
+          "type": "string"
+        }
+      },
       "inherits": "lv_obj"
     },
     "belt_gap_gauge": {
@@ -2031,8 +2044,19 @@
       },
       "inherits": "lv_obj"
     },
+    "cold_pull_tip_sketch": {
+      "attributes": {
+        "dirty": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "filament_motion_glyph": {
       "attributes": {
+        "bind_color": {
+          "type": "color"
+        },
         "bind_motion": {
           "type": "string"
         }
@@ -2055,6 +2079,10 @@
           "type": "string"
         }
       },
+      "inherits": "lv_obj"
+    },
+    "toolhead_view": {
+      "attributes": {},
       "inherits": "lv_obj"
     },
     "unit_art": {
@@ -2147,6 +2175,13 @@
       "none",
       "underline",
       "strikethrough"
+    ],
+    "text_leading_trim": [
+      "none",
+      "capital_baseline",
+      "lower_baseline",
+      "capital",
+      "lower"
     ],
     "scroll_snap": [
       "none",
@@ -2316,7 +2351,6 @@
       "floating",
       "send_draw_task_events",
       "overflow_visible",
-      "radio_button",
       "flex_in_new_track",
       "layout_1",
       "layout_2",
@@ -2345,6 +2379,7 @@
       "stretch",
       "tile",
       "contain",
+      "contain_downscale",
       "cover"
     ],
     "bar_orientation": [
@@ -2749,6 +2784,10 @@
       "type": "enum",
       "enum": "text_decor"
     },
+    "text_leading_trim": {
+      "type": "enum",
+      "enum": "text_leading_trim"
+    },
     "image_opa": {
       "type": "opa"
     },
@@ -3048,8 +3087,10 @@
     "swatch_paint",
     "ams_lane_bar",
     "ams_lane_spool",
+    "cold_pull_tip_sketch",
     "filament_motion_glyph",
     "humidity_drop",
+    "toolhead_view",
     "unit_art",
     "lv_obj-bind_tile_rung",
     "setting_group"
@@ -3229,6 +3270,24 @@
     "ams_slot_badge_border_w_micro",
     "ams_slot_badge_border_w_small",
     "ams_slot_badge_border_w_tiny",
+    "ams_slot_badge_error_dot",
+    "ams_slot_badge_error_dot_large",
+    "ams_slot_badge_error_dot_medium",
+    "ams_slot_badge_error_dot_micro",
+    "ams_slot_badge_error_dot_out",
+    "ams_slot_badge_error_dot_out_large",
+    "ams_slot_badge_error_dot_out_medium",
+    "ams_slot_badge_error_dot_out_micro",
+    "ams_slot_badge_error_dot_out_small",
+    "ams_slot_badge_error_dot_out_tiny",
+    "ams_slot_badge_error_dot_small",
+    "ams_slot_badge_error_dot_tiny",
+    "ams_slot_badge_error_dot_up",
+    "ams_slot_badge_error_dot_up_large",
+    "ams_slot_badge_error_dot_up_medium",
+    "ams_slot_badge_error_dot_up_micro",
+    "ams_slot_badge_error_dot_up_small",
+    "ams_slot_badge_error_dot_up_tiny",
     "ams_slot_badge_pad_h",
     "ams_slot_badge_pad_h_large",
     "ams_slot_badge_pad_h_medium",
@@ -3277,6 +3336,18 @@
     "ams_slot_tool_badge_radius_micro",
     "ams_slot_tool_badge_radius_small",
     "ams_slot_tool_badge_radius_tiny",
+    "ams_tile_art_max_h",
+    "ams_tile_art_max_h_large",
+    "ams_tile_art_max_h_medium",
+    "ams_tile_art_max_h_small",
+    "ams_tile_art_max_h_xlarge",
+    "ams_tile_art_max_h_xxlarge",
+    "ams_tile_min_width",
+    "ams_tile_min_width_large",
+    "ams_tile_min_width_medium",
+    "ams_tile_min_width_small",
+    "ams_tile_min_width_xlarge",
+    "ams_tile_min_width_xxlarge",
     "ams_tile_value_font",
     "ams_tile_value_font_large",
     "ams_tile_value_font_medium",
@@ -3525,6 +3596,7 @@
     "color_preview_size",
     "color_preview_size_small",
     "color_text_height",
+    "content_max_width",
     "controls_action_row_portrait",
     "controls_action_row_portrait_large",
     "controls_action_row_portrait_medium",
@@ -3651,6 +3723,10 @@
     "filament_chip_width_tiny",
     "filament_chip_width_xlarge",
     "filament_error",
+    "filament_header_lanes_w",
+    "filament_header_lanes_w_large",
+    "filament_header_lanes_w_medium",
+    "filament_header_lanes_w_small",
     "filament_hub_bg_dark",
     "filament_hub_bg_light",
     "filament_hub_border_dark",
@@ -3666,13 +3742,16 @@
     "filament_motion_glyph_w_tiny",
     "filament_motion_glyph_w_xlarge",
     "filament_motion_glyph_w_xxlarge",
+    "filament_portrait_length_h",
+    "filament_portrait_length_h_large",
+    "filament_portrait_length_h_medium",
+    "filament_portrait_length_h_small",
+    "filament_portrait_length_h_tiny",
     "filament_portrait_row_h",
     "filament_portrait_row_h_large",
     "filament_portrait_row_h_medium",
-    "filament_portrait_row_h_micro",
     "filament_portrait_row_h_small",
     "filament_portrait_row_h_tiny",
-    "filament_portrait_row_h_xlarge",
     "focus",
     "font_body",
     "font_body_bold",
@@ -3730,6 +3809,22 @@
     "font_mono_tiny",
     "font_mono_xlarge",
     "font_mono_xxlarge",
+    "font_ps_hero",
+    "font_ps_hero_large",
+    "font_ps_hero_medium",
+    "font_ps_hero_micro",
+    "font_ps_hero_regular",
+    "font_ps_hero_regular_large",
+    "font_ps_hero_regular_medium",
+    "font_ps_hero_regular_micro",
+    "font_ps_hero_regular_small",
+    "font_ps_hero_regular_tiny",
+    "font_ps_hero_regular_xlarge",
+    "font_ps_hero_regular_xxlarge",
+    "font_ps_hero_small",
+    "font_ps_hero_tiny",
+    "font_ps_hero_xlarge",
+    "font_ps_hero_xxlarge",
     "font_small",
     "font_small_large",
     "font_small_medium",
@@ -3754,6 +3849,16 @@
     "font_xs_tiny",
     "font_xs_xlarge",
     "font_xs_xxlarge",
+    "full_page_handle_h",
+    "full_page_handle_w",
+    "full_page_strip_h",
+    "full_page_strip_h_large",
+    "full_page_strip_h_medium",
+    "full_page_strip_h_micro",
+    "full_page_strip_h_small",
+    "full_page_strip_h_tiny",
+    "full_page_strip_h_xlarge",
+    "full_page_strip_h_xxlarge",
     "gcode_selection_bracket",
     "gcode_selection_excluded",
     "gcode_selection_outline",
@@ -4048,6 +4153,13 @@
     "macro_param_col_min_tiny",
     "macro_param_col_min_xlarge",
     "macro_param_col_min_xxlarge",
+    "menu_caret",
+    "menu_caret_large",
+    "menu_caret_medium",
+    "menu_caret_small",
+    "menu_caret_tiny",
+    "menu_caret_xlarge",
+    "menu_caret_xxlarge",
     "mesh_high",
     "mesh_low",
     "mesh_mid",
@@ -4087,6 +4199,12 @@
     "motion_z_col_w_micro",
     "motion_z_col_w_small",
     "motion_z_col_w_tiny",
+    "motion_z_head_size",
+    "motion_z_head_size_large",
+    "motion_z_head_size_medium",
+    "motion_z_head_size_micro",
+    "motion_z_head_size_small",
+    "motion_z_head_size_tiny",
     "nav_estop_reach",
     "nav_estop_reach_large",
     "nav_estop_reach_medium",
@@ -4177,6 +4295,10 @@
     "plate_label_max_width_tiny",
     "plate_label_max_width_xlarge",
     "play_icon_size",
+    "plugin_overview_col_min",
+    "plugin_overview_col_min_large",
+    "plugin_overview_col_min_medium",
+    "plugin_overview_col_min_small",
     "pm_identity_width",
     "pm_identity_width_large",
     "pm_identity_width_medium",
@@ -4453,19 +4575,9 @@
     "temp_card_height_tiny",
     "temp_card_height_xlarge",
     "temp_card_height_xxlarge",
-    "temp_card_spacing",
-    "temp_card_spacing_large",
-    "temp_card_spacing_medium",
-    "temp_card_spacing_small",
-    "temp_card_spacing_tiny",
     "temp_gradient_cold",
     "temp_gradient_hot",
     "temp_gradient_warm",
-    "temp_preset_btn_spacing",
-    "temp_preset_btn_spacing_large",
-    "temp_preset_btn_spacing_medium",
-    "temp_preset_btn_spacing_small",
-    "temp_preset_btn_spacing_tiny",
     "tertiary",
     "test_label_font",
     "test_label_large_font",
@@ -4490,14 +4602,11 @@
     "text_small_line_h_xlarge",
     "text_small_line_h_xxlarge",
     "text_subtle",
-    "tg_picker_gap",
-    "tg_picker_gap_large",
-    "tg_picker_gap_medium",
-    "tg_picker_gap_micro",
-    "tg_picker_gap_small",
-    "tg_picker_gap_tiny",
-    "tg_picker_gap_xlarge",
-    "tg_picker_gap_xxlarge",
+    "tg_portrait_btn_h",
+    "tg_portrait_btn_h_large",
+    "tg_portrait_btn_h_medium",
+    "tg_portrait_btn_h_small",
+    "tg_portrait_btn_h_tiny",
     "tg_preset_h",
     "tg_preset_h_large",
     "tg_preset_h_medium",

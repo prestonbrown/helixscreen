@@ -4,20 +4,24 @@
 #include "ui_ams_slot.h"
 
 #include "ui_ams_lane_spool.h"
+#include "ui_ams_slot_internal.h"
 #include "ui_ams_slot_layout.h"
 #include "ui_fonts.h"
 #include "ui_humidity_drop.h"
-#include "ui_observer_guard.h"
 #include "ui_text.h"
 #include "ui_toolhead_badge.h"
 #include "ui_utils.h"
 
 #include "ams_lane_state.h"
+#include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/data_root_resolver.h"
 #include "core/observer_factory.h"
+#include "core/observer_guard.h"
 #include "core/static_subject_registry.h"
+#include "core/temp_unit_subject.h"
+#include "core/temperature_units.h"
 #include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_display_name.h"
@@ -28,6 +32,7 @@
 #include "helix/ui/text_metrics.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_event_private.h" // lv_hit_test_info_t: LVGL exposes no accessor
+#include "observe_language.h"
 #include "panel_widget_size.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
@@ -55,80 +60,6 @@ using namespace helix;
  * Contains the slot index and observer handles. Managed via static registry
  * rather than lv_obj user_data to ensure safe cleanup during lv_deinit().
  */
-struct AmsSlotData {
-    int slot_index = -1;
-    int total_count = 4; // Total slots being displayed (for stagger calculation)
-    helix::ui::AmsSlotHitBand hit_band;
-
-    /// Backend whose subjects the observers below are bound to (captured at
-    /// setup_slot_observers time from the active backend). Kept so later
-    /// re-reads (apply_slot_label) hit the same backend the
-    /// observers are bound to, even if the active backend moved on.
-    int backend_index = 0;
-
-    // Last lane classification seen from the per-slot lane_state subject. The
-    // material label's text and ghost strength depend on it (an Empty lane
-    // reads "Empty", a Ghosted one dims alongside its spool), and lane_state
-    // and material arrive on SEPARATE subjects with no ordering guarantee - so
-    // the material path reads the classification from here rather than racing
-    // for it.
-    helix::ui::LaneState last_lane_state = helix::ui::LaneState::Empty;
-
-    // RAII observer handles - automatically removed when this struct is destroyed
-    ObserverGuard status_observer;     ///< Per-slot status -> badge color
-    ObserverGuard lane_state_observer; ///< Per-slot lane_state -> label text + ghost
-    ObserverGuard material_observer;   ///< Per-slot material type label (static subject)
-    ObserverGuard name_observer;       ///< Per-slot spool name line
-    ObserverGuard remaining_observer;  ///< Per-slot remaining length (primary backend)
-    ObserverGuard current_slot_observer;
-    ObserverGuard filament_loaded_observer;
-    ObserverGuard active_loaded_observer; ///< Per-slot active-loaded (single highlight source)
-    ObserverGuard action_observer;
-    ObserverGuard target_slot_observer;
-    ObserverGuard slots_version_observer; ///< Spool table renumber -> badge number
-
-    // Lifetime tokens paired with the observers that bind per-backend subjects
-    // (status, lane_state, material, name). Secondary-backend (index > 0) subjects
-    // are DYNAMIC - recreated on backend rediscovery - so those observers need
-    // tokens that expire when AmsState tears the subject down (L084). For
-    // backend 0 the accessors return AmsState's subjects lifetime. Each MUST be
-    // reset BEFORE its matching observer (see cleanup paths, #705).
-    SubjectLifetime status_lifetime;
-    SubjectLifetime lane_state_lifetime;
-    SubjectLifetime material_lifetime;
-    SubjectLifetime name_lifetime;
-
-    lv_obj_t* spool_container = nullptr; // Container for the lane spool + badges
-
-    // The lane spool graphic (spool, placeholder, error glow) renders itself
-    // from the per-slot subjects; ams_slot only points it at a slot index.
-    lv_obj_t* lane_spool = nullptr;
-
-    // Other UI elements
-    lv_obj_t* name_label = nullptr; // Brand, above the material
-    lv_obj_t* material_label = nullptr;
-    lv_obj_t* leader_line = nullptr;     // Dotted line connecting label to spool (when staggered)
-    lv_point_precise_t leader_points[2]; // Points for leader line (per-slot storage)
-    lv_obj_t* status_badge_bg = nullptr; // Status badge background (colored circle)
-    lv_obj_t* slot_badge = nullptr;      // Slot number label inside status badge
-    lv_obj_t* tool_badge_bg = nullptr;   // Tool badge background (top-left corner)
-    lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
-    lv_obj_t* container = nullptr;       // The ams_slot widget itself
-    lv_obj_t* lane_humidity = nullptr;   // Droplet + value row, under a per-lane lid
-    lv_obj_t* lane_humidity_text = nullptr; // The row's value
-    lv_obj_t* lane_humidity_drop = nullptr; // The row's drop, filled to the value
-    lv_obj_t* lane_temp_row = nullptr;      // Thermometer + value, above the humidity
-    lv_obj_t* lane_temp_text = nullptr;
-    lv_obj_t* lane_remaining = nullptr; // Measured remaining length, under the material
-    bool show_lane_humidity = false;
-    lv_obj_t* drying_badge = nullptr;       // Top-right drying-state badge
-    lv_obj_t* drying_icons[4] = {};         // Queued, active, complete, cancelled
-    lv_subject_t* drying_subject = nullptr; // Subject the badge is bound to
-
-    // Pulsing state - when true, highlight updates are skipped to preserve animation
-    bool is_pulsing = false;
-};
-
 // Static registry mapping lv_obj_t* -> AmsSlotData*
 // Used for safe cleanup during lv_deinit() when user_data may be unreliable
 static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
@@ -136,7 +67,7 @@ static helix::WidgetDataRegistry<AmsSlotData> s_slot_registry;
 /**
  * @brief Get AmsSlotData for an object from the registry
  */
-static AmsSlotData* get_slot_data(lv_obj_t* obj) {
+AmsSlotData* helix::get_slot_data(lv_obj_t* obj) {
     return s_slot_registry.get(obj);
 }
 
@@ -178,6 +109,11 @@ static void unregister_slot_data(lv_obj_t* obj) {
             data->active_loaded_observer.reset();
             data->action_observer.reset();
             data->target_slot_observer.reset();
+            data->temp_unit_observer.reset();
+            data->language_observer.reset();
+            data->print_state_observer.reset();
+            data->extruder_velocity_observer.reset();
+            data->animations_enabled_observer.reset();
         }
         s_slot_registry.take(obj);
     }
@@ -212,6 +148,11 @@ static void cleanup_all_slot_data() {
         data->active_loaded_observer.reset();
         data->action_observer.reset();
         data->target_slot_observer.reset();
+        data->temp_unit_observer.reset();
+        data->language_observer.reset();
+        data->print_state_observer.reset();
+        data->extruder_velocity_observer.reset();
+        data->animations_enabled_observer.reset();
 
         delete data;
     });
@@ -246,9 +187,15 @@ static helix::SlotCardLines slot_lines(const AmsSlotData* data) {
     const char* material = material_subject ? lv_subject_get_string(material_subject) : "";
     const char* name = name_subject ? lv_subject_get_string(name_subject) : "";
 
-    return helix::slot_card_lines(
+    // A label standing above a drawn unit has its own share of the width, so it reads
+    // like an uncrowded card's material line, alone.
+    helix::SlotCardLines lines = helix::slot_card_lines(
         name, material, helix::ui::lane_material_text(data->last_lane_state, material),
-        data->total_count, data->last_lane_state == helix::ui::LaneState::Empty);
+        data->label_spread ? 1 : data->total_count,
+        data->last_lane_state == helix::ui::LaneState::Empty);
+    if (data->label_spread)
+        lines.name.clear();
+    return lines;
 }
 
 /// Whether @p name fits the slot's width on one line. A slot not laid out yet
@@ -296,9 +243,9 @@ static void apply_row_name_lines(lv_obj_t* row) {
             continue;
         // DECLARATIVE_OK: a row-wide decision over per-slot subjects
         if (any_name)
-            lv_obj_remove_flag(d->name_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(d->name_label, false);
         else
-            lv_obj_add_flag(d->name_label, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(d->name_label, true);
     }
 }
 
@@ -324,9 +271,9 @@ static void apply_lane_remaining(AmsSlotData* data, const char* text) {
     // DECLARATIVE_OK: per-slot subject whose index arrives after view creation
     lv_label_set_text(data->lane_remaining, has ? text : "");
     if (has)
-        lv_obj_remove_flag(data->lane_remaining, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_remaining, false);
     else
-        lv_obj_add_flag(data->lane_remaining, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_remaining, true);
 }
 
 /// The lane's own climate: humidity, or "--" while its sensor has none, and
@@ -352,16 +299,14 @@ static void apply_lane_humidity(AmsSlotData* data, AmsBackend* backend) {
     const bool has_temp = env && env->has_temperature();
     char temp[16] = "";
     if (has_temp)
-        snprintf(temp, sizeof(temp),
-                 "%d\xC2\xB0"
-                 "C",
-                 (int)std::lround(env->temperature_c));
+        snprintf(temp, sizeof(temp), "%s",
+                 helix::units::format_display_temp(env->temperature_c).c_str());
     // DECLARATIVE_OK: per-slot reading with no per-slot temperature subject
     lv_label_set_text(data->lane_temp_text, temp);
     if (has_temp)
-        lv_obj_remove_flag(data->lane_temp_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_temp_row, false);
     else
-        lv_obj_add_flag(data->lane_temp_row, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_temp_row, true);
 }
 
 /// Bind the drying badge to @p subject (nullptr unbinds it and leaves it hidden). The
@@ -379,7 +324,7 @@ static void bind_drying_badge(AmsSlotData* data, lv_subject_t* subject) {
     }
     data->drying_subject = subject;
     if (!subject) {
-        lv_obj_add_flag(data->drying_badge, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: unbound
+        lv_obj_set_hidden(data->drying_badge, true); // DECLARATIVE_OK: unbound
         return;
     }
     using helix::printer::ZoneDryingState;
@@ -413,11 +358,9 @@ static void apply_badge_number(AmsSlotData* data) {
     if (!data || !data->slot_badge)
         return;
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
-    const int number = backend ? backend->spool_display_number(data->slot_index)
+    const int number = backend ? helix::spool_display_number(*backend, data->slot_index)
                                : helix::ui::lane_number(data->slot_index);
-    char badge_text[16];
-    snprintf(badge_text, sizeof(badge_text), "%d", number);
-    lv_label_set_text(data->slot_badge, badge_text);
+    lv_label_set_text(data->slot_badge, ams_draw::lane_badge_text(number).c_str());
 }
 
 /**
@@ -453,7 +396,7 @@ static void apply_status_badge(AmsSlotData* data, int status_int) {
         badge_bg = theme_manager_get_color("ams_badge_bg");
         break;
     }
-    lv_obj_remove_flag(data->status_badge_bg, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(data->status_badge_bg, false);
     lv_obj_set_style_bg_color(data->status_badge_bg, badge_bg, LV_PART_MAIN);
     apply_badge_number(data);
 
@@ -598,14 +541,14 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
     // Tool changers: badge is redundant with toolhead label below
     auto* backend = AmsState::instance().get_backend(data->backend_index);
     if (backend && backend->should_hide_slot_tool_badge()) {
-        lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->tool_badge_bg, true);
         return;
     }
 
     // A tool feeding the lane of its own number only repeats the lane badge.
     if (const auto info = AmsState::instance().system_info(data->backend_index)) {
         if (!helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots)) {
-            lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->tool_badge_bg, true);
             return;
         }
     }
@@ -614,7 +557,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         // Tool is mapped - show badge with tool number
         const std::string tool_text = helix::ui::tool_label(mapped_tool);
         lv_label_set_text(data->tool_badge, tool_text.c_str());
-        lv_obj_remove_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->tool_badge_bg, false);
 
         // Warning for user overrides, muted for firmware defaults; the toolhead
         // badge takes the same colors.
@@ -626,7 +569,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
                       is_override);
     } else {
         // No tool mapped - hide badge
-        lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->tool_badge_bg, true);
         spdlog::trace("[AmsSlot] Slot {} tool badge: hidden", data->slot_index);
     }
 }
@@ -661,9 +604,9 @@ static void ams_slot_event_cb(lv_event_t* e) {
         }
         lv_area_t area;
         lv_obj_get_coords(obj, &area);
-        const int32_t x = info->point->x;
-        info->res = info->res && x >= area.x1 + data->hit_band.left_inset &&
-                    x <= area.x2 - data->hit_band.right_inset;
+        info->res = info->res &&
+                    helix::ui::ams_slot_hit_band_holds(data->hit_band, area.x1, area.y1, area.x2,
+                                                       info->point->x, info->point->y);
     }
 }
 
@@ -785,6 +728,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 if (d) {
                     evaluate_pulse_state(d);
                     apply_current_slot_highlight(d, current_slot);
+                    apply_spool_spin(d);
                 }
             },
             state.get_subjects_lifetime());
@@ -816,6 +760,7 @@ static void setup_slot_observers(AmsSlotData* data) {
                 auto* d = get_slot_data(o);
                 if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
                     apply_current_slot_highlight(d, d->slot_index);
                 }
             },
@@ -829,8 +774,10 @@ static void setup_slot_observers(AmsSlotData* data) {
             action_subject, obj,
             [](lv_obj_t* o, int /*action*/) {
                 auto* d = get_slot_data(o);
-                if (d)
+                if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
+                }
             },
             state.get_subjects_lifetime());
     }
@@ -842,11 +789,29 @@ static void setup_slot_observers(AmsSlotData* data) {
             target_subject, obj,
             [](lv_obj_t* o, int /*target*/) {
                 auto* d = get_slot_data(o);
-                if (d)
+                if (d) {
                     evaluate_pulse_state(d);
+                    apply_spool_spin(d);
+                }
             },
             state.get_subjects_lifetime());
     }
+
+    // The lane temperature reads in the display unit.
+    data->temp_unit_observer = helix::ui::observe_temp_unit_change(obj, [](lv_obj_t* o) {
+        if (auto* d = get_slot_data(o)) {
+            apply_lane_humidity(d, AmsState::instance().get_backend(d->backend_index));
+        }
+    });
+
+    // The material line reads translated UI copy for an empty lane.
+    data->language_observer = helix::ui::observe_language_change(obj, [](lv_obj_t* o) {
+        if (auto* d = get_slot_data(o)) {
+            apply_slot_label(d);
+        }
+    });
+
+    observe_slot_spin(data);
 
     // Slots version observer: the badge number follows the whole spool table,
     // not only this lane's own status. A routing change re-numbers lanes that
@@ -963,11 +928,6 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     if (data->material_label) {
         lv_label_set_text(data->material_label, "--");
     }
-    // At content height a dotted label wraps into the spool instead of
-    // ellipsizing, and the stagger rows below are laid out one line apart.
-    for (lv_obj_t* label : {data->name_label, data->material_label}) {
-        helix::ui::label_hold_one_line(label);
-    }
     if (data->slot_badge) {
         lv_label_set_text(data->slot_badge, "?");
     }
@@ -977,7 +937,7 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_HIT_TEST, nullptr);
     lv_obj_add_event_cb(obj, ams_slot_event_cb, LV_EVENT_SIZE_CHANGED, nullptr);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_ADV_HITTEST);
+    lv_obj_set_adv_hittest(obj, true);
 
     // Apply responsive slot width
     int32_t space_lg = theme_manager_get_spacing("space_lg");
@@ -1071,7 +1031,7 @@ void ui_ams_slot_register(void) {
     lv_xml_register_widget("ams_slot", ams_slot_xml_create, ams_slot_xml_apply);
 
     // Self-register cleanup — ensures slot data is released before lv_deinit()
-    // so that lv_subject_deinit() can safely remove observers from live widgets
+    // so that reset() can safely remove observers from live widgets
     // Registration is process-once; the slots observe printer subjects, so the cleanup
     // runs at every printer switch and stays registered for the next one.
     StaticSubjectRegistry::instance().register_deinit(
@@ -1162,9 +1122,9 @@ void ui_ams_slot_set_lane_humidity_visible(lv_obj_t* obj, bool visible) {
     data->show_lane_humidity = visible;
     // DECLARATIVE_OK: shown per slot by the detail view's lid mode, which no subject carries
     if (visible)
-        lv_obj_remove_flag(data->lane_humidity, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_humidity, false);
     else
-        lv_obj_add_flag(data->lane_humidity, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->lane_humidity, true);
     AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
     if (visible && data->slot_index >= 0)
         apply_lane_humidity(data, backend);
@@ -1177,9 +1137,61 @@ lv_obj_t* ui_ams_slot_get_lane_humidity(lv_obj_t* obj) {
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_spool_size(lv_obj_t* obj, int32_t spool_size) {
+    auto* data = get_slot_data(obj);
+    if (!data || !data->lane_spool || !data->spool_container || spool_size <= 0)
+        return;
+    helix::ui::ams_lane_spool_set_size(data->lane_spool, spool_size);
+    // DECLARATIVE_OK: measured layout; the drawn unit sizes its spools to the width
+    lv_obj_set_size(data->spool_container, spool_size, spool_size);
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
+                                 helix::SlotError::Severity severity) {
+    auto* data = get_slot_data(obj);
+    if (!data || !data->status_badge_bg)
+        return;
+    if (lv_obj_t* icon = lv_obj_find_by_name(data->status_badge_bg, "badge_plus"))
+        lv_obj_set_hidden(icon, !plus); // DECLARATIVE_OK: per-lane state with no subject
+    if (lv_obj_t* dot = lv_obj_find_by_name(data->status_badge_bg, "badge_error_dot"))
+        ams_draw::update_error_badge(dot, error, severity,
+                                     DisplaySettingsManager::instance().get_animations_enabled());
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_material_label(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    return data ? data->material_label : nullptr;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+std::string ui_ams_slot_get_material_text(lv_obj_t* obj) {
+    const auto* data = get_slot_data(obj);
+    if (!data || !data->material_label)
+        return {};
+    if (data->slot_index < 0)
+        return lv_label_get_text(data->material_label);
+    return card_lines(data).lower;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_hide_leader(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    if (data && data->leader_line)
+        lv_obj_set_hidden(data->leader_line, true); // DECLARATIVE_OK: the view draws leaders
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_ams_slot_get_status_badge(lv_obj_t* obj) {
     auto* data = get_slot_data(obj);
     return data ? data->status_badge_bg : nullptr;
+}
+
+// NAMESPACE_OK: the widget's C API, beside its siblings
+lv_obj_t* ui_ams_slot_get_spool_container(lv_obj_t* obj) {
+    auto* data = get_slot_data(obj);
+    return data ? data->spool_container : nullptr;
 }
 
 float ui_ams_slot_get_fill_level(lv_obj_t* obj) {
@@ -1196,16 +1208,17 @@ float ui_ams_slot_get_fill_level(lv_obj_t* obj) {
     return helix::ui::ams_lane_spool_get_fill_level(data->lane_spool);
 }
 
-void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset) {
+void helix::ui::ams_slot_set_hit_band(lv_obj_t* obj, const AmsSlotHitBand& band) {
     auto* data = obj ? get_slot_data(obj) : nullptr;
     if (!data) {
         return;
     }
-    data->hit_band.left_inset = std::max<int32_t>(0, left_inset);
-    data->hit_band.right_inset = std::max<int32_t>(0, right_inset);
+    data->hit_band = band;
+    data->hit_band.left_inset = std::max<int32_t>(0, band.left_inset);
+    data->hit_band.right_inset = std::max<int32_t>(0, band.right_inset);
 }
 
-void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count) {
+void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count, int label_rows) {
     if (!obj) {
         return;
     }
@@ -1219,9 +1232,12 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 
     const UiBreakpoint bp = helix::widget_size::current_breakpoint();
     const helix::ui::AmsLabelRow placement =
-        helix::ui::ams_stagger_row(slot_index, total_count, bp);
+        label_rows > 0 ? helix::ui::ams_alternate_row(slot_index, label_rows)
+                       : helix::ui::ams_stagger_row(slot_index, total_count, bp);
     const int stagger_rows = placement.rows;
     const int row = placement.row;
+    data->label_on_layer = label_rows > 0 || stagger_rows > 1;
+    data->label_spread = label_rows > 0;
 
     // Staggered labels below the medium breakpoint take the extra-small font, so
     // their rows stay one short line apart.
@@ -1238,11 +1254,11 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 
     // For staggered labels, we use absolute positioning
     // Remove label from flex flow and position it at the correct stagger row
-    if (data->material_label && stagger_rows > 1) {
+    if (data->material_label && data->label_on_layer) {
         int32_t total_label_height = row_height * stagger_rows;
 
         // Remove label from flex layout - it will be positioned absolutely
-        lv_obj_add_flag(data->material_label, LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_set_ignore_layout(data->material_label, true);
 
         // Add padding to container top to make room for staggered labels
         lv_obj_set_style_pad_top(obj, total_label_height, LV_PART_MAIN);
@@ -1266,9 +1282,9 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
         // Create dashed leader line connecting label to spool
         if (!data->leader_line) {
             data->leader_line = lv_line_create(obj);
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_IGNORE_LAYOUT);
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_EVENT_BUBBLE);
+            lv_obj_set_ignore_layout(data->leader_line, true);
+            lv_obj_set_clickable(data->leader_line, true);
+            lv_obj_set_event_bubble(data->leader_line, true);
 
             // Style: dashed line using theme color
             lv_obj_set_style_line_color(data->leader_line, theme_manager_get_color("text_muted"),
@@ -1280,7 +1296,7 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
         }
 
         // Ensure container allows overflow for lines in padding area
-        lv_obj_add_flag(obj, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
+        lv_obj_set_overflow_visible(obj, true);
 
         // Position line from label bottom (with small gap) to spool top
         // lv_obj_align() positions relative to CONTENT area (after padding)
@@ -1299,19 +1315,19 @@ void ui_ams_slot_set_layout_info(lv_obj_t* obj, int slot_index, int total_count)
 
         // Position line object at horizontal center, starting below label
         lv_obj_align(data->leader_line, LV_ALIGN_TOP_MID, 0, line_start_y);
-        lv_obj_remove_flag(data->leader_line, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(data->leader_line, false);
 
         spdlog::debug("[AmsSlot] Slot {} layout: row={}/{}, label_y={}, leader_len={}", slot_index,
                       row, stagger_rows, label_y, leader_length);
     } else if (data->material_label) {
         // No staggering - keep label in flex flow at default position
-        lv_obj_remove_flag(data->material_label, LV_OBJ_FLAG_IGNORE_LAYOUT);
+        lv_obj_set_ignore_layout(data->material_label, false);
         lv_obj_set_style_pad_top(obj, theme_manager_get_spacing("space_xxs"),
                                  LV_PART_MAIN); // Original padding
 
         // Hide leader line if it exists
         if (data->leader_line) {
-            lv_obj_add_flag(data->leader_line, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(data->leader_line, true);
         }
 
         spdlog::debug("[AmsSlot] Slot {} layout: no stagger (count={})", slot_index, total_count);
@@ -1334,7 +1350,7 @@ void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int3
     }
 
     // Check if label is using staggered positioning (IGNORE_LAYOUT flag set by set_layout_info)
-    if (!lv_obj_has_flag(data->material_label, LV_OBJ_FLAG_IGNORE_LAYOUT)) {
+    if (!lv_obj_is_ignore_layout(data->material_label)) {
         // Not staggered - don't move
         return;
     }
@@ -1364,7 +1380,7 @@ void ui_ams_slot_move_label_to_layer(lv_obj_t* obj, lv_obj_t* labels_layer, int3
     lv_obj_set_pos(data->material_label, label_x, label_y);
 
     // Reparent and reposition leader line if it exists
-    if (data->leader_line && !lv_obj_has_flag(data->leader_line, LV_OBJ_FLAG_HIDDEN)) {
+    if (data->leader_line && !lv_obj_is_hidden(data->leader_line)) {
         lv_obj_set_parent(data->leader_line, labels_layer);
 
         // CRITICAL: Clear any stored alignment from set_layout_info() which used LV_ALIGN_TOP_MID

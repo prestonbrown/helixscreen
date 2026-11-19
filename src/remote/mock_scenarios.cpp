@@ -10,7 +10,9 @@
 
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "core/http_executor.h"
+#include "moonraker_client_mock.h"
 #include "print_start_phase.h"
 #include "thumbnail_processor.h"
 
@@ -41,7 +43,7 @@ static void set_int(const char* name, int value) {
 static void set_string(const char* name, const char* value) {
     lv_subject_t* s = lv_xml_get_subject(nullptr, name);
     if (s) {
-        lv_subject_copy_string(s, value);
+        lv_subject_set_string(s, value);
     } else {
         spdlog::warn("[Scenario] Subject not found: {}", name);
     }
@@ -231,7 +233,7 @@ static std::vector<MockScenario> clog_scenarios() {
                          h.fault_detection_enabled = true;
                          h.error_sensitivity = 7.0f;
                          h.state = "Trailing";
-                         h.motion = BufferMotion::Trailing;
+                         h.motion = BufferMotion::Compressed;
                          h.distance_to_fault = 1.5f; // close to the threshold
                          m.set_unit_buffer_health(0, h);
                      });
@@ -290,7 +292,7 @@ static std::vector<MockScenario> clog_scenarios() {
                          h.fault_detection_enabled = true;
                          h.error_sensitivity = 7.0f;
                          h.state = "Trailing";
-                         h.motion = BufferMotion::Trailing;
+                         h.motion = BufferMotion::Compressed;
                          h.distance_to_fault = 1.5f;
                          m.set_unit_buffer_health(0, h);
                      });
@@ -373,6 +375,22 @@ static std::vector<MockScenario> build_scenarios() {
                              set_int("print_start_phase",
                                      static_cast<int>(PrintStartPhase::COMPLETE));
                          }});
+
+    // --- monitor_pause ---
+    // What Print Handy sends to pause a print it judged failed: the M117
+    // announcement, then Moonraker's /printer/print/pause, which runs PAUSE.
+    // Through the mock's G-code path, so the screen sees the real frames.
+    // Needs a running print (HELIX_MOCK_AUTO_PRINT=1).
+    scenarios.push_back(
+        {"monitor_pause", "An outside monitor (Print Handy) pauses the running print", []() {
+             auto* mock = get_moonraker_client_mock();
+             if (!mock) {
+                 spdlog::warn("[Scenario] No mock Moonraker client: monitor_pause skipped");
+                 return;
+             }
+             mock->gcode_script("M117 Paused by Print Handy: possible spaghetti");
+             mock->gcode_script("PAUSE");
+         }});
 
     // --- error ---
     scenarios.push_back({"error", "Klippy error state", []() {

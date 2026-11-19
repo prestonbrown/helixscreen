@@ -14,6 +14,7 @@
 #include "display_manager.h"
 
 #include "image_cache_env.h"
+#include "lvgl/src/misc/lv_timer_private.h" // lv_timer_t::timer_cb: LVGL has no getter
 #include "print_lifecycle_state.h"
 
 // Private LVGL header for direct flush_cb capture (matches application.cpp pattern)
@@ -25,6 +26,8 @@
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
+#include "core/locale_code.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display/lv_display_private.h"
 #include "display_settings_manager.h"
@@ -46,6 +49,7 @@
 #include "rotation_probe.h"
 #include "runtime_config.h"
 #include "screen_hide_hold.h"
+#include "screen_secrets.h"
 #include "tap_latch.h"
 #include "touch_calibration_wrapper.h"
 #if HELIX_ENABLE_SCREENSAVER
@@ -213,12 +217,9 @@ bool DisplayManager::init(const Config& config) {
         spdlog::error("[DisplayManager] No display backend available");
         TelemetryManager::instance().record_error("display", "init_failed",
                                                   "no display backend available");
-        // lv_deinit() first, then lv_xml_deinit() — the teardown order shutdown()
-        // documents. Nothing is registered yet on this path, so either order works
-        // today; keeping one order everywhere is what stops the shutdown ordering
-        // bug from being reintroduced by copying this block.
-        lv_deinit();
-        lv_xml_deinit();
+        // The one teardown order (teardown_lvgl()). Nothing is registered yet on
+        // this path; sharing the function is what keeps the order from drifting.
+        helix::ui::teardown_lvgl();
         return false;
     }
 
@@ -305,9 +306,7 @@ bool DisplayManager::init(const Config& config) {
         TelemetryManager::instance().record_error("display", "init_failed",
                                                   "all display backends exhausted");
         m_backend.reset();
-        // Same teardown order as above and as shutdown().
-        lv_deinit();
-        lv_xml_deinit();
+        helix::ui::teardown_lvgl();
         return false;
     }
 
@@ -383,13 +382,9 @@ bool DisplayManager::init(const Config& config) {
                                 suggestions, 30000);
 
             m_backend.reset();
-            // Order matters here, unlike the two paths above: ui_show_fatal_error()
-            // has just built and shown a widget tree. Freeing the component scopes
-            // first would free styles those widgets still point at, and lv_deinit()
-            // runs layout passes while tearing them down — the use-after-free
-            // shutdown() hit. Destroy the widgets first, then the scopes.
-            lv_deinit();
-            lv_xml_deinit();
+            // ui_show_fatal_error() has just built and shown a widget tree, which is
+            // what teardown_lvgl()'s order exists for.
+            helix::ui::teardown_lvgl();
             return false;
         }
 #else
@@ -478,7 +473,8 @@ bool DisplayManager::init(const Config& config) {
     DisplaySleepConfig sleep_config;
     sleep_config.use_hardware_blank = use_hardware_blank;
     sleep_config.use_power_off = use_power_off;
-    sleep_config.dim_timeout_sec = cfg->get<int>("/display/dim_sec", 600);
+    sleep_config.dim_timeout_sec =
+        cfg->get<int>("/display/dim_sec", DisplaySettingsManager::kDefaultDimSec);
     sleep_config.dim_brightness_percent =
         std::clamp(cfg->get<int>("/display/dim_brightness", 30), 1, 100);
     spdlog::debug("[DisplayManager] Display dim: {}s timeout, {}% brightness",
@@ -583,6 +579,7 @@ void DisplayManager::shutdown() {
 
     m_sleep.abandon_lvgl_state();
     m_brightness_reassert_timer.reset();
+    m_pointer_reopen_timer.reset();
 
     // Release backends
     m_backlight.reset();
@@ -598,34 +595,29 @@ void DisplayManager::shutdown() {
     lv_sdl_quit();
 #endif
 
-    // Deinitialize LVGL FIRST, then the helix-xml engine.
-    //
-    // A component scope owns the styles its instances use: component_scope_free()
-    // clears scope->style_ll, freeing every lv_style_t in it. Widgets keep raw
-    // pointers to those styles, so freeing the scopes while the widget tree is
-    // still standing leaves live objects pointing at reclaimed style memory —
-    // and lv_deinit()'s own teardown runs layouts as it goes, so a flex pass
-    // reads a freed style before the object is deleted (heap-use-after-free in
-    // get_prop_core, via lv_obj_get_style_flex_grow).
-    //
-    // The reverse order is safe: lv_deinit() only needs the widget tree and its
-    // own allocator, neither of which the XML engine owns, and lv_free() here is
-    // plain free() (LV_USE_STDLIB_MALLOC = clib), so releasing scopes afterwards
-    // needs nothing from LVGL. The <subject_expr> observers detached below are
-    // attached to app-owned subjects, not objects, so lv_deinit() leaves them
-    // alone for lv_xml_deinit() to remove — which is why theme_manager_deinit()
-    // must run after all of this (see Application::shutdown()).
-    if (lv_is_initialized()) {
-        lv_deinit();
-    }
-
-    // Frees component scopes, their styles, fonts and <subject_expr> observers.
-    lv_xml_deinit();
+    helix::ui::teardown_lvgl();
 
     m_width = 0;
     m_height = 0;
     m_initialized = false;
 }
+
+namespace helix::ui {
+void teardown_lvgl() {
+    // Every helix::Subject node belongs to the LVGL generation that ends here.
+    helix::subjects_note_lvgl_deinit();
+
+    // LVGL, then the XML engine. A component scope owns the styles its instances use
+    // (component_scope_free() frees every lv_style_t in it), and lv_deinit() runs layout
+    // passes while it deletes the widget tree, so freeing the scopes first would leave
+    // live widgets reading freed styles. lv_deinit() frees every subject node with its
+    // observers, so lv_xml_deinit() after it frees only the engine's own memory.
+    if (lv_is_initialized()) {
+        lv_deinit();
+    }
+    lv_xml_deinit();
+}
+} // namespace helix::ui
 
 void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
     if (!m_pointer) {
@@ -675,7 +667,43 @@ void DisplayManager::configure_pointer(int scroll_throw, int scroll_limit) {
 }
 
 void DisplayManager::watch_pointer() {
-    m_indev_delete_watch.watch(m_pointer, &m_pointer);
+    m_indev_delete_watch.watch(m_pointer, &m_pointer, &DisplayManager::on_pointer_deleted, this);
+}
+
+void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) {
+    auto* dm = static_cast<DisplayManager*>(ctx);
+    if (dm->m_shutting_down || !dm->m_backend || dm->m_pointer_reopen_timer.get()) {
+        return;
+    }
+    if (!dm->m_backend->can_reopen_input_pointer()) {
+        spdlog::warn("[DisplayManager] Pointer device removed; the {} backend cannot reopen it",
+                     dm->m_backend->name());
+        return;
+    }
+    // A USB touch controller that resets drops off the bus and re-enumerates a
+    // few seconds later; lv_evdev has already deleted the device it read.
+    spdlog::warn("[DisplayManager] Pointer device removed; retrying every {} ms until it returns",
+                 kPointerReopenPeriodMs);
+    dm->m_pointer_reopen_timer.reset(
+        lv_timer_create(&DisplayManager::pointer_reopen_tick, kPointerReopenPeriodMs, dm));
+}
+
+void DisplayManager::pointer_reopen_tick(lv_timer_t* t) {
+    auto* dm = static_cast<DisplayManager*>(lv_timer_get_user_data(t));
+    if (!dm->m_backend || dm->m_pointer) {
+        dm->m_pointer_reopen_timer.reset();
+        return;
+    }
+    lv_indev_t* pointer = dm->m_backend->reopen_input_pointer();
+    if (!pointer) {
+        return;
+    }
+    dm->m_pointer_reopen_timer.reset();
+    dm->m_pointer = pointer;
+    dm->configure_pointer(dm->m_scroll_throw, dm->m_scroll_limit);
+    // A new device starts at LVGL's default read period.
+    helix::apply_refresh_timing(dm->m_refresh_timing);
+    spdlog::info("[DisplayManager] Pointer device reopened");
 }
 
 void DisplayManager::watch_keyboard() {
@@ -716,14 +744,13 @@ void DisplayManager::debug_touch_tick(lv_timer_t* t) {
     lv_point_t point;
     lv_indev_get_point(indev, &point);
 
-    static lv_coord_t last_x = -100, last_y = -100;
-    lv_coord_t dx = point.x - last_x;
-    lv_coord_t dy = point.y - last_y;
+    lv_point_t& last = dm->m_debug_touch_last;
+    int32_t dx = point.x - last.x;
+    int32_t dy = point.y - last.y;
     if (dx * dx + dy * dy < 25) // <5px movement
         return;
 
-    last_x = point.x;
-    last_y = point.y;
+    last = point;
     helix::ui::create_ripple(lv_layer_top(), point.x, point.y, 10, 40, 300);
 }
 
@@ -739,6 +766,8 @@ lv_timer_t* DisplayManager::install_debug_touch_timer() {
 }
 
 void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
+    m_scroll_throw = scroll_throw;
+    m_scroll_limit = scroll_limit;
     if (m_pointer) {
         configure_pointer(scroll_throw, scroll_limit);
     }
@@ -749,6 +778,21 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
     // Refresh pacing overrides, now that the refresh, animation, input and update-queue
     // timers they set all exist.
     helix::apply_refresh_timing(m_refresh_timing);
+
+    // Asleep, input is read when its fd turns readable rather than every 33 ms. Waking
+    // resumes the timers before anything else reads input.
+    register_sleep_callback([this](bool sleeping) {
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            if (t->timer_cb == &DisplayManager::debug_touch_tick) {
+                sleeping ? lv_timer_pause(t) : lv_timer_resume(t);
+            }
+        }
+        if (sleeping && m_backend) {
+            m_input_wait.begin(m_backend->input_wake_sources());
+        } else if (!sleeping) {
+            m_input_wait.end();
+        }
+    });
 }
 
 void DisplayManager::create_keyboard_input() {
@@ -785,6 +829,14 @@ uint32_t DisplayManager::get_ticks() {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return static_cast<uint32_t>(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 #endif
+}
+
+void DisplayManager::wait_for_work(uint32_t ms) {
+    if (m_input_wait.active()) {
+        m_input_wait.wait(ms);
+        return;
+    }
+    delay(ms);
 }
 
 void DisplayManager::delay(uint32_t ms) {
@@ -868,7 +920,9 @@ helix::ui::SaverHost DisplayManager::screensaver_host(const DisplayBackend* back
         return helix::DisplaySettingsManager::instance().get_screensaver_print_progress();
     };
     // The state words are English stroke glyphs; any other language shows symbols.
-    host.spell_states = [] { return helix::ui::locale_current_language() == "en"; };
+    host.spell_states = [] {
+        return helix::locale_base_language(helix::locale::locale_current_language()) == "en";
+    };
     host.display_backend =
         backend ? helix::ui::display_backend_key(backend->type(), backend->is_gpu_accelerated())
                 : "unknown";
@@ -1043,8 +1097,7 @@ void DisplayManager::install_sleep_aware_input_wrapper() {
 // ============================================================================
 
 bool DisplayManager::try_drm_to_fbdev_fallback(lv_display_rotation_t rot, bool splash_active) {
-    if (m_backend->type() != DisplayBackendType::DRM ||
-        m_backend->supports_hardware_rotation(rot)) {
+    if (!m_backend->needs_fbdev_for_rotation(rot)) {
         return true; // No fallback needed
     }
 
@@ -1292,8 +1345,8 @@ void DisplayManager::on_screen_size_changed(lv_obj_t* screen) {
         return;
     }
 
-    lv_coord_t width = lv_obj_get_width(screen);
-    lv_coord_t height = lv_obj_get_height(screen);
+    int32_t width = lv_obj_get_width(screen);
+    int32_t height = lv_obj_get_height(screen);
 
     if (m_resize_fanout_suspended) {
         spdlog::debug("[DisplayManager] Screen size changed to {}x{} while resize fanout "
@@ -1453,6 +1506,7 @@ void DisplayManager::install_color_transform_hook() {
                     break;
                 }
                 f.last_in_refresh = lv_display_flush_is_last(d);
+                f.secret = helix::ui::screen_secret_state();
                 self->m_remote_screen.on_frame(f);
             }
         }

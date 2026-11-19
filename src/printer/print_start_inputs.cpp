@@ -2,19 +2,20 @@
 
 #include "print_start_inputs.h"
 
-#include "ui_filament_mapping_card.h"
-
 #include "ams_state.h"
+#include "app_constants.h"
 #include "app_globals.h"
 #include "core/gcode_filename.h"
 #include "core/http_executor.h"
-#include "core/text_io.h"
+#include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "file_analysis.h"
 #include "gcode_parser.h"
-#include "gcode_preview_fetcher.h"
+#include "gcode_preview_cache.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
+#include "motor_ripple_store.h"
 #include "printer_detector.h"
 #include "printer_state.h"
 #include "tools_used_cache.h"
@@ -28,8 +29,6 @@
 
 namespace helix {
 
-namespace tio = helix::text_io;
-
 FileVersion file_version_of(const std::optional<FileMetadata>& metadata) {
     if (!metadata) {
         return {};
@@ -39,13 +38,7 @@ FileVersion file_version_of(const std::optional<FileMetadata>& metadata) {
 
 FilePalette file_palette_from_metadata(const FileMetadata& metadata) {
     FilePalette palette;
-    // Per-tool materials from the semicolon-separated metadata
-    // (e.g., "PLA;PLA;PETG" → ["PLA", "PLA", "PETG"])
-    if (!metadata.filament_type.empty()) {
-        for (std::string_view sv : tio::lines(metadata.filament_type, ';')) {
-            palette.materials.emplace_back(sv);
-        }
-    }
+    palette.materials = split_filament_types(metadata.filament_type);
     // Per-tool hex colors, parsed by Moonraker
     palette.colors = metadata.filament_colors;
     return palette;
@@ -98,13 +91,13 @@ namespace {
 
 /// What the file view's mapping card holds for @p facts when the user has not
 /// edited it.
-ui::FilamentMappingCard::Mapping card_mapping_for(const FileStartFacts& facts) {
-    return ui::FilamentMappingCard::compute_mapping(facts.palette.colors, facts.palette.materials,
+helix::filament_mapping::Mapping card_mapping_for(const FileStartFacts& facts) {
+    return helix::filament_mapping::compute_mapping(facts.palette.colors, facts.palette.materials,
                                                     facts.tools_used);
 }
 
 std::vector<GcodeToolInfo> used_tool_info_for(const FileStartFacts& facts) {
-    return ui::FilamentMappingCard::build_used_tool_info(facts.palette.colors,
+    return helix::filament_mapping::build_used_tool_info(facts.palette.colors,
                                                          facts.palette.materials, facts.tools_used);
 }
 
@@ -136,6 +129,8 @@ void fill_file_context(PrintStartContext& ctx, const FileStartFacts& facts) {
     ctx.filament_materials = facts.palette.materials;
     ctx.tools_used = file_tools_used(facts);
     ctx.tool_grams = facts.tool_grams;
+    ctx.outer_wall_speed_mm_s = facts.outer_wall_speed_mm_s;
+    ctx.ripple_bands = calibration::ripple::RippleResultCache::instance().bands();
     ctx.fit_file = fit_file_from_sources(facts.fit_record, nullptr, facts.metadata, std::nullopt,
                                          ctx.tools_used);
 }
@@ -190,6 +185,12 @@ std::optional<FitMachine> current_fit_machine() {
         fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
                                ams.is_available(), ams.printable_y_shrink_mm()),
         live_nozzles(state.temperature_state()));
+}
+
+uint32_t file_facts_stall_ms(const FileMetadata& metadata) {
+    constexpr uint64_t kSlowestReadBytesPerMs = 100; // 100 kB/s
+    return app_constants::transfer::STALL_MS +
+           static_cast<uint32_t>(metadata.size / kSlowestReadBytesPerMs);
 }
 
 PreflightResult preflight_for(const FileStartFacts& facts, bool material_needed) {
@@ -262,8 +263,9 @@ void FileStartFactsLoader::load(const std::string& filename, ReadyFn on_ready, D
             req.file_key = filename;
             req.version = version;
             req.gcode_end_byte = metadata ? metadata->gcode_end_byte : 0;
-            req.need = gcode::footer_read_need(tools_known, !facts->palette.colors.empty(),
-                                               !facts->tool_grams.empty());
+            req.need = gcode::footer_read_need(
+                tools_known, !facts->palette.colors.empty(), !facts->tool_grams.empty(),
+                !calibration::ripple::RippleResultCache::instance().bands().empty());
             req.palette_size = facts->palette.colors.size();
             req.download = download;
             req.allow_full_scan = read == FileRead::Whole;
@@ -274,6 +276,7 @@ void FileStartFactsLoader::load(const std::string& filename, ReadyFn on_ready, D
             hooks.on_footer = [facts, answer](const gcode::GcodeFooterSummary& s,
                                               bool tools_answered) {
                 gcode::backfill_from_footer(s, facts->palette.colors, facts->tool_grams);
+                facts->outer_wall_speed_mm_s = s.outer_wall_speed_mm_s;
                 if (tools_answered) {
                     facts->tools_used = s.tools_used;
                 }
@@ -568,7 +571,7 @@ void FileStartFactsLoader::download_to_temp(
         return;
     }
     const std::string path = dir + "/" +
-                             ui::GcodePreviewFetcher::cache_file_name(
+                             helix::gcode::preview_cache_file_name(
                                  "start_", file_key + "#" + std::to_string(generation));
     api_->transfers().download_file_to_path(
         "gcodes", file_key, path, [done, path](const std::string&) { done(true, path); },

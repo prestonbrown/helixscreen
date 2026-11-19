@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_obj_flags.h"
+
 #include "json_fwd.h"
 #include "lvgl/lvgl.h"
 
@@ -109,6 +111,15 @@ class PanelWidget {
     /// widget that measures needs the last granted size, so the base keeps it
     /// rather than each widget carrying its own copy
     /// (prestonbrown/helixscreen#1490).
+    /// Record which home page this tile sits on and whether it covers that whole
+    /// page while it is not the main page (cell_fills_extra_page()). The manager
+    /// calls this right before every notify_size_changed(), so on_size_changed()
+    /// reads the placement it belongs to.
+    void set_page_placement(int page_index, bool fills_extra_page) {
+        page_index_ = page_index;
+        fills_extra_page_ = fills_extra_page;
+    }
+
     void notify_size_changed(int colspan, int rowspan, int width_px, int height_px) {
         granted_colspan_ = colspan;
         granted_rowspan_ = rowspan;
@@ -238,6 +249,14 @@ class PanelWidget {
     int granted_height_px() const {
         return granted_height_px_;
     }
+    /// The home page the manager last placed this tile on (set_page_placement()).
+    int page_index() const {
+        return page_index_;
+    }
+    /// Whether the tile covers a whole page other than the main page.
+    bool fills_extra_page() const {
+        return fills_extra_page_;
+    }
 
     /// Re-run the layout decision against the last granted size.
     ///
@@ -277,6 +296,9 @@ class PanelWidget {
      * and async-guard expiry ONLY. Never reset observers or reparent/clean
      * widgets from here — those need a live tree and a non-delete context
      * (detach() and the destructor still run later on the normal paths).
+     * The one exception is a subtree the tile borrowed from an owner that
+     * outlives it (FullPageContent::host_deleting()): the event fires before
+     * LVGL deletes the children, so handing it back here is what keeps it.
      */
     virtual void on_hooked_root_deleted() {}
 
@@ -300,6 +322,8 @@ class PanelWidget {
     int granted_rowspan_ = 0;
     int granted_width_px_ = 0;
     int granted_height_px_ = 0;
+    int page_index_ = 0;
+    bool fills_extra_page_ = false;
 };
 
 /// Safe recovery of PanelWidget pointer from event callback: the widget bound to
@@ -312,7 +336,7 @@ template <typename T> T* panel_widget_from_event(lv_event_t* e) {
     if (!obj)
         return nullptr;
     for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, kPanelWidgetTileFlag)) {
+        if (helix::ui::obj_has_flags(o, kPanelWidgetTileFlag)) {
             return static_cast<T*>(lv_obj_get_user_data(o));
         }
     }

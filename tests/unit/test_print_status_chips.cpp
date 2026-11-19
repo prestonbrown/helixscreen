@@ -113,6 +113,13 @@ TEST_CASE("speed and flow 100 is expendable", "[print_status_chips]") {
     CHECK(c.expendable);
 }
 
+TEST_CASE("a warm chamber's glow takes over from the light's", "[print_status_chips]") {
+    ChipContent chamber;
+    CHECK_FALSE(light_glow_yields(chamber));
+    chamber.glow = 1;
+    CHECK(light_glow_yields(chamber));
+}
+
 TEST_CASE("light off is expendable, on glows", "[print_status_chips]") {
     CHECK_FALSE(light_chip(false, true).shown);
     auto on = light_chip(true, true);

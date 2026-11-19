@@ -10,11 +10,20 @@
  * - Severity card border color updates reactively when theme changes
  */
 
+#include "ui_nav_manager.h"
+#include "ui_settings_hardware_health.h"
 #include "ui_severity_card.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "app_globals.h"
+#include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/update_queue.h"
+#include "hardware_validator.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
+#include <array>
 #include <string>
 
 #include "../catch_amalgamated.hpp"
@@ -270,7 +279,7 @@ static std::string visible_icon_name(lv_obj_t* row) {
     for (const char* name : kSeverityIconNames) {
         lv_obj_t* icon = lv_obj_find_by_name(row, name);
         REQUIRE(icon != nullptr);
-        if (!lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN)) {
+        if (!lv_obj_is_hidden(icon)) {
             REQUIRE(found.empty());
             found = name;
         }
@@ -347,8 +356,8 @@ struct BoundHistoryRow {
         const std::string suffix = std::to_string(next_id++);
         severity_name = "severity_test_row_severity_" + suffix;
         title_name = "severity_test_row_title_" + suffix;
-        lv_subject_init_int(&severity, severity_value);
-        lv_subject_init_string(&title, title_buf, nullptr, sizeof(title_buf), "Row");
+        severity.init_int(severity_value);
+        title.init_string(title_buf, nullptr, sizeof(title_buf), "Row");
         lv_xml_register_subject(nullptr, severity_name.c_str(), &severity);
         lv_xml_register_subject(nullptr, title_name.c_str(), &title);
         const char* attrs[] = {"severity_subject", severity_name.c_str(), "title_subject",
@@ -361,16 +370,16 @@ struct BoundHistoryRow {
         }
         lv_xml_unregister_subject(nullptr, severity_name.c_str());
         lv_xml_unregister_subject(nullptr, title_name.c_str());
-        lv_subject_deinit(&severity);
-        lv_subject_deinit(&title);
+        severity.reset();
+        title.reset();
     }
     BoundHistoryRow(const BoundHistoryRow&) = delete;
     BoundHistoryRow& operator=(const BoundHistoryRow&) = delete;
 
     std::string severity_name;
     std::string title_name;
-    lv_subject_t severity{};
-    lv_subject_t title{};
+    helix::Subject severity{};
+    helix::Subject title{};
     char title_buf[16]{};
     lv_obj_t* row = nullptr;
 };
@@ -419,4 +428,61 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(error.row != nullptr);
 
     require_distinct_critical_glyphs(warning.row, error.row);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Hardware Health rows name their hardware and offer Save only for new hardware",
+                 "[reactive-severity][hardware]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+
+    HardwareValidationResult result;
+    result.expected_missing.push_back(
+        HardwareIssue::warning("neopixel chamber_light", HardwareType::LED, "LED strip missing"));
+    result.newly_discovered.push_back(
+        HardwareIssue::info("fan_generic nevermore", HardwareType::FAN, "Fan available"));
+    auto& validation = get_printer_state().hardware_validation_state();
+    validation.set_hardware_validation_result(result);
+
+    auto& overlay = helix::settings::get_hardware_health_overlay();
+    overlay.set_printer_state(&get_printer_state());
+    REQUIRE(overlay.show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+
+    auto only_row = [](const char* list_name) {
+        lv_obj_t* list = lv_obj_find_by_name(lv_screen_active(), list_name);
+        REQUIRE(list != nullptr);
+        REQUIRE(lv_obj_get_child_count(list) == 1);
+        return lv_obj_get_child(list, 0);
+    };
+    auto text_of = [](lv_obj_t* row, const char* name) {
+        lv_obj_t* label = lv_obj_find_by_name(row, name);
+        REQUIRE(label != nullptr);
+        return std::string(lv_label_get_text(label));
+    };
+    auto hidden = [](lv_obj_t* row, const char* name) {
+        lv_obj_t* obj = lv_obj_find_by_name(row, name);
+        REQUIRE(obj != nullptr);
+        return lv_obj_is_hidden(obj);
+    };
+
+    lv_obj_t* missing = only_row("warning_issues_list");
+    CHECK(text_of(missing, "hardware_name") == "neopixel chamber_light");
+    CHECK(text_of(missing, "issue_message") == "LED strip missing");
+    CHECK_FALSE(hidden(missing, "action_buttons"));
+    CHECK(hidden(missing, "save_btn"));
+
+    lv_obj_t* discovered = only_row("info_issues_list");
+    CHECK(text_of(discovered, "hardware_name") == "fan_generic nevermore");
+    CHECK_FALSE(hidden(discovered, "action_buttons"));
+    CHECK_FALSE(hidden(discovered, "save_btn"));
+
+    validation.set_hardware_validation_result({});
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
 }

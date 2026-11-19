@@ -11,6 +11,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -54,14 +55,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(spools != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(spools));
 
     // Dropping below w_normal() hides the spool view rather than deleting it (the
     // container is built once and recycled), so assert on the flag.
     ui_ams_mini_status_set_width(w, 130);
     helix::ui::UpdateQueue::instance().drain();
     REQUIRE(UITest::find_by_name(w, "ams_spools_container") == spools);
-    REQUIRE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(lv_obj_is_hidden(spools));
 
     // Bar mode renders ams_lane_bar widgets, each bound to its slot.
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
@@ -73,7 +74,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
     // ...and coming back up shows it again.
     ui_ams_mini_status_set_width(w, 260);
     helix::ui::UpdateQueue::instance().drain();
-    REQUIRE_FALSE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(spools));
 
     lv_obj_delete(w);
 }
@@ -98,7 +99,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: width_px >= w_normal() selects sp
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(spools != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE_FALSE(lv_obj_is_hidden(spools));
     lv_obj_delete(w);
 }
 
@@ -270,6 +271,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: active lane badge uses
     ams.deinit_subjects();
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a pooled badge follows the numbering",
+                 "[ui][ams_mini][spool][zero-numbering]") {
+    helix::AmsState::instance().set_backend(nullptr); // only then does the widget number a badge
+    ui_ams_mini_status_init();
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    helix::ui::UpdateQueue::instance().drain(); // flush stray auto-sync
+    ui_ams_mini_status_set_slot_count(w, 2);
+    ui_ams_mini_status_set_slot_label(w, 0, "PLA", 70);
+    ui_ams_mini_status_set_width(w, 260);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* badge = UITest::find_by_name(w, "spool_badge_0");
+    REQUIRE(badge != nullptr);
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(badge, 0))) == "1");
+
+    {
+        ScopedZeroLaneNumbering zero;
+        ui_ams_mini_status_refresh(w);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(UITest::find_by_name(w, "spool_badge_0") == badge);
+        CHECK(std::string(lv_label_get_text(lv_obj_get_child(badge, 0))) == "0");
+    }
+    lv_obj_delete(w);
+}
+
 // Cells are pooled: created once per lane and updated in place, so a sync that
 // changes only lane DATA keeps the same cell objects (only a lane-count change
 // may recreate). Guards both the churn the pooling exists for and the in-place
@@ -322,10 +347,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: 2x->1x restores bar view", "[ui][
 
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(spools != nullptr);
-    REQUIRE(lv_obj_has_flag(spools, LV_OBJ_FLAG_HIDDEN)); // spools hidden in bar mode
+    REQUIRE(lv_obj_is_hidden(spools)); // spools hidden in bar mode
     lv_obj_t* bars = UITest::find_by_name(w, "ams_bars_container");
     REQUIRE(bars != nullptr);
-    REQUIRE_FALSE(lv_obj_has_flag(bars, LV_OBJ_FLAG_HIDDEN)); // bars visible again
+    REQUIRE_FALSE(lv_obj_is_hidden(bars)); // bars visible again
     lv_obj_delete(w);
 }
 
@@ -431,7 +456,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a condemned unit row keeps its po
     process_lvgl(50);
     lv_obj_t* bar7 = bar_for_slot(7);
     REQUIRE(bar7 != nullptr);
-    CHECK(lv_obj_has_flag(bar7, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(bar7));
 
     // ...and come back when the unit does.
     raw->unit_sizes = {3, 3, 2};
@@ -441,7 +466,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a condemned unit row keeps its po
     process_lvgl(50);
     bar7 = bar_for_slot(7);
     REQUIRE(bar7 != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(bar7, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(bar7));
 
     lv_obj_delete(w);
     ams.clear_backends();
@@ -467,7 +492,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ui_ams_mini_status_set_width(w, 260); // spool mode sizes from width_px, not layout
 
     CHECK(UITest::find_by_name(w, "spool_material_0") != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(w, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(w));
 
     lv_obj_delete(w);
     mock_ptr->stop();

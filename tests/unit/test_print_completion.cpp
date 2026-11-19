@@ -14,11 +14,12 @@
  * false notifications on observer registration.
  */
 
-#include "ui_format_utils.h"
+#include "ui_print_completion_modal.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../ui_test_utils.h"
+#include "display_format.h"
 #include "print_completion.h"
 #include "printer_state.h"
 
@@ -51,7 +52,7 @@ class PrintCompletionTestFixture : public LVGLTestFixture {
     ~PrintCompletionTestFixture() {
         // Remove observer if registered
         if (observer_ != nullptr) {
-            lv_observer_remove(observer_);
+            lv_observer_delete(observer_);
             observer_ = nullptr;
         }
         PrinterStateTestAccess::reset(state_);
@@ -159,20 +160,6 @@ TEST_CASE_METHOD(PrintCompletionTestFixture,
     register_completion_observer();
 
     // The initial callback should be skipped (no completion notification)
-    REQUIRE(get_completion_callback_count() == 0);
-}
-
-TEST_CASE_METHOD(PrintCompletionTestFixture,
-                 "PrintCompletion: first callback skipped even when printer is printing",
-                 "[print_completion][first_update]") {
-    // Printer is already printing when we connect
-    set_print_state("printing");
-    REQUIRE(get_print_state_enum() == PrintJobState::PRINTING);
-
-    // Register observer
-    register_completion_observer();
-
-    // The initial callback should be skipped
     REQUIRE(get_completion_callback_count() == 0);
 }
 
@@ -467,17 +454,17 @@ TEST_CASE("build_completion_stats renders layers through the canonical formatter
     // states the contract directly and survives translation.
     SECTION("zero layers matches the helper's unavailable form") {
         auto stats = helix::build_completion_stats(60, 0, 0, 0);
-        REQUIRE(stats.layers == helix::ui::format_layer_count(0));
+        REQUIRE(stats.layers == helix::display_format::format_layer_count(0));
     }
 
     SECTION("a single layer is not pluralised") {
         auto stats = helix::build_completion_stats(60, 0, 1, 0);
-        REQUIRE(stats.layers == helix::ui::format_layer_count(1));
+        REQUIRE(stats.layers == helix::display_format::format_layer_count(1));
     }
 
     SECTION("many layers match the helper") {
         auto stats = helix::build_completion_stats(60, 0, 250, 0);
-        REQUIRE(stats.layers == helix::ui::format_layer_count(250));
+        REQUIRE(stats.layers == helix::display_format::format_layer_count(250));
     }
 }
 

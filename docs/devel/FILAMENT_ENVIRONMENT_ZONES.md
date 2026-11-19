@@ -120,7 +120,7 @@ comfort strip rather than printing a fabricated all-clear.
 `unit_index == -1` is not a display problem, it is a **control** problem. A read that only shapes
 a display value may treat it as "no data for this unit"; the start/stop call sites refuse rather
 than guess which box to command (`src/ui/filament/ui_ams_environment_overlay.cpp#acting_unit_index`, and
-the two `unit < 0` branches in `on_start_stop_clicked`).
+the two `unit < 0` branches in `AmsEnvironmentOverlay::handle_start_stop`).
 
 ### `ZoneDryingState`
 
@@ -134,7 +134,7 @@ a control that did nothing when the user pressed it. `Cancelled` and `Complete` 
 one answers "someone stopped it", the other "it finished".
 
 The integer values are the contract with XML. `zone_tab.xml` picks one of four state icons by
-comparing `env_zone_tab_state_${i}` against 1..4, and `ams_environment_overlay.xml` shows the
+comparing its `state_subject` (the overlay passes `env_zone_tab_state_${i}`) against 1..4, and `ams_environment_overlay.xml` shows the
 queued banner on `env_zone_state == 1` and hides the progress bar on the same value.
 
 ---
@@ -320,17 +320,18 @@ into a word: "Drying", "passive", or the verdict itself as "OK" / "Marginal" / "
 humidity sensor shows a neutral `--`, and a damp passive box shows "passive" in the danger color
 because that is the one thing the row can still tell you.
 
-**`zone_display_label(zone, unit_word, slot_word, type_name)`** - three cases, in order:
+**`zone_display_label(zone, unit_word, slot_noun, type_name)`** - three cases, in order:
 
 1. A zone the backend named uses that name.
-2. A single-gate zone with no name is one slot, `slot_word + " " + (gate + 1)` (one-based on the
-   global gate index).
-3. Anything else is `type_name + " " + unit_word + " " + (unit_index + 1)`.
+2. A single-gate zone with no name is one slot, `lane_label(slot_noun, gate)` (the backend's
+   noun, one-based on the global gate index).
+3. Anything else is `type_name + " " + unit_word + " " + (unit_index + 1)`, or `type_name`
+   alone when the unit index is unresolved.
 
 Case 1 matters on rigs that name their boxes ("Box Turtle 1", "Night Owl"): an ordinal against
 the system type cannot tell one from another on the very screen where you pick between them.
 
-**`zone_slot_text(zone, plural_word, singular_word)`** - the slots a zone covers as the user
+**`zone_slot_text(zone, noun)`** - the slots a zone covers as the user
 reads them: one-based, contracted to a range (`"Slots 1-4"`, or `"Slot 3"` when first == last).
 Slots are contiguous within a zone on every shape we serve, so a range is honest. An empty zone
 gets an empty string rather than a range of nothing.
@@ -441,11 +442,13 @@ the widget subjects, so the next refresh that finds it attaches its observers.
 | Mock | **Override** (default walk, plus a simulated cap in `"capped"` mode) | Whatever `HELIX_MOCK_AMS_ENV` rigs: passive, per-slot, EMU, mixed or capped |
 | QIDI Box | Default walk | One heated zone per box - per-unit `environment` plus per-unit `DryerInfo` |
 | ACE | Default walk | One heated zone. Temperature always; humidity only on firmware variants that publish a top-level `humidity` |
+| MultiACE | Default walk | One heated zone per ACE unit, with humidity where the unit reports it |
+| OpenAMS | Default walk | One zone per unit the manager reports climate for: heated when it offers a dryer, passive with only a sensor |
 | CFS | Default walk | Passive zones, one per box. The backend never touches `DryerInfo`, so `dryer.supported` stays false on every zone |
-| AFC | Default walk | None. No environment data, no dryer |
+| AFC | Default walk | Passive zones, one per unit whose `[AFC_OAMS]` controller reports temperature or humidity; none otherwise. No dryer |
 | Tool Changer | Default walk | None |
 | AD5X IFS | Default walk | None |
-| Snapmaker U1 | Default walk | None |
+| Snapmaker U1, INDX, lane-status producers | Default walk | None |
 
 A backend in the "None" rows costs nothing: the default walk finds neither a sensor nor a dryer
 on any unit and returns an empty vector, which `open_environment_for_unit()` renders as the
@@ -524,7 +527,7 @@ site, so these are the contract for whoever wires the first one.
 | Backend | Behavior |
 |---------|-----------|
 | Happy Hare | Temperature alone re-sends the setpoint and leaves the cycle and its timer alone. Any duration change is a stop then a start, carrying the running target when only the duration moved |
-| ACE | Always a stop then a start. When the duration was not specified it restarts on `remaining_min` rather than `duration_min`, so a temperature change does not silently hand back time already served |
+| ACE, MultiACE | Always a stop then a start (`helix::ace::restart_request()`). When the duration was not specified it restarts on `remaining_min` rather than `duration_min`, so a temperature change does not silently hand back time already served |
 | Every other backend | The `IDryer` default: `NOT_SUPPORTED` |
 
 QIDI overrides `get_dryer_info`, `start_drying` and `stop_drying` but **not** `update_drying`, so
@@ -572,14 +575,13 @@ target rather than following a bad guess. No other `AmsState` wiring is needed.
 
 ## Boundaries
 
-- **Control is per unit, not per zone.** `start_drying` / `stop_drying` take a unit index, and on
-  Happy Hare that becomes `GATES=` over every gate on that unit. On an EMU rig the zones are
-  per-lane for display while a Start on any one of them commands the whole unit. Independently
-  drying a subset of gates, per-gate countdowns, and the `HUMIDITY=` termination target are open
-  in **#1026**.
+- **Control is per unit unless the dryer reports `supports_gate_selection`.** `start_drying` /
+  `stop_drying` take a unit index, and on Happy Hare that becomes `GATES=` over every gate on that
+  unit. Only a per-gate-heater Happy Hare 4 unit takes a chosen subset (see "A chosen set of
+  gates"); per-gate countdowns and the `HUMIDITY=` termination target are open in **#1026**.
 - **Per-gate occupancy filtering is unwritten and unverifiable here.** `heater_suffix_locked()`
-  lists empty gates along with loaded ones. We own no EMU rig; the per-gate paths are unit-tested
-  against synthetic status frames only.
+  lists empty gates along with loaded ones. The per-gate paths are unit-tested against synthetic
+  status frames only.
 - **Nothing infers a concurrency cap.** `Queued` is only ever a firmware report folded by
   `fold_zone_drying_state()`. `queue_zones_waiting_for_the_cap()` exists to let the mock simulate
   a cap and has no production caller outside it.

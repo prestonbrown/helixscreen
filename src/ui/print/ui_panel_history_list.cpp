@@ -5,7 +5,6 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_fonts.h"
-#include "ui_format_utils.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_notification.h"
@@ -20,10 +19,13 @@
 #include "core/gcode_filename.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
+#include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "filament_accounting.h"
+#include "filament_chip_model.h"
 #include "filament_display_name.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
@@ -231,15 +233,15 @@ void HistoryListPanel::on_activate() {
     // Register as history manager observer if manager available
     if (history_manager_ && !history_observer_) {
         history_observer_ = [this]() {
-            if (!is_active_) {
-                return;
-            }
-
             // If detail overlay is open, just mark that history changed - will refresh on return
             if (detail_overlay_open_) {
                 history_changed_while_detail_open_ = true;
                 spdlog::debug("[{}] History changed while detail open, deferring refresh",
                               get_name());
+                return;
+            }
+
+            if (!is_active_) {
                 return;
             }
 
@@ -287,18 +289,44 @@ void HistoryListPanel::on_ui_destroyed() {
     history_changed_while_detail_open_ = false;
 }
 
-void HistoryListPanel::on_deactivating(DeactivateReason) {
-    spdlog::debug("[{}] on_deactivating()", get_name());
+void HistoryListPanel::before_show() {
+    detail_overlay_open_ = false;
+    history_changed_while_detail_open_ = false;
+    reset_view_state();
+}
+
+void HistoryListPanel::on_deactivating(DeactivateReason reason) {
+    spdlog::debug("[{}] on_deactivating({})", get_name(), deactivate_reason_name(reason));
 
     is_active_ = false;
 
+    // Cancel any pending search timer
+    search_debounce_.cancel();
+
+    // Covered by its own detail overlay: Back returns here, to the rows,
+    // scroll and filters the user left. The observer stays to flag history
+    // that changes meanwhile, so the return knows to refresh.
+    if (detail_overlay_open_ && reason != DeactivateReason::Shutdown &&
+        reason != DeactivateReason::Rebuild) {
+        return;
+    }
+    // The observer goes below, so nothing would flag a change for the
+    // detail's Back; that return has to take the full refresh.
+    detail_overlay_open_ = false;
+
+    // Remove history manager observer
     if (history_manager_ && history_observer_) {
         history_manager_->remove_observer(&history_observer_);
         history_observer_ = nullptr;
     }
 
-    search_debounce_.cancel();
+    // Clear the received flag so next activation will refresh
+    jobs_received_ = false;
 
+    reset_view_state();
+}
+
+void HistoryListPanel::reset_view_state() {
     // Reset filter state for fresh start on next activation
     search_query_.clear();
     status_filter_ = HistoryStatusFilter::ALL;
@@ -316,9 +344,6 @@ void HistoryListPanel::on_deactivating(DeactivateReason) {
     if (sort_dropdown_) {
         lv_dropdown_set_selected(sort_dropdown_, 0);
     }
-
-    // Clear the received flag so next activation will refresh
-    jobs_received_ = false;
 
     // Reset pagination state
     load_more_guard_.release();
@@ -604,14 +629,13 @@ void HistoryListPanel::update_empty_state() {
 
         if (filters_active) {
             // Filters are active but yielded no results
-            lv_subject_copy_string(&subject_empty_message_, lv_tr("No matching prints"));
-            lv_subject_copy_string(&subject_empty_hint_,
-                                   lv_tr("Try adjusting your search or filters"));
+            lv_subject_set_string(&subject_empty_message_, lv_tr("No matching prints"));
+            lv_subject_set_string(&subject_empty_hint_,
+                                  lv_tr("Try adjusting your search or filters"));
         } else if (jobs_.empty()) {
             // No jobs at all
-            lv_subject_copy_string(&subject_empty_message_, lv_tr("No print history found"));
-            lv_subject_copy_string(&subject_empty_hint_,
-                                   lv_tr("Completed prints will appear here"));
+            lv_subject_set_string(&subject_empty_message_, lv_tr("No print history found"));
+            lv_subject_set_string(&subject_empty_hint_, lv_tr("Completed prints will appear here"));
         }
     }
 
@@ -918,6 +942,7 @@ void HistoryListPanel::init_detail_subjects() {
     UI_MANAGED_SUBJECT_STRING(detail_spools_, detail_spools_buf_, "", "history_detail_spools",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(detail_has_spools_, 0, "history_detail_has_spools", subjects_);
+    UI_MANAGED_SUBJECT_INT(detail_thumb_loaded_, 0, "history_detail_thumb_loaded", subjects_);
     photo_viewer_.init_subjects(subjects_);
 
     spdlog::debug("[{}] Detail overlay subjects initialized", get_name());
@@ -946,8 +971,8 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 
     lv_obj_t* thumbnail_image =
         helix::ui::find_required(detail_overlay_, "thumbnail_image", get_name());
-    lv_obj_t* thumbnail_fallback =
-        helix::ui::find_required(detail_overlay_, "thumbnail_fallback", get_name());
+    // The fallback shows until this job's thumbnail lands.
+    lv_subject_set_int(&detail_thumb_loaded_, 0);
 
     // One staleness context per overlay open. Creating it bumps
     // detail_overlay_generation_, so a thumbnail still in flight from a
@@ -956,17 +981,13 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
     // just to read the counter.
     ThumbnailLoadContext ctx = ThumbnailLoadContext::create(lifetime_, &detail_overlay_generation_);
 
-    if (thumbnail_image && thumbnail_fallback) {
+    if (thumbnail_image) {
         // Sized for the image box as laid out (inner_align contain).
         lv_obj_update_layout(detail_overlay_);
         const std::string thumb_path = helix::select_and_resolve_thumbnail(
             job.thumbnails, helix::gcode_dir_of(job.filename), lv_obj_get_width(thumbnail_image),
             lv_obj_get_height(thumbnail_image));
         if (!thumb_path.empty()) {
-            // Show fallback initially while loading
-            lv_obj_add_flag(thumbnail_image, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(thumbnail_fallback, LV_OBJ_FLAG_HIDDEN);
-
             IMoonrakerAPI* api = get_moonraker_api();
 
             // The detail overlay renders the full-resolution PNG, so it asks
@@ -1006,16 +1027,13 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
                                 return;
                             }
 
-                            // Look up widgets by name (safe - fresh lookup each time)
+                            // Look up the image by name (safe - fresh lookup each time)
                             lv_obj_t* image = helix::ui::find_required(
                                 t->panel->detail_overlay_, "thumbnail_image", "History List");
-                            lv_obj_t* fallback = helix::ui::find_required(
-                                t->panel->detail_overlay_, "thumbnail_fallback", "History List");
 
-                            if (image && fallback) {
+                            if (image) {
                                 lv_image_set_src(image, t->path.c_str());
-                                lv_obj_remove_flag(image, LV_OBJ_FLAG_HIDDEN);
-                                lv_obj_add_flag(fallback, LV_OBJ_FLAG_HIDDEN);
+                                lv_subject_set_int(&t->panel->detail_thumb_loaded_, 1);
                                 spdlog::debug("[HistoryListPanel] Thumbnail loaded: {}", t->path);
                             }
                         });
@@ -1026,9 +1044,6 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
                     // Fallback is already showing, nothing to do
                 });
         } else {
-            // No thumbnail path - show fallback
-            lv_obj_add_flag(thumbnail_image, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_remove_flag(thumbnail_fallback, LV_OBJ_FLAG_HIDDEN);
             spdlog::debug("[{}] No thumbnail path, showing fallback", get_name());
         }
     }
@@ -1045,29 +1060,30 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
 // A timestamp of 0 or below is "not recorded": the date reads "-" with no time.
 static void set_date_time_subjects(double timestamp, lv_subject_t* date, lv_subject_t* time) {
     if (timestamp <= 0) {
-        lv_subject_copy_string(date, "-");
-        lv_subject_copy_string(time, "");
+        lv_subject_set_string(date, "-");
+        lv_subject_set_string(time, "");
         return;
     }
     const time_t ts = static_cast<time_t>(timestamp);
-    lv_subject_copy_string(date, helix::ui::format_month_day(ts).c_str());
-    lv_subject_copy_string(time, helix::ui::format_time(ts).c_str());
+    lv_subject_set_string(date, helix::display_format::format_month_day(ts).c_str());
+    lv_subject_set_string(time, helix::display_format::format_time(ts).c_str());
 }
 
 void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
-    // Update string subjects using lv_subject_copy_string (LVGL 9.4 API)
-    lv_subject_copy_string(&detail_filename_, job.filename.c_str());
-    lv_subject_copy_string(&detail_status_, lv_tr(status_to_label(job.status)));
-    lv_subject_copy_string(&detail_status_icon_, status_to_icon(job.status));
-    lv_subject_copy_string(&detail_status_variant_, status_to_variant(job.status));
+    // Update string subjects using lv_subject_set_string (LVGL 9.4 API)
+    helix::gcode::note_displayed_filename(job.filename);
+    lv_subject_set_string(&detail_filename_, job.filename.c_str());
+    lv_subject_set_string(&detail_status_, lv_tr(status_to_label(job.status)));
+    lv_subject_set_string(&detail_status_icon_, status_to_icon(job.status));
+    lv_subject_set_string(&detail_status_variant_, status_to_variant(job.status));
 
     // Date and time are separate subjects: the overlay stacks them, since one
     // line is wider than a metadata column.
     set_date_time_subjects(job.start_time, &detail_start_date_, &detail_start_time_);
     set_date_time_subjects(job.end_time, &detail_end_date_, &detail_end_time_);
 
-    lv_subject_copy_string(&detail_duration_,
-                           helix::format::duration(static_cast<int>(job.print_duration)).c_str());
+    lv_subject_set_string(&detail_duration_,
+                          helix::format::duration(static_cast<int>(job.print_duration)).c_str());
 
     char layers_buf[32];
     if (job.layer_count > 0) {
@@ -1075,7 +1091,7 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     } else {
         snprintf(layers_buf, sizeof(layers_buf), "-");
     }
-    lv_subject_copy_string(&detail_layers_, layers_buf);
+    lv_subject_set_string(&detail_layers_, layers_buf);
 
     char layer_height_buf[32];
     if (job.layer_height > 0) {
@@ -1084,26 +1100,29 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
     } else {
         snprintf(layer_height_buf, sizeof(layer_height_buf), "-");
     }
-    lv_subject_copy_string(&detail_layer_height_, layer_height_buf);
+    lv_subject_set_string(&detail_layer_height_, layer_height_buf);
 
     char temp_buf[32];
     if (job.nozzle_temp > 0) {
-        snprintf(temp_buf, sizeof(temp_buf), "%.0f°C", job.nozzle_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "%s",
+                 helix::units::format_display_temp(job.nozzle_temp).c_str());
     } else {
         snprintf(temp_buf, sizeof(temp_buf), "-");
     }
-    lv_subject_copy_string(&detail_nozzle_temp_, temp_buf);
+    lv_subject_set_string(&detail_nozzle_temp_, temp_buf);
 
     if (job.bed_temp > 0) {
-        snprintf(temp_buf, sizeof(temp_buf), "%.0f°C", job.bed_temp);
+        snprintf(temp_buf, sizeof(temp_buf), "%s",
+                 helix::units::format_display_temp(job.bed_temp).c_str());
     } else {
         snprintf(temp_buf, sizeof(temp_buf), "-");
     }
-    lv_subject_copy_string(&detail_bed_temp_, temp_buf);
+    lv_subject_set_string(&detail_bed_temp_, temp_buf);
 
-    lv_subject_copy_string(&detail_filament_, job.filament_str.c_str());
-    lv_subject_copy_string(&detail_filament_type_,
-                           job.filament_type.empty() ? "Unknown" : job.filament_type.c_str());
+    lv_subject_set_string(&detail_filament_, job.filament_str.c_str());
+    const std::string materials = helix::filament_type_text(job.filament_type);
+    lv_subject_set_string(&detail_filament_type_,
+                          materials.empty() ? lv_tr("Unknown") : materials.c_str());
 
     // Set reprint availability based on file existence
     lv_subject_set_int(&detail_can_reprint_, job.exists ? 1 : 0);
@@ -1141,7 +1160,7 @@ void HistoryListPanel::update_detail_subjects(const PrintHistoryJob& job) {
 
 void HistoryListPanel::fetch_spool_usage(const PrintHistoryJob& job) {
     const uint32_t request = ++detail_spools_request_;
-    lv_subject_copy_string(&detail_spools_, "");
+    lv_subject_set_string(&detail_spools_, "");
     lv_subject_set_int(&detail_has_spools_, 0);
     const PluginFeatureState accounting = get_printer_state().plugin_status_state().plugin_feature(
         kFilamentAccountingFeature, kFilamentAccountingMinVersion);
@@ -1180,7 +1199,7 @@ void HistoryListPanel::fetch_spool_usage(const PrintHistoryJob& job) {
                                         : std::string();
                     },
                     noun);
-                lv_subject_copy_string(&detail_spools_, text.c_str());
+                lv_subject_set_string(&detail_spools_, text.c_str());
                 lv_subject_set_int(&detail_has_spools_, 1);
             }),
         [](const MoonrakerError& err) {
@@ -1229,7 +1248,8 @@ void HistoryListPanel::handle_reprint() {
     if (print_panel) {
         // select_file_by_name searches the file list and shows detail view if found
         if (print_panel->select_file_by_name(filename, archive_plate)) {
-            spdlog::info("[{}] Navigated to file details for: {}", get_name(), filename);
+            spdlog::info("[{}] Navigated to file details for: {} (plate {})", get_name(), filename,
+                         archive_plate);
         } else {
             spdlog::warn("[{}] File not found in print panel: {}", get_name(), filename);
             ui_notification_warning("File not found in print list");
@@ -1296,12 +1316,16 @@ void HistoryListPanel::confirm_delete() {
                                              job_id);
                                 helix::ui::HistoryPhotoViewer::delete_photos(deleted);
 
-                                // Remove from jobs_ and filtered_jobs_
                                 jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
                                                            [&job_id](const PrintHistoryJob& j) {
                                                                return j.job_id == job_id;
                                                            }),
                                             jobs_.end());
+                                // The list's re-activation after go_back() can reload
+                                // jobs_ from the manager's cache, so it forgets the job too.
+                                if (history_manager_) {
+                                    history_manager_->forget_job(job_id);
+                                }
 
                                 // Close detail overlay and refresh list
                                 helix::nav::go_back();

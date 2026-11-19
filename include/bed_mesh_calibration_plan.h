@@ -4,6 +4,7 @@
 #pragma once
 
 #include "core/text_io.h"
+#include "json_utils.h"
 #include "standard_macros.h"
 
 #include <algorithm>
@@ -12,7 +13,7 @@
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: inline reader of the json
 
 namespace helix {
 namespace bed_mesh {
@@ -208,13 +209,13 @@ using StoredMeshes = std::map<std::string, nlohmann::json>;
 /// The stored profiles in a `bed_mesh` status object.
 [[nodiscard]] inline StoredMeshes stored_meshes_from_status(const nlohmann::json& bed_mesh) {
     StoredMeshes meshes;
-    if (!bed_mesh.is_object() || !bed_mesh.contains("profiles") ||
-        !bed_mesh["profiles"].is_object()) {
+    const nlohmann::json* profiles = json_util::find_object(bed_mesh, "profiles");
+    if (!profiles) {
         return meshes;
     }
-    for (const auto& [name, profile] : bed_mesh["profiles"].items()) {
-        meshes[name] = profile.is_object() && profile.contains("points") ? profile["points"]
-                                                                         : nlohmann::json();
+    for (const auto& [name, profile] : profiles->items()) {
+        const nlohmann::json* points = json_util::find_member(profile, "points");
+        meshes[name] = points ? *points : nlohmann::json();
     }
     return meshes;
 }

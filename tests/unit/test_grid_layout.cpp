@@ -499,6 +499,7 @@ TEST_CASE("PanelWidgetDef: half-cell capability is classified per widget",
         {"power_device", {true, true}},
         {"macros", {true, true}},
         {"motion", {true, true}},
+        {"filament_ops", {true, true}},
         {"gcode_console", {true, true}},
         {"control_buttons", {false, false}},
     };

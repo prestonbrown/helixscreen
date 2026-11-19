@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "ui_observer_guard.h"
 #include "ui_temperature_utils.h"
 
+#include "core/observer_guard.h"
 #include "lvgl/lvgl.h"
 #include "printer_temperature_state.h" // helix::ChamberMode
 

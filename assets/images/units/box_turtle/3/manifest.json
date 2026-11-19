@@ -1,0 +1,162 @@
+{
+  "id": "box_turtle",
+  "lanes": 3,
+  "tiers": {
+    "full": {
+      "width": 320,
+      "back": "full_back.png",
+      "front": "full_front.png",
+      "lanes": [
+        {
+          "color": "full_lane0.png",
+          "shade": "full_lane0_shade.png",
+          "body": "full_lane0_body.png",
+          "glow": "full_lane0_glow.png"
+        },
+        {
+          "color": "full_lane1.png",
+          "shade": "full_lane1_shade.png",
+          "body": "full_lane1_body.png",
+          "glow": "full_lane1_glow.png"
+        },
+        {
+          "color": "full_lane2.png",
+          "shade": "full_lane2_shade.png",
+          "body": "full_lane2_body.png",
+          "glow": "full_lane2_glow.png"
+        }
+      ]
+    },
+    "thumb": {
+      "width": 40,
+      "back": "thumb_back.png",
+      "front": "thumb_front.png",
+      "lanes": [
+        {
+          "color": "thumb_lane0.png",
+          "shade": "thumb_lane0_shade.png",
+          "body": "thumb_lane0_body.png"
+        },
+        {
+          "color": "thumb_lane1.png",
+          "shade": "thumb_lane1_shade.png",
+          "body": "thumb_lane1_body.png"
+        },
+        {
+          "color": "thumb_lane2.png",
+          "shade": "thumb_lane2_shade.png",
+          "body": "thumb_lane2_body.png"
+        }
+      ]
+    }
+  },
+  "drawn": [
+    0.15008,
+    0.2528,
+    0.8217,
+    0.81119
+  ],
+  "bottom_edge": [
+    0.15008,
+    0.72845,
+    0.62487,
+    0.81119
+  ],
+  "geometry": [
+    {
+      "far": [
+        0.28308,
+        0.42527
+      ],
+      "near": [
+        0.39212,
+        0.44428
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.20371,
+        0.25257,
+        0.47149,
+        0.61698
+      ],
+      "outlet": [
+        0.25029,
+        0.59326
+      ]
+    },
+    {
+      "far": [
+        0.43137,
+        0.45112
+      ],
+      "near": [
+        0.54041,
+        0.47012
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.352,
+        0.27841,
+        0.61978,
+        0.64282
+      ],
+      "outlet": [
+        0.39859,
+        0.61911
+      ]
+    },
+    {
+      "far": [
+        0.57967,
+        0.47696
+      ],
+      "near": [
+        0.6887,
+        0.49596
+      ],
+      "ey": [
+        0.07937,
+        -0.05328
+      ],
+      "ez": [
+        0.0,
+        -0.16428
+      ],
+      "wound": 0.93,
+      "core": 0.2381,
+      "box": [
+        0.5003,
+        0.30426,
+        0.76807,
+        0.66867
+      ],
+      "outlet": [
+        0.54688,
+        0.64495
+      ]
+    }
+  ],
+  "lane_order": [
+    0,
+    1,
+    2
+  ]
+}

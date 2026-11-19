@@ -10,14 +10,15 @@
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_panel_bed_mesh.h"
-#include "ui_subject_registry.h"
 
 #include "app_globals.h"
 #include "bed_mesh_calibration_plan.h"
 #include "bed_mesh_probe_temp.h"
 #include "bed_mesh_state.h"
 #include "bed_mesh_stats.h"
+#include "bed_plate_context.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
 #include "helix_psram_attr.h"
 #include "i18n_plural.h"
 #include "lvgl.h"
@@ -29,8 +30,10 @@
 #include "printer_state.h"
 #include "src/ui/panel_widgets/content_chrome.h"
 #include "src/ui/panel_widgets/live_tile_owner.h"
+#include "src/ui/panel_widgets/panel_widget_fonts.h"
 #include "standard_macros.h"
 #include "subject_managed_panel.h"
+#include "system/subject_registry.h"
 #include "text_measure.h"
 #include "theme_manager.h"
 #include "toolhead_homing.h"
@@ -56,22 +59,22 @@ namespace {
 // Module-level because the widget is single-instance and registration rides
 // SubjectInitializer's panel-subject phase, so the subjects exist before any XML that
 // binds them is parsed.
-HELIX_PSRAM_BSS lv_subject_t s_rung_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_map_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_range_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_empty_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_details_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_scale_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_footer_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_calibrate_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_show_load_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_calibrating_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_status_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_range_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_extent_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_scale_low_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_scale_high_text_subject{};
-HELIX_PSRAM_BSS lv_subject_t s_count_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_rung_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_map_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_range_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_empty_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_details_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_scale_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_footer_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_calibrate_subject{};
+HELIX_PSRAM_BSS helix::Subject s_show_load_subject{};
+HELIX_PSRAM_BSS helix::Subject s_calibrating_subject{};
+HELIX_PSRAM_BSS helix::Subject s_status_subject{};
+HELIX_PSRAM_BSS helix::Subject s_range_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_extent_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_scale_low_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_scale_high_text_subject{};
+HELIX_PSRAM_BSS helix::Subject s_count_text_subject{};
 HELIX_PSRAM_BSS char s_range_text_buf[16];
 HELIX_PSRAM_BSS char s_extent_text_buf[32];
 HELIX_PSRAM_BSS char s_scale_low_text_buf[16];
@@ -141,20 +144,6 @@ bool panel_is_available() {
     return s_panel_available_override.value_or(kPanelBuilt);
 }
 
-struct Fonts {
-    const lv_font_t* xs;
-    const lv_font_t* small;
-    const lv_font_t* body;
-    const lv_font_t* icon_xs;
-    const lv_font_t* icon_lg;
-};
-
-Fonts load_fonts() {
-    return {theme_manager_get_font("font_xs"), theme_manager_get_font("font_small"),
-            theme_manager_get_font("font_body"), theme_manager_get_font("icon_font_xs"),
-            theme_manager_get_font("icon_font_lg")};
-}
-
 using helix::line_px;
 
 /// The state a rung's content depends on.
@@ -172,7 +161,7 @@ struct MeasureState {
 /// widget's whole extent, so the chrome is added back.
 helix::RungNeeds measure_needs(const MeasureState& m, const helix::ContentChrome& chrome) {
     using helix::rung_box;
-    const Fonts f = load_fonts();
+    const helix::PanelWidgetFonts f = helix::load_panel_widget_fonts();
     const int row_gap = theme_manager_get_spacing("space_xxs");
     const int col_gap = theme_manager_get_spacing("space_xs");
     // Measured and rendered widths disagree by a few pixels; a text rung is never
@@ -182,8 +171,8 @@ helix::RungNeeds measure_needs(const MeasureState& m, const helix::ContentChrome
     constexpr int kSlackPx = 1;
     const int button_px = theme_manager_get_spacing("button_height_sm");
 
-    const int icon_w = measure_text_px(helix::ui::icon::lookup_codepoint("grid_large"), f.icon_xs);
-    const int icon_h = line_px(f.icon_xs);
+    const int icon_w = measure_text_px(helix::ui::icon::lookup_codepoint("grid_large"), f.icon);
+    const int icon_h = line_px(f.icon);
     const int icon_lg_w = measure_text_px(helix::ui::icon::lookup_codepoint("grid_off"), f.icon_lg);
     const int icon_lg_h = line_px(f.icon_lg);
     const int xs_h = line_px(f.xs);
@@ -586,6 +575,12 @@ void BedMeshTileWidget::open_panel() {
 }
 
 void BedMeshTileWidget::calibrate() {
+    if (!verdict_.show_calibrate || !s_tile.is_owner(this) || calibrating_)
+        return;
+    ensure_bed_clear_then(lifetime_.token(), [this]() { calibrate_once_bed_clear(); });
+}
+
+void BedMeshTileWidget::calibrate_once_bed_clear() {
     if (!verdict_.show_calibrate || !s_tile.is_owner(this) || calibrating_)
         return;
     const bool blocked =

@@ -29,11 +29,17 @@ void refresh_display_texts() {
     ToolState::instance().refresh_display_labels();
     get_printer_state().refresh_translated_texts();
     // AmsState formats its status texts (clog meter, dryer, loaded
-    // lane) and slot texts as it syncs from each backend.
+    // lane) and slot texts as it syncs from each backend, after the backend
+    // re-formats any text it composed in the old language.
     auto& ams = AmsState::instance();
     for (int i = 0; i < ams.backend_count(); ++i) {
+        if (AmsBackend* backend = ams.get_backend(i)) {
+            backend->refresh_translated_texts();
+        }
         ams.sync_backend(i);
     }
+    // Slot badges repaint on this version, and a renumber changes no slot data.
+    ams.bump_slots_version();
 }
 
 void init_language_refresh() {

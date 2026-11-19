@@ -3,8 +3,7 @@
 
 #include "print_progress_text.h"
 
-#include "ui_format_utils.h"
-
+#include "display_format.h"
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "tune_controller.h"
@@ -30,18 +29,18 @@ void PrintProgressText::init_subjects(SubjectManager& subjects) {
 void PrintProgressText::refresh_layer() {
     auto& print = printer_state_.print_state();
     const int layer = lifecycle_.current_layer();
-    std::string text = format_layer_progress_compact(
+    std::string text = display_format::format_layer_progress_compact(
         layer, lifecycle_.total_layers(), print.layer_is_accurate(),
         print.layer_line_z_centimm(
             layer,
             lv_subject_get_int(printer_state_.motion_state().get_gcode_position_z_subject())));
     std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), "%s", text.c_str());
-    lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
+    lv_subject_set_string(&layer_text_subject_, layer_text_buf_);
 }
 
 void PrintProgressText::clear_layer() {
     std::snprintf(layer_text_buf_, sizeof(layer_text_buf_), " ");
-    lv_subject_copy_string(&layer_text_subject_, layer_text_buf_);
+    lv_subject_set_string(&layer_text_subject_, layer_text_buf_);
 }
 
 void PrintProgressText::refresh_filament_used() {
@@ -55,7 +54,7 @@ void PrintProgressText::refresh_filament_used() {
     } else {
         filament_used_text_buf_[0] = '\0';
     }
-    lv_subject_copy_string(&filament_used_text_subject_, filament_used_text_buf_);
+    lv_subject_set_string(&filament_used_text_subject_, filament_used_text_buf_);
 }
 
 void PrintProgressText::refresh_speed_flow() {
@@ -72,13 +71,13 @@ void PrintProgressText::refresh_speed_flow() {
 void PrintProgressText::show_elapsed(int seconds) {
     std::string formatted = helix::format::duration_padded(seconds);
     std::snprintf(elapsed_buf_, sizeof(elapsed_buf_), "%s", formatted.c_str());
-    lv_subject_copy_string(&elapsed_subject_, elapsed_buf_);
+    lv_subject_set_string(&elapsed_subject_, elapsed_buf_);
 }
 
 void PrintProgressText::show_remaining(int seconds) {
     std::string formatted = helix::format::duration_padded(seconds);
     std::snprintf(remaining_buf_, sizeof(remaining_buf_), "%s", formatted.c_str());
-    lv_subject_copy_string(&remaining_subject_, remaining_buf_);
+    lv_subject_set_string(&remaining_subject_, remaining_buf_);
 }
 
 void PrintProgressText::show_time_left(int seconds) {
@@ -87,7 +86,7 @@ void PrintProgressText::show_time_left(int seconds) {
     bool use_24h = DisplaySettingsManager::instance().get_time_format() == TimeFormat::HOUR_24;
     auto eta_str = helix::format::eta_clock_time(seconds, 0, use_24h);
     std::snprintf(eta_buf_, sizeof(eta_buf_), "%s", eta_str.c_str());
-    lv_subject_copy_string(&eta_subject_, eta_buf_);
+    lv_subject_set_string(&eta_subject_, eta_buf_);
     spdlog::trace("[PrintProgressText] Time remaining updated: {}s, ETA: {}", seconds, eta_buf_);
 }
 

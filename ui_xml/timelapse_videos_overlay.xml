@@ -58,19 +58,22 @@
       <!-- ================================================================== -->
       <responsive_grid name="video_grid_container"
                        width="100%" flex_grow="1" scrollable="true" min_col_width="#timelapse_card_min_w"
-                       max_col_width="#timelapse_card_max_w" style_pad_top="#space_xs" style_pad_gap="#space_sm"/>
+                       max_col_width="#timelapse_card_max_w" style_pad_top="#space_xs" style_pad_gap="#space_sm">
+        <bind_flag_if_eq subject="timelapse_videos_empty" flag="hidden" ref_value="1"/>
+      </responsive_grid>
       <!-- Empty state (centered icon + text, matching plugins/print files pattern) -->
       <!-- min_height gives the box a definite height so the centering places
            actually have something to centre within; flex_grow does not resolve
            here because overlay_content is itself scrollable. 100% rather than a
            px number: the old 380 was taller than a 480x272 panel, so the empty
            state invented ~110px of scroll on the smallest screens for a box
-           holding one icon and two lines. loadVideos() hides video_grid_container
-           whenever this is shown (ui_overlay_timelapse_videos.cpp), so 100% of
-           the parent is exactly the free space. -->
+           holding one icon and two lines. video_grid_container hides whenever
+           this shows (both bind timelapse_videos_empty), so 100% of the parent
+           is exactly the free space. -->
       <lv_obj name="video_grid_empty"
               width="100%" style_min_height="100%" scrollable="false" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true">
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_md">
+        <bind_flag_if_eq subject="timelapse_videos_empty" flag="hidden" ref_value="0"/>
         <icon src="video_off" size="lg" variant="secondary"/>
         <text_body text="No timelapse videos found" style_text_color="#text_muted" style_text_align="center"/>
         <text_small text="Recorded timelapses will appear here" style_text_color="#text_muted" style_text_align="center"/>

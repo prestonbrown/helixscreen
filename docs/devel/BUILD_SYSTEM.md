@@ -1033,6 +1033,7 @@ Each is path-gated, so a commit staging none of its inputs pays nothing:
 |------|----------------|------|---------|
 | `qc_esp32_compile` | a `.c`/`.cpp`/`.h`/`.hpp` under `src/`, `include/` or the firmware | ~6s for two units | host-green, ESP32-red code: `scripts/esp32_syntax_check.py --staged` compiles the staged firmware sources and one includer per staged header in the IDF image, from an index overlay (`git checkout-index` of `src/`, `include/` and the firmware, ~0.25s), so the commit's content decides and not the working tree. Never configures (pre-push does, once per CMake change); advisory skip without docker or the image |
 | `qc_toolhead_census` | `ui_xml/**/*.xml`, the census test | ~0.2s | all five XML cases of `tests/unit/test_job_holds_machine.cpp`: an unclassified control-bearing file, a stale row, a drifted or misspelled guard count, a guard in a no-machine file, a `<bind_state_*>` disabling on `print_active`, and XML naming `job_holds_machine` (`scripts/check_toolhead_census.py`) |
+| `qc_double_binds` | `ui_xml/**/*.xml`, the table, the scanner | ~0.2s | `tests/unit/double_bind_widgets.inc` not matching what `scripts/scan_double_binds.py` generates from the staged `ui_xml/` (regenerated in memory; prints a diff and `python3 scripts/scan_double_binds.py --emit-cpp`). `[bind_compose]` drives only the rows the table lists, so a stale one drops coverage silently |
 | `qc_theme_artifacts` | top-level `ui_xml/*.xml`, the two artefacts | ~0.1s | `src/generated/theme_token_table.cpp` not matching the staged tokens (`make regen-tokens`), and a `tests/fixtures/theme_const_golden.txt` the token change provably invalidates (`scripts/check_theme_artifacts.py`; the fix needs the test binary, so it prints the regen command; when regenerating leaves the golden unchanged, `HELIX_GOLDEN_CURRENT=1 git commit ...` says it is current) |
 | `qc_xml_linter` | also `src/**/*.cpp`, theme defaults, `lib/helix-xml`, `mk/tools.mk` | ~0.7s when it lints; silent when nothing it reads is staged | `tools/xml-linter/schema/schema.json` stale against any extractor input |
 
@@ -1930,7 +1931,7 @@ These get their own deep section above — see **[Cross-Compilation](#cross-comp
 | `make demo` | Build LVGL demo widgets (LVGL API testing) |
 | `make symbols` | Extract `.sym` + `.debug` (crash-backtrace resolution) |
 | `make strip` | Strip the binary for release |
-| `make screenshots` | Generate documentation screenshots |
+| `make doc-screenshots [ONLY=<glob>]` | Regenerate every doc image from `docs/images/doc-screenshots.yml`, headless (`make screenshots` is an alias) |
 | `make print-cxxflags` / `print-ldflags` | Dump resolved flags (build debugging) |
 
 ## Dependency Checking
@@ -2129,7 +2130,7 @@ The build compiles ~566 app source files. The dominant cost is **template instan
 
 With ccache installed, touching these headers without content changes costs ~8s (direct cache hit). Actual content changes recompile all dependents (~2 min at `-O2`, ~1 min at `-O0`).
 
-**Forced include** (`include/lvgl_pch.h`, `$(FORCED_INCLUDE)` in the Makefile): covers LVGL, helix-xml and common STL headers, and is passed as `-include` to every app and test C++ source, so many sources compile only because of it. It is an ordinary header, not precompiled: every TU parses it and tracks it through its `.d` file, so editing it rebuilds every C++ object. Don't add project headers to it — only stable external libraries. spdlog and nlohmann JSON stay out: a source that logs or builds a json includes them itself, and a header that only names `json` by reference, pointer or return type includes `json_fwd.h`. LVGL's own C++ sources (ThorVG, compiled out by `lv_conf.h`) do not get it.
+**Forced include** (`include/lvgl_pch.h`, `$(FORCED_INCLUDE)` in the Makefile): covers LVGL, helix-xml and common STL headers, and is passed as `-include` to every app and test C++ source, so many sources compile only because of it. It is an ordinary header, not precompiled: every TU parses it and tracks it through its `.d` file, so editing it rebuilds every C++ object. Don't add project headers to it — only stable external libraries. spdlog and nlohmann JSON stay out: a source that logs or builds a json includes them itself, and a header that only names `json` by reference, pointer or return type includes `json_fwd.h` (`scripts/code_lint.sh json_hpp_in_headers`; a header that needs the complete type says why with `// JSON_HPP_OK: <reason>`). LVGL's own C++ sources (ThorVG, compiled out by `lv_conf.h`) do not get it.
 
 #### ccache across worktrees and Docker cross-builds
 

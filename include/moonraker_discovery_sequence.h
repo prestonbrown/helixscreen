@@ -9,11 +9,12 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: json members held by value
 
 namespace helix {
 
@@ -242,13 +243,16 @@ class MoonrakerDiscoverySequence {
     void discover_sensors();
 
     /**
-     * @brief Read Moonraker's version from update_manager (fire-and-forget)
+     * @brief Read @p app's version from update_manager (fire-and-forget)
      *
-     * For a server.info that reported a placeholder version: machine.update.status
-     * still knows the checkout's tag or commit. Publishes to hardware_ (for the
-     * discovery snapshot) and PrinterState (for a reply landing after it).
+     * For a placeholder version, Moonraker's from server.info (@p app
+     * "moonraker") or Klipper's from printer.info (@p app "klipper"), as a
+     * checkout without tags or an install outside git reports:
+     * machine.update.status may still know its tag or commit. Publishes to
+     * hardware_ (for the discovery snapshot) and PrinterState (for a reply
+     * landing after it).
      */
-    void fetch_moonraker_version_fallback(uint64_t seq);
+    void fetch_update_manager_version(uint64_t seq, const std::string& app);
 
     /**
      * @brief Record the hardware fields carried by a machine.system_info reply
@@ -295,6 +299,42 @@ class MoonrakerDiscoverySequence {
      * Chains: objects.list → server.info → printer.info → MCU queries → subscribe
      */
     void continue_discovery_objects(uint64_t seq);
+
+    struct McuQueryState;
+
+    // One step per reply of the discovery chain. Every step taking a sequence number drops
+    // a reply from a superseded pass or a recycled connection before touching anything.
+    void on_objects_listed(uint64_t seq, const json& response);
+    void on_objects_list_failed(uint64_t seq, const MoonrakerError& err);
+    void report_objects_list_failure(const std::string& reason);
+    void query_status_claims(uint64_t seq, const json& claim_query);
+    void on_status_claims(uint64_t seq, const json& status);
+    void on_server_info(uint64_t seq, const json& info_response);
+    void apply_server_info(uint64_t seq, const json& result);
+    void apply_server_components(uint64_t seq, const json& component_list,
+                                 const std::string& moonraker_version);
+    void query_spoolman_status(uint64_t seq);
+    void query_timelapse_settings(uint64_t seq);
+    void query_system_info(uint64_t seq);
+    void on_printer_info(uint64_t seq, const json& printer_response);
+    void publish_printer_info(const json& result);
+    void query_configfile(uint64_t seq);
+    void on_configfile(uint64_t seq, const json& config_response);
+    void apply_configfile_config(const json& cfg);
+
+    /// Everything configfile.settings decides about hardware_, written under one
+    /// hardware_mutex_ hold so a snapshot never sees half of it. The caller must not hold
+    /// hardware_mutex_.
+    void apply_configfile_settings(const json& settings);
+
+    void query_mcu_info(uint64_t seq);
+    void on_mcu_reply(uint64_t seq, const std::string& mcu_obj,
+                      const std::shared_ptr<McuQueryState>& state, const json& mcu_response);
+    void on_mcu_query_failed(uint64_t seq, const std::string& mcu_obj,
+                             const std::shared_ptr<McuQueryState>& state,
+                             const MoonrakerError& err);
+    void settle_mcu_query(uint64_t seq, McuQueryState& state);
+    void publish_mcu_results(McuQueryState& state);
 
     /**
      * @brief Complete discovery by subscribing to printer objects
@@ -365,6 +405,8 @@ class MoonrakerDiscoverySequence {
     std::string reported_machine_name_; // machine.system_info "machine_name"
     std::atomic<bool> identified_{false};
     std::atomic<bool> discovery_completed_{false};
+    /// server.info listed the update_manager component this sequence.
+    std::atomic<bool> update_manager_listed_{false};
 
     // Plugin objects merged into the union subscription. The provider is called while
     // extras_mutex_ is held, so clearing it waits out a call in progress.

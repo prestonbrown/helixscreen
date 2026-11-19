@@ -17,6 +17,7 @@
 #include "ams_cfs_calibration.h"
 #include "ams_state.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "lvgl.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -35,8 +36,8 @@ namespace {
 // stays hidden for its whole lifetime. The buttons' labels never change;
 // ui_xml/components/cfs_cutter_status.xml renders these subjects (phase: 0
 // nothing to report, 1 running, 2 result).
-lv_subject_t s_cfs_cutter_phase{};
-lv_subject_t s_cfs_cutter_status{};
+helix::Subject s_cfs_cutter_phase{};
+helix::Subject s_cfs_cutter_status{};
 char s_cfs_cutter_status_buf[128] = {};
 helix::WidgetSubjects s_cfs_cutter_subjects{"CfsCutterSubjects",
                                             StaticSubjectRegistry::Lifetime::Process};
@@ -58,7 +59,7 @@ void ensure_cutter_subjects() {
 
 void set_cutter_row_state(const char* status_text, bool busy) {
     ensure_cutter_subjects();
-    lv_subject_copy_string(&s_cfs_cutter_status, status_text);
+    lv_subject_set_string(&s_cfs_cutter_status, status_text);
     // 0 = nothing to report (line hidden), 1 = running, 2 = result.
     lv_subject_set_int(&s_cfs_cutter_phase, busy ? 1 : (status_text[0] != '\0' ? 2 : 0));
     // The backend greys every calibration action while one runs; the section

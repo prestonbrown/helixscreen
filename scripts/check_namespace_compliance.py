@@ -49,6 +49,7 @@ import re
 import sys
 
 from source_strip import blank_cxx
+import ratchet  # noqa: E402
 
 SCAN_DIRS = ['src', 'include']
 SCAN_EXTS = ('.cpp', '.cc', '.h', '.hpp')
@@ -304,8 +305,10 @@ def main():
         print('   Run: python3 scripts/check_namespace_compliance.py --list')
         return 1
     if total < limit:
-        print(f'✅ Namespace: {total} (baseline {limit} — ratchet the baseline down)')
-        return 0
+        return ratchet.under_baseline(
+            'Namespace', 'scripts/qc/namespace.sh and BASELINE in tests/shell/test_namespace_gate.bats',
+            [ratchet.lowered('--max-allowed', limit, total)],
+            f'✅ Namespace: {total} (baseline {limit} — ratchet the baseline down)')
     print(f'✅ Namespace: {total} == baseline ({limit})')
     return 0
 

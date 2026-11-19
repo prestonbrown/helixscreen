@@ -13,6 +13,22 @@ constexpr int32_t kJobTileWeight = 236;
 constexpr int32_t kPrinterTileWeight = 196;
 constexpr int32_t kCompactMinJobWidth = 180;
 constexpr int32_t kCompactMinJobHeight = 170;
+
+// Ultrawide column widths as percent of the content height. The printer
+// picture's tagged images are about 1.4:1 with their callouts beside them;
+// the readouts fit a label and a "220 / 220°C" value; the buttons a label.
+constexpr int32_t kPrinterPct = 140;
+constexpr int32_t kReadoutsPct = 93;
+constexpr int32_t kActionsPct = 48;
+// The floors the printer, readouts and preview give width down to, in that
+// order, before the info column narrows below the height.
+constexpr int32_t kPrinterFloorPct = 100;
+constexpr int32_t kReadoutsFloorPct = 75;
+constexpr int32_t kPreviewFloorPct = 75;
+
+bool is_compact_job(int32_t job_w, int32_t job_h) {
+    return job_w < kCompactMinJobWidth || job_h < kCompactMinJobHeight;
+}
 } // namespace
 
 PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t content_h,
@@ -37,7 +53,43 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
         out.printer_w = usable - out.job_w;
         out.job_h = out.printer_h = area_h;
     }
-    out.checklist_compact = out.job_w < kCompactMinJobWidth || out.job_h < kCompactMinJobHeight;
+    out.checklist_compact = is_compact_job(out.job_w, out.job_h);
+    return out;
+}
+
+PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap) {
+    const int32_t h = std::max<int32_t>(0, content_h);
+    PrintStatusColumns c;
+    c.preview_w = h;
+    c.printer_w = h * kPrinterPct / 100;
+    c.readouts_w = h * kReadoutsPct / 100;
+    c.actions_w = h * kActionsPct / 100;
+    const auto rest = [&]() {
+        return content_w - 4 * gap - c.preview_w - c.printer_w - c.readouts_w - c.actions_w;
+    };
+    int32_t deficit = h - rest();
+    const auto give = [&](int32_t& col, int32_t floor_pct) {
+        const int32_t spare = std::max<int32_t>(0, col - h * floor_pct / 100);
+        const int32_t taken = std::clamp<int32_t>(deficit, 0, spare);
+        col -= taken;
+        deficit -= taken;
+    };
+    give(c.printer_w, kPrinterFloorPct);
+    give(c.readouts_w, kReadoutsFloorPct);
+    give(c.preview_w, kPreviewFloorPct);
+    c.info_w = std::max<int32_t>(0, rest());
+    return c;
+}
+
+PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h,
+                                                           int32_t gap) {
+    PrintStatusTileLayout out;
+    out.columns = decide_print_status_columns(content_w, content_h, gap);
+    out.job_w = out.columns.preview_w;
+    out.job_h = content_h;
+    out.printer_w = out.columns.printer_w;
+    out.printer_h = content_h;
+    out.checklist_compact = is_compact_job(out.job_w, out.job_h);
     return out;
 }
 

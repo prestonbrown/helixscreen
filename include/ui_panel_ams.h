@@ -10,7 +10,6 @@
 #include "ui_ams_selector_menu.h"
 #include "ui_ams_sidebar.h"
 #include "ui_bypass_spool_widget.h"
-#include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_widget_ref.h"
 
@@ -18,10 +17,12 @@
 #include "ams_state.h"
 #include "ams_types.h" // For SlotInfo
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 /**
@@ -92,6 +93,11 @@ class AmsPanel : public PanelBase {
 
     [[nodiscard]] const char* get_name() const override {
         return "AMS Panel";
+    }
+
+    /// The unit canvas and filament path drawing scale to the width.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return true;
     }
 
     /// Filament management is a place users park, not a tool they dip into —
@@ -216,7 +222,10 @@ class AmsPanel : public PanelBase {
 
     // === Dynamic Slot State ===
 
-    int current_slot_count_ = 0;    ///< Number of slots currently created
+    int current_slot_count_ = 0; ///< Number of slots currently created
+    static constexpr int kMaxRelayoutPasses = 2;
+    int relayout_passes_ = 0; ///< how deep create_slots() is in laying a too-tall unit out again
+    bool relayout_pending_ = false; ///< a relayout_if_capped() pass is queued
     lv_obj_t* slot_grid_ = nullptr; ///< Container for dynamically created slots
 
     // === Filament Path Canvas ===
@@ -252,6 +261,9 @@ class AmsPanel : public PanelBase {
     void setup_slots();
     void setup_path_canvas();
     void update_path_canvas_from_backend();
+    /// When setting the path up capped the drawn unit's spools (@p capped), lays the slots out
+    /// again at that size, once the caller's callback has returned.
+    void relayout_if_capped(bool capped);
     /// (Re)wire per-slot LIVE path observers for the current slot count (Task 1).
     void setup_slot_path_observers(int slot_count);
     void setup_bypass_spool();
@@ -275,7 +287,6 @@ class AmsPanel : public PanelBase {
     // === UI Update Handlers ===
 
     void update_slot_colors();
-    void update_slot_status(int slot_index);
     void update_current_slot_highlight(int slot_index);
 
     // === Event Callbacks (static trampolines) ===
@@ -315,7 +326,8 @@ class AmsPanel : public PanelBase {
 
     // === UI Module Helpers (internal, show modals with callbacks) ===
 
-    void show_context_menu(int slot_index, lv_obj_t* near_widget, lv_point_t click_pt);
+    void show_context_menu(int slot_index, lv_obj_t* near_widget,
+                           std::optional<lv_point_t> tap = std::nullopt);
     void show_loading_error_modal();
 
     /**
@@ -329,7 +341,7 @@ class AmsPanel : public PanelBase {
 
     // === Action Handlers (public for XML event callbacks) ===
   public:
-    void handle_slot_tap(int slot_index, lv_point_t click_pt);
+    void handle_slot_tap(int slot_index);
 };
 
 /**

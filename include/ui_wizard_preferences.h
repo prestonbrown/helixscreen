@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
-#include "ui_observer_guard.h"
-
+#include "core/observer_guard.h"
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -11,7 +11,7 @@ namespace helix::wizard {
 
 /// Which preference row groups the page offers. Global rows are written once, so
 /// a printer added after the first run does not repeat them; the two AMS rows
-/// are offered only where the backend makes them do something, and the sounds row only where
+/// are offered only where the backend makes them do something, and the sound rows only where
 /// a sound backend exists.
 struct PreferenceRows {
     bool global = false;
@@ -23,7 +23,7 @@ struct PreferenceRows {
 PreferenceRows preference_rows(bool is_subsequent_printer, bool bypass_is_virtual,
                                bool lane_record_is_only_identity, bool has_sound_backend);
 
-/// Wizard page of taste-only toggles. Each row is bound to the same subject and
+/// Wizard page of taste-only preferences. Each row is bound to the same subject and
 /// callback as its settings-overlay twin, so there is no second copy of the state.
 class WizardPreferencesStep : public Step {
   public:
@@ -54,10 +54,10 @@ class WizardPreferencesStep : public Step {
     ObserverGuard backend_count_observer_;
     ObserverGuard ams_type_observer_;
     SubjectManager subjects_;
-    lv_subject_t show_global_{};
-    lv_subject_t show_bypass_spool_{};
-    lv_subject_t show_keep_spool_info_{};
-    lv_subject_t show_sounds_{};
+    helix::Subject show_global_{};
+    helix::Subject show_bypass_spool_{};
+    helix::Subject show_keep_spool_info_{};
+    helix::Subject show_sounds_{};
 };
 
 WizardPreferencesStep* get_wizard_preferences_step();

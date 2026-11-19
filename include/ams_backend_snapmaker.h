@@ -3,17 +3,17 @@
 #pragma once
 #if HELIX_HAS_SNAPMAKER
 
-#include "ui_timer_guard.h"
-
 #include "ams_insert_signals.h"
 #include "ams_print_routing.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "core/timer_guard.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
 #include "lane_binding.h"
 #include "lane_observation.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_feed_mode.h"
 #include "snapmaker_nozzle_properties.h"
 #include "snapmaker_print_preferences.h"
 #include "snapmaker_status_parse.h"
@@ -26,6 +26,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -117,6 +118,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                                                        const std::vector<int>& extruder_map);
 
     [[nodiscard]] AmsSystemInfo get_system_info() const override;
+    /// Re-words a standing channel fault ("Lane 2: Load failed") in the new language.
+    void refresh_translated_texts() override;
 
     // Operation step bar. The U1 firmware reports a granular channel_state that
     // classify_channel_state maps to a per-direction step index published via the
@@ -189,6 +192,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         // print_task_config.py's reset_print_info() returns extruder_map_table to
         // identity at every print end (complete, cancel, error).
         t.print_routing_resets_to_identity = true;
+        // A slot select IS a physical tool change: do_select_slot() forwards to
+        // do_change_tool(), which emits `T{n}` and moves the carriage.
+        t.select_slot_moves_toolhead = true;
         return t;
     }();
     [[nodiscard]] BackendTraits traits() const override {
@@ -228,8 +234,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
 
     // needs_unload_before_load() is answered by the base class: every lane here
     // is PARALLEL, so slot_has_independent_path() is true for all of them and the
-    // serial rule never applies. See AmsBackend for why, including the `T{n}`
-    // load this backend used to dispatch.
+    // serial rule never applies. See AmsBackend for why, including why a `T{n}`
+    // load here seats the carriage and feeds nothing.
     [[nodiscard]] PathSegment get_filament_segment() const override;
     [[nodiscard]] PathSegment get_slot_filament_segment(int slot_index) const override;
     [[nodiscard]] PathSegment infer_error_segment() const override;
@@ -280,6 +286,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         bool filament_detected{false};
         bool module_exist{false};
         bool disable_auto{false};
+        /// A frame has carried module_exist, so module_exist is the firmware's word.
+        bool module_reported{false};
+        /// A frame has carried disable_auto, so the head's Auto loading is known.
+        bool auto_reported{false};
         /// The head's filament_motion_sensor `enabled` flag. Arrives from the
         /// sensor status objects, not the feeder frame, so a feeder write
         /// carries the previous value forward instead of defaulting it.
@@ -287,6 +297,24 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     };
 
     [[nodiscard]] ChannelSnapshot channel_snapshot(int slot_index) const;
+
+    /// A head the firmware reports with no feeder, its feeder out of automatic
+    /// mode, or filament in it that bypassed the feeder, loads by hand: the guided
+    /// manual load (#2000).
+    [[nodiscard]] HeadFilamentOps head_filament_ops(int head) const override;
+
+    /// Whether @p snap says no automatic feeder can feed its head: the firmware
+    /// reported no module, or the feeder out of automatic mode. False until a frame
+    /// says either.
+    [[nodiscard]] static bool feeder_absent(const ChannelSnapshot& snap) {
+        return (snap.module_reported && !snap.module_exist) || snap.disable_auto;
+    }
+
+    /// Whether @p snap names a feeder that is there with its Auto loading off,
+    /// which the user can turn on, as opposed to no feeder at all.
+    [[nodiscard]] static bool auto_load_off(const ChannelSnapshot& snap) {
+        return snap.disable_auto && !(snap.module_reported && !snap.module_exist);
+    }
 
     /// Eligibility answered from the feeder's own channel fields: only a
     /// settled state on a fault-free, auto-mode channel with its motion
@@ -327,12 +355,6 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// script needs no sequencer. Klipper aborts the remaining lines when one
     /// raises, so every index is validated before anything is sent.
     AmsError do_filament_batch(const std::vector<int>& slots, bool load) override;
-
-    /// On the U1 a slot select IS a physical tool change — do_select_slot()
-    /// forwards to do_change_tool(), which emits `T{n}` and moves the carriage.
-    [[nodiscard]] bool select_slot_moves_toolhead() const override {
-        return true;
-    }
 
   public:
     // Filament loaded to this tool's nozzle: a present lane with the
@@ -375,11 +397,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
 
     // True when the motion sensor reports runout but the port sensor still
-    // reads filament present — i.e. the encoder is stale (e.g., it never
-    // saw the start-of-print purge) but physical filament is in the buffer.
-    // Callers (FilamentRunoutHandler) auto-recover silently instead of
-    // showing the modal.
-    [[nodiscard]] bool is_stuck_motion_sensor_runout(int slot_index) const override;
+    // reads filament present: the encoder is stale (it never saw the
+    // start-of-print purge) but physical filament is in the buffer. No caller:
+    // the signal cannot tell a stale encoder from a short preload
+    // (FILAMENT_BACKEND_SNAPMAKER_U1.md).
+    [[nodiscard]] bool is_stuck_motion_sensor_runout(int slot_index) const;
 
     // Snapmaker U1 uses firmware-native print_task_config gcode
     // (SET_PRINT_USED_EXTRUDERS / SET_PRINT_EXTRUDER_MAP) emitted before
@@ -463,7 +485,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// which a head the firmware calls official requires.
     [[nodiscard]] static std::string
     build_filament_config_gcode(int head, const SlotInfo& slot, bool force = false,
-                                RecordLines lines = RecordLines::Both);
+                                RecordLines lines = RecordLines::Both,
+                                const std::string& kept_subtype = {});
 
     /// One multi-line feed script covering @p slots, in the order given,
     /// newline-joined with no trailing newline. Empty @p slots yields the
@@ -577,15 +600,20 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] std::vector<helix::printer::DeviceSection> get_device_sections() const override;
 
     /// One DeviceAction per reported preference: toggles, a sensitivity
-    /// dropdown, and one end-unload toggle per reported toolhead. Then, per
+    /// dropdown, one end-unload toggle per reported toolhead, and an Auto
+    /// loading toggle per head whose feeder reports its mode. Then, per
     /// head, a nozzle diameter and a nozzle flow dropdown for each field the
     /// head reports, unavailable while a print is printing or paused (the
     /// firmware refuses the change then).
     [[nodiscard]] std::vector<helix::printer::DeviceAction> get_device_actions() const override;
 
-    /// Sends the SET_PRINT_PREFERENCES line build_preference_gcode() maps the
-    /// action id to, or the nozzle change build_nozzle_change() makes of it.
-    /// Unknown ids are reported as not supported.
+    /// The device section the print preferences and Auto loading rows sit in.
+    static constexpr const char* kPrintPrefsSection = "print_prefs";
+    /// Each head's Auto loading row id: this prefix, then the head number.
+    static constexpr std::string_view kAutoLoadActionPrefix = "snapmaker_auto_load_t";
+
+    /// Sends the line build_preference_gcode() maps the action id to, or the nozzle change
+    /// build_nozzle_change() makes of it. Unknown ids are reported as not supported.
     AmsError do_execute_device_action(const std::string& action_id, const std::any& value) override;
 
     /// A nozzle change reports through @p on_done once the firmware has answered;
@@ -703,6 +731,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     struct RecordWrite {
         bool force = false;
         RecordLines lines = RecordLines::Both;
+        /// The sub-type the head keeps when the edit names no product line.
+        std::string kept_subtype;
     };
 
     /// A refeed whose AUTO_FEEDING answered OK before the feeder's frame
@@ -794,6 +824,29 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     void derive_active_tool_loaded_locked(FrameEffects& fx);
     /// A slot whose runout sensor reports no filament is AVAILABLE, not LOADED.
     void demote_runout_slots_locked(FrameEffects& fx);
+    /// Keeps hand_fed_head_: a hand push raises the toolhead switch over an empty port, where a
+    /// runout or an unload empties the port under a switch already raised. A head fed past its
+    /// feeder holds filament its port cannot see, so its slot reads AVAILABLE over the lane
+    /// model's EMPTY.
+    void converge_hand_fed_slots_locked(FrameEffects& fx) {
+        for (int i = 0; i < kNumTools; ++i) {
+            const bool raised = toolhead_switch_reported_[i] && sensor_filament_present_[i];
+            if (port_sensor_filament_present_[i] || loaded_at_toolhead_[i] ||
+                head_is_upstream_fed_locked(i)) {
+                hand_fed_head_[i] = false;
+            } else if (raised && !switch_was_raised_[i] && feed_presence_seen_[i]) {
+                hand_fed_head_[i] = true;
+            }
+            if (feed_presence_seen_[i]) {
+                switch_was_raised_[i] = raised;
+            }
+            auto* slot = system_info_.units[0].get_slot(i);
+            if (slot && slot->status == SlotStatus::EMPTY && fed_past_feeder_locked(i)) {
+                slot->status = SlotStatus::AVAILABLE;
+                fx.changed = true;
+            }
+        }
+    }
     /// Override layering and the lane-model ingest, once per slot.
     void converge_lanes_locked(FrameEffects& fx);
     /// The active tool's first-gate (port) presence, flagged for publication
@@ -910,6 +963,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                sensor_filament_present_[i];
     }
 
+    /// Filament pushed into tool i's toolhead past its feeder, still there: a feed has nothing
+    /// to drive. Caller holds mutex_.
+    [[nodiscard]] bool fed_past_feeder_locked(int i) const {
+        return hand_fed_head_[i] && parked_in_toolhead_locked(i);
+    }
+
     /// Per-slot port/buffer sensor state — the filament_feed left/right
     /// .extruder{N}.filament_detected flag. Reads the physical-presence
     /// sensor at the spool/buffer side, NOT the encoder-based motion sensor.
@@ -943,6 +1002,18 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// a different question ("did the ACTIVE lane run out during extrusion").
     std::array<bool, kNumTools> loaded_at_toolhead_{{false, false, false, false}};
 
+    /// What the standing channel fault's operation_detail was composed from,
+    /// so a language switch can re-word it. `shown` is the text as set; once
+    /// operation_detail no longer equals it, the record describes nothing.
+    struct ChannelFaultText {
+        int lane = -1;
+        bool from_error_token = false;
+        std::string error;
+        std::string op_state;
+        std::string shown;
+    };
+    std::optional<ChannelFaultText> channel_fault_text_;
+
     /// Per-slot "filament_feed has reported this lane" — set the first time a
     /// frame carries a boolean filament_detected or a channel_state for the
     /// lane, and never cleared. Until it is set, the convergence-point presence
@@ -950,6 +1021,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// ("no reading yet", not "no filament"), and declaring those defaults
     /// would empty a lane whose only signal so far is the toolhead pin state.
     std::array<bool, kNumTools> feed_presence_seen_{{false, false, false, false}};
+    /// Head i was fed by hand past its feeder and has not loaded through it since: its
+    /// feeder has nothing to refeed after a runout. switch_was_raised_ is its edge memory.
+    std::array<bool, kNumTools> hand_fed_head_{{false, false, false, false}};
+    std::array<bool, kNumTools> switch_was_raised_{{false, false, false, false}};
 
     /// Per-channel pending insert: parse passes held since the feed-port
     /// presence rose, 0 = none pending. The port edge fires the moment
@@ -1119,6 +1194,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// (@p material_declared). Caller holds mutex_.
     [[nodiscard]] std::optional<RecordWrite>
     plan_record_write_locked(int head, const SlotInfo& info, bool material_declared) const;
+
+    /// The sub-type head @p head keeps when @p info names no product line and
+    /// leaves its filament unchanged; empty otherwise. Caller holds mutex_.
+    [[nodiscard]] std::string kept_subtype_locked(int head, const SlotInfo& info) const;
 
     /// Send @p plan for @p head. Main thread, mutex_ not held.
     void write_task_filament_record(int head, const SlotInfo& info, const RecordWrite& plan);
@@ -1380,6 +1459,27 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// (snapmaker::nozzle_offset::supported), cached by set_discovery(). All
     /// access under mutex_.
     bool nozzle_offset_supported_ = false;
+
+    /// The status-object key of the macro that maps heads to feeder channels
+    /// ("gcode_macro " + its config-case name; empty when the firmware lacks
+    /// it), cached by set_discovery(). All access under mutex_.
+    std::string feed_variable_object_;
+
+    /// Each head's feeder module and channel, as that macro's frames have
+    /// stated them, the stock wiring until they do. All access under mutex_.
+    snapmaker::feed_mode::FeedChannelMap feed_channels_ = snapmaker::feed_mode::stock_channel_map();
+
+    // Auto loading (src/printer/ams_backend_snapmaker_auto_load.cpp).
+    /// Some head's feeder has reported its mode, so the rows have a state to show.
+    [[nodiscard]] bool auto_load_reported() const;
+    /// One Auto loading row per head whose feeder has reported its mode.
+    void append_auto_load_actions(std::vector<helix::printer::DeviceAction>& out) const;
+    /// The command that sets @p head's Auto loading to @p value; empty when
+    /// the value is not a bool or the head names no feeder channel.
+    [[nodiscard]] std::string auto_load_gcode(size_t head, const std::any& value) const;
+    /// Lays the head-to-channel macro's frame, when @p status carries one,
+    /// over feed_channels_. Caller holds mutex_.
+    void update_feed_channels_locked(const nlohmann::json& status);
 
     /// The batch do_filament_batch() dispatched, verified head-by-head in
     /// handle_status's channel_state parse. All access under mutex_.

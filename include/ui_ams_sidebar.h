@@ -6,7 +6,6 @@
 #include "ui_buffer_slider.h"
 #include "ui_bypass_toggle_controller.h"
 #include "ui_clog_meter.h"
-#include "ui_observer_guard.h"
 #include "ui_widget_ref.h"
 
 #include "ams_backend.h"
@@ -14,6 +13,7 @@
 #include "ams_step_operation.h"
 #include "ams_types.h"
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_op_heater.h"
@@ -56,6 +56,10 @@ std::string preheat_status_text(bool step_list_shows_temp, int current_c, int ta
  *
  * Static callbacks find their sidebar by the panel the firing widget sits in.
  */
+/// The sidebar's mounted line on a multi-head printer: "Mounted: <tool>" for
+/// @p active_tool >= 0, "No tool mounted" otherwise.
+[[nodiscard]] std::string mounted_tool_text(LaneNoun tool_noun, int active_tool);
+
 class AmsOperationSidebar {
   public:
     explicit AmsOperationSidebar(PrinterState& ps);
@@ -222,6 +226,7 @@ class AmsOperationSidebar {
     ObserverGuard action_observer_;
     ObserverGuard current_slot_observer_;
     ObserverGuard active_backend_observer_;
+    ObserverGuard active_tool_observer_;
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;
     // The heaters the step bar's live-temp steps heat, where the backend names
@@ -386,10 +391,9 @@ class AmsOperationSidebar {
     // ---- Action button gating (filament_op_slot_resolver.h) -----------------
     // Recompute every gated sidebar button and publish the results on
     // ams_sidebar_unload_disabled, ams_sidebar_load_disabled,
-    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Unload
-    // and Load come from the same compute_op_button_gating() rule the filament
-    // panel and the AMS context menu use; Reset and Check slots come from
-    // compute_machine_op_gating().
+    // ams_sidebar_reset_disabled and ams_sidebar_check_gates_disabled. Load
+    // and Unload come from decide_filament_actions() (filament_action_set.h); Reset and Check slots
+    // come from compute_machine_op_gating().
     void refresh_button_gating();
 
     // What the Load and Unload cells offer, decided by decide_filament_actions()
@@ -436,6 +440,9 @@ class AmsOperationSidebar {
     void handle_bypass_toggle();
     void handle_reset();
     void handle_check_gates();
+    /// The loaded card's tap: the loaded lane's spool in the editor, or the
+    /// spool picker when Spoolman is up and the lane links no spool (#2094).
+    void handle_loaded_card_tap();
 
     // Action display (sidebar-relevant parts only)
     void update_action_display(AmsAction action);

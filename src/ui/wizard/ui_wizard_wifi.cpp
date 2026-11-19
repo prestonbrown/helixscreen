@@ -8,16 +8,17 @@
 #include "ui_icon.h"
 #include "ui_keyboard_manager.h"
 #include "ui_modal.h"
-#include "ui_subject_registry.h"
 #include "ui_utils.h"
 
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "ethernet_manager.h"
 #include "lvgl/lvgl.h"
 #include "system/crash_handler.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "wifi_manager.h"
@@ -46,27 +47,6 @@ WizardWifiStep* get_wizard_wifi_step() {
 // ============================================================================
 
 /**
- * @brief Compute signal icon state from signal strength and security status
- *
- * @param signal_strength Signal strength (0-100%)
- * @param is_secured Whether network is password-protected
- * @return State 1-8: 1-4 unsecured (strength 1-4), 5-8 secured (strength 1-4)
- */
-static int compute_signal_icon_state(int signal_strength, bool is_secured) {
-    int base_state;
-    if (signal_strength <= 25)
-        base_state = 1;
-    else if (signal_strength <= 50)
-        base_state = 2;
-    else if (signal_strength <= 75)
-        base_state = 3;
-    else
-        base_state = 4;
-
-    return is_secured ? base_state + 4 : base_state; // 1-4 unsecured, 5-8 secured
-}
-
-/**
  * @brief Per-instance network item data for reactive UI updates
  *
  * Subjects are stack-allocated (not heap) since lv_subject_t is a small struct (~32 bytes).
@@ -75,12 +55,11 @@ static int compute_signal_icon_state(int signal_strength, bool is_secured) {
  */
 struct WifiWizardNetworkItemData {
     WiFiNetwork network;
-    lv_subject_t ssid{};              // Stack-allocated subject
-    lv_subject_t signal_strength{};   // Stack-allocated subject
-    lv_subject_t is_secured{};        // Stack-allocated subject
-    lv_subject_t signal_icon_state{}; // Combined state 1-8 for icon visibility binding
-    lv_subject_t band_text{};         // Band badge text ("2.4G" / "5G" / "2.4/5G")
-    lv_subject_t band_visible{};      // 1 when the badge should be shown, else 0
+    helix::Subject ssid{};            // Stack-allocated subject
+    helix::Subject signal_strength{}; // Stack-allocated subject
+    helix::Subject is_secured{};      // Stack-allocated subject
+    helix::Subject band_text{};       // Band badge text ("2.4G" / "5G" / "2.4/5G")
+    helix::Subject band_visible{};    // 1 when the badge should be shown, else 0
     char ssid_buffer[64];
     char band_buffer[16];
     WizardWifiStep* parent; // Back-reference for callbacks
@@ -90,27 +69,22 @@ struct WifiWizardNetworkItemData {
         : network(net), parent(p) {
         strncpy(ssid_buffer, network.ssid.c_str(), sizeof(ssid_buffer) - 1);
         ssid_buffer[sizeof(ssid_buffer) - 1] = '\0';
-        lv_subject_init_string(&ssid, ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
-        lv_subject_init_int(&signal_strength, network.signal_strength);
-        lv_subject_init_int(&is_secured, network.is_secured ? 1 : 0);
-
-        // Compute combined icon state (1-8)
-        int icon_state = compute_signal_icon_state(network.signal_strength, network.is_secured);
-        lv_subject_init_int(&signal_icon_state, icon_state);
+        ssid.init_string(ssid_buffer, nullptr, sizeof(ssid_buffer), ssid_buffer);
+        signal_strength.init_int(network.signal_strength);
+        is_secured.init_int(network.is_secured ? 1 : 0);
 
         snprintf(band_buffer, sizeof(band_buffer), "%s", band_label.c_str());
-        lv_subject_init_string(&band_text, band_buffer, nullptr, sizeof(band_buffer), band_buffer);
-        lv_subject_init_int(&band_visible, band_label.empty() ? 0 : 1);
+        band_text.init_string(band_buffer, nullptr, sizeof(band_buffer), band_buffer);
+        band_visible.init_int(band_label.empty() ? 0 : 1);
     }
 
     ~WifiWizardNetworkItemData() {
         // Deinit subjects before memory is freed
-        lv_subject_deinit(&ssid);
-        lv_subject_deinit(&signal_strength);
-        lv_subject_deinit(&is_secured);
-        lv_subject_deinit(&signal_icon_state);
-        lv_subject_deinit(&band_text);
-        lv_subject_deinit(&band_visible);
+        ssid.reset();
+        signal_strength.reset();
+        is_secured.reset();
+        band_text.reset();
+        band_visible.reset();
     }
 };
 
@@ -200,12 +174,12 @@ const char* WizardWifiStep::get_wifi_signal_icon(int signal_strength, bool is_se
 void WizardWifiStep::update_wifi_status(const char* status) {
     if (!status)
         return;
-    lv_subject_copy_string(&wifi_status_, status);
+    lv_subject_set_string(&wifi_status_, status);
 }
 
 void WizardWifiStep::update_wifi_ip(const char* ip, const std::string& mac) {
     spdlog::debug("[{}] Updating WiFi IP: {}", get_name(), ip ? ip : "(none)");
-    lv_subject_copy_string(&wifi_ip_, ip ? ip : "");
+    lv_subject_set_string(&wifi_ip_, ip ? ip : "");
 
     // Update WiFi MAC when we have an IP (connected)
     if (ip && ip[0] != '\0') {
@@ -214,10 +188,10 @@ void WizardWifiStep::update_wifi_ip(const char* ip, const std::string& mac) {
         if (!mac.empty()) {
             char mac_buf[32];
             snprintf(mac_buf, sizeof(mac_buf), "MAC: %s", mac.c_str());
-            lv_subject_copy_string(&wifi_mac_, mac_buf);
+            lv_subject_set_string(&wifi_mac_, mac_buf);
         }
     } else {
-        lv_subject_copy_string(&wifi_mac_, "");
+        lv_subject_set_string(&wifi_mac_, "");
     }
 }
 
@@ -256,8 +230,8 @@ void WizardWifiStep::refresh_network_list() {
 void WizardWifiStep::update_ethernet_status() {
     if (!ethernet_manager_) {
         LOG_WARN_INTERNAL("Ethernet manager not initialized");
-        lv_subject_copy_string(&ethernet_status_, "Unknown");
-        lv_subject_copy_string(&ethernet_mac_, "");
+        lv_subject_set_string(&ethernet_status_, "Unknown");
+        lv_subject_set_string(&ethernet_mac_, "");
         return;
     }
 
@@ -288,19 +262,19 @@ void WizardWifiStep::update_ethernet_status() {
                 char status_buf[128];
                 snprintf(status_buf, sizeof(status_buf), lv_tr("Connected (%s)"),
                          info_copy.ip_address.c_str());
-                lv_subject_copy_string(&ethernet_status_, status_buf);
+                lv_subject_set_string(&ethernet_status_, status_buf);
                 spdlog::debug("[{}] Ethernet status: {}", get_name(), status_buf);
             } else {
-                lv_subject_copy_string(&ethernet_status_, info_copy.status.c_str());
+                lv_subject_set_string(&ethernet_status_, info_copy.status.c_str());
                 spdlog::debug("[{}] Ethernet status: {}", get_name(), info_copy.status);
             }
 
             if (!info_copy.mac_address.empty()) {
                 char mac_buf[32];
                 snprintf(mac_buf, sizeof(mac_buf), "MAC: %s", info_copy.mac_address.c_str());
-                lv_subject_copy_string(&ethernet_mac_, mac_buf);
+                lv_subject_set_string(&ethernet_mac_, mac_buf);
             } else {
-                lv_subject_copy_string(&ethernet_mac_, "");
+                lv_subject_set_string(&ethernet_mac_, "");
             }
         });
     });
@@ -345,7 +319,14 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
     // Create network items
     static int item_counter = 0;
     for (const auto& network : sorted_networks) {
-        const char* item_attrs[] = {"click_callback", "on_wizard_wifi_network_clicked", nullptr};
+        const std::string signal_state =
+            std::to_string(helix::ui::wifi::wifi_compute_signal_icon_state(network.signal_strength,
+                                                                           network.is_secured));
+        const char* item_attrs[] = {
+            "click_callback", "on_wizard_wifi_network_clicked",
+            "signal_state",   signal_state.c_str(),
+            "security",       network.is_secured ? network.security_type.c_str() : "",
+            nullptr};
         lv_obj_t* item = static_cast<lv_obj_t*>(
             lv_xml_create(network_list_container_, "wifi_network_item", item_attrs));
         if (!item) {
@@ -375,44 +356,6 @@ void WizardWifiStep::populate_network_list(const std::vector<WiFiNetwork>& netwo
         if (band_label) {
             lv_label_bind_text(band_label, &item_data->band_text, nullptr);
             lv_obj_bind_flag_if_eq(band_label, &item_data->band_visible, LV_OBJ_FLAG_HIDDEN, 0);
-        }
-
-        // Set security type text
-        lv_obj_t* security_label = helix::ui::find_required(item, "security_label", get_name());
-        if (security_label) {
-            if (network.is_secured) {
-                lv_label_set_text(security_label, network.security_type.c_str());
-            } else {
-                lv_label_set_text(security_label, "");
-            }
-        }
-
-        // Bind signal icons - 8 icons in container, show only the one matching state
-        // LVGL automatically removes observers when child widgets are deleted
-        lv_obj_t* signal_icons = helix::ui::find_required(item, "signal_icons", get_name());
-        if (signal_icons) {
-            static const struct {
-                const char* name;
-                int state;
-            } icon_bindings[] = {
-                {"sig_1", 1},      {"sig_2", 2},      {"sig_3", 3},      {"sig_4", 4},
-                {"sig_1_lock", 5}, {"sig_2_lock", 6}, {"sig_3_lock", 7}, {"sig_4_lock", 8},
-            };
-
-            int current_state = lv_subject_get_int(&item_data->signal_icon_state);
-
-            for (const auto& binding : icon_bindings) {
-                lv_obj_t* icon = lv_obj_find_by_name(signal_icons, binding.name);
-                if (icon) {
-                    // Bind visibility: hidden when state != ref_value
-                    lv_obj_bind_flag_if_not_eq(icon, &item_data->signal_icon_state,
-                                               LV_OBJ_FLAG_HIDDEN, binding.state);
-                }
-            }
-
-            spdlog::trace("[{}] Bound signal icons for {}% ({}) -> state {}", get_name(),
-                          network.signal_strength, network.is_secured ? "secured" : "open",
-                          current_state);
         }
 
         // Mark connected network with LV_STATE_CHECKED (styling handled by XML)
@@ -487,7 +430,7 @@ void WizardWifiStep::clear_network_list() {
             // Remove clickable flag to prevent stale indev click events —
             // LVGL's indev may have cached this item as the pressed target,
             // and would fire CLICKED on a freed object if we delete synchronously.
-            lv_obj_remove_flag(child, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_set_clickable(child, false);
 
             // Defer deletion to next tick — safe_delete_deferred hides immediately
             // and deletes via lv_obj_delete_async. The DELETE handler will
@@ -509,7 +452,7 @@ void WizardWifiStep::network_item_delete_cb(lv_event_t* e) {
         return;
 
     // Wrap raw pointer in unique_ptr for RAII cleanup
-    // (destructor calls lv_subject_deinit on all subjects)
+    // (destructor calls reset() on all subjects)
     std::unique_ptr<WifiWizardNetworkItemData> data(
         static_cast<WifiWizardNetworkItemData*>(lv_obj_get_user_data(obj)));
     lv_obj_set_user_data(obj, nullptr);
@@ -631,7 +574,7 @@ void WizardWifiStep::handle_wifi_toggle_changed(lv_event_t* e) {
 
 void WizardWifiStep::handle_network_item_clicked(lv_event_t* e) {
     lv_obj_t* item = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (!item || lv_obj_has_flag(item, LV_OBJ_FLAG_HIDDEN))
+    if (!item || lv_obj_is_hidden(item))
         return; // Deferred-deleted item, ignore stale click (#778)
 
     WifiWizardNetworkItemData* item_data =
@@ -751,11 +694,7 @@ void WizardWifiStep::handle_modal_connect_clicked() {
 
     const char* password = lv_textarea_get_text(password_input);
     if (!password || strlen(password) == 0) {
-        lv_obj_t* modal_status = lv_obj_find_by_name(password_modal_, "modal_status");
-        if (modal_status) {
-            lv_label_set_text(modal_status, lv_tr("Password cannot be empty"));
-            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
-        }
+        show_password_status(lv_tr("Password cannot be empty"));
         return;
     }
 
@@ -776,46 +715,39 @@ void WizardWifiStep::handle_modal_connect_clicked() {
 
     if (wifi_manager_) {
         auto token = lifetime_.token();
-        wifi_manager_->connect(
-            current_ssid_, password,
-            [this, token](bool success, const std::string& error, WiFiResult) {
-                // No bg-thread token.expired() — token.defer() gates atomically on the main
-                // thread (L081).
-                token.defer([this, success, error]() {
-                    lv_subject_set_int(&wifi_connecting_, 0);
+        wifi_manager_->connect(current_ssid_, password,
+                               [this, token](bool success, const std::string& error, WiFiResult) {
+                                   // No bg-thread token.expired() — token.defer() gates atomically
+                                   // on the main thread (L081).
+                                   token.defer([this, success, error]() {
+                                       lv_subject_set_int(&wifi_connecting_, 0);
 
-                    // The user can dismiss the modal while the join is still in
-                    // flight. A null parent makes lv_obj_find_by_name() search
-                    // the whole active screen, so the pointer is the gate.
-                    if (password_modal_) {
-                        lv_obj_t* connect_btn =
-                            lv_obj_find_by_name(password_modal_, "modal_connect_btn");
-                        if (connect_btn) {
-                            lv_obj_remove_state(connect_btn, LV_STATE_DISABLED);
-                        }
-                    }
+                                       // The user can dismiss the modal while the join is still in
+                                       // flight. A null parent makes lv_obj_find_by_name() search
+                                       // the whole active screen, so the pointer is the gate.
+                                       if (password_modal_) {
+                                           lv_obj_t* connect_btn = lv_obj_find_by_name(
+                                               password_modal_, "modal_connect_btn");
+                                           if (connect_btn) {
+                                               lv_obj_remove_state(connect_btn, LV_STATE_DISABLED);
+                                           }
+                                       }
 
-                    if (success) {
-                        hide_password_modal();
-                        announce_connected();
-                    } else {
-                        lv_obj_t* modal_status =
-                            password_modal_ ? lv_obj_find_by_name(password_modal_, "modal_status")
-                                            : nullptr;
-                        if (modal_status) {
-                            char error_msg[256];
-                            snprintf(error_msg, sizeof(error_msg), lv_tr("Connection failed: %s"),
-                                     error.c_str());
-                            lv_label_set_text(modal_status, error_msg);
-                            lv_obj_remove_flag(modal_status, LV_OBJ_FLAG_HIDDEN);
-                        }
+                                       if (success) {
+                                           hide_password_modal();
+                                           announce_connected();
+                                       } else {
+                                           char error_msg[256];
+                                           snprintf(error_msg, sizeof(error_msg),
+                                                    lv_tr("Connection failed: %s"), error.c_str());
+                                           show_password_status(error_msg);
 
-                        update_wifi_status(lv_tr("Connection failed"));
-                        NOTIFY_ERROR(lv_tr("Failed to connect to '{}': {}"),
-                                     helix::redact::ssid(current_ssid_), error);
-                    }
-                });
-            });
+                                           update_wifi_status(lv_tr("Connection failed"));
+                                           NOTIFY_ERROR(lv_tr("Failed to connect to '{}': {}"),
+                                                        helix::redact::ssid(current_ssid_), error);
+                                       }
+                                   });
+                               });
     } else {
         LOG_ERROR_INTERNAL("WiFi manager not initialized");
         NOTIFY_ERROR(lv_tr("WiFi unavailable"));
@@ -834,12 +766,13 @@ void WizardWifiStep::init_subjects() {
         lv_subject_set_int(&wifi_connecting_, 0);
         lv_subject_set_int(&wifi_hardware_available_, 1);
         lv_subject_set_int(&wifi_can_toggle_radio_, 0);
-        lv_subject_copy_string(&wifi_password_modal_ssid_, "");
-        lv_subject_copy_string(&wifi_status_, get_status_text("disabled"));
-        lv_subject_copy_string(&wifi_ip_, "");
-        lv_subject_copy_string(&wifi_mac_, "");
-        lv_subject_copy_string(&ethernet_status_, "Checking...");
-        lv_subject_copy_string(&ethernet_mac_, "");
+        lv_subject_set_string(&wifi_password_modal_ssid_, "");
+        show_password_status("");
+        lv_subject_set_string(&wifi_status_, get_status_text("disabled"));
+        lv_subject_set_string(&wifi_ip_, "");
+        lv_subject_set_string(&wifi_mac_, "");
+        lv_subject_set_string(&ethernet_status_, "Checking...");
+        lv_subject_set_string(&ethernet_mac_, "");
         return;
     }
 
@@ -853,6 +786,11 @@ void WizardWifiStep::init_subjects() {
 
     UI_MANAGED_SUBJECT_STRING(wifi_password_modal_ssid_, wifi_password_modal_ssid_buffer_, "",
                               "wifi_password_modal_ssid", subjects_);
+    UI_MANAGED_SUBJECT_STRING(password_status_, password_status_buffer_, "",
+                              "wizard_wifi_password_status",
+                              subjects_); // SUBJECT_OK: bound via modal attrs
+    UI_MANAGED_SUBJECT_INT(password_status_shown_, 0, "wizard_wifi_password_status_shown",
+                           subjects_); // SUBJECT_OK: bound via modal attrs
     UI_MANAGED_SUBJECT_STRING(wifi_status_, wifi_status_buffer_, get_status_text("disabled"),
                               "wifi_status", subjects_);
     UI_MANAGED_SUBJECT_STRING(wifi_ip_, wifi_ip_buffer_, "", "wifi_ip", subjects_);
@@ -1137,12 +1075,19 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
     // this modal straight into the spinner with nothing to type into.
     lv_subject_set_int(&wifi_connecting_, 0);
 
+    // No error line from a previous attempt
+    show_password_status("");
+
     const char* attrs[] = {"ssid",
                            ssid,
                            "cancel_callback",
                            "on_wizard_wifi_password_cancel",
                            "connect_callback",
                            "on_wizard_wifi_password_connect",
+                           "status_subject",
+                           "wizard_wifi_password_status",
+                           "status_shown_subject",
+                           "wizard_wifi_password_status_shown",
                            NULL};
     password_modal_ = helix::ui::ComponentModal::show_owned("wifi_password_modal", attrs);
 
@@ -1151,7 +1096,7 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
         return;
     }
 
-    lv_subject_copy_string(&wifi_password_modal_ssid_, ssid);
+    lv_subject_set_string(&wifi_password_modal_ssid_, ssid);
 
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (password_input) {
@@ -1166,6 +1111,14 @@ void WizardWifiStep::show_password_modal(const char* ssid) {
     }
 
     spdlog::info("[{}] Password modal shown for SSID: {}", get_name(), helix::redact::ssid(ssid));
+}
+
+void WizardWifiStep::show_password_status(const char* text) {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_set_string(&password_status_, text ? text : "");
+    lv_subject_set_int(&password_status_shown_, (text && text[0]) ? 1 : 0);
 }
 
 void WizardWifiStep::hide_password_modal() {

@@ -5,6 +5,9 @@
 
 #include "ui_toast_manager.h"
 
+#include "core/subject.h"
+#include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "filament_catalog.h"
 #include "filament_database.h"
 #include "json_utils.h"
@@ -63,6 +66,21 @@ std::string int_to_field(int v) {
     return v > 0 ? std::to_string(v) : std::string{};
 }
 
+// A Celsius temperature as its field shows it, in the display unit.
+std::string temp_to_field(int celsius) {
+    return celsius > 0 ? std::to_string(helix::units::to_display_temp_whole(celsius))
+                       : std::string{};
+}
+
+// A temperature field's text as the Celsius value the form stores; blank stays blank.
+std::string field_to_temp(const std::string& text) {
+    const std::string_view trimmed = helix::text_io::trim(text);
+    if (trimmed.empty())
+        return {};
+    return std::to_string(
+        helix::units::display_temp_to_celsius(std::atoi(std::string(trimmed).c_str())));
+}
+
 std::string density_to_field(float v) {
     if (v <= 0.0f)
         return {};
@@ -78,10 +96,7 @@ bool FilamentProductEditModal::callbacks_registered_ = false;
 
 FilamentProductEditModal::FilamentProductEditModal() = default;
 
-FilamentProductEditModal::~FilamentProductEditModal() {
-    subjects_.deinit_all();
-    subjects_initialized_ = false;
-}
+FilamentProductEditModal::~FilamentProductEditModal() = default;
 
 void FilamentProductEditModal::set_on_saved(SavedCallback cb) {
     on_saved_ = std::move(cb);
@@ -98,7 +113,7 @@ bool FilamentProductEditModal::show_for_add(lv_obj_t* parent) {
     edit_id_.clear();
     is_builtin_ = false;
     has_overlay_ = false;
-    return Modal::show(parent);
+    return Modal::show(parent, names_.attrs());
 }
 
 bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string& product_id) {
@@ -108,7 +123,7 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
     edit_id_ = product_id;
     is_builtin_ = id_in_builtin(product_id);
     has_overlay_ = id_in_overlay(product_id);
-    return Modal::show(parent);
+    return Modal::show(parent, names_.attrs());
 }
 
 // ============================================================================
@@ -116,13 +131,8 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
 // ============================================================================
 
 void FilamentProductEditModal::on_show() {
-    // Title.
-    lv_obj_t* title = find_widget("header_title");
-    if (title) {
-        lv_label_set_text(title,
+    lv_subject_set_string(&title_subject_,
                           mode_ == Mode::Add ? lv_tr("Add Filament") : lv_tr("Edit Filament"));
-    }
-
     populate_fields();
     register_keyboards();
     configure_secondary_button();
@@ -133,12 +143,15 @@ void FilamentProductEditModal::on_show() {
 // ============================================================================
 
 void FilamentProductEditModal::init_subjects() {
-    if (subjects_initialized_)
+    if (!names_.empty())
         return;
-    lv_subject_init_string(&secondary_text_subject_, secondary_text_buf_, nullptr,
-                           sizeof(secondary_text_buf_), lv_tr("Delete"));
-    subjects_.publish("filament_product_secondary_text", &secondary_text_subject_);
-    subjects_initialized_ = true;
+    secondary_text_subject_.init_string(secondary_text_buf_, nullptr, sizeof(secondary_text_buf_),
+                                        lv_tr("Delete"));
+    names_.publish(&secondary_text_subject_, "secondary_text_subject", "secondary_text");
+    show_secondary_subject_.init_int(0);
+    names_.publish(&show_secondary_subject_, "show_secondary_subject", "show_secondary");
+    title_subject_.init_string(title_buf_, nullptr, sizeof(title_buf_), "");
+    names_.publish(&title_subject_, "title_subject", "title");
 }
 
 void FilamentProductEditModal::populate_type_dropdown(const std::string& selected_type) {
@@ -190,10 +203,10 @@ void FilamentProductEditModal::populate_fields() {
     set_input_text(dialog_, "field_id", ef->id);
     set_input_text(dialog_, "field_brand", ef->brand);
     set_input_text(dialog_, "field_name", ef->name);
-    set_input_text(dialog_, "field_nozzle_min", int_to_field(ef->nozzle_min));
-    set_input_text(dialog_, "field_nozzle_max", int_to_field(ef->nozzle_max));
-    set_input_text(dialog_, "field_nozzle", int_to_field(ef->nozzle_recommended));
-    set_input_text(dialog_, "field_bed", int_to_field(ef->bed_temp));
+    set_input_text(dialog_, "field_nozzle_min", temp_to_field(ef->nozzle_min));
+    set_input_text(dialog_, "field_nozzle_max", temp_to_field(ef->nozzle_max));
+    set_input_text(dialog_, "field_nozzle", temp_to_field(ef->nozzle_recommended));
+    set_input_text(dialog_, "field_bed", temp_to_field(ef->bed_temp));
     set_input_text(dialog_, "field_density", density_to_field(ef->density_g_cm3));
     populate_type_dropdown(ef->type);
 }
@@ -226,30 +239,22 @@ FilamentFormValues FilamentProductEditModal::read_form() const {
         v.type = buf;
     }
 
-    v.nozzle_min = get_input_text(dialog_, "field_nozzle_min");
-    v.nozzle_max = get_input_text(dialog_, "field_nozzle_max");
-    v.nozzle = get_input_text(dialog_, "field_nozzle");
-    v.bed = get_input_text(dialog_, "field_bed");
+    v.nozzle_min = field_to_temp(get_input_text(dialog_, "field_nozzle_min"));
+    v.nozzle_max = field_to_temp(get_input_text(dialog_, "field_nozzle_max"));
+    v.nozzle = field_to_temp(get_input_text(dialog_, "field_nozzle"));
+    v.bed = field_to_temp(get_input_text(dialog_, "field_bed"));
     v.density = get_input_text(dialog_, "field_density");
     return v;
 }
 
 void FilamentProductEditModal::configure_secondary_button() {
-    lv_obj_t* btn = find_widget("btn_secondary");
-    if (!btn)
-        return;
-
     // Add mode has no destructive action; edit of a pristine built-in (no
-    // override yet) likewise has nothing to remove. Hide the button in both.
+    // override yet) likewise has nothing to remove. The button shows otherwise.
     const bool show_secondary = (mode_ == Mode::Edit) && (has_overlay_ || !is_builtin_);
-    if (!show_secondary) {
-        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
-        return;
-    }
-    lv_obj_remove_flag(btn, LV_OBJ_FLAG_HIDDEN);
+    lv_subject_set_int(&show_secondary_subject_, show_secondary ? 1 : 0);
     // Built-in with an override -> restore; purely user entry -> delete.
-    lv_subject_copy_string(&secondary_text_subject_,
-                           is_builtin_ ? lv_tr("Restore Defaults") : lv_tr("Delete"));
+    lv_subject_set_string(&secondary_text_subject_,
+                          is_builtin_ ? lv_tr("Restore Defaults") : lv_tr("Delete"));
 }
 
 // ============================================================================

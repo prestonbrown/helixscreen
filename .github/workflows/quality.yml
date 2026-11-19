@@ -101,6 +101,10 @@ jobs:
     # rather than only in nightly because nightly is schedule-triggered and so only
     # ever sees the default branch, which left a release branch's copy of these
     # scripts with no coverage at all.
+    # The unit-art bake renders through rsvg-convert; its tests bake a layer.
+    - name: Install rsvg-convert
+      run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends librsvg2-bin
+
     - name: Run Python script tests
       run: .venv/bin/pytest tests/python/ -v --tb=short
 

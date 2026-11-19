@@ -13,8 +13,10 @@
 #include "../test_helpers/settings_panel_test_access.h"
 #include "../test_helpers/widget_in_tree.h"
 #include "../test_helpers/wifi_manager_test_access.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "app_globals.h"
 #include "config.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "ethernet_backend_mock.h"
@@ -56,11 +58,7 @@ struct RootFixture : LVGLUITestFixture {
         // Nothing in this fixture runs PrinterCapabilitiesState::init_subjects(),
         // so printer_has_speaker is otherwise absent and the Sound row's gate
         // resolves to nothing.
-        static lv_subject_t speaker_subject;
-        if (!lv_xml_get_subject(nullptr, "printer_has_speaker")) {
-            lv_subject_init_int(&speaker_subject, 1);
-            lv_xml_register_subject(nullptr, "printer_has_speaker", &speaker_subject);
-        }
+        helix::test::xml_stand_in("printer_has_speaker", 1);
         SettingsManager::instance().init_subjects();
         get_global_settings_panel().init_subjects();
         root_ = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "settings_panel", nullptr));
@@ -107,37 +105,30 @@ TEST_CASE_METHOD(RootFixture, "settings root: three groups, thirteen rows, in or
             last_index = idx;
         }
     }
-    CHECK(find("row_display_sound") == nullptr);
-    CHECK(find("row_hardware") == nullptr);
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: Sound hides without a speaker",
                  "[settings][settings_root]") {
     set_int("printer_has_speaker", 0);
-    CHECK(lv_obj_has_flag(find("row_sound"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find("row_sound")));
     set_int("printer_has_speaker", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_sound"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find("row_sound")));
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: Updates hides only when no update row would show",
                  "[settings][settings_root]") {
-    set_int("show_update_settings", 0);
-    set_int("updates_firmware_managed", 0);
-    set_int("updates_unavailable", 0);
-    CHECK(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
-    set_int("updates_firmware_managed", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
-    set_int("updates_firmware_managed", 0);
-    set_int("show_update_settings", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
-}
-
-TEST_CASE_METHOD(RootFixture, "settings root: Updates shows on updates_unavailable alone",
-                 "[settings][settings_root]") {
-    set_int("show_update_settings", 0);
-    set_int("updates_firmware_managed", 0);
-    set_int("updates_unavailable", 1);
-    CHECK_FALSE(lv_obj_has_flag(find("row_updates"), LV_OBJ_FLAG_HIDDEN));
+    struct Row {
+        int show_update_settings, firmware_managed, unavailable;
+        bool hidden;
+    };
+    for (const Row& r :
+         {Row{0, 0, 0, true}, Row{0, 1, 0, false}, Row{1, 0, 0, false}, Row{0, 0, 1, false}}) {
+        CAPTURE(r.show_update_settings, r.firmware_managed, r.unavailable);
+        set_int("show_update_settings", r.show_update_settings);
+        set_int("updates_firmware_managed", r.firmware_managed);
+        set_int("updates_unavailable", r.unavailable);
+        CHECK(lv_obj_is_hidden(find("row_updates")) == r.hidden);
+    }
 }
 
 #if HELIX_HAS_PLUGINS
@@ -146,7 +137,7 @@ TEST_CASE_METHOD(RootFixture, "settings root: Plugins shows only once a plugin e
     lv_obj_t* row = find("row_plugins");
     REQUIRE(row);
     // settings_plugins_available defaults to 0, so the row must not show yet.
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     helix::ConfigDirGuard guard("plugins-row");
     // The host boots from the per-printer cache: HELIX_CACHE_DIR decides where
@@ -167,20 +158,20 @@ TEST_CASE_METHOD(RootFixture, "settings root: Plugins shows only once a plugin e
     std::filesystem::create_directories(plugins);
     ApplicationTestAccess::init_plugins(app);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(find("row_plugins"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find("row_plugins")));
 
     // One plugin in the cache: the row shows.
     std::filesystem::copy("tests/fixtures/plugins/hello", plugins / "hello",
                           std::filesystem::copy_options::recursive);
     ApplicationTestAccess::init_plugins(app);
     process_lvgl(5);
-    CHECK_FALSE(lv_obj_has_flag(find("row_plugins"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find("row_plugins")));
 
     // Re-running against an empty cache hides it again.
     std::filesystem::remove_all(plugins / "hello");
     ApplicationTestAccess::init_plugins(app);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(find("row_plugins"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find("row_plugins")));
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: crash-loop safe mode loads no plugins",
@@ -205,12 +196,12 @@ TEST_CASE_METHOD(RootFixture, "settings root: crash-loop safe mode loads no plug
     get_runtime_config()->crash_loop_safe_mode = true;
     ApplicationTestAccess::init_plugins(app);
     process_lvgl(5);
-    CHECK(lv_obj_has_flag(find("row_plugins"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find("row_plugins")));
 
     get_runtime_config()->crash_loop_safe_mode = false;
     ApplicationTestAccess::init_plugins(app);
     process_lvgl(5);
-    CHECK_FALSE(lv_obj_has_flag(find("row_plugins"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find("row_plugins")));
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: tapping Plugins opens the plugins overlay",
@@ -286,7 +277,7 @@ TEST_CASE_METHOD(RootFixture, "settings root: rows without state show no status"
         REQUIRE(r != nullptr);
         lv_obj_t* wrap = lv_obj_find_by_name(r, "status_wrap");
         REQUIRE(wrap != nullptr);
-        CHECK(lv_obj_has_flag(wrap, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(wrap));
     }
 }
 
@@ -436,7 +427,7 @@ TEST_CASE_METHOD(RootFixture, "settings root: a superseded refresh's Wi-Fi probe
     REQUIRE(wait_until([&]() { return status_text(root_, "row_connection") == "Wi-Fi Fresh"; }));
     process_lvgl(50);
 
-    lv_observer_remove(recorder);
+    lv_observer_delete(recorder);
     for (const auto& text : shown) {
         CHECK(text != "Wi-Fi Stale");
     }

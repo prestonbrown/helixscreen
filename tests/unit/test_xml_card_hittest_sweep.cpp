@@ -12,6 +12,7 @@
 #include "ui_swatch.h"
 
 #include "../test_fixtures.h"
+#include "core/subject.h"
 
 #include <string>
 
@@ -126,7 +127,7 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_current_tool: colour swatch routes clicks 
     REQUIRE(root != nullptr);
     // The component hides itself unless an AMS tool is active; clear the flag so
     // the hit test sees real geometry.
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
     lv_obj_update_layout(root);
 
     lv_obj_t* swatch = lv_obj_find_by_name(root, "color_swatch");
@@ -140,14 +141,15 @@ TEST_CASE_METHOD(XMLTestFixture, "ams_current_tool: colour swatch routes clicks 
 TEST_CASE_METHOD(XMLTestFixture, "notification_history_item: body routes clicks to item root",
                  "[xml][hittest][sweep]") {
     REQUIRE(register_component("notification_history_item"));
-    lv_subject_t severity{}, has_message{}, has_action{}, title_subj{}, message_subj{}, time_subj{};
+    helix::Subject severity{}, has_message{}, has_action{}, title_subj{}, message_subj{},
+        time_subj{};
     char title_buf[32], message_buf[32], time_buf[16];
-    lv_subject_init_int(&severity, 0);
-    lv_subject_init_int(&has_message, 1);
-    lv_subject_init_int(&has_action, 1);
-    lv_subject_init_string(&title_subj, title_buf, nullptr, sizeof(title_buf), "Filament runout");
-    lv_subject_init_string(&message_subj, message_buf, nullptr, sizeof(message_buf), "Slot 1");
-    lv_subject_init_string(&time_subj, time_buf, nullptr, sizeof(time_buf), "12:01");
+    severity.init_int(0);
+    has_message.init_int(1);
+    has_action.init_int(1);
+    title_subj.init_string(title_buf, nullptr, sizeof(title_buf), "Filament runout");
+    message_subj.init_string(message_buf, nullptr, sizeof(message_buf), "Slot 1");
+    time_subj.init_string(time_buf, nullptr, sizeof(time_buf), "12:01");
     lv_xml_register_subject(nullptr, "hittest_row_severity", &severity);
     lv_xml_register_subject(nullptr, "hittest_row_has_message", &has_message);
     lv_xml_register_subject(nullptr, "hittest_row_has_action", &has_action);
@@ -171,7 +173,7 @@ TEST_CASE_METHOD(XMLTestFixture, "notification_history_item: body routes clicks 
     REQUIRE(item != nullptr);
     lv_obj_set_width(item, 400);
     lv_obj_update_layout(item);
-    REQUIRE(lv_obj_has_flag(item, LV_OBJ_FLAG_CLICKABLE));
+    REQUIRE(lv_obj_is_clickable(item));
 
     lv_obj_t* title = lv_obj_find_by_name(item, "item_title");
     lv_obj_t* message = lv_obj_find_by_name(item, "item_message");
@@ -189,6 +191,6 @@ TEST_CASE_METHOD(XMLTestFixture, "notification_history_item: body routes clicks 
     }
     for (lv_subject_t* subj :
          {&severity, &has_message, &has_action, &title_subj, &message_subj, &time_subj}) {
-        lv_subject_deinit(subj);
+        helix::subject_reset(subj);
     }
 }

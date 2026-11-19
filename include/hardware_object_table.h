@@ -28,7 +28,8 @@ enum class ObjectKind : uint8_t {
     GenericHeater,     ///< heater_generic <name>: a heater and a temperature sensor
     TemperatureSensor, ///< temperature_sensor <name>
     TemperatureFan,    ///< temperature_fan <name>: a sensor and a fan
-    DriverTemperature, ///< tmc2240 / tmc5160 <stepper>
+    DriverTemperature, ///< tmc2240 <stepper>: a die temperature and drv_status flags
+    StepperDriver,     ///< any other tmc<chip> <stepper>: drv_status flags, no temperature
     HumidityChip,      ///< bme280, htu21d, sht3x, aht10, aht20, aht20_f, aht3x, temperature_oams
     Fan,               ///< fan (the part fan object)
     HeaterFan,
@@ -104,6 +105,8 @@ struct FieldList {
 [[nodiscard]] bool is_fan(ObjectKind kind);         ///< every fan kind incl. TemperatureFan
 [[nodiscard]] bool is_led(ObjectKind kind);         ///< Led, OutputPinLed
 [[nodiscard]] bool is_temperature(ObjectKind kind); ///< kinds that report a temperature
+/// Stepper driver kinds: each reports overtemperature flags in drv_status.
+[[nodiscard]] bool is_stepper_driver(ObjectKind kind);
 [[nodiscard]] bool is_filament_sensor(ObjectKind kind);
 
 /// Persisted / display name of a kind's chip index, e.g. humidity chip 2 -> "SHT3x".

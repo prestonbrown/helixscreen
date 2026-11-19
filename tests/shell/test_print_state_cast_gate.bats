@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for scripts/check_print_state_cast.py - the print-enum hand-cast
+# Meta-tests for the print-state-cast rule of scripts/check_source_rules.py - the print-enum hand-cast
 # gate.
 #
 # lv_subject_get_int() returns int, so a static_cast into PrintState or
@@ -19,7 +19,7 @@
 # on the typed accessors, or on an annotated read, is a gate somebody
 # switches off, after which it protects nothing at all.
 
-GATE="scripts/check_print_state_cast.py"
+GATE="scripts/check_source_rules.py --rule print-state-cast"
 
 setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
@@ -32,7 +32,7 @@ setup() {
 run_gate() {
     local name="$1" body="$2"
     printf '%s\n' "$body" > "$FIXTURE_DIR/$name.cpp"
-    run python3 "$GATE" "$FIXTURE_DIR/$name.cpp"
+    run python3 $GATE "$FIXTURE_DIR/$name.cpp"
     printf '%s\n' "$output" > "$FIXTURE_DIR/out.txt"
 }
 

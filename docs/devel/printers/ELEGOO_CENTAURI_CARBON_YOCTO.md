@@ -118,5 +118,5 @@ What this means for HelixScreen on a CC1:
 - `scripts/yocto-docker.sh` reads the cosmos checkout from `$YOCTO_COSMOS` (default
   `~/Code/Printing/yocto-cosmos`) and the helixscreen tree from `$HELIX_SRC` (default: the
   script's own repo). From a worktree it also mounts the main tree so `lib/` symlinks resolve.
-- `-Wno-psabi` is on for every build (top of `Makefile`), so ARM psABI-transition notes do not
-  trip `-Werror`.
+- `-Wno-psabi` is on for the `yocto` target (top of `Makefile`), so ARM psABI-transition notes
+  from the Cortex-A7 hard-float cross build do not trip `-Werror`.

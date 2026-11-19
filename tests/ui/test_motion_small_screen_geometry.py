@@ -43,9 +43,10 @@ _LANDSCAPE = [
 
 _PORTRAIT = [
     # Height-bound square after the Z column takes its floor width first;
-    # the coordinate row claims the rest of the column; the tabs sit in the header.
-    ("272x480", 204),
-    ("320x480", 232),
+    # the coordinate row and the home row above the modes claim the rest of the
+    # column; the tabs sit in the header.
+    ("272x480", 188),
+    ("320x480", 188),
 ]
 
 # 1/100 mm: the widest realistic readout, 3 digits + 2 decimals per axis.
@@ -78,10 +79,17 @@ def _open_motion(app: HelixApp) -> None:
     app.wait_for("nav_buttons_enabled", 1, timeout=30)
     app.navigate("controls")
     app.wait_idle()
-    app.click("btn_motion")
+    # Portrait hides the Motion button and the Position card opens Motion; the
+    # landscape layouts keep the button.
+    try:
+        app.click("btn_motion")
+        opener = "btn_motion"
+    except HelixCtlError:
+        app.click("card_position")
+        opener = "card_position"
     app.wait_idle()
     assert "motion_panel" in app.current().get("overlays", []), (
-        "clicking btn_motion did not open the motion overlay")
+        f"clicking {opener} did not open the motion overlay")
     app.freeze()
     app.set("gcode_position_x", _WIDE_XY)
     app.set("gcode_position_y", _WIDE_XY)

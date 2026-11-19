@@ -11,6 +11,7 @@
 
 #include "ui_filament_path_canvas.h"
 
+#include "ui_ams_slot.h"
 #include "ui_filament_path_internal.h"
 #include "ui_filament_path_plan.h"
 #include "ui_fonts.h"
@@ -64,6 +65,7 @@ bool refresh_theme_colors(FilamentPathData* data) {
     theme.color_idle =
         theme_manager_get_color(dark_mode ? "filament_idle_dark" : "filament_idle_light");
     theme.color_error = theme_manager_get_color("filament_error");
+    theme.color_selected = theme_manager_get_color("primary");
     theme.color_hub_bg =
         theme_manager_get_color(dark_mode ? "filament_hub_bg_dark" : "filament_hub_bg_light");
     theme.color_hub_border = theme_manager_get_color(dark_mode ? "filament_hub_border_dark"
@@ -119,18 +121,19 @@ static void load_theme_sizes(FilamentPathData* data) {
 namespace helix::ui::fpath {
 
 // Get slot center X relative to the canvas left edge.
-// Primary: uses cached spool_container pointers for pixel-perfect alignment.
+// Primary: the slot's spool container, read live from the grid, for pixel-perfect alignment.
 // Fallback: computes position from slot_width/overlap when slot_grid unavailable.
 int32_t get_slot_x(const FilamentPathData* data, int slot_index, int32_t canvas_x1) {
-    if (slot_index >= 0 && slot_index < FilamentPathData::kMaxSlots) {
-        lv_obj_t* spool_cont = data->spool_containers[slot_index];
+    if (slot_index >= 0 && slot_index < FilamentPathData::kMaxSlots && data->slot_grid &&
+        slot_index < (int)lv_obj_get_child_count(data->slot_grid)) {
+        lv_obj_t* spool_cont =
+            ui_ams_slot_get_spool_container(lv_obj_get_child(data->slot_grid, slot_index));
         if (spool_cont) {
             // When spool_container is hidden (cleared slot), its flex-computed coords
             // are invalid. Use the parent slot widget center instead — it always stays
             // visible and at the correct fixed width.
-            lv_obj_t* target = lv_obj_has_flag(spool_cont, LV_OBJ_FLAG_HIDDEN)
-                                   ? lv_obj_get_parent(spool_cont)
-                                   : spool_cont;
+            lv_obj_t* target =
+                lv_obj_is_hidden(spool_cont) ? lv_obj_get_parent(spool_cont) : spool_cont;
             if (target) {
                 lv_area_t coords;
                 lv_obj_get_coords(target, &coords);
@@ -202,6 +205,21 @@ helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTa
 // Event handlers
 // ============================================================================
 
+// The slots' number badges sit on the spool box's front edge, where the lanes leave it, and the
+// slot card is drawn before this canvas: they are drawn again over the lanes so a tube never
+// covers a lane's number.
+static void redraw_lane_badges(lv_layer_t* layer, const FilamentPathData* data) {
+    lv_obj_t* badges[FilamentPathData::kMaxSlots] = {};
+    const int n = lane_badges(*data, badges);
+    // A badge standing below the unit's foot lies wholly past its own layer, which clips it
+    // there; the canvas still draws it, so only a hidden badge or layer is skipped.
+    for (int i = 0; i < n; i++) {
+        lv_obj_t* parent = lv_obj_get_parent(badges[i]);
+        if (!lv_obj_is_hidden(badges[i]) && (!parent || !lv_obj_is_hidden(parent)))
+            lv_obj_redraw(layer, badges[i]);
+    }
+}
+
 // DRAW_POST: child canvases hold the heavyweight static + state-tied painting
 // (refreshed by the layers module); this pass only contributes the cheap
 // per-frame animation overlay on top.
@@ -218,6 +236,7 @@ static void filament_path_draw_cb(lv_event_t* e) {
         layered_schedule_repaint(obj, data);
     layered_on_draw(obj, data);
     render_animation_overlay(obj, layer, data);
+    redraw_lane_badges(layer, data);
 }
 
 static void filament_path_click_cb(lv_event_t* e) {
@@ -243,7 +262,8 @@ static void filament_path_click_cb(lv_event_t* e) {
         const BaseGeometry g = compute_base_geometry(obj, data);
         const ParallelRows rows = parallel_rows(*data, g);
         const helix::ui::GlyphBounds glyph =
-            toolhead_glyph_bounds(0, rows.toolhead_y, rows.tool_scale);
+            toolhead_glyph_bounds(path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
+                                  rows.toolhead_y, rows.tool_scale);
         helix::ui::ParallelTapLayout layout;
         layout.slot_x = g.slot_x;
         layout.slot_count = g.slot_count;
@@ -267,14 +287,12 @@ static void filament_path_click_cb(lv_event_t* e) {
         }
     }
 
-    // Check if buffer coil was clicked. The renderer records the exact drawn
-    // box in data->hits.buffer; reading it avoids
-    // re-deriving the clamped box dimensions and slot-midpoint center_x.
-    // buffer_valid is set only when the box was actually drawn this pass.
+    // The buffer's tension control, or the outlet band standing in for it. The renderer
+    // records the drawn area in data->hits.buffer, valid only when drawn this pass.
     if (data->buffer_present && data->buffer_callback && data->hits.buffer_valid) {
         if (helix::ui::recorded_box_hit(point, data->hits.buffer, data->hits.origin, {x_off, y_off},
                                         4)) {
-            spdlog::debug("[FilamentPath] Buffer coil clicked");
+            spdlog::debug("[FilamentPath] Buffer control clicked");
             data->buffer_callback(data->buffer_user_data);
             return;
         }
@@ -365,8 +383,8 @@ static lv_obj_t* create_widget(lv_obj_t* parent) {
     lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(obj, 0, 0);
     lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_scrollable(obj, false);
+    lv_obj_set_clickable(obj, true);
 
     // Register event handlers
     lv_obj_add_event_cb(obj, filament_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
@@ -420,11 +438,8 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
         const char* value = attrs[i + 1];
 
         if (strcmp(name, "topology") == 0) {
-            if (strcmp(value, "linear") == 0 || strcmp(value, "0") == 0) {
-                data->topology = 0;
-            } else {
-                data->topology = 1; // default to hub
-            }
+            // Anything but linear is a hub.
+            data->topology = strcmp(value, "linear") == 0 || strcmp(value, "0") == 0 ? 0 : 1;
             needs_redraw = true;
         } else if (strcmp(name, "slot_count") == 0) {
             data->slot_count = LV_CLAMP(1, atoi(value), FilamentPathData::kMaxSlots);
@@ -504,6 +519,36 @@ void ui_filament_path_canvas_set_topology(lv_obj_t* obj, int topology) {
     layered_mark_dirty(obj);
 }
 
+// NAMESPACE_OK: one of the canvas's C-style setters
+void ui_filament_path_canvas_set_port_block(lv_obj_t* obj, bool port_block) {
+    auto* data = get_data(obj);
+    if (!data || data->fixed_selector == port_block)
+        return;
+    data->fixed_selector = port_block;
+    layered_mark_dirty(obj);
+}
+
+// NAMESPACE_OK: one of the canvas C-style setters
+void ui_filament_path_canvas_set_selector_rail(lv_obj_t* obj, const char* unit_id,
+                                               const helix::ui::tray::RailFaceArt* art,
+                                               bool has_carriage) {
+    auto* data = get_data(obj);
+#if defined(HELIX_PLATFORM_ESP32)
+    // The firmware image carries no unit art.
+    art = nullptr;
+#endif
+    if (!art)
+        unit_id = nullptr;
+    if (!data || (data->rail_art == art && data->rail_unit == unit_id &&
+                  data->rail_carriage == has_carriage))
+        return;
+    data->rail_art = art;
+    data->rail_unit = unit_id;
+    data->rail_carriage = has_carriage;
+    data->rail_art_failed = false;
+    layered_mark_dirty(obj);
+}
+
 void ui_filament_path_canvas_set_hub_on_toolhead(lv_obj_t* obj, bool on_toolhead) {
     auto* data = get_data(obj);
     if (!data || data->hub_on_toolhead == on_toolhead)
@@ -568,31 +613,20 @@ void ui_filament_path_canvas_set_slot_grid(lv_obj_t* obj, lv_obj_t* slot_grid) {
     if (!data)
         return;
 
-    // Pre-cache spool_container pointers to avoid per-frame lv_obj_find_by_name
-    lv_obj_t* containers[FilamentPathData::kMaxSlots] = {};
-    int child_count = 0;
+    const void* slots[FilamentPathData::kMaxSlots] = {};
     if (slot_grid) {
-        child_count = LV_MIN((int)lv_obj_get_child_count(slot_grid), FilamentPathData::kMaxSlots);
-        for (int i = 0; i < child_count; i++) {
-            lv_obj_t* slot = lv_obj_get_child(slot_grid, i);
-            if (slot) {
-                containers[i] = lv_obj_find_by_name(slot, "spool_container");
-            }
-        }
+        const int n = LV_MIN((int)lv_obj_get_child_count(slot_grid), FilamentPathData::kMaxSlots);
+        for (int i = 0; i < n; i++)
+            slots[i] = lv_obj_get_child(slot_grid, i);
     }
 
     // The lanes are drawn from these slots' positions, so a different grid, or
     // different slots in it, needs a repaint even when nothing else changed.
-    if (data->slot_grid == slot_grid &&
-        std::memcmp(data->spool_containers, containers, sizeof(containers)) == 0)
+    if (data->slot_grid == slot_grid && std::memcmp(data->slot_ids, slots, sizeof(slots)) == 0)
         return;
 
     data->slot_grid = slot_grid;
-    std::memcpy(data->spool_containers, containers, sizeof(containers));
-    if (slot_grid) {
-        spdlog::debug("[FilamentPath] Cached {} spool_container pointers from slot_grid",
-                      child_count);
-    }
+    std::memcpy(data->slot_ids, slots, sizeof(slots));
     layered_mark_dirty(obj);
 }
 
@@ -605,14 +639,16 @@ void ui_filament_path_canvas_set_active_slot(lv_obj_t* obj, int slot) {
     data->active_slot = slot;
 
     // LINEAR topology: animate output_x sliding to new slot position
-    if (data->topology == 0 && slot >= 0 && old_slot >= 0) {
+    if (data->topology == 0 && slot >= 0 && old_slot >= 0 && slot < data->slot_count &&
+        old_slot < data->slot_count) {
         lv_area_t coords;
         lv_obj_get_coords(obj, &coords);
         int32_t x_off = coords.x1;
-        int32_t new_x = x_off + get_slot_x(data, slot, x_off);
+        const BaseGeometry g = compute_base_geometry(obj, data);
+        int32_t new_x = helix::ui::fpath::linear_exit_x(*data, g, slot);
         int32_t old_x = data->anim.output_x_current;
         if (old_x == 0)
-            old_x = x_off + get_slot_x(data, old_slot, x_off);
+            old_x = helix::ui::fpath::linear_exit_x(*data, g, old_slot);
         start_output_x_animation(obj, data, old_x, new_x);
     }
 
@@ -834,6 +870,30 @@ void ui_filament_path_canvas_set_slot_prep_sensor(lv_obj_t* obj, int slot, bool 
     }
 }
 
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_lane_entry_rise(lv_obj_t* obj, int slot, int32_t rise) {
+    auto* data = get_data(obj);
+    if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
+        return;
+    rise = std::max<int32_t>(0, rise);
+    if (data->lane_entry_rise[slot] != rise) {
+        data->lane_entry_rise[slot] = rise;
+        layered_mark_dirty(obj);
+    }
+}
+
+// NAMESPACE_OK: the widget's C setter API, beside its siblings
+void ui_filament_path_canvas_set_lane_band_drop(lv_obj_t* obj, int slot, int32_t drop) {
+    auto* data = get_data(obj);
+    if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
+        return;
+    drop = std::max<int32_t>(0, drop);
+    if (data->lane_band_drop[slot] != drop) {
+        data->lane_band_drop[slot] = drop;
+        layered_mark_dirty(obj);
+    }
+}
+
 void ui_filament_path_canvas_set_slot_load_sensor(lv_obj_t* obj, int slot, bool has_sensor) {
     auto* data = get_data(obj);
     if (!data || slot < 0 || slot >= FilamentPathData::kMaxSlots)
@@ -899,6 +959,19 @@ void ui_filament_path_canvas_get_slot_upstream(lv_obj_t* obj, int slot, char* ou
 // Declared in ui_filament_path_internal.h inside helix::ui::fpath; the
 // ui_filament_path_canvas_* entry points around it are deliberately global.
 namespace helix::ui::fpath {
+
+int lane_badges(const FilamentPathData& data, lv_obj_t* out[FilamentPathData::kMaxSlots]) {
+    int n = 0;
+    if (!data.slot_grid)
+        return 0;
+    const int slots =
+        LV_MIN((int)lv_obj_get_child_count(data.slot_grid), FilamentPathData::kMaxSlots);
+    for (int i = 0; i < slots; i++) {
+        if (lv_obj_t* badge = ui_ams_slot_get_status_badge(lv_obj_get_child(data.slot_grid, i)))
+            out[n++] = badge;
+    }
+    return n;
+}
 
 void format_tool_badge_label(const FilamentPathData* data, int lane, int fallback_tool, char* out,
                              size_t out_size) {
@@ -1200,12 +1273,41 @@ bool ui_filament_path_canvas_get_toolhead_box(lv_obj_t* obj, lv_area_t* area_out
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
-    const helix::ui::GlyphBounds b =
-        toolhead_glyph_bounds(f.center_x, f.nozzle_y, data->theme.extruder_scale);
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(f.head_x, f.nozzle_y, f.tool_scale);
     *area_out = {b.left, b.top, b.right, b.bottom};
+    return true;
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj) {
+    auto* data = get_data(obj);
+    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead)
+        return 0;
+    // Sizes are read at creation; the colors do not enter into it.
+    return linear_hub_required_height(*data, compute_base_geometry(obj, data));
+}
+
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
+bool ui_filament_path_canvas_get_lane_rows(lv_obj_t* obj, int slot, int32_t* start_out,
+                                           int32_t* band_out) {
+    auto* data = get_data(obj);
+    if (!data || !is_linear_hub(*data))
+        return false;
+    lv_obj_update_layout(obj);
+    const BaseGeometry g = compute_base_geometry(obj, data);
+    if (g.width <= 0 || g.height <= 0)
+        return false;
+    refresh_theme_colors(data);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
+    const LinearHubFrame f =
+        compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
+    if (start_out)
+        *start_out = lane_start_y(*data, f, slot);
+    if (band_out)
+        *band_out = lane_band_y(*data, f, slot);
     return true;
 }
 
@@ -1221,7 +1323,7 @@ bool ui_filament_path_canvas_get_hub_box(lv_obj_t* obj, lv_area_t* area_out) {
     if (g.width <= 0 || g.height <= 0)
         return false;
     refresh_theme_colors(data);
-    const int32_t nozzle_y = g.y_off + (int32_t)(g.height * kNozzleYRatio);
+    const int32_t nozzle_y = linear_hub_nozzle_y(*data, g);
     const LinearHubFrame f =
         compute_linear_hub_frame(*data, g, toolhead_top_y(nozzle_y, data->theme.extruder_scale));
     const int32_t w = hub_box_width(*data, g, f);

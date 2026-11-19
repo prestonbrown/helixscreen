@@ -8,6 +8,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "display_settings_manager.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
@@ -25,7 +26,7 @@ using namespace helix;
 #endif
 
 // External subject for enabling/disabling Next button
-extern lv_subject_t connection_test_passed;
+extern helix::Subject connection_test_passed;
 
 // ============================================================================
 // Welcome Translations
@@ -44,9 +45,6 @@ static const char* kWelcomeTranslations[] = {
     "ようこそ！",        // ja
 };
 static constexpr int kWelcomeCount = 9;
-
-// Language codes for saving to config (matches button order in XML)
-static const char* kLanguageCodes[] = {"en", "de", "fr", "es", "ru", "pt", "it", "zh", "ja"};
 
 // Timer period for cycling welcome text
 static constexpr uint32_t kWelcomeCycleMs = 2500;
@@ -207,14 +205,16 @@ static void on_language_selected(lv_event_t* e) {
         return;
     }
 
+    // The buttons' user_data is the Settings dropdown index, so both pickers share
+    // SystemSettingsManager's one code list.
     int index = std::atoi(user_data_str);
-    if (index < 0 || index >= 9) { // 9 languages total
+    const std::string code = SystemSettingsManager::language_index_to_code(index);
+    if (SystemSettingsManager::language_code_to_index(code) != index) {
         spdlog::warn("[Wizard Language Chooser] Invalid language index: {}", index);
         return;
     }
 
-    spdlog::info("[Wizard Language Chooser] Language selected: {} ({})", kLanguageCodes[index],
-                 kWelcomeTranslations[index % kWelcomeCount]);
+    spdlog::info("[Wizard Language Chooser] Language selected: {}", code);
 
     // Update visual selection
     lv_obj_t* clicked_btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
@@ -222,7 +222,7 @@ static void on_language_selected(lv_event_t* e) {
 
     // Apply language immediately via SystemSettingsManager (hot-reload)
     // This updates the subject, calls lv_translation_set_language(), and persists to config
-    SystemSettingsManager::instance().set_language(kLanguageCodes[index]);
+    SystemSettingsManager::instance().set_language(code);
 
     // Refresh the wizard header with new translations
     ui_wizard_refresh_header_translations();
@@ -275,14 +275,14 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
     lv_obj_t* welcome_header = helix::ui::find_required(screen_root_, "welcome_header", get_name());
     if (!welcome_header) {
         // Fallback: just update the subject directly
-        lv_subject_copy_string(&welcome_text_, new_text);
+        lv_subject_set_string(&welcome_text_, new_text);
         return;
     }
 
     // Check if animations are enabled
     if (!DisplaySettingsManager::instance().get_animations_enabled()) {
         // No animation: just update the text immediately
-        lv_subject_copy_string(&welcome_text_, new_text);
+        lv_subject_set_string(&welcome_text_, new_text);
         return;
     }
 
@@ -314,7 +314,7 @@ void WizardLanguageChooserStep::animate_crossfade(const char* new_text) {
 
         if (ctx && ctx->step) {
             // Update the text while invisible
-            lv_subject_copy_string(ctx->step->get_welcome_text_subject(), ctx->new_text);
+            lv_subject_set_string(ctx->step->get_welcome_text_subject(), ctx->new_text);
 
             // Fade in animation (opacity: 0 -> 255)
             lv_anim_t fade_in;
@@ -408,7 +408,7 @@ void WizardLanguageChooserStep::cleanup() {
     }
 
     // Reset UI references
-    // Note: Do NOT call lv_obj_del() here - the wizard framework handles
+    // Note: Do NOT call lv_obj_delete() here - the wizard framework handles
     // object deletion when clearing wizard_content container
     screen_root_ = nullptr;
 

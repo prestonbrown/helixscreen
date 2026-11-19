@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "core/subject.h"
 #include "lvgl/lvgl.h"
 #include "wizard_step.h"
 
@@ -13,17 +14,9 @@
  * @brief Wizard summary step - displays configuration overview
  *
  * This is a read-only step that shows all configuration choices made
- * during the wizard. Uses 12 reactive subjects for data binding.
+ * during the wizard. Uses 19 reactive subjects for data binding.
  *
- * ## Class-Based Architecture (Phase 6)
- *
- * This step has been migrated from function-based to class-based design:
- * - Instance members instead of static globals
- * - RAII cleanup for subjects and buffers
- * - Static trampolines for any LVGL callbacks
- * - Global singleton getter for backwards compatibility
- *
- * ## Subject Bindings (14 total):
+ * ## Subject Bindings (19 total):
  *
  * - summary_printer_name (string) - Configured printer name
  * - summary_printer_type (string) - Selected printer type
@@ -39,6 +32,11 @@
  * - summary_led_strip_visible (int) - LED strip row visibility
  * - summary_filament_sensor (string) - Filament sensor selection
  * - summary_filament_sensor_visible (int) - Filament sensor row visibility
+ * - summary_ams_type (string) - Filament system and lane count, e.g. "AFC • 4 lanes"
+ * - summary_ams_visible (int) - Filament system row visibility
+ * - summary_input_shaper (string) - Accelerometer / calibration status
+ * - summary_input_shaper_visible (int) - Input shaper row visibility
+ * - summary_telemetry_visible (int) - Telemetry opt-in row visibility (first printer only)
  */
 
 /**
@@ -67,7 +65,7 @@ class WizardSummaryStep : public helix::wizard::Step {
     WizardSummaryStep();
     ~WizardSummaryStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardSummaryStep(const WizardSummaryStep&) = delete;
     WizardSummaryStep& operator=(const WizardSummaryStep&) = delete;
@@ -100,7 +98,7 @@ class WizardSummaryStep : public helix::wizard::Step {
     /**
      * @brief Cleanup resources
      *
-     * Resets UI references. Does NOT call lv_obj_del() - wizard
+     * Resets UI references. Does NOT call lv_obj_delete() - wizard
      * framework handles widget deletion.
      */
     void cleanup() override;
@@ -119,35 +117,31 @@ class WizardSummaryStep : public helix::wizard::Step {
         return "Wizard Summary";
     }
 
-    /** @brief Telemetry toggle callback (wired from XML) */
-    static void on_wizard_telemetry_changed(lv_event_t* e);
-
-    /** @brief "Learn more" link callback — shows telemetry info modal */
-    static void on_wizard_telemetry_info(lv_event_t* e);
-
   private:
     // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
     // Subjects (14 total)
-    lv_subject_t printer_name_{};
-    lv_subject_t printer_type_{};
-    lv_subject_t wifi_ssid_{};
-    lv_subject_t moonraker_connection_{};
-    lv_subject_t bed_{};
-    lv_subject_t hotend_{};
-    lv_subject_t part_fan_{};
-    lv_subject_t part_fan_visible_{};
-    lv_subject_t hotend_fan_{};
-    lv_subject_t hotend_fan_visible_{};
-    lv_subject_t led_strip_{};
-    lv_subject_t led_strip_visible_{};
-    lv_subject_t filament_sensor_{};
-    lv_subject_t filament_sensor_visible_{};
-    lv_subject_t ams_type_{};
-    lv_subject_t ams_visible_{};
-    lv_subject_t input_shaper_{};
-    lv_subject_t input_shaper_visible_{};
+    helix::Subject printer_name_{};
+    helix::Subject printer_type_{};
+    helix::Subject wifi_ssid_{};
+    helix::Subject moonraker_connection_{};
+    helix::Subject bed_{};
+    helix::Subject hotend_{};
+    helix::Subject part_fan_{};
+    helix::Subject part_fan_visible_{};
+    helix::Subject hotend_fan_{};
+    helix::Subject hotend_fan_visible_{};
+    helix::Subject led_strip_{};
+    helix::Subject led_strip_visible_{};
+    helix::Subject filament_sensor_{};
+    helix::Subject filament_sensor_visible_{};
+    helix::Subject ams_type_{};
+    helix::Subject ams_visible_{};
+    helix::Subject input_shaper_{};
+    helix::Subject input_shaper_visible_{};
+    /// 1 on the first printer's wizard: the telemetry opt-in shows
+    helix::Subject telemetry_visible_{};
 
     // String buffers (must be persistent for subject lifetimes)
     char printer_name_buffer_[128];

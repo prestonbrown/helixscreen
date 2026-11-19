@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <exception>
 #include <string>
+#include <string_view>
 
 namespace helix {
 
@@ -31,8 +32,9 @@ template <typename E> [[noreturn]] void throw_or_abort(const E& e) {
 /// <what>" instead of propagating, and reported by returning false. For calls
 /// into code the caller cannot vouch for (plugin hooks, registered callbacks),
 /// where one bad callee must not take the caller down with it. Without
-/// exceptions it is a plain call that returns true.
-template <typename Fn> bool contain_exceptions(const std::string& context, Fn&& fn) {
+/// exceptions it is a plain call that returns true. A literal @p context costs
+/// no allocation, so a per-message call site can pass one.
+template <typename Fn> bool contain_exceptions(std::string_view context, Fn&& fn) {
 #if defined(__cpp_exceptions)
     try {
         fn();

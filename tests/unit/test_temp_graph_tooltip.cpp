@@ -28,6 +28,11 @@ class TooltipTestFixture : public LVGLTestFixture {
     TooltipTestFixture() {
         screen = lv_obj_create(NULL);
     }
+    /// A destroyed graph's chart waits on an async delete; deleting the screen
+    /// cancels it, so it cannot fire inside a later case.
+    ~TooltipTestFixture() override {
+        lv_obj_delete(screen);
+    }
     lv_obj_t* screen;
 
     /// Graph with a settled layout, a 0-300 deci range, and a known plot rect.
@@ -48,7 +53,7 @@ class TooltipTestFixture : public LVGLTestFixture {
         const int32_t pc = static_cast<int32_t>(geo.point_count);
         const ui_temp_series_meta_t* meta = find_meta_by_id(g, series_id);
         REQUIRE(meta != nullptr);
-        int32_t* y = lv_chart_get_y_array(g->chart, meta->chart_series);
+        int32_t* y = lv_chart_get_series_y_array(g->chart, meta->chart_series);
         uint32_t sp = lv_chart_get_x_start_point(g->chart, meta->chart_series);
         int32_t v = y[(sp + idx) % pc];
         lv_point_t p;

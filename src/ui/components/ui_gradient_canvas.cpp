@@ -209,7 +209,7 @@ static void gradient_resize_to_widget(lv_obj_t* obj) {
     // lv_image_set_src below; a blend of it may be in flight.
     helix::safe_draw_buf_destroy(data->draw_buf, "grad_cv");
 
-    data->draw_buf = lv_draw_buf_create(buf_w, buf_h, LV_COLOR_FORMAT_NATIVE, 0);
+    data->draw_buf = lv_draw_buf_create(buf_w, buf_h, LV_COLOR_FORMAT_DEFAULT, 0);
     if (!data->draw_buf) {
         // The image would otherwise keep naming the buffer just freed.
         lv_image_set_src(obj, nullptr);
@@ -277,7 +277,7 @@ static void* ui_gradient_canvas_xml_create(lv_xml_parser_state_t* state, const c
     int32_t init_size = gradient_buffer_size();
     // Every pixel is opaque, so the native format: half the bytes of ARGB8888 on a
     // 16-bit display, which a full-panel backdrop on the ESP32 cannot spare.
-    data_ptr->draw_buf = lv_draw_buf_create(init_size, init_size, LV_COLOR_FORMAT_NATIVE, 0);
+    data_ptr->draw_buf = lv_draw_buf_create(init_size, init_size, LV_COLOR_FORMAT_DEFAULT, 0);
 
     if (!data_ptr->draw_buf) {
         LOG_ERROR_INTERNAL("[GradientCanvas] Failed to create draw buffer");
@@ -296,7 +296,7 @@ static void* ui_gradient_canvas_xml_create(lv_xml_parser_state_t* state, const c
     // Remove default styling
     lv_obj_set_style_border_width(img, 0, 0);
     lv_obj_set_style_pad_all(img, 0, 0);
-    lv_obj_remove_flag(img, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(img, false);
 
     // Self-size: recreate buffer when widget dimensions resolve
     lv_obj_add_event_cb(img, gradient_size_changed_cb, LV_EVENT_SIZE_CHANGED, nullptr);
@@ -493,7 +493,7 @@ lv_draw_buf_t* gradient_canvas_create_opaque_buf(int32_t width, int32_t height, 
     lv_draw_buf_t* masked = ui_gradient_canvas_create_buf(width, height, dark_mode, radius);
     if (!masked)
         return nullptr;
-    lv_draw_buf_t* out = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_NATIVE, 0);
+    lv_draw_buf_t* out = lv_draw_buf_create(width, height, LV_COLOR_FORMAT_DEFAULT, 0);
     if (!out) {
         spdlog::error("[GradientCanvas] Failed to allocate {}x{} opaque buffer", width, height);
         lv_draw_buf_destroy(masked);

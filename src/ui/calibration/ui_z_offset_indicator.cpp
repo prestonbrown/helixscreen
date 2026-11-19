@@ -3,19 +3,21 @@
 
 #include "ui_z_offset_indicator.h"
 
+#include "ui_toolhead_view.h"
+
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lvgl/lvgl.h"
-#include "nozzle_renderer_dispatch.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 
 using namespace helix;
 
@@ -24,11 +26,12 @@ using namespace helix;
 // ============================================================================
 
 struct ZOffsetIndicatorData {
-    int32_t current_pos = 0;    // Current animated position (0.1 micron units for smooth anim)
-    int32_t target_pos = 0;     // Target position (0.1 micron units)
-    int32_t arrow_progress = 0; // 0-255, draw-in progress (base to tip)
-    int32_t arrow_opacity = 0;  // 0-255, overall opacity (for fade-out phase)
-    int arrow_direction = 0;    // +1 (farther/up) or -1 (closer/down)
+    int32_t current_pos = 0;        // Current animated position (0.1 micron units for smooth anim)
+    int32_t target_pos = 0;         // Target position (0.1 micron units)
+    int32_t arrow_progress = 0;     // 0-255, draw-in progress (base to tip)
+    int32_t arrow_opacity = 0;      // 0-255, overall opacity (for fade-out phase)
+    int arrow_direction = 0;        // +1 (farther/up) or -1 (closer/down)
+    bool bound_value_shown = false; // bind_microns has placed its first value
 
     // Cached theme colors (resolved once at creation, not per-frame)
     lv_color_t color_text_muted = {};
@@ -224,13 +227,15 @@ static void indicator_draw_cb(lv_event_t* e) {
     tri_dsc.p[2].y = marker_y + tri_size;
     lv_draw_triangle(layer, &tri_dsc);
 
-    // --- Nozzle icon centered in space right of scale (fixed at vertical center) ---
-    int32_t nozzle_cx = (scale_x + coords.x1 + w) / 2;
-    int32_t nozzle_y = (scale_top + scale_bottom) / 2;
-    int32_t nozzle_scale = LV_CLAMP(5, h / 10, 12);
-    lv_color_t nozzle_color = data->color_text;
-
-    draw_nozzle_for_style(layer, nozzle_cx, nozzle_y, nozzle_color, nozzle_scale);
+    // --- The configured head, fitted to the space right of the scale ---
+    const lv_area_t head_box{scale_x + tick_half_w + label_pad, scale_top, coords.x1 + w - 1,
+                             scale_bottom};
+    const auto fit = helix::ui::fit_toolhead(
+        helix::SettingsManager::instance().get_effective_toolhead_style(), head_box, 12);
+    const int32_t nozzle_cx = fit.cx;
+    const int32_t nozzle_y = fit.nozzle_y;
+    const int32_t nozzle_scale = fit.scale;
+    helix::ui::draw_toolhead(layer, nozzle_cx, nozzle_y, data->color_text, nozzle_scale);
 
     // --- Direction arrow flash (shaft + V-head, drawn from base to tip) ---
     if (data->arrow_opacity > 0 && data->arrow_progress > 0) {
@@ -367,7 +372,13 @@ static void indicator_delete_cb(lv_event_t* e) {
 // Public API
 // ============================================================================
 
+static void place_value(lv_obj_t* obj, int microns, bool animate);
+
 void ui_z_offset_indicator_set_value(lv_obj_t* obj, int microns) {
+    place_value(obj, microns, true);
+}
+
+static void place_value(lv_obj_t* obj, int microns, bool animate) {
     if (!obj)
         return;
     auto* data = static_cast<ZOffsetIndicatorData*>(lv_obj_get_user_data(obj));
@@ -381,7 +392,7 @@ void ui_z_offset_indicator_set_value(lv_obj_t* obj, int microns) {
     // Stop any existing position animation
     lv_anim_delete(obj, position_anim_cb);
 
-    if (DisplaySettingsManager::instance().get_animations_enabled()) {
+    if (animate && DisplaySettingsManager::instance().get_animations_enabled()) {
         lv_anim_t anim;
         lv_anim_init(&anim);
         lv_anim_set_var(&anim, obj);
@@ -397,6 +408,11 @@ void ui_z_offset_indicator_set_value(lv_obj_t* obj, int microns) {
     }
 
     spdlog::trace("[ZOffsetIndicator] Set value: {} microns", microns);
+}
+
+int helix::ui::z_offset_indicator_value(lv_obj_t* obj) {
+    auto* data = obj ? static_cast<ZOffsetIndicatorData*>(lv_obj_get_user_data(obj)) : nullptr;
+    return data ? data->target_pos / 10 : 0;
 }
 
 void ui_z_offset_indicator_flash_direction(lv_obj_t* obj, int direction) {
@@ -452,7 +468,7 @@ static void* z_offset_indicator_xml_create(lv_xml_parser_state_t* state, const c
 
     // Default: full width, full parent height (stretches to sibling-driven row height)
     lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
-    lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(obj, false);
 
     // Remove default styles and make transparent
     lv_obj_remove_style_all(obj);
@@ -473,7 +489,38 @@ static void* z_offset_indicator_xml_create(lv_xml_parser_state_t* state, const c
     return (void*)obj;
 }
 
+// The first notification arrives as the binding is made: the indicator starts
+// at the bound value rather than sliding up from zero.
+static void microns_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* obj = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    auto* data = static_cast<ZOffsetIndicatorData*>(lv_obj_get_user_data(obj));
+    if (!data)
+        return;
+    const bool first = !data->bound_value_shown;
+    data->bound_value_shown = true;
+    place_value(obj, lv_subject_get_int(subject), !first);
+}
+
+// bind_microns follows an int subject in microns, so an indicator a layout
+// <if> rebuilds shows the current offset from its first frame.
+static void z_offset_indicator_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
+    auto* obj = static_cast<lv_obj_t*>(lv_xml_state_get_item(state));
+    for (int i = 0; attrs[i]; i += 2) {
+        if (strcmp(attrs[i], "bind_microns") != 0) {
+            continue;
+        }
+        if (lv_subject_t* subject = lv_xml_get_subject(nullptr, attrs[i + 1])) {
+            lv_subject_add_observer_obj(subject, microns_observer_cb, obj, nullptr);
+        } else {
+            spdlog::warn("[ZOffsetIndicator] Subject '{}' not found for bind_microns",
+                         attrs[i + 1]);
+        }
+    }
+    lv_xml_obj_apply(state, attrs);
+}
+
 void ui_z_offset_indicator_register(void) {
-    lv_xml_register_widget("z_offset_indicator", z_offset_indicator_xml_create, lv_xml_obj_apply);
+    lv_xml_register_widget("z_offset_indicator", z_offset_indicator_xml_create,
+                           z_offset_indicator_xml_apply);
     spdlog::trace("[ZOffsetIndicator] Registered <z_offset_indicator> widget");
 }

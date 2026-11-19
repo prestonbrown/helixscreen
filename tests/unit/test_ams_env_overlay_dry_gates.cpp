@@ -16,6 +16,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 
@@ -54,12 +55,17 @@ class RecordingLaneRig : public AmsBackendMock {
     DryerInfo get_dryer_info(int unit) const override {
         DryerInfo d = AmsBackendMock::get_dryer_info(unit);
         d.active = report_active;
+        if (shared_rotation) {
+            d.supports_rotation = true;
+        }
         return d;
     }
 
     std::vector<DryingRequest> starts;
     std::vector<std::vector<int>> stops;
     bool report_active = false;
+    /// One shared heater that rotates its empty gates (Happy Hare 4.2).
+    static inline bool shared_rotation = false;
 };
 
 void reset_overlay_singleton() {
@@ -88,13 +94,13 @@ std::string subject_string(const char* name) {
 /// show_beta_features, registered once: the XML subject registry is process-global and
 /// never forgets an entry, so the subject has to outlive every test.
 lv_subject_t* beta_subject() {
-    static lv_subject_t subject;
+    static helix::Subject subject;
     static bool registered = false;
     if (!registered) {
         if (lv_subject_t* existing = lv_xml_get_subject(nullptr, "show_beta_features")) {
             return existing;
         }
-        lv_subject_init_int(&subject, 1);
+        subject.init_int(1);
         lv_xml_register_subject(nullptr, "show_beta_features", &subject);
         registered = true;
     }
@@ -137,6 +143,26 @@ void finish() {
 
 } // namespace
 
+TEST_CASE_METHOD(XMLTestFixture, "A shared-heater dryer that rotates spools offers Rotate alone",
+                 "[ams][dryer][dry_gates][overlay][shared_rotation]") {
+    reset_overlay_singleton();
+    RecordingLaneRig::shared_rotation = true;
+    auto* backend = show_overlay(false);
+
+    CHECK(subject_int("env_dry_gate_count") == 0);
+    CHECK(subject_int("env_dry_rotate_visible") == 1);
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_rotate_wrap")));
+
+    tap_rotate();
+    press_start_stop();
+    REQUIRE(backend->starts.size() == 1);
+    CHECK(backend->starts[0].gates.empty());
+    CHECK(backend->starts[0].rotate);
+    finish();
+    RecordingLaneRig::shared_rotation = false;
+}
+
 TEST_CASE_METHOD(XMLTestFixture, "A dryer that heats its gates together offers no lane chips",
                  "[ams][dryer][dry_gates][overlay]") {
     reset_overlay_singleton();
@@ -144,8 +170,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A dryer that heats its gates together offers n
 
     CHECK(subject_int("env_dry_gate_count") == 0);
     CHECK(subject_int("env_dry_rotate_visible") == 0);
-    CHECK(lv_obj_has_flag(find_widget("dry_gate_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(find_widget("zone_slots_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("zone_slots_label")));
 
     press_start_stop();
     REQUIRE(backend->starts.size() == 1);
@@ -161,8 +187,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A per-lane dryer offers a chip per lane, all s
     auto& overlay = get_ams_environment_overlay();
 
     REQUIRE(subject_int("env_dry_gate_count") == 4);
-    CHECK_FALSE(lv_obj_has_flag(find_widget("dry_gate_row"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(find_widget("zone_slots_label"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(find_widget("dry_gate_row")));
+    CHECK(lv_obj_is_hidden(find_widget("zone_slots_label")));
     CHECK(subject_string("env_dry_gate_label_0") == "1");
     CHECK(subject_string("env_dry_gate_label_3") == "4");
     for (const char* sel : {"env_dry_gate_selected_0", "env_dry_gate_selected_1",

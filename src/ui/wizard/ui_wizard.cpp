@@ -8,8 +8,6 @@
 #include "ui_nav.h"
 #include "ui_next_tick.h"
 #include "ui_panel_home.h"
-#include "ui_subject_registry.h"
-#include "ui_timer_guard.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 #include "ui_wizard_ams_identify.h"
@@ -30,6 +28,8 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/static_panel_registry.h"
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "first_run_tour.h"
@@ -43,6 +43,7 @@
 #include "runtime_config.h"
 #include "subject_managed_panel.h"
 #include "system/crash_handler.h"
+#include "system/subject_registry.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 #include "wizard_config_paths.h"
@@ -61,19 +62,19 @@
 using namespace helix;
 
 // Subject declarations (static/global scope required)
-static lv_subject_t current_step;
-static lv_subject_t total_steps;
-static lv_subject_t wizard_title;
-static lv_subject_t wizard_step_current;  // String for display, e.g., "1"
-static lv_subject_t wizard_step_total;    // String for display, e.g., "7"
-static lv_subject_t wizard_total_visible; // Int: 0 until the denominator is settled
-static lv_subject_t wizard_is_final_step; // Int: 0=not final, 1=final (for button visibility)
-static lv_subject_t wizard_back_visible;
+static helix::Subject current_step;
+static helix::Subject total_steps;
+static helix::Subject wizard_title;
+static helix::Subject wizard_step_current;  // String for display, e.g., "1"
+static helix::Subject wizard_step_total;    // String for display, e.g., "7"
+static helix::Subject wizard_total_visible; // Int: 0 until the denominator is settled
+static helix::Subject wizard_is_final_step; // Int: 0=not final, 1=final (for button visibility)
+static helix::Subject wizard_back_visible;
 
 // Non-static: accessible from other wizard step files
-lv_subject_t connection_test_passed{}; // Global: 0=connection not validated, 1=validated or N/A
-lv_subject_t wizard_subtitle{};        // Global: accessible for dynamic subtitle updates
-lv_subject_t wizard_show_skip{};       // Global: 0=show Next, 1=show Skip (for touch calibration)
+helix::Subject connection_test_passed{}; // Global: 0=connection not validated, 1=validated or N/A
+helix::Subject wizard_subtitle{};        // Global: accessible for dynamic subtitle updates
+helix::Subject wizard_show_skip{};       // Global: 0=show Next, 1=show Skip (for touch calibration)
 
 // SubjectManager for RAII cleanup of wizard subjects
 static SubjectManager wizard_subjects_;
@@ -86,6 +87,16 @@ static char wizard_subtitle_buffer[128];
 
 // Wizard container instance
 static helix::ui::WidgetRef wizard_container;
+// The right padding wizard_container was built with: what the content cap adds to.
+static int32_t wizard_base_pad_right = 0;
+
+// Header and footer span the screen; the step content between is capped
+// (helix::apply_content_cap()). Re-run on every resize by a layout refresh hook.
+static void apply_wizard_content_cap() {
+    if (wizard_container) {
+        helix::apply_content_cap(wizard_container, wizard_base_pad_right, /*capped=*/true);
+    }
+}
 
 // Track current screen for proper cleanup (nullopt = no screen loaded yet)
 static std::optional<helix::wizard::StepId> current_screen_step;
@@ -534,6 +545,7 @@ void ui_wizard_container_register_responsive_constants() {
         "wizard_input_shaper",
         "wizard_language_chooser",
         "wizard_appearance",
+        "wizard_screen_power",
         "wizard_preferences",
         "wizard_summary",
         "wizard_telemetry",
@@ -581,6 +593,14 @@ lv_obj_t* ui_wizard_create(lv_obj_t* parent) {
 
     // Background color applied automatically by LVGL theme (uses theme->color_card)
     // No explicit styling needed - theme patching in ui_theme.cpp handles this
+
+    wizard_base_pad_right = helix::content_cap_base_pad(wizard_container);
+    static const bool cap_hook_registered = [] {
+        theme_manager_add_layout_refresh_hook([](lv_display_t*) { apply_wizard_content_cap(); });
+        return true;
+    }();
+    (void)cap_hook_registered;
+    apply_wizard_content_cap();
 
     // Update layout to ensure SIZE_CONTENT calculates correctly
     lv_obj_update_layout(wizard_container);
@@ -720,11 +740,11 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
     // Update progress display - step numbers as strings for bind_text
     snprintf(wizard_step_current_buffer, sizeof(wizard_step_current_buffer), "%d", display_step);
     crash_handler::breadcrumb::note("wiz", "notify_step_cur", static_cast<long>(step_idx));
-    lv_subject_copy_string(&wizard_step_current, wizard_step_current_buffer);
+    lv_subject_set_string(&wizard_step_current, wizard_step_current_buffer);
 
     snprintf(wizard_step_total_buffer, sizeof(wizard_step_total_buffer), "%d", display_total);
     crash_handler::breadcrumb::note("wiz", "notify_step_tot", static_cast<long>(step_idx));
-    lv_subject_copy_string(&wizard_step_total, wizard_step_total_buffer);
+    lv_subject_set_string(&wizard_step_total, wizard_step_total_buffer);
 
     // Load screen content
     ui_wizard_load_screen(step);
@@ -748,7 +768,7 @@ void ui_wizard_set_title(const char* title) {
     }
 
     spdlog::debug("[Wizard] Setting title: {}", title);
-    lv_subject_copy_string(&wizard_title, title);
+    lv_subject_set_string(&wizard_title, title);
 }
 
 void ui_wizard_refresh_header_translations() {
@@ -765,8 +785,8 @@ void ui_wizard_refresh_header_translations() {
     const char* title = get_step_title_from_xml(comp_name);
     const char* subtitle = get_step_subtitle_from_xml(comp_name);
 
-    lv_subject_copy_string(&wizard_title, lv_tr(title));
-    lv_subject_copy_string(&wizard_subtitle, lv_tr(subtitle));
+    lv_subject_set_string(&wizard_title, lv_tr(title));
+    lv_subject_set_string(&wizard_subtitle, lv_tr(subtitle));
 
     spdlog::debug("[Wizard] Refreshed header translations for step {}", step_idx);
 }
@@ -923,7 +943,7 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
     ui_wizard_set_title(lv_tr(title));
     const char* subtitle = get_step_subtitle_from_xml(comp_name);
     crash_handler::breadcrumb::note("wiz", "notify_subtitle", static_cast<long>(step_idx));
-    lv_subject_copy_string(&wizard_subtitle, lv_tr(subtitle));
+    lv_subject_set_string(&wizard_subtitle, lv_tr(subtitle));
 
     // Default Next button to enabled - steps that gate on validation (language,
     // connection, printer identify, fan select) will set it to 0 in their init
@@ -951,8 +971,8 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         break;
     case StepId::PrinterIdentify:
         // Override subtitle with dynamic detection status
-        lv_subject_copy_string(&wizard_subtitle,
-                               get_wizard_printer_identify_step()->get_detection_status());
+        lv_subject_set_string(&wizard_subtitle,
+                              get_wizard_printer_identify_step()->get_detection_status());
         break;
     case StepId::FilamentSensor:
         // Sensors can be discovered after screen creation (jumping directly to
@@ -993,13 +1013,13 @@ static void dismiss_wizard_container() {
     KeyboardManager::instance().hide();
 
     // Delete wizard container (main UI is already created underneath)
-    // SAFETY: Use lv_obj_del_async — the Finish button that triggered this call is a
+    // SAFETY: Use lv_obj_delete_async — the Finish button that triggered this call is a
     // child of wizard_container. Synchronous delete causes use-after-free (issue #80).
     // Hide immediately so user sees the app layout underneath without waiting for async delete.
     if (wizard_container) {
         spdlog::debug("[Wizard] Hiding and deleting wizard container (async)");
-        lv_obj_add_flag(wizard_container, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_del_async(wizard_container);
+        lv_obj_set_hidden(wizard_container, true);
+        lv_obj_delete_async(wizard_container);
         wizard_container = nullptr;
     }
 

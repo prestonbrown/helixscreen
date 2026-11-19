@@ -6,6 +6,7 @@
 #include "ui_zone_presentation.h"
 
 #include "../test_fixtures.h"
+#include "../test_helpers/zero_lane_numbering.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "core/static_panel_registry.h"
@@ -146,6 +147,9 @@ TEST_CASE("An unnamed multi-gate zone falls back to its unit ordinal",
     EnvironmentZone z;
     z.gates = {0, 1};
     z.unit_index = 1;
+    CHECK(zone_display_label(z, "Unit", LaneNoun::Slot, "AFC") == "AFC Unit 2");
+
+    ScopedZeroLaneNumbering zero; // a unit is counted, not a numbered position
     CHECK(zone_display_label(z, "Unit", LaneNoun::Slot, "AFC") == "AFC Unit 2");
 }
 
@@ -298,6 +302,15 @@ TEST_CASE_METHOD(XMLTestFixture, "Unit headers appear only where the set spans u
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "zone_ov_group_hidden_0")) == 0);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "zone_ov_group_hidden_1")) == 0);
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "zone_ov_group_hidden_2")) == 1);
+
+    {
+        ScopedZeroLaneNumbering zero; // a unit is counted, not a numbered position
+        overlay.show(lv_screen_active(), raw->get_environment_zones(-1));
+        const std::string header =
+            lv_subject_get_string(lv_xml_get_subject(nullptr, "zone_ov_group_text_0"));
+        CAPTURE(header);
+        CHECK(header.find("Unit 1") != std::string::npos);
+    }
 
     // One unit's zones only: nothing to group by, so no header on any row.
     overlay.show(lv_screen_active(), raw->get_environment_zones(1));

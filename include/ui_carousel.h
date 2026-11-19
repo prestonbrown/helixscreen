@@ -92,9 +92,9 @@ void ui_carousel_goto_page(lv_obj_t* carousel, int page, bool animate = true);
 int ui_carousel_get_current_page(lv_obj_t* carousel);
 
 /**
- * @brief Get the total number of pages (excluding clones)
+ * @brief Get the number of tiles (real_page_count does not change it)
  * @param carousel The carousel container object
- * @return Number of real pages, or 0 if not a valid carousel
+ * @return Number of tiles, or 0 if not a valid carousel
  */
 int ui_carousel_get_page_count(lv_obj_t* carousel);
 

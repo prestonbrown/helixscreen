@@ -20,6 +20,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
@@ -170,11 +171,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "queue mode hides the cards the queue cannot
     // the header_bar subject tests do and drive the real XML. Static storage:
     // the global registry keeps the pointer after the test ends, and a later
     // test resolving these production names must never land on a dead stack.
-    static lv_subject_t mode_subj;
-    static lv_subject_t transition_subj;
-    lv_subject_init_int(&mode_subj, 0);
+    static helix::Subject mode_subj;
+    static helix::Subject transition_subj;
+    mode_subj.init_int(0);
     lv_xml_register_subject(nullptr, "print_select_button_mode", &mode_subj);
-    lv_subject_init_int(&transition_subj, 0);
+    transition_subj.init_int(0);
     lv_xml_register_subject(nullptr, "job_queue_automatic_transition", &transition_subj);
 
     // Without preprint options the options card is hidden for an unrelated
@@ -199,25 +200,25 @@ TEST_CASE_METHOD(LVGLUITestFixture, "queue mode hides the cards the queue cannot
 
     // Print mode: both cards stay.
     set_mode(0, 0);
-    CHECK_FALSE(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(filament_card));
+    CHECK_FALSE(lv_obj_is_hidden(options_card));
 
     // Queue mode, manual transition: the mapping is dropped (it is recomputed
     // at start time) but the options card stays — those ARE saved with the job.
     set_mode(1, 0);
-    CHECK(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(filament_card));
+    CHECK_FALSE(lv_obj_is_hidden(options_card));
 
     // Queue mode with automatic_transition: nobody ever reads saved options,
     // so both go.
     set_mode(1, 1);
-    CHECK(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(filament_card));
+    CHECK(lv_obj_is_hidden(options_card));
 
     // Print ending while the view is open brings both back.
     set_mode(0, 1);
-    CHECK_FALSE(lv_obj_has_flag(filament_card, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(options_card, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(filament_card));
+    CHECK_FALSE(lv_obj_is_hidden(options_card));
 
     // Tree first: its bindings observe the static subjects above.
     UpdateQueue::instance().drain();

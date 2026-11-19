@@ -3,6 +3,7 @@
 
 #include "ui_ams_lane_settings.h"
 #include "ui_callback_helpers.h"
+#include "ui_language_refresh.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 #include "ui_test_utils.h"
@@ -10,11 +11,14 @@
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
+#include "afc_defaults.h"
 #include "ams_backend_afc.h"
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "ams_step_model.h"
+#include "ams_tool_topology.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
 #include "error_event.h"
@@ -34,6 +38,7 @@
 #include "printer_state.h"
 #include "settings_manager.h"
 #include "test_helpers/afc_test_access.h"
+#include "test_helpers/backend_harness.h"
 #include "test_helpers/backend_user_edit.h"
 #include "test_helpers/config_dir_guard.h"
 #include "test_helpers/log_capture.h"
@@ -42,6 +47,7 @@
 #include "test_helpers/print_start_controller_test_access.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/scoped_cache_dir.h"
+#include "test_helpers/scoped_language.h"
 #include "test_helpers/seeded_override.h"
 #include "test_helpers/update_queue_test_access.h"
 #include "tools_used_cache.h"
@@ -834,6 +840,9 @@ TEST_CASE("AFC get_slot_filament_segment ignores the latched loaded_to_hub field
     // Slot 0 is not the active slot (current_slot defaults to -1), so this
     // exercises the non-active-slot branch of get_slot_filament_segment().
     REQUIRE(helper.get_slot_filament_segment(0) == PathSegment::LANE);
+    // A lane an extruder holds is at that toolhead, the current lane or not.
+    helper.set_extruder_lane_loaded("extruder1", "lane1");
+    CHECK(helper.get_slot_filament_segment(0) == PathSegment::NOZZLE);
 }
 
 // ============================================================================
@@ -1316,6 +1325,53 @@ TEST_CASE("AFC reset_tool_mappings sends one reset under the firmware's name",
     }
 }
 
+// With AFC's multiple tool mapping on, SET_MAP adds the tool to the target lane
+// and leaves that lane's own tools and current_map in place, so the lane keeps
+// showing its old tool. A remap is refused with a reason rather than sent.
+TEST_CASE("AFC refuses a tool remap while multiple tool mapping is on",
+          "[ams][afc][tool_mapping][multiple_mapping]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+
+    SECTION("flag off: the remap is allowed and sent") {
+        helper.feed_afc_state({{"multiple_tool_mapping", false}});
+        CHECK(helper.can_set_tool_mapping(2, 0).success());
+        REQUIRE(helper.set_tool_mapping(2, 0).success());
+        CHECK(helper.has_gcode("SET_MAP LANE=lane1 MAP=T2"));
+
+        SlotInfo info;
+        info.mapped_tool = 3;
+        helix::test::apply_edit(helper, 1, info);
+        CHECK(helper.has_gcode("SET_MAP LANE=lane2 MAP=T3"));
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0).empty());
+    }
+
+    SECTION("flag on: the remap is refused with a reason and nothing is sent") {
+        helper.feed_afc_state({{"multiple_tool_mapping", true}});
+        const AmsError err = helper.can_set_tool_mapping(2, 0);
+        CHECK(err.result == AmsResult::NOT_SUPPORTED);
+        CHECK_FALSE(err.user_msg.empty());
+        CHECK_FALSE(helper.set_tool_mapping(2, 0).success());
+        // The lane editor grays out the Assigned Tool row and says why.
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, 0) == err.user_msg);
+        CHECK(helix::ui::lane_settings::tool_row_refusal(helper, 0, -1) == err.user_msg);
+
+        SlotInfo info;
+        info.mapped_tool = 3;
+        helix::test::apply_edit(helper, 1, info);
+        for (const auto& gcode : helper.captured_gcodes) {
+            INFO(gcode);
+            CHECK(gcode.rfind("SET_MAP ", 0) != 0);
+        }
+    }
+
+    SECTION("the flag turning off again allows the remap") {
+        helper.feed_afc_state({{"multiple_tool_mapping", true}});
+        helper.feed_afc_state({{"multiple_tool_mapping", false}});
+        CHECK(helper.can_set_tool_mapping(2, 0).success());
+    }
+}
+
 // ============================================================================
 // reset_endless_spool() Tests
 // ============================================================================
@@ -1366,6 +1422,29 @@ TEST_CASE("AFC reset_endless_spool with no lanes yet refuses instead of silently
 // (captured from 192.168.1.112). Tests use fixture data to validate that
 // state updates flow through correctly to internal state.
 // ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC status label follows a language switch with no new frame",
+                 "[ams][afc][state][i18n]") {
+    get_printer_state().init_subjects(false);
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ams.set_narration_phase(-1, "");
+    helix::test::RegisteredBackend<AmsBackendAfcTestHelper> afc;
+    const auto shown = [&] {
+        return std::string(lv_subject_get_string(ams.get_ams_action_detail_subject()));
+    };
+
+    std::optional<ScopedLanguage> lang(std::in_place, "de");
+    (*afc).feed_afc_state({{"current_state", "Moving"}});
+    helix::ui::refresh_display_texts();
+    const std::string german = shown();
+    CHECK(german == lv_tr("Moving lane"));
+
+    lang.emplace("fr");
+    helix::ui::refresh_display_texts();
+    CHECK(shown() == lv_tr("Moving lane"));
+    CHECK(shown() != german);
+}
 
 TEST_CASE("AFC action comes from current_state; a stray AFC.status is ignored",
           "[ams][afc][state][deadfields]") {
@@ -3185,50 +3264,78 @@ TEST_CASE("AFC clearing a fault drops the lane's stale Error marking",
     SECTION("a refused RESET_FAILURE keeps the marking") {
         REQUIRE(h.get_slot_info(2).error.has_value());
         REQUIRE(h.has_clearable_fault(2));
-        return;
     }
+    SECTION("an accepted one retires it until the lane fails again") {
+        // AFC answers RESET_FAILURE with error_state false and no lane status delta.
+        h.accept_notify_gcode();
+        h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
+        h.feed_afc_stepper("lane3", {{"prep", true}});
 
-    // AFC answers RESET_FAILURE with error_state false and no lane status delta.
-    h.accept_notify_gcode();
-    h.feed_afc_state({{"current_state", "Idle"}, {"error_state", false}});
-    h.feed_afc_stepper("lane3", {{"prep", true}});
-
-    REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
-    REQUIRE_FALSE(h.has_clearable_fault(2));
-
-    SECTION("the lane failing again outside a print brings it back") {
-        // handle_lane_failure(pause=False): status stays Error (no delta) and
-        // error_state never rises. Only the new message says so.
-        h.feed_afc_state({{"message", {{"message", ""}, {"type", ""}}}});
-        h.feed_afc_state(
-            {{"message",
-              {{"message", "lane3 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
-               {"type", "error"}}}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
-        REQUIRE(h.has_clearable_fault(2));
-    }
-    SECTION("a new error naming no lane brings every acknowledged lane back") {
-        h.feed_afc_state(
-            {{"message", {{"message", "AFC could not home the selector"}, {"type", "error"}}}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
-    }
-    SECTION("a new error naming another lane leaves this one cleared") {
-        h.feed_afc_state(
-            {{"message",
-              {{"message", "lane1 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
-               {"type", "error"}}}});
         REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
-    }
+        REQUIRE_FALSE(h.has_clearable_fault(2));
 
-    SECTION("a new AFC error brings the marking back") {
-        h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
+        SECTION("the lane failing again outside a print brings it back") {
+            // handle_lane_failure(pause=False): status stays Error (no delta) and
+            // error_state never rises. Only the new message says so.
+            h.feed_afc_state({{"message", {{"message", ""}, {"type", ""}}}});
+            h.feed_afc_state(
+                {{"message",
+                  {{"message", "lane3 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+                   {"type", "error"}}}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+            REQUIRE(h.has_clearable_fault(2));
+        }
+        SECTION("a new error naming no lane brings every acknowledged lane back") {
+            h.feed_afc_state(
+                {{"message", {{"message", "AFC could not home the selector"}, {"type", "error"}}}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+        }
+        SECTION("a new error naming another lane leaves this one cleared") {
+            h.feed_afc_state(
+                {{"message",
+                  {{"message", "lane1 Current lane not loaded, LOAD TRIGGER NOT TRIGGERED"},
+                   {"type", "error"}}}});
+            REQUIRE_FALSE(h.get_slot_info(2).error.has_value());
+        }
+
+        SECTION("a new AFC error brings the marking back") {
+            h.feed_afc_state({{"current_state", "Error"}, {"error_state", true}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+        }
+        SECTION("the lane failing again after moving on brings it back") {
+            h.feed_afc_stepper("lane3", {{"status", "Tooled"}});
+            h.feed_afc_stepper("lane3", {{"status", "Error"}});
+            REQUIRE(h.get_slot_info(2).error.has_value());
+        }
     }
-    SECTION("the lane failing again after moving on brings it back") {
-        h.feed_afc_stepper("lane3", {{"status", "Tooled"}});
-        h.feed_afc_stepper("lane3", {{"status", "Error"}});
-        REQUIRE(h.get_slot_info(2).error.has_value());
-    }
+}
+
+TEST_CASE("AFC retires the stale marking once Moonraker accepts RESET_FAILURE",
+          "[ams][afc][recovery][stale_fault]") {
+    // The production execute path, over a client that accepts every script.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    helix::test::WiredBackend<AmsBackendAfc> afc;
+    afc.wire().respond_to("printer.gcode.script", "ok");
+    afc.set_discovered_lanes({"lane1", "lane2", "lane3"}, {});
+    REQUIRE(afc.start().success());
+    helix::ui::UpdateQueue::instance().drain();
+    afc.fire_status({{"AFC", {{"current_state", "Error"}, {"error_state", true}}},
+                     {"AFC_stepper lane3", {{"status", "Error"}}}});
+    REQUIRE(afc.get_slot_info(2).error.has_value());
+
+    int changed = 0;
+    const size_t scripts = afc.wire().fake_client().rpc_count("printer.gcode.script");
+    afc.set_event_callback([&changed](const std::string& event, const std::string&) {
+        changed += event == helix::AmsBackend::EVENT_STATE_CHANGED;
+    });
+    REQUIRE(afc.clear_fault(2).success());
+    REQUIRE(afc.wire().fake_client().rpc_count("printer.gcode.script") > scripts);
+    changed = 0;
+    helix::ui::UpdateQueue::instance().drain(); // the acceptance retires the marking
+    CHECK(changed == 1);
+    afc.set_event_callback(nullptr);
+    afc.fire_status({{"AFC", {{"current_state", "Idle"}, {"error_state", false}}}});
+    CHECK_FALSE(afc.get_slot_info(2).error.has_value());
 }
 
 TEST_CASE("AFC drops the console watch when the backend stops mid-reset",
@@ -3599,6 +3706,25 @@ TEST_CASE("AFC HTLF mixed topology classification from per-lane hub routing",
         }
     }
     REQUIRE(found);
+
+    // lane2 moves to a direct route; lane3 keeps the unit MIXED, so only the
+    // per-lane routing changes, and the published unit must follow it.
+    helper.feed_afc_stepper("lane2", {{"map", "T1"},
+                                      {"extruder", "extruder2"},
+                                      {"hub", "direct"},
+                                      {"status", "Loaded"},
+                                      {"color", "0000FF"}});
+    REQUIRE(helper.get_unit_infos()[0].topology == PathTopology::MIXED);
+    bool found_after = false;
+    for (const auto& unit : helper.get_system_info().units) {
+        if (unit.name == "HTLF HTLF_1") {
+            found_after = true;
+            REQUIRE(unit.lane_is_hub_routed.size() == 4);
+            CHECK(unit.lane_is_hub_routed[2] == false);
+            CHECK(unit.lane_is_hub_routed[3] == true);
+        }
+    }
+    REQUIRE(found_after);
 }
 
 TEST_CASE("AFC MIXED unit: a direct-fed lane and a hub-routed lane disagree on unload-before-load",
@@ -3781,6 +3907,135 @@ TEST_CASE("AFC all-direct lanes classified as PARALLEL topology", "[ams][afc][to
     for (bool routed : unit_infos[0].lane_is_hub_routed) {
         REQUIRE(routed == false);
     }
+}
+
+TEST_CASE("AFC one-lane direct unit beside hub units is PARALLEL, not HUB",
+          "[ams][afc][topology]") {
+    // A toolchanger's "Tools" unit with a single lane wired straight to its own
+    // extruder: one lane, one extruder, no hub. The overview draws a hub box for
+    // every HUB unit, so classifying it HUB puts a hub on a route that has none.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_zero_based(5);
+    helper.initialize_slots_from_discovery();
+    helper.setup_toolchanger(2);
+
+    for (const char* lane : {"lane0", "lane1", "lane2", "lane3"}) {
+        helper.feed_afc_stepper(
+            lane, {{"hub", "Turtle_1"}, {"extruder", "extruder"}, {"status", "Loaded"}});
+    }
+    helper.feed_afc_stepper("lane4",
+                            {{"hub", "direct"}, {"extruder", "extruder1"}, {"status", "Loaded"}});
+
+    nlohmann::json afc_state;
+    afc_state["units"] = nlohmann::json::array({"Box_Turtle Turtle_1", "Toolchanger Tools"});
+    helper.feed_afc_state(afc_state);
+
+    nlohmann::json bt_data;
+    bt_data["lanes"] = nlohmann::json::array({"lane0", "lane1", "lane2", "lane3"});
+    bt_data["extruders"] = nlohmann::json::array({"extruder"});
+    bt_data["hubs"] = nlohmann::json::array({"Turtle_1"});
+    bt_data["buffers"] = nlohmann::json::array();
+
+    nlohmann::json tools_data;
+    tools_data["lanes"] = nlohmann::json::array({"lane4"});
+    tools_data["extruders"] = nlohmann::json::array({"extruder1"});
+    tools_data["hubs"] = nlohmann::json::array();
+    tools_data["buffers"] = nlohmann::json::array();
+
+    nlohmann::json params;
+    params["AFC_BoxTurtle Turtle_1"] = bt_data;
+    params["AFC_Toolchanger Tools"] = tools_data;
+    helper.feed_status_update(params);
+
+    const auto& unit_infos = helper.get_unit_infos();
+    REQUIRE(unit_infos.size() == 2);
+    REQUIRE(unit_infos[0].topology == PathTopology::HUB);
+    REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
+    REQUIRE(unit_infos[1].topology == PathTopology::PARALLEL);
+
+    // A later frame routes lane3 straight to its extruder; no unit object follows.
+    helper.feed_afc_stepper("lane3", {{"hub", "direct"}});
+    REQUIRE(unit_infos[0].lane_is_hub_routed == std::vector<bool>{true, true, true, false});
+    REQUIRE(unit_infos[0].topology == PathTopology::MIXED);
+    const auto info = helper.get_system_info();
+    const auto turtle = std::find_if(info.units.begin(), info.units.end(), [](const AmsUnit& u) {
+        return u.name == "Box_Turtle Turtle_1";
+    });
+    REQUIRE(turtle != info.units.end());
+    REQUIRE(turtle->topology == PathTopology::MIXED);
+}
+
+TEST_CASE("AFC one-lane direct unit is HUB until the printer reports several extruders",
+          "[ams][afc][topology]") {
+    // A direct lane on a printer with one extruder shares the nozzle with the hub
+    // unit, so loading it must unload the hub lane first.
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_zero_based(5);
+    helper.initialize_slots_from_discovery();
+
+    for (const char* lane : {"lane0", "lane1", "lane2", "lane3"}) {
+        helper.feed_afc_stepper(
+            lane, {{"hub", "Turtle_1"}, {"extruder", "extruder"}, {"status", "Loaded"}});
+    }
+    helper.feed_afc_stepper("lane4",
+                            {{"hub", "direct"}, {"extruder", "extruder"}, {"status", "Loaded"}});
+
+    nlohmann::json afc_state;
+    afc_state["units"] = nlohmann::json::array({"Box_Turtle Turtle_1", "Toolchanger Tools"});
+    helper.feed_afc_state(afc_state);
+
+    nlohmann::json bt_data;
+    bt_data["lanes"] = nlohmann::json::array({"lane0", "lane1", "lane2", "lane3"});
+    bt_data["extruders"] = nlohmann::json::array({"extruder"});
+    bt_data["hubs"] = nlohmann::json::array({"Turtle_1"});
+    bt_data["buffers"] = nlohmann::json::array();
+
+    nlohmann::json tools_data;
+    tools_data["lanes"] = nlohmann::json::array({"lane4"});
+    tools_data["extruders"] = nlohmann::json::array({"extruder"});
+    tools_data["hubs"] = nlohmann::json::array();
+    tools_data["buffers"] = nlohmann::json::array();
+
+    nlohmann::json params;
+    params["AFC_BoxTurtle Turtle_1"] = bt_data;
+    params["AFC_Toolchanger Tools"] = tools_data;
+    helper.feed_status_update(params);
+
+    const auto& unit_infos = helper.get_unit_infos();
+    REQUIRE(unit_infos.size() == 2);
+    REQUIRE(unit_infos[0].topology == PathTopology::HUB);
+    REQUIRE(unit_infos[1].lane_is_hub_routed == std::vector<bool>{false});
+    REQUIRE(unit_infos[1].topology == PathTopology::HUB);
+
+    // The printer's extruder list arrives in a later frame than the unit objects.
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1", "extruder2", "extruder3"}}});
+    REQUIRE(helper.get_unit_infos()[1].topology == PathTopology::PARALLEL);
+    const auto info = helper.get_system_info();
+    const auto tools = std::find_if(info.units.begin(), info.units.end(),
+                                    [](const AmsUnit& u) { return u.name == "Toolchanger Tools"; });
+    REQUIRE(tools != info.units.end());
+    REQUIRE(tools->topology == PathTopology::PARALLEL);
+}
+
+TEST_CASE("AFC unit topology: all-direct lanes need an extruder per lane to be PARALLEL",
+          "[ams][afc][topology]") {
+    using helix::printer::afc_unit_topology;
+    // One direct lane on its own extruder of a toolchanger: nothing to merge.
+    CHECK(afc_unit_topology({true, false, 1, 1, 0, 4}) == PathTopology::PARALLEL);
+    // The same lane on a single-extruder printer shares the nozzle with the other
+    // units, so a load must unload first.
+    CHECK(afc_unit_topology({true, false, 1, 1, 0, 1}) == PathTopology::HUB);
+    // The printer's extruder count has not arrived: stay with the shared answer.
+    CHECK(afc_unit_topology({true, false, 1, 1, 0, 0}) == PathTopology::HUB);
+    // Four direct lanes on four extruders: a toolchanger unit.
+    CHECK(afc_unit_topology({true, false, 4, 4, 0}) == PathTopology::PARALLEL);
+    // Four "direct" lanes on one extruder must still merge somewhere.
+    CHECK(afc_unit_topology({true, false, 4, 1, 0}) == PathTopology::HUB);
+    CHECK(afc_unit_topology({true, true, 4, 2, 1}) == PathTopology::MIXED);
+    CHECK(afc_unit_topology({false, true, 4, 1, 1}) == PathTopology::HUB);
+    // No routing known yet: the counts decide.
+    CHECK(afc_unit_topology({false, false, 4, 1, 1}) == PathTopology::HUB);
+    CHECK(afc_unit_topology({false, false, 4, 4, 0}) == PathTopology::PARALLEL);
 }
 
 TEST_CASE("AFC system topology follows its units: a toolchanger unit reports PARALLEL",
@@ -8136,4 +8391,94 @@ TEST_CASE("AFC units report a toolhead sensor only when an AFC_extruder pin wire
             AmsBackendAfc::parse_configfile_topology(settings({{"extruder_name", "extruder"}})));
         CHECK_FALSE(helper.get_system_info().units[0].has_toolhead_sensor);
     }
+}
+
+// ============================================================================
+// Empty carriage: an AFC toolchanger with every head parked mounts no tool
+// ============================================================================
+
+TEST_CASE("AFC toolchanger with every head parked mounts no tool",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", 1}, {"status", "ready"}}}});
+    REQUIRE(helper.get_system_info().current_tool == 1);
+    CHECK(helper.carriage_can_be_empty());
+    {
+        auto topo = helix::build_ams_topology(&helper, 0);
+        REQUIRE(topo.has_value());
+        CHECK(topo->active_tool == 1);
+    }
+
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", -1}, {"status", "ready"}}}});
+    REQUIRE(helper.get_system_info().current_tool == -1);
+
+    // AFC.current_load can keep naming the lane of a docked head. Its mapped
+    // tool is not mounted: the carriage holds nothing.
+    helper.feed_afc_state({{"current_load", "lane2"}});
+    CHECK(helper.get_system_info().current_tool == -1);
+    CHECK(helper.get_system_info().current_slot == -1);
+
+    auto topo = helix::build_ams_topology(&helper, 0);
+    REQUIRE(topo.has_value());
+    CHECK(topo->allows_empty_carriage);
+    CHECK(topo->active_tool == -1);
+}
+
+TEST_CASE("AFC on_shuttle reporting an empty carriage mounts no tool",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+
+    nlohmann::json frame;
+    frame["AFC"] = {{"current_load", "lane2"}};
+    frame["AFC_extruder extruder"] = {{"on_shuttle", false}};
+    frame["AFC_extruder extruder1"] = {{"on_shuttle", false}};
+    helper.feed_status_update(frame);
+
+    CHECK(helper.carriage_can_be_empty());
+    CHECK(helper.get_system_info().current_tool == -1);
+}
+
+TEST_CASE("Single-toolhead AFC keeps a carriage that cannot be empty",
+          "[ams][afc][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+
+    helper.feed_afc_state({{"current_load", "lane2"}});
+    CHECK_FALSE(helper.carriage_can_be_empty());
+    CHECK(helper.get_system_info().current_tool == 1);
+
+    helper.feed_afc_state({{"current_load", nullptr}});
+    CHECK_FALSE(helper.carriage_can_be_empty());
+    auto topo = helix::build_ams_topology(&helper, 0);
+    REQUIRE(topo.has_value());
+    CHECK_FALSE(topo->allows_empty_carriage);
+}
+
+TEST_CASE("AFC toolchanger: only the carriage's own fault marks the docked heads",
+          "[ams][afc][toolchanger][empty-carriage]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes(4);
+    helper.feed_afc_state({{"extruders", {"extruder", "extruder1"}}});
+    helper.feed_status_update(
+        nlohmann::json{{"toolchanger", {{"tool_number", 0}, {"status", "ready"}}}});
+    REQUIRE(helper.carriage_can_be_empty());
+
+    // A lane fault: AFC reports Error, the changer stays ready.
+    helper.feed_afc_state({{"current_state", "Error"}});
+    REQUIRE(helper.get_system_info().action == AmsAction::ERROR);
+    CHECK_FALSE(helper.fault_concerns_carriage());
+
+    // klipper-toolchanger itself reports the fault.
+    helper.feed_status_update(nlohmann::json{{"toolchanger", {{"status", "error"}}}});
+    CHECK(helper.fault_concerns_carriage());
+
+    helper.feed_status_update(nlohmann::json{{"toolchanger", {{"status", "ready"}}}});
+    CHECK_FALSE(helper.fault_concerns_carriage());
 }

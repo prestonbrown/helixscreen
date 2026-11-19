@@ -10,6 +10,8 @@
 
 #include "app_globals.h"
 #include "core/observer_factory.h"
+#include "core/subject.h"
+#include "core/temp_unit_subject.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "lvgl.h"
@@ -42,20 +44,19 @@ namespace {
 // XML that binds them is parsed. Values mirror decide_nozzle_layout()'s
 // output: label_mode is NozzleLabelMode's int (0=none 1=number 2=short
 // 3=long), columns is 1 or 2, compact is 0 or 1.
-lv_subject_t s_label_mode_subject{};
-lv_subject_t s_columns_subject{};
-lv_subject_t s_compact_font_subject{};
+helix::Subject s_label_mode_subject{};
+helix::Subject s_columns_subject{};
+helix::Subject s_compact_font_subject{};
 helix::WidgetSubjects s_subjects{"NozzleTempsWidgetSubjects"};
 
 void nozzle_temps_widget_init_subjects() {
     s_subjects.ensure_init([] {
-        lv_subject_init_int(
-            &s_label_mode_subject,
+        s_label_mode_subject.init_int(
             static_cast<int>(helix::NozzleLabelMode::Long)); // the degenerate default
         s_subjects.publish("nozzle_row_label_mode", &s_label_mode_subject);
-        lv_subject_init_int(&s_columns_subject, 1);
+        s_columns_subject.init_int(1);
         s_subjects.publish("nozzle_row_columns", &s_columns_subject);
-        lv_subject_init_int(&s_compact_font_subject, 0);
+        s_compact_font_subject.init_int(0);
         s_subjects.publish("nozzle_row_compact", &s_compact_font_subject);
     });
 }
@@ -67,13 +68,13 @@ void nozzle_temps_widget_init_subjects() {
 /// the row does not draw.
 std::pair<std::string, std::string> value_halves(int temp_deci, int target_deci) {
     char num_buf[16];
-    helix::ui::temperature::format_temp_number(helix::ui::temperature::deci_to_degrees_f(temp_deci),
-                                               num_buf, sizeof(num_buf));
+    helix::temperature_rules::format_temp_number(
+        helix::temperature_rules::deci_to_degrees_f(temp_deci), num_buf, sizeof(num_buf));
     std::string current = std::string(num_buf) + "\xC2\xB0";
     if (target_deci <= 0)
         return {current, lv_tr("off")};
-    helix::ui::temperature::format_temp_number(
-        helix::ui::temperature::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
+    helix::temperature_rules::format_temp_number(
+        helix::temperature_rules::deci_to_degrees_f(target_deci), num_buf, sizeof(num_buf));
     return {current, "/ " + std::string(num_buf) + "\xC2\xB0"};
 }
 
@@ -122,7 +123,7 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // every rebuild_rows() → clear_rows() call, which would make the version observer
     // a one-shot: the first rebuild expires the token, and subsequent version changes
     // are silently ignored (#782). This left the widget with stale rows pointing to
-    // freed subjects, crashing in lv_observer_remove during the next clear_rows().
+    // freed subjects, crashing in lv_observer_delete during the next clear_rows().
     //
     // Safety is provided by: (1) weak_alive in observe<int> context (expires when
     // version_observer_ is reset in detach()), (2) rebuilding_ re-entrancy guard,
@@ -150,19 +151,12 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         },
         tool_state.get_subjects_lifetime());
 
-    // "off" is formatted into the value labels, and the value width decides the
-    // layout, so a new language re-formats and re-measures.
-    language_observer_ = helix::ui::observe_language_change(this, [](NozzleTempsWidget* self) {
-        if (!self->widget_obj_)
-            return;
-        for (auto& row : self->extruder_rows_) {
-            self->update_row_display(row.temp_label, row.target_label, row.cached_temp,
-                                     row.cached_target, false);
-        }
-        self->update_row_display(self->bed_temp_label_, self->bed_target_label_,
-                                 self->cached_bed_temp_, self->cached_bed_target_, true);
-        self->relayout_for_granted_size();
-    });
+    // "off" and the unit are formatted into the value labels, and the value width
+    // decides the layout, so a new language or unit re-formats and re-measures.
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](NozzleTempsWidget* self) { self->reformat_values(); });
+    temp_unit_observer_ = helix::ui::observe_temp_unit_change(
+        this, [](NozzleTempsWidget* self) { self->reformat_values(); });
     // Each row's number rung and name spell the tool in the printer's tool number style.
     auto& settings = helix::SettingsManager::instance();
     tool_number_style_observer_ = helix::ui::observe_int_change(
@@ -175,10 +169,23 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     spdlog::debug("[NozzleTempsWidget] Attached with {} extruder rows", extruder_rows_.size());
 }
 
+void NozzleTempsWidget::reformat_values() {
+    if (!widget_obj_)
+        return;
+    for (auto& row : extruder_rows_) {
+        update_row_display(row.temp_label, row.target_label, row.cached_temp, row.cached_target,
+                           false);
+    }
+    update_row_display(bed_temp_label_, bed_target_label_, cached_bed_temp_, cached_bed_target_,
+                       true);
+    relayout_for_granted_size();
+}
+
 void NozzleTempsWidget::detach() {
     lifetime_.invalidate();
     version_observer_.reset();
     language_observer_.reset();
+    temp_unit_observer_.reset();
     tool_number_style_observer_.reset();
     mounted_tool_observer_.reset();
     clear_rows();
@@ -230,7 +237,7 @@ void NozzleTempsWidget::clear_rows() {
     // was already destroyed (reconnection), the source's shared_ptr is gone —
     // but our row's copy keeps the weak_ptr alive. Resetting our copy first
     // lets the weak_ptr expire, so ObserverGuard::reset() safely skips
-    // lv_observer_remove() on the freed observer. (#673, #698)
+    // lv_observer_delete() on the freed observer. (#673, #698)
     for (auto& row : extruder_rows_) {
         row.temp_lifetime.reset();
         row.target_lifetime.reset();
@@ -239,7 +246,7 @@ void NozzleTempsWidget::clear_rows() {
     }
     extruder_rows_.clear();
     // Bed subjects are also destroyed during deinit_subjects() — need lifetime
-    // tokens to prevent lv_observer_remove() on freed subjects (#734)
+    // tokens to prevent lv_observer_delete() on freed subjects (#734)
     bed_temp_lifetime_.reset();
     bed_target_lifetime_.reset();
     bed_temp_observer_.reset();
@@ -615,18 +622,35 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     if (row.target_label)
         lv_label_set_long_mode(row.target_label, LV_LABEL_LONG_MODE_CLIP);
 
-    // Tap row → open nozzle temp graph overlay
-    lv_obj_add_flag(row_obj, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_t* screen = parent_screen_;
+    // Tap row → open nozzle temp graph overlay on that row's tool
+    lv_obj_set_clickable(row_obj, true);
     lv_obj_add_event_cb(
         row_obj,
         [](lv_event_t* e) {
-            auto* scr = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
-            if (scr) {
-                get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, scr);
+            auto* self = static_cast<NozzleTempsWidget*>(lv_event_get_user_data(e));
+            if (self) {
+                self->handle_extruder_row_clicked(
+                    static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
             }
         },
-        LV_EVENT_CLICKED, screen);
+        LV_EVENT_CLICKED, this);
+}
+
+void NozzleTempsWidget::handle_extruder_row_clicked(lv_obj_t* row_obj) {
+    if (!parent_screen_) {
+        return;
+    }
+    // On a multi-head printer each row is one tool; the graph opens on it.
+    std::string extruder;
+    if (ToolState::instance().has_multiple_toolheads()) {
+        for (const auto& row : extruder_rows_) {
+            if (row.row_obj == row_obj) {
+                extruder = row.name;
+                break;
+            }
+        }
+    }
+    get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_, extruder);
 }
 
 void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
@@ -650,7 +674,7 @@ void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
         lv_label_set_long_mode(bed_target_label_, LV_LABEL_LONG_MODE_CLIP);
 
     // Tap bed row → open bed temp graph overlay
-    lv_obj_add_flag(row_obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(row_obj, true);
     lv_obj_t* screen = parent_screen_;
     lv_obj_add_event_cb(
         row_obj,
@@ -679,8 +703,8 @@ void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* targe
     // thresholds, same inputs) so they can never disagree.
     if (is_bed && bed_icon_) {
         const char* variant = helix::ui::temperature::get_heating_state_variant(
-            helix::ui::temperature::deci_to_degrees(temp_deci),
-            helix::ui::temperature::deci_to_degrees(target_deci));
+            helix::temperature_rules::deci_to_degrees(temp_deci),
+            helix::temperature_rules::deci_to_degrees(target_deci));
         helix::ui::icon::set_variant(bed_icon_, variant);
     }
 

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "core/tool_number_style.h"
+
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -11,7 +13,8 @@
 
 namespace helix {
 class AmsBackend;
-}
+struct AmsUnit;
+} // namespace helix
 
 namespace helix::ui {
 
@@ -46,32 +49,6 @@ enum class LaneNoun : uint8_t {
 std::string tool_label(int gcode_tool);
 
 /**
- * @brief Whether @p name is the generated G-code identity, not a configured one.
- *
- * A Klipper tool carries either a name its owner chose ("Left", "Right") or the
- * "T<n>" form tool_label() produces when none was configured. Only the
- * generated form may be replaced by a 1-based display number; a chosen name is
- * what the machine is physically labeled with and is shown verbatim.
- */
-bool is_generated_tool_name(std::string_view name);
-
-/**
- * @brief How a printer numbers its tools where a number stands alone.
- *
- * Most machines are labeled from 1 ("Toolhead 1" on a U1, heads 1-4 on a
- * Creator 5), while a klipper-toolchanger rig is labeled with the G-code names
- * its owner wrote (`[tool T0]`, "T0" on the dock plate). The G-code name itself
- * (ToolLabelForm::Code, tool_label()) is the same in both styles.
- */
-enum class ToolNumberStyle : uint8_t {
-    Physical, ///< 1-based position: "Tool 1", badge "1". The default.
-    Gcode,    ///< The G-code name the machine is labeled with: "T0", badge "T0".
-};
-
-/// The persisted per-printer override. Values are the stored ints, so never reorder.
-enum class ToolNumberStyleSetting : uint8_t { Auto = 0, Physical = 1, Gcode = 2 };
-
-/**
  * @brief The number of the tool at @p index in @p style: "1", or "T0".
  *
  * Physical is the 1-based position. Gcode is the tool's G-code identity: its
@@ -100,13 +77,18 @@ std::string tool_badge_label(ToolNumberStyle style, std::string_view name, int i
  */
 std::string tool_name_label(LaneNoun noun, ToolNumberStyle style, std::string_view name, int index);
 
+/// tool_name_label() in the active backend's noun: what a tool chooser shows
+/// for a toolhead ("Tool 1", or "Tool 0" when lanes count from 0, or its
+/// configured name). The G-code name is tool_label().
+std::string active_tool_name_label(std::string_view name, int index);
+
 /**
  * @brief How much of a tool's identity a label spells.
  *
  * Klipper and every slicer count tools from T0, while the machine is labeled
- * from 1. A generated name gets both when there is room, so neither number
- * reads as the other's mistake; a narrow box gets the G-code name alone, the
- * one a user can type.
+ * from 1 unless the user numbers positions from zero. A generated name gets
+ * both when there is room, so neither number reads as the other's mistake; a
+ * narrow box gets the G-code name alone, the one a user can type.
  */
 enum class ToolLabelForm {
     Full, ///< "Tool 1 (T0)": the physical label with the G-code name it answers to
@@ -122,7 +104,9 @@ inline constexpr ToolLabelForm kToolLabelForms[] = {ToolLabelForm::Full, ToolLab
  * Full is tool_name_label() beside the G-code name: "Tool 1 (T0)" for a
  * generated name, "Left (T0)" for a configured one. Where the two halves are
  * the same text (a generated name in Gcode style) Full is the G-code name once,
- * "T0". Code is the G-code name alone ("T0"), configured name or not.
+ * "T0", and when positions count from zero a generated name's two numbers
+ * agree, so Full is "Tool 0" alone. Code is the G-code name alone ("T0"),
+ * configured name or not.
  *
  * @param noun what the printer calls a tool (active_tool_noun()): "Toolhead 1 (T0)" on a U1
  * @return empty when @p index is negative
@@ -157,16 +141,45 @@ std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm f
 ToolLabelForm pick_tool_label_form(const std::function<bool(ToolLabelForm)>& fits);
 
 /**
- * @brief Convert a storage index to the number a user sees.
+ * @brief Choose the number the first position shows.
  *
- * The only + 1 in the codebase. Every display path routes through this so a
- * missing conversion is a call that is not here, rather than one correct
- * expression among many hand-written ones.
+ * Off by default: positions count from 1. On, they count from 0, matching
+ * Happy Hare gates and the T0 a tool is called in G-code. Atomic because
+ * backend threads format lane labels too. SettingsManager is the only caller
+ * in the app.
+ */
+void set_lane_numbering_from_zero(bool from_zero);
+
+/// @brief Whether positions currently count from 0.
+bool lane_numbering_from_zero();
+
+/**
+ * @brief Convert a filament or tool position's storage index to the number a user sees.
+ *
+ * The one place the numbering base is decided. Every display path routes
+ * through this so a missing conversion is a call that is not here, rather than
+ * one correct expression among many hand-written ones.
+ *
+ * Never send this to firmware or compare it with firmware text: it follows a
+ * user preference. A number greater than 0 does not mean "valid" either, since
+ * 0 is a real position when counting from zero; test for negative.
  *
  * @param index 0-based storage index
- * @return 1-based display number, or -1 when @p index is negative
+ * @return the display number, or -1 when @p index is negative
  */
 int lane_number(int index);
+
+/**
+ * @brief The 1-based ordinal of something that is not a position: a unit, a
+ *        toolchange in a sequence, a printed object.
+ *
+ * Unaffected by set_lane_numbering_from_zero(): "Unit 1" and "toolchange 3 / 12"
+ * are counts, and firmware unit names are spelled from 1.
+ *
+ * @param index 0-based index
+ * @return 1-based ordinal, or -1 when @p index is negative
+ */
+int display_ordinal(int index);
 
 /// @brief lane_number() as text, or empty when @p index is negative.
 std::string lane_number_text(int index);
@@ -231,6 +244,10 @@ std::string clear_spool_blocked_hint(LaneNoun noun, int index);
  * spacing cannot drift between them. An empty unit degrades to the body
  * alone, the single-unit form.
  */
+/// A unit's name as the screens show it: display_name over name, underscores
+/// as spaces, and "Unit N" when it has neither.
+std::string unit_display_name(const helix::AmsUnit& unit, int unit_index);
+
 std::string unit_scoped_label(std::string_view unit_display_name, std::string_view body);
 
 /**
@@ -245,7 +262,7 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
 /**
  * @brief A span of physical positions: "Slots 1-4", "Lanes 1-8".
  *
- * The plural noun with a 1-based inclusive range, ordered low to high. Every
+ * The plural noun with an inclusive range, ordered low to high. Every
  * locale spells the plural as one fixed word, so the header never agrees with
  * either number.
  *
@@ -256,18 +273,6 @@ std::string lane_label(LaneNoun noun, std::string_view unit_display_name, int in
  *         @p first_index, since neither describes a span
  */
 std::string lane_range_label(LaneNoun noun, int first_index, int last_index);
-
-/**
- * @brief How many positions a unit has: "4 slots", "8 lanes".
- *
- * One fixed translated form per noun, never a count spliced into a plural
- * word. Russian numerals take three forms (1 слот / 2-4 слота / 5+ слотов) and
- * a card header is not the place to decide between them, so each locale writes
- * the one form it wants to read there.
- *
- * @param count number of positions, shown verbatim
- */
-std::string lane_count_label(LaneNoun noun, int count);
 
 /**
  * @brief The noun for the printer currently connected.

@@ -12,7 +12,6 @@
 #include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_print_preparation_manager.h"
-#include "ui_timer_guard.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -26,12 +25,15 @@
 #include "core/http_executor.h"
 #include "core/observer_factory.h"
 #include "core/text_io.h"
+#include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "filament_chip_model.h"
+#include "filament_mapping_plan.h"
 #include "file_analysis.h"
 #include "gcode_footer_summary.h"
 #include "gcode_parser.h"
+#include "gcode_preview_cache.h"
 #include "gcode_preview_fetcher.h"
 #include "gcode_preview_gate.h"
 #include "gcode_preview_setup.h"
@@ -147,6 +149,9 @@ void PrintSelectDetailView::init_subjects() {
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     UI_MANAGED_SUBJECT_INT(detail_gcode_viewer_mode_, 0, "detail_gcode_viewer_mode", subjects_);
+    // 1 while the viewer draws in 2D although 3D was asked for (memory budget,
+    // GPU fallback); hides the 3D-only reset-view button.
+    UI_MANAGED_SUBJECT_INT(detail_preview_drawn_2d_, 0, "detail_preview_drawn_2d", subjects_);
     // G-code loading indicator (0=hidden, 1=visible)
     UI_MANAGED_SUBJECT_INT(detail_gcode_loading_, 0, "detail_gcode_loading", subjects_);
 
@@ -163,6 +168,11 @@ void PrintSelectDetailView::init_subjects() {
     // thumbnail stays on top until this flips to hide the gray gap.
     UI_MANAGED_SUBJECT_INT(detail_viewer_first_frame_, 0, "detail_viewer_first_frame", subjects_);
     UI_MANAGED_SUBJECT_INT(detail_viewer_hidden_, 1, "detail_viewer_hidden", subjects_);
+    UI_MANAGED_SUBJECT_INT(detail_history_status_,
+                           static_cast<int>(FileHistoryStatus::NEVER_PRINTED),
+                           "detail_history_status", subjects_);
+    UI_MANAGED_SUBJECT_STRING(detail_history_text_, detail_history_text_buf_, "",
+                              "detail_history_text", subjects_);
 
     // Preview color mode: 0 = actual (loaded slot colors), 1 = sliced (slicer intent)
     UI_MANAGED_SUBJECT_INT(detail_prefer_sliced_colors_, 0, "detail_prefer_sliced_colors",
@@ -290,7 +300,7 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
     // Set responsive padding for content area
     lv_obj_t* content_container = find_required(overlay_root_, "content_container", get_name());
     if (content_container) {
-        lv_coord_t padding = ui_get_header_content_padding();
+        int32_t padding = ui_get_header_content_padding();
         lv_obj_set_style_pad_all(content_container, padding, 0);
     }
 
@@ -419,10 +429,6 @@ lv_obj_t* PrintSelectDetailView::create(lv_obj_t* parent_screen) {
         refresh_preview_colors_and_mismatch();
     });
 
-    history_status_row_ = find_required(overlay_root_, "history_status_row", get_name());
-    history_status_icon_ = find_required(overlay_root_, "history_status_icon", get_name());
-    history_status_label_ = find_required(overlay_root_, "history_status_label", get_name());
-
     spdlog::debug("[DetailView] Detail view created");
     return overlay_root_;
 }
@@ -530,7 +536,7 @@ void PrintSelectDetailView::publish_material_text() {
                                    used && !used->empty() ? used : std::optional<std::set<int>>{});
     // A file naming no material keeps the panel's text (its filament name).
     if (!text.empty()) {
-        lv_subject_copy_string(material_text_subject_, text.c_str());
+        lv_subject_set_string(material_text_subject_, text.c_str());
     }
 }
 
@@ -717,7 +723,7 @@ std::string PrintSelectDetailView::canonical_gcode_path() const {
     // Keyed on the FULL relative path (not just the filename) so same-name files
     // in different directories never collide on one temp file.
     return get_helix_cache_dir("gcode_temp") + "/" +
-           helix::ui::GcodePreviewFetcher::cache_file_name("detail_", current_file_key());
+           helix::gcode::preview_cache_file_name("detail_", current_file_key());
 }
 
 void PrintSelectDetailView::resolve_local_gcodes_root() {
@@ -1056,6 +1062,7 @@ void PrintSelectDetailView::disarm_viewer_callbacks() {
         return;
     }
     helix::ui::gcode_viewer_set_first_frame_callback(gcode_viewer_, nullptr, nullptr);
+    helix::ui::gcode_viewer_set_render_path_callback(gcode_viewer_, nullptr, nullptr);
     helix::ui::gcode_viewer_set_load_callback(gcode_viewer_, nullptr, nullptr);
     helix::ui::gcode_viewer_set_clear_callback(gcode_viewer_, nullptr, nullptr);
 }
@@ -1159,10 +1166,6 @@ void PrintSelectDetailView::forget_cached_widgets() {
     detail_card_ = nullptr;
 
     filament_mapping_card_.on_ui_destroyed();
-
-    history_status_row_ = nullptr;
-    history_status_icon_ = nullptr;
-    history_status_label_ = nullptr;
 }
 
 void PrintSelectDetailView::uninstall_root_delete_hook() {
@@ -1301,7 +1304,7 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
     lv_obj_t* content_container =
         helix::ui::find_required(overlay_root_, "content_container", get_name());
     if (content_container) {
-        lv_coord_t padding = ui_get_header_content_padding();
+        int32_t padding = ui_get_header_content_padding();
         lv_obj_set_style_pad_all(content_container, padding, 0);
     }
 }
@@ -1311,50 +1314,28 @@ void PrintSelectDetailView::handle_resize(lv_obj_t* parent_screen) {
 // ============================================================================
 
 void PrintSelectDetailView::update_history_status(FileHistoryStatus status, int success_count) {
-    if (!history_status_row_ || !history_status_icon_ || !history_status_label_) {
-        return;
-    }
-
+    char buf[64] = "";
     switch (status) {
     case FileHistoryStatus::NEVER_PRINTED:
-        // Hide the row entirely for files with no history
-        lv_obj_add_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
         break;
-
     case FileHistoryStatus::CURRENTLY_PRINTING:
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "clock");
-        helix::ui::icon::set_variant(history_status_icon_, "accent");
-        lv_label_set_text(history_status_label_, lv_tr("Currently printing"));
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Currently printing"));
         break;
-
-    case FileHistoryStatus::COMPLETED: {
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "check");
-        helix::ui::icon::set_variant(history_status_icon_, "success");
-        char buf[64];
+    case FileHistoryStatus::COMPLETED:
         snprintf(
             buf, sizeof(buf),
             tr_plural("Printed %d time", "Printed %d times", static_cast<uint64_t>(success_count)),
             success_count);
-        lv_label_set_text(history_status_label_, buf);
         break;
-    }
-
     case FileHistoryStatus::FAILED:
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "alert");
-        helix::ui::icon::set_variant(history_status_icon_, "danger");
-        lv_label_set_text(history_status_label_, lv_tr("Last print failed"));
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Last print failed"));
         break;
-
     case FileHistoryStatus::CANCELLED:
-        lv_obj_remove_flag(history_status_row_, LV_OBJ_FLAG_HIDDEN);
-        helix::ui::icon::set_source(history_status_icon_, "cancel");
-        helix::ui::icon::set_variant(history_status_icon_, "warning");
-        lv_label_set_text(history_status_label_, lv_tr("Last print canceled"));
+        snprintf(buf, sizeof(buf), "%s", lv_tr("Last print canceled"));
         break;
     }
+    lv_subject_set_string(&detail_history_text_, buf);
+    lv_subject_set_int(&detail_history_status_, static_cast<int>(status));
 }
 
 // ============================================================================
@@ -1449,7 +1430,7 @@ void PrintSelectDetailView::poll_load_progress() {
     } else {
         snprintf(buf, sizeof(buf), "%s", lv_tr("Indexing G-code..."));
     }
-    lv_subject_copy_string(&detail_gcode_progress_text_, buf);
+    lv_subject_set_string(&detail_gcode_progress_text_, buf);
 }
 
 void PrintSelectDetailView::show_gcode_viewer(bool show) {
@@ -1478,18 +1459,6 @@ void PrintSelectDetailView::show_gcode_viewer(bool show) {
     if (mode == 0) {
         lv_subject_set_int(&detail_viewer_first_frame_, 0);
         refresh_viewer_visibility();
-    }
-
-    // The 3D render is the preview when the viewer is active, so the
-    // no-thumbnail placeholder glyph must not sit on top of it. (When the
-    // viewer is inactive the print-select panel's has-thumbnail logic owns
-    // whether the placeholder shows.)
-    if (mode > 0 && tree_alive()) {
-        lv_obj_t* no_thumb =
-            helix::ui::find_required(overlay_root_, "detail_no_thumbnail_icon", get_name());
-        if (no_thumb) {
-            lv_obj_add_flag(no_thumb, LV_OBJ_FLAG_HIDDEN);
-        }
     }
 
     // Hide loading spinner now that viewer state is resolved
@@ -1643,7 +1612,7 @@ std::vector<helix::GcodeToolInfo> PrintSelectDetailView::get_used_tool_info() co
     // Source per-tool info DIRECTLY from the slicer palette (Moonraker metadata,
     // populated on ALL platforms) via the stateless assembler — NOT from the
     // mapping card INSTANCE, whose tool_info_ is empty on the U1/headless path.
-    return FilamentMappingCard::build_used_tool_info(
+    return helix::filament_mapping::build_used_tool_info(
         current_filament_colors_, current_filament_materials_, tools_used_effective());
 }
 
@@ -2124,8 +2093,8 @@ void PrintSelectDetailView::refresh_fit_check() {
     // 0 nothing, then one past the worst FitSeverity: 1 note, 2 warn, 3 block.
     const auto worst = helix::fit_worst(findings);
     const int severity = worst ? static_cast<int>(*worst) + 1 : 0;
-    lv_subject_copy_string(&detail_fit_text_,
-                           helix::fit_findings_text(findings, helix::FitSeverity::Note).c_str());
+    lv_subject_set_string(&detail_fit_text_,
+                          helix::fit_findings_text(findings, helix::FitSeverity::Note).c_str());
     lv_subject_set_int(&detail_fit_severity_, severity);
 }
 
@@ -2233,7 +2202,7 @@ void PrintSelectDetailView::publish_exclude_picks() {
     lv_subject_set_int(&detail_exclude_pick_count_, count);
     std::snprintf(detail_exclude_pick_count_text_buf_, sizeof(detail_exclude_pick_count_text_buf_),
                   "%d", count);
-    lv_subject_copy_string(&detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_);
+    lv_subject_set_string(&detail_exclude_pick_count_text_, detail_exclude_pick_count_text_buf_);
     if (gcode_viewer_) {
         helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, {picks.begin(), picks.end()});
     }
@@ -2471,11 +2440,18 @@ void PrintSelectDetailView::load_gcode_for_preview() {
             self->refresh_viewer_visibility();
         },
         this);
+    helix::ui::gcode_viewer_set_render_path_callback(
+        gcode_viewer_,
+        [](lv_obj_t* /*viewer*/, void* user_data, bool drawn_3d) {
+            auto* self = static_cast<PrintSelectDetailView*>(user_data);
+            lv_subject_set_int(&self->detail_preview_drawn_2d_, drawn_3d ? 0 : 1);
+        },
+        this);
 
     // Show loading spinner over thumbnail, and start reporting real progress
     // as soon as the streaming indexer has any to report.
     lv_subject_set_int(&detail_gcode_progress_, 0);
-    lv_subject_copy_string(&detail_gcode_progress_text_, lv_tr("Indexing G-code..."));
+    lv_subject_set_string(&detail_gcode_progress_text_, lv_tr("Indexing G-code..."));
     lv_subject_set_int(&detail_gcode_loading_, 1);
     start_progress_timer();
 
@@ -2704,7 +2680,7 @@ void PrintSelectDetailView::update_prep_time_label() {
     int estimate_s = lv_subject_get_int(prep_manager_->get_preprint_estimate_subject());
 
     if (estimate_s <= 0) {
-        lv_subject_copy_string(&prep_time_estimate_subject_, "");
+        lv_subject_set_string(&prep_time_estimate_subject_, "");
         lv_subject_set_int(&preprint_estimate_visible_, 0);
         return;
     }
@@ -2721,7 +2697,7 @@ void PrintSelectDetailView::update_prep_time_label() {
     } else {
         snprintf(buf, sizeof(buf), "~%d sec prep time", secs);
     }
-    lv_subject_copy_string(&prep_time_estimate_subject_, buf);
+    lv_subject_set_string(&prep_time_estimate_subject_, buf);
     lv_subject_set_int(&preprint_estimate_visible_, 1);
 }
 

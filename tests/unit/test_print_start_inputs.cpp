@@ -14,12 +14,12 @@
  */
 
 #include "ui_callback_helpers.h"
-#include "ui_filament_mapping_card.h"
 #include "ui_print_select_detail_view.h"
 #include "ui_print_start_controller.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/planted_gcode.h"
+#include "../test_helpers/print_start_controller_test_access.h"
 #include "../test_helpers/scoped_cache_dir.h"
 #include "../test_helpers/scoped_mock_ams.h"
 #include "../test_helpers/snapmaker_test_access.h"
@@ -27,6 +27,7 @@
 #include "ams_backend_snapmaker.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "filament_mapping_plan.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "print_start_checks.h"
@@ -217,7 +218,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The AMS path never reads the palette's material list.
     ctx.filament_materials.clear();
 
-    const auto* tool = helix::ui::FilamentMappingCard::find_by_tool_index(ctx.tool_info, 0);
+    const auto* tool = helix::filament_mapping::find_by_tool_index(ctx.tool_info, 0);
     REQUIRE(tool != nullptr);
     CHECK(tool->material == "PETG");
     REQUIRE(ctx.mappings.size() == 1);
@@ -272,7 +273,8 @@ constexpr const char* kTwoToolFooter = "; filament_type = PLA;PETG\n"
                                        "; filament_colour = #FF0000;#0000FF\n"
                                        "G28\n"
                                        "T0\n"
-                                       "; filament used [g] = 1.50, 2.25\n";
+                                       "; filament used [g] = 1.50, 2.25\n"
+                                       "; outer_wall_speed = 200\n";
 
 struct LoaderFixture : LVGLUITestFixture {
     LoaderFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -314,6 +316,7 @@ TEST_CASE_METHOD(LoaderFixture, "a footer that names its tools answers without a
     CHECK(answer->palette.colors.size() == 2);
     CHECK(answer->palette.materials == std::vector<std::string>{"PLA", "PETG"});
     CHECK(answer->tool_grams == std::vector<double>{1.50, 2.25});
+    CHECK(answer->outer_wall_speed_mm_s == 200.0f);
     CHECK(downloads == 0);
 }
 
@@ -518,6 +521,9 @@ TEST_CASE_METHOD(LoaderFixture, "an unrouted U1 reprint names the file's heads a
     helix::test::RegisteredWired<helix::AmsBackendSnapmaker> backend_reg(api.get());
     helix::PlantedGcode file("reprint_unrouted.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
+    // These cases pin the pre-print send; the unconfigured heads would stop the
+    // start at the unresolved-tools gate first.
+    PrintStartControllerTestAccess::set_gates(controller, {});
 
     SECTION("the firmware map at its default: the heads go, no map") {
         backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
@@ -552,6 +558,9 @@ TEST_CASE_METHOD(LoaderFixture,
     backend_reg->fire_status(unconfigured_task({0, 1, 2, 3, 0, 0, 0, 0}));
     helix::PlantedGcode file("reprint_noreset.gcode", "", kT0T2Footer);
     helix::ui::PrintStartController controller(get_printer_state(), api.get());
+    // This case pins the pre-print send; the unconfigured heads would stop the
+    // start at the unresolved-tools gate first.
+    PrintStartControllerTestAccess::set_gates(controller, {});
     client.clear_gcode_script_history();
 
     bool started = false;

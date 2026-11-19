@@ -9,9 +9,13 @@
 #include "ui_swatch.h"
 
 #include "color_utils.h"
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
+#include "core/text_io.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "panel_widget_size.h"
 #include "sound_manager.h"
+#include "subject_managed_panel.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -23,6 +27,43 @@
 namespace helix::ui {
 
 namespace {
+
+// What action_prompt_modal.xml binds. One set for the class: one prompt is on
+// screen at a time, and each show sets them afresh. The title is the printer's
+// own text, so it rides a subject rather than a prop.
+struct PromptSubjects {
+    helix::Subject title{};
+    char title_buf[512] = {};
+    helix::Subject error{};       ///< 1 for severity "error": shows the red icon
+    helix::Subject has_text{};    ///< 0 hides the text area
+    helix::Subject has_buttons{}; ///< 0 hides the regular button area
+    helix::Subject has_footer{};  ///< 0 hides the footer and its divider
+    SubjectManager manager;
+    bool initialized = false;
+};
+
+PromptSubjects& prompt_subjects() {
+    static PromptSubjects s;
+    return s;
+}
+
+void init_prompt_subjects() {
+    auto& s = prompt_subjects();
+    if (s.initialized) {
+        return;
+    }
+    UI_MANAGED_SUBJECT_STRING(s.title, s.title_buf, "", "action_prompt_title", s.manager);
+    UI_MANAGED_SUBJECT_INT(s.error, 0, "action_prompt_error", s.manager);
+    UI_MANAGED_SUBJECT_INT(s.has_text, 0, "action_prompt_has_text", s.manager);
+    UI_MANAGED_SUBJECT_INT(s.has_buttons, 0, "action_prompt_has_buttons", s.manager);
+    UI_MANAGED_SUBJECT_INT(s.has_footer, 0, "action_prompt_has_footer", s.manager);
+    s.initialized = true;
+    StaticSubjectRegistry::instance().register_deinit("ActionPromptModal", []() {
+        auto& subjects = prompt_subjects();
+        subjects.manager.deinit_all();
+        subjects.initialized = false;
+    });
+}
 
 /**
  * @brief Width the button label needs to render in full, in pixels.
@@ -188,6 +229,7 @@ ButtonRowLayout choose_button_row_layout(const ButtonRowMeasure& m) {
 // ============================================================================
 
 ActionPromptModal::ActionPromptModal() {
+    init_prompt_subjects();
     spdlog::debug("[ActionPromptModal] Constructed");
 }
 
@@ -269,24 +311,16 @@ void ActionPromptModal::populate_content() {
         return;
     }
 
-    // Set title. kModalTitleWidgetName is the canonical name ui_notification.cpp's
-    // duplicate-title suppression looks up, so every modal that can sit on top
-    // of the stack must expose its title under it (#1389).
-    lv_obj_t* title_label = find_widget(kModalTitleWidgetName);
-    if (title_label) {
-        lv_label_set_text(title_label, prompt_data_.title.c_str());
-    }
-
-    // Error-severity affordance: show the red error icon only for severity "error".
-    // The modal instance is reused across shows, so reset both ways to clear any
-    // prior error state on a subsequent neutral (action:prompt) show.
-    if (lv_obj_t* err_icon = find_widget("icon_error")) {
-        if (prompt_data_.severity == "error") {
-            lv_obj_remove_flag(err_icon, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(err_icon, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
+    // The title binds to kModalTitleWidgetName, the canonical name ui_notification.cpp's
+    // duplicate-title suppression looks up (#1389). The red error icon shows only for
+    // severity "error"; both are set on every show, since the subjects outlive one.
+    auto& subjects = prompt_subjects();
+    // A title longer than the buffer is cut whole characters short, never mid-character.
+    const std::string title(
+        text_io::utf8_prefix(prompt_data_.title, sizeof(subjects.title_buf) - 1));
+    lv_subject_set_string(&subjects.title, title.c_str());
+    lv_subject_set_int(&subjects.error, prompt_data_.severity == "error" ? 1 : 0);
+    lv_subject_set_int(&subjects.has_text, prompt_data_.text_lines.empty() ? 0 : 1);
 
     create_text_lines();
 
@@ -305,7 +339,7 @@ void ActionPromptModal::create_text_lines() {
         lv_obj_t* label = lv_label_create(content_container);
         lv_label_set_text(label, line.c_str());
         lv_obj_set_width(label, lv_pct(100));
-        lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
 
         // Apply body text styling
         lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
@@ -313,17 +347,11 @@ void ActionPromptModal::create_text_lines() {
 
         created_text_labels_.push_back(label);
     }
-
-    // Hide content container if no text lines
-    if (prompt_data_.text_lines.empty()) {
-        lv_obj_add_flag(content_container, LV_OBJ_FLAG_HIDDEN);
-    }
 }
 
 void ActionPromptModal::create_buttons() {
     lv_obj_t* button_container = find_widget("button_container");
     lv_obj_t* footer_container = find_widget("footer_container");
-    lv_obj_t* footer_divider = find_widget("footer_divider");
 
     if (!button_container) {
         spdlog::warn("[ActionPromptModal] button_container not found");
@@ -374,7 +402,7 @@ void ActionPromptModal::create_buttons() {
                 lv_obj_set_style_bg_color(divider, theme_manager_get_color("border"), LV_PART_MAIN);
                 lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, LV_PART_MAIN);
                 lv_obj_set_style_pad_all(divider, 0, LV_PART_MAIN);
-                lv_obj_remove_flag(divider, LV_OBJ_FLAG_SCROLLABLE);
+                lv_obj_set_scrollable(divider, false);
             }
             create_button(btn, footer_container);
             has_footer_buttons = true;
@@ -382,28 +410,12 @@ void ActionPromptModal::create_buttons() {
         }
     }
 
-    // Show/hide footer based on whether there are footer buttons
     if (footer_container) {
         lv_obj_set_height(footer_container, prompt_button_height());
-        if (has_footer_buttons) {
-            lv_obj_remove_flag(footer_container, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(footer_container, LV_OBJ_FLAG_HIDDEN);
-        }
     }
-
-    if (footer_divider) {
-        if (has_footer_buttons) {
-            lv_obj_remove_flag(footer_divider, LV_OBJ_FLAG_HIDDEN);
-        } else {
-            lv_obj_add_flag(footer_divider, LV_OBJ_FLAG_HIDDEN);
-        }
-    }
-
-    // Hide button container if no regular buttons
-    if (!has_regular_buttons) {
-        lv_obj_add_flag(button_container, LV_OBJ_FLAG_HIDDEN);
-    }
+    // Before fit_rows(), which measures what the footer leaves of the card.
+    lv_subject_set_int(&prompt_subjects().has_footer, has_footer_buttons ? 1 : 0);
+    lv_subject_set_int(&prompt_subjects().has_buttons, has_regular_buttons ? 1 : 0);
 
     fit_rows(rows);
     size_swatch_discs();

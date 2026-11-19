@@ -148,7 +148,7 @@ run_gate() {
 @test "ui_card really does clear the flag - the exemption is not folklore" {
     # If this create handler ever stops clearing the flag, the exemption above
     # silently becomes a hole. Pin it to the source.
-    run grep -q "lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE)" src/ui/components/ui_card.cpp
+    run grep -q "lv_obj_set_scrollable(obj, false)" src/ui/components/ui_card.cpp
     [ "$status" -eq 0 ]
 }
 
@@ -214,6 +214,15 @@ run_gate() {
     run python3 "$GATE" --max-allowed "$((BASELINE - 1))"
     [ "$status" -eq 1 ]
     [[ "$output" == *"❌"* ]]
+}
+
+@test "the real tree under a raised baseline passes at commit and fails at a push" {
+    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
+    [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+    contains "ratchet the baseline down" "$output"
+    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed "$((BASELINE + 1))"
+    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
+    contains "--max-allowed: $((BASELINE + 1)) -> $BASELINE" "$output"
 }
 
 @test "the real tree is exactly at the baseline, not under it" {

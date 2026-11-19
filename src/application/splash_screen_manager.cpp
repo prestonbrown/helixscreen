@@ -8,6 +8,7 @@
 // Private LVGL header needed to read display->flush_cb for the no-op swap
 #include "display/lv_display_private.h"
 #include "display_manager.h"
+#include "proc_comm.h"
 
 #include <spdlog/spdlog.h>
 
@@ -21,37 +22,9 @@ namespace helix::application {
 
 namespace {
 
-// Verify a PID belongs to our early splash binary by reading /proc/<pid>/comm.
-// Mirrors helix_watchdog.cpp's pid_is_our_splash() PID-recycling guard: if the
-// original splash was reaped and the kernel handed the PID to an unrelated
-// process, signalling it would be a bug. Returns false on any uncertainty.
+// Verify a PID belongs to our early splash binary before signalling it.
 bool pid_is_helix_splash(pid_t pid) {
-    if (pid <= 0) {
-        return false;
-    }
-#ifdef __linux__
-    char comm_path[64];
-    snprintf(comm_path, sizeof(comm_path), "/proc/%d/comm", pid);
-    FILE* f = fopen(comm_path, "r");
-    if (!f) {
-        return false;
-    }
-    char comm[64] = {0};
-    bool got_line = (fgets(comm, sizeof(comm), f) != nullptr);
-    fclose(f);
-    if (!got_line) {
-        return false;
-    }
-    size_t n = strlen(comm);
-    if (n > 0 && comm[n - 1] == '\n') {
-        comm[n - 1] = '\0';
-    }
-    // Linux truncates /proc/<pid>/comm to 15 chars; "helix-splash" (12) fits.
-    return strcmp(comm, "helix-splash") == 0;
-#else
-    (void)pid;
-    return false;
-#endif
+    return proc_comm_is(pid, "helix-splash");
 }
 
 // Parse HELIX_SPLASH_PID from the environment. Returns <= 0 if unset/invalid.

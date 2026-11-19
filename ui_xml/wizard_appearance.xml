@@ -17,7 +17,7 @@
       <!-- Options are the offered zones, filled in C++ -->
       <setting_dropdown_row name="row_timezone"
                             label="Timezone" icon="clock" description="Set local timezone for time display" options=""
-                            callback="on_timezone_changed"/>
+                            callback="on_wizard_timezone_changed"/>
       <!-- Shown while the zone follows a host that has none, so the clock is on UTC by accident -->
       <lv_obj name="timezone_attention"
               width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg"
@@ -33,6 +33,11 @@
                             label="Time Format" icon="clock" description="Choose 12-hour or 24-hour time display"
                             options="12 Hour&#10;24 Hour" options_tag="12 Hour&#10;24 Hour"
                             bind_selected="settings_time_format" callback="on_time_format_changed"/>
+      <setting_dropdown_row name="row_date_format"
+                            label="Date Format" icon="clock" description="Choose the order of day, month and year"
+                            options="Day Month Year&#10;Month Day Year&#10;Year Month Day"
+                            options_tag="Day Month Year&#10;Month Day Year&#10;Year Month Day"
+                            bind_selected="settings_date_format" callback="on_wizard_date_format_changed"/>
       <!-- Options are the discovered themes, filled in C++ -->
       <setting_dropdown_row name="row_theme"
                             label="Theme" icon="palette" description="Colors for every screen" options=""
@@ -46,6 +51,11 @@
                           label="Speed &amp; Flow in mm/s" icon="speed"
                           description="Show print speed and flow as mm/s and mm³/s instead of percent"
                           subject="settings_speed_flow_physical_units" callback="on_speed_flow_units_changed"/>
+      <setting_dropdown_row name="row_temp_unit"
+                            label="Temperature Unit" icon="thermometer"
+                            description="Show and enter temperatures in Celsius or Fahrenheit"
+                            options="Celsius (°C)&#10;Fahrenheit (°F)" options_tag="Celsius (°C)&#10;Fahrenheit (°F)"
+                            bind_selected="settings_temp_unit" callback="on_wizard_temp_unit_changed"/>
     </ui_card>
   </view>
 </component>

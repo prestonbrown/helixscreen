@@ -193,3 +193,29 @@ TEST_CASE_METHOD(ThemeExplorerFixture,
     CHECK(theme_manager_get_active_theme().filename == original);
     CHECK(theme_manager_is_dark_mode() == original_dark);
 }
+
+TEST_CASE_METHOD(ThemeExplorerFixture,
+                 "ThemeExplorer: a pick shows the dark mode row a single-mode theme hid",
+                 "[theme][ui]") {
+    lv_subject_t* available = lv_xml_get_subject(nullptr, "settings_dark_mode_available");
+    REQUIRE(available != nullptr);
+    const int saved = lv_subject_get_int(available);
+    lv_obj_t* row = lv_obj_find_by_name(explorer(), "dark_mode_toggle_container");
+    REQUIRE(row != nullptr);
+
+    lv_subject_set_int(available, 0);
+    CHECK(lv_obj_is_hidden(row));
+    pick("dracula");
+    settle();
+    CHECK_FALSE(lv_obj_is_hidden(row));
+
+    // The explorer is rebuilt on every open, and a fresh one has no pick yet.
+    close_explorer();
+    overlay().handle_theme_settings_clicked();
+    settle();
+    row = lv_obj_find_by_name(lv_screen_active(), "dark_mode_toggle_container");
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_is_hidden(row));
+
+    lv_subject_set_int(available, saved);
+}

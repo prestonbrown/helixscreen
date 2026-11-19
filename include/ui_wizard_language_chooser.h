@@ -3,8 +3,9 @@
 #pragma once
 
 #include "ui_breakpoint.h"
-#include "ui_timer_guard.h"
 
+#include "core/subject.h"
+#include "core/timer_guard.h"
 #include "lvgl/lvgl.h"
 #include "subject_managed_panel.h"
 #include "wizard_step.h"
@@ -57,21 +58,14 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     WizardLanguageChooserStep();
     ~WizardLanguageChooserStep();
 
-    // Non-copyable, non-movable (singleton with lv_subject_t members that
+    // Non-copyable, non-movable (singleton with helix::Subject members that
     // contain internal linked lists — moving corrupts observer pointers)
     WizardLanguageChooserStep(const WizardLanguageChooserStep&) = delete;
     WizardLanguageChooserStep& operator=(const WizardLanguageChooserStep&) = delete;
     WizardLanguageChooserStep(WizardLanguageChooserStep&&) = delete;
     WizardLanguageChooserStep& operator=(WizardLanguageChooserStep&&) = delete;
 
-    /**
-     * @brief Initialize reactive subjects
-     */
     void init_subjects() override;
-
-    /**
-     * @brief Register event callbacks
-     */
     void register_callbacks() override;
 
     /**
@@ -103,9 +97,6 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
      */
     bool should_skip() const;
 
-    /**
-     * @brief Get step name for logging
-     */
     const char* get_name() const {
         return "Wizard Language Chooser";
     }
@@ -152,15 +143,13 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     }
 
   private:
-    // Screen instance
     lv_obj_t* screen_root_ = nullptr;
 
     // SubjectManager, declared ahead of the subject it owns so it tears down
     // after it (the name withdraws before the storage dies).
     SubjectManager subjects_;
 
-    // Subjects
-    lv_subject_t welcome_text_{};
+    helix::Subject welcome_text_{};
 
     // String buffer for welcome text subject
     char welcome_buffer_[64] = "Welcome!";
@@ -180,10 +169,6 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     // Static timer callback
     static void cycle_timer_cb(lv_timer_t* timer);
 };
-
-// ============================================================================
-// Global Instance Access
-// ============================================================================
 
 WizardLanguageChooserStep* get_wizard_language_chooser_step();
 

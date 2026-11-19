@@ -19,10 +19,10 @@ UpdateChecker (singleton, async update checker)
   |
   +-> GitHub API (fallback)
   |     /repos/prestonbrown/helixscreen/releases/latest (stable)
-  |     /repos/prestonbrown/helixscreen/releases (beta — full array)
+  |     /repos/prestonbrown/helixscreen/releases (beta - full array)
   |
   +-> Moonraker update_manager (parallel path)
-        type: zip in moonraker.conf — enables updates from Mainsail/Fluidd web UI.
+        type: zip in moonraker.conf - enables updates from Mainsail/Fluidd web UI.
         Configured automatically by install.sh.
 ```
 
@@ -51,7 +51,7 @@ Key safety rules:
   event callback, and the worker sits in libhv's synchronous `requests::downloadFile()`, whose
   `req->timeout` is **3600 seconds** with no abort hook (its progress callback returns `void`).
   Joining there froze the touchscreen until the transfer ended. `shutdown()` and the destructor
-  wait a bounded time and then **detach** for the same reason — see `reap_download_thread()`.
+  wait a bounded time and then **detach** for the same reason - see `reap_download_thread()`.
 - **Downloads are blocked** while a print is in progress (`PrintJobState::PRINTING` or `PAUSED`).
 - **Rate limited** to one check per `kMinCheckInterval` (10 minutes). A manual tap inside that
   window returns the cached result and logs only at `debug`, so it looks like nothing happened.
@@ -65,12 +65,12 @@ one fired is the first thing to establish on any "my updates are disabled" repor
 
 | Predicate | Definition | Gates |
 |-----------|------------|-------|
-| `update_checks_suppressed()` | `updates_externally_managed()` alone | `check_for_updates()`, `start_auto_check()`, and `show_update_settings` — false hides the whole update section |
+| `update_checks_suppressed()` | `updates_externally_managed()` alone | `check_for_updates()`, `start_auto_check()`, and `show_update_settings` - false hides the whole update section |
 | `update_install_suppressed()` | `updates_externally_managed() \|\| !self_update_supported()` | `start_download()` and the "Install Update" row |
 
 The weaker check gate is deliberate. Checking is a manifest fetch that touches no files, so an
 install tree we cannot write is no reason to refuse to look, and knowing a newer version exists
-is the only thing that makes a suppressed install recoverable — the user can still be told to
+is the only thing that makes a suppressed install recoverable - the user can still be told to
 re-run the installer. Fold this into one predicate and a false negative in
 `self_update_supported()` becomes a permanent lockout: the rows vanish wholesale, nothing can
 tell the user an update exists, and the fix can only ship inside the update they are being
@@ -80,20 +80,45 @@ The two underlying reasons, and the notice each raises:
 
 | Reason | Predicate | UI notice |
 |--------|-----------|-----------|
-| Firmware owns updates | `updates_externally_managed()` — the `HELIX_DISABLE_AUTO_UPDATES` env flag, else the platform default | "Managed by your firmware" |
+| Firmware owns updates | `updates_externally_managed()` - the `HELIX_DISABLE_AUTO_UPDATES` env flag, else the platform default | "Managed by your firmware" |
 | Self-update can't physically apply | `!self_update_supported()` | "Updates aren't available on this installation" |
 
 ### Who decides `updates_externally_managed()`
 
 `HELIX_DISABLE_AUTO_UPDATES` decides it **in either direction** when set to a value that
-parses — truthy suppresses, falsy force-enables. Unset (or empty) defers to
-`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which is the
-single place any platform is named.
+parses - truthy suppresses, falsy force-enables. Unset (or empty) defers to
+`helix::platform_defaults_to_external_updates()` in `include/platform_info.h`, which asks
+`helix::board::firmware_manages_updates()` (`include/board_identity.h`), the single place any
+platform is named.
 
-Today that default is true only for the **Snapmaker U1**. PAXX Extended Firmware ships
+A board row names the directory a firmware package manager installs HelixScreen into
+(`firmware_package_dir`, one subdirectory per version) and our installer's own root
+(`installer_root`). Today only the **Snapmaker U1** row names them. PAXX Extended Firmware ships
 HelixScreen as a selectable component, downloading a pinned, sha256-verified tarball into
-`/oem/apps/helixscreen` via `extended-pkg`; self-updating there rewrites a package the
-firmware believes it owns. The default lives here in C++ rather than in the firmware hook
+`/oem/apps/helixscreen/<versioned dir>` via `extended-pkg` and pointing `latest` at it;
+self-updating there rewrites a package the firmware believes it owns. The decision fails
+toward "managed", because self-updating a firmware's package is the worse mistake:
+
+1. No `/oem/apps/helixscreen`: self-updating.
+2. The running executable is the same file, by device and inode, as
+   `bin/helix-screen` in any subdirectory of it, `latest` included: managed. Identity rather
+   than a path, because PAXX's lmd hook bind-mounts the binary over `/usr/bin/gui`, so
+   `/proc/self/exe` names `/usr/bin/gui`, a path that leads to no install tree.
+   `board::firmware_package_root()` makes the same identity match and names the package
+   through `latest` when `latest` is what runs, and `helix::board::resolve_install_root()` falls back
+   to it, so `app_get_install_root()` and the HelixPrint plugin installer find the package tree
+   there. The plugin's Moonraker link goes through `latest` and survives a package upgrade.
+   Writes into the install root (the release info repair, the stale `.old` cleanup, update
+   downloads) go through `app_get_writable_install_root()`, which is empty for a
+   firmware-managed install (#2136).
+3. Otherwise managed, unless the executable resolves inside `/userdata/helixscreen`. An
+   executable that cannot be stat'd or resolved counts as the firmware's.
+
+PAXX keeps `HELIX_CACHE_DIR` under `/userdata/helixscreen`, so that directory existing proves
+nothing; only where the executable lives does. A U1 on stock
+firmware runs our installer's `/userdata/helixscreen` and self-updates like any other
+printer; its manifest entry is the `helixscreen-snapmaker-u1-<tag>.tar.gz` asset, because
+`scripts/generate-manifest.sh` withholds `zip_url` from `snapmaker-u1`. The default lives here in C++ rather than in the firmware hook
 because the hook exports data paths and nothing else: their lmd hook
 (<paxx-firmware>/etc/hooks/lmd.d/30-helixscreen.sh) exports `HELIX_DATA_DIR`,
 `HELIX_SUPERVISED`, `HELIX_DRM_DEVICE`, `HELIX_CACHE_DIR`, `HELIX_CONFIG_DIR` and
@@ -118,17 +143,17 @@ inside an update the user is being prevented from installing. It is true when an
 2. the **install root itself** is writable → `install.sh` takes the in-place path: delete the
    root's contents (bar `config/`) and move the new ones in, entirely inside the root. It
    selects this by itself whenever the parent is not writable, **or**
-3. root is reachable — `geteuid() == 0`, or `sudo -n true` succeeds.
+3. root is reachable - `geteuid() == 0`, or `sudo -n true` succeeds.
 
 Term 2 is what covers the standalone-display layout: no local Klipper or Moonraker, so
 `detect_pi_install_dir()` falls through every ecosystem check to the `/opt/helixscreen`
-fallback. `/opt` is root-owned, so term 1 is false — but the root itself is chowned to the
+fallback. `/opt` is root-owned, so term 1 is false - but the root itself is chowned to the
 service user by the unit's `ExecStartPre`, so the install updates fine.
 
 **Term 3 cannot rescue term 2's absence, despite what it looks like.** `config/helixscreen.service`
 sets `NoNewPrivileges=true`, which strips setuid on `execve`, so `sudo` fails from the app and
 from the `install.sh` it forks regardless of what sudoers says. Escalation only ever answers
-for installs that are already root (`geteuid() == 0` — every root-run embedded platform) or
+for installs that are already root (`geteuid() == 0` - every root-run embedded platform) or
 that run outside the shipped unit. `install.sh` knows this and has `_has_no_new_privs()`
 branches throughout; the in-place update path is one of them.
 
@@ -141,9 +166,9 @@ Debug bundles carry all of this under `update`: `install_parent_writable` (term 
 
 | parent | root | supported | Meaning |
 |--------|------|-----------|---------|
-| true   | —    | true      | ordinary home-directory / ecosystem install, atomic swap |
+| true   | -    | true      | ordinary home-directory / ecosystem install, atomic swap |
 | false  | true | true      | `/opt` standalone-display install, in-place update |
-| false  | false| true      | running as root, or outside the shipped unit — sudo is carrying it |
+| false  | false| true      | running as root, or outside the shipped unit - sudo is carrying it |
 | false  | false| false     | genuinely stuck; the user must re-run the installer |
 
 The `[UpdateChecker] ... suppressed` log line names which branch fired, but the bundle fields
@@ -200,8 +225,8 @@ strict `latest > current`:
 
 | Relation | Result |
 |----------|--------|
-| Channel is **ahead** | `UpdateAvailable`, `is_downgrade = false` — ordinary update |
-| Channel is **behind** | `UpdateAvailable`, `is_downgrade = true` — offered, never auto-notified |
+| Channel is **ahead** | `UpdateAvailable`, `is_downgrade = false` - ordinary update |
+| Channel is **behind** | `UpdateAvailable`, `is_downgrade = true` - offered, never auto-notified |
 | **Same** or unparseable | `UpToDate` |
 
 `Older` has to be actionable because channels are user-selectable. Someone who ran
@@ -218,7 +243,7 @@ A downgrade is deliberately quieter than an update:
   downloads.
 
 **Config compatibility.** An older build loading a config written by a newer one
-leaves it entirely alone — `run_versioned_migrations()` returns early when
+leaves it entirely alone - `run_versioned_migrations()` returns early when
 `config_version > kCurrentConfigVersion` rather than stamping it down. Migration
 gates are all `version < N` so none would fire anyway; an unconditional stamp would make
 the newer build re-run already-applied migrations
@@ -306,19 +331,19 @@ All channels use the same manifest schema, generated by `scripts/generate-manife
 ```
 
 Fields:
-- `version` — Semver string without `v` prefix
-- `tag` — Git tag with `v` prefix
-- `notes` — Release notes (may be sparse; enriched with CHANGELOG.md at runtime)
-- `published_at` — ISO 8601 timestamp
-- `assets` — Object keyed by platform (`pi`, `pi32`, `ad5m`, `k1`, `k2`)
-  - `zip_url` — **Preferred** download URL for the `.zip` archive (unversioned filename, shared with Moonraker `type: zip` updates). Emitted by default.
-  - `zip_sha256` — SHA-256 hash of the zip archive
-  - `zip_size` — Size in bytes of the zip archive
-  - `url` — Legacy fallback download URL for the `.tar.gz` archive (may be omitted once the tar.gz is dropped)
-  - `sha256` — SHA-256 hash of the tar.gz archive
-  - `size` — Size in bytes of the tar.gz archive
-  - The update checker prefers `zip_url` / `zip_sha256` when present and falls back to `url` / `sha256` otherwise. The `zip_*` fields are emitted **by default** — telemetry showed only ~0.6% of active devices remained on pre-v0.99.31 builds (which never read `zip_url` and keep using the legacy `url`); v0.99.31+ clients prefer the zip. Pass `generate-manifest.sh --no-include-zip` (documented in the script's `--help`) to restore the old suppression.
-  - **Per-platform zip gate (helixscreen#993).** `zip_url` is withheld from the BusyBox/OpenWrt platforms listed in `ZIP_EXCLUDE_PLATFORMS` (`ad5m ad5x cc1 k1 k2 snapmaker-u1`); they keep a complete tar.gz asset. Pre-v0.99.102 in-app updaters verify a download with `unzip -tqq`, but BusyBox only grew `unzip -t` in 1.32 (K1 ships 1.31.1, AD5M 1.29.3) and the K2 has no unzip at all, so those clients reject a byte-perfect zip as "Corrupt download". **This is the only lever that reaches an already-deployed binary** — v0.99.102 fixes the verifier, but that fix ships inside the very update the broken verifier refuses to install, so a client-side fix cannot bootstrap itself. Shrinking the list is one-way for any client that cannot verify a zip, so confirm with `zip_readiness_by_platform` from `scripts/telemetry-analyze.py` over at least a 90-day window before removing a platform with `--zip-exclude` — a 30-day window reports every platform as converged and cannot see the dormant devices that are exactly the risk. When the list is empty, Phase 2 (dropping tar.gz entirely) becomes safe.
+- `version` - Semver string without `v` prefix
+- `tag` - Git tag with `v` prefix
+- `notes` - Release notes (may be sparse; enriched with CHANGELOG.md at runtime)
+- `published_at` - ISO 8601 timestamp
+- `assets` - Object keyed by platform (`pi`, `pi32`, `ad5m`, `k1`, `k2`)
+  - `zip_url` - **Preferred** download URL for the `.zip` archive (unversioned filename, shared with Moonraker `type: zip` updates). Emitted by default.
+  - `zip_sha256` - SHA-256 hash of the zip archive
+  - `zip_size` - Size in bytes of the zip archive
+  - `url` - Legacy fallback download URL for the `.tar.gz` archive (may be omitted once the tar.gz is dropped)
+  - `sha256` - SHA-256 hash of the tar.gz archive
+  - `size` - Size in bytes of the tar.gz archive
+  - The update checker prefers `zip_url` / `zip_sha256` when present and falls back to `url` / `sha256` otherwise. The `zip_*` fields are emitted **by default** - telemetry showed only ~0.6% of active devices remained on pre-v0.99.31 builds (which never read `zip_url` and keep using the legacy `url`); v0.99.31+ clients prefer the zip. Pass `generate-manifest.sh --no-include-zip` (documented in the script's `--help`) to restore the old suppression.
+  - **Per-platform zip gate (helixscreen#993).** `zip_url` is withheld from the BusyBox/OpenWrt platforms listed in `ZIP_EXCLUDE_PLATFORMS` (`ad5m ad5x cc1 k1 k2 snapmaker-u1`); they keep a complete tar.gz asset. Pre-v0.99.102 in-app updaters verify a download with `unzip -tqq`, but BusyBox only grew `unzip -t` in 1.32 (K1 ships 1.31.1, AD5M 1.29.3) and the K2 has no unzip at all, so those clients reject a byte-perfect zip as "Corrupt download". **This is the only lever that reaches an already-deployed binary** - v0.99.102 fixes the verifier, but that fix ships inside the very update the broken verifier refuses to install, so a client-side fix cannot bootstrap itself. Shrinking the list is one-way for any client that cannot verify a zip, so confirm with `zip_readiness_by_platform` from `scripts/telemetry-analyze.py` over at least a 90-day window before removing a platform with `--zip-exclude` - a 30-day window reports every platform as converged and cannot see the dormant devices that are exactly the risk. When the list is empty, Phase 2 (dropping tar.gz entirely) becomes safe.
 
 ### URL Structure
 
@@ -381,14 +406,18 @@ sudo install -o root -g root -m 644 update_urls.json /var/lib/helixscreen/update
 The parent must carry no group/world write bit or the file is ignored alongside
 it.
 
+### Manifest Signatures
+
+Every manifest the checker reads, R2 or `dev_url`, must carry a prehashed minisign signature at `<manifest URL>.minisig` that verifies against the release key compiled into the app (`helix::release_signature::kReleasePublicKey`), or against `release_pubkey` in the root-owned update_urls.json for a test server with its own key. `UpdateChecker::fetch_verified_manifest()` refuses a missing, wrong-key, legacy or failing signature before the manifest is parsed, and only a release parsed from a verified manifest (`ReleaseInfo::signature_verified`) with a SHA-256 is ever downloaded (`helix::release_is_verified()`). Setup, tests and rollout: [RELEASE_SIGNING.md](RELEASE_SIGNING.md).
+
 ### GitHub API Fallback
 
-If the R2 manifest fetch fails (network error, HTTP error, missing manifest), the checker falls back to the GitHub API:
+If the R2 manifest is unreachable (network error, HTTP error, missing manifest), the checker falls back to the GitHub API. A manifest that is served but fails its signature does **not** fall back: the check reports the refusal. A release found through GitHub carries no signature and no hash, so it announces an update but Install refuses it ("Error: Update can't be verified").
 
-- **Stable**: `GET /repos/prestonbrown/helixscreen/releases/latest` — parses single release object
-- **Beta**: `GET /repos/prestonbrown/helixscreen/releases` — scans array for first non-draft prerelease, falls back to latest stable
+- **Stable**: `GET /repos/prestonbrown/helixscreen/releases/latest` - parses single release object
+- **Beta**: `GET /repos/prestonbrown/helixscreen/releases` - scans array for first non-draft prerelease, falls back to latest stable
 
-GitHub responses are parsed for platform-specific assets. The update checker prefers an asset named `helixscreen-{platform}.zip` and falls back to the legacy versioned tar.gz (`helixscreen-{platform}-v{version}.tar.gz`) if no zip is present. Still no fallback to arbitrary assets — wrong-platform binaries could brick embedded devices.
+GitHub responses are parsed for platform-specific assets. The update checker prefers an asset named `helixscreen-{platform}.zip` and falls back to the legacy versioned tar.gz (`helixscreen-{platform}-v{version}.tar.gz`) if no zip is present. Still no fallback to arbitrary assets - wrong-platform binaries could brick embedded devices.
 
 ### Changelog Enrichment
 
@@ -439,12 +468,12 @@ Idle (0) ─> Confirming (1) ─> Downloading (2) ─> Verifying (3) ─> Instal
 the worker reads *after* `downloadFile()` returns, while `hide_update_download_modal()` resets
 `download_status` to `Idle` immediately. So "Idle" can mean "a worker is still inside an hour-long
 blocking call". `download_in_flight()` is the real answer, and `start_download()` gates re-entry on
-it — a second Install while the old worker is alive is **refused with an Error**, never queued and
+it - a second Install while the old worker is alive is **refused with an Error**, never queued and
 never joined.
 
 **Every early return from `start_download()` must report a status.** `update_download_modal.xml`
 binds every container *and* every button row to a NON-ZERO `download_status`, so a silent return
-leaves an empty dialog with no buttons — dismissable only by an undiscoverable backdrop tap.
+leaves an empty dialog with no buttons - dismissable only by an undiscoverable backdrop tap.
 
 **Complete (5) → Restarting (7) → exit.** `report_download_status()` only *queues* its subject
 write, so `::_exit(0)` straight after it meant the completion frame never painted and the last
@@ -455,12 +484,14 @@ itself to that thread via `queue_update()`, with a 5s backstop in case no main l
 ### Download Steps
 
 1. **Safety check**: Refuses to download if a print is active or paused.
-2. **Directory selection**: Scans candidate directories (`$TMPDIR`, `/tmp`, `/data`, `$HOME`, etc.) and picks the one with the **most free space** (minimum 50 MB required).
-3. **HTTP download**: Uses `libhv requests::downloadFile()` with progress callback. UI updates throttled to every 2%.
-4. **Size validation**: Rejects files < 1 MB or > 50 MB.
-5. **Archive verification**: Validates archive integrity (`unzip -t` for zip, `gunzip -t` for legacy tar.gz) via `safe_exec()` (fork/exec, no shell).
-6. **Architecture validation**: Extracts the binary from the archive and reads the ELF header to verify it matches the runtime architecture (ARM 32-bit vs AARCH64 64-bit). This prevents installing a Pi 64-bit build on a 32-bit Pi or vice versa.
-7. **Install**: Runs `install.sh --local {archive} --update` via `safe_exec()`.
+2. **Signature gate**: Refuses a release that did not come from a manifest whose signature verified, or has no SHA-256 (`helix::release_is_verified()`).
+3. **Directory selection**: Scans candidate directories (`$TMPDIR`, `/tmp`, `/data`, `$HOME`, etc.) and picks the one with the **most free space** (minimum 50 MB required).
+4. **HTTP download**: Uses `libhv requests::downloadFile()` with progress callback. UI updates throttled to every 2%.
+5. **Size validation**: Rejects files < 1 MB or > 50 MB.
+6. **Archive verification**: Validates archive integrity (`unzip -t` for zip, `gunzip -t` for legacy tar.gz) via `safe_exec()` (fork/exec, no shell).
+7. **Architecture validation**: Extracts the binary from the archive and reads the ELF header to verify it matches the runtime architecture (ARM 32-bit vs AARCH64 64-bit). This prevents installing a Pi 64-bit build on a 32-bit Pi or vice versa.
+8. **SHA-256 check**: The download must match the manifest's hash; a missing hash is refused.
+9. **Install**: Runs `install.sh --local {archive} --update` via `safe_exec()`.
 
 ### Install Script Discovery
 
@@ -529,17 +560,17 @@ A rewrite is followed by a Moonraker restart, since Moonraker reads its config o
 
 #### Moonraker version requirement (helixscreen#993)
 
-**This stanza requires Moonraker >= v0.10.0 (or a git checkout newer than 2025-01-19).** The installer probes for the capability and skips writing the stanza when it isn't there — see `moonraker_asset_name_support()` in `scripts/lib/installer/moonraker.sh`, which inspects the installed Moonraker source (found via `find_moonraker_update_manager_dir()`) rather than parsing a version string, since `v0.9.3-73-gfab6c5c1`-style descriptions can't be ordered across branches. It returns three states: `supported` (net_deploy.py containing `asset_name`), `unsupported` (zip_deploy.py/web_deploy.py, or a net_deploy.py without it), and `undetermined` (no source found — preserves the previous behavior and warns, rather than guessing). On `unsupported` the installer also *removes* an already-written stanza.
+**This stanza requires Moonraker >= v0.10.0 (or a git checkout newer than 2025-01-19).** The installer probes for the capability and skips writing the stanza when it isn't there - see `moonraker_asset_name_support()` in `scripts/lib/installer/moonraker.sh`, which inspects the installed Moonraker source (found via `find_moonraker_update_manager_dir()`) rather than parsing a version string, since `v0.9.3-73-gfab6c5c1`-style descriptions can't be ordered across branches. It returns three states: `supported` (net_deploy.py containing `asset_name`), `unsupported` (zip_deploy.py/web_deploy.py, or a net_deploy.py without it), and `undetermined` (no source found - preserves the previous behavior and warns, rather than guessing). On `unsupported` the installer also *removes* an already-written stanza.
 
 Asset selection lives in Moonraker's `NetDeploy._get_remote_version()` (moonraker/components/update_manager/net_deploy.py). It seeds `release_asset = assets[0]` and only overrides it when release_info.json's `asset_name` **exactly** matches an asset name; a miss logs `Asset '<name>' not found` at INFO and downloads `assets[0]` anyway. Support for `asset_name` arrived in commit `530f1c2016` (2025-01-19), which also renamed zip_deploy.py to net_deploy.py; the first tag containing it is **v0.10.0** (2026-01-21). Every earlier version reads `assets[0]` unconditionally and never looks at `asset_name`.
 
 That matters because the GitHub API returns release assets **sorted by name**, and `_extract_release()` runs `shutil.rmtree(self.path)` *before* opening the archive. On an unsupported Moonraker the in-UI update button therefore wipes the install directory and then fails with `zipfile.BadZipFile: File is not a zip file`. Release symbol assets are named `symbols-<platform>.sym.zst` specifically so they sort after the `helixscreen-*` artifacts and never land in `assets[0]` (see the guard in `.github/workflows/release.yml`).
 
-**Rollback is unsupported on every Moonraker version, including master.** `NetDeploy.rollback()` ignores `asset_name` entirely — it is still hardcoded to `result.get('assets', [{}])[0]`. The Mainsail/Fluidd rollback button will always fetch the alphabetically-first asset regardless of what release_info.json says, so it cannot be made to work from our side. Use HelixScreen's built-in updater or re-run the installer pinned to a version instead.
+**Rollback is unsupported on every Moonraker version, including master.** `NetDeploy.rollback()` ignores `asset_name` entirely - it is still hardcoded to `result.get('assets', [{}])[0]`. The Mainsail/Fluidd rollback button will always fetch the alphabetically-first asset regardless of what release_info.json says, so it cannot be made to work from our side. Use HelixScreen's built-in updater or re-run the installer pinned to a version instead.
 
 ### Service Allowlist
 
-The installer also adds `helixscreen` to `moonraker.asvc` (the service management allowlist in the printer_data directory).
+The installer also adds `helixscreen` to `moonraker.asvc` (the service management allowlist in the printer_data directory). Moonraker reads that file only at startup, so a run that appends the entry restarts Moonraker once; until then Mainsail and Fluidd cannot restart HelixScreen.
 
 ### Migration
 
@@ -600,9 +631,9 @@ Multi-state modal driven by `download_status` subject:
 | Downloading (2) | Progress bar + percentage + Cancel button |
 | Verifying (3) | Spinner + "Verifying..." text |
 | Installing (4) | Spinner + "Installing..." + "Do not power off" warning |
-| Complete (5) | Success icon + "Update installed!" (no buttons — the restart is automatic) |
+| Complete (5) | Success icon + "Update installed!" (no buttons - the restart is automatic) |
 | Error (6) | Error icon + error text + "Close" / "Retry" buttons |
-| Restarting (7) | "Hang on, we'll be right back!" — the last frame before `_exit(0)` |
+| Restarting (7) | "Hang on, we'll be right back!" - the last frame before `_exit(0)` |
 
 ### LVGL Subjects
 
@@ -611,8 +642,7 @@ Multi-state modal driven by `download_status` subject:
 | `update_status` | int | `Status` enum (Idle/Checking/UpdateAvailable/UpToDate/Error) |
 | `update_version_text` | string | Status text for the Check for Updates row |
 | `update_new_version` | string | New version number (e.g., "0.9.6") |
-| `update_current_version` | string | Current installed version. **Note:** This subject is owned by AboutSettingsOverlay, not UpdateChecker. |
-| `update_channel` | int | Selected channel (managed by SettingsManager) |
+| `update_channel` | int | Selected channel (owned by `SystemSettingsManager`, not UpdateChecker) |
 | `download_status` | int | `DownloadStatus` enum |
 | `download_progress` | int | 0-100 percentage |
 | `download_text` | string | Status text shown in download modal |
@@ -633,6 +663,7 @@ overrides live in the root-owned `/var/lib/helixscreen/update_urls.json` (see
 | `/update/dismissed_version` | settings.json | string | `""` | Version the user chose to ignore |
 | `r2_url` | update_urls.json | string | `""` | R2 base URL override (default: `https://releases.helixscreen.org`) |
 | `dev_url` | update_urls.json | string | `""` | Custom manifest URL for dev channel |
+| `release_pubkey` | update_urls.json | string | `""` | Minisign public key (the `RW...` line) that manifests are checked against instead of the release key; for a test server signing with its own key |
 
 ---
 
@@ -668,7 +699,8 @@ Navigate to Settings -> Updates -> Check for Updates. The log output shows the f
 
 ### Testing with a Custom Dev Server
 
-Serve a manifest locally:
+Serve a manifest locally, signed with a throwaway key (the app refuses an unsigned one;
+[RELEASE_SIGNING.md](RELEASE_SIGNING.md)):
 
 ```bash
 # Build a local manifest
@@ -680,7 +712,11 @@ scripts/generate-manifest.sh \
   --base-url "http://192.168.1.100:8080/dev" \
   --output ./manifest.json
 
-# Serve it
+# Sign it with a test key, never the release key
+minisign -G -W -p test.pub -s test.key
+minisign -S -s test.key -m manifest.json -t "file:manifest.json channel:dev"
+
+# Serve both
 python3 -m http.server 8080
 ```
 
@@ -698,12 +734,15 @@ in settings.json, and
 
 ```json
 {
-  "dev_url": "http://192.168.1.100:8080/"
+  "dev_url": "http://192.168.1.100:8080/",
+  "release_pubkey": "RW..."
 }
 ```
 
 in `/var/lib/helixscreen/update_urls.json` (root-owned, mode 644; see "R2 Base
-URL Override" for the trust rules).
+URL Override" for the trust rules), where `release_pubkey` is the second line of
+`test.pub`. The app then checks every manifest against that key instead of the
+release key, and says so in its log.
 
 ### End-to-End Self-Update Testing on Device
 
@@ -729,6 +768,14 @@ export HELIX_TEST_USERNAME=pi                  # SSH username
 
 `--configure-remote` copies `install.sh` to `/tmp/` on the device automatically, enabling the direct path without an extra transfer step.
 
+**Signing.** Every run signs `manifest.json` into `manifest.json.minisig` with a local test key,
+created on first use in `~/.helixscreen-local-update-key/` (`HELIX_LOCAL_UPDATE_KEY_DIR`
+overrides) and kept between runs. `--configure-remote` writes that key's public half as
+`release_pubkey` beside `dev_url` in update_urls.json, so the device accepts the local manifest
+and nothing signed by any other key. A device configured before the script signed needs
+`--configure-remote` once more; until then its check reports "manifest is not signed" or
+"the signature does not match". The script refuses a key directory holding the release key.
+
 #### The Two-Install Rule for `update_checker.cpp` Changes
 
 When you change `update_checker.cpp` (or any code that participates in the install flow),
@@ -736,8 +783,8 @@ When you change `update_checker.cpp` (or any code that participates in the insta
 
 | Install | Which binary runs the update? | What you see |
 |---------|-------------------------------|-------------|
-| First | The **old** binary — still in memory | Old update-checker behaviour. Your fix is on disk but not in the running process. |
-| Second | The **new** binary — restarted after first install | Your change is now live. |
+| First | The **old** binary - still in memory | Old update-checker behaviour. Your fix is on disk but not in the running process. |
+| Second | The **new** binary - restarted after first install | Your change is now live. |
 
 This is an inherent property of self-updating executables: the running process cannot
 replace its own instructions mid-flight. Linux keeps the old inode in memory even after
@@ -761,7 +808,7 @@ lets you trigger the second install right away.
 
 #### Monitoring Logs on Device
 
-The service writes all output — launcher, watchdog, and app — to the systemd journal.
+The service writes all output - launcher, watchdog, and app - to the systemd journal.
 Use `-u helixscreen` (unit name) rather than `-t` (syslog identifier) to capture
 everything, including install.sh lines forwarded through update_checker:
 
@@ -779,12 +826,12 @@ journalctl -u helixscreen -b
 > **Note:** `journalctl -t helix -f` filters by syslog identifier, not unit name, and
 > may show no output if the identifier doesn't match exactly. Stick with `-u helixscreen`.
 
-`journalctl -f` continues across service restarts automatically — you don't need to
+`journalctl -f` continues across service restarts automatically - you don't need to
 rerun it after the watchdog brings the new binary up.
 
 ### Unit Tests
 
-- `tests/unit/test_update_checker.cpp` — Version comparison, JSON parsing, status enums, lifecycle, subjects, dismissed versions, auto-check timer
+- `tests/unit/test_update_checker.cpp` - Version comparison, JSON parsing, status enums, lifecycle, subjects, dismissed versions, auto-check timer
 
 Run with:
 
@@ -877,7 +924,8 @@ Or for deployed installations, set `HELIX_LOG_LEVEL=debug` in `~/helixscreen/con
 |------|---------|
 | `include/system/update_checker.h` | UpdateChecker class declaration |
 | `src/system/update_checker.cpp` | Full implementation (check, download, install, auto-check) |
-| `src/system/settings_manager.cpp` | Channel subject and persistence |
+| `src/system/update_checker_subjects.cpp` | The `update_*` / `download_*` subjects |
+| `src/system/system_settings_manager.cpp` | `update_channel` subject and persistence |
 | `src/ui/settings/ui_panel_settings.cpp` | Settings root: the Updates row and its status line |
 | `src/ui/settings/ui_settings_updates.cpp` | UpdatesSettingsOverlay - channel rows, check/install, download modal callbacks, firmware-managed and unavailable notices |
 | `src/ui/settings/ui_settings_about.cpp` | AboutSettingsOverlay - version info, branding, easter eggs, the beta 7-tap |

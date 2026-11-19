@@ -2,12 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Overlay panel geometry: the nav-bar width ladder, the width and height each
-// overlay class gets, and the one site that writes that geometry onto a widget.
+// overlay class gets, the one site that writes that geometry onto a widget, and
+// the ultrawide content width cap applied to overlays and main panels.
 
 #include "ui_breakpoint.h"
 
+#include "content_width_cap.h"
+#include "helix-xml/src/xml/lv_xml_style.h"
 #include "layout_manager.h"
 #include "lvgl/lvgl.h"
+#include "lvgl/src/core/lv_obj_private.h"       // obj->styles: LVGL has no style lookup
+#include "lvgl/src/core/lv_obj_style_private.h" // lv_obj_style_t fields
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -54,8 +59,8 @@ OverlayWidths compute_overlay_widths(int32_t hor_res, int32_t ver_res, int32_t n
                                      int32_t gap) {
     // Classified from raw dimensions rather than LayoutManager::type(): this
     // runs in Application phase 6 and the layout manager is not initialised
-    // until phase 8b. detect_layout_type() is the same function the variant
-    // chain uses, so the sizing and the choice of ui_xml/portrait/ cannot
+    // until phase 8b. detect_layout_type() is the same function that sets
+    // ui_is_portrait, so the sizing and the portrait layout cannot
     // disagree. A LayoutManager::set_override() forcing a portrait *layout*
     // onto landscape hardware is deliberately not honoured here — the physical
     // nav bar geometry is what the arithmetic is about.
@@ -76,8 +81,8 @@ OverlayWidths compute_overlay_widths(int32_t hor_res, int32_t ver_res, int32_t n
 OverlayHeights compute_overlay_heights(int32_t hor_res, int32_t ver_res, int32_t nav_height,
                                        int32_t gap) {
     // Same classification as compute_overlay_widths, and for the same reason:
-    // this can run before LayoutManager::init(), and the threshold that picks
-    // ui_xml/portrait/ must never disagree with the one that sizes overlays.
+    // this can run before LayoutManager::init(), and the threshold that sets
+    // ui_is_portrait must never disagree with the one that sizes overlays.
     //
     // Landscape reserves nothing vertically — its nav bar is a full-HEIGHT
     // strip at the leading edge, so overlays span the whole display and the
@@ -104,8 +109,8 @@ void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination) {
     }
 
     lv_obj_t* screen = lv_obj_get_screen(obj);
-    const lv_coord_t screen_width = screen ? lv_obj_get_width(screen) : 800;
-    const lv_coord_t screen_height = screen ? lv_obj_get_height(screen) : 480;
+    const int32_t screen_width = screen ? lv_obj_get_width(screen) : 800;
+    const int32_t screen_height = screen ? lv_obj_get_height(screen) : 480;
     const bool portrait =
         helix::is_portrait_layout(helix::detect_layout_type(screen_width, screen_height));
 
@@ -140,3 +145,98 @@ void ui_set_overlay_geometry(lv_obj_t* obj, bool is_destination) {
     lv_obj_set_height(obj, is_destination ? heights.destination : heights.transient);
     lv_obj_set_align(obj, LV_ALIGN_TOP_MID);
 }
+
+namespace helix {
+
+int32_t live_content_max_width(lv_obj_t* obj) {
+    if (const char* cap_str = lv_xml_get_const(nullptr, "content_max_width")) {
+        return std::atoi(cap_str);
+    }
+    lv_obj_t* screen = obj ? lv_obj_get_screen(obj) : nullptr;
+    return content_max_width(screen ? lv_obj_get_height(screen) : 480);
+}
+
+const lv_style_t* cap_chrome_style() {
+    const lv_xml_style_t* xs = lv_xml_get_style_by_name(nullptr, "styles.cap_chrome");
+    return xs ? &xs->style : nullptr;
+}
+
+int32_t content_cap_base_pad(lv_obj_t* root) {
+    return lv_obj_get_style_pad_right(root, LV_PART_MAIN);
+}
+
+namespace {
+
+bool is_cap_chrome(const lv_obj_t* obj, const lv_style_t* chrome) {
+    for (uint32_t i = 0; i < obj->style_cnt; i++) {
+        if (obj->styles[i].style == chrome) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Chrome keeps the root's full width while the content beside it is capped:
+// it is widened to reach into the cap's padding, and a matching negative right
+// margin keeps that out of the root's scroll extent. Chrome the cap never
+// widened is left exactly as its XML built it.
+void span_chrome(lv_obj_t* chrome, int32_t full_content_width, int32_t overflow) {
+    const bool widened = lv_obj_get_style_margin_right(chrome, LV_PART_MAIN) < 0;
+    if (overflow == 0) {
+        if (widened) {
+            lv_obj_set_width(chrome, lv_pct(100));
+            lv_obj_set_style_margin_right(chrome, 0, LV_PART_MAIN);
+        }
+        return;
+    }
+    lv_obj_set_width(chrome, full_content_width);
+    lv_obj_set_style_margin_right(chrome, -overflow, LV_PART_MAIN);
+}
+
+// The width the cap compares against: the root's own pixel width when it has
+// one (an overlay's class width), otherwise its laid-out width.
+int32_t full_width(lv_obj_t* root) {
+    const int32_t style_width = lv_obj_get_style_width(root, LV_PART_MAIN);
+    if (LV_COORD_IS_PX(style_width)) {
+        return style_width;
+    }
+    lv_obj_update_layout(root);
+    return lv_obj_get_width(root);
+}
+
+} // namespace
+
+// DECLARATIVE_OK: the cap depends on the screen, the view's declared opt-out
+// and, for overlays, the width class resolved at push time.
+void apply_content_cap(lv_obj_t* root, int32_t base_pad_right, bool capped) {
+    if (!root) {
+        return;
+    }
+    const int32_t width = full_width(root);
+    const int32_t overflow = capped ? content_cap_overflow(width, live_content_max_width(root)) : 0;
+
+    if (const lv_style_t* chrome = cap_chrome_style()) {
+        const int32_t full_content_width = width - lv_obj_get_style_pad_left(root, LV_PART_MAIN) -
+                                           base_pad_right -
+                                           2 * lv_obj_get_style_border_width(root, LV_PART_MAIN);
+        const uint32_t count = lv_obj_get_child_count(root);
+        for (uint32_t i = 0; i < count; i++) {
+            lv_obj_t* child = lv_obj_get_child(root, static_cast<int32_t>(i));
+            if (is_cap_chrome(child, chrome)) {
+                span_chrome(child, full_content_width, overflow);
+            }
+        }
+    }
+
+    const int32_t pad_right = base_pad_right + overflow;
+    // A view that fits keeps whatever its XML or theme gives it; the local
+    // style is written only to add the overflow or to take it away again.
+    if (lv_obj_get_style_pad_right(root, LV_PART_MAIN) == pad_right) {
+        return;
+    }
+    lv_obj_set_style_pad_right(root, pad_right, LV_PART_MAIN);
+    spdlog::trace("[Theme] {} content cap: pad_right {} (overflow {})", (void*)root, pad_right,
+                  overflow);
+}
+
+} // namespace helix

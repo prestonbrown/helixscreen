@@ -4,9 +4,10 @@
 
 Advisory by default: it reports and exits 0, so it can land before every consumer
 reads the manifest. Pass --strict to make findings fail, which is how it gets
-wired into CI once the migration is far enough along.
+wired into CI once the migration is far enough along. The checks in HARD_CHECKS
+fail without --strict.
 
-    scripts/check_platform_manifest.py            # report, always exit 0
+    scripts/check_platform_manifest.py            # report; exit 1 only on a hard finding
     scripts/check_platform_manifest.py --strict   # exit 1 on any finding
     scripts/check_platform_manifest.py --quiet    # findings only, no summary
 """
@@ -26,6 +27,11 @@ ROOT = REPO_ROOT
 REQUIRED_TOP = ["display_name", "panel", "storage", "service", "klipper", "moonraker", "package"]
 REQUIRED_PACKAGE = ["asset_name", "docker_target", "in_release_matrix", "detectable"]
 REQUIRED_SERVICE = ["init_system", "needs_procd_shim"]
+
+
+# Findings that fail the build without --strict: user config inside the payload
+# is deleted by the next update, so it is never only advisory.
+HARD_CHECKS = {"config-in-payload"}
 
 
 class Findings:
@@ -458,6 +464,96 @@ def check_state_outside_payload(manifest, f):
                 )
 
 
+def _user_config_pairs(storage):
+    """(label, payload root, user config dir) for each layout storage describes.
+
+    A firmware-keyed root without a matching user_config_dir pairs with None, so
+    a variant that gains a root cannot slip past by having no entry.
+    """
+    pairs = []
+    root = storage.get("root", "")
+    by_fw = storage.get("user_config_dir_by_firmware", {})
+    # With a firmware map, the per-firmware pairs below cover the plain root.
+    if root.startswith("/") and not by_fw:
+        pairs.append(("", root, storage.get("user_config_dir")))
+    for fw, fw_root in sorted(storage.get("root_by_firmware", {}).items()):
+        # Prose roots ("X if that dir exists, else Y") are not one path.
+        if fw_root.startswith("/") and " " not in fw_root:
+            pairs.append((f" ({fw})", fw_root, by_fw.get(fw)))
+    for fw, value in sorted(by_fw.items()):
+        if fw not in storage.get("root_by_firmware", {}) and root.startswith("/"):
+            pairs.append((f" ({fw})", root, value))
+    return pairs
+
+
+def _user_config_declaration(storage):
+    """How storage declares the user's config dir: "dirs", "none" or None (undeclared).
+
+    "dirs" is user_config_dir (a path, or "detected" when the installer resolves
+    it on the device) or user_config_dir_by_firmware. "none" is an explicit
+    user_config_dir of null with the user_config_dir_reason that makes it safe.
+    """
+    if storage.get("user_config_dir_by_firmware"):
+        return "dirs"
+    if "user_config_dir" not in storage:
+        return None
+    value = storage["user_config_dir"]
+    if isinstance(value, str) and value:
+        return "dirs"
+    reason = storage.get("user_config_dir_reason")
+    if value is None and isinstance(reason, str) and reason.strip():
+        return "none"
+    return None
+
+
+def check_user_config_outside_payload(manifest, f):
+    """The user's config files must live outside the payload, and the device must agree.
+
+    Same rmtree as check_state_outside_payload, with more at stake: a lost cache
+    is rebuilt, a lost tool_spools.json or telemetry_device.json is not. A
+    platform with no user_config_dir keeps its config at <root>/config, inside
+    the payload (#2085). Each declared directory must also be one that
+    config/restore-user-config.sh can resolve, since that script, not this
+    file, decides on the device.
+    """
+    restore = read("config/restore-user-config.sh")
+    for pid, entry in sorted(manifest["platforms"].items()):
+        storage = entry.get("storage", {})
+        declared = _user_config_declaration(storage)
+        if declared == "none":
+            continue
+        pairs = _user_config_pairs(storage)
+        if declared is None and not pairs:
+            f.add(
+                "config-in-payload",
+                f"{pid}: storage declares no user_config_dir: name the directory, "
+                f'"detected" when the installer resolves it, or null with a user_config_dir_reason',
+            )
+            continue
+        for label, root, config_dir in pairs:
+            if config_dir == "detected":
+                continue
+            if not config_dir:
+                f.add(
+                    "config-in-payload",
+                    f"{pid}{label}: no user_config_dir, so user config stays in "
+                    f"{root}/config, which every update deletes",
+                )
+                continue
+            if _under(config_dir, root):
+                f.add(
+                    "config-in-payload",
+                    f"{pid}{label}: user_config_dir {config_dir} is inside the payload "
+                    f"root {root}, which every update deletes",
+                )
+            elif restore is not None and config_dir not in restore:
+                f.add(
+                    "config-in-payload",
+                    f"{pid}{label}: config/restore-user-config.sh never resolves "
+                    f"user_config_dir {config_dir}",
+                )
+
+
 def check_renders_exist(manifest, f, build_dir):
     """Derived classes must have a render under build/, when a build exists."""
     prerendered = os.path.join(ROOT, build_dir, "assets", "images", "prerendered")
@@ -505,6 +601,7 @@ def main():
     check_shell_roots(manifest, f)
     check_installer_branch_roots(manifest, f)
     check_state_outside_payload(manifest, f)
+    check_user_config_outside_payload(manifest, f)
     check_state_roots(manifest, f)
     check_cache_rungs(manifest, f)
     check_renders_exist(manifest, f, args.build_dir)
@@ -521,16 +618,20 @@ def main():
             current = check
         print(f"  {message}")
 
+    hard = [check for check, _ in f.items if check in HARD_CHECKS]
     if not args.quiet:
         print()
         if len(f) == 0:
             print("No findings.")
         elif args.strict:
             print("%d finding(s); --strict, so this is a failure." % len(f))
+        elif hard:
+            print("%d finding(s) under %s fail the build even without --strict."
+                  % (len(hard), ", ".join(sorted(set(hard)))))
         else:
             print("%d finding(s); advisory, so this does not fail the build." % len(f))
 
-    return 1 if (args.strict and len(f)) else 0
+    return 1 if (hard or (args.strict and len(f))) else 0
 
 
 if __name__ == "__main__":

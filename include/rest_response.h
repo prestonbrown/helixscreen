@@ -4,7 +4,7 @@
 
 #include <string>
 
-#include "hv/json.hpp"
+#include "hv/json.hpp" // JSON_HPP_OK: data held by value
 
 /**
  * @brief Response from a generic REST API call

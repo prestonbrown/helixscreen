@@ -34,7 +34,12 @@ struct PlrHomingCheck {
     bool known = false;
 };
 
-/// The printer database's `plr` block. Absent block = tier 0.
+/// The tier a printer without a `plr` block resolves to: assisted Z, where
+/// the user jogs the nozzle onto the part top. Known-bad designs and printers
+/// whose firmware owns recovery carry a block at tier 0 instead.
+inline constexpr int kPlrUnlistedTier = 1;
+
+/// The printer database's `plr` block.
 struct PlrDbBlock {
     int tier = 0;
     PlrBackendKind backend = PlrBackendKind::Generic;
@@ -46,6 +51,10 @@ struct PlrDbBlock {
     float resume_skip_fraction = 0.0f;
     /// Macro variables to restore on resume: macro name -> variable names.
     std::map<std::string, std::vector<std::string>> macro_vars;
+    /// Why the model sits at its tier, as a plugin reason code
+    /// (`gantry_drops`, `delta_kinematics`, `firmware_recovery`); the plugin
+    /// reports it when the tier is 0.
+    std::optional<std::string> reason;
 };
 
 /// The user's settings (`plr_user` plus the overrides the profile folds in).
@@ -68,19 +77,25 @@ struct PlrProfile {
     std::optional<bool> user_enabled;
     float resume_skip_fraction = 0.0f;
     std::map<std::string, std::vector<std::string>> macro_vars;
+    /// The printer database has a block for this model. The plugin guards an
+    /// unlisted printer's default tier against what Klipper reports.
+    bool listed = false;
+    std::optional<std::string> reason;
 };
 
 /// The entry's `plr` block; nullopt when the entry has none (or it is not an
 /// object). A bad-typed or out-of-range key keeps its default.
 std::optional<PlrDbBlock> plr_parse_db_block(const nlohmann::json& printer_entry);
 
-/// DB block plus user overrides. No block is tier 0. Tier 2 always needs the
+/// DB block plus user overrides. No block is kPlrUnlistedTier when
+/// @p plugin_guards_unlisted (the plugin's `plr` feature is at
+/// kPlrUnlistedTierMinVersion or newer), else tier 0. Tier 2 always needs the
 /// database's `z_holds_unpowered`, whoever asks for it; without it the tier is
 /// at most 1. The user may lower the tier, or raise it on a printer whose X/Y
 /// homing is known safe or overridden; a raise on unsafe or unknown homing with
 /// no override resolves to 0.
 PlrProfile plr_resolve_profile(const std::optional<PlrDbBlock>& db, const PlrUserOverride& user,
-                               const PlrHomingCheck& homing);
+                               const PlrHomingCheck& homing, bool plugin_guards_unlisted);
 
 /// The `plr_profile` record, in the contract's snake_case shape.
 nlohmann::json plr_profile_json(const PlrProfile& profile);

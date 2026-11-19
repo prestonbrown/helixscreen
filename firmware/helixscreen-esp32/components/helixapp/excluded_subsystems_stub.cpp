@@ -37,20 +37,24 @@
 // their portable, platform-free real .cpp files to app_srcs.txt instead. See
 // the report for details.
 
+#include "ui_belt_cutter_cal.h"
 #include "ui_overlay_timelapse_install.h"
 #include "ui_overlay_timelapse_settings.h"
 #include "ui_overlay_timelapse_videos.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_belt_tension.h"
+#include "ui_panel_calibration_pa.h"
 #include "ui_panel_calibration_pid.h"
 #include "ui_panel_calibration_tool_offset.h"
 #include "ui_panel_calibration_zoffset.h"
 #include "ui_panel_input_shaper.h"
+#include "ui_panel_motor_ripple.h"
 #include "ui_panel_screws_tilt.h"
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
 #include "ui_wizard_appearance.h"
 #include "ui_wizard_preferences.h"
+#include "ui_wizard_screen_power.h"
 
 #include "esp_attr.h"
 #include "esp_log.h"
@@ -122,6 +126,8 @@ bool timelapse_viewer_available() {
 //
 // src/ui/print/ui_overlay_timelapse_install.cpp
 TimelapseInstallOverlay::TimelapseInstallOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+TimelapseInstallOverlay::~TimelapseInstallOverlay() = default;
+void TimelapseInstallOverlay::init_subjects() {}
 void TimelapseInstallOverlay::register_callbacks() {}
 lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t*) {
     return nullptr;
@@ -139,6 +145,7 @@ void open_timelapse_install() {}
 
 // src/ui/print/ui_overlay_timelapse_settings.cpp
 TimelapseSettingsOverlay::TimelapseSettingsOverlay(helix::IMoonrakerAPI* api) : api_(api) {}
+void TimelapseSettingsOverlay::init_subjects() {}
 void TimelapseSettingsOverlay::register_callbacks() {}
 lv_obj_t* TimelapseSettingsOverlay::create(lv_obj_t*) {
     return nullptr;
@@ -237,6 +244,12 @@ void init_zoffset_event_callbacks() {}
 // hardware where it would show, the tap must still give feedback rather than
 // silently doing nothing.
 namespace helix::ui {
+// src/ui/calibration/ui_panel_motor_ripple.cpp — staged row: it tracks
+// printer_supports_ripple_check, written by the KEPT motor_ripple_view.
+void init_motor_ripple_row_handler() {
+    lv_xml_register_event_cb(nullptr, "on_motor_ripple_row_clicked", esp32_staged_feature_row_cb);
+}
+
 void init_tool_offset_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_tool_offset_row_clicked", esp32_staged_feature_row_cb);
 }
@@ -247,6 +260,14 @@ void init_tool_offset_row_handler() {
 void init_stepper_resonance_cal_row_handler() {
     lv_xml_register_event_cb(nullptr, "on_stepper_resonance_cal_clicked",
                              esp32_staged_feature_row_cb);
+}
+
+// src/ui/calibration/ui_belt_cutter_cal.cpp: the same staged-row treatment. The rows
+// track printer_can_tension_belts and printer_can_calibrate_cutter, written by the
+// KEPT belt_cutter_cal module.
+void init_belt_cutter_cal_row_handlers() {
+    lv_xml_register_event_cb(nullptr, "on_belt_tension_auto_clicked", esp32_staged_feature_row_cb);
+    lv_xml_register_event_cb(nullptr, "on_cutter_calibration_clicked", esp32_staged_feature_row_cb);
 }
 
 // src/ui/calibration/ui_panel_calibration_tool_offset.cpp (DEFINE_GLOBAL_PANEL) — the
@@ -316,8 +337,8 @@ void MacroManager::remove_skips(SuccessCallback, ErrorCallback) {}
 
 } // namespace helix
 
-// The firmware runs no first-run wizard, so the registry's Appearance and Preferences
-// steps never run; the accessors only have to resolve.
+// The firmware runs no first-run wizard, so the registry's Appearance, Screen & Power and
+// Preferences steps never run; the accessors only have to resolve.
 namespace helix::wizard {
 WizardAppearanceStep* get_wizard_appearance_step() {
     return nullptr;
@@ -325,4 +346,14 @@ WizardAppearanceStep* get_wizard_appearance_step() {
 WizardPreferencesStep* get_wizard_preferences_step() {
     return nullptr;
 }
+WizardScreenPowerStep* get_wizard_screen_power_step() {
+    return nullptr;
+}
 } // namespace helix::wizard
+
+// The firmware cannot build these panels, so no owned calibration heat exists at shutdown.
+void BedMeshPanel::before_disconnect() {}
+void ZOffsetCalibrationPanel::before_disconnect() {}
+namespace helix::ui {
+void PACalibrationPanel::before_disconnect() {}
+} // namespace helix::ui

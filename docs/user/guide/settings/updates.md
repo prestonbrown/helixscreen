@@ -20,7 +20,11 @@ Which releases you get:
 
 Changing the channel checks the new channel straight away.
 
-The channel also stays in step with the `channel:` line of HelixScreen's `[update_manager helixscreen]` section in `moonraker.conf`, which Mainsail and Fluidd use for their own update button. Changing the channel here rewrites that line. If you edit the line yourself to `stable` or `beta` (by hand, or in Mainsail or Fluidd's config editor), HelixScreen switches its own channel to match the next time it connects to the printer, instead of writing its old channel back.
+The channel also stays in step with the `channel:` line of the `[update_manager helixscreen]` section in `moonraker.conf`, which Mainsail and Fluidd use for their own update button. This only happens when HelixScreen runs on the same computer as Moonraker, and only for the section that points at this HelixScreen install. The section may sit in a file that `moonraker.conf` includes.
+
+- Changing the channel here rewrites that line. **Stable** writes `stable`; **Beta** and **Dev** both write `beta`. Moonraker then restarts so the new line takes effect. If a print is running, or Moonraker is busy updating something, it does not restart; the new channel takes effect the next time Moonraker restarts.
+- If you edit the line yourself to `stable` or `beta` (by hand, or in Mainsail or Fluidd's config editor), HelixScreen switches its own channel to match the next time it connects to the printer, instead of writing its old channel back.
+- A value HelixScreen does not know is left alone.
 
 > **Note:** Choosing **Dev** without a `dev_url` in `update_urls.json` shows "Dev channel requires dev_url in update_urls.json" and doesn't check. Dev builds are meant for people working on HelixScreen. Most people should stay on **Stable** or **Beta**.
 
@@ -29,6 +33,11 @@ The channel also stays in step with the `channel:` line of HelixScreen's `[updat
 ## Check for Updates
 
 Looks for a newer release on your channel. Until you check, the row shows the version you have. After a check, it shows the result, such as the version that's available.
+
+HelixScreen also checks by itself, about 15 seconds after it starts and then once a day. When that finds a newer release, a **New Version Available** window appears with **View Changelog** to read the release notes, **Install** to start the update at once, and **Ignore** to stop being offered that version. Closing the window any other way means "remind me later". The window never appears while a print is running or being prepared, and it is never raised for an older version.
+
+If the newest release on your channel has no build for your printer, the row says so instead of offering an install, for example "v1.0.5 has no build for the FlashForge Creator 5 Pro, so it can't be installed here. Pick a channel with a newer release."
+
 
 If there's a new version, a dialog walks you through installing it:
 
@@ -45,7 +54,7 @@ If something goes wrong, **Update Failed** offers **Retry** to try again or **Cl
 
 > **Caution:** Once installing starts, leave the printer on until HelixScreen restarts by itself. Cutting power during an install can leave HelixScreen broken.
 
-On Android, installing opens the Play Store listing if you installed from Google Play. Otherwise it opens the GitHub release page, where you download the new APK and install it over the old one.
+On Android, installing starts Google Play's own update (or opens the Play Store listing) if you installed from Google Play. Otherwise it opens the GitHub release page, where you download the new APK and install it over the old one.
 
 ---
 
@@ -63,7 +72,7 @@ If you switched to a channel whose latest release is older than the version you 
 
 Some installs can't update themselves. The page tells you so instead of showing buttons that wouldn't work.
 
-- **Software Updates: Managed by your firmware.** Your printer's firmware includes HelixScreen and updates it along with everything else. The channel, check and install rows are hidden. Update the printer's firmware to get a newer HelixScreen.
+- **Software Updates: Managed by your firmware.** Your printer's firmware includes HelixScreen and updates it along with everything else. A Snapmaker U1 running the HelixScreen that PAXX Extended Firmware installs as a firmware component works this way (a stock-firmware U1 updates from the screen like any other printer), and so does any install whose launcher sets `HELIX_DISABLE_AUTO_UPDATES=1`. Nothing checks for updates by itself in this case. The channel, check and install rows are hidden. Update the printer's firmware to get a newer HelixScreen.
 - **Software Updates: Not available here. Update from a terminal.** HelixScreen can see new versions but can't write to its own install folder. Tap the row for a QR code that links to instructions: you run the HelixScreen installer with `--update` from a terminal on the printer. [Upgrading](../../UPGRADING.md) lists the other ways to update.
 
 ---

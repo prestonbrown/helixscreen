@@ -22,7 +22,9 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/job_queue_state_test_access.h"
 #include "../test_helpers/job_queue_subjects_fixture.h"
+#include "../test_helpers/xml_stand_in_subject.h"
 #include "app_globals.h"
+#include "core/subject.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "job_queue_start.h"
 #include "job_queue_state.h"
@@ -183,7 +185,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "up next subjects publish settled before the
     CHECK(std::string(lv_subject_get_string(start_next)).empty());
     CHECK(up_next_seen_on_count.empty());
 
-    lv_observer_remove(count_observer);
+    lv_observer_delete(count_observer);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -198,53 +200,46 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(run_state != nullptr);
     REQUIRE(count != nullptr);
 
-    auto paused = status_with(2);
-    paused.queue_state = "paused";
-    JobQueueStateTestAccess::deliver_status(jqs, paused);
-    CHECK(lv_subject_get_int(run_state) == static_cast<int>(QueueRunState::Paused));
-    CHECK(lv_subject_get_int(run_state) == 3);
-
-    JobQueueStateTestAccess::deliver_status(jqs, status_with(2));
-    CHECK(lv_subject_get_int(run_state) == 0);
-    CHECK(lv_subject_get_int(count) == 2);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "a count observer already reads the new run state",
-                 "[job_queue][subjects]") {
-    JobQueueState jqs(nullptr, nullptr);
-    ScopedJobQueueSubjects subject_guard;
-    jqs.init_subjects();
-
-    lv_subject_t* count = lv_xml_get_subject(nullptr, "job_queue_count");
-    REQUIRE(count != nullptr);
-
-    int run_state_seen = -1;
+    int run_state_seen_on_count = -1;
     lv_observer_t* obs = lv_subject_add_observer(
         count,
         [](lv_observer_t* observer, lv_subject_t*) {
             auto* dest = static_cast<int*>(lv_observer_get_user_data(observer));
             *dest = lv_subject_get_int(lv_xml_get_subject(nullptr, "job_queue_run_state"));
         },
-        &run_state_seen);
+        &run_state_seen_on_count);
 
-    JobQueueStateTestAccess::deliver_status(jqs, status_with(3)); // "ready"
-    CHECK(run_state_seen == static_cast<int>(QueueRunState::Ready));
+    auto paused = status_with(2);
+    paused.queue_state = "paused";
+    JobQueueStateTestAccess::deliver_status(jqs, paused);
+    CHECK(lv_subject_get_int(run_state) == static_cast<int>(QueueRunState::Paused));
+    CHECK(lv_subject_get_int(run_state) == 3);
 
-    lv_observer_remove(obs);
+    JobQueueStateTestAccess::deliver_status(jqs, status_with(3));
+    CHECK(lv_subject_get_int(run_state) == 0);
+    CHECK(lv_subject_get_int(count) == 3);
+    CHECK(run_state_seen_on_count == static_cast<int>(QueueRunState::Ready));
+    lv_observer_delete(obs);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "invalidate keeps has_ever_loaded", "[job_queue][subjects]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "invalidate drops job_queue_loaded and keeps has_ever_loaded",
+                 "[job_queue][subjects]") {
     JobQueueState jqs(nullptr, nullptr);
     ScopedJobQueueSubjects subject_guard;
     jqs.init_subjects();
+    lv_subject_t* loaded = lv_xml_get_subject(nullptr, "job_queue_loaded");
+    REQUIRE(loaded != nullptr);
 
     CHECK_FALSE(jqs.has_ever_loaded());
+    CHECK(lv_subject_get_int(loaded) == 0);
     JobQueueStateTestAccess::deliver_status(jqs, status_with(1));
     CHECK(jqs.is_loaded());
+    CHECK(lv_subject_get_int(loaded) == 1);
     CHECK(jqs.has_ever_loaded());
 
     jqs.invalidate();
     CHECK_FALSE(jqs.is_loaded());
+    CHECK(lv_subject_get_int(loaded) == 0);
     CHECK(jqs.has_ever_loaded());
 }
 
@@ -279,16 +274,16 @@ TEST_CASE_METHOD(LVGLUITestFixture, "completion modal secondary appears only wit
     lv_obj_t* primary = require_named(modal, "btn_primary");
 
     // Empty queue: OK alone, exactly the pre-queue modal.
-    CHECK(lv_obj_has_flag(secondary, LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(secondary));
+    CHECK_FALSE(lv_obj_is_hidden(primary));
 
     JobQueueStateTestAccess::deliver_status(jqs, status_with(3));
-    CHECK_FALSE(lv_obj_has_flag(secondary, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(secondary));
     CHECK(button_label_text(secondary) == format_start_next_text("file-0", 3));
-    CHECK_FALSE(lv_obj_has_flag(primary, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(primary));
 
     JobQueueStateTestAccess::deliver_status(jqs, status_with(0));
-    CHECK(lv_obj_has_flag(secondary, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(secondary));
 
     lv_obj_delete(modal);
 }
@@ -300,13 +295,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home print status widget shows the up next 
     jqs.init_subjects();
 
     // The up next line belongs to the active views, which the card builds only during a print.
-    lv_subject_t* view = lv_xml_get_subject(nullptr, "print_status_view");
-    static lv_subject_t local_view; // outlives its registration
-    if (!view) {
-        lv_subject_init_int(&local_view, 0);
-        lv_xml_register_subject(nullptr, "print_status_view", &local_view);
-        view = &local_view;
-    }
+    lv_subject_t* view = helix::test::xml_stand_in("print_status_view", 0);
     const int32_t saved_view = lv_subject_get_int(view);
     lv_subject_set_int(view, 3);
 
@@ -317,14 +306,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "home print status widget shows the up next 
     lv_obj_t* row = require_named(card, "up_next_row");
     lv_obj_t* label = require_named(card, "up_next_label");
 
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     JobQueueStateTestAccess::deliver_status(jqs, status_with(2));
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
     CHECK(std::string(lv_label_get_text(label)) == format_up_next_text("file-0", 2));
 
     JobQueueStateTestAccess::deliver_status(jqs, status_with(0));
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     lv_obj_delete(card);
     lv_subject_set_int(view, saved_view);
@@ -344,10 +333,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "print status panel shows the up next line w
     lv_obj_t* row = require_named(panel, "up_next_row");
     lv_obj_t* label = require_named(panel, "up_next_label");
 
-    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(row));
 
     JobQueueStateTestAccess::deliver_status(jqs, status_with(3));
-    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(row));
     CHECK(std::string(lv_label_get_text(label)) == format_up_next_text("file-0", 3));
 
     lv_obj_delete(panel);

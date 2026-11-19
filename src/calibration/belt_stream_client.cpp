@@ -4,6 +4,7 @@
 #include "belt_stream_client.h"
 
 #include "helix_thread.h"
+#include "json_utils.h"
 #include "system/helix_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -323,22 +324,20 @@ void BeltStreamClient::handle_frame(std::string_view frame) {
         return;
     }
 
-    if (doc.contains("error")) {
-        const auto& err = doc["error"];
+    if (const json* error = json_util::find_member(doc, "error")) {
+        const auto& err = *error;
         report_error("klippy rejected the subscribe: " +
-                     (err.is_object() && err.contains("message") && err["message"].is_string()
-                          ? err["message"].get<std::string>()
-                          : err.dump()));
+                     json_util::read_field<std::string>(err, "message").value_or(err.dump()));
         running_.store(false);
         return;
     }
 
-    if (doc.contains("id") && doc.contains("result")) {
-        const auto& result = doc["result"];
-        if (result.is_object() && result.contains("header") && result["header"].is_array()) {
+    const json* result = json_util::find_member(doc, "result");
+    if (doc.contains("id") && result) {
+        if (const json* header = json_util::find_array(*result, "header")) {
             int index = 0;
             bool mapped = false;
-            for (const auto& column : result["header"]) {
+            for (const auto& column : *header) {
                 if (column.is_string()) {
                     const std::string name = column.get<std::string>();
                     if (name == "time") {
@@ -367,8 +366,7 @@ void BeltStreamClient::handle_frame(std::string_view frame) {
         return;
     }
 
-    if (!doc.contains("method") || !doc["method"].is_string() ||
-        doc["method"].get<std::string>() != kBatchMethod) {
+    if (json_util::read_field<std::string>(doc, "method") != kBatchMethod) {
         return; // Not ours.
     }
 
@@ -386,11 +384,11 @@ void BeltStreamClient::handle_frame(std::string_view frame) {
     }
 
     AccelBatch batch;
-    if (params.contains("errors") && params["errors"].is_number()) {
-        batch.errors = counter_delta(params["errors"].get<int>(), prev_errors_);
+    if (auto errors = json_util::read_field<int>(params, "errors")) {
+        batch.errors = counter_delta(*errors, prev_errors_);
     }
-    if (params.contains("overflows") && params["overflows"].is_number()) {
-        batch.overflows = counter_delta(params["overflows"].get<int>(), prev_overflows_);
+    if (auto overflows = json_util::read_field<int>(params, "overflows")) {
+        batch.overflows = counter_delta(*overflows, prev_overflows_);
     }
 
     const auto data_it = params.find("data");

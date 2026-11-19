@@ -20,7 +20,7 @@
 #include "app_constants.h"
 #include "asleep_status_wiring.h"
 #include "asset_manager.h"
-#include "cjk_font_manager.h"
+#include "cjk_filename_glyphs.h"
 #include "config.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
@@ -44,6 +44,7 @@
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
 #include "light_button_config.h"
+#include "main_loop_wake.h"
 #include "moonraker_manager.h"
 #include "page_scroll_auto_inject.h"
 #include "panel_factory.h"
@@ -110,7 +111,6 @@
 #include "ui_notification.h"
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
-#include "ui_observer_guard.h"
 #include "ui_overlay_network_settings.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
@@ -153,6 +153,7 @@
 #include "ui_toast_manager.h"
 #include "ui_touch_calibration_overlay.h"
 #include "ui_unit_art.h"
+#include "ui_update_notify_modal.h"
 #include "ui_utils.h"
 #include "ui_wizard.h"
 #include "ui_wizard_ams_identify.h"
@@ -161,6 +162,7 @@
 #include "ui_wizard_wifi.h"
 
 #include "color_utils.h"
+#include "core/observer_guard.h"
 #include "preflight_validator.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -240,9 +242,11 @@
 #include "plugin_host.h"
 #include "plugin_source_app.h"
 #endif
+#include "cleanup_hold.h"
 #include "platform_table.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "sigterm_decision.h"
 #include "splash_screen.h"
 #include "standard_macros.h"
 #include "tips_manager.h"
@@ -352,6 +356,17 @@ void apply_display_scale(lv_display_t* display, const helix::ScaleDecision& d) {
                  d.lvgl_dpi);
 }
 
+// 32 bits because 32-bit MIPS has no lock-free 64-bit atomic. Wraparound is harmless:
+// callers only subtract two readings.
+std::atomic<uint32_t> s_graceful_sigterm_ms{0};
+static_assert(std::atomic<uint32_t>::is_always_lock_free);
+
+uint32_t monotonic_ms_signal_safe() {
+    struct timespec ts {};
+    (void)clock_gettime(CLOCK_MONOTONIC, &ts);
+    return static_cast<uint32_t>(ts.tv_sec) * 1000u + static_cast<uint32_t>(ts.tv_nsec / 1000000);
+}
+
 /**
  * @brief Signal handler for SIGINT/SIGTERM
  *
@@ -369,10 +384,33 @@ void apply_display_scale(lv_display_t* display, const helix::ScaleDecision& d) {
  * is written up to 500 ms after a change: a SIGTERM inside that window drops
  * the plugin's latest helix.storage.set calls.
  *
- * Async-signal-safe: raw syscalls and _exit(2) only — no spdlog, no allocation.
+ * Exception: while a heater is on that only this app will turn off, SIGTERM
+ * takes the SIGINT path so teardown can send the off (sigterm_action()).
+ *
+ * Async-signal-safe: raw syscalls, lock-free atomics and _exit(2) only — no
+ * spdlog, no allocation.
  */
 void graceful_quit_signal_handler(int sig) {
     if (sig == SIGTERM) {
+        const uint32_t now_ms = monotonic_ms_signal_safe();
+        const uint32_t graceful_at = s_graceful_sigterm_ms.load(std::memory_order_relaxed);
+        const helix::SigtermAction action =
+            helix::sigterm_action(helix::CleanupHold::any_held_signal_safe(), graceful_at != 0,
+                                  helix::ms_since_sigterm_stamp(now_ms, graceful_at));
+        if (action == helix::SigtermAction::Ignore) {
+            return;
+        }
+        if (action == helix::SigtermAction::GracefulQuit) {
+            const int saved_errno = errno;
+            s_graceful_sigterm_ms.store(helix::sigterm_stamp(now_ms), std::memory_order_relaxed);
+            static const char held_msg[] =
+                "[Application] SIGTERM with a cleanup owed: graceful quit\n";
+            ssize_t written = write(STDERR_FILENO, held_msg, sizeof(held_msg) - 1);
+            (void)written;
+            app_request_quit_signal_safe();
+            errno = saved_errno;
+            return;
+        }
         // A supervisor stop is not a crash. Because this path skips
         // Application::shutdown() — the only other place the crash-restart
         // marker is cleared — every SIGTERM used to leave its start timestamp
@@ -395,6 +433,14 @@ void graceful_quit_signal_handler(int sig) {
     }
     // SIGINT and any other caught signal: graceful path
     app_request_quit_signal_safe();
+}
+
+/// The enqueue hook while the display sleeps. Main-thread work queued during a pass is
+/// drained in that pass, so only another thread's enqueue needs to wake the loop.
+void notify_loop_from_other_thread() {
+    if (!helix::ui::UpdateQueue::is_main_thread()) {
+        helix::main_loop_wake::notify();
+    }
 }
 
 } // namespace
@@ -1035,7 +1081,7 @@ void Application::ensure_project_root_cwd() {
     return;
 #endif
 
-    std::string data_root = helix::resolve_data_root_from_exe(exe_path);
+    std::string data_root = helix::board::resolve_install_root(exe_path);
     if (!data_root.empty()) {
         if (chdir(data_root.c_str()) == 0) {
             spdlog::info("[Application] Auto-detected data root: {}", data_root);
@@ -1395,15 +1441,28 @@ bool Application::init_display() {
         // DPI of the logical pixel, so the scale is decided again before the
         // tokens and fonts that read it are refreshed.
         const helix::ScaleDecision scale = decide_display_scale(disp);
-        if (scale.ui_scale != helix::DisplayMetrics::active_scale()) {
+        const bool scale_moved = scale.ui_scale != helix::DisplayMetrics::active_scale();
+        if (scale_moved) {
             apply_display_scale(disp, scale);
         }
 
+        const helix::LayoutType layout_before = layout.type();
         layout.init(w, h);
-        theme_manager_refresh_layout_constants(disp);
+        const bool tokens_moved = theme_manager_refresh_layout_constants(disp);
+        helix::refresh_cjk_filename_glyphs();
+        // Built widgets keep the tokens, fonts and layout variant they were built
+        // with. Only a change to one of those rebuilds them, so a window drag
+        // rebuilds at a tier crossing rather than at every debounced step (#1214).
+        const bool rebuild = tokens_moved || scale_moved || layout.type() != layout_before;
         // Components register with the tokens and layout variant of the moment;
-        // idle ones register again at the new geometry on their next use.
-        helix::unregister_idle_xml_components();
+        // idle ones register again at the new geometry on their next use. A
+        // rebuild registers the live ones again too, then rebuilds the views.
+        if (rebuild) {
+            helix::reregister_xml_components_for_rebuild();
+            NavigationManager::instance().rebuild_for_layout_change();
+        } else {
+            helix::unregister_idle_xml_components();
+        }
 
         // Overlays cache their root widget across show/hide cycles, so the
         // width applied at push time goes stale when the canvas changes size
@@ -1413,8 +1472,8 @@ bool Application::init_display() {
         // constants just refreshed above (#941, #1178).
         NavigationManager::instance().reapply_overlay_widths();
 
-        spdlog::info("[Application] Resize: refreshed theme + layout for {}x{} ({})", w, h,
-                     layout.name());
+        spdlog::info("[Application] Resize: refreshed theme + layout for {}x{} ({}){}", w, h,
+                     layout.name(), rebuild ? ", views rebuilt" : "");
     });
 
     // Tips are NOT loaded here. TipsManager::get_instance() parses the database
@@ -1663,8 +1722,7 @@ bool Application::init_translations() {
     // English the UI is already correct without any registered pack.
     lv_translation_set_language(lang.c_str());
 
-    // Load CJK runtime fonts if persisted language is CJK
-    helix::system::CjkFontManager::instance().on_language_changed(lang);
+    helix::init_cjk_fonts(lang);
 
     // Re-enable translation warnings for runtime (post-init warnings are actionable)
     helix::logging::set_suppress_translation_warnings(false);
@@ -1774,7 +1832,7 @@ bool Application::run_wizard() {
     // Move keyboard above wizard
     lv_obj_t* keyboard = KeyboardManager::instance().get_instance();
     if (keyboard) {
-        lv_obj_move_foreground(keyboard);
+        lv_obj_move_to_index(keyboard, -1);
     }
 
     return true;
@@ -1829,10 +1887,10 @@ void Application::apply_startup_cli_actions() {
             char version_text[128];
             snprintf(version_text, sizeof(version_text), "v%s (latest release)",
                      info->version.c_str());
-            lv_subject_copy_string(checker.version_text_subject(), version_text);
-            lv_subject_copy_string(checker.release_notes_subject(), info->release_notes.c_str());
+            lv_subject_set_string(checker.version_text_subject(), version_text);
+            lv_subject_set_string(checker.release_notes_subject(), info->release_notes.c_str());
             lv_subject_set_int(checker.changelog_visible_subject(), 1);
-            checker.show_update_notification();
+            helix::ui::show_update_notification();
             spdlog::info("[Application] Showing release notes for v{}", info->version);
         });
     }
@@ -1876,7 +1934,12 @@ void Application::init_process_services() {
     // Initialize TelemetryManager (opt-in, default OFF)
     // Note: record_session() is called after m_session.init_panel_subjects() so that
     // SettingsManager subjects are ready and the enabled state can be synced.
-    TelemetryManager::instance().init(user_config_dir);
+    // The identity lives in the state root, out of the install root an update
+    // replaces and out of the Klipper config tree web UIs and backups expose.
+    // Test mode keeps it in its own config dir, as it does the settings backups.
+    TelemetryManager::instance().init(user_config_dir, get_runtime_config()->is_test_mode()
+                                                           ? std::string{}
+                                                           : app_get_state_root());
 #if HELIX_ENABLE_SCREENSAVER
     TelemetryManager::instance().set_screensaver_usage(&ScreensaverManager::instance().usage());
 #endif
@@ -2170,6 +2233,12 @@ int Application::main_loop() {
             // Process Moonraker notifications
             process_notifications();
 
+            // Asleep, queued work wakes the loop (the enqueue hook) and runs here, in the
+            // pass that applied the status behind it, instead of on a polling timer.
+            if (m_display->is_display_sleeping()) {
+                helix::ui::UpdateQueue::instance().drain_until_empty();
+            }
+
             // Check display sleep
             m_display->check_display_sleep();
 
@@ -2233,11 +2302,19 @@ int Application::main_loop() {
                     helix::active_refresh_period_hold().loop_min_sleep_ms(timing.loop_min_sleep_ms);
                 const bool display_sleeping = m_display->is_display_sleeping();
                 // Set from the sleep state on every pass, so no wake path can leave it slow.
-                if (lv_timer_t* queue = helix::ui::UpdateQueue::instance().timer()) {
+                auto& update_queue = helix::ui::UpdateQueue::instance();
+                update_queue.set_enqueue_hook(display_sleeping ? &notify_loop_from_other_thread
+                                                               : nullptr);
+                if (lv_timer_t* queue = update_queue.timer()) {
                     lv_timer_set_period(queue, helix::update_queue_period_ms(
                                                    display_sleeping, timing, LV_DEF_REFR_PERIOD));
+                    if (display_sleeping) {
+                        lv_timer_pause(queue);
+                    } else {
+                        lv_timer_resume(queue);
+                    }
                 }
-                DisplayManager::delay(
+                m_display->wait_for_work(
                     helix::main_loop_sleep_ms(time_till_next, display_sleeping, timing));
             } else {
                 DisplayManager::delay(1);
@@ -2337,7 +2414,7 @@ void Application::on_enter_background() {
     SoundManager::instance().shutdown();
 
     // 4. Suppress rendering — save CPU/GPU
-    lv_display_enable_invalidation(nullptr, false);
+    lv_display_enable_invalidation(lv_display_get_default(), false);
 
     spdlog::info("[Application] Background pause complete");
 }
@@ -2349,7 +2426,7 @@ void Application::on_enter_foreground() {
     spdlog::info("[Application] Resuming from background");
 
     // 1. Re-enable rendering
-    lv_display_enable_invalidation(nullptr, true);
+    lv_display_enable_invalidation(lv_display_get_default(), true);
 
     // 2. Re-initialize sound
     SoundManager::instance().initialize();
@@ -2376,7 +2453,7 @@ void Application::on_enter_foreground() {
     //    check_display_sleep() after resume would otherwise see the whole
     //    backgrounded interval as idle and drop straight back into sleep or the
     //    screensaver. Same idiom as DisplayManager::wake_display().
-    lv_display_trigger_activity(nullptr);
+    lv_display_trigger_activity(lv_display_get_default());
 
     // 6. Force full display redraw — EGL surface may have been destroyed and
     //    recreated by Android while backgrounded.  Use invalidate_all_recursive
@@ -2494,7 +2571,7 @@ void Application::shutdown() {
     // They must outlive m_display.reset(), because that is what runs lv_xml_deinit():
     // a component scope holding a <subject_expr> owns RAW lv_observer_t* pointers
     // (lv_xml_subject_expr_t::observers) attached to these subjects, and releases them
-    // with lv_observer_remove(). Those are not ObserverGuards, so
+    // with lv_observer_delete(). Those are not ObserverGuards, so
     // ObserverGuard::invalidate_all() does not cover them; deinitialising the subjects
     // first frees every observer on them and the later scope teardown reads freed
     // memory.

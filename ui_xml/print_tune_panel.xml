@@ -6,24 +6,37 @@
   <styles>
     <style name="z_step_selected" bg_color="#primary" bg_opa="255"/>
     <style name="z_step_unselected" bg_color="#primary" bg_opa="40"/>
+    <!-- Portrait stacks speed over flow, each full width, and runs tighter:
+         every row below the header competes for the height. -->
+    <style name="tune_content_landscape" pad_bottom="#space_lg" pad_gap="#space_md"/>
+    <style name="tune_content_portrait" pad_bottom="#space_xxs" pad_gap="#space_sm"/>
+    <style name="tune_pair_landscape" layout="flex" flex_flow="row"/>
+    <style name="tune_pair_portrait" layout="flex" flex_flow="column"/>
+    <style name="tune_pair_cell_landscape" flex_grow="1"/>
+    <style name="tune_pair_cell_portrait" width="100%" flex_grow="0"/>
   </styles>
   <!-- Print Tuning Panel: Speed and Flow adjustment during active print -->
   <view name="print_tune_panel" extends="overlay_panel" title="Print Tuning">
     <!-- Content Area -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_lg" style_pad_top="0" flex_flow="column" style_flex_main_place="start"
-            style_pad_gap="#space_md">
+            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+            flex_flow="column" style_flex_main_place="start">
+      <bind_style_if_eq name="tune_content_landscape" subject="ui_is_portrait" ref_value="0"/>
+      <bind_style_if_eq name="tune_content_portrait" subject="ui_is_portrait" ref_value="1"/>
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-      <!-- Speed + Flow Row (side by side) -->
+      <!-- Speed + Flow: side by side in landscape, stacked in portrait -->
       <lv_obj name="speed_flow_row"
-              width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-              style_pad_gap="#space_lg" overflow_visible="true">
-        <!-- Speed Control (left) -->
+              width="100%" height="content" style_pad_all="0" scrollable="false" style_pad_gap="#space_lg"
+              overflow_visible="true">
+        <bind_style_if_eq name="tune_pair_landscape" subject="ui_is_portrait" ref_value="0"/>
+        <bind_style_if_eq name="tune_pair_portrait" subject="ui_is_portrait" ref_value="1"/>
+        <!-- Speed Control -->
         <lv_obj name="speed_section"
-                height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-                overflow_visible="true" scrollable="false">
+                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" overflow_visible="true"
+                scrollable="false">
+          <bind_style_if_eq name="tune_pair_cell_landscape" subject="ui_is_portrait" ref_value="0"/>
+          <bind_style_if_eq name="tune_pair_cell_portrait" subject="ui_is_portrait" ref_value="1"/>
           <!-- Tap swaps which units lead, here and on Print Status -->
           <lv_obj name="speed_readout"
                   width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
@@ -55,10 +68,12 @@
             </ui_button>
           </lv_obj>
         </lv_obj>
-        <!-- Flow Control (right) -->
+        <!-- Flow Control -->
         <lv_obj name="flow_section"
-                height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-                overflow_visible="true" scrollable="false">
+                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" overflow_visible="true"
+                scrollable="false">
+          <bind_style_if_eq name="tune_pair_cell_landscape" subject="ui_is_portrait" ref_value="0"/>
+          <bind_style_if_eq name="tune_pair_cell_portrait" subject="ui_is_portrait" ref_value="1"/>
           <lv_obj name="flow_readout"
                   width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
                   style_flex_cross_place="center" style_pad_gap="#space_sm" clickable="true"
@@ -95,11 +110,21 @@
       <lv_obj name="reset_pa_row"
               width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_gap="#space_xs"
               style_flex_cross_place="center" scrollable="false">
-        <ui_button name="btn_reset"
-                   height="#button_height_sm" flex_grow="1" style_min_width="40%" icon="refresh"
-                   text="Reset Speed &amp; Flow to 100%">
-          <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
-        </ui_button>
+        <!-- Portrait says just "Reset": there it shares the row with pressure
+             advance, directly under the speed and flow steppers it resets. The
+             <if> has this cell to itself because it rebuilds on rotation. -->
+        <lv_obj height="content" flex_grow="1" style_min_width="40%" style_pad_all="0" scrollable="false">
+          <if cond="ui_is_portrait eq 1">
+            <ui_button name="btn_reset" width="100%" height="#button_height_sm" icon="refresh" text="Reset">
+              <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
+            </ui_button>
+            <else/>
+            <ui_button name="btn_reset"
+                       width="100%" height="#button_height_sm" icon="refresh" text="Reset Speed &amp; Flow to 100%">
+              <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
+            </ui_button>
+          </if>
+        </lv_obj>
         <tune_pa_row name="tune_pa_row"/>
       </lv_obj>
       <!-- Z-Offset Baby Stepping Section (flex_grow claims remaining space, content aligned to bottom) -->
@@ -119,71 +144,68 @@
           <text_heading name="z_offset_display" bind_text="tune_z_offset_display"/>
         </lv_obj>
 
-        <!-- Indicator (left) + Controls (right) side-by-side -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-          <!-- Nozzle-over-bed visual indicator -->
-          <z_offset_indicator name="z_offset_indicator" width="#z_tune_indicator_w" height="#z_tune_indicator_h"/>
-          <!-- Controls column: amount buttons row with direction buttons stacked on the right -->
-          <lv_obj height="content"
-                  flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-            <!-- Amount selectors (left) + direction buttons (right) -->
+        <!-- The step amounts, direction buttons, help line and target selector.
+             A dedicated container, because the <if> rebuilds when the
+             orientation flips and a rebuilt body lands after its siblings. -->
+        <lv_obj name="z_controls"
+                width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+                scrollable="false">
+          <if cond="ui_is_portrait eq 1">
+            <!-- Portrait: indicator beside the direction buttons, the step
+                 amounts in their own full-width row below. Four step buttons
+                 beside a fixed-width indicator would be ~14px each at 272x480. -->
             <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
-                    style_flex_cross_place="center" scrollable="false">
-              <!-- Amount selector buttons (radio-style: one active at a time) -->
+                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+              <z_offset_indicator name="z_offset_indicator"
+                                  width="#z_tune_indicator_w" height="#z_tune_indicator_h"
+                                  bind_microns="tune_z_offset_microns"/>
+              <!-- Direction buttons fill the width the indicator leaves. They
+                   match the step buttons' height: in portrait the pair sets this
+                   row's height, and they stay wide, so the touch target holds. -->
               <lv_obj height="content"
-                      flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
-                <ui_button name="btn_z_step_0" height="#button_height_sm" flex_grow="1" text="0.05">
-                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 0"/>
-                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 0"/>
-                  <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
-                </ui_button>
-                <ui_button name="btn_z_step_1" height="#button_height_sm" flex_grow="1" text="0.025">
-                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 1"/>
-                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 1"/>
-                  <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
-                </ui_button>
-                <ui_button name="btn_z_step_2" height="#button_height_sm" flex_grow="1" text="0.01">
-                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 2"/>
-                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 2"/>
-                  <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
-                </ui_button>
-                <ui_button name="btn_z_step_3" height="#button_height_sm" flex_grow="1" text="0.005">
-                  <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 3"/>
-                  <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 3"/>
-                  <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>
-                </ui_button>
-              </lv_obj>
-              <!-- Direction buttons stacked vertically -->
-              <lv_obj width="#z_tune_dir_col_w"
-                      height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
-                      scrollable="false">
-                <ui_button name="btn_z_farther" width="100%" icon="arrow_up" bind_icon="tune_z_farther_icon">
+                      flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+                <ui_button name="btn_z_farther"
+                           width="100%" height="#button_height_sm" icon="arrow_up" bind_icon="tune_z_farther_icon">
                   <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
                 </ui_button>
-                <ui_button name="btn_z_closer" width="100%" icon="arrow_down" bind_icon="tune_z_closer_icon">
+                <ui_button name="btn_z_closer"
+                           width="100%" height="#button_height_sm" icon="arrow_down" bind_icon="tune_z_closer_icon">
                   <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
                 </ui_button>
               </lv_obj>
             </lv_obj>
-            <!-- Help text. Wraps rather than setting the row's minimum width:
-                 an unwrapped label here is what pushes the whole z-offset row
-                 past the screen edge once the string is longer than the box,
-                 which English fits on one line but translations need not.
-
-                 Hidden on a tool changer, where the target selector below takes
-                 this slot. The swap is what keeps the section the same height:
-                 the controls column has ~28px of slack under the indicator at
-                 800x480 and ~23px at 480x272, enough for the taller selector
-                 only because the label goes away. -->
-            <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
-              <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
-            </text_small>
-            <!-- Which z-offset the buttons above drive. Only a tool changer has
-                 two: Klipper's machine-wide gcode_move offset, and the active
-                 tool's own. They are independent — the firmware applies both —
-                 so this picks a target rather than a mode. -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
+              <ui_button name="btn_z_step_0" height="#button_height_sm" flex_grow="1" text="0.05">
+                <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 0"/>
+                <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 0"/>
+                <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
+              </ui_button>
+              <ui_button name="btn_z_step_1" height="#button_height_sm" flex_grow="1" text="0.025">
+                <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 1"/>
+                <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 1"/>
+                <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
+              </ui_button>
+              <ui_button name="btn_z_step_2" height="#button_height_sm" flex_grow="1" text="0.01">
+                <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 2"/>
+                <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 2"/>
+                <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
+              </ui_button>
+              <ui_button name="btn_z_step_3" height="#button_height_sm" flex_grow="1" text="0.005">
+                <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 3"/>
+                <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 3"/>
+                <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>
+              </ui_button>
+            </lv_obj>
+            <!-- Gives way on the smallest portrait panel, where the controls
+                 above already fill the height. Hidden on a tool changer, where
+                 the target selector below takes this slot. -->
+            <lv_obj width="100%" height="content" style_pad_all="0" scrollable="false">
+              <bind_flag_if cond="ui_breakpoint le 0" flag="hidden"/>
+              <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
+                <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
+              </text_small>
+            </lv_obj>
             <lv_obj name="z_target_row"
                     width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
                     style_flex_cross_place="center" scrollable="false" hidden="true">
@@ -198,38 +220,130 @@
                 <bind_style_if name="z_step_unselected" cond="z_tune_target ne 1"/>
                 <event_cb trigger="clicked" callback="on_tune_z_target" user_data="1"/>
               </ui_button>
-              <!-- The target you are NOT on, so both numbers are visible without
-                   a second row. Muted: it is context, not the value the buttons
-                   act on. -->
               <text_small name="z_target_other"
                           width="content" bind_text="tune_z_other_display" style_text_color="#text_muted"/>
             </lv_obj>
-          </lv_obj>
+            <else/>
+            <!-- Landscape: indicator on the left, everything else in one
+                 column beside it. -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+              <z_offset_indicator name="z_offset_indicator"
+                                  width="#z_tune_indicator_w" height="#z_tune_indicator_h"
+                                  bind_microns="tune_z_offset_microns"/>
+              <lv_obj height="content"
+                      flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+                <!-- Amount selectors (left) + direction buttons (right) -->
+                <lv_obj width="100%"
+                        height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                        style_flex_cross_place="center" scrollable="false">
+                  <!-- Amount selector buttons (radio-style: one active at a time) -->
+                  <lv_obj height="content"
+                          flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs" scrollable="false">
+                    <ui_button name="btn_z_step_0" height="#button_height_sm" flex_grow="1" text="0.05">
+                      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 0"/>
+                      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 0"/>
+                      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
+                    </ui_button>
+                    <ui_button name="btn_z_step_1" height="#button_height_sm" flex_grow="1" text="0.025">
+                      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 1"/>
+                      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 1"/>
+                      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
+                    </ui_button>
+                    <ui_button name="btn_z_step_2" height="#button_height_sm" flex_grow="1" text="0.01">
+                      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 2"/>
+                      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 2"/>
+                      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
+                    </ui_button>
+                    <ui_button name="btn_z_step_3" height="#button_height_sm" flex_grow="1" text="0.005">
+                      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 3"/>
+                      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 3"/>
+                      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>
+                    </ui_button>
+                  </lv_obj>
+                  <!-- Direction buttons stacked vertically -->
+                  <lv_obj width="#z_tune_dir_col_w"
+                          height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
+                          scrollable="false">
+                    <ui_button name="btn_z_farther" width="100%" icon="arrow_up" bind_icon="tune_z_farther_icon">
+                      <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
+                    </ui_button>
+                    <ui_button name="btn_z_closer" width="100%" icon="arrow_down" bind_icon="tune_z_closer_icon">
+                      <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
+                    </ui_button>
+                  </lv_obj>
+                </lv_obj>
+                <!-- Help text. Wraps rather than setting the row's minimum width:
+                     an unwrapped label here is what pushes the whole z-offset row
+                     past the screen edge once the string is longer than the box,
+                     which English fits on one line but translations need not.
+
+                     Hidden on a tool changer, where the target selector below takes
+                     this slot. The swap is what keeps the section the same height:
+                     the controls column has ~28px of slack under the indicator at
+                     800x480 and ~23px at 480x272, enough for the taller selector
+                     only because the label goes away. -->
+                <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
+                  <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
+                </text_small>
+                <!-- Which z-offset the buttons above drive. Only a tool changer has
+                     two: Klipper's machine-wide gcode_move offset, and the active
+                     tool's own. They are independent (the firmware applies both),
+                     so this picks a target rather than a mode. -->
+                <lv_obj name="z_target_row"
+                        width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
+                        style_flex_cross_place="center" scrollable="false" hidden="true">
+                  <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="0"/>
+                  <ui_button name="btn_z_target_global" height="#button_height_sm" flex_grow="1" text="Global">
+                    <bind_style_if name="z_step_selected" cond="z_tune_target eq 0"/>
+                    <bind_style_if name="z_step_unselected" cond="z_tune_target ne 0"/>
+                    <event_cb trigger="clicked" callback="on_tune_z_target" user_data="0"/>
+                  </ui_button>
+                  <ui_button name="btn_z_target_tool"
+                             height="#button_height_sm" flex_grow="1" bind_text="tune_z_tool_label">
+                    <bind_style_if name="z_step_selected" cond="z_tune_target eq 1"/>
+                    <bind_style_if name="z_step_unselected" cond="z_tune_target ne 1"/>
+                    <event_cb trigger="clicked" callback="on_tune_z_target" user_data="1"/>
+                  </ui_button>
+                  <!-- The target you are NOT on, so both numbers are visible without
+                       a second row. Muted: it is context, not the value the buttons
+                       act on. -->
+                  <text_small name="z_target_other"
+                              width="content" bind_text="tune_z_other_display" style_text_color="#text_muted"/>
+                </lv_obj>
+              </lv_obj>
+            </lv_obj>
+          </if>
         </lv_obj>
         <!-- One of five, picked by z_offset_tune_hint (ZOffsetTuneHint in
-             include/printer_profile_state.h). -->
-        <text_small name="z_offset_help_text_manual"
-                    width="100%" long_mode="wrap"
-                    text="Temporary adjustment for this print, unless saved on Controls panel" hidden="true">
-          <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="0"/>
-        </text_small>
-        <text_small name="z_offset_help_text_auto"
-                    width="100%" long_mode="wrap" text="Z-offset is auto-saved by firmware" hidden="true">
-          <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="1"/>
-        </text_small>
-        <text_small name="z_offset_help_text_temporary"
-                    width="100%" long_mode="wrap" text="Temporary adjustment for this print" hidden="true">
-          <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="2"/>
-        </text_small>
-        <text_small name="z_offset_help_text_tool_change"
-                    width="100%" long_mode="wrap" text="Temporary for this print; a tool change resets it" hidden="true">
-          <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="3"/>
-        </text_small>
-        <text_small name="z_offset_help_text_per_head"
-                    width="100%" long_mode="wrap" text="Saved for the mounted head; other heads keep their own"
-                    hidden="true">
-          <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="4"/>
-        </text_small>
+             include/printer_profile_state.h). They give way on the smallest
+             portrait panel, where the controls above already fill the height. -->
+        <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="column" scrollable="false">
+          <bind_flag_if cond="ui_is_portrait eq 1 and ui_breakpoint le 0" flag="hidden"/>
+          <text_small name="z_offset_help_text_manual"
+                      width="100%" long_mode="wrap"
+                      text="Temporary adjustment for this print, unless saved on Controls panel" hidden="true">
+            <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="0"/>
+          </text_small>
+          <text_small name="z_offset_help_text_auto"
+                      width="100%" long_mode="wrap" text="Z-offset is auto-saved by firmware" hidden="true">
+            <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="1"/>
+          </text_small>
+          <text_small name="z_offset_help_text_temporary"
+                      width="100%" long_mode="wrap" text="Temporary adjustment for this print" hidden="true">
+            <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="2"/>
+          </text_small>
+          <text_small name="z_offset_help_text_tool_change"
+                      width="100%" long_mode="wrap" text="Temporary for this print; a tool change resets it"
+                      hidden="true">
+            <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="3"/>
+          </text_small>
+          <text_small name="z_offset_help_text_per_head"
+                      width="100%" long_mode="wrap" text="Saved for the mounted head; other heads keep their own"
+                      hidden="true">
+            <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="4"/>
+          </text_small>
+        </lv_obj>
       </lv_obj>
     </lv_obj>
   </view>

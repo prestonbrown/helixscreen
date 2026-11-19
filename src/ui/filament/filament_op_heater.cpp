@@ -5,7 +5,6 @@
 
 #include "ui_error_reporting.h"
 #include "ui_temperature_utils.h"
-#include "ui_timer_guard.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
@@ -13,6 +12,8 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/observer_factory.h"
+#include "core/temperature_units.h"
+#include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "panel_widget_manager.h"
@@ -70,6 +71,14 @@ PreheatDecision decide_preheat(const PreheatInputs& in) {
 
 bool preheat_reached(int current_c, int wait_c, int floor_c) {
     return current_c >= std::max(wait_c - kPreheatMarginC, floor_c);
+}
+
+bool printer_reachable(PrinterState& state) {
+    constexpr int kPrinterConnected = 2;
+    auto& net = state.network_state();
+    return lv_subject_get_int(net.get_printer_connection_state_subject()) == kPrinterConnected &&
+           lv_subject_get_int(net.get_klippy_state_subject()) ==
+               static_cast<int>(KlippyState::READY);
 }
 
 FilamentOpHeater* get_filament_op_heater() {
@@ -143,7 +152,7 @@ lv_subject_t* FilamentOpHeater::target_subject(const std::string& extruder) cons
 }
 
 int FilamentOpHeater::read_c(lv_subject_t* subject) const {
-    return subject ? temperature::deci_to_degrees(lv_subject_get_int(subject)) : 0;
+    return subject ? helix::temperature_rules::deci_to_degrees(lv_subject_get_int(subject)) : 0;
 }
 
 const FilamentOpHeater::Heated* FilamentOpHeater::heated_for(FilamentOpTicket ticket) const {
@@ -165,6 +174,16 @@ void FilamentOpHeater::forget(FilamentOpTicket ticket) {
     if (watches_.empty()) {
         action_observer_.reset();
     }
+    holds_.erase(std::remove_if(holds_.begin(), holds_.end(),
+                                [ticket](const Hold& h) { return h.ticket == ticket; }),
+                 holds_.end());
+    sync_heater_hold();
+}
+
+void FilamentOpHeater::sync_heater_hold() {
+    const bool held_heat =
+        std::any_of(holds_.begin(), holds_.end(), [](const Hold& h) { return !h.heater.empty(); });
+    heater_hold_.set((pending_ && pending_->prior_target_c == 0) || held_heat);
 }
 
 void FilamentOpHeater::restore_prior(const std::string& heater, int prior_target_c) {
@@ -336,8 +355,15 @@ void FilamentOpHeater::start_heating(Pending p, int send_c, const std::string& m
     // A ticket whose op never reported back (an error a surface swallowed) is
     // dropped once it is older than any op could run.
     const TimePoint stale = now() - 2 * kBackendWatchTimeout;
+    // A held op waits on the user, however long that takes.
     heated_.erase(std::remove_if(heated_.begin(), heated_.end(),
-                                 [stale](const Heated& h) { return h.at < stale; }),
+                                 [this, stale](const Heated& h) {
+                                     return h.at < stale &&
+                                            std::none_of(holds_.begin(), holds_.end(),
+                                                         [&h](const Hold& held) {
+                                                             return held.ticket == h.ticket;
+                                                         });
+                                 }),
                   heated_.end());
     heated_.push_back(Heated{p.ticket, p.heater, now()});
 
@@ -351,6 +377,7 @@ void FilamentOpHeater::start_heating(Pending p, int send_c, const std::string& m
                                : temps.get_extruder_target_subject(extruder, target_life);
     p.extruder_life = temp_life;
     pending_ = std::move(p);
+    sync_heater_hold();
 
     if (auto* c = get_temperature_controller()) {
         if (extruder.empty()) {
@@ -364,9 +391,10 @@ void FilamentOpHeater::start_heating(Pending p, int send_c, const std::string& m
     }
     if (announce) {
         if (material_name.empty()) {
-            NOTIFY_INFO(lv_tr("Heating to {}°C..."), wait_c);
+            NOTIFY_INFO(lv_tr("Heating to {}..."), helix::units::format_display_temp(wait_c));
         } else {
-            NOTIFY_INFO(lv_tr("Heating to {}°C for {}..."), wait_c, material_name);
+            NOTIFY_INFO(lv_tr("Heating to {} for {}..."), helix::units::format_display_temp(wait_c),
+                        material_name);
         }
     }
 
@@ -412,6 +440,7 @@ void FilamentOpHeater::end_pending(PreheatPhase phase) {
     }
     Pending ended = std::move(*pending_);
     pending_.reset();
+    sync_heater_hold();
     temp_observer_.reset();
     target_observer_.reset();
     lifecycle_observer_.reset();
@@ -471,7 +500,7 @@ void FilamentOpHeater::on_target(int target_deci) {
     // The target reaches ours some time after the send, so only a drop from a
     // target already seen means the preheat was undone (cleared by the user, a
     // heater fault, a Klipper shutdown). Such a preheat would never complete.
-    const int target = temperature::deci_to_degrees(target_deci);
+    const int target = helix::temperature_rules::deci_to_degrees(target_deci);
     if (target >= pending_->wait_c - kPreheatMarginC) {
         pending_->target_seen = true;
         return;
@@ -538,6 +567,37 @@ void FilamentOpHeater::check_deadlines() {
     }
 }
 
+void FilamentOpHeater::before_disconnect() {
+    if (handoff_) {
+        restore_prior(handoff_->heater, handoff_->prior_target_c);
+        handoff_.reset();
+    }
+    // Taken out first: a lost report may close a surface that names its ticket.
+    std::vector<Hold> holds = std::move(holds_);
+    holds_.clear();
+    const bool job_holds = job_holds_machine(state_.print_state().get_print_lifecycle());
+    for (const Hold& h : holds) {
+        forget(h.ticket);
+        if (!h.heater.empty() && !job_holds) {
+            spdlog::info("[FilamentOpHeater] Disconnecting while an op holds {} hot: heater off",
+                         h.heater);
+            if (auto* c = get_temperature_controller()) {
+                c->set_target(h.heater, 0.0, {.toast = false});
+            }
+        }
+        if (h.on_lost) {
+            h.on_lost();
+        }
+    }
+    if (!pending_) {
+        return;
+    }
+    spdlog::info("{} Disconnecting while {} preheats: backing the heater off",
+                 pending_->req.log_tag, filament_heat_op_name(pending_->req.op));
+    restore_prior(pending_->heater, pending_->prior_target_c);
+    end_pending(PreheatPhase::Cancelled);
+}
+
 bool FilamentOpHeater::cancel() {
     if (!pending_) {
         return false;
@@ -586,6 +646,7 @@ void FilamentOpHeater::op_succeeded(FilamentOpTicket ticket) {
                       "cooldown passes to it",
                       heater);
         pending_->prior_target_c = 0;
+        sync_heater_hold();
         return;
     }
     // A job that is starting is about to heat the nozzle itself, and a paused
@@ -601,6 +662,47 @@ void FilamentOpHeater::op_succeeded(FilamentOpTicket ticket) {
 
 void FilamentOpHeater::op_failed(FilamentOpTicket ticket) {
     forget(ticket);
+}
+
+void FilamentOpHeater::op_cancelled(FilamentOpTicket ticket) {
+    const Heated* heated = heated_for(ticket);
+    if (!heated) {
+        forget(ticket);
+        return;
+    }
+    const std::string heater = heated->extruder;
+    forget(ticket);
+    // A preheat waiting on the same heater wants it hot, as in op_succeeded().
+    if (pending_ && pending_->heater == heater) {
+        pending_->prior_target_c = 0;
+        sync_heater_hold();
+        return;
+    }
+    if (job_holds_machine(state_.print_state().get_print_lifecycle())) {
+        spdlog::debug("[FilamentOpHeater] Op stopped during a job: the heater is the job's");
+        return;
+    }
+    if (!printer_reachable(state_)) {
+        spdlog::info("[FilamentOpHeater] Op stopped with the printer unreachable: scheduling "
+                     "the cooldown of {}",
+                     heater);
+        owed_.push_back(Owed{heater, now()});
+        PostOpCooldownManager::instance().schedule(heater);
+        return;
+    }
+    spdlog::info("[FilamentOpHeater] Op stopped before it was done: {} off", heater);
+    if (auto* c = get_temperature_controller()) {
+        c->set_target(heater, 0.0, {.toast = false});
+    }
+}
+
+void FilamentOpHeater::hold_heat(FilamentOpTicket ticket, helix::SharedCallback<void()> on_lost) {
+    if (ticket == 0) {
+        return;
+    }
+    const Heated* heated = heated_for(ticket);
+    holds_.push_back(Hold{ticket, heated ? heated->extruder : std::string(), std::move(on_lost)});
+    sync_heater_hold();
 }
 
 void FilamentOpHeater::watch_backend_completion(FilamentOpTicket ticket) {

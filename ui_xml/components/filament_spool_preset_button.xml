@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The active spool's own preset, shown by FilamentPanel only while the
+     loaded material matches none of the four presets. -->
+<component>
+  <view name="preset_spool"
+        extends="ui_button" width="0" height="content" flex_grow="1" style_min_height="#touch_target_min"
+        layout="column" state_trickle="true" style_pad_ver="#space_xxs" style_pad_hor="#space_xxs" style_pad_gap="0">
+    <bind_flag_if_eq subject="filament_spool_preset_shown" flag="hidden" ref_value="0"/>
+    <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
+    <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
+    <text_body name="spool_preset_label"
+               width="100%" bind_text="filament_spool_preset_name" style_text_align="center" long_mode="dots"/>
+    <text_small name="spool_preset_temps"
+                bind_text="filament_spool_preset_temps" style_text_align="center" style_text_color="#text_muted"/>
+  </view>
+</component>

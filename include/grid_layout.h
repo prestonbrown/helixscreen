@@ -78,6 +78,15 @@ struct TrackRect {
     int rowspan = 1;
 };
 
+/// Whether a tile at @p cell covers the whole @p cols x @p rows grid of page @p page_index
+/// and that page is not the main page: the one rule for "this tile is a full page"
+/// (prestonbrown/helixscreen#1931). A grid with no tracks has no full page.
+inline bool cell_fills_extra_page(int page_index, int main_page_index, const TrackRect& cell,
+                                  int cols, int rows) {
+    return page_index != main_page_index && cols > 0 && rows > 0 && cell.col == 0 &&
+           cell.row == 0 && cell.colspan >= cols && cell.rowspan >= rows;
+}
+
 /// Where a widget saved at @p saved can sit once grown to @p grown_colspan x
 /// @p grown_rowspan (from grow_span_to_fit), on a @p cols x @p rows grid.
 ///

@@ -99,7 +99,7 @@ Every G-code response line is checked in this order. First match wins, and a mat
 | 3 | RESPOND completion | Regex matching `print` adjacent to `start`/`started`/`starting` in either word order. Many users end PRINT_START with `RESPOND MSG="Print started!"` - an authoritative COMPLETE. |
 | 4 | Profile signal formats | Exact prefix + value lookup (e.g. Forge-X `// State: HOMING...`). |
 | 5 | PRINT_START marker | Regex: `PRINT_START\|START_PRINT\|_PRINT_START` (case-insensitive). Sets INITIALIZING once per session. |
-| 6 | Engine probe heuristics | `// Adapted probe count: N,M` and `probe at X,Y is z=Z` lines are consumed as mesh data - they update the probe counters and never reach the profile patterns. A `probe at` line at a configured leveling point is consumed as QGL/Z_TILT instead (Signal Sources row 6). |
+| 6 | Engine probe heuristics | `probe at X,Y is z=Z` lines are consumed as mesh data - they update the probe counters and never reach the profile patterns. A `probe at` line at a configured leveling point is consumed as QGL/Z_TILT instead (Signal Sources row 6). A `// Adapted probe count: N,M` line sets the probe total and then goes on to the profile patterns, where the generic and K2 profiles take it, and the `// Adapted mesh bounds` line before it, as the start of the bed mesh: Klipper echoes nothing a macro runs, so inside a PRINT_START these are often the only mesh lines on the console. |
 | 7 | Profile regex patterns | `response_patterns` from the loaded profile JSON. |
 
 Structured state and physical inference never pass through this chain: they arrive as status frames on `notify_status_update`, not as console lines, and are handled beside it (`handle_phase_object_status()`, `handle_status_signals()` in `src/print/print_start_collector.cpp`).
@@ -670,12 +670,3 @@ Timeouts are deliberately reluctant: active mesh probing suppresses every one bu
 ## Pre-Print ETA Prediction
 
 The ETA during preparation - `PreprintPredictor` history buckets, the thermal model, weighted averaging, and the live countdown - is documented in full in [PREPRINT_PREDICTION.md](PREPRINT_PREDICTION.md).
-
----
-
-## Future Extensions
-
-- **User-editable profiles**: `config/print_start_profiles.d/` for user overrides (same pattern as `printer_database.d/`)
-- **Temporal predicates**: windowed conditions for `status_signals` (Z oscillation -> BED_MESH probing, sustained zero velocity with hot heaters -> soak) - needs an `over_ms` condition type
-- **Voron profile**: Map Voron `status_*` LED macro calls to phases
-- **Bambu/Prusa profiles**: For future printer support

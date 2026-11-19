@@ -146,3 +146,26 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(std::string(lv_subject_get_string(
               &h.service->heater(helix::HeaterType::Nozzle).display_subject)) == "210 / 215");
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "The filament mini graph charts the extruder the panel aims at",
+                 "[temperature_service][target_tool]") {
+    MiniGraphHarness h;
+    h.discover("auto", {"extruder", "extruder1", "extruder2", "heater_bed"});
+    h.state.temperature_state().init_extruders({"extruder", "extruder1", "extruder2"});
+    lv_obj_t* container = lv_obj_create(test_screen());
+    const auto& first = h.build(container);
+    REQUIRE(first.series_id_for("extruder") != SeriesId::None);
+
+    h.service->set_mini_graph_extruder("extruder2");
+    const auto* aimed = TemperatureServiceTestAccess::mini_graph(*h.service);
+    REQUIRE(aimed != nullptr);
+    CHECK(aimed->series_id_for("extruder2") != SeriesId::None);
+    CHECK(aimed->series_id_for("extruder") == SeriesId::None);
+    // The shared active extruder is untouched: other screens keep the mounted tool.
+    CHECK(h.state.temperature_state().active_extruder_name() == "extruder");
+
+    h.service->set_mini_graph_extruder("");
+    const auto* back = TemperatureServiceTestAccess::mini_graph(*h.service);
+    REQUIRE(back != nullptr);
+    CHECK(back->series_id_for("extruder") != SeriesId::None);
+}

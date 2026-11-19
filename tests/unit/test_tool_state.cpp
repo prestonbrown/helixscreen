@@ -277,6 +277,12 @@ TEST_CASE_METHOD(ToolStateFixture, "ToolState: re-init with different tool count
     int v2 = lv_subject_get_int(ts.get_tools_version_subject());
     REQUIRE(ts.tool_count() == 2);
     REQUIRE(v2 == v1 + 1);
+    CHECK(lv_subject_get_int(ts.get_extruder_count_subject()) == 2);
+
+    // Back on a printer without a toolchanger, the carriage is never empty.
+    ts.init_tools(hw1);
+    CHECK(ts.active_tool() != nullptr);
+    CHECK(lv_subject_get_int(ts.get_extruder_count_subject()) == 1);
 }
 
 // ============================================================================

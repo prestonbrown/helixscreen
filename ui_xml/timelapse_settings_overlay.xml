@@ -10,6 +10,13 @@
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
             style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+      <!-- moonraker-timelapse's Klipper macros, when Klipper has not loaded them -->
+      <lv_obj width="100%"
+              height="content" style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_md"
+              style_pad_bottom="#space_md" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <bind_flag_if_eq subject="timelapse_macro_card_state" flag="hidden" ref_value="0"/>
+        <timelapse_macro_card name="timelapse_macro_card"/>
+      </lv_obj>
       <!-- All timelapse settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
       <setting_group name="group_timelapse">

@@ -15,6 +15,8 @@
 #include <cstdio>
 #include <optional>
 
+#include "hv/json.hpp"
+
 namespace helix {
 
 namespace {

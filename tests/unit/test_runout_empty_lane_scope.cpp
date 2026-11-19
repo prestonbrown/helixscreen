@@ -24,11 +24,13 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/filament_sensor_manager_test_access.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_mock.h"
 #include "ams_backend_snapmaker.h"
 #include "ams_state.h"
 #include "ams_subscription_backend.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
@@ -137,8 +139,12 @@ struct ScopedSnapmakerBackend {
         AmsState::instance().set_backend(nullptr);
     }
 
+    /// A status frame through the backend's real firmware parse.
+    void status(const json& n) {
+        RunoutScopeTestAccess::handle_status(*backend, n);
+    }
     void set_lane_presence(const std::array<bool, 4>& detected) {
-        RunoutScopeTestAccess::handle_status(*backend, make_feed_status(detected));
+        status(make_feed_status(detected));
     }
 };
 
@@ -194,47 +200,16 @@ struct FourLaneRunout : HelixTestFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(FourLaneRunout,
-                 "has_real_runout: empty/never-loaded lane sensor=false is NOT a runout",
-                 "[runout][scope]") {
-    // Lane 1 is empty/never-loaded; lanes 0,2 present.
-    backend.set_lane_presence({true, false, true, false});
-    REQUIRE(AmsState::instance().get_backend()->get_slot_info(1).is_present() == false);
-
-    // Lane 1's runout sensor reads no filament — but the lane is EMPTY.
-    fsm.update_from_status(make_sensor_status(1, false));
-    drain();
-
-    // has_any_runout() (the OLD behavior) DOES fire — proving the sensor reads false.
-    CHECK(fsm.has_any_runout());
-    // has_real_runout() (the FIX) must NOT fire for an empty lane.
-    CHECK_FALSE(fsm.has_real_runout());
-}
-
-TEST_CASE_METHOD(FourLaneRunout,
-                 "has_real_runout: loaded/present lane that loses filament IS a runout",
-                 "[runout][scope]") {
-    // Lane 0 is present (loaded for the print).
-    backend.set_lane_presence({true, false, false, false});
-    REQUIRE(AmsState::instance().get_backend()->get_slot_info(0).is_present());
-
-    // Lane 0 runs out mid-use: present lane, sensor now false.
-    fsm.update_from_status(make_sensor_status(0, false));
-    drain();
-
-    CHECK(fsm.has_any_runout());
-    // A genuine runout on a present/loaded lane MUST still alarm.
-    CHECK(fsm.has_real_runout());
-}
-
 TEST_CASE_METHOD(FourLaneRunout, "has_real_runout: mixed heads 0,2 loaded + head 1 empty",
                  "[runout][scope]") {
     // Exact bug shape: heads 0 and 2 used (present), head 1 left empty.
     backend.set_lane_presence({true, false, true, false});
 
-    // Head 1 (empty) sensor reads false post-print -> NO false runout.
+    // Head 1 (empty) sensor reads false post-print -> NO false runout, though
+    // the coarse query sees the sensor read empty.
     fsm.update_from_status(make_sensor_status(1, false));
     drain();
+    CHECK(fsm.has_any_runout());
     CHECK_FALSE(fsm.has_real_runout());
 
     // Now head 0 (a LOADED lane) loses filament -> real runout MUST fire.
@@ -283,7 +258,7 @@ json u1_picked(int tool) {
 void feed_switch(ScopedSnapmakerBackend& backend, FilamentSensorManager& fsm, int lane,
                  bool detected) {
     const json frame = make_sensor_status(lane, detected);
-    RunoutScopeTestAccess::handle_status(*backend.backend, frame);
+    backend.status(frame);
     fsm.update_from_status(frame);
     drain();
 }
@@ -291,9 +266,9 @@ void feed_switch(ScopedSnapmakerBackend& backend, FilamentSensorManager& fsm, in
 void setup_u1_printing_on_head_2(ScopedSnapmakerBackend& backend, FilamentSensorManager& fsm,
                                  bool pick_head_2) {
     setup_four_lane_sensors(fsm);
-    RunoutScopeTestAccess::handle_status(*backend.backend, u1_feed_heads_0_to_2_loaded());
+    backend.status(u1_feed_heads_0_to_2_loaded());
     if (pick_head_2) {
-        RunoutScopeTestAccess::handle_status(*backend.backend, u1_picked(2));
+        backend.status(u1_picked(2));
     }
     for (int lane = 0; lane < 3; ++lane) {
         feed_switch(backend, fsm, lane, true);
@@ -305,17 +280,17 @@ void setup_u1_printing_on_head_2(ScopedSnapmakerBackend& backend, FilamentSensor
         INFO("lane " << lane);
         REQUIRE(be->get_slot_info(lane).is_present());
     }
+    get_printer_state().init_subjects(false);
 }
-
 } // namespace
 
-TEST_CASE("has_real_runout: a preloaded head's empty switch is not a runout while another head "
-          "prints",
+TEST_CASE("has_real_runout: a U1 printing from head 2 runs out only when head 2 does",
           "[runout][scope]") {
     HelixTestFixture fx;
     ScopedSnapmakerBackend backend;
     auto& fsm = FilamentSensorManager::instance();
     setup_u1_printing_on_head_2(backend, fsm, /*pick_head_2=*/true);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
     REQUIRE(AmsState::instance().get_backend()->get_current_slot() == 2);
 
     // Head 3's switch reads empty, so the coarse query fires.
@@ -330,6 +305,41 @@ TEST_CASE("has_real_runout: a preloaded head's empty switch is not a runout whil
 
     // Refilled, and only the idle head reads empty again.
     feed_switch(backend, fsm, 2, true);
+    CHECK_FALSE(fsm.has_real_runout());
+
+    // Run dry: the switch drops, then the feeder port, and the channel waits
+    // for a new spool, so the lane reads EMPTY. The job paused on it still
+    // draws from it.
+    feed_switch(backend, fsm, 2, false);
+    backend.status(
+        json{{"filament_feed right", json{{"extruder2", json{{"filament_detected", false},
+                                                             {"channel_state", "wait_insert"},
+                                                             {"channel_error", "ok"}}}}}});
+    drain();
+    REQUIRE_FALSE(AmsState::instance().get_backend()->get_slot_info(2).is_present());
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PAUSED);
+    CHECK(fsm.real_runout_lane().value_or(-1) == 2);
+
+    // With head 1 picked, only the firmware's pause cause names the head the
+    // job waits on, and only a runout cause naming head 2 adopts it.
+    backend.status(u1_picked(1));
+    CHECK_FALSE(fsm.has_real_runout());
+    const auto pause_on = [](int id, int index, int code) {
+        get_printer_state().update_from_status(
+            json{{"print_stats",
+                  json{{"state", "paused"},
+                       {"exception", json{{"id", id}, {"index", index}, {"code", code}}}}}});
+    };
+    pause_on(523, 2, 0);
+    CHECK(fsm.real_runout_lane().value_or(-1) == 2);
+    pause_on(532, 2, 1); // a dirty bed, which carries an index too
+    CHECK_FALSE(fsm.has_real_runout());
+    pause_on(523, 0, 0);
+    CHECK_FALSE(fsm.has_real_runout());
+
+    // With no job running, the empty head is an idle lane whatever is picked.
+    pause_on(523, 2, 0);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
     CHECK_FALSE(fsm.has_real_runout());
 }
 
@@ -360,13 +370,14 @@ class MultiExtruderLanes : public AmsBackendMock {
         if (slot >= 0 && slot < 8) {
             info.slot_index = slot;
             info.global_index = slot;
-            info.status = SlotStatus::AVAILABLE;
+            info.status = slot == empty_lane ? SlotStatus::EMPTY : SlotStatus::AVAILABLE;
         }
         return info;
     }
     [[nodiscard]] int get_current_slot() const override {
         return 4;
     }
+    int empty_lane = -1;
     [[nodiscard]] int get_current_tool() const override {
         return 1;
     }
@@ -377,7 +388,9 @@ class MultiExtruderLanes : public AmsBackendMock {
 TEST_CASE("has_real_runout: a toolhead sensor on a multi-extruder lane system follows the tool",
           "[runout][scope]") {
     HelixTestFixture fx;
-    AmsState::instance().set_backend(std::make_unique<MultiExtruderLanes>());
+    auto owned = std::make_unique<MultiExtruderLanes>();
+    MultiExtruderLanes& lanes = *owned;
+    AmsState::instance().set_backend(std::move(owned));
     auto& fsm = FilamentSensorManager::instance();
     setup_four_lane_sensors(fsm);
 
@@ -391,6 +404,18 @@ TEST_CASE("has_real_runout: a toolhead sensor on a multi-extruder lane system fo
         drain();
         CHECK(fsm.has_any_runout());
         CHECK_FALSE(fsm.has_real_runout());
+    }
+    SECTION("mid-print, an empty lane that shares only the tool's number is not fed") {
+        // Tool 1 prints from lane 4; only the current slot vouches for an
+        // empty lane being drawn from.
+        lanes.empty_lane = 1;
+        get_printer_state().init_subjects(false);
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+        fsm.update_from_status(make_sensor_status(1, false));
+        drain();
+        CHECK(fsm.has_any_runout());
+        CHECK_FALSE(fsm.has_real_runout());
+        helix::test::set_wire_state(get_printer_state(), PrintJobState::STANDBY);
     }
     AmsState::instance().set_backend(nullptr);
 }

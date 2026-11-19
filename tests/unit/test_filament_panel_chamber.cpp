@@ -248,7 +248,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         h.panel->set_material(slot);
 
         CHECK(TA::chamber_target(*h.panel) ==
-              helix::ui::temperature::degrees_to_deci(material->chamber_temp_c));
+              helix::temperature_rules::degrees_to_deci(material->chamber_temp_c));
     }
     SECTION("never a heater the printer is set not to use") {
         h.discover("none", {"heater_generic chamber", "extruder", "heater_bed"});

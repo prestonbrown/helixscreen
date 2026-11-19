@@ -9,6 +9,7 @@
  */
 
 #include "filament_chip_model.h"
+#include "test_helpers/zero_lane_numbering.h"
 
 #include <optional>
 #include <set>
@@ -116,6 +117,19 @@ TEST_CASE("chip_slot_label: one unit prints the bare 1-based number", "[filament
     std::vector<AvailableSlot> slots = {make_slot(0, 0, "PLA"), make_slot(1, 0, "PLA"),
                                         make_slot(2, 0, "PLA"), make_slot(3, 0, "PLA")};
     CHECK(chip_slot_label(slots[2], slots) == "3");
+}
+
+TEST_CASE("chip_slot_label: counting from zero renumbers the slot, not the unit",
+          "[filament_chip][numbering]") {
+    std::vector<AvailableSlot> one_unit = {make_slot(0, 0, "PLA"), make_slot(1, 0, "PLA")};
+    ScopedZeroLaneNumbering zero;
+    CHECK(chip_slot_label(one_unit[0], one_unit) == "0");
+
+    std::vector<AvailableSlot> two_units = one_unit;
+    two_units[1].unit_index = 1;
+    two_units[1].local_slot_index = 0;
+    CHECK(chip_slot_label(two_units[1], two_units) ==
+          std::string("2") + helix::ui::kUnitSeparator + "0");
 }
 
 TEST_CASE("chip_slot_label: two units in one backend name the unit", "[filament_chip]") {
@@ -245,6 +259,29 @@ TEST_CASE("used_materials_text: the used tools' materials, deduplicated in tool 
     CHECK(used_materials_text(mats, std::nullopt) == "ABS, ABS-GF");
     CHECK(used_materials_text({}, std::nullopt).empty());
     CHECK(used_materials_text({}, std::set<int>{0}).empty());
+}
+
+// =============================================================================
+// split_filament_types / filament_type_text
+// =============================================================================
+
+TEST_CASE("split_filament_types: one trimmed entry per tool, empties kept in place",
+          "[filament_chip]") {
+    CHECK(split_filament_types("PLA;PLA;PETG") == std::vector<std::string>{"PLA", "PLA", "PETG"});
+    CHECK(split_filament_types(" PLA ; ;PETG") == std::vector<std::string>{"PLA", "", "PETG"});
+    CHECK(split_filament_types("ABS") == std::vector<std::string>{"ABS"});
+    CHECK(split_filament_types("").empty());
+}
+
+TEST_CASE("filament_type_text: each material once, in tool order", "[filament_chip]") {
+    CHECK(filament_type_text("ABS;ABS;ABS;ABS") == "ABS");
+    CHECK(filament_type_text("PLA;PETG;PLA") == "PLA, PETG");
+    CHECK(filament_type_text("PLA") == "PLA");
+    CHECK(filament_type_text("ABS;ABS;") == "ABS");
+    CHECK(filament_type_text(";;PETG; ;") == "PETG");
+    CHECK(filament_type_text(" PLA; PETG ") == "PLA, PETG");
+    CHECK(filament_type_text("").empty());
+    CHECK(filament_type_text(";;").empty());
 }
 
 // =============================================================================
