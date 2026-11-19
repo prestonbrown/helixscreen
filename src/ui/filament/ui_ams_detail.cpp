@@ -966,11 +966,17 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             // Narrower than the pitch, so neighbors never touch; and kArtBadgePitchShare of it,
             // leaving the drawn outlet tabs between lanes in view, but not below
             // kArtBadgeMinFit for that, where the number stops reading.
+            // Outlets packed closer than a readable number (a collet row, top fittings) keep
+            // the number at that floor and alternate it a row higher lane by lane, while every
+            // other lane's still clears it; the lane picker takes the taps there.
+            const bool stagger = s_tray.art && bw > 0 && (pitch - inset) / bw < kArtBadgeMinFit &&
+                                 kArtBadgeMinFit * bw <= 2.0f * pitch - inset;
             const float fit =
-                s_tray.art && bw > 0
-                    ? std::min({1.0f, (pitch - inset) / bw,
-                                std::max(kArtBadgeMinFit, kArtBadgePitchShare * pitch / bw)})
-                    : 1.0f;
+                !s_tray.art || bw <= 0 ? 1.0f
+                : stagger              ? kArtBadgeMinFit
+                                       : std::min({1.0f, (pitch - inset) / bw,
+                                                   std::max(kArtBadgeMinFit, kArtBadgePitchShare * pitch / bw)});
+            const float lift = stagger && (i % 2) ? std::ceil(fit * bh) + 2.0f : 0.0f;
             // DECLARATIVE_OK: measured layout; the number shrinks to the drawn outlets' pitch
             lv_obj_set_style_transform_pivot_x(badge, (int32_t)(bw / 2), LV_PART_MAIN);
             lv_obj_set_style_transform_pivot_y(badge, (int32_t)(bh / 2), LV_PART_MAIN);
@@ -979,7 +985,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             const tray::PointF p =
                 s_tray.art
                     ? tray::PointF{(float)art.outlet[i].x - bw / 2,
-                                   (float)art.outlet[i].y - (0.5f + 0.75f * fit) * bh}
+                                   (float)art.outlet[i].y - (0.5f + 0.75f * fit) * bh - lift}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);
