@@ -399,6 +399,7 @@ translations:
   Auto-Detect: 自动检测
   Auto-Heat on Load: 加载时自动加热
   Auto-Replenish: 自动补充
+  Auto-Replenish is turned on for this switch.: '此次切换将开启自动补充。'
   Auto-detect: 自动检测
   Auto-install only works on local Moonraker: 自动安装仅适用于本地 Moonraker
   Auto-lock: 自动锁定
@@ -962,6 +963,8 @@ translations:
   Console Settings: 控制台设置
   Context: 上下文
   Continue: 继续
+  Continue on Another Toolhead: '在另一个工具头上继续'
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: '在{}上继续打印？打印机会将剩余打印转到该工具头，加热后继续。'
   Control optional print start features: 控制可选的打印启动功能
   Control power relays and smart outlets: 控制电源继电器和智能插座
   Controllable Fans: 可控风扇
@@ -1193,7 +1196,11 @@ translations:
   Device name is required: 设备名称为必填项
   'Device: ': '设备: '
   Devices: 设备
+  Different color: '颜色不同'
   Different filament?: 耗材不同？
+  Different material: '材料不同'
+  Different nozzle flow type: '喷嘴流量类型不同'
+  Different nozzle size: '喷嘴尺寸不同'
   Digital Clock: '数字时钟'
   Direct drive: 近程挤出
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "直驱:松开挤出机张力,一次用力拉出耗材。"
@@ -1665,6 +1672,7 @@ translations:
   Filament jammed at the extruder gear: 耗材卡在挤出机齿轮处
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: '挤出机中必须已装入耗材，打印板已装好，且没有任何物体挡住工具头。'
   Filament never reached the CFS hub sensor: 耗材未到达 CFS 集线器传感器
+  Filament not identified: '耗材未识别'
   Filament not set: '未设置耗材'
   Filament operation failed: 耗材操作失败
   Filament operation timed out: 耗材操作超时
@@ -2104,6 +2112,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: '完成后将保存结果并重启 Klipper。'
   It starts with your {} macro.: 使用你的{}宏开始。
   It's a new spool: 这是新料盘
+  Its filament is a different color.: '其耗材颜色不同。'
   Its home tile: '其主页磁贴'
   Jammed: 堵塞
   Jammed at the Toolhead: 工具头处堵塞
@@ -2652,6 +2661,7 @@ translations:
   No notifications: 无通知
   No objects: '无对象'
   No objects defined for this print: 此次打印未定义对象
+  No other toolhead can take over this print.: '没有其他工具头可以接替此次打印。'
   No output yet: 暂无输出
   No pause scheduled.: '未设置暂停。'
   No plugin actions for this file: '此文件没有插件操作'
@@ -2727,6 +2737,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: 没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。
   Not enough room to put the widget back. It stays removed.: '没有足够的空间恢复此小组件。它仍处于移除状态。'
   'Not in your spools? Set it up': 不在您的料盘中？立即设置
+  Not loaded by its feeder: '未通过送料器装载'
   Not now: 暂不
   Not turned: '未转动'
   'Not saved: {}. Try again.': "未保存：{}。请重试。"
@@ -2778,6 +2789,7 @@ translations:
   Nozzle min cannot exceed max: 喷嘴最低温度不能超过最高温度
   'Nozzle not changed: the printer did not confirm it': "喷嘴未更改：打印机未确认"
   'Nozzle not changed: {}': "喷嘴未更改：{}"
+  Nozzle not reported: '未报告喷嘴'
   Nozzle size and flow type per head: "每个工具头的喷嘴尺寸和流量类型"
   Nozzle target set to {}: 喷嘴目标已设为 {}
   Nozzle temp must be %d-%s: 喷嘴温度必须为 %d-%s
@@ -3270,6 +3282,7 @@ translations:
   Ramming Volume: '填充体积'
   'Ramp: band {} of {}': '自动: 第 {} / {} 段'
   'Ramp: base layers': '自动: 底层'
+  Ran out: '已耗尽'
   Random: 随机
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3553,6 +3566,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : '安全模式：由于应用程序在启动时反复崩溃，插件已禁用，小部件布局显示为默认设置。重启即可恢复正常。'
   Safety & Alerts: 安全与警报
+  Same filament: '相同耗材'
   Same spool in {}? Tap Clear if it is a new one.: '{} 是同一个料盘吗？如果是新料盘，请点击清除。'
   Sample: 样本
   Sample %d/%d: 样本 %d/%d
@@ -4113,6 +4127,7 @@ translations:
   'That setting cannot be changed while a print is running': '打印进行中无法更改该设置'
   That slot cannot stand in for this one: 该槽位无法替代当前槽位
   That tool is already loaded: 该工具已加载耗材
+  That toolhead can no longer take over the print: '该工具头已无法接替此次打印'
   That turn didn't register yet. Loosen {0} a little more.: "这次转动还没有体现出来。请将 {0} 再放松一点。"
   That turn didn't register yet. Loosen {0} one more full turn.: "这次转动还没有体现出来。请将 {0} 再放松一整圈。"
   That turn didn't register yet. Tighten {0} a little more.: "这次转动还没有体现出来。请将 {0} 再拉紧一点。"
@@ -4243,6 +4258,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': '打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。'
   The printer did not report its toolhead limits.: '打印机未报告其工具头限制。'
   The printer did not reset the filter: '打印机未重置滤网'
+  The printer did not switch toolheads: '打印机未切换工具头'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: '打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。'
   The printer finishes this measurement on its own.: '打印机会自行完成这次测量。'
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
@@ -5098,6 +5114,7 @@ translations:
   '{} h of {} h': '{} / {} 小时'
   '{} has no hotend': "{} 没有热端"
   '{} heater turned off': '{} 加热器已关闭'
+  '{} holds the same filament, and the printer uses that one.': '{}装有相同的耗材，打印机将使用它。'
   '{} is asking to connect to this printer.': '{} 请求连接到此打印机。'
   '{} is blocked — manual intervention required': '{} 被阻塞 — 需要手动干预'
   '{} is due': "{} 已到期"
@@ -5135,6 +5152,8 @@ translations:
   '{} presets': '{} 个预设'
   '{} prints': '{} 次打印'
   '{} queued': '{} 个在队列中'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{}的{}已耗尽。请选择一个已装载的工具头来完成打印。它沿用为原耗材切片的温度。'
+  '{} ran out, and the printer has not said what it was printing.': '{}已耗尽，打印机未报告其正在打印的耗材。'
   '{} serial': '{} 序列号'
   '{} set to {}': '{} 已设为 {}'
   '{} set to {} {}': '{} 已设为 {} {}'

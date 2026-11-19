@@ -383,6 +383,7 @@
   <translation tag="Auto-Detect" en="Auto-Detect"/>
   <translation tag="Auto-Heat on Load" en="Auto-Heat on Load"/>
   <translation tag="Auto-Replenish" en="Auto-Replenish"/>
+  <translation tag="Auto-Replenish is turned on for this switch." en="Auto-Replenish is turned on for this switch."/>
   <translation tag="Auto-detect" en="Auto-detect"/>
   <translation tag="Auto-install only works on local Moonraker" en="Auto-install only works on local Moonraker"/>
   <translation tag="Auto-lock" en="Auto-lock"/>
@@ -937,6 +938,8 @@
   <translation tag="Console Settings" en="Console Settings"/>
   <translation tag="Context" en="Context"/>
   <translation tag="Continue" en="Continue"/>
+  <translation tag="Continue on Another Toolhead" en="Continue on Another Toolhead"/>
+  <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." en="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes."/>
   <translation tag="Control optional print start features" en="Control optional print start features"/>
   <translation tag="Control power relays and smart outlets" en="Control power relays and smart outlets"/>
   <translation tag="Controllable Fans" en="Controllable Fans"/>
@@ -1136,7 +1139,11 @@
   <translation tag="Device name is required" en="Device name is required"/>
   <translation tag="Device: " en="Device: "/>
   <translation tag="Devices" en="Devices"/>
+  <translation tag="Different color" en="Different color"/>
   <translation tag="Different filament?" en="Different filament?"/>
+  <translation tag="Different material" en="Different material"/>
+  <translation tag="Different nozzle flow type" en="Different nozzle flow type"/>
+  <translation tag="Different nozzle size" en="Different nozzle size"/>
   <translation tag="Digital Clock" en="Digital Clock"/>
   <translation tag="Direct drive" en="Direct drive"/>
   <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." en="Direct drive: release the extruder tension and pull the filament out in one firm motion."/>
@@ -1598,6 +1605,7 @@
   <translation tag="Filament jammed at the extruder gear" en="Filament jammed at the extruder gear"/>
   <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." en="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head."/>
   <translation tag="Filament never reached the CFS hub sensor" en="Filament never reached the CFS hub sensor"/>
+  <translation tag="Filament not identified" en="Filament not identified"/>
   <translation tag="Filament not set" en="Filament not set"/>
   <translation tag="Filament operation failed" en="Filament operation failed"/>
   <translation tag="Filament operation timed out" en="Filament operation timed out"/>
@@ -2028,6 +2036,7 @@
   <translation tag="It saves the result and restarts Klipper when it finishes." en="It saves the result and restarts Klipper when it finishes."/>
   <translation tag="It starts with your {} macro." en="It starts with your {} macro."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
+  <translation tag="Its filament is a different color." en="Its filament is a different color."/>
   <translation tag="Its home tile" en="Its home tile"/>
   <translation tag="Jammed" en="Jammed"/>
   <translation tag="Jammed at the Toolhead" en="Jammed at the Toolhead"/>
@@ -2579,6 +2588,7 @@
   <translation tag="No notifications" en="No notifications"/>
   <translation tag="No objects" en="No objects"/>
   <translation tag="No objects defined for this print" en="No objects defined for this print"/>
+  <translation tag="No other toolhead can take over this print." en="No other toolhead can take over this print."/>
   <translation tag="No output yet" en="No output yet"/>
   <translation tag="No pause scheduled." en="No pause scheduled."/>
   <translation tag="No plugin actions for this file" en="No plugin actions for this file"/>
@@ -2651,6 +2661,7 @@
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." en="Not enough room for this widget. Rearrange or remove widgets to make space."/>
   <translation tag="Not enough room to put the widget back. It stays removed." en="Not enough room to put the widget back. It stays removed."/>
   <translation tag="Not in your spools? Set it up" en="Not in your spools? Set it up"/>
+  <translation tag="Not loaded by its feeder" en="Not loaded by its feeder"/>
   <translation tag="Not now" en="Not now"/>
   <translation tag="Not saved: {}. Try again." en="Not saved: {}. Try again."/>
   <translation tag="Not set" en="Not set"/>
@@ -2697,6 +2708,7 @@
   <translation tag="Nozzle min cannot exceed max" en="Nozzle min cannot exceed max"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" en="Nozzle not changed: the printer did not confirm it"/>
   <translation tag="Nozzle not changed: {}" en="Nozzle not changed: {}"/>
+  <translation tag="Nozzle not reported" en="Nozzle not reported"/>
   <translation tag="Nozzle size and flow type per head" en="Nozzle size and flow type per head"/>
   <translation tag="Nozzle target set to {}" en="Nozzle target set to {}"/>
   <translation tag="Nozzle temp must be %d-%s" en="Nozzle temp must be %d-%s"/>
@@ -3184,6 +3196,7 @@
   <translation tag="Ramming Volume" en="Ramming Volume"/>
   <translation tag="Ramp: band {} of {}" en="Ramp: band {} of {}"/>
   <translation tag="Ramp: base layers" en="Ramp: base layers"/>
+  <translation tag="Ran out" en="Ran out"/>
   <translation tag="Random" en="Random"/>
   <translation tag="Raspberry Pi" en="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" en="Raspberry Pi (32-bit)"/>
@@ -3462,6 +3475,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." en="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot."/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." en="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal."/>
   <translation tag="Safety &amp; Alerts" en="Safety &amp; Alerts"/>
+  <translation tag="Same filament" en="Same filament"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." en="Same spool in {}? Tap Clear if it is a new one."/>
   <translation tag="Sample" en="Sample"/>
   <translation tag="Sample %d/%d" en="Sample %d/%d"/>
@@ -4013,6 +4027,7 @@
   <translation tag="That setting cannot be changed while a print is running" en="That setting cannot be changed while a print is running"/>
   <translation tag="That slot cannot stand in for this one" en="That slot cannot stand in for this one"/>
   <translation tag="That tool is already loaded" en="That tool is already loaded"/>
+  <translation tag="That toolhead can no longer take over the print" en="That toolhead can no longer take over the print"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} a little more." en="That turn didn&apos;t register yet. Loosen {0} a little more."/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} one more full turn." en="That turn didn&apos;t register yet. Loosen {0} one more full turn."/>
   <translation tag="That turn didn&apos;t register yet. Tighten {0} a little more." en="That turn didn&apos;t register yet. Tighten {0} a little more."/>
@@ -4131,6 +4146,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." en="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again."/>
   <translation tag="The printer did not report its toolhead limits." en="The printer did not report its toolhead limits."/>
   <translation tag="The printer did not reset the filter" en="The printer did not reset the filter"/>
+  <translation tag="The printer did not switch toolheads" en="The printer did not switch toolheads"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
@@ -4957,6 +4973,7 @@
   <translation tag="{} h of {} h" en="{} h of {} h"/>
   <translation tag="{} has no hotend" en="{} has no hotend"/>
   <translation tag="{} heater turned off" en="{} heater turned off"/>
+  <translation tag="{} holds the same filament, and the printer uses that one." en="{} holds the same filament, and the printer uses that one."/>
   <translation tag="{} is asking to connect to this printer." en="{} is asking to connect to this printer."/>
   <translation tag="{} is blocked — manual intervention required" en="{} is blocked — manual intervention required"/>
   <translation tag="{} is due" en="{} is due"/>
@@ -4994,6 +5011,8 @@
   <translation tag="{} presets" en="{} presets"/>
   <translation tag="{} prints" en="{} prints"/>
   <translation tag="{} queued" en="{} queued"/>
+  <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." en="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament."/>
+  <translation tag="{} ran out, and the printer has not said what it was printing." en="{} ran out, and the printer has not said what it was printing."/>
   <translation tag="{} serial" en="{} serial"/>
   <translation tag="{} set to {}" en="{} set to {}"/>
   <translation tag="{} set to {} {}" en="{} set to {} {}"/>

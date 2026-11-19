@@ -399,6 +399,7 @@ translations:
   Auto-Detect: Auto-Erkennung
   Auto-Heat on Load: Automatisches Heizen beim Laden
   Auto-Replenish: Automatisch nachfüllen
+  Auto-Replenish is turned on for this switch.: 'Automatisch nachfüllen wird für diesen Wechsel eingeschaltet.'
   Auto-detect: Auto-Erkennung
   Auto-install only works on local Moonraker: Auto-Installation funktioniert nur bei lokalem Moonraker
   Auto-lock: Auto-Sperre
@@ -962,6 +963,8 @@ translations:
   Console Settings: Konsoleneinstellungen
   Context: Kontext
   Continue: Fortfahren
+  Continue on Another Toolhead: 'Auf anderem Werkzeugkopf fortfahren'
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Druck auf {} fortsetzen? Der Drucker verlegt den Rest des Drucks dorthin, heizt ihn auf und setzt fort.'
   Control optional print start features: Optionale Druckstartfunktionen steuern
   Control power relays and smart outlets: Relais und smarte Steckdosen steuern
   Controllable Fans: Steuerbare Lüfter
@@ -1193,7 +1196,11 @@ translations:
   Device name is required: Gerätename ist erforderlich
   'Device: ': 'Gerät: '
   Devices: Geräte
+  Different color: 'Andere Farbe'
   Different filament?: Anderes Filament?
+  Different material: 'Anderes Material'
+  Different nozzle flow type: 'Anderer Düsen-Durchflusstyp'
+  Different nozzle size: 'Andere Düsengröße'
   Digital Clock: 'Digitaluhr'
   Direct drive: Direktantrieb
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "Direktantrieb: Extruderspannung lösen und das Filament in einer kräftigen Bewegung herausziehen."
@@ -1665,6 +1672,7 @@ translations:
   Filament jammed at the extruder gear: Filament am Extruderrad verklemmt
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'Filament muss im Extruder geladen und die Druckplatte aufgesetzt sein, mit nichts im Weg des Werkzeugkopfs.'
   Filament never reached the CFS hub sensor: Filament hat den CFS-Hub-Sensor nie erreicht
+  Filament not identified: 'Filament nicht erkannt'
   Filament not set: 'Filament nicht gesetzt'
   Filament operation failed: Filament-Vorgang fehlgeschlagen
   Filament operation timed out: Filament-Vorgang Zeitüberschreitung
@@ -2104,6 +2112,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: 'Am Ende wird das Ergebnis gespeichert und Klipper neu gestartet.'
   It starts with your {} macro.: Er startet mit deinem Makro {}.
   It's a new spool: Es ist eine neue Spule
+  Its filament is a different color.: 'Sein Filament hat eine andere Farbe.'
   Its home tile: 'Seine Startseiten-Kachel'
   Jammed: Stau
   Jammed at the Toolhead: Stau am Werkzeugkopf
@@ -2652,6 +2661,7 @@ translations:
   No notifications: Keine Benachrichtigungen
   No objects: 'Keine Objekte'
   No objects defined for this print: Keine Objekte für diesen Druck definiert
+  No other toolhead can take over this print.: 'Kein anderer Werkzeugkopf kann diesen Druck übernehmen.'
   No output yet: Noch keine Ausgabe
   No pause scheduled.: 'Keine Pause geplant.'
   No plugin actions for this file: 'Keine Plugin-Aktionen für diese Datei'
@@ -2727,6 +2737,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: Nicht genug Platz für dieses Widget. Ordnen Sie Widgets neu an oder entfernen Sie welche, um Platz zu schaffen.
   Not enough room to put the widget back. It stays removed.: 'Nicht genug Platz, um das Widget wiederherzustellen. Es bleibt entfernt.'
   Not in your spools? Set it up: Nicht in Ihren Spulen? Einrichten
+  Not loaded by its feeder: 'Nicht über seine Zuführung geladen'
   Not now: Nicht jetzt
   Not turned: 'Ungedreht'
   'Not saved: {}. Try again.': "Nicht gespeichert: {}. Bitte erneut versuchen."
@@ -2778,6 +2789,7 @@ translations:
   Nozzle min cannot exceed max: Düse min darf max nicht überschreiten
   'Nozzle not changed: the printer did not confirm it': "Düse nicht geändert: der Drucker hat es nicht bestätigt"
   'Nozzle not changed: {}': "Düse nicht geändert: {}"
+  Nozzle not reported: 'Düse nicht gemeldet'
   Nozzle size and flow type per head: "Düsengröße und Durchflusstyp je Werkzeugkopf"
   Nozzle target set to {}: Düsen-Zieltemperatur auf {} gesetzt
   Nozzle temp must be %d-%s: Düsentemperatur muss %d-%s betragen
@@ -3270,6 +3282,7 @@ translations:
   Ramming Volume: 'Ramming-Volumen'
   'Ramp: band {} of {}': 'Rampe: Bereich {} von {}'
   'Ramp: base layers': 'Rampe: Basisschichten'
+  Ran out: 'Leer'
   Random: Zufällig
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3553,6 +3566,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Abgesicherter Modus: Die App ist beim Start wiederholt abgestürzt, daher sind Plugins deaktiviert und die Widget-Layouts zeigen ihre Standardwerte. Starten Sie neu, um zum Normalbetrieb zurückzukehren.'
   Safety & Alerts: Sicherheit & Alarme
+  Same filament: 'Gleiches Filament'
   Same spool in {}? Tap Clear if it is a new one.: 'Dieselbe Spule in {}? Tippen Sie auf Löschen, wenn es eine neue ist.'
   Sample: Messung
   Sample %d/%d: Messung %d/%d
@@ -4113,6 +4127,7 @@ translations:
   'That setting cannot be changed while a print is running': 'Diese Einstellung kann während eines laufenden Drucks nicht geändert werden'
   That slot cannot stand in for this one: Dieser Slot kann nicht für diesen einspringen
   That tool is already loaded: Dieses Werkzeug ist bereits geladen
+  That toolhead can no longer take over the print: 'Dieser Werkzeugkopf kann den Druck nicht mehr übernehmen'
   That turn didn't register yet. Loosen {0} a little more.: "Diese Drehung hat sich noch nicht gezeigt. Lockere {0} noch etwas mehr."
   That turn didn't register yet. Loosen {0} one more full turn.: "Diese Drehung hat sich noch nicht gezeigt. Lockere {0} um eine weitere volle Umdrehung."
   That turn didn't register yet. Tighten {0} a little more.: "Diese Drehung hat sich noch nicht gezeigt. Spanne {0} noch etwas mehr."
@@ -4243,6 +4258,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Der Drucker hat den Druckstart nicht bestätigt ({}). Er kann trotzdem noch starten: Prüfe den Drucker, bevor du ihn erneut startest.'
   The printer did not report its toolhead limits.: 'Der Drucker hat die Grenzwerte seines Werkzeugkopfs nicht gemeldet.'
   The printer did not reset the filter: 'Der Drucker hat den Filter nicht zurückgesetzt'
+  The printer did not switch toolheads: 'Der Drucker hat den Werkzeugkopf nicht gewechselt'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Der Drucker extrudiert in einer Ecke und wiederholt, bis die Messwerte übereinstimmen. Du beurteilst nichts mit dem Auge.'
   The printer finishes this measurement on its own.: 'Der Drucker beendet diese Messung selbst.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Der Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu starten?
@@ -5098,6 +5114,7 @@ translations:
   '{} h of {} h': '{} Std von {} Std'
   '{} has no hotend': "{} hat kein Hotend"
   '{} heater turned off': '{}-Heizung ausgeschaltet'
+  '{} holds the same filament, and the printer uses that one.': '{} enthält dasselbe Filament, und der Drucker verwendet diesen.'
   '{} is asking to connect to this printer.': '{} möchte sich mit diesem Drucker verbinden.'
   '{} is blocked — manual intervention required': '{} ist blockiert — manueller Eingriff erforderlich'
   '{} is due': "{} ist fällig"
@@ -5135,6 +5152,8 @@ translations:
   '{} presets': '{} Voreinstellungen'
   '{} prints': '{} Drucke'
   '{} queued': '{} in der Warteschlange'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} hat kein {} mehr. Wähle einen geladenen Werkzeugkopf, um den Druck zu beenden. Er behält die für das ursprüngliche Filament geslicten Temperaturen.'
+  '{} ran out, and the printer has not said what it was printing.': '{} ist leer, und der Drucker hat nicht gemeldet, womit er gedruckt hat.'
   '{} serial': '{} Seriennummer'
   '{} set to {}': '{} auf {} gesetzt'
   '{} set to {} {}': '{} auf {} {} gesetzt'

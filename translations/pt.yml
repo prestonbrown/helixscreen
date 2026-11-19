@@ -399,6 +399,7 @@ translations:
   Auto-Detect: Auto-Detectar
   Auto-Heat on Load: Aquecer Automaticamente ao Carregar
   Auto-Replenish: Reabastecimento automático
+  Auto-Replenish is turned on for this switch.: 'O reabastecimento automático é ativado para esta troca.'
   Auto-detect: Auto-detectar
   Auto-install only works on local Moonraker: A instalação automática só funciona no Moonraker local
   Auto-lock: Bloqueio automático
@@ -962,6 +963,8 @@ translations:
   Console Settings: Configurações do Console
   Context: Contexto
   Continue: Continuar
+  Continue on Another Toolhead: 'Continuar em outro cabeçote'
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Continuar a impressão em {}? A impressora passa o resto da impressão para ele, aquece-o e retoma.'
   Control optional print start features: Controlar recursos opcionais de início de impressão
   Control power relays and smart outlets: Controlar relés e tomadas inteligentes
   Controllable Fans: Ventiladores controláveis
@@ -1193,7 +1196,11 @@ translations:
   Device name is required: Nome do dispositivo é obrigatório
   'Device: ': 'Dispositivo: '
   Devices: Dispositivos
+  Different color: 'Cor diferente'
   Different filament?: Filamento diferente?
+  Different material: 'Material diferente'
+  Different nozzle flow type: 'Tipo de fluxo do bico diferente'
+  Different nozzle size: 'Tamanho de bico diferente'
   Digital Clock: 'Relógio digital'
   Direct drive: Direto
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "Direct drive: solte a tensão da extrusora e puxe o filamento para fora em um movimento firme."
@@ -1665,6 +1672,7 @@ translations:
   Filament jammed at the extruder gear: Filamento preso na engrenagem do extrusor
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'O filamento deve estar carregado no extrusor e a placa montada, sem nada no caminho do cabeçote.'
   Filament never reached the CFS hub sensor: O filamento nunca chegou ao sensor do hub do CFS
+  Filament not identified: 'Filamento não identificado'
   Filament not set: 'Filamento não definido'
   Filament operation failed: Falha na operação de filamento
   Filament operation timed out: Operação de filamento — tempo esgotado
@@ -2104,6 +2112,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: 'Ao terminar, salva o resultado e reinicia o Klipper.'
   It starts with your {} macro.: Ela começa com a sua macro {}.
   It's a new spool: É um carretel novo
+  Its filament is a different color.: 'O filamento dele é de outra cor.'
   Its home tile: 'Seu bloco da tela inicial'
   Jammed: Atolado
   Jammed at the Toolhead: Atolado no cabeçote
@@ -2652,6 +2661,7 @@ translations:
   No notifications: Sem notificações
   No objects: 'Sem objetos'
   No objects defined for this print: Nenhum objeto definido para esta impressão
+  No other toolhead can take over this print.: 'Nenhum outro cabeçote pode continuar esta impressão.'
   No output yet: Sem saída ainda
   No pause scheduled.: 'Nenhuma pausa agendada.'
   No plugin actions for this file: 'Nenhuma ação de plugin para este arquivo'
@@ -2727,6 +2737,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: Não há espaço suficiente para este widget. Reorganize ou remova widgets para criar espaço.
   Not enough room to put the widget back. It stays removed.: 'Não há espaço suficiente para restaurar o widget. Ele continua removido.'
   Not in your spools? Set it up: Não está nos seus carretéis? Configure aqui
+  Not loaded by its feeder: 'Não carregado pelo seu alimentador'
   Not now: Agora não
   Not turned: 'Não girado'
   'Not saved: {}. Try again.': "Não salvo: {}. Tente novamente."
@@ -2778,6 +2789,7 @@ translations:
   Nozzle min cannot exceed max: O mínimo do bico não pode exceder o máximo
   'Nozzle not changed: the printer did not confirm it': "Bico não alterado: a impressora não confirmou"
   'Nozzle not changed: {}': "Bico não alterado: {}"
+  Nozzle not reported: 'Bico não informado'
   Nozzle size and flow type per head: "Tamanho e tipo de fluxo do bico por cabeçote"
   Nozzle target set to {}: Bico configurado para {}
   Nozzle temp must be %d-%s: A temperatura do bico deve ser %d-%s
@@ -3270,6 +3282,7 @@ translations:
   Ramming Volume: 'Volume de compactação'
   'Ramp: band {} of {}': 'Rampa: faixa {} de {}'
   'Ramp: base layers': 'Rampa: camadas de base'
+  Ran out: 'Esgotado'
   Random: Aleatório
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3553,6 +3566,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Modo Seguro: o aplicativo continuou travando na inicialização, então os plugins estão desativados e os layouts de widgets mostram seus padrões. Reinicie para voltar ao normal.'
   Safety & Alerts: Segurança e alertas
+  Same filament: 'Mesmo filamento'
   Same spool in {}? Tap Clear if it is a new one.: 'Mesmo carretel em {}? Toque em Limpar se for um novo.'
   Sample: Amostra
   Sample %d/%d: Amostra %d/%d
@@ -4113,6 +4127,7 @@ translations:
   'That setting cannot be changed while a print is running': 'Essa configuração não pode ser alterada durante uma impressão'
   That slot cannot stand in for this one: Esse slot não pode substituir este
   That tool is already loaded: Essa ferramenta já está carregada
+  That toolhead can no longer take over the print: 'Esse cabeçote não pode mais continuar a impressão'
   That turn didn't register yet. Loosen {0} a little more.: "Esse giro ainda não apareceu. Afrouxe {0} um pouco mais."
   That turn didn't register yet. Loosen {0} one more full turn.: "Esse giro ainda não apareceu. Afrouxe {0} mais uma volta completa."
   That turn didn't register yet. Tighten {0} a little more.: "Esse giro ainda não apareceu. Aperte {0} um pouco mais."
@@ -4243,6 +4258,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'A impressora não confirmou o início da impressão ({}). Ela ainda pode começar: verifique a impressora antes de iniciar de novo.'
   The printer did not report its toolhead limits.: 'A impressora não informou os limites do cabeçote.'
   The printer did not reset the filter: 'A impressora não repôs o filtro'
+  The printer did not switch toolheads: 'A impressora não trocou de cabeçote'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'A impressora extruda num canto e repete até as leituras coincidirem. Você não julga nada a olho.'
   The printer finishes this measurement on its own.: 'A impressora conclui esta medição por conta própria.'
   The printer halted this print and cannot resume it. Restart from the beginning?: A impressora parou esta impressão e não pode retomá-la. Reiniciar do início?
@@ -5098,6 +5114,7 @@ translations:
   '{} h of {} h': '{} h de {} h'
   '{} has no hotend': "{} não tem hotend"
   '{} heater turned off': Aquecedor {} desligado
+  '{} holds the same filament, and the printer uses that one.': '{} tem o mesmo filamento, e a impressora usa esse.'
   '{} is asking to connect to this printer.': '{} quer conectar-se a esta impressora.'
   '{} is blocked — manual intervention required': '{}: bloqueio — intervenção manual necessária'
   '{} is due': "{} pendente"
@@ -5135,6 +5152,8 @@ translations:
   '{} presets': '{} predefinições'
   '{} prints': '{} impressões'
   '{} queued': '{} na fila'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} ficou sem {}. Escolha um cabeçote carregado para terminar a impressão. Ele mantém as temperaturas fatiadas para o filamento original.'
+  '{} ran out, and the printer has not said what it was printing.': '{} esgotou, e a impressora não informou o que estava imprimindo.'
   '{} serial': 'N.º de série de {}'
   '{} set to {}': '{} definido para {}'
   '{} set to {} {}': '{} definido para {} {}'

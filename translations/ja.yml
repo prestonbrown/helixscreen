@@ -399,6 +399,7 @@ translations:
   Auto-Detect: 自動検出
   Auto-Heat on Load: 装填時に自動加熱
   Auto-Replenish: 自動補充
+  Auto-Replenish is turned on for this switch.: 'この切り替えのために自動補充をオンにします。'
   Auto-detect: 自動検出
   Auto-install only works on local Moonraker: 自動インストールはローカルの Moonraker でのみ動作します
   Auto-lock: 自動ロック
@@ -962,6 +963,8 @@ translations:
   Console Settings: コンソール設定
   Context: コンテキスト
   Continue: 続行
+  Continue on Another Toolhead: '別のツールヘッドで続行'
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: '{}で印刷を続行しますか？プリンターは残りの印刷をそこへ移し、加熱して再開します。'
   Control optional print start features: オプションの印刷開始機能を制御
   Control power relays and smart outlets: 電源リレーとスマートコンセントを制御
   Controllable Fans: 制御可能なファン
@@ -1193,7 +1196,11 @@ translations:
   Device name is required: デバイス名は必須です
   'Device: ': 'デバイス: '
   Devices: デバイス
+  Different color: '色が異なります'
   Different filament?: 別のフィラメント？
+  Different material: '材料が異なります'
+  Different nozzle flow type: 'ノズルの流量タイプが異なります'
+  Different nozzle size: 'ノズルサイズが異なります'
   Digital Clock: 'デジタル時計'
   Direct drive: ダイレクトドライブ
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "ダイレクトドライブ: エクストルーダーのテンションを解除し、フィラメントを一気に引き抜いてください。"
@@ -1665,6 +1672,7 @@ translations:
   Filament jammed at the extruder gear: エクストルーダーギアでフィラメントが詰まりました
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'エクストルーダーにフィラメントが装填され、ビルドプレートが取り付けられ、ツールヘッドの邪魔になる物がないことを確認してください。'
   Filament never reached the CFS hub sensor: フィラメントが CFS ハブセンサーに到達しませんでした
+  Filament not identified: 'フィラメントが識別されていません'
   Filament not set: 'フィラメント未設定'
   Filament operation failed: フィラメント操作に失敗しました
   Filament operation timed out: フィラメント操作がタイムアウトしました
@@ -2104,6 +2112,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: '完了すると結果を保存し、Klipperを再起動します。'
   It starts with your {} macro.: '{}マクロで開始します。'
   It's a new spool: 新しいスプールです
+  Its filament is a different color.: 'そのフィラメントは色が異なります。'
   Its home tile: 'ホームのタイル'
   Jammed: 詰まり
   Jammed at the Toolhead: ツールヘッドで詰まり
@@ -2652,6 +2661,7 @@ translations:
   No notifications: 通知なし
   No objects: 'オブジェクトなし'
   No objects defined for this print: この印刷にはオブジェクトが定義されていません
+  No other toolhead can take over this print.: 'この印刷を引き継げる他のツールヘッドはありません。'
   No output yet: 出力なし
   No pause scheduled.: '一時停止の予約はありません。'
   No plugin actions for this file: 'このファイルにはプラグインの操作がありません'
@@ -2727,6 +2737,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: このウィジェットを配置するスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。
   Not enough room to put the widget back. It stays removed.: 'ウィジェットを元に戻すスペースが足りません。削除されたままです。'
   Not in your spools? Set it up: スプールにない？登録する
+  Not loaded by its feeder: 'フィーダーで装填されていません'
   Not now: 後で
   Not turned: '未回転'
   'Not saved: {}. Try again.': "保存されていません: {}。もう一度お試しください。"
@@ -2778,6 +2789,7 @@ translations:
   Nozzle min cannot exceed max: ノズル温度の最小値は最大値を超えられません
   'Nozzle not changed: the printer did not confirm it': "ノズルは変更されていません: プリンターが確認しませんでした"
   'Nozzle not changed: {}': "ノズルは変更されていません: {}"
+  Nozzle not reported: 'ノズルが報告されていません'
   Nozzle size and flow type per head: "ツールヘッドごとのノズルサイズとフロータイプ"
   Nozzle target set to {}: ノズル目標温度を {} に設定しました
   Nozzle temp must be %d-%s: ノズル温度は %d〜%s にしてください
@@ -3270,6 +3282,7 @@ translations:
   Ramming Volume: 'ラミング量'
   'Ramp: band {} of {}': 'ランプ: 区間 {} / {}'
   'Ramp: base layers': 'ランプ: ベースレイヤー'
+  Ran out: '切れました'
   Random: ランダム
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3553,6 +3566,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'セーフモード: 起動時にアプリがクラッシュし続けたため、プラグインは無効になり、ウィジェットのレイアウトはデフォルトで表示されています。再起動すると通常に戻ります。'
   Safety & Alerts: 安全とアラート
+  Same filament: '同じフィラメント'
   Same spool in {}? Tap Clear if it is a new one.: '{} は同じスプールですか？新しいスプールならクリアをタップしてください。'
   Sample: サンプル
   Sample %d/%d: サンプル %d/%d
@@ -4113,6 +4127,7 @@ translations:
   'That setting cannot be changed while a print is running': '印刷中はこの設定を変更できません'
   That slot cannot stand in for this one: そのスロットはこのスロットの代わりになりません
   That tool is already loaded: そのツールはすでに装填されています
+  That toolhead can no longer take over the print: 'そのツールヘッドは印刷を引き継げなくなりました'
   That turn didn't register yet. Loosen {0} a little more.: "その回転はまだ反映されていません。{0}をもう少し緩めてください。"
   That turn didn't register yet. Loosen {0} one more full turn.: "その回転はまだ反映されていません。{0}をもう1回転緩めてください。"
   That turn didn't register yet. Tighten {0} a little more.: "その回転はまだ反映されていません。{0}をもう少し締めてください。"
@@ -4243,6 +4258,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。'
   The printer did not report its toolhead limits.: 'プリンターがツールヘッドの限界値を報告しませんでした。'
   The printer did not reset the filter: 'プリンターがフィルターをリセットしませんでした'
+  The printer did not switch toolheads: 'プリンターはツールヘッドを切り替えませんでした'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
   The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
@@ -5098,6 +5114,7 @@ translations:
   '{} h of {} h': '{} / {} 時間'
   '{} has no hotend': "{}にはホットエンドがありません"
   '{} heater turned off': '{} ヒーターをオフにしました'
+  '{} holds the same filament, and the printer uses that one.': '{}に同じフィラメントがあり、プリンターはそちらを使用します。'
   '{} is asking to connect to this printer.': '{} がこのプリンターへの接続を求めています。'
   '{} is blocked — manual intervention required': '{} がブロックされています — 手動での対応が必要です'
   '{} is due': "{} の期限です"
@@ -5135,6 +5152,8 @@ translations:
   '{} presets': '{} 個のプリセット'
   '{} prints': '{} 件'
   '{} queued': '{} 件キュー中'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{}の{}が切れました。印刷を仕上げる装填済みのツールヘッドを選んでください。元のフィラメント用にスライスされた温度のままです。'
+  '{} ran out, and the printer has not said what it was printing.': '{}が切れましたが、プリンターは何を印刷していたかを報告していません。'
   '{} serial': '{} シリアル番号'
   '{} set to {}': '{} を {} に設定しました'
   '{} set to {} {}': '{} を {} {} に設定しました'

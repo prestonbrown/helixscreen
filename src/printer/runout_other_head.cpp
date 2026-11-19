@@ -6,12 +6,12 @@
 #include "i_moonraker_api.h"
 #include "translation_loader.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <fmt/format.h>
 
 namespace helix::runout_other_head {
 
@@ -168,6 +168,7 @@ struct Provider {
 // One row per filament system that can move a paused job onto another head.
 // AFC and Happy Hare take a tool remap while paused and are the next rows.
 constexpr Provider kProviders[] = {
+    // VENDOR_OK: this capability's provider table, one row per filament system
     {AmsType::SNAPMAKER, &u1_plan},
 };
 

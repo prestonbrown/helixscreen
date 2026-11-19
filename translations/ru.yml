@@ -451,6 +451,7 @@ translations:
   Auto-Detect: Автоопределение
   Auto-Heat on Load: Автонагрев при загрузке
   Auto-Replenish: Автопополнение
+  Auto-Replenish is turned on for this switch.: 'Для этого переключения включается автопополнение.'
   Auto-detect: Автоопределение
   Auto-install only works on local Moonraker: Автоустановка работает только с локальным Moonraker
   Auto-lock: Автоблокировка
@@ -1022,6 +1023,8 @@ translations:
   Console Settings: Настройки консоли
   Context: Контекст
   Continue: Продолжить
+  Continue on Another Toolhead: 'Продолжить на другой печатающей головке'
+  Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать.'
   Control optional print start features: Управление дополнительными функциями начала печати
   Control power relays and smart outlets: Управление реле и умными розетками
   Controllable Fans: Управляемые вентиляторы
@@ -1253,7 +1256,11 @@ translations:
   Device name is required: Требуется название устройства
   'Device: ': 'Устройство: '
   Devices: Устройства
+  Different color: 'Другой цвет'
   Different filament?: Другой филамент?
+  Different material: 'Другой материал'
+  Different nozzle flow type: 'Другой тип потока сопла'
+  Different nozzle size: 'Другой размер сопла'
   Digital Clock: 'Цифровые часы'
   Direct drive: Директ
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': "Директ: ослабьте прижим экструдера и вытяните филамент одним уверенным движением."
@@ -1725,6 +1732,7 @@ translations:
   Filament jammed at the extruder gear: Филамент застрял в шестерне экструдера
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'В экструдере должен быть филамент, стол установлен, и ничто не мешает печатающей головке.'
   Filament never reached the CFS hub sensor: Филамент не дошёл до датчика хаба CFS
+  Filament not identified: 'Филамент не определён'
   Filament not set: 'Филамент не задан'
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
@@ -2168,6 +2176,7 @@ translations:
   It saves the result and restarts Klipper when it finishes.: 'По завершении результат сохраняется, и Klipper перезапускается.'
   It starts with your {} macro.: Начинается с вашего макроса {}.
   It's a new spool: Это новая катушка
+  Its filament is a different color.: 'Его филамент другого цвета.'
   Its home tile: 'Его плитка на главном экране'
   Jammed: Замятие
   Jammed at the Toolhead: Замятие в печатающей головке
@@ -2716,6 +2725,7 @@ translations:
   No notifications: Нет уведомлений
   No objects: 'Нет объектов'
   No objects defined for this print: Для этой печати не определены объекты
+  No other toolhead can take over this print.: 'Ни одна другая печатающая головка не может продолжить эту печать.'
   No output yet: Нет вывода
   No pause scheduled.: 'Пауза не запланирована.'
   No plugin actions for this file: 'Нет действий плагинов для этого файла'
@@ -2791,6 +2801,7 @@ translations:
   Not enough room for this widget. Rearrange or remove widgets to make space.: Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место.
   Not enough room to put the widget back. It stays removed.: 'Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым.'
   Not in your spools? Set it up: Нет в ваших катушках? Настроить
+  Not loaded by its feeder: 'Не загружен через свой фидер'
   Not now: Не сейчас
   Not turned: 'Не повёрнут'
   'Not saved: {}. Try again.': "Не сохранено: {}. Попробуйте ещё раз."
@@ -2842,6 +2853,7 @@ translations:
   Nozzle min cannot exceed max: Минимум сопла не может превышать максимум
   'Nozzle not changed: the printer did not confirm it': "Сопло не изменено: принтер не подтвердил"
   'Nozzle not changed: {}': "Сопло не изменено: {}"
+  Nozzle not reported: 'Сопло не сообщено'
   Nozzle size and flow type per head: "Размер сопла и тип потока для каждой печатающей головки"
   Nozzle target set to {}: Целевая температура сопла {}
   Nozzle temp must be %d-%s: Температура сопла должна быть %d-%s
@@ -3350,6 +3362,7 @@ translations:
   Ramming Volume: 'Объём рэмминга'
   'Ramp: band {} of {}': 'Рампа: полоса {} из {}'
   'Ramp: base layers': 'Рампа: базовые слои'
+  Ran out: 'Закончился'
   Random: Случайный
   Raspberry Pi: Raspberry Pi
   Raspberry Pi (32-bit): Raspberry Pi (32-bit)
@@ -3633,6 +3646,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Безопасный режим: приложение постоянно аварийно завершалось при запуске, поэтому плагины отключены, а раскладки виджетов показаны по умолчанию. Перезапустите, чтобы вернуться к обычному режиму.'
   Safety & Alerts: Безопасность и оповещения
+  Same filament: 'Тот же филамент'
   Same spool in {}? Tap Clear if it is a new one.: 'Та же катушка в {}? Нажмите «Очистить», если это новая.'
   Sample: Образец
   Sample %d/%d: Образец %d/%d
@@ -4201,6 +4215,7 @@ translations:
   'That setting cannot be changed while a print is running': 'Этот параметр нельзя изменить во время печати'
   That slot cannot stand in for this one: Этот слот не может заменить текущий
   That tool is already loaded: Этот инструмент уже загружен
+  That toolhead can no longer take over the print: 'Эта печатающая головка больше не может продолжить печать'
   That turn didn't register yet. Loosen {0} a little more.: "Этот поворот ещё не отразился. Ослабьте {0} ещё немного."
   That turn didn't register yet. Loosen {0} one more full turn.: "Этот поворот ещё не отразился. Ослабьте {0} ещё на один полный оборот."
   That turn didn't register yet. Tighten {0} a little more.: "Этот поворот ещё не отразился. Натяните {0} ещё немного."
@@ -4331,6 +4346,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова.'
   The printer did not report its toolhead limits.: 'Принтер не сообщил пределы печатающей головки.'
   The printer did not reset the filter: 'Принтер не сбросил счётчик фильтра'
+  The printer did not switch toolheads: 'Принтер не переключил печатающую головку'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер остановил эту печать и не может её возобновить. Начать с начала?
@@ -5198,6 +5214,7 @@ translations:
   '{} h of {} h': '{} ч из {} ч'
   '{} has no hotend': "У {} нет хотэнда"
   '{} heater turned off': Нагреватель {} выключен
+  '{} holds the same filament, and the printer uses that one.': 'В {} тот же филамент, и принтер использует её.'
   '{} is asking to connect to this printer.': '{} запрашивает подключение к этому принтеру.'
   '{} is blocked — manual intervention required': '{}: блокировка — требуется ручное вмешательство'
   '{} is due': "{}: пора выполнить"
@@ -5247,6 +5264,8 @@ translations:
     many: '{} печатей'
     other: '{} печати'
   '{} queued': 'В очереди: {}'
+  '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': 'В {} закончился {}. Выберите заряженную печатающую головку, чтобы завершить печать. Она сохранит температуры, нарезанные для исходного филамента.'
+  '{} ran out, and the printer has not said what it was printing.': 'В {} закончился филамент, а принтер не сообщил, чем печатал.'
   '{} serial': 'Серийный номер {}'
   '{} set to {}': '{} установлено на {}'
   '{} set to {} {}': '{} установлено на {} {}'

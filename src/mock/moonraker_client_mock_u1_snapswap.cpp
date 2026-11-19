@@ -291,6 +291,7 @@ void MoonrakerClientMock::u1_auto_replenish(int empty_head) {
     }
     spdlog::info("[MoonrakerClientMock] U1: auto-replenish T{} -> T{}", empty_head, replacement);
     dispatch_status_update({{"print_task_config", u1_snapswap_status_json()["print_task_config"]}});
+    // DISPLAY_NUMBERING_OK: the firmware's own head-swap command, not a label
     gcode_script(fmt::format("T{}", replacement));
     resume_print_internal();
 }

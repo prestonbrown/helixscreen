@@ -17,10 +17,10 @@
 #include "theme_manager.h"
 #include "translation_loader.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <array>
-#include <fmt/format.h>
 #include <memory>
 #include <string>
 

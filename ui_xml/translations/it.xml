@@ -383,6 +383,7 @@
   <translation tag="Auto-Detect" it="Rilevamento auto"/>
   <translation tag="Auto-Heat on Load" it="Riscaldamento automatico al caricamento"/>
   <translation tag="Auto-Replenish" it="Rifornimento automatico"/>
+  <translation tag="Auto-Replenish is turned on for this switch." it="Il rifornimento automatico viene attivato per questo cambio."/>
   <translation tag="Auto-detect" it="Rilevamento auto"/>
   <translation tag="Auto-install only works on local Moonraker" it="L&apos;installazione automatica funziona solo su Moonraker locale"/>
   <translation tag="Auto-lock" it="Blocco automatico"/>
@@ -937,6 +938,8 @@
   <translation tag="Console Settings" it="Impostazioni console"/>
   <translation tag="Context" it="Contesto"/>
   <translation tag="Continue" it="Continua"/>
+  <translation tag="Continue on Another Toolhead" it="Continua su un&apos;altra testina"/>
+  <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." it="Continuare la stampa su {}? La stampante vi sposta il resto della stampa, la riscalda e riprende."/>
   <translation tag="Control optional print start features" it="Controlla funzionalità opzionali avvio stampa"/>
   <translation tag="Control power relays and smart outlets" it="Controlla relè e prese intelligenti"/>
   <translation tag="Controllable Fans" it="Ventilatori controllabili"/>
@@ -1136,7 +1139,11 @@
   <translation tag="Device name is required" it="Il nome dispositivo è obbligatorio"/>
   <translation tag="Device: " it="Dispositivo: "/>
   <translation tag="Devices" it="Dispositivi"/>
+  <translation tag="Different color" it="Colore diverso"/>
   <translation tag="Different filament?" it="Filamento diverso?"/>
+  <translation tag="Different material" it="Materiale diverso"/>
+  <translation tag="Different nozzle flow type" it="Tipo di flusso dell&apos;ugello diverso"/>
+  <translation tag="Different nozzle size" it="Dimensione dell&apos;ugello diversa"/>
   <translation tag="Digital Clock" it="Orologio digitale"/>
   <translation tag="Direct drive" it="Diretto"/>
   <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." it="Direct drive: rilasciare la tensione dell&apos;estrusore e tirare fuori il filamento con un unico gesto deciso."/>
@@ -1598,6 +1605,7 @@
   <translation tag="Filament jammed at the extruder gear" it="Filamento inceppato nell&apos;ingranaggio dell&apos;estrusore"/>
   <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." it="Il filamento deve essere caricato nell&apos;estrusore e il piano montato, con nulla che ostacoli la testina."/>
   <translation tag="Filament never reached the CFS hub sensor" it="Il filamento non ha mai raggiunto il sensore dell&apos;hub CFS"/>
+  <translation tag="Filament not identified" it="Filamento non identificato"/>
   <translation tag="Filament not set" it="Filamento non impostato"/>
   <translation tag="Filament operation failed" it="Operazione filamento fallita"/>
   <translation tag="Filament operation timed out" it="Operazione filamento — tempo scaduto"/>
@@ -2028,6 +2036,7 @@
   <translation tag="It saves the result and restarts Klipper when it finishes." it="Al termine salva il risultato e riavvia Klipper."/>
   <translation tag="It starts with your {} macro." it="Inizia con la tua macro {}."/>
   <translation tag="It&apos;s a new spool" it="È una nuova bobina"/>
+  <translation tag="Its filament is a different color." it="Il suo filamento è di un altro colore."/>
   <translation tag="Its home tile" it="Il suo riquadro della home"/>
   <translation tag="Jammed" it="Inceppato"/>
   <translation tag="Jammed at the Toolhead" it="Inceppato nella testina"/>
@@ -2579,6 +2588,7 @@
   <translation tag="No notifications" it="Nessuna notifica"/>
   <translation tag="No objects" it="Nessun oggetto"/>
   <translation tag="No objects defined for this print" it="Nessun oggetto definito per questa stampa"/>
+  <translation tag="No other toolhead can take over this print." it="Nessun&apos;altra testina può continuare questa stampa."/>
   <translation tag="No output yet" it="Nessun output"/>
   <translation tag="No pause scheduled." it="Nessuna pausa programmata."/>
   <translation tag="No plugin actions for this file" it="Nessuna azione plugin per questo file"/>
@@ -2651,6 +2661,7 @@
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." it="Non c&apos;è abbastanza spazio per questo widget. Riorganizza o rimuovi widget per fare spazio."/>
   <translation tag="Not enough room to put the widget back. It stays removed." it="Non c&apos;è abbastanza spazio per ripristinare il widget. Resta rimosso."/>
   <translation tag="Not in your spools? Set it up" it="Non è tra le tue bobine? Configuralo"/>
+  <translation tag="Not loaded by its feeder" it="Non caricato dal suo alimentatore"/>
   <translation tag="Not now" it="Non ora"/>
   <translation tag="Not saved: {}. Try again." it="Non salvato: {}. Riprova."/>
   <translation tag="Not set" it="Non impostato"/>
@@ -2697,6 +2708,7 @@
   <translation tag="Nozzle min cannot exceed max" it="Il minimo dell’ugello non può superare il massimo"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" it="Ugello non cambiato: la stampante non l&apos;ha confermato"/>
   <translation tag="Nozzle not changed: {}" it="Ugello non cambiato: {}"/>
+  <translation tag="Nozzle not reported" it="Ugello non segnalato"/>
   <translation tag="Nozzle size and flow type per head" it="Dimensione e tipo di flusso dell&apos;ugello per testina"/>
   <translation tag="Nozzle target set to {}" it="Obiettivo ugello impostato a {}"/>
   <translation tag="Nozzle temp must be %d-%s" it="La temperatura dell’ugello deve essere %d-%s"/>
@@ -3184,6 +3196,7 @@
   <translation tag="Ramming Volume" it="Volume di compattazione"/>
   <translation tag="Ramp: band {} of {}" it="Rampa: fascia {} di {}"/>
   <translation tag="Ramp: base layers" it="Rampa: strati di base"/>
+  <translation tag="Ran out" it="Esaurito"/>
   <translation tag="Random" it="Casuale"/>
   <translation tag="Raspberry Pi" it="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" it="Raspberry Pi (32-bit)"/>
@@ -3462,6 +3475,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." it="Modalità provvisoria attiva. La connessione alla stampante è disabilitata perché l&apos;app continuava a bloccarsi all&apos;avvio. Apri Impostazioni per risolvere il problema, quindi riavvia."/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." it="Modalità provvisoria: l&apos;app continuava a bloccarsi all&apos;avvio, quindi i plugin sono disattivati e i layout dei widget mostrano quelli predefiniti. Riavvia per tornare alla normalità."/>
   <translation tag="Safety &amp; Alerts" it="Sicurezza e avvisi"/>
+  <translation tag="Same filament" it="Stesso filamento"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." it="Stessa bobina in {}? Tocca Cancella se è una nuova."/>
   <translation tag="Sample" it="Campione"/>
   <translation tag="Sample %d/%d" it="Campione %d/%d"/>
@@ -4013,6 +4027,7 @@
   <translation tag="That setting cannot be changed while a print is running" it="Quell&apos;impostazione non può essere modificata durante una stampa in corso"/>
   <translation tag="That slot cannot stand in for this one" it="Quello slot non può sostituire questo"/>
   <translation tag="That tool is already loaded" it="Quell&apos;utensile è già caricato"/>
+  <translation tag="That toolhead can no longer take over the print" it="Quella testina non può più continuare la stampa"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} a little more." it="Quel giro non si è ancora visto. Allenta {0} ancora un po&apos;."/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} one more full turn." it="Quel giro non si è ancora visto. Allenta {0} di un altro giro completo."/>
   <translation tag="That turn didn&apos;t register yet. Tighten {0} a little more." it="Quel giro non si è ancora visto. Tendi {0} ancora un po&apos;."/>
@@ -4131,6 +4146,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." it="La stampante non ha confermato l&apos;avvio della stampa ({}). Potrebbe comunque avviarsi: controlla la stampante prima di avviarla di nuovo."/>
   <translation tag="The printer did not report its toolhead limits." it="La stampante non ha comunicato i limiti della testina."/>
   <translation tag="The printer did not reset the filter" it="La stampante non ha azzerato il filtro"/>
+  <translation tag="The printer did not switch toolheads" it="La stampante non ha cambiato testina"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." it="La stampante estrude in un angolo e ripete finché le letture concordano. Non giudichi nulla a occhio."/>
   <translation tag="The printer finishes this measurement on its own." it="La stampante completa questa misurazione da sola."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" it="La stampante ha interrotto questa stampa e non può riprenderla. Riavviare dall&apos;inizio?"/>
@@ -4957,6 +4973,7 @@
   <translation tag="{} h of {} h" it="{} h su {} h"/>
   <translation tag="{} has no hotend" it="{} non ha un hotend"/>
   <translation tag="{} heater turned off" it="Riscaldatore {} spento"/>
+  <translation tag="{} holds the same filament, and the printer uses that one." it="{} contiene lo stesso filamento e la stampante usa quella."/>
   <translation tag="{} is asking to connect to this printer." it="{} chiede di connettersi a questa stampante."/>
   <translation tag="{} is blocked — manual intervention required" it="{}: blocco — intervento manuale richiesto"/>
   <translation tag="{} is due" it="{} da eseguire"/>
@@ -4994,6 +5011,8 @@
   <translation tag="{} presets" it="{} preset"/>
   <translation tag="{} prints" it="{} stampe"/>
   <translation tag="{} queued" it="{} in coda"/>
+  <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." it="{} ha esaurito {}. Scegli una testina caricata per finire la stampa. Mantiene le temperature del sezionamento per il filamento originale."/>
+  <translation tag="{} ran out, and the printer has not said what it was printing." it="{} è esaurito e la stampante non ha indicato cosa stava stampando."/>
   <translation tag="{} serial" it="Numero di serie {}"/>
   <translation tag="{} set to {}" it="{} impostato su {}"/>
   <translation tag="{} set to {} {}" it="{} impostato su {} {}"/>

@@ -422,6 +422,7 @@
   <translation tag="Auto-Detect" ru="Автоопределение"/>
   <translation tag="Auto-Heat on Load" ru="Автонагрев при загрузке"/>
   <translation tag="Auto-Replenish" ru="Автопополнение"/>
+  <translation tag="Auto-Replenish is turned on for this switch." ru="Для этого переключения включается автопополнение."/>
   <translation tag="Auto-detect" ru="Автоопределение"/>
   <translation tag="Auto-install only works on local Moonraker" ru="Автоустановка работает только с локальным Moonraker"/>
   <translation tag="Auto-lock" ru="Автоблокировка"/>
@@ -982,6 +983,8 @@
   <translation tag="Console Settings" ru="Настройки консоли"/>
   <translation tag="Context" ru="Контекст"/>
   <translation tag="Continue" ru="Продолжить"/>
+  <translation tag="Continue on Another Toolhead" ru="Продолжить на другой печатающей головке"/>
+  <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ru="Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать."/>
   <translation tag="Control optional print start features" ru="Управление дополнительными функциями начала печати"/>
   <translation tag="Control power relays and smart outlets" ru="Управление реле и умными розетками"/>
   <translation tag="Controllable Fans" ru="Управляемые вентиляторы"/>
@@ -1181,7 +1184,11 @@
   <translation tag="Device name is required" ru="Требуется название устройства"/>
   <translation tag="Device: " ru="Устройство: "/>
   <translation tag="Devices" ru="Устройства"/>
+  <translation tag="Different color" ru="Другой цвет"/>
   <translation tag="Different filament?" ru="Другой филамент?"/>
+  <translation tag="Different material" ru="Другой материал"/>
+  <translation tag="Different nozzle flow type" ru="Другой тип потока сопла"/>
+  <translation tag="Different nozzle size" ru="Другой размер сопла"/>
   <translation tag="Digital Clock" ru="Цифровые часы"/>
   <translation tag="Direct drive" ru="Директ"/>
   <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." ru="Директ: ослабьте прижим экструдера и вытяните филамент одним уверенным движением."/>
@@ -1643,6 +1650,7 @@
   <translation tag="Filament jammed at the extruder gear" ru="Филамент застрял в шестерне экструдера"/>
   <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." ru="В экструдере должен быть филамент, стол установлен, и ничто не мешает печатающей головке."/>
   <translation tag="Filament never reached the CFS hub sensor" ru="Филамент не дошёл до датчика хаба CFS"/>
+  <translation tag="Filament not identified" ru="Филамент не определён"/>
   <translation tag="Filament not set" ru="Филамент не задан"/>
   <translation tag="Filament operation failed" ru="Операция с филаментом не удалась"/>
   <translation tag="Filament operation timed out" ru="Операция с филаментом — время ожидания истекло"/>
@@ -2076,6 +2084,7 @@
   <translation tag="It saves the result and restarts Klipper when it finishes." ru="По завершении результат сохраняется, и Klipper перезапускается."/>
   <translation tag="It starts with your {} macro." ru="Начинается с вашего макроса {}."/>
   <translation tag="It&apos;s a new spool" ru="Это новая катушка"/>
+  <translation tag="Its filament is a different color." ru="Его филамент другого цвета."/>
   <translation tag="Its home tile" ru="Его плитка на главном экране"/>
   <translation tag="Jammed" ru="Замятие"/>
   <translation tag="Jammed at the Toolhead" ru="Замятие в печатающей головке"/>
@@ -2627,6 +2636,7 @@
   <translation tag="No notifications" ru="Нет уведомлений"/>
   <translation tag="No objects" ru="Нет объектов"/>
   <translation tag="No objects defined for this print" ru="Для этой печати не определены объекты"/>
+  <translation tag="No other toolhead can take over this print." ru="Ни одна другая печатающая головка не может продолжить эту печать."/>
   <translation tag="No output yet" ru="Нет вывода"/>
   <translation tag="No pause scheduled." ru="Пауза не запланирована."/>
   <translation tag="No plugin actions for this file" ru="Нет действий плагинов для этого файла"/>
@@ -2699,6 +2709,7 @@
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ru="Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место."/>
   <translation tag="Not enough room to put the widget back. It stays removed." ru="Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым."/>
   <translation tag="Not in your spools? Set it up" ru="Нет в ваших катушках? Настроить"/>
+  <translation tag="Not loaded by its feeder" ru="Не загружен через свой фидер"/>
   <translation tag="Not now" ru="Не сейчас"/>
   <translation tag="Not saved: {}. Try again." ru="Не сохранено: {}. Попробуйте ещё раз."/>
   <translation tag="Not set" ru="Не задана"/>
@@ -2745,6 +2756,7 @@
   <translation tag="Nozzle min cannot exceed max" ru="Минимум сопла не может превышать максимум"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" ru="Сопло не изменено: принтер не подтвердил"/>
   <translation tag="Nozzle not changed: {}" ru="Сопло не изменено: {}"/>
+  <translation tag="Nozzle not reported" ru="Сопло не сообщено"/>
   <translation tag="Nozzle size and flow type per head" ru="Размер сопла и тип потока для каждой печатающей головки"/>
   <translation tag="Nozzle target set to {}" ru="Целевая температура сопла {}"/>
   <translation tag="Nozzle temp must be %d-%s" ru="Температура сопла должна быть %d-%s"/>
@@ -3244,6 +3256,7 @@
   <translation tag="Ramming Volume" ru="Объём рэмминга"/>
   <translation tag="Ramp: band {} of {}" ru="Рампа: полоса {} из {}"/>
   <translation tag="Ramp: base layers" ru="Рампа: базовые слои"/>
+  <translation tag="Ran out" ru="Закончился"/>
   <translation tag="Random" ru="Случайный"/>
   <translation tag="Raspberry Pi" ru="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" ru="Raspberry Pi (32-bit)"/>
@@ -3522,6 +3535,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." ru="Активен безопасный режим. Подключение к принтеру отключено, так как приложение постоянно аварийно завершалось при запуске. Откройте настройки, чтобы устранить проблему, затем перезагрузите."/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." ru="Безопасный режим: приложение постоянно аварийно завершалось при запуске, поэтому плагины отключены, а раскладки виджетов показаны по умолчанию. Перезапустите, чтобы вернуться к обычному режиму."/>
   <translation tag="Safety &amp; Alerts" ru="Безопасность и оповещения"/>
+  <translation tag="Same filament" ru="Тот же филамент"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." ru="Та же катушка в {}? Нажмите «Очистить», если это новая."/>
   <translation tag="Sample" ru="Образец"/>
   <translation tag="Sample %d/%d" ru="Образец %d/%d"/>
@@ -4079,6 +4093,7 @@
   <translation tag="That setting cannot be changed while a print is running" ru="Этот параметр нельзя изменить во время печати"/>
   <translation tag="That slot cannot stand in for this one" ru="Этот слот не может заменить текущий"/>
   <translation tag="That tool is already loaded" ru="Этот инструмент уже загружен"/>
+  <translation tag="That toolhead can no longer take over the print" ru="Эта печатающая головка больше не может продолжить печать"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} a little more." ru="Этот поворот ещё не отразился. Ослабьте {0} ещё немного."/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} one more full turn." ru="Этот поворот ещё не отразился. Ослабьте {0} ещё на один полный оборот."/>
   <translation tag="That turn didn&apos;t register yet. Tighten {0} a little more." ru="Этот поворот ещё не отразился. Натяните {0} ещё немного."/>
@@ -4197,6 +4212,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ru="Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова."/>
   <translation tag="The printer did not report its toolhead limits." ru="Принтер не сообщил пределы печатающей головки."/>
   <translation tag="The printer did not reset the filter" ru="Принтер не сбросил счётчик фильтра"/>
+  <translation tag="The printer did not switch toolheads" ru="Принтер не переключил печатающую головку"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ru="Принтер остановил эту печать и не может её возобновить. Начать с начала?"/>
@@ -5032,6 +5048,7 @@
   <translation tag="{} h of {} h" ru="{} ч из {} ч"/>
   <translation tag="{} has no hotend" ru="У {} нет хотэнда"/>
   <translation tag="{} heater turned off" ru="Нагреватель {} выключен"/>
+  <translation tag="{} holds the same filament, and the printer uses that one." ru="В {} тот же филамент, и принтер использует её."/>
   <translation tag="{} is asking to connect to this printer." ru="{} запрашивает подключение к этому принтеру."/>
   <translation tag="{} is blocked — manual intervention required" ru="{}: блокировка — требуется ручное вмешательство"/>
   <translation tag="{} is due" ru="{}: пора выполнить"/>
@@ -5078,6 +5095,8 @@
   <translation tag="{} prints_many" ru="{} печатей"/>
   <translation tag="{} prints_one" ru="{} печать"/>
   <translation tag="{} queued" ru="В очереди: {}"/>
+  <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." ru="В {} закончился {}. Выберите заряженную печатающую головку, чтобы завершить печать. Она сохранит температуры, нарезанные для исходного филамента."/>
+  <translation tag="{} ran out, and the printer has not said what it was printing." ru="В {} закончился филамент, а принтер не сообщил, чем печатал."/>
   <translation tag="{} serial" ru="Серийный номер {}"/>
   <translation tag="{} set to {}" ru="{} установлено на {}"/>
   <translation tag="{} set to {} {}" ru="{} установлено на {} {}"/>

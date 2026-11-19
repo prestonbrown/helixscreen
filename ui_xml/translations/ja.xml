@@ -383,6 +383,7 @@
   <translation tag="Auto-Detect" ja="自動検出"/>
   <translation tag="Auto-Heat on Load" ja="装填時に自動加熱"/>
   <translation tag="Auto-Replenish" ja="自動補充"/>
+  <translation tag="Auto-Replenish is turned on for this switch." ja="この切り替えのために自動補充をオンにします。"/>
   <translation tag="Auto-detect" ja="自動検出"/>
   <translation tag="Auto-install only works on local Moonraker" ja="自動インストールはローカルの Moonraker でのみ動作します"/>
   <translation tag="Auto-lock" ja="自動ロック"/>
@@ -937,6 +938,8 @@
   <translation tag="Console Settings" ja="コンソール設定"/>
   <translation tag="Context" ja="コンテキスト"/>
   <translation tag="Continue" ja="続行"/>
+  <translation tag="Continue on Another Toolhead" ja="別のツールヘッドで続行"/>
+  <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ja="{}で印刷を続行しますか？プリンターは残りの印刷をそこへ移し、加熱して再開します。"/>
   <translation tag="Control optional print start features" ja="オプションの印刷開始機能を制御"/>
   <translation tag="Control power relays and smart outlets" ja="電源リレーとスマートコンセントを制御"/>
   <translation tag="Controllable Fans" ja="制御可能なファン"/>
@@ -1136,7 +1139,11 @@
   <translation tag="Device name is required" ja="デバイス名は必須です"/>
   <translation tag="Device: " ja="デバイス: "/>
   <translation tag="Devices" ja="デバイス"/>
+  <translation tag="Different color" ja="色が異なります"/>
   <translation tag="Different filament?" ja="別のフィラメント？"/>
+  <translation tag="Different material" ja="材料が異なります"/>
+  <translation tag="Different nozzle flow type" ja="ノズルの流量タイプが異なります"/>
+  <translation tag="Different nozzle size" ja="ノズルサイズが異なります"/>
   <translation tag="Digital Clock" ja="デジタル時計"/>
   <translation tag="Direct drive" ja="ダイレクトドライブ"/>
   <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." ja="ダイレクトドライブ: エクストルーダーのテンションを解除し、フィラメントを一気に引き抜いてください。"/>
@@ -1598,6 +1605,7 @@
   <translation tag="Filament jammed at the extruder gear" ja="エクストルーダーギアでフィラメントが詰まりました"/>
   <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." ja="エクストルーダーにフィラメントが装填され、ビルドプレートが取り付けられ、ツールヘッドの邪魔になる物がないことを確認してください。"/>
   <translation tag="Filament never reached the CFS hub sensor" ja="フィラメントが CFS ハブセンサーに到達しませんでした"/>
+  <translation tag="Filament not identified" ja="フィラメントが識別されていません"/>
   <translation tag="Filament not set" ja="フィラメント未設定"/>
   <translation tag="Filament operation failed" ja="フィラメント操作に失敗しました"/>
   <translation tag="Filament operation timed out" ja="フィラメント操作がタイムアウトしました"/>
@@ -2028,6 +2036,7 @@
   <translation tag="It saves the result and restarts Klipper when it finishes." ja="完了すると結果を保存し、Klipperを再起動します。"/>
   <translation tag="It starts with your {} macro." ja="{}マクロで開始します。"/>
   <translation tag="It&apos;s a new spool" ja="新しいスプールです"/>
+  <translation tag="Its filament is a different color." ja="そのフィラメントは色が異なります。"/>
   <translation tag="Its home tile" ja="ホームのタイル"/>
   <translation tag="Jammed" ja="詰まり"/>
   <translation tag="Jammed at the Toolhead" ja="ツールヘッドで詰まり"/>
@@ -2579,6 +2588,7 @@
   <translation tag="No notifications" ja="通知なし"/>
   <translation tag="No objects" ja="オブジェクトなし"/>
   <translation tag="No objects defined for this print" ja="この印刷にはオブジェクトが定義されていません"/>
+  <translation tag="No other toolhead can take over this print." ja="この印刷を引き継げる他のツールヘッドはありません。"/>
   <translation tag="No output yet" ja="出力なし"/>
   <translation tag="No pause scheduled." ja="一時停止の予約はありません。"/>
   <translation tag="No plugin actions for this file" ja="このファイルにはプラグインの操作がありません"/>
@@ -2651,6 +2661,7 @@
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ja="このウィジェットを配置するスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。"/>
   <translation tag="Not enough room to put the widget back. It stays removed." ja="ウィジェットを元に戻すスペースが足りません。削除されたままです。"/>
   <translation tag="Not in your spools? Set it up" ja="スプールにない？登録する"/>
+  <translation tag="Not loaded by its feeder" ja="フィーダーで装填されていません"/>
   <translation tag="Not now" ja="後で"/>
   <translation tag="Not saved: {}. Try again." ja="保存されていません: {}。もう一度お試しください。"/>
   <translation tag="Not set" ja="未設定"/>
@@ -2697,6 +2708,7 @@
   <translation tag="Nozzle min cannot exceed max" ja="ノズル温度の最小値は最大値を超えられません"/>
   <translation tag="Nozzle not changed: the printer did not confirm it" ja="ノズルは変更されていません: プリンターが確認しませんでした"/>
   <translation tag="Nozzle not changed: {}" ja="ノズルは変更されていません: {}"/>
+  <translation tag="Nozzle not reported" ja="ノズルが報告されていません"/>
   <translation tag="Nozzle size and flow type per head" ja="ツールヘッドごとのノズルサイズとフロータイプ"/>
   <translation tag="Nozzle target set to {}" ja="ノズル目標温度を {} に設定しました"/>
   <translation tag="Nozzle temp must be %d-%s" ja="ノズル温度は %d〜%s にしてください"/>
@@ -3184,6 +3196,7 @@
   <translation tag="Ramming Volume" ja="ラミング量"/>
   <translation tag="Ramp: band {} of {}" ja="ランプ: 区間 {} / {}"/>
   <translation tag="Ramp: base layers" ja="ランプ: ベースレイヤー"/>
+  <translation tag="Ran out" ja="切れました"/>
   <translation tag="Random" ja="ランダム"/>
   <translation tag="Raspberry Pi" ja="Raspberry Pi"/>
   <translation tag="Raspberry Pi (32-bit)" ja="Raspberry Pi (32-bit)"/>
@@ -3462,6 +3475,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." ja="セーフモードが有効です。起動時にアプリがクラッシュし続けたため、プリンター接続は無効になっています。設定を開いて問題を解決してから再起動してください。"/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." ja="セーフモード: 起動時にアプリがクラッシュし続けたため、プラグインは無効になり、ウィジェットのレイアウトはデフォルトで表示されています。再起動すると通常に戻ります。"/>
   <translation tag="Safety &amp; Alerts" ja="安全とアラート"/>
+  <translation tag="Same filament" ja="同じフィラメント"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." ja="{} は同じスプールですか？新しいスプールならクリアをタップしてください。"/>
   <translation tag="Sample" ja="サンプル"/>
   <translation tag="Sample %d/%d" ja="サンプル %d/%d"/>
@@ -4013,6 +4027,7 @@
   <translation tag="That setting cannot be changed while a print is running" ja="印刷中はこの設定を変更できません"/>
   <translation tag="That slot cannot stand in for this one" ja="そのスロットはこのスロットの代わりになりません"/>
   <translation tag="That tool is already loaded" ja="そのツールはすでに装填されています"/>
+  <translation tag="That toolhead can no longer take over the print" ja="そのツールヘッドは印刷を引き継げなくなりました"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} a little more." ja="その回転はまだ反映されていません。{0}をもう少し緩めてください。"/>
   <translation tag="That turn didn&apos;t register yet. Loosen {0} one more full turn." ja="その回転はまだ反映されていません。{0}をもう1回転緩めてください。"/>
   <translation tag="That turn didn&apos;t register yet. Tighten {0} a little more." ja="その回転はまだ反映されていません。{0}をもう少し締めてください。"/>
@@ -4131,6 +4146,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ja="プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。"/>
   <translation tag="The printer did not report its toolhead limits." ja="プリンターがツールヘッドの限界値を報告しませんでした。"/>
   <translation tag="The printer did not reset the filter" ja="プリンターがフィルターをリセットしませんでした"/>
+  <translation tag="The printer did not switch toolheads" ja="プリンターはツールヘッドを切り替えませんでした"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
@@ -4957,6 +4973,7 @@
   <translation tag="{} h of {} h" ja="{} / {} 時間"/>
   <translation tag="{} has no hotend" ja="{}にはホットエンドがありません"/>
   <translation tag="{} heater turned off" ja="{} ヒーターをオフにしました"/>
+  <translation tag="{} holds the same filament, and the printer uses that one." ja="{}に同じフィラメントがあり、プリンターはそちらを使用します。"/>
   <translation tag="{} is asking to connect to this printer." ja="{} がこのプリンターへの接続を求めています。"/>
   <translation tag="{} is blocked — manual intervention required" ja="{} がブロックされています — 手動での対応が必要です"/>
   <translation tag="{} is due" ja="{} の期限です"/>
@@ -4994,6 +5011,8 @@
   <translation tag="{} presets" ja="{} 個のプリセット"/>
   <translation tag="{} prints" ja="{} 件"/>
   <translation tag="{} queued" ja="{} 件キュー中"/>
+  <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." ja="{}の{}が切れました。印刷を仕上げる装填済みのツールヘッドを選んでください。元のフィラメント用にスライスされた温度のままです。"/>
+  <translation tag="{} ran out, and the printer has not said what it was printing." ja="{}が切れましたが、プリンターは何を印刷していたかを報告していません。"/>
   <translation tag="{} serial" ja="{} シリアル番号"/>
   <translation tag="{} set to {}" ja="{} を {} に設定しました"/>
   <translation tag="{} set to {} {}" ja="{} を {} {} に設定しました"/>
