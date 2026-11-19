@@ -993,11 +993,6 @@ namespace {
 // The hub's output sensor, on the hub box's bottom edge. With the buffer box given way, that
 // outlet carries its sync sensor instead, banded in the buffer's colour while there is a reading
 // to judge.
-// Under a drawn unit a sensor's mark shows only a fault, plain otherwise, as the unit's own
-// sensors do; without one every mark keeps its loaded and empty states.
-BandState only_faults(const FilamentPathData& data, BandState state) {
-    return data.art_sensors && state != BandState::Error ? BandState::Empty : state;
-}
 
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,
                          const FilamentPathData& data) {
@@ -1010,8 +1005,8 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         state = BandState::Sync;
         fill = buffer_box_colors(data, false, fill).border;
     }
-    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1},
-             only_faults(data, state), fill, /*on_box_edge=*/true);
+    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1}, state, fill,
+             /*on_box_edge=*/true);
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the
@@ -1060,8 +1055,7 @@ void append_trunk(PathPlan& plan, Route& r, const Lane& lane, const LinearHubFra
     append_line(r, cx, (float)f.toolhead_y, cx, (float)f.inlet_y, lane.style(PathSegment::NOZZLE));
     if (data.has_toolhead_sensor && on_head) {
         const int before = plan.band_count;
-        add_band_at_end(plan, BandKind::Trunk, r,
-                        only_faults(data, lane.band(PathSegment::TOOLHEAD)), lane.color);
+        add_band_at_end(plan, BandKind::Trunk, r, lane.band(PathSegment::TOOLHEAD), lane.color);
         if (plan.band_count > before)
             plan.bands[plan.band_count - 1].dot = true;
     }
@@ -1306,12 +1300,14 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
                      f.prep_on_box_edge && band_y == start_y);
         }
         // Leaving a drawn unit, the load sensor is a short marker where the tube leaves it,
-        // lying along the unit's bottom edge: plain unless that sensor reports a fault.
+        // lying along the unit's bottom edge: the lane's color while it sees filament, red on
+        // a fault, plain while empty.
         if (data.art_sensors && data.slot_has_load_sensor[i]) {
             const float k = data.art_edge_slope;
             const float norm = std::sqrt(1.0f + k * k);
             add_band(out, BandKind::Lane, {x, start_y}, {-k / norm, 1.0f / norm},
-                     data.lane_load_fault[i] ? BandState::Error : BandState::Empty, s.color, false);
+                     data.lane_load_fault[i] ? BandState::Error : lane.band(PathSegment::LANE),
+                     s.color, false);
         }
         if (straight)
             append_line(r, x, band_y, x, (float)f.prep_y, lane.style(PathSegment::LANE));

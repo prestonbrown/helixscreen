@@ -420,7 +420,7 @@ TEST_CASE("FilamentPath plan: hub-edge bands are painted after the hub box",
     CHECK_FALSE(band_at(plan, 200, 272)->on_box_edge);
 }
 
-TEST_CASE("FilamentPath plan: the hub's sensor shows only faults under a drawn unit alone",
+TEST_CASE("FilamentPath plan: the hub's sensor reads the same over a drawn unit or not",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);
     load_active(*d, 1, PathSegment::NOZZLE);
@@ -432,17 +432,13 @@ TEST_CASE("FilamentPath plan: the hub's sensor shows only faults under a drawn u
                 return &plan.bands[i];
         return nullptr;
     };
-    SECTION("no drawing: the loaded hub reads loaded") {
-        const SensorBand* b = hub_band();
-        REQUIRE(b != nullptr);
-        CHECK(b->state == BandState::Active);
-    }
-    SECTION("a drawing: plain until it faults") {
-        d->art_sensors = true;
-        const SensorBand* b = hub_band();
-        REQUIRE(b != nullptr);
-        CHECK(b->state == BandState::Empty);
-    }
+    const SensorBand* plain = hub_band();
+    REQUIRE(plain != nullptr);
+    CHECK(plain->state == BandState::Active);
+    d->art_sensors = true;
+    const SensorBand* drawn = hub_band();
+    REQUIRE(drawn != nullptr);
+    CHECK(drawn->state == BandState::Active);
 }
 
 TEST_CASE("FilamentPath plan: under a drawn unit each lane shows one sensor mark",
