@@ -527,3 +527,37 @@ TEST_CASE("redact::telemetry_text caps the length without splitting a character"
     CHECK(telemetry_text("need <100MB free", {}, 9) == "need <100");
     CHECK(telemetry_text("", {}, 10).empty());
 }
+
+TEST_CASE("redact::names_in_text scrubs the network name and keeps the error readable",
+          "[redact][privacy][wifi]") {
+    struct Row {
+        const char* line;
+        const char* name; // no part of it may survive
+        const char* kept; // the error around it stays readable
+    };
+    const Row rows[] = {
+        {"CTRL-EVENT-SSID-TEMP-DISABLED id=0 ssid=\"My Home WiFi\" auth_failures=1 "
+         "reason=WRONG_KEY",
+         "Home", "\" auth_failures=1 reason=WRONG_KEY"},
+        // nmcli quotes the name in single quotes.
+        {"Error: No network with SSID 'Home Net' found.", "Home Net", "' found."},
+        // wpa_supplicant escapes a quote inside the name.
+        {"ssid=\"Bob\\\"s Net\" reason=WRONG_KEY", "s Net", "\" reason=WRONG_KEY"},
+        {"assoc failed ssid=Neighbor5G, bssid=aa:bb:cc:dd:ee:ff", "Neighbor5G",
+         ", bssid=aa:bb:cc:dd:ee:ff"},
+        {"ssid=\"A b\" then ssid=\"C d\"", "C d", "\" then ssid=\""},
+        {"ssid=\"unterminated", "unterminated", "ssid=\""},
+    };
+    for (const Row& r : rows) {
+        const std::string out = helix::redact::names_in_text(r.line);
+        CAPTURE(r.line, out);
+        CHECK(out.find(r.name) == std::string::npos);
+        CHECK(out.find(r.kept) != std::string::npos);
+    }
+    // Same network, same token as ssid().
+    CHECK(helix::redact::names_in_text("ssid=\"My Home WiFi\"") ==
+          "ssid=\"" + helix::redact::ssid("My Home WiFi") + "\"");
+    for (const char* untouched : {"scan_ssid=1 key_mgmt=WPA-PSK", "no network name here", ""}) {
+        CHECK(helix::redact::names_in_text(untouched) == untouched);
+    }
+}

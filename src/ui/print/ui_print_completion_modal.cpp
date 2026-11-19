@@ -14,11 +14,13 @@
 #include "display_settings_manager.h"
 #include "format_utils.h"
 #include "notice.h"
+#include "print_cost_service.h"
 #include "printer_state.h"
 #include "widget_subjects.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
 #include <lvgl.h>
 
 namespace helix {
@@ -45,9 +47,13 @@ static helix::Subject s_layers_subject;
 static char s_filament_buf[64];
 static helix::Subject s_filament_subject;
 
+static char s_cost_buf[48];
+static helix::Subject s_cost_subject;
+
 // Int subjects for visibility flags (1=visible, 0=hidden)
 static helix::Subject s_has_estimate_subject;
 static helix::Subject s_has_filament_subject;
+static helix::Subject s_has_cost_subject;
 
 void init_print_completion_subjects() {
     s_subjects.ensure_init([] {
@@ -59,6 +65,8 @@ void init_print_completion_subjects() {
         s_filament_subject.init_string(s_filament_buf, nullptr, sizeof(s_filament_buf), "");
         s_has_estimate_subject.init_int(1);
         s_has_filament_subject.init_int(1);
+        s_cost_subject.init_string(s_cost_buf, nullptr, sizeof(s_cost_buf), "");
+        s_has_cost_subject.init_int(0);
 
         s_subjects.publish("print_completion_title", &s_title_subject);
         s_subjects.publish("print_completion_filename", &s_filename_subject);
@@ -68,6 +76,8 @@ void init_print_completion_subjects() {
         s_subjects.publish("print_completion_filament", &s_filament_subject);
         s_subjects.publish("print_completion_has_estimate", &s_has_estimate_subject);
         s_subjects.publish("print_completion_has_filament", &s_has_filament_subject);
+        s_subjects.publish("print_completion_cost", &s_cost_subject);
+        s_subjects.publish("print_completion_has_cost", &s_has_cost_subject);
     });
 }
 
@@ -177,6 +187,21 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
         lv_subject_set_string(&s_filament_subject, stats.filament.c_str());
     }
     lv_subject_set_int(&s_has_filament_subject, stats.filament.empty() ? 0 : 1);
+
+    // The actual cost can arrive after the dialog opens: a shared record's
+    // writer adds it when its own end-of-print handling runs.
+    lv_subject_set_int(&s_has_cost_subject, 0);
+    const int progress_pct =
+        lv_subject_get_int(printer_state.print_state().get_print_progress_display_subject());
+    print_cost::ActivePrintCost::instance().actual(
+        duration_secs, filament_mm, progress_pct / 100.0, [](const std::string& text) {
+            if (!s_cost_subject.is_live()) {
+                return;
+            }
+            std::snprintf(s_cost_buf, sizeof(s_cost_buf), "%s", text.c_str());
+            lv_subject_set_string(&s_cost_subject, s_cost_buf);
+            lv_subject_set_int(&s_has_cost_subject, text.empty() ? 0 : 1);
+        });
 
     // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
     lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");

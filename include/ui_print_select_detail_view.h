@@ -747,6 +747,8 @@ class PrintSelectDetailView : public OverlayBase {
     /// @p file_key, a current_file_key(), is dropped once another file shows.
     /// @return false when dropped
     bool apply_file_metadata(const std::string& file_key, const FileMetadata& metadata);
+    /// Price the shown file from its metadata and the lanes its tools are mapped to.
+    void refresh_print_cost();
 
     /**
      * @brief LV_EVENT_DELETE hook on the detail root: the only notice this view
@@ -825,6 +827,10 @@ class PrintSelectDetailView : public OverlayBase {
     helix::Subject detail_history_status_{};
     helix::Subject detail_history_text_{};
     char detail_history_text_buf_[64]{};
+    /// What the shown file would cost to print; empty when it cannot be priced.
+    helix::Subject detail_print_cost_{};
+    char detail_print_cost_buf_[48]{};
+    helix::Subject detail_print_cost_visible_{};
 
     // G-code viewer visibility mode (0=thumbnail, 1=3D, 2=2D)
     helix::Subject detail_gcode_viewer_mode_{};

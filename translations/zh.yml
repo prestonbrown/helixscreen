@@ -211,6 +211,7 @@ translations:
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: '读取腔体内空气温度的传感器。在腔体温度界面查看。'
   A shell on the machine running this screen: '运行此屏幕的机器上的 Shell'
   A spool may be tangled or the drive gear is jammed: 料盘可能缠绕，或驱动齿轮卡住
+  A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Spoolman 中的料盘有自己的价格时使用该价格。其他料盘使用这些价格。"
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。'
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: '工具头偏移校准正在进行，可能来自另一个屏幕。现在结束吗?'
@@ -243,6 +244,7 @@ translations:
   API Key (if Moonraker requires a login): 'API 密钥（如果 Moonraker 要求登录）'
   API not available: API 不可用
   APPEARANCE: 外观
+  ASA: "ASA"
   AUTO FANS: 自动风扇
   AUTO STATE: 自动状态
   AUTOMATION: 自动化
@@ -356,6 +358,7 @@ translations:
   Anonymous usage statistics: 匿名使用统计
   Another filament operation is heating the nozzle.: "其他耗材操作正在加热喷嘴。"
   Any notes...: 备注...
+  Any other material: "其他所有材料"
   App Background: 应用背景
   App startup encountered an error. Some features may be unavailable.: 应用程序启动时遇到错误。某些功能可能不可用。
   Appearance: 外观
@@ -419,6 +422,7 @@ translations:
   Available Networks: 可用网络
   Available networks: 可用网络
   Average: 平均值
+  Average draw while printing, in watts: "打印时的平均功耗（瓦）"
   Axis Rows: '按轴分行'
   Axis limits unknown: 轴限位未知
   BACK: 后侧
@@ -1093,6 +1097,7 @@ translations:
   Creating spool...: 正在创建料盘…
   'Critical hardware missing: {}': '缺少关键硬件: {}'
   Ctrl: 'Ctrl'
+  Currency: "货币"
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
   Current Mesh: 当前网格
@@ -1299,6 +1304,8 @@ translations:
   Eject failed: 弹出失败
   Eject needs [force_move] enabled in printer config: 弹出需要在打印机配置中启用 [force_move]
   Ejecting: 弹出中
+  Electricity: "电费"
+  Electricity is added only when both are set: "仅在两项都设置时才计入电费"
   Electronics fans: "电控风扇"
   Elegoo Centauri Carbon: Elegoo Centauri Carbon
   Element: 加热元件
@@ -1668,6 +1675,8 @@ translations:
   Filament not set: '未设置耗材'
   Filament operation failed: 耗材操作失败
   Filament operation timed out: 耗材操作超时
+  Filament price per kg: "耗材每公斤价格"
+  Filament prices and electricity: "耗材价格和电费"
   Filament ran out: 耗材已用尽
   Filament ran out - nothing at the toolhead and the print is paused.: '耗材已用尽 - 工具头处没有耗材，打印已暂停。'
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
@@ -1744,6 +1753,7 @@ translations:
   Follow your manual to swap the nozzle or hotend.: "按手册更换喷嘴或热端。"
   'For a first Z home: claim the tool you put on the head': 首次Z轴归零时：登记您装在打印头上的工具
   For materials that need a warm enclosure, like ABS or ASA: '适用于需要温暖机箱的材料，如 ABS 或 ASA'
+  For prices that do not come from Spoolman: "用于不来自 Spoolman 的价格"
   Force the MMU fans off or on, or follow Fan Control: "强制关闭或开启 MMU 风扇，或跟随风扇控制"
   Force/weight sensors: '力/重量传感器'
   Forget: 忘记
@@ -2255,6 +2265,8 @@ translations:
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: '第 {} 行调用 {}，此打印机将其视为紧急停止。请使用为此打印机制作的配置重新切片该文件。'
   Linear rails: '直线导轨'
   Linear rails interval: '直线导轨间隔'
+  Lines from other apps mix with tips: '其他应用的文字与提示交替显示'
+  Lines from other apps replace tips: '其他应用的文字替换提示'
   Link Spools from Tags: '通过标签关联料盘'
   Link a slot to the Spoolman spool its tag names: '将槽位关联到其标签指定的 Spoolman 料盘'
   List the shared screen with this printer's webcams: '在此打印机的摄像头列表中显示共享屏幕'
@@ -2870,6 +2882,7 @@ translations:
   PA: PA
   PA Calibration: 'PA 校准'
   PAUSED: 已暂停
+  PC: "PC"
   PETG: PETG
   PID: PID
   PIN must be 4-6 digits: PIN 码必须为 4-6 位数字
@@ -2928,6 +2941,7 @@ translations:
   Paused: 已暂停
   Paused (attention needed): 已暂停（需要处理）
   Paused by a command: 由命令暂停
+  'Paused by {}: {}': '由 {} 暂停：{}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '在选定的层暂停打印，用于换料或放入嵌件。打印时，在打印状态页面的预览卡片中设置层。'
   Pausing at layer {}.: '将在第 {} 层暂停。'
@@ -3063,6 +3077,7 @@ translations:
   Print Complete!: 打印完成！
   Print Completion Alert: 打印完成提醒
   Print Controls: '打印控制'
+  Print Cost: "打印成本"
   Print Details: 打印详情
   Print Failed: 打印失败
   Print File: 打印文件
@@ -3154,6 +3169,7 @@ translations:
   Printer name: 打印机名称
   Printer not connected: 打印机未连接
   Printer not ready: 打印机未就绪
+  Printer power: "打印机功率"
   Printer ready: 打印机就绪
   Printer status unknown: '打印机状态未知'
   Printer type mismatch: 打印机类型不匹配
@@ -3735,6 +3751,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "设置时钟、主题和单位。之后可以随时在设置中更改。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : 请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入
+  Set this to Spoolman's currency if you use both.: "如果两者都使用，请在此设置为 Spoolman 的货币。"
   Set up: 设置
   Set up your label printer in Settings: 在设置中配置标签打印机
   Set what is really selected and loaded. Nothing moves.: '设置实际选择和加载的状态。不会移动任何部件。'
@@ -5162,6 +5179,7 @@ translations:
   'Recycled': '再生'
   'Add to Spoolman + label': '添加到 Spoolman + 标签'
   'More': '更多'
+  Price per kWh: "每千瓦时价格"
   'Price, location, lot, notes': '价格、位置、批次、备注'
   'Product': '产品'
   'Remaining weight': '剩余重量'

@@ -2238,11 +2238,18 @@ void PrintStatusPanel::recompute_paused_overlay_visibility() {
     } else if (pending == helix::ui::PendingAction::Resuming) {
         reason = lv_tr("Resuming...");
     } else if (paused) {
-        if (!helix::non_filament_pause::explained() &&
-            FilamentSensorManager::instance().has_real_runout()) {
+        const std::optional<int> runout_lane =
+            helix::non_filament_pause::explained()
+                ? std::nullopt
+                : FilamentSensorManager::instance().real_runout_lane();
+        if (runout_lane.has_value()) {
+            // Name the lane that ran out, which a pause on an idle head's
+            // runout leaves different from the current one.
             AmsBackend* backend = AmsState::instance().get_backend();
-            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(),
-                                                               backend->get_current_slot())
+            const int named = *runout_lane >= 0 ? *runout_lane
+                              : backend         ? backend->get_current_slot()
+                                                : -1;
+            std::string lane = backend ? helix::ui::lane_label(helix::ui::active_lane_noun(), named)
                                        : std::string();
             reason = lane.empty() ? std::string(lv_tr("Filament Runout"))
                                   : std::string(lv_tr("Filament Runout")) + " (" + lane + ")";
@@ -2637,7 +2644,8 @@ void PrintStatusPanel::on_print_start_phase_changed(int phase) {
         // Show predicted total as initial remaining estimate (preprint observer refines it)
         int predicted = helix::PreprintPredictor::predicted_total_from_config();
         if (predicted > 0) {
-            int total_remaining = lifecycle_.remaining_seconds() + predicted;
+            int total_remaining =
+                printer_state_.print_state().get_estimated_print_time() + predicted;
             progress_text_.show_remaining(total_remaining);
         }
     } else if (!preparing && state_changed) {
@@ -2703,19 +2711,17 @@ void PrintStatusPanel::on_preprint_remaining_changed(int seconds) {
         return;
     }
 
-    // Delegate to lifecycle (handles Preparing guard internally)
-    // Fall back to get_estimated_print_time() if remaining_seconds hasn't been seeded yet
-    int slicer_time = lifecycle_.remaining_seconds() > 0
-                          ? lifecycle_.remaining_seconds()
-                          : printer_state_.print_state().get_estimated_print_time();
+    // The slicer's whole-job estimate, never print_time_left: while preparing,
+    // print_time_left already carries the pre-print remaining, so adding
+    // `seconds` to it would count the prep twice and step on every status frame.
+    const int slicer_time = printer_state_.print_state().get_estimated_print_time();
     lifecycle_.on_preprint_remaining_changed(seconds, slicer_time);
 
     if (lifecycle_.state() != PrintState::Preparing) {
         return;
     }
 
-    // Combine preprint prediction with slicer estimate for total remaining time
-    int total_remaining = slicer_time + seconds;
+    const int total_remaining = slicer_time + seconds;
     progress_text_.show_remaining(total_remaining);
     spdlog::trace("[{}] Preprint remaining: {}s preprint + {}s slicer = {}s", get_name(), seconds,
                   slicer_time, total_remaining);

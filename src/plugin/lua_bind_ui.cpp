@@ -537,8 +537,8 @@ int ui_edit_number(lua_State* L) {
     const char* fn = "helix.ui.edit_number";
     auto refs = start_editor(L, fn, true);
     EditorOpts o{L, 1, fn};
-    o.check_keys(
-        {"title", "value", "min", "max", "decimals", "unit", "validate", "on_accept", "on_cancel"});
+    o.check_keys({"title", "value", "min", "max", "decimals", "default", "unit", "validate",
+                  "on_accept", "on_cancel"});
     const std::string title = o.str("title", "", kMaxEditorTitle);
     const std::string unit = o.str("unit", "", kMaxEditorUnit);
     const auto min = o.num("min");
@@ -554,6 +554,14 @@ int ui_edit_number(lua_State* L) {
                           static_cast<int>(kMaxKeypadValue));
     if (decimals != 0 && decimals != 1 && decimals != 2)
         return luaL_error(L, "%s: decimals must be 0, 1 or 2", fn);
+    const auto default_value = o.num("default");
+    if (default_value) {
+        const double scale = std::pow(10.0, decimals);
+        if (*default_value < *min || *default_value > *max ||
+            std::round(*default_value * scale) / scale != *default_value)
+            return luaL_error(
+                L, "%s: default must be within min and max, with at most decimals places", fn);
+    }
     o.check_fn("on_accept", true);
     o.check_fn("on_cancel", false);
     o.check_fn("validate", false);
@@ -576,7 +584,8 @@ int ui_edit_number(lua_State* L) {
         });
     };
     queue_editor(
-        context(L), refs, [refs, title, unit, value, min = *min, max = *max, places, push_value] {
+        context(L), refs,
+        [refs, title, unit, value, min = *min, max = *max, places, default_value, push_value] {
             // The keypad is one widget for the whole app.
             if (ui_keypad_is_visible())
                 return false;
@@ -592,6 +601,8 @@ int ui_edit_number(lua_State* L) {
             // A range reaching below zero gets the keypad's sign key.
             config.allow_negative = min < 0;
             config.max_fraction_digits = places > 0 ? places : 1;
+            if (default_value)
+                config.default_value = static_cast<float>(*default_value);
             config.validate = [refs, push_value](float v) { return refs->judge(push_value(v)); };
             config.on_confirm = [refs, push_value](float v) { refs->run_accept(push_value(v)); };
             config.on_cancel = [refs] { refs->run_cancel(); };

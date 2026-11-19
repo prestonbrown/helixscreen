@@ -296,11 +296,13 @@ bool ui_keypad_show(const ui_keypad_config_t* config) {
         lv_subject_set_int(&keypad_allow_negative_subject, config->allow_negative ? 1 : 0);
     }
 
-    lv_subject_set_int(&keypad_has_default_subject,
-                       config->mode == helix::ui::KeypadInput::Mode::Number &&
-                               config->default_value.has_value()
-                           ? 1
-                           : 0);
+    // A default outside the field's range could only be refused on Set.
+    const bool default_in_range = config->default_value &&
+                                  *config->default_value >= config->min_value &&
+                                  *config->default_value <= config->max_value;
+    lv_subject_set_int(
+        &keypad_has_default_subject,
+        config->mode == helix::ui::KeypadInput::Mode::Number && default_in_range ? 1 : 0);
     lv_subject_set_string(&keypad_title_subject, config->title_label ? config->title_label : "");
 
     // Update display via subject (reactive binding updates XML automatically)
@@ -369,8 +371,15 @@ ui_keypad_config_t helix::ui::keypad_config_in_unit(const ui_keypad_config_t& co
     shown.initial_value =
         static_cast<float>(units::celsius_to_unit_whole(config.initial_value, unit));
     if (config.default_value) {
-        shown.default_value =
+        float shown_default =
             static_cast<float>(units::celsius_to_unit_whole(*config.default_value, unit));
+        // Rounding to a whole display degree can step a default on a Celsius bound
+        // just past the narrowed range; it stays the bound it was.
+        if (*config.default_value >= config.min_value &&
+            *config.default_value <= config.max_value) {
+            shown_default = std::clamp(shown_default, shown.min_value, shown.max_value);
+        }
+        shown.default_value = shown_default;
     }
     shown.unit_label = units::temp_unit_symbol(unit);
     return shown;
@@ -391,7 +400,7 @@ float helix::ui::keypad_value_to_celsius(float typed, float min_c, float max_c,
 
 void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
                                        ui_keypad_callback_t callback, void* user_data,
-                                       const char* log_name) {
+                                       const char* log_name, std::optional<float> default_value) {
     const SliderScale scale{spec.divisor};
     ui_keypad_config_t config = {
         .initial_value = static_cast<float>(scale.to_value(lv_slider_get_value(slider))),
@@ -403,6 +412,7 @@ void helix::ui::show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& 
         .allow_negative = false,
         .callback = callback,
         .user_data = user_data};
+    config.default_value = default_value;
 
     spdlog::debug("[{}] Keypad for {} ({}-{})", log_name, spec.title, config.min_value,
                   config.max_value);

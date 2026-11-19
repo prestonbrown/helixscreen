@@ -197,6 +197,7 @@ bool PrinterPrintState::apply_print_job_state(const nlohmann::json& status,
             unfreeze_progress_display();
             slicer_progress_ = 0.0;
             slicer_progress_active_ = false;
+            file_progress_fraction_ = -1.0;
             // This frame's own message is already applied.
             if (!frame_has_message) {
                 lv_subject_set_string(&print_message_, "");
@@ -329,6 +330,7 @@ void PrinterPrintState::apply_pause_cause(const nlohmann::json& stats, bool fram
         print_exception_id_ = cause->id;
         print_exception_code_ = cause->code;
         print_exception_message_ = std::move(cause->message);
+        print_exception_runout_lane_ = cause->runout_lane;
     }
     if (lv_subject_get_int(&print_exception_) != print_exception_code_) {
         lv_subject_set_int(&print_exception_, print_exception_code_);
@@ -420,6 +422,8 @@ void PrinterPrintState::apply_print_counters(const nlohmann::json& stats,
         // NOT total_duration (which includes prep/preheat and inflates the estimate)
         PrintEtaInputs eta_in;
         eta_in.progress_pct = lv_subject_get_int(&print_progress_);
+        eta_in.progress_fraction =
+            slicer_progress_active_ ? slicer_progress_ : file_progress_fraction_;
         eta_in.print_duration_s = lv_subject_get_int(&print_duration_);
         eta_in.slicer_estimate_s = estimated_print_time_;
         eta_in.preprint_remaining_s = lv_subject_get_int(&preprint_remaining_);
@@ -472,6 +476,8 @@ void PrinterPrintState::apply_display_status(const nlohmann::json& status, bool 
         const char* msg = message->is_string() ? message->get_ref<const std::string&>().c_str()
                                                : ""; // null or non-string clears the message
         if (strcmp(lv_subject_get_string(&display_message_), msg) != 0) {
+            // Set before the subject so its observers read this frame's provenance.
+            display_message_from_snapshot_ = whole_objects;
             lv_subject_set_string(&display_message_, msg);
         }
         update_display_message_visible();
@@ -563,6 +569,10 @@ void PrinterPrintState::apply_virtual_sdcard(const nlohmann::json& status,
         return;
     }
     int file_progress_pct = helix::units::to_percent(*file_progress);
+    // Not while paused, for the reason display_status is not read then.
+    if (get_print_lifecycle() != PrintState::Paused) {
+        file_progress_fraction_ = *file_progress;
+    }
 
     // Update print_progress_ subject (skipped when slicer is active
     // but only file progress arrived — slicer is authoritative)

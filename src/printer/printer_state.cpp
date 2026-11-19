@@ -120,14 +120,17 @@ PrinterState::~PrinterState() {
     // it just tells holders registered since then that the state is gone too.
     // Plain flip, no renewal: a dying object has no successor generation.
     subjects_.mark_subjects_dead();
-    unregister_static_deinit();
+    unregister_registry_callbacks();
 }
 
-void PrinterState::unregister_static_deinit() {
-    // The registered callback captures `this`; a per-test instance would leave it
-    // dangling in the process-wide registry.
+void PrinterState::unregister_registry_callbacks() {
+    // Both registered callbacks capture `this`; a per-test instance would leave them
+    // dangling in the process-wide registries.
     if (!StaticSubjectRegistry::is_destroyed()) {
-        StaticSubjectRegistry::instance().unregister("PrinterState");
+        StaticSubjectRegistry::instance().unregister("PrinterState", this);
+    }
+    if (!helix::PrinterCacheRegistry::is_destroyed()) {
+        helix::PrinterCacheRegistry::instance().unregister("PrinterState", this);
     }
 }
 
@@ -139,18 +142,13 @@ void PrinterState::deinit_subjects() {
     }
 
     spdlog::trace("[PrinterState] deinit_subjects: Deinitializing all subjects");
-    unregister_static_deinit();
+    unregister_registry_callbacks();
 
     // Expire any setter callbacks still queued on the UpdateQueue. They capture
     // `this` and touch the subjects torn down below (directly or through
     // apply_dynamic_options()); without this the next drain notifies a freed
     // observer list (#1165, #1146).
     async_lifetime_.invalidate();
-
-    // Drop the per-printer cache invalidator registered by init_subjects(). It captures
-    // `this`, and the registry outlives non-singleton instances (test fixtures own their
-    // own PrinterState), so leaving it registered would hold a callback over freed memory.
-    helix::PrinterCacheRegistry::instance().unregister("PrinterState");
 
     // Signal death of EVERY subject below BEFORE anything is torn down. The
     // umbrella contract: this token covers the per-domain components too, whose
@@ -257,8 +255,10 @@ void PrinterState::init_subjects(bool register_xml) {
     subjects_initialized_ = true;
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
-    StaticSubjectRegistry::instance().register_deinit("PrinterState",
-                                                      [this]() { deinit_subjects(); });
+    // Keyed by `this` as well as the name, like the cache invalidator below.
+    StaticSubjectRegistry::instance().register_deinit(
+        "PrinterState", [this]() { deinit_subjects(); }, StaticSubjectRegistry::Lifetime::Printer,
+        this);
 
     // Self-register per-printer cache invalidation. This object outlives every printer
     // switch, so anything cached from Config::df() or from the previous printer's status
@@ -268,15 +268,20 @@ void PrinterState::init_subjects(bool register_xml) {
     //  - exclude_object state is only refreshed by update_from_status() when the new
     //    printer reports an "exclude_object" object, so switching to a printer without
     //    [exclude_object] configured would keep the previous printer's objects on screen.
-    helix::PrinterCacheRegistry::instance().register_invalidator("PrinterState", [this]() {
-        // Only the override map is refreshed. The effective capability subjects are
-        // re-derived from set_hardware(discovery_, capability_overrides_) when the new
-        // printer's discovery lands; deriving them here would pair the new printer's
-        // overrides with the OLD printer's still-cached discovery_.
-        capability_overrides_.load_from_config();
-        excluded_objects_state_.clear_objects();
-        print_domain_.set_excluded_work_share(0.0);
-    });
+    // Keyed by `this` as well as the name: a test's own PrinterState must neither replace
+    // the global instance's entry nor take it away when it dies.
+    helix::PrinterCacheRegistry::instance().register_invalidator(
+        "PrinterState",
+        [this]() {
+            // Only the override map is refreshed. The effective capability subjects are
+            // re-derived from set_hardware(discovery_, capability_overrides_) when the new
+            // printer's discovery lands; deriving them here would pair the new printer's
+            // overrides with the OLD printer's still-cached discovery_.
+            capability_overrides_.load_from_config();
+            excluded_objects_state_.clear_objects();
+            print_domain_.set_excluded_work_share(0.0);
+        },
+        this);
 
     spdlog::trace("[PrinterState] Subjects initialized and registered successfully");
 }

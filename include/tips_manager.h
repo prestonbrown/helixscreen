@@ -29,6 +29,7 @@ struct PrintingTip {
     std::string priority;   // "high", "medium", "low"
     std::vector<std::string> related_settings;
     std::string category; // Category name for easy reference
+    std::string heading;  // Detail dialog title when it differs from `title`; empty uses `title`
 };
 
 /**

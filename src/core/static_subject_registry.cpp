@@ -50,7 +50,7 @@ StaticSubjectRegistry::~StaticSubjectRegistry() {
 
 void StaticSubjectRegistry::register_deinit(const char* name,
                                             helix::SharedCallback<void()> deinit_fn,
-                                            Lifetime lifetime) {
+                                            Lifetime lifetime, const void* owner) {
     // Names identify a subject source, not a registration event. A source that is
     // torn down and rebuilt (PrintStatusWidget's DetailedFormatter, when the last
     // print-status widget leaves the dashboard and one is added back) re-registers
@@ -64,15 +64,19 @@ void StaticSubjectRegistry::register_deinit(const char* name,
     // deinitializes it FIRST, so a core singleton that re-runs init_subjects() —
     // a soft restart, a printer switch — would be torn down ahead of the widgets
     // observing it, which is the ordering this registry exists to prevent.
-    auto it = std::find_if(deinitializers_.begin(), deinitializers_.end(),
-                           [name](const DeinitEntry& e) { return e.name == name; });
+    //
+    // The owner is part of the identity: two live instances of one source are two
+    // entries, and neither may replace the other's.
+    auto it = std::find_if(
+        deinitializers_.begin(), deinitializers_.end(),
+        [name, owner](const DeinitEntry& e) { return e.name == name && e.owner == owner; });
     if (it != deinitializers_.end()) {
         it->deinit_fn = std::move(deinit_fn);
         it->lifetime = lifetime;
         spdlog::trace("[StaticSubjectRegistry] Replacing existing entry: {}", name);
         return;
     }
-    deinitializers_.push_back({name, std::move(deinit_fn), lifetime});
+    deinitializers_.push_back({name, std::move(deinit_fn), lifetime, owner});
     spdlog::trace("[StaticSubjectRegistry] Registered: {} (total: {})", name,
                   deinitializers_.size());
 }
@@ -96,9 +100,10 @@ bool StaticSubjectRegistry::deinit_one(const char* name, Scope scope) {
     return true;
 }
 
-bool StaticSubjectRegistry::unregister(const char* name) {
-    auto it = std::find_if(deinitializers_.begin(), deinitializers_.end(),
-                           [name](const DeinitEntry& e) { return e.name == name; });
+bool StaticSubjectRegistry::unregister(const char* name, const void* owner) {
+    auto it = std::find_if(
+        deinitializers_.begin(), deinitializers_.end(),
+        [name, owner](const DeinitEntry& e) { return e.name == name && e.owner == owner; });
     if (it == deinitializers_.end()) {
         return false;
     }

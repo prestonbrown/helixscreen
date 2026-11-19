@@ -18,6 +18,7 @@
 #include "app_globals.h"
 #include "backdrop_blur.h"
 #include "connection_state.h" // For ConnectionState enum
+#include "core/http_executor.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
@@ -168,6 +169,7 @@ void NavigationManager::retire_overlay(lv_obj_t* overlay) {
     // Both run inside UpdateQueue drains or LVGL animation callbacks, where a
     // synchronous delete corrupts LVGL's event list (#637, #620).
     backdrop_.retire(overlay);
+    request_heap_trim();
 
     auto callback_it = overlay_close_callbacks_.find(overlay);
     if (callback_it != overlay_close_callbacks_.end()) {
@@ -176,6 +178,22 @@ void NavigationManager::retire_overlay(lv_obj_t* overlay) {
         defer_close_callback(std::move(callback_it->second), overlay);
         overlay_close_callbacks_.erase(callback_it);
     }
+}
+
+void NavigationManager::request_heap_trim() {
+    if (!helix::heap_trim_supported())
+        return;
+    // Trailing debounce: a burst of closes trims once, after the last one.
+    heap_trim_timer_.schedule([this]() {
+        const uint32_t now = lv_tick_get();
+        if (!helix::heap_trim_due(now, last_heap_trim_ms_)) {
+            request_heap_trim();
+            return;
+        }
+        last_heap_trim_ms_ = now;
+        // malloc_trim walks every arena under its lock: never on the frame path.
+        helix::http::HttpExecutor::fast().submit([] { helix::release_free_heap(); });
+    });
 }
 
 void NavigationManager::clear_overlay_stack() {

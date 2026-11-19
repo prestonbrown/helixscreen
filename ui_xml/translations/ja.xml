@@ -194,6 +194,7 @@
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." ja="チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。"/>
   <translation tag="A shell on the machine running this screen" ja="この画面を動かしているマシンのシェル"/>
   <translation tag="A spool may be tangled or the drive gear is jammed" ja="スプールが絡まっているか、駆動ギアが詰まっている可能性があります"/>
+  <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." ja="Spoolmanのスプールに価格がある場合はその価格を使います。それ以外のスプールにはこれらの価格を使います。"/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." ja="複数のフィラメントをツールヘッドに送るシステムで、スロット数を表示します。スロットはフィラメントシステム画面で管理できます。"/>
   <translation tag="A toolhead offset calibration is in progress, possibly from another screen. End it now?" ja="ツールヘッドオフセットのキャリブレーションが実行中です（別の画面からの可能性があります）。今すぐ終了しますか?"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." ja="トップカバーを検出しました。ファンとエアモードはファン画面にあります。"/>
@@ -228,6 +229,7 @@
   <translation tag="API Key (if Moonraker requires a login)" ja="APIキー（Moonrakerがログインを要求する場合）"/>
   <translation tag="API not available" ja="APIが利用できません"/>
   <translation tag="APPEARANCE" ja="外観"/>
+  <translation tag="ASA" ja="ASA"/>
   <translation tag="AUTO FANS" ja="自動ファン"/>
   <translation tag="AUTO STATE" ja="自動ステータス"/>
   <translation tag="AUTOMATION" ja="自動化"/>
@@ -340,6 +342,7 @@
   <translation tag="Anonymous usage statistics" ja="匿名の使用統計"/>
   <translation tag="Another filament operation is heating the nozzle." ja="別のフィラメント操作がノズルを加熱しています。"/>
   <translation tag="Any notes..." ja="メモ..."/>
+  <translation tag="Any other material" ja="その他の素材"/>
   <translation tag="App Background" ja="アプリ背景"/>
   <translation tag="App startup encountered an error. Some features may be unavailable." ja="アプリの起動中にエラーが発生しました。一部の機能が利用できない場合があります。"/>
   <translation tag="Appearance" ja="外観"/>
@@ -403,6 +406,7 @@
   <translation tag="Available Networks" ja="利用可能なネットワーク"/>
   <translation tag="Available networks" ja="利用可能なネットワーク"/>
   <translation tag="Average" ja="平均"/>
+  <translation tag="Average draw while printing, in watts" ja="印刷中の平均消費電力（ワット）"/>
   <translation tag="Axis Rows" ja="軸ごとの列"/>
   <translation tag="Axis limits unknown" ja="軸の限界は不明です"/>
   <translation tag="BACK" ja="背面"/>
@@ -1034,6 +1038,7 @@
   <translation tag="Creating spool..." ja="スプールを作成中..."/>
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
   <translation tag="Ctrl" ja="Ctrl"/>
+  <translation tag="Currency" ja="通貨"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
   <translation tag="Current Configuration" ja="現在の設定"/>
   <translation tag="Current Mesh" ja="現在のメッシュ"/>
@@ -1237,6 +1242,8 @@
   <translation tag="Eject failed" ja="イジェクトに失敗しました"/>
   <translation tag="Eject needs [force_move] enabled in printer config" ja="取り出しにはプリンター設定で [force_move] を有効にする必要があります"/>
   <translation tag="Ejecting" ja="排出中"/>
+  <translation tag="Electricity" ja="電気代"/>
+  <translation tag="Electricity is added only when both are set" ja="両方を設定した場合のみ電気代を加算します"/>
   <translation tag="Electronics fans" ja="電装ファン"/>
   <translation tag="Elegoo Centauri Carbon" ja="Elegoo Centauri Carbon"/>
   <translation tag="Element" ja="発熱体"/>
@@ -1601,6 +1608,8 @@
   <translation tag="Filament not set" ja="フィラメント未設定"/>
   <translation tag="Filament operation failed" ja="フィラメント操作に失敗しました"/>
   <translation tag="Filament operation timed out" ja="フィラメント操作がタイムアウトしました"/>
+  <translation tag="Filament price per kg" ja="フィラメントのkg単価"/>
+  <translation tag="Filament prices and electricity" ja="フィラメント価格と電気代"/>
   <translation tag="Filament ran out" ja="フィラメントがなくなりました"/>
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." ja="フィラメントが切れました - ツールヘッドには何も残っておらず、印刷は一時停止しています。"/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." ja="フィラメントが切れましたが、CFSは切り替え可能な一致するスプールを見つけられませんでした。同じ材料と色のスプールを装填してから再開してください。"/>
@@ -1676,6 +1685,7 @@
   <translation tag="Follow your manual to swap the nozzle or hotend." ja="マニュアルに従ってノズルまたはホットエンドを交換します。"/>
   <translation tag="For a first Z home: claim the tool you put on the head" ja="初回のZホーミング用：ヘッドに取り付けたツールを登録"/>
   <translation tag="For materials that need a warm enclosure, like ABS or ASA" ja="ABSやASAなど、暖かいエンクロージャーが必要な材料向け"/>
+  <translation tag="For prices that do not come from Spoolman" ja="Spoolman 以外から来る価格に使います"/>
   <translation tag="Force the MMU fans off or on, or follow Fan Control" ja="MMU ファンを強制オフ／オンにするか、ファン制御に従う"/>
   <translation tag="Force/weight sensors" ja="力/重量センサー"/>
   <translation tag="Forget" ja="登録解除"/>
@@ -2176,6 +2186,8 @@
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ja="{} 行目で {} を実行します。このプリンターでは緊急停止とみなされます。このプリンター用のプロファイルでファイルを再スライスしてください。"/>
   <translation tag="Linear rails" ja="リニアレール"/>
   <translation tag="Linear rails interval" ja="リニアレールの間隔"/>
+  <translation tag="Lines from other apps mix with tips" ja="他のアプリからの一言をヒントに混ぜて表示"/>
+  <translation tag="Lines from other apps replace tips" ja="他のアプリからの一言をヒントの代わりに表示"/>
   <translation tag="Link Spools from Tags" ja="タグからスプールをリンク"/>
   <translation tag="Link a slot to the Spoolman spool its tag names" ja="タグが示す Spoolman スプールにスロットをリンク"/>
   <translation tag="List the shared screen with this printer&apos;s webcams" ja="共有画面をこのプリンターのウェブカメラ一覧に表示"/>
@@ -2784,6 +2796,7 @@
   <translation tag="PA" ja="PA"/>
   <translation tag="PA Calibration" ja="PAキャリブレーション"/>
   <translation tag="PAUSED" ja="一時停止"/>
+  <translation tag="PC" ja="PC"/>
   <translation tag="PETG" ja="PETG"/>
   <translation tag="PID" ja="PID"/>
   <translation tag="PIN must be 4-6 digits" ja="PIN は 4〜6 桁にしてください"/>
@@ -2843,6 +2856,7 @@
   <translation tag="Paused" ja="一時停止"/>
   <translation tag="Paused (attention needed)" ja="一時停止（対応が必要）"/>
   <translation tag="Paused by a command" ja="コマンドで一時停止"/>
+  <translation tag="Paused by {}: {}" ja="{}により一時停止: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." ja="選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。"/>
   <translation tag="Pausing at layer {}." ja="レイヤー {} で一時停止します。"/>
   <translation tag="Pausing..." ja="一時停止中..."/>
@@ -2962,6 +2976,7 @@
   <translation tag="Previous" ja="前回"/>
   <translation tag="Previous IPv4 settings restored" ja="以前のIPv4設定を復元しました"/>
   <translation tag="Price" ja="価格"/>
+  <translation tag="Price per kWh" ja="kWh単価"/>
   <translation tag="Price, location, lot, notes" ja="価格、場所、ロット、メモ"/>
   <translation tag="Price: {}" ja="価格: {}"/>
   <translation tag="Primary" ja="プライマリ"/>
@@ -2974,6 +2989,7 @@
   <translation tag="Print Complete!" ja="印刷完了！"/>
   <translation tag="Print Completion Alert" ja="印刷完了通知"/>
   <translation tag="Print Controls" ja="印刷コントロール"/>
+  <translation tag="Print Cost" ja="印刷コスト"/>
   <translation tag="Print Details" ja="印刷詳細"/>
   <translation tag="Print Failed" ja="印刷失敗"/>
   <translation tag="Print File" ja="印刷ファイル"/>
@@ -3069,6 +3085,7 @@
   <translation tag="Printer name" ja="プリンター名"/>
   <translation tag="Printer not connected" ja="プリンターが接続されていません"/>
   <translation tag="Printer not ready" ja="プリンターの準備ができていません"/>
+  <translation tag="Printer power" ja="プリンターの消費電力"/>
   <translation tag="Printer ready" ja="プリンター準備完了"/>
   <translation tag="Printer status unknown" ja="プリンターの状態が不明です"/>
   <translation tag="Printer type mismatch" ja="プリンタータイプの不一致"/>
@@ -3641,6 +3658,7 @@
   <translation tag="Set the X and Y belts with the motorized tensioners" ja="電動テンショナーでXとYのベルトを調整します"/>
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ja="時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ja="このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください"/>
+  <translation tag="Set this to Spoolman&apos;s currency if you use both." ja="両方を使う場合は、ここを Spoolman の通貨に合わせてください。"/>
   <translation tag="Set up" ja="セットアップ"/>
   <translation tag="Set up your label printer in Settings" ja="設定でラベルプリンターをセットアップしてください"/>
   <translation tag="Set what is really selected and loaded. Nothing moves." ja="実際に選択・装填されている状態を設定します。何も動きません。"/>

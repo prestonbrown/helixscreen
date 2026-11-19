@@ -5,6 +5,7 @@
 #include "helix_test_fixture.h"
 
 #include <string>
+#include <utility>
 
 #include "../../catch_amalgamated.hpp"
 
@@ -251,4 +252,31 @@ TEST_CASE_METHOD(GcodeErrorRouterTest,
     // Entry stamped slightly in the future (NTP step / skew): negative age
     // must not be mistaken for stale.
     REQUIRE(GcodeErrorRouter::should_surface_replay(now + 10.0, now));
+}
+
+TEST_CASE("truncate_for_toast keeps a message within the bound and cuts on a codepoint",
+          "[gcode_error_router][errors][toast_cap]") {
+    constexpr size_t kMax = GcodeErrorRouter::kToastTextMaxBytes;
+    const std::string fits(kMax, 'a');
+    CHECK(GcodeErrorRouter::truncate_for_toast(fits) == fits);
+
+    const std::string cut = GcodeErrorRouter::truncate_for_toast(std::string(kMax + 1, 'a'));
+    CHECK(cut == std::string(kMax - 3, 'a') + "...");
+
+    // Two-byte "é" and three-byte "混" runs whose plain byte cut lands mid-codepoint.
+    for (const auto& [lead, glyph] : {std::pair<std::string, std::string>{"", "é"},
+                                      std::pair<std::string, std::string>{"x", "混"}}) {
+        std::string text = lead;
+        while (text.size() <= kMax) {
+            text += glyph;
+        }
+        const std::string out = GcodeErrorRouter::truncate_for_toast(text);
+        INFO("glyph " << glyph << " -> " << out.size() << " bytes");
+        REQUIRE(out.size() <= kMax);
+        REQUIRE(out.size() >= kMax - 3 - glyph.size() + 1);
+        REQUIRE(out.substr(out.size() - 3) == "...");
+        const std::string kept = out.substr(0, out.size() - 3);
+        CHECK(kept.compare(0, lead.size(), lead) == 0);
+        CHECK((kept.size() - lead.size()) % glyph.size() == 0);
+    }
 }

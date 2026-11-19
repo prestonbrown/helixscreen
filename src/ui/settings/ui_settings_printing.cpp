@@ -18,6 +18,7 @@
 #include "ui_settings_macro_buttons.h"
 #include "ui_settings_material_temps.h"
 #include "ui_settings_motion.h"
+#include "ui_settings_print_cost.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -127,6 +128,10 @@ void PrintingSettingsOverlay::register_callbacks() {
         {"on_material_temps_clicked",
          [](lv_event_t*) {
              get_material_temps_overlay().show(get_printing_settings_overlay().parent_screen_);
+         }},
+        {"on_print_cost_clicked",
+         [](lv_event_t*) {
+             get_print_cost_overlay().show(get_printing_settings_overlay().parent_screen_);
          }},
         {"on_allow_cold_extrude_changed",
          [](lv_event_t* e) {

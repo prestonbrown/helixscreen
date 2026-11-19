@@ -13,6 +13,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <string>
 #include <unistd.h>
 
@@ -378,4 +379,45 @@ TEST_CASE("resonance memory check refuses on headroom, warns on total", "[memory
     CHECK(helix::resonance_memory_check(mb(1024, 40, 0)) == ResonanceMemory::REFUSE);
     // Unreadable memory info never blocks.
     CHECK(helix::resonance_memory_check(helix::MemoryInfo{}) == ResonanceMemory::OK);
+}
+
+// ============================================================================
+// Heap trim rate limit
+// ============================================================================
+
+TEST_CASE("Heap trim: the first trim is always due, later ones hold a 30 s floor",
+          "[memory][heap-trim]") {
+    struct Case {
+        uint32_t now;
+        std::optional<uint32_t> last;
+        bool want;
+    };
+    const Case cases[] = {
+        {0, std::nullopt, true},
+        {5000, std::nullopt, true},
+        {10000, 10000, false},
+        {39999, 10000, false},
+        {40000, 10000, true},
+        {100000, 10000, true},
+        // The tick wraps at 2^32 ms; elapsed time is measured across it.
+        {0x00001000u, 0xFFFFF000u, false},
+        {0x00005000u, 0xFFFFE000u, false},
+        {0x00007530u, 0x00000000u, true},
+        {0x00007000u, 0xFFFF9000u, true},
+        {0x00001000u, 0xFFFF0000u, true},
+        {0xFFFFF100u, 0xFFFFF000u, false},
+    };
+    for (const auto& c : cases) {
+        INFO("now=" << c.now << " last=" << (c.last ? std::to_string(*c.last) : "none"));
+        CHECK(heap_trim_due(c.now, c.last) == c.want);
+    }
+}
+
+TEST_CASE("Heap trim: release_free_heap trims exactly where the libc can", "[memory][heap-trim]") {
+#if defined(__GLIBC__) && !defined(__UCLIBC__)
+    CHECK(heap_trim_supported());
+#else
+    CHECK_FALSE(heap_trim_supported());
+#endif
+    CHECK(release_free_heap() == heap_trim_supported());
 }

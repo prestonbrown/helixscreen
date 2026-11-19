@@ -17,7 +17,9 @@
 
 #include "../helix_test_fixture.h"
 #include "../test_helpers/scoped_subject_registry_isolation.h"
+#include "app_globals.h"
 #include "core/static_subject_registry.h"
+#include "printer_state.h"
 
 #include <algorithm>
 #include <string>
@@ -184,4 +186,54 @@ TEST_CASE_METHOD(HelixTestFixture,
     registry.register_deinit("Again", [&ran]() { ran.emplace_back("again"); });
     registry.deinit_all();
     CHECK(ran == std::vector<std::string>{"again"});
+}
+
+TEST_CASE_METHOD(HelixTestFixture, "StaticSubjectRegistry keeps one name from two owners apart",
+                 "[core][subjects]") {
+    auto& registry = StaticSubjectRegistry::instance();
+    static constexpr const char* kName = "StaticSubjectRegistryOwnerProbe";
+    int first_owner = 0;
+    int second_owner = 0;
+    auto entries = [&registry]() {
+        const std::vector<std::string> names = registry.names();
+        return std::count(names.begin(), names.end(), std::string(kName));
+    };
+
+    std::vector<std::string> ran;
+    registry.register_deinit(
+        kName, [&ran]() { ran.emplace_back("first"); }, StaticSubjectRegistry::Lifetime::Printer,
+        &first_owner);
+    registry.register_deinit(
+        kName, [&ran]() { ran.emplace_back("second"); }, StaticSubjectRegistry::Lifetime::Printer,
+        &second_owner);
+    REQUIRE(entries() == 2);
+
+    // One owner leaving takes only its own entry.
+    CHECK_FALSE(registry.unregister(kName));
+    REQUIRE(registry.unregister(kName, &second_owner));
+    REQUIRE(entries() == 1);
+    REQUIRE(registry.deinit_one(kName));
+    CHECK(ran == std::vector<std::string>{"first"});
+}
+
+TEST_CASE_METHOD(HelixTestFixture,
+                 "StaticSubjectRegistry: a local PrinterState leaves the global one's entry",
+                 "[core][subjects][printer_state]") {
+    auto& registry = StaticSubjectRegistry::instance();
+    auto entries = [&registry]() {
+        const std::vector<std::string> names = registry.names();
+        return std::count(names.begin(), names.end(), std::string("PrinterState"));
+    };
+
+    get_printer_state().init_subjects(false);
+    REQUIRE(entries() == 1);
+
+    {
+        // MockPrinter's shape: its own PrinterState, initialized beside the global one.
+        helix::PrinterState local;
+        local.init_subjects(false);
+        CHECK(entries() == 2);
+    }
+
+    CHECK(entries() == 1);
 }

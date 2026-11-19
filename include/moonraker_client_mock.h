@@ -2781,6 +2781,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         bool spool_macros = false;   ///< T<n> declares spool_id and sets the active spool
         bool kalico = false;         ///< [indx] in configfile only, not in the objects list
         bool unrecognized = false;   ///< CHANGE_TOOL missing
+        bool refuse_unhomed = false; ///< A custom CHANGE_TOOL that refuses rather than homes
         std::vector<int> spool_ids;  ///< Per tool, with spool_macros
         std::string mode = "normal"; ///< _TOOLCHANGE_VARS.mode
         /// Per tool: the X, Y, Z offset its calibration measured.
