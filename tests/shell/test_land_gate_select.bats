@@ -83,7 +83,7 @@ row() { # <status> <step>: the table row for step has that status
     grep -qx "make unit-sweep NPROCS=8 SHARD_TIMEOUT=600 SHARD_CRASH_FAILS=1 TEST_SELECT_CHANGED=src/ui/tour/tour_steps.cpp" "$CALLS"
     grep -qx "make test-slow SHARD_CRASH_FAILS=1 TEST_SELECT_CHANGED=src/ui/tour/tour_steps.cpp" "$CALLS"
     grep -q "^make test-python PYTHON_TESTS=tests/python/test_cpp_escape_decoding.py " "$CALLS"
-    grep -qx "make test-ui-ci" "$CALLS"
+    grep -q "^make test-ui-ci UI_TESTS=tests/ui/test_detection_sources_boot.py " "$CALLS"
     grep -qx "qc-only: all" "$CALLS"
     row SKIP plugin
     row PASS no-mocks
@@ -178,11 +178,60 @@ plan_of() { # <stage> <changed path>...: "<verdict> <why>" for the stage
     [[ "$(plan_of python scripts/CLAUDE.md)" == skip* ]] || fail "verdict differs"
 }
 
+ui_files_of() { # <changed path>...: the files the ui row selects, one line
+    python3 "$SELECT" --root "$REPO_ROOT" plan --changed "$(IFS=,; echo "$*")" |
+        awk -F'\t' '$1 == "ui" { print $4 }'
+}
+
 @test "plan: ui runs for anything the app is built from, not for scripts or tests" {
-    [[ "$(plan_of ui ui_xml/home_panel.xml)" == run* ]] || fail "verdict differs"
+    [[ "$(plan_of ui ui_xml/home_panel.xml)" == select* ]] || fail "verdict differs"
     [[ "$(plan_of ui scripts/doc_anchors.py)" == skip* ]] || fail "verdict differs"
     [[ "$(plan_of ui tests/unit/test_version.cpp)" == skip* ]] || fail "verdict differs"
-    [[ "$(plan_of ui tests/ui/test_navigation.py)" == run* ]] || fail "verdict differs"
+    [[ "$(plan_of ui tests/ui/test_freeze.py)" == select* ]] || fail "verdict differs"
+}
+
+@test "ui: the smoke files always run, plus the files whose screens the change reaches" {
+    local smoke="tests/ui/test_detection_sources_boot.py tests/ui/test_navigation.py tests/ui/test_state.py tests/ui/test_text.py tests/ui/test_xml_expressions_boot.py"
+    [ "$(ui_files_of src/printer/printer_state.cpp)" = "$smoke" ] || fail "$(ui_files_of src/printer/printer_state.cpp)"
+    [ "$(ui_files_of include/ui_panel_bed_mesh.h)" = "$smoke" ] || fail "a panel's header is no framework header"
+    [[ " $(ui_files_of include/ui_panel_motion.h) " == *" tests/ui/test_motion_small_screen_geometry.py "* ]] ||
+        fail "a header reaches what its source's trigger does"
+    [[ " $(ui_files_of ui_xml/motion_panel.xml) " == *" tests/ui/test_motion_small_screen_geometry.py "* ]] || fail "trigger"
+    [[ " $(ui_files_of ui_xml/motion_panel.xml) " != *" tests/ui/test_modal_geometry.py "* ]] || fail "too wide"
+    [[ " $(ui_files_of tests/ui/test_freeze.py) " == *" tests/ui/test_freeze.py "* ]] || fail "a changed file runs"
+    # A file naming a changed component runs without a trigger row.
+    [[ " $(ui_files_of ui_xml/action_prompt_modal.xml) " == *" tests/ui/test_language_switch_sweep.py "* ]] || fail "named"
+    [[ " $(ui_files_of ui_xml/runout_guidance_modal.xml) " == *" tests/ui/test_reset.py "* ]] || fail "trigger row"
+    [[ " $(ui_files_of ui_xml/history_list_row.xml) " == *" tests/ui/test_history_navigation.py "* ]]
+}
+
+@test "ui valve: the harness, globals.xml, the UI framework, startup, ctl, the mock printer and a building block (component or widget source) run every file" {
+    local p
+    for p in tests/ui/conftest.py tests/ui/helix/app.py ui_xml/globals.xml src/ui/ui_nav_manager.cpp include/ui_nav_manager.h \
+        src/ui/theme/theme_responsive.cpp src/application/application.cpp src/remote/remote_control_server.cpp \
+        src/mock/moonraker_client_mock.cpp src/api/moonraker_client_mock_gcode.cpp \
+        src/printer/ams_backend_mock.cpp include/mock_persona.h assets/fonts/NotoSans-Regular.ttf ui_xml/icon.xml \
+        src/ui/components/ui_button.cpp src/ui/settings/setting_group.cpp; do
+        [[ "$(plan_of ui "$p")" == full* ]] || fail "$p: $(plan_of ui "$p")"
+    done
+}
+
+@test "ui valve: a selection of most of the files runs every file" {
+    [[ "$(plan_of ui ui_xml/home_panel.xml ui_xml/print_select_panel.xml ui_xml/history_list_panel.xml \
+        ui_xml/motion_panel.xml ui_xml/runout_guidance_modal.xml ui_xml/ams_panel.xml)" == select* ]] ||
+        fail "twelve of eighteen is a selection"
+    [[ "$(plan_of ui ui_xml/home_panel.xml ui_xml/print_select_panel.xml ui_xml/history_list_panel.xml \
+        ui_xml/motion_panel.xml ui_xml/runout_guidance_modal.xml ui_xml/ams_panel.xml \
+        tests/ui/test_freeze.py tests/ui/test_wait_idle.py src/system/screenshot.cpp)" == "full 15 of 18 files reached" ]]
+}
+
+@test "a ui selection reaches make as UI_TESTS, and test-ui-ci keeps CI's other arguments" {
+    change ui_xml/motion_panel.xml
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -q "^make test-ui-ci UI_TESTS=tests/ui/test_detection_sources_boot.py tests/ui/test_motion_small_screen_geometry.py " "$CALLS"
+    run run_mk_fragment "$REPO_ROOT/mk/tests.mk" '^UI_CI_PYTEST_ARGS :=' test-ui-ci -n test-ui-ci "UI_TESTS=tests/ui/test_a.py tests/ui/test_b.py"
+    contains 'pytest tests/ui/test_a.py tests/ui/test_b.py -v --ignore=tests/ui/test_screens.py -m "not slow";' "$output"
 }
 
 @test "valve: the test harness, a build step or a submodule runs the whole C++ suite" {

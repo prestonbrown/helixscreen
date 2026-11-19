@@ -63,7 +63,6 @@ hour, and the nightly runs everything again.
 """
 
 import argparse
-import fnmatch
 import os
 import re
 import subprocess
@@ -108,7 +107,7 @@ DOC_FILES = ('LICENSE', 'COPYRIGHT', 'THANKS.md', 'CONTRIBUTING.md')
 
 # --------------------------------------------------------------------------
 # Stage triggers. A stage runs when a changed path matches one of its
-# patterns (fnmatch over the repo-relative path; a trailing / is a directory).
+# patterns (a segment glob over the repo-relative path, see glob_re; a trailing / is a directory).
 # --------------------------------------------------------------------------
 
 # The build inputs of the desktop app: what tests/ui drives and no-mocks scans.
@@ -166,13 +165,25 @@ def git(root, *args, check=True):
     return r.stdout
 
 
+_GLOBS = {}
+
+
+def glob_re(pattern):
+    """A pattern as a regex over repo-relative paths: * and ? stay within one
+    path segment, as in tests/shell/tooling-triggers.tsv."""
+    if pattern not in _GLOBS:
+        _GLOBS[pattern] = re.compile(''.join(
+            '[^/]*' if ch == '*' else '[^/]' if ch == '?' else re.escape(ch) for ch in pattern))
+    return _GLOBS[pattern]
+
+
 def matches(path, patterns):
-    """Does path fall under any pattern (dir/, exact path, or fnmatch glob)?"""
+    """Does path fall under any pattern (dir/, exact path, or a segment glob)?"""
     for p in patterns:
         if p.endswith('/'):
             if path.startswith(p):
                 return True
-        elif path == p or fnmatch.fnmatchcase(path, p):
+        elif path == p or glob_re(p).fullmatch(path):
             return True
     return False
 
@@ -375,12 +386,19 @@ WORD_RE = re.compile(r'[A-Za-z0-9_.-]+')
 
 def text_words(root, rel):
     """The words of a file: runs of name characters, so a path's every segment
-    and a file name with its extension are each one word."""
+    and a file name with its extension are each one word, as is each dotted
+    part (a sentence's closing period is not part of the word before it)."""
     if rel not in _WORDS:
         try:
-            _WORDS[rel] = set(WORD_RE.findall((root / rel).read_text(errors='replace')))
+            runs = WORD_RE.findall((root / rel).read_text(errors='replace'))
         except OSError:
-            _WORDS[rel] = set()
+            runs = []
+        words = set()
+        for r in runs:
+            r = r.strip('.-')
+            words.add(r)
+            words.update(r.split('.'))
+        _WORDS[rel] = words
     return _WORDS[rel]
 
 
@@ -408,6 +426,161 @@ def catch2_quote(name):
     """One --input-file line naming exactly this case."""
     return '"' + re.sub(r'([\\,\[\]"])', r'\\\1', name) + '"'
 
+
+# --------------------------------------------------------------------------
+# tests/ui: which pytest files a change reaches
+# --------------------------------------------------------------------------
+#
+# Every tests/ui file boots the built app and drives it through ctl. When the
+# ui step runs at all (an app input changed), these run:
+#
+#   - UI_SMOKE, always: a boot, every XML expression compiling, navigation
+#     between the main panels, reading text and state. A few seconds, and what
+#     any change to the app can break.
+#   - a file that changed, or one of whose UI_TRIGGERS paths changed: the
+#     components, sources and data behind the screens it drives (a changed
+#     header counts as the same-stem sources it declares);
+#   - a file that names a changed ui_xml/ component (its file stem as a word).
+#
+# Every file runs (a valve) for UI_FULL: the shared harness, ui_xml/globals.xml,
+# the UI framework at the top of src/ui/ (and its headers) and the theme, the app's startup,
+# navigation and ctl server, the mock printer every file drives (any source or
+# header named for a mock: moonraker_client_mock*, ams_backend_mock), fonts, and the
+# build. So does a change to a building block, an XML component or widget more
+# than UI_BLOCK_USERS other components use (icon, header_bar, ui_button), and a
+# selection of more than UI_SELECTED_FRACTION of the files.
+
+UI_EXCLUDED = ('tests/ui/test_screens.py',)  # the goldens: never in CI's slice
+UI_SMOKE = (
+    'tests/ui/test_navigation.py',
+    'tests/ui/test_xml_expressions_boot.py',
+    'tests/ui/test_detection_sources_boot.py',
+    'tests/ui/test_text.py',
+    'tests/ui/test_state.py',
+)
+UI_FULL = (
+    'ui_xml/globals.xml', 'tests/ui/conftest.py', 'tests/ui/helix/',
+    'src/ui/*.cpp', 'src/ui/theme/', 'src/ui/components/',
+    'src/main.cpp', 'src/xml_registration.cpp', 'src/application/application*',
+    'src/application/panel_factory.cpp', 'src/application/subject_initializer.cpp',
+    'src/application/display_manager.cpp', 'src/application/main_loop_handler.cpp',
+    'src/application/asset_manager.cpp', 'src/application/session_wiring.cpp',
+    'include/application*.h', 'include/panel_factory.h', 'include/subject_initializer.h',
+    'include/display_manager.h', 'src/remote/', 'include/remote_control_server.h',
+    'src/mock/', 'src/*mock*', 'src/*/*mock*', 'include/*mock*',
+    'assets/fonts/', 'config/themes/',
+    'Makefile', 'mk/', 'lib/', 'patches/', 'lv_conf.h', '.gitmodules', 'requirements.txt',
+)
+# The screens each file drives beyond the smoke set: their components, the
+# sources that build them and the data they show. The harness files (reset,
+# wait_idle, freeze, screenshot, diagnostics, goldens) drive the ctl server and
+# tests/ui/helix/, which UI_FULL already names.
+UI_TRIGGERS = {
+    'tests/ui/test_active_spool_geometry.py': (
+        'ui_xml/panel_widget_active_spool.xml', 'ui_xml/ams_loaded_card.xml',
+        'src/ui/panel_widgets/active_spool_widget.*', 'src/ui/home/', 'src/printer/spoolman*',
+        'include/spoolman*', 'ui_xml/home_panel.xml'),
+    'tests/ui/test_callouts_recipe.py': (
+        'scripts/screenshot-recipes.sh', 'ui_xml/home_panel.xml', 'src/ui/home/',
+        'src/ui/panel_widgets/'),
+    'tests/ui/test_filament_grade_warning.py': (
+        'ui_xml/print_select*', 'src/ui/print/ui_panel_print_select*', 'src/ui/print/print_select*',
+        'src/printer/print_start_checks.cpp', 'src/printer/filament_variants.cpp',
+        'include/print_start_checks.h', 'include/filament_variants.h',
+        'src/printer/ams_backend.cpp', 'assets/test_gcodes/'),
+    'tests/ui/test_history_navigation.py': (
+        'ui_xml/history_*', 'src/ui/print/ui_panel_history*', 'src/ui/print/ui_history*',
+        'include/*history*', 'src/ui/settings/ui_panel_advanced*', 'ui_xml/advanced_panel.xml'),
+    'tests/ui/test_modal_geometry.py': (
+        'ui_xml/ams_*', 'ui_xml/klipper_recovery_dialog.xml', 'ui_xml/recovery_fault_modal.xml',
+        'ui_xml/fault_path*', 'src/ui/filament/', 'src/ui/modals/', 'src/ui/ui_emergency_stop.cpp',
+        'include/ams_*'),
+    'tests/ui/test_motion_small_screen_geometry.py': (
+        'ui_xml/motion_*', 'src/ui/controls/', 'ui_xml/controls_panel.xml'),
+    'tests/ui/test_reset.py': ('ui_xml/runout_guidance_modal.xml',),
+    'tests/ui/test_screenshot.py': ('src/system/screenshot*', 'include/screenshot*'),
+}
+UI_SELECTED_FRACTION = 0.75
+UI_BLOCK_USERS = 8
+
+_COMPONENT_TAG = re.compile(r'<([A-Za-z_][A-Za-z0-9_]*)')
+_WIDGET_REG = re.compile(r'lv_xml_register_widget\(\s*"([A-Za-z0-9_]+)"')
+
+
+def ui_blocks(root):
+    """The building blocks: components and XML widgets more than UI_BLOCK_USERS
+    other components use, and the sources that register such a widget."""
+    stems, uses = set(), {}
+    for f in sorted((root / 'ui_xml').rglob('*.xml')):
+        if 'translations' in f.parts:
+            continue
+        stems.add(f.stem)
+        uses.setdefault(f.stem, set()).update(_COMPONENT_TAG.findall(f.read_text(errors='replace')))
+    registers = {}
+    for f in sorted((root / 'src').rglob('*.cpp')):
+        tags = set(_WIDGET_REG.findall(f.read_text(errors='replace')))
+        if tags:
+            registers[str(f.relative_to(root))] = tags
+    nodes = stems.union(*registers.values()) if registers else stems
+    users = {}
+    for comp, tags in uses.items():
+        for t in (tags & nodes) - {comp}:
+            users[t] = users.get(t, 0) + 1
+    blocks = {n for n, k in users.items() if k > UI_BLOCK_USERS}
+    block_sources = {src for src, tags in registers.items() if tags & blocks}
+    return blocks, block_sources
+
+
+def ui_files(root):
+    return sorted(str(f.relative_to(root)) for f in (root / 'tests/ui').glob('test_*.py')
+                  if str(f.relative_to(root)) not in UI_EXCLUDED)
+
+
+def select_ui(root, changed):
+    """(verdict, why, files, reasons) for the ui step: skip, select or full."""
+    code = [c for c in changed if not is_doc(c)]
+    hit = next((c for c in code if matches(c, STAGE_TRIGGERS['ui'])), None)
+    if not hit:
+        return 'skip', 'nothing it reads changed', [], {}
+    if len(changed) > MAX_CHANGED:
+        return 'full', f'{len(changed)} changed paths, over {MAX_CHANGED}', [], {}
+    broad = next((c for c in code if matches(c, UI_FULL)), None)
+    # The header of a framework source at the top of src/ui/ is framework too.
+    broad = broad or next((c for c in code if c.startswith('include/') and c.endswith('.h')
+                           and (root / 'src/ui' / (Path(c).stem + '.cpp')).exists()), None)
+    if broad:
+        return 'full', f'{broad} changed (every file boots or drives it)', [], {}
+    blocks, block_sources = ui_blocks(root)
+    for c in code:
+        if (c.startswith('ui_xml/') and Path(c).stem in blocks) or c in block_sources:
+            return 'full', f'{c} changed (a building block most screens use)', [], {}
+    files = ui_files(root)
+    reasons = {f: 'smoke: runs on every app change' for f in UI_SMOKE if f in files}
+    components = {Path(c).stem for c in code if c.startswith('ui_xml/') and c.endswith('.xml')}
+    # A header stands for the sources it declares: include/ui_panel_motion.h
+    # reaches what src/ui/controls/ui_panel_motion.cpp's trigger reaches.
+    as_sources = list(code)
+    headers = [c for c in code if c.startswith('include/') and c.endswith(HEADER_EXT)]
+    if headers:
+        stems = {Path(h).stem for h in headers}
+        as_sources += [str(f.relative_to(root)) for f in (root / 'src').rglob('*.cpp') if f.stem in stems]
+    for f in files:
+        if f in reasons:
+            continue
+        if f in changed:
+            reasons[f] = 'changed'
+            continue
+        trig = next((c for c in as_sources if matches(c, UI_TRIGGERS.get(f, ()))), None)
+        if trig:
+            reasons[f] = f'{trig} changed'
+            continue
+        named = sorted(text_words(root, f) & components)
+        if named:
+            reasons[f] = f'names {named[0]}'
+    chosen = sorted(reasons)
+    if len(chosen) > UI_SELECTED_FRACTION * len(files):
+        return 'full', f'{len(chosen)} of {len(files)} files reached', [], {}
+    return 'select', f'{len(chosen)} of {len(files)} files: smoke and what the change reaches', chosen, reasons
 
 # --------------------------------------------------------------------------
 # Stage plan
@@ -455,6 +628,9 @@ def plan(root, changed):
                              ' '.join(PYTHON_CXX_READERS)))
             else:
                 rows.append((s, 'skip', 'nothing it reads changed', ''))
+        elif s == 'ui':
+            v, why, files, _ = select_ui(root, changed)
+            rows.append((s, v, why, ' '.join(files)))
         elif s in STAGE_TRIGGERS:
             hit = next((c for c in code if matches(c, STAGE_TRIGGERS[s])), None)
             if hit:

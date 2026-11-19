@@ -63,6 +63,7 @@
 #           TEST_SELECT_CHANGED, so the sweep runs only the C++ cases whose
 #           dependency files reach it (mk/tests.mk select_cases); bats runs
 #           with BATS_GATE=1; python runs the files that read C++ source;
+#           ui runs its smoke files and the ones the change reaches;
 #           quality runs the doc gates alone for a docs-only change
 #   full    every C++ case (or bats file): a safety valve fired
 #   skip    nothing the step reads changed. Its row reads SKIP with the
@@ -344,7 +345,9 @@ run_step() {
         bats)
             local half=$LAND_GATE_STEP_TIMEOUT backstop=$((LAND_GATE_STEP_TIMEOUT * 3))
             LAND_GATE_BATS_HALF_TIMEOUT=$half LAND_GATE_STEP_TIMEOUT=$backstop step bats bash "$SELF" --bats ;;
-        ui) step ui "${mk[@]}" test-ui-ci ;;
+        ui)
+            [ "$(planned ui)" != select ] || sel=("UI_TESTS=$(planned ui 4)")
+            step ui "${mk[@]}" test-ui-ci "${sel[@]}" ;;
         plugin) step plugin "${mk[@]}" test-plugin ;;
         python)
             [ "$(planned python)" != select ] || sel=("PYTHON_TESTS=$(planned python 4)")

@@ -804,9 +804,13 @@ test-ui-pytest:
 # fails when the two invocations drift apart. Headless, so no window or sound
 # reaches the desktop; one pool slot, since the cases boot one app at a time.
 UI_CI_PYTEST_ARGS := tests/ui/ -v --ignore=tests/ui/test_screens.py -m "not slow"
+# UI_TESTS narrows the slice to some files (land-gate passes the ones a change
+# reaches, scripts/gate_select.py); the rest of CI's arguments still apply.
+UI_TESTS ?=
+UI_CI_PYTEST_RUN = $(if $(strip $(UI_TESTS)),$(UI_TESTS) $(filter-out tests/ui/,$(UI_CI_PYTEST_ARGS)),$(UI_CI_PYTEST_ARGS))
 
 test-ui-ci:
-	$(ECHO) "$(CYAN)$(BOLD)Running out-of-process UI tests, CI's slice (pytest $(UI_CI_PYTEST_ARGS))...$(RESET)"
+	$(ECHO) "$(CYAN)$(BOLD)Running out-of-process UI tests, CI's slice (pytest $(UI_CI_PYTEST_RUN))...$(RESET)"
 	@if [ ! -x "$(VENV_PYTHON)" ]; then \
 		echo "$(RED)$(BOLD)✗ Python venv not found — run 'make venv-setup' first$(RESET)"; \
 		exit 1; \
@@ -817,7 +821,7 @@ test-ui-ci:
 	fi
 	@START_TIME=$$(date +%s); \
 	HELIX_HEADLESS=1 SDL_VIDEODRIVER=dummy scripts/helix-claim hold -n 1 -- \
-		$(VENV_PYTHON) -m pytest $(UI_CI_PYTEST_ARGS); \
+		$(VENV_PYTHON) -m pytest $(UI_CI_PYTEST_RUN); \
 	$(call report_test_result,Out-of-process UI tests (CI slice))
 
 # ============================================================================
