@@ -10,6 +10,7 @@
 
 #include "helix/ui/text_metrics.h"
 #include "hub_buffer_meter.h"
+#include "tube_router.h"
 
 #include <algorithm>
 #include <cmath>
@@ -159,6 +160,9 @@ struct GlobalRoute {
     // Where its run leaves its first drop and meets its last: the run rises from run_y toward
     // its start by the tilt it is given (tilt_runs); both run_y while level.
     int32_t run_from_y = 0, run_to_y = 0;
+    // The router's trace from its start to its end, when the router laid the routes out.
+    tuberoute::Trace trace;
+    bool routed = false;
 };
 
 // A PARALLEL or MIXED unit: one route per tool.
@@ -897,6 +901,61 @@ void append_lone_outlet(PathPlan& plan, Route& r, const Lane& lane, float x, flo
     append_line(r, x, from_y, x, nozzle_top, lane.style(PathSegment::OUTPUT));
 }
 
+// Lays every route out with the tube router: each one a drop, one jog and a drop,
+// in source order, never crossing and a haloed tube apart. A PARALLEL or MIXED
+// unit's routes are one bus, so they jog as a ribbon; every other unit's tube is
+// a bus of its own. Returns false, leaving the routes untouched, when the router
+// cannot fit them (ends out of order, too little height or clearance): the
+// caller lays them out with run heights instead. Sorts @p routes by start.
+bool route_with_router(const SystemPathData& data, GlobalRoute* routes, int n) {
+    if (n <= 0)
+        return false;
+    std::stable_sort(routes, routes + n, [](const GlobalRoute& a, const GlobalRoute& b) {
+        return a.start_x < b.start_x;
+    });
+    pg::PathPoint sources[SystemPathData::kMaxTools];
+    pg::PathPoint sinks[SystemPathData::kMaxTools];
+    tuberoute::Bus buses[SystemPathData::kMaxTools];
+    int bus_count = 0;
+    for (int r = 0; r < n; ++r) {
+        sources[r] = {(float)routes[r].start_x, (float)routes[r].start_y};
+        sinks[r] = {(float)routes[r].end_x, (float)routes[r].end_y};
+        const bool joins = r > 0 && !routes[r].is_hub && !routes[r - 1].is_hub &&
+                           routes[r].unit_idx == routes[r - 1].unit_idx;
+        if (joins) {
+            buses[bus_count - 1].count++;
+            continue;
+        }
+        buses[bus_count++] = {&sources[r], &sinks[r], 1};
+    }
+    tuberoute::RouterConfig cfg;
+    cfg.clearance = (float)route_gap(data);
+    cfg.bus_pitch = (float)lane_pitch(data);
+    cfg.group_gap = (float)(2 * lane_pitch(data));
+    cfg.fillet_r = kFanFillet;
+    // The steepest jog that fits the height, down the same ladder tilt_runs leans
+    // with; a level jog only when no lean fits.
+    tuberoute::Trace traces[SystemPathData::kMaxTools];
+    bool fits = false;
+    cfg.allow_horizontal = false;
+    for (float slope : {1.0f, 0.75f, 0.55f, 0.4f, 0.28f, 0.18f, 0.0f}) {
+        cfg.slope = slope > 0.0f ? slope : 1.0f;
+        cfg.allow_horizontal = slope == 0.0f;
+        if (tuberoute::plan_routes(buses, bus_count, cfg, traces, n) ==
+            tuberoute::RouteStatus::Ok) {
+            fits = true;
+            break;
+        }
+    }
+    if (!fits)
+        return false;
+    for (int r = 0; r < n; ++r) {
+        routes[r].trace = traces[r];
+        routes[r].routed = true;
+    }
+    return true;
+}
+
 void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& plan,
                      OverviewBoxes& boxes) {
     GlobalRoute routes[SystemPathData::kMaxTools];
@@ -942,8 +1001,10 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     place_nozzle_boxes(data, L, feeds, tools, boxes);
     resolve_hub_row(data, L, feeds, routes, n, boxes);
     slot_into_junctions(data, boxes, routes, n);
-    assign_run_heights(data, L, boxes, routes, n);
-    tilt_runs(data, routes, n);
+    if (!route_with_router(data, routes, n)) {
+        assign_run_heights(data, L, boxes, routes, n);
+        tilt_runs(data, routes, n);
+    }
     sort_routes(routes, n);
     int owner[SystemPathData::kMaxTools];
     junction_owners(data, routes, n, owner);
@@ -958,7 +1019,11 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
 
         // Down from the unit, across (leaning down) at its run height, down to its end.
         const fpath::SpanStyle s = lane.style(PathSegment::LANE);
-        if (!runs_across(data, route)) {
+        if (route.routed) {
+            pg::FilamentPath path;
+            tuberoute::trace_to_path(route.trace, kFanFillet, path);
+            route_append(*r, path, s);
+        } else if (!runs_across(data, route)) {
             append_line(*r, (float)route.start_x, (float)route.start_y, (float)route.start_x,
                         (float)route.end_y, s);
         } else {

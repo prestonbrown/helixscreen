@@ -1448,13 +1448,11 @@ TEST_CASE("Overview plan: every visible bend on the mock rigs is rounded",
     }
 }
 
-TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig has room",
+TEST_CASE("Overview plan: each tube on the full-size rigs leans down in at most one jog",
           "[system_path][route_spacing]") {
-    // Where its neighbors leave room a route is one straight line from under its unit.
-    int straight = 0;
-    // A level run with square bends reads as a cable harness, not a line converging on its
-    // nozzle. The full-size rigs have the room to lean every run; the route spacing cases
-    // above hold them apart.
+    // A tube drops from its unit, jogs once on a diagonal and drops into its end: never a
+    // level run with square bends, never a second jog. Box interiors and what follows them
+    // are the junction's outlet, not the tube.
     for (const Rig& rig : mock_rigs()) {
         if (std::string(rig.name).find("micro") != std::string::npos)
             continue;
@@ -1466,29 +1464,30 @@ TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig
         PathPlan plan;
         OverviewBoxes boxes;
         plan_overview(d, L, plan, boxes);
-        int leaning = 0, level = 0;
+        int leaning = 0;
         for (int i = 0; i < plan.route_count; i++) {
             const Route& r = plan.routes[i];
-            for (int k = 0; k < r.path.count; k++) {
+            int jogs = 0;
+            bool in_jog = false;
+            for (int k = 0; k < r.path.count && r.style[k].painted; k++) {
                 const pg::PathSeg& s = r.path.segs[k];
-                if (s.type != pg::PathSeg::LINE || !r.style[k].painted)
+                if (s.type != pg::PathSeg::LINE)
                     continue;
                 const float dx = std::fabs(s.p1.x - s.p0.x), dy = std::fabs(s.p1.y - s.p0.y);
-                if (dx < 2 * (float)d.tube_gauge)
+                if (dx < 1.0f) {
+                    in_jog = false;
                     continue;
-                (dy < 1.0f ? level : leaning)++;
+                }
+                CHECK_FALSE((dy < 1.0f && dx >= 2 * (float)d.tube_gauge));
+                leaning += dy >= 1.0f;
+                jogs += !in_jog;
+                in_jog = true;
             }
+            CAPTURE(i);
+            CHECK(jogs <= 1);
         }
         CHECK(leaning > 0);
-        CHECK(level == 0);
-        for (int i = 0; i < plan.route_count; i++) {
-            const pg::PathSeg& first = plan.routes[i].path.segs[0];
-            if (first.type == pg::PathSeg::LINE && std::fabs(first.p1.x - first.p0.x) > 1.0f &&
-                std::fabs(first.p1.y - first.p0.y) > 1.0f)
-                ++straight;
-        }
     }
-    CHECK(straight > 0);
 }
 
 TEST_CASE("Overview plan: one toolhead's lines run straight from each unit to the hub",
