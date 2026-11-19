@@ -10,6 +10,7 @@
 #include "ui_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/keypad_reset_key.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/plugin_test_support.h"
 #include "core/update_queue.h"
@@ -103,10 +104,18 @@ TEST_CASE_METHOD(EditorFixture, "helix.ui.edit_number returns the keypad's value
     REQUIRE(b.t.run("open_number()"));
     drain();
     REQUIRE(ui_keypad_is_visible());
+    CHECK_FALSE(helix::test::keypad_reset_key_shown());
     type_and_confirm("12.5");
     CHECK_FALSE(ui_keypad_is_visible());
     CHECK(b.t.global("got") == "12.5");
     CHECK(b.t.global("cancels") == "0");
+
+    // A default puts a reset key beside the display that types it.
+    REQUIRE(b.t.run("open_number({default = 7.5})"));
+    drain();
+    CHECK(helix::test::keypad_press_reset() == "7.5");
+    click(keypad(), "action_button");
+    CHECK(b.t.global("got") == "7.5");
 
     // decimals = 0 hands back an integer.
     REQUIRE(b.t.run("open_number({decimals = 0})"));
@@ -253,6 +262,8 @@ TEST_CASE_METHOD(EditorFixture, "helix.ui.edit_number validates its options",
         "helix.ui.edit_number({min = 0, max = 10, on_accept = print, colour = 'red'})",
         "helix.ui.edit_number({min = 0, max = 10, on_accept = print, title = string.rep('x', 48)})",
         "helix.ui.edit_number({min = 0, max = 0/0, on_accept = print})",
+        "helix.ui.edit_number({min = 0, max = 10, default = 11, on_accept = print})",
+        "helix.ui.edit_number({min = 0, max = 10, default = 2.5, on_accept = print})",
     };
     for (const char* lua : bad) {
         INFO(lua);

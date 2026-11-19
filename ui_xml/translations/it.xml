@@ -2843,6 +2843,7 @@
   <translation tag="Paused" it="In pausa"/>
   <translation tag="Paused (attention needed)" it="In pausa (attenzione richiesta)"/>
   <translation tag="Paused by a command" it="In pausa da un comando"/>
+  <translation tag="Paused by {}: {}" it="In pausa da {}: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." it="Mette in pausa una stampa a un layer scelto, per cambiare filamento o inserire un oggetto. Durante la stampa, scegli il layer dalla scheda di anteprima nella schermata di stato."/>
   <translation tag="Pausing at layer {}." it="Pausa allo strato {}."/>
   <translation tag="Pausing..." it="Sospensione..."/>

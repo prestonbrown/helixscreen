@@ -2928,6 +2928,7 @@ translations:
   Paused: 一時停止
   Paused (attention needed): 一時停止（対応が必要）
   Paused by a command: コマンドで一時停止
+  'Paused by {}: {}': '{}により一時停止: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。'
   Pausing at layer {}.: 'レイヤー {} で一時停止します。'

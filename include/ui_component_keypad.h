@@ -62,8 +62,9 @@ struct ui_keypad_config_t {
     std::string initial_text;
     /// Ipv4 mode: called with the typed text once the keypad has closed.
     std::function<void(const std::string&)> on_confirm_text;
-    /// The field's default. When set, a reset key beside the display types it, and
-    /// Set confirms it like any typed value. A temperature's is given in Celsius.
+    /// The field's default. When set and inside the range, a reset key beside the
+    /// display types it, and Set confirms it like any typed value. A temperature's is
+    /// given in Celsius.
     std::optional<float> default_value;
     /// The value is a temperature: give initial, min and max in Celsius. The keypad
     /// shows and accepts the user's display unit, and `callback`, `validate` and
@@ -99,8 +100,10 @@ float keypad_value_to_celsius(float typed, float min_c, float max_c, units::Temp
 
 /// Open the keypad on @p slider's current value and range.
 /// @param log_name Prefix for the debug line
+/// @param default_value The field's default, for the keypad's reset key
 void show_keypad_for_slider(lv_obj_t* slider, const SliderFieldSpec& spec,
-                            ui_keypad_callback_t callback, void* user_data, const char* log_name);
+                            ui_keypad_callback_t callback, void* user_data, const char* log_name,
+                            std::optional<float> default_value = std::nullopt);
 
 } // namespace helix::ui
 

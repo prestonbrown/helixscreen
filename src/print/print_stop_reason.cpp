@@ -9,7 +9,10 @@
 #include "moonraker_error.h"
 #include "printer_state.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
+
+#include <string_view>
 
 namespace helix {
 
@@ -22,7 +25,38 @@ bool is_stop(PrintJobState state) {
            state == PrintJobState::ERROR;
 }
 
+constexpr std::string_view kMonitorPausePrefix = "Paused by ";
+constexpr std::string_view kMonitorSourceEnd = ": ";
+
+bool is_blank(std::string_view text) {
+    return text.find_first_not_of(" \t") == std::string_view::npos;
+}
+
 } // namespace
+
+std::optional<MonitorPause> parse_monitor_pause(const std::string& display_message) {
+    const std::string_view text = display_message;
+    if (text.substr(0, kMonitorPausePrefix.size()) != kMonitorPausePrefix) {
+        return std::nullopt;
+    }
+    const std::string_view rest = text.substr(kMonitorPausePrefix.size());
+    const auto end = rest.find(kMonitorSourceEnd);
+    if (end == std::string_view::npos) {
+        return std::nullopt;
+    }
+    const std::string_view source = rest.substr(0, end);
+    const std::string_view reason = rest.substr(end + kMonitorSourceEnd.size());
+    if (is_blank(source) || is_blank(reason)) {
+        return std::nullopt;
+    }
+    return MonitorPause{std::string(source), std::string(reason)};
+}
+
+std::string monitor_pause_reason_text(const MonitorPause& pause) {
+    // The source is the tool's name and the reason its own words: neither
+    // has a translation here.
+    return fmt::format(fmt::runtime(lv_tr("Paused by {}: {}")), pause.source, pause.reason);
+}
 
 std::string gcode_error_reason_text(const std::string& line) {
     std::string text = journal_error_text(line);
@@ -51,9 +85,15 @@ std::string recent_gcode_error(const PrinterPrintState& state, double now) {
 }
 
 std::string decide_print_stop_reason(PrintJobState stop, const std::string& print_message,
-                                     const std::vector<JournalEntry>& entries, double stop_time) {
+                                     const std::vector<JournalEntry>& entries, double stop_time,
+                                     const std::optional<JournalEntry>& monitor) {
     if (!is_stop(stop)) {
         return {};
+    }
+    // RAW_PRINT_STATE_OK: a monitor announces the pause it is about to send.
+    if (stop == PrintJobState::PAUSED && monitor && !monitor->text.empty() &&
+        is_recent_cause(monitor->time, stop_time)) {
+        return monitor->text;
     }
     if (!print_message.empty()) {
         return print_message;
@@ -136,6 +176,12 @@ PrintStopReasonTracker::PrintStopReasonTracker(IMoonrakerClient& client, Printer
         ps.get_print_message_subject(), this,
         [](PrintStopReasonTracker* self, const char*) { self->publish(); },
         state_.get_subjects_lifetime());
+    // Immediate: whether the text came from a subscription response belongs to
+    // the frame that set it. The handler only records; publishing is deferred.
+    display_message_observer_ = ui::observe<const char*>(
+        ps.get_display_message_subject(), this,
+        [](PrintStopReasonTracker* self, const char* text) { self->on_display_message(text); },
+        state_.get_subjects_lifetime(), ui::Dispatch::Immediate);
 }
 
 PrintStopReasonTracker::~PrintStopReasonTracker() {
@@ -209,6 +255,27 @@ void PrintStopReasonTracker::on_gcode_error(JournalEntry e) {
     }
 }
 
+void PrintStopReasonTracker::on_display_message(const char* text) {
+    // A subscription response's text has no arrival time to place against a
+    // pause: it may be an announcement left up since an earlier one.
+    if (state_.print_state().display_message_from_snapshot()) {
+        return;
+    }
+    auto pause = parse_monitor_pause(text ? text : "");
+    if (!pause) {
+        return;
+    }
+    JournalEntry e;
+    e.time = now_();
+    e.text = monitor_pause_reason_text(*pause);
+    monitor_ = std::move(e);
+    lifetime_.defer("PrintStopReason::monitor_pause", [this] {
+        if (stopped()) {
+            publish();
+        }
+    });
+}
+
 void PrintStopReasonTracker::on_gcode_store(const std::vector<GcodeStoreEntry>& store,
                                             std::uint32_t stop_id) {
     if (stop_id != stop_id_ || !stopped() || store.empty()) {
@@ -247,7 +314,8 @@ void PrintStopReasonTracker::publish() {
     if (stopped() && message && *message) {
         stop_message_ = message;
     }
-    std::string reason = decide_print_stop_reason(stop_, stop_message_, entries, stop_time_);
+    std::string reason =
+        decide_print_stop_reason(stop_, stop_message_, entries, stop_time_, monitor_);
     if (reason.empty()) {
         reason = carried_reason_;
     }

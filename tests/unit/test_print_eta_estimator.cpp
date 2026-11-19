@@ -22,6 +22,9 @@
 #include "printer_cache_registry.h"
 #include "printer_state.h"
 
+#include <algorithm>
+#include <cstdlib>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -39,6 +42,14 @@ PrintEtaInputs job(int progress_pct, int print_duration_s, int slicer_estimate_s
     return in;
 }
 
+/// A job whose progress is known as a fraction (virtual_sdcard bytes).
+PrintEtaInputs fine_job(double fraction, int print_duration_s, int slicer_estimate_s = 0) {
+    PrintEtaInputs in =
+        job(static_cast<int>(fraction * 100.0), print_duration_s, slicer_estimate_s);
+    in.progress_fraction = fraction;
+    return in;
+}
+
 } // namespace
 
 TEST_CASE("ETA: while preparing, what is left is the prep plus the whole job", "[print][eta]") {
@@ -49,6 +60,10 @@ TEST_CASE("ETA: while preparing, what is left is the prep plus the whole job", "
     in.slicer_estimate_s = 600;
 
     // 120s of prep still to run, then a 600s job nobody has started.
+    CHECK(est.remaining_seconds(in) == 720);
+
+    // The file's header already puts byte progress a sliver above zero.
+    in.progress_fraction = 0.003;
     CHECK(est.remaining_seconds(in) == 720);
 }
 
@@ -64,14 +79,6 @@ TEST_CASE("ETA: under 5 percent the slicer estimate stands alone", "[print][eta]
     // the printer has produced so far are not worth extrapolating from - note
     // the wildly wrong print_duration is ignored entirely.
     CHECK(est.remaining_seconds(job(4, 1, 1000)) == 960);
-}
-
-TEST_CASE("ETA: past the blend window it extrapolates the observed rate", "[print][eta]") {
-    PrintEtaEstimator est;
-
-    // Half done in 600s, so the other half should also take about 600s. Above
-    // the blend window, so the slicer's opinion does not enter.
-    CHECK(est.remaining_seconds(job(50, 600, 99999)) == 600);
 }
 
 TEST_CASE("ETA: with no elapsed print time there is no rate, so the slicer answers",
@@ -106,16 +113,91 @@ TEST_CASE("ETA: the blend hands over cleanly at the top of the window", "[print]
     CHECK(blended.remaining_seconds(job(15, 600, 9000)) == bare.remaining_seconds(job(15, 600, 0)));
 }
 
-TEST_CASE("ETA: the estimate is smoothed, not snapped, toward a new rate", "[print][eta]") {
+TEST_CASE("ETA: a steady print counts down without jumping", "[print][eta]") {
+    // A 3600s job at its slicer's pace, sampled four times a second as
+    // Moonraker delivers print_stats. Between progress ticks the number falls
+    // by the time that passed and nothing more; extrapolating from a whole
+    // percent (M73) alone swings it by elapsed/percent every tick, 360s at 10%.
+    // Byte progress keeps it on the truth once the slicer blend ends at 15%.
+    for (const bool whole_percent : {true, false}) {
+        CAPTURE(whole_percent);
+        const auto frame = [whole_percent](int elapsed) {
+            return whole_percent ? job(elapsed / 36, elapsed, 3600)
+                                 : fine_job(elapsed / 3600.0, elapsed, 3600);
+        };
+        PrintEtaEstimator est;
+        int previous = est.remaining_seconds(frame(36));
+        REQUIRE(previous != PrintEtaEstimator::kNoEstimate);
+        int worst_jump = 0;
+        int worst_error = 0;
+        for (int quarter = 37 * 4; quarter <= 3564 * 4; ++quarter) {
+            const int elapsed = quarter / 4;
+            const int now = est.remaining_seconds(frame(elapsed));
+            worst_jump = std::max(worst_jump, std::abs(previous - now));
+            if (!whole_percent && elapsed >= 540) {
+                worst_error = std::max(worst_error, std::abs(now - (3600 - elapsed)));
+            }
+            previous = now;
+        }
+        CHECK(worst_jump <= 2);
+        CHECK(worst_error <= 5);
+        // 36s of the job remain.
+        CHECK(std::abs(previous - 36) <= 5);
+    }
+}
+
+TEST_CASE("ETA: the countdown follows the print clock", "[print][eta]") {
     PrintEtaEstimator est;
-
-    // First sample seeds: 600s elapsed at 50% extrapolates to 600s left.
-    REQUIRE(est.remaining_seconds(job(50, 600, 0)) == 600);
-
-    // The printer then slows: 800s elapsed at the same 50% says 800s left. At
-    // this progress alpha is capped at 0.3, so the published number moves three
-    // tenths of the way: 0.3*800 + 0.7*600.
-    CHECK(est.remaining_seconds(job(50, 800, 0)) == 660);
+    SECTION("a pause holds the estimate, and a clock that runs backwards starts over") {
+        // Half done in 3000s leaves 3000s; past the blend window the slicer's
+        // opinion does not enter. print_duration stops while paused, and
+        // frames keep arriving.
+        REQUIRE(est.remaining_seconds(fine_job(0.5, 3000, 99999)) == 3000);
+        for (int frame = 0; frame < 100; ++frame) {
+            CHECK(est.remaining_seconds(fine_job(0.5, 3000, 99999)) == 3000);
+        }
+        // A new print the reset never reached restarts its clock below the last
+        // sample. Counting down by a negative interval would add the old
+        // print's time to the new one's estimate.
+        CHECK(est.remaining_seconds(fine_job(0.25, 100)) == 300);
+    }
+    SECTION("a change of pace is smoothed, not snapped") {
+        REQUIRE(est.remaining_seconds(fine_job(0.5, 600)) == 600);
+        // 0.505 at 610s extrapolates to about 598s left; counting down says
+        // 590. Ten seconds of evidence against a minute-long smoothing window
+        // moves the answer only part of the way.
+        const int next = est.remaining_seconds(fine_job(0.505, 610));
+        CHECK(next > 590);
+        CHECK(next < 597);
+    }
+    SECTION("a print that slows down is followed within a few minutes") {
+        // Half of a 3600s job in 1800s, then the rest at three quarters speed.
+        for (int elapsed = 1700; elapsed <= 1800; ++elapsed) {
+            (void)est.remaining_seconds(fine_job(elapsed / 3600.0, elapsed));
+        }
+        int now = 0;
+        for (int t = 1; t <= 300; ++t) {
+            now = est.remaining_seconds(fine_job(0.5 + 0.5 * t / 2400.0, 1800 + t));
+        }
+        // The extrapolation itself has only partly caught up after 300s (it
+        // divides all 2100s by all progress so far), so compare against it,
+        // and against the old pace, which would say 1500s.
+        const double fraction = 0.5 + 0.5 * 300 / 2400.0;
+        const double extrapolated = 2100.0 * (1.0 - fraction) / fraction;
+        CHECK(std::abs(now - extrapolated) <= 0.03 * extrapolated);
+        CHECK(now > 1560);
+    }
+    SECTION("a stall near the end never reads as finished") {
+        // 95% of a 3600s job, 180s left, then a 300s tool change: print time
+        // runs, progress does not. Counting down alone reaches 0:00 two minutes
+        // into it with the job unfinished.
+        REQUIRE(est.remaining_seconds(fine_job(0.95, 3420)) == 180);
+        int lowest = 180;
+        for (int t = 1; t <= 300; ++t) {
+            lowest = std::min(lowest, est.remaining_seconds(fine_job(0.95, 3420 + t)));
+        }
+        CHECK(lowest > 0);
+    }
 }
 
 TEST_CASE("ETA: reset forgets the previous print", "[print][eta]") {
@@ -216,9 +298,10 @@ TEST_CASE("ETA: after an exclusion the rate observed since then takes over",
     REQUIRE(est.remaining_seconds(excluded(job(50, 600, 0), 0.5)) == 300);
 
     // The ten points since the exclusion took 90s, 9s per percent rather than
-    // the 6s the share predicted, so 40% left is 360s. Smoothed from 300s at
-    // alpha 0.3: 0.3*360 + 0.7*300.
-    CHECK(est.remaining_seconds(excluded(job(60, 690, 0), 0.5)) == 318);
+    // the 6s the share predicted, so 40% left is 360s. The countdown from the
+    // exclusion says 300 - 90 = 210s, and 90s of evidence pulls it
+    // 1 - exp(-90/60) of the way toward 360: 210 + 0.777 * 150 = 326.
+    CHECK(est.remaining_seconds(excluded(job(60, 690, 0), 0.5)) == 326);
 }
 
 TEST_CASE("ETA: parts excluded before printing leave the observed rate alone",
@@ -237,9 +320,10 @@ TEST_CASE(
     // unknown, so the rate observed so far stands for the work still left.
     PrintEtaEstimator est;
     CHECK(est.remaining_seconds(excluded(job(50, 600, 0), 0.5)) == 600);
-    // Still 12s per percent ten points on, so 40% left is 480s. Smoothed from
-    // 600s at alpha 0.3: 0.3*480 + 0.7*600.
-    CHECK(est.remaining_seconds(excluded(job(60, 720, 0), 0.5)) == 564);
+    // Still 12s per percent ten points on, so 40% left is 480s, which is also
+    // where counting 120s down from 600s lands. Halving the earlier rate for
+    // the exclusion would have said 240s.
+    CHECK(est.remaining_seconds(excluded(job(60, 720, 0), 0.5)) == 480);
 }
 
 TEST_CASE_METHOD(HelixTestFixture,

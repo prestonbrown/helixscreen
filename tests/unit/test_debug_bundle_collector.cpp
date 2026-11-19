@@ -471,6 +471,40 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers"
         {"203.0.113.5", {"203.0.113.5"}, {}},
         {"2001:db8:85a3::8a2e:370:7334", {"2001:db8:85a3::8a2e:370:7334", "8a2e:370:7334"}, {}},
         {"[WS] handshake with 198.51.100.7:7125 timed out", {"198.51.100.7"}, {":7125 timed out"}},
+        // A sensitive key's value goes, quoted or bare, whatever the separator
+        {"PASSWORD=Hunter2", {"Hunter2"}, {"PASSWORD=[REDACTED]"}},
+        {"mqtt_password: 'two words'", {"two words"}, {"mqtt_password: [REDACTED]"}},
+        {"psk=\"my home wifi\" key_mgmt=WPA-PSK", {"my home wifi"}, {"psk=[REDACTED] key_mgmt"}},
+        {"wpa_passphrase=Sunny1", {"Sunny1"}, {"wpa_passphrase=[REDACTED]"}},
+        {"passwd = 1234", {"1234"}, {"passwd = [REDACTED]"}},
+        {"client_secret: s3cr3t", {"s3cr3t"}, {"client_secret: [REDACTED]"}},
+        {"{\"api_key\": \"f00dcafe\", \"x\": 1}",
+         {"f00dcafe"},
+         {"\"api_key\": [REDACTED], \"x\": 1"}},
+        {"GET /api/files?apikey=F00D&path=a", {"F00D"}, {"apikey=[REDACTED]&path=a"}},
+        {"auth: Basic dXNlcjpwYXNz", {"dXNlcjpwYXNz"}, {"auth: Basic [REDACTED]"}},
+        // An unquoted value runs to the end of the line, or to the next key
+        {"password: correct horse battery staple", {"horse", "staple"}, {"password: [REDACTED]"}},
+        {"password = two words, user = bob", {"two words"}, {"password = [REDACTED], user = bob"}},
+        // An Authorization value keeps only its scheme name, whatever the scheme
+        {"Authorization: Token 9944b09199c62bcf",
+         {"9944b09199c62bcf"},
+         {"Authorization: Token [REDACTED]"}},
+        {"Authorization: Digest username=\"bob\", response=\"6629fae4\"",
+         {"bob", "6629fae4"},
+         {"Authorization: Digest [REDACTED]"}},
+        // A webhook id in the path is the secret, on any host
+        {"POST https://ha.local:8123/api/webhook/print_done_a8f3c2 -> 200",
+         {"print_done_a8f3c2"},
+         {"https://ha.local:8123/api/webhook/[REDACTED] -> 200"}},
+        {"https://hooks.example.net/webhooks/T0123/B456/xyz?fmt=json",
+         {"T0123", "xyz"},
+         {"/webhooks/[REDACTED]?fmt=json"}},
+        // An escaped quote does not end a quoted value
+        {"{\"password\": \"ab\\\"cd\", \"x\": 1}",
+         {"ab", "cd"},
+         {"\"password\": [REDACTED], \"x\": 1"}},
+        {"{'password': 'ab\\'cd', 'x': 1}", {"cd"}, {"'password': [REDACTED], 'x': 1"}},
     };
     for (const Inline& r : inline_rows) {
         const auto result = helix::DebugBundleCollector::sanitize_value(r.input);
@@ -482,6 +516,21 @@ TEST_CASE("DebugBundleCollector: sanitize_value redacts secrets and identifiers"
             CHECK(result.find(kept) != std::string::npos);
         }
     }
+}
+
+TEST_CASE("DebugBundleCollector: sanitize_value fails closed on a pattern that gives up",
+          "[debug-bundle][sanitize][privacy]") {
+    // A boundary-dense word run makes the email pattern backtrack past the
+    // matcher's step limit before it reaches the address: the line is withheld.
+    std::string dense;
+    while (dense.size() < 3900)
+        dense += "a-b.c_";
+    CHECK(helix::DebugBundleCollector::sanitize_value(dense + " owner@example.com") ==
+          "[REDACTED]");
+
+    const std::string out =
+        helix::DebugBundleCollector::sanitize_value(dense + " password=hunter2");
+    CHECK(out.find("hunter2") == std::string::npos);
 }
 
 TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
@@ -515,6 +564,16 @@ TEST_CASE("DebugBundleCollector: sanitize_value passes diagnostic text through",
         // An SSID is arbitrary user text no regex can tell from log content, so
         // the call sites redact it; the sanitizer must leave it alone
         "Status: connected=true ssid='Pretzel Logic Cafe' signal=66%",
+        // Settings that only name a credential carry no secret
+        "enable_api_key = True",
+        "force_logins: false",
+        "[authorization]",
+        "secrets_path = /home/pi/printer_data/moonraker.secrets",
+        "max_token_count = 5",
+        "Token expired, re-authenticating",
+        // Local socket and file URLs name a path, never a credential
+        "Klippy UDS: unix:///home/pi/printer_data/comms/klippy.sock",
+        "Loading file:///home/pi/printer_data/config/printer.cfg",
     };
     for (const char* v : keep) {
         INFO(v);

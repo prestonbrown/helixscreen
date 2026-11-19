@@ -736,6 +736,13 @@ class PrinterPrintState {
         return &display_message_;
     }
 
+    /// True when the shown display message came from a subscription response
+    /// rather than a live update: Klipper keeps an M117 until the job ends, so
+    /// such text may have been set at any time before the screen connected.
+    [[nodiscard]] bool display_message_from_snapshot() const {
+        return display_message_from_snapshot_;
+    }
+
     /// 1 when display_message is non-empty, 0 when empty (for XML visibility binding)
     lv_subject_t* get_display_message_visible_subject() {
         return &display_message_visible_;
@@ -788,7 +795,13 @@ class PrinterPrintState {
         return print_exception_code_;
     }
 
-    /// Drop the latched pause cause (id, code, message, subject).
+    /// The lane the latched pause cause names as run out of filament
+    /// (pause_descriptor::PauseDescriptor::runout_lane), or -1. Main-thread only.
+    [[nodiscard]] int get_pause_runout_lane() const {
+        return print_exception_runout_lane_;
+    }
+
+    /// Drop the latched pause cause (id, code, message, runout lane, subject).
     /// Main-thread only.
     void clear_print_exception();
 
@@ -1543,11 +1556,15 @@ class PrinterPrintState {
     // When active, preferred over virtual_sdcard file-position progress
     double slicer_progress_ = 0.0;        // Raw 0.0-1.0 from display_status
     bool slicer_progress_active_ = false; // True once non-zero value seen during print
+    // virtual_sdcard.progress at full resolution (0.0-1.0), -1 until one arrives
+    // for this print. Feeds the ETA, which a whole percent makes jump.
+    double file_progress_fraction_ = -1.0;
 
     // Display message from Klipper (M117 gcode / display_status.message)
     helix::Subject display_message_{};         // String subject for UI binding
     helix::Subject display_message_visible_{}; // Integer: 1 when non-empty, 0 when empty
     char display_message_buf_[128]{};          // Buffer for message storage
+    bool display_message_from_snapshot_ = false;
 
     // print_stats.message from Klipper (set by firmware on pause/error to describe reason)
     helix::Subject print_message_{}; // String: e.g. "Filament Sensor: Runout Detected"
@@ -1565,6 +1582,7 @@ class PrinterPrintState {
     int print_exception_id_ = -1;
     int print_exception_code_ = -1;
     std::string print_exception_message_;
+    int print_exception_runout_lane_ = -1;
     /// print_stats frames parsed, and the one the latched exception arrived
     /// in: a pause takes an exception from its own frame, a later one, or the
     /// frame just before it (the firmware can publish the two across a status

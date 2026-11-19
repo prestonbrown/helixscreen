@@ -15,8 +15,13 @@
 #include <spdlog/spdlog.h>
 
 #include <cerrno>
+#include <chrono>
 #include <cstdlib>
 #include <string>
+
+#if HELIX_HAS_MALLOC_TRIM
+#include <malloc.h>
+#endif
 
 #if defined(HELIX_PLATFORM_ESP32)
 #include <esp_heap_caps.h>
@@ -352,6 +357,30 @@ bool apply_oom_score_adj_from_env() {
                  "the first OOM victim so Klipper survives",
                  adj);
     return true;
+}
+
+bool heap_trim_due(uint32_t now_ms, std::optional<uint32_t> last_trim_ms) {
+    if (!last_trim_ms)
+        return true;
+    // Unsigned subtraction is the elapsed time across a tick wrap.
+    return static_cast<uint32_t>(now_ms - *last_trim_ms) >= kHeapTrimMinIntervalMs;
+}
+
+bool release_free_heap() {
+#if HELIX_HAS_MALLOC_TRIM
+    int64_t rss_before = 0, rss_after = 0, hwm = 0;
+    read_memory_stats(rss_before, hwm);
+    const auto start = std::chrono::steady_clock::now();
+    malloc_trim(0);
+    const auto took = std::chrono::duration_cast<std::chrono::microseconds>(
+        std::chrono::steady_clock::now() - start);
+    read_memory_stats(rss_after, hwm);
+    spdlog::debug("[Memory] Heap trim: RSS {} -> {} kB ({} kB returned) in {} us", rss_before,
+                  rss_after, rss_before - rss_after, took.count());
+    return true;
+#else
+    return false;
+#endif
 }
 
 } // namespace helix

@@ -381,8 +381,14 @@ void MachineLimitsOverlay::handle_field_clicked(Field field) {
     }
 
     pending_keypad_field_ = field;
+    // Only the extrude speed is the app's own setting; the printer owns the limits'.
+    std::optional<float> default_value;
+    if (field == Field::ExtrudeSpeed) {
+        default_value =
+            static_cast<float>(helix::SettingsManager::instance().get_extrude_speed_default());
+    }
     helix::ui::show_keypad_for_slider(slider, kFieldSpecs[static_cast<size_t>(field)].keypad,
-                                      on_keypad_value, this, get_name());
+                                      on_keypad_value, this, get_name(), default_value);
 }
 
 void MachineLimitsOverlay::handle_keypad_value(Field field, double value) {

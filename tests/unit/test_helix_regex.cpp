@@ -366,6 +366,17 @@ TEST_CASE("helix::Regex gives up on catastrophic backtracking", "[regex]") {
     CHECK(helix::regex_search("aaab", re));
 }
 
+TEST_CASE("helix::regex_replace reports a search that gave up", "[regex]") {
+    Regex re("(a+)+b");
+    REQUIRE(re.ok());
+    bool aborted = false;
+    CHECK(helix::regex_replace("x aaab", re, "B", &aborted) == "x B");
+    CHECK_FALSE(aborted);
+    const std::string runaway = "aaab " + std::string(40, 'a');
+    CHECK(helix::regex_replace(runaway, re, "B", &aborted) == "B " + std::string(40, 'a'));
+    CHECK(aborted);
+}
+
 TEST_CASE("helix::Regex matches std::regex on every pattern in the tree", "[regex]") {
     for (const auto& p : kSourcePatterns)
         for (const auto& input : kCorpus)

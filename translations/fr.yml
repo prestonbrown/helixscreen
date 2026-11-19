@@ -2940,6 +2940,7 @@ translations:
   Paused: En pause
   Paused (attention needed): En pause (attention requise)
   Paused by a command: Mis en pause par une commande
+  'Paused by {}: {}': 'Mis en pause par {} : {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Met une impression en pause à une couche choisie, pour changer de filament ou poser un insert. Pendant l''impression, choisissez la couche dans la carte d''aperçu de l''écran d''état.'
   Pausing at layer {}.: 'Pause à la couche {}.'

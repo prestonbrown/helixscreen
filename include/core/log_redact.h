@@ -137,6 +137,20 @@ std::string ip(std::string_view addr);
 std::string ips_in_text(std::string_view text);
 
 /**
+ * @brief Apply ssid() to every `ssid=` assignment embedded in free text.
+ *
+ * wpa_supplicant and nmcli error text quotes the network name verbatim
+ * (`ssid="My Home WiFi"`). Handles the quoted form, which may contain spaces,
+ * and the bare form, which ends at whitespace, a comma or a closing bracket.
+ * `bssid=` and `scan_ssid=` are not touched. The rest of the text is returned
+ * unchanged, so the error stays readable.
+ *
+ * Use it on any log argument that carries backend output or an error string
+ * from the WiFi layer.
+ */
+std::string names_in_text(std::string_view text);
+
+/**
  * @brief Free text made safe for anonymous telemetry.
  *
  * @param text        One line, such as the installer's error line.

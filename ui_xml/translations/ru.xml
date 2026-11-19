@@ -2891,6 +2891,7 @@
   <translation tag="Paused" ru="Приостановлено"/>
   <translation tag="Paused (attention needed)" ru="Приостановлено (требует внимания)"/>
   <translation tag="Paused by a command" ru="Приостановлено командой"/>
+  <translation tag="Paused by {}: {}" ru="Приостановлено ({}): {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." ru="Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати."/>
   <translation tag="Pausing at layer {}." ru="Пауза на слое {}."/>
   <translation tag="Pausing..." ru="Приостановка..."/>
