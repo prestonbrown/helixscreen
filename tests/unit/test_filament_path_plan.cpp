@@ -1323,6 +1323,23 @@ TEST_CASE("FilamentPath plan: PARALLEL heads spread wider than lanes too close f
     }
 }
 
+TEST_CASE("FilamentPath plan: MIXED heads, direct and shared, spread where they would touch",
+          "[filament-path][plan][parallel]") {
+    auto d = make_data(helix::PathTopology::MIXED);
+    d->slot_is_hub_routed[2] = true;
+    d->slot_is_hub_routed[3] = true;
+    BaseGeometry g = geometry();
+    for (int i = 0; i < 4; ++i)
+        g.slot_x[i] = 180 + 12 * i;
+    const MixedFrame f = compute_mixed_frame(*d, g);
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, 0, f.tool_scale);
+    const int32_t head_w = b.right - b.left;
+    int32_t xs[3] = {f.head_x[0], f.head_x[1], f.hub_cx};
+    std::sort(xs, xs + 3);
+    for (int j = 1; j < 3; ++j)
+        CHECK(xs[j] - xs[j - 1] > head_w);
+}
+
 TEST_CASE("FilamentPath plan: the mounted PARALLEL tool is one active stroke",
           "[filament-path][plan][parallel]") {
     auto d = make_data(helix::PathTopology::PARALLEL);

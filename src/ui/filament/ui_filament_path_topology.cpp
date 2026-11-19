@@ -315,7 +315,7 @@ void draw_mixed_shared_toolhead(const RenderCtx& ctx, const MixedFrame& f, ToolP
 void draw_mixed_direct_toolhead(const RenderCtx& ctx, const MixedFrame& f, int i, ToolPass pass) {
     const FilamentPathData* data = ctx.data;
     const SlotRenderState& s = f.states[i];
-    int32_t slot_x = ctx.geo.slot_x[i];
+    int32_t slot_x = f.head_x[i];
 
     if (pass == ToolPass::Badge) {
         char tool_label[16];

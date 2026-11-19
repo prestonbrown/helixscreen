@@ -280,6 +280,9 @@ struct MixedFrame {
     pg::MergeLaneOut hub_fan[FilamentPathData::kMaxSlots];
     int slot_to_fan[FilamentPathData::kMaxSlots]; // slot index -> hub-lane order (-1 none)
     RailArtRect through; // a pass-through unit's art between the spools and the lane sensors
+    // Each direct lane's own head; spread a head's width apart from the shared one where the
+    // lanes stand closer than that (the shared head then stands at hub_cx).
+    int32_t head_x[FilamentPathData::kMaxSlots] = {};
 
     SlotRenderStates states;
 };

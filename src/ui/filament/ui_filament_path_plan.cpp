@@ -874,6 +874,45 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         }
     }
     f.hub_cx = (f.hub_count > 0) ? (hub_x_sum / f.hub_count) : (g.x_off + 150);
+    // The heads, each direct lane's and the shared one, stand in a row; where any two stand
+    // closer than a head is wide they spread evenly a head's width apart, centered where they
+    // were and kept inside the canvas.
+    {
+        struct Head {
+            int32_t x;
+            int lane; // -1: the shared head
+        };
+        Head heads[FilamentPathData::kMaxSlots + 1];
+        int k = 0;
+        for (int i = 0; i < n; i++) {
+            f.head_x[i] = g.slot_x[i];
+            if (!data.slot_is_hub_routed[i])
+                heads[k++] = {g.slot_x[i], i};
+        }
+        if (f.hub_count > 0)
+            heads[k++] = {f.hub_cx, -1};
+        std::sort(heads, heads + k, [](const Head& l, const Head& r) { return l.x < r.x; });
+        const GlyphBounds b = toolhead_glyph_bounds(0, 0, f.tool_scale);
+        const int32_t w = b.right - b.left;
+        const int32_t step = w + 4 * data.theme.sensor_radius;
+        bool crowded = false;
+        for (int j = 1; j < k; j++)
+            crowded |= heads[j].x - heads[j - 1].x < step;
+        if (crowded && k > 1) {
+            const int32_t span = std::min<int32_t>((k - 1) * step, g.width - w);
+            const int32_t each = span / (k - 1);
+            int32_t left = (heads[0].x + heads[k - 1].x) / 2 - span / 2;
+            left = std::clamp(left, g.x_off + w / 2,
+                              std::max(g.x_off + w / 2, g.x_off + g.width - w / 2 - span));
+            for (int j = 0; j < k; j++) {
+                const int32_t x = left + j * each;
+                if (heads[j].lane >= 0)
+                    f.head_x[heads[j].lane] = x;
+                else
+                    f.hub_cx = x;
+            }
+        }
+    }
     // ~60% of the full hub topology width, enough for the hub lanes
     f.hub_w = LV_MAX(40, data.theme.hub_width * 3 / 5);
 
@@ -1334,8 +1373,18 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
             pg::FilamentPath fan;
             pg::route_polyline_filleted(fan, f.hub_fan[fi].pts, 4, 8.0f);
             route_append(r, fan, lane.style(PathSegment::SPOOL));
-        } else {
+        } else if (const float hx = (float)f.head_x[i]; std::fabs(hx - x) < 0.5f) {
             append_line(r, x, (float)f.sensor_y, x, nozzle_top, lane.style(PathSegment::NOZZLE));
+        } else {
+            // Out to its own head, spread from the others: down, one diagonal, down.
+            const float run = nozzle_top - (float)f.sensor_y;
+            const pg::PathPoint pts[4] = {{x, (float)f.sensor_y},
+                                          {x, (float)f.sensor_y + run * 0.15f},
+                                          {hx, (float)f.sensor_y + run * 0.7f},
+                                          {hx, nozzle_top}};
+            pg::FilamentPath bend;
+            pg::route_polyline_filleted(bend, pts, 4, bend_radius(hx - x));
+            route_append(r, bend, lane.style(PathSegment::NOZZLE));
         }
         if (lane.on)
             out.active_route = i;
