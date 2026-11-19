@@ -116,6 +116,7 @@ tests/shell/test_makefile_continuation.bats	Makefile mk/*.mk
 tests/shell/test_mem_available.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_merge_claim_hooks.bats	.githooks/ scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_merge_compile_commands.bats	mk/rules.mk scripts/merge_compile_commands.py scripts/quality-checks.sh scripts/version-compare.sh
+tests/shell/test_merge_generated_files.bats	.gitattributes .githooks/lib/regen-generated.sh .githooks/post-merge .githooks/pre-commit
 tests/shell/test_modal_chrome_budget_gate.bats	scripts/check_modal_chrome_budget.py
 tests/shell/test_mutate_diff_dispatch.bats	scripts/diff_base.py scripts/lib/ scripts/mutate-diff.sh scripts/mutate_diff.py scripts/test-host-run.sh
 tests/shell/test_mutate_diff_gate.bats	Makefile android/app/build.gradle assets/config/printer_database.json scripts/compile_command.py scripts/diff_base.py scripts/merge_compile_commands.py scripts/mutate_diff.py scripts/syntax_check.py scripts/untestable_paths.txt
