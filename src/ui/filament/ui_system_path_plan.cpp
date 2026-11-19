@@ -780,6 +780,21 @@ void mark_parked(const SystemPathData& data, const SysLayout& L, int side, int t
     const int32_t b = parked_stem_x(data, L, side, tubes - 1);
     chip.stem_lo = LV_MIN(a, b);
     chip.stem_hi = LV_MAX(a, b);
+    // The chip keeps a haloed tube's width clear of every stem under a card on
+    // the canvas, so no visible unit's tube looks like it leaves the chip.
+    chip.room_lo = L.x_off;
+    chip.room_hi = L.x_off + L.width - 1;
+    for (int u = 0; u < data.unit_count && u < SystemPathData::kMaxUnits; ++u) {
+        if (data.unit_absent[u] || parked_side(data, L, u) != 0)
+            continue;
+        const int tools = per_tool_unit(data, u) ? data.unit_tool_count[u] : 1;
+        const int32_t half = tools > 1 ? (tools - 1) * lane_pitch(data) / 2 : 0;
+        const int32_t x = unit_stem_x(data, L, u);
+        if (side > 0)
+            chip.room_lo = LV_MAX(chip.room_lo, x + half + route_gap(data));
+        else
+            chip.room_hi = LV_MIN(chip.room_hi, x - half - route_gap(data));
+    }
 }
 
 // Units scrolled off one edge send one tube per destination between them, from

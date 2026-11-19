@@ -232,6 +232,7 @@ struct ParkedChip {
     bool present = false;
     int units = 0;                    // units past the edge
     int32_t stem_lo = 0, stem_hi = 0; // x span of their tubes' stems
+    int32_t room_lo = 0, room_hi = 0; // x span the chip may cover, clear of visible stems
 };
 
 struct OverviewBoxes {

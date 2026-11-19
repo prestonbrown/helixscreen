@@ -325,14 +325,21 @@ static void draw_parked_chips(lv_layer_t* layer, SystemPathData* data, const Sys
         const lv_font_t* font = data->label_font;
         if (!p.present || p.units <= 0 || !font)
             continue;
-        const std::string text = "+" + fpath::offpage_label_text(p.units);
+        // "+9 units" where it fits clear of the visible cards' stems, "+9" where it
+        // does not; flush to the edge it stands for.
         const int32_t pad = data->space_xs * 2;
         const int32_t h = data->label_line_h + 2 * data->space_xs;
-        const int32_t w = LV_MAX(helix::ui::text_width(text.c_str(), font, 0) + 2 * pad,
-                                 p.stem_hi - p.stem_lo + 2 * pad);
-        const int32_t left = L.x_off, right = L.x_off + L.width - 1;
-        int32_t x1 = (p.stem_lo + p.stem_hi) / 2 - w / 2;
-        x1 = LV_CLAMP(left, x1, LV_MAX(left, right - w + 1));
+        const int32_t lo = LV_MAX(L.x_off, p.room_lo);
+        const int32_t hi = LV_MIN(L.x_off + L.width - 1, p.room_hi);
+        const int32_t room = hi - lo + 1;
+        const int32_t span = p.stem_hi - p.stem_lo + 2 * pad;
+        std::string text = "+" + fpath::offpage_label_text(p.units);
+        int32_t w = LV_MAX(helix::ui::text_width(text.c_str(), font, 0) + 2 * pad, span);
+        if (w > room) {
+            text = "+" + std::to_string(p.units);
+            w = LV_MAX(helix::ui::text_width(text.c_str(), font, 0) + 2 * pad, span);
+        }
+        const int32_t x1 = side > 0 ? LV_MAX(lo, hi - w + 1) : lo;
         const int32_t y1 = LV_MAX(obj_coords.y1, L.entry_y - data->space_xs);
         const lv_area_t chip = {x1, y1, x1 + w - 1, y1 + h - 1};
 
