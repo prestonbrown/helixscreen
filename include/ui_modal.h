@@ -621,6 +621,16 @@ class ModalStack {
 
 namespace helix::ui {
 
+/**
+ * @brief Size a dialog's content scroll area to what it needs and the screen allows.
+ *
+ * Grows the scroll area by the content it hides while the dialog fits the screen
+ * less a margin, and shrinks it when the dialog is taller than that. ModalStack
+ * runs it on every push and again on the next tick, after on_show() has filled
+ * the content.
+ */
+void fit_dialog_to_screen(lv_obj_t* dialog);
+
 // Canonical widget name carrying a modal's title text. Every C++ site that
 // reads or writes a modal title by name (duplicate-title suppression in
 // ui_notification, the reconnect auto-close in moonraker_manager,

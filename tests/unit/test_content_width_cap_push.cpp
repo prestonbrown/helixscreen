@@ -11,6 +11,8 @@
  * view class, and undoing the cap when the screen stops being ultrawide.
  */
 
+#include "ui_dialog.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
@@ -18,7 +20,9 @@
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
 #include "connection_state.h"
+#include "content_width_cap.h"
 #include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "panel_lifecycle.h"
 #include "printer_state.h"
@@ -368,4 +372,85 @@ TEST_CASE_METHOD(UltrawideFixture, "A reset registry reads the container's paddi
     registry.replace_widget(slot, make_panel_widget(container));
 
     CHECK(lv_obj_get_style_pad_right(container, LV_PART_MAIN) == kRebuiltPad + overflow);
+}
+
+TEST_CASE_METHOD(UltrawideFixture,
+                 "A dialog is capped on an ultrawide screen unless it caps itself",
+                 "[content-cap][dialog-cap]") {
+    ui_dialog_register();
+    auto make = [](const char* max_width) {
+        const char* attrs[] = {"width", "70%", "style_max_width", max_width, nullptr, nullptr};
+        if (!max_width)
+            attrs[2] = nullptr;
+        auto* d = static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "ui_dialog", attrs));
+        REQUIRE(d != nullptr);
+        lv_obj_update_layout(lv_screen_active());
+        return d;
+    };
+
+    // 70% of 1480 is 1036; the cap is 1.8 x 320.
+    lv_obj_t* plain = make(nullptr);
+    CHECK(lv_obj_get_width(plain) == dialog_max_width(320));
+    // A dialog with its own, narrower cap keeps it.
+    lv_obj_t* own = make("420");
+    CHECK(lv_obj_get_width(own) == 420);
+    lv_obj_delete(plain);
+    lv_obj_delete(own);
+
+    // On 800x480 the cap is above any dialog: 70% stays 560.
+    resize(800, 480);
+    lv_obj_t* standard = make(nullptr);
+    CHECK(lv_obj_get_width(standard) == 560);
+    lv_obj_delete(standard);
+}
+
+TEST_CASE_METHOD(UltrawideFixture, "A dialog's content shows in full when the screen has room",
+                 "[dialog-fit]") {
+    // A 1480x320 dialog: a scroll area capped at 100 holding 160 of content, and
+    // a 50px button row under it.
+    auto build = [](int32_t content_h, bool capped = true) {
+        lv_obj_t* d = lv_obj_create(lv_screen_active());
+        lv_obj_set_size(d, 500, LV_SIZE_CONTENT);
+        lv_obj_set_style_pad_all(d, 0, LV_PART_MAIN);
+        lv_obj_set_style_border_width(d, 0, LV_PART_MAIN);
+        lv_obj_set_flex_flow(d, LV_FLEX_FLOW_COLUMN);
+        lv_obj_t* scroller = lv_obj_create(d);
+        lv_obj_set_size(scroller, lv_pct(100), LV_SIZE_CONTENT);
+        if (capped)
+            lv_obj_set_style_max_height(scroller, 100, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(scroller, 0, LV_PART_MAIN);
+        lv_obj_set_style_border_width(scroller, 0, LV_PART_MAIN);
+        lv_obj_t* body = lv_obj_create(scroller);
+        lv_obj_set_size(body, 10, content_h);
+        lv_obj_t* buttons = lv_obj_create(d);
+        lv_obj_set_size(buttons, lv_pct(100), 50);
+        lv_obj_update_layout(lv_screen_active());
+        return std::make_pair(d, scroller);
+    };
+    const int32_t avail = 320 - 2 * theme_manager_get_spacing("space_md");
+
+    auto [fits, fits_scroller] = build(160);
+    REQUIRE(lv_obj_get_height(fits_scroller) == 100);
+    helix::ui::fit_dialog_to_screen(fits);
+    CHECK(lv_obj_get_height(fits_scroller) == 160);
+    CHECK(lv_obj_get_height(fits) <= avail);
+    lv_obj_delete(fits);
+
+    // Content far taller than the screen: the dialog stops at the margin and scrolls.
+    auto [tall, tall_scroller] = build(1000);
+    helix::ui::fit_dialog_to_screen(tall);
+    CHECK(lv_obj_get_height(tall) == avail);
+    CHECK(lv_obj_get_scroll_bottom(tall_scroller) > 0);
+    lv_obj_delete(tall);
+
+    // A dialog whose content declares no cap: its content scrolls, and the button
+    // row under it stays on screen.
+    auto [open, open_scroller] = build(1000, false);
+    helix::ui::fit_dialog_to_screen(open);
+    lv_obj_t* buttons = lv_obj_get_child(open, -1);
+    lv_area_t a;
+    lv_obj_get_coords(buttons, &a);
+    CHECK(a.y2 < 320);
+    CHECK(lv_obj_get_scroll_bottom(open_scroller) > 0);
+    lv_obj_delete(open);
 }

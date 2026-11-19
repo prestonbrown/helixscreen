@@ -340,8 +340,7 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                         spdlog::info("[SpoolmanManager] Spoolman recovered after {} failures",
                                      mgr.consecutive_failures_);
                     }
-                    mgr.consecutive_failures_ = 0;
-                    mgr.unavailable_notified_ = false;
+                    mgr.note_fetch_succeeded();
 
                     // Identity side channel. Must happen BEFORE the
                     // slot-reassignment and weights-unchanged early
@@ -408,6 +407,7 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                 std::lock_guard<std::recursive_mutex> lock(mgr.mutex_);
 
                 mgr.consecutive_failures_++;
+                mgr.healthy_since_set_ = false;
 
                 if (mgr.consecutive_failures_ >= kCbFailureThreshold) {
                     mgr.cb_open_ = true;
@@ -424,10 +424,12 @@ void SpoolmanManager::fetch_linked_slot(int backend_index, int slot_index, int s
                         auto* subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
                         if (subj && lv_subject_get_int(subj) == 1) {
                             // i18n: Spoolman is a product name, do not translate
-                            publish_notice({NoticeSeverity::WARNING,
-                                            lv_tr("Spoolman unavailable — filament weights "
-                                                  "may be stale"),
-                                            6000});
+                            Notice notice{NoticeSeverity::WARNING,
+                                          lv_tr("Spoolman unavailable — filament weights "
+                                                "may be stale"),
+                                          6000};
+                            notice.keep_in_history = true;
+                            publish_notice(notice);
                         }
                     }
                 }
@@ -759,6 +761,22 @@ void SpoolmanManager::clear_identity_cache() {
     mgr.identity_unresolvable_.clear();
 }
 
+void SpoolmanManager::note_fetch_succeeded() {
+    std::lock_guard<std::recursive_mutex> lock(mutex_);
+    consecutive_failures_ = 0;
+    if (!unavailable_notified_) {
+        return;
+    }
+    const uint32_t now = lv_tick_get();
+    if (!healthy_since_set_) {
+        healthy_since_set_ = true;
+        healthy_since_ms_ = now;
+    } else if (now - healthy_since_ms_ >= kUnavailableRearmMs) {
+        unavailable_notified_ = false;
+        healthy_since_set_ = false;
+    }
+}
+
 void SpoolmanManager::reset_circuit_breaker() {
     std::lock_guard<std::recursive_mutex> lock(mutex_);
     last_refresh_ms_ = 0;
@@ -766,6 +784,7 @@ void SpoolmanManager::reset_circuit_breaker() {
     cb_tripped_at_ms_ = 0;
     cb_open_ = false;
     unavailable_notified_ = false;
+    healthy_since_set_ = false;
 }
 
 void SpoolmanManager::start_spoolman_polling() {

@@ -1,0 +1,28 @@
+2026-11-19T06:29:34.6066186Z 
+2026-11-19T06:29:36.4048365Z ⚠️  no usable fast linker — links use GNU ld and take ~25s longer each.
+2026-11-19T06:29:36.4049206Z     Install one: sudo apt install mold   (or set FAST_LINK=0 to silence this.)
+2026-11-19T06:29:37.9538997Z make[1]: Leaving directory '/home/runner/work/helixscreen/helixscreen'
+2026-11-19T06:29:37.9633142Z Running tests with AddressSanitizer (16 shards, 4 at a time, filter: ~[.])...
+2026-11-19T06:35:28.5222837Z shard 0: All tests passed (16719 assertions in 1595 test cases)
+2026-11-19T06:35:28.5263444Z shard 1: 
+2026-11-19T06:35:28.5302407Z shard 2: 
+2026-11-19T06:35:28.5340370Z shard 3: All tests passed (22083 assertions in 1594 test cases)
+2026-11-19T06:35:28.5378374Z shard 4: test cases:  1594 |  1591 passed | 3 skipped
+2026-11-19T06:35:28.5417138Z shard 5: test cases:   1594 |   1593 passed | 1 skipped
+2026-11-19T06:35:28.5472107Z shard 6: test cases:   1594 |   1593 passed | 1 skipped
+2026-11-19T06:35:28.5501765Z shard 7: test cases:  1594 |  1593 passed | 1 skipped
+2026-11-19T06:35:28.5537670Z shard 8: All tests passed (25644 assertions in 1594 test cases)
+2026-11-19T06:35:28.5575209Z shard 9: All tests passed (17135 assertions in 1594 test cases)
+2026-11-19T06:35:28.5612872Z shard 10: test cases:  1594 |  1593 passed | 1 skipped
+2026-11-19T06:35:28.5650242Z shard 11: All tests passed (23462 assertions in 1594 test cases)
+2026-11-19T06:35:28.5687269Z shard 12: test cases:    1594 |    1590 passed | 4 skipped
+2026-11-19T06:35:28.5724922Z shard 13: All tests passed (263555 assertions in 1594 test cases)
+2026-11-19T06:35:28.5761774Z shard 14: All tests passed (152153 assertions in 1594 test cases)
+2026-11-19T06:35:28.5797617Z shard 15: All tests passed (26062 assertions in 1594 test cases)
+2026-11-19T06:35:28.5867227Z ✗ ASAN FAILED — 2 sanitizer report(s) in /tmp/asan_output.txt
+2026-11-19T06:35:28.5886526Z      13:==60640==ERROR: AddressSanitizer: heap-use-after-free on address 0x60e000165da0 at pc 0x55945ee26870 bp 0x7ffc6e9d6030 sp 0x7ffc6e9d6028
+2026-11-19T06:35:28.5888097Z      718:==60645==ERROR: AddressSanitizer: heap-use-after-free on address 0x61b000025910 at pc 0x55a8943a3b70 bp 0x7ffe8b71bbd0 sp 0x7ffe8b71bbc8
+2026-11-19T06:35:28.5890540Z make: *** [mk/tests.mk:1313: test-asan] Error 1
+2026-11-19T06:35:28.5915767Z ##[error]Process completed with exit code 2.
+2026-11-19T06:35:28.6024394Z ##[group]Run actions/upload-artifact@v7
+2026-11-19T06:35:28.6024931Z with:

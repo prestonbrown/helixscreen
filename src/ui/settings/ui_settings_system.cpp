@@ -4,6 +4,7 @@
 #include "ui_settings_system.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_overlay_performance.h"
 #include "ui_panel_common.h"
@@ -28,13 +29,6 @@
 #include <memory>
 
 namespace helix::settings {
-
-SystemSettingsOverlay::~SystemSettingsOverlay() {
-    if (lv_is_initialized() && factory_reset_dialog_) {
-        // Unregister so the close callback cannot fire on a dead 'this'.
-        helix::nav::clear_on_close(factory_reset_dialog_);
-    }
-}
 
 void SystemSettingsOverlay::register_callbacks() {
     using helix::ui::event_selected;
@@ -87,14 +81,6 @@ void SystemSettingsOverlay::register_callbacks() {
          [](lv_event_t*) { get_system_settings_overlay().handle_restart_helix_clicked(); }},
         {"on_factory_reset_clicked",
          [](lv_event_t*) { get_system_settings_overlay().handle_factory_reset_clicked(); }},
-        {"on_factory_reset_confirm",
-         [](lv_event_t*) { get_system_settings_overlay().perform_factory_reset(); }},
-        {"on_factory_reset_cancel",
-         [](lv_event_t*) {
-             if (get_system_settings_overlay().factory_reset_dialog_) {
-                 helix::nav::go_back(); // Animation + callback clean up
-             }
-         }},
     });
 }
 
@@ -128,39 +114,13 @@ void SystemSettingsOverlay::handle_restart_helix_clicked() {
 
 void SystemSettingsOverlay::handle_factory_reset_clicked() {
     spdlog::debug("[{}] Factory Reset clicked - showing confirmation dialog", get_name());
-
-    // Create dialog on first use (lazy initialization)
-    if (!factory_reset_dialog_ && parent_screen_) {
-        spdlog::debug("[{}] Creating factory reset dialog...", get_name());
-
-        // Create self-contained factory_reset_modal component
-        // Callbacks are already wired via XML event_cb elements
-        factory_reset_dialog_ = helix::ui::create_xml_hidden(parent_screen_, "factory_reset_modal");
-
-        if (factory_reset_dialog_) {
-            // Register as a function-based (nullptr-lifecycle) overlay so
-            // crash crumbs show "anon" instead of "unreg".
-            helix::nav::register_overlay(factory_reset_dialog_, nullptr);
-
-            // Register close callback to delete dialog when animation completes.
-            // Must use safe_delete_deferred — this lambda runs inside
-            // UpdateQueue::process_pending(), and synchronous deletion
-            // during a batch corrupts LVGL's event linked list (#356, #491).
-            helix::nav::on_close(factory_reset_dialog_, [this]() {
-                helix::ui::safe_delete_deferred(factory_reset_dialog_);
-            });
-
-            spdlog::info("[{}] Factory reset dialog created", get_name());
-        } else {
-            spdlog::error("[{}] Failed to create factory reset dialog", get_name());
-            return;
-        }
-    }
-
-    // Show the dialog via navigation stack
-    if (factory_reset_dialog_) {
-        helix::nav::push_overlay(factory_reset_dialog_);
-    }
+    helix::ui::ConfirmOptions options;
+    options.destructive = true;
+    helix::ui::modal_confirm(
+        lv_tr("Factory Reset"),
+        lv_tr("This will reset all settings to defaults. This action cannot be undone."),
+        ModalSeverity::Error, lv_tr("Reset"),
+        []() { get_system_settings_overlay().perform_factory_reset(); }, options);
 }
 
 void SystemSettingsOverlay::perform_factory_reset() {
@@ -171,11 +131,6 @@ void SystemSettingsOverlay::perform_factory_reset() {
     config->reset_to_defaults();
     config->save();
     spdlog::info("[{}] Config reset to defaults", get_name());
-
-    // Hide the dialog - animation + callback will handle cleanup
-    if (factory_reset_dialog_) {
-        helix::nav::go_back();
-    }
 
     // Show confirmation toast and restart
     ToastManager::instance().show(ToastSeverity::INFO,

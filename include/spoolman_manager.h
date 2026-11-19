@@ -238,12 +238,19 @@ class SpoolmanManager {
     static constexpr uint32_t kCbBackoffMs = 30000;
     static constexpr uint32_t kDebounceMs = 5000;
     static constexpr uint32_t kPollIntervalMs = 30000;
+    /// How long Spoolman must keep answering before another outage warns again,
+    /// so a server that keeps dropping out and coming back warns once.
+    static constexpr uint32_t kUnavailableRearmMs = 10 * 60 * 1000;
 
     uint32_t last_refresh_ms_ = 0;
     int consecutive_failures_ = 0;
     uint32_t cb_tripped_at_ms_ = 0;
     bool cb_open_ = false;
     bool unavailable_notified_ = false;
+    bool healthy_since_set_ = false;
+    uint32_t healthy_since_ms_ = 0;
+
+    void note_fetch_succeeded();
 
     void reset_circuit_breaker();
 

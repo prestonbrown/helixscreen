@@ -1,0 +1,21 @@
+2026-11-19T07:31:00.3806890Z Err:35 http://mirrors.edge.kernel.org/ubuntu jammy-updates/universe amd64 Packages
+2026-11-19T07:31:00.3807678Z   File has unexpected size (1289800 != 1290840). Mirror sync in progress? [IP: 142.0.200.124 80]
+2026-11-19T07:31:00.3808058Z   Hashes of expected file:
+2026-11-19T07:31:00.3808281Z    - Filesize:1290840 [weak]
+2026-11-19T07:31:00.3808608Z    - SHA256:c6ec75dbe010ee4ab04e899c934b6f9aa279bebc67afee30edfe98e292b0a49f
+2026-11-19T07:31:00.3808991Z    - SHA1:bd9d7b11c66fa951dad2e5213edda0bcfde2fb59 [weak]
+2026-11-19T07:31:00.3809297Z    - MD5Sum:e283ddd2286c26f384decaeb33f84b6f [weak]
+2026-11-19T07:31:00.3809581Z   Release file created at: Thu, 19 Nov 2026 04:17:42 +0000
+2026-11-19T07:31:13.3793868Z Get:33 http://mirrors.edge.kernel.org/ubuntu jammy-updates/restricted Translation-en [1320 kB]
+2026-11-19T07:31:28.2399727Z Fetched 46.3 MB in 18min 36s (41.5 kB/s)
+2026-11-19T07:31:29.4186973Z Reading package lists...
+2026-11-19T07:31:29.4320451Z E: Failed to fetch http://mirrors.edge.kernel.org/ubuntu/dists/jammy-updates/universe/binary-amd64/Packages.xz  File has unexpected size (1289800 != 1290840). Mirror sync in progress? [IP: 142.0.200.124 80]
+2026-11-19T07:31:29.4321163Z    Hashes of expected file:
+2026-11-19T07:31:29.4321407Z     - Filesize:1290840 [weak]
+2026-11-19T07:31:29.4321746Z     - SHA256:c6ec75dbe010ee4ab04e899c934b6f9aa279bebc67afee30edfe98e292b0a49f
+2026-11-19T07:31:29.4322121Z     - SHA1:bd9d7b11c66fa951dad2e5213edda0bcfde2fb59 [weak]
+2026-11-19T07:31:29.4322417Z     - MD5Sum:e283ddd2286c26f384decaeb33f84b6f [weak]
+2026-11-19T07:31:29.4323140Z    Release file created at: Thu, 19 Nov 2026 04:17:42 +0000
+2026-11-19T07:31:29.4323536Z E: Some index files failed to download. They have been ignored, or old ones used instead.
+2026-11-19T07:31:29.4353299Z ##[error]Process completed with exit code 100.
+2026-11-19T07:31:29.4462560Z Post job cleanup.

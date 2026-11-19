@@ -1,0 +1,16 @@
+2026-09-28T03:03:13.6338609Z ok 2970 a symbolizer by full path or eu- prefix is sent to zeus
+2026-09-28T03:03:13.8726027Z ok 2971 the native ASAN forms are sent to zeus
+2026-09-28T03:03:13.9716576Z ok 2972 an ASAN build for another board is not an ASAN run here
+2026-09-28T03:03:14.1056175Z not ok 2973 every spelling of an oversized -j is flagged
+2026-09-28T03:03:14.1066298Z # (from function `fail' in file tests/shell/helpers.bash, line 264,
+2026-09-28T03:03:14.1090423Z #  in test file tests/shell/test_resource_advisor.bats, line 353)
+2026-09-28T03:03:14.1112906Z #   `contains "fair share, -j6" "$(context)" || fail "missed: $c"' failed
+2026-09-28T03:03:14.1121182Z # expected to find: fair share, -j6
+2026-09-28T03:03:14.1121756Z # in:
+2026-09-28T03:03:14.1122081Z #
+2026-09-28T03:03:14.1122406Z # missed: make -j$(nproc)
+2026-09-28T03:03:14.3307404Z ok 2974 a computed or bare -j is left to its source
+2026-09-28T03:03:14.4792127Z ok 2975 an explicit -j above the share is flagged even on a roomy box
+2026-09-28T03:03:14.6305623Z ok 2976 xargs over the test binary is a loop
+2026-09-28T03:03:14.7824453Z ok 2977 a docker toolchain target is a container build
+2026-09-28T03:03:14.8723181Z ok 2978 a huge command returns quickly
