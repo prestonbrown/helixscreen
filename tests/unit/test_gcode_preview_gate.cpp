@@ -81,6 +81,22 @@ TEST_CASE("a learned preview rate counts only on the board and version that meas
     CHECK(helix::ui::learned_preview_rate(*config, "board-a", "version-a") == 0.0);
 }
 
+TEST_CASE("the 3D render rate is stored apart from the index rate, under the same key",
+          "[gcode][preview_gate]") {
+    helix::Config* config = helix::Config::get_instance();
+    helix::ui::save_rate(*config, helix::ui::kRenderRatePath, {1500.0, "board-a", "version-a"});
+    helix::ui::save_preview_rate(*config, {9.8, "board-a", "version-a"});
+
+    CHECK(helix::ui::learned_rate(*config, helix::ui::kRenderRatePath, "board-a", "version-a") ==
+          1500.0);
+    CHECK(helix::ui::learned_preview_rate(*config, "board-a", "version-a") == 9.8);
+    CHECK(helix::ui::learned_rate(*config, helix::ui::kRenderRatePath, "board-b", "version-a") ==
+          0.0);
+
+    config->get_json("/display").erase("gcode_3d_rate");
+    config->get_json("/display").erase("gcode_preview_rate");
+}
+
 TEST_CASE("decide_rate_record: idle rates are stored, print-time rates kept for the session",
           "[gcode][preview_gate]") {
     using helix::ui::decide_rate_record;

@@ -20,6 +20,7 @@
 #include "gcode_layer_renderer.h"
 #include "gcode_parser.h"
 #include "gcode_pause_scan.h"
+#include "gcode_preview_gate.h"
 #include "gcode_render_mode_policy.h"
 #include "gcode_render_schedule.h"
 #include "gcode_ssao_policy.h"
@@ -1002,6 +1003,9 @@ void helix::ui::gcode_viewer_clear(lv_obj_t* obj) {
 
     // Release all GPU and CPU geometry resources
 #ifdef ENABLE_3D_RENDERER
+    // Keep what this file's drawing measured for this board, so the next run
+    // sizes its first build to it.
+    helix::ui::record_render_rate(helix::gcode::render_schedule::last_measured_rate().load());
     if (st->renderer_) {
         st->renderer_->release_geometry();
         st->renderer_->clear_cached_frame();
