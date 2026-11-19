@@ -33,6 +33,7 @@
 #include "app_globals.h"
 #include "printer_state.h"
 
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -233,6 +234,34 @@ TEST_CASE_METHOD(PluginUninstallFixture,
     CHECK(message.find("restarting") != std::string::npos);
     // Files on disk are not a loaded plugin: the reconnect's check decides.
     CHECK(plugin_installed() == 0);
+}
+
+TEST_CASE_METHOD(PluginUninstallFixture,
+                 "an install that ends while a job holds the machine restarts nothing",
+                 "[advanced][plugin_installer]") {
+    get_printer_state().set_helix_plugin_installed(false);
+    UpdateQueue::instance().drain();
+    helix::test::PluginScriptSandbox scripts(AdvancedPanelTestAccess::plugin_installer(panel));
+    // install.sh waits for the go file, so it cannot end before the print starts.
+    const std::string go = scripts.root + "/go";
+    scripts.write_script("while [ ! -f '" + go + "' ]; do sleep 0.01; done\nexit 0");
+    AdvancedPanelTestAccess::tap_install_row(panel);
+    process_lvgl(50);
+    lv_obj_t* dialog = ModalStack::instance().top_dialog();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* install = lv_obj_find_by_name(dialog, "btn_install");
+    REQUIRE(install != nullptr);
+
+    lv_obj_send_event(install, LV_EVENT_CLICKED, nullptr);
+    start_print();
+    std::ofstream(go).flush();
+    helix::test::settle_slow_lane();
+
+    CHECK(scripts.script_args() == "--no-restart --auto ");
+    CHECK(restarts == 0);
+    lv_obj_t* message = lv_obj_find_by_name(dialog, "result_message");
+    REQUIRE(message != nullptr);
+    CHECK(std::string(lv_label_get_text(message)).find("Restart Moonraker") != std::string::npos);
 }
 
 TEST_CASE_METHOD(PluginUninstallFixture, "a failed install restarts nothing",
