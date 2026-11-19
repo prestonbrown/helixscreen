@@ -51,6 +51,11 @@ struct HeadFacts {
     /// Filament reached this head through its feeder and the head's runout
     /// detection is armed. A spool pushed in by hand does not count.
     bool loaded_by_feeder = false;
+    /// The head's feeder can supply it right now: feeder present, automatic
+    /// loading on, filament at its port, runout detection armed. On the head
+    /// that ran out this means filament is still there (a jam or a tangle),
+    /// and a firmware that refeeds in place resumes on it.
+    bool feeder_can_supply = false;
     /// nullopt when the head's record names no filament.
     std::optional<FilamentRecord> record;
 };
@@ -64,13 +69,17 @@ struct RunoutFacts {
     /// The head the toolhead carries now. The firmware continues only from the
     /// head that ran out.
     int active_head = -1;
-    /// The filament the runout head was printing; nullopt when unknown.
+    /// The filament the runout head was printing, as recorded when the pause
+    /// began (a spool swapped in since does not change it); nullopt when unknown.
     std::optional<FilamentRecord> original;
     /// The firmware's own runout switching (Endless Spool) is on; nullopt when
     /// not reported yet.
     std::optional<bool> auto_switch_enabled;
     /// Every head, the runout head included.
     std::vector<HeadFacts> heads;
+    /// The firmware's logical tool -> head routing as last reported; empty when
+    /// the filament system reports none. A switch rewrites it.
+    std::vector<int> routing;
 };
 
 /// Why a head cannot take over the print.
@@ -81,8 +90,11 @@ enum class HeadRefusal {
     NozzleSize,       ///< a different nozzle diameter
     NozzleFlow,       ///< a different flow type (standard vs high flow)
     NotFedByFeeder,   ///< empty, hand-fed, or its runout detection is off
-    NoFilamentRecord, ///< loaded, but its filament is not identified
+    NoFilamentRecord, ///< loaded, but its filament is not fully identified
     MaterialMismatch, ///< a material the sliced temperatures do not suit
+    /// The head that ran out can still be fed, so the firmware would resume on
+    /// it instead (every other head reads this).
+    RunoutHeadStillFeeds,
 };
 
 /// One head's answer.
@@ -114,6 +126,7 @@ enum class PlanRefusal {
     RunoutHeadNotActive, ///< the toolhead no longer carries the head that ran out
     HeadNotEligible,     ///< assess() refuses the chosen head
     UnsafeRecord,        ///< the chosen head's record cannot be written as G-code
+    AutoSwitchUnknown,   ///< the firmware has not said whether its runout switching is on
 };
 
 /// What to send to move the rest of the print onto the chosen head.
@@ -126,8 +139,13 @@ struct ContinuePlan {
     /// first; -1 when there is no plan.
     int continues_on = -1;
     /// The firmware's own runout switching is off and the plan turns it on
-    /// for this one switch, restoring it afterwards when it was known off.
+    /// for this one switch; restore_gcode turns it back off.
     bool switches_auto_switch_on = false;
+    /// What puts the firmware's settings back as they were. The plan's last
+    /// line already does it, but a script stops at its first error, so a
+    /// caller whose send failed or did not switch sends this on its own.
+    /// Empty when nothing needs restoring.
+    std::string restore_gcode;
 
     [[nodiscard]] bool ok() const {
         return refusal == PlanRefusal::None;
@@ -140,5 +158,11 @@ struct ContinuePlan {
 /// The plan for continuing on @p chosen_head. Refused (never a partial plan)
 /// when @p type has no row or any precondition fails.
 [[nodiscard]] ContinuePlan build_plan(AmsType type, const RunoutFacts& facts, int chosen_head);
+
+/// Whether the switch happened, comparing the facts read just before sending
+/// with facts read since: the print left the pause, or the firmware rewrote
+/// its routing. A firmware that declines the switch says nothing, so false
+/// past a reasonable wait means it was declined.
+[[nodiscard]] bool switch_happened(const RunoutFacts& before, const RunoutFacts& now);
 
 } // namespace helix::runout_other_head

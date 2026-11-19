@@ -60,7 +60,10 @@ HeadVerdict head_verdict(const HeadFacts& h, const HeadFacts* runout,
         v.refusal = HeadRefusal::NozzleFlow;
     } else if (!h.loaded_by_feeder) {
         v.refusal = HeadRefusal::NotFedByFeeder;
-    } else if (!h.record || h.record->type.empty()) {
+    } else if (!h.record || h.record->vendor.empty() || h.record->type.empty() ||
+               h.record->subtype.empty() || h.record->colors.empty()) {
+        // A firmware matches the whole record, so a partial one cannot be
+        // written onto the empty head.
         v.refusal = HeadRefusal::NoFilamentRecord;
     } else if (!filament::materials_compatible(h.record->type, original.type) ||
                !filament::grades_match(h.record->type, original.type)) {
@@ -114,9 +117,10 @@ std::optional<std::string> u1_label_line(int empty_head, const FilamentRecord& r
     // The multi-colour form reproduces the firmware's colour record field for
     // field, which its exact comparison needs. FORCE=1: the empty head may
     // still carry an official (RFID) record, which refuses an unforced write.
-    const std::string vendor = r.vendor.find(' ') == std::string::npos
-                                   ? r.vendor
-                                   : IMoonrakerAPI::quoted_gcode_param_value(r.vendor);
+    // The vendor is free text: quoted always, because an unquoted apostrophe
+    // opens a quoted string in the firmware's parameter split and swallows
+    // every parameter after it.
+    const std::string vendor = IMoonrakerAPI::quoted_gcode_param_value(r.vendor);
     return fmt::format("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} VENDOR={} FILAMENT_TYPE={} "
                        "FILAMENT_SUBTYPE={} COLOR_NUMS={} COLORS={} MULTI_MODE={} ALPHA={} FORCE=1",
                        empty_head, vendor, IMoonrakerAPI::gcode_param_value(r.type),
@@ -127,6 +131,11 @@ std::optional<std::string> u1_label_line(int empty_head, const FilamentRecord& r
 ContinuePlan u1_plan(const RunoutFacts& facts, const std::vector<HeadVerdict>& verdicts,
                      int chosen) {
     ContinuePlan plan;
+    // Turning Auto-Replenish on with nothing known to restore would leave it on.
+    if (!facts.auto_switch_enabled) {
+        plan.refusal = PlanRefusal::AutoSwitchUnknown;
+        return plan;
+    }
     const FilamentRecord& label = *find_head(facts, chosen)->record;
     const auto line = u1_label_line(facts.runout_head, label);
     if (!line) {
@@ -144,18 +153,18 @@ ContinuePlan u1_plan(const RunoutFacts& facts, const std::vector<HeadVerdict>& v
         }
     }
     // Auto-Replenish does nothing while switched off. The script runs in
-    // order and the replenish returns once its RESUME has run, so a known-off
-    // switch is put back straight after.
-    const bool known_on = facts.auto_switch_enabled.value_or(false);
-    plan.switches_auto_switch_on = !known_on;
-    if (!known_on) {
+    // order and the replenish returns once its RESUME has run, so the switch
+    // is put back straight after; restore_gcode covers a script that stopped.
+    plan.switches_auto_switch_on = !*facts.auto_switch_enabled;
+    if (plan.switches_auto_switch_on) {
         plan.gcode.emplace_back("SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1");
+        plan.restore_gcode = "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0";
     }
     plan.gcode.push_back(*line);
     plan.gcode.push_back(
         fmt::format("INNER_AUTO_REPLENISH_FILAMENT EXTRUDER={}", facts.runout_head));
-    if (facts.auto_switch_enabled == false) {
-        plan.gcode.emplace_back("SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0");
+    if (!plan.restore_gcode.empty()) {
+        plan.gcode.push_back(plan.restore_gcode);
     }
     return plan;
 }
@@ -189,12 +198,17 @@ std::vector<HeadVerdict> assess(const RunoutFacts& facts) {
         return out;
     }
     const HeadFacts* runout = find_head(facts, facts.runout_head);
+    // Filament still at the runout head's feeder (a jam, a tangle): the
+    // firmware resumes on that head and never looks at another.
+    const bool runout_head_feeds = runout != nullptr && runout->feeder_can_supply;
     for (const auto& h : facts.heads) {
         if (h.head == facts.runout_head) {
             out.push_back({.head = h.head, .refusal = HeadRefusal::IsRunoutHead});
-            continue;
+        } else if (runout_head_feeds) {
+            out.push_back({.head = h.head, .refusal = HeadRefusal::RunoutHeadStillFeeds});
+        } else {
+            out.push_back(head_verdict(h, runout, *facts.original));
         }
-        out.push_back(head_verdict(h, runout, *facts.original));
     }
     return out;
 }
@@ -213,6 +227,8 @@ const char* refusal_text(HeadRefusal refusal) {
         return TR_NOOP("Different nozzle flow type");
     case HeadRefusal::NotFedByFeeder:
         return TR_NOOP("Not loaded by its feeder");
+    case HeadRefusal::RunoutHeadStillFeeds:
+        return TR_NOOP("Filament is still at the empty head's feeder");
     case HeadRefusal::NoFilamentRecord:
         return TR_NOOP("Filament not identified");
     case HeadRefusal::MaterialMismatch:
@@ -257,6 +273,10 @@ ContinuePlan build_plan(AmsType type, const RunoutFacts& facts, int chosen_head)
         plan.continues_on = -1;
     }
     return plan;
+}
+
+bool switch_happened(const RunoutFacts& before, const RunoutFacts& now) {
+    return (before.paused && !now.paused) || now.routing != before.routing;
 }
 
 } // namespace helix::runout_other_head

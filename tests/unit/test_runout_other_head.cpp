@@ -120,11 +120,13 @@ TEST_CASE("runout other head: a head not fed by its feeder is refused", "[runout
     CHECK(verdict(assess(f), 1).refusal == HeadRefusal::NotFedByFeeder);
 }
 
-TEST_CASE("runout other head: a loaded head with no filament record is refused",
+TEST_CASE("runout other head: a loaded head with no full filament record is refused",
           "[runout_other_head]") {
     auto f = paused_runout_on_head0();
     f.heads[1].record.reset();
+    f.heads[3].record->subtype.clear();
     CHECK(verdict(assess(f), 1).refusal == HeadRefusal::NoFilamentRecord);
+    CHECK(verdict(assess(f), 3).refusal == HeadRefusal::NoFilamentRecord);
 }
 
 TEST_CASE("runout other head: nothing to compare against offers nothing", "[runout_other_head]") {
@@ -135,9 +137,10 @@ TEST_CASE("runout other head: nothing to compare against offers nothing", "[runo
 
 TEST_CASE("runout other head: every refusal has text, None has none", "[runout_other_head]") {
     CHECK(std::string(refusal_text(HeadRefusal::None)).empty());
-    for (auto r : {HeadRefusal::IsRunoutHead, HeadRefusal::NozzleUnknown, HeadRefusal::NozzleSize,
-                   HeadRefusal::NozzleFlow, HeadRefusal::NotFedByFeeder,
-                   HeadRefusal::NoFilamentRecord, HeadRefusal::MaterialMismatch}) {
+    for (auto r :
+         {HeadRefusal::IsRunoutHead, HeadRefusal::NozzleUnknown, HeadRefusal::NozzleSize,
+          HeadRefusal::NozzleFlow, HeadRefusal::NotFedByFeeder, HeadRefusal::NoFilamentRecord,
+          HeadRefusal::MaterialMismatch, HeadRefusal::RunoutHeadStillFeeds}) {
         CHECK_FALSE(std::string(refusal_text(r)).empty());
     }
 }
@@ -155,11 +158,11 @@ TEST_CASE("runout other head: U1 labels the empty head, then runs Auto-Replenish
           "[runout_other_head]") {
     const auto plan = build_plan(AmsType::SNAPMAKER, paused_runout_on_head0(), 3);
     REQUIRE(plan.ok());
-    REQUIRE(plan.gcode ==
-            std::vector<std::string>{"SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Snapmaker "
-                                     "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic COLOR_NUMS=1 "
-                                     "COLORS=0000FF MULTI_MODE=0 ALPHA=255 FORCE=1",
-                                     "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0"});
+    REQUIRE(plan.gcode == std::vector<std::string>{
+                              "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"Snapmaker\" "
+                              "FILAMENT_TYPE=PLA FILAMENT_SUBTYPE=Basic COLOR_NUMS=1 "
+                              "COLORS=0000FF MULTI_MODE=0 ALPHA=255 FORCE=1",
+                              "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0"});
     CHECK(plan.continues_on == 3);
     CHECK_FALSE(plan.switches_auto_switch_on);
 }
@@ -174,17 +177,20 @@ TEST_CASE("runout other head: U1 copies a multi-colour record exactly", "[runout
     const auto plan = build_plan(AmsType::SNAPMAKER, f, 3);
     REQUIRE(plan.ok());
     CHECK(plan.gcode.front() ==
-          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=Snapmaker FILAMENT_TYPE=PLA "
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"Snapmaker\" FILAMENT_TYPE=PLA "
           "FILAMENT_SUBTYPE=Silk COLOR_NUMS=2 COLORS=FF0000,00ff00 MULTI_MODE=1 ALPHA=128 "
           "FORCE=1");
 }
 
-TEST_CASE("runout other head: U1 quotes a vendor with a space", "[runout_other_head]") {
+TEST_CASE("runout other head: U1 always quotes the vendor", "[runout_other_head]") {
+    // An unquoted apostrophe opens a quoted string in the firmware's parameter
+    // split and swallows every parameter after it.
     auto f = paused_runout_on_head0();
-    f.heads[3].record->vendor = "Elegoo Rapid";
+    f.heads[3].record->vendor = "O'Brien Rapid";
     const auto plan = build_plan(AmsType::SNAPMAKER, f, 3);
     REQUIRE(plan.ok());
-    CHECK(plan.gcode.front().find("VENDOR=\"Elegoo Rapid\" ") != std::string::npos);
+    CHECK(plan.gcode.front().find("VENDOR=\"O'Brien Rapid\" FILAMENT_TYPE=PLA ") !=
+          std::string::npos);
 }
 
 TEST_CASE("runout other head: U1 refuses a record it cannot write", "[runout_other_head]") {
@@ -207,18 +213,43 @@ TEST_CASE("runout other head: U1 turns Auto-Replenish on for this switch only",
     CHECK(plan.gcode[0] == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1");
     CHECK(plan.gcode[2] == "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0");
     CHECK(plan.gcode[3] == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0");
+    // A failed script stops before its last line; the caller sends this alone.
+    CHECK(plan.restore_gcode == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0");
+    CHECK(build_plan(AmsType::SNAPMAKER, paused_runout_on_head0(), 3).restore_gcode.empty());
 }
 
-TEST_CASE("runout other head: U1 with the switch state unknown turns it on and leaves it",
+TEST_CASE("runout other head: U1 refuses while the switch state is unknown",
           "[runout_other_head]") {
+    // Turning it on with nothing known to restore would leave it on.
     auto f = paused_runout_on_head0();
     f.auto_switch_enabled.reset();
-    const auto plan = build_plan(AmsType::SNAPMAKER, f, 3);
-    REQUIRE(plan.ok());
-    CHECK(plan.switches_auto_switch_on);
-    REQUIRE(plan.gcode.size() == 3);
-    CHECK(plan.gcode[0] == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=1");
-    CHECK(plan.gcode[2] == "INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=0");
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::AutoSwitchUnknown);
+}
+
+TEST_CASE("runout other head: a runout head its feeder can still supply offers nothing",
+          "[runout_other_head]") {
+    // Filament at the port after a jam or tangle: the firmware resumes on the
+    // runout head itself and never looks at the others.
+    auto f = paused_runout_on_head0();
+    f.heads[0].feeder_can_supply = true;
+    const auto all = assess(f);
+    CHECK(verdict(all, 0).refusal == HeadRefusal::IsRunoutHead);
+    CHECK(verdict(all, 1).refusal == HeadRefusal::RunoutHeadStillFeeds);
+    CHECK(verdict(all, 3).refusal == HeadRefusal::RunoutHeadStillFeeds);
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::HeadNotEligible);
+}
+
+TEST_CASE("runout other head: the switch is seen by the pause ending or the routing changing",
+          "[runout_other_head]") {
+    auto before = paused_runout_on_head0();
+    before.routing = {0, 1, 2, 3};
+    auto now = before;
+    CHECK_FALSE(switch_happened(before, now)); // declined: nothing moved
+    now.routing = {3, 1, 2, 3};
+    CHECK(switch_happened(before, now));
+    now = before;
+    now.paused = false;
+    CHECK(switch_happened(before, now));
 }
 
 TEST_CASE("runout other head: U1 names the lower head holding the identical filament",
