@@ -231,6 +231,14 @@ const SensorBand* band_at(const PathPlan& plan, float x, float y) {
     return nullptr;
 }
 
+// The round toolhead-sensor dot on the head at column @p x.
+const SensorBand* head_dot_at(const PathPlan& plan, float x) {
+    for (int i = 0; i < plan.band_count; i++)
+        if (plan.bands[i].dot && std::fabs(plan.bands[i].at.x - x) < 0.5f)
+            return &plan.bands[i];
+    return nullptr;
+}
+
 SpanStyle style_a() {
     return {TubeWall::Active, lv_color_hex(0x112233), true, true};
 }
@@ -1148,8 +1156,9 @@ TEST_CASE("FilamentPath plan: idle PARALLEL tools are one stroke each through th
     }
     REQUIRE(plan.band_count == 4);
     for (int i = 0; i < 4; i++) {
-        const SensorBand* b = band_at(plan, 50.0f + 100 * i, sensor_y);
+        const SensorBand* b = head_dot_at(plan, 50.0f + 100 * i);
         REQUIRE(b != nullptr);
+        CHECK(b->at.y == Catch::Approx(inlet));
         CHECK(b->state == BandState::Empty);
     }
 }
@@ -1175,7 +1184,7 @@ TEST_CASE("FilamentPath plan: PARALLEL tubes hang from below their spools",
         CHECK(near(seg_start(r.path.segs[0]), 50.0f + 100 * i, (float)entry_y));
         CHECK(near(seg_end(r.path.segs[r.path.count - 1]), 50.0f + 100 * i,
                    (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y));
-        CHECK(band_at(plan, 50.0f + 100 * i, (float)rows.sensor_y) != nullptr);
+        CHECK(head_dot_at(plan, 50.0f + 100 * i) != nullptr);
     }
 
     // An edge too low to leave room above the sensor is ignored.
@@ -1218,7 +1227,7 @@ TEST_CASE("FilamentPath plan: a PARALLEL entry sensor clamps the tube below its 
     CHECK(r1.style[0].filled);
     CHECK_FALSE(r1.style[1].filled);
     CHECK_FALSE(r1.style[2].filled);
-    const SensorBand* toolhead = band_at(plan, 150, (float)rows.sensor_y);
+    const SensorBand* toolhead = head_dot_at(plan, 150);
     REQUIRE(toolhead != nullptr);
     CHECK(toolhead->state == BandState::Empty);
     // The mounted lane is filled all the way down.
@@ -1298,12 +1307,12 @@ TEST_CASE("FilamentPath plan: the mounted PARALLEL tool is one active stroke",
     REQUIRE(coalesce(plan.routes[2], strokes, 16) == 1);
     CHECK(strokes[0].style.wall == TubeWall::Active);
     CHECK(strokes[0].style.filled);
-    const SensorBand* mounted = band_at(plan, 250, sensor_y);
+    const SensorBand* mounted = head_dot_at(plan, 250);
     REQUIRE(mounted != nullptr);
     CHECK(mounted->state == BandState::Active);
 
     // A docked tool loaded to its sensor keeps a band in its own color.
-    const SensorBand* docked = band_at(plan, 50, sensor_y);
+    const SensorBand* docked = head_dot_at(plan, 50);
     REQUIRE(docked != nullptr);
     CHECK(docked->state == BandState::Loaded);
     CHECK(lv_color_eq(docked->fill, lv_color_hex(kSlotColors[0])));
@@ -1332,7 +1341,7 @@ TEST_CASE("FilamentPath plan: the active lane's empty tube does not glow",
         const PathPlan& plan = parallel_plan(*d);
         CHECK(plan.active_route == 0);
         check_route_empty(plan.routes[0]);
-        const SensorBand* b = band_at(plan, 50, 198);
+        const SensorBand* b = head_dot_at(plan, 50);
         REQUIRE(b != nullptr);
         CHECK(b->state == BandState::Empty);
     }

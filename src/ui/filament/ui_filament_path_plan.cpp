@@ -1207,13 +1207,18 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
             add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::PREP), lane.color);
             append_line(*r, x, (float)rows.prep_y, x, (float)sensor_y,
                         lane.style(PathSegment::LANE));
-            if (data.has_toolhead_sensor)
-                add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::TOOLHEAD),
-                                lane.color);
         } else {
-            r = &start_lane(out, lane, x, entry_y, sensor_y, data.has_toolhead_sensor);
+            r = &start_lane(out, lane, x, entry_y, sensor_y, /*has_sensor=*/false);
         }
         append_line(*r, x, (float)sensor_y, x, nozzle_top, lane.style(PathSegment::NOZZLE));
+        // Each head's own sensor is the round dot at its filament inlet, as on a hub's head:
+        // the lane's color while it sees filament, red on a fault.
+        if (data.has_toolhead_sensor) {
+            const int before = out.band_count;
+            add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::TOOLHEAD), lane.color);
+            if (out.band_count > before)
+                out.bands[out.band_count - 1].dot = true;
+        }
         if (lane.on)
             out.active_route = i;
     }
