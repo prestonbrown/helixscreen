@@ -91,6 +91,14 @@ namespace helix {
 namespace ui {
 
 /**
+ * @brief Add a row to notification history without showing a toast
+ *
+ * For a caller that shows its own toast and wants it kept where the user can
+ * read it later. **Thread-safe**: marshals to the LVGL main thread.
+ */
+void notification_history_only(ToastSeverity severity, const char* message);
+
+/**
  * @brief What one ui_notification_* call surfaced.
  *
  * Reported on the calling thread before threading, the startup queue or the

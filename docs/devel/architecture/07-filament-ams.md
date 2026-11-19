@@ -270,7 +270,7 @@ The store ([`include/filament_slot_override_store.h`](../../../include/filament_
 Spoolman integration is deliberately *not* a backend. `SpoolmanManager` ([`include/spoolman_manager.h#SpoolmanManager`](../../../include/spoolman_manager.h), [`src/printer/spoolman_manager.cpp`](../../../src/printer/spoolman_manager.cpp)) gives printers with no filament-changer hardware spool tracking too. Its charter, from the header:
 
 - periodic weight polling via `lv_timer`, with refcounted start/stop;
-- a circuit breaker that suppresses error toasts while Spoolman is unreachable;
+- a circuit breaker that backs off while Spoolman is unreachable and warns once per outage, with the warning kept in notification history; Spoolman must answer for 10 minutes (`kUnavailableRearmMs`) before a later outage warns again, so a server that keeps dropping out warns once;
 - a Spoolman availability observer that auto-stops polling when the service disappears;
 - a transient identity cache (with negative caching for deleted spools) feeding the filament display-name resolver;
 - each fetched spool record, filed as its lane's `Spoolman` record through `ingest()` (`SpoolmanManager::file_spool_on_lane`), so an edit made on the Spoolman server reaches the lane. A "not found" answer drops that record; an unreachable server leaves it standing.

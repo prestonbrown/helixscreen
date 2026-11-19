@@ -22,8 +22,6 @@
 
 #pragma once
 
-#include "ui_widget_ref.h"
-
 #include "core/static_panel_registry.h"
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
@@ -40,8 +38,6 @@ namespace helix::settings {
  */
 class SystemSettingsOverlay : public OverlayBase {
   public:
-    ~SystemSettingsOverlay() override;
-
     const char* get_name() const override {
         return "System";
     }
@@ -61,9 +57,6 @@ class SystemSettingsOverlay : public OverlayBase {
     void handle_restart_helix_clicked();
     void handle_factory_reset_clicked();
     void perform_factory_reset();
-
-    /// Created on first use, deleted when its close animation finishes.
-    helix::ui::WidgetRef factory_reset_dialog_;
 };
 
 inline SystemSettingsOverlay& get_system_settings_overlay() {

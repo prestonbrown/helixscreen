@@ -30,6 +30,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 | `generate-manifest.sh` | Generates `manifest.json` from release archives. Used by CI and dev-release |
 | `package-helix-plugin.sh` | Builds the HelixPrint plugin tarball the remote installer unpacks |
 | `ci/gpu_libs_hidden_smoke.sh` | CI smoke: a packaged binary with its GPU libraries missing must still reach the framebuffer |
+| `ci/ci_watch.py` | `ci-watch.yml`: rerun main's infrastructure failures once, track real ones in the one `ci-red` issue |
 | `esp32_package_release.sh` | Bundles a built K-Touch firmware into the release zip |
 | `distribution_partners.py` | Partner installers and the release assets each fetches; a release step fails on a missing one |
 | `version-compare.sh` | Semver precedence for shell consumers (`A B` prints -1/0/1) |

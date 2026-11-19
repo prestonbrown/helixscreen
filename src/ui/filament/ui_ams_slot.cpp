@@ -1492,6 +1492,10 @@ void ui_ams_slot_detach_layers(lv_obj_t* obj) {
     data->status_badge_bg = nullptr;
     data->slot_badge = nullptr;
     data->material_label = nullptr;
+    // A leader on the labels layer outlives this slot, but its points live in this slot's
+    // data: it must stop reading them before the slot is freed.
+    if (data->leader_line && lv_obj_get_parent(data->leader_line) != obj)
+        lv_line_set_points(data->leader_line, nullptr, 0);
     data->leader_line = nullptr;
     // The tool tag too, once it stands on the labels layer, outside the slot.
     bool tag_in_slot = false;

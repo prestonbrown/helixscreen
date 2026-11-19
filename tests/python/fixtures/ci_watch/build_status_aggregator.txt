@@ -1,0 +1,15 @@
+2026-11-19T07:32:54.0976183Z [36;1mfi[0m
+2026-11-19T07:32:54.0976598Z [36;1m[0m
+2026-11-19T07:32:54.0977370Z [36;1mfor f in "${failed[@]}"; do echo "::error title=Build failure::$f"; done[0m
+2026-11-19T07:32:54.0978138Z [36;1mexit 1[0m
+2026-11-19T07:32:54.1503443Z shell: /usr/bin/bash -e {0}
+2026-11-19T07:32:54.1504271Z env:
+2026-11-19T07:32:54.1504734Z   HELIX_PATCHES_FROM_CLEAN: 1
+2026-11-19T07:32:54.1505274Z   DBGLEVEL: 0
+2026-11-19T07:32:54.1505764Z   TOLERATE: false
+2026-11-19T07:32:54.1506237Z ##[endgroup]
+2026-11-19T07:32:54.1683829Z ##[error]Ubuntu compile
+2026-11-19T07:32:54.1690646Z ##[error]Ubuntu tests
+2026-11-19T07:32:54.1693250Z ##[error]Android build
+2026-11-19T07:32:54.1695294Z ##[error]splash/watchdog link check
+2026-11-19T07:32:54.1704025Z ##[error]Process completed with exit code 1.

@@ -1,0 +1,62 @@
+2026-11-19T06:01:29.5463687Z =================================== FAILURES ===================================
+2026-11-19T06:01:29.5464519Z _____________ test_every_screen_retranslates_on_a_language_switch ______________
+2026-11-19T06:01:29.5465011Z 
+2026-11-19T06:01:29.5465280Z fresh_helix_app = <helix.app.HelixApp object at 0x7f69042ae950>
+2026-11-19T06:01:29.5465698Z 
+2026-11-19T06:01:29.5465837Z     @pytest.mark.slow
+2026-11-19T06:01:29.5466933Z     def test_every_screen_retranslates_on_a_language_switch(fresh_helix_app):
+2026-11-19T06:01:29.5467805Z         checked, stale, unreachable = _stale_after_switch(fresh_helix_app, _recipes())
+2026-11-19T06:01:29.5468444Z         report = "\n".join(stale)
+2026-11-19T06:01:29.5468988Z         print(f"\n{checked} translatable labels checked, {len(stale)} stale; "
+2026-11-19T06:01:29.5469750Z               f"unreachable on this mock: {', '.join(unreachable) or 'none'}\n{report}")
+2026-11-19T06:01:29.5470323Z         assert checked > 0
+2026-11-19T06:01:29.5470758Z >       assert not stale, f"{len(stale)} stale labels:\n{report}"
+2026-11-19T06:01:29.5471282Z E       AssertionError: 64 stale labels:
+2026-11-19T06:01:29.5473146Z E         controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'
+2026-11-19T06:01:29.5475232Z E         controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'
+2026-11-19T06:01:29.5477455Z E         filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'
+2026-11-19T06:01:29.5480025Z E         filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'
+2026-11-19T06:01:29.5482585Z E         print-select: s/app_layout_0/content_area/panel_container/print_select_panel/card_view_container/card_root[0]/metadata_overlay/metadata_row/time_label: '5 min' unchanged; '5 min' -> '5 мин'
+2026-11-19T06:01:29.5574630Z E         print-tune: s/print_tune_panel/overlay_header/back_button/header_title: 'PRINT TUNING' reads 'AJUSTE DE IMPRESIÓN', want 'НАСТРОЙКА ПЕЧАТИ'
+2026-11-19T06:01:29.5576178Z E         preflight-check: s/7/preflight_check_modal/preflight_tool_list/preflight_tool_row[2]/empty_label: 'EMPTY' reads 'VACÍO', want 'ПУСТО'
+2026-11-19T06:01:29.5577415Z E         leds: s/led_control_overlay/overlay_header/back_button/header_title: 'LEDs' unchanged; 'LEDs' -> 'LED'
+2026-11-19T06:01:29.5578990Z E         leds: s/led_control_overlay/overlay_content/led_page/led_look_col/led_list_section/led_list_title: 'EFFECTS' reads 'EFECTOS', want 'ЭФФЕКТЫ'
+2026-11-19T06:01:29.5586334Z E       assert not ["controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'", "controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'", "filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'", "filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'", "print-select: s/app_layout_0/content_area/panel_container/print_select_panel/card_view_container/card_root[0]/metadata_overlay/metadata_row/time_label: '5 min' unchanged; '5 min' -> '5 мин'", "motion: s/motion_panel/overlay_header/back_button/header_title: 'MOTION' reads 'MOVIMIENTO', want 'ДВИЖЕНИЕ'", ...]
+2026-11-19T06:01:29.5592624Z 
+2026-11-19T06:01:29.5592861Z tests/ui/test_language_switch_sweep.py:188: AssertionError
+2026-11-19T06:01:29.5593495Z ----------------------------- Captured stdout call -----------------------------
+2026-11-19T06:01:29.5692612Z __________ test_ams_screens_retranslate_on_each_backend[toolchanger] ___________
+2026-11-19T06:01:29.5692923Z 
+2026-11-19T06:01:29.5693182Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_ams_screens_retranslate_o1')
+2026-11-19T06:01:29.5693631Z ams = 'toolchanger'
+2026-11-19T06:01:29.5693759Z 
+2026-11-19T06:01:29.5693861Z     @pytest.mark.slow
+2026-11-19T06:01:29.5694104Z     @pytest.mark.parametrize(
+2026-11-19T06:01:29.5694464Z         "ams", ["afc", "toolchanger", "cfs", "openams", "indx", "snapmaker", "ifs"])
+2026-11-19T06:01:29.5694925Z     def test_ams_screens_retranslate_on_each_backend(tmp_path, ams):
+2026-11-19T06:01:29.5695294Z         if not BINARY.exists():
+2026-11-19T06:01:29.5695571Z             pytest.skip(f"{BINARY} not built")
+2026-11-19T06:01:29.5695969Z         recipes = [(token, steps) for token, steps in _recipes() if token == "ams"]
+2026-11-19T06:01:29.5696407Z         assert recipes, "the ams screenshot recipe is gone"
+2026-11-19T06:01:29.5696829Z         with HelixApp(binary=BINARY, socket_path=tmp_path / "control.sock",
+2026-11-19T06:01:29.5697322Z                       log_path=tmp_path / "app.log", extra_env={"HELIX_MOCK_AMS": ams}) as app:
+2026-11-19T06:01:29.5697774Z             checked, stale, _ = _stale_after_switch(app, recipes)
+2026-11-19T06:01:29.5698119Z         report = "\n".join(stale)
+2026-11-19T06:01:29.5698372Z         assert checked > 0
+2026-11-19T06:01:29.5698699Z >       assert not stale, f"{len(stale)} stale labels on {ams}:\n{report}"
+2026-11-19T06:01:29.5699106Z E       AssertionError: 1 stale labels on toolchanger:
+2026-11-19T06:01:29.5700006Z E         ams: s/ams_panel/overlay_content/overlay_header/back_button/header_backend_suffix/system_name_label: 'TOOL CHANGER' reads 'CAMBIADOR DE HERR...', want 'СМЕНЩИК ИНСТРУМЕНТОВ'
+2026-11-19T06:01:29.5701288Z E       assert not ["ams: s/ams_panel/overlay_content/overlay_header/back_button/header_backend_suffix/system_name_label: 'TOOL CHANGER' reads 'CAMBIADOR DE HERR...', want 'СМЕНЩИК ИНСТРУМЕНТОВ'"]
+2026-11-19T06:01:29.5702045Z 
+2026-11-19T06:01:29.5702201Z tests/ui/test_language_switch_sweep.py:206: AssertionError
+2026-11-19T06:01:29.5702613Z =========================== short test summary info ============================
+2026-11-19T06:01:29.5703304Z FAILED tests/ui/test_language_switch_sweep.py::test_every_screen_retranslates_on_a_language_switch - AssertionError: 64 stale labels:
+2026-11-19T06:01:29.5704433Z   controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'
+2026-11-19T06:01:29.5705885Z   controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'
+2026-11-19T06:01:29.5707228Z   filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'
+2026-11-19T06:01:29.5772326Z   leds: s/led_control_overlay/overlay_content/led_page/led_look_col/led_list_section/led_list_title: 'EFFECTS' reads 'EFECTOS', want 'ЭФФЕКТЫ'
+2026-11-19T06:01:29.5776805Z assert not ["controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'", "controls: s/app_layout_0/content_area/panel_container/controls_panel/0/1/card_temperatures/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'", "filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_bed_temp/0/0/heater_row_label: 'Bed' unchanged; 'Bed' -> 'Стол'", "filament: s/app_layout_0/content_area/panel_container/filament_panel/content_row/left_column/temp_status_card/heater_rows_0/btn_chamber_temp/0/0/heater_row_label: 'Chamber' unchanged; 'Chamber' -> 'Камера'", "print-select: s/app_layout_0/content_area/panel_container/print_select_panel/card_view_container/card_root[0]/metadata_overlay/metadata_row/time_label: '5 min' unchanged; '5 min' -> '5 мин'", "motion: s/motion_panel/overlay_header/back_button/header_title: 'MOTION' reads 'MOVIMIENTO', want 'ДВИЖЕНИЕ'", ...]
+2026-11-19T06:01:29.5780791Z FAILED tests/ui/test_language_switch_sweep.py::test_ams_screens_retranslate_on_each_backend[toolchanger] - AssertionError: 1 stale labels on toolchanger:
+2026-11-19T06:01:29.5782218Z   ams: s/ams_panel/overlay_content/overlay_header/back_button/header_backend_suffix/system_name_label: 'TOOL CHANGER' reads 'CAMBIADOR DE HERR...', want 'СМЕНЩИК ИНСТРУМЕНТОВ'
+2026-11-19T06:01:29.5783497Z assert not ["ams: s/ams_panel/overlay_content/overlay_header/back_button/header_backend_suffix/system_name_label: 'TOOL CHANGER' reads 'CAMBIADOR DE HERR...', want 'СМЕНЩИК ИНСТРУМЕНТОВ'"]
+2026-11-19T06:01:29.5784500Z =========== 2 failed, 6 passed, 122 deselected in 348.99s (0:05:48) ============

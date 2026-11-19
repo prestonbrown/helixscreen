@@ -3,12 +3,15 @@
 
 #include "ui_dialog.h"
 
+#include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
+
+#include <cstdlib>
 
 /**
  * XML create handler for ui_dialog
@@ -52,6 +55,13 @@ static void* ui_dialog_xml_create(lv_xml_parser_state_t* state, const char** att
 
     // Clip children to rounded corners (for full-bleed buttons at bottom)
     lv_obj_set_style_clip_corner(obj, true, LV_PART_MAIN);
+
+    // Ultrawide cap: a dialog sized as a share of the screen width would otherwise
+    // stretch across the whole panel. A dialog's own style_max_width, applied
+    // after this, still wins.
+    if (const char* cap = lv_xml_get_const_silent(nullptr, "dialog_max_width")) {
+        lv_obj_set_style_max_width(obj, std::atoi(cap), LV_PART_MAIN);
+    }
 
     spdlog::trace("[Dialog] Created ui_dialog with theme-aware defaults");
     return (void*)obj;
