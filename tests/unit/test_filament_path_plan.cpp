@@ -460,6 +460,35 @@ TEST_CASE("FilamentPath plan: under a drawn unit each lane shows one sensor mark
     }
 }
 
+TEST_CASE("FilamentPath plan: under a drawn unit a prep-only lane's mark lies along its edge",
+          "[filament-path][plan]") {
+    auto d = make_data(helix::PathTopology::HUB);
+    load_active(*d, 1, PathSegment::NOZZLE);
+    d->view_hub_h = 24;
+    d->art_sensors = true;
+    d->art_draws_prep = false;
+    d->art_edge_slope = 0.2f;
+    for (int i = 0; i < 4; i++) {
+        d->slot_has_prep_sensor[i] = true;
+        d->slot_has_load_sensor[i] = false;
+    }
+    const PathPlan& plan = plan_for(*d);
+    for (int i = 0; i < 4; i++) {
+        CAPTURE(i);
+        const SensorBand* mark = nullptr;
+        for (int b = 0; b < plan.band_count; b++)
+            if (std::fabs(plan.bands[b].at.x - (50.0f + 100 * i)) < 1.0f)
+                mark = &plan.bands[b];
+        REQUIRE(mark != nullptr);
+        // Tilted with the edge, not square across the tube.
+        CHECK(std::fabs(mark->tangent.x) > 0.1f);
+    }
+    // The loaded lane's mark takes its filament's state.
+    for (int b = 0; b < plan.band_count; b++)
+        if (std::fabs(plan.bands[b].at.x - 150.0f) < 1.0f)
+            CHECK(plan.bands[b].state != BandState::Empty);
+}
+
 TEST_CASE("FilamentPath plan: a lane loaded to the hub fills to the hub bottom",
           "[filament-path][plan]") {
     auto d = make_data(helix::PathTopology::HUB);

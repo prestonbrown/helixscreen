@@ -1291,23 +1291,30 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
         const float start_y = (float)lane_start_y(data, f, i);
         const float band_y = (float)lane_band_y(data, f, i);
         append_line(r, x, start_y, x, band_y, lane.style(PathSegment::SPOOL));
-        // Under a drawn unit the lane's mark is its load sensor at the tube's start; the prep
-        // sensor shows on the art where drawn, else on the tube only when it faults.
+        // Leaving a drawn unit, a lane shows one sensor mark: a short marker where its tube
+        // leaves the unit, lying along the unit's bottom edge as drawn. It stands for the load
+        // sensor, or for the prep sensor where the lane has no load sensor and the art draws
+        // no prep region; the lane's color while it sees filament, red on a fault, plain
+        // while empty. A lane with neither sensor has no mark. Without a drawing the prep
+        // sensor is a band across the tube.
         const BandState prep = lane.band(PathSegment::PREP);
-        if (data.slot_has_prep_sensor[i] && !(data.art_sensors && data.art_draws_prep) &&
-            !(data.art_sensors && prep != BandState::Error)) {
+        if (data.art_sensors) {
+            const bool load = data.slot_has_load_sensor[i];
+            const bool prep_mark = !load && data.slot_has_prep_sensor[i] && !data.art_draws_prep;
+            if (load || prep_mark) {
+                const float k = data.art_edge_slope;
+                const float norm = std::sqrt(1.0f + k * k);
+                // A prep fault the art cannot show reddens the one mark too.
+                const bool prep_fault = prep == BandState::Error && !data.art_draws_prep;
+                const BandState state = data.lane_load_fault[i] || prep_fault ? BandState::Error
+                                        : load ? lane.band(PathSegment::LANE)
+                                               : prep;
+                add_band(out, BandKind::Lane, {x, start_y}, {-k / norm, 1.0f / norm}, state,
+                         s.color, false);
+            }
+        } else if (data.slot_has_prep_sensor[i]) {
             add_band(out, BandKind::Lane, {x, band_y}, {0, 1}, prep, s.color,
                      f.prep_on_box_edge && band_y == start_y);
-        }
-        // Leaving a drawn unit, the load sensor is a short marker where the tube leaves it,
-        // lying along the unit's bottom edge: the lane's color while it sees filament, red on
-        // a fault, plain while empty.
-        if (data.art_sensors && data.slot_has_load_sensor[i]) {
-            const float k = data.art_edge_slope;
-            const float norm = std::sqrt(1.0f + k * k);
-            add_band(out, BandKind::Lane, {x, start_y}, {-k / norm, 1.0f / norm},
-                     data.lane_load_fault[i] ? BandState::Error : lane.band(PathSegment::LANE),
-                     s.color, false);
         }
         if (straight)
             append_line(r, x, band_y, x, (float)f.prep_y, lane.style(PathSegment::LANE));
