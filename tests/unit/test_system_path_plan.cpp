@@ -1401,6 +1401,8 @@ TEST_CASE("Overview plan: every visible bend on the mock rigs is rounded",
 
 TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig has room",
           "[system_path][route_spacing]") {
+    // Where its neighbors leave room a route is one straight line from under its unit.
+    int straight = 0;
     // A level run with square bends reads as a cable harness, not a line converging on its
     // nozzle. The full-size rigs have the room to lean every run; the route spacing cases
     // above hold them apart.
@@ -1430,7 +1432,14 @@ TEST_CASE("Overview plan: runs across lean down into their nozzles where the rig
         }
         CHECK(leaning > 0);
         CHECK(level == 0);
+        for (int i = 0; i < plan.route_count; i++) {
+            const pg::PathSeg& first = plan.routes[i].path.segs[0];
+            if (first.type == pg::PathSeg::LINE && std::fabs(first.p1.x - first.p0.x) > 1.0f &&
+                std::fabs(first.p1.y - first.p0.y) > 1.0f)
+                ++straight;
+        }
     }
+    CHECK(straight > 0);
 }
 
 TEST_CASE("Overview plan: one toolhead's lines run straight from each unit to the hub",
