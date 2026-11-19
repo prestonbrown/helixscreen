@@ -489,6 +489,12 @@ struct UnitViewArt {
     lv_point_t outlet[kAmsDetailMaxSlots] = {}; // each lane's outlet: its column is the lane's
 };
 
+/// A lane's spin, sent to the drawing that stands in for its spool.
+void unit_view_lane_spin(void* lane, const helix::ui::SpoolSpin& spin) {
+    if (lv_obj_t* art = s_tray.art_obj.get())
+        helix::ui::unit_art_set_lane_spin(art, (int)reinterpret_cast<intptr_t>(lane), spin);
+}
+
 /// Shows @p unit_index's baked art in place of the drawn tray when it has art and lane
 /// geometry for its lane count that the slots fit (tray::unit_view_fits), scaled so its lanes
 /// stand on the slots' spools, which stay as tap targets with their own graphic hidden. False,
@@ -516,6 +522,8 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
             lv_obj_set_style_opa(spool, geom ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN);
             helix::ui::ams_lane_spool_set_listener(spool, geom ? unit_view_lane_changed : nullptr,
                                                    nullptr);
+            if (!geom)
+                helix::ui::ams_lane_spool_set_spin_sink(spool, nullptr, nullptr);
         }
         if (!geom)
             ui_ams_slot_set_badge_marks(slot, false, false, helix::SlotError::Severity::INFO);
@@ -576,6 +584,14 @@ bool place_unit_view_art(lv_obj_t* container, const helix::ui::WidgetRef slot_wi
         out.outlet[i].y += dy;
     }
     s_tray.art_obj = art;
+    // The drawing turns each lane's spool in place of the transparent one over it.
+    for (int i = 0; i < n; ++i) {
+        lv_obj_t* spool =
+            slot_widgets[i] ? lv_obj_find_by_name(slot_widgets[i], "lane_spool") : nullptr;
+        if (spool)
+            helix::ui::ams_lane_spool_set_spin_sink(
+                spool, unit_view_lane_spin, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
+    }
     return true;
 }
 

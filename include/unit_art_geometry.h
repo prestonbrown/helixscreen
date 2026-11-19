@@ -32,6 +32,22 @@ float art_lane_flange_distance(const ArtLaneGeom& g, float x, float y, bool near
 /// softened over @p px_per_unit pixels per flange radius.
 float art_lane_coverage(const ArtLaneGeom& g, float x, float y, float radius, float px_per_unit);
 
+/// A flange face's turn in its own plane (u toward the back, v up), positive from u toward v.
+struct FlangeTurn {
+    float c = 1.0f, s = 0.0f;
+};
+
+/// The turn of @p degrees.
+FlangeTurn flange_turn(float degrees);
+
+/// A point (@p u, @p v) of a face turned by @p turn, mapped back to where it stood before the
+/// turn: what the unturned face shows there. The front edge of a face turned positively shows
+/// what stood above it.
+inline void flange_unturn(const FlangeTurn& turn, float u, float v, float& rest_u, float& rest_v) {
+    rest_u = u * turn.c + v * turn.s;
+    rest_v = v * turn.c - u * turn.s;
+}
+
 /// Pixels per flange radius at a drawing @p drawn_w pixels wide.
 float art_lane_px_per_unit(const ArtLaneGeom& g, float drawn_w);
 

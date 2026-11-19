@@ -7967,6 +7967,20 @@ TEST_CASE("AFC no-op load resolves on the macro ack", "[ams][afc][dispatch][1183
     REQUIRE(h.trace().back() == AmsAction::IDLE);
 }
 
+TEST_CASE("AFC names the lane a load is headed for until the load ends",
+          "[ams][afc][dispatch][spool_spin]") {
+    AfcDispatchAckHelper h;
+    REQUIRE(h.load_filament(3).success());
+    CHECK(h.get_system_info().pending_target_slot == 3);
+    // AFC takes the load over, then the macro acks while it is still loading: the incoming
+    // lane stays named, so its spool keeps turning for the whole load.
+    h.feed_state("Loading");
+    h.ack(0);
+    CHECK(h.get_system_info().pending_target_slot == 3);
+    h.feed_state("Idle");
+    CHECK(h.get_system_info().pending_target_slot == -1);
+}
+
 namespace helix {
 /// AFC against a real MoonrakerAPI over the mock client, with no execute_gcode
 /// override, so the macro ack reaches dispatch_operation through the base

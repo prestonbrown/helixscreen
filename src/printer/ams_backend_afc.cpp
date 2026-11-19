@@ -1484,6 +1484,10 @@ void AmsBackendAfc::apply_state_string(const std::string& raw, const char* sourc
     bool recognized = true;
     system_info_.action = ams_action_from_string(raw, &recognized);
     system_info_.operation_detail = afc_state_detail(raw);
+    // A load names its incoming lane until AFC settles; a toolchange hold is still a toolchange.
+    if ((system_info_.action == AmsAction::IDLE || system_info_.action == AmsAction::ERROR) &&
+        !toolchange_hold_.has_value())
+        system_info_.pending_target_slot = -1;
     // Keys the stuck-action latch. Deliberately the raw wire token, not the
     // humanized detail: two different states can share a display label.
     last_raw_state_ = raw;
@@ -1564,6 +1568,7 @@ void AmsBackendAfc::release_toolchange_hold_locked() {
     toolchange_hold_.reset();
     toolchange_hold_detail_.clear();
     system_info_.action = AmsAction::IDLE;
+    system_info_.pending_target_slot = -1;
     system_info_.operation_detail = afc_state_detail(last_raw_state_);
 }
 
@@ -1590,6 +1595,7 @@ void AmsBackendAfc::apply_action_timeout_latch_locked() {
     // change would restart the clock, and the whole thing would flap between
     // busy and ERROR for as long as AFC stays stuck.
     system_info_.action = AmsAction::ERROR;
+    system_info_.pending_target_slot = -1;
     system_info_.operation_detail = timed_out_detail_;
 }
 
@@ -1656,6 +1662,7 @@ void AmsBackendAfc::check_action_timeout() {
                             : timed_out_line(timed_out_what_);
     system_info_.operation_detail = timed_out_detail_;
     system_info_.action = AmsAction::ERROR;
+    system_info_.pending_target_slot = -1;
 
     // Only latch when AFC itself is driving the action. The latch keys on
     // last_raw_state_, and for an action this backend set optimistically at
@@ -1726,6 +1733,7 @@ void AmsBackendAfc::abandon_dispatch(uint64_t generation) {
         }
         pending_dispatch_action_.reset();
         system_info_.action = AmsAction::IDLE;
+        system_info_.pending_target_slot = -1;
         system_info_.operation_detail.clear();
         action_start_time_ = std::chrono::steady_clock::now();
     }
@@ -1761,6 +1769,7 @@ void AmsBackendAfc::finalize_dispatch_after_macro(uint64_t generation) {
         spdlog::info("[AMS AFC] Macro complete (gcode ack) with no AFC state change -> IDLE");
         pending_dispatch_action_.reset();
         system_info_.action = AmsAction::IDLE;
+        system_info_.pending_target_slot = -1;
         system_info_.operation_detail.clear();
         action_start_time_ = std::chrono::steady_clock::now();
         changed = true;
@@ -4618,7 +4627,18 @@ AmsError AmsBackendAfc::do_load_filament(int slot_index) {
     std::string cmd = "CHANGE_TOOL LANE=" + lane_name;
 
     spdlog::info("[AMS AFC] Loading from lane {} (slot {})", lane_name, slot_index);
-    return dispatch_operation(cmd, AmsAction::LOADING);
+    {
+        // AFC reports the lane in the toolhead, which during a lane change is still the old
+        // one; the load's own target names the incoming lane until the load settles.
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.pending_target_slot = slot_index;
+    }
+    AmsError result = dispatch_operation(cmd, AmsAction::LOADING);
+    if (!result) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.pending_target_slot = -1;
+    }
+    return result;
 }
 
 AmsError AmsBackendAfc::do_unload_filament(int slot_index) {

@@ -40,6 +40,11 @@ float art_lane_flange_distance(const ArtLaneGeom& g, float x, float y, bool near
     return std::hypot((px * g.ez_y - py * g.ez_x) / det, (g.ey_x * py - g.ey_y * px) / det);
 }
 
+FlangeTurn flange_turn(float degrees) {
+    const float rad = degrees * 3.14159265f / 180.0f;
+    return {std::cos(rad), std::sin(rad)};
+}
+
 float art_lane_px_per_unit(const ArtLaneGeom& g, float drawn_w) {
     // The flange's vertical radius on screen, the basis's shortest reach.
     return std::min(std::hypot(g.ey_x, g.ey_y), std::hypot(g.ez_x, g.ez_y)) * drawn_w;

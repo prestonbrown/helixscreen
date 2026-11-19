@@ -128,3 +128,15 @@ TEST_CASE("unit art geometry: a spool is every flange disc between its two flang
     off_end(g, true, 0.5f, x, y);
     CHECK(art_lane_coverage(g, x, y, 0.5f, k) == Approx(0.5f).margin(1e-3));
 }
+
+TEST_CASE("unit art geometry: a face turned positively carries its front edge down",
+          "[unit-art][spool_spin]") {
+    // A quarter turn from the back toward up: the front edge (u = -1) now shows what stood at
+    // the top, so the top has come down to the front.
+    float u = 0, v = 0;
+    flange_unturn(flange_turn(90.0f), -1.0f, 0.0f, u, v);
+    CHECK(u == Approx(0.0f).margin(1e-5));
+    CHECK(v == Approx(1.0f).margin(1e-5));
+    flange_unturn(flange_turn(-90.0f), -1.0f, 0.0f, u, v);
+    CHECK(v == Approx(-1.0f).margin(1e-5));
+}

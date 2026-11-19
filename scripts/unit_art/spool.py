@@ -96,7 +96,13 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
         1.0,
         stroke="#2a2a2a",
         sw=0.001,
+        tag="far_face",
     )
+    if detail:
+        # The far flange's inner face shows the same vents, open to the dark behind the spool;
+        # the core, the filament and the near flange cover what they stand in front of.
+        far_hollow = scene.grad(shift(_FLANGE_BACK, -45), shift(_FLANGE_BACK, -60), zc + R, zc - R, x_far, yc)
+        _vents(scene, x_far, yc, zc, size, c, far_hollow, scale(_FLANGE_BACK, 0.3), None, tag="far_")
     # The bare core stands behind the filament, so it shows when a bay is empty.
     _cylinder(scene, x_far, x_near, yc, zc, hub, lambda n: shade(cam, _FLANGE, n, amb=0.8, dif=0.5, spec=0))
     if color:
@@ -113,7 +119,7 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
                 scene.line(arc, "#000000", 0.0016, 0.22, lane=lane, tag="wrap")
 
     face = scene.grad(shift(_FLANGE, lift), shift(_FLANGE, -drop), zc + R, zc - R, x_near, yc)
-    scene.poly(_circle(x_near, yc, zc, R), face, 1.0, stroke=shift(_FLANGE, 100), sw=0.002)
+    scene.poly(_circle(x_near, yc, zc, R), face, 1.0, stroke=shift(_FLANGE, 100), sw=0.002, tag="face")
     if detail:
         hollow = scene.grad(
             shift(_FLANGE_BACK, -c["hollow_shade_top"]), shift(_FLANGE_BACK, -c["hollow_shade_bottom"]), zc + R, zc - R, x_near, yc
@@ -125,7 +131,7 @@ def draw_spool(scene, center, radius, color, c, lane, detail=True, stripes=11):
                 scale(shift(color, -c["vent_shade_top"]), 0.55), scale(shift(color, -c["vent_shade_bottom"]), 0.55), zc + R, zc - R, x_near, yc
             )
             _vents(scene, x_near, yc, zc, size, c, lit, lip, lane)
-    scene.poly(_circle(x_near, yc, zc, hub, 32), scene.grad("#050505", "#404040", zc + hub, zc - hub, x_near, yc))
+    scene.poly(_circle(x_near, yc, zc, hub, 32), scene.grad("#050505", "#404040", zc + hub, zc - hub, x_near, yc), tag="hub")
     target.current_spool = None
 
 
@@ -144,12 +150,12 @@ def _cylinder(scene, x0, x1, yc, zc, r, paint, lane=None, n=64):
         )
 
 
-def _vents(scene, x, yc, zc, size, c, fill, lip_fill, lane):
+def _vents(scene, x, yc, zc, size, c, fill, lip_fill, lane, tag=""):
     inner, outer, half = c["slot_inner"] * size, c["slot_outer"] * size, c["slot_half_width"] * size
     lip = size * 3.0 / 240.0
     for k in range(6):
         a = math.pi / 2 + k * math.pi / 3
-        scene.poly(_stadium(x, yc, zc, a, inner, outer, half), lip_fill, lane=lane, tag="slot")
-        scene.poly(_stadium(x, yc, zc - lip / 2, a, inner, outer, half - lip / 2), fill, lane=lane, tag="slot")
+        scene.poly(_stadium(x, yc, zc, a, inner, outer, half), lip_fill, lane=lane, tag=tag + "slot")
+        scene.poly(_stadium(x, yc, zc - lip / 2, a, inner, outer, half - lip / 2), fill, lane=lane, tag=tag + "slot")
     for u, v in _dot_sites(c, size):
-        scene.poly(_circle(x, yc + u, zc + v, c["dot_radius"] * size, 8), fill, lane=lane, tag="air_hole")
+        scene.poly(_circle(x, yc + u, zc + v, c["dot_radius"] * size, 8), fill, lane=lane, tag=tag + "air_hole")
