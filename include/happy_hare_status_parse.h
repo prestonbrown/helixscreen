@@ -240,13 +240,17 @@ inline constexpr double kGateWeightsSince = 4.2; ///< gate_*_weight, MMU_GATE_MA
 /// `mmu_machine` object as `unit_0`, `unit_1`, ...; an older v3 has them only on
 /// configfile's `[mmu_machine]`, read as a single unit.
 struct MachineUnit {
-    std::string display_name;       ///< v4 `display_name`; empty when not published
-    std::string vendor;             ///< hardware family, e.g. "ERCF"; empty when not published
-    std::string selector_type;      ///< e.g. "VirtualSelector" (Type B)
-    int first_gate = -1;            ///< -1 when not published
-    int num_gates = 0;              ///< 0 when not published
-    std::string filament_heater;    ///< shared enclosure heater
-    std::string environment_sensor; ///< shared enclosure sensor
+    std::string display_name; ///< v4 `display_name`; empty when not published
+    std::string vendor;       ///< hardware family, e.g. "ERCF"; empty when not published
+    /// The hardware a unit Happy Hare runs as "Other" is, read off what the printer's config
+    /// defines for it (other_unit_family()); empty otherwise. Only what the unit looks like
+    /// follows it: Happy Hare itself still runs the unit as "Other".
+    std::string family;
+    std::string selector_type;                    ///< e.g. "VirtualSelector" (Type B)
+    int first_gate = -1;                          ///< -1 when not published
+    int num_gates = 0;                            ///< 0 when not published
+    std::string filament_heater;                  ///< shared enclosure heater
+    std::string environment_sensor;               ///< shared enclosure sensor
     std::vector<std::string> filament_heaters;    ///< one per gate of THIS unit
     std::vector<std::string> environment_sensors; ///< one per gate of THIS unit
     std::optional<bool> has_bypass;
@@ -275,6 +279,10 @@ enum class UnitFeature {
 /// every selector feature means "not a VirtualSelector" and the v4-only guards
 /// always pass. An unknown selector type passes.
 [[nodiscard]] bool unit_supports(const MachineUnit& unit, UnitFeature feature, bool v4);
+
+/// The hardware family a unit Happy Hare calls "Other" is, from the sections the printer's config
+/// defines (configfile settings); empty when none says. One row per family.
+[[nodiscard]] std::string other_unit_family(const nlohmann::json& settings);
 
 /// Every unit in order. Lists come as a JSON array or a comma-separated string.
 [[nodiscard]] std::vector<MachineUnit> read_machine_units(const nlohmann::json& settings,

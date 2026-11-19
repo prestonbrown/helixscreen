@@ -243,6 +243,8 @@ Full context and references to the `qidi-community/Plus4-Wiki` open-source reimp
 
 **Alternative path: [Bunny Box](https://github.com/Wazzup77/Bunny-Box)** — a community open-source replacement that reimplements the QIDI Box as a [Happy Hare](https://github.com/moggieuk/Happy-Hare) MMU. HelixScreen already has Happy Hare support, so a printer flashed with Bunny Box is controllable through HelixScreen via its existing Happy Hare integration. Plus 4 is the most mature target (tested on stock QIDI 1.7.3, FreeDi, and Kalico); Q2 is in active testing; Max 4 is not yet supported. Bunny Box currently depends on the maintainer's [Happy Hare fork](https://github.com/Wazzup77/Happy-Hare) for QIDI-specific hall-sensor and cutter handling, pending upstream merge.
 
+Bunny Box sets `mmu_vendor: Other`, so Happy Hare reports nothing that names the hardware. HelixScreen recognizes it by the `[led qidi_slot_<n>]` sections Bunny Box's config defines and draws the unit as a QIDI Box (`src/printer/happy_hare_status_parse.cpp#other_unit_family`); Happy Hare still runs it as "Other". An install without those sections gets the same drawing when the unit's Happy Hare display name contains "QIDI".
+
 HelixScreen ships a **Q2 Happy Hare preset** (`assets/config/presets/qidi_q2.json`) for exactly this path: a Q2 running Happy Hare (e.g. Bunny Box) auto-detects and loads with the Happy Hare MMU pre-gate sensors and heaters wired up. The Q2 install and WiFi were confirmed working by a community user; HelixScreen owns no QIDI hardware, so the Q2 path is community-validated rather than team-tested (prestonbrown/helixscreen#997).
 
 ## Known Limitations
