@@ -229,28 +229,43 @@ constexpr bool save_available(const SaveAvailability& facts) {
 
 /// Where a Save goes.
 enum class SaveRoute {
-    None,        ///< Nothing to save
-    PerMaterial, ///< One material's entry: no motion, no SAVE_CONFIG, fine during a print
-    MachineWide, ///< Z_OFFSET_APPLY_* and SAVE_CONFIG, which restarts Klipper
-    Refused,     ///< Machine-wide while a job holds the machine
+    None,            ///< Nothing to save
+    PerMaterial,     ///< One material's entry: no motion, no SAVE_CONFIG, fine during a print
+    MachineWide,     ///< Z_OFFSET_APPLY_* and SAVE_CONFIG, which restarts Klipper
+    Refused,         ///< Machine-wide while a job holds the machine
+    MacroOwnsOffset, ///< The start macro applies per-material offsets: no fold, ever
 };
 
 /// The one decision for a Save: the per-material save writes a value and
 /// restarts nothing, so a print never withholds it; the machine-wide save
-/// restarts Klipper, so a job holding the machine refuses it.
+/// restarts Klipper, so a job holding the machine refuses it; and while the
+/// start macro applies a per-material offset on its own, folding the live
+/// offset into the probe would double it at the next print
+/// (prestonbrown/helixscreen#1401), so that is refused whatever the setting.
 ///
 /// @param available save_available()
 /// @param per_material Z offset by material is on and names the print's material
+/// @param macro_applies the start macro applies per-material offsets regardless
 /// @param motion_blocked machine_motion_blocked: a job holds the machine
-constexpr SaveRoute save_route(bool available, bool per_material, bool motion_blocked) {
+constexpr SaveRoute save_route(bool available, bool per_material, bool macro_applies,
+                               bool motion_blocked) {
     if (!available) {
         return SaveRoute::None;
     }
     if (per_material) {
         return SaveRoute::PerMaterial;
     }
+    if (macro_applies) {
+        return SaveRoute::MacroOwnsOffset;
+    }
     return motion_blocked ? SaveRoute::Refused : SaveRoute::MachineWide;
 }
+
+/// Whether a save may fold the machine-wide offset into the probe or endstop:
+/// saves_global(facts), and neither Z offset by material nor a start macro that
+/// applies per-material offsets owns the gcode offset. Every caller that can
+/// fold asks this, never saves_global() alone.
+[[nodiscard]] bool folds_global(const SaveAvailability& facts);
 
 /// Whether a save may write the machine-wide offset. A surface that saves
 /// per-tool offsets on their own (the tool-offset calibration panel) still

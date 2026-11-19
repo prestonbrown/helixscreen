@@ -31,6 +31,7 @@ constexpr const char* kHelixObject = "gcode_macro _HELIX_MATERIAL";
 constexpr const char* kHelixVarPrefix = "helix_zoffset_";
 constexpr const char* kHelixMeshPrefix = "helix_";
 constexpr const char* kVarsPrefix = "offset_";
+constexpr const char* kHelixEnabledVar = "helix_material_offset_enabled";
 
 int to_microns(double mm) {
     return static_cast<int>(std::lround(mm * 1000.0));
@@ -145,6 +146,11 @@ bool helix_merge(const json& status, Table& table) {
     bool changed = false;
     if (const json* sv = member(status, "save_variables")) {
         if (const json* vars = member(*sv, "variables"); vars && vars->is_object()) {
+            if (const json* flag = member(*vars, kHelixEnabledVar); flag && flag->is_number()) {
+                const bool on = flag->get<double>() != 0.0;
+                changed |= table.enabled != on;
+                table.enabled = on;
+            }
             for (auto it = vars->begin(); it != vars->end(); ++it) {
                 const std::string& name = it.key();
                 if (name.rfind(kHelixVarPrefix, 0) != 0 || !it->is_number()) {
@@ -217,6 +223,9 @@ struct Provider {
     const char* hint_macro;
     /// Prefix of a per-material bed mesh profile; nullptr for none.
     const char* mesh_prefix;
+    /// Printer-side save variable the start macro obeys; nullptr where the
+    /// macro applies its table on every print.
+    const char* enable_var;
 };
 
 bool always_ready(const PrinterDiscovery&) {
@@ -242,6 +251,7 @@ const std::vector<Provider>& providers() {
          "gcode_macro _start_print_vars",
          false,
          nullptr,
+         nullptr,
          nullptr},
         {"HelixScreen macro",
          "HELIX_MATERIAL_OFFSET",
@@ -253,7 +263,8 @@ const std::vector<Provider>& providers() {
          nullptr,
          true,
          "_HELIX_MATERIAL",
-         kHelixMeshPrefix},
+         kHelixMeshPrefix,
+         kHelixEnabledVar},
     };
     return table;
 }
@@ -296,6 +307,22 @@ bool write_ready(const PrinterDiscovery& hw) {
 bool reports_application(const PrinterDiscovery& hw) {
     const Provider* p = match(hw);
     return p && p->reports_application;
+}
+
+bool start_macro_applies(const PrinterDiscovery& hw, const Table& table) {
+    const Provider* p = match(hw);
+    if (!p) {
+        return false;
+    }
+    return p->enable_var ? table.enabled.value_or(false) : true;
+}
+
+std::string enable_gcode(const PrinterDiscovery& hw, bool on) {
+    const Provider* p = match(hw);
+    if (!p || !p->enable_var) {
+        return {};
+    }
+    return fmt::format("SAVE_VARIABLE VARIABLE={} VALUE={}", p->enable_var, on ? 1 : 0);
 }
 
 bool merge_status(const PrinterDiscovery& hw, const nlohmann::json& status, Table& table) {
@@ -343,21 +370,30 @@ std::string config_section(const PrinterDiscovery& hw) {
     return p && p->config_section ? p->config_section : std::string{};
 }
 
-std::string start_hint_gcode(const PrinterDiscovery& hw, std::string_view material) {
+std::string start_hint_gcode(const PrinterDiscovery& hw, std::string_view material,
+                             std::string_view filename) {
     const Provider* p = match(hw);
     if (!p || !p->hint_macro) {
         return {};
     }
-    if (text_io::trim(material).empty()) {
-        return fmt::format("SET_GCODE_VARIABLE MACRO={} VARIABLE=next VALUE='\"\"'", p->hint_macro);
+    const auto set = [p](std::string_view m, std::string_view f) {
+        return fmt::format("SET_GCODE_VARIABLE MACRO={0} VARIABLE=next VALUE='\"{1}\"'\n"
+                           "SET_GCODE_VARIABLE MACRO={0} VARIABLE=next_file VALUE='\"{2}\"'",
+                           p->hint_macro, m, f);
+    };
+    // Klipper cuts a command line at '#' or ';', splits it with shlex and
+    // reads the value as a Python literal: a name with any of these, or a
+    // control character, cannot travel intact, so the hint is cleared.
+    const bool file_ok =
+        !filename.empty() && std::none_of(filename.begin(), filename.end(), [](char c) {
+            return c == '\'' || c == '"' || c == '\\' || c == '#' || c == ';' ||
+                   static_cast<unsigned char>(c) < 0x20;
+        });
+    // The material carries no quotes: the key's character rule guarantees it.
+    if (!file_ok || text_io::trim(material).empty() || !p->key(material)) {
+        return set("", "");
     }
-    if (!p->key(material)) {
-        return {};
-    }
-    // The material travels as a Python string literal, so it must not carry
-    // quotes; the key's character rule guarantees that for the trimmed name.
-    return fmt::format("SET_GCODE_VARIABLE MACRO={} VARIABLE=next VALUE='\"{}\"'", p->hint_macro,
-                       text_io::to_upper(text_io::trim(material)));
+    return set(text_io::to_upper(text_io::trim(material)), filename);
 }
 
 bool stores_mesh(const PrinterDiscovery& hw) {
@@ -617,6 +653,31 @@ bool include_matches(std::string_view pattern, std::string_view path) {
     }
     if (path.empty()) {
         return false;
+    }
+    if (pattern[0] == '[') {
+        // A class, as Python's fnmatch reads it: [abc], [a-z], [!...] negated.
+        size_t i = 1;
+        const bool negate = i < pattern.size() && pattern[i] == '!';
+        if (negate) {
+            ++i;
+        }
+        const size_t close = pattern.find(']', i + 1);
+        if (close == std::string_view::npos) {
+            return false;
+        }
+        bool in = false;
+        for (size_t j = i; j < close; ++j) {
+            if (j + 2 < close && pattern[j + 1] == '-') {
+                in |= path[0] >= pattern[j] && path[0] <= pattern[j + 2];
+                j += 2;
+            } else {
+                in |= path[0] == pattern[j];
+            }
+        }
+        if (in == negate || path[0] == '/') {
+            return false;
+        }
+        return include_matches(pattern.substr(close + 1), path.substr(1));
     }
     if ((pattern[0] == '?' && path[0] != '/') || pattern[0] == path[0]) {
         return include_matches(pattern.substr(1), path.substr(1));

@@ -189,4 +189,11 @@ TEST_CASE("material zoffset config edit: finding the file through includes", "[m
     CHECK(mz::include_matches("overrides.cfg", "overrides.cfg"));
     CHECK(mz::include_matches("k?.cfg", "k2.cfg"));
     CHECK_FALSE(mz::include_matches("k?.cfg", "k22.cfg"));
+    // Klipper globs with Python's fnmatch: [...] is a class, [!...] its complement.
+    CHECK(mz::include_matches("k[12].cfg", "k1.cfg"));
+    CHECK_FALSE(mz::include_matches("k[12].cfg", "k3.cfg"));
+    CHECK(mz::include_matches("k[0-9].cfg", "k7.cfg"));
+    CHECK_FALSE(mz::include_matches("k[!0-9].cfg", "k7.cfg"));
+    CHECK(mz::include_matches("timelapse.cf[g]", "timelapse.cfg"));
+    CHECK_FALSE(mz::include_matches("k[12.cfg", "k1.cfg")); // an unclosed class matches nothing
 }

@@ -4337,6 +4337,7 @@
   <translation tag="This printer&apos;s network service controls the WiFi radio" en="This printer&apos;s network service controls the WiFi radio"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" en="This printer&apos;s network service manages saved WiFi networks"/>
   <translation tag="This printer&apos;s screen has not shared a layout" en="This printer&apos;s screen has not shared a layout"/>
+  <translation tag="This printer&apos;s start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings &gt; Printing &gt; Z Offset by Material to save it for the print&apos;s material." en="This printer&apos;s start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings &gt; Printing &gt; Z Offset by Material to save it for the print&apos;s material."/>
   <translation tag="This printer&apos;s travel or settings cannot hold the test moves." en="This printer&apos;s travel or settings cannot hold the test moves."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." en="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." en="This replaces the printer&apos;s helper macros with the current version and restarts Klipper."/>
@@ -4926,6 +4927,7 @@
   <translation tag="passive" en="passive"/>
   <translation tag="preparing" en="preparing"/>
   <translation tag="printer default" en="printer default"/>
+  <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" en="printer.cfg loads more than {} config files; [{}] was not searched for in all of them"/>
   <translation tag="prints" en="prints"/>
   <translation tag="ready to load" en="ready to load"/>
   <translation tag="remaining" en="remaining"/>
@@ -5031,7 +5033,9 @@
   <translation tag="{} is not set up on this printer" en="{} is not set up on this printer"/>
   <translation tag="{} is still printing. The print keeps running after you switch." en="{} is still printing. The print keeps running after you switch."/>
   <translation tag="{} is tighter" en="{} is tighter"/>
+  <translation tag="{} is too large to search for [{}]" en="{} is too large to search for [{}]"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." en="{} isn&apos;t loaded. The print will pause when it needs it."/>
+  <translation tag="{} kept changing while saving" en="{} kept changing while saving"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" en="{} kept crashing the panel; pick a printer to connect"/>
   <translation tag="{} kept crashing the panel; switched back to {}" en="{} kept crashing the panel; switched back to {}"/>
   <translation tag="{} left" en="{} left"/>

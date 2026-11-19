@@ -307,19 +307,34 @@ constexpr const char* kSocketGuard = "moves_machine=\"$";
 /// as moves_machine for exactly those taps, and is counted like it.
 ///
 /// An explicit allowlist, never a pattern: each entry is one exact binding of
-/// one named subject, and names the TEST_CASE that proves the subject follows
-/// machine_motion_blocked. The census fails an entry whose proof is missing, so
-/// a subject cannot join without a test that pins it.
+/// one named subject, the TEST_CASE that proves the subject follows
+/// machine_motion_blocked, and the exact controls (file and widget name) that
+/// may carry it. The census fails an entry whose proof is missing and a binding
+/// anywhere else, so neither a new subject nor a new control (a jog or home
+/// button) can take the derived form without being written down here.
+struct DerivedGuardUse {
+    const char* file;
+    const char* widget;
+};
 struct DerivedGuard {
     const char* binding;
     const char* proof; ///< The proving TEST_CASE name, as written under tests/unit/
+    const DerivedGuardUse* uses;
+    size_t use_count;
+};
+/// Save Z-Offset: the machine-wide save restarts Klipper and waits for the
+/// print; a per-material save moves nothing and goes through.
+constexpr DerivedGuardUse kZOffsetSaveUses[] = {
+    {"ui_xml/header_bar.xml", "header_save_z_offset"},
+    {"ui_xml/controls_panel.xml", "btn_save_z_offset"},
+    {"ui_xml/components/panel_widget_z_offset.xml", "z_offset_save_wide"},
+    {"ui_xml/components/panel_widget_z_offset.xml", "z_offset_save_full"},
 };
 constexpr DerivedGuard kDerivedGuards[] = {
-    // Save Z-Offset: the machine-wide save restarts Klipper and waits for the
-    // print; a per-material save moves nothing and goes through.
     {"<bind_state_if_eq subject=\"z_offset_save_motion_blocked\" state=\"disabled\" "
      "ref_value=\"1\"/>",
-     "material zoffset state: a Save while a print holds the machine"},
+     "material zoffset state: a Save while a print holds the machine", kZOffsetSaveUses,
+     std::size(kZOffsetSaveUses)},
 };
 
 struct GuardedFile {
@@ -942,6 +957,35 @@ TEST_CASE("every derived toolhead guard names the test that proves its subject",
                                 "tests/unit/ is named \""
                              << derived.proof << "\"");
         CHECK(tests.find(std::string("\"") + derived.proof + "\"") != std::string::npos);
+    }
+}
+
+TEST_CASE("a derived toolhead guard sits only on the controls its entry names",
+          "[ui][xml][job_holds_machine]") {
+    for (const std::string& path : walk_ui_xml()) {
+        const std::string xml = read_xml(path);
+        for (const DerivedGuard& derived : kDerivedGuards) {
+            const std::string binding = derived.binding;
+            for (size_t at = 0; (at = xml.find(binding, at)) != std::string::npos;
+                 at += binding.size()) {
+                // The control is the nearest name= before the binding.
+                const size_t name_at = xml.rfind("name=\"", at);
+                std::string widget;
+                if (name_at != std::string::npos) {
+                    const size_t start = name_at + 6;
+                    widget = xml.substr(start, xml.find('"', start) - start);
+                }
+                bool listed = false;
+                for (size_t i = 0; i < derived.use_count; ++i) {
+                    listed |= path == derived.uses[i].file && widget == derived.uses[i].widget;
+                }
+                INFO(path << ": " << widget << " carries " << binding
+                          << ", which is allowlisted only for the controls its kDerivedGuards "
+                             "entry names. A control that moves the machine carries "
+                             "moves_machine=\"true\".");
+                CHECK(listed);
+            }
+        }
     }
 }
 

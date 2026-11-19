@@ -3153,11 +3153,13 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
   private:
     void append_material_zoffset_objects(json& objects) const;
     GcodeResult gcode_material_zoffset(const std::string& gcode);
-    void apply_material_zoffset_at_start(const std::string& filament_type);
+    void apply_material_zoffset_at_start(const std::string& filament_type,
+                                         const std::string& filename);
     static std::map<std::string, double> initial_material_zoffset_values();
     mutable std::mutex material_zoffset_mutex_;
     std::map<std::string, double> material_zoffset_values_ = initial_material_zoffset_values();
     std::string material_zoffset_next_;
+    std::string material_zoffset_next_file_;
     std::string material_zoffset_applied_;
     int material_zoffset_apply_count_ = 0;
     /// Accrues the inner fan's work time over @p dt simulated seconds.

@@ -12,6 +12,8 @@
 #include "json_fwd.h"
 #include "material_z_offset.h"
 
+#include <deque>
+#include <functional>
 #include <optional>
 #include <string>
 #include <utility>
@@ -55,17 +57,28 @@ class MaterialZOffsetState {
 
     [[nodiscard]] Status status() const;
     [[nodiscard]] bool enabled() const;
-    void set_enabled(bool on);
+    /// Store the setting and switch the start macro to match, where it has a
+    /// printer-side switch.
+    void set_enabled(IMoonrakerAPI* api, bool on);
+    /// Switch the start macro on when the setting is on and it reads off (a
+    /// fresh [save_variables] file, or a switch written elsewhere).
+    void reconcile(IMoonrakerAPI* api);
+    /// The start macro applies per-material offsets at print start whatever
+    /// the setting says, so no save may fold the live offset into the probe.
+    [[nodiscard]] bool start_macro_applies() const;
     /// The setting is on and the row can write: Saves go per material.
     [[nodiscard]] bool active() const;
     [[nodiscard]] const Table& table() const {
         return table_;
     }
 
-    /// The screen is starting a print of @p material most by weight. Sends the
-    /// row's hint, where it has one, so the start macro applies that material
-    /// instead of the slicer's first filament; nothing otherwise.
-    void note_screen_start(IMoonrakerAPI* api, const std::string& material);
+    /// The screen is starting @p filename (gcodes-relative), which prints
+    /// @p material most by weight. Sends the row's hint, where it has one, so
+    /// the start macro applies that material instead of the slicer's first
+    /// filament; the clearing form when the feature is off or there is no
+    /// material, so a hint never outlives the start it was for.
+    void note_screen_start(IMoonrakerAPI* api, const std::string& material,
+                           const std::string& filename);
     /// The screen's start did not go ahead: clear any hint it sent.
     void note_screen_start_failed(IMoonrakerAPI* api);
     /// The print running now names @p first as its first filament.
@@ -79,6 +92,7 @@ class MaterialZOffsetState {
 
     /// Persist @p microns for @p material (empty = DEFAULT). @p done runs on the
     /// main thread with a user-facing message: success, or why it failed.
+    /// Saves run one at a time, in the order asked, whichever surface asked.
     using Done = helix::SharedCallback<void(bool ok, const std::string& message)>;
     void save_offset(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
 
@@ -102,8 +116,15 @@ class MaterialZOffsetState {
     void bump();
     [[nodiscard]] std::string print_material() const;
     [[nodiscard]] bool material_known() const;
+    void send_enable(IMoonrakerAPI* api, bool on);
+    void run_next_save();
+    void run_save(IMoonrakerAPI* api, const std::string& material, int microns, Done done);
     void write_config_file(IMoonrakerAPI* api, const std::string& material, int microns,
                            const std::string& message, Done done);
+    void edit_and_upload(IMoonrakerAPI* api, const std::string& path, const std::string& section,
+                         const std::string& material, int microns, const std::string& message,
+                         Done done, helix::SharedCallback<void(const std::string&)> fail,
+                         int attempts);
     void locate_config_file(
         IMoonrakerAPI* api,
         helix::SharedCallback<void(const std::string& path, const std::string& error)> then);
@@ -114,6 +135,9 @@ class MaterialZOffsetState {
     bool print_seen_ = false;
     /// The config file holding the section, once found this session.
     std::string config_file_;
+    /// Saves waiting for the one running to finish.
+    std::deque<std::function<void()>> pending_saves_;
+    bool save_running_ = false;
     AsyncLifetimeGuard lifetime_;
 };
 

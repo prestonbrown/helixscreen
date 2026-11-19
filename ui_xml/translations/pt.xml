@@ -4337,6 +4337,7 @@
   <translation tag="This printer&apos;s network service controls the WiFi radio" pt="O serviço de rede desta impressora controla o rádio WiFi"/>
   <translation tag="This printer&apos;s network service manages saved WiFi networks" pt="O serviço de rede desta impressora gerencia as redes WiFi salvas"/>
   <translation tag="This printer&apos;s screen has not shared a layout" pt="A tela desta impressora não compartilhou um layout"/>
+  <translation tag="This printer&apos;s start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings &gt; Printing &gt; Z Offset by Material to save it for the print&apos;s material." pt="A macro de início desta impressora define um Z-Offset para cada material, então salvá-lo na sonda o aplicaria duas vezes. Ative Configurações &gt; Impressão &gt; Z-Offset por material para salvá-lo para o material da impressão."/>
   <translation tag="This printer&apos;s travel or settings cannot hold the test moves." pt="O curso ou as configurações desta impressora não comportam os movimentos de teste."/>
   <translation tag="This removes the plugin&apos;s Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that." pt="Isso remove o componente do Moonraker do plugin e reinicia o Moonraker. A impressora será brevemente desconectada. Se ainda houver linhas antigas de rastreamento de fase no PRINT_START, elas também são removidas, mantendo os backups. Um reinício do Klipper aplica isso."/>
   <translation tag="This replaces the printer&apos;s helper macros with the current version and restarts Klipper." pt="Isto substitui as macros de ajuda da impressora pela versão atual e reinicia o Klipper."/>
@@ -4926,6 +4927,7 @@
   <translation tag="passive" pt="passivo"/>
   <translation tag="preparing" pt="preparando"/>
   <translation tag="printer default" pt="padrão da impressora"/>
+  <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" pt="printer.cfg carrega mais de {} arquivos de configuração; [{}] não foi procurado em todos"/>
   <translation tag="prints" pt="impressões"/>
   <translation tag="ready to load" pt="pronto para carregar"/>
   <translation tag="remaining" pt="restante"/>
@@ -5031,7 +5033,9 @@
   <translation tag="{} is not set up on this printer" pt="{} não está configurado nesta impressora"/>
   <translation tag="{} is still printing. The print keeps running after you switch." pt="{} ainda está imprimindo. A impressão continua depois da troca."/>
   <translation tag="{} is tighter" pt="{} está mais apertada"/>
+  <translation tag="{} is too large to search for [{}]" pt="{} é grande demais para procurar [{}]"/>
   <translation tag="{} isn&apos;t loaded. The print will pause when it needs it." pt="{} não está carregado. A impressão vai pausar quando precisar dele."/>
+  <translation tag="{} kept changing while saving" pt="{} continuou mudando durante o salvamento"/>
   <translation tag="{} kept crashing the panel; pick a printer to connect" pt="{} travou a tela repetidamente; escolha uma impressora para conectar"/>
   <translation tag="{} kept crashing the panel; switched back to {}" pt="{} travou a tela repetidamente; voltou para {}"/>
   <translation tag="{} left" pt="{} restantes"/>

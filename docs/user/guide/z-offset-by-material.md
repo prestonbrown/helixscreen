@@ -28,7 +28,7 @@ It works for prints started from the screen, from Mainsail or Fluidd, or uploade
 2. If the screen shows the list of materials, switch on **Z offset by material**. You're done.
 3. If it shows **One-time setup** or asks you to update the helper macros, follow the setup for your printer below, then come back and switch it on.
 
-The setting is kept for each printer separately.
+The setting is kept for each printer separately. With HelixScreen's macro, the switch also turns the macro on and off on the printer itself, so the printer only applies per-material offsets while the setting is on.
 
 ---
 
@@ -121,6 +121,8 @@ Tap an offset to type a new value in millimeters, with up to three decimals (for
 
 The saved value is the whole offset for that material, not just your last adjustment. Saving does not restart Klipper and does not move the printer, so you can save in the middle of a print. You can also save after the print ends; the value goes to the material of the print that just ran.
 
+On a tool changer, this Save writes only the material's offset. Unsaved tool offsets keep their own **Save** on the tool offset calibration screen, because saving those can restart Klipper.
+
 **Which material is "the print's material"?**
 
 - A print you start **from the screen** uses the material the file prints the most of, by weight. On a multi-color print that is usually the main color's material, not the first one. (With HelixScreen's macro, the screen tells the printer which one; see the gotchas for the K2.)
@@ -155,7 +157,8 @@ If you never set it, it is 0, which means no offset beyond your probe's own.
 ## Gotchas and Limitations
 
 - **The offset is on top of your probe's Z offset.** The per-material value is a G-code offset added to whatever your probe's `z_offset` already gives. It is never written into the probe's own setting. Tune the probe once with the normal Z calibration, then use the per-material values for the small differences between materials.
-- **Turning it on changes what Save does.** With the setting on, **Save** always writes one material's value and never changes the probe's offset. Turn it off to go back to the normal machine-wide save.
+- **Turning it on changes what Save does.** With the setting on, **Save** always writes one material's value and never changes the probe's offset.
+- **Turning it off depends on the printer.** With HelixScreen's macro, switching the setting off also switches the macro off on the printer, so prints stop applying the per-material values and **Save** goes back to the normal machine-wide save. On a printer whose own start macro keeps the table (`_START_PRINT_VARS`, such as the K2), that macro applies its offsets on every print whatever HelixScreen's setting says. There, **Save** with the setting off is refused with a message, because saving the offset into the probe as well would apply it twice. Turn the setting on to save for the print's material, or remove the offsets from your start macro to go back to a single offset.
 - **Screen starts and other starts can pick different materials.** A screen start uses the material printed most by weight; a start from Mainsail, Fluidd or the slicer uses the first filament the slicer names. On a single-material print they are the same.
 - **K2 (`_START_PRINT_VARS`) prints always use the slicer's material.** The K2's start macro reads only the slicer's `MATERIAL=`, so a multi-material print started from the screen still uses the first filament, and Save writes to that material.
 - **No `MATERIAL=`, no per-material offset.** If the slicer doesn't pass a material, the default offset is used, and Save writes the default.
@@ -163,12 +166,13 @@ If you never set it, it is 0, which means no offset beyond your probe's own.
 - **Something that sets the offset after `HELIX_MATERIAL_OFFSET` wins.** The last `SET_GCODE_OFFSET Z=` in your start sequence decides. If a later macro sets its own offset (a tool pickup on a tool changer, a probe "touch" routine, or another offset macro), the per-material value is replaced. Call `HELIX_MATERIAL_OFFSET` after anything like that, or remove the other one.
 - **An adaptive mesh replaces the stored one.** A `BED_MESH_CALIBRATE` after `HELIX_MATERIAL_OFFSET` in your `PRINT_START` makes a fresh mesh, so the stored per-material mesh is only used by prints that don't mesh.
 - **The macro must have run since Klipper last started.** With HelixScreen's macro, the screen learns the print's material from the macro itself. Until the first print after a Klipper restart has run it, no Save is offered. If Save never appears, check that your `PRINT_START` calls `HELIX_MATERIAL_OFFSET`.
-- **A `_START_PRINT_VARS` file HelixScreen can't find: changes don't survive a restart.** If the section is in more than one loaded file, or in none that `printer.cfg` loads (for example only in a file included by an absolute path), the screen still reads the values and Save still changes the running value, but it can't write the file. You'll see **"Applied for this session only"** with the reason. Keep the section in one loaded file.
+- **A `_START_PRINT_VARS` file HelixScreen can't find: changes don't survive a restart.** If the section is in more than one loaded file, or in none that `printer.cfg` loads (for example only in a file included by an absolute path), or your `printer.cfg` loads more than 64 config files or one larger than 1 MB, the screen still reads the values and Save still changes the running value, but it can't write the file. You'll see **"Applied for this session only"** with the reason. Keep the section in one loaded file.
 - **A new material on a K2 waits for a restart.** If you save for a material that `_START_PRINT_VARS` doesn't list yet, HelixScreen adds its line to the file, and the value starts working after the next Klipper restart.
 - **Only seven materials are listed in Settings.** Other materials (PETG-CF, PLA+, PVA...) still get their own value when you save during a print, but you can't edit them from the Settings screen.
-- **Material names.** With HelixScreen's macro, `-`, spaces, `+` and `.` in a material name become `_`, so `PETG-CF` and `PETG CF` share one entry. A name with other symbols (such as `/`) can't be stored, and that print uses the default.
+- **Material names.** With HelixScreen's macro, `-`, spaces, `+` and `.` in a material name become `_`, so `PETG-CF` and `PETG CF` share one entry. Quotes, backslashes, `#` and `;` are dropped (the console says so), so a filament type like `PLA "Silk"` is used as `PLA SILK` instead of stopping the print. A name with other symbols (such as `/`) can't be stored, and that print uses the default.
 - **Saving a mesh restarts Klipper.** Unlike the offsets, a stored mesh is written by Klipper's `SAVE_CONFIG`. A mesh calibrated on a cold bed isn't offered for any material.
 - **Prints started from the Job Queue widget** use the slicer's first filament rather than the most-by-weight material.
+- **A rewritten copy uses the slicer's material.** When HelixScreen prints a modified copy of your file (for example to skip a step you turned off), the copy has a different name, so the printer uses the slicer's `MATERIAL=` for it instead of the most-by-weight pick.
 
 ---
 

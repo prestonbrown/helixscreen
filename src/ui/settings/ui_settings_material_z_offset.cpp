@@ -76,7 +76,7 @@ void MaterialZOffsetOverlay::register_callbacks() {
         {"on_material_zoffset_enabled_changed",
          [](lv_event_t* e) {
              material_zoffset::MaterialZOffsetState::instance().set_enabled(
-                 helix::ui::event_checked(e));
+                 get_moonraker_api(), helix::ui::event_checked(e));
          }},
     });
 }
@@ -92,6 +92,7 @@ lv_obj_t* MaterialZOffsetOverlay::create(lv_obj_t* parent) {
 
 void MaterialZOffsetOverlay::before_show() {
     auto& state = material_zoffset::MaterialZOffsetState::instance();
+    state.reconcile(get_moonraker_api());
     // The table fills from status while the overlay is open.
     rev_observer_ = helix::ui::observe<int>(
         state.rev_subject(), this,

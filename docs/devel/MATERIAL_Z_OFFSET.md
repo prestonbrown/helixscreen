@@ -69,14 +69,41 @@ option (after any continuation lines of that option). Every other byte is kept, 
 missing final newline included. It refuses when the section is not there exactly once,
 when the material's line appears twice, or when its value continues onto the next line.
 
-**Which file.** `locate_config_file()` walks `printer.cfg` and everything it includes
-(globs matched against the config root's file list, at most 64 files, none over 1 MB), so
-a backup copy nothing loads (`printer-20261118_101500.cfg`) never counts as a second
-definition. Exactly one holder is required. The path is cached for the session and the
-file is read fresh before every write. Absolute includes are outside the config root and
-are not followed.
+**Which file.** `locate_config_file()` walks `printer.cfg` and everything it includes, so a
+backup copy nothing loads (`printer-20261118_101500.cfg`) never counts as a second definition.
+Include patterns follow Klipper's glob (`*`, `?` and `[...]` classes, `[!...]` negated)
+against the config root's file list; absolute includes are outside the config root and are
+not followed. Exactly one holder is required. The search refuses rather than guess when it
+cannot be complete: a loaded file over 1 MB (`printer.cfg` and literal includes included,
+judged by the listing's size or by what was read), or the 64-file cap reached with files
+still unread. The path is cached for the session.
+
+**Writing.** Saves run one at a time, whichever surface asked (`save_offset()` queues them),
+so a print Save and a Settings edit of the same file cannot upload each other's line away.
+Each write reads the file, edits it, and reads it again just before uploading: Moonraker has
+no conditional upload, so a file another writer changed in between is edited again from the
+new content, once, and the save refuses with "kept changing while saving" if it changes a
+second time.
 
 ---
+
+## The printer-side switch
+
+HelixScreen's macro applies nothing unless `helix_material_offset_enabled` is 1 in
+`[save_variables]`. `MaterialZOffsetState::set_enabled()` writes it with the setting
+(`enable_gcode()`), and `reconcile()` (when Settings opens) writes 1 where the setting is on
+and the printer reads 0. The row is `active()` only once the switch reads on, so a value is
+never saved per material while the macro ignores the table. The vendor row has no switch:
+its start macro applies the table on every print.
+
+**The fold is refused whenever the start macro applies offsets on its own**
+(`start_macro_applies()`: always for the vendor row, while the switch is on for HelixScreen's),
+whatever the screen's setting. `save_route()` answers `MacroOwnsOffset` and the Save explains
+itself; `save_dirty_offsets()` drops `global_dirty` itself in that case, so no caller (the
+header and Controls save, the tool-offset calibration panel, a later one) can fold the
+material offset into the probe. Callers ask `folds_global(facts)`, never `saves_global()`
+alone. `save_dirty_offsets()` also refuses anything ending in `SAVE_CONFIG` while a job holds
+the machine.
 
 ## Which material a Save writes
 
@@ -94,6 +121,10 @@ are not followed.
 `current_save_availability()` asks the same target: with the feature on, the offset is
 dirty when the live offset differs from what the macro applies for that material, not when
 it is non-zero.
+
+**Tool offsets stay out of it.** The per-material Save writes only the material's entry. A
+dirty tool offset keeps its own Save (the tool-offset panel), because saving one may end in
+`SAVE_CONFIG`, which the per-material Save never sends.
 
 **During a print.** `helix::zoffset::save_route()` is the one decision: nothing to save,
 per-material, machine-wide, or refused (machine-wide while `machine_motion_blocked`). The
@@ -116,8 +147,13 @@ general escape hatch.
 weight (`primary_material_for_file()`, reusing `print_cost::file_tool_grams()` and the
 footer's per-tool grams), else the first filament. HelixScreen's macro takes it through
 `_HELIX_MATERIAL.next`, set just before the start and cleared by the macro (or by the
-screen when the start does not go ahead). The vendor macro has no such input, so on that
-row a multi-material file uses the slicer's first filament.
+screen when the start does not go ahead). The hint names its file in
+`_HELIX_MATERIAL.next_file`, and the macro uses it only when that matches
+`print_stats.filename`, so a hint a cancelled start left behind never reaches another job.
+Every screen start sends it, the clearing form when the feature is off, there is no material,
+or the file name cannot travel in a G-code parameter (`' " \ # ;` or a control character).
+The vendor macro has no such input, so on that row a multi-material file uses the slicer's
+first filament.
 
 ---
 
@@ -163,7 +199,7 @@ Each one is a decision or a gap a reader will otherwise rediscover:
   `apply_count` moves, the material is unknown and the save is withheld; a `PRINT_START` that
   never calls the macro never offers a save while the feature is on.
 - **A file the walk cannot find reads but does not persist.** Absolute includes, a section
-  in two loaded files, or more than 64 files: the live `SET_GCODE_VARIABLE` lands, the edit
+  in two loaded files, or a walk the 64-file cap stops with files unread: the live `SET_GCODE_VARIABLE` lands, the edit
   is refused, and the user sees "Applied for this session only". No backup is written before
   an edit, deliberately, so a save per print does not litter the config directory.
 - **A new vendor-row material is file-only** until the next Klipper restart (`live_now`).
@@ -177,6 +213,12 @@ Each one is a decision or a gap a reader will otherwise rediscover:
   for the seven listed materials.
 - **Job Queue starts** (`QueuedJobStarter`) do not send the most-by-weight hint; only the file
   view's Print does (`PrintStartController::execute_print_start`).
+- **A rewritten copy loses the hint.** `modify_and_print` starts a copy under another name, so
+  `next_file` does not match `print_stats.filename` and the slicer's material applies.
+- **A material name a G-code value cannot hold.** `HELIX_MATERIAL_OFFSET` drops `" ' \ # ;`
+  from the slicer's material before using it (free-text filament types in PrusaSlicer can
+  carry them) and says so on the console, so a name never aborts PRINT_START; `PLA "Silk"`
+  becomes `PLA SILK`.
 - **No row on firmware that owns the offset.** ZMOD, Forge-X and Helper-Script re-apply their
   own stored value at print start, and a per-head toolchanger sets each head's offset
   absolutely at pickup, so a second per-material value would be overwritten or doubled.

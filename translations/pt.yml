@@ -4474,6 +4474,8 @@ translations:
   This printer's network service controls the WiFi radio: O serviço de rede desta impressora controla o rádio WiFi
   This printer's network service manages saved WiFi networks: O serviço de rede desta impressora gerencia as redes WiFi salvas
   This printer's screen has not shared a layout: "A tela desta impressora não compartilhou um layout"
+  ? This printer's start macro sets a Z offset for each material, so saving it into the probe would apply it twice. Turn on Settings > Printing > Z Offset by Material to save it for the print's material.
+  : "A macro de início desta impressora define um Z-Offset para cada material, então salvá-lo na sonda o aplicaria duas vezes. Ative Configurações > Impressão > Z-Offset por material para salvá-lo para o material da impressão."
   This printer's travel or settings cannot hold the test moves.: 'O curso ou as configurações desta impressora não comportam os movimentos de teste.'
   ? This removes the plugin's Moonraker component and restarts Moonraker. The printer will briefly disconnect. If old phase-tracking lines are still in PRINT_START, they are removed too, with backups kept. A Klipper restart applies that.
   : Isso remove o componente do Moonraker do plugin e reinicia o Moonraker. A impressora será brevemente desconectada. Se ainda houver linhas antigas de rastreamento de fase no PRINT_START, elas também são removidas, mantendo os backups. Um reinício do Klipper aplica isso.
@@ -5065,6 +5067,7 @@ translations:
   passive: passivo
   preparing: preparando
   printer default: padrão da impressora
+  printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carrega mais de {} arquivos de configuração; [{}] não foi procurado em todos"
   prints: impressões
   ready to load: 'pronto para carregar'
   remaining: restante
@@ -5174,7 +5177,9 @@ translations:
   '{} lines in helixscreen.env were ignored': '{} linhas do helixscreen.env foram ignoradas'
   '{} kept crashing the panel; switched back to {}': '{} travou a tela repetidamente; voltou para {}'
   '{} is tighter': "{} está mais apertada"
+  '{} is too large to search for [{}]': "{} é grande demais para procurar [{}]"
   "{} isn't loaded. The print will pause when it needs it.": '{} não está carregado. A impressão vai pausar quando precisar dele.'
+  '{} kept changing while saving': "{} continuou mudando durante o salvamento"
   '{} kept crashing the panel; pick a printer to connect': '{} travou a tela repetidamente; escolha uma impressora para conectar'
   '{} linked to Spoolman spool #{} from its tag': 'Vinculação de {} ao carretel #{} do Spoolman pela etiqueta'
   '{} m': '{} m'

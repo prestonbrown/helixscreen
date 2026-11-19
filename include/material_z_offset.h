@@ -49,6 +49,9 @@ struct Table {
     /// How many times the start macro has applied an offset since Klipper
     /// started, where the row counts it; -1 where it does not.
     int apply_count = -1;
+    /// The printer-side switch the start macro obeys, where the row has one;
+    /// nullopt until read.
+    std::optional<bool> enabled;
 };
 
 // --- Detection -------------------------------------------------------------
@@ -72,6 +75,17 @@ bool write_ready(const PrinterDiscovery& hw);
 /// called the macro. A row that is itself the start macro's own store applies
 /// on every print and does not need to report.
 bool reports_application(const PrinterDiscovery& hw);
+
+/// Whether the start macro applies per-material offsets at print start on its
+/// own, whatever this screen's setting says: always for a vendor macro that
+/// keeps the table, and while its printer-side switch is on for HelixScreen's.
+/// While true, folding the live offset into the probe would double it at the
+/// next print (prestonbrown/helixscreen#1401), so no save may do it.
+bool start_macro_applies(const PrinterDiscovery& hw, const Table& table);
+
+/// G-code that turns the start macro's printer-side switch on or off, or empty
+/// where the row has none.
+std::string enable_gcode(const PrinterDiscovery& hw, bool on);
 
 // --- Reading ---------------------------------------------------------------
 
@@ -115,10 +129,14 @@ std::optional<WritePlan> write_plan(const PrinterDiscovery& hw, const Table& tab
 /// empty otherwise. Lower case, single-spaced: "gcode_macro _start_print_vars".
 std::string config_section(const PrinterDiscovery& hw);
 
-/// G-code that tells the start macro which material a print the screen starts
-/// uses, or empty where the row takes the material from the slicer only. An
-/// empty @p material clears a hint a start that did not go ahead left behind.
-std::string start_hint_gcode(const PrinterDiscovery& hw, std::string_view material);
+/// G-code that tells the start macro which material the print of @p filename
+/// (gcodes-relative, as print_stats reports it) uses, or empty where the row
+/// takes the material from the slicer only. The macro ignores the hint for any
+/// other job, so one a cancelled start left behind never reaches the next
+/// print. An empty or unstorable material, or a file name a G-code parameter
+/// cannot carry, gives the clearing form instead.
+std::string start_hint_gcode(const PrinterDiscovery& hw, std::string_view material,
+                             std::string_view filename);
 
 /// Whether the row loads a stored mesh per material.
 bool stores_mesh(const PrinterDiscovery& hw);
@@ -154,7 +172,8 @@ ConfigEdit edit_config_text(std::string_view content, std::string_view section,
 std::vector<std::string> include_targets(std::string_view content);
 
 /// Whether @p path matches an include pattern with Klipper's glob: `*` any
-/// run of characters but '/', `?` one character but '/'.
+/// run of characters but '/', `?` one character but '/', `[...]` one character
+/// of a class (ranges, `!` to negate).
 bool include_matches(std::string_view pattern, std::string_view path);
 
 // --- The primary material (pure) -------------------------------------------
