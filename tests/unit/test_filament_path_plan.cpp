@@ -1362,6 +1362,28 @@ TEST_CASE("FilamentPath plan: MIXED heads, direct and shared, spread where they 
         CHECK(xs[j] - xs[j - 1] > head_w);
 }
 
+TEST_CASE("FilamentPath plan: under a view scale a MIXED hub's lanes lean in no flatter than "
+          "the fan allows",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::MIXED);
+    d->view_hub_h = 24;
+    d->slot_is_hub_routed[2] = true;
+    d->slot_is_hub_routed[3] = true;
+    BaseGeometry g = geometry();
+    // Lanes packed close: the heads spread, carrying the hub off to one side of its lanes.
+    for (int i = 0; i < 4; ++i)
+        g.slot_x[i] = 180 + 12 * i;
+    g.height = per_lane_required_height(*d, g);
+    const MixedFrame f = compute_mixed_frame(*d, g);
+    REQUIRE(f.hub_count == 2);
+    for (int i = 2; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[f.slot_to_fan[i]];
+        const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
+        CHECK(kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) <= drop + 0.5f);
+    }
+}
+
 TEST_CASE("FilamentPath plan: the mounted PARALLEL tool is one active stroke",
           "[filament-path][plan][parallel]") {
     auto d = make_data(helix::PathTopology::PARALLEL);
