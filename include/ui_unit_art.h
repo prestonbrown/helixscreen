@@ -143,7 +143,7 @@ int unit_art_lane_fill_pct(lv_obj_t* art, int lane);
 void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin);
 
 /// Pause every unit art's turning spools while the display sleeps and resume them on wake.
-/// The display's sleep callback calls it; each spool keeps its requested spin throughout.
+/// Application's display sleep callback calls it; each spool keeps its requested spin.
 void unit_art_set_display_asleep(bool asleep);
 
 /// How far lane @p lane's near flange has turned in its own plane, in degrees within

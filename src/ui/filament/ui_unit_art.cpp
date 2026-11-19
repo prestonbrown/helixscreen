@@ -8,7 +8,6 @@
 #include "ams_types.h"
 #include "ams_unit_shell.h"
 #include "core/data_root_resolver.h"
-#include "display_manager.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
@@ -941,17 +940,6 @@ void spin_draw_cb(lv_event_t* e) {
         resume_spins(art, data);
 }
 
-/// Hears the display's sleep and wake, once per DisplayManager.
-void hook_display_sleep() {
-    static DisplayManager* hooked = nullptr;
-    DisplayManager* dm = DisplayManager::instance();
-    if (!dm || dm == hooked)
-        return;
-    hooked = dm;
-    g_display_asleep = dm->is_display_sleeping();
-    dm->register_sleep_callback([](bool sleeping) { unit_art_set_display_asleep(sleeping); });
-}
-
 /// One step of a turning spool, at LVGL's animation tick; redraws at most every kSpinFrameMs.
 /// Off screen or with the display asleep the animation stops; the spin stays requested and
 /// starts again when the art is drawn or the display wakes.
@@ -1155,7 +1143,6 @@ lv_obj_t* make_widget(lv_obj_t* parent, UnitArtTier tier) {
     // into view.
     lv_obj_add_event_cb(art, spin_draw_cb, LV_EVENT_DRAW_MAIN_BEGIN, nullptr);
     live_arts().push_back(art);
-    hook_display_sleep();
     return art;
 }
 
@@ -1512,6 +1499,8 @@ void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin) {
 
 void unit_art_set_display_asleep(bool asleep) {
     g_display_asleep = asleep;
+    spdlog::debug("[UnitArt] display {}: {} turning spools", asleep ? "asleep" : "awake",
+                  asleep ? "pausing" : "resuming");
     for (lv_obj_t* art : live_arts()) {
         if (ArtData* data = data_of(art)) {
             if (asleep)
