@@ -640,3 +640,17 @@ TEST_CASE("AmsBackendMock: the dryer's own multiplier composes over the flag",
                 static_cast<int>(helix::sim::kMaxComposedSpeed));
     }
 }
+
+TEST_CASE("AmsBackendMock clearing the loaded lane to a bare bay unloads it", "[ams][mock]") {
+    AmsBackendMock backend(4);
+    REQUIRE(backend.get_system_info().current_slot == 0);
+
+    backend.force_slot_cleared(1);
+    CHECK(backend.get_system_info().current_slot == 0);
+
+    backend.force_slot_cleared(0);
+    const AmsSystemInfo info = backend.get_system_info();
+    CHECK(info.current_slot == -1);
+    CHECK(info.current_tool == -1);
+    CHECK_FALSE(info.filament_loaded);
+}

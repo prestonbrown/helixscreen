@@ -144,8 +144,9 @@ void MoonrakerClientMock::init_afc_boxturtle(int lanes) {
                 afc_lanes_[i].fault = 3, tooled_fault = static_cast<int>(i);
         }
     }
-    // A lane stopped short of the toolhead is the loaded one.
-    afc_loaded_ = tooled_fault >= 0 ? tooled_fault : 0;
+    // A lane stopped short of the toolhead is the loaded one; otherwise lane 1, when it has a
+    // spool.
+    afc_loaded_ = tooled_fault >= 0 ? tooled_fault : (afc_lanes_.front().present ? 0 : -1);
 }
 
 void MoonrakerClientMock::append_afc_boxturtle_objects(nlohmann::json& objects) const {

@@ -313,6 +313,17 @@ TEST_CASE_METHOD(AfcMock, "AFC mock: discovery claims AFC on one Box Turtle, lan
     CHECK(lane(2)["status"] == "Loaded");
 }
 
+TEST_CASE("AFC mock: a first lane with no spool is not the loaded one", "[ams][mock][afc]") {
+    const char* fill = GENERATE("empty", "ghost");
+    CAPTURE(fill);
+    helix::ScopedEnv fill_env{"HELIX_MOCK_AMS_FILL", fill};
+    AfcMock afc;
+    const json status = afc.mock->afc_boxturtle_status_json();
+    CHECK(status["AFC"]["current_load"].is_null());
+    CHECK(afc.lane(1)["status"] != "Tooled");
+    CHECK(status["AFC_extruder extruder"]["lane_loaded"].is_null());
+}
+
 TEST_CASE_METHOD(AfcMock, "AFC mock: load, T<n> and unload move the toolhead lane",
                  "[ams][mock][afc]") {
     REQUIRE(mock->gcode_script("CHANGE_TOOL LANE=lane3") == 0);

@@ -1617,11 +1617,20 @@ void AmsBackendMock::force_slot_status(int slot_index, SlotStatus status) {
 }
 
 void AmsBackendMock::force_slot_cleared(int slot_index) {
+    bool unloaded = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto* entry = slots_.get_mut(slot_index);
         if (!entry)
             return;
+        // A bare bay holds no filament, so it cannot be the lane in the toolhead.
+        if (system_info_.current_slot == slot_index) {
+            system_info_.current_slot = -1;
+            system_info_.current_tool = -1;
+            system_info_.filament_loaded = false;
+            filament_segment_ = PathSegment::NONE;
+            unloaded = true;
+        }
         entry->info.status = SlotStatus::EMPTY;
         entry->info.material.clear();
         entry->info.brand.clear();
@@ -1633,6 +1642,8 @@ void AmsBackendMock::force_slot_cleared(int slot_index) {
         entry->info.remaining_weight_g = -1.0f;
     }
     emit_event(kEventSlotChanged, std::to_string(slot_index));
+    if (unloaded)
+        emit_event(EVENT_STATE_CHANGED);
 }
 
 void AmsBackendMock::force_slot_remaining(int slot_index, float remaining_m) {
