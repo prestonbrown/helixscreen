@@ -235,7 +235,7 @@ def test_report_body_names_commit_run_jobs_and_tests():
     ]
     body = cw.report_body(RUN, jobs, "o/r")
     assert body.startswith(cw.marker(RUN["id"], 1, "Build"))
-    assert "https://github.com/o/r/commit/87ffd829471a37ba12cc327ea35a9afdd3d9fc91" in body
+    assert f"https://github.com/o/r/commit/{RUN['head_sha']}" in body
     assert RUN["html_url"] in body
     assert "Failing jobs: Test (Ubuntu 22.04)\n" in body
     assert "test_ui_ams_context_menu_dispatch.cpp:139" in body
