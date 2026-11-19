@@ -346,8 +346,11 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
         }
     }
     if (draws_tray() && helix::ui::ams_slot_spool_size() > 0) {
-        result.layout.label_rows = over_lane_label_rows(slot_widgets, count, result.layout,
-                                                        lv_obj_get_parent(w.slot_grid));
+        // A unit with every lane empty keeps one row's height, so it stands the same size as
+        // a filled one and does not grow when its lanes empty.
+        result.layout.label_rows =
+            std::max(count > 0 ? 1 : 0, over_lane_label_rows(slot_widgets, count, result.layout,
+                                                             lv_obj_get_parent(w.slot_grid)));
         for (int i = 0; i < count; ++i) {
             if (slot_widgets[i])
                 ui_ams_slot_set_layout_info(slot_widgets[i], i, count, result.layout.label_rows);
