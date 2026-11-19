@@ -27,6 +27,7 @@
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
+#include "src/ui/filament/ui_ams_detail_labels.h"
 #include "src/ui/filament/ui_ams_detail_tray.h"
 #include "src/ui/filament/ui_filament_path_internal.h"
 #include "src/ui/filament/ui_filament_path_plan.h"
@@ -1225,6 +1226,36 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: no two lane numbers overlap
         CHECK(std::abs(live[i].x2 - rebuilt[i].x2) <= 1);
         CHECK(std::abs(live[i].y1 - rebuilt[i].y1) <= 1);
     }
+}
+
+namespace {
+/// A backend whose own feeders have no housing (a Snapmaker's), carrying a unit a shell knows.
+class TraylessBackend : public AmsBackendMock {
+  public:
+    using AmsBackendMock::AmsBackendMock;
+    helix::BackendTraits traits() const override {
+        helix::BackendTraits t = AmsBackendMock::traits();
+        t.has_physical_tray = false;
+        return t;
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "AMS unit view: a unit a shell knows has its tray on any backend",
+                 "[ams][tray][unit-art]") {
+    auto mock = std::make_unique<TraylessBackend>(4);
+    mock->set_afc_mode(true);
+    mock->set_ace_identity();
+    REQUIRE(mock->start().success());
+    REQUIRE_FALSE(mock->has_physical_tray());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    const auto info = AmsState::instance().system_info();
+    REQUIRE(info);
+    REQUIRE(helix::ui::tray::unit_shell_for(*info, 0) != nullptr);
+    CHECK(helix::ui::ams_detail_layout::unit_has_physical_tray(0));
+    AmsState::instance().set_backend(nullptr);
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit art: a press ends with the slots it was on",

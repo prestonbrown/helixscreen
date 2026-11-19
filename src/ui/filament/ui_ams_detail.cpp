@@ -95,9 +95,22 @@ const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
     return backend ? view_shell(backend->get_system_info(), unit_index, has_dryer) : nullptr;
 }
 
-bool unit_has_physical_tray() {
+namespace {
+/// The unit the detail view lays out (ams_detail_create_slots()); -1 for a whole backend.
+int s_view_unit = -1;
+} // namespace
+
+bool unit_has_physical_tray(int unit_index) {
     auto* backend = helix::AmsState::instance().get_backend(0);
-    return !backend || backend->has_physical_tray();
+    if (!backend || backend->has_physical_tray())
+        return true;
+    // A backend whose own feeders have no housing can still carry a unit that does (an ACE
+    // beside a Snapmaker's feeders): a unit identified as a known one has its tray.
+    return view_shell(unit_index, false) != nullptr;
+}
+
+bool unit_has_physical_tray() {
+    return unit_has_physical_tray(s_view_unit);
 }
 
 /// The lid the unit's climate data calls for: any reading gets glass. Asked
@@ -113,7 +126,7 @@ tray::LidMode unit_lid_mode(int unit_index) {
             unit = info.units[u];
         dryer = helix::dryer_info(*backend, u).supported;
     }
-    return tray::lid_mode(unit, unit_has_physical_tray(), dryer);
+    return tray::lid_mode(unit, unit_has_physical_tray(unit_index), dryer);
 }
 
 /// Under per-lane lids each lane's humidity sits above its label.
@@ -256,6 +269,7 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
                                             int unit_index, lv_event_cb_t click_cb,
                                             void* user_data) {
     AmsDetailSlotResult result;
+    s_view_unit = unit_index;
 
     if (!w.slot_grid)
         return result;
