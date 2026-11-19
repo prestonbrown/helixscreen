@@ -87,15 +87,22 @@ HubBoxShape hub_box_shape(int32_t cx, int32_t width, int32_t label_w, int32_t ge
     constexpr int32_t kLabelPad = 4;
     const int32_t slot_w = extras ? extras->slot_w : 0;
     const int32_t max_right = extras ? extras->max_right : INT32_MAX;
-    if (gear_w > 0 && extras && extras->gear_outside) {
+    // Its right end held to max_right, the box growing leftward instead.
+    const auto held = [max_right](int32_t x, int32_t w) {
+        const int64_t over = (int64_t)x + w / 2 - max_right;
+        return over > 0 ? x - (int32_t)over : x;
+    };
+    if (extras && extras->gear_outside) {
+        // The box holds the label and the slot; a gear stands outside where it stays clear.
         const int32_t w = LV_MAX(width, label_w + 2 * kLabelPad + slot_w);
+        if (gear_w == 0)
+            return {held(cx, w), w, false};
         if ((int64_t)cx + w / 2 + 2 * kGearPad + gear_w <= max_right)
             return {cx, w, true};
     }
     const int32_t gear_in = gear_w > 0 ? gear_w + 2 * kGearPad : 0;
     const int32_t w = gear_w > 0 ? LV_MAX(width, label_w + 2 * gear_in + slot_w) : width;
-    const int64_t over = (int64_t)cx + w / 2 - max_right;
-    return {over > 0 ? cx - (int32_t)over : cx, w, false};
+    return {held(cx, w), w, false};
 }
 
 namespace {

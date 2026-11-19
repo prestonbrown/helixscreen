@@ -207,6 +207,11 @@ TEST_CASE("FilamentPath: a hub box its label and gear widen stays left of its li
     CHECK(roomy.gear_outside);
     CHECK(roomy.cx == 100);
     CHECK(roomy.width == 60 + 2 * 4);
+    // A box with no gear (no actions) still holds its label and slot.
+    outside.slot_w = 12;
+    const HubBoxShape plain = hub_box_shape(100, 20, 60, 0, &outside);
+    CHECK(plain.width == 60 + 2 * 4 + 12);
+    CHECK_FALSE(plain.gear_outside);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
