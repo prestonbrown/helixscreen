@@ -46,6 +46,13 @@ static constexpr int32_t kMiniBarMinWidthPx = 6;
 /// Maximum bar width for mini slot bars
 static constexpr int32_t kMiniBarMaxWidthPx = 14;
 
+/// A tile's art stands this tall against its width: the drawings run close to 4:3.
+static constexpr int32_t kTileArtHeightPct = 75;
+
+/// A tile in a row too long for the screen is at least this share of the largest the
+/// height allows.
+static constexpr int32_t kTileMinSharePct = 45;
+
 /// Height of each mini slot bar (decorative, no need for responsive scaling)
 static constexpr int32_t kMiniBarHeightPx = 40;
 
@@ -73,6 +80,23 @@ int32_t helix::ui::overview_peek_card_width(int32_t row_width, int32_t gap,
     return floor_width;
 }
 
+helix::ui::OverviewTileFit helix::ui::overview_tile_fit(int count, int32_t row_w, int32_t gap,
+                                                        int32_t art_room_h, int32_t min_w) {
+    OverviewTileFit fit;
+    if (count <= 0 || row_w <= 0)
+        return fit;
+    // The art stands 3:4, so the height left for it caps the width. A row of many units
+    // scrolls rather than shrink its tiles below a little under half that size: a tile is a
+    // tap target first.
+    const int32_t tallest = LV_MAX(LV_MAX(1, min_w), art_room_h * 100 / kTileArtHeightPct);
+    min_w = LV_MAX(LV_MAX(1, min_w), tallest * kTileMinSharePct / 100);
+    const int whole_at_min = static_cast<int>(LV_MAX(1, (row_w + gap) / (min_w + gap)));
+    fit.across = LV_MIN(count, whole_at_min);
+    const int32_t share = (row_w - (fit.across - 1) * gap) / fit.across;
+    fit.width = LV_MAX(1, fit.across < count ? share : LV_MIN(share, tallest));
+    return fit;
+}
+
 // overflow_visible only widens the clip by the extended draw size, and the readout hangs past
 // the tile's corner by this much.
 static void tile_readout_ext_draw_cb(lv_event_t* e) {
@@ -86,9 +110,6 @@ static void set_slot_count_label(lv_obj_t* label, helix::ui::LaneNoun noun, int 
     }
     lv_label_set_text(label, helix::ui::lane_count_label(noun, slot_count).c_str());
 }
-
-/// A tile's art stands this tall against its width: the drawings run close to 4:3.
-static constexpr int32_t kTileArtHeightPct = 75;
 
 /// The measured width one mini bar gets for this container and lane count.
 /// Both create_mini_bars() and the update-path rebuild check recompute it, so
@@ -257,37 +278,33 @@ void AmsOverviewPanel::layout_unit_row() {
         return;
     laid_out_row_width_ = row_width;
 
-    // A bars tile holds its compact width, so that width is its floor: counting it as zero
-    // lets a row that overflows look as if it fits, and flex then crushes the art beside it.
-    std::vector<int32_t> min_widths;
-    for (const auto& uc : unit_cards_) {
-        if (uc.card)
-            min_widths.push_back(uc.compact_width > 0
-                                     ? uc.compact_width
-                                     : lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
-    }
-    const int32_t peek_width = helix::ui::overview_peek_card_width(
-        row_width, lv_obj_get_style_pad_column(cards_row_, LV_PART_MAIN), min_widths);
-
-    for (const auto& uc : unit_cards_) {
-        if (!uc.card)
-            continue;
-        if (uc.compact_width > 0) {
-            lv_obj_set_flex_grow(uc.card, 0);
-            lv_obj_set_width(uc.card, uc.compact_width);
-        } else if (peek_width > 0) {
-            lv_obj_set_flex_grow(uc.card, 0);
-            lv_obj_set_width(uc.card, peek_width);
-        } else {
-            lv_obj_remove_local_style_prop(uc.card, LV_STYLE_WIDTH, LV_PART_MAIN);
-            lv_obj_set_flex_grow(uc.card, 1);
+    const bool tiles = std::any_of(unit_cards_.begin(), unit_cards_.end(),
+                                   [](const UnitCard& uc) { return uc.tile; });
+    const int32_t gap = lv_obj_get_style_pad_column(cards_row_, LV_PART_MAIN);
+    if (tiles) {
+        layout_tiles(row_width, gap);
+    } else {
+        std::vector<int32_t> min_widths;
+        for (const auto& uc : unit_cards_) {
+            if (uc.card)
+                min_widths.push_back(lv_obj_get_style_min_width(uc.card, LV_PART_MAIN));
         }
+        const int32_t peek_width = helix::ui::overview_peek_card_width(row_width, gap, min_widths);
+        for (const auto& uc : unit_cards_) {
+            if (!uc.card)
+                continue;
+            if (peek_width > 0) {
+                lv_obj_set_flex_grow(uc.card, 0);
+                lv_obj_set_width(uc.card, peek_width);
+            } else {
+                lv_obj_remove_local_style_prop(uc.card, LV_STYLE_WIDTH, LV_PART_MAIN);
+                lv_obj_set_flex_grow(uc.card, 1);
+            }
+        }
+        lv_obj_update_layout(cards_row_);
     }
-    lv_obj_update_layout(cards_row_);
 
     for (const auto& uc : unit_cards_) {
-        if (uc.has_art && uc.art_stage)
-            lv_obj_set_height(uc.art_stage, lv_obj_get_width(uc.card) * kTileArtHeightPct / 100);
         if (uc.readout_room)
             lv_obj_set_hidden(uc.readout_room, false); // DECLARATIVE_OK: measured below
     }
@@ -300,6 +317,46 @@ void AmsOverviewPanel::layout_unit_row() {
             lv_obj_get_width(uc.card), lv_obj_get_width(uc.readout_room));
         lv_obj_set_hidden(uc.readout_room, !holds); // DECLARATIVE_OK: measured layout
     }
+}
+
+int32_t AmsOverviewPanel::tile_art_room() const {
+    // The tiles take the height the path does not need: in landscape the column's height less
+    // the path's share and the name line; in portrait, where the panel scrolls, a tile is at
+    // most half the row wide.
+    lv_obj_t* column = lv_obj_get_parent(cards_row_);
+    const int32_t name_h = theme_manager_get_spacing("ams_unit_name_h");
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    if (!column || (portrait && lv_subject_get_int(portrait) == 1))
+        return lv_obj_get_content_width(cards_row_) * kTileArtHeightPct / 200;
+    lv_obj_update_layout(column);
+    const int32_t column_h = lv_obj_get_content_height(column);
+    const int32_t path_h = column_h * kOverviewPathSharePct / 100;
+    const int32_t row_pad = lv_obj_get_style_pad_bottom(cards_row_, LV_PART_MAIN) +
+                            lv_obj_get_style_pad_row(column, LV_PART_MAIN);
+    return LV_MAX(0, column_h - path_h - name_h - row_pad);
+}
+
+void AmsOverviewPanel::layout_tiles(int32_t row_width, int32_t gap) {
+    const int count = static_cast<int>(unit_cards_.size());
+    const helix::ui::OverviewTileFit fit = helix::ui::overview_tile_fit(
+        count, row_width, gap, tile_art_room(), theme_manager_get_spacing("ams_tile_min_width"));
+    const bool overflow = fit.across < count;
+    // DECLARATIVE_OK: measured layout; a row that fits stands centered, one that scrolls
+    // starts at its left edge and snaps a tile at a time, so no tile rests cut off.
+    lv_obj_set_style_flex_main_place(
+        cards_row_, overflow ? LV_FLEX_ALIGN_START : LV_FLEX_ALIGN_CENTER, LV_PART_MAIN);
+    lv_obj_set_scroll_snap_x(cards_row_, overflow ? LV_SCROLL_SNAP_START : LV_SCROLL_SNAP_NONE);
+    for (const auto& uc : unit_cards_) {
+        if (!uc.card)
+            continue;
+        lv_obj_set_flex_grow(uc.card, 0);
+        lv_obj_set_width(uc.card, fit.width);
+        if (uc.art_stage)
+            lv_obj_set_height(uc.art_stage, fit.width * kTileArtHeightPct / 100);
+    }
+    lv_obj_update_layout(cards_row_);
+    spdlog::debug("[{}] Tiles: {} at {}x{} px, {} across in a {} px row", get_name(), count,
+                  fit.width, fit.width * kTileArtHeightPct / 100, fit.across, row_width);
 }
 
 void AmsOverviewPanel::hide_clipped_card_names() {
@@ -411,14 +468,9 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
             continue;
         }
 
-        // Flex grow so cards share available width equally; a bars tile stays compact.
-        if (uc.has_art || !as_tile)
-            lv_obj_set_flex_grow(uc.card, 1);
-        else {
-            lv_obj_set_style_min_width(uc.card, 0, LV_PART_MAIN);
-            uc.compact_width = theme_manager_get_spacing("ams_tile_art_max_h") * 3 / 2;
-            lv_obj_set_width(uc.card, uc.compact_width);
-        }
+        // Cards share the row's width; tiles are sized by layout_tiles().
+        uc.tile = as_tile;
+        lv_obj_set_flex_grow(uc.card, as_tile ? 0 : 1);
 
         // Store unit index for click handler
         // NOTE: lv_obj_add_event_cb used here (not XML event_cb) because each dynamically
@@ -432,7 +484,7 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         if (as_tile) {
             // required-names: ams_unit_tile
             lv_obj_t* stage = helix::ui::find_required(uc.card, "tile_stage", get_name());
-            uc.art_stage = uc.has_art ? stage : nullptr;
+            uc.art_stage = stage;
             // required-names: ams_unit_tile
             uc.readout_room = helix::ui::find_required(uc.card, "tile_readout_room", get_name());
             for (lv_obj_t* clip : {uc.card, stage}) {
@@ -447,6 +499,15 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
             } else {
                 // required-names: ams_unit_tile
                 uc.bars_container = helix::ui::find_required(uc.card, "bars_container", get_name());
+                // A unit of toolheads draws the configured head over a strip of its bars.
+                if (unit.topology == PathTopology::PARALLEL && uc.bars_container) {
+                    // required-names: ams_unit_tile
+                    if (lv_obj_t* head = helix::ui::find_required(uc.card, "tile_head", get_name()))
+                        lv_obj_set_hidden(head, false); // DECLARATIVE_OK: per-unit topology
+                    // DECLARATIVE_OK: per-unit topology; the bars take the strip under the head
+                    lv_obj_set_height(uc.bars_container, lv_pct(35));
+                    lv_obj_set_align(uc.bars_container, LV_ALIGN_BOTTOM_MID);
+                }
             }
         } else {
             // required-names: ams_unit_card

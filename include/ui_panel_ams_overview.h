@@ -31,6 +31,21 @@ namespace helix::ui {
 int32_t overview_peek_card_width(int32_t row_width, int32_t gap,
                                  const std::vector<int32_t>& min_widths);
 
+/// How a row of overview tiles is laid out: every tile one width, @p across of them whole in
+/// the row at once (the rest reached by scrolling, a tile at a time).
+struct OverviewTileFit {
+    int across = 0;
+    int32_t width = 0;
+};
+
+/// Fits @p count tiles to a row @p row_w wide with @p gap between them. Each takes an equal
+/// share of the row, as wide as the height left for its art (@p art_room_h, the art standing
+/// 3:4) allows, and never narrower than @p min_w nor than a little under half that largest
+/// width. When the row cannot hold them all that wide, it shows as many whole tiles as fit,
+/// sharing the row exactly, so none is cut off at its edge.
+OverviewTileFit overview_tile_fit(int count, int32_t row_w, int32_t gap, int32_t art_room_h,
+                                  int32_t min_w);
+
 /// Whether an art tile @p tile_w wide keeps its environment readout, @p readout_w wide, over
 /// its own art: the readout may cover the art's right side, never more than half the tile.
 inline bool overview_tile_holds_readout(int32_t tile_w, int32_t readout_w) {
@@ -215,7 +230,7 @@ class AmsOverviewPanel : public PanelBase {
         lv_obj_t* art_stage = nullptr;        // Art tile: the box the art fills
         lv_obj_t* art = nullptr;              // Art tile: the unit_art widget
         lv_obj_t* readout_room = nullptr;     // Art tile: hidden when the readout does not fit
-        int32_t compact_width = 0;            // Fixed width of a lane-bar tile; 0 shares the row
+        bool tile = false;                    // A tile (art, or the lane bars) rather than a card
         bool has_art = false;                 // An art tile rather than a card
         lv_obj_t* env_line = nullptr;         // One-line environment readout
         int unit_index = -1;
@@ -286,8 +301,14 @@ class AmsOverviewPanel : public PanelBase {
     static bool unit_has_art(const helix::AmsSystemInfo& info, int unit_index);
     void apply_card_art(UnitCard& card, const helix::AmsUnit& unit,
                         const helix::AmsSystemInfo& info);
-    /// Size the cards to the row (see overview_peek_card_width) and each art stage to its tile.
+    /// Size the cards to the row (see overview_peek_card_width), or the tiles (layout_tiles).
     void layout_unit_row();
+    /// Every tile one width from overview_tile_fit(), its stage as tall as its art.
+    void layout_tiles(int32_t row_width, int32_t gap);
+    /// The height a tile's art may take: what the path does not need.
+    [[nodiscard]] int32_t tile_art_room() const;
+    /// The share of the overview's column, in percent, the path below the tiles keeps.
+    static constexpr int32_t kOverviewPathSharePct = 45;
     static void on_cards_row_resized(lv_event_t* e);
     void update_unit_card(UnitCard& card, const helix::AmsUnit& unit, helix::ui::LaneNoun noun);
     void create_mini_bars(UnitCard& card, const helix::AmsUnit& unit);
