@@ -942,6 +942,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     // Each lane's number stands just right of its tube, inside its bay; the pill clears them.
     constexpr float kArtBadgePitchShare = 0.55f;
     constexpr float kArtBadgeMinFit = 0.7f;
+    constexpr float kArtBadgeDot = 8.0f;
     float badge_end = 0;
     if (w.badge_layer) {
         lv_area_t layer;
@@ -965,18 +966,19 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             const float bh = (float)lv_obj_get_height(badge);
             // Narrower than the pitch, so neighbors never touch; and kArtBadgePitchShare of it,
             // leaving the drawn outlet tabs between lanes in view, but not below
-            // kArtBadgeMinFit for that, where the number stops reading.
-            // Outlets packed closer than a readable number (a collet row, top fittings) keep
-            // the number at that floor and alternate it a row higher lane by lane, while every
-            // other lane's still clears it; the lane picker takes the taps there.
-            const bool stagger = s_tray.art && bw > 0 && (pitch - inset) / bw < kArtBadgeMinFit &&
-                                 kArtBadgeMinFit * bw <= 2.0f * pitch - inset;
+            // kArtBadgeMinFit for that, where the number stops reading. Outlets packed closer
+            // than a readable number (a collet row, top fittings) take a small dot in the
+            // number's state colors instead, in the same row; the lane picker shows the numbers.
+            const bool dot = s_tray.art && bw > 0 && (pitch - inset) / bw < kArtBadgeMinFit;
             const float fit =
                 !s_tray.art || bw <= 0 ? 1.0f
-                : stagger              ? kArtBadgeMinFit
+                : dot                  ? std::min(kArtBadgeDot, pitch - inset) / std::max(bw, bh)
                                        : std::min({1.0f, (pitch - inset) / bw,
                                                    std::max(kArtBadgeMinFit, kArtBadgePitchShare * pitch / bw)});
-            const float lift = stagger && (i % 2) ? std::ceil(fit * bh) + 2.0f : 0.0f;
+            if (lv_obj_t* number = lv_obj_find_by_name(badge, "slot_badge_label")) {
+                // DECLARATIVE_OK: measured layout; a dot carries no number
+                lv_obj_set_style_opa(number, dot ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN);
+            }
             // DECLARATIVE_OK: measured layout; the number shrinks to the drawn outlets' pitch
             lv_obj_set_style_transform_pivot_x(badge, (int32_t)(bw / 2), LV_PART_MAIN);
             lv_obj_set_style_transform_pivot_y(badge, (int32_t)(bh / 2), LV_PART_MAIN);
@@ -985,7 +987,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             const tray::PointF p =
                 s_tray.art
                     ? tray::PointF{(float)art.outlet[i].x - bw / 2,
-                                   (float)art.outlet[i].y - (0.5f + 0.75f * fit) * bh - lift}
+                                   (float)art.outlet[i].y - (0.5f + 0.75f * fit) * bh}
                     : tray::lane_badge_origin(box, cx[i], std::min(spacing / 2.0f, bw + 2 * inset),
                                               bw, bh, inset);
             badge_end = std::max(badge_end, p.x + bw + inset);
