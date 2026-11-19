@@ -211,6 +211,9 @@ src/rendering/gcode_crease_shading.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_data_source.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_geometry_builder.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_gles_renderer.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_gles_renderer_worker.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_gles_renderer_draw.cpp  # not in the v1 Core+AMS cut
+src/rendering/gcode_gles_renderer_state.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_layer_cache.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_layer_index.cpp  # not in the v1 Core+AMS cut
 src/rendering/gcode_layer_renderer.cpp  # not in the v1 Core+AMS cut
@@ -303,6 +306,7 @@ src/system/usb_printer_detector.cpp  # not in the v1 Core+AMS cut
 src/system/usb_scanner_monitor.cpp  # not in the v1 Core+AMS cut
 src/system/wizard_step.cpp  # not in the v1 Core+AMS cut
 src/ui/notify/action_prompt_modal.cpp  # not in the v1 Core+AMS cut
+src/ui/gcode/gcode_viewer_api.cpp  # G-code viewer widget API, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/gcode/gcode_viewer_loader.cpp  # G-code viewer file loading, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/gcode/gcode_viewer_input.cpp  # G-code viewer touch input, compiled out with the viewer (HELIX_HAS_GCODE_VIEWER=0); its no-op API stays in ui_gcode_viewer.cpp
 src/ui/board_fingerprint.cpp  # read only by the screensaver and glass gates, neither in the firmware

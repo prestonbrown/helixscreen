@@ -13,3 +13,6 @@
 # Format: <path prefix>  # reason
 
 src/rendering/gcode_gles_renderer.cpp  # GLES needs a real GL context; cannot run headless, so the suite can neither cover nor mutate it
+src/rendering/gcode_gles_renderer_worker.cpp  # GLES needs a real GL context; cannot run headless, so the suite can neither cover nor mutate it
+src/rendering/gcode_gles_renderer_draw.cpp  # GLES needs a real GL context; cannot run headless, so the suite can neither cover nor mutate it
+src/rendering/gcode_gles_renderer_state.cpp  # GLES needs a real GL context; cannot run headless, so the suite can neither cover nor mutate it
