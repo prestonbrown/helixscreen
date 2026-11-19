@@ -50,13 +50,23 @@ namespace {
 
 void register_ams_xml_once() {
     static bool done = false;
-    if (done)
+    static int32_t registered_w = 0, registered_h = 0;
+    lv_display_t* disp = lv_display_get_default();
+    const int32_t w = lv_display_get_horizontal_resolution(disp);
+    const int32_t h = lv_display_get_vertical_resolution(disp);
+    // A component's constants resolve when it registers: one registered at another screen size
+    // lays a later test's panel out for that size.
+    if (done && w == registered_w && h == registered_h)
         return;
-    ui_spool_canvas_register();
-    ui_ams_slot_register();
-    ui_filament_path_canvas_register();
-    ui_endless_spool_arrows_register();
-    helix::ui::AmsOperationSidebar::register_callbacks_static();
+    registered_w = w;
+    registered_h = h;
+    if (!done) {
+        ui_spool_canvas_register();
+        ui_ams_slot_register();
+        ui_filament_path_canvas_register();
+        ui_endless_spool_arrows_register();
+        helix::ui::AmsOperationSidebar::register_callbacks_static();
+    }
     lv_xml_register_component_from_file("A:ui_xml/components/ams_unit_detail.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/ams_loaded_card.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/ams_environment_indicator.xml");
