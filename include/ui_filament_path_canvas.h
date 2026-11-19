@@ -764,6 +764,8 @@ struct ParallelTapLayout {
     int32_t sensor_y = 0;        ///< A lane owns at least everything above this row
     int32_t lane_half_width = 0; ///< A lane's reach either side of its column
     lv_area_t head{};            ///< A head glyph's drawn bounds, x relative to its column
+    /// Each head's center x where the heads stand apart from their lanes; null: under them.
+    const int32_t* head_x = nullptr;
 };
 
 /**

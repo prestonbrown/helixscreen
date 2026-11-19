@@ -173,11 +173,11 @@ bool helix::ui::recorded_box_hit(lv_point_t p, const lv_area_t& box, lv_point_t 
 
 helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTapLayout& layout) {
     // The nearest column whose reach, [lo, hi] about its x, holds p.x.
-    auto nearest = [&](int32_t lo, int32_t hi) {
+    auto nearest = [&](int32_t lo, int32_t hi, const int32_t* columns) {
         int best = -1;
         int32_t best_d = INT32_MAX;
         for (int i = 0; i < layout.slot_count; i++) {
-            const int32_t dx = p.x - layout.slot_x[i];
+            const int32_t dx = p.x - columns[i];
             if (dx >= lo && dx <= hi && abs(dx) < best_d) {
                 best = i;
                 best_d = abs(dx);
@@ -189,13 +189,15 @@ helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTa
     // sensor row cedes the stretch above that row.
     if (p.y < LV_MAX(layout.sensor_y, layout.head.y1)) {
         const int32_t r = layout.lane_half_width;
-        if (const int i = nearest(-r, r); i >= 0) {
+        if (const int i = nearest(-r, r, layout.slot_x); i >= 0) {
             return {ParallelTapTarget::Lane, i};
         }
         return {};
     }
     if (p.y >= layout.head.y1 && p.y <= layout.head.y2) {
-        if (const int i = nearest(layout.head.x1, layout.head.x2); i >= 0) {
+        if (const int i = nearest(layout.head.x1, layout.head.x2,
+                                  layout.head_x ? layout.head_x : layout.slot_x);
+            i >= 0) {
             return {ParallelTapTarget::Toolhead, i};
         }
     }
@@ -265,8 +267,12 @@ static void filament_path_click_cb(lv_event_t* e) {
         const helix::ui::GlyphBounds glyph =
             toolhead_glyph_bounds(path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).dx,
                                   rows.toolhead_y, rows.tool_scale);
+        int32_t head_x[FilamentPathData::kMaxSlots] = {};
+        for (int i = 0; i < g.slot_count && i < FilamentPathData::kMaxSlots; ++i)
+            head_x[i] = parallel_head_x(*data, g, rows, i);
         helix::ui::ParallelTapLayout layout;
         layout.slot_x = g.slot_x;
+        layout.head_x = head_x;
         layout.slot_count = g.slot_count;
         layout.sensor_y = rows.sensor_y;
         layout.lane_half_width = LV_MAX(20, rows.tool_scale * 3);
@@ -1395,7 +1401,12 @@ float ui_filament_path_canvas_fan_growth(lv_obj_t* obj) {
 // NAMESPACE_OK: the widget's C getter API, beside its siblings
 int32_t ui_filament_path_canvas_required_height(lv_obj_t* obj) {
     auto* data = get_data(obj);
-    if (!data || !is_linear_hub(*data) || !data->feeds_toolhead)
+    if (!data)
+        return 0;
+    if (data->topology == static_cast<int>(helix::PathTopology::PARALLEL) ||
+        data->topology == static_cast<int>(helix::PathTopology::MIXED))
+        return per_lane_required_height(*data, compute_base_geometry(obj, data));
+    if (!is_linear_hub(*data) || !data->feeds_toolhead)
         return 0;
     // Sizes are read at creation; the colors do not enter into it.
     return linear_hub_required_height(*data, compute_base_geometry(obj, data));

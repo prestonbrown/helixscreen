@@ -1115,9 +1115,9 @@ TEST_CASE("FilamentPath plan: lanes start on a slanted box edge, their bands par
 
 namespace {
 
-PathPlan& parallel_plan(const FilamentPathData& d) {
+PathPlan& parallel_plan(const FilamentPathData& d, const BaseGeometry& g = geometry()) {
     static PathPlan plan;
-    plan_parallel(d, geometry(), plan);
+    plan_parallel(d, g, plan);
     return plan;
 }
 
@@ -1294,13 +1294,41 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(get_data(w)->filament_segment == static_cast<int>(PathSegment::LANE));
 }
 
+TEST_CASE("FilamentPath plan: PARALLEL heads spread wider than lanes too close for them",
+          "[filament-path][plan][parallel]") {
+    auto d = make_data(helix::PathTopology::PARALLEL);
+    BaseGeometry g = geometry();
+    const ParallelRows rows = parallel_rows(*d, g);
+    const helix::ui::GlyphBounds b = toolhead_glyph_bounds(0, 0, rows.tool_scale);
+    const int32_t head_w = b.right - b.left;
+    SECTION("lanes a head apart: each head under its lane") {
+        for (int i = 0; i < 4; ++i)
+            CHECK(parallel_head_x(*d, g, rows, i) == g.slot_x[i]);
+    }
+    SECTION("lanes closer than a head: heads a head's width apart, inside the canvas") {
+        for (int i = 0; i < 4; ++i)
+            g.slot_x[i] = 180 + 12 * i;
+        for (int i = 1; i < 4; ++i)
+            CHECK(parallel_head_x(*d, g, rows, i) - parallel_head_x(*d, g, rows, i - 1) > head_w);
+        CHECK(parallel_head_x(*d, g, rows, 0) - head_w / 2 >= g.x_off);
+        CHECK(parallel_head_x(*d, g, rows, 3) + head_w / 2 <= g.x_off + g.width);
+        // Each tube ends on its own head's inlet.
+        const PathPlan& plan = parallel_plan(*d, g);
+        const float inlet = (float)path_toolhead_inlet(rows.toolhead_y, rows.tool_scale).y;
+        for (int i = 0; i < 4; ++i) {
+            const pg::FilamentPath& p = plan.routes[i].path;
+            CHECK(
+                near(seg_end(p.segs[p.count - 1]), (float)parallel_head_x(*d, g, rows, i), inlet));
+        }
+    }
+}
+
 TEST_CASE("FilamentPath plan: the mounted PARALLEL tool is one active stroke",
           "[filament-path][plan][parallel]") {
     auto d = make_data(helix::PathTopology::PARALLEL);
     load_active(*d, 2, PathSegment::NOZZLE);
     d->slot_filament_states[0] = {PathSegment::TOOLHEAD, kSlotColors[0]};
     const PathPlan& plan = parallel_plan(*d);
-    const float sensor_y = 198;
 
     REQUIRE(plan.active_route == 2);
     Stroke strokes[16];
@@ -1597,11 +1625,6 @@ LinearHubFrame frame_with_offpage(FilamentPathData& d, int before, bool before_d
     d.offpage_after = after;
     d.offpage_after_drying = after_drying;
     return compute_linear_hub_frame(d, g, kGlyphTop);
-}
-
-// dy/dx of a polyline leg, with x taken as a positive run.
-float slope_of(pg::PathPoint a, pg::PathPoint b) {
-    return (b.y - a.y) / std::fabs(b.x - a.x);
 }
 
 } // namespace

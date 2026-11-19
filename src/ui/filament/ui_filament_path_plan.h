@@ -291,6 +291,14 @@ struct ParallelRows {
     int32_t entry_y, prep_y, sensor_y, toolhead_y, tool_scale;
 };
 ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g);
+/// Under a view scale, the least height a PARALLEL or MIXED path lays out in: each lane's run
+/// to its full-size head, a shared hub and a pass-through unit's drawing; 0 without a scale.
+int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g);
+/// Where lane @p i's own head stands in a PARALLEL view: under its lane, or, where the lanes
+/// stand closer than a head's width, spread evenly at a head's width apart, centered under the
+/// lanes and kept inside the canvas; its tube bends out to it.
+int32_t parallel_head_x(const FilamentPathData& data, const BaseGeometry& g,
+                        const ParallelRows& rows, int i);
 
 enum class TubeWall : uint8_t { Plain, Active, Error };
 

@@ -723,7 +723,9 @@ int32_t row_between(int32_t top, int32_t bottom, float fraction) {
 
 ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g) {
     ParallelRows r;
-    r.tool_scale = LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    // Under a view scale every head is the size the hub layout's would be: never smaller.
+    r.tool_scale = data.view_hub_h > 0 ? data.theme.extruder_scale
+                                       : LV_MAX(6, data.theme.extruder_scale * 2 / 3);
     r.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
     r.toolhead_y = toolhead_standing_on(g.y_off + (int32_t)(g.height * kParallelGlyphBottomRatio),
                                         r.tool_scale);
@@ -743,6 +745,53 @@ ParallelRows parallel_rows(const FilamentPathData& data, const BaseGeometry& g) 
     return r;
 }
 
+int32_t parallel_head_x(const FilamentPathData& data, const BaseGeometry& g,
+                        const ParallelRows& rows, int i) {
+    const int n = LV_MIN(g.slot_count, FilamentPathData::kMaxSlots);
+    if (n < 2 || i < 0 || i >= n)
+        return i >= 0 && i < FilamentPathData::kMaxSlots ? g.slot_x[i] : g.center_x;
+    const GlyphBounds b = toolhead_glyph_bounds(0, 0, rows.tool_scale);
+    const int32_t step = (b.right - b.left) + 4 * data.theme.sensor_radius;
+    const int32_t pitch = (g.slot_x[n - 1] - g.slot_x[0]) / (n - 1);
+    if (pitch >= step)
+        return g.slot_x[i];
+    const int32_t half = (b.right - b.left) / 2;
+    const int32_t span = std::min<int32_t>((n - 1) * step, g.width - 2 * half);
+    const int32_t each = span / (n - 1);
+    int32_t left = (g.slot_x[0] + g.slot_x[n - 1]) / 2 - span / 2;
+    left =
+        std::clamp(left, g.x_off + half, std::max(g.x_off + half, g.x_off + g.width - half - span));
+    return left + i * each;
+}
+
+int32_t per_lane_required_height(const FilamentPathData& data, BaseGeometry g) {
+    if (data.view_hub_h <= 0 || g.height <= 0)
+        return 0;
+    const bool mixed = data.topology == static_cast<int>(PathTopology::MIXED);
+    // A run from each lane's outlet down to its head long enough to read as a tube with its
+    // sensors on it; a shared hub's run also holds the hub between them; and a pass-through
+    // unit's own drawing its room.
+    const int32_t run_need = (mixed ? 6 : 4) * data.view_hub_h;
+    const auto fits = [&](int32_t height) {
+        g.height = height;
+        if (mixed) {
+            const MixedFrame f = compute_mixed_frame(data, g);
+            if (has_through_art(data) && f.through.w <= 0)
+                return false;
+            const int32_t head_top = toolhead_glyph_bounds(0, f.toolhead_y, f.tool_scale).top;
+            return head_top - f.entry_y >= run_need;
+        }
+        const ParallelRows r = parallel_rows(data, g);
+        const int32_t head_top = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale).top;
+        return head_top - r.entry_y >= run_need;
+    };
+    const int32_t ceiling = std::max(g.height * 4, data.view_hub_h * 24);
+    for (int32_t h = data.view_hub_h; h <= ceiling; h += 2)
+        if (fits(h))
+            return h;
+    return g.height;
+}
+
 // MIXED layout: the toolhead glyphs stand on a line near the bottom; the lane
 // sensors and the hub sit fixed fractions of the way down to the toolheads.
 MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry& g) {
@@ -755,7 +804,8 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
     constexpr float kMixedArtBottom = 0.5f;
 
     f.entry_y = g.y_off + (int32_t)(g.height * kEntryYRatio);
-    f.tool_scale = LV_MAX(6, data.theme.extruder_scale * 2 / 3);
+    f.tool_scale = data.view_hub_h > 0 ? data.theme.extruder_scale
+                                       : LV_MAX(6, data.theme.extruder_scale * 2 / 3);
     f.toolhead_y =
         toolhead_standing_on(g.y_off + (int32_t)(g.height * kGlyphBottomY), f.tool_scale);
     const int32_t run = f.toolhead_y - f.entry_y;
@@ -1198,19 +1248,47 @@ void plan_parallel(const FilamentPathData& data, const BaseGeometry& g, PathPlan
     for (int i = 0; i < n; i++) {
         const Lane lane = lane_of(states[i], error, data.theme.color_bg);
         const float x = (float)g.slot_x[i];
-        Route* r;
-        if (data.slot_has_prep_sensor[i]) {
+        const float hx = (float)parallel_head_x(data, g, rows, i);
+        Route* r = &new_route(out);
+        float top = (float)entry_y;
+        if (data.art_sensors) {
+            // Leaving a drawn unit, the tube starts where the unit's slanted edge crosses its
+            // column, and the lane's one sensor mark lies along that edge, as on a hub's lanes.
+            const float start = (float)(entry_y - std::max<int32_t>(0, data.lane_entry_rise[i]));
+            append_line(*r, x, start, x, top, lane.style(PathSegment::SPOOL));
+            const bool load = data.slot_has_load_sensor[i];
+            if (load || (data.slot_has_prep_sensor[i] && !data.art_draws_prep)) {
+                const float k = data.art_edge_slope;
+                const float norm = std::sqrt(1.0f + k * k);
+                const BandState state = data.lane_load_fault[i] ? BandState::Error
+                                        : load                  ? lane.band(PathSegment::LANE)
+                                                                : lane.band(PathSegment::PREP);
+                add_band(out, BandKind::Lane, {x, start}, {-k / norm, 1.0f / norm}, state,
+                         lane.color, false);
+            }
+        } else if (data.slot_has_prep_sensor[i]) {
             // Filament the entry sensor alone sees fills the tube to its band.
-            r = &new_route(out);
             append_line(*r, x, (float)entry_y, x, (float)rows.prep_y,
                         lane.style(PathSegment::SPOOL));
             add_band_at_end(out, BandKind::Lane, *r, lane.band(PathSegment::PREP), lane.color);
-            append_line(*r, x, (float)rows.prep_y, x, (float)sensor_y,
-                        lane.style(PathSegment::LANE));
-        } else {
-            r = &start_lane(out, lane, x, entry_y, sensor_y, /*has_sensor=*/false);
+            top = (float)rows.prep_y;
         }
-        append_line(*r, x, (float)sensor_y, x, nozzle_top, lane.style(PathSegment::NOZZLE));
+        const SpanStyle run_style =
+            lane.style(data.slot_has_prep_sensor[i] && !data.art_sensors ? PathSegment::LANE
+                                                                         : PathSegment::SPOOL);
+        if (std::fabs(hx - x) < 0.5f) {
+            append_line(*r, x, top, x, (float)sensor_y, run_style);
+        } else {
+            // Out to its own head, spread wider than the lanes: down, one diagonal, down, all
+            // above the heads.
+            const float run = (float)sensor_y - top;
+            const pg::PathPoint pts[4] = {
+                {x, top}, {x, top + run * 0.15f}, {hx, top + run * 0.85f}, {hx, (float)sensor_y}};
+            pg::FilamentPath bend;
+            pg::route_polyline_filleted(bend, pts, 4, bend_radius(hx - x));
+            route_append(*r, bend, run_style);
+        }
+        append_line(*r, hx, (float)sensor_y, hx, nozzle_top, lane.style(PathSegment::NOZZLE));
         // Each head's own sensor is the round dot at its filament inlet, as on a hub's head:
         // the lane's color while it sees filament, red on a fault.
         if (data.has_toolhead_sensor) {

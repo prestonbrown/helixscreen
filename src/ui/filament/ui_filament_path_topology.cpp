@@ -179,7 +179,7 @@ enum class ToolPass : uint8_t { Glyph, Badge };
 void draw_parallel_tool(const RenderCtx& ctx, const SlotRenderStates& states, int i,
                         const ParallelRows& rows, ToolPass pass) {
     const FilamentPathData* data = ctx.data;
-    int32_t slot_x = ctx.geo.slot_x[i];
+    int32_t slot_x = parallel_head_x(*data, ctx.geo, rows, i);
     const SlotRenderState& s = states[i];
     const int32_t toolhead_y = rows.toolhead_y;
     const int32_t tool_scale = rows.tool_scale;
