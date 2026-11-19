@@ -171,6 +171,20 @@ int32_t label_whole(lv_obj_t* slot) {
            1;
 }
 
+/// The room beside @p slot's label its tool tag takes (place_tool_badges()): its width on each
+/// side, since the label stays centered on its spool; 0 with no tag shown. A unit on a page of
+/// a paged hub keeps the rows its labels alone ask for, so its hub stands still from page to
+/// page; there the tag keeps to the label's own room.
+int32_t label_tag_room(lv_obj_t* slot) {
+    if (s_tray.unit_index >= 0)
+        return 0;
+    lv_obj_t* tag = ui_ams_slot_get_tool_badge(slot);
+    if (!tag || lv_obj_is_hidden(tag) || lv_obj_get_style_opa(tag, LV_PART_MAIN) == 0)
+        return 0;
+    lv_obj_update_layout(tag);
+    return 2 * (lv_obj_get_width(tag) + 3);
+}
+
 /// Characters a label over a drawn unit keeps before its ellipsis, at the least.
 constexpr int kLabelReadableChars = 3;
 
@@ -521,8 +535,8 @@ int32_t place_unit_labels() {
         if (!show)
             continue;
         shown_x[shown] = s_tray.label_x[i];
-        need[shown] = label_need(slot);
-        text_w[shown] = label_whole(slot);
+        need[shown] = label_need(slot) + label_tag_room(slot);
+        text_w[shown] = label_whole(slot) + label_tag_room(slot);
         lane_of[shown++] = i;
     }
     const int32_t label_gap = theme_manager_get_spacing("space_xs");
@@ -620,31 +634,48 @@ int32_t place_unit_labels() {
 /// Over the art each lane's tool badge stands just right of its label, off the drawing.
 void place_tool_badges() {
     const int32_t tool_inset = theme_manager_get_spacing("ams_slot_tool_badge_inset");
+    lv_obj_t* layer = s_tray.labels_layer;
     for (int i = 0; i < s_tray.lane_count; ++i) {
         lv_obj_t* slot = s_tray.slot[i];
-        lv_obj_t* tool = slot ? lv_obj_find_by_name(slot, "tool_badge") : nullptr;
+        lv_obj_t* tool = slot ? ui_ams_slot_get_tool_badge(slot) : nullptr;
         if (!tool)
             continue;
-        // DECLARATIVE_OK: measured layout; the badge's place depends on the drawn unit
-        lv_obj_set_style_translate_x(tool, tool_inset, LV_PART_MAIN);
-        lv_obj_set_style_translate_y(tool, tool_inset, LV_PART_MAIN);
         lv_obj_t* label = ui_ams_slot_get_material_label(slot);
-        if (!s_tray.art || !label || lv_obj_is_hidden(tool))
+        const bool beside = layer && label && !lv_obj_is_hidden(label) &&
+                            lv_obj_get_parent(label) == layer && !lv_obj_is_hidden(tool);
+        if (!beside) {
+            // In its default spot, the corner of the slot it belongs to; a tag already on the
+            // labels layer takes that corner there.
+            // DECLARATIVE_OK: measured layout; the badge's place depends on the drawn unit
+            lv_obj_set_style_translate_x(tool, tool_inset, LV_PART_MAIN);
+            lv_obj_set_style_translate_y(tool, tool_inset, LV_PART_MAIN);
+            if (layer && lv_obj_get_parent(tool) == layer) {
+                lv_area_t sa, layer_area;
+                lv_obj_get_coords(slot, &sa);
+                lv_obj_get_coords(layer, &layer_area);
+                // DECLARATIVE_OK: as above
+                lv_obj_set_pos(tool, sa.x1 - layer_area.x1, sa.y1 - layer_area.y1);
+            }
             continue;
+        }
+        // Beside its lane's label, on the labels layer with it, which leaves it the room
+        // (label_tag_room()): on a drawing or a drawn tray alike.
+        ui_ams_slot_move_tool_badge_to_layer(slot, layer);
+        clear_translate(tool);
         lv_obj_update_layout(tool);
-        lv_area_t ta, la;
-        lv_obj_get_coords(tool, &ta);
+        lv_area_t la, layer_area;
         lv_obj_get_coords(label, &la);
+        lv_obj_get_coords(layer, &layer_area);
         const int32_t text_right =
             (la.x1 + la.x2) / 2 +
             helix::ui::text_width(lv_label_get_text(label),
                                   lv_obj_get_style_text_font(label, LV_PART_MAIN),
                                   lv_obj_get_style_text_letter_space(label, LV_PART_MAIN)) /
                 2;
-        lv_obj_set_style_translate_x(tool, tool_inset + std::min(text_right, la.x2) + 2 - ta.x1,
-                                     LV_PART_MAIN);
-        lv_obj_set_style_translate_y(tool, tool_inset + (la.y1 + la.y2) / 2 - (ta.y1 + ta.y2) / 2,
-                                     LV_PART_MAIN);
+        const int32_t x = std::min(text_right, la.x2) + 3;
+        const int32_t y = (la.y1 + la.y2) / 2 - lv_obj_get_height(tool) / 2;
+        // DECLARATIVE_OK: measured layout; the tag follows its label
+        lv_obj_set_pos(tool, x - layer_area.x1, y - layer_area.y1);
     }
 }
 

@@ -783,7 +783,7 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     const bool heads_carry_tags =
         tag_topo == helix::PathTopology::PARALLEL || tag_topo == helix::PathTopology::MIXED;
     for (int i = 0; i < n; ++i) {
-        lv_obj_t* tag = lv_obj_find_by_name(slot_widgets[i], "tool_badge");
+        lv_obj_t* tag = ui_ams_slot_get_tool_badge(slot_widgets[i]);
         if (!tag)
             continue;
         lv_obj_update_layout(tag);
