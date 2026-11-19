@@ -167,6 +167,7 @@ struct ThemeCache {
     int32_t hub_width = 60;
     int32_t border_radius = 6;
     int32_t extruder_scale = 10; // Scale unit for extruder (based on space_md)
+    int32_t tool_tag_h = 0;      // a head's tool tag, which hangs half below the head
 
     const lv_font_t* label_font = nullptr;
 

@@ -110,6 +110,7 @@ static void load_theme_sizes(FilamentPathData* data) {
     theme.hub_width = LV_MAX(50, space_md * 5);
     theme.border_radius = LV_MAX(4, space_xs);
     theme.extruder_scale = LV_MAX(8, space_md); // Extruder scales with space_md
+    theme.tool_tag_h = helix::ui::tool_badge_look().height;
 
     // Get responsive font from globals.xml (font_small → responsive variant)
     const char* font_name = lv_xml_get_const(nullptr, "font_small");

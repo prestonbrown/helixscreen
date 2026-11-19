@@ -1391,6 +1391,19 @@ TEST_CASE("FilamentPath plan: under a view scale a MIXED hub stands where its la
     CHECK(std::abs(f.hub_cx - meet) < std::abs(f.shared_head_x - meet));
 }
 
+TEST_CASE("FilamentPath plan: under a view scale per-lane heads stand at the canvas foot",
+          "[filament-path][plan][parallel][art-fit]") {
+    auto d = make_data(helix::PathTopology::PARALLEL);
+    d->view_hub_h = 24;
+    d->theme.tool_tag_h = 14;
+    const BaseGeometry g = geometry();
+    const ParallelRows r = parallel_rows(*d, g);
+    const int32_t foot = toolhead_glyph_bounds(0, r.toolhead_y, r.tool_scale).bottom;
+    // Only the tool tags' overhang below them, and no idle band.
+    CHECK(foot + d->theme.tool_tag_h / 2 <= g.y_off + g.height);
+    CHECK(foot + d->theme.tool_tag_h / 2 >= g.y_off + g.height - 6);
+}
+
 TEST_CASE("FilamentPath plan: under a view scale a row of heads takes at most half the width",
           "[filament-path][plan][parallel][art-fit]") {
     auto d = make_data(helix::PathTopology::PARALLEL);
