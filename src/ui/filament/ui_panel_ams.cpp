@@ -831,8 +831,9 @@ void AmsPanel::create_slots(int count) {
     // path in real time (Task 1). Re-built here because the slot count is known.
     setup_slot_path_observers(result.slot_count);
 
-    ams_detail_lay_out_unit(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits,
-                            path_canvas_, relayout_passes_, [this, count] { create_slots(count); });
+    helix::ui::ams_detail_lay_out_unit(detail_widgets_, slot_widgets_, result.slot_count, kAllUnits,
+                                       path_canvas_, relayout_passes_,
+                                       [this, count] { create_slots(count); });
     // The path may have moved under its unit without changing size: the bypass spool stands
     // on its merge line wherever that now is.
     update_bypass_spool_position();

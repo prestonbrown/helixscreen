@@ -103,9 +103,11 @@ void ams_detail_update_tray(AmsDetailWidgets& w,
  * depth of that recursion, stays under kAmsDetailMaxRelayoutPasses.
  * @return true when @p relayout ran: the caller's own pass is superseded.
  */
-bool ams_detail_lay_out_unit(AmsDetailWidgets& w, const helix::ui::WidgetRef slot_widgets[],
-                             int slot_count, int unit_index, lv_obj_t* canvas, int& passes,
+namespace helix::ui {
+bool ams_detail_lay_out_unit(AmsDetailWidgets& w, const WidgetRef slot_widgets[], int slot_count,
+                             int unit_index, lv_obj_t* canvas, int& passes,
                              const std::function<void()>& relayout);
+} // namespace helix::ui
 
 /**
  * @brief Move material labels to overlay layer for 5+ overlapping slots

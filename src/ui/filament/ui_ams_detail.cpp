@@ -1146,9 +1146,10 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     lay_out_tray(w, slot_widgets, slot_count, unit_index, true);
 }
 
-bool ams_detail_lay_out_unit(AmsDetailWidgets& w, const helix::ui::WidgetRef slot_widgets[],
-                             int slot_count, int unit_index, lv_obj_t* canvas, int& passes,
-                             const std::function<void()>& relayout) {
+bool helix::ui::ams_detail_lay_out_unit(AmsDetailWidgets& w,
+                                        const helix::ui::WidgetRef slot_widgets[], int slot_count,
+                                        int unit_index, lv_obj_t* canvas, int& passes,
+                                        const std::function<void()>& relayout) {
     ams_detail_update_tray(w, slot_widgets, slot_count, unit_index);
     if (!helix::ui::ams_detail_sync_lane_entry(canvas, w.slot_grid) ||
         passes >= helix::ui::kAmsDetailMaxRelayoutPasses)
