@@ -10,7 +10,9 @@
  * @brief Circuit-board style routing for filament tubes: ordered buses of traces
  *        from unit outlets down to hub entries or toolhead inlets.
  *
- * Pure geometry, no LVGL, no allocation: the caller owns every buffer.
+ * Pure geometry, no LVGL. The caller owns every buffer it passes; the router
+ * itself allocates one scratch buffer, once, on its first plan, and plans run
+ * on one thread at a time.
  *
  * Coordinates are screen coordinates (+y down) in pixels. Every trace runs DOWN
  * from its source to its sink as at most three octilinear legs:

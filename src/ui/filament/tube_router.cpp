@@ -5,6 +5,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
+#include <new>
 
 namespace helix {
 namespace ui {
@@ -280,6 +282,15 @@ void flatten_final(const Work& w, const Params& p, Flat& f) {
     flatten(w, w.ey, p.fillet_r, f);
 }
 
+// Every trace of one plan, flattened, on the heap: kMaxTraces of them is ~12 KB,
+// too much for a UI thread's stack and for static RAM on the ESP32. Allocated on
+// the first plan and reused by every later one; plans run on one thread at a time
+// (the UI thread). Null when that allocation failed.
+Flat* flat_scratch() {
+    static const std::unique_ptr<Flat[]> scratch(new (std::nothrow) Flat[kMaxTraces]);
+    return scratch.get();
+}
+
 // Least distance over every pair, and the pair that set it.
 float verify_all(const Work* w, int n, const Params& p, int* worst_a, int* worst_b) {
     // Two traces farther apart than this read as clear.
@@ -287,19 +298,31 @@ float verify_all(const Work* w, int n, const Params& p, int* worst_a, int* worst
     float best = far;
     *worst_a = -1;
     *worst_b = -1;
-    Flat flats[kMaxTraces];
-    for (int i = 0; i < n; ++i)
-        flatten_final(w[i], p, flats[i]);
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
-            float d = flat_distance(flats[i], flats[j], far);
-            if (d < best) {
-                best = d;
-                *worst_a = i;
-                *worst_b = j;
+    auto note = [&](float d, int i, int j) {
+        if (d < best) {
+            best = d;
+            *worst_a = i;
+            *worst_b = j;
+        }
+    };
+    Flat* flats = flat_scratch();
+    if (!flats) {
+        // No scratch: flatten each pair as it is measured.
+        Flat fa, fb;
+        for (int i = 0; i < n; ++i) {
+            flatten_final(w[i], p, fa);
+            for (int j = i + 1; j < n; ++j) {
+                flatten_final(w[j], p, fb);
+                note(flat_distance(fa, fb, far), i, j);
             }
         }
+        return best;
     }
+    for (int i = 0; i < n; ++i)
+        flatten_final(w[i], p, flats[i]);
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j < n; ++j)
+            note(flat_distance(flats[i], flats[j], far), i, j);
     return best;
 }
 
