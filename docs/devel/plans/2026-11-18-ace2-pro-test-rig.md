@@ -48,11 +48,27 @@ gen-1 pinout in Kobra-S1/ACEPRO's README. The ACE's 4-pin socket is unused by ev
 page seen. The BMCU RS-485 adapter is not needed.
 
 - [x] Identify the cables and the ACE sockets; meter the K3 cable's printer end.
-- [ ] Rewirable USB-A adapter (D+, D-, GND), then enumeration on thelio: expect a WCH
-      (`1a86`) serial device under `/dev/serial/by-id/`.
+- [x] USB-A adapter (D+, D-, GND). On thelio 2026-11-19 it enumerated as `1a86:55d3`
+      "USB Single Serial" (CH343, `cdc_acm`, `ttyACM`), by-id
+      `usb-1a86_USB_Single_Serial_5B61000190-if00`. AFC's ACE 2 protocol code, run
+      standalone at 230400 baud, got answers to discover (UID), `get_info` (`ACE 2 Pro`,
+      firmware `V1.1.22`, boot `V1.0.1`) and `get_status` (four empty slots, dryer `stop`,
+      20 C, 43 % humidity). Link proven on stock firmware.
 - [ ] Crimp a proper 2x2 receptacle once it enumerates.
 - [ ] RDM pinout (its 6-pin cable goes to the printer per the manual; Kobra-S1 wires it as a
       `filament_switch_sensor`, optionally a `filament_tracker` with an encoder line).
+      Deferred: the first layout below needs no RDM.
+
+**Hub layout for the first run:** a printed passive 4-in-1 placed right at the V0's existing
+foot runout sensor (`gpio16`), so the sensor sits at the hub's outlet. AFC's ACE 2 template
+ships a virtual hub (`switch_pin: virtual`, the ACE 2 has no hub switch), so the sensor is an
+addition: point `[AFC_hub]` `switch_pin` at the foot sensor's pin and delete
+`[filament_switch_sensor filament_runout_sensor]`, which claims the same pin and calls
+`PAUSE` on runout. A real hub switch on an ACE unit is untested in AFC. Each lane's
+`dist_hub` must park its tip short of the hub's merge point (the template's rule), and
+`AFC_ACE_CALIBRATE` measures `afc_bowden_length` from there to the toolhead sensor.
+
+- [ ] Print the 4-in-1; measure each ACE outlet's tube length to the merge point.
 - [ ] Mount the ACE and the hub; route one PTFE run from hub to the V0 extruder; measure it.
 - [ ] Hub sensor: if it is a plain switch, wire it to a free Pico or SHT36 input (or reuse
       `gpio16` if the runout switch moves to the hub).
