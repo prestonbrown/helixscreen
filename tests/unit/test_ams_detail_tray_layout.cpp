@@ -1832,14 +1832,16 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit: on a compact screen, labels too crowded for whole names read the "
                  "base material",
                  "[ams][tray][ui_integration][over-lane][short-label]") {
-    // Twelve "Silk PLA" lanes fit no row at 480x272; four do. 800x480 keeps whole names.
+    // At 480x272 twelve "Silk PLA" lanes fit no row; four take two rows whole and one row as
+    // "PLA", which the unit's height wants more; two fit one row whole. 800x480 keeps whole
+    // names.
     struct Case {
         int32_t w, h;
         int lanes;
         bool short_form;
     };
-    const Case c =
-        GENERATE(Case{480, 272, 12, true}, Case{480, 272, 4, false}, Case{800, 480, 12, false});
+    const Case c = GENERATE(Case{480, 272, 12, true}, Case{480, 272, 4, true},
+                            Case{480, 272, 2, false}, Case{800, 480, 12, false});
     CAPTURE(c.w, c.h, c.lanes);
     helix::test::ScopedGeometry geometry(c.w, c.h);
     build("passive", c.lanes);
@@ -1852,6 +1854,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     const std::vector<lv_obj_t*> labels = over_lane_labels();
     REQUIRE((int)labels.size() == c.lanes);
     int shown = 0;
+    int32_t row_y = -1;
     for (int i = 0; i < c.lanes; ++i) {
         CAPTURE(i);
         // The lane card's text stays the whole name.
@@ -1865,6 +1868,14 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
             CHECK(text == "PLA");
         else
             CHECK(text.rfind("Si", 0) == 0); // whole, or cut to its room
+        if (c.lanes <= 4) {
+            // One row: every label stands at the same height.
+            lv_area_t a;
+            lv_obj_get_coords(labels[(size_t)i], &a);
+            if (row_y < 0)
+                row_y = a.y1;
+            CHECK(a.y1 == row_y);
+        }
     }
     CHECK(shown > 0);
 }

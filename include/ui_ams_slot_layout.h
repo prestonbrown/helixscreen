@@ -6,6 +6,7 @@
 #include "ui_breakpoint.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 /**
@@ -213,15 +214,96 @@ struct AmsLabelSpan {
 };
 
 /**
+ * @brief Packs the labels in row @p r of ams_over_lane_label_spans() side by side, each its whole
+ * @p need wide, twice @p gap apart (glyphs that sit flush, "PETG" before "TPU", read as one word
+ * at a single gap): each label stays as near its own lane as the
+ * row allows (the farthest any strays is as small as it can be), its tick under its text, and
+ * clear of the ticks of higher rows and the row's ends @p lo and @p hi. Writes the row's spans
+ * into @p out and returns true where that fits; false, @p out untouched, where it does not.
+ */
+inline bool ams_pack_over_lane_label_row(const float x[], const int row[], const int32_t need[],
+                                         int n, int32_t gap, float lo, float hi, int r,
+                                         AmsLabelSpan out[]) {
+    constexpr int kMaxLabels = 64;
+    gap *= 2;
+    int member[kMaxLabels];
+    float lower[kMaxLabels], upper[kMaxLabels]; // bounds on each label's left edge
+    int c = 0;
+    int32_t widest = 0;
+    for (int k = 0; k < n && c < kMaxLabels; ++k) {
+        if (row[k] == r) {
+            member[c++] = k;
+            widest = std::max(widest, need[k]);
+        }
+    }
+    // Places the row with no label's middle more than @p stray from its lane; true if it fits.
+    // Spans are whole pixels, so each left edge stands a whole number of pixels from its lane.
+    // The backward pass bounds each left edge by the labels after it, so the forward pass can
+    // keep each label as centered as its bounds allow.
+    const auto place = [&](float stray, AmsLabelSpan* spans) {
+        for (int i = c - 1; i >= 0; --i) {
+            const int k = member[i];
+            const float w = (float)need[k];
+            float hi_k = hi;
+            float lo_k = lo;
+            for (int j = 0; j < n; ++j) {
+                if (row[j] > r && x[j] > x[k])
+                    hi_k = std::min(hi_k, x[j] - (float)gap);
+                if (row[j] > r && x[j] < x[k])
+                    lo_k = std::max(lo_k, x[j] + (float)gap);
+            }
+            float u = std::min({x[k] - w / 2 + stray, hi_k - w, x[k] - 1.0f});
+            if (i + 1 < c)
+                u = std::min(u, upper[i + 1] - (float)gap - w);
+            upper[i] = x[k] - std::ceil(x[k] - u);
+            lower[i] = std::max({lo_k, x[k] - w / 2 - stray, x[k] + 1.0f - w});
+        }
+        float prev_end = -1e9f;
+        for (int i = 0; i < c; ++i) {
+            const int k = member[i];
+            const float low = std::max(lower[i], prev_end + (float)gap);
+            const int32_t most = (int32_t)std::floor(x[k] - low);
+            const int32_t least = (int32_t)std::lround(x[k] - upper[i]);
+            if (least > most)
+                return false;
+            const int32_t left = std::clamp(need[k] / 2, least, most);
+            const int32_t right = need[k] - left;
+            prev_end = x[k] + (float)right;
+            if (spans)
+                spans[i] = {left, right, left, right};
+        }
+        return true;
+    };
+    if (c == 0 || !place((float)widest, nullptr))
+        return false;
+    int32_t fits = widest, fails = -1;
+    while (fits - fails > 1) {
+        const int32_t mid = (fits + fails) / 2;
+        (place((float)mid, nullptr) ? fits : fails) = mid;
+    }
+    AmsLabelSpan spans[kMaxLabels];
+    place((float)fits, spans);
+    for (int i = 0; i < c; ++i)
+        out[member[i]] = spans[i];
+    return true;
+}
+
+/**
  * @brief Spans for labels over lanes at @p x (ascending), in rows @p row (0 nearest the unit),
  * each asking @p need wide. Centered on its lane where the room allows; where a neighbour
  * crowds one side, it slides toward the other, its own tick still under it. A label stops
  * @p gap short of halfway to a neighbour in its own row, and @p gap short of the tick of any
  * neighbour in a higher row, which rises past it; a neighbour in a lower row ticks down from
  * under it and takes nothing. No label reaches past @p lo or @p hi.
+ *
+ * With @p pack, a row where halfway leaves some label short is packed instead
+ * (ams_pack_over_lane_label_row()) when that gives every label in it its room: a narrow label
+ * leaves a wide neighbour the rest of the gap between them. Packed labels stand a narrow gap
+ * apart, so only one-word labels pack: a gap that narrow reads as a word space.
  */
 inline void ams_over_lane_label_spans(const float x[], const int row[], const int32_t need[], int n,
-                                      int32_t gap, float lo, float hi, AmsLabelSpan out[]) {
+                                      int32_t gap, float lo, float hi, AmsLabelSpan out[],
+                                      bool pack = false) {
     for (int k = 0; k < n; ++k) {
         float room[2] = {x[k] - lo, hi - x[k]}; // left, right
         for (int j = 0; j < n; ++j) {
@@ -245,18 +327,29 @@ inline void ams_over_lane_label_spans(const float x[], const int row[], const in
         out[k] = {left, right, (int32_t)std::max(0.0f, std::min(room[0], 1e6f)),
                   (int32_t)std::max(0.0f, std::min(room[1], 1e6f))};
     }
+    for (int k = 0; k < n && pack; ++k) {
+        if (out[k].left + out[k].right >= need[k])
+            continue;
+        bool first_short = true; // pack each short row once, from its first short label
+        for (int j = 0; j < k; ++j)
+            first_short =
+                first_short && !(row[j] == row[k] && out[j].left + out[j].right < need[j]);
+        if (first_short)
+            ams_pack_over_lane_label_row(x, row, need, n, gap, lo, hi, row[k], out);
+    }
 }
 
 /// Whether labels over lanes at @p x, each asking @p need wide, all get their room in
-/// @p rows rows cycling label by label (k % rows). No label reaches past @p lo or @p hi.
+/// @p rows rows cycling label by label (k % rows), packed with @p pack
+/// (ams_over_lane_label_spans()). No label reaches past @p lo or @p hi.
 inline bool ams_over_lane_labels_fit(const float x[], const int32_t need[], int n, int32_t gap,
-                                     float lo, float hi, int rows) {
+                                     float lo, float hi, int rows, bool pack = false) {
     int row[64];
     AmsLabelSpan span[64];
     n = std::min(n, 64);
     for (int k = 0; k < n; ++k)
         row[k] = k % rows;
-    ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span);
+    ams_over_lane_label_spans(x, row, need, n, gap, lo, hi, span, pack);
     for (int k = 0; k < n; ++k) {
         if (span[k].left + span[k].right < need[k])
             return false;
@@ -268,16 +361,17 @@ inline bool ams_over_lane_labels_fit(const float x[], const int32_t need[], int 
  * @brief The rows (1 to kAmsOverLaneMaxRows) the labels over lanes at @p x take, rows cycling
  * label by label (k % rows): the fewest that give every label its whole text (@p whole), else
  * the fewest that give each at least a few readable characters (@p readable), else
- * @p max_rows (at most kAmsOverLaneMaxRows), where the labels shorten to their room. No label
- * reaches past @p lo or @p hi.
+ * @p max_rows (at most kAmsOverLaneMaxRows), where the labels shorten to their room. Rows pack
+ * with @p pack (ams_over_lane_label_spans()). No label reaches past @p lo or @p hi.
  */
 inline int ams_over_lane_label_rows(const float x[], const int32_t whole[],
                                     const int32_t readable[], int n, int32_t gap, float lo,
-                                    float hi, int max_rows = kAmsOverLaneMaxRows) {
+                                    float hi, int max_rows = kAmsOverLaneMaxRows,
+                                    bool pack = false) {
     max_rows = std::clamp(max_rows, 1, kAmsOverLaneMaxRows);
     for (const int32_t* need : {whole, readable}) {
         for (int rows = 1; rows <= max_rows; ++rows) {
-            if (ams_over_lane_labels_fit(x, need, n, gap, lo, hi, rows))
+            if (ams_over_lane_labels_fit(x, need, n, gap, lo, hi, rows, pack))
                 return rows;
         }
     }
