@@ -374,6 +374,7 @@ static void apply_status_badge(AmsSlotData* data, int status_int) {
     if (!data)
         return;
     auto status = static_cast<SlotStatus>(status_int);
+    data->last_status = status_int;
     if (!data->status_badge_bg)
         return;
 
@@ -1162,6 +1163,9 @@ void ui_ams_slot_set_badge_marks(lv_obj_t* obj, bool plus, bool error,
     lv_obj_set_style_border_width(data->status_badge_bg,
                                   hollow ? 2 : theme_manager_get_spacing("ams_slot_badge_border_w"),
                                   LV_PART_MAIN);
+    if (!hollow && data->badge_hollow)
+        apply_status_badge(data, data->last_status); // the status's own fill and number color
+    data->badge_hollow = hollow;
     if (hollow && data->slot_badge)
         lv_obj_set_style_text_color(
             data->slot_badge,

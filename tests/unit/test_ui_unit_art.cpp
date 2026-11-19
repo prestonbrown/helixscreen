@@ -834,6 +834,66 @@ TEST_CASE_METHOD(
     const bool still = spin_pixels(art, 3) == stopped;
     CHECK(still);
     CHECK_FALSE(lv_obj_is_hidden(unit_art_lane_spin_obj(art, 3))); // it keeps its angle in view
+    // A stopped spool keeps no layers to redraw it: a refresh shows it at rest in the flat image.
+    unit_art_set_unit(art, ace_system(), 0);
+    CHECK(lv_obj_is_hidden(unit_art_lane_spin_obj(art, 3)));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a spin asked off screen turns once it is shown",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    lv_obj_set_hidden(art, true); // an overlay still sliding in, or a page scrolled away
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400));
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) == 0.0f);
+    lv_obj_set_hidden(art, false);
+    lv_refr_now(nullptr); // the test display draws only when told to
+    process_lvgl(1000);
+    CHECK(unit_art_lane_spin_angle(art, 3) > 0.0f);
+
+    // Hidden mid-turn it stands still, and turns on when shown again.
+    lv_obj_set_hidden(art, true);
+    process_lvgl(100);
+    const float held = unit_art_lane_spin_angle(art, 3);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) == held);
+    lv_obj_set_hidden(art, false);
+    lv_refr_now(nullptr);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) != held);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: spools stand still while the display sleeps",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400));
+    process_lvgl(200);
+    unit_art_set_display_asleep(true);
+    const float asleep = unit_art_lane_spin_angle(art, 3);
+    CHECK(lv_anim_get(unit_art_lane_spin_obj(art, 3), nullptr) == nullptr);
+    process_lvgl(1000);
+    CHECK(unit_art_lane_spin_angle(art, 3) == asleep);
+    unit_art_set_display_asleep(false);
+    process_lvgl(500);
+    CHECK(unit_art_lane_spin_angle(art, 3) != asleep);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a rebuilt drawing leaves no old spin turning",
+                 "[ams][unit-art][spool_spin]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 320, 271);
+    unit_art_set_unit(art, ace_system(), 0);
+    unit_art_set_lane_spin(art, 3, feeding_spin(3, 400));
+    lv_obj_t* old = unit_art_lane_spin_obj(art, 3);
+    REQUIRE(lv_anim_get(old, nullptr) != nullptr);
+    // The old image is deleted later; its animation must not outlive the rebuild meanwhile.
+    unit_art_set_unit(art, rail_system("YAMMU", "Other", 4, PathTopology::HUB), 0);
+    REQUIRE(unit_art_lane_spin_obj(art, 3) != old);
+    CHECK(lv_anim_get(old, nullptr) == nullptr);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: a spool in front covers a turning one",

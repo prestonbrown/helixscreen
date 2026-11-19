@@ -31,6 +31,11 @@ struct AmsSlotData {
     // for it.
     helix::ui::LaneState last_lane_state = helix::ui::LaneState::Empty;
 
+    /// The last per-slot status the badge was colored for, which a hollow badge's outline
+    /// covers until it clears.
+    int last_status = 0;
+    bool badge_hollow = false; ///< the badge shows the outline of a bay with no spool
+
     // RAII observer handles - automatically removed when this struct is destroyed
     ObserverGuard status_observer;     ///< Per-slot status -> badge color
     ObserverGuard lane_state_observer; ///< Per-slot lane_state -> label text + ghost

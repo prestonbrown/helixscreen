@@ -1356,6 +1356,9 @@ bool Application::init_display() {
 #endif
 
     helix::wire_asleep_status(*m_display, [this] { return m_session.moonraker().get(); });
+    // Turning spools in the unit art stop while the panel is dark and resume on wake.
+    m_display->register_sleep_callback(
+        [](bool sleeping) { helix::ui::unit_art_set_display_asleep(sleeping); });
 
     // Register LVGL log handler AFTER lv_init() (called inside display->init())
     // Must be after lv_init() because it resets global state and clears callbacks

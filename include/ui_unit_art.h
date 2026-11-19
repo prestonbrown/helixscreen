@@ -138,8 +138,13 @@ int unit_art_lane_fill_pct(lv_obj_t* art, int lane);
 
 /// Turn lane @p lane's spool as @p spin says (decide_spool_spin): both flanges' vents rotate
 /// together in their own planes, under whatever stands in front of them. Only a full drawing whose
-/// bake has the vents apart turns; a stopped spool holds its angle.
+/// bake has the vents apart turns; a stopped spool holds its angle. A spin asked of an art that is
+/// off screen is kept and starts when the art is next drawn.
 void unit_art_set_lane_spin(lv_obj_t* art, int lane, const SpoolSpin& spin);
+
+/// Pause every unit art's turning spools while the display sleeps and resume them on wake.
+/// Application's display sleep callback calls it; each spool keeps its requested spin.
+void unit_art_set_display_asleep(bool asleep);
 
 /// How far lane @p lane's near flange has turned in its own plane, in degrees within
 /// (-180, 180]: positive from the unit's back toward up, so its front edge moves down.
