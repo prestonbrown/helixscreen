@@ -940,6 +940,8 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
     refresh_unit_view_marks();
 
     // Each lane's number stands just right of its tube, inside its bay; the pill clears them.
+    constexpr float kArtBadgePitchShare = 0.55f;
+    constexpr float kArtBadgeMinFit = 0.7f;
     float badge_end = 0;
     if (w.badge_layer) {
         lv_area_t layer;
@@ -961,7 +963,14 @@ void ams_detail_update_tray(AmsDetailWidgets& w, const helix::ui::WidgetRef slot
             lv_obj_update_layout(badge);
             const float bw = (float)lv_obj_get_width(badge);
             const float bh = (float)lv_obj_get_height(badge);
-            const float fit = s_tray.art && bw > 0 ? std::min(1.0f, (pitch - inset) / bw) : 1.0f;
+            // Narrower than the pitch, so neighbors never touch; and kArtBadgePitchShare of it,
+            // leaving the drawn outlet tabs between lanes in view, but not below
+            // kArtBadgeMinFit for that, where the number stops reading.
+            const float fit =
+                s_tray.art && bw > 0
+                    ? std::min({1.0f, (pitch - inset) / bw,
+                                std::max(kArtBadgeMinFit, kArtBadgePitchShare * pitch / bw)})
+                    : 1.0f;
             // DECLARATIVE_OK: measured layout; the number shrinks to the drawn outlets' pitch
             lv_obj_set_style_transform_pivot_x(badge, (int32_t)(bw / 2), LV_PART_MAIN);
             lv_obj_set_style_transform_pivot_y(badge, (int32_t)(bh / 2), LV_PART_MAIN);

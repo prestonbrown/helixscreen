@@ -23,6 +23,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "lvgl/src/core/lv_refr_private.h" // lv_obj_refr
 #include "path_view_scale.h"
 #include "theme_manager.h"
 #include "widget_data_registry.h"
@@ -219,7 +220,7 @@ static void redraw_lane_badges(lv_layer_t* layer, const FilamentPathData* data) 
     for (int i = 0; i < n; i++) {
         lv_obj_t* parent = lv_obj_get_parent(badges[i]);
         if (!lv_obj_is_hidden(badges[i]) && (!parent || !lv_obj_is_hidden(parent)))
-            lv_obj_redraw(layer, badges[i]);
+            lv_obj_refr(layer, badges[i]); // with its transform: a number shrunk to its pitch
     }
 }
 
