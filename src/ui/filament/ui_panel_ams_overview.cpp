@@ -428,10 +428,14 @@ void AmsOverviewPanel::sync_pages(bool reopen, int focus_unit) {
 
     const auto snapshot = AmsState::instance().system_info();
     const AmsSystemInfo& info = *snapshot;
-    auto pages = helix::ui::build_unit_pages(info, [&](int pos) {
-        const DryerInfo dryer = helix::dryer_info(*backend, info.units[pos].unit_index);
-        return dryer.supported && dryer.active;
-    });
+    // The pages run in the order the overview's cards stand in.
+    auto pages = helix::ui::build_unit_pages(
+        info,
+        [&](int pos) {
+            const DryerInfo dryer = helix::dryer_info(*backend, info.units[pos].unit_index);
+            return dryer.supported && dryer.active;
+        },
+        ams_draw::compute_system_tool_layout(info, backend).display_order);
     if (pages.empty()) {
         show_overview();
         return;

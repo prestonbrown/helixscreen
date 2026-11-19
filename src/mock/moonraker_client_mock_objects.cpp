@@ -643,8 +643,12 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             self->merge_mock_ams_hardware_status(status_obj, &objects);
             // multiACE on a U1: both feeder sides at rest, so the backend's
-            // first frame carries each head's channel state and Auto loading.
+            // first frame carries each head's channel state and Auto loading, and
+            // the ACE units with them, so the backend reports every unit at once.
             if (self->is_mock_multiace()) {
+                if (objects.contains("ace")) {
+                    status_obj["ace"] = self->multiace_status_json();
+                }
                 if (objects.contains("filament_feed left")) {
                     status_obj["filament_feed left"] = self->u1_feed_side_json(0);
                 }
@@ -974,8 +978,12 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
             }
             self->merge_mock_ams_hardware_status(status_obj, &objects);
             // multiACE on a U1: both feeder sides at rest, so the backend's
-            // first frame carries each head's channel state and Auto loading.
+            // first frame carries each head's channel state and Auto loading, and
+            // the ACE units with them, so the backend reports every unit at once.
             if (self->is_mock_multiace()) {
+                if (objects.contains("ace")) {
+                    status_obj["ace"] = self->multiace_status_json();
+                }
                 if (objects.contains("filament_feed left")) {
                     status_obj["filament_feed left"] = self->u1_feed_side_json(0);
                 }
