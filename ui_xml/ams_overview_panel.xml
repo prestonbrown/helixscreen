@@ -25,11 +25,13 @@
     <style name="name_centered" height="#ams_header_name_line_h"/>
     <style name="suffix_centered" flex_track_place="center"/>
     <!-- The unit view in portrait: a tighter gap, and the page dots float over the
-         canvas's empty bottom-left corner instead of taking a row of height. -->
+         canvas's empty bottom-left corner instead of taking a row of height, raised clear of
+         the bottom edge (ams_page_dots_lift). -->
     <style name="unit_gap_landscape" pad_row="#space_xs"/>
     <style name="unit_gap_portrait" pad_row="#space_xxs"/>
     <style name="dots_landscape" width="100%" flex_main_place="center"/>
-    <style name="dots_portrait" width="50%" flex_main_place="start" align="bottom_left"/>
+    <style name="dots_portrait"
+           width="50%" flex_main_place="start" align="bottom_left" translate_y="#ams_page_dots_lift"/>
     <style name="right_landscape" width="#ams_right_col_w" height="100%" flex_grow="0" pad_all="#space_sm"/>
     <style name="right_portrait"
            width="100%" height="content" flex_grow="0" pad_left="#space_sm" pad_right="#space_sm" pad_top="0"
