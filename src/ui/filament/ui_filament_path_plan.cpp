@@ -864,7 +864,10 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         f.through = through_art_rect(data, g, top, bottom, (g.slot_x[0] + g.slot_x[n - 1]) / 2);
         if (f.through.w > 0 && data.view_hub_h > 0 && !data.hub_on_toolhead) {
             f.sensor_y = f.through.y + f.through.h + fan / 2;
-            const int32_t hub_top = LV_MIN(f.sensor_y + fan / 2, nozzle_top - stub - f.hub_h);
+            // The hub stands just over its shared head, leaving the lanes from the outlets the
+            // whole run above it to lean in.
+            const int32_t hub_top =
+                LV_MAX(f.sensor_y + fan / 2, nozzle_top - stub - f.hub_h - fan / 2);
             f.hub_cy = hub_top + f.hub_h / 2;
             f.hub_bottom = hub_top + f.hub_h;
         } else if (f.through.w > 0) {
@@ -894,10 +897,12 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
         };
         Head heads[FilamentPathData::kMaxSlots + 1];
         int k = 0;
+        const bool from_outlets = f.through.w > 0 && data.view_hub_h > 0;
         for (int i = 0; i < n; i++) {
-            f.head_x[i] = g.slot_x[i];
+            // Under a view scale a lane through a pass-through unit leaves from its outlet.
+            f.head_x[i] = from_outlets ? rail_outlet_x(*data.rail_art, f.through, i) : g.slot_x[i];
             if (!data.slot_is_hub_routed[i])
-                heads[k++] = {g.slot_x[i], i};
+                heads[k++] = {f.head_x[i], i};
         }
         if (f.hub_count > 0)
             heads[k++] = {f.hub_cx, -1};
@@ -934,7 +939,11 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
     for (int i = 0; i < n; i++) {
         if (!data.slot_is_hub_routed[i])
             continue;
-        fan_in[fan_n] = {(float)g.slot_x[i], (float)f.sensor_y};
+        // Under a view scale a lane through a pass-through unit fans in from its own outlet.
+        const float col = f.through.w > 0 && data.view_hub_h > 0
+                              ? (float)rail_outlet_x(*data.rail_art, f.through, i)
+                              : (float)g.slot_x[i];
+        fan_in[fan_n] = {col, (float)f.sensor_y};
         f.slot_to_fan[i] = fan_n++;
     }
     pg::build_merge_fan(fan_in, fan_n, (float)f.hub_cx, (float)hub_top, (float)f.hub_w,
@@ -1374,10 +1383,24 @@ void plan_mixed(const MixedFrame& f, const FilamentPathData& data, const BaseGeo
     const int n = LV_MIN(data.slot_count, FilamentPathData::kMaxSlots);
     for (int i = 0; i < n; i++) {
         const Lane lane = lane_of(f.states[i], error, bg);
-        const float x = (float)g.slot_x[i];
-        Route& r = f.through.w > 0 ? start_lane_through_art(out, lane, data, f.through, i, x,
-                                                            f.entry_y, f.sensor_y)
-                                   : start_lane(out, lane, x, f.entry_y, f.sensor_y);
+        float x = (float)g.slot_x[i];
+        const bool from_outlet = f.through.w > 0 && data.view_hub_h > 0;
+        Route* rp;
+        if (from_outlet) {
+            // Under a view scale the tube leaves the unit's drawing straight down from its own
+            // outlet, with no jog back to its lane's column.
+            rp = &new_route(out);
+            const pg::PathPoint at = route_into_art(*rp, data, f.through, i, x, (float)f.entry_y,
+                                                    lane.style(PathSegment::SPOOL));
+            x = at.x;
+            append_line(*rp, x, at.y, x, (float)f.sensor_y, lane.style(PathSegment::SPOOL));
+            add_band_at_end(out, BandKind::Lane, *rp, lane.band(PathSegment::TOOLHEAD), lane.color);
+        } else {
+            rp = f.through.w > 0 ? &start_lane_through_art(out, lane, data, f.through, i, x,
+                                                           f.entry_y, f.sensor_y)
+                                 : &start_lane(out, lane, x, f.entry_y, f.sensor_y);
+        }
+        Route& r = *rp;
         const int fi = f.slot_to_fan[i];
         if (fi >= 0) {
             pg::FilamentPath fan;
