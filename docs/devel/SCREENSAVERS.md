@@ -519,6 +519,14 @@ screen), the end of a print does not wake the display: `plan_completion_alert`
 which waits behind the saver. Sounds and the heater shutdown on an error are unchanged. With no
 saver running, completion behaves as it always did.
 
+A print starting is the other way round: a job taking the machine (the lifecycle stepping from
+a state without a job into PREPARING, PRINTING or PAUSED) wakes a sleeping, dimmed or
+screensaver display once, whatever sleep-while-printing says. `DisplaySleepController::tick()`
+compares the lifecycle with the one its previous tick read and passes the edge to
+`decide_idle()` as `IdleInputs::print_started`. The lifecycle keeps its value through a
+dropped connection, so a reconnect into a print the screen already knew of is no edge; a job
+the controller first hears of mid-print (its starting value is Idle) counts as a start.
+
 Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SCENE savers
 (the flip clock, the nixie clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
 creates a card on its own canvas above the scene (`start_print_card`): a ring that fills in

@@ -116,13 +116,15 @@ Appears under the Screensaver row when a screensaver is selected. Tap it to see 
 
 ## Prompts That Wake the Screen
 
-A sleeping screen wakes by itself for two things that need you: a prompt from one of your macros (a Klipper action prompt) and the recovery dialog Klipper raises when the printer shuts down or reports an error. The dialog is then on screen when you look, instead of waiting behind a dark display. A lost connection to the printer does not wake the screen, because it usually clears by itself.
+A sleeping screen also wakes when a print starts (see [Sleep While Printing](#sleep-while-printing)). Beyond that, it wakes by itself for two things that need you: a prompt from one of your macros (a Klipper action prompt) and the recovery dialog Klipper raises when the printer shuts down or reports an error. The dialog is then on screen when you look, instead of waiting behind a dark display. A lost connection to the printer does not wake the screen, because it usually clears by itself.
 
 ---
 
 ## Sleep While Printing
 
 Lets the screen dim and sleep during a print, on the same timers as the rest of the time. **On** by default. Turn it off to keep the screen lit for the whole print, so you can check progress at a glance without touching it.
+
+Whichever you choose, a print that starts while the screen is asleep, dimmed or showing a screensaver wakes it, so a print you start from Mainsail, Fluidd or your slicer shows up on the screen. With **Sleep While Printing** on, the screen then dims and sleeps again on its usual timers; with it off, it stays lit until the print ends. Pausing and resuming a print does not wake the screen, and neither does the screen reconnecting to a print it already knew about.
 
 ---
 
