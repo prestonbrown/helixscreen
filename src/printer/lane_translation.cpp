@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_translation.h"
 
+#include "ui_color_picker.h"
+
 #include "ams_types.h"
 #include "color_utils.h"
 #include "json_utils.h"
@@ -275,6 +277,10 @@ bool is_declarable_color(uint32_t rgb) {
 
 uint32_t picked_color(uint32_t rgb) {
     return is_declarable_color(rgb) ? rgb : 0x7F7F7F;
+}
+
+std::string slot_color_name(uint32_t rgb) {
+    return is_declarable_color(rgb) ? helix::get_color_name_from_hex(rgb) : std::string();
 }
 
 ColorReading read_lane_color(const std::string& raw) {
