@@ -623,7 +623,7 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t min_width = LV_CLAMP(theme.hub_width, want_w, max_width);
     // Under a view scale the hub is only as wide as its entries: the lanes converge into it,
     // and the path takes the height their diagonals need rather than a wider hub.
-    if (scaled && !fixed)
+    if (scaled)
         max_width = min_width;
     if (hub_lanes > 2 && !data.hub_on_toolhead && !f.hub_stacked) {
         // Borrow unused output-run height before widening the hub. Keep the
@@ -655,16 +655,26 @@ LinearHubFrame compute_linear_hub_frame(const FilamentPathData& data, const Base
     const int32_t roomy_top = glyph_top - room_under_hub(f.has_buffer) - f.hub_h;
     if (!data.hub_on_toolhead && (hub_top > roomy_top || data.view_hub_h > 0)) {
         int32_t top = roomy_top;
-        if (scaled && fit_n > 1) {
-            // The entries at the hub's least width, and each lane's run to its own.
+        if (scaled && fit_n > 1 && fan_n > 0) {
+            // The entries at the hub's least width, and each lane's run to its own. A fixed hub
+            // stands where its widest unit's lanes, at their own pitch, need it, so it holds
+            // still whichever unit is shown.
             const float usable = (float)(min_width - 2 * entry_margin);
             const float step = usable / (float)(fit_n - 1);
+            const float pitch =
+                fixed && data.fixed_hub_pitch > 0 ? (float)data.fixed_hub_pitch
+                : fan_n > 1 ? (fan_in[fan_n - 1].slot_x - fan_in[0].slot_x) / (float)(fan_n - 1)
+                            : step;
+            const int lanes = fixed ? fit_n : fan_n;
             float run = 0.0f, start = -1e9f;
-            for (int i = 0; i < fit_n; ++i) {
-                const float entry = (float)f.center_x - usable / 2.0f + step * (float)i;
-                run = std::max(run, std::fabs(entry - fit_in[i].slot_x));
-                start = std::max(start, fit_in[i].start_y);
+            for (int i = 0; i < lanes; ++i) {
+                const float offset = (float)i - (float)(lanes - 1) / 2.0f;
+                const float entry = (float)f.center_x + step * offset;
+                const float lane_x = fixed ? (float)f.center_x + pitch * offset : fan_in[i].slot_x;
+                run = std::max(run, std::fabs(entry - lane_x));
             }
+            for (int i = 0; i < fan_n; ++i)
+                start = std::max(start, fan_in[i].start_y);
             const float drop =
                 std::max(1.5f * (float)f.hub_h, run * kFanMinSlope + 2.0f * kFanLegRoom) +
                 (float)f.sensor_r;
