@@ -42,7 +42,7 @@ Under the sliders, a **Config-defined (read-only)** section shows your **Max Z V
 
 ## Motion
 
-Jog layout, which way the Z buttons move, jog speeds, how far each jog pad button moves, the Z clearance a move across the plate keeps (Bed tab, Move tab positions and the home Toolhead widget), and whether Save Z-Offset buttons appear. See [Motion](../motion.md#motion-settings) for what each one does.
+Jog layout, which way the Z buttons move, jog speeds, how far each jog pad button moves, the Z clearance a move across the plate keeps (Bed tab, Move tab positions and the home Toolhead widget), and whether Save Z-Offset buttons appear. See [Motion](../motion.md#motion-settings) for what each one does, and the [Z Offset guide](../z-offset.md#the-save-z-offset-buttons-setting) for what the save setting changes.
 
 ---
 

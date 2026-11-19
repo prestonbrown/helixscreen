@@ -14,7 +14,7 @@ This guide covers everything you can do from HelixScreen's touchscreen. New to i
 | Reprint my last file | **Home**, then **Reprint Last** on the print card | [Printing](guide/printing.md) |
 | Pause or cancel a print | The buttons along the bottom of the print screen | [During a Print](guide/printing.md#during-a-print) |
 | Change speed or flow mid-print | **Tune** on the print screen | [Print Tune Overlay](guide/printing.md#print-tune-overlay) |
-| Fix my first layer | **Tune** on the print screen, or **Z-Offset** on **Controls** | [Z-Offset / Baby Steps](guide/printing.md#z-offset--baby-steps) |
+| Fix my first layer | **Tune** on the print screen, or **Z-Offset** on **Controls** | [Z Offset](guide/z-offset.md) |
 | Stop printing one failed part | Press and hold the part in the print preview | [Exclude Object](guide/printing.md#exclude-object) |
 | Watch the print on camera | A **Camera** widget, or **Settings > Devices > Camera** | [Camera](guide/camera.md) |
 | Load or unload filament | **Filament** | [Filament Management](guide/filament.md#load--unload--purge) |
@@ -96,6 +96,7 @@ The home screen is yours to build: pick the widgets, size them, and spread them 
 ### Tuning & Calibration
 
 - **[Calibration & Tuning](guide/calibration.md)**: bed mesh, screws tilt adjust, input shaper, Z-offset, tool offsets, belt tension, pressure advance, and PID tuning.
+- **[Z Offset](guide/z-offset.md)**: what it is, calibrating it for each probe type, baby steps, what Save does, firmware-managed printers, per-tool offsets, and the gotchas.
 
 ![Bed Mesh](../images/screenshot-bed-mesh-panel.png)
 
