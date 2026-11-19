@@ -22,6 +22,8 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../ui_test_utils.h"
+#include "display_settings_manager.h"
 #include "featured_tip.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_size.h"
@@ -39,6 +41,12 @@ class TipsWidgetTestAccess {
   public:
     static void display(TipsWidget& w, const PrintingTip& tip) {
         w.set_displayed_tip(tip);
+    }
+    static void show(TipsWidget& w, const PrintingTip& tip) {
+        w.show_tip(tip);
+    }
+    static const std::string& current_id(const TipsWidget& w) {
+        return w.current_tip_.id;
     }
 };
 } // namespace helix
@@ -88,7 +96,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a featured line drops the Tip label and shr
         TipsWidgetTestAccess::display(h.widget(), featured_line(joke));
         lv_obj_update_layout(h.root());
 
-        CHECK(lv_obj_has_flag(prefix, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(prefix));
         CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) !=
               theme_manager_get_font("font_heading"));
         // The row gives the line the tile's whole height...
@@ -100,8 +108,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a featured line drops the Tip label and shr
     }
 
     SECTION("a joke too long for every face ends in the small one") {
-        TipsWidgetTestAccess::display(h.widget(), featured_line(std::string(60, 'x') + " " +
-                                                                std::string(400, 'y')));
+        TipsWidgetTestAccess::display(
+            h.widget(), featured_line(std::string(60, 'x') + " " + std::string(400, 'y')));
         CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
               theme_manager_get_font("font_small"));
     }
@@ -109,7 +117,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a featured line drops the Tip label and shr
     SECTION("a short joke keeps the heading face") {
         TipsWidgetTestAccess::display(h.widget(), featured_line("These go to eleven."));
         lv_obj_update_layout(h.root());
-        CHECK(lv_obj_has_flag(prefix, LV_OBJ_FLAG_HIDDEN));
+        CHECK(lv_obj_is_hidden(prefix));
         CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
               theme_manager_get_font("font_heading"));
     }
@@ -120,7 +128,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a featured line drops the Tip label and shr
         tip.title = "Level the bed before the first layer.";
         TipsWidgetTestAccess::display(h.widget(), tip);
         lv_obj_update_layout(h.root());
-        CHECK_FALSE(lv_obj_has_flag(prefix, LV_OBJ_FLAG_HIDDEN));
+        CHECK_FALSE(lv_obj_is_hidden(prefix));
         CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
               theme_manager_get_font("font_heading"));
         CHECK(lv_obj_get_style_pad_top(tip_container, LV_PART_MAIN) ==
@@ -197,4 +205,27 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a long tip title fills the tile's height an
     // ...and ends inside the tile's padding.
     CHECK(lv_obj_get_height(label) <= tile_h - pad_v);
     CHECK(lv_obj_get_height(tip_container) <= tile_h);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a tip that arrives during the fade-in shows after it",
+                 "[widget_size][tips][featured_tip]") {
+    PanelWidgetManager::instance().init_widget_subjects();
+    auto& display = DisplaySettingsManager::instance();
+    const bool saved_animations = display.get_animations_enabled();
+    display.set_animations_enabled(true);
+    PanelWidgetHarness<TipsWidget> h(test_screen());
+    h.resize(2, 1, 446, 108);
+
+    PrintingTip first;
+    first.id = "first";
+    first.title = "Level the bed before the first layer.";
+    TipsWidgetTestAccess::show(h.widget(), first);
+    UITest::advance_ms(350); // fade-out done: "first" is up and fading in
+    REQUIRE(TipsWidgetTestAccess::current_id(h.widget()) == "first");
+
+    TipsWidgetTestAccess::show(h.widget(), featured_line("These go to eleven."));
+    UITest::advance_ms(1000); // the fade-in ends, then a full fade to the new line
+    CHECK(TipsWidgetTestAccess::current_id(h.widget()) == "featured:t");
+
+    display.set_animations_enabled(saved_animations);
 }
