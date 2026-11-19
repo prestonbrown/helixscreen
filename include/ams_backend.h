@@ -27,6 +27,7 @@
 #include "lane_binding.h"
 #include "lane_source_store.h"
 #include "print_start_params.h"
+#include "runout_other_head.h"
 #include "tool_mapping_origin.h"
 #include "toolchanger_addon.h"
 #include "toolhead_style.h"
@@ -2191,6 +2192,19 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual helix::printer::EndlessSpoolCapabilities
     get_endless_spool_capabilities() const {
         return {};
+    }
+
+    /**
+     * @brief What helix::runout_other_head needs to offer continuing a
+     *        runout-paused print on another loaded head (#2137).
+     *
+     * @param runout_head The head whose filament ran out.
+     * @note Overrides take the backend's own `mutex_`; callers must NOT hold it.
+     * @return Default: nullopt, this backend reports nothing to decide on.
+     */
+    [[nodiscard]] virtual std::optional<helix::runout_other_head::RunoutFacts>
+    runout_other_head_facts(int /*runout_head*/) const {
+        return std::nullopt;
     }
 
     /**

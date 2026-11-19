@@ -593,6 +593,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         return print_preferences_;
     }
 
+    [[nodiscard]] std::optional<helix::runout_other_head::RunoutFacts>
+    runout_other_head_facts(int runout_head) const override;
+
     /// The Print Behavior section shown on the AMS device-operations
     /// overlay, and the Toolhead section with each head's nozzle. Each is
     /// absent until the firmware has reported what it shows, so the overlay
@@ -1065,6 +1068,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// print_task_config.filament_sub_type per head, as the firmware spells it.
     /// Unset until the first frame carrying it.
     std::array<std::optional<std::string>, kNumTools> task_subtype_{};
+
+    /// print_task_config.filament_color_multi per head: the colour record
+    /// Auto-Replenish compares. Unset until the first frame carrying it.
+    std::array<std::optional<snapmaker::ColorRecord>, kNumTools> task_color_multi_{};
 
     /// Per head: an official-flag repair has been sent this session. Under
     /// mutex_.

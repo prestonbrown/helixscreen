@@ -289,6 +289,23 @@ PrintTaskConfigDelta parse_print_task_config(const nlohmann::json& status) {
     d.filament_sub_type = ams::read_indexed<std::string, kToolCount>(ptc, "filament_sub_type");
     d.filament_official = ams::read_indexed<bool, kToolCount>(ptc, "filament_official");
     d.filament_color_rgba = ams::read_indexed<std::string, kToolCount>(ptc, "filament_color_rgba");
+    d.filament_color_multi = ams::read_indexed<ColorRecord, kToolCount>(
+        ptc, "filament_color_multi", [](const nlohmann::json& entry) -> std::optional<ColorRecord> {
+            const auto alpha = json_util::read_integer_field(entry, "alpha");
+            const auto mode = json_util::read_integer_field(entry, "mode");
+            const auto* colors = json_util::find_array(entry, "colors");
+            if (!alpha || !mode || !colors || colors->empty()) {
+                return std::nullopt;
+            }
+            ColorRecord rec{.alpha = *alpha, .mode = *mode};
+            for (const auto& c : *colors) {
+                if (!c.is_string()) {
+                    return std::nullopt;
+                }
+                rec.colors.push_back(c.get<std::string>());
+            }
+            return rec;
+        });
     return d;
 }
 
