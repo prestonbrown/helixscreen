@@ -451,17 +451,38 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHei
     if (s_view_scale.unit > 0) {
         // The drawing must also stay below its column's top: a unit with no labels over it
         // (every lane empty) otherwise grows until the drawing runs off the top.
-        int32_t over = cc.y1 + need - 1 - limit;
         lv_area_t drawn, art_coords;
         lv_obj_t* column = view_column(canvas);
+        int32_t over_top = INT32_MIN;
+        bool moved = false;
         if (column && s_tray.art_obj && helix::ui::unit_art_drawn_area(s_tray.art_obj, drawn)) {
             lv_area_t col;
             lv_obj_get_coords(column, &col);
             lv_obj_get_coords(s_tray.art_obj, &art_coords);
-            over = std::max(over, col.y1 - (art_coords.y1 + drawn.y1));
+            over_top = col.y1 - (art_coords.y1 + drawn.y1);
+            // A drawing taller over its spools than the row reserves (a deep lid) moves the row
+            // down by what it lacks rather than shrinking, where the path below has the room:
+            // the next pass places it there.
+            if (lv_obj_t* grid = s_tray.slot_grid) {
+                const int32_t pad = lv_obj_get_style_pad_top(grid, LV_PART_MAIN);
+                const int32_t room = limit - (cc.y1 + need - 1);
+                const int32_t want = std::max<int32_t>(0, pad + std::min(over_top, room));
+                if (want != pad && (over_top > 0 || pad > 0)) {
+                    // DECLARATIVE_OK: measured layout; the row clears its drawing's top
+                    lv_obj_set_style_pad_top(grid, want, LV_PART_MAIN);
+                    lv_obj_update_layout(column);
+                    lv_obj_get_coords(canvas, &cc);
+                    over_top -= want - pad;
+                    moved = true;
+                }
+            }
         }
-        return ui_filament_path_canvas_get_slot_grid(canvas) == s_tray.slot_grid &&
-               fit_scaled_unit(over, ui_filament_path_canvas_fan_growth(canvas), layout);
+        int32_t over = std::max(cc.y1 + need - 1 - limit, over_top);
+        // A row that moved lays out again even where the unit's size holds.
+        const bool refit =
+            ui_filament_path_canvas_get_slot_grid(canvas) == s_tray.slot_grid &&
+            fit_scaled_unit(over, ui_filament_path_canvas_fan_growth(canvas), layout);
+        return refit || moved;
     }
     if (overflow <= 0)
         return false;
