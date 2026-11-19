@@ -821,6 +821,13 @@ TEST_CASE("Overview plan: units scrolled off an edge share one tube per destinat
                 into[t] += enters_top(p->plan.routes[i], p->boxes.hubs[t]);
         CHECK(into[0] == 4);
         CHECK_FALSE(p->boxes.hubs[1].valid);
+        // The chip over the parked tubes keeps clear of the visible cards' tubes.
+        const ParkedChip& chip = p->boxes.parked[1];
+        REQUIRE(chip.present);
+        for (int u = 0; u < 3; u++)
+            CHECK(chip.room_lo >=
+                  p->L.x_off + d->unit_x_positions[u] + d->tube_gauge + helix::ui::kHaloWidthExtra);
+        CHECK(chip.stem_lo >= chip.room_lo);
         CHECK(p->plan.route_count == 5);
         REQUIRE(p->plan.active_route >= 0);
         const Route& active = p->plan.routes[p->plan.active_route];
