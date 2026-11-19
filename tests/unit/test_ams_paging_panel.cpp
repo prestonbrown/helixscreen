@@ -1289,6 +1289,26 @@ void art_fleet(PagedFleet& f, int units) {
 
 } // namespace
 
+TEST_CASE("Overview tiles take the height the path leaves and show whole tiles only",
+          "[ams][overview-tiles]") {
+    using helix::ui::overview_tile_fit;
+    // Two units in a 414 px row with 200 px of height for art: each takes half the row.
+    auto two = overview_tile_fit(2, 414, 12, 200, 96);
+    CHECK(two.across == 2);
+    CHECK(two.width == 201);
+    // A short column caps the width at what the art's height allows (3:4).
+    auto short_col = overview_tile_fit(2, 414, 12, 90, 60);
+    CHECK(short_col.width == 120);
+    // Twelve units: never below a little under half the largest tile; whole tiles share the
+    // row exactly.
+    auto many = overview_tile_fit(12, 414, 12, 200, 60);
+    CHECK(many.across < 12);
+    CHECK(many.width >= 200 * 100 / 75 * 45 / 100);
+    CHECK(many.across * many.width + (many.across - 1) * 12 <= 414);
+    CHECK(many.across * many.width + (many.across - 1) * 12 > 414 - many.across);
+    CHECK(overview_tile_fit(0, 414, 12, 200, 60).across == 0);
+}
+
 TEST_CASE("Overview row: a row that fits lets flex share it", "[ams][overview-tiles]") {
     CHECK(helix::ui::overview_peek_card_width(430, 12, {72, 72, 72, 72, 72}) == 0);
     CHECK(helix::ui::overview_peek_card_width(430, 12, {}) == 0);
@@ -1493,39 +1513,39 @@ TEST_CASE_METHOD(PagingFixture, "Overview tile: the readout goes on the smallest
     lv_subject_set_int(bp, original);
 }
 
-TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows part of the next tile",
+TEST_CASE_METHOD(PagingFixture, "Overview tile: an overflowing row shows only whole tiles",
                  "[ams][overview-tiles]") {
+    // A tile is a tap target: the row shows as many whole tiles as fit, shares its width
+    // between them exactly, and scrolls a tile at a time to the rest.
     install([](PagedFleet& f) { art_fleet(f, 12); });
     open();
     process_lvgl(50);
 
     lv_obj_t* row = lv_obj_get_parent(cards()[0]);
-    // A row that narrows sizes its tiles again: unsized, it would end 4 px into the fourth.
+    // A row that narrows sizes its tiles again.
     if (GENERATE(false, true)) {
-        lv_obj_set_width(row, lv_obj_get_x(cards()[3]) + 4);
+        lv_obj_set_width(row, lv_obj_get_width(row) * 2 / 3);
         lv_obj_update_layout(row);
         settle();
         process_lvgl(50);
     }
     lv_obj_update_layout(row);
     REQUIRE(lv_obj_get_scroll_right(row) > 0);
+    CHECK(lv_obj_get_scroll_snap_x(row) == LV_SCROLL_SNAP_START);
     lv_area_t row_box;
     lv_obj_get_coords(row, &row_box);
-
-    int cut_off = 0;
+    const int32_t content_x2 = row_box.x2 - lv_obj_get_style_pad_right(row, LV_PART_MAIN);
+    int whole = 0;
     for (lv_obj_t* card : cards()) {
         lv_area_t box;
         lv_obj_get_coords(card, &box);
-        if (box.x1 <= row_box.x2 && box.x2 > row_box.x2) {
-            ++cut_off;
-            const int32_t shown = row_box.x2 - box.x1 + 1;
-            const int32_t width = lv_area_get_width(&box);
-            INFO("shown " << shown << " of " << width);
-            CHECK(shown >= width / 5);
-            CHECK(shown <= width * 4 / 5);
-        }
+        INFO("tile " << box.x1 << ".." << box.x2 << " in a row to " << content_x2);
+        const bool inside = box.x2 <= content_x2 + 1;
+        const bool outside = box.x1 > content_x2;
+        CHECK((inside || outside));
+        whole += inside ? 1 : 0;
     }
-    CHECK(cut_off == 1);
+    CHECK(whole >= 1);
 }
 
 // ============================================================================
