@@ -681,6 +681,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации вибраций для уменьшения артефактов звона
   Calibrate now: 'Откалибровать'
   Calibrate part fan: Калибровать обдув модели
+  Calibrate this printer, step by step: ''
   Calibrate tool offsets?: Калибровать смещения инструментов?
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для точного ввода
   Calibrated: Откалиброван
@@ -1320,6 +1321,8 @@ translations:
   Don't Save: Не сохранять
   Don't ask again: Больше не спрашивать
   Done: Готово
+  Done {}: ''
+  Done {} · {}: ''
   Door: Дверь
   Door Open: Дверь открыта
   'Door opened during print: {}': 'Дверь открыта во время печати: {}'
@@ -2667,6 +2670,9 @@ translations:
   Neutral: Нейтральный
   Neutralize Tension: "Выровнять натяжение"
   Never: Никогда
+  Never run: ''
+  Never run · optional: ''
+  Never run · required: ''
   Never sleeps: Никогда не спит
   New Spool: Новая катушка
   'New Spool: Step 1 of 3': 'Новая катушка: Шаг 1 из 3'
@@ -3657,6 +3663,7 @@ translations:
   Run the MMU fans by temperature: "Включать вентиляторы MMU по температуре"
   Run the chamber dryer too: Включить и сушилку камеры
 
+  Run when needed: ''
   Run {}?: Запустить {}?
   Running loose: 'Ослаблен'
   Running over: "Превышено"

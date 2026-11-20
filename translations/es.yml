@@ -625,6 +625,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrar input shaping para reducir artefactos de resonancia en impresiones
   Calibrate now: 'Calibrar ahora'
   Calibrate part fan: Calibrar ventilador de pieza
+  Calibrate this printer, step by step: ''
   Calibrate tool offsets?: ¿Calibrar los offsets de herramienta?
   Calibrate your touchscreen for accurate input: Calibrar la pantalla táctil para una entrada precisa
   Calibrated: Calibrado
@@ -1260,6 +1261,8 @@ translations:
   Don't Save: No Guardar
   Don't ask again: No volver a preguntar
   Done: Listo
+  Done {}: ''
+  Done {} · {}: ''
   Door: Puerta
   Door Open: Puerta abierta
   'Door opened during print: {}': 'Puerta abierta durante la impresión: {}'
@@ -2603,6 +2606,9 @@ translations:
   Neutral: Neutro
   Neutralize Tension: "Neutralizar tensión"
   Never: Nunca
+  Never run: ''
+  Never run · optional: ''
+  Never run · required: ''
   Never sleeps: Nunca duerme
   New Spool: Bobina nueva
   'New Spool: Step 1 of 3': 'Nueva Bobina: Paso 1 de 3'
@@ -3577,6 +3583,7 @@ translations:
   Run the MMU fans by temperature: "Accionar los ventiladores del MMU según la temperatura"
   Run the chamber dryer too: Usar también el secador de la cámara
 
+  Run when needed: ''
   Run {}?: ¿Ejecutar {}?
   Running loose: 'Va suelto'
   Running over: "Excedido"

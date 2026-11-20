@@ -605,6 +605,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" es="Calibrar input shaping para reducir artefactos de resonancia en impresiones"/>
   <translation tag="Calibrate now" es="Calibrar ahora"/>
   <translation tag="Calibrate part fan" es="Calibrar ventilador de pieza"/>
+  <translation tag="Calibrate this printer, step by step"/>
   <translation tag="Calibrate tool offsets?" es="¿Calibrar los offsets de herramienta?"/>
   <translation tag="Calibrate with this tool?" es="¿Calibrar con esta herramienta?"/>
   <translation tag="Calibrate your touchscreen for accurate input" es="Calibrar la pantalla táctil para una entrada precisa"/>
@@ -1200,6 +1201,8 @@
   <translation tag="Don&apos;t Save" es="No Guardar"/>
   <translation tag="Don&apos;t ask again" es="No volver a preguntar"/>
   <translation tag="Done" es="Listo"/>
+  <translation tag="Done {}"/>
+  <translation tag="Done {} · {}"/>
   <translation tag="Door" es="Puerta"/>
   <translation tag="Door Open" es="Puerta abierta"/>
   <translation tag="Door opened during print: {}" es="Puerta abierta durante la impresión: {}"/>
@@ -2526,6 +2529,9 @@
   <translation tag="Neutral" es="Neutro"/>
   <translation tag="Neutralize Tension" es="Neutralizar tensión"/>
   <translation tag="Never" es="Nunca"/>
+  <translation tag="Never run"/>
+  <translation tag="Never run · optional"/>
+  <translation tag="Never run · required"/>
   <translation tag="Never sleeps" es="Nunca duerme"/>
   <translation tag="New Spool" es="Bobina nueva"/>
   <translation tag="New Spool: Step 1 of 3" es="Nueva Bobina: Paso 1 de 3"/>
@@ -3488,6 +3494,7 @@
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." es="Ejecuta el instalador de HelixScreen con --update desde un terminal en esta impresora. Escanea para ver el comando de tu plataforma."/>
   <translation tag="Run the MMU fans by temperature" es="Accionar los ventiladores del MMU según la temperatura"/>
   <translation tag="Run the chamber dryer too" es="Usar también el secador de la cámara"/>
+  <translation tag="Run when needed"/>
   <translation tag="Run {}?" es="¿Ejecutar {}?"/>
   <translation tag="Running loose" es="Va suelto"/>
   <translation tag="Running over" es="Excedido"/>

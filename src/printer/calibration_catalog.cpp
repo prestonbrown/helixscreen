@@ -27,7 +27,7 @@ struct StepRow {
 };
 
 // clang-format off
-constexpr std::array<StepRow, 13> kSteps{{
+constexpr std::array<StepRow, kStepCount> kSteps{{
     {StepKind::BeltTension, "belt_tension", TR_NOOP("Auto Belt Tension"), Tier::Recommended, 3,
      false, true, true, false, kPrereqBedClear},
     {StepKind::CutterPosition, "cutter", TR_NOOP("Cutter Calibration"), Tier::Recommended, 2,
@@ -102,6 +102,17 @@ bool known_step_id(const std::string& id) {
 }
 
 } // namespace
+
+const std::array<const char*, kStepCount>& all_step_ids() {
+    static const std::array<const char*, kStepCount> ids = [] {
+        std::array<const char*, kStepCount> out{};
+        for (size_t i = 0; i < kSteps.size(); ++i) {
+            out[i] = kSteps[i].id;
+        }
+        return out;
+    }();
+    return ids;
+}
 
 std::optional<Tier> parse_tier(std::string_view text) {
     for (Tier t : {Tier::Required, Tier::Recommended, Tier::Optional, Tier::OnRequest}) {

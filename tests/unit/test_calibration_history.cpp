@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "ui_calibration_hub_overlay.h"
+
 #include "../lvgl_test_fixture.h"
 #include "calibration_history_store.h"
 #include "core/update_queue.h"
@@ -196,4 +198,31 @@ TEST_CASE_METHOD(LVGLTestFixture, "a result recorded while the history loads kee
     CHECK(saved->at("z_offset").summary == "-1.300 mm");
     CHECK(saved->at("input_shaper").summary == "MZV 52 Hz");
     CHECK(history.entry("z_offset")->summary == "-1.300 mm");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a Calibration tile says when a step last ran, else how much it matters",
+                 "[calibration_history]") {
+    StepInfo step;
+    step.tier = Tier::Required;
+    const HistoryEntry done{"2026-11-20", "MPC 60 W", json::object()};
+    auto s = helix::ui::tile_status(step, &done);
+    CHECK(s.text == "Done Nov 20 · MPC 60 W");
+    CHECK(s.tone == helix::ui::TileTone::Done);
+    const HistoryEntry bare{"2026-03-09", "", json::object()};
+    CHECK(helix::ui::tile_status(step, &bare).text == "Done Mar 9");
+
+    using helix::ui::TileTone;
+    const std::pair<Tier, std::pair<const char*, TileTone>> never[] = {
+        {Tier::Required, {"Never run · required", TileTone::Due}},
+        {Tier::Recommended, {"Never run", TileTone::Due}},
+        {Tier::Optional, {"Never run · optional", TileTone::Idle}},
+        {Tier::OnRequest, {"Run when needed", TileTone::Idle}},
+    };
+    for (const auto& [tier, want] : never) {
+        step.tier = tier;
+        s = helix::ui::tile_status(step, nullptr);
+        CHECK(s.text == want.first);
+        CHECK(s.tone == want.second);
+    }
 }

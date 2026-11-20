@@ -9,6 +9,8 @@
 // data. calibration_catalog_inputs.h fills the inputs from the live printer.
 // The Calibration screen and the guided run read only this.
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -103,6 +105,11 @@ struct CatalogInputs {
     bool nozzle_contact_probe = false;
     std::vector<TierOverride> tier_overrides;
 };
+
+/// How many steps the catalog knows.
+inline constexpr size_t kStepCount = 13;
+/// Every step id the catalog knows, in run order, whatever the printer has.
+[[nodiscard]] const std::array<const char*, kStepCount>& all_step_ids();
 
 /// The steps this printer has, in run order.
 [[nodiscard]] std::vector<StepInfo> applicable_steps(const CatalogInputs& in);

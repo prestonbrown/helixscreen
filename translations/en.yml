@@ -626,6 +626,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrate input shaping to reduce ringing artifacts in prints
   Calibrate now: Calibrate now
   Calibrate part fan: Calibrate part fan
+  Calibrate this printer, step by step: Calibrate this printer, step by step
   Calibrate tool offsets?: Calibrate tool offsets?
   Calibrate your touchscreen for accurate input: Calibrate your touchscreen for accurate input
   Calibrated: Calibrated
@@ -1256,6 +1257,8 @@ translations:
   Don't Save: Don't Save
   Don't ask again: Don't ask again
   Done: Done
+  Done {}: Done {}
+  Done {} · {}: Done {} · {}
   Door: Door
   Door Open: Door Open
   'Door opened during print: {}': 'Door opened during print: {}'
@@ -2587,6 +2590,9 @@ translations:
   Neutral: Neutral
   Neutralize Tension: Neutralize Tension
   Never: Never
+  Never run: Never run
+  Never run · optional: Never run · optional
+  Never run · required: Never run · required
   Never sleeps: Never sleeps
   New Spool: New Spool
   'New Spool: Step 1 of 3': 'New Spool: Step 1 of 3'
@@ -3556,6 +3562,7 @@ translations:
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.
   Run the MMU fans by temperature: Run the MMU fans by temperature
   Run the chamber dryer too: Run the chamber dryer too
+  Run when needed: Run when needed
   Run {}?: Run {}?
   Running loose: Running loose
   Running over: Running over

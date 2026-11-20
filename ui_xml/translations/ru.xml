@@ -647,6 +647,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
   <translation tag="Calibrate now" ru="Откалибровать"/>
   <translation tag="Calibrate part fan" ru="Калибровать обдув модели"/>
+  <translation tag="Calibrate this printer, step by step"/>
   <translation tag="Calibrate tool offsets?" ru="Калибровать смещения инструментов?"/>
   <translation tag="Calibrate with this tool?" ru="Калибровать с этим инструментом?"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
@@ -1245,6 +1246,8 @@
   <translation tag="Don&apos;t Save" ru="Не сохранять"/>
   <translation tag="Don&apos;t ask again" ru="Больше не спрашивать"/>
   <translation tag="Done" ru="Готово"/>
+  <translation tag="Done {}"/>
+  <translation tag="Done {} · {}"/>
   <translation tag="Door" ru="Дверь"/>
   <translation tag="Door Open" ru="Дверь открыта"/>
   <translation tag="Door opened during print: {}" ru="Дверь открыта во время печати: {}"/>
@@ -2574,6 +2577,9 @@
   <translation tag="Neutral" ru="Нейтральный"/>
   <translation tag="Neutralize Tension" ru="Выровнять натяжение"/>
   <translation tag="Never" ru="Никогда"/>
+  <translation tag="Never run"/>
+  <translation tag="Never run · optional"/>
+  <translation tag="Never run · required"/>
   <translation tag="Never sleeps" ru="Никогда не спит"/>
   <translation tag="New Spool" ru="Новая катушка"/>
   <translation tag="New Spool: Step 1 of 3" ru="Новая катушка: Шаг 1 из 3"/>
@@ -3548,6 +3554,7 @@
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ru="Запустите установщик HelixScreen с ключом --update в терминале на этом принтере. Отсканируйте код, чтобы получить команду для вашей платформы."/>
   <translation tag="Run the MMU fans by temperature" ru="Включать вентиляторы MMU по температуре"/>
   <translation tag="Run the chamber dryer too" ru="Включить и сушилку камеры"/>
+  <translation tag="Run when needed"/>
   <translation tag="Run {}?" ru="Запустить {}?"/>
   <translation tag="Running loose" ru="Ослаблен"/>
   <translation tag="Running over" ru="Превышено"/>

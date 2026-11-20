@@ -605,6 +605,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate now" zh="立即校准"/>
   <translation tag="Calibrate part fan" zh="校准模型风扇"/>
+  <translation tag="Calibrate this printer, step by step"/>
   <translation tag="Calibrate tool offsets?" zh="校准工具偏移？"/>
   <translation tag="Calibrate with this tool?" zh="用这个工具校准？"/>
   <translation tag="Calibrate your touchscreen for accurate input" zh="校准触摸屏以确保输入准确"/>
@@ -1200,6 +1201,8 @@
   <translation tag="Don&apos;t Save" zh="不保存"/>
   <translation tag="Don&apos;t ask again" zh="不再询问"/>
   <translation tag="Done" zh="完成"/>
+  <translation tag="Done {}"/>
+  <translation tag="Done {} · {}"/>
   <translation tag="Door" zh="门"/>
   <translation tag="Door Open" zh="门已打开"/>
   <translation tag="Door opened during print: {}" zh="打印时门被打开：{}"/>
@@ -2526,6 +2529,9 @@
   <translation tag="Neutral" zh="中性"/>
   <translation tag="Neutralize Tension" zh="消除张力"/>
   <translation tag="Never" zh="从不"/>
+  <translation tag="Never run"/>
+  <translation tag="Never run · optional"/>
+  <translation tag="Never run · required"/>
   <translation tag="Never sleeps" zh="从不休眠"/>
   <translation tag="New Spool" zh="新料盘"/>
   <translation tag="New Spool: Step 1 of 3" zh="新料盘：步骤 1 / 3"/>
@@ -3488,6 +3494,7 @@
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." zh="在本打印机的终端中运行 HelixScreen 安装程序并加上 --update。扫码获取适用于你的平台的命令。"/>
   <translation tag="Run the MMU fans by temperature" zh="按温度运行 MMU 风扇"/>
   <translation tag="Run the chamber dryer too" zh="同时运行腔体烘干器"/>
+  <translation tag="Run when needed"/>
   <translation tag="Run {}?" zh="运行 {}？"/>
   <translation tag="Running loose" zh="偏松"/>
   <translation tag="Running over" zh="已超时"/>

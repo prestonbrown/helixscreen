@@ -605,6 +605,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" en="Calibrate input shaping to reduce ringing artifacts in prints"/>
   <translation tag="Calibrate now" en="Calibrate now"/>
   <translation tag="Calibrate part fan" en="Calibrate part fan"/>
+  <translation tag="Calibrate this printer, step by step" en="Calibrate this printer, step by step"/>
   <translation tag="Calibrate tool offsets?" en="Calibrate tool offsets?"/>
   <translation tag="Calibrate with this tool?" en="Calibrate with this tool?"/>
   <translation tag="Calibrate your touchscreen for accurate input" en="Calibrate your touchscreen for accurate input"/>
@@ -1200,6 +1201,8 @@
   <translation tag="Don&apos;t Save" en="Don&apos;t Save"/>
   <translation tag="Don&apos;t ask again" en="Don&apos;t ask again"/>
   <translation tag="Done" en="Done"/>
+  <translation tag="Done {}" en="Done {}"/>
+  <translation tag="Done {} · {}" en="Done {} · {}"/>
   <translation tag="Door" en="Door"/>
   <translation tag="Door Open" en="Door Open"/>
   <translation tag="Door opened during print: {}" en="Door opened during print: {}"/>
@@ -2526,6 +2529,9 @@
   <translation tag="Neutral" en="Neutral"/>
   <translation tag="Neutralize Tension" en="Neutralize Tension"/>
   <translation tag="Never" en="Never"/>
+  <translation tag="Never run" en="Never run"/>
+  <translation tag="Never run · optional" en="Never run · optional"/>
+  <translation tag="Never run · required" en="Never run · required"/>
   <translation tag="Never sleeps" en="Never sleeps"/>
   <translation tag="New Spool" en="New Spool"/>
   <translation tag="New Spool: Step 1 of 3" en="New Spool: Step 1 of 3"/>
@@ -3488,6 +3494,7 @@
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." en="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform."/>
   <translation tag="Run the MMU fans by temperature" en="Run the MMU fans by temperature"/>
   <translation tag="Run the chamber dryer too" en="Run the chamber dryer too"/>
+  <translation tag="Run when needed" en="Run when needed"/>
   <translation tag="Run {}?" en="Run {}?"/>
   <translation tag="Running loose" en="Running loose"/>
   <translation tag="Running over" en="Running over"/>

@@ -605,6 +605,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ja="入力シェーピングをキャリブレートして印刷のリンギングを軽減します"/>
   <translation tag="Calibrate now" ja="今すぐキャリブレーション"/>
   <translation tag="Calibrate part fan" ja="パーツファンを校正"/>
+  <translation tag="Calibrate this printer, step by step"/>
   <translation tag="Calibrate tool offsets?" ja="ツールオフセットをキャリブレートしますか？"/>
   <translation tag="Calibrate with this tool?" ja="このツールで校正しますか？"/>
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
@@ -1200,6 +1201,8 @@
   <translation tag="Don&apos;t Save" ja="保存しない"/>
   <translation tag="Don&apos;t ask again" ja="今後表示しない"/>
   <translation tag="Done" ja="完了"/>
+  <translation tag="Done {}"/>
+  <translation tag="Done {} · {}"/>
   <translation tag="Door" ja="ドア"/>
   <translation tag="Door Open" ja="ドアが開いています"/>
   <translation tag="Door opened during print: {}" ja="印刷中にドアが開きました: {}"/>
@@ -2526,6 +2529,9 @@
   <translation tag="Neutral" ja="ニュートラル"/>
   <translation tag="Neutralize Tension" ja="張力を中和"/>
   <translation tag="Never" ja="なし"/>
+  <translation tag="Never run"/>
+  <translation tag="Never run · optional"/>
+  <translation tag="Never run · required"/>
   <translation tag="Never sleeps" ja="スリープしない"/>
   <translation tag="New Spool" ja="新規スプール"/>
   <translation tag="New Spool: Step 1 of 3" ja="新しいスプール: ステップ 1 / 3"/>
@@ -3488,6 +3494,7 @@
   <translation tag="Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform." ja="このプリンターのターミナルで HelixScreen インストーラーを --update 付きで実行してください。プラットフォーム別のコマンドはスキャンして確認できます。"/>
   <translation tag="Run the MMU fans by temperature" ja="温度に応じて MMU ファンを動かす"/>
   <translation tag="Run the chamber dryer too" ja="チャンバーのドライヤーも使う"/>
+  <translation tag="Run when needed"/>
   <translation tag="Run {}?" ja="{} を実行しますか？"/>
   <translation tag="Running loose" ja="緩み気味"/>
   <translation tag="Running over" ja="超過中"/>

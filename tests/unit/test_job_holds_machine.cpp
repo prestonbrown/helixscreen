@@ -418,6 +418,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/bed_mesh_save_config_modal.xml",
     "ui_xml/belt_names_modal.xml",
     "ui_xml/belt_retest_menu.xml",
+    "ui_xml/calibration_hub_overlay.xml",
+    "ui_xml/calibration_hub_tile.xml",
     "ui_xml/calibration_pid_panel.xml",
     "ui_xml/calibration_zoffset_panel.xml",
     "ui_xml/chamber_air_target_row.xml",
