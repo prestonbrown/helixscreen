@@ -3564,6 +3564,7 @@
     "card_min_width",
     "card_width",
     "catalog_min_width",
+    "cell_size",
     "chamber_header_gap",
     "chamber_header_gap_large",
     "chamber_header_gap_medium",

@@ -23,6 +23,7 @@
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "lvgl.h"
+#include "observe_language.h"
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "power_device_icon.h"
@@ -218,7 +219,16 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             save_config();
         }
     }
+    // The panel widget manager creates this tree from the widget's own component.
+    // required-names: panel_widget_power_device
     carousel_ = helix::ui::find_required(widget_obj_, "power_carousel", "PowerDeviceWidget");
+    language_observer_ = helix::ui::observe_language_change(this, [](PowerDeviceWidget* self) {
+        for (size_t i = 0; i < kEnergyReadingCount; ++i) {
+            if (self->readings_[i].placeholder) {
+                lv_subject_set_string(&self->readings_[i].text, lv_tr(kEnergyKeys[i].placeholder));
+            }
+        }
+    });
     show_energy_page();
 
     spdlog::debug("[PowerDeviceWidget] Attached {} (device: {})", instance_id_,
@@ -226,6 +236,7 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 }
 
 void PowerDeviceWidget::detach() {
+    language_observer_.reset();
     detach_sensor_observers();
     carousel_ = nullptr;
     lifetime_.invalidate();
@@ -748,14 +759,19 @@ void PowerDeviceWidget::show_energy_page() {
 
 void PowerDeviceWidget::hide_energy_page() {
     detach_sensor_observers();
-    for (size_t i = 0; i < kEnergyReadingCount; ++i) {
-        lv_subject_set_string(&readings_[i].text, kEnergyKeys[i].placeholder);
-    }
+    show_reading_placeholders();
     if (!carousel_)
         return;
     helix::ui::carousel_set_trailing_tiles_reachable(carousel_, false);
     ui_carousel_set_real_page_count(carousel_, 1);
     ui_carousel_goto_page(carousel_, 0, false);
+}
+
+void PowerDeviceWidget::show_reading_placeholders() {
+    for (size_t i = 0; i < kEnergyReadingCount; ++i) {
+        readings_[i].placeholder = true;
+        lv_subject_set_string(&readings_[i].text, lv_tr(kEnergyKeys[i].placeholder));
+    }
 }
 
 void PowerDeviceWidget::attach_sensor_observers() {
@@ -774,6 +790,7 @@ void PowerDeviceWidget::attach_sensor_observers() {
             [token, i](PowerDeviceWidget* self, int centi_value) {
                 if (token.expired())
                     return;
+                self->readings_[i].placeholder = false;
                 lv_subject_set_string(
                     &self->readings_[i].text,
                     SensorState::format_value(kEnergyKeys[i].key, centi_value).c_str());

@@ -125,9 +125,13 @@ class PowerDeviceWidget : public TiledPanelWidget {
         char buf[24] = {};
         ObserverGuard observer;
         SubjectLifetime lifetime;
+        bool placeholder = true; ///< Showing the translated "-- W" until a value arrives
     };
     static constexpr size_t kEnergyReadingCount = 4;
     std::array<EnergyReading, kEnergyReadingCount> readings_;
+    /// Re-renders the placeholders a language switch would otherwise leave stale.
+    ObserverGuard language_observer_;
+    void show_reading_placeholders();
 
     bool is_all_devices() const {
         return device_name_ == "__all__";
