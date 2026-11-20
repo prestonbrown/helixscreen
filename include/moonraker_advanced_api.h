@@ -455,6 +455,9 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
      * @param on_error Called on failure
      */
     void save_config(SuccessCallback on_success, ErrorCallback on_error) override;
+    void save_config_without_restart(SuccessCallback on_success, ErrorCallback on_error) override;
+    void get_save_config_pending_items(helix::SharedCallback<void(const nlohmann::json&)> on_items,
+                                       ErrorCallback on_error) override;
 
     // ========================================================================
     // Macro Operations

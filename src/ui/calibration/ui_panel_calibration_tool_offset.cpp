@@ -443,13 +443,11 @@ void ToolOffsetCalibrationPanel::save_offsets() {
     // Warn only when a restart is actually coming, as the header's save
     // decides it: a pending machine-wide babystep always ends in SAVE_CONFIG,
     // and so do staged tool parameters; a firmware that persists immediately
-    // restarts nothing, and neither does a SAVE_CONFIG that keeps Klipper up.
-    const bool save_config_needed =
+    // restarts nothing.
+    const bool restart_expected =
         helix::zoffset::folds_global(facts) ||
         (facts.tools_dirty &&
          helix::tool_offsets::persist_requires_save_config(ps.get_discovery()));
-    const bool restart_expected =
-        save_config_needed && ps.get_discovery().save_config_restarts_klipper();
     if (!restart_expected) {
         send_save();
         return;

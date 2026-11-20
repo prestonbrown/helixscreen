@@ -322,15 +322,21 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart 
     CHECK(notifications.empty());
 }
 
-// On Kalico the save keeps Klipper up: SAVE_CONFIG RESTART=0 answers its rpc,
-// so the save settles on that reply, and nothing announces a restart that
-// never comes (no toast, no suppression window).
+// On Kalico, SAVE_CONFIG RESTART=0 writes the file and keeps Klipper up, but
+// the running Klipper only has what the staging command already applied. The
+// watch reads what is pending first: a bed mesh profile is live, so it saves
+// without a restart and settles on the reply; a probe z_offset is not, so it
+// takes the restart path exactly as mainline does.
 
 TEST_CASE_METHOD(ExpectedRestartFixture,
-                 "Kalico: bed-mesh save sends RESTART=0 and arms no restart contract",
+                 "Kalico: a bed-mesh save sends RESTART=0 and arms no restart contract",
                  "[expectedrestart][bedmesh][save_config_policy]") {
     helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
     api.hardware().set_is_kalico(true);
+    api.execute_gcode("BED_MESH_PROFILE SAVE=kalico", nullptr, nullptr);
+    settle();
+    client.clear_gcode_script_history();
+
     BedMeshPanel panel;
     panel.set_api(&api);
     panel.init_subjects();
@@ -347,7 +353,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture,
-                 "Kalico: z-offset apply-and-save settles on the save's own reply",
+                 "Kalico: a z-offset save restarts, because the probe reads z_offset at startup",
                  "[expectedrestart][zoffset][save_config_policy]") {
     helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
     api.hardware().set_is_kalico(true);
@@ -364,18 +370,25 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 
     const auto& hist = client.gcode_script_history();
     REQUIRE(hist.size() == 2);
-    CHECK(hist[1] == "SAVE_CONFIG RESTART=0");
-    // Klipper never left READY: the reply alone said the save worked.
+    CHECK(hist[0] == "Z_OFFSET_APPLY_PROBE");
+    CHECK(hist[1] == "SAVE_CONFIG");
+    CHECK(save_watch.restarts_klipper());
+    CHECK(EmergencyStopOverlay::instance().is_recovery_suppressed());
+    CHECK(api.suppress_disconnect_modal_calls() == 1);
+    CHECK_FALSE(saved); // nothing is known until Klipper is back
+
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::STARTUP);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    settle();
     CHECK(saved);
     CHECK(error.empty());
-    CHECK_FALSE(save_watch.in_flight());
 }
 
-TEST_CASE_METHOD(ExpectedRestartFixture, "Kalico: a rejected save is reported as a failure",
+TEST_CASE_METHOD(ExpectedRestartFixture, "Kalico: a rejected no-restart save is a failure",
                  "[expectedrestart][save_config_policy]") {
-    // The firmware is Kalico but the mock answers as mainline (no
-    // HELIX_MOCK_KALICO), so the rpc fails. With no restart coming, that error
-    // is the save's real outcome and must not be waited out.
+    // Nothing pending, so the save goes out with RESTART=0. The mock answers
+    // as mainline (no HELIX_MOCK_KALICO) and fails the rpc. With no restart
+    // coming, that error is the save's real outcome and must not be waited out.
     api.hardware().set_is_kalico(true);
     get_printer_state().init_subjects(false);
     get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
@@ -387,6 +400,8 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "Kalico: a rejected save is reported as
         &api, "unused", [&] { saved = true; }, [&](const std::string& m) { error = m; });
     settle();
 
+    REQUIRE(client.gcode_script_history().size() == 1);
+    CHECK(client.gcode_script_history()[0] == "SAVE_CONFIG RESTART=0");
     CHECK_FALSE(saved);
     CHECK_FALSE(error.empty());
     CHECK_FALSE(save_watch.in_flight());

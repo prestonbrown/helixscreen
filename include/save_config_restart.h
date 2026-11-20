@@ -126,8 +126,10 @@ bool should_extend_save_timeout(bool restart_latched, unsigned extensions_used,
 /// suppression window is 15s, so anything window-based re-reports the error on
 /// slow boards.
 ///
-/// On a firmware whose save does not restart Klipper
-/// (PrinterDiscovery::save_config_restarts_klipper()), none of the restart half applies: no
+/// On a firmware whose SAVE_CONFIG takes RESTART=0, begin() first reads the
+/// pending config items and asks helix::save_config::restart_required()
+/// (include/save_config_live.h). Only when every item is already live does it
+/// save without a restart; then none of the restart half applies: no
 /// suppressions are armed, and the rpc's own success or error is the outcome.
 ///
 /// Hold one of these as a member of the panel that saves. Main-thread only.
@@ -165,6 +167,13 @@ class SaveConfigWatch {
     /// Drop the klippy watch and forget any in-flight save. Safe to call twice.
     void end();
 
+    /// Whether the save begun last restarts Klipper. Valid from begin() until
+    /// the next begin(), including inside on_saved; on a firmware that can skip
+    /// the restart it turns false once the pending items have been read.
+    bool restarts_klipper() const {
+        return restarts_klipper_;
+    }
+
     /// True between begin() and the terminal callback.
     bool in_flight() const {
         return in_flight_;
@@ -176,8 +185,10 @@ class SaveConfigWatch {
     }
 
   private:
-    /// The save on a firmware whose SAVE_CONFIG does not restart Klipper
-    /// (PrinterDiscovery::save_config_restarts_klipper()): the rpc's own reply settles it.
+    /// SAVE_CONFIG and its restart: settled by Klipper coming back READY.
+    void begin_with_restart(IMoonrakerAPI* api, const std::string& initiation_message);
+    /// SAVE_CONFIG RESTART=0, when every pending item is already live: the
+    /// rpc's own reply settles it.
     void begin_without_restart(IMoonrakerAPI* api);
     void settle_saved();
     void settle_failed(const std::string& message);
@@ -187,6 +198,7 @@ class SaveConfigWatch {
     helix::SharedCallback<void()> on_saved_;
     helix::SharedCallback<void(const std::string&)> on_failed_;
     bool in_flight_ = false;
+    bool restarts_klipper_ = true;
 
     // The rpc callbacks land on the WebSocket thread. bg_cb() hops them to the
     // main thread and drops them if this watch died first, which is the guarded

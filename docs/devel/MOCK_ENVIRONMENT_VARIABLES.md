@@ -2005,8 +2005,9 @@ HELIX_MOCK_KALICO=1 ./build/bin/helix-screen --test -vv
 It also makes `SAVE_CONFIG RESTART=0` behave as on Kalico: the config is written, the
 command succeeds and Klipper is not restarted (`src/mock/moonraker_client_mock_gcode_calibration.cpp`).
 A plain `SAVE_CONFIG` still restarts. The app sends `RESTART=0` only to a printer that reports
-itself as Kalico (`include/printer_discovery.h#save_config_gcode`), so a bed mesh or Z-offset save then settles on
-the command's reply instead of waiting for a reconnect.
+itself as Kalico, and only when every pending item is already live in the running Klipper
+(`src/printer/save_config_live.cpp#restart_required`). A bed mesh profile save then settles on
+the command's reply; a Z-offset save (the mock stages `[probe] z_offset`) still restarts.
 
 With `HELIX_MOCK_PRINTER=k2` it also swaps the K2 Plus objects for the Kalico port's:
 `belt_mdl x` / `belt_mdl y`, the `BELT_TENSION` macro and `motor_control`, and no
