@@ -415,6 +415,50 @@ TEST_CASE("find_touch_device picks the touchscreen via sysfs", "[input]") {
     }
 }
 
+TEST_CASE("a touch panel that dropped off the bus is reopened only on a real touch device",
+          "[input][display]") {
+    using helix::input::find_touch_reopen_path;
+
+    SECTION("an override is reopened once its node is back") {
+        MockInputTree tree("reopen_override_back");
+        tree.add_device(4, "Generic ABS Panel", {{"abs", "3"}}, "0019");
+
+        auto result =
+            find_touch_reopen_path(tree.dev_dir + "/event4", tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(*result == tree.dev_dir + "/event4");
+    }
+
+    SECTION("an override whose node is still missing waits, even beside another touch panel") {
+        MockInputTree tree("reopen_override_missing");
+        tree.add_device(1, "Generic ABS Panel", {{"abs", "3"}}, "0019");
+
+        CHECK_FALSE(find_touch_reopen_path(tree.dev_dir + "/event4", tree.dev_dir, tree.sysfs_dir)
+                        .has_value());
+    }
+
+    SECTION("without an override the panel is found on the node it re-enumerated as") {
+        MockInputTree tree("reopen_renumbered");
+        tree.add_device(0, "gpio-keys", {{"abs", "0"}, {"key", caps_string({116})}}, "0019");
+        tree.add_device(5, "WaveShare WS170120", {{"abs", "3"}});
+
+        auto result = find_touch_reopen_path("", tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(*result == tree.dev_dir + "/event5");
+    }
+
+    SECTION("without an override a node with no touch axes is never taken") {
+        // Startup on fbdev settles on the first readable event node when no
+        // touchscreen exists; a reopen that did the same would end the retry
+        // on a keyboard while the panel is still away.
+        MockInputTree tree("reopen_no_touch");
+        tree.add_device(0, "gpio-keys", {{"abs", "0"}, {"key", caps_string({116})}}, "0019");
+        tree.add_device(1, "USB Mouse", {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}});
+
+        CHECK_FALSE(find_touch_reopen_path("", tree.dev_dir, tree.sysfs_dir).has_value());
+    }
+}
+
 TEST_CASE("pointer devices are classified by how they position themselves", "[input][rotation]") {
     using helix::input::classify_pointer_capabilities;
     using helix::input::PointerKind;
