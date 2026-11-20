@@ -1244,6 +1244,13 @@ void LedSettingsOverlay::populate_auto_state_rows() {
     spdlog::debug("[{}] Auto-state rows populated ({} states)", get_name(), kStateRowCount);
 }
 
+namespace {
+/// A padded frame for an auto-state slider, so its knob is not clipped at either end.
+lv_obj_t* create_slider_frame(lv_obj_t* container) {
+    return static_cast<lv_obj_t*>(lv_xml_create(container, "led_slider_frame", nullptr));
+}
+} // namespace
+
 void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_key,
                                                      lv_obj_t* container) {
     if (!container)
@@ -1265,7 +1272,7 @@ void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_ke
 
     if (action.action_type == "brightness") {
         // Brightness slider
-        lv_obj_t* slider = lv_slider_create(container);
+        lv_obj_t* slider = lv_slider_create(create_slider_frame(container));
         lv_obj_set_width(slider, lv_pct(100));
         lv_slider_set_range(slider, 0, 100);
         lv_slider_set_value(slider, action.brightness, LV_ANIM_OFF);
@@ -1305,7 +1312,7 @@ void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_ke
         }
 
         // Brightness slider below color swatches
-        lv_obj_t* slider = lv_slider_create(container);
+        lv_obj_t* slider = lv_slider_create(create_slider_frame(container));
         lv_obj_set_width(slider, lv_pct(100));
         lv_slider_set_range(slider, 0, 100);
         lv_slider_set_value(slider, action.brightness, LV_ANIM_OFF);
@@ -1398,7 +1405,7 @@ void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_ke
         lv_label_set_text(label, fmt::format(lv_tr("Preset ID: {}"), action.wled_preset).c_str());
         lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
 
-        lv_obj_t* slider = lv_slider_create(container);
+        lv_obj_t* slider = lv_slider_create(create_slider_frame(container));
         lv_obj_set_width(slider, lv_pct(100));
         lv_slider_set_range(slider, 1, 50);
         lv_slider_set_value(slider, action.wled_preset > 0 ? action.wled_preset : 1, LV_ANIM_OFF);
