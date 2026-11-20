@@ -26,11 +26,17 @@
         <led_auto_color_swatches selected_subject="led_auto_color_sel_${index}">
           <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="2"/>
         </led_auto_color_swatches>
-        <lv_slider name="auto_brightness_${key}"
-                   width="100%" min_value="0" max_value="100" bind_value="led_auto_brightness_${index}">
+        <!-- A slider's knob reaches past its track ends, and the column clips
+             at its own edges: the wrapper's padding is the knob's room. -->
+        <lv_obj width="100%"
+                height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xs" style_bg_opa="0"
+                style_border_width="0" scrollable="false">
           <bind_flag_if cond="led_auto_kind_${index} ne 1 and led_auto_kind_${index} ne 2" flag="hidden"/>
-          <event_cb trigger="value_changed" callback="led_auto_brightness_cb" user_data="$index"/>
-        </lv_slider>
+          <lv_slider name="auto_brightness_${key}"
+                     width="100%" min_value="0" max_value="100" bind_value="led_auto_brightness_${index}">
+            <event_cb trigger="value_changed" callback="led_auto_brightness_cb" user_data="$index"/>
+          </lv_slider>
+        </lv_obj>
         <text_body text="No effects available" style_text_color="#text_subtle">
           <bind_flag_if cond="led_auto_kind_${index} ne 3 or led_auto_effect_count gt 0" flag="hidden"/>
         </text_body>
@@ -43,10 +49,15 @@
         <text_body bind_text="led_auto_wled_label_${index}">
           <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="4"/>
         </text_body>
-        <lv_slider name="auto_wled_${key}" width="100%" min_value="1" max_value="50" bind_value="led_auto_wled_${index}">
+        <lv_obj width="100%"
+                height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xs" style_bg_opa="0"
+                style_border_width="0" scrollable="false">
           <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="4"/>
-          <event_cb trigger="value_changed" callback="led_auto_wled_cb" user_data="$index"/>
-        </lv_slider>
+          <lv_slider name="auto_wled_${key}"
+                     width="100%" min_value="1" max_value="50" bind_value="led_auto_wled_${index}">
+            <event_cb trigger="value_changed" callback="led_auto_wled_cb" user_data="$index"/>
+          </lv_slider>
+        </lv_obj>
         <text_body text="No macros available" style_text_color="#text_subtle">
           <bind_flag_if cond="led_auto_kind_${index} ne 5 or led_auto_macro_count gt 0" flag="hidden"/>
         </text_body>
