@@ -23,8 +23,13 @@ The checkers that count each rule are unchanged and still answer for the whole t
   design_ratchets.py --base auto       # pre-push, make land-gate, CI
   design_ratchets.py --list-rules
 
-Exit 0 when nothing grew, WARN_EXIT (scripts/ratchet.py) when a rule grew, 2 when the
-change cannot be measured.
+Exit 0 when nothing grew, WARN_EXIT (scripts/ratchet.py) when a rule grew or could not be
+listed, 2 when the change cannot be measured. None of these blocks anything: the qc wrapper
+prints a warning for each and passes.
+
+At commit a file with unstaged edits is read from the index (`git show :path`), so the
+staged line numbers point at the staged text. Orphan subjects are judged over the whole
+working tree, which the index cannot stand in for.
 """
 
 from __future__ import annotations
@@ -34,6 +39,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -43,8 +49,11 @@ sys.path.insert(0, str(SCRIPTS))
 import ratchet  # noqa: E402
 
 CXX = (".cpp", ".h")
+# A site line: a repo path and a line number. A checker that reads absolute paths prints
+# them relative to its own repo, so a path under a scratch tree arrives with a leading
+# `../...` that rel() resolves.
 SITE_RE = re.compile(
-    r"^\s*(?:HAND\s+)?((?:src|include|tests|firmware|ui_xml|scripts)/[^\s:;]+):(\d+)\b:?\s*(.*)$")
+    r"^\s*(?:HAND\s+)?((?:\S*?/)?(?:src|include|tests|firmware|ui_xml|scripts)/[^\s:;]+):(\d+)\b:?\s*(.*)$")
 REASON_RE = re.compile(r"^Ratchet:[ \t]*([\w-]+)[ \t]*:[ \t]*(\S.*)$", re.M)
 LAYERING_GRANT_RE = re.compile(r"^Layering:[ \t]*(\S+)[ \t]+(\S.*)$", re.M)
 
@@ -71,6 +80,22 @@ class Rule:
     wake: re.Pattern | None = None
 
 
+class ListerError(Exception):
+    """A rule's checker failed and named no sites, so the rule has no answer."""
+
+
+# The staged text of each changed file whose working copy differs from the index, and a
+# scratch directory holding those files at their repo paths, so a checker that reads
+# files from disk reads what the commit will contain. Empty outside --staged.
+OVERLAY: dict[str, str] = {}
+OVERLAY_DIR: Path | None = None
+
+
+def split_overlaid(files: list[str]) -> tuple[list[str], list[str]]:
+    """(files read from the tree, files read from OVERLAY_DIR)."""
+    return [f for f in files if f not in OVERLAY], [f for f in files if f in OVERLAY]
+
+
 def parse_sites(text: str, root: Path) -> list[Site]:
     sites = []
     for raw in text.splitlines():
@@ -84,7 +109,7 @@ def rel(path: str, root: Path) -> str:
     """A path as the repo spells it, whichever root a checker printed it against."""
     p = Path(path)
     if not p.is_absolute():
-        if (root / p).exists():
+        if not path.startswith("..") and (root / p).exists():
             return p.as_posix()
         p = (SCRIPTS.parent / p).resolve()
     try:
@@ -93,23 +118,39 @@ def rel(path: str, root: Path) -> str:
         return Path(path).as_posix()
 
 
-def run(args: list[str], root: Path) -> str:
-    r = subprocess.run([sys.executable, *args], cwd=root, capture_output=True, text=True)
-    return r.stdout + r.stderr
+def run(args: list[str], root: Path) -> tuple[int, str]:
+    r = subprocess.run([sys.executable, *args], cwd=root, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    return r.returncode, r.stdout + r.stderr
+
+
+def listed(script: str, rc: int, out: str, root: Path) -> list[Site]:
+    """The sites a checker printed; a failed run that printed none raises ListerError."""
+    sites = parse_sites(out, root)
+    if rc != 0 and not sites:
+        tail = (out.strip().splitlines() or ["no output"])[-1]
+        raise ListerError(f"{script} exited {rc}: {tail}")
+    return sites
 
 
 def via_cli(script: str, *flags: str, abs_paths: bool = False, whole: tuple[str, ...] = ()):
     """A lister that runs a checker's own --list over the files, or the whole tree."""
-    def lister(root: Path, files: list[str] | None) -> list[Site]:
-        if files is not None and not files:
-            return []
+    def one(root: Path, files: list[str] | None) -> list[Site]:
         if files is None:
             # A checker that reads paths against its own repo takes the directories
             # absolute; the rest scan their default directories from cwd.
             targets = [str(root / d) for d in whole if (root / d).exists()] if abs_paths else []
         else:
             targets = [str(root / f) if abs_paths else f for f in files]
-        return parse_sites(run([str(SCRIPTS / script), *flags, *targets], root), root)
+        rc, out = run([str(SCRIPTS / script), *flags, *targets], root)
+        return listed(script, rc, out, root)
+
+    def lister(root: Path, files: list[str] | None) -> list[Site]:
+        if files is None:
+            return one(root, None)
+        tree, overlaid = split_overlaid(files)
+        return ((one(root, tree) if tree else []) +
+                (one(OVERLAY_DIR, overlaid) if overlaid else []))
     return lister
 
 
@@ -119,6 +160,9 @@ def texts(root: Path, files: list[str] | None, dirs, suffixes) -> dict[str, str]
                  for p in sorted((root / d).rglob("*")) if p.is_file() and p.suffix in suffixes]
     out = {}
     for f in files:
+        if f in OVERLAY:
+            out[f] = OVERLAY[f]
+            continue
         try:
             out[f] = (root / f).read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -151,9 +195,12 @@ def widget_pointer_sites(root: Path, files: list[str] | None) -> list[Site]:
     if files is None:
         paths = sorted(p for d in ("src", "include") if (root / d).is_dir()
                        for p in (root / d).rglob("*") if p.suffix in CXX)
-    else:
-        paths = [root / f for f in files]
-    return parse_sites("\n".join(cwp.scan(root, paths)), root)
+        return parse_sites("\n".join(cwp.scan(root, paths)), root)
+    tree, overlaid = split_overlaid(files)
+    hits = cwp.scan(root, [root / f for f in tree])
+    if overlaid:
+        hits += cwp.scan(OVERLAY_DIR, [OVERLAY_DIR / f for f in overlaid])
+    return parse_sites("\n".join(hits), root)
 
 
 def overlay_sites(root: Path, files: list[str] | None) -> list[Site]:
@@ -185,7 +232,10 @@ def comment_sha_sites(root: Path, files: list[str] | None) -> list[Site]:
 
 
 def orphan_subject_sites(root: Path, files: list[str] | None) -> list[Site]:
-    out = run([str(SCRIPTS / "check_orphan_subjects.py"), "--list", "--repo-root", str(root)], root)
+    rc, out = run([str(SCRIPTS / "check_orphan_subjects.py"), "--list", "--repo-root", str(root)], root)
+    if rc != 0:
+        tail = (out.strip().splitlines() or ["no output"])[-1]
+        raise ListerError(f"check_orphan_subjects.py exited {rc}: {tail}")
     sites, name = [], ""
     for raw in out.splitlines():
         if raw and not raw.startswith(" "):
@@ -279,8 +329,14 @@ RULE_BY_NAME = {r.name: r for r in RULES}
 
 
 def git(root: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(root), *args], check=True,
-                          capture_output=True, text=True).stdout
+    return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True,
+                          text=True, encoding="utf-8", errors="replace").stdout
+
+
+# Fixed prefixes, so diff.noprefix or diff.mnemonicPrefix in a user's config cannot cut
+# the paths added_lines() reads.
+DIFF_ARGS = ("-U0", "--no-ext-diff", "--no-color", "--src-prefix=a/", "--dst-prefix=b/",
+             "--diff-filter=AMR")
 
 
 # A block names this many new sites per rule and counts the rest.
@@ -307,15 +363,29 @@ def added_lines(diff: str) -> dict[str, set[int]]:
 def change(root: Path, staged: bool, base: str | None):
     """(added lines per path, reasons per rule from the branch's commit messages)."""
     if staged:
-        diff = git(root, "diff", "--cached", "-U0", "--no-ext-diff", "--no-color",
-                   "--diff-filter=AMR")
+        diff = git(root, "diff", "--cached", *DIFF_ARGS)
         return added_lines(diff), {}
     from diff_base import resolve_base
     rev, _why = resolve_base(root, None if base == "auto" else base)
     fork = git(root, "merge-base", rev, "HEAD").strip() if rev != "HEAD" else "HEAD"
-    diff = git(root, "diff", "-U0", "--no-ext-diff", "--no-color", "--diff-filter=AMR", fork)
+    diff = git(root, "diff", *DIFF_ARGS, fork)
     log = git(root, "log", "--format=%B", f"{fork}..HEAD") if fork != "HEAD" else ""
     return added_lines(diff), stated_reasons(log)
+
+
+def overlay_staged(root: Path, added: dict[str, set[int]], scratch: Path) -> None:
+    """Fill OVERLAY and OVERLAY_DIR with the staged text of each added file whose working
+    copy differs from the index."""
+    global OVERLAY_DIR
+    dirty = set(git(root, "diff", "--name-only", "--no-ext-diff", "-z").split("\0"))
+    for f in sorted(dirty & set(added)):
+        text = git(root, "show", f":{f}")
+        OVERLAY[f] = text
+        dest = scratch / f
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text(text, encoding="utf-8")
+    if OVERLAY:
+        OVERLAY_DIR = scratch
 
 
 def stated_reasons(messages: str) -> dict[str, list[str]]:
@@ -336,7 +406,7 @@ def added_text(root: Path, files: list[str], added: dict[str, set[int]]) -> str:
 
 
 def new_sites(rule: Rule, root: Path, added: dict[str, set[int]]) -> list[Site]:
-    files = sorted(f for f in added if rule.scope.search(f) and (root / f).is_file())
+    files = sorted(f for f in added if rule.scope.search(f) and (f in OVERLAY or (root / f).is_file()))
     if not files:
         return []
     # A whole-tree rule runs only when an added line could create one of its sites.
@@ -366,6 +436,32 @@ FOOTER = ("   Stop and look for the design that does not need these before you g
           "   lists every growth weekly with its commit and that reason).")
 
 
+def judge(root: Path, args) -> int:
+    added, reasons = change(root, args.staged, args.base)
+    os.chdir(root)
+    with tempfile.TemporaryDirectory(prefix="design-ratchets-") as scratch:
+        if args.staged:
+            overlay_staged(root, added, Path(scratch))
+        blocks, unlisted = [], []
+        for rule in RULES:
+            try:
+                sites = new_sites(rule, root, added)
+            except Exception as e:  # noqa: BLE001 - one rule's failure never hides the rest
+                unlisted.append(f"⚠️  Design ratchet: rule {rule.name} could not be listed: {e}")
+                continue
+            if sites:
+                blocks.append(block(rule, sites, reasons.get(rule.name, [])))
+    if blocks:
+        print("\n".join(blocks))
+        print(FOOTER)
+    for line in unlisted:
+        print(line)
+    if not blocks and not unlisted:
+        print("✅ Design ratchets: no new sites")
+        return 0
+    return ratchet.WARN_EXIT
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     mode = ap.add_mutually_exclusive_group(required=True)
@@ -380,22 +476,12 @@ def main(argv=None) -> int:
         return 0
     try:
         root = Path(git(Path(args.root), "rev-parse", "--show-toplevel").strip())
-        added, reasons = change(root, args.staged, args.base)
+        return judge(root, args)
     except subprocess.CalledProcessError as e:
-        print(f"design ratchets: cannot measure the change: {e.stderr or e}", file=sys.stderr)
-        return 2
-    os.chdir(root)
-    blocks = []
-    for rule in RULES:
-        sites = new_sites(rule, root, added)
-        if sites:
-            blocks.append(block(rule, sites, reasons.get(rule.name, [])))
-    if not blocks:
-        print("✅ Design ratchets: no new sites")
-        return 0
-    print("\n".join(blocks))
-    print(FOOTER)
-    return ratchet.WARN_EXIT
+        print(f"design ratchets could not run: {(e.stderr or str(e)).strip()}", file=sys.stderr)
+    except Exception as e:  # noqa: BLE001 - a broken ratchet warns; it never blocks
+        print(f"design ratchets could not run: {type(e).__name__}: {e}", file=sys.stderr)
+    return 2
 
 
 if __name__ == "__main__":

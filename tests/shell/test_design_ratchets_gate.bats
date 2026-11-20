@@ -154,7 +154,7 @@ qc_design() { # <staged-only>
     contains "src/printer/state.cpp:4:" "$output"
 }
 
-@test "the wrapper fails when the change cannot be measured" {
+@test "the wrapper warns loudly and passes when the change cannot be measured" {
     local bare="$BATS_TEST_TMPDIR/bare"
     mkdir -p "$bare/scripts/qc"
     cp scripts/*.py "$bare/scripts/"
@@ -162,8 +162,40 @@ qc_design() { # <staged-only>
         STAGED_ONLY=false; QC_TMP="$(mktemp -d)"
         . scripts/qc/_lib.sh; . scripts/qc/design_ratchets.sh
         cd "$1" && GIT_CEILING_DIRECTORIES="$(dirname "$1")" qc_design_ratchets' _ "$bare"
-    [ "$status" -eq 1 ] || fail "an unmeasurable change passed: $output"
-    contains "cannot measure the change" "$output"
+    [ "$status" -eq 0 ] || fail "an unmeasurable change blocked: $output"
+    contains "design ratchets could not run:" "$output"
+}
+
+@test "a checker that fails and names no site warns that its rule could not be listed" {
+    printf '#!/usr/bin/env python3\nimport sys\nprint("boom")\nsys.exit(1)\n' >"$REPO/scripts/check_namespace_compliance.py"
+    printf '#!/usr/bin/env python3\nimport sys\nprint("broken registry")\nsys.exit(2)\n' >"$REPO/scripts/check_orphan_subjects.py"
+    stage src/printer/state.cpp 'void init() { lv_xml_register_subject(nullptr, "s", &s_); }'
+    ratchets --staged
+    [ "$status" -eq 3 ] || fail "$output"
+    contains "rule namespace could not be listed: check_namespace_compliance.py exited 1: boom" "$output"
+    contains "rule orphan-subjects could not be listed: check_orphan_subjects.py exited 2: broken registry" "$output"
+    lacks "no new sites" "$output"
+}
+
+@test "diff.noprefix in the user's config does not cut the paths short" {
+    git -C "$REPO" config diff.noprefix true
+    git -C "$REPO" config diff.mnemonicPrefix true
+    stage src/printer/state.cpp 'class NewGlobal { int y; };'
+    ratchets --staged
+    [ "$status" -eq 3 ] || fail "$output"
+    contains "src/printer/state.cpp:4:" "$output"
+}
+
+@test "at commit a file with unstaged edits is judged on its staged text" {
+    stage src/printer/state.cpp 'class NewGlobal { int y; };
+void hide(lv_obj_t* o) { lv_obj_add_flag(o, LV_OBJ_FLAG_HIDDEN); }'
+    # Unstaged lines above the staged ones move every line in the working copy.
+    printf '// one\n// two\n' | cat - "$REPO/src/printer/state.cpp" >"$BATS_TEST_TMPDIR/moved"
+    cp "$BATS_TEST_TMPDIR/moved" "$REPO/src/printer/state.cpp"
+    ratchets --staged
+    [ "$status" -eq 3 ] || fail "$output"
+    contains "src/printer/state.cpp:4: [type] class NewGlobal" "$output"
+    contains "src/printer/state.cpp:5: lv_obj_add_flag" "$output"
 }
 
 @test "the driver runs the gate at commit and prints its note beside the verdict" {

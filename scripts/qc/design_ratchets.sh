@@ -10,10 +10,11 @@
 # Design ratchets: namespace, layering, vendor branches, declarative UI,
 # swatches, LVGL 9.6 names, work markers, comment SHAs
 # ====================================================================
-# Warns and never fails (prestonbrown/helixscreen#2004). Each block names the
-# rule, why it exists, its doc and the new file:line, and asks for the better
-# design first. The driver repeats the blocks beside the final verdict
-# (design_ratchets.note), so they do not scroll away with the gates' output.
+# Warns and never fails (prestonbrown/helixscreen#2004), even when it cannot
+# run. Each block names the rule, why it exists, its doc and the new
+# file:line, and asks for the better design first. The driver repeats the
+# blocks beside the final verdict (design_ratchets.note), so they do not
+# scroll away with the gates' output.
 # A commit reads its staged lines; every other run, the fork point onward.
 qc_design_ratchets() {
   local out="$QC_TMP/design_ratchets.out" rc=0 mode=(--base auto)
@@ -28,7 +29,11 @@ qc_design_ratchets() {
     "$QC_RATCHET_WARN_EXIT")
       echo "⚠️  Design ratchets grew; the blocks are repeated below the gate list."
       cp "$out" "$QC_TMP/design_ratchets.note" ;;
-    *) cat "$out"; echo ""; return 1 ;;
+    *)
+      # A ratchet never blocks, not even a broken one: say so loudly and pass.
+      { echo "⚠️  ━━━━━━━━ design ratchets could not run: $(tail -1 "$out") ━━━━━━━━"
+        echo "   No rule was judged for this change (exit $rc). Fix scripts/design_ratchets.py."; } \
+        | tee "$QC_TMP/design_ratchets.note" ;;
   esac
   echo ""
   return 0
