@@ -4,8 +4,10 @@
 #include "action_prompt_modal.h"
 
 #include "ui_breakpoint.h"
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_fault_path.h"
+#include "ui_row_text.h"
 #include "ui_swatch.h"
 
 #include "color_utils.h"
@@ -58,6 +60,7 @@ void init_prompt_subjects() {
     UI_MANAGED_SUBJECT_INT(s.has_buttons, 0, "action_prompt_has_buttons", s.manager);
     UI_MANAGED_SUBJECT_INT(s.has_footer, 0, "action_prompt_has_footer", s.manager);
     s.initialized = true;
+    lv_xml_register_event_cb(nullptr, "action_prompt_button_cb", ActionPromptModal::on_button_cb);
     StaticSubjectRegistry::instance().register_deinit("ActionPromptModal", []() {
         auto& subjects = prompt_subjects();
         subjects.manager.deinit_all();
@@ -191,16 +194,17 @@ std::optional<PromptCloseKind> close_kind(ModalCloseReason reason, bool button_s
  * Each prompt_button_group gets a row of its own, and a run of ungrouped
  * buttons between groups shares one row, which is how Mainsail lays them out.
  */
-std::vector<std::vector<PromptButton>> split_button_rows(const std::vector<PromptButton>& buttons) {
-    std::vector<std::vector<PromptButton>> rows;
-    for (const auto& btn : buttons) {
+std::vector<std::vector<size_t>> split_button_rows(const std::vector<PromptButton>& buttons) {
+    std::vector<std::vector<size_t>> rows;
+    for (size_t i = 0; i < buttons.size(); ++i) {
+        const auto& btn = buttons[i];
         if (btn.is_footer) {
             continue;
         }
-        if (rows.empty() || rows.back().front().group_id != btn.group_id) {
+        if (rows.empty() || buttons[rows.back().front()].group_id != btn.group_id) {
             rows.emplace_back();
         }
-        rows.back().push_back(btn);
+        rows.back().push_back(i);
     }
     return rows;
 }
@@ -334,18 +338,13 @@ void ActionPromptModal::create_text_lines() {
         return;
     }
 
-    // Create a label for each text line
     for (const auto& line : prompt_data_.text_lines) {
-        lv_obj_t* label = lv_label_create(content_container);
-        lv_label_set_text(label, line.c_str());
-        lv_obj_set_width(label, lv_pct(100));
-        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
-
-        // Apply body text styling
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
-
-        created_text_labels_.push_back(label);
+        auto* label = static_cast<lv_obj_t*>(
+            lv_xml_create(content_container, "action_prompt_text_line", nullptr));
+        if (label) {
+            // DECLARATIVE_OK: printer text; as a prop a leading '#' reads as a const
+            lv_label_set_text(label, line.c_str());
+        }
     }
 }
 
@@ -366,7 +365,12 @@ void ActionPromptModal::create_buttons() {
     // once the card width is final.
     bool has_regular_buttons = false;
     RowFit rows;
-    for (const auto& row_buttons : split_button_rows(prompt_data_.buttons)) {
+    for (const auto& row_indices : split_button_rows(prompt_data_.buttons)) {
+        std::vector<PromptButton> row_buttons;
+        row_buttons.reserve(row_indices.size());
+        for (size_t i : row_indices) {
+            row_buttons.push_back(prompt_data_.buttons[i]);
+        }
         auto* row = static_cast<lv_obj_t*>(
             lv_xml_create(button_container, "action_prompt_button_row", nullptr));
         if (!row) {
@@ -380,8 +384,8 @@ void ActionPromptModal::create_buttons() {
         if (layout.kind == ButtonRowKind::EqualRow) {
             lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
         }
-        for (const auto& btn : row_buttons) {
-            create_button(btn, row, layout.kind);
+        for (size_t i : row_indices) {
+            create_button(i, row, layout.kind);
         }
         if (layout.kind == ButtonRowKind::Grid) {
             rows.grid_rows.push_back({row, layout.cols});
@@ -393,18 +397,12 @@ void ActionPromptModal::create_buttons() {
         }
     }
 
-    for (const auto& btn : prompt_data_.buttons) {
-        if (btn.is_footer && footer_container) {
-            // Add vertical divider between footer buttons
+    for (size_t i = 0; i < prompt_data_.buttons.size(); ++i) {
+        if (prompt_data_.buttons[i].is_footer && footer_container) {
             if (footer_button_count > 0) {
-                lv_obj_t* divider = lv_obj_create(footer_container);
-                lv_obj_set_size(divider, 1, lv_pct(100));
-                lv_obj_set_style_bg_color(divider, theme_manager_get_color("border"), LV_PART_MAIN);
-                lv_obj_set_style_bg_opa(divider, LV_OPA_COVER, LV_PART_MAIN);
-                lv_obj_set_style_pad_all(divider, 0, LV_PART_MAIN);
-                lv_obj_set_scrollable(divider, false);
+                lv_xml_create(footer_container, "divider_vertical", nullptr);
             }
-            create_button(btn, footer_container);
+            create_button(i, footer_container);
             has_footer_buttons = true;
             footer_button_count++;
         }
@@ -548,92 +546,64 @@ void ActionPromptModal::fit_rows(const RowFit& rows) {
     }
 }
 
-void ActionPromptModal::create_button(const PromptButton& btn, lv_obj_t* container,
-                                      ButtonRowKind kind) {
-    lv_obj_t* button = lv_button_create(container);
+void ActionPromptModal::create_button(size_t index, lv_obj_t* container, ButtonRowKind kind) {
+    const PromptButton& btn = prompt_data_.buttons[index];
+    const std::string idx = std::to_string(index);
+    const std::string side = std::to_string(prompt_button_height());
 
+    // The cell geometry the row's layout chose. A footer button fills the
+    // footer's height and shares its width; an EqualRow or Grid cell starts at
+    // width 0 (grow=1 shares an EqualRow's line, #1043; fit_rows() gives a Grid
+    // cell its width); a Wrap button is content-sized and row_wrap spreads the
+    // row over as many lines as the labels need.
+    const char* width = "content";
+    const char* height = side.c_str();
+    const char* grow = "0";
+    const char* pad_hor = "#space_lg";
+    const char* radius = "8";
     if (btn.is_footer) {
-        // Footer buttons: full-width modal style with dividers
-        lv_obj_set_height(button, lv_pct(100));
-        lv_obj_set_flex_grow(button, 1);
-        lv_obj_set_style_radius(button, 0, LV_PART_MAIN);
+        height = "100%";
+        grow = "1";
+        radius = "0";
     } else if (kind != ButtonRowKind::Wrap) {
-        // Equal-width cells with compact space_sm padding. On an EqualRow,
-        // grow=1 with width 0 shares the non-wrapping line (#1043); a Grid cell
-        // gets its fixed width from fit_rows() and row_wrap lines them up.
-        lv_obj_set_width(button, 0);
-        lv_obj_set_height(button, prompt_button_height());
-        if (kind == ButtonRowKind::EqualRow) {
-            lv_obj_set_flex_grow(button, 1);
-        }
-        lv_obj_set_style_pad_left(button, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
-        lv_obj_set_style_pad_right(button, theme_manager_get_spacing("space_sm"), LV_PART_MAIN);
-        lv_obj_set_style_radius(button, 8, LV_PART_MAIN);
-    } else {
-        // Content-sized with padding, which row_wrap spreads over as many
-        // lines as the labels need.
-        lv_obj_set_size(button, LV_SIZE_CONTENT, prompt_button_height());
-        lv_obj_set_style_pad_left(button, theme_manager_get_spacing("space_lg"), LV_PART_MAIN);
-        lv_obj_set_style_pad_right(button, theme_manager_get_spacing("space_lg"), LV_PART_MAIN);
-        lv_obj_set_style_radius(button, 8, LV_PART_MAIN);
+        width = "0";
+        grow = kind == ButtonRowKind::EqualRow ? "1" : "0";
+        pad_hor = "#space_sm";
     }
-    lv_obj_set_style_border_width(button, 0, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(button, 0, LV_PART_MAIN);
 
     // A hex fill takes priority over the named style.
     const std::optional<uint32_t> fill_rgb = helix::parse_hex_color(btn.hex_color);
-    const lv_color_t bg_color = fill_rgb ? lv_color_hex(*fill_rgb) : get_button_color(btn.color);
+    lv_obj_t* button = nullptr;
     if (is_swatch(btn)) {
-        // A color tile with no text is a swatch: the tile stays the touch
-        // target and shows a circle of its color, which the swatch painter
-        // edges when it blends into the card. size_swatch_discs() fits the
-        // circle to the tile once the grid is laid out.
-        lv_obj_set_style_bg_opa(button, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_pad_all(button, 0, LV_PART_MAIN);
-        // A button's height until size_swatch_discs() measures the tile.
-        const std::string side = std::to_string(prompt_button_height());
-        const char* disc_attrs[] = {"name",  "color_swatch_disc", "align",  "center",
-                                    "width", side.c_str(),        "height", side.c_str(),
-                                    nullptr};
-        auto* disc = static_cast<lv_obj_t*>(lv_xml_create(button, "swatch_paint", disc_attrs));
-        helix::ui::apply_swatch_color(disc, *fill_rgb, "");
+        const char* attrs[] = {"index",     idx.c_str(),  "width", width,    "height",
+                               height,      "flex_grow",  grow,    "radius", radius,
+                               "disc_side", side.c_str(), nullptr};
+        button = static_cast<lv_obj_t*>(lv_xml_create(container, "action_prompt_swatch", attrs));
+        if (button) {
+            helix::ui::apply_swatch_color(lv_obj_find_by_name(button, "color_swatch_disc"),
+                                          *fill_rgb, "");
+        }
     } else {
-        lv_obj_set_style_bg_color(button, bg_color, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(button, LV_OPA_COVER, LV_PART_MAIN);
+        const lv_color_t bg = fill_rgb ? lv_color_hex(*fill_rgb) : get_button_color(btn.color);
+        const lv_color_t text =
+            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg);
+        const std::string bg_hex = fmt::format("0x{:06x}", lv_color_to_u32(bg) & 0xFFFFFF);
+        const std::string text_hex = fmt::format("0x{:06x}", lv_color_to_u32(text) & 0xFFFFFF);
+        const bool grid = kind == ButtonRowKind::Grid;
+        const char* attrs[] = {
+            "index", idx.c_str(), "width", width, "height", height, "flex_grow", grow, "pad_hor",
+            pad_hor, "radius", radius, "bg_color", bg_hex.c_str(), "text_color", text_hex.c_str(),
+            // A label wider than its grid cell ends in an ellipsis.
+            "label_width", grid ? "100%" : "content", "long_mode", grid ? "dots" : "wrap",
+            "text_align", grid ? "center" : "auto", nullptr};
+        button = static_cast<lv_obj_t*>(lv_xml_create(container, "action_prompt_button", attrs));
+        // The label is the printer's text: as a prop a leading '#' reads as a const.
+        helix::ui::set_row_label_text(button, "prompt_button_label", btn.label.c_str());
     }
-
-    // Create label inside button with contrast-aware text color
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, btn.label.c_str());
-    if (kind == ButtonRowKind::Grid) {
-        // A label wider than its cell ends in an ellipsis rather than spilling.
-        lv_obj_set_width(label, lv_pct(100));
-        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
-        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+    if (!button) {
+        spdlog::warn("[ActionPromptModal] Failed to build button '{}' from XML", btn.label);
+        return;
     }
-    lv_obj_center(label);
-    lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
-    lv_obj_set_style_text_color(
-        label, theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg_color),
-        LV_PART_MAIN);
-
-    // Create callback data with owned copy of gcode string and lifetime token.
-    //
-    // An empty gcode means DO NOTHING: the button closes the modal and sends no
-    // command (#1172). Klipper's label-as-gcode convention is applied in
-    // ActionPromptManager::parse_button_spec(), so a wire prompt never reaches
-    // here with a blank gcode; only PromptData built in C++ does.
-    auto cbd = std::make_unique<ButtonCallbackData>();
-    cbd->modal = this;
-    cbd->token = lifetime_.token();
-    cbd->gcode = btn.gcode;
-
-    // Add click callback with ButtonCallbackData as user_data
-    lv_obj_add_event_cb(button, on_button_cb, LV_EVENT_CLICKED, cbd.get());
-
-    // Transfer ownership to the vector (pointer remains stable)
-    button_callback_data_.push_back(std::move(cbd));
-
     created_buttons_.emplace_back(button);
 
     spdlog::debug("[ActionPromptModal] Created button: {} (gcode: {}, color: {})", btn.label,
@@ -663,19 +633,7 @@ lv_color_t ActionPromptModal::get_button_color(const std::string& color_name) {
 }
 
 void ActionPromptModal::clear_dynamic_content() {
-    // Remove click callbacks from each button before freeing their user_data.
-    // Without this, LVGL's async teardown can still hold references to the
-    // ButtonCallbackData pointers that button_callback_data_.clear() frees,
-    // risking use-after-free if any queued event dispatches against a button
-    // after on_hide() returns.
-    for (lv_obj_t* button : created_buttons_) {
-        if (button) {
-            lv_obj_remove_event_cb(button, on_button_cb);
-        }
-    }
     created_buttons_.clear();
-    created_text_labels_.clear();
-    button_callback_data_.clear();
 }
 
 // ============================================================================
@@ -705,21 +663,20 @@ void ActionPromptModal::handle_button_click(const std::string& gcode) {
 // ============================================================================
 
 void ActionPromptModal::on_button_cb(lv_event_t* e) {
-    auto* cbd = static_cast<ButtonCallbackData*>(lv_event_get_user_data(e));
-    if (!cbd) {
-        spdlog::warn("[ActionPromptModal] Button callback data is null");
-        return;
-    }
-
-    // Check if the modal is still alive (guards against use-after-free).
-    // LifetimeToken is safe to query even after the guard is destroyed (#437).
-    if (!cbd->token || cbd->token->expired()) {
-        spdlog::debug("[ActionPromptModal] Modal destroyed before button callback fired");
+    // The modal whose dialog holds the button; nullptr once it is closing, so a
+    // click queued behind the close does nothing.
+    auto* modal = Modal::from_event<ActionPromptModal>(e);
+    const auto index = helix::ui::event_user_int(e);
+    if (!modal || !index || *index < 0 ||
+        static_cast<size_t>(*index) >= modal->prompt_data_.buttons.size()) {
+        spdlog::debug("[ActionPromptModal] Button click with no live prompt behind it");
         return;
     }
 
     SoundManager::instance().play("button_tap");
-    cbd->modal->handle_button_click(cbd->gcode);
+    // A copy: handle_button_click() hides the modal, which may free the prompt.
+    const std::string gcode = modal->prompt_data_.buttons[*index].gcode;
+    modal->handle_button_click(gcode);
 }
 
 // ============================================================================

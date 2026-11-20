@@ -787,3 +787,29 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
 
     modal_.hide();
 }
+
+// Labels and text lines are the printer's own text, so one that starts with
+// '#' shows as sent instead of reading as a theme constant.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: text and labels that start with # show as sent",
+                 "[action_prompt][layout][ui_integration]") {
+    helix::PromptData data;
+    data.title = "Hash";
+    data.text_lines = {"#primary", "#1 is loaded"};
+    data.buttons = {{"#1 Load", "LOAD_ONE", "primary", "", false, -1},
+                    {"#primary", "FOOT", "secondary", "", true, -1}};
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 2);
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(btns[0], 0))) == "#1 Load");
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(btns[1], 0))) == "#primary");
+
+    lv_obj_t* content = lv_obj_find_by_name(modal_.dialog(), "content_container");
+    REQUIRE(content != nullptr);
+    REQUIRE(lv_obj_get_child_count(content) == 2);
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(content, 0))) == "#primary");
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(content, 1))) == "#1 is loaded");
+
+    modal_.hide();
+}

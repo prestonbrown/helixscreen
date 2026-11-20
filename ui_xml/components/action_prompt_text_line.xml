@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One text line of a Klipper action prompt. ActionPromptModal sets the text,
+     which comes from the printer and may start with '#'. -->
+<component>
+  <view extends="lv_label" width="100%" text="" long_mode="wrap" style_text_font="#font_body" style_text_color="#text"/>
+</component>

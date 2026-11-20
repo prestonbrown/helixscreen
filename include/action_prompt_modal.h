@@ -144,6 +144,11 @@ class ActionPromptModal : public Modal {
     [[nodiscard]] const char* component_name() const override {
         return "action_prompt_modal";
     }
+    HELIX_KIND_TAG(ActionPromptModal)
+
+    /// XML callback of every prompt button: resolves the modal from the dialog
+    /// and the button from its `index` user_data.
+    static void on_button_cb(lv_event_t* e);
 
   protected:
     void on_show() override;
@@ -158,19 +163,6 @@ class ActionPromptModal : public Modal {
     // Grants white-box access to button widgets / containers for layout tests.
     friend struct ::ActionPromptModalTestAccess;
 
-    /**
-     * @brief Data passed as user_data to button event callbacks
-     *
-     * Owns a copy of the gcode string (not a pointer into prompt_data_.buttons)
-     * and holds a LifetimeToken to detect if the modal has been destroyed
-     * before the queued click event fires (crash #437).
-     */
-    struct ButtonCallbackData {
-        ActionPromptModal* modal;
-        std::optional<helix::LifetimeToken> token;
-        std::string gcode; // Owned copy, safe from vector reallocation
-    };
-
     // === State ===
     PromptData prompt_data_;
     GcodeCallback gcode_callback_;
@@ -179,8 +171,6 @@ class ActionPromptModal : public Modal {
 
     // === Dynamic button tracking ===
     std::vector<helix::ui::WeakWidget> created_buttons_;
-    std::vector<lv_obj_t*> created_text_labels_;
-    std::vector<std::unique_ptr<ButtonCallbackData>> button_callback_data_;
 
     // === Internal Methods ===
     void populate_content();
@@ -217,20 +207,17 @@ class ActionPromptModal : public Modal {
     /**
      * @brief Create a single button inside @p container, laid out for @p kind
      *
-     * Wrap buttons are content-sized; EqualRow and Grid buttons are equal-width
-     * cells (a Grid cell's width is set later by fit_rows()). Footer buttons
-     * ignore @p kind.
+     * @p index is the button's position in prompt_data_.buttons, which the
+     * click callback reads back. Wrap buttons are content-sized; EqualRow and
+     * Grid buttons are equal-width cells (a Grid cell's width is set later by
+     * fit_rows()). Footer buttons ignore @p kind.
      */
-    void create_button(const PromptButton& btn, lv_obj_t* container,
-                       ButtonRowKind kind = ButtonRowKind::Wrap);
+    void create_button(size_t index, lv_obj_t* container, ButtonRowKind kind = ButtonRowKind::Wrap);
     lv_color_t get_button_color(const std::string& color_name);
     void clear_dynamic_content();
 
     // === Event Handler ===
     void handle_button_click(const std::string& gcode);
-
-    // === Static Callbacks ===
-    static void on_button_cb(lv_event_t* e);
 };
 
 /**
