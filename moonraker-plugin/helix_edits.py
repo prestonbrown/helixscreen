@@ -610,7 +610,7 @@ class HelixEdits:
 
         original_filename = web_request.get_str("original_filename")
         temp_file_path = web_request.get_str("temp_file_path", "")
-        edits = web_request.get_list("edits", [])
+        edits = web_request.get("edits", [])
         modifications = web_request.get_list("modifications", [])
         tools = helix.tools_param(web_request)
 

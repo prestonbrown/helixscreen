@@ -46,8 +46,19 @@ class MockWebRequest:
     def get_str(self, key: str, default: str = "") -> str:
         return str(self._params.get(key, default))
 
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._params.get(key, default)
+
     def get_list(self, key: str, default: list = None) -> list:
-        return self._params.get(key, default or [])
+        # Moonraker's WebRequest.get_list takes a comma-separated string or a
+        # list of strings, and rejects a list holding anything else.
+        value = self._params.get(key, default or [])
+        if isinstance(value, str):
+            return [v.strip() for v in value.split(",") if v.strip()]
+        if isinstance(value, list) and all(isinstance(v, str) for v in value):
+            return value
+        raise Exception(f"400: Invalid list format for argument '{key}', "
+                        "expected all values to be of type str.")
 
     def get_boolean(self, key: str, default: bool = False) -> bool:
         return bool(self._params.get(key, default))
