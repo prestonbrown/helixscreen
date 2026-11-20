@@ -35,6 +35,24 @@ namespace helix::settings {
 using helix::ui::event_checked;
 using helix::ui::find_required;
 
+/// State row definition table
+struct StateRowInfo {
+    const char* key;
+    const char* display_name;
+    const char* icon;
+};
+
+static constexpr StateRowInfo kStateRows[] = {
+    {"idle", "Idle", "sleep"},
+    {"heating", "Heating", "fire"},
+    {"printing", "Printing", "printer_3d"},
+    {"paused", "Paused", "pause"},
+    {"error", "Error", "alert_circle"},
+    {"complete", "Complete", "check_circle"},
+};
+
+static constexpr size_t kStateRowCount = sizeof(kStateRows) / sizeof(kStateRows[0]);
+
 LedSettingsOverlay::~LedSettingsOverlay() {
     discard_unsaved_macro_entry();
 }
@@ -64,6 +82,22 @@ void LedSettingsOverlay::init_subjects() {
                               "led_macro_field_options", subjects_);
     UI_MANAGED_SUBJECT_INT(macro_count_, 0, "led_macro_count", subjects_);
     UI_MANAGED_SUBJECT_INT(macro_discovered_count_, 0, "led_macro_discovered_count", subjects_);
+
+    UI_MANAGED_SUBJECT_STRING(auto_action_options_, auto_action_options_buf_, "",
+                              "led_auto_action_options", subjects_);
+    UI_MANAGED_SUBJECT_STRING(auto_effect_options_, auto_effect_options_buf_, "",
+                              "led_auto_effect_options", subjects_);
+    UI_MANAGED_SUBJECT_INT(auto_effect_count_, 0, "led_auto_effect_count", subjects_);
+    UI_MANAGED_SUBJECT_STRING(auto_macro_options_, auto_macro_options_buf_, "",
+                              "led_auto_macro_options", subjects_);
+    UI_MANAGED_SUBJECT_INT(auto_macro_count_, 0, "led_auto_macro_count", subjects_);
+    // The rows are static XML, so every slot they bind exists before the overlay is built.
+    for (auto* pool :
+         {&auto_action_pool_, &auto_kind_pool_, &auto_brightness_pool_, &auto_effect_sel_pool_,
+          &auto_wled_pool_, &auto_wled_label_pool_, &auto_macro_sel_pool_,
+          &auto_color_selected_pool_, &auto_detail_shown_pool_}) {
+        pool->ensure_size(kStateRowCount);
+    }
 }
 
 namespace {
@@ -92,6 +126,54 @@ void LedSettingsOverlay::register_callbacks() {
          }},
         {"on_add_macro_device",
          [](lv_event_t*) { get_led_settings_overlay().handle_add_macro_device(); }},
+        {"led_auto_action_cb",
+         [](lv_event_t* e) {
+             if (auto row = helix::ui::event_user_int(e);
+                 row && *row >= 0 && *row < static_cast<int>(kStateRowCount)) {
+                 get_led_settings_overlay().handle_action_type_changed(
+                     kStateRows[*row].key, helix::ui::event_selected(e));
+             }
+         }},
+        {"led_auto_brightness_cb",
+         [](lv_event_t* e) {
+             if (auto row = helix::ui::event_user_int(e);
+                 row && *row >= 0 && *row < static_cast<int>(kStateRowCount)) {
+                 get_led_settings_overlay().handle_brightness_changed(kStateRows[*row].key,
+                                                                      event_slider_value(e));
+             }
+         }},
+        {"led_auto_effect_cb",
+         [](lv_event_t* e) {
+             auto row = helix::ui::event_user_int(e);
+             const auto& effects = helix::led::LedController::instance().effects().effects();
+             const int sel = helix::ui::event_selected(e);
+             if (row && *row >= 0 && *row < static_cast<int>(kStateRowCount) && sel >= 0 &&
+                 sel < static_cast<int>(effects.size())) {
+                 get_led_settings_overlay().handle_effect_selected(kStateRows[*row].key,
+                                                                   effects[sel].name);
+             }
+         }},
+        {"led_auto_wled_cb",
+         [](lv_event_t* e) {
+             if (auto row = helix::ui::event_user_int(e);
+                 row && *row >= 0 && *row < static_cast<int>(kStateRowCount)) {
+                 get_led_settings_overlay().handle_wled_preset_selected(kStateRows[*row].key,
+                                                                        event_slider_value(e));
+             }
+         }},
+        {"led_auto_macro_cb",
+         [](lv_event_t* e) {
+             auto row = helix::ui::event_user_int(e);
+             const auto& ms = helix::led::LedController::instance().macro().macros();
+             const int sel = helix::ui::event_selected(e);
+             if (row && *row >= 0 && *row < static_cast<int>(kStateRowCount) && sel >= 0 &&
+                 sel < static_cast<int>(ms.size())) {
+                 // on_macro or toggle_macro is the gcode identifier
+                 get_led_settings_overlay().handle_macro_selected(
+                     kStateRows[*row].key,
+                     ms[sel].on_macro.empty() ? ms[sel].toggle_macro : ms[sel].on_macro);
+             }
+         }},
         {"led_macro_edit_cb",
          [](lv_event_t* e) {
              if (auto i = helix::ui::event_user_int(e))
@@ -609,24 +691,6 @@ void LedSettingsOverlay::handle_auto_state_changed(bool enabled) {
 // AUTO-STATE MAPPING EDITOR
 // ============================================================================
 
-/// State row definition table
-struct StateRowInfo {
-    const char* key;
-    const char* display_name;
-    const char* icon;
-};
-
-static constexpr StateRowInfo kStateRows[] = {
-    {"idle", "Idle", "sleep"},
-    {"heating", "Heating", "fire"},
-    {"printing", "Printing", "printer_3d"},
-    {"paused", "Paused", "pause"},
-    {"error", "Error", "alert_circle"},
-    {"complete", "Complete", "check_circle"},
-};
-
-static constexpr size_t kStateRowCount = sizeof(kStateRows) / sizeof(kStateRows[0]);
-
 static std::optional<size_t> state_row_index(const std::string& key) {
     for (size_t i = 0; i < kStateRowCount; ++i) {
         if (key == kStateRows[i].key) {
@@ -649,7 +713,6 @@ void LedSettingsOverlay::publish_auto_color_presets() {
     for (size_t i = 0; i < presets.size(); ++i) {
         auto_preset_color_pool_.set_color(i, presets[i]);
     }
-    auto_color_selected_pool_.ensure_size(kStateRowCount);
     lv_subject_set_int(&auto_preset_count_, static_cast<int>(presets.size()));
 }
 
@@ -669,21 +732,29 @@ void LedSettingsOverlay::handle_color_swatch_clicked(lv_obj_t* swatch, int prese
     spdlog::warn("[{}] Color swatch {} is in no auto-state row", get_name(), preset_index);
 }
 
+namespace {
+
+/// led_auto_kind_<row>'s value for an action type, as led_auto_state_row.xml reads it.
+int action_kind(const std::string& type) {
+    static constexpr const char* kKinds[] = {"off",    "brightness",  "color",
+                                             "effect", "wled_preset", "macro"};
+    for (int i = 0; i < 6; ++i) {
+        if (type == kKinds[i])
+            return i;
+    }
+    return 0;
+}
+
+} // namespace
+
 void LedSettingsOverlay::populate_auto_state_rows() {
     if (!overlay_root_)
         return;
 
-    lv_obj_t* container = find_required(overlay_root_, "auto_state_rows_container", get_name());
-    if (!container)
-        return;
-
-    // Clear existing rows
-    helix::ui::safe_clean_children(container);
-
     auto& auto_state = helix::led::LedAutoState::instance();
     publish_auto_color_presets();
 
-    // Build capability-filtered action type options (shared across all rows)
+    // Capability-filtered action types, shared by every row's dropdown
     action_type_options_.clear();
     action_type_options_.push_back("off");
     action_type_options_.push_back("brightness");
@@ -710,7 +781,6 @@ void LedSettingsOverlay::populate_auto_state_rows() {
     if (ctrl.macro().is_available())
         action_type_options_.push_back("macro");
 
-    // Build dropdown options string
     std::string options_str;
     for (size_t i = 0; i < action_type_options_.size(); i++) {
         if (i > 0)
@@ -729,335 +799,73 @@ void LedSettingsOverlay::populate_auto_state_rows() {
         else if (opt == "macro")
             options_str += lv_tr("Macro");
     }
+    lv_subject_set_string(&auto_action_options_, options_str.c_str());
 
-    auto_detail_shown_pool_.ensure_size(kStateRowCount);
-    for (size_t row_index = 0; row_index < kStateRowCount; ++row_index) {
-        const auto& state = kStateRows[row_index];
-        std::string key = state.key;
+    std::string effect_opts;
+    const auto& effects = ctrl.effects().effects();
+    for (size_t i = 0; i < effects.size(); i++) {
+        if (i > 0)
+            effect_opts += "\n";
+        effect_opts += effects[i].display_name;
+    }
+    lv_subject_set_string(&auto_effect_options_, effect_opts.c_str());
+    lv_subject_set_int(&auto_effect_count_, static_cast<int>(effects.size()));
 
-        // Get current action for this state
-        const auto* mapping = auto_state.get_mapping(key);
-        helix::led::LedStateAction action;
-        if (mapping) {
-            action = *mapping;
-        }
+    std::string macro_opts;
+    const auto& macros = ctrl.macro().macros();
+    for (size_t i = 0; i < macros.size(); i++) {
+        if (i > 0)
+            macro_opts += "\n";
+        macro_opts += macros[i].display_name;
+    }
+    lv_subject_set_string(&auto_macro_options_, macro_opts.c_str());
+    lv_subject_set_int(&auto_macro_count_, static_cast<int>(macros.size()));
 
-        // --- Main row: icon + label + dropdown (always visible) ---
-        const char* row_attrs[] = {"label", lv_tr(state.display_name), "icon", state.icon, nullptr};
-        auto* row =
-            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_state_row", row_attrs));
-        auto* dropdown = helix::ui::find_required(row, "dropdown", get_name());
-        if (!dropdown) {
-            continue;
-        }
-        lv_dropdown_set_options(dropdown, options_str.c_str());
-
-        // Set dropdown to current action type
-        for (size_t i = 0; i < action_type_options_.size(); i++) {
-            if (action_type_options_[i] == action.action_type) {
-                lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(i));
-                break;
-            }
-        }
-
-        // Store key + options for callbacks
-        struct DropdownData {
-            std::string state_key;
-            std::vector<std::string> options;
-        };
-        auto* dd_data = new DropdownData{key, action_type_options_};
-        lv_obj_set_user_data(dropdown, dd_data);
-
-        lv_obj_add_event_cb(
-            dropdown,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] action_type_changed");
-                auto* dd = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                auto* data = static_cast<DropdownData*>(lv_obj_get_user_data(dd));
-                if (data) {
-                    int idx = lv_dropdown_get_selected(dd);
-                    get_led_settings_overlay().handle_action_type_changed(data->state_key, idx);
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_VALUE_CHANGED, dd_data);
-
-        lv_obj_add_event_cb(
-            dropdown,
-            [](lv_event_t* e) { delete static_cast<DropdownData*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, dd_data);
-
-        // --- Detail row (shown/hidden based on action type) ---
-        bool needs_detail = (action.action_type != "off" && !action.action_type.empty());
-        auto_detail_shown_pool_.set_int(row_index, needs_detail ? 1 : 0);
-
-        const std::string shown = fmt::format("led_auto_detail_shown_{}", row_index);
-        const char* detail_attrs[] = {"shown_subject", shown.c_str(), nullptr};
-        auto* detail =
-            static_cast<lv_obj_t*>(lv_xml_create(container, "setting_detail_panel", detail_attrs));
-        auto* ctx_container = helix::ui::find_required(detail, "controls", get_name());
-        if (!ctx_container) {
-            continue;
-        }
-        lv_obj_set_name(detail, fmt::format("detail_{}", key).c_str());
-        lv_obj_set_name(ctx_container, fmt::format("ctx_{}", key).c_str());
-
-        // Populate contextual controls for current action type
-        rebuild_contextual_controls(key, ctx_container);
+    for (size_t row = 0; row < kStateRowCount; ++row) {
+        const auto* mapping = auto_state.get_mapping(kStateRows[row].key);
+        publish_auto_state_row(row, mapping ? *mapping : helix::led::LedStateAction{});
     }
 
     spdlog::debug("[{}] Auto-state rows populated ({} states)", get_name(), kStateRowCount);
 }
 
-void LedSettingsOverlay::rebuild_contextual_controls(const std::string& state_key,
-                                                     lv_obj_t* container) {
-    if (!container)
-        return;
-
-    helix::ui::safe_clean_children(container);
-
-    auto& auto_state = helix::led::LedAutoState::instance();
-    const auto* mapping = auto_state.get_mapping(state_key);
-    helix::led::LedStateAction action;
-    if (mapping) {
-        action = *mapping;
-    }
-
-    if (action.action_type == "off" || action.action_type.empty()) {
-        // No controls needed for "Off"
-        return;
-    }
-
-    if (action.action_type == "brightness") {
-        // Brightness slider
-        lv_obj_t* slider = lv_slider_create(container);
-        lv_obj_set_width(slider, lv_pct(100));
-        lv_slider_set_range(slider, 0, 100);
-        lv_slider_set_value(slider, action.brightness, LV_ANIM_OFF);
-
-        auto* slider_key = new std::string(state_key);
-        lv_obj_set_user_data(slider, slider_key);
-
-        lv_obj_add_event_cb(
-            slider,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] brightness_changed");
-                auto* s = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                auto* data = static_cast<std::string*>(lv_obj_get_user_data(s));
-                if (data) {
-                    int value = lv_slider_get_value(s);
-                    get_led_settings_overlay().handle_brightness_changed(*data, value);
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_VALUE_CHANGED, slider_key);
-
-        lv_obj_add_event_cb(
-            slider,
-            [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, slider_key);
-
-        return;
-    }
-
-    if (action.action_type == "color") {
-        const auto row = state_row_index(state_key);
-        if (row) {
-            auto_color_selected_pool_.set_int(*row, preset_index_of(action.color));
-            const std::string selected = fmt::format("led_auto_color_sel_{}", *row);
-            const char* attrs[] = {"selected_subject", selected.c_str(), nullptr};
-            lv_xml_create(container, "led_auto_color_swatches", attrs);
+void LedSettingsOverlay::publish_auto_state_row(size_t row,
+                                                const helix::led::LedStateAction& action) {
+    int action_row = 0;
+    for (size_t i = 0; i < action_type_options_.size(); i++) {
+        if (action_type_options_[i] == action.action_type) {
+            action_row = static_cast<int>(i);
+            break;
         }
-
-        // Brightness slider below color swatches
-        lv_obj_t* slider = lv_slider_create(container);
-        lv_obj_set_width(slider, lv_pct(100));
-        lv_slider_set_range(slider, 0, 100);
-        lv_slider_set_value(slider, action.brightness, LV_ANIM_OFF);
-
-        auto* slider_key = new std::string(state_key);
-        lv_obj_set_user_data(slider, slider_key);
-
-        lv_obj_add_event_cb(
-            slider,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] color_brightness_changed");
-                auto* s = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                auto* data = static_cast<std::string*>(lv_obj_get_user_data(s));
-                if (data) {
-                    int value = lv_slider_get_value(s);
-                    get_led_settings_overlay().handle_brightness_changed(*data, value);
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_VALUE_CHANGED, slider_key);
-
-        lv_obj_add_event_cb(
-            slider,
-            [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, slider_key);
-
-        return;
     }
+    auto_action_pool_.set_int(row, action_row);
+    const int kind = action_kind(action.action_type);
+    auto_kind_pool_.set_int(row, kind);
+    auto_detail_shown_pool_.set_int(row, kind != 0 ? 1 : 0);
+    auto_brightness_pool_.set_int(row, action.brightness);
+    auto_color_selected_pool_.set_int(row, preset_index_of(action.color));
 
-    if (action.action_type == "effect") {
-        auto& ctrl = helix::led::LedController::instance();
-        const auto& effects = ctrl.effects().effects();
-
-        if (effects.empty()) {
-            lv_obj_t* label = lv_label_create(container);
-            lv_label_set_text(label, lv_tr("No effects available"));
-            lv_obj_set_style_text_color(label, theme_manager_get_color("text_subtle"), 0);
-            return;
-        }
-
-        // Build dropdown options
-        lv_obj_t* dropdown = lv_dropdown_create(container);
-        std::string opts;
-        int selected_idx = 0;
-        for (size_t i = 0; i < effects.size(); i++) {
-            if (i > 0)
-                opts += "\n";
-            opts += effects[i].display_name;
-            if (effects[i].name == action.effect_name) {
-                selected_idx = static_cast<int>(i);
-            }
-        }
-        lv_dropdown_set_options(dropdown, opts.c_str());
-        lv_dropdown_set_selected(dropdown, selected_idx);
-        lv_obj_set_width(dropdown, lv_pct(100));
-        lv_obj_set_style_border_width(dropdown, 0, 0);
-
-        auto* dd_key = new std::string(state_key);
-        lv_obj_set_user_data(dropdown, dd_key);
-
-        lv_obj_add_event_cb(
-            dropdown,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] effect_selected");
-                auto* dd = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                auto* data = static_cast<std::string*>(lv_obj_get_user_data(dd));
-                if (data) {
-                    int idx = lv_dropdown_get_selected(dd);
-                    auto& ctrl = helix::led::LedController::instance();
-                    const auto& effs = ctrl.effects().effects();
-                    if (idx >= 0 && idx < static_cast<int>(effs.size())) {
-                        get_led_settings_overlay().handle_effect_selected(*data, effs[idx].name);
-                    }
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_VALUE_CHANGED, dd_key);
-
-        lv_obj_add_event_cb(
-            dropdown,
-            [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, dd_key);
-
-        return;
+    auto& ctrl = helix::led::LedController::instance();
+    int effect_row = 0;
+    const auto& effects = ctrl.effects().effects();
+    for (size_t i = 0; i < effects.size(); i++) {
+        if (effects[i].name == action.effect_name)
+            effect_row = static_cast<int>(i);
     }
+    auto_effect_sel_pool_.set_int(row, effect_row);
 
-    if (action.action_type == "wled_preset") {
-        // Simple spinbox / text for preset ID
-        lv_obj_t* label = lv_label_create(container);
-        lv_label_set_text(label, fmt::format(lv_tr("Preset ID: {}"), action.wled_preset).c_str());
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
+    const int wled = action.wled_preset > 0 ? action.wled_preset : 1;
+    auto_wled_pool_.set_int(row, wled);
+    auto_wled_label_pool_.set_string(row, fmt::format(lv_tr("Preset ID: {}"), wled));
 
-        lv_obj_t* slider = lv_slider_create(container);
-        lv_obj_set_width(slider, lv_pct(100));
-        lv_slider_set_range(slider, 1, 50);
-        lv_slider_set_value(slider, action.wled_preset > 0 ? action.wled_preset : 1, LV_ANIM_OFF);
-
-        struct WledSliderData {
-            std::string key;
-            lv_obj_t* label;
-        };
-        auto* ws_data = new WledSliderData{state_key, label};
-        lv_obj_set_user_data(slider, ws_data);
-
-        lv_obj_add_event_cb(
-            slider,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] wled_preset_changed");
-                auto* s = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                auto* data = static_cast<WledSliderData*>(lv_obj_get_user_data(s));
-                if (data) {
-                    int value = lv_slider_get_value(s);
-                    lv_label_set_text(data->label,
-                                      fmt::format(lv_tr("Preset ID: {}"), value).c_str());
-                    get_led_settings_overlay().handle_wled_preset_selected(data->key, value);
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_VALUE_CHANGED, ws_data);
-
-        lv_obj_add_event_cb(
-            slider,
-            [](lv_event_t* e) { delete static_cast<WledSliderData*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, ws_data);
-
-        return;
+    int macro_row = 0;
+    const auto& macros = ctrl.macro().macros();
+    for (size_t i = 0; i < macros.size(); i++) {
+        if (macros[i].on_macro == action.macro_gcode ||
+            macros[i].toggle_macro == action.macro_gcode)
+            macro_row = static_cast<int>(i);
     }
-
-    if (action.action_type == "macro") {
-        auto& ctrl = helix::led::LedController::instance();
-        const auto& macros = ctrl.macro().macros();
-
-        if (macros.empty()) {
-            lv_obj_t* label = lv_label_create(container);
-            lv_label_set_text(label, lv_tr("No macros available"));
-            lv_obj_set_style_text_color(label, theme_manager_get_color("text_subtle"), 0);
-            return;
-        }
-
-        lv_obj_t* dropdown = lv_dropdown_create(container);
-        std::string opts;
-        int selected_idx = 0;
-        for (size_t i = 0; i < macros.size(); i++) {
-            if (i > 0)
-                opts += "\n";
-            opts += macros[i].display_name;
-            if (macros[i].on_macro == action.macro_gcode ||
-                macros[i].toggle_macro == action.macro_gcode) {
-                selected_idx = static_cast<int>(i);
-            }
-        }
-        lv_dropdown_set_options(dropdown, opts.c_str());
-        lv_dropdown_set_selected(dropdown, selected_idx);
-        lv_obj_set_width(dropdown, lv_pct(100));
-        lv_obj_set_style_border_width(dropdown, 0, 0);
-
-        auto* dd_key = new std::string(state_key);
-        lv_obj_set_user_data(dropdown, dd_key);
-
-        lv_obj_add_event_cb(
-            dropdown,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[LedSettingsOverlay] macro_selected");
-                auto* dd = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                auto* data = static_cast<std::string*>(lv_obj_get_user_data(dd));
-                if (data) {
-                    int idx = lv_dropdown_get_selected(dd);
-                    auto& ctrl = helix::led::LedController::instance();
-                    const auto& ms = ctrl.macro().macros();
-                    if (idx >= 0 && idx < static_cast<int>(ms.size())) {
-                        // Use on_macro or toggle_macro as the gcode identifier
-                        std::string gcode =
-                            ms[idx].on_macro.empty() ? ms[idx].toggle_macro : ms[idx].on_macro;
-                        get_led_settings_overlay().handle_macro_selected(*data, gcode);
-                    }
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_VALUE_CHANGED, dd_key);
-
-        lv_obj_add_event_cb(
-            dropdown,
-            [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
-            LV_EVENT_DELETE, dd_key);
-
-        return;
-    }
+    auto_macro_sel_pool_.set_int(row, macro_row);
 }
 
 void LedSettingsOverlay::handle_action_type_changed(const std::string& state_key,
@@ -1099,21 +907,9 @@ void LedSettingsOverlay::handle_action_type_changed(const std::string& state_key
     helix::led::LedAutoState::instance().set_mapping(state_key, action);
     save_and_evaluate(state_key);
 
-    // The row's detail panel binds this
-    const auto row = state_row_index(state_key);
-    if (row && *row < auto_detail_shown_pool_.size()) {
-        auto_detail_shown_pool_.set_int(*row, new_type == "off" ? 0 : 1);
+    if (const auto row = state_row_index(state_key)) {
+        publish_auto_state_row(*row, action);
     }
-
-    // SAFETY: Defer rebuild — the dropdown that fired this VALUE_CHANGED event is a
-    // child of the container that rebuild_contextual_controls() will clean (issue #80).
-    lifetime_.defer("LedSettingsOverlay::action_type_rebuild", [this, state_key]() {
-        if (!overlay_root_)
-            return;
-        std::string ctx_name = fmt::format("ctx_{}", state_key);
-        lv_obj_t* ctx = lv_obj_find_by_name(overlay_root_, ctx_name.c_str());
-        rebuild_contextual_controls(state_key, ctx);
-    });
 }
 
 void LedSettingsOverlay::handle_brightness_changed(const std::string& state_key, int value) {
@@ -1169,6 +965,9 @@ void LedSettingsOverlay::handle_wled_preset_selected(const std::string& state_ke
     action.wled_preset = preset_id;
     auto_state.set_mapping(state_key, action);
     save_and_evaluate(state_key);
+    if (const auto row = state_row_index(state_key)) {
+        auto_wled_label_pool_.set_string(*row, fmt::format(lv_tr("Preset ID: {}"), preset_id));
+    }
 }
 
 void LedSettingsOverlay::handle_macro_selected(const std::string& state_key,

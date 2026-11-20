@@ -404,3 +404,96 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     CHECK(shown("macro_toggle_text"));
     CHECK_FALSE(shown("macro_on_text"));
 }
+
+// ---------------------------------------------------------------------------
+// Auto-state rows
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// The first visible-or-not widget of @p cls under @p root, depth first.
+lv_obj_t* first_of_class(lv_obj_t* root, const lv_obj_class_t* cls) {
+    if (root == nullptr)
+        return nullptr;
+    if (lv_obj_check_type(root, cls))
+        return root;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(root); ++i) {
+        if (lv_obj_t* hit = first_of_class(lv_obj_get_child(root, static_cast<int32_t>(i)), cls))
+            return hit;
+    }
+    return nullptr;
+}
+
+lv_obj_t* state_dropdown(const char* key) {
+    lv_obj_t* detail = named(("detail_" + std::string(key)).c_str());
+    REQUIRE(detail != nullptr);
+    lv_obj_t* row = lv_obj_get_sibling(detail, -1);
+    REQUIRE(row != nullptr);
+    lv_obj_t* dd = lv_obj_find_by_name(row, "dropdown");
+    REQUIRE(dd != nullptr);
+    return dd;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: an auto-state row offers only the actions its targets support",
+                 "[led][settings][auto_state_rows]") {
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    // No strips, effects, WLED or macros: only the two universal actions.
+    CHECK(std::string(lv_dropdown_get_options(state_dropdown("idle"))) == "Off\nBrightness");
+    CHECK(std::string(lv_dropdown_get_options(state_dropdown("error"))) == "Off\nBrightness");
+}
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a brightness action shows a slider that writes the mapping",
+                 "[led][settings][auto_state_rows]") {
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+
+    lv_obj_t* dd = state_dropdown("printing");
+    lv_dropdown_set_selected(dd, 1);
+    lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+
+    auto& as = helix::led::LedAutoState::instance();
+    const auto* mapping = as.get_mapping("printing");
+    REQUIRE(mapping != nullptr);
+    CHECK(mapping->action_type == "brightness");
+    CHECK(mapping->brightness == 100);
+    CHECK_FALSE(lv_obj_is_hidden(named("detail_printing")));
+
+    lv_obj_t* slider = first_of_class(named("ctx_printing"), &lv_slider_class);
+    REQUIRE(slider != nullptr);
+    CHECK(lv_slider_get_value(slider) == 100);
+    lv_slider_set_value(slider, 40, LV_ANIM_OFF);
+    lv_obj_send_event(slider, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    CHECK(as.get_mapping("printing")->brightness == 40);
+
+    as.set_mapping("printing", {});
+    as.save_config();
+}
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a stored brightness action opens with its level",
+                 "[led][settings][auto_state_rows]") {
+    helix::led::LedStateAction action;
+    action.action_type = "brightness";
+    action.brightness = 55;
+    helix::led::LedAutoState::instance().set_mapping("paused", action);
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+
+    CHECK(lv_dropdown_get_selected(state_dropdown("paused")) == 1);
+    lv_obj_t* slider = first_of_class(named("ctx_paused"), &lv_slider_class);
+    REQUIRE(slider != nullptr);
+    CHECK(lv_slider_get_value(slider) == 55);
+
+    helix::led::LedAutoState::instance().set_mapping("paused", {});
+}

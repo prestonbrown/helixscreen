@@ -601,6 +601,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/led_auto_color_swatches.xml",
     "ui_xml/led_control_overlay.xml",
     "ui_xml/led_list_chip.xml",
+    "ui_xml/led_auto_state_row.xml",
     "ui_xml/led_macro_edit_form.xml",
     "ui_xml/led_macro_preset_row.xml",
     "ui_xml/led_picker.xml",
