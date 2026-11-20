@@ -658,7 +658,11 @@ exit 0'
 # python3 that prints the scheduling it inherited and the jobserver it was handed.
 run_mutate_for_real() {
     mock_command_script make 'echo "MAKE: $*" >> "$BATS_TEST_TMPDIR/make.log"'
-    mock_command_script python3 'echo "POLICY: $(chrt -p $$)"; echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"; echo "VERDICT: CLEAN"'
+    # The host's scheduler daemon (system76-scheduler on Pop!_OS) can move a
+    # shell back to SCHED_OTHER within seconds, so the tests read the chrt call
+    # the job made rather than the policy the kernel holds afterwards.
+    mock_command_script chrt 'echo "$*" >> "$BATS_TEST_TMPDIR/chrt.log"'
+    mock_command_script python3 'echo "NICE: $(nice)"; echo "MAKEFLAGS=${MAKEFLAGS:-}"; echo "VERDICT: CLEAN"'
     mock_command_script docker '
 case "$1" in
     ps) echo helix-test ;;
@@ -741,7 +745,7 @@ exit 0'
     run "$SCRIPT" mutate --tests '[x]'
     [ "$status" -eq 0 ]
     contains "background job: SCHED_IDLE, outside the jobpool" "$output"
-    contains "SCHED_IDLE" "$output"
+    grep -qx -- "-i -p 0 [0-9]*" "$BATS_TEST_TMPDIR/chrt.log"
     contains "NICE: 19" "$output"
     printf '%s\n' "$output" | grep -qx 'MAKEFLAGS='
     lacks "could not lower" "$output"
@@ -788,7 +792,7 @@ exit 0'
     run "$SCRIPT" mutate --tests '[x]'
     [ "$status" -eq 0 ]
     contains "using -j" "$output"
-    contains "SCHED_IDLE" "$output"
+    grep -qx -- "-i -p 0 [0-9]*" "$BATS_TEST_TMPDIR/chrt.log"
     contains "NICE: 19" "$output"
 }
 
