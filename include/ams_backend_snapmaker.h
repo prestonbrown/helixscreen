@@ -780,6 +780,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         bool check_used_heads = false;
         std::string check_used_heads_file;
         uint32_t check_used_heads_print = 0;
+        /// persisted_records_ changed: written to the store outside mutex_.
+        bool persist_running_records = false;
     };
 
     void dispatch_effects(const FrameEffects& fx);
@@ -1091,7 +1093,32 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] std::optional<helix::runout_other_head::FilamentRecord>
     task_record_locked(int head) const;
     /// Keep pause_records_ in step with the print state. Under mutex_.
-    void note_pause_records_locked();
+    void note_pause_records_locked(FrameEffects& fx);
+
+    /// running_records_ as the settings store holds them, so a process that
+    /// starts into a paused print still knows what the runout head printed.
+    /// Trusted only for the print they were taken from: the same file, and a
+    /// print_stats.total_duration that has not gone back.
+    struct PersistedRunningRecords {
+        std::string file;
+        double total_duration = 0.0;
+        std::array<std::optional<helix::runout_other_head::FilamentRecord>, kNumTools> records{};
+    };
+    /// What the store holds, as this process last read or wrote it; read on the
+    /// first frame. Under mutex_.
+    std::optional<PersistedRunningRecords> persisted_records_;
+    bool persisted_records_read_ = false;
+    /// Write persisted_records_ to the store (clearing it when empty). Main
+    /// thread, without mutex_.
+    void write_persisted_running_records();
+    /// The per-printer settings entry behind persisted_records_. Main thread.
+    [[nodiscard]] static std::optional<PersistedRunningRecords> read_persisted_running_records();
+    static void
+    store_persisted_running_records(const std::optional<PersistedRunningRecords>& saved);
+
+    /// print_stats.total_duration from this backend's own frames; unset until a
+    /// frame carries it. Under mutex_.
+    std::optional<double> print_total_duration_;
 
     /// Per head: an official-flag repair has been sent this session. Under
     /// mutex_.

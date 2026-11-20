@@ -10,6 +10,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "config.h"
 #include "core/notification_api.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
@@ -2862,6 +2863,10 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
                 print_filename_ = file->get<std::string>();
                 frame_names_file = true;
             }
+            if (const nlohmann::json* total = helix::json_util::find_member(*ps, "total_duration");
+                total && total->is_number()) {
+                print_total_duration_ = total->get<double>();
+            }
             if (const nlohmann::json* state = helix::json_util::find_member(*ps, "state");
                 state && state->is_string()) {
                 const bool was_in_progress = print_in_progress_locked();
@@ -2897,7 +2902,7 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
         apply_working_slot_locked(fx);
 
         apply_print_task_config_locked(delta, fx);
-        note_pause_records_locked();
+        note_pause_records_locked(fx);
         fx.check_used_heads = used_heads_check_due_locked(frame_names_state, frame_names_file);
         fx.check_used_heads_file = print_filename_;
         fx.check_used_heads_print = print_generation_;
@@ -2954,6 +2959,10 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
 
     if (fx.refeed_settled) {
         finish_refeed_wait();
+    }
+
+    if (fx.persist_running_records) {
+        write_persisted_running_records();
     }
 
     if (fx.check_used_heads) {
@@ -4149,6 +4158,94 @@ AmsBackendSnapmaker::get_endless_spool_capabilities() const {
             .switchable = true};
 }
 
+// ============================================================================
+// Running filament records, persisted per printer
+// ============================================================================
+
+namespace {
+
+constexpr const char* kRunningRecordsKey = "snapmaker/running_records";
+
+nlohmann::json record_to_json(const helix::runout_other_head::FilamentRecord& r) {
+    return {{"vendor", r.vendor}, {"type", r.type},   {"subtype", r.subtype},
+            {"colors", r.colors}, {"alpha", r.alpha}, {"multi_mode", r.multi_mode}};
+}
+
+std::optional<helix::runout_other_head::FilamentRecord> record_from_json(const nlohmann::json& j) {
+    if (!j.is_object()) {
+        return std::nullopt;
+    }
+    helix::runout_other_head::FilamentRecord r;
+    r.vendor = helix::json_util::safe_string(j, "vendor", "");
+    r.type = helix::json_util::safe_string(j, "type", "");
+    r.subtype = helix::json_util::safe_string(j, "subtype", "");
+    r.alpha = helix::json_util::safe_int(j, "alpha", 0xFF);
+    r.multi_mode = helix::json_util::safe_int(j, "multi_mode", 0);
+    if (const nlohmann::json* colors = helix::json_util::find_member(j, "colors");
+        colors && colors->is_array()) {
+        for (const auto& c : *colors) {
+            if (c.is_string()) {
+                r.colors.push_back(c.get<std::string>());
+            }
+        }
+    }
+    if (r.vendor.empty() || r.type.empty()) {
+        return std::nullopt;
+    }
+    return r;
+}
+
+} // namespace
+
+std::optional<AmsBackendSnapmaker::PersistedRunningRecords>
+AmsBackendSnapmaker::read_persisted_running_records() {
+    const helix::Config* config = helix::Config::get_instance();
+    if (!config) {
+        return std::nullopt;
+    }
+    const nlohmann::json* j = config->try_get_json(config->df() + kRunningRecordsKey);
+    if (!j || !j->is_object()) {
+        return std::nullopt;
+    }
+    PersistedRunningRecords saved;
+    saved.file = helix::json_util::safe_string(*j, "file", "");
+    saved.total_duration = helix::json_util::safe_double(*j, "total_duration", 0.0);
+    if (saved.file.empty()) {
+        return std::nullopt;
+    }
+    if (const nlohmann::json* heads = helix::json_util::find_member(*j, "heads");
+        heads && heads->is_array()) {
+        for (size_t i = 0; i < heads->size() && i < saved.records.size(); ++i) {
+            saved.records[i] = record_from_json((*heads)[i]);
+        }
+    }
+    return saved;
+}
+
+void AmsBackendSnapmaker::store_persisted_running_records(
+    const std::optional<PersistedRunningRecords>& saved) {
+    helix::Config* config = helix::Config::get_instance();
+    if (!config) {
+        return;
+    }
+    const std::string key = config->df() + kRunningRecordsKey;
+    if (!saved) {
+        if (!config->exists(key)) {
+            return;
+        }
+        config->set<nlohmann::json>(key, nullptr);
+    } else {
+        nlohmann::json heads = nlohmann::json::array();
+        for (const auto& r : saved->records) {
+            heads.push_back(r ? record_to_json(*r) : nlohmann::json(nullptr));
+        }
+        config->set<nlohmann::json>(key, {{"file", saved->file},
+                                          {"total_duration", saved->total_duration},
+                                          {"heads", std::move(heads)}});
+    }
+    config->save();
+}
+
 std::optional<helix::runout_other_head::FilamentRecord>
 AmsBackendSnapmaker::task_record_locked(int head) const {
     // The record Auto-Replenish compares: vendor, type, subtype and colour
@@ -4168,18 +4265,45 @@ AmsBackendSnapmaker::task_record_locked(int head) const {
                                                     .multi_mode = multi->mode};
 }
 
-void AmsBackendSnapmaker::note_pause_records_locked() {
+void AmsBackendSnapmaker::note_pause_records_locked(FrameEffects& fx) {
+    if (!persisted_records_read_) {
+        persisted_records_read_ = true;
+        persisted_records_ = read_persisted_running_records();
+    }
     if (!print_in_progress_locked()) {
         running_records_.fill(std::nullopt);
         pause_records_.fill(std::nullopt);
+        // Only a reported state ends the print: a frame before the first
+        // print_stats says nothing about it.
+        if (print_state_ && persisted_records_) {
+            persisted_records_.reset();
+            fx.persist_running_records = true;
+        }
         return;
     }
     const bool paused = *print_state_ == "paused";
+    if (paused && persisted_records_ &&
+        std::none_of(running_records_.begin(), running_records_.end(),
+                     [](const auto& r) { return r.has_value(); })) {
+        // A process that starts into the pause never saw the print run. What an
+        // earlier one saw stands in, if it saw this print.
+        const auto& saved = *persisted_records_;
+        if (!print_filename_.empty() && saved.file == print_filename_ && print_total_duration_ &&
+            *print_total_duration_ >= saved.total_duration) {
+            running_records_ = saved.records;
+            spdlog::info("{} Recovered the running filament records of '{}' from before a restart",
+                         backend_log_tag(), saved.file);
+        }
+    }
+    bool running_changed = false;
     for (int i = 0; i < kNumTools; ++i) {
         const auto idx = static_cast<size_t>(i);
         if (!paused) {
             pause_records_[idx].reset();
             if (auto record = task_record_locked(i)) {
+                if (!(running_records_[idx] == record)) {
+                    running_changed = true;
+                }
                 running_records_[idx] = std::move(record);
             }
             continue;
@@ -4189,6 +4313,23 @@ void AmsBackendSnapmaker::note_pause_records_locked() {
             kept = running_records_[idx] ? running_records_[idx] : task_record_locked(i);
         }
     }
+    if (running_changed && !print_filename_.empty()) {
+        persisted_records_ = PersistedRunningRecords{
+            .file = print_filename_,
+            .total_duration = print_total_duration_.value_or(0.0),
+            .records = running_records_,
+        };
+        fx.persist_running_records = true;
+    }
+}
+
+void AmsBackendSnapmaker::write_persisted_running_records() {
+    std::optional<PersistedRunningRecords> snapshot;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        snapshot = persisted_records_;
+    }
+    store_persisted_running_records(snapshot);
 }
 
 std::optional<helix::runout_other_head::RunoutFacts>

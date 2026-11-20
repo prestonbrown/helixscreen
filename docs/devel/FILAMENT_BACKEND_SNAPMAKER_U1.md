@@ -1062,6 +1062,10 @@ runout head's published record already reads `NONE` (`filament_exist` false). So
 each head's last record that named a filament while the print ran, freezes it when the pause
 begins (`src/printer/ams_backend_snapmaker.cpp#note_pause_records_locked`) and compares against
 that: a spool swapped in during the pause changes the live record only. The print ending forgets it.
+The records are also kept in the printer's settings (`snapmaker/running_records`) with the print's
+file and `print_stats.total_duration`, so a HelixScreen restarted during the pause still has them. A
+new process trusts them only for the same file with a `total_duration` that has not gone back, and
+clears them when it sees no print in progress.
 
 Every refusal inside `INNER_AUTO_REPLENISH_FILAMENT` is log-and-return, so a clean reply proves
 nothing. After sending, the chooser watches for the pause ending or `extruder_map_table`

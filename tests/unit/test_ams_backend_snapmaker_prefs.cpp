@@ -2,8 +2,10 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "../helix_test_fixture.h"
+#include "../test_helpers/scoped_config_write_counter.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "ams_backend_snapmaker.h"
+#include "config.h"
 #include "test_helpers/backend_harness.h"
 
 #include "../catch_amalgamated.hpp"
@@ -19,6 +21,41 @@ nlohmann::json frame(const nlohmann::json& ptc_fields) {
     params["print_task_config"] = ptc_fields;
     return params;
 }
+const nlohmann::json kOrange = {{"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FF8000"}}};
+const nlohmann::json kWhite = {{"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FFFFFF"}}};
+
+/// A print running on head 0 (Generic ASA Basic, orange), with head 3 holding
+/// the same filament loaded through its feeder.
+nlohmann::json printing_on_head0() {
+    nlohmann::json printing = frame({{"auto_replenish_filament", true},
+                                     {"filament_vendor", {"Generic", "Generic", "NONE", "Generic"}},
+                                     {"filament_type", {"ASA", "PLA", "NONE", "ASA"}},
+                                     {"filament_sub_type", {"Basic", "Basic", "NONE", "Basic"}},
+                                     {"filament_exist", {true, true, false, true}},
+                                     {"filament_color_multi", {kOrange, kWhite, kWhite, kOrange}}});
+    printing["print_stats"] = {{"state", "printing"}};
+    printing["toolhead"] = {{"extruder", "extruder"}};
+    printing["extruder"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
+    printing["extruder3"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
+    printing["filament_feed right"] = {{"extruder3",
+                                        {{"channel_state", "load_finish"},
+                                         {"filament_detected", true},
+                                         {"module_exist", true},
+                                         {"disable_auto", false}}}};
+    printing["filament_motion_sensor e3_filament"] = {{"enabled", true}};
+    return printing;
+}
+
+/// Head 0's record as the firmware leaves it at a runout (NONE, filament_exist
+/// false).
+nlohmann::json cleared_head0() {
+    return {{"filament_vendor", {"NONE"}},
+            {"filament_type", {"NONE"}},
+            {"filament_sub_type", {"NONE"}},
+            {"filament_exist", {false}},
+            {"filament_color_multi", {kWhite}}};
+}
+
 } // namespace
 
 TEST_CASE("snapmaker backend keeps the preferences it is told about", "[ams][snapmaker][prefs]") {
@@ -160,32 +197,8 @@ TEST_CASE("snapmaker backend keeps the record a runout head printed after the fi
     // false) before or with the frame that reports the pause.
     HelixTestFixture fixture;
     helix::test::StartedBackend<AmsBackendSnapmaker> backend;
-    const nlohmann::json orange = {
-        {"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FF8000"}}};
-    const nlohmann::json white = {{"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FFFFFF"}}};
-    nlohmann::json printing = frame({{"auto_replenish_filament", true},
-                                     {"filament_vendor", {"Generic", "Generic", "NONE", "Generic"}},
-                                     {"filament_type", {"ASA", "PLA", "NONE", "ASA"}},
-                                     {"filament_sub_type", {"Basic", "Basic", "NONE", "Basic"}},
-                                     {"filament_exist", {true, true, false, true}},
-                                     {"filament_color_multi", {orange, white, white, orange}}});
-    printing["print_stats"] = {{"state", "printing"}};
-    printing["toolhead"] = {{"extruder", "extruder"}};
-    printing["extruder"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
-    printing["extruder3"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
-    printing["filament_feed right"] = {{"extruder3",
-                                        {{"channel_state", "load_finish"},
-                                         {"filament_detected", true},
-                                         {"module_exist", true},
-                                         {"disable_auto", false}}}};
-    printing["filament_motion_sensor e3_filament"] = {{"enabled", true}};
-    backend.fire_status(printing);
-
-    const nlohmann::json cleared = {{"filament_vendor", {"NONE"}},
-                                    {"filament_type", {"NONE"}},
-                                    {"filament_sub_type", {"NONE"}},
-                                    {"filament_exist", {false}},
-                                    {"filament_color_multi", {white}}};
+    backend.fire_status(printing_on_head0());
+    const nlohmann::json cleared = cleared_head0();
     nlohmann::json paused;
     SECTION("cleared in the frame before the pause") {
         backend.fire_status(frame(cleared));
@@ -215,7 +228,7 @@ TEST_CASE("snapmaker backend keeps the record a runout head printed after the fi
                                {"filament_type", {"PETG"}},
                                {"filament_sub_type", {"Basic"}},
                                {"filament_exist", {true}},
-                               {"filament_color_multi", {white}}}));
+                               {"filament_color_multi", {kWhite}}}));
     CHECK(backend.runout_other_head_facts(0)->original->type == "ASA");
 
     // The end of the print forgets it.
@@ -227,4 +240,62 @@ TEST_CASE("snapmaker backend keeps the record a runout head printed after the fi
     next_pause["print_stats"] = {{"state", "paused"}};
     backend.fire_status(next_pause);
     CHECK_FALSE(backend.runout_other_head_facts(0)->original.has_value());
+}
+
+TEST_CASE("a restart during a runout pause recovers the record the runout head printed",
+          "[ams][snapmaker][runout_other_head][running_records]") {
+    HelixTestFixture fixture;
+    ScopedConfigWriteCounter store;
+    helix::Config& config = *helix::Config::get_instance();
+    const std::string key = config.df() + "snapmaker/running_records";
+    config.set<nlohmann::json>(key, nullptr);
+
+    {
+        helix::test::StartedBackend<AmsBackendSnapmaker> before_restart;
+        nlohmann::json printing = printing_on_head0();
+        printing["print_stats"] = {
+            {"state", "printing"}, {"filename", "cube.gcode"}, {"total_duration", 100.0}};
+        before_restart.fire_status(printing);
+        nlohmann::json paused = frame(cleared_head0());
+        paused["print_stats"] = {{"state", "paused"}, {"total_duration", 130.0}};
+        before_restart.fire_status(paused);
+        REQUIRE(before_restart.runout_other_head_facts(0)->original.has_value());
+    }
+
+    // The new process starts into the pause with the record already cleared.
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    nlohmann::json first = printing_on_head0();
+    first.update(frame(cleared_head0()), /*merge_objects=*/true);
+
+    SECTION("the same print") {
+        first["print_stats"] = {
+            {"state", "paused"}, {"filename", "cube.gcode"}, {"total_duration", 160.0}};
+        backend.fire_status(first);
+        const auto facts = backend.runout_other_head_facts(0);
+        REQUIRE(facts.has_value());
+        CHECK_FALSE(facts->heads[0].record.has_value());
+        REQUIRE(facts->original.has_value());
+        CHECK(facts->original->type == "ASA");
+        CHECK(facts->original->colors == std::vector<std::string>{"FF8000"});
+
+        // The end of the print forgets it, in the store too.
+        nlohmann::json cancelled;
+        cancelled["print_stats"] = {{"state", "cancelled"}};
+        backend.fire_status(cancelled);
+        const nlohmann::json* kept = config.try_get_json(key);
+        CHECK((kept == nullptr || kept->is_null()));
+    }
+    SECTION("another file") {
+        first["print_stats"] = {
+            {"state", "paused"}, {"filename", "vase.gcode"}, {"total_duration", 160.0}};
+        backend.fire_status(first);
+        CHECK_FALSE(backend.runout_other_head_facts(0)->original.has_value());
+    }
+    SECTION("the same file printed again") {
+        first["print_stats"] = {
+            {"state", "paused"}, {"filename", "cube.gcode"}, {"total_duration", 40.0}};
+        backend.fire_status(first);
+        CHECK_FALSE(backend.runout_other_head_facts(0)->original.has_value());
+    }
+    config.set<nlohmann::json>(key, nullptr);
 }
