@@ -313,8 +313,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     mock->set_multi_unit_mode(true);
     install_mock(std::move(mock));
 
-    // Six lanes in a two-column home cell: more than fit, so the lanes scroll.
-    lv_obj_t* w = make_strip(test_screen(), 230, 100);
+    // Six lanes in a short two-column home cell: more than fit, so the lanes
+    // scroll, and the row is short enough that a spool reaches its bottom edge.
+    lv_obj_t* w = make_strip(test_screen(), 230, 70);
+    // Fill the cell's height, as the home grid's XML host does.
+    lv_obj_set_height(w, lv_pct(100));
+    lv_obj_update_layout(test_screen());
+    ui_ams_mini_status_refresh(w);
+    settle();
+    lv_obj_update_layout(test_screen());
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(shown(spools));
     REQUIRE(lv_obj_get_scroll_right(spools) > 0);
@@ -328,6 +335,28 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(c.x1 >= box.x1);
     CHECK(c.x2 <= box.x2);
     CHECK(c.x1 > lanes.x2);
+
+    // The scrollbar runs along the scroller's bottom: every lane's spool and badge
+    // stand above it.
+    const int32_t bar_top = lanes.y2 + 1 - lv_obj_get_style_width(spools, LV_PART_SCROLLBAR) -
+                            lv_obj_get_style_pad_bottom(spools, LV_PART_SCROLLBAR);
+    REQUIRE(lv_obj_get_height(spools) > 40);
+    for (int lane = 0; lane < 6; ++lane) {
+        INFO("lane " << lane);
+        lv_obj_t* lane_cell =
+            UITest::find_by_name(spools, ("spool_cell_" + std::to_string(lane)).c_str());
+        REQUIRE(lane_cell != nullptr);
+        lv_obj_t* badge =
+            UITest::find_by_name(lane_cell, ("spool_badge_" + std::to_string(lane)).c_str());
+        lv_obj_t* graphic = UITest::find_by_name(lane_cell, "spool_graphic");
+        REQUIRE(badge != nullptr);
+        REQUIRE(graphic != nullptr);
+        lv_area_t a;
+        lv_obj_get_coords(badge, &a);
+        CHECK(a.y2 < bar_top);
+        lv_obj_get_coords(graphic, &a);
+        CHECK(a.y2 < bar_top);
+    }
 
     lv_obj_delete(lv_obj_get_parent(w));
     teardown_ams();

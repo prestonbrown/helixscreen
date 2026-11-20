@@ -932,7 +932,8 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
  * spool and its label naming the material, or "External" with none.
  */
 static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_px, int spool_size,
-                               int text_w, bool stacked, bool ellipsize, bool show_pct, int gap) {
+                               int text_w, bool stacked, bool ellipsize, bool show_pct,
+                               int scrollbar_room, int gap) {
     const bool show = data->bypass.shown && !data->spool_cells.empty();
     if (!show) {
         if (data->bypass_divider)
@@ -988,6 +989,8 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
 
     lv_obj_t* cell = data->bypass_cell;
     lv_obj_set_size(cell, cell_px, lv_pct(100));
+    // Level with the lane cells, which stand above the scrollbar's room.
+    lv_obj_set_style_pad_bottom(cell, scrollbar_room, LV_PART_MAIN);
     lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN_REVERSE : LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(cell, gap, LV_PART_MAIN);
@@ -1031,6 +1034,14 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
     if (lv_obj_t* pct = lv_obj_find_by_name(cell, "bypass_pct"))
         lv_obj_update_flag(pct, LV_OBJ_FLAG_HIDDEN, !show_pct);
     lv_obj_remove_flag(cell, LV_OBJ_FLAG_HIDDEN);
+}
+
+/** The height a horizontal scrollbar takes along @p scroller's bottom edge, with @p gap above it.
+ */
+static int scrollbar_room_px(lv_obj_t* scroller, int gap) {
+    return static_cast<int>(lv_obj_get_style_width(scroller, LV_PART_SCROLLBAR) +
+                            lv_obj_get_style_pad_bottom(scroller, LV_PART_SCROLLBAR)) +
+           gap;
 }
 
 static void on_spools_size_changed(lv_event_t* e) {
@@ -1097,6 +1108,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         lv_obj_add_flag(sc, LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_set_scroll_dir(sc, LV_DIR_HOR);
         lv_obj_set_scrollbar_mode(sc, LV_SCROLLBAR_MODE_AUTO);
+        // The bar runs on the bottom edge: rebuild_spools() keeps the lanes
+        // above it, and every pixel it floats above the edge comes off them.
+        lv_obj_set_style_pad_bottom(sc, 0, LV_PART_SCROLLBAR);
         data->spools_container = sc;
     }
     lv_obj_t* row = data->spools_row;
@@ -1138,6 +1152,14 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     // Every lane's equal share of the row. -2px so sub-pixel rounding cannot
     // tip a row that fits into a spurious scrollbar.
     const int share = (avail_w - (lanes - 1) * gap - 2) / lanes;
+    // Every sizing branch below widens a cell past its share only when the share
+    // is under the floor, so that is exactly when the lanes scroll. The scrollbar
+    // then runs along the scroller's bottom, and the cells stand above it: its
+    // room comes off the height every spool is sized against.
+    const bool lanes_scroll = share < floor_cell;
+    const int scrollbar_room = lanes_scroll ? scrollbar_room_px(sc, gap) : 0;
+    lv_obj_set_style_pad_bottom(sc, scrollbar_room, LV_PART_MAIN);
+    avail_h -= scrollbar_room;
 
     // The name goes above the spool or beside it, whichever leaves the larger
     // spool, and above on a tie. A tall row maxes the spool either way, so it
@@ -1162,7 +1184,11 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     const int stacked_spool = stacked_spool_with(mat_h);
     const int beside_spool =
         share >= min_cell ? std::min(row_spool, share - badge_margin - gap - min_text) : 0;
-    const bool stacked = avail_h >= floor_h + mat_h && stacked_spool >= beside_spool;
+    // Whether the name fits above the spool is the row's question, scrollbar or
+    // not: the scrollbar's room shrinks the spool, never flips a stacked row to
+    // the wide beside cells, which would show fewer lanes.
+    const bool stacked =
+        avail_h + scrollbar_room >= floor_h + mat_h && stacked_spool >= beside_spool;
 
     int cell_px = 0;
     int text_w = 0;
@@ -1336,7 +1362,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     }
 
     layout_bypass_cell(data, row, cell_px, spool_size, text_w, stacked, ellipsize,
-                       !stacked || stacked_pct, gap);
+                       !stacked || stacked_pct, scrollbar_room, gap);
 
     if (condemned)
         helix::ui::safe_delete_deferred(condemned);
