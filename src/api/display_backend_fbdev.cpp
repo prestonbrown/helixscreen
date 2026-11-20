@@ -563,9 +563,16 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
 
     // Always install the calibrated read callback — it handles both rotation
     // transform and affine calibration independently. Without this, rotation
-    // transform wouldn't be applied on devices that don't need affine cal.
-    helix::install_calibration_wrapper(touch_, calibration_context_, calibration_, screen_width_,
-                                       screen_height_);
+    // transform wouldn't be applied on devices that don't need affine cal. A reopened
+    // device keeps the calibration live when the old one dropped, a capture's disabled
+    // affine included.
+    if (reopening) {
+        helix::reinstall_calibration_wrapper(touch_, calibration_context_, screen_width_,
+                                             screen_height_);
+    } else {
+        helix::install_calibration_wrapper(touch_, calibration_context_, calibration_,
+                                           screen_width_, screen_height_);
+    }
     calibration_wrapper_installed_ = true;
 
     // Record the pipeline exactly as programmed above, so a debug bundle can put
