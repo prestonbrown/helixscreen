@@ -252,11 +252,11 @@ C
     contains "o.xml: <lv_scale>" "$output"
 }
 
-@test "an enabled widget, an XML file the firmware does not ship, and an overridden file stay silent" {
+@test "an enabled widget, a translation file the firmware does not ship, and an overridden file stay silent" {
     disabled_widget_tree
-    mkdir -p "$ROOT/ui_xml/micro" "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides"
+    mkdir -p "$ROOT/ui_xml/translations" "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides"
     echo '<component><view><lv_roller/></view></component>' > "$ROOT/ui_xml/ok.xml"
-    echo '<component><view><lv_scale/></view></component>' > "$ROOT/ui_xml/micro/small.xml"
+    echo '<component><view><lv_scale/></view></component>' > "$ROOT/ui_xml/translations/small.xml"
     echo '<component><view><lv_scale/></view></component>' > "$ROOT/ui_xml/swapped.xml"
     echo '<component><view/></component>' > "$ROOT/firmware/helixscreen-esp32/ui_xml_overrides/swapped.xml"
     run python3 "$GATE" --repo-root "$ROOT"

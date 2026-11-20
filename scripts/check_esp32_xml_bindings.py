@@ -29,7 +29,7 @@ one staged ui_xml/ path per line: a finding every one of whose bindings sits in
 a listed screen is exempt, and any binding elsewhere fails. A listed path the
 firmware does not ship fails too, so the list cannot outlive its screens.
 
-Also a hard failure, with no exemption: firmware-shipped XML (ui_xml/ less micro/,
+Also a hard failure, with no exemption: firmware-shipped XML (ui_xml/,
 with ui_xml_overrides/ winning) using a widget tag whose LV_USE_* the firmware's
 lv_conf.h sets to 0. helix-xml registers each tag under its LV_USE_*, so the device
 would only log "Couldn't create widget" and leave the element out. The tag-to-option
@@ -145,13 +145,13 @@ def registered_widgets(lv_xml_c: str) -> dict[str, list[str]]:
 
 
 def firmware_xml_files(root: Path) -> dict[Path, Path]:
-    """The XML the firmware ships, by staged path: ui_xml/ less micro/ and translations/,
+    """The XML the firmware ships, by staged path: ui_xml/ less translations/,
     with ui_xml_overrides/ replacing the file at the same path."""
     files = {}
     ui_xml = root / "ui_xml"
     for src in sorted(ui_xml.rglob("*.xml")):
         rel = src.relative_to(ui_xml)
-        if rel.parts[0] not in ("micro", "translations"):
+        if rel.parts[0] != "translations":
             files[rel] = src
     overrides = root / FIRMWARE / "ui_xml_overrides"
     if overrides.is_dir():
