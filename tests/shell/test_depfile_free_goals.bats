@@ -11,8 +11,9 @@ load helpers
 setup() {
     OBJ="$(scratch_tree)/build/obj"
     mkdir -p "$OBJ"
-    # A -MP depfile cut off mid-way through its phony header lines.
-    printf 'build/obj/half.o: include/a.h \\\n include/b.h\ninclude/a.h:\ninclude/b\n' > "$OBJ/half.d"
+    # A -MP depfile cut off mid-way through its phony header lines. Its source
+    # exists, or the .d would be dropped as stale before make parsed it.
+    printf 'build/obj/half.o: lv_conf.h include/a.h \\\n include/b.h\ninclude/a.h:\ninclude/b\n' > "$OBJ/half.d"
 }
 
 teardown() {
