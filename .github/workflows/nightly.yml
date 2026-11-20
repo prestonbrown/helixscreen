@@ -325,7 +325,9 @@ jobs:
     # destructive global state, or are stress harnesses, so no sharded run can
     # take them. Nothing else runs them; this step is where one going red shows.
     # Serially, from the checkout root (docs/devel/HIDDEN_TESTS_TRACKER.md).
+    # Runs after a red earlier step too: the hidden set's verdict is its own.
     - name: Run hidden tests ([.]) serially from the repo root
+      if: ${{ !cancelled() }}
       timeout-minutes: 20
       run: |
         ulimit -c unlimited
