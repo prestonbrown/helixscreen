@@ -111,9 +111,12 @@ def collect_references(dirs: tuple[str, ...]) -> dict[str, list[tuple[str, int]]
             if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
                 continue
             try:
-                text = blank_cxx(path.read_text(encoding="utf-8"), strings="keep")
+                raw = path.read_text(encoding="utf-8")
             except (OSError, UnicodeDecodeError):
                 continue
+            if "theme_manager_get_spacing" not in raw:  # skip the costly blanking
+                continue
+            text = blank_cxx(raw, strings="keep")
             for m in CALL_RE.finditer(text):
                 refs.setdefault(m.group(1), []).append((str(path), line_of(text, m.start())))
     return refs
