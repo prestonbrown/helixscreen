@@ -355,6 +355,22 @@ TEST_CASE("staggered chips stand compact at the area edges beside the full-size 
     REQUIRE(bed);
     CHECK(bed->has_line);
 
+    // A left chip and a right chip level with each other: 80px leave a gap, 100px
+    // meet over the picture and it pins.
+    {
+        auto pair = in;
+        pair.budget = {{CalloutKind::Bed, 70, NormPoint{0.3f, 0.5f}},
+                       {CalloutKind::Nozzle, 70, NormPoint{0.7f, 0.5f}}};
+        for (auto& c : pair.budget)
+            c.w_compact = 80;
+        pair.active = pair.budget;
+        CHECK(compute_callout_layout(pair).mode == CalloutMode::Staggered);
+        for (auto* v : {&pair.budget, &pair.active})
+            for (auto& c : *v)
+                c.w_compact = 100;
+        CHECK(compute_callout_layout(pair).mode == CalloutMode::Pinned);
+    }
+
     // A chip wider than the area has no edge to stand against: it pins.
     for (auto* v : {&in.budget, &in.active})
         v->front().w_compact = in.area_w;
@@ -1140,11 +1156,12 @@ TEST_CASE("a lined tile keeps its labels and drops an idle chip instead",
     REQUIRE(fan != nullptr);
     CHECK(fan->rect.w == 110);
 
-    // A tile too small for lines staggers compact chips, which carry no labels.
+    // A tile too small for lines, where chips at its two edges would meet over
+    // the picture, pins, and pinned chips carry no labels.
     in.area_w = 150;
-    const auto compact = compute_callout_layout(in);
-    CHECK(compact.mode == CalloutMode::Staggered);
-    CHECK(compact.unlabeled);
+    const auto pinned = compute_callout_layout(in);
+    CHECK(pinned.mode == CalloutMode::Pinned);
+    CHECK(pinned.unlabeled);
 }
 
 // ---------------------------------------------------------------------------

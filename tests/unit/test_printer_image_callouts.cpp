@@ -446,7 +446,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
-    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Staggered));
+    REQUIRE(callout_mode_is_compact(static_cast<CalloutMode>(mode_now())));
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     CHECK(text_of(h, "callout_chip_bed") == "40 / 60°");

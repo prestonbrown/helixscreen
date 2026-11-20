@@ -277,3 +277,28 @@ TEST_CASE_METHOD(PresenterFixture, "the chamber glow fills its windows, or a dis
         CHECK(lv_image_get_src(chamber.glow) != second);
     }
 }
+
+TEST_CASE_METHOD(PresenterFixture,
+                 "a staggered chip over its own point empties its leader until the point is clear",
+                 "[callout_presenter]") {
+    CalloutPresenter::Parts parts;
+    parts.area = area;
+    parts.image = image;
+    // Too tall for a band above or below the picture, so it staggers compact (60px).
+    CalloutPresenter::Chip nozzle = chip(CalloutKind::Nozzle, true);
+    nozzle.h = 120;
+    nozzle.w_compact_budget = 60;
+    nozzle.line = lv_line_create(area);
+    const std::array<lv_point_precise_t, 3> stale = {{{1, 1}, {2, 2}, {3, 3}}};
+    lv_line_set_points(nozzle.line, stale.data(), stale.size());
+    parts.chips = {nozzle};
+    ImageRegions r = k1c_regions();
+    r.nozzle = {0.9f, 0.3f}; // under the right-edge chip
+    CalloutPresenter presenter;
+    REQUIRE(presenter.apply(parts, &r, 1601, 1204, config()).mode == CalloutMode::Staggered);
+    CHECK(lv_line_get_point_count(nozzle.line) == 0);
+
+    r.nozzle = {0.5f, 0.3f}; // well clear of it
+    REQUIRE(presenter.apply(parts, &r, 1601, 1204, config()).mode == CalloutMode::Staggered);
+    CHECK(lv_line_get_point_count(nozzle.line) == 3);
+}
