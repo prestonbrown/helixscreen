@@ -55,7 +55,7 @@ size_t qrcode_count(lv_obj_t* dialog) {
 /// No object between the code and the dialog is hidden.
 bool shown_within(lv_obj_t* obj, lv_obj_t* dialog) {
     for (lv_obj_t* o = obj; o && o != dialog; o = lv_obj_get_parent(o)) {
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(o)) {
             return false;
         }
     }
