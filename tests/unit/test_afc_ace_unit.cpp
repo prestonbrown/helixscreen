@@ -12,7 +12,10 @@
 #include "ams_backend_afc.h"
 #include "ams_dryer.h"
 #include "ams_state.h"
+#include "json_utils.h"
+#include "moonraker_client_mock.h"
 #include "test_helpers/registered_backend.h"
+#include "test_helpers/scoped_env.h"
 
 #include <string>
 #include <vector>
@@ -223,4 +226,30 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: the subscription carries the cl
     const auto zones = afc.get_environment_zones(-1);
     REQUIRE(zones.size() == 1);
     CHECK(zones[0].label == "Ace2 1");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE mock: its dryer reads as the firmware's would",
+                 "[afc][afc_ace][ams]") {
+    // HELIX_MOCK_AMS=afc_ace starts mid cycle, 205 of 240 minutes left
+    // (MOCK_ENVIRONMENT_VARIABLES.md); the backend must read the same.
+    ScopedEnv mock_ams{"HELIX_MOCK_AMS", "afc_ace"};
+    MoonrakerClientMock mock;
+    nlohmann::json status;
+    mock.send_jsonrpc("printer.objects.query",
+                      {{"objects", {{"AFC", nullptr}, {"AFC_ACE Ace_1", nullptr}}}},
+                      [&status](const nlohmann::json& reply) {
+                          if (const auto* s = json_util::find_path(reply, "result", "status"))
+                              status = *s;
+                      });
+    REQUIRE(status.contains("AFC_ACE Ace_1"));
+
+    helix::test::RegisteredBackend<AfcAceHelper> reg{
+        std::vector<std::string>{"lane1", "lane2", "lane3", "lane4"}};
+    AfcAceHelper& afc = *reg;
+    afc.feed(status);
+    const DryerInfo dryer = helix::dryer_info(afc, 0);
+    REQUIRE(dryer.supported);
+    CHECK(dryer.active);
+    CHECK(dryer.duration_min == 240);
+    CHECK(dryer.remaining_min == 205);
 }
