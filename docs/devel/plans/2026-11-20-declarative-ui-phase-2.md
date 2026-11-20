@@ -53,6 +53,15 @@ renders transparent. Seven sites write it (`setting_macro_card.xml`, `debug_bund
 `grep -rn 'opa="cover"' ui_xml`). Accepting the keyword would make all seven opaque, a visible
 change, so it waits for a decision.
 
+Measured: creating 107 `printer_type_row` components takes 2.4 ms against 0.34 ms for
+the equivalent `lv_obj_create` calls (x86, test binary). The wizard caches the rows after
+its first visit (#231). A callgrind profile of those 107 creates: expat's own tokenizing is
+about 15% of the cost, the element handlers 79%, of which `lv_xml_obj_apply`'s linear
+`lv_streq` chain over attribute names is 19%, style refreshes 13% and the semantic text
+widgets 12%. A parse cache would save at most 15-20%; a hashed attribute dispatch in the
+obj parser about as much again. Neither closes the gap to hand-written C++, so a list long
+enough to matter on MIPS should stay cached as this one is.
+
 Found while building E1: `lib/` is on `-isystem`, so `-MMD` does not track
 `lib/helix-xml/src/xml/lv_xml_component_private.h`, which `src/xml_registration.cpp`,
 `src/application/xml_hot_reloader.cpp` and `src/remote/remote_control_server.cpp` include.
