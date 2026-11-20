@@ -2344,10 +2344,11 @@ class AmsState {
     /// Whether the bypass record's holder has read it, so its absence is
     /// Moonraker's answer. Main thread.
     [[nodiscard]] bool bypass_record_known() const;
-    /// A filament system now holds the bypass record: once it has read its
-    /// lane records, give it the record AmsState last read from its own store
-    /// when it holds none, and delete AmsState's copy. Runs after every sync.
-    /// Main thread.
+    /// A filament system that keeps its lane records outside lane_data now
+    /// holds the bypass record: once it has read its lane records and holds
+    /// none, give it the record AmsState last read from its own store, and
+    /// delete AmsState's copy once the holder's read shows it. Runs after every
+    /// sync. Main thread.
     void hand_bypass_record_to_holder();
     /// Discovery found no filament system: when AmsState's own store holds no
     /// bypass record, take the one a departed system left in its private
@@ -2782,8 +2783,11 @@ class AmsState {
     std::optional<helix::ams::FilamentSlotOverride> bypass_record_read_;
     /// AmsState's own bypass store has answered a read since it opened.
     bool bypass_store_read_ = false;
-    /// hand_bypass_record_to_holder() has run for the current holder.
+    /// hand_bypass_record_to_holder() has finished for the current holder.
     bool bypass_handover_done_ = false;
+    /// The record hand_bypass_record_to_holder() gave the holder, until the
+    /// holder's own read shows it.
+    std::optional<helix::ams::FilamentSlotOverride> bypass_handover_carried_;
     /// reclaim_orphaned_bypass_record() has run for this connection.
     bool bypass_reclaim_done_ = false;
     /// The private-namespace stores reclaim_orphaned_bypass_record() reads.

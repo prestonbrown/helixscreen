@@ -381,6 +381,11 @@ void AmsSubscriptionBackend::adopt_lane_records(
     }
 }
 
+bool AmsSubscriptionBackend::lane_records_private() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return override_store_ != nullptr && override_store_->holds_extras_only();
+}
+
 std::optional<helix::ams::FilamentSlotOverride> AmsSubscriptionBackend::bypass_record() const {
     std::lock_guard<std::mutex> lock(mutex_);
     for (const auto& [slot, record] : overrides_) {

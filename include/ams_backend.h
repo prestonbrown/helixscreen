@@ -2107,6 +2107,12 @@ class AmsBackend : public AmsCapabilityHost {
         return false;
     }
 
+    /// Whether this backend keeps its lane records, the bypass record among
+    /// them, outside lane_data, where AmsState's own store does not read.
+    [[nodiscard]] virtual bool lane_records_private() const {
+        return false;
+    }
+
     /// The bypass spool's record as the last read of this backend's lane
     /// records found it; nullopt when there is none.
     [[nodiscard]] virtual std::optional<helix::ams::FilamentSlotOverride> bypass_record() const {

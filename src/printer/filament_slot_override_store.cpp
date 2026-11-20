@@ -1025,6 +1025,12 @@ SlotInfo external_spool_from_record(const FilamentSlotOverride& record) {
     return info;
 }
 
+bool same_bypass_spool(const FilamentSlotOverride& a, const FilamentSlotOverride& b) {
+    return a.spoolman_id == b.spoolman_id && a.material == b.material &&
+           a.color_set == b.color_set && (!a.color_set || a.color_rgb == b.color_rgb) &&
+           a.brand == b.brand && a.spool_name == b.spool_name;
+}
+
 std::optional<std::pair<int, FilamentSlotOverride>>
 find_bypass_record(const std::unordered_map<int, LaneDataRecord>& records) {
     for (const auto& [slot, entry] : records) {

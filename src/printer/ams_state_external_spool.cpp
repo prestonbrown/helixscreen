@@ -154,6 +154,7 @@ void AmsState::restart_bypass_reads() {
     bypass_record_read_.reset();
     bypass_store_read_ = false;
     bypass_handover_done_ = false;
+    bypass_handover_carried_.reset();
     bypass_reclaim_done_ = false;
     bypass_reclaim_stores_.clear();
     bypass_read_in_flight_ = false;
@@ -243,20 +244,33 @@ void AmsState::hand_bypass_record_to_holder() {
     if (holder == nullptr || bypass_handover_done_ || !holder->lane_records_ready()) {
         return;
     }
-    bypass_handover_done_ = true;
-    std::optional<helix::ams::FilamentSlotOverride> carried = std::move(bypass_record_read_);
-    bypass_record_read_.reset();
-    if (!carried.has_value()) {
+    // A holder reading lane_data reads AmsState's record as its own already:
+    // there is one copy, and it is the holder's.
+    if (!holder->lane_records_private()) {
+        bypass_handover_done_ = true;
         return;
     }
-    // The holder reads lane records of its own, and AmsState's copy is not
-    // among them on a backend whose firmware owns lane_data. A record the
-    // holder already has is newer than the one AmsState read before it came.
-    if (!holder->bypass_record().has_value()) {
+    const std::optional<helix::ams::FilamentSlotOverride> held = holder->bypass_record();
+    if (!bypass_handover_carried_.has_value()) {
+        if (!bypass_record_read_.has_value() || held.has_value()) {
+            // Nothing to move, or the holder already has a bypass record of its
+            // own; AmsState's copy then stays where it is.
+            bypass_handover_done_ = true;
+            return;
+        }
+        bypass_handover_carried_ = bypass_record_read_;
         spdlog::info("{} the filament system holds the bypass record now; moving {} to it",
-                     kBypassTag, carried->material);
-        holder->publish_external_spool_lane(&*carried);
+                     kBypassTag, bypass_handover_carried_->material);
+        holder->publish_external_spool_lane(&*bypass_handover_carried_);
+        return;
     }
+    // AmsState's copy goes only once the holder's own read shows the record it
+    // was given. A refused or failed write never shows, and the copy stays.
+    if (!held.has_value() || !helix::ams::same_bypass_spool(*held, *bypass_handover_carried_)) {
+        return;
+    }
+    bypass_handover_done_ = true;
+    bypass_handover_carried_.reset();
     delete_own_bypass_copy();
 }
 

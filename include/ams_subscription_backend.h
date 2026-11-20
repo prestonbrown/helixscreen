@@ -78,6 +78,7 @@ class AmsSubscriptionBackend : public AmsBackend {
     [[nodiscard]] bool holds_bypass_record() const override {
         return true;
     }
+    [[nodiscard]] bool lane_records_private() const override;
     [[nodiscard]] std::optional<helix::ams::FilamentSlotOverride> bypass_record() const override;
     /// Written at bypass_lane_index_locked(). A record of ours left at an
     /// earlier index is deleted; a slot's record at the index is never

@@ -322,6 +322,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "a filament system that arrives takes over the
     afc->start_now();
     AmsState::instance().sync_from_backend();
     settle();
+    // The holder's own read shows the record; only then does AmsState's copy go.
+    AmsState::instance().sync_from_backend();
+    settle();
 
     const json moved = printer.client.mock_db_get("helix-screen-afc-overrides", "lane3");
     REQUIRE(moved.is_object());
@@ -331,6 +334,73 @@ TEST_CASE_METHOD(LVGLTestFixture, "a filament system that arrives takes over the
     const auto spool = AmsState::instance().get_external_spool_info();
     REQUIRE(spool.has_value());
     CHECK(spool->material == "ASA");
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    AmsState::instance().clear_backends();
+}
+
+// A holder that reads lane_data reads AmsState's record as its own; moving
+// it would delete the only copy.
+TEST_CASE_METHOD(LVGLTestFixture, "a lane_data filament system keeps the bypass record in place",
+                 "[bypass][lane][handover]") {
+    MockPrinter printer;
+    json record = bypass_record(0, "ASA", "#101010");
+    record["spool_id"] = 151;
+    printer.client.mock_db_set("lane_data", "lane1", record);
+    OwnBypassStore store(printer);
+    REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+
+    auto owned = std::make_unique<RecordBackedChanger>(&printer.api);
+    RecordBackedChanger* changer = owned.get();
+    AmsState::instance().add_backend(std::move(owned));
+    ToolChangerTestAccess::call_on_started(*changer);
+    settle();
+    for (int i = 0; i < 3; ++i) {
+        AmsState::instance().sync_from_backend();
+        settle();
+    }
+
+    const json kept = printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(kept.is_object());
+    CHECK(kept["lane_name"] == "bypass");
+    const auto spool = AmsState::instance().get_external_spool_info();
+    REQUIRE(spool.has_value());
+    CHECK(spool->material == "ASA");
+    CHECK(spool->spoolman_id == 151);
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    AmsState::instance().clear_backends();
+}
+
+namespace {
+/// An AFC whose bypass write is refused, as a write with its lane records not
+/// open is.
+class RefusingAfc : public StartedAfc {
+  public:
+    using StartedAfc::StartedAfc;
+    void publish_external_spool_lane(const helix::ams::FilamentSlotOverride*) override {}
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a refused handover keeps AmsState's bypass record",
+                 "[bypass][lane][extras][afc][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ASA", "#101010"));
+    OwnBypassStore store(printer);
+
+    auto owned = std::make_unique<RefusingAfc>(&printer.api);
+    RefusingAfc* afc = owned.get();
+    AmsState::instance().add_backend(std::move(owned));
+    afc->start_now();
+    for (int i = 0; i < 3; ++i) {
+        AmsState::instance().sync_from_backend();
+        settle();
+    }
+
+    const json kept = printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(kept.is_object());
+    CHECK(kept["filament_type"] == "ASA");
+    CHECK(printer.client.mock_db_get("helix-screen-afc-overrides", "lane3").is_null());
 
     helix::ui::UpdateQueue::instance().drain_until_empty();
     AmsState::instance().clear_backends();

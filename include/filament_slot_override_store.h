@@ -360,6 +360,10 @@ inline constexpr const char* kBypassLaneName = "bypass";
 /// external_lane_record() run backwards: the bypass spool a record describes.
 [[nodiscard]] SlotInfo external_spool_from_record(const FilamentSlotOverride& record);
 
+/// Whether @p a and @p b describe the same bypass spool: the same link,
+/// material, color, brand and name.
+[[nodiscard]] bool same_bypass_spool(const FilamentSlotOverride& a, const FilamentSlotOverride& b);
+
 /// The bypass spool's record in one namespace read, with the index it sits at.
 [[nodiscard]] std::optional<std::pair<int, FilamentSlotOverride>>
 find_bypass_record(const std::unordered_map<int, LaneDataRecord>& records);
