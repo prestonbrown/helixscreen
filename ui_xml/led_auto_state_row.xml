@@ -29,7 +29,7 @@
         <!-- A slider's knob reaches past its track ends, and the column clips
              at its own edges: the wrapper's padding is the knob's room. -->
         <lv_obj width="100%"
-                height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xs" style_bg_opa="0"
+                height="content" style_pad_hor="#space_lg" style_pad_ver="#space_sm" style_bg_opa="0"
                 style_border_width="0" scrollable="false">
           <bind_flag_if cond="led_auto_kind_${index} ne 1 and led_auto_kind_${index} ne 2" flag="hidden"/>
           <lv_slider name="auto_brightness_${key}"
@@ -50,7 +50,7 @@
           <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="4"/>
         </text_body>
         <lv_obj width="100%"
-                height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xs" style_bg_opa="0"
+                height="content" style_pad_hor="#space_lg" style_pad_ver="#space_sm" style_bg_opa="0"
                 style_border_width="0" scrollable="false">
           <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="4"/>
           <lv_slider name="auto_wled_${key}"
