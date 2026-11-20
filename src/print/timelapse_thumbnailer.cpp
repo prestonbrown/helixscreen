@@ -32,11 +32,27 @@ std::string find_companion_thumbnail(const std::string& video_filename,
 }
 
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,
-                                             const std::string& output_path) {
+                                             const std::string& output_path, ExtractFrame frame) {
+    std::vector<std::string> args = {"ffmpeg", "-y"};
+    if (frame == ExtractFrame::Last) {
+        // Before -i, a seek from the end jumps to a keyframe instead of decoding there.
+        args.insert(args.end(), {"-sseof", "-1"});
+    }
     // 480px wide: a full-resolution frame would cost every pre-scale a
     // multi-megabyte decode on a worker.
-    return {"ffmpeg", "-y", "-i",  input_path,     "-vframes", "1",
-            "-q:v",   "3",  "-vf", "scale=480:-2", output_path};
+    args.insert(args.end(), {"-i", input_path, "-vframes", "1", "-q:v", "3", "-vf", "scale=480:-2",
+                             output_path});
+    return args;
+}
+
+std::string extracted_thumbnail_key(const std::string& filename, uint64_t size, double modified) {
+    return filename + "@frame-" + std::to_string(size) + "-" +
+           std::to_string(static_cast<long long>(modified));
+}
+
+bool should_extract_thumbnail(const ThumbnailExtractInputs& in) {
+    return !in.has_companion && in.ffmpeg_available && in.moonraker_local && !in.print_active &&
+           !in.already_failed;
 }
 
 bool is_video_file(const std::string& filename) {

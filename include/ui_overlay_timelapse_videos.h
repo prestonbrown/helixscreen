@@ -13,6 +13,7 @@
 #include "thumbnail_cache.h"
 #include "timelapse_thumbnailer.h"
 
+#include <deque>
 #include <set>
 #include <string>
 #include <vector>
@@ -80,9 +81,22 @@ class TimelapseVideosOverlay : public OverlayBase {
     void fetch_video_list();
     TimelapseCardDimensions calculate_card_dimensions();
     void populate_video_grid(const std::vector<FileInfo>& files);
-    void load_thumbnail_for_card(lv_obj_t* card, const std::string& filename,
+    void load_thumbnail_for_card(lv_obj_t* card, const VideoEntry& video,
                                  const std::set<std::string>& available_files);
     void clear_video_grid();
+    /// The live card showing @p filename, or nullptr once the grid has moved on.
+    [[nodiscard]] lv_obj_t* find_card(const std::string& filename) const;
+    void show_card_thumbnail(lv_obj_t* card, const std::string& lvbin_path);
+
+    /// A video with no companion preview: its cached extracted frame, or queue
+    /// an ffmpeg extraction when helix::timelapse::should_extract_thumbnail() allows.
+    void load_extracted_thumbnail(lv_obj_t* card, const VideoEntry& video);
+    struct ExtractJob {
+        std::string filename;
+        std::string key; ///< helix::timelapse::extracted_thumbnail_key()
+    };
+    void run_next_extraction();
+    void finish_extraction(const ExtractJob& job, const std::string& lvbin_path);
 
     void detect_playback_capability();
     /// Adopt Moonraker's "timelapse" root from a server.files.roots answer.
@@ -111,6 +125,7 @@ class TimelapseVideosOverlay : public OverlayBase {
     helix::IMoonrakerAPI* api_;
     std::vector<VideoEntry> videos_;
     bool can_play_ = false;
+    bool has_ffmpeg_ = false;
     std::string player_command_;
     bool is_local_moonraker_ = false;
     std::string timelapse_root_; ///< Moonraker's "timelapse" root on disk, when reported
@@ -121,6 +136,10 @@ class TimelapseVideosOverlay : public OverlayBase {
         std::string filename;
     };
     std::vector<WatchedPlayer> player_watches_;
+
+    std::deque<ExtractJob> extract_queue_;
+    bool extract_busy_ = false;            ///< an extraction is running; the next waits for it
+    std::set<std::string> extract_failed_; ///< keys that gave no frame; not retried this run
     helix::ui::LvglTimerGuard player_watch_timer_;
 
     helix::AsyncLifetimeGuard thumb_lifetime_;

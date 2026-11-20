@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <set>
 #include <string>
@@ -23,9 +24,31 @@ namespace helix::timelapse {
 std::string find_companion_thumbnail(const std::string& video_filename,
                                      const std::set<std::string>& listing);
 
+/// Which frame a thumbnail is taken from.
+enum class ExtractFrame {
+    Last,  ///< Near the end, as moonraker-timelapse's own preview is; a cheap seek
+    First, ///< The opening frame, for a file the end seek gets nothing from
+};
+
 /// Build an argument list for ffmpeg thumbnail extraction (safe from shell injection)
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,
-                                             const std::string& output_path);
+                                             const std::string& output_path, ExtractFrame frame);
+
+/// The thumbnail cache key of a frame extracted from @p filename. Size and
+/// modification time are in it, so a re-rendered video gets a fresh thumbnail.
+[[nodiscard]] std::string extracted_thumbnail_key(const std::string& filename, uint64_t size,
+                                                  double modified);
+
+struct ThumbnailExtractInputs {
+    bool has_companion = false;    ///< moonraker-timelapse left a preview beside the video
+    bool ffmpeg_available = false; ///< ffmpeg is on this host's PATH
+    bool moonraker_local = false;  ///< the video is on this host's disk
+    bool print_active = false;     ///< a print holds the machine; its CPU is not ours to spend
+    bool already_failed = false;   ///< extraction failed for this file before
+};
+
+/// Whether to extract a thumbnail from the video itself.
+[[nodiscard]] bool should_extract_thumbnail(const ThumbnailExtractInputs& in);
 
 bool is_video_file(const std::string& filename);
 
