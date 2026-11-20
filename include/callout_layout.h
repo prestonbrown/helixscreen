@@ -855,9 +855,12 @@ inline bool try_line_modes(const CalloutLayoutInput& in, CalloutLayout& out,
 
 /// Compact chips beside the contain-fit picture: each in the band on its
 /// point's side, against the area edge and spread down it near its point, over
-/// the picture's edge where the margin is narrower than the chip. Fit is tested
-/// against the budget like the line modes. A leader runs only where the chip's
-/// inner edge clears its point by min_line; a chip over its point needs none.
+/// the picture's edge where the margin is narrower than the chip. The picture
+/// stays at its contain-fit size here as in Pinned, so the chips showing now,
+/// not the budget, decide between the two; the budget still picks each chip's
+/// side, so a chip never changes edge as others come and go. A leader runs only
+/// where the chip's inner edge clears its point by min_line; a chip over its
+/// point needs none.
 inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out) {
     const auto compacted = [](std::vector<CalloutChipIn> v) {
         for (auto& c : v) {
@@ -870,7 +873,7 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
     const std::vector<CalloutChipIn> budget = compacted(in_full.budget);
     const std::vector<CalloutChipIn> active = compacted(in_full.active);
     // A chip wider than the area has no edge to stand against; pinning clamps it.
-    if (budget.empty() || std::any_of(budget.begin(), budget.end(), [&](const CalloutChipIn& c) {
+    if (budget.empty() || std::any_of(active.begin(), active.end(), [&](const CalloutChipIn& c) {
             return c.w > in_full.area_w - 2 * in_full.gap;
         }))
         return false;
@@ -879,15 +882,17 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
         in.chip_h = in.compact_chip_h;
     const CalloutRect img = fit_image(in.area_w, in.area_h, in.image_w, in.image_h);
     const BandSides sides = band_sides(budget, false);
-    std::vector<CalloutChipOut> scratch;
-    if (!place_band(in, img, false, sides, budget, scratch) ||
-        !place_band(in, img, true, sides, budget, scratch))
+    std::vector<CalloutChipOut> placed;
+    if (!place_band(in, img, false, sides, active, placed) ||
+        !place_band(in, img, true, sides, active, placed))
         return false;
-    out.image = img;
-    out.chips.clear();
-    place_band(in, img, false, sides, active, out.chips);
-    place_band(in, img, true, sides, active, out.chips);
-    for (auto& o : out.chips) {
+    // Over the picture a left chip and a right chip can meet; neither band sees the other.
+    for (size_t i = 0; i < placed.size(); ++i)
+        for (size_t j = i + 1; j < placed.size(); ++j)
+            if (sides[size_t(placed[i].kind)] != sides[size_t(placed[j].kind)] &&
+                rects_near(placed[i].rect, placed[j].rect, in.gap))
+                return false;
+    for (auto& o : placed) {
         if (!o.has_line)
             continue;
         const bool right = sides[size_t(o.kind)];
@@ -895,6 +900,8 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
         if (right ? inner - o.line_x0 < in.min_line : o.line_x0 - inner < in.min_line)
             o.has_line = false;
     }
+    out.image = img;
+    out.chips = std::move(placed);
     out.mode = CalloutMode::Staggered;
     return true;
 }
@@ -947,22 +954,10 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
             }
         }
         // Compact chips in the side margins before any lands on the picture's
-        // middle, shedding expendable chips the same way.
-        for (size_t n = 0; n <= by_rank.size(); ++n) {
-            const auto gone = [&](const CalloutChipIn& c) {
-                return c.expendable && std::find(by_rank.begin(), by_rank.begin() + long(n),
-                                                 c.kind) != by_rank.begin() + long(n);
-            };
-            CalloutLayoutInput lean = base;
-            for (auto* v : {&lean.budget, &lean.active})
-                v->erase(std::remove_if(v->begin(), v->end(), gone), v->end());
-            if (try_staggered(lean, out)) {
-                for (const auto& c : in.active)
-                    if (gone(c))
-                        out.dropped.push_back(c.kind);
-                out.unlabeled = can_unlabel;
-                return out;
-            }
+        // middle, when every chip fits there: pinning sheds nothing it can keep.
+        if (try_staggered(base, out)) {
+            out.unlabeled = can_unlabel;
+            return out;
         }
         // Pinned chips sit on their parts, so their place names them: no labels.
         out.unlabeled = can_unlabel;
