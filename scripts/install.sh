@@ -10057,6 +10057,9 @@ u1_restore_stock_ui() {
     elif [ -f "$_r/oem/.debug" ]; then
         _u1_stock_log info "Keeping /oem/.debug: HelixScreen did not create it"
     fi
+    # The overlay copy of this file the boot delegate sources (autostart step
+    # 4c). The running shell has already read it.
+    ${SUDO:-} rm -rf "$_r/etc/helixscreen" 2>/dev/null || true
     unset _r _u1_level
     return 0
 }

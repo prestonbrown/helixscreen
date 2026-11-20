@@ -1,11 +1,15 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# The U1 platform hook's restore-stock trigger: a file in Moonraker's config
-# root (created from Mainsail/Fluidd, or by the Settings row) makes the next
-# HelixScreen start hand the display back to the stock screen and reboot, with
-# no SSH needed. The restore itself is the uninstaller's (u1_stock_ui.sh), run
-# here against a mock rootfs.
+# The boot delegate autostart writes over S99input-event-daemon keeps the stock
+# screen reachable without SSH and without /userdata/helixscreen:
+#   - a helixscreen-restore-stock file in Moonraker's config folder (created
+#     from Mainsail/Fluidd, or by the Settings row) hands the display back at
+#     boot, through the overlay copy of the uninstaller's restore, and
+#     HelixScreen is not started;
+#   - with no executable HelixScreen launcher, /usr/bin/gui is switched back on.
+# The setup runs the real autostart against a mock rootfs with a package-shaped
+# install dir, then boots the delegate it rendered.
 
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 HOOK="$WORKTREE_ROOT/assets/config/platform/hooks-snapmaker-u1.sh"
@@ -13,99 +17,127 @@ HOOK="$WORKTREE_ROOT/assets/config/platform/hooks-snapmaker-u1.sh"
 setup() {
     load helpers
 
-    export HELIX_U1_ROOT="$BATS_TEST_TMPDIR/u1"
-    mkdir -p "$HELIX_U1_ROOT/oem" "$HELIX_U1_ROOT/etc/init.d" "$HELIX_U1_ROOT/usr/bin"
+    export MOCK_ROOT="$BATS_TEST_TMPDIR/u1"
+    mkdir -p "$MOCK_ROOT/oem" "$MOCK_ROOT/etc/init.d" "$MOCK_ROOT/usr/bin"
+    printf '#!/bin/sh\necho stock gui\n' > "$MOCK_ROOT/usr/bin/gui"
+    chmod +x "$MOCK_ROOT/usr/bin/gui"
+    printf '#!/bin/sh\n# STOCK input-event-daemon\nexit 0\n' > "$MOCK_ROOT/etc/init.d/S99input-event-daemon"
+    chmod +x "$MOCK_ROOT/etc/init.d/S99input-event-daemon"
 
-    # Installed state on stock firmware: gui disabled, the input-event-daemon
-    # launcher taken over with the original parked as .stock, /oem/.debug ours.
-    printf '#!/bin/sh\necho stock gui\n' > "$HELIX_U1_ROOT/usr/bin/gui"
-    chmod a-x "$HELIX_U1_ROOT/usr/bin/gui"
-    printf '#!/bin/sh\n# Modified by HelixScreen\n' > "$HELIX_U1_ROOT/etc/init.d/S99input-event-daemon"
-    printf '#!/bin/sh\n# STOCK input-event-daemon\n' > "$HELIX_U1_ROOT/etc/init.d/S99input-event-daemon.stock"
-    touch "$HELIX_U1_ROOT/oem/.debug" "$HELIX_U1_ROOT/oem/.debug.helixscreen"
+    # Package-shaped install where the delegate looks for it: the init script,
+    # the platform hook under assets/, and scripts/u1_stock_ui.sh as the U1
+    # package ships it (REL_SCRIPTS copies it flat into scripts/).
+    DEPLOY_DIR="$MOCK_ROOT/userdata/helixscreen"
+    mkdir -p "$DEPLOY_DIR/config" "$DEPLOY_DIR/scripts" "$DEPLOY_DIR/assets/config/platform"
+    export INIT_LOG="$BATS_TEST_TMPDIR/init.log"
+    printf '#!/bin/sh\necho "$1" >> "%s"\n' "$INIT_LOG" > "$DEPLOY_DIR/config/helixscreen.init"
+    chmod +x "$DEPLOY_DIR/config/helixscreen.init"
+    cp "$HOOK" "$DEPLOY_DIR/assets/config/platform/"
+    cp "$WORKTREE_ROOT/scripts/lib/installer/u1_stock_ui.sh" "$DEPLOY_DIR/scripts/"
 
     export HELIX_U1_RESTORE_TRIGGER="$BATS_TEST_TMPDIR/config/helixscreen-restore-stock"
     export HELIX_U1_RESTORE_LOG="$BATS_TEST_TMPDIR/logs/helixscreen-restore-stock.log"
-    export HELIX_U1_RESTORE_LIB="$WORKTREE_ROOT/scripts/lib/installer/u1_stock_ui.sh"
     mkdir -p "$(dirname "$HELIX_U1_RESTORE_TRIGGER")" "$(dirname "$HELIX_U1_RESTORE_LOG")"
 
-    export REBOOT_LOG="$BATS_TEST_TMPDIR/reboot.log"
     export LOGGER_LOG="$BATS_TEST_TMPDIR/logger.log"
     mkdir -p "$BATS_TEST_TMPDIR/bin"
-    printf '#!/bin/sh\necho reboot >> "$REBOOT_LOG"\n' > "$BATS_TEST_TMPDIR/bin/fake-reboot"
     printf '#!/bin/sh\necho "$*" >> "$LOGGER_LOG"\n' > "$BATS_TEST_TMPDIR/bin/logger"
-    chmod +x "$BATS_TEST_TMPDIR/bin/fake-reboot" "$BATS_TEST_TMPDIR/bin/logger"
+    chmod +x "$BATS_TEST_TMPDIR/bin/logger"
     export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
-    export HELIX_U1_REBOOT_CMD=fake-reboot
-    export HELIX_U1_REBOOT_WAIT=0
+
+    # Install: PAXX-shaped SSH (no S50dropbear), so the pre-flight passes.
+    HELIX_SETUP_ROOT="$MOCK_ROOT" HELIX_DROPBEAR_INIT="$MOCK_ROOT/etc/init.d/S50dropbear" \
+        bash "$WORKTREE_ROOT/scripts/snapmaker-u1-setup-autostart.sh" "$DEPLOY_DIR" >/dev/null
+    [ ! -x "$MOCK_ROOT/usr/bin/gui" ] || fail "install did not disable gui"
+    grep -q HelixScreen "$MOCK_ROOT/etc/init.d/S99input-event-daemon" || fail "delegate not installed"
+    [ -f "$MOCK_ROOT/etc/helixscreen/u1_stock_ui.sh" ] || fail "restore not copied into the overlay"
 }
 
-# The installer's log functions (helpers.bash exports silent ones) do not
-# exist where the hook runs.
-run_trigger_check() {
-    ( unset -f log_info log_warn; . "$HOOK"; u1_restore_stock_if_requested )
+# rcS runs the delegate with `start` at boot, rcK with `stop` at shutdown.
+boot_delegate() {
+    HELIX_U1_ROOT="$MOCK_ROOT" ${DELEGATE_SH:-sh} "$MOCK_ROOT/etc/init.d/S99input-event-daemon" "${1:-start}"
 }
 
-@test "u1 restore trigger: restores the stock screen, removes the trigger, logs, reboots" {
+@test "u1 boot delegate: no trigger -> HelixScreen starts, stock screen stays off" {
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ "$(cat "$INIT_LOG")" = start ] || fail "init calls: $(cat "$INIT_LOG" 2>/dev/null)"
+    [ ! -x "$MOCK_ROOT/usr/bin/gui" ]
+}
+
+@test "u1 boot delegate: trigger -> stock screen restored from the overlay copy, HelixScreen not started" {
     touch "$HELIX_U1_RESTORE_TRIGGER"
 
-    run run_trigger_check
+    run boot_delegate
     [ "$status" -eq 0 ]
 
-    [ -x "$HELIX_U1_ROOT/usr/bin/gui" ] || fail "gui not re-enabled"
-    grep -q STOCK "$HELIX_U1_ROOT/etc/init.d/S99input-event-daemon" || fail "launcher not restored"
-    [ ! -e "$HELIX_U1_ROOT/oem/.debug" ] || fail "our /oem/.debug left behind"
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui not re-enabled"
+    grep -q STOCK "$MOCK_ROOT/etc/init.d/S99input-event-daemon" || fail "launcher not restored"
+    [ ! -e "$MOCK_ROOT/oem/.debug" ] || fail "our /oem/.debug left behind"
+    [ ! -e "$MOCK_ROOT/etc/helixscreen" ] || fail "overlay copy of the restore left behind"
     [ ! -e "$HELIX_U1_RESTORE_TRIGGER" ] || fail "trigger left behind"
-    [ "$(cat "$REBOOT_LOG")" = reboot ] || fail "no reboot"
+    lacks start "$(cat "$INIT_LOG" 2>/dev/null)"
     contains "Restore stock screen requested" "$(cat "$HELIX_U1_RESTORE_LOG")"
     contains "Re-enabling stock UI binary" "$(cat "$HELIX_U1_RESTORE_LOG")"
     contains "-t helixscreen" "$(cat "$LOGGER_LOG")"
 }
 
-@test "u1 restore trigger: no trigger -> nothing restored, no reboot" {
-    run run_trigger_check
+@test "u1 boot delegate: trigger with /userdata/helixscreen gone -> still restored" {
+    touch "$HELIX_U1_RESTORE_TRIGGER"
+    rm -rf "$MOCK_ROOT/userdata/helixscreen"
+
+    run boot_delegate
     [ "$status" -eq 0 ]
-    [ ! -x "$HELIX_U1_ROOT/usr/bin/gui" ]
-    [ ! -e "$REBOOT_LOG" ]
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui not re-enabled"
+    grep -q STOCK "$MOCK_ROOT/etc/init.d/S99input-event-daemon" || fail "launcher not restored"
 }
 
-@test "u1 restore trigger: a trigger that cannot be removed -> no restore, no reboot loop" {
-    # A directory in the trigger's place: rm -f cannot remove it.
+@test "u1 boot delegate: trigger at shutdown (stop) -> left for the next boot" {
+    touch "$HELIX_U1_RESTORE_TRIGGER"
+
+    run boot_delegate stop
+    [ "$status" -eq 0 ]
+    [ -e "$HELIX_U1_RESTORE_TRIGGER" ]
+    [ ! -x "$MOCK_ROOT/usr/bin/gui" ]
+    [ "$(cat "$INIT_LOG")" = stop ]
+}
+
+@test "u1 boot delegate: a trigger that cannot be removed -> no restore, HelixScreen starts" {
     mkdir -p "$HELIX_U1_RESTORE_TRIGGER/x"
 
-    run run_trigger_check
+    run boot_delegate
     [ "$status" -eq 0 ]
-    [ ! -x "$HELIX_U1_ROOT/usr/bin/gui" ]
-    [ ! -e "$REBOOT_LOG" ]
+    [ ! -x "$MOCK_ROOT/usr/bin/gui" ]
+    [ "$(cat "$INIT_LOG")" = start ]
     contains "cannot be removed" "$(cat "$HELIX_U1_RESTORE_LOG")"
 }
 
-@test "u1 restore trigger: restore script missing -> trigger kept, no reboot" {
+@test "u1 boot delegate: trigger with the overlay restore missing -> gui re-enabled, HelixScreen not started" {
     touch "$HELIX_U1_RESTORE_TRIGGER"
-    export HELIX_U1_RESTORE_LIB="$BATS_TEST_TMPDIR/nope/u1_stock_ui.sh"
+    rm -rf "$MOCK_ROOT/etc/helixscreen"
 
-    run run_trigger_check
+    run boot_delegate
     [ "$status" -eq 0 ]
-    [ -e "$HELIX_U1_RESTORE_TRIGGER" ]
-    [ ! -e "$REBOOT_LOG" ]
-    contains "is missing" "$(cat "$HELIX_U1_RESTORE_LOG")"
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui not re-enabled"
+    lacks start "$(cat "$INIT_LOG" 2>/dev/null)"
 }
 
-@test "u1 restore trigger: platform_pre_start acts on it before anything else" {
-    touch "$HELIX_U1_RESTORE_TRIGGER"
+@test "u1 boot delegate: install directory gone -> stock screen switched back on" {
+    rm -rf "$MOCK_ROOT/userdata/helixscreen"
 
-    run bash -c '
-        . "'"$HOOK"'"
-        ensure_lmd_running() { echo "lmd step ran"; }
-        ensure_wifi_associated() { :; }
-        ensure_root_ssh() { :; }
-        start_remote_screen() { :; }
-        platform_pre_start
-    '
+    run boot_delegate
     [ "$status" -eq 0 ]
-    [ "$(cat "$REBOOT_LOG")" = reboot ] || fail "no reboot"
-    # Reached only because the stubbed reboot returned; the restore came first.
-    [[ "$(head -1 <<< "$output")" == *"Restore stock screen requested"* ]] || fail "$output"
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui still disabled"
+    contains "No HelixScreen launcher found" "$(cat "$HELIX_U1_RESTORE_LOG")"
+}
+
+@test "u1 boot delegate: launcher not executable -> stock screen switched back on" {
+    chmod a-x "$MOCK_ROOT/userdata/helixscreen/config/helixscreen.init"
+
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui still disabled"
+    [ ! -e "$INIT_LOG" ]
 }
 
 # The Settings row is offered only where the app sees the trigger path.
