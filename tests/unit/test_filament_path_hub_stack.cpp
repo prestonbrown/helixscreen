@@ -685,6 +685,25 @@ TEST_CASE("The hub's output sensor stands on the hub box, and the trunk keeps no
     CHECK(head_top - f.output_y <= 2 * r + (bypass ? r : 0) + 1);
 }
 
+TEST_CASE("An empty hub output sensor reads as a dark inset on the hub box's edge",
+          "[filament-path][hub-stack]") {
+    const TubePalette pal{lv_color_hex(0x6A7080), lv_color_hex(0x3A8DFF), lv_color_hex(0xE04040),
+                          lv_color_hex(0x1C1C1E), 4};
+    SensorBand on_tube{};
+    on_tube.state = BandState::Empty;
+    SensorBand in_box = on_tube;
+    in_box.thickness = kHubSensorThickness;
+    // On a tube an empty band wears the idle wall; on the box, whose border is that grey too, it
+    // is darker than the wall, toward the background.
+    CHECK(lv_color_to_u32(band_color(on_tube, pal)) == lv_color_to_u32(pal.idle_wall));
+    const lv_color_t inset = band_color(in_box, pal);
+    CHECK(lv_color_luminance(inset) + 30 < lv_color_luminance(pal.idle_wall));
+    // A loaded one keeps its filament's color wherever it stands.
+    in_box.state = BandState::Loaded;
+    in_box.fill = lv_color_hex(0x00FF00);
+    CHECK(lv_color_to_u32(band_color(in_box, pal)) == lv_color_to_u32(in_box.fill));
+}
+
 TEST_CASE("A path no taller canvas would help asks for no height past its own",
           "[filament-path][hub-stack][art-fit][buffer]") {
     FilamentPathData d;

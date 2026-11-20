@@ -1467,6 +1467,11 @@ void band_segment(const SensorBand& band, int32_t gauge, pg::PathPoint& p0, pg::
     p1 = {band.at.x + nx * h, band.at.y + ny * h};
 }
 
+namespace {
+/// How much of the idle wall an empty sensor on a box keeps over the background.
+constexpr lv_opa_t kBoxSensorInsetMix = LV_OPA_30;
+} // namespace
+
 lv_color_t band_color(const SensorBand& b, const TubePalette& pal) {
     switch (b.state) {
     case BandState::Active:
@@ -1479,6 +1484,10 @@ lv_color_t band_color(const SensorBand& b, const TubePalette& pal) {
     case BandState::Empty:
         break;
     }
+    // The hub's own sensor stands on the box, whose border is the idle grey too: empty, it is a
+    // dark inset there, most of the way to the background.
+    if (b.thickness > 0)
+        return lv_color_mix(pal.idle_wall, pal.bg, kBoxSensorInsetMix);
     return pal.idle_wall;
 }
 
