@@ -106,3 +106,12 @@ TEST_CASE("u1 restore: the trigger file is created where the hook looks", "[u1-s
     CHECK_FALSE(helix::u1::write_restore_trigger((dir / "missing" / "trigger").string()));
     fs::remove_all(dir);
 }
+
+TEST_CASE("u1 restore: refused while a job holds the machine", "[u1-stock-screen]") {
+    using helix::u1::RestoreStockVerdict;
+    const char* trigger = "/home/lava/printer_data/config/helixscreen-restore-stock";
+    CHECK(helix::u1::decide_restore_stock(trigger, false) == RestoreStockVerdict::Proceed);
+    CHECK(helix::u1::decide_restore_stock(trigger, true) == RestoreStockVerdict::JobActive);
+    CHECK(helix::u1::decide_restore_stock(nullptr, false) == RestoreStockVerdict::NotOffered);
+    CHECK(helix::u1::decide_restore_stock("", true) == RestoreStockVerdict::NotOffered);
+}

@@ -469,6 +469,11 @@ ShutdownDialogPlan plan_shutdown_dialog(bool api_connected, bool live_moonraker_
             ShutdownScope::Screen};
 }
 
+bool power_job_active() {
+    return lv_subject_get_int(
+               get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+}
+
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
                           lv_obj_t* parent_screen) {
     // Backstop behind the UI gating (home-grid widget + Advanced POWER rows):

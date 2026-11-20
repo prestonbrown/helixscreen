@@ -55,6 +55,8 @@ translations:
   '%u layers': '%u 层'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  Cannot restore the stock screen while printing: '打印期间无法恢复原厂屏幕'
+  Could not restart the printer; the stock screen was not restored: '无法重启打印机；未恢复原厂屏幕'
   Could not restore the stock screen: '无法恢复原厂屏幕'
   Restart the printer to finish restoring the stock screen: '请重启打印机以完成恢复原厂屏幕'
   Restarting the printer...: '正在重启打印机...'

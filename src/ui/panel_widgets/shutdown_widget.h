@@ -106,6 +106,11 @@ enum class HostPowerFollowUp {
 /// Moonraker, or toasts.
 HostPowerFollowUp host_power_follow_up(PowerResult local_result, bool api_connected);
 
+/// True while a job holds the machine (printing, paused, spools on the bed),
+/// so powering it down would ruin the job. Every path that reboots the printer
+/// outside the power dialog reads it. Main thread.
+bool power_job_active();
+
 /// Configure @p modal with single-/dual-scope callbacks for @p api (matching
 /// the home-panel widget's behavior — including local-fallback when Moonraker
 /// is disconnected) and show it as a child of @p parent_screen.

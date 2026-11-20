@@ -55,6 +55,8 @@ translations:
   '%u layers': '%u capas'
   '%zu events queued': '%zu eventos en cola'
   '%zu plugins failed to load': '%zu plugins no se cargaron'
+  Cannot restore the stock screen while printing: 'No se puede restaurar la pantalla original durante una impresión'
+  Could not restart the printer; the stock screen was not restored: 'No se pudo reiniciar la impresora; la pantalla original no se restauró'
   Could not restore the stock screen: 'No se pudo restaurar la pantalla original'
   Restart the printer to finish restoring the stock screen: 'Reinicie la impresora para terminar de restaurar la pantalla original'
   Restarting the printer...: 'Reiniciando la impresora...'
