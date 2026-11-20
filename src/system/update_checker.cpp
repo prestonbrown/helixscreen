@@ -188,43 +188,47 @@ std::string this_board_display_name() {
 
 /// Picks @p platform_key's asset out of a GitHub release asset list into
 /// @p info. False, leaving @p info untouched, when the release has none.
+/// The zip wins; the versioned tar.gz serves a release that predates the
+/// zip-only ones and has no zip.
 bool select_github_asset(const json& assets, const std::string& platform_key,
                          UpdateChecker::ReleaseInfo& info) {
     const std::string zip_name = "helixscreen-" + platform_key + ".zip";
     const std::string platform_prefix = "helixscreen-" + platform_key + "-";
-    spdlog::info("[UpdateChecker] Platform key: '{}', prefer prefix '{}...tar.gz' else '{}'",
-                 platform_key, platform_prefix, zip_name);
+    spdlog::info("[UpdateChecker] Platform key: '{}', prefer '{}' else prefix '{}...tar.gz'",
+                 platform_key, zip_name, platform_prefix);
 
-    std::string zip_url;
-    size_t zip_size = 0;
+    std::string tar_name;
+    std::string tar_url;
+    size_t tar_size = 0;
     for (const auto& asset : assets) {
         std::string name = asset.value("name", "");
-        // The version's 'v' must sit directly after the platform prefix:
-        // a longer platform key that extends this one (k1-dynamic for k1)
-        // carries the prefix too and must not be selected for the shorter
-        // key. Asset names are helixscreen-<plat>-v<version>.tar.gz.
-        const size_t after_prefix = platform_prefix.size();
-        if (name.size() > after_prefix + 1 && name[after_prefix] == 'v' &&
-            isdigit(static_cast<unsigned char>(name[after_prefix + 1])) &&
-            name.compare(0, after_prefix, platform_prefix) == 0 &&
-            name.find(".tar.gz") != std::string::npos) {
+        if (name == zip_name) {
             info.download_url = asset.value("browser_download_url", "");
             info.download_bytes = asset.value("size", static_cast<size_t>(0));
             spdlog::info("[UpdateChecker] Selected asset: {} ({} bytes)", name,
                          info.download_bytes);
             return true;
         }
-        if (zip_url.empty() && name == zip_name) {
-            zip_url = asset.value("browser_download_url", "");
-            zip_size = asset.value("size", static_cast<size_t>(0));
+        // The version's 'v' must sit directly after the platform prefix:
+        // a longer platform key that extends this one (k1-dynamic for k1)
+        // carries the prefix too and must not be selected for the shorter
+        // key. Asset names are helixscreen-<plat>-v<version>.tar.gz.
+        const size_t after_prefix = platform_prefix.size();
+        if (tar_url.empty() && name.size() > after_prefix + 1 && name[after_prefix] == 'v' &&
+            isdigit(static_cast<unsigned char>(name[after_prefix + 1])) &&
+            name.compare(0, after_prefix, platform_prefix) == 0 &&
+            name.find(".tar.gz") != std::string::npos) {
+            tar_name = name;
+            tar_url = asset.value("browser_download_url", "");
+            tar_size = asset.value("size", static_cast<size_t>(0));
         }
     }
-    if (zip_url.empty()) {
+    if (tar_url.empty()) {
         return false;
     }
-    info.download_url = zip_url;
-    info.download_bytes = zip_size;
-    spdlog::info("[UpdateChecker] Selected zip asset (no tar.gz present): {} ({} bytes)", zip_name,
+    info.download_url = tar_url;
+    info.download_bytes = tar_size;
+    spdlog::info("[UpdateChecker] Selected tar.gz asset (no zip present): {} ({} bytes)", tar_name,
                  info.download_bytes);
     return true;
 }
@@ -249,14 +253,9 @@ bool parse_github_release(const json& j, UpdateChecker::ReleaseInfo& info, std::
         return false;
     }
 
-    // Find platform-specific binary asset. The release flow uploads one
-    // unversioned zip per platform ("helixscreen-<plat>.zip") alongside the
-    // versioned tar.gz ("helixscreen-<plat>-v1.2.3.tar.gz"). We prefer the
-    // tar.gz: pre-v0.99.31 in-app updaters call gunzip on whatever URL the
-    // asset list hands them, so picking the .zip on this fallback path
-    // yields "Corrupt download" for clients still on v0.99.30 or earlier
-    // (mirrors the R2 manifest --include-zip gate). Once telemetry shows
-    // v0.99.30 adoption is gone, this preference can flip back to zip.
+    // Find the platform-specific binary asset: the unversioned zip
+    // ("helixscreen-<plat>.zip"), or the versioned tar.gz
+    // ("helixscreen-<plat>-v1.2.3.tar.gz") of a release that has no zip.
     if (j.contains("assets") && j["assets"].is_array()) {
         bool found = false;
         for (const auto& key : asset_keys) {
@@ -386,15 +385,15 @@ std::string resolve_tool(const std::string& name) {
 
 /// Populate ReleaseInfo download URLs from a per-platform manifest asset
 /// object (R2 + dev manifest schema). Prefers `zip_url`/`zip_sha256`, falls
-/// back to legacy `url`/`sha256` (tar.gz) only when no zip is in the manifest.
+/// back to `url`/`sha256` (the tar.gz of a release from before the zip-only
+/// manifests) only when no zip is in the manifest.
 void populate_release_urls_from_manifest(const json& platform_asset,
                                          UpdateChecker::ReleaseInfo& info) {
     std::string zip_url = json_string_or_empty(platform_asset, "zip_url");
     if (!zip_url.empty()) {
         info.download_url = zip_url;
         info.sha256 = json_string_or_empty(platform_asset, "zip_sha256");
-        // Manifest currently only carries `size` for the legacy tar.gz; if a
-        // future schema adds `zip_size` we'll prefer it here.
+        // A manifest from before zip_size existed carries only the tar.gz size.
         info.download_bytes = platform_asset.value("zip_size", platform_asset.value("size", 0ULL));
     } else {
         info.download_url = json_string_or_empty(platform_asset, "url");

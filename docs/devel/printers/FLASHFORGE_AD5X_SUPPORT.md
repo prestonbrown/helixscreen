@@ -72,7 +72,7 @@ make release-ad5x         # alias of release-mips; also writes helixscreen-ad5x.
 
 **Toolchain**: the shared `helixscreen/toolchain-mips` image, `mipsel-k1-linux-musl` (GCC 13.2, musl 1.2.4, `-march=mips32r2 -mnan=2008 -mfp64`). The binary is fully static, so the board's own libc does not matter.
 
-**Platform define**: `-DHELIX_PLATFORM_MIPS` only, so self-update fetches the unified `mips` asset. `release-mips` also publishes the same bytes as `helixscreen-ad5x.zip` and `helixscreen-ad5x-<version>.tar.gz` for binaries and Moonraker configs that ask by the `ad5x` name. The installer classifies a MIPS box with `/usr/data` + `/usr/prog` as `ad5x` (`scripts/lib/installer/platform.sh#detect_platform`).
+**Platform define**: `-DHELIX_PLATFORM_MIPS` only, so self-update fetches the unified `mips` asset. `release-mips` also publishes the same bytes as `helixscreen-ad5x.zip` for binaries and Moonraker configs that ask by the `ad5x` name. The installer classifies a MIPS box with `/usr/data` + `/usr/prog` as `ad5x` (`scripts/lib/installer/platform.sh#detect_platform`).
 
 ## ZMOD Integration
 

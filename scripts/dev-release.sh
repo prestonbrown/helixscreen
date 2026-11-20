@@ -151,27 +151,20 @@ make -C "$REPO_ROOT" --no-print-directory installer
 # Determine which platforms to process
 declare -a PLATFORMS=()
 if [[ "$PLATFORM" == "all" ]]; then
-    for tarball in "$BUILD_DIR"/helixscreen-*-*.tar.gz; do
-        if [[ -f "$tarball" ]]; then
-            filename=$(basename "$tarball")
-            # Recover the platform key. Platform names and versions both carry
-            # hyphens (android-arm64, v1.1.0-beta.1), so the split anchors on
-            # the '-v<digit>' that opens the version. A name carrying no
-            # version names no platform, and is skipped rather than becoming
-            # one: the rename below globs on the key it returns, so a
-            # truncated key matches a sibling platform's tarball and renames
-            # it out from under that platform.
-            plat=$(echo "$filename" | sed -n -E 's/^helixscreen-(.+)-v[0-9][0-9A-Za-z.+-]*\.tar\.gz$/\1/p')
-            if [[ -z "$plat" ]]; then
-                echo -e "${YELLOW}Skipping unrecognised artifact: ${filename}${NC}" >&2
-                continue
-            fi
+    for zip in "$BUILD_DIR"/helixscreen-*.zip; do
+        if [[ -f "$zip" ]]; then
+            filename=$(basename "$zip")
+            # The zip carries no version, so everything between the prefix and
+            # .zip is the platform key, hyphens included. ESP32 firmware zips
+            # are flashed, not installed, and name no platform.
+            [[ "$filename" == helixscreen-esp32-* ]] && continue
+            plat=$(echo "$filename" | sed -n -E 's/^helixscreen-(.+)\.zip$/\1/p')
             PLATFORMS+=("$plat")
         fi
     done
 
     if [[ ${#PLATFORMS[@]} -eq 0 ]]; then
-        echo -e "${RED}Error: No tarballs found in $BUILD_DIR${NC}" >&2
+        echo -e "${RED}Error: No release zips found in $BUILD_DIR${NC}" >&2
         exit 1
     fi
 
@@ -185,18 +178,11 @@ else
     PLATFORMS=("$PLATFORM")
 fi
 
-# Rename tarballs with version
 for plat in "${PLATFORMS[@]}"; do
-    for tarball in "$BUILD_DIR"/helixscreen-"${plat}"-*.tar.gz; do
-        if [[ -f "$tarball" ]]; then
-            new_name="$BUILD_DIR/helixscreen-${plat}-v${VERSION}.tar.gz"
-            if [[ "$tarball" != "$new_name" ]]; then
-                mv "$tarball" "$new_name"
-                echo -e "${YELLOW}Renamed $(basename "$tarball") -> $(basename "$new_name")${NC}"
-            fi
-            break
-        fi
-    done
+    if [[ ! -f "$BUILD_DIR/helixscreen-${plat}.zip" ]]; then
+        echo -e "${RED}Error: $BUILD_DIR/helixscreen-${plat}.zip not found${NC}" >&2
+        exit 1
+    fi
 done
 
 # Generate manifest using shared script
@@ -228,10 +214,10 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "${YELLOW}DRY RUN - Would execute the following commands:${NC}"
     echo ""
 
-    for tarball in "$BUILD_DIR"/helixscreen-*-*.tar.gz; do
-        if [[ -f "$tarball" ]]; then
-            filename=$(basename "$tarball")
-            echo "aws s3 cp \"$tarball\" \"s3://${R2_BUCKET_NAME}/releases/v${VERSION}/${filename}\" --endpoint-url \"$R2_ENDPOINT\""
+    for zip in "$BUILD_DIR"/helixscreen-*.zip; do
+        if [[ -f "$zip" ]]; then
+            filename=$(basename "$zip")
+            echo "aws s3 cp \"$zip\" \"s3://${R2_BUCKET_NAME}/releases/v${VERSION}/${filename}\" --endpoint-url \"$R2_ENDPOINT\""
         fi
     done
 
@@ -247,13 +233,13 @@ if [[ "$DRY_RUN" == "true" ]]; then
     echo -e "${GREEN}Manifest would be available at: ${R2_PUBLIC_URL}/${CHANNEL}/manifest.json${NC}"
 else
     echo ""
-    echo -e "${GREEN}Uploading tarballs to releases/v${VERSION}/...${NC}"
+    echo -e "${GREEN}Uploading zips to releases/v${VERSION}/...${NC}"
 
-    for tarball in "$BUILD_DIR"/helixscreen-*-*.tar.gz; do
-        if [[ -f "$tarball" ]]; then
-            filename=$(basename "$tarball")
+    for zip in "$BUILD_DIR"/helixscreen-*.zip; do
+        if [[ -f "$zip" ]]; then
+            filename=$(basename "$zip")
             echo -e "${YELLOW}Uploading releases/v${VERSION}/${filename}...${NC}"
-            aws s3 cp "$tarball" "s3://${R2_BUCKET_NAME}/releases/v${VERSION}/${filename}" \
+            aws s3 cp "$zip" "s3://${R2_BUCKET_NAME}/releases/v${VERSION}/${filename}" \
                 --endpoint-url "$R2_ENDPOINT"
             echo -e "${GREEN}  Uploaded successfully${NC}"
         fi

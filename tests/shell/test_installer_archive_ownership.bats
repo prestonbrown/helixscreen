@@ -4,11 +4,11 @@
 # Release archives must not carry the build machine's uid/gid, and the
 # installer must not restore ownership out of an archive it extracts as root.
 #
-# Shipping tarballs were built with a bare `tar -czvf`, so every entry carried
-# the builder's numeric uid/gid (1001 on the GitHub Actions runner, 1000 on a
-# local build host).  Root extracts with --same-owner by default on both GNU
-# and BusyBox tar, so an install landed owned by a uid that does not exist in
-# the printer's /etc/passwd.
+# A tarball created by a bare `tar -czvf` stamps every entry with the builder's
+# numeric uid/gid (1001 on the GitHub Actions runner, 1000 on a local build
+# host).  Root extracts with --same-owner by default on both GNU and BusyBox
+# tar, so such an install lands owned by a uid that does not exist in the
+# printer's /etc/passwd.
 #
 # Ownership cannot be asserted end-to-end from the test suite: --same-owner is
 # a no-op for a non-root extractor, so a functional extract test would pass
@@ -24,7 +24,7 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# Archive creation: release tarballs must be built with owner/group zeroed
+# Archive creation: releases ship zips only
 # ---------------------------------------------------------------------------
 
 # Only recipe lines count — a make recipe line starts with a literal tab, so
@@ -32,42 +32,38 @@ setup() {
 #
 # The tab is written with printf rather than \t because BSD grep (macOS) has no
 # -P, and only PCRE understands \t; an ERE over a literal tab works everywhere.
-_release_tar_recipe_lines() {
-    grep -nE "^$(printf '\t').*tar .*-czvf" "$1"
+_gzip_tar_recipe_lines() {
+    grep -nE "^$(printf '\t').*tar .*-c[a-z]*z[a-z]*f" "$1"
 }
 
-@test "every release tarball is created with TAR_OWNER_FLAGS" {
-    local total offending
-    total=$(_release_tar_recipe_lines "$CROSS_MK" | wc -l)
-    # Every platform must still be packaged; a drop to zero means the grep
-    # stopped matching rather than the tree becoming clean. Every release
-    # target tars through the one release-package macro.
-    [ "$total" -ge 1 ]
-
-    offending=$(_release_tar_recipe_lines "$CROSS_MK" | grep -v 'TAR_OWNER_FLAGS' || true)
+# A tarball would carry the builder's numeric uid/gid, which root restores on
+# extract. The zip the release ships records no owner that any of the
+# installer's extractors (info-zip without -X, BusyBox unzip, python zipfile)
+# applies, so the release must not grow a tarball again without the owner flags
+# that guard it.
+@test "release packaging creates no gzip tarball" {
+    local offending
+    offending=$(_gzip_tar_recipe_lines "$CROSS_MK" || true)
     if [ -n "$offending" ]; then
-        printf 'release tar without TAR_OWNER_FLAGS:\n%s\n' "$offending" >&2
+        printf 'release recipe creates a tarball:\n%s\n' "$offending" >&2
         return 1
     fi
+    # The zip recipe is still there, so an empty result means no tarball rather
+    # than a cross.mk this grep no longer understands.
+    grep -qE "^$(printf '\t').*zip -qr \.\./helixscreen-" "$CROSS_MK"
 }
 
-@test "TAR_OWNER_FLAGS is defined in cross.mk" {
-    grep -q '^TAR_OWNER_FLAGS' "$CROSS_MK"
-}
-
-@test "the release-tar gate fails when the flags are dropped from one site" {
+@test "the no-tarball gate catches a tar -czvf recipe line" {
     local fixture="$BATS_TEST_TMPDIR/cross.mk"
     cat > "$fixture" << 'EOF'
-TAR_OWNER_FLAGS := --owner=0 --group=0 --numeric-owner
-	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -czvf a.tar.gz helixscreen
+# a comment quoting tar -czvf is prose, not a recipe
+	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-pi.zip .
 	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar -czvf b.tar.gz helixscreen
 EOF
-    # Exactly the b.tar.gz line must be caught.
     local offending
-    offending=$(_release_tar_recipe_lines "$fixture" | grep -v 'TAR_OWNER_FLAGS' || true)
-    [ -n "$offending" ]
+    offending=$(_gzip_tar_recipe_lines "$fixture" || true)
+    [ "$(echo "$offending" | wc -l)" -eq 1 ]
     echo "$offending" | grep -q 'b.tar.gz'
-    echo "$offending" | refute_grep 'a.tar.gz'
 }
 
 # ---------------------------------------------------------------------------
@@ -127,54 +123,3 @@ EOF
     [ -f "$d/out/src/file.txt" ]
 }
 
-# Print every archive entry's owner as "uid/gid", from either tar's listing.
-#
-# GNU tar prints uid/gid as a single field 2 ("0/0"); BSD tar (macOS) prints a
-# link count there and puts uid and gid in fields 3 and 4. Keying on whether
-# field 2 contains a slash normalises both without probing which tar this is.
-_archive_numeric_owners() {
-    tar -tvzf "$1" --numeric-owner |
-        awk '{ if ($2 ~ /\//) print $2; else print $3 "/" $4 }'
-}
-
-@test "TAR_OWNER_FLAGS produces an archive owned by 0:0" {
-    local d="$BATS_TEST_TMPDIR/owner"
-    mkdir -p "$d/helixscreen/bin"
-    echo binary > "$d/helixscreen/bin/helix-screen"
-
-    # Resolve the same flags the Makefile resolves, by the same probe.
-    local flags
-    if tar --owner=0 --group=0 -cf /dev/null -T /dev/null >/dev/null 2>&1; then
-        flags="--owner=0 --group=0 --numeric-owner"
-    else
-        flags="--uid 0 --gid 0 --numeric-owner"
-    fi
-
-    # shellcheck disable=SC2086
-    tar $flags -czf "$d/rel.tar.gz" -C "$d" helixscreen
-
-    # No entry may carry a non-zero uid/gid.
-    local bad
-    bad=$(_archive_numeric_owners "$d/rel.tar.gz" | grep -v '^0/0$' || true)
-    if [ -n "$bad" ]; then
-        printf 'archive entries with non-zero owner: %s\n' "$bad" >&2
-        return 1
-    fi
-}
-
-@test "a bare tar -czf DOES leak the builder uid (proves the previous test bites)" {
-    # Guards against the owner assertion passing vacuously on a system where
-    # the build user happens to be uid 0 (e.g. a root CI container).
-    if [ "$(id -u)" = "0" ]; then
-        skip "running as root: a bare tar cannot leak a non-zero uid here"
-    fi
-
-    local d="$BATS_TEST_TMPDIR/leak"
-    mkdir -p "$d/helixscreen"
-    echo x > "$d/helixscreen/file"
-    tar -czf "$d/rel.tar.gz" -C "$d" helixscreen
-
-    local bad
-    bad=$(_archive_numeric_owners "$d/rel.tar.gz" | grep -v '^0/0$' || true)
-    [ -n "$bad" ]
-}

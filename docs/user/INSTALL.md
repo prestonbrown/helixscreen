@@ -301,13 +301,13 @@ Every run writes a full log to `~/printer_data/logs/helixscreen-install.log` (in
 If you already downloaded a release from the [releases page](https://github.com/prestonbrown/helixscreen/releases), the installer can install exactly that release without downloading anything. Either name the archive:
 
 ```bash
-sh install.sh helixscreen-pi-v1.1.0.tar.gz
+sh install.sh helixscreen-pi.zip
 ```
 
-(`--local helixscreen-pi-v1.1.0.tar.gz` does the same), or extract it and run the installer inside it:
+(`--local helixscreen-pi.zip` does the same), or extract it and run the installer inside it:
 
 ```bash
-tar -xzf helixscreen-pi-v1.1.0.tar.gz
+unzip helixscreen-pi.zip -d helixscreen
 ./helixscreen/install.sh
 ```
 
