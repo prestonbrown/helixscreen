@@ -120,9 +120,18 @@ std::optional<PlayerWatch> spawn_watched_player(const std::vector<std::string>& 
     argv.push_back(nullptr);
 
     int fds[2];
+#ifdef __linux__
     if (pipe2(fds, O_CLOEXEC) != 0) {
         return std::nullopt;
     }
+#else
+    // macOS (a development host only) has no pipe2.
+    if (pipe(fds) != 0) {
+        return std::nullopt;
+    }
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+#endif
     pid_t watcher = fork();
     if (watcher < 0) {
         close(fds[0]);
