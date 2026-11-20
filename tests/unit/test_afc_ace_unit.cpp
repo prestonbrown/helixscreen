@@ -167,3 +167,43 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: start and stop name the unit",
         CHECK(afc.gcodes.empty());
     }
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: the subscription carries the climate",
+                 "[afc][afc_ace][ams]") {
+    // An idle ACE 2 Pro under AFC DEV, as the V0 rig publishes it, cut down to the
+    // fields the subscription asks for: Moonraker sends nothing else after the
+    // first snapshot.
+    const nlohmann::json published = {{"lanes", {"lane0", "lane1", "lane2", "lane3"}},
+                                      {"extruders", {"extruder"}},
+                                      {"hubs", {"Ace2_1_hub"}},
+                                      {"buffers", nlohmann::json::array()},
+                                      {"ace_connected", true},
+                                      {"ace_status", "ready"},
+                                      {"ace_temp", 28},
+                                      {"ace_humidity", 39},
+                                      {"ace_dryer", "stop"},
+                                      {"ace_dryer_target", 0},
+                                      {"ace_dryer_remain", 0},
+                                      {"ace_dryer_duration", 0}};
+    const auto subscribed =
+        AmsBackendAfc::required_status_objects(std::vector<std::string>{"AFC", "AFC_ACE2 Ace2_1"});
+    nlohmann::json delivered = nlohmann::json::object();
+    for (const auto& field : subscribed.at("AFC_ACE2 Ace2_1")) {
+        const auto key = field.get<std::string>();
+        if (published.contains(key)) {
+            delivered[key] = published[key];
+        }
+    }
+
+    helix::test::RegisteredBackend<AfcAceHelper> reg{
+        std::vector<std::string>{"lane0", "lane1", "lane2", "lane3"}};
+    AfcAceHelper& afc = *reg;
+    afc.feed({{"AFC", {{"units", {"ACE2 Ace2_1"}}}}, {"AFC_ACE2 Ace2_1", delivered}});
+
+    REQUIRE(afc.get_system_info().units.size() == 1);
+    CHECK(helix::dryer_info(afc, 0).supported);
+    REQUIRE(afc.unit(0).environment.has_value());
+    CHECK(afc.unit(0).environment->temperature_c == 28.0f);
+    CHECK(afc.unit(0).environment->humidity_pct == 39.0f);
+    CHECK(afc.traits().has_environment_sensors);
+}

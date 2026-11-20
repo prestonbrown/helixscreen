@@ -320,6 +320,10 @@ struct UnitObjectDelta {
 
 [[nodiscard]] UnitObjectDelta parse_unit_object(const nlohmann::json& data);
 
+/// Every field parse_unit_object() reads: the subscription for a unit object.
+/// Moonraker delivers only subscribed fields after the first snapshot.
+[[nodiscard]] std::vector<std::string> unit_object_fields();
+
 struct UnitTopology {
     PathTopology topology = PathTopology::HUB;
     std::vector<bool> lane_is_hub_routed; ///< Parallel to the unit's lanes

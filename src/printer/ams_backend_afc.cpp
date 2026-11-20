@@ -380,9 +380,9 @@ nlohmann::json AmsBackendAfc::required_status_objects(const std::vector<std::str
         {"state", "distance_to_fault", "error_sensitivity", "fault_detection_enabled", "lanes"});
     static const json extruder_fields =
         json::array({"lane_loaded", "tool_end_status", "tool_start_status"});
-    // Unit-level objects (AFC_BoxTurtle, AFC_OpenAMS, AFC_vivid, ...) are read
-    // for their topology arrays only.
-    static const json unit_fields = json::array({"lanes", "extruders", "hubs", "buffers"});
+    // Unit-level objects (AFC_BoxTurtle, AFC_OpenAMS, AFC_ACE2, ...): topology arrays,
+    // plus an ACE's dryer and climate and a CFS unit's lane tags.
+    static const json unit_fields = afc::unit_object_fields();
 
     json objects = json::object();
     for (const auto& name : afc_objects) {

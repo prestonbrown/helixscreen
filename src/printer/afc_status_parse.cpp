@@ -704,10 +704,11 @@ parse_cfs_lane_tags(const nlohmann::json& data) {
     return out;
 }
 
+constexpr const char* kAceKeys[] = {"ace_dryer",          "ace_dryer_target", "ace_dryer_remain",
+                                    "ace_dryer_duration", "ace_temp",         "ace_humidity",
+                                    "ace_slots"};
+
 std::optional<AceUnitDelta> parse_ace_unit(const nlohmann::json& data) {
-    static constexpr const char* kAceKeys[] = {
-        "ace_dryer", "ace_dryer_target", "ace_dryer_remain", "ace_dryer_duration",
-        "ace_temp",  "ace_humidity",     "ace_slots"};
     if (std::none_of(std::begin(kAceKeys), std::end(kAceKeys),
                      [&data](const char* key) { return data.contains(key); })) {
         return std::nullopt;
@@ -740,6 +741,12 @@ std::optional<AceUnitDelta> parse_ace_unit(const nlohmann::json& data) {
 }
 
 } // namespace
+
+std::vector<std::string> unit_object_fields() {
+    std::vector<std::string> fields = {"lanes", "extruders", "hubs", "buffers", "cfs"};
+    fields.insert(fields.end(), std::begin(kAceKeys), std::end(kAceKeys));
+    return fields;
+}
 
 UnitObjectDelta parse_unit_object(const nlohmann::json& data) {
     UnitObjectDelta d{read_string_list(data, "lanes"), read_string_list(data, "extruders"),
