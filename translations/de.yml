@@ -690,6 +690,7 @@ translations:
   'Cannot reprint: not connected to printer': 'Nachdruck nicht möglich: nicht mit Drucker verbunden'
   Cannot restart Moonraker while printing: "Moonraker kann während eines Drucks nicht neu gestartet werden"
   Cannot restart — no filename: Neustart nicht möglich — kein Dateiname
+  Cannot restore the stock screen while printing: 'Der Originalbildschirm kann während eines Drucks nicht wiederhergestellt werden'
   Cannot run filament operation while printing: Filamentvorgang während des Drucks nicht möglich
   'Cannot schedule a pause: printer not connected': 'Pause kann nicht geplant werden: Drucker nicht verbunden'
   'Cannot start print: internal error': 'Druck kann nicht gestartet werden: interner Fehler'
@@ -1072,6 +1073,7 @@ translations:
   Could not remove the job from the queue: Der Auftrag konnte nicht aus der Warteschlange entfernt werden
   Could not reset the printer image tags: Bildmarkierungen konnten nicht zurückgesetzt werden
   Could not resolve printer RFCOMM channel: RFCOMM-Kanal des Druckers konnte nicht ermittelt werden
+  Could not restart the printer; the stock screen was not restored: 'Der Drucker konnte nicht neu gestartet werden; der Originalbildschirm wurde nicht wiederhergestellt'
   Could not restore the previous IPv4 settings: 'Die vorherigen IPv4-Einstellungen konnten nicht wiederhergestellt werden'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Die vorherigen IPv4-Einstellungen konnten noch nicht wiederhergestellt werden. Neuer Versuch bis zu zwei Minuten lang.'
   Could not restore the stock screen: 'Der Originalbildschirm konnte nicht wiederhergestellt werden'
@@ -3499,7 +3501,6 @@ translations:
   Restart print: 'Druck neu starten'
   Restart the display application: Anzeigeanwendung neu starten
   Restart the printer or screen: Drucker oder Bildschirm neu starten
-  Restart the printer to finish restoring the stock screen: 'Drucker neu starten, um die Wiederherstellung des Originalbildschirms abzuschließen'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Drucker neu starten. Wird SSH weiterhin abgelehnt, siehe die Installationsanleitung für den Snapmaker U1'
   Restarting HelixScreen...: HelixScreen wird neu gestartet...
   Restarting Klipper...: Klipper wird neu gestartet...

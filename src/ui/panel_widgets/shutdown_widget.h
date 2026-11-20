@@ -121,6 +121,12 @@ struct PowerDecision {
     ShutdownScope scope;
 };
 
+/// True while a job holds the machine (printing, paused, spools on the bed),
+/// so powering it down would ruin the job. The job_active input of
+/// decide_power_request(), and of every other path that reboots the printer.
+/// Main thread.
+bool power_job_active();
+
 /// Decide a power request. Pure.
 ///
 /// A dual-host screen with a target chosen in Settings (@p target) opens its

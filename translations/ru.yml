@@ -746,6 +746,7 @@ translations:
   'Cannot reprint: not connected to printer': 'Невозможно перепечатать: не подключено к принтеру'
   Cannot restart Moonraker while printing: "Нельзя перезапустить Moonraker во время печати"
   Cannot restart — no filename: Не удалось перезапустить — нет имени файла
+  Cannot restore the stock screen while printing: 'Нельзя вернуть штатный экран во время печати'
   Cannot run filament operation while printing: Во время печати нельзя выполнять операции с филаментом
   'Cannot schedule a pause: printer not connected': 'Невозможно запланировать паузу: принтер не подключён'
   'Cannot start print: internal error': 'Невозможно начать печать: внутренняя ошибка'
@@ -1132,6 +1133,7 @@ translations:
   Could not remove the job from the queue: Не удалось удалить задание из очереди
   Could not reset the printer image tags: Не удалось сбросить отметки изображения
   Could not resolve printer RFCOMM channel: Не удалось определить RFCOMM-канал принтера
+  Could not restart the printer; the stock screen was not restored: 'Не удалось перезапустить принтер; штатный экран не восстановлен'
   Could not restore the previous IPv4 settings: 'Не удалось восстановить прежние настройки IPv4'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут.'
   Could not restore the stock screen: 'Не удалось вернуть штатный экран'
@@ -3579,7 +3581,6 @@ translations:
   Restart print: 'Перезапустить печать'
   Restart the display application: Перезапустить приложение дисплея
   Restart the printer or screen: Перезапустить принтер или экран
-  Restart the printer to finish restoring the stock screen: 'Перезапустите принтер, чтобы завершить возврат штатного экрана'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Перезапустите принтер. Если SSH по-прежнему отклоняет подключение, см. руководство по установке Snapmaker U1'
   Restarting HelixScreen...: Перезапуск HelixScreen...
   Restarting Klipper...: Перезапуск Klipper...

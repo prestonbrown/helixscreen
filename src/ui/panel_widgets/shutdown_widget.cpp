@@ -475,6 +475,11 @@ PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation
     return {run_now, scope};
 }
 
+bool power_job_active() {
+    return lv_subject_get_int(
+               get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
+}
+
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
                           lv_obj_t* parent_screen, PowerIntent intent) {
     // Backstop behind the UI gating (home-grid widget + Advanced POWER rows):
@@ -497,12 +502,9 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
         plan_shutdown_dialog(connected, get_printer_state().is_moonraker_remote(),
                              helix::is_moonraker_on_same_host(host), helix::host_runs_systemd());
     const auto& safety = SafetySettingsManager::instance();
-    const bool job_active =
-        lv_subject_get_int(
-            get_printer_state().print_state().get_machine_motion_blocked_subject()) != 0;
     const PowerDecision decision =
         decide_power_request(intent, safety.get_power_require_confirmation(), plan,
-                             safety.get_power_target(), job_active);
+                             safety.get_power_target(), power_job_active());
     switch (plan.mode) {
     case ShutdownDialogMode::SingleViaMoonraker:
         // Moonraker's machine.shutdown brings the whole device down. Moonraker

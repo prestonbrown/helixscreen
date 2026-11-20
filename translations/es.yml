@@ -690,6 +690,7 @@ translations:
   'Cannot reprint: not connected to printer': 'No se puede reimprimir: no conectado a la impresora'
   Cannot restart Moonraker while printing: "No se puede reiniciar Moonraker durante la impresión"
   Cannot restart — no filename: No se puede reiniciar — sin nombre de archivo
+  Cannot restore the stock screen while printing: 'No se puede restaurar la pantalla original durante una impresión'
   Cannot run filament operation while printing: No se puede realizar la operación de filamento mientras se imprime
   'Cannot schedule a pause: printer not connected': 'No se puede programar una pausa: impresora no conectada'
   'Cannot start print: internal error': 'No se puede iniciar impresión: error interno'
@@ -1072,6 +1073,7 @@ translations:
   Could not remove the job from the queue: No se pudo eliminar el trabajo de la cola
   Could not reset the printer image tags: Error al restablecer las marcas de la imagen
   Could not resolve printer RFCOMM channel: No se pudo resolver el canal RFCOMM de la impresora
+  Could not restart the printer; the stock screen was not restored: 'No se pudo reiniciar la impresora; la pantalla original no se restauró'
   Could not restore the previous IPv4 settings: 'No se pudo restaurar la configuración IPv4 anterior'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Aún no se pudo restaurar la configuración IPv4 anterior. Se reintentará durante hasta dos minutos.'
   Could not restore the stock screen: 'No se pudo restaurar la pantalla original'
@@ -3499,7 +3501,6 @@ translations:
   Restart print: 'Reiniciar impresión'
   Restart the display application: Reiniciar la aplicación de pantalla
   Restart the printer or screen: Reiniciar la impresora o pantalla
-  Restart the printer to finish restoring the stock screen: 'Reinicie la impresora para terminar de restaurar la pantalla original'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie la impresora. Si SSH sigue rechazando la conexión, consulte la guía de instalación del Snapmaker U1'
   Restarting HelixScreen...: Reiniciando HelixScreen...
   Restarting Klipper...: Reiniciando Klipper...

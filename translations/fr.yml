@@ -702,6 +702,7 @@ translations:
   'Cannot reprint: not connected to printer': 'Impossible de réimprimer : non connecté à l''imprimante'
   Cannot restart Moonraker while printing: "Impossible de redémarrer Moonraker pendant l'impression"
   Cannot restart — no filename: Impossible de redémarrer — pas de nom de fichier
+  Cannot restore the stock screen while printing: 'Impossible de restaurer l''écran d''origine pendant une impression'
   Cannot run filament operation while printing: Impossible d'effectuer une opération de filament pendant l'impression
   'Cannot schedule a pause: printer not connected': 'Impossible de prévoir une pause : imprimante non connectée'
   'Cannot start print: internal error': 'Impossible de démarrer l''impression : erreur interne'
@@ -1084,6 +1085,7 @@ translations:
   Could not remove the job from the queue: Impossible de retirer le travail de la file
   Could not reset the printer image tags: 'Échec de la réinitialisation des repères de l''image'
   Could not resolve printer RFCOMM channel: Impossible de résoudre le canal RFCOMM de l'imprimante
+  Could not restart the printer; the stock screen was not restored: 'Impossible de redémarrer l''imprimante ; l''écran d''origine n''a pas été restauré'
   Could not restore the previous IPv4 settings: 'Impossible de restaurer les paramètres IPv4 précédents'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Impossible de restaurer les paramètres IPv4 précédents pour l''instant. Nouvelles tentatives pendant deux minutes au plus.'
   Could not restore the stock screen: 'Impossible de restaurer l''écran d''origine'
@@ -3511,7 +3513,6 @@ translations:
   Restart print: 'Relancer l''impression'
   Restart the display application: Redémarrer l'application d'affichage
   Restart the printer or screen: Redémarrer l'imprimante ou l'écran
-  Restart the printer to finish restoring the stock screen: 'Redémarrez l''imprimante pour terminer la restauration de l''écran d''origine'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Redémarrez l''imprimante. Si SSH refuse toujours la connexion, consultez le guide d''installation du Snapmaker U1'
   Restarting HelixScreen...: Redémarrage de HelixScreen...
   Restarting Klipper...: Redémarrage de Klipper...

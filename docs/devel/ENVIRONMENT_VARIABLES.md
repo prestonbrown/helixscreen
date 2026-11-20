@@ -2245,7 +2245,7 @@ Only the launcher's own `platform_pre_start` call reaches `helix-screen`; it re-
 
 ### `HELIX_U1_RESTORE_TRIGGER`
 
-The Snapmaker U1 restore-stock trigger file. The boot delegate the installer writes over `/etc/init.d/S99input-event-daemon` checks it at boot only (`start`, never a service restart): it removes the file, runs the uninstaller's restore from its overlay copy of `u1_stock_ui.sh` in /etc/helixscreen (re-enables `/usr/bin/gui`, puts back the boot launchers, drops `/oem/.debug` if our installer created it), logs to `printer_data/logs/helixscreen-restore-stock.log` and syslog, and does not start HelixScreen, so the stock screen comes up in that boot. On stock firmware the platform hook exports the path to the app, which is what shows **Settings > System > Restore Stock Screen**; that row writes the same file and reboots.
+The Snapmaker U1 restore-stock trigger file. The boot delegate the installer writes over `/etc/init.d/S99input-event-daemon` checks it at boot only (`start`, never a service restart): it removes the file, runs the uninstaller's restore from its overlay copy of `u1_stock_ui.sh` in /etc/helixscreen (re-enables `/usr/bin/gui`, puts back the boot launchers, drops `/oem/.debug` if our installer created it), logs to `printer_data/logs/helixscreen-restore-stock.log` and syslog, and does not start HelixScreen, so the stock screen comes up in that boot. On stock firmware the platform hook exports the path to the app, which is what shows **Settings > System > Restore Stock Screen**; that row refuses while a job holds the machine, writes the same file and reboots, and deletes the file again when the reboot does not dispatch.
 
 | Property | Value |
 |----------|-------|

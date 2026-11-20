@@ -690,6 +690,7 @@ translations:
   'Cannot reprint: not connected to printer': '再印刷できません: プリンター未接続'
   Cannot restart Moonraker while printing: "印刷中はMoonrakerを再起動できません"
   Cannot restart — no filename: 再起動できません — ファイル名がありません
+  Cannot restore the stock screen while printing: '印刷中は標準画面に戻せません'
   Cannot run filament operation while printing: 印刷中はフィラメント操作を実行できません
   'Cannot schedule a pause: printer not connected': '一時停止を予約できません: プリンターが接続されていません'
   'Cannot start print: internal error': '印刷を開始できません: 内部エラー'
@@ -1072,6 +1073,7 @@ translations:
   Could not remove the job from the queue: キューからジョブを削除できませんでした
   Could not reset the printer image tags: プリンター画像のタグのリセットに失敗しました
   Could not resolve printer RFCOMM channel: プリンターの RFCOMM チャンネルを解決できませんでした
+  Could not restart the printer; the stock screen was not restored: 'プリンターを再起動できませんでした。標準画面には戻っていません'
   Could not restore the previous IPv4 settings: '以前のIPv4設定を復元できませんでした'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '以前のIPv4設定をまだ復元できていません。最大2分間再試行します。'
   Could not restore the stock screen: '標準画面に戻せませんでした'
@@ -3499,7 +3501,6 @@ translations:
   Restart print: '印刷を再開始'
   Restart the display application: ディスプレイアプリケーションを再起動
   Restart the printer or screen: プリンターまたは画面を再起動します
-  Restart the printer to finish restoring the stock screen: '標準画面への復元を完了するにはプリンターを再起動してください'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'プリンターを再起動してください。それでもSSHが接続を拒否する場合は、Snapmaker U1のインストールガイドを参照してください'
   Restarting HelixScreen...: HelixScreenを再起動中...
   Restarting Klipper...: Klipper を再起動中...
