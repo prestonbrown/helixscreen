@@ -5,6 +5,7 @@
 
 #include <cctype>
 #include <cstring>
+#include <initializer_list>
 #include <mutex>
 #include <string>
 #if !defined(HELIX_PLATFORM_ESP32)
@@ -116,30 +117,24 @@ void invalidate_host_identity_cache() {
     g_cache.clear();
 }
 
-std::string extract_host_from_websocket_url(const std::string& url) {
-    // Expected format: ws://host:port/websocket or wss://host:port/websocket
-    // or: ws://[ipv6]:port/websocket
+namespace {
 
-    if (url.empty()) {
-        return "";
-    }
-
+/// The host of @p url when it starts with one of @p schemes ("ws://", ...).
+std::string extract_host_for_schemes(const std::string& url,
+                                     std::initializer_list<std::string_view> schemes) {
     std::string remainder;
-
-    // Check for ws:// or wss:// prefix
-    const std::string ws_prefix = "ws://";
-    const std::string wss_prefix = "wss://";
-
-    if (url.find(ws_prefix) == 0) {
-        remainder = url.substr(ws_prefix.length());
-    } else if (url.find(wss_prefix) == 0) {
-        remainder = url.substr(wss_prefix.length());
-    } else {
-        return ""; // Unknown scheme
+    for (std::string_view scheme : schemes) {
+        if (url.compare(0, scheme.size(), scheme) == 0) {
+            remainder = url.substr(scheme.size());
+            break;
+        }
+    }
+    if (remainder.empty()) {
+        return ""; // Empty input, unknown scheme, or nothing after it
     }
 
     // Handle IPv6 addresses in brackets [::1]
-    if (!remainder.empty() && remainder[0] == '[') {
+    if (remainder[0] == '[') {
         auto close_bracket = remainder.find(']');
         if (close_bracket != std::string::npos) {
             // Return content between brackets (the IPv6 address)
@@ -148,19 +143,23 @@ std::string extract_host_from_websocket_url(const std::string& url) {
         return ""; // Malformed IPv6
     }
 
-    // Find the port separator
-    auto colon_pos = remainder.find(':');
-    if (colon_pos == std::string::npos) {
-        // No port - find the path separator
-        auto slash_pos = remainder.find('/');
-        if (slash_pos != std::string::npos) {
-            return remainder.substr(0, slash_pos);
-        }
-        return remainder; // Just hostname
-    }
+    // The host ends at the port separator, or at the path when there is no port.
+    const std::string authority = remainder.substr(0, remainder.find('/'));
+    return authority.substr(0, authority.find(':'));
+}
 
-    // Return everything before the colon (the host)
-    return remainder.substr(0, colon_pos);
+} // namespace
+
+std::string extract_host_from_websocket_url(const std::string& url) {
+    return extract_host_for_schemes(url, {"ws://", "wss://"});
+}
+
+std::string extract_host_from_url(const std::string& url) {
+    return extract_host_for_schemes(url, {"http://", "https://", "ws://", "wss://"});
+}
+
+bool is_loopback_host(std::string_view host) {
+    return !host.empty() && is_loopback_literal(host);
 }
 
 std::string canonical_ip(std::string ip) {

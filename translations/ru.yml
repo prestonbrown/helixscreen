@@ -2726,6 +2726,7 @@ translations:
   No vendors found: Производители не найдены
   No verified bypass command for this CFS firmware: 'Нет проверенной команды обхода для этой прошивки CFS'
   No video player installed - showing the timelapse library: 'Видеоплеер не установлен – показана библиотека таймлапсов'
+  No video player on this printer: ''
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Веб-камера не обнаружена.\nДля таймлапса необходима веб-камера."
   No widgets found: Виджеты не найдены
@@ -4356,6 +4357,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: ''
   Theme: Тема
   Theme Colors: Цвета темы
   Theme Preset: Пресет темы
@@ -4433,6 +4435,7 @@ translations:
   This printer has no IFS.: "У этого принтера нет IFS."
   This printer has no INDX LOAD_FILAMENT macro: "На этом принтере нет макроса INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: ''
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
@@ -4761,6 +4764,8 @@ translations:
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
+  Video player failed to start: ''
+  Video player failed to start ({}): ''
   View: Просмотр
   View Changelog: Просмотр изменений
   View Full History: Просмотреть полную историю
@@ -4810,6 +4815,7 @@ translations:
   Warning: Предупреждение
   Warnings & errors: 'Предупреждения и ошибки'
   Watch and control this screen from a browser: 'Просмотр и управление этим экраном из браузера'
+  Watch on Your Phone: ''
   Watch the camera during a print for failed prints: Следит за камерой во время печати, выявляя неудачные печати
   Watch which motor turns: "Смотрите, какой двигатель вращается"
   Weak battery: Слабый заряд

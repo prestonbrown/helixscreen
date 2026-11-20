@@ -2714,6 +2714,7 @@ translations:
   No vendors found: Aucun fournisseur trouvé
   No verified bypass command for this CFS firmware: 'Aucune commande de bypass vérifiée pour ce firmware CFS'
   No video player installed - showing the timelapse library: 'Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse'
+  No video player on this printer: ''
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Aucune webcam détectée.\nUne webcam est requise pour le timelapse."
   No widgets found: Aucun widget trouvé
@@ -4346,6 +4347,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La mémoire interne de l'unité est défaillante. La carte mère du CFS doit être remplacée
   'The unload did not start: unload by hand, then start again': 'Le déchargement n''a pas démarré : déchargez à la main, puis recommencez'
   The unload finishes on its own, but the plate will not move.: 'Le déchargement se termine de lui-même, mais le plateau ne bougera pas.'
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: ''
   Theme: Thème
   Theme Colors: Couleurs du thème
   Theme Preset: Préréglage du thème
@@ -4427,6 +4429,7 @@ translations:
   This printer has no IFS.: "Cette imprimante n'a pas d'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Cette imprimante n'a pas de macro INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: ''
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
@@ -4762,6 +4765,8 @@ translations:
   Vibration: Vibration
   Vibration compensation active: Compensation de vibration active
   Video playback speed: Vitesse de lecture vidéo
+  Video player failed to start: ''
+  Video player failed to start ({}): ''
   View: Voir
   View Changelog: Voir le journal des modifications
   View Full History: Voir l'historique complet
@@ -4812,6 +4817,7 @@ translations:
   Warning: Avertissement
   Warnings & errors: 'Avertissements et erreurs'
   Watch and control this screen from a browser: 'Voir et contrôler cet écran depuis un navigateur'
+  Watch on Your Phone: ''
   Watch the camera during a print for failed prints: Surveille la caméra pendant une impression pour détecter les impressions échouées
   Watch which motor turns: "Regardez quel moteur tourne"
   Weak battery: Batterie faible

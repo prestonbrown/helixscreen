@@ -2625,6 +2625,7 @@ translations:
   No vendors found: No vendors found
   No verified bypass command for this CFS firmware: No verified bypass command for this CFS firmware
   No video player installed - showing the timelapse library: No video player installed - showing the timelapse library
+  No video player on this printer: No video player on this printer
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "No webcam detected.\nA webcam is required for timelapse."
   No widgets found: No widgets found
@@ -4209,6 +4210,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
   'The unload did not start: unload by hand, then start again': 'The unload did not start: unload by hand, then start again'
   The unload finishes on its own, but the plate will not move.: The unload finishes on its own, but the plate will not move.
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.
   Theme: Theme
   Theme Colors: Theme Colors
   Theme Preset: Theme Preset
@@ -4287,6 +4289,7 @@ translations:
   This printer has no IFS.: This printer has no IFS.
   This printer has no INDX LOAD_FILAMENT macro: This printer has no INDX LOAD_FILAMENT macro
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: This printer has no automatic unload. Cut the filament at the head and pull it out by hand.
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: This printer has no video player. Scan the code with your phone to watch the timelapse.
   'This printer has no {} command, so the Z-offset cannot be saved.': 'This printer has no {} command, so the Z-offset cannot be saved.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
@@ -4622,6 +4625,8 @@ translations:
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
   Video playback speed: Video playback speed
+  Video player failed to start: Video player failed to start
+  Video player failed to start ({}): Video player failed to start ({})
   View: View
   View Changelog: View Changelog
   View Full History: View Full History
@@ -4672,6 +4677,7 @@ translations:
   Warning: Warning
   Warnings & errors: Warnings & errors
   Watch and control this screen from a browser: Watch and control this screen from a browser
+  Watch on Your Phone: Watch on Your Phone
   Watch the camera during a print for failed prints: Watch the camera during a print for failed prints
   Watch which motor turns: Watch which motor turns
   Weak battery: Weak battery
