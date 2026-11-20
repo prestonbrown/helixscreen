@@ -351,3 +351,36 @@ TEST_CASE("wake_should_auto_lock truth table", "[display][idle_decision]") {
               r.want);
     }
 }
+
+TEST_CASE("decide_pointer_loss truth table", "[display][idle_decision][2069]") {
+    using helix::SleepMechanism;
+    struct LossRow {
+        const char* label;
+        bool sleeping;
+        SleepMechanism mechanism;
+        bool power_off_explicit;
+        bool want_wake;
+        bool want_stop_power_off;
+    };
+    const LossRow rows[] = {
+        {"lost under auto power-off: wake and stop powering off", true,
+         SleepMechanism::PanelPowerOff, false, true, true},
+        {"lost under a power-off the user chose: wake, keep powering off", true,
+         SleepMechanism::PanelPowerOff, true, true, false},
+        {"lost under the overlay: the panel stays powered, nothing to do", true,
+         SleepMechanism::SoftwareOverlay, false, false, false},
+        {"lost under a hardware blank: nothing to do", true, SleepMechanism::HardwareBlank, false,
+         false, false},
+        {"lost under host sleep: nothing to do", true, SleepMechanism::HostSleep, false, false,
+         false},
+        {"lost while awake after a power-off sleep: nothing to do", false,
+         SleepMechanism::PanelPowerOff, false, false, false},
+    };
+    for (const auto& r : rows) {
+        INFO(r.label);
+        const helix::PointerLossResponse got =
+            helix::decide_pointer_loss(r.sleeping, r.mechanism, r.power_off_explicit);
+        CHECK(got.wake == r.want_wake);
+        CHECK(got.stop_power_off == r.want_stop_power_off);
+    }
+}
