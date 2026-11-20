@@ -1179,7 +1179,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   one removes it, which could hold 81MB and put two screens on the display at boot. A
   Forge-X install on the AD5M appears in Mainsail and Fluidd's update manager on the Stable
   channel, and an update from there keeps your settings (#2147). On every printer, Mainsail
-  and Fluidd list HelixScreen only on Stable: on Beta or Dev it updates from the screen.
+  and Fluidd list HelixScreen only on Stable, except where a firmware mod owns the stanza:
+  on Beta or Dev it updates from the screen.
 - **QIDI: the stock screen stays off** (#1533) - it is disabled before it is stopped and kept
   off at every boot, so it no longer comes back after a restart. Installing sets aside only
   the screen software that is actually present, and restores only that.

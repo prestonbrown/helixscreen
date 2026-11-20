@@ -2062,6 +2062,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] bool update_manager_busy() const {
         return update_manager_busy_;
     }
+    /// The update_manager entries machine.update.status reports in `version_info`, each
+    /// with the `channel:` Moonraker loaded for it. Empty by default.
+    void set_update_manager_entries(std::map<std::string, std::string> name_to_channel) {
+        update_manager_entries_ = std::move(name_to_channel);
+    }
+    [[nodiscard]] const std::map<std::string, std::string>& update_manager_entries() const {
+        return update_manager_entries_;
+    }
     /// The `name` of the last machine.update.refresh; empty until one arrives.
     [[nodiscard]] const std::string& last_update_refresh_name() const {
         return last_update_refresh_name_;
@@ -2240,6 +2248,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// ConnectionState is DISCONNECTED and must not gate sends by itself).
     bool sim_link_down_{false};
     bool update_manager_busy_{false};
+    std::map<std::string, std::string> update_manager_entries_;
     std::string last_update_refresh_name_;
     bool openams_spoolman_{false};
     json openams_spoolman_status_ =
