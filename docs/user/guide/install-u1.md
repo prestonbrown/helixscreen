@@ -49,6 +49,7 @@ The installer recognizes the U1 on its own. It shows a plan of what it will inst
 - installs HelixScreen to `/userdata/helixscreen`
 - sets it to start at boot instead of the stock screen
 - switches off the stock screen program (`/usr/bin/gui`). That program sits in a read-only part of the firmware, so it is only disabled, never deleted, and the uninstaller switches it back on
+- on stock firmware, first checks that SSH will keep working without the stock screen: **Root access** must be on and SSH running. If not, it stops before changing anything, the stock screen stays, and it tells you to turn on **Root access** (**Settings > Maintenance** on the stock screen) and run it again
 - on stock firmware, keeps SSH working. There the stock screen is what starts SSH at boot while **Root access** is on, so HelixScreen does that job instead each time it starts. The **Root access** switch itself lives on the stock screen: to change it, uninstall HelixScreen, flip the switch, then install again
 
 The installer's log is saved as `helixscreen-install.log` in the printer's logs folder, so Mainsail and Fluidd list it with the other logs.

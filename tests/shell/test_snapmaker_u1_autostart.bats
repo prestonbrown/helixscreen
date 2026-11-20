@@ -47,6 +47,59 @@ EOF
     chmod +x "$MOCK_ROOT/usr/bin/gui"
 
     AUTOSTART="$WORKTREE_ROOT/scripts/snapmaker-u1-setup-autostart.sh"
+
+    # The package ships the platform hook, whose SSH rule the pre-flight runs.
+    mkdir -p "$DEPLOY_DIR/assets/config/platform"
+    cp "$WORKTREE_ROOT/assets/config/platform/hooks-snapmaker-u1.sh" \
+        "$DEPLOY_DIR/assets/config/platform/"
+    export HELIX_DROPBEAR_INIT="$MOCK_ROOT/etc/init.d/S50dropbear"
+    export HELIX_GUI_CONFIG="$MOCK_ROOT/home/lava/printer_data/config/gui_config.json"
+    mkdir -p "$(dirname "$HELIX_GUI_CONFIG")" "$BATS_TEST_TMPDIR/bin"
+    export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
+    mock_pidof_dropbear ""
+}
+
+# Stub pidof: prints PIDS for `pidof dropbear` (empty = not running).
+mock_pidof_dropbear() {
+    cat > "$BATS_TEST_TMPDIR/bin/pidof" <<STUB
+#!/bin/sh
+if [ "\$1" = dropbear ] && [ -n "$1" ]; then
+    echo "$1"
+    exit 0
+fi
+exit 1
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/bin/pidof"
+}
+
+# Stock S50dropbear: the retail gate only `start --force` bypasses.
+seed_stock_dropbear() {
+    cat > "$HELIX_DROPBEAR_INIT" <<'STUB'
+#!/bin/sh
+if [ "$2" != "--force" ] ; then
+	[ x"$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
+fi
+STUB
+    chmod +x "$HELIX_DROPBEAR_INIT"
+}
+
+seed_gui_config() {
+    printf '{\n\t"system":\t{\n\t\t"open_root":\t%s\n\t}\n}\n' "$1" > "$HELIX_GUI_CONFIG"
+}
+
+# Stock firmware as a user who followed the guide leaves it: Root access on,
+# SSH up.
+seed_stock_ssh_ready() {
+    seed_stock_dropbear
+    seed_gui_config 1
+    mock_pidof_dropbear 812
+}
+
+# Nothing the installer changes was touched: the refusal came first.
+assert_untouched() {
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui was disabled"
+    [ ! -e "$MOCK_ROOT/oem/.debug" ] || fail "/oem/.debug was created"
+    [ ! -e "$MOCK_ROOT/etc/init.d/S99screen" ] || fail "S99screen was written"
 }
 
 # Pre-create a stock S99screen (no HelixScreen marker, launches /usr/bin/gui),
@@ -273,15 +326,74 @@ run_autostart() {
 }
 
 @test "autostart stock: notes that SSH follows the Root Access setting" {
-    cat > "$MOCK_ROOT/etc/init.d/S50dropbear" <<'EOF'
-#!/bin/sh
-if [ "$2" != "--force" ] ; then
-	[ x"$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
-fi
-EOF
+    seed_stock_ssh_ready
     run run_autostart
     [ "$status" -eq 0 ]
     echo "$output" | grep -q "Root Access"
+}
+
+# --- Pre-flight: SSH must survive the stock UI being switched off ------------
+
+@test "autostart stock pre-flight: Root access on and SSH up -> proceeds, disables gui" {
+    seed_stock_ssh_ready
+    run run_autostart
+    [ "$status" -eq 0 ]
+    [ ! -x "$MOCK_ROOT/usr/bin/gui" ]
+}
+
+@test "autostart stock pre-flight: Root access off -> refuses, changes nothing" {
+    seed_stock_dropbear
+    seed_gui_config 0
+    mock_pidof_dropbear 812
+    run run_autostart
+    [ "$status" -eq 3 ] || fail "status $status"
+    contains "Root access is off" "$output"
+    contains "turn on Root access" "$output"
+    assert_untouched
+}
+
+@test "autostart stock pre-flight: no gui_config.json -> refuses, names the path" {
+    seed_stock_dropbear
+    mock_pidof_dropbear 812
+    run run_autostart
+    [ "$status" -eq 3 ] || fail "status $status"
+    contains "$HELIX_GUI_CONFIG" "$output"
+    assert_untouched
+}
+
+@test "autostart stock pre-flight: Root access on but dropbear down -> refuses" {
+    seed_stock_dropbear
+    seed_gui_config 1
+    run run_autostart
+    [ "$status" -eq 3 ] || fail "status $status"
+    contains "SSH (dropbear) is not running" "$output"
+    assert_untouched
+}
+
+@test "autostart stock pre-flight: hook missing from the package -> refuses" {
+    seed_stock_ssh_ready
+    rm -rf "$DEPLOY_DIR/assets"
+    run run_autostart
+    [ "$status" -eq 3 ] || fail "status $status"
+    assert_untouched
+}
+
+@test "autostart stock pre-flight: gui already disabled (self-update) -> not re-checked" {
+    seed_stock_dropbear
+    seed_gui_config 0
+    chmod a-x "$MOCK_ROOT/usr/bin/gui"
+    run run_autostart
+    [ "$status" -eq 0 ]
+}
+
+@test "autostart: the deployed platform/hooks.sh serves when assets has no hook" {
+    seed_stock_dropbear
+    seed_gui_config 0
+    mkdir -p "$DEPLOY_DIR/platform"
+    mv "$DEPLOY_DIR/assets/config/platform/hooks-snapmaker-u1.sh" "$DEPLOY_DIR/platform/hooks.sh"
+    run run_autostart
+    [ "$status" -eq 3 ] || fail "status $status"
+    assert_untouched
 }
 
 @test "autostart PAXX: no Root Access note when S50dropbear has no --force gate" {
