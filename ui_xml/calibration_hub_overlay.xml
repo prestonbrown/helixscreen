@@ -11,9 +11,9 @@
     <style name="tiles_micro" pad_row="#space_xxs"/>
   </styles>
   <view name="calibration_hub_overlay" extends="overlay_panel" title="Calibration" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_md" style_pad_right="#space_md"
-            style_pad_bottom="#space_md" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_md"
+                                   scrollable="true" flex_flow="column">
       <lv_obj name="calibration_tiles"
               width="100%" height="content" style_pad_all="0" style_pad_column="#space_sm" flex_flow="row_wrap"
               scrollable="false">
@@ -55,6 +55,6 @@
                               step="vibration_check" icon="vibrate" label="Vertical artifact check"
                               callback="on_motor_ripple_row_clicked"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>
