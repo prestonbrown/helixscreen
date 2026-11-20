@@ -17,6 +17,10 @@
 
 namespace helix::ui {
 
+/// An end nobody acknowledges lets go after this long, so a saver left up for days (display
+/// sleep set to never) goes back to its clock instead of showing one print's result forever.
+constexpr uint32_t kPrintEndHoldMs = 10U * 60U * 1000U;
+
 /// One tick's worth of what the latch reads.
 struct PrintLatchInput {
     ClockPrint host;            ///< what the printer reports now
@@ -31,9 +35,10 @@ struct PrintLatchInput {
  * A running phase (PREPARING, PRINTING, PAUSED) passes through and clears any latch. The step
  * from a running phase to COMPLETE, FAILED or CANCELLED latches that end, and it reads as the
  * phase, with the progress the print last reported while running, until user input arrives
- * after it, a new print starts, the printer reports NONE, or the printer epoch changes. An end the
- * latch never saw a print reach reads as NONE, so a printer that was already finished when the app
- * connected shows no stale result. Display sleep is not input and does not clear it.
+ * after it, kPrintEndHoldMs passes, a new print starts, the printer reports NONE, or the printer
+ * epoch changes. An end the latch never saw a print reach reads as NONE, so a printer that was
+ * already finished when the app connected shows no stale result. Display sleep is not input and
+ * does not clear it.
  */
 class PrintEndLatch {
   public:
