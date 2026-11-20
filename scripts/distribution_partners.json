@@ -10,7 +10,9 @@
     "`installer` for install.sh, so a dry run that builds a platform subset requires only what",
     "it built. fetches[].via says whose code names the asset: `partner` when the mod's own code",
     "hardcodes it, `installer` when the mod runs our install.sh and the name is the one",
-    "install.sh asks for on that hardware.",
+    "install.sh asks for on that hardware. fetches[].known_break marks an asset the release",
+    "deliberately stopped carrying while the partner still asks for it: the release check",
+    "warns with the text instead of failing, and the table shows it, until the partner switches.",
     "",
     "sources cite where each cell comes from, with the commit read. owner is who on our side",
     "holds the partner relationship (the maintainer, prestonbrown). contact is the person on",
@@ -53,13 +55,11 @@
       "fetches": [
         {"asset": "install.sh", "built_by": "installer", "via": "installer"},
         {"asset": "helixscreen-ad5m.zip", "built_by": "ad5m", "via": "installer"},
-        {"asset": "helixscreen-ad5m-{tag}.tar.gz", "built_by": "ad5m", "via": "installer"},
-        {"asset": "helixscreen-ad5x.zip", "built_by": "mips", "via": "installer"},
-        {"asset": "helixscreen-ad5x-{tag}.tar.gz", "built_by": "mips", "via": "installer"}
+        {"asset": "helixscreen-ad5x.zip", "built_by": "mips", "via": "installer"}
       ],
       "sources": [
         "https://github.com/DrA1ex/ff5m/tree/d14d214956ac1674708392592d833ebc67aca225 (no HelixScreen reference in the tree)",
-        "scripts/lib/installer/release.sh#_release_candidates (zip by fixed name, tar by tag)",
+        "scripts/lib/installer/release.sh#_release_candidates (zip by fixed name; the tar by tag only for releases that shipped one)",
         "scripts/lib/installer/platform.sh#get_download_platform",
         "docs/user/guide/install-ad5m.md (Forge-X ships GuppyScreen)"
       ]
@@ -76,7 +76,8 @@
       "owner": "prestonbrown",
       "contact": "TBD",
       "fetches": [
-        {"asset": "helixscreen-snapmaker-u1-{tag}.tar.gz", "built_by": "snapmaker-u1", "via": "partner"}
+        {"asset": "helixscreen-snapmaker-u1-{tag}.tar.gz", "built_by": "snapmaker-u1", "via": "partner",
+         "known_break": "Releases ship no tarballs since v1.1.0; PAXX's extended-pkg must fetch helixscreen-snapmaker-u1.zip instead"}
       ],
       "sources": [
         "https://github.com/paxx12/SnapmakerU1-Extended-Firmware/blob/7f435c38e011c8f5e24512f617d3bdfacb65b881/overlays/firmware-extended/69-app-helixscreen/root/usr/local/share/extended-pkg/helixscreen (PKG_URL, PKG_VERSION=1.0.8)",
@@ -117,8 +118,7 @@
       "contact": "TBD",
       "fetches": [
         {"asset": "install.sh", "built_by": "installer", "via": "installer"},
-        {"asset": "helixscreen-cc1.zip", "built_by": "cc1", "via": "installer"},
-        {"asset": "helixscreen-cc1-{tag}.tar.gz", "built_by": "cc1", "via": "installer"}
+        {"asset": "helixscreen-cc1.zip", "built_by": "cc1", "via": "installer"}
       ],
       "sources": [
         "https://github.com/OpenCentauri/cosmos/blob/main/meta-opencentauri/recipes-apps/helixscreen/helixscreen_0.1.bb (SRC_URI, SRCREV)",

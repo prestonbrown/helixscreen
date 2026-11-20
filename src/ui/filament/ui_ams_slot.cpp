@@ -182,9 +182,8 @@ static void cleanup_all_slot_data() {
  */
 static helix::SlotCardLines slot_lines(const AmsSlotData* data, bool short_form) {
     AmsState& state = AmsState::instance();
-    lv_subject_t* material_subject =
-        state.get_slot_material_subject(data->backend_index, data->slot_index);
-    lv_subject_t* name_subject = state.get_slot_name_subject(data->backend_index, data->slot_index);
+    lv_subject_t* material_subject = state.get_slot_material_subject(data->slot_index);
+    lv_subject_t* name_subject = state.get_slot_name_subject(data->slot_index);
     const char* material = material_subject ? lv_subject_get_string(material_subject) : "";
     const char* name = name_subject ? lv_subject_get_string(name_subject) : "";
 
@@ -297,7 +296,7 @@ static void apply_lane_humidity(AmsSlotData* data, AmsBackend* backend) {
     if (!data->show_lane_humidity || !data->lane_humidity_text || !backend)
         return;
     char text[16] = "--";
-    const auto info = AmsState::instance().system_info(data->backend_index);
+    const auto info = AmsState::instance().system_info(0);
     const SlotInfo* slot = info ? info->get_slot_global(data->slot_index) : nullptr;
     const EnvironmentData* env = (slot && slot->environment) ? &*slot->environment : nullptr;
     if (env && env->has_humidity)
@@ -371,7 +370,7 @@ static void bind_drying_badge(AmsSlotData* data, lv_subject_t* subject) {
 static void apply_badge_number(AmsSlotData* data) {
     if (!data || !data->slot_badge)
         return;
-    AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
+    AmsBackend* backend = AmsState::instance().get_backend();
     const int number = backend ? helix::spool_display_number(*backend, data->slot_index)
                                : helix::ui::lane_number(data->slot_index);
     lv_label_set_text(data->slot_badge, ams_draw::lane_badge_text(number).c_str());
@@ -554,14 +553,14 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
     }
 
     // Tool changers: badge is redundant with toolhead label below
-    auto* backend = AmsState::instance().get_backend(data->backend_index);
+    auto* backend = AmsState::instance().get_backend();
     if (backend && backend->should_hide_slot_tool_badge()) {
         lv_obj_set_hidden(data->tool_badge_bg, true);
         return;
     }
 
     // A tool feeding the lane of its own number only repeats the lane badge.
-    if (const auto info = AmsState::instance().system_info(data->backend_index)) {
+    if (const auto info = AmsState::instance().system_info(0)) {
         if (!helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots)) {
             lv_obj_set_hidden(data->tool_badge_bg, true);
             return;
@@ -647,18 +646,15 @@ static void setup_slot_observers(AmsSlotData* data) {
     using helix::ui::observe;
     AmsState& state = AmsState::instance();
 
-    // Get per-slot subjects. Status, lane_state and material go through the
-    // token'd overloads: for a secondary backend those subjects are dynamic
-    // (recreated on rediscovery), so the paired SubjectLifetime members keep
-    // the observers from firing on a freed subject. Reset each lifetime
-    // BEFORE rebinding (the accessor overwrites it).
-    int backend_idx = state.active_backend_index();
-    data->backend_index = backend_idx;
+    // Get per-slot subjects through the token'd overloads; the paired
+    // SubjectLifetime members keep the observers from firing on a subject
+    // deinit_subjects() freed. Reset each lifetime BEFORE rebinding (the
+    // accessor overwrites it).
     data->status_lifetime.reset();
     lv_subject_t* status_subject =
-        state.get_slot_status_subject(backend_idx, data->slot_index, data->status_lifetime);
+        state.get_slot_status_subject(data->slot_index, data->status_lifetime);
     lv_subject_t* lane_state_subject =
-        state.get_slot_lane_state_subject(backend_idx, data->slot_index, data->lane_state_lifetime);
+        state.get_slot_lane_state_subject(data->slot_index, data->lane_state_lifetime);
     lv_subject_t* current_slot_subject = state.get_current_slot_subject();
     lv_subject_t* filament_loaded_subject = state.get_filament_loaded_subject();
 
@@ -692,7 +688,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     // — AmsPanel, AmsOverviewPanel, AmsDetail — with no container re-reading it
     // imperatively (#1065, native ZMOD AD5X "material stuck, color updates").
     lv_subject_t* material_subject =
-        state.get_slot_material_subject(backend_idx, data->slot_index, data->material_lifetime);
+        state.get_slot_material_subject(data->slot_index, data->material_lifetime);
     if (material_subject) {
         data->material_observer = helix::ui::observe<const char*>(
             material_subject, obj,
@@ -711,8 +707,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     }
     // Per-slot spool name: a different spool of the same material, or a
     // Spoolman identity arriving after first paint, changes only this.
-    lv_subject_t* name_subject =
-        state.get_slot_name_subject(backend_idx, data->slot_index, data->name_lifetime);
+    lv_subject_t* name_subject = state.get_slot_name_subject(data->slot_index, data->name_lifetime);
     if (name_subject) {
         data->name_observer = helix::ui::observe<const char*>(
             name_subject, obj,
@@ -724,9 +719,7 @@ static void setup_slot_observers(AmsSlotData* data) {
             data->name_lifetime);
     }
 
-    // Only the primary backend publishes the per-slot remaining subject.
-    lv_subject_t* remaining_subject =
-        backend_idx == 0 ? state.get_slot_remaining_subject(data->slot_index) : nullptr;
+    lv_subject_t* remaining_subject = state.get_slot_remaining_subject(data->slot_index);
     if (remaining_subject) {
         data->remaining_observer = helix::ui::observe<const char*>(
             remaining_subject, obj,
@@ -736,9 +729,7 @@ static void setup_slot_observers(AmsSlotData* data) {
         data->remaining_observer.reset();
     }
 
-    // Only the primary backend publishes the per-slot drying subject.
-    bind_drying_badge(data,
-                      backend_idx == 0 ? state.get_slot_drying_subject(data->slot_index) : nullptr);
+    bind_drying_badge(data, state.get_slot_drying_subject(data->slot_index));
 
     if (current_slot_subject) {
         data->current_slot_observer = observe<int>(
@@ -820,7 +811,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     // The lane temperature reads in the display unit.
     data->temp_unit_observer = helix::ui::observe_temp_unit_change(obj, [](lv_obj_t* o) {
         if (auto* d = get_slot_data(o)) {
-            apply_lane_humidity(d, AmsState::instance().get_backend(d->backend_index));
+            apply_lane_humidity(d, AmsState::instance().get_backend());
         }
     });
 
@@ -871,11 +862,11 @@ static void setup_slot_observers(AmsSlotData* data) {
                                    ? lv_subject_get_string(remaining_subject)
                                    : "");
 
-    // Update tool badge from the slot's own backend. Material and the error glow are NOT read
+    // Update tool badge from the backend. Material and the error glow are NOT read
     // here - material flows from the per-slot material subject via the observer
     // above, and the error glow is the embedded ams_lane_spool's, driven by the
     // has_error/severity subjects.
-    AmsBackend* backend = state.get_backend(backend_idx);
+    AmsBackend* backend = state.get_backend();
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
         apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
@@ -1015,8 +1006,7 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
 
                 // Point the embedded spool widget at the lane first - it owns
                 // the color/fill/error observers for the graphic.
-                helix::ui::ams_lane_spool_set_index(data->lane_spool, new_index,
-                                                    AmsState::instance().active_backend_index());
+                helix::ui::ams_lane_spool_set_index(data->lane_spool, new_index);
 
                 // Setup new observers
                 setup_slot_observers(data);
@@ -1104,8 +1094,7 @@ void ui_ams_slot_set_index(lv_obj_t* obj, int slot_index) {
 
     // Point the embedded spool widget at the lane first - it owns the
     // color/fill/error observers for the graphic.
-    helix::ui::ams_lane_spool_set_index(data->lane_spool, slot_index,
-                                        AmsState::instance().active_backend_index());
+    helix::ui::ams_lane_spool_set_index(data->lane_spool, slot_index);
 
     // Setup new observers
     setup_slot_observers(data);
@@ -1124,7 +1113,7 @@ void ui_ams_slot_refresh(lv_obj_t* obj) {
     // Only update non-observer properties here. Color, fill, status, lane
     // state, current-slot highlight, material and the error glow are all driven
     // by observers (this widget's or the embedded ams_lane_spool's).
-    AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
+    AmsBackend* backend = AmsState::instance().get_backend();
     if (backend) {
         SlotInfo slot = backend->get_slot_info(data->slot_index);
         apply_tool_badge(data, slot.mapped_tool, slot.tool_mapping_override);
@@ -1145,7 +1134,7 @@ void ui_ams_slot_set_lane_humidity_visible(lv_obj_t* obj, bool visible) {
         lv_obj_set_hidden(data->lane_humidity, false);
     else
         lv_obj_set_hidden(data->lane_humidity, true);
-    AmsBackend* backend = AmsState::instance().get_backend(data->backend_index);
+    AmsBackend* backend = AmsState::instance().get_backend();
     if (visible && data->slot_index >= 0)
         apply_lane_humidity(data, backend);
 }

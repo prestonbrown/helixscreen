@@ -462,11 +462,15 @@ TEST_CASE("are_materials_compatible is reflexive and symmetric",
             const bool ba = are_materials_compatible(b.name, a.name);
             const bool same_group =
                 std::string_view(a.compat_group) == std::string_view(b.compat_group);
+            const bool support = std::string_view(a.category) == "Support" ||
+                                 std::string_view(b.category) == "Support";
+            const bool expected =
+                support ? std::string_view(a.name) == std::string_view(b.name) : same_group;
             INFO("  vs: " << b.name << " (" << a.compat_group << " / " << b.compat_group << ")");
             CHECK(ab == ba);
-            // Equivalence-relation sanity: same group <=> compatible, since both
-            // names are known here.
-            CHECK(ab == same_group);
+            // Both names are known here: same group <=> compatible, except that a
+            // support material is compatible only with itself.
+            CHECK(ab == expected);
         }
     }
 }

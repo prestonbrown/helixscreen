@@ -54,11 +54,10 @@ The top of every overlay XML looks like this:
         extends="overlay_panel"
         title="Retraction Settings"
         bg_color="#screen_bg">
-    <lv_obj name="overlay_content" width="100%" flex_grow="1"
-            style_pad_all="#space_lg" scrollable="true"
-            flex_flow="column" style_pad_gap="#space_lg">
+    <overlay_panel-overlay_content style_pad_all="#space_lg" scrollable="true"
+                                   flex_flow="column" style_pad_gap="#space_lg">
       <!-- sections go here -->
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>
 ```
@@ -69,7 +68,7 @@ Notes:
 - **`title="..."`** — the English text, which is also its own translation key (see below).
 - **No `width`** — overlay width is not yours to set. `NavigationManager::push_overlay()` decides it from how the user reached the overlay: full width inside Settings, gapped when it is a tool opened over something else. See `include/overlay_class.h`.
 - **`#space_lg`, `#screen_bg`** — design tokens. Never hardcode pixel spacing or hex colors.
-- **Inner `<lv_obj name="overlay_content">`** — the scrollable content area. The `overlay_panel` base provides the frame; you provide what's inside.
+- **`<overlay_panel-overlay_content>`** — fills `overlay_panel`'s content slot, the area under the header that grows to the bottom. The base owns that object; the tag's attributes give it the layout, padding and scrolling this screen wants, and its children are your content. Widgets written straight in the view land there too. Buttons pinned under the content go in `<overlay_panel-overlay_footer>`.
 
 Inside the content area, each setting is structured consistently (abbreviated from the real file):
 

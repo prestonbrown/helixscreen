@@ -19,7 +19,7 @@
 //
 //   "raw show/hide"       — sanity baseline (kept from earlier iteration)
 //   "burst pattern"       — mirrors the EB93VR9T breadcrumb cadence
-//   "alternating shapes"  — stress button_callback_data_ vector reallocs
+//   "alternating shapes"  — stress rebuilding rows of a different shape
 //   "stacked under base"  — opens action_prompt at depth 2 with a parent
 //                           modal at depth 1 (matches the AD5X crumb shape)
 //   "click-driven hide"   — fires LV_EVENT_CLICKED on a real button so the
@@ -135,7 +135,7 @@ helix::PromptData make_prompt(const std::string& title, int n_buttons) {
 //    (already-exiting, backdrop untracked) it should not have.
 //
 // 3. HEAP GROWTH under a ceiling — the backstop for a leak that is not an
-//    lv_obj at all (PromptData copies, ButtonCallbackData, style arrays held by
+//    lv_obj at all (PromptData copies, style arrays held by
 //    something the census cannot see).
 //
 //    It deliberately does NOT use lv_mem_monitor(): lv_conf.h sets
@@ -425,10 +425,9 @@ TEST_CASE_METHOD(ActionPromptStressFixture,
 }
 
 // Trigger hide() through a real button click instead of calling hide()
-// directly. The click path runs through ButtonCallbackData → gcode_callback
-// → handle_button_click → hide(), which is the actual production path and
-// exercises the ButtonCallbackData lifetime token wiring (#437) plus
-// lv_event_send → lv_obj_destructor sequence visible in the #877 backtrace.
+// directly. The click path runs through on_button_cb → gcode_callback
+// → handle_button_click → hide(), which is the actual production path, and
+// the lv_event_send → lv_obj_destructor sequence of the #877 backtrace.
 TEST_CASE_METHOD(ActionPromptStressFixture,
                  "ActionPromptModal stress: click-driven hide via real button events",
                  "[action_prompt][stress][.ui_integration]") {

@@ -604,7 +604,7 @@ TEST_CASE_METHOD(MultiBackendFixture, "AmsState: clear_backends removes all",
 // Task 3: Per-backend slot subject accessor tests
 // ============================================================================
 
-TEST_CASE_METHOD(MultiBackendFixture, "AmsState: primary backend uses flat slot subjects",
+TEST_CASE_METHOD(MultiBackendFixture, "AmsState: token'd slot accessors hand out the flat subjects",
                  "[ams][multi-backend]") {
     lv_init_safe();
     AmsState& ams = AmsState::instance();
@@ -613,52 +613,19 @@ TEST_CASE_METHOD(MultiBackendFixture, "AmsState: primary backend uses flat slot 
 
     ams.set_backend(AmsBackend::create_mock(4));
 
-    REQUIRE(ams.get_slot_color_subject(0, 0) == ams.get_slot_color_subject(0));
-    REQUIRE(ams.get_slot_color_subject(0, 3) == ams.get_slot_color_subject(3));
-    REQUIRE(ams.get_slot_status_subject(0, 0) == ams.get_slot_status_subject(0));
-    REQUIRE(ams.get_slot_status_subject(0, 3) == ams.get_slot_status_subject(3));
+    SubjectLifetime lt;
+    REQUIRE(ams.get_slot_color_subject(3, lt) == ams.get_slot_color_subject(3));
+    REQUIRE(lt);
+    REQUIRE(ams.get_slot_status_subject(0, lt) == ams.get_slot_status_subject(0));
+    REQUIRE(lt);
+    REQUIRE(ams.get_slot_color_subject(AmsState::kMaxSlots, lt) == nullptr);
+    REQUIRE_FALSE(lt);
 
     ams.deinit_subjects();
 }
 
-TEST_CASE_METHOD(MultiBackendFixture, "AmsState: secondary backend gets separate slot subjects",
-                 "[ams][multi-backend]") {
-    lv_init_safe();
-    AmsState& ams = AmsState::instance();
-    ams.deinit_subjects();
-    ams.init_subjects(false);
-
-    ams.add_backend(AmsBackend::create_mock(4));
-    ams.add_backend(AmsBackend::create_mock(3));
-
-    auto* color_0 = ams.get_slot_color_subject(0, 0);
-    auto* color_1 = ams.get_slot_color_subject(1, 0);
-    REQUIRE(color_0 != nullptr);
-    REQUIRE(color_1 != nullptr);
-    REQUIRE(color_0 != color_1);
-
-    auto* status_0 = ams.get_slot_status_subject(0, 0);
-    auto* status_1 = ams.get_slot_status_subject(1, 0);
-    REQUIRE(status_0 != nullptr);
-    REQUIRE(status_1 != nullptr);
-    REQUIRE(status_0 != status_1);
-
-    // Out of range for secondary (mock2 only has 3 slots: 0, 1, 2)
-    REQUIRE(ams.get_slot_color_subject(1, 3) == nullptr);
-    REQUIRE(ams.get_slot_status_subject(1, 3) == nullptr);
-
-    // Non-existent backend
-    REQUIRE(ams.get_slot_color_subject(2, 0) == nullptr);
-    REQUIRE(ams.get_slot_status_subject(2, 0) == nullptr);
-
-    ams.deinit_subjects();
-}
-
-// ============================================================================
-// Task 4: Per-backend event routing and sync tests
-// ============================================================================
-
-TEST_CASE_METHOD(MultiBackendFixture, "AmsState: sync_backend updates correct subjects",
+TEST_CASE_METHOD(MultiBackendFixture,
+                 "AmsState: syncing a backend past index 0 leaves the slot subjects alone",
                  "[ams][multi-backend]") {
     lv_init_safe();
     AmsState& ams = AmsState::instance();
@@ -667,15 +634,19 @@ TEST_CASE_METHOD(MultiBackendFixture, "AmsState: sync_backend updates correct su
 
     ams.add_backend(AmsBackend::create_mock(4));
     ams.add_backend(AmsBackend::create_mock(2));
-
-    // Sync primary
     ams.sync_backend(0);
-    REQUIRE(lv_subject_get_int(ams.get_slot_count_subject()) > 0);
+    REQUIRE(lv_subject_get_int(ams.get_slot_count_subject()) == 4);
 
-    // Sync secondary - should update secondary slot subjects
+    lv_subject_t* color = ams.get_slot_color_subject(0);
+    const int synced = lv_subject_get_int(color);
+    lv_subject_set_int(color, 0x123456);
     ams.sync_backend(1);
-    auto* sec_color = ams.get_slot_color_subject(1, 0);
-    REQUIRE(sec_color != nullptr);
+    ams.update_slot_for_backend(1, 0);
+    CHECK(lv_subject_get_int(color) == 0x123456);
+    CHECK(lv_subject_get_int(ams.get_slot_count_subject()) == 4);
+
+    ams.sync_backend(0);
+    CHECK(lv_subject_get_int(color) == synced);
 
     ams.deinit_subjects();
 }
@@ -778,23 +749,8 @@ TEST_CASE_METHOD(MultiBackendFixture, "Multi-backend: full lifecycle", "[ams][mu
     ams.sync_backend(0);
     ams.sync_backend(1);
 
-    // Primary backend slots via flat accessors
     REQUIRE(ams.get_slot_color_subject(0) != nullptr);
     REQUIRE(ams.get_slot_color_subject(3) != nullptr);
-
-    // Secondary backend slots via indexed accessors
-    REQUIRE(ams.get_slot_color_subject(1, 0) != nullptr);
-    REQUIRE(ams.get_slot_color_subject(1, 1) != nullptr);
-    REQUIRE(ams.get_slot_color_subject(1, 2) == nullptr); // mock2 only has 2 slots
-
-    // Active backend selection
-    ams.set_active_backend(1);
-    REQUIRE(ams.active_backend_index() == 1);
-    REQUIRE(lv_subject_get_int(ams.get_active_backend_subject()) == 1);
-
-    // Out of range selection is ignored
-    ams.set_active_backend(5);
-    REQUIRE(ams.active_backend_index() == 1); // unchanged
 
     // Deinit cleans everything up
     ams.deinit_subjects();
@@ -820,25 +776,5 @@ TEST_CASE_METHOD(MultiBackendFixture, "Multi-backend: deinit then re-init is saf
     REQUIRE(ams.backend_count() == 0);
     ams.add_backend(AmsBackend::create_mock(2));
     REQUIRE(ams.backend_count() == 1);
-    ams.deinit_subjects();
-}
-
-TEST_CASE_METHOD(MultiBackendFixture, "Multi-backend: active backend resets on clear",
-                 "[ams][multi-backend]") {
-    lv_init_safe();
-
-    AmsState& ams = AmsState::instance();
-    ams.deinit_subjects();
-    ams.init_subjects(false);
-
-    ams.add_backend(AmsBackend::create_mock(4));
-    ams.add_backend(AmsBackend::create_mock(2));
-    ams.set_active_backend(1);
-    REQUIRE(ams.active_backend_index() == 1);
-
-    ams.clear_backends();
-    REQUIRE(ams.active_backend_index() == 0);
-    REQUIRE(ams.backend_count() == 0);
-
     ams.deinit_subjects();
 }

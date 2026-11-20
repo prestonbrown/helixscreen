@@ -3,9 +3,18 @@
 
 #include "timelapse_thumbnailer.h"
 
+#include "cloexec_pipe.h"
 #include "core/text_io.h"
+#include "host_identity.h"
+#include "hv/hurl.h"
 
 #include <algorithm>
+#include <cerrno>
+#include <fcntl.h>
+#include <poll.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
 
 namespace helix::timelapse {
 
@@ -24,11 +33,27 @@ std::string find_companion_thumbnail(const std::string& video_filename,
 }
 
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,
-                                             const std::string& output_path) {
+                                             const std::string& output_path, ExtractFrame frame) {
+    std::vector<std::string> args = {"ffmpeg", "-y"};
+    if (frame == ExtractFrame::Last) {
+        // Before -i, a seek from the end jumps to a keyframe instead of decoding there.
+        args.insert(args.end(), {"-sseof", "-1"});
+    }
     // 480px wide: a full-resolution frame would cost every pre-scale a
     // multi-megabyte decode on a worker.
-    return {"ffmpeg", "-y", "-i",  input_path,     "-vframes", "1",
-            "-q:v",   "3",  "-vf", "scale=480:-2", output_path};
+    args.insert(args.end(), {"-i", input_path, "-vframes", "1", "-q:v", "3", "-vf", "scale=480:-2",
+                             output_path});
+    return args;
+}
+
+std::string extracted_thumbnail_key(const std::string& filename, uint64_t size, double modified) {
+    return filename + "@frame-" + std::to_string(size) + "-" +
+           std::to_string(static_cast<long long>(modified));
+}
+
+bool should_extract_thumbnail(const ThumbnailExtractInputs& in) {
+    return !in.has_companion && in.ffmpeg_available && in.moonraker_local && !in.print_active &&
+           !in.already_failed;
 }
 
 bool is_video_file(const std::string& filename) {
@@ -51,6 +76,122 @@ std::vector<std::string> build_player_args(const std::string& player,
         return {"mpv", "--fs", "--keep-open=no", file_path};
     }
     return {"ffplay", "-autoexit", "-exitonmousedown", "-fs", file_path};
+}
+
+VideoOpenAction choose_video_open_action(bool can_play, const std::string& phone_url) {
+    if (can_play) {
+        return VideoOpenAction::Play;
+    }
+    return phone_url.empty() ? VideoOpenAction::NoPlayerToast : VideoOpenAction::PhoneQr;
+}
+
+std::string phone_video_url(const std::string& http_base_url, const std::string& filename,
+                            const std::string& lan_ipv4) {
+    const std::string host = helix::extract_host_from_url(http_base_url);
+    if (host.empty()) {
+        return {};
+    }
+    std::string base = http_base_url;
+    if (helix::is_loopback_host(host)) {
+        if (lan_ipv4.empty()) {
+            return {};
+        }
+        const auto authority = base.find("://") + 3;
+        const bool bracketed = base.compare(authority, 1, "[") == 0;
+        const auto span = host.size() + (bracketed ? 2 : 0);
+        base.replace(authority, span, lan_ipv4);
+    }
+    while (!base.empty() && base.back() == '/') {
+        base.pop_back();
+    }
+    return base + "/server/files/timelapse/" + HUrl::escape(filename, "/.-_");
+}
+
+std::optional<PlayerWatch> spawn_watched_player(const std::vector<std::string>& args,
+                                                int window_ms) {
+    if (args.empty()) {
+        return std::nullopt;
+    }
+    // Built before fork: the children may only make async-signal-safe calls.
+    std::vector<const char*> argv;
+    argv.reserve(args.size() + 1);
+    for (const auto& a : args) {
+        argv.push_back(a.c_str());
+    }
+    argv.push_back(nullptr);
+
+    int fds[2];
+    if (!helix::open_cloexec_pipe(fds)) {
+        return std::nullopt;
+    }
+    pid_t watcher = fork();
+    if (watcher < 0) {
+        close(fds[0]);
+        close(fds[1]);
+        return std::nullopt;
+    }
+    if (watcher == 0) {
+        close(fds[0]);
+        pid_t player = fork();
+        if (player < 0) {
+            _exit(127);
+        }
+        if (player == 0) {
+            // O_CLOEXEC closes the pipe in the player once exec succeeds.
+            execvp(argv[0], const_cast<char* const*>(argv.data()));
+            _exit(127);
+        }
+        constexpr int kPollMs = 20;
+        for (int waited = 0; waited < window_ms; waited += kPollMs) {
+            int status = 0;
+            if (waitpid(player, &status, WNOHANG) == player) {
+                ssize_t ignored = write(fds[1], &status, sizeof(status));
+                (void)ignored;
+                _exit(0);
+            }
+            struct timespec ts = {0, kPollMs * 1000L * 1000L};
+            nanosleep(&ts, nullptr);
+        }
+        _exit(0);
+    }
+    close(fds[1]);
+    fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
+    return PlayerWatch{watcher, fds[0]};
+}
+
+PlayerWatchPoll poll_player_watch(PlayerWatch& watch) {
+    if (watch.watcher_pid < 0) {
+        return {PlayerWatchState::Running, 0};
+    }
+    int watcher_status = 0;
+    const pid_t reaped = waitpid(watch.watcher_pid, &watcher_status, WNOHANG);
+    if (reaped == 0 || (reaped < 0 && errno == EINTR)) {
+        return {PlayerWatchState::Pending, 0};
+    }
+    // Reaped, or not ours to reap (ECHILD): settle on whatever the pipe holds
+    // now. The read never waits, since a watcher we could not reap may still
+    // hold the write end open.
+    PlayerWatchPoll poll{PlayerWatchState::Running, 0};
+    pollfd pfd{watch.status_fd, POLLIN, 0};
+    int status = 0;
+    if (::poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN) != 0 &&
+        read(watch.status_fd, &status, sizeof(status)) == static_cast<ssize_t>(sizeof(status))) {
+        poll = {PlayerWatchState::Exited, status};
+    }
+    close(watch.status_fd);
+    watch = PlayerWatch{};
+    return poll;
+}
+
+bool player_exit_failed(int wait_status) {
+    return !(WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 0);
+}
+
+std::string describe_wait_status(int wait_status) {
+    if (WIFSIGNALED(wait_status)) {
+        return "signal " + std::to_string(WTERMSIG(wait_status));
+    }
+    return "exit " + std::to_string(WEXITSTATUS(wait_status));
 }
 
 } // namespace helix::timelapse

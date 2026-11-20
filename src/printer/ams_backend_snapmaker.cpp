@@ -4169,14 +4169,24 @@ AmsBackendSnapmaker::task_record_locked(int head) const {
 }
 
 void AmsBackendSnapmaker::note_pause_records_locked() {
-    if (!print_state_ || *print_state_ != "paused") {
+    if (!print_in_progress_locked()) {
+        running_records_.fill(std::nullopt);
         pause_records_.fill(std::nullopt);
         return;
     }
+    const bool paused = *print_state_ == "paused";
     for (int i = 0; i < kNumTools; ++i) {
-        auto& kept = pause_records_[static_cast<size_t>(i)];
+        const auto idx = static_cast<size_t>(i);
+        if (!paused) {
+            pause_records_[idx].reset();
+            if (auto record = task_record_locked(i)) {
+                running_records_[idx] = std::move(record);
+            }
+            continue;
+        }
+        auto& kept = pause_records_[idx];
         if (!kept) {
-            kept = task_record_locked(i);
+            kept = running_records_[idx] ? running_records_[idx] : task_record_locked(i);
         }
     }
 }

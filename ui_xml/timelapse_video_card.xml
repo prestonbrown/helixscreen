@@ -27,13 +27,20 @@
     <!-- No-thumbnail placeholder -->
     <icon name="no_thumbnail_icon"
           src="video" size="xl" variant="tertiary" align="center" style_translate_y="-10" hidden="true"/>
-    <!-- Play button overlay (centered, semi-transparent) -->
+    <!-- Tap badge (centered, semi-transparent): play here, or a QR code for a phone -->
     <lv_obj name="play_overlay"
             width="#play_icon_size" height="#play_icon_size" align="center" style_translate_y="-10"
             style_bg_color="0x000000" style_bg_opa="140" style_radius="20" scrollable="false" clickable="false"
             event_bubble="true">
-      <bind_flag_if_eq subject="timelapse_videos_can_play" flag="hidden" ref_value="0"/>
-      <icon src="play" size="sm" variant="text" align="center" clickable="false" event_bubble="true"/>
+      <!-- timelapse_videos_tap_badge: 0 = no badge, 1 = play, 2 = phone (QR) -->
+      <bind_flag_if_eq subject="timelapse_videos_tap_badge" flag="hidden" ref_value="0"/>
+      <icon name="badge_play" src="play" size="sm" variant="text" align="center" clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="timelapse_videos_tap_badge" flag="hidden" ref_value="1"/>
+      </icon>
+      <icon name="badge_phone"
+            src="qrcode_scan" size="sm" variant="text" align="center" clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="timelapse_videos_tap_badge" flag="hidden" ref_value="2"/>
+      </icon>
     </lv_obj>
     <!-- Metadata clip container -->
     <lv_obj name="metadata_clip"

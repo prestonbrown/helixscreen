@@ -39,4 +39,13 @@ int32_t text_width_n(const char* txt, uint32_t len, const lv_font_t* font,
  */
 void fit_dropdown_to_text(lv_obj_t* dropdown);
 
+/**
+ * @brief Show @p full when its text fits its parent's content width, else @p fallback.
+ *
+ * For a label with a shorter form ("220°C / 60°C" or "220°C") where an
+ * ellipsis would cut the part that matters. Measures @p full's text whether or
+ * not it is shown, so call it again whenever the parent resizes or the text changes.
+ */
+void show_label_that_fits(lv_obj_t* full, lv_obj_t* fallback);
+
 } // namespace helix::ui

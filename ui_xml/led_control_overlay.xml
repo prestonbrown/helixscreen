@@ -28,9 +28,9 @@
     <style name="gap_modes" margin_top="#space_lg"/>
   </styles>
   <view name="led_control_overlay" extends="overlay_panel" title="LEDs" title_transform="none" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" flex_flow="column" scrollable="false" style_pad_all="#space_md" style_pad_top="0"
-            style_pad_gap="#space_sm">
+    <overlay_panel-overlay_content flex_flow="column"
+                                   scrollable="false" style_pad_all="#space_md" style_pad_top="0"
+                                   style_pad_gap="#space_sm">
 
       <!-- Tabs: a sideways row, faded on the right while more tabs sit past the edge. -->
       <lv_obj name="led_tab_strip"
@@ -256,6 +256,6 @@
         <icon src="lightbulb_outline" size="xl" variant="muted"/>
         <text_muted width="content" text="No LEDs found" style_text_align="center"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

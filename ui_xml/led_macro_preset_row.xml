@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One preset of the preset-type LED macro device being edited: a detected
+     macro, a typed one, and a remove button. -->
+<component>
+  <api>
+    <prop name="index" type="int" default="0"/>
+    <prop name="device" type="int" default="0"/>
+  </api>
+  <view name="macro_preset_row_${device}_${index}"
+        extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+        style_pad_gap="#space_xxs" style_bg_opa="0" style_border_width="0" scrollable="false">
+    <lv_dropdown name="preset_macro_${device}_${index}"
+                 width="35%" style_border_width="0" bind_options="led_macro_field_options"
+                 bind_value="led_macro_draft_preset_sel_${index}"/>
+    <text_input name="preset_text_${device}_${index}"
+                one_line="true" flex_grow="1" placeholder_text="or type a macro name"
+                bind_text="led_macro_draft_preset_text_${index}"/>
+    <lv_button name="preset_remove_${device}_${index}"
+               width="#icon_button_size" height="#icon_button_size" style_bg_opa="0" style_border_width="0">
+      <icon src="close" size="xs" variant="secondary"/>
+      <event_cb trigger="clicked" callback="led_macro_preset_remove_cb" user_data="$index"/>
+    </lv_button>
+  </view>
+</component>

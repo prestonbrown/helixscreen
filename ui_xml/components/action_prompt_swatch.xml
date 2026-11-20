@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A Klipper action prompt button with a fill color and no label: the tile
+     stays the touch target and shows a circle of its color, which the swatch
+     painter edges when it blends into the card. ActionPromptModal paints the
+     disc and, once the grid is laid out, fits it to the tile's shorter side. -->
+<component>
+  <api>
+    <!-- The button's position in PromptData::buttons, handed to the click callback. -->
+    <prop name="index" type="string" default="0"/>
+    <prop name="width" type="string" default="content"/>
+    <prop name="height" type="string" default="content"/>
+    <prop name="flex_grow" type="string" default="0"/>
+    <prop name="radius" type="string" default="8"/>
+    <!-- The disc's side until the tile is measured: the prompt's button height. -->
+    <prop name="disc_side" type="string" default="0"/>
+  </api>
+  <view extends="lv_button"
+        width="$width" height="$height" flex_grow="$flex_grow" style_pad_all="0" style_radius="$radius"
+        style_border_width="0" style_shadow_width="0" style_bg_opa="0">
+    <event_cb trigger="clicked" callback="action_prompt_button_cb" user_data="$index"/>
+    <swatch_paint name="color_swatch_disc" width="$disc_side" height="$disc_side" align="center"/>
+  </view>
+</component>

@@ -400,6 +400,10 @@ static void ui_text_input_apply(lv_xml_parser_state_t* state, const char** attrs
         } else if (lv_streq("max_length", name)) {
             lv_textarea_set_max_length(textarea, lv_xml_atoi(value));
         } else if (lv_streq("bind_text", name)) {
+            // An empty subject name is no binding: a component's optional
+            // text_subject prop left at its default.
+            if (value[0] == '\0')
+                continue;
             lv_subject_t* subject = lv_xml_get_subject(&state->scope, value);
             if (subject == nullptr) {
                 spdlog::warn("[text_input] Subject '{}' not found for bind_text", value);

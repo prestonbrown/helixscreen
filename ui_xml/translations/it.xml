@@ -2671,6 +2671,7 @@
   <translation tag="No vendors found" it="Nessun fornitore trovato"/>
   <translation tag="No verified bypass command for this CFS firmware" it="Nessun comando bypass verificato per questo firmware CFS"/>
   <translation tag="No video player installed - showing the timelapse library" it="Nessun lettore video installato – viene mostrata la libreria timelapse"/>
+  <translation tag="No video player on this printer" it="Nessun lettore video su questa stampante"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." it="Nessuna webcam rilevata.&#10;Una webcam è necessaria per il timelapse."/>
   <translation tag="No widgets found" it="Nessun widget trovato"/>
   <translation tag="No width sensor detected" it="Nessun sensore di larghezza rilevato"/>
@@ -4272,6 +4273,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" it="La memoria interna dell&apos;unità è guasta. La scheda madre del CFS va sostituita"/>
   <translation tag="The unload did not start: unload by hand, then start again" it="Lo scarico non è partito: scarica a mano, poi ricomincia"/>
   <translation tag="The unload finishes on its own, but the plate will not move." it="Lo scaricamento termina da solo, ma il piano non si sposterà."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." it="Il lettore video non è riuscito ad avviarsi su questa stampante ({}). Scansiona il codice con il telefono per guardare il timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." it="Il motore {0} non è stato misurato: {1}."/>
   <translation tag="Theme" it="Tema"/>
   <translation tag="Theme Colors" it="Colori tema"/>
@@ -4342,6 +4344,7 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." it="Questa stampante non ha ancora un archivio [save_variables]. Aggiorna le macro di ausilio per aggiungerlo, poi riavvia Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." it="Questa stampante non ha lo scarico automatico. Taglia il filamento sulla testina ed estrailo a mano."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." it="Questa stampante non ha un fuso orario, quindi l&apos;orologio segna UTC. Scegli il tuo."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." it="Questa stampante non ha un lettore video. Scansiona il codice con il telefono per guardare il timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." it="Questa stampante non ha il comando {}, quindi l&apos;offset Z non può essere salvato."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." it="Questa stampante sembra una {} (affidabilità {}%), ma è configurata come {}. Un tipo errato applica opzioni pre-stampa e preset errati."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" it="Alle macro INDX di questa stampante manca: {}"/>
@@ -4423,6 +4426,7 @@
   <translation tag="Tips" it="Suggerimenti"/>
   <translation tag="Tips database format error" it="Errore nel formato del database dei suggerimenti"/>
   <translation tag="Tips database not found" it="Database dei suggerimenti non trovato"/>
+  <translation tag="Title" it="Titolo"/>
   <translation tag="To make videos, run this on your printer via SSH:" it="Per creare i video, esegui questo sulla stampante via SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." it="Per mappare il filamento, HelixScreen riscrive il file di stampa prima di stamparlo. Il Moonraker di questa stampante è troppo vecchio perché il plugin HelixPrint ripristini in seguito il nome del file originale, quindi il lavoro completato viene elencato con il nome riscritto. La mappatura filamento stessa funziona normalmente."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." it="Per mappare il filamento, HelixScreen riscrive il file di stampa prima di stamparlo. Senza il plugin HelixPrint, la copia riscritta è quella che finisce nella cronologia di stampa, quindi i lavori completati vengono elencati con nomi come modified_1730824_benchy.gcode invece del file scelto.&#10;&#10;L&apos;installazione del plugin richiede un momento e non è necessario riavviare."/>
@@ -4672,6 +4676,8 @@
   <translation tag="Vibration" it="Vibrazione"/>
   <translation tag="Vibration compensation active" it="Compensazione vibrazione attiva"/>
   <translation tag="Video playback speed" it="Velocità riproduzione video"/>
+  <translation tag="Video player failed to start" it="Impossibile avviare il lettore video"/>
+  <translation tag="Video player failed to start ({})" it="Impossibile avviare il lettore video ({})"/>
   <translation tag="View" it="Visualizza"/>
   <translation tag="View Changelog" it="Visualizza Modifiche"/>
   <translation tag="View Full History" it="Visualizza cronologia completa"/>
@@ -4721,6 +4727,7 @@
   <translation tag="Warning" it="Avviso"/>
   <translation tag="Warnings &amp; errors" it="Avvisi ed errori"/>
   <translation tag="Watch and control this screen from a browser" it="Visualizza e controlla questo schermo da un browser"/>
+  <translation tag="Watch on Your Phone" it="Guarda sul telefono"/>
   <translation tag="Watch the camera during a print for failed prints" it="Controlla la telecamera durante la stampa per individuare stampe non riuscite"/>
   <translation tag="Watch which motor turns" it="Guarda quale motore gira"/>
   <translation tag="Weak battery" it="Batteria scarica"/>

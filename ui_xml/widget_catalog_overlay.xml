@@ -14,44 +14,47 @@
     <bind_style_if name="styles.catalog_portrait_min" cond="ui_is_portrait eq 1 and ui_breakpoint ge 4"/>
     <!-- Type-to-filter across every widget (name, description, or category).
          An empty query returns to the category list below. -->
-    <lv_obj width="100%"
-            height="content" scrollable="false" flex_flow="row" style_pad_all="0" style_pad_left="#space_md"
-            style_pad_right="#space_md" style_pad_top="#space_sm">
-      <text_input name="catalog_search_input"
-                  width="100%" height="#input_height" one_line="true" scrollbar_mode="off"
-                  placeholder_text="Search widgets..." placeholder_tag="Search widgets...">
-        <event_cb trigger="value_changed" callback="on_catalog_search_changed"/>
-      </text_input>
-    </lv_obj>
-    <!-- Browse level: category rows populated dynamically by C++. The group
-         supplies the card shell and the hairline dividers between rows.
-         widget_catalog_view: 0 = categories, 1 = search results. -->
-    <lv_obj name="catalog_scroll"
-            width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_gap="#space_xs"
-            style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-            style_pad_bottom="#space_md">
-      <bind_flag_if_not_eq subject="widget_catalog_view" flag="hidden" ref_value="0"/>
-      <setting_group name="category_group"/>
-    </lv_obj>
-    <!-- Search level: every widget row, built once in C++ and hidden/shown by
-         match. Gated widgets appear here too, dimmed with their reason — the
-         browse view files them under "Unavailable on this printer", but search
-         is the discovery surface and a greyed answer beats a mystery absence. -->
-    <lv_obj name="search_level"
-            width="100%" flex_grow="1" scrollable="false" flex_flow="column" style_pad_all="0"
-            style_flex_main_place="start" hidden="true">
-      <bind_flag_if_eq subject="widget_catalog_view" flag="hidden" ref_value="0"/>
-      <lv_obj name="search_results"
+    <overlay_panel-overlay_content flex_flow="column" scrollable="false">
+      <lv_obj width="100%"
+              height="content" scrollable="false" flex_flow="row" style_pad_all="0" style_pad_left="#space_md"
+              style_pad_right="#space_md" style_pad_top="#space_sm">
+        <text_input name="catalog_search_input"
+                    width="100%" height="#input_height" one_line="true" scrollbar_mode="off"
+                    placeholder_text="Search widgets..." placeholder_tag="Search widgets...">
+          <event_cb trigger="value_changed" callback="on_catalog_search_changed"/>
+        </text_input>
+      </lv_obj>
+      <!-- Browse level: category rows populated dynamically by C++. The group
+           supplies the card shell and the hairline dividers between rows.
+           widget_catalog_view: 0 = categories, 1 = search results. -->
+      <lv_obj name="catalog_scroll"
               width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_gap="#space_xs"
               style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-              style_pad_bottom="#space_md"/>
-      <!-- Empty search result message -->
-      <lv_obj name="search_empty"
-              width="100%" flex_grow="1" scrollable="false" hidden="true" flex_flow="column"
-              style_flex_main_place="center" style_flex_cross_place="center">
-        <bind_flag_if cond="widget_catalog_view eq 1 and widget_catalog_match_count eq 0" flag="hidden" invert="true"/>
-        <text_body text="No widgets found" style_text_color="#text_muted" style_text_align="center"/>
+              style_pad_bottom="#space_md">
+        <bind_flag_if_not_eq subject="widget_catalog_view" flag="hidden" ref_value="0"/>
+        <setting_group name="category_group"/>
       </lv_obj>
-    </lv_obj>
+      <!-- Search level: every widget row, built once in C++ and hidden/shown by
+           match. Gated widgets appear here too, dimmed with their reason — the
+           browse view files them under "Unavailable on this printer", but search
+           is the discovery surface and a greyed answer beats a mystery absence. -->
+      <lv_obj name="search_level"
+              width="100%" flex_grow="1" scrollable="false" flex_flow="column" style_pad_all="0"
+              style_flex_main_place="start" hidden="true">
+        <bind_flag_if_eq subject="widget_catalog_view" flag="hidden" ref_value="0"/>
+        <lv_obj name="search_results"
+                width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_gap="#space_xs"
+                style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
+                style_pad_bottom="#space_md"/>
+        <!-- Empty search result message -->
+        <lv_obj name="search_empty"
+                width="100%" flex_grow="1" scrollable="false" hidden="true" flex_flow="column"
+                style_flex_main_place="center" style_flex_cross_place="center">
+          <bind_flag_if cond="widget_catalog_view eq 1 and widget_catalog_match_count eq 0" flag="hidden" invert="true"/>
+          <text_body text="No widgets found" style_text_color="#text_muted" style_text_align="center"/>
+        </lv_obj>
+      </lv_obj>
+    </overlay_panel-overlay_content>
+
   </view>
 </component>

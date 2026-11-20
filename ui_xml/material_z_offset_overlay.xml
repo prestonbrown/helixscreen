@@ -7,9 +7,9 @@
      (setup steps), 1 the helper macros need an update, 2 ready. -->
 <component>
   <view name="material_z_offset_overlay" extends="overlay_panel" title="Z Offset by Material" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <text_small width="100%"
                   text="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material."
                   long_mode="wrap" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_sm"/>
@@ -107,6 +107,6 @@
                  style_pad_left="#space_md" style_pad_right="#space_md">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="2"/>
       </info_note>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

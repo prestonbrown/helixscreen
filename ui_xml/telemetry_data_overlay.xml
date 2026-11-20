@@ -6,9 +6,8 @@
 <component>
   <view name="telemetry_data_overlay" extends="overlay_panel" title="Telemetry Data" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="true" flex_flow="column"
-            style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_lg"
+                                   scrollable="true" flex_flow="column" style_pad_gap="#space_md">
       <!-- ================================================================== -->
       <!-- STATUS CARD - Shows telemetry status and event count -->
       <!-- ================================================================== -->
@@ -74,6 +73,6 @@
       <info_note icon="info" text="This is what data would be sent if enabled" style_pad_left="0" style_pad_right="0">
         <bind_flag_if_not_eq subject="settings_telemetry_enabled" flag="hidden" ref_value="0"/>
       </info_note>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

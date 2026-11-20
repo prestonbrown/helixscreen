@@ -25,6 +25,7 @@
 #include "ams_state.h"
 #include "ams_tray_projection.h"
 #include "config.h"
+#include "core/update_queue.h"
 #include "filament_tube_stroker.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix/ui/text_metrics.h"
@@ -138,7 +139,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     /// carry none), and lay the tray out again around the name lines.
     void name_every_lane(int lanes, const char* brand) {
         for (int i = 0; i < lanes; ++i)
-            lv_subject_set_string(AmsState::instance().get_slot_name_subject(0, i), brand);
+            lv_subject_set_string(AmsState::instance().get_slot_name_subject(i), brand);
         panel_->refresh_slots();
         process_lvgl(20);
         lv_obj_update_layout(test_screen());
@@ -1093,7 +1094,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: names never move a drawn unit's
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
     auto clear_name = [](int i) {
-        lv_subject_t* s = AmsState::instance().get_slot_name_subject(0, i);
+        lv_subject_t* s = AmsState::instance().get_slot_name_subject(i);
         REQUIRE(s != nullptr);
         lv_subject_set_string(s, "");
     };
@@ -1136,6 +1137,43 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: names never move a drawn unit's
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS panel in portrait: an unload's steps show under the diagram",
+                 "[ams][tray][ui_integration][portrait][stepper]") {
+    const int sizes[][2] = {{480, 800}, {400, 640}};
+    const int size = GENERATE(0, 1);
+    CAPTURE(sizes[size][0], sizes[size][1]);
+    helix::test::ScopedGeometry portrait(sizes[size][0], sizes[size][1]);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "ui_is_portrait")) == 1);
+    host_ = lv_obj_create(test_screen());
+    lv_obj_set_size(host_, sizes[size][0], sizes[size][1] - 70);
+    lv_obj_set_style_pad_all(host_, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(host_, 0, LV_PART_MAIN);
+    build("passive", 4);
+
+    lv_obj_t* unload = lv_obj_find_by_name(panel_obj_, "btn_unload");
+    REQUIRE(unload != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(unload));
+    REQUIRE_FALSE(lv_obj_has_state(unload, LV_STATE_DISABLED));
+    lv_obj_send_event(unload, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(50);
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* right = lv_obj_find_by_name(panel_obj_, "right_column");
+    lv_obj_t* stepper = lv_obj_find_by_name(panel_obj_, "progress_stepper_container");
+    REQUIRE(right != nullptr);
+    REQUIRE(stepper != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(stepper));
+    REQUIRE(lv_obj_get_child_count(stepper) > 0);
+    // The column stands as tall as the steps it holds, not collapsed to nothing.
+    lv_obj_t* bar = lv_obj_get_child(stepper, 0);
+    CAPTURE(lv_obj_get_height(right), lv_obj_get_height(stepper), lv_obj_get_height(bar));
+    CHECK(lv_obj_get_height(bar) > 0);
+    CHECK(lv_obj_get_height(stepper) >= lv_obj_get_height(bar));
+    CHECK(lv_obj_get_height(right) >= lv_obj_get_height(stepper));
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS panel: an endless-spool backup between lanes past sixteen is shown",
                  "[ams][slot_ceiling][endless_spool]") {
     constexpr int kLanes = 20;
@@ -1147,10 +1185,6 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(arrows != nullptr);
     // With no backup the row has nothing to draw and gives its space back.
     CHECK(lv_obj_is_hidden(arrows));
-    // One backend leaves nothing to select between.
-    lv_obj_t* selector = lv_obj_find_by_name(panel_obj_, "backend_selector_row");
-    REQUIRE(selector != nullptr);
-    CHECK(lv_obj_is_hidden(selector));
 
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);

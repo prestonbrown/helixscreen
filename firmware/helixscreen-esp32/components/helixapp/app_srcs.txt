@@ -473,6 +473,7 @@ src/ui/modals/favorite_macro_config_modal.cpp
 src/ui/modals/ui_hidden_network_modal.cpp
 src/ui/modals/macro_param_modal.cpp
 src/ui/modals/ui_preflight_check_modal.cpp
+src/ui/components/ui_qr_code.cpp
 src/ui/modals/ui_runout_other_head_modal.cpp
 src/core/observer_factory.cpp
 src/core/operation_timeout_guard.cpp
@@ -669,7 +670,6 @@ src/ui/controls/ui_jog_pad.cpp
 src/ui/components/ui_keyboard_manager.cpp
 src/ui/components/ui_keycap_style.cpp
 src/ui/components/ui_leader_line.cpp
-src/ui/controls/ui_led_chip_factory.cpp
 src/ui/controls/ui_led_control_overlay.cpp
 src/ui/ui_lock_screen.cpp
 src/ui/controls/ui_maintenance_overlay.cpp

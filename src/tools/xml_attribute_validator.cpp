@@ -107,10 +107,30 @@ ComponentInfo extract_component_props(const std::string& xml_content) {
     if (xml_content.empty()) {
         return info;
     }
+    // Every <!-- ... --> removed, so markup quoted in a comment (a usage example)
+    // is never read as the component's own.
+    const std::string markup = [&xml_content] {
+        std::string out;
+        out.reserve(xml_content.size());
+        size_t pos = 0;
+        while (pos < xml_content.size()) {
+            const size_t open = xml_content.find("<!--", pos);
+            if (open == std::string::npos) {
+                out.append(xml_content, pos, std::string::npos);
+                break;
+            }
+            out.append(xml_content, pos, open - pos);
+            const size_t close = xml_content.find("-->", open + 4);
+            if (close == std::string::npos)
+                break;
+            pos = close + 3;
+        }
+        return out;
+    }();
 
     // Check if root element is <component> - if not, return empty
     std::regex component_regex(R"regex(<component\b)regex");
-    if (!std::regex_search(xml_content, component_regex)) {
+    if (!std::regex_search(markup, component_regex)) {
         spdlog::trace("[xml_validator] Not a component XML (no <component> root)");
         return info;
     }
@@ -118,13 +138,13 @@ ComponentInfo extract_component_props(const std::string& xml_content) {
     // Find <view extends="widget_name"> or just <view> (defaults to "lv_obj")
     std::regex view_extends_regex(R"regex(<view\s+extends\s*=\s*"([^"]+)")regex");
     std::smatch extends_match;
-    if (std::regex_search(xml_content, extends_match, view_extends_regex)) {
+    if (std::regex_search(markup, extends_match, view_extends_regex)) {
         info.extends = extends_match[1].str();
         spdlog::trace("[xml_validator] Component extends: {}", info.extends);
     } else {
         // Check if there's a <view> without extends
         std::regex view_regex(R"regex(<view\b)regex");
-        if (std::regex_search(xml_content, view_regex)) {
+        if (std::regex_search(markup, view_regex)) {
             info.extends = "lv_obj";
             spdlog::trace("[xml_validator] Component extends lv_obj (default)");
         }
@@ -132,7 +152,7 @@ ComponentInfo extract_component_props(const std::string& xml_content) {
 
     // Find all <prop name="prop_name" occurrences
     std::regex prop_regex(R"regex(<prop\s+name\s*=\s*"([^"]+)")regex");
-    auto prop_begin = std::sregex_iterator(xml_content.begin(), xml_content.end(), prop_regex);
+    auto prop_begin = std::sregex_iterator(markup.begin(), markup.end(), prop_regex);
     auto prop_end = std::sregex_iterator();
 
     for (auto it = prop_begin; it != prop_end; ++it) {
@@ -157,8 +177,10 @@ build_inheritance_tree(const WidgetDatabase& db) {
     for (const auto& [widget_name, direct_attrs] : db.widget_attrs) {
         std::unordered_set<std::string> full_attrs = direct_attrs;
 
-        // Walk up the inheritance chain
+        // Walk up the inheritance chain. A component whose chain loops back on
+        // itself stops at the repeat rather than walking it forever.
         std::string current = widget_name;
+        std::unordered_set<std::string> visited{widget_name};
         while (true) {
             auto inherit_it = db.inheritance.find(current);
             if (inherit_it == db.inheritance.end() || inherit_it->second.empty()) {
@@ -167,6 +189,11 @@ build_inheritance_tree(const WidgetDatabase& db) {
             }
 
             std::string parent = inherit_it->second;
+            if (!visited.insert(parent).second) {
+                spdlog::warn("[xml_validator] {} has an inheritance cycle through {}", widget_name,
+                             parent);
+                break;
+            }
 
             // Check if parent has attributes defined
             auto parent_attrs_it = db.widget_attrs.find(parent);

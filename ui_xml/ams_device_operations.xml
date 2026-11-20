@@ -7,9 +7,8 @@
   <view name="ams_device_operations"
         extends="overlay_panel" title="Multi-Filament System Management" bg_color="#screen_bg">
     <!-- Content Area (scrollable) -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="true" flex_flow="column"
-            style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="true" flex_flow="column" style_pad_gap="#space_md">
       <!-- System info line (e.g. "System: AFC · v1.2.3") -->
       <text_muted name="system_info_label" width="100%" bind_text="ams_device_ops_system_info"/>
       <!-- ================================================================== -->
@@ -205,6 +204,6 @@
         <text_muted name="no_backend_text"
                     width="100%" text="No Multi-Filament System connected." style_text_align="center"/>
       </ui_card>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

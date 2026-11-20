@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One page of the fan carousel: the fan's arc over its name. FanStackWidget
+     creates one per discovered fan (or placeholder), sets the name, which is
+     the printer's text, hands the page to the carousel, and binds the arc to
+     the fan. A tap anywhere but the arc opens the fan controls. -->
+<component>
+  <api>
+    <prop name="initial_value" type="string" default="0"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_pad_bottom="#space_lg" style_pad_gap="0" flex_flow="column"
+        style_flex_cross_place="center" style_border_width="0" style_bg_opa="0" scrollable="false"
+        overflow_visible="true" clickable="true">
+    <event_cb trigger="clicked" callback="on_fan_stack_clicked"/>
+    <!-- fan_arc_resize_to_fit() finds the arc by this name; it fills the page
+         instead of fan_arc_core's card sizing. -->
+    <fan_arc_core name="dial_container" width="100%" height="100%" initial_value="$initial_value" flex_grow="1"/>
+    <lv_label name="fan_carousel_name" text="" style_text_color="#text_muted" style_text_font="#font_xs"/>
+  </view>
+</component>

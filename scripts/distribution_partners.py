@@ -10,6 +10,8 @@ release check cannot disagree:
       --platforms, only assets built by a listed matrix platform (and install.sh) are
       required, so a dry run of a platform subset still passes. A rename then fails the tag
       instead of leaving a mod's users unable to update, with no error on our side (#1911).
+      A fetch marked known_break is an asset the release stopped carrying on purpose while
+      the partner still asks for it: it is not required, and every check warns about it.
   table
       Print the markdown table.
   doc FILE [--write]
@@ -42,6 +44,9 @@ def load(path):
         for f in p['fetches']:
             if not f.get('asset') or not f.get('built_by'):
                 raise ValueError(f"{path}: partner {p['id']} has a fetch without asset/built_by")
+            if 'known_break' in f and not (isinstance(f['known_break'], str) and f['known_break'].strip()):
+                raise ValueError(f"{path}: partner {p['id']} marks {f['asset']} known_break "
+                                 f'without saying what the partner must change')
     return partners
 
 
@@ -54,6 +59,8 @@ def required_assets(partners, tag, platforms=None):
             built_by = f['built_by']
             if wanted is not None and built_by != INSTALLER_BUILT_BY and built_by not in wanted:
                 continue
+            if 'known_break' in f:
+                continue
             name = f['asset'].replace('{tag}', tag)
             need.setdefault(name, [])
             if p['name'] not in need[name]:
@@ -61,10 +68,19 @@ def required_assets(partners, tag, platforms=None):
     return need
 
 
+def known_breaks(partners, tag):
+    """[(asset name, partner name, what the partner must change)] for every known break."""
+    return [(f['asset'].replace('{tag}', tag), p['name'], f['known_break'])
+            for p in partners for f in p['fetches'] if 'known_break' in f]
+
+
 def cmd_check(args):
     partners = load(args.data)
     platforms = args.platforms.split() if args.platforms is not None else None
     need = required_assets(partners, args.tag, platforms)
+    for name, partner, fix in known_breaks(partners, args.tag):
+        print(f'::warning::known break: {partner} fetches {name}, which the release does not '
+              f'carry. {fix} (scripts/distribution_partners.json)')
     missing = 0
     for name in sorted(need):
         if os.path.isfile(os.path.join(args.dir, name)):
@@ -95,6 +111,7 @@ def render_table(partners):
         if p['fetches']:
             fetches = '<br>'.join(
                 f"`{f['asset']}`" + (' (via install.sh)' if f.get('via') == 'installer' and f['asset'] != 'install.sh' else '')
+                + (f" (**known break**: {cell(f['known_break'])})" if 'known_break' in f else '')
                 for f in p['fetches'])
         else:
             fetches = 'Nothing'

@@ -4,9 +4,9 @@
 <!-- Printer Events: the printer event journal, newest first -->
 <component>
   <view name="printer_events_overlay" extends="overlay_panel" title="Printer Events" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" flex_flow="column" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="0" style_pad_bottom="#space_lg" style_pad_gap="#space_sm" scrollable="false">
+    <overlay_panel-overlay_content flex_flow="column"
+                                   style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+                                   style_pad_bottom="#space_lg" style_pad_gap="#space_sm" scrollable="false">
       <!-- Where the list comes from: the plugin's journal or this screen's own -->
       <text_muted name="events_source" width="100%" bind_text="printer_events_source"/>
       <!-- Rows container: sole child is the reactive repeat. Rebuilt rows append to the
@@ -38,6 +38,6 @@
           <bind_flag_if_eq subject="printer_events_unavailable" flag="hidden" ref_value="0"/>
         </text_muted>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

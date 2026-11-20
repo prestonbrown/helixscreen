@@ -325,6 +325,18 @@ export function scanStackForReturnAddresses(
 }
 
 /**
+ * The symbol map name (`symbols/v<ver>/<name>.sym.zst`) for the binary that
+ * crashed. Platforms that ship a DRM and an fbdev binary publish one map each,
+ * and the fbdev build reports display_backend "fbdev"; resolving its addresses
+ * against the DRM map produces plausible but wrong frames.
+ */
+export function symbolMapName(report: CrashReport): string | undefined {
+  const platform = report.platform || report.app_platform;
+  if (!platform) return undefined;
+  return report.display_backend === "fbdev" ? `${platform}-fbdev` : platform;
+}
+
+/**
  * Resolve a crash backtrace using symbol files from R2.
  * Never throws — returns gracefully degraded results on any error.
  */
@@ -340,14 +352,14 @@ export async function resolveBacktrace(bucket: R2Bucket, report: CrashReport): P
   try {
     // Determine version and platform
     const version = report.app_version;
-    const platform = report.platform || report.app_platform;
-    if (!version || !platform) return result;
+    const mapName = symbolMapName(report);
+    if (!version || !mapName) return result;
 
     // Fetch symbol file from R2. Maps are published zstd-compressed (.sym.zst —
     // nm output compresses ~25:1). Workers have no zstd in DecompressionStream,
     // so decode it in-process with a pure-JS decompressor. Fall back to an
     // uncompressed .sym if one happens to exist (older/backfilled uploads).
-    const symBase = `symbols/v${version}/${platform}`;
+    const symBase = `symbols/v${version}/${mapName}`;
     let symText: string | null = null;
 
     const zstObj = await bucket.get(`${symBase}.sym.zst`);

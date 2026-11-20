@@ -21,9 +21,9 @@
   </api>
   <view name="plugin_overview_overlay"
         extends="overlay_panel" title="$title" title_tag="$title_tag" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <setting_info_row name="plugin_overview_version"
                         label="Version" icon="puzzle_outline" bind_value="plugin_overview_version"
                         style_pad_top="#space_sm" style_pad_bottom="#space_sm"/>
@@ -46,6 +46,6 @@
       <lv_obj name="unavailable_rows"
               width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
               flex_flow="column" style_pad_row="0"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

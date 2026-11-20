@@ -13,7 +13,7 @@
   </styles>
   <view name="settings_display_overlay" extends="overlay_panel" title="Display" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
-    <lv_obj name="overlay_content" width="100%" flex_grow="1" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content scrollable="true" flex_flow="column">
       <bind_style_if_eq name="content_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="content_standard" subject="ui_breakpoint" ref_value="1"/>
       <setting_group name="group_display">
@@ -73,6 +73,6 @@
         <bind_style_if_eq name="spacer_micro" subject="ui_breakpoint" ref_value="0"/>
         <bind_style_if_ge name="spacer_standard" subject="ui_breakpoint" ref_value="1"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

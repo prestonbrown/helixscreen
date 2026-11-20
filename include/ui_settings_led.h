@@ -68,6 +68,9 @@ class LedSettingsOverlay : public OverlayBase {
     }
 
     void on_activate() override;
+    /// Leaving the overlay drops unsaved macro edits: the form closes and a
+    /// device added but never saved is removed.
+    void on_dismissed() override;
 
     bool is_created() const {
         return overlay_root_ != nullptr;
@@ -96,14 +99,20 @@ class LedSettingsOverlay : public OverlayBase {
     void discard_unsaved_macro_entry();
     void populate_macro_devices();
     void populate_macro_devices_impl();
-    void rebuild_macro_edit_controls(lv_obj_t* container, int index);
+    /// Fill the draft subjects the edit form binds from device @p index.
+    void load_macro_draft(int index);
+    void handle_add_macro_preset();
+    void handle_remove_macro_preset(int preset_index);
     void populate_led_chips();
     void populate_led_chips_impl();
     void handle_led_chip_clicked(const std::string& led_name);
+    /// The strip each Applies-to chip stands for, by the chip's index.
+    std::vector<std::string> chip_strip_ids_;
 
     // Auto-state mapping editor
     void populate_auto_state_rows();
-    void rebuild_contextual_controls(const std::string& state_key, lv_obj_t* container);
+    /// Publish row @p row's action into its led_auto_*_<row> subjects.
+    void publish_auto_state_row(size_t row, const helix::led::LedStateAction& action);
     void handle_action_type_changed(const std::string& state_key, int dropdown_index);
     void handle_brightness_changed(const std::string& state_key, int value);
     void handle_color_selected(const std::string& state_key, uint32_t color);
@@ -131,6 +140,55 @@ class LedSettingsOverlay : public OverlayBase {
     /// One per kStateRows entry: 1 while its action has a detail panel to show.
     helix::xml::IndexedSubjectPool auto_detail_shown_pool_{
         "led_auto_detail_shown", helix::xml::IndexedSubjectPool::Type::Int};
+    /// The macro device being edited, as led_macro_edit_form.xml binds it. Save
+    /// writes it back to LedController; nothing else does.
+    helix::Subject macro_draft_name_{};
+    char macro_draft_name_buf_[64]{};
+    helix::Subject macro_draft_type_{}; ///< MacroLedType's row in the type dropdown
+    helix::Subject macro_draft_on_sel_{};
+    helix::Subject macro_draft_off_sel_{};
+    helix::Subject macro_draft_toggle_sel_{};
+    helix::Subject macro_draft_on_text_{};
+    char macro_draft_on_text_buf_[64]{};
+    helix::Subject macro_draft_off_text_{};
+    char macro_draft_off_text_buf_[64]{};
+    helix::Subject macro_draft_toggle_text_{};
+    char macro_draft_toggle_text_buf_[64]{};
+    helix::Subject macro_draft_preset_count_{};
+    helix::xml::IndexedSubjectPool macro_draft_preset_sel_pool_{
+        "led_macro_draft_preset_sel", helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool macro_draft_preset_text_pool_{
+        "led_macro_draft_preset_text", helix::xml::IndexedSubjectPool::Type::String};
+    /// Detected LED macros plus "Custom...", one per line: every macro field's options.
+    helix::Subject macro_field_options_{};
+    char macro_field_options_buf_[2048]{};
+    helix::Subject macro_count_{};
+    helix::Subject macro_discovered_count_{};
+    /// Automatic LED Control's rows (led_auto_state_row.xml), one slot per
+    /// kStateRows entry: the action dropdown's row, which controls show, and
+    /// each control's value.
+    helix::xml::IndexedSubjectPool auto_action_pool_{"led_auto_action",
+                                                     helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool auto_kind_pool_{"led_auto_kind",
+                                                   helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool auto_brightness_pool_{"led_auto_brightness",
+                                                         helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool auto_effect_sel_pool_{"led_auto_effect_sel",
+                                                         helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool auto_wled_pool_{"led_auto_wled",
+                                                   helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool auto_wled_label_pool_{
+        "led_auto_wled_label", helix::xml::IndexedSubjectPool::Type::String};
+    helix::xml::IndexedSubjectPool auto_macro_sel_pool_{"led_auto_macro_sel",
+                                                        helix::xml::IndexedSubjectPool::Type::Int};
+    helix::Subject auto_action_options_{};
+    char auto_action_options_buf_[256]{};
+    helix::Subject auto_effect_options_{};
+    char auto_effect_options_buf_[2048]{};
+    helix::Subject auto_effect_count_{};
+    helix::Subject auto_macro_options_{};
+    char auto_macro_options_buf_[2048]{};
+    helix::Subject auto_macro_count_{};
     std::vector<std::string> action_type_options_; // Maps dropdown index to action type string
     int editing_macro_index_ = -1;                 // -1 = no macro device being edited
 };

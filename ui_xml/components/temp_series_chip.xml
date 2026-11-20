@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One series toggle above the temperature graph: the series' colour dot and
+     name on an elevated pill, dimmed while the series is hidden. TempGraphOverlay
+     creates one per series, sets the name (user text) and publishes
+     temp_graph_chip_color_<index> and temp_graph_chip_visible_<index>. -->
+<component>
+  <api>
+    <prop name="index" type="int" default="0"/>
+  </api>
+  <consts>
+    <px name="dot_size" value="8"/>
+    <px name="shadow_width" value="4"/>
+    <px name="shadow_offset" value="2"/>
+  </consts>
+  <styles>
+    <style name="series_hidden" opa="40%"/>
+  </styles>
+  <view name="temp_chip_${index}"
+        extends="lv_obj" width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
+        style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" style_radius="9999" style_bg_opa="255"
+        style_bg_color="#elevated_bg" style_border_width="1" style_border_color="#border"
+        style_shadow_width="#shadow_width" style_shadow_opa="20%" style_shadow_offset_y="#shadow_offset" flex_flow="row"
+        style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+        style_pad_gap="#space_xxs" scrollable="false" clickable="true">
+    <bind_style_if_eq name="series_hidden" subject="temp_graph_chip_visible_${index}" ref_value="0"/>
+    <swatch_paint width="#dot_size"
+                  height="#dot_size" bind_color="temp_graph_chip_color_${index}" clickable="false" event_bubble="true"/>
+    <text_small name="chip_label" text="" style_text_color="#text" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="temp_graph_chip_cb" user_data="$index"/>
+  </view>
+</component>

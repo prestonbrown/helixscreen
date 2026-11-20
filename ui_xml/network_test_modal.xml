@@ -5,28 +5,6 @@
 <!-- Uses vertical step progress widget created dynamically in C++ -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <!-- Step colors for network test (themed with light/dark variants) -->
-  <consts>
-    <!-- Pending step colors (muted) -->
-    <color name="step_pending_light" value="#9E9E9E"/>
-    <color name="step_pending_dark" value="#757575"/>
-    <!-- Active step colors (primary) -->
-    <color name="step_active_light" value="#2196F3"/>
-    <color name="step_active_dark" value="#64B5F6"/>
-    <!-- Completed step colors (success) -->
-    <color name="step_completed_light" value="#4CAF50"/>
-    <color name="step_completed_dark" value="#81C784"/>
-    <!-- Step number text colors -->
-    <color name="step_number_pending_light" value="#757575"/>
-    <color name="step_number_pending_dark" value="#9E9E9E"/>
-    <color name="step_number_active_light" value="#FFFFFF"/>
-    <color name="step_number_active_dark" value="#FFFFFF"/>
-    <!-- Step label text colors -->
-    <color name="step_label_active_light" value="#212121"/>
-    <color name="step_label_active_dark" value="#FFFFFF"/>
-    <color name="step_label_inactive_light" value="#757575"/>
-    <color name="step_label_inactive_dark" value="#9E9E9E"/>
-  </consts>
   <!-- NOTE: test_complete subject is registered globally in C++ (network_settings_overlay.cpp) -->
   <!-- Dialog card (backdrop created programmatically) -->
   <view name="network_test_modal"

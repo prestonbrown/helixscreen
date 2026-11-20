@@ -229,7 +229,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 // ---------------------------------------------------------------------------
 // 3. Template-derived labels (the data the sidebar renders) -- S2 + S1.
 // ---------------------------------------------------------------------------
-TEST_CASE_METHOD(LVGLTestFixture,
+TEST_CASE_METHOD(XMLTestFixture,
                  "Toolchange narration E2E - LOAD_SWAP step template carries brush/poop/kick",
                  "[narration][ui_integration]") {
     reset_step_baseline();
@@ -286,7 +286,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     }
     lv_obj_t* bar =
         ui_step_progress_create(lv_screen_active(), steps.data(), static_cast<int>(steps.size()),
-                                /*horizontal=*/true, /*scope_name=*/nullptr);
+                                /*horizontal=*/true);
     REQUIRE(bar != nullptr);
     // ui_step_progress was created from the same labels; nothing further to
     // assert beyond construction succeeding (its child structure moves

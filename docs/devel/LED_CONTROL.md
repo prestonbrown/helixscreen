@@ -53,7 +53,7 @@ each list lives.
 | `src/ui/controls/ui_led_control_overlay.cpp` | Tab rebuild, page publishing, control handlers |
 | `include/ui_settings_led.h` | `LedSettingsOverlay` - settings configuration overlay |
 | `src/ui/settings/ui_settings_led.cpp` | Startup section, Automatic LED Control's "Applies to" row and per-state editors, macro device editor |
-| `include/ui_led_chip_factory.h` | Chip factory shared by Settings' macro-device editor |
+| `ui_xml/components/toggle_chip.xml` | Multi-select chip for "Applies to" and Power Devices' main power button: lit while selected, tap resolved by index |
 | `src/ui/panel_widgets/led_widget.cpp` | `LedWidget` - home panel light button: per-instance config, device picker, tile bulb |
 | `src/ui/panel_widgets/light_target_picker.cpp` | `LightTargetPicker` - the "This button controls" picker shared by the light button and the printer-image light chip |
 | `src/ui/panel_widgets/led_controls_widget.cpp` | `LedControlsWidget` - home panel tile that always opens the LEDs overlay |

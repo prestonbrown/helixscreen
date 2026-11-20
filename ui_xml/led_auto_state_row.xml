@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One printer state in LED Settings' Automatic LED Control: the action
+     dropdown, then the controls for the chosen action. Every control is bound
+     to this row's led_auto_*_<index> subjects, and led_auto_kind_<index>
+     (0 off, 1 brightness, 2 color, 3 effect, 4 WLED preset, 5 macro) decides
+     which ones show. -->
+<component>
+  <api>
+    <prop name="index" type="int" default="0"/>
+    <prop name="key" type="string" default="idle"/>
+    <prop name="label" type="string" default="State"/>
+    <prop name="icon" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
+        style_border_width="0" scrollable="false">
+    <setting_state_row label="$label"
+                       label_tag="$label" icon="$icon" options_subject="led_auto_action_options"
+                       value_subject="led_auto_action_${index}" callback="led_auto_action_cb" user_data="$index"/>
+    <setting_detail_panel name="detail_${key}" shown_subject="led_auto_detail_shown_${index}">
+      <lv_obj name="ctx_${key}"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm"
+              style_bg_opa="0" style_border_width="0" scrollable="false">
+        <led_auto_color_swatches selected_subject="led_auto_color_sel_${index}">
+          <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="2"/>
+        </led_auto_color_swatches>
+        <!-- A slider's knob reaches past its track ends, and the column clips
+             at its own edges: the wrapper's padding is the knob's room. -->
+        <lv_obj width="100%"
+                height="content" style_pad_hor="#slider_knob_room" style_pad_ver="#space_sm" style_bg_opa="0"
+                style_border_width="0" scrollable="false">
+          <bind_flag_if cond="led_auto_kind_${index} ne 1 and led_auto_kind_${index} ne 2" flag="hidden"/>
+          <lv_slider name="auto_brightness_${key}"
+                     width="100%" min_value="0" max_value="100" bind_value="led_auto_brightness_${index}">
+            <event_cb trigger="value_changed" callback="led_auto_brightness_cb" user_data="$index"/>
+          </lv_slider>
+        </lv_obj>
+        <text_body text="No effects available" style_text_color="#text_subtle">
+          <bind_flag_if cond="led_auto_kind_${index} ne 3 or led_auto_effect_count gt 0" flag="hidden"/>
+        </text_body>
+        <lv_dropdown name="auto_effect_${key}"
+                     width="100%" style_border_width="0" bind_options="led_auto_effect_options"
+                     bind_value="led_auto_effect_sel_${index}">
+          <bind_flag_if cond="led_auto_kind_${index} ne 3 or led_auto_effect_count eq 0" flag="hidden"/>
+          <event_cb trigger="value_changed" callback="led_auto_effect_cb" user_data="$index"/>
+        </lv_dropdown>
+        <text_body bind_text="led_auto_wled_label_${index}">
+          <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="4"/>
+        </text_body>
+        <lv_obj width="100%"
+                height="content" style_pad_hor="#slider_knob_room" style_pad_ver="#space_sm" style_bg_opa="0"
+                style_border_width="0" scrollable="false">
+          <bind_flag_if_not_eq subject="led_auto_kind_${index}" flag="hidden" ref_value="4"/>
+          <lv_slider name="auto_wled_${key}"
+                     width="100%" min_value="1" max_value="50" bind_value="led_auto_wled_${index}">
+            <event_cb trigger="value_changed" callback="led_auto_wled_cb" user_data="$index"/>
+          </lv_slider>
+        </lv_obj>
+        <text_body text="No macros available" style_text_color="#text_subtle">
+          <bind_flag_if cond="led_auto_kind_${index} ne 5 or led_auto_macro_count gt 0" flag="hidden"/>
+        </text_body>
+        <lv_dropdown name="auto_macro_${key}"
+                     width="100%" style_border_width="0" bind_options="led_auto_macro_options"
+                     bind_value="led_auto_macro_sel_${index}">
+          <bind_flag_if cond="led_auto_kind_${index} ne 5 or led_auto_macro_count eq 0" flag="hidden"/>
+          <event_cb trigger="value_changed" callback="led_auto_macro_cb" user_data="$index"/>
+        </lv_dropdown>
+      </lv_obj>
+    </setting_detail_panel>
+  </view>
+</component>

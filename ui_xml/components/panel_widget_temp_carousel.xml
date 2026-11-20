@@ -5,6 +5,15 @@
   <view name="panel_widget_temp_carousel"
         extends="lv_obj" height="100%" flex_grow="1" style_pad_all="#space_sm" scrollable="false">
     <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
-    <ui_carousel name="temp_carousel" width="100%" height="100%" wrap="true" show_indicators="true"/>
+    <!-- A page per heater. The widget keeps the chamber page out of reach on
+         a printer without a chamber. -->
+    <ui_carousel name="temp_carousel" width="100%" height="100%" wrap="true" show_indicators="true">
+      <temp_carousel_page name="nozzle" nozzle="1" bind_current="extruder_temp" bind_target="extruder_target"/>
+      <temp_carousel_page name="bed"
+                          icon="radiator" icon_name="bed_icon_glyph" bind_current="bed_temp" bind_target="bed_target"/>
+      <temp_carousel_page name="chamber"
+                          icon="fridge_industrial" icon_name="chamber_icon_glyph" bind_current="chamber_temp"
+                          bind_target="chamber_effective_target"/>
+    </ui_carousel>
   </view>
 </component>

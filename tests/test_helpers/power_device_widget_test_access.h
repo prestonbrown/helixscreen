@@ -35,6 +35,9 @@ struct PowerDeviceWidgetTestAccess {
     static const std::string& device_name(const PowerDeviceWidget& w) {
         return w.device_name_;
     }
+    static void select_sensor(PowerDeviceWidget& w, const std::string& sensor_id) {
+        w.select_sensor(sensor_id);
+    }
 };
 
 } // namespace helix

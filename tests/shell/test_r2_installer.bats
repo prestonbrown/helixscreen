@@ -261,7 +261,7 @@ _settings_with_channel() {
     INSTALL_DIR="$BATS_TEST_TMPDIR/install"
     unset MIGRATE_FROM_DIR
     mkdir -p "$INSTALL_DIR/config"
-    printf '{"update":{"channel":%s},"language":"en"}\n' "$1" \
+    printf '{"beta_features": %s,"update":{"channel":%s},"language":"en"}\n' "${2:-false}" "$1" \
         > "$INSTALL_DIR/config/settings.json"
     export INSTALL_DIR
 }
@@ -272,10 +272,27 @@ _settings_with_channel() {
     [ "$R2_CHANNEL" = "beta" ]
 }
 
-@test "resolve_update_channel maps settings channel 2 to dev" {
-    _settings_with_channel 2
+@test "resolve_update_channel maps settings channel 2 to dev only with beta features" {
+    # The app follows Stable for a stored Dev without beta features; the installer
+    # must agree, or every run switches the Moonraker entry off for the app to
+    # switch back on.
+    _settings_with_channel 2 true
     resolve_update_channel
-    [ "$R2_CHANNEL" = "dev" ]
+    [ "$R2_CHANNEL" = "dev" ] || fail "with beta features: $R2_CHANNEL"
+    _settings_with_channel 2 false
+    resolve_update_channel
+    [ "$R2_CHANNEL" = "stable" ] || fail "without beta features: $R2_CHANNEL"
+}
+
+@test "helix_effective_channel answers the app's channel table" {
+    # tests/fixtures/update_channel_mapping.tsv is read by the [2147] unit test too.
+    local stored beta want got bad=""
+    while IFS="$(printf '\t')" read -r stored beta want; do
+        case "$stored" in '#'* | '') continue ;; esac
+        got=$(helix_effective_channel "$stored" "$beta")
+        [ "$got" = "$want" ] || bad="$bad $stored/$beta=$got(want $want)"
+    done < "$BATS_TEST_DIRNAME/../fixtures/update_channel_mapping.tsv"
+    [ -z "$bad" ] || fail "mismatches:$bad"
 }
 
 @test "resolve_update_channel reads through the printer_data symlink" {

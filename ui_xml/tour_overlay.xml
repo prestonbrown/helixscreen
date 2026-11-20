@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The first-run tour's layer on lv_layer_top(): a click-absorbing dim over
+     the whole screen, the highlight ring TourOverlay places around each step's
+     target, and the tooltip card. TourOverlay passes the screen size in pixels,
+     since a percentage of lv_layer_top() is not resolved when it is built, and
+     places the highlight and card per step. -->
+<component>
+  <api>
+    <prop name="width" type="string" default="0"/>
+    <prop name="height" type="string" default="0"/>
+  </api>
+  <view name="tour_overlay"
+        extends="lv_obj" width="$width" height="$height" x="0" y="0" style_bg_opa="0" style_border_width="0"
+        style_pad_all="0" style_radius="0" scrollable="false" click_focusable="false">
+    <lv_obj name="tour_dim"
+            width="$width" height="$height" x="0" y="0" style_bg_color="0x000000" style_bg_opa="140"
+            style_border_width="0" style_pad_all="0" style_radius="0" clickable="true" scrollable="false"/>
+    <!-- Transparent, with an outline and a glow in the accent color. -->
+    <lv_obj name="tour_highlight"
+            style_bg_opa="0" style_border_width="0" style_outline_width="3" style_outline_color="#primary"
+            style_outline_pad="#space_xs" style_shadow_width="24" style_shadow_opa="180" style_shadow_color="#primary"
+            clickable="false" hidden="true"/>
+    <tour_tooltip_card name="tour_tooltip"/>
+  </view>
+</component>

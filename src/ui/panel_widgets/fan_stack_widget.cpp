@@ -639,49 +639,22 @@ void FanStackWidget::bind_carousel_fans() {
     }
 
     const lv_font_t* xs_font = theme_manager_get_font("font_xs");
-    lv_color_t text_muted = theme_manager_get_color("text_muted");
 
     for (const auto& entry : entries) {
-        // Thin wrapper page: column layout with arc core + tiny name label
-        lv_obj_t* page = lv_obj_create(lv_screen_active());
-        lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_style_pad_all(page, 0, 0);
-        lv_obj_set_style_pad_bottom(page, theme_manager_get_spacing("space_lg"), 0);
-        lv_obj_set_style_pad_gap(page, 0, 0);
-        lv_obj_set_flex_flow(page, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_style_flex_cross_place(page, LV_FLEX_ALIGN_CENTER, 0);
-        lv_obj_set_style_border_width(page, 0, 0);
-        lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
-        lv_obj_set_scrollable(page, false);
-        lv_obj_set_overflow_visible(page, true);
-
-        // Create the core arc widget (no card chrome, no buttons)
         char val_str[16];
         snprintf(val_str, sizeof(val_str), "%d", entry.speed_percent);
         const char* attrs[] = {"initial_value", val_str, nullptr};
-        lv_obj_t* arc_core = static_cast<lv_obj_t*>(lv_xml_create(page, "fan_arc_core", attrs));
+        auto* page =
+            static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "fan_carousel_page", attrs));
+        lv_obj_t* arc_core = page ? lv_obj_find_by_name(page, "dial_container") : nullptr;
         if (!arc_core) {
-            spdlog::error("[FanStackWidget] lv_xml_create('fan_arc_core') returned NULL for '{}'",
+            spdlog::error("[FanStackWidget] Failed to build a carousel page for '{}'",
                           entry.display_name);
-            lv_obj_delete_async(page);
+            if (page)
+                lv_obj_delete_async(page);
             continue;
         }
-
-        // XML component root views don't propagate their name attribute to
-        // lv_obj_set_name(), but fan_arc_resize_to_fit() needs to find
-        // "dial_container" by name. Set it explicitly.
-        lv_obj_set_name_static(arc_core, "dial_container");
-
-        // fan_arc_core uses token-based sizing for card contexts; carousel
-        // needs it to fill the tile instead.
-        lv_obj_set_size(arc_core, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_flex_grow(arc_core, 1);
-
-        lv_obj_t* name_lbl = lv_label_create(page);
-        lv_label_set_text(name_lbl, entry.display_name.c_str());
-        lv_obj_set_style_text_color(name_lbl, text_muted, 0);
-        if (xs_font)
-            lv_obj_set_style_text_font(name_lbl, xs_font, 0);
+        helix::ui::set_row_label_text(page, "fan_carousel_name", entry.display_name.c_str());
 
         // Cache arc, label, and icon pointers for observer updates
         CarouselPage cp;
@@ -712,19 +685,6 @@ void FanStackWidget::bind_carousel_fans() {
             lv_obj_set_style_shadow_width(cp.arc, 0, LV_PART_KNOB);       // DECLARATIVE_OK: page
             lv_obj_set_style_outline_width(cp.arc, 0, LV_PART_KNOB);      // DECLARATIVE_OK: page
         }
-
-        // Make whole page clickable → open fan control overlay (when the user
-        // taps somewhere that isn't the arc itself: label, icon, empty area).
-        lv_obj_set_clickable(page, true);
-        lv_obj_set_user_data(page, this);
-        lv_obj_add_event_cb(
-            page,
-            [](lv_event_t* e) {
-                auto* self = static_cast<FanStackWidget*>(lv_event_get_user_data(e));
-                if (self)
-                    self->handle_clicked();
-            },
-            LV_EVENT_CLICKED, this);
 
         ui_carousel_add_item(carousel, page);
 

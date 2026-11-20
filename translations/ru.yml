@@ -2812,6 +2812,7 @@ translations:
   No vendors found: Производители не найдены
   No verified bypass command for this CFS firmware: 'Нет проверенной команды обхода для этой прошивки CFS'
   No video player installed - showing the timelapse library: 'Видеоплеер не установлен – показана библиотека таймлапсов'
+  No video player on this printer: 'На этом принтере нет видеоплеера'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Веб-камера не обнаружена.\nДля таймлапса необходима веб-камера."
   No widgets found: Виджеты не найдены
@@ -4481,6 +4482,7 @@ translations:
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
   'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   Theme: Тема
   Theme Colors: Цвета темы
   Theme Preset: Пресет темы
@@ -4566,6 +4568,7 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'На этом принтере нет видеоплеера. Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
@@ -4655,6 +4658,7 @@ translations:
   Tips: 'Советы'
   Tips database format error: Ошибка формата базы данных советов
   Tips database not found: База данных советов не найдена
+  Title: Заголовок
   'To make videos, run this on your printer via SSH:': 'Чтобы создавать видео, выполните это на принтере через SSH:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Moonraker этого принтера слишком старый, чтобы плагин HelixPrint потом восстановил исходное имя файла, поэтому выполненное задание отображается под изменённым именем. Само сопоставление филамента работает нормально.
@@ -4898,6 +4902,8 @@ translations:
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
+  Video player failed to start: 'Не удалось запустить видеоплеер'
+  Video player failed to start ({}): 'Не удалось запустить видеоплеер ({})'
   View: Просмотр
   View Changelog: Просмотр изменений
   View Full History: Просмотреть полную историю
@@ -4947,6 +4953,7 @@ translations:
   Warning: Предупреждение
   Warnings & errors: 'Предупреждения и ошибки'
   Watch and control this screen from a browser: 'Просмотр и управление этим экраном из браузера'
+  Watch on Your Phone: 'Смотреть на телефоне'
   Watch the camera during a print for failed prints: Следит за камерой во время печати, выявляя неудачные печати
   Watch which motor turns: "Смотрите, какой двигатель вращается"
   Weak battery: Слабый заряд

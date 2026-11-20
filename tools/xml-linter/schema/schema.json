@@ -374,6 +374,9 @@
         "bind_selected": {
           "type": "string"
         },
+        "bind_options": {
+          "type": "string"
+        },
         "options_tag": {
           "type": "string"
         }
@@ -1689,6 +1692,9 @@
           "type": "string"
         },
         "show_indicators": {
+          "type": "bool"
+        },
+        "bubble_events": {
           "type": "bool"
         },
         "current_page_subject": {
@@ -3380,6 +3386,7 @@
     "badge_size_tiny",
     "badge_size_xlarge",
     "badge_size_xxlarge",
+    "bar_height",
     "bed_diagram_height",
     "bed_diagram_height_large",
     "bed_diagram_height_medium",
@@ -3557,6 +3564,7 @@
     "card_min_width",
     "card_width",
     "catalog_min_width",
+    "cell_size",
     "chamber_header_gap",
     "chamber_header_gap_large",
     "chamber_header_gap_medium",
@@ -3737,6 +3745,14 @@
     "filament_hub_border_light",
     "filament_idle_dark",
     "filament_idle_light",
+    "filament_landscape_row_h",
+    "filament_landscape_row_h_large",
+    "filament_landscape_row_h_medium",
+    "filament_landscape_row_h_micro",
+    "filament_landscape_row_h_small",
+    "filament_landscape_row_h_tiny",
+    "filament_landscape_row_h_xlarge",
+    "filament_landscape_row_h_xxlarge",
     "filament_metal",
     "filament_motion_glyph_w",
     "filament_motion_glyph_w_large",
@@ -4346,8 +4362,10 @@
     "section_bg_color",
     "shadow_cast",
     "shadow_intensity",
+    "shadow_offset",
     "shadow_offset_y",
     "shadow_opa",
+    "shadow_width",
     "size_lg",
     "size_lg_micro",
     "size_md",
@@ -4503,11 +4521,7 @@
     "status_line_gap",
     "status_line_height",
     "step_active",
-    "step_active_dark",
-    "step_active_light",
     "step_completed",
-    "step_completed_dark",
-    "step_completed_light",
     "step_connector",
     "step_connector_large",
     "step_connector_medium",
@@ -4516,22 +4530,18 @@
     "step_indicator_large",
     "step_indicator_medium",
     "step_indicator_small",
-    "step_label_active_dark",
-    "step_label_active_light",
     "step_label_gap",
     "step_label_gap_large",
     "step_label_gap_medium",
     "step_label_gap_small",
     "step_label_inactive_dark",
     "step_label_inactive_light",
-    "step_number_active_dark",
-    "step_number_active_light",
-    "step_number_pending_dark",
-    "step_number_pending_light",
+    "step_label_max_width",
+    "step_label_max_width_large",
+    "step_label_max_width_medium",
+    "step_label_max_width_small",
     "step_order",
     "step_pending",
-    "step_pending_dark",
-    "step_pending_light",
     "step_row_gap",
     "step_row_gap_large",
     "step_row_gap_medium",

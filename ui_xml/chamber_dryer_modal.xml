@@ -26,7 +26,6 @@
       <lv_dropdown name="preset_dropdown" width="100%"/>
       <lv_obj name="bed_assist_row"
               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
-              style_bg_opa="cover" style_bg_color="#card_bg" style_radius="#border_radius"
               style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false">
         <bind_flag_if_eq subject="printer_has_heater_bed" flag="hidden" ref_value="0"/>
         <text_body name="bed_assist_label" text="$bed_label" flex_grow="1" long_mode="wrap"/>

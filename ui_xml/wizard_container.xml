@@ -9,6 +9,10 @@
     <!-- Button width (RESPONSIVE: SMALL=110/MEDIUM=140/LARGE=160) -->
     <const name="wizard_button_width" value="160"/>
   </consts>
+  <api>
+    <!-- Where the current step's screen goes; Wizard fills it from C++. -->
+    <slot name="wizard_content"/>
+  </api>
   <!-- Wizard Container Root: Vertical stack (header, content, footer) -->
   <!-- Background color applied via screen_bg runtime constant (theme-aware: light/dark variants) -->
   <view name="wizard_container"
@@ -20,9 +24,7 @@
     <wizard_header_bar name="wizard_header"/>
 
     <!-- ==================== CONTENT ==================== -->
-    <lv_obj name="wizard_content" width="100%" flex_grow="1" scrollable="true" style_pad_all="0">
-      <!-- Wizard screens loaded here by C++ (lv_obj_set_parent) -->
-    </lv_obj>
+    <lv_obj name="wizard_content" width="100%" flex_grow="1" scrollable="true" style_pad_all="0"/>
 
     <!-- ==================== FOOTER ==================== -->
     <lv_obj name="wizard_footer"

@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The one label of a horizontal step progress bar in current-label-only
+       mode, centered under the row of dots. It floats; C++ reserves its line as
+       the bar's bottom padding and sets its text. -->
+  <view name="step_caption"
+        extends="lv_label" width="100%" text="" floating="true" long_mode="dots" style_text_align="center"
+        style_text_font="#font_body" style_text_color="#text"/>
+</component>

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One material in the history dashboard's Filament by Type chart: its name,
+     a bar proportional to its share and the amount, at the row's right edge.
+     Bound to HistoryDashboardPanel's history_fil_*_<index> subjects; hidden
+     while history_fil_shown_<index> is 0. The three widths are shares of the
+     row that sum under 100%, so the amount cannot spill past a narrow card. -->
+<component>
+  <api>
+    <prop name="index" type="int" default="0"/>
+  </api>
+  <consts>
+    <!-- The labels' line height, so the bar stands as tall as the text beside it -->
+    <px name="bar_height" value="19"/>
+  </consts>
+  <view name="history_filament_row_${index}"
+        extends="lv_obj" width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="start"
+        style_pad_gap="#space_xxs" scrollable="false">
+    <bind_flag_if_eq subject="history_fil_shown_${index}" flag="hidden" ref_value="0"/>
+    <lv_label width="22%" bind_text="history_fil_type_${index}" style_text_color="#text" style_text_font="montserrat_14"/>
+    <lv_obj height="#bar_height"
+            style_radius="2" style_border_width="0" style_pad_all="0" style_bg_opa="255" scrollable="false">
+      <bind_style_prop prop="width" subject="history_fil_bar_w_${index}"/>
+      <bind_style_prop prop="bg_color" subject="history_fil_color_${index}"/>
+    </lv_obj>
+    <lv_obj height="1" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"/>
+    <lv_label width="36%"
+              bind_text="history_fil_amount_${index}" style_text_color="#text" style_text_align="right"
+              style_text_font="montserrat_14"/>
+  </view>
+</component>

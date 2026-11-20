@@ -18,6 +18,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_pointer_indev.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api_mock.h"
@@ -25,7 +26,9 @@
 #include "moonraker_types.h"
 #include "printer_state.h"
 
+#include <chrono>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -59,6 +62,21 @@ struct TimelapseVideosOverlayTestAccess {
     }
     static const std::string& pending_delete(const TimelapseVideosOverlay& o) {
         return o.pending_delete_filename_;
+    }
+    /// Start extracting a frame from @p filename, as a card with no preview does.
+    static void start_extraction(TimelapseVideosOverlay& o, const std::string& filename) {
+        o.extract_queue_.push_back({filename, filename + "@test"});
+        o.run_next_extraction();
+    }
+    static bool extraction_failed(const TimelapseVideosOverlay& o, const std::string& filename) {
+        return o.extract_failed_.count(filename + "@test") != 0;
+    }
+    static bool extraction_busy(const TimelapseVideosOverlay& o) {
+        return o.extract_busy_;
+    }
+    /// What leaving the overlay does to the view's async work.
+    static void invalidate_view_lifetime(TimelapseVideosOverlay& o) {
+        o.lifetime_.invalidate();
     }
 };
 
@@ -160,7 +178,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
 TEST_CASE_METHOD(
     LVGLUITestFixture,
-    "timelapse library swaps its grid for the empty state, and shows play with a player",
+    "timelapse library swaps its grid for the empty state, and badges each card with its tap",
     "[timelapse][videos]") {
     TimelapseVideosOverlay overlay(nullptr);
     overlay.init_subjects();
@@ -170,14 +188,72 @@ TEST_CASE_METHOD(
     lv_obj_t* empty = lv_obj_find_by_name(root, "video_grid_empty");
     const char* attrs[] = {"filename", "a.mp4", "file_info", "", nullptr};
     auto* card = static_cast<lv_obj_t*>(lv_xml_create(grid, "timelapse_video_card", attrs));
-    lv_obj_t* play = card ? lv_obj_find_by_name(card, "play_overlay") : nullptr;
-    REQUIRE((grid && empty && play));
+    lv_obj_t* badge = card ? lv_obj_find_by_name(card, "play_overlay") : nullptr;
+    lv_obj_t* play = card ? lv_obj_find_by_name(card, "badge_play") : nullptr;
+    lv_obj_t* phone = card ? lv_obj_find_by_name(card, "badge_phone") : nullptr;
+    REQUIRE((grid && empty && badge && play && phone));
     auto hidden = [](lv_obj_t* w) { return lv_obj_is_hidden(w); };
     for (const int on : {1, 0}) {
         lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_empty"), on);
-        lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_can_play"), on);
         CHECK(hidden(grid) == (on == 1));
         CHECK(hidden(empty) == (on == 0));
-        CHECK(hidden(play) == (on == 0));
     }
+    // 0 = no badge, 1 = play here, 2 = watch on a phone
+    for (const int tap : {1, 2, 0}) {
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "timelapse_videos_tap_badge"), tap);
+        CHECK(hidden(badge) == (tap == 0));
+        CHECK(hidden(play) == (tap != 1));
+        CHECK(hidden(phone) == (tap != 2));
+    }
+}
+
+// Leaving the overlay mid-extraction must not leave the queue waiting forever
+// on a finish that never comes.
+namespace {
+
+void wait_for_extraction(const TimelapseVideosOverlay& overlay) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    while (TimelapseVideosOverlayTestAccess::extraction_busy(overlay) &&
+           std::chrono::steady_clock::now() < deadline) {
+        helix::ui::UpdateQueue::instance().drain();
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+}
+
+} // namespace
+
+// The path tried before Moonraker names its timelapse root is only a guess, so
+// a miss there must not stop the retry at the real root.
+TEST_CASE_METHOD(LVGLTestFixture, "timelapse: a frame missed before the root is known is retried",
+                 "[timelapse][extract]") {
+    helix::http::HttpExecutor::fast().start();
+    TimelapseVideosOverlay overlay(nullptr);
+
+    SECTION("root not known yet: the miss is not remembered") {
+        TimelapseVideosOverlayTestAccess::start_extraction(overlay, "missing.mp4");
+        wait_for_extraction(overlay);
+        CHECK_FALSE(TimelapseVideosOverlayTestAccess::extraction_failed(overlay, "missing.mp4"));
+    }
+    SECTION("root known: the miss is final") {
+        TimelapseVideosOverlayTestAccess::apply_roots(
+            overlay, {root("timelapse", "/nonexistent/helix-test-timelapse", "rw")});
+        TimelapseVideosOverlayTestAccess::start_extraction(overlay, "missing.mp4");
+        wait_for_extraction(overlay);
+        CHECK(TimelapseVideosOverlayTestAccess::extraction_failed(overlay, "missing.mp4"));
+    }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "timelapse: an extraction cut off by leaving still frees the queue",
+                 "[timelapse][extract]") {
+    helix::http::HttpExecutor::fast().start();
+    TimelapseVideosOverlay overlay(nullptr);
+    TimelapseVideosOverlayTestAccess::apply_roots(
+        overlay, {root("timelapse", "/nonexistent/helix-test-timelapse", "rw")});
+
+    TimelapseVideosOverlayTestAccess::start_extraction(overlay, "missing.mp4");
+    REQUIRE(TimelapseVideosOverlayTestAccess::extraction_busy(overlay));
+    TimelapseVideosOverlayTestAccess::invalidate_view_lifetime(overlay);
+    wait_for_extraction(overlay);
+    CHECK_FALSE(TimelapseVideosOverlayTestAccess::extraction_busy(overlay));
 }

@@ -2,11 +2,15 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!--
-    Energy info page for power device widget carousel.
-    Displays power, voltage, current, and energy readings.
-    C++ populates labels via lv_obj_find_by_name().
-  -->
+  <!-- The power device widget's second carousel page: an energy meter's
+       power, voltage, current and energy, each bound to a string subject the
+       widget formats from the meter's reading. -->
+  <api>
+    <prop name="energy_power_subject" type="string" default=""/>
+    <prop name="energy_voltage_subject" type="string" default=""/>
+    <prop name="energy_current_subject" type="string" default=""/>
+    <prop name="energy_energy_subject" type="string" default=""/>
+  </api>
   <view name="power_device_energy_page"
         extends="lv_obj" width="100%" height="100%" style_pad_all="0" style_pad_row="0" style_pad_bottom="#space_md"
         scrollable="false" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
@@ -14,21 +18,22 @@
 
     <!-- Power (W) — prominent top value -->
     <text_body name="energy_power_label"
-               width="100%" text="-- W" style_text_align="center" clickable="false" event_bubble="true"/>
+               width="100%" bind_text="$energy_power_subject" style_text_align="center" clickable="false"
+               event_bubble="true"/>
 
     <!-- Voltage (V) -->
     <text_tiny name="energy_voltage_label"
-               width="100%" text="-- V" style_text_color="#text_muted" style_text_align="center" clickable="false"
-               event_bubble="true"/>
+               width="100%" bind_text="$energy_voltage_subject" style_text_color="#text_muted" style_text_align="center"
+               clickable="false" event_bubble="true"/>
 
     <!-- Current (A) -->
     <text_tiny name="energy_current_label"
-               width="100%" text="-- A" style_text_color="#text_muted" style_text_align="center" clickable="false"
-               event_bubble="true"/>
+               width="100%" bind_text="$energy_current_subject" style_text_color="#text_muted" style_text_align="center"
+               clickable="false" event_bubble="true"/>
 
     <!-- Energy (kWh) -->
     <text_tiny name="energy_energy_label"
-               width="100%" text="-- kWh" style_text_color="#text_muted" style_text_align="center" clickable="false"
-               event_bubble="true"/>
+               width="100%" bind_text="$energy_energy_subject" style_text_color="#text_muted" style_text_align="center"
+               clickable="false" event_bubble="true"/>
   </view>
 </component>

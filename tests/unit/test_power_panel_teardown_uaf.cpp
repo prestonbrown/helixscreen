@@ -11,7 +11,7 @@
  * rebuild to the UpdateQueue. AsyncLifetimeGuard guards `this`; nothing guarded
  * the tree. Deleting the tree between "queued" and "drained" left every cached
  * pointer dangling and the null checks satisfied, so the deferred rebuild ran
- * safe_clean_children() and create_led_chip() on freed memory (#776 family).
+ * safe_clean_children() and the chip creation on freed memory (#776 family).
  *
  * These tests reproduce that ordering directly: populate, delete the tree, then
  * drain.
@@ -140,7 +140,7 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
 
     // Unguarded, this drain would run populate_device_chips_impl() on the freed
     // container: safe_clean_children() -> lv_obj_update_layout(), then
-    // create_led_chip() -> lv_button_create() -> lv_obj_get_screen(). SIGSEGV.
+    // lv_xml_create() of each chip -> lv_obj_get_screen(). SIGSEGV.
     UpdateQueue::instance().drain();
 
     CHECK(PowerPanelTestAccess::chip_container(panel()) == nullptr);

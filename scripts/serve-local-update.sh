@@ -39,10 +39,11 @@
 #   ./scripts/serve-local-update.sh [--platform PLATFORM]
 #
 #   helix-screen will check the manifest, see a newer version, download
-#   the tarball, run install.sh, and restart itself.
+#   the zip, run install.sh, and restart itself.
 #
 #   To test the installer directly on the device (bypassing the update checker):
-#   ssh USERNAME@PRINTER 'sh /tmp/install.sh --local /tmp/helixscreen-update.tar.gz'
+#   scp dist/helixscreen-PLATFORM.zip USERNAME@PRINTER:/tmp/
+#   ssh USERNAME@PRINTER 'sh /tmp/install.sh --local /tmp/helixscreen-PLATFORM.zip'
 #   (install.sh is copied to /tmp/ automatically by --configure-remote)
 #
 # ENVIRONMENT VARIABLES
@@ -72,7 +73,7 @@
 #   --no-bump             Serve the exact version from VERSION.txt instead of
 #                         99.0.0. Useful if you manually set a higher version.
 #   --no-build            Skip compile + package. Patches install.sh from the
-#                         repo into the existing dist/ tarball so script-only
+#                         repo into the existing dist/ zip so script-only
 #                         changes (install.sh, no binary changes) can be tested
 #                         immediately.
 #   --port PORT           HTTP port to listen on (default: 8765).
@@ -95,11 +96,11 @@
 #   - minisign (to sign the manifest)
 #   - python3 (for the HTTP server and device settings.json patch)
 #   - ssh + scp with key for $HELIX_TEST_USERNAME@$HELIX_TEST_PRINTER
-#   - rsync (used by package.sh)
+#   - zip and unzip (for the --no-build install.sh patch)
 #
 # NOTES
 # -----
-#   - The bumped version is only used for the tarball filename and manifest.
+#   - The bumped version is only used for the manifest.
 #     VERSION.txt is never modified.
 #   - After install the device binary still reports VERSION.txt's version
 #     (< 99.0.0), so the next run will again offer an update — intentional
@@ -155,6 +156,9 @@ command -v python3 >/dev/null || _missing+=(python3)
 command -v minisign >/dev/null || _missing+=(minisign)
 if [[ $BUILD -eq 1 ]]; then
     command -v docker >/dev/null || _missing+=(docker)
+else
+    command -v zip >/dev/null || _missing+=(zip)
+    command -v unzip >/dev/null || _missing+=(unzip)
 fi
 if [[ $CONFIGURE_REMOTE -eq 1 ]]; then
     command -v ssh >/dev/null || _missing+=("ssh")
@@ -180,8 +184,9 @@ fi
 # bare version numbers (e.g. "99.0.0") to avoid "vv99.0.0" in the installer.
 VERSION_BARE="${TEST_VERSION}"
 VERSION="v${TEST_VERSION}"
-TARBALL_NAME="helixscreen-${PLATFORM}-${VERSION}.tar.gz"
-TARBALL_PATH="$PROJECT_DIR/dist/$TARBALL_NAME"
+# The release zip carries no version in its name (make release-<platform>).
+ZIP_NAME="helixscreen-${PLATFORM}.zip"
+ZIP_PATH="$PROJECT_DIR/dist/$ZIP_NAME"
 
 # ── Local IP ──────────────────────────────────────────────────────────────────
 LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || \
@@ -214,14 +219,14 @@ echo "  ══════════════════"
 echo "  Platform     : $PLATFORM"
 echo "  Base version : $BASE_VERSION  (VERSION.txt — unchanged)"
 echo "  Test version : $TEST_VERSION  $([ $BUMP -eq 1 ] && echo "(fixed high — always newer than installed)" || echo "(no bump)")"
-echo "  Tarball      : $TARBALL_NAME"
+echo "  Package      : $ZIP_NAME"
 echo "  Serving at   : $BASE_URL"
 echo "  Device       : ${USERNAME}@${PRINTER}"
 echo ""
 
 # ── Bundle install.sh from modules ───────────────────────────────────────────
 # install.sh is generated from scripts/lib/installer/*.sh. Regenerate before build or
-# patch so the tarball carries the installer the modules describe.
+# patch so the package carries the installer the modules describe.
 echo "[serve-local-update] Bundling install.sh from modules..."
 make -C "$PROJECT_DIR" --no-print-directory installer
 INSTALLER="$PROJECT_DIR/build/installer/install.sh"
@@ -233,32 +238,35 @@ if [[ $BUILD -eq 1 ]]; then
     make -C "$PROJECT_DIR" "${PLATFORM}-docker"
     echo ""
     echo "[serve-local-update] Packaging..."
-    "$SCRIPT_DIR/package.sh" "${PLATFORM}" --version "$VERSION"
+    make -C "$PROJECT_DIR" "release-${PLATFORM}"
+    mkdir -p "$PROJECT_DIR/dist"
+    cp "$PROJECT_DIR/releases/$ZIP_NAME" "$ZIP_PATH"
     echo ""
 fi
 
-if [[ ! -f "$TARBALL_PATH" ]]; then
-    echo "ERROR: Tarball not found: $TARBALL_PATH"
+if [[ ! -f "$ZIP_PATH" ]]; then
+    echo "ERROR: Package not found: $ZIP_PATH"
     echo ""
-    echo "  Expected: $TARBALL_PATH"
-    echo "  Either run without --no-build, or build manually:"
-    echo "    make release-${PLATFORM}"
+    echo "  Either run without --no-build, or build and copy it manually:"
+    echo "    make ${PLATFORM}-docker release-${PLATFORM}"
+    echo "    mkdir -p dist && cp releases/$ZIP_NAME dist/"
     exit 1
 fi
 
-# ── Patch install.sh into existing tarball (--no-build fast path) ─────────────
+# ── Patch install.sh into the existing zip (--no-build fast path) ─────────────
+# The zip holds the package at its root (install.sh beside bin/), so the
+# patched entry is written at the same path.
 if [[ $BUILD -eq 0 ]]; then
-    echo "[serve-local-update] Patching install.sh into tarball..."
+    echo "[serve-local-update] Patching install.sh into $ZIP_NAME..."
     PATCH_DIR="$(mktemp -d)"
     trap 'rm -rf "$PATCH_DIR"' EXIT
-    tar -xzf "$TARBALL_PATH" -C "$PATCH_DIR"
-    if [[ ! -d "$PATCH_DIR/helixscreen" ]]; then
-        echo "ERROR: Tarball does not contain expected helixscreen/ directory."
+    if ! unzip -l "$ZIP_PATH" install.sh >/dev/null 2>&1; then
+        echo "ERROR: $ZIP_NAME has no install.sh at its root."
         exit 1
     fi
-    cp "$INSTALLER" "$PATCH_DIR/helixscreen/install.sh"
-    chmod +x "$PATCH_DIR/helixscreen/install.sh"
-    COPYFILE_DISABLE=1 tar -czf "$TARBALL_PATH" --owner=0 --group=0 -C "$PATCH_DIR" helixscreen
+    cp "$INSTALLER" "$PATCH_DIR/install.sh"
+    chmod +x "$PATCH_DIR/install.sh"
+    (cd "$PATCH_DIR" && zip -q "$ZIP_PATH" install.sh)
     rm -rf "$PATCH_DIR"
     trap - EXIT
     echo "[serve-local-update] install.sh patched."
@@ -267,25 +275,30 @@ fi
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
 MANIFEST_PATH="$PROJECT_DIR/dist/manifest.json"
-TARBALL_SHA256=$(shasum -a 256 "$TARBALL_PATH" | awk '{print $1}')
-TARBALL_SIZE=$(stat -f%z "$TARBALL_PATH" 2>/dev/null || stat -c%s "$TARBALL_PATH" 2>/dev/null)
+ZIP_SHA256=$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')
+ZIP_SIZE=$(wc -c < "$ZIP_PATH" | tr -d ' ')
+# Same fields as scripts/generate-manifest.sh: zip_* for the in-app updater,
+# url/sha256/size mirroring them for the installer.
 cat > "$MANIFEST_PATH" <<EOF
 {
   "version": "${VERSION_BARE}",
-  "channel": "dev",
+  "tag": "${VERSION}",
+  "notes": "serve-local-update test build",
   "assets": {
     "${PLATFORM}": {
-      "filename": "${TARBALL_NAME}",
-      "url": "${BASE_URL}/${TARBALL_NAME}",
-      "sha256": "${TARBALL_SHA256}",
-      "size": ${TARBALL_SIZE}
+      "url": "${BASE_URL}/${ZIP_NAME}",
+      "sha256": "${ZIP_SHA256}",
+      "size": ${ZIP_SIZE},
+      "zip_url": "${BASE_URL}/${ZIP_NAME}",
+      "zip_sha256": "${ZIP_SHA256}",
+      "zip_size": ${ZIP_SIZE}
     }
   }
 }
 EOF
 echo "[serve-local-update] Manifest → $MANIFEST_PATH"
-echo "  SHA256: ${TARBALL_SHA256}"
-echo "  Size:   ${TARBALL_SIZE} bytes"
+echo "  SHA256: ${ZIP_SHA256}"
+echo "  Size:   ${ZIP_SIZE} bytes"
 
 # ── Sign the manifest with the local test key ─────────────────────────────────
 KEY_DIR="${HELIX_LOCAL_UPDATE_KEY_DIR:-$HOME/.helixscreen-local-update-key}"
@@ -398,7 +411,8 @@ print('  HELIX_LOG_LEVEL=debug  (debug logging enabled in', env_path + ')')
     echo "[serve-local-update] Copying install.sh to /tmp/ on ${USERNAME}@${PRINTER} ..."
     scp "$INSTALLER" "${USERNAME}@${PRINTER}:/tmp/install.sh"
     echo "  To test the installer directly on the device (bypasses update checker):"
-    echo "    ssh ${USERNAME}@${PRINTER} 'sh /tmp/install.sh --local /tmp/helixscreen-update.tar.gz'"
+    echo "    scp ${ZIP_PATH} ${USERNAME}@${PRINTER}:/tmp/"
+    echo "    ssh ${USERNAME}@${PRINTER} 'sh /tmp/install.sh --local /tmp/${ZIP_NAME}'"
     echo ""
     echo "[serve-local-update] Restarting helix-screen on ${USERNAME}@${PRINTER} ..."
     ssh "${USERNAME}@${PRINTER}" "sudo systemctl restart helixscreen"
@@ -413,7 +427,7 @@ echo "  Ready"
 echo "  ─────────────────────────────────────────────────"
 echo "  Manifest : ${BASE_URL}/manifest.json"
 echo "  Signature: ${BASE_URL}/manifest.json.minisig"
-echo "  Tarball  : ${BASE_URL}/${TARBALL_NAME}"
+echo "  Package  : ${BASE_URL}/${ZIP_NAME}"
 echo ""
 echo "  Device expects (set via --configure-remote if not already done):"
 echo "    update/channel  = 2                            (~/helixscreen/config/settings.json)"

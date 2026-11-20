@@ -21,6 +21,7 @@
 #include "ui_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "helix-xml/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
 
@@ -76,16 +77,16 @@ lv_obj_t* show_one() {
     auto& stack = ModalStack::instance();
     lv_obj_t* dialog = stack.top_dialog();
     REQUIRE(dialog != nullptr);
-    // The QR canvas is the container's only child; asserting it keeps a
+    // The QR canvas is the qr slot's only child; asserting it keeps a
     // registration regression from turning the whole case into a no-op.
-    lv_obj_t* container = lv_obj_find_by_name(dialog, "qr_container");
-    REQUIRE(container != nullptr);
-    REQUIRE(lv_obj_get_child_count(container) == 1);
+    lv_obj_t* frame = lv_xml_component_get_slot(dialog, "qr");
+    REQUIRE(frame != nullptr);
+    REQUIRE(lv_obj_get_child_count(frame) == 1);
     return dialog;
 }
 
 // One device-shaped cycle: build, force the synchronous refresh that hands
-// draw tasks (including the qr_container's transitional layer) to the swdraw
+// draw tasks (including the QR frame's transitional layer) to the swdraw
 // thread, then hide so the async delete races whatever the thread still holds.
 void cycle_modal(LVGLUITestFixture& fx, lv_obj_t* dialog, int ticks) {
     lv_obj_update_layout(dialog);

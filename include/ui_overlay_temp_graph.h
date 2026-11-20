@@ -10,6 +10,7 @@
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "heater_type.h"
+#include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "temp_graph_controller.h"
 #include "temp_graph_series_policy.h"
@@ -134,7 +135,6 @@ class TempGraphOverlay : public OverlayBase {
     /// Show or hide one series' lines and dim its chip to match.
     void show_series(size_t series_idx);
     void update_chip_style(size_t series_idx);
-    static void on_chip_clicked(lv_event_t* e);
 
     // Control strip
     void configure_control_strip();
@@ -189,6 +189,12 @@ class TempGraphOverlay : public OverlayBase {
     lv_obj_t* bed_strip_ = nullptr;
     lv_obj_t* chamber_strip_ = nullptr;
     std::vector<SeriesInfo> series_;
+    /// Each series' chip (temp_series_chip.xml): its dot colour and whether the
+    /// series shows (1) or is dimmed (0), by series index.
+    helix::xml::IndexedSubjectPool chip_color_pool_{"temp_graph_chip_color",
+                                                    helix::xml::IndexedSubjectPool::Type::Color};
+    helix::xml::IndexedSubjectPool chip_visible_pool_{"temp_graph_chip_visible",
+                                                      helix::xml::IndexedSubjectPool::Type::Int};
 
     // Thermal tint for the largest heater glyphs in the product (size="xl", one
     // per control strip). Bound in on_activate(), unbound in on_deactivating():

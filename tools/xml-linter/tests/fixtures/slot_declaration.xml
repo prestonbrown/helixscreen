@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<component>
+  <api>
+    <slot name="body" default="true"/>
+    <slot name="footer" target="footer_row"/>
+    <prop name="title" type="string"/>
+  </api>
+  <view name="card">
+    <lv_obj name="body"/>
+    <lv_obj name="footer_row"/>
+  </view>
+</component>

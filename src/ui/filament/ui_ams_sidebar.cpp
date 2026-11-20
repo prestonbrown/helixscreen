@@ -650,20 +650,6 @@ void AmsOperationSidebar::init_observers() {
         [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
         printer_state_.print_state().get_static_subjects_lifetime());
 
-    // Active backend observer: re-syncs reset button label when the user switches backend tabs
-    active_backend_observer_ = observe<int>(
-        AmsState::instance().get_active_backend_subject(), this,
-        [](AmsOperationSidebar* self, int /*active_index*/) {
-            if (!self->active_ || !self->sidebar_root_)
-                return;
-            self->sync_reset_button_label();
-            self->update_check_gates_visibility();
-            // reset_moves_filament() is a per-backend answer, so switching tabs
-            // changes Reset's gating even with the job state unmoved.
-            self->refresh_button_gating();
-        },
-        AmsState::instance().get_subjects_lifetime());
-
     // The mounted line follows the carriage.
     active_tool_observer_ = observe<int>(
         ToolState::instance().get_active_tool_subject(), this,
@@ -787,7 +773,6 @@ void AmsOperationSidebar::cleanup() {
     // observer still holds a raw pointer to it.
     action_observer_.reset();
     current_slot_observer_.reset();
-    active_backend_observer_.reset();
     bypass_spool_observer_.reset();
     color_observer_.reset();
     colors_observer_.reset();
@@ -992,9 +977,8 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                 ++idx;
             }
             current_step_count_ = static_cast<int>(steps.size());
-            step_progress_ =
-                ui_step_progress_create(step_progress_container_, steps.data(), current_step_count_,
-                                        horizontal, "ams_step_progress");
+            step_progress_ = ui_step_progress_create(step_progress_container_, steps.data(),
+                                                     current_step_count_, horizontal);
             if (step_progress_ && horizontal)
                 ui_step_progress_set_current_label_only(step_progress_, true);
             if (step_progress_) {
@@ -1081,16 +1065,16 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                 {lv_tr("Purge"), StepState::Pending},
             };
             current_step_count_ = 3;
-            step_progress_ = ui_step_progress_create(step_progress_container_, steps, 3, horizontal,
-                                                     "ams_step_progress");
+            step_progress_ =
+                ui_step_progress_create(step_progress_container_, steps, 3, horizontal);
         } else {
             ui_step_t steps[] = {
                 {lv_tr("Heat nozzle"), StepState::Pending},
                 {lv_tr("Feed filament"), StepState::Pending},
             };
             current_step_count_ = 2;
-            step_progress_ = ui_step_progress_create(step_progress_container_, steps, 2, horizontal,
-                                                     "ams_step_progress");
+            step_progress_ =
+                ui_step_progress_create(step_progress_container_, steps, 2, horizontal);
         }
         break;
     }
@@ -1104,8 +1088,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
         if (supports_purge)
             steps[n++] = {lv_tr("Purge"), StepState::Pending};
         current_step_count_ = n;
-        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal,
-                                                 "ams_step_progress");
+        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal);
         break;
     }
     case StepOperationType::UNLOAD: {
@@ -1116,8 +1099,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
             steps[n++] = {tip_step_label, StepState::Pending};
         steps[n++] = {lv_tr("Retract"), StepState::Pending};
         current_step_count_ = n;
-        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal,
-                                                 "ams_step_progress");
+        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal);
         break;
     }
     }

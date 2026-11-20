@@ -8,6 +8,7 @@
 #include "ui_error_reporting.h"
 #include "ui_nav.h"
 #include "ui_next_tick.h"
+#include "ui_row_text.h"
 #include "ui_swatch.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
@@ -160,6 +161,14 @@ void TempGraphOverlay::register_callbacks() {
     register_xml_callbacks({
         {"on_temp_graph_preset_clicked", on_temp_graph_preset_clicked},
         {"on_temp_graph_custom_clicked", on_temp_graph_custom_clicked},
+        {"temp_graph_chip_cb",
+         [](lv_event_t* e) {
+             auto& self = get_global_temp_graph_overlay();
+             if (auto idx = helix::ui::event_user_int(e);
+                 idx && *idx >= 0 && static_cast<size_t>(*idx) < self.series_.size()) {
+                 self.toggle_series_visibility(static_cast<size_t>(*idx));
+             }
+         }},
     });
 }
 
@@ -503,57 +512,27 @@ void TempGraphOverlay::create_chips() {
 
     helix::ui::safe_clean_children(chip_row_);
 
+    chip_color_pool_.ensure_size(series_.size());
+    chip_visible_pool_.ensure_size(series_.size());
     for (size_t i = 0; i < series_.size(); ++i) {
         auto& s = series_[i];
+        chip_color_pool_.set_color(i, lv_color_to_u32(s.color) & 0xFFFFFF);
 
-        // Create a chip button: colored dot + label
-        lv_obj_t* chip = lv_obj_create(chip_row_);
-        lv_obj_set_size(chip, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_hor(chip, theme_manager_get_spacing("space_sm"), 0);
-        lv_obj_set_style_pad_ver(chip, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_set_style_radius(chip, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(chip, theme_manager_get_color("elevated_bg"), 0);
-        lv_obj_set_style_border_width(chip, 1, 0);
-        lv_obj_set_style_border_color(chip, theme_manager_get_color("border"), 0);
-        lv_obj_set_style_shadow_width(chip, 4, 0);
-        lv_obj_set_style_shadow_opa(chip, LV_OPA_20, 0);
-        lv_obj_set_style_shadow_offset_y(chip, 2, 0);
-        lv_obj_set_flex_flow(chip, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(chip, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_gap(chip, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_set_scrollable(chip, false);
-        lv_obj_set_clickable(chip, true);
+        const std::string index = std::to_string(i);
+        const char* attrs[] = {"index", index.c_str(), nullptr};
+        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_row_, "temp_series_chip", attrs));
+        if (!chip)
+            continue;
 
-        // Color dot
-        lv_obj_t* dot = lv_obj_create(chip);
-        lv_obj_set_size(dot, 8, 8);
-        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
-        lv_obj_set_style_border_width(dot, 0, 0);
-        helix::ui::apply_swatch_color(dot, lv_color_to_u32(s.color) & 0xFFFFFF, "");
-        lv_obj_set_clickable(dot, false);
-        lv_obj_set_scrollable(dot, false);
-        lv_obj_set_event_bubble(dot, true);
-
-        // Label — strip redundant " Temperature" suffix for chip brevity
+        // Strip the redundant " Temperature" suffix for chip brevity
         std::string chip_label = s.display_name;
         const std::string suffix = " Temperature";
         if (chip_label.size() > suffix.size() &&
             chip_label.compare(chip_label.size() - suffix.size(), suffix.size(), suffix) == 0) {
             chip_label.erase(chip_label.size() - suffix.size());
         }
-        lv_obj_t* label = lv_label_create(chip);
-        lv_label_set_text(label, chip_label.c_str());
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_small"), 0);
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
-        lv_obj_set_clickable(label, false);
-        lv_obj_set_event_bubble(label, true);
-
-        // Store index as user data for click handler
-        lv_obj_set_user_data(chip, reinterpret_cast<void*>(i));
-        // Exception: programmatic widget, can't use XML event_cb
-        lv_obj_add_event_cb(chip, on_chip_clicked, LV_EVENT_CLICKED, this);
+        // A sensor name is user text: as a prop a leading '#' would read as a const.
+        helix::ui::set_row_label_text(chip, "chip_label", chip_label.c_str());
 
         s.chip = chip;
 
@@ -562,18 +541,6 @@ void TempGraphOverlay::create_chips() {
         if (controller_ && controller_->is_valid() && s.series_id != SeriesId::None) {
             ui_temp_graph_show_series(controller_->graph(), s.series_id, s.visible);
         }
-    }
-}
-
-void TempGraphOverlay::on_chip_clicked(lv_event_t* e) {
-    auto* self = static_cast<TempGraphOverlay*>(lv_event_get_user_data(e));
-    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    if (!self || !target)
-        return;
-
-    auto idx = reinterpret_cast<size_t>(lv_obj_get_user_data(target));
-    if (idx < self->series_.size()) {
-        self->toggle_series_visibility(idx);
     }
 }
 
@@ -651,8 +618,9 @@ void TempGraphOverlay::update_chip_style(size_t series_idx) {
     if (!s.chip)
         return;
 
-    lv_opa_t opa = s.visible ? LV_OPA_COVER : LV_OPA_40;
-    lv_obj_set_style_opa(s.chip, opa, 0);
+    if (series_idx < chip_visible_pool_.size()) {
+        chip_visible_pool_.set_int(series_idx, s.visible ? 1 : 0);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

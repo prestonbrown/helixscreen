@@ -111,6 +111,12 @@ class DisplaySleepController {
     /// lifts (helix::WakeTouchLatch).
     bool note_press(int x, int y);
 
+    /// LVGL deleted the touch pointer. Under panel power-off that asks for a wake, so the
+    /// panel powers on and a touch controller it powers can return, and the wake ends
+    /// power-off for the session (helix::pointer_loss_ends_power_off).
+    /// @p power_off_explicit only words the warning.
+    void note_pointer_lost(bool power_off_explicit);
+
 #if HELIX_ENABLE_SCREENSAVER
     /// Starts @p type as a settings preview; the next touch dismisses it without auto-lock.
     void preview_screensaver(int type);
@@ -160,6 +166,8 @@ class DisplaySleepController {
     /// The print lifecycle the previous tick read. Idle at construction, before any
     /// connection, so a job the screen first hears of mid-print counts as a start.
     PrintState m_last_print_lifecycle = PrintState::Idle;
+    // The next wake ends panel power-off for this session: touch was lost under it.
+    bool m_stop_power_off_on_wake = false;
     int m_dim_timeout_sec = 600;
     int m_dim_brightness_percent = 30;
 

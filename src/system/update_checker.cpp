@@ -20,6 +20,7 @@
 #include "config.h"
 #include "core/log_redact.h"
 #include "core/notification_api.h"
+#include "core/observer_factory.h"
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
@@ -172,43 +173,47 @@ std::string this_board_display_name() {
 
 /// Picks @p platform_key's asset out of a GitHub release asset list into
 /// @p info. False, leaving @p info untouched, when the release has none.
+/// The zip wins; the versioned tar.gz serves a release that predates the
+/// zip-only ones and has no zip.
 bool select_github_asset(const json& assets, const std::string& platform_key,
                          UpdateChecker::ReleaseInfo& info) {
     const std::string zip_name = "helixscreen-" + platform_key + ".zip";
     const std::string platform_prefix = "helixscreen-" + platform_key + "-";
-    spdlog::info("[UpdateChecker] Platform key: '{}', prefer prefix '{}...tar.gz' else '{}'",
-                 platform_key, platform_prefix, zip_name);
+    spdlog::info("[UpdateChecker] Platform key: '{}', prefer '{}' else prefix '{}...tar.gz'",
+                 platform_key, zip_name, platform_prefix);
 
-    std::string zip_url;
-    size_t zip_size = 0;
+    std::string tar_name;
+    std::string tar_url;
+    size_t tar_size = 0;
     for (const auto& asset : assets) {
         std::string name = asset.value("name", "");
-        // The version's 'v' must sit directly after the platform prefix:
-        // a longer platform key that extends this one (k1-dynamic for k1)
-        // carries the prefix too and must not be selected for the shorter
-        // key. Asset names are helixscreen-<plat>-v<version>.tar.gz.
-        const size_t after_prefix = platform_prefix.size();
-        if (name.size() > after_prefix + 1 && name[after_prefix] == 'v' &&
-            isdigit(static_cast<unsigned char>(name[after_prefix + 1])) &&
-            name.compare(0, after_prefix, platform_prefix) == 0 &&
-            name.find(".tar.gz") != std::string::npos) {
+        if (name == zip_name) {
             info.download_url = asset.value("browser_download_url", "");
             info.download_bytes = asset.value("size", static_cast<size_t>(0));
             spdlog::info("[UpdateChecker] Selected asset: {} ({} bytes)", name,
                          info.download_bytes);
             return true;
         }
-        if (zip_url.empty() && name == zip_name) {
-            zip_url = asset.value("browser_download_url", "");
-            zip_size = asset.value("size", static_cast<size_t>(0));
+        // The version's 'v' must sit directly after the platform prefix:
+        // a longer platform key that extends this one (k1-dynamic for k1)
+        // carries the prefix too and must not be selected for the shorter
+        // key. Asset names are helixscreen-<plat>-v<version>.tar.gz.
+        const size_t after_prefix = platform_prefix.size();
+        if (tar_url.empty() && name.size() > after_prefix + 1 && name[after_prefix] == 'v' &&
+            isdigit(static_cast<unsigned char>(name[after_prefix + 1])) &&
+            name.compare(0, after_prefix, platform_prefix) == 0 &&
+            name.find(".tar.gz") != std::string::npos) {
+            tar_name = name;
+            tar_url = asset.value("browser_download_url", "");
+            tar_size = asset.value("size", static_cast<size_t>(0));
         }
     }
-    if (zip_url.empty()) {
+    if (tar_url.empty()) {
         return false;
     }
-    info.download_url = zip_url;
-    info.download_bytes = zip_size;
-    spdlog::info("[UpdateChecker] Selected zip asset (no tar.gz present): {} ({} bytes)", zip_name,
+    info.download_url = tar_url;
+    info.download_bytes = tar_size;
+    spdlog::info("[UpdateChecker] Selected tar.gz asset (no zip present): {} ({} bytes)", tar_name,
                  info.download_bytes);
     return true;
 }
@@ -233,14 +238,9 @@ bool parse_github_release(const json& j, UpdateChecker::ReleaseInfo& info, std::
         return false;
     }
 
-    // Find platform-specific binary asset. The release flow uploads one
-    // unversioned zip per platform ("helixscreen-<plat>.zip") alongside the
-    // versioned tar.gz ("helixscreen-<plat>-v1.2.3.tar.gz"). We prefer the
-    // tar.gz: pre-v0.99.31 in-app updaters call gunzip on whatever URL the
-    // asset list hands them, so picking the .zip on this fallback path
-    // yields "Corrupt download" for clients still on v0.99.30 or earlier
-    // (mirrors the R2 manifest --include-zip gate). Once telemetry shows
-    // v0.99.30 adoption is gone, this preference can flip back to zip.
+    // Find the platform-specific binary asset: the unversioned zip
+    // ("helixscreen-<plat>.zip"), or the versioned tar.gz
+    // ("helixscreen-<plat>-v1.2.3.tar.gz") of a release that has no zip.
     if (const json* assets = helix::json_util::find_array(j, "assets")) {
         bool found = false;
         for (const auto& key : asset_keys) {
@@ -367,15 +367,15 @@ std::string resolve_tool(const std::string& name) {
 
 /// Populate ReleaseInfo download URLs from a per-platform manifest asset
 /// object (R2 + dev manifest schema). Prefers `zip_url`/`zip_sha256`, falls
-/// back to legacy `url`/`sha256` (tar.gz) only when no zip is in the manifest.
+/// back to `url`/`sha256` (the tar.gz of a release from before the zip-only
+/// manifests) only when no zip is in the manifest.
 void populate_release_urls_from_manifest(const json& platform_asset,
                                          UpdateChecker::ReleaseInfo& info) {
     std::string zip_url = json_string_or_empty(platform_asset, "zip_url");
     if (!zip_url.empty()) {
         info.download_url = zip_url;
         info.sha256 = json_string_or_empty(platform_asset, "zip_sha256");
-        // Manifest currently only carries `size` for the legacy tar.gz; if a
-        // future schema adds `zip_size` we'll prefer it here.
+        // A manifest from before zip_size existed carries only the tar.gz size.
         info.download_bytes = platform_asset.value("zip_size", platform_asset.value("size", 0ULL));
     } else {
         info.download_url = json_string_or_empty(platform_asset, "url");
@@ -928,6 +928,9 @@ void UpdateChecker::shutdown() {
         download_error_.clear();
     }
 
+    // A sync waiting for a job to end must not start after shutdown.
+    moonraker_sync_after_job_.reset();
+
     if (subjects_initialized_) {
         // Expire any worker-thread callback still queued on the UpdateQueue
         // before the subjects it writes are torn down (#1165, #1146).
@@ -1431,9 +1434,7 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
         // resolver accepts .../build/bin too), so creating the file whenever it
         // is missing would drop an untracked release_info.json into the repo.
         // Only a deployed layout — binary directly under <root>/bin — gets one.
-        const std::string deployed_bin = install_root + "/bin/helix-screen";
-        struct stat st {};
-        if (stat(deployed_bin.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
+        if (!is_deployed_layout(install_root)) {
             spdlog::debug("[UpdateChecker] No release_info.json at {} and no deployed "
                           "install layout — nothing to repair",
                           path);
@@ -2657,6 +2658,80 @@ void UpdateChecker::perform_update_restart(const std::string& install_root) {
 // External update detection (Moonraker notify_update_response)
 // ============================================================================
 
+bool UpdateChecker::is_deployed_layout(const std::string& install_root) {
+    if (install_root.empty()) {
+        return false;
+    }
+    const std::string deployed_bin = install_root + "/bin/helix-screen";
+    struct stat st {};
+    return stat(deployed_bin.c_str(), &st) == 0 && S_ISREG(st.st_mode);
+}
+
+bool UpdateChecker::startup_runs_restore(const char* service_restarts,
+                                         const std::string& install_root) {
+    const bool service_runs_it = service_restarts != nullptr && service_restarts[0] != '\0';
+    return !service_runs_it && is_deployed_layout(install_root);
+}
+
+int UpdateChecker::run_restore_user_config(const std::string& install_root,
+                                           std::chrono::milliseconds deadline) {
+    const std::string script = install_root + "/config/restore-user-config.sh";
+    struct stat st {};
+    if (install_root.empty() || stat(script.c_str(), &st) != 0) {
+        spdlog::warn("[UpdateChecker] No {} to relink the user config before the restart", script);
+        return -1;
+    }
+
+    spdlog::info("[UpdateChecker] Relinking the user config: {}", script);
+    spdlog::default_logger()->flush();
+    const auto start = std::chrono::steady_clock::now();
+
+    // argv is built before fork(): the child of a threaded process may make
+    // only async-signal-safe calls, so no allocation there.
+    std::string sh = "/bin/sh";
+    std::string arg = script;
+    char* argv[] = {sh.data(), arg.data(), nullptr};
+    pid_t pid = fork();
+    if (pid < 0) {
+        spdlog::warn("[UpdateChecker] fork() for {} failed: {}", script, strerror(errno));
+        return -1;
+    }
+    if (pid == 0) {
+        // Its own process group, so a timeout ends whatever the script started
+        // too (cp, find, sync), not just the shell.
+        setpgid(0, 0);
+        execv(argv[0], argv);
+        ::_exit(127);
+    }
+    setpgid(pid, pid); // both sides: whichever runs first wins the race
+
+    constexpr auto kTermGrace = std::chrono::milliseconds(500);
+    constexpr auto kPollInterval = std::chrono::milliseconds(20);
+    const ChildWaitResult wait =
+        terminate_and_reap(pid, start + deadline, kTermGrace, kPollInterval);
+    if (wait.outcome == ChildWaitOutcome::TimedOut) {
+        // The shell is reaped; the group id stays reserved while any member
+        // lives, so this reaches only what the script left running.
+        kill(-pid, SIGKILL);
+    }
+    const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now() - start)
+                                .count();
+    if (wait.outcome != ChildWaitOutcome::Exited) {
+        spdlog::warn("[UpdateChecker] {} did not finish within {} ms; starting without it", script,
+                     deadline.count());
+        return -1;
+    }
+    const int code = wait.exit_code();
+    if (code == 0) {
+        spdlog::info("[UpdateChecker] User config relinked in {} ms", elapsed_ms);
+    } else {
+        spdlog::warn("[UpdateChecker] {} exited {} after {} ms; starting anyway", script, code,
+                     elapsed_ms);
+    }
+    return code;
+}
+
 void UpdateChecker::handle_external_update_complete() {
     spdlog::info("[UpdateChecker] Moonraker completed external update of HelixScreen — restarting");
 
@@ -3150,24 +3225,11 @@ bool UpdateChecker::report_play_verdict(ReleaseInfo manifest, const std::string&
 // Channel-specific fetch methods
 // ============================================================================
 
-const char* UpdateChecker::moonraker_channel_name(UpdateChannel channel) {
-    return channel == UpdateChannel::Stable ? "stable" : "beta";
-}
-
-UpdateChecker::MoonrakerChannelSync
-UpdateChecker::decide_moonraker_channel_sync(const std::string& app, const std::string& conf,
-                                             const std::string& last_synced) {
-    if (conf.empty())
-        return MoonrakerChannelSync::Write;
-    if (app == conf)
-        return MoonrakerChannelSync::RecordOnly;
-    if (!last_synced.empty() && app == last_synced && conf != last_synced) {
-        if (conf == moonraker_channel_name(UpdateChannel::Stable) ||
-            conf == moonraker_channel_name(UpdateChannel::Beta))
-            return MoonrakerChannelSync::Adopt;
-        return MoonrakerChannelSync::Leave;
-    }
-    return MoonrakerChannelSync::Write;
+bool UpdateChecker::stanza_file_editable(const std::string& file, bool mod_host) {
+    if (!mod_host)
+        return true;
+    const size_t slash = file.find_last_of('/');
+    return (slash == std::string::npos ? file : file.substr(slash + 1)) == "user.moonraker.conf";
 }
 
 void UpdateChecker::sync_moonraker_channel() {
@@ -3178,21 +3240,10 @@ namespace {
 
 constexpr const char* kMoonrakerConf = "moonraker.conf";
 constexpr const char* kHelixStanza = "update_manager helixscreen";
-/// The stanza channel the app and moonraker.conf last agreed on: the reference that
-/// tells a hand edit of the stanza from a channel change in the app.
-constexpr const char* kSyncedChannelKey = "/update/moonraker_channel";
-
-std::string synced_moonraker_channel() {
-    return Config::get_instance()->get<std::string>(kSyncedChannelKey, "");
-}
-
-void record_synced_moonraker_channel(const std::string& channel) {
-    if (synced_moonraker_channel() == channel)
-        return;
-    auto* config = Config::get_instance();
-    config->set<std::string>(kSyncedChannelKey, channel);
-    config->save();
-}
+/// The only channel the stanza ever names (update_manager_web_channel in the installer).
+constexpr const char* kStanzaChannel = "stable";
+/// The stanza's name in machine.update.status's version_info.
+constexpr const char* kHelixEntry = "helixscreen";
 
 /// Both name the same directory once `.`, `..`, symlinks and trailing slashes are
 /// resolved. Empty never matches: an unknown directory proves nothing.
@@ -3208,10 +3259,38 @@ bool same_directory(const std::string& a, const std::string& b) {
 
 } // namespace
 
+void UpdateChecker::defer_moonraker_sync_until_job_ends(const std::string& install_root) {
+    moonraker_sync_root_ = install_root;
+    if (moonraker_sync_after_job_)
+        return;
+    spdlog::info("[UpdateChecker] A job holds the machine; HelixScreen's Moonraker update entry "
+                 "is synced when it ends");
+    auto& print = get_printer_state().print_state();
+    moonraker_sync_after_job_ = helix::ui::observe_print_lifecycle(
+        print.get_print_lifecycle_subject(), this,
+        [](UpdateChecker* self, PrintState state) {
+            if (job_holds_machine(state))
+                return;
+            // Not from inside the observer that is being dropped.
+            self->async_lifetime_.token().defer(
+                "UpdateChecker::sync_moonraker_after_job", [self]() {
+                    if (!self->moonraker_sync_after_job_)
+                        return;
+                    self->moonraker_sync_after_job_.reset();
+                    spdlog::info("[UpdateChecker] The job ended; "
+                                 "syncing the Moonraker update "
+                                 "entry");
+                    self->sync_moonraker_channel_for(self->moonraker_sync_root_);
+                });
+        },
+        print.get_static_subjects_lifetime());
+}
+
 void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api)
         return;
+    moonraker_sync_root_ = install_root;
 
     // The stanza belongs to whichever HelixScreen the installer put on that machine.
     // A remote screen, or a second instance on another channel, would otherwise
@@ -3225,8 +3304,16 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
         return;
     }
 
-    const std::string want = moonraker_channel_name(get_channel());
-    const std::string last_synced = synced_moonraker_channel();
+    // Switching the entry needs a Moonraker restart, which drops Klipper's API
+    // clients: nothing is written while a job holds the machine, and the sync
+    // runs again when it ends.
+    if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        defer_moonraker_sync_until_job_ends(install_root);
+        return;
+    }
+
+    const bool want_listed = get_channel() == UpdateChannel::Stable;
+    const bool mod_host = helix::firmware_mod_owns_moonraker_conf();
     // The newest sync wins, and detach() (every printer teardown) also bumps the
     // generation: a new API can reuse the old one's address, so the generation, not
     // the pointer, says this sync is still current.
@@ -3245,72 +3332,112 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
     // mainsail.conf does on some firmware; it is rewritten where Moonraker reads it.
     helix::system::download_config_include_graph(
         *api, kMoonrakerConf, "",
-        [this, tok, api, want, last_synced, gen, install_root](
+        [this, tok, api, want_listed, mod_host, gen, install_root](
             const std::set<std::string>&, const std::map<std::string, std::string>& files) {
-            const std::string file = helix::MoonrakerConfigManager::find_section_file(
-                files, kMoonrakerConf, kHelixStanza);
+            using helix::MoonrakerConfigManager;
+            // A listed stanza first; else one the installer switched off.
+            std::string file =
+                MoonrakerConfigManager::find_section_file(files, kMoonrakerConf, kHelixStanza);
+            const bool listed = !file.empty();
+            if (!listed) {
+                for (const auto& [name, text] : files) {
+                    if (MoonrakerConfigManager::has_switched_off_section(text, kHelixStanza)) {
+                        file = name;
+                        break;
+                    }
+                }
+            }
             if (file.empty()) {
+                // A "#~" header that is not a whole switched-off block was commented
+                // or damaged by hand; it is left alone, as the installer leaves it.
+                const std::string loose = std::string(MoonrakerConfigManager::kSwitchedOffPrefix) +
+                                          "[" + kHelixStanza + "]";
+                for (const auto& [name, text] : files) {
+                    if (text.rfind(loose, 0) == 0 || text.find("\n" + loose) != std::string::npos) {
+                        spdlog::warn("[UpdateChecker] {} has a commented-out [{}] HelixScreen did "
+                                     "not write whole; leaving it alone. Delete or restore it and "
+                                     "re-run the installer to list HelixScreen in Mainsail/Fluidd",
+                                     name, kHelixStanza);
+                    }
+                }
                 spdlog::debug("[UpdateChecker] No [{}] in moonraker.conf or its includes; "
-                              "Moonraker's update channel is not synced",
+                              "nothing to list or unlist",
                               kHelixStanza);
                 return;
             }
+            if (!stanza_file_editable(file, mod_host)) {
+                spdlog::debug("[UpdateChecker] [{}] is in {}, which the firmware mod owns; "
+                              "leaving it alone",
+                              kHelixStanza, file);
+                return;
+            }
             const std::string& content = files.at(file);
+            const std::string live =
+                listed ? content : MoonrakerConfigManager::switch_section_on(content, kHelixStanza);
             const std::string path =
-                helix::MoonrakerConfigManager::get_section_value(content, kHelixStanza, "path");
+                MoonrakerConfigManager::get_section_value(live, kHelixStanza, "path");
             if (!same_directory(path, install_root)) {
                 spdlog::debug("[UpdateChecker] {}'s helixscreen stanza is for '{}', not this "
                               "install ({}); leaving it alone",
                               file, path, install_root);
                 return;
             }
-            const std::string conf_channel =
-                helix::MoonrakerConfigManager::get_section_value(content, kHelixStanza, "channel");
-            switch (decide_moonraker_channel_sync(want, conf_channel, last_synced)) {
-            case MoonrakerChannelSync::Leave:
-                spdlog::warn("[UpdateChecker] {} names update channel '{}', which HelixScreen "
-                             "does not know; leaving it and the app's channel alone",
-                             file, conf_channel);
-                return;
-            case MoonrakerChannelSync::RecordOnly:
-                tok.defer("UpdateChecker::sync_moonraker_channel_record", [this, gen, want]() {
-                    if (gen != moonraker_sync_generation_.load())
-                        return;
-                    record_synced_moonraker_channel(want);
-                });
-                return;
-            case MoonrakerChannelSync::Adopt:
-                tok.defer("UpdateChecker::sync_moonraker_channel_adopt",
-                          [this, gen, file, conf_channel]() {
-                              if (gen != moonraker_sync_generation_.load())
-                                  return;
-                              spdlog::info("[UpdateChecker] {} was set to the {} update channel; "
-                                           "following it",
-                                           file, conf_channel);
-                              adopt_moonraker_channel(conf_channel);
+            const std::string held = MoonrakerConfigManager::set_existing_value(
+                live, kHelixStanza, "channel", kStanzaChannel);
+            std::string updated = content; // already switched off on beta or dev
+            if (want_listed) {
+                updated = held;
+            } else if (listed) {
+                updated = MoonrakerConfigManager::switch_section_off(held, kHelixStanza);
+            }
+            // A restart can change what Moonraker lists only when this file is the one
+            // copy of the stanza it reads; another copy (a mod's file, a second
+            // include) wins whatever this one says, and restarting would loop.
+            bool sole_copy = true;
+            for (const auto& [name, text] : files) {
+                if (name != file && MoonrakerConfigManager::has_section(text, kHelixStanza)) {
+                    sole_copy = false;
+                    break;
+                }
+            }
+            // What a restart is made for: the file as it will stand and the state
+            // wanted. Empty when a restart cannot help.
+            const std::string restart_key =
+                sole_copy ? file + '\n' + (want_listed ? "listed" : "off") + '\n' + updated
+                          : std::string();
+            if (updated == content) {
+                // The file matches; Moonraker may still have the other state loaded
+                // (a restart that was skipped, failed, or lost with an app restart).
+                tok.defer("UpdateChecker::sync_moonraker_channel_loaded",
+                          [this, api, gen, want_listed, restart_key]() {
+                              if (gen == moonraker_sync_generation_.load())
+                                  restart_moonraker_for_channel(*api, gen, want_listed,
+                                                                restart_key);
                           });
                 return;
-            case MoonrakerChannelSync::Write:
-                break;
             }
-            std::string updated = helix::MoonrakerConfigManager::set_existing_value(
-                content, kHelixStanza, "channel", want);
-            if (updated == content)
-                return;
-            tok.defer("UpdateChecker::sync_moonraker_channel", [this, tok, api, want, gen, file,
-                                                                updated]() {
+            const std::string want = want_listed ? "listed" : "switched off";
+            tok.defer("UpdateChecker::sync_moonraker_channel", [this, tok, api, want, want_listed,
+                                                                gen, file, updated, install_root,
+                                                                restart_key]() {
                 if (gen != moonraker_sync_generation_.load())
                     return;
-                spdlog::info("[UpdateChecker] Setting {} update channel to {}", file, want);
+                // The download took round-trips a print may have started in.
+                if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+                    defer_moonraker_sync_until_job_ends(install_root);
+                    return;
+                }
+                spdlog::info("[UpdateChecker] HelixScreen's Moonraker update entry in {}: {}", file,
+                             want);
                 api->transfers().upload_file(
                     "config", file, updated,
-                    [this, tok, api, gen, want]() {
+                    [this, tok, api, gen, want_listed, restart_key]() {
                         tok.defer("UpdateChecker::sync_moonraker_channel_restart",
-                                  [this, api, gen, want]() {
+                                  [this, api, gen, want_listed, restart_key]() {
                                       if (gen != moonraker_sync_generation_.load())
                                           return;
-                                      record_synced_moonraker_channel(want);
-                                      restart_moonraker_for_channel(*api, gen);
+                                      restart_moonraker_for_channel(*api, gen, want_listed,
+                                                                    restart_key);
                                   });
                     },
                     [file](const MoonrakerError& err) {
@@ -3331,74 +3458,105 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
         std::move(download));
 }
 
-void UpdateChecker::adopt_moonraker_channel(const std::string& conf_channel) {
-    const UpdateChannel channel = conf_channel == moonraker_channel_name(UpdateChannel::Beta)
-                                      ? UpdateChannel::Beta
-                                      : UpdateChannel::Stable;
-    // Recorded first: the stanza already names this channel, so nothing is written back.
-    record_synced_moonraker_channel(conf_channel);
-    SystemSettingsManager::instance().set_update_channel(static_cast<int>(channel));
-    recheck_for_channel();
+bool UpdateChecker::moonraker_entry_matches(const json& status_result, bool want_listed) {
+    const json* info = helix::json_util::find_member(status_result, "version_info");
+    const json* entry =
+        info && info->is_object() ? helix::json_util::find_member(*info, kHelixEntry) : nullptr;
+    if (!entry)
+        return !want_listed;
+    if (!want_listed)
+        return false;
+    // A loaded entry following another channel is stale too; one that reports no
+    // channel is taken as current.
+    const std::string channel = helix::json_util::safe_string(*entry, "channel", kStanzaChannel);
+    return channel == kStanzaChannel;
 }
 
-void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen) {
-    // Restarting Moonraker drops Klipper's API clients mid-job. The file is already
-    // written, so Moonraker's next start picks the channel up either way. Checked
-    // again after the status round-trip, during which a print can start.
-    auto job_blocks_restart = []() {
+void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen,
+                                                  bool want_listed,
+                                                  const std::string& restart_key) {
+    // Restarting Moonraker drops Klipper's API clients mid-job. Checked again after
+    // the status round-trip, during which a print can start; the sync then runs
+    // again when the job ends.
+    auto job_blocks_restart = [this]() {
         if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle()))
             return false;
-        spdlog::info("[UpdateChecker] Update channel takes effect at Moonraker's next restart "
-                     "(a job holds the machine)");
+        defer_moonraker_sync_until_job_ends(moonraker_sync_root_);
         return true;
     };
     if (job_blocks_restart())
         return;
     auto tok = async_lifetime_.token();
-    // Nor mid-update: right after Moonraker updates this app, "Update All" may still
-    // be updating Klipper or the OS. An unknown state counts as busy.
+    // Moonraker's own view decides: it reads its config only at startup, so the
+    // entry it has loaded, not the file, says whether a restart is needed. Every
+    // path that skips one (busy, status unavailable, a failed restart, an app
+    // restart in between) meets the same check at the next sync. Nor mid-update:
+    // right after Moonraker updates this app, "Update All" may still be updating
+    // Klipper or the OS. An unknown state counts as busy.
     IMoonrakerAPI* api_ptr = &api;
     api.get_client().send_jsonrpc(
         "machine.update.status", json::object(),
-        [this, tok, api_ptr, gen, job_blocks_restart](const json& response) {
+        [this, tok, api_ptr, gen, want_listed, restart_key,
+         job_blocks_restart](const json& response) {
             const json* result = helix::json_util::find_member(response, "result");
             const bool busy = !result || helix::json_util::safe_bool(*result, "busy", /*def=*/true);
-            tok.defer("UpdateChecker::restart_moonraker_for_channel", [this, api_ptr, gen, busy,
-                                                                       job_blocks_restart]() {
-                if (gen != moonraker_sync_generation_.load() || job_blocks_restart())
-                    return;
-                if (busy) {
-                    spdlog::info("[UpdateChecker] Update channel takes effect at Moonraker's "
-                                 "next restart (update_manager is busy)");
-                    return;
-                }
-                // The app's websocket drops with it and reconnects on its own; that
-                // rediscovery syncs again, finds the stanza matching, and stops.
-                helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
-                api_ptr->restart_moonraker(
-                    []() {
-                        spdlog::info(
-                            "[UpdateChecker] Restarting Moonraker to apply the update channel");
-                    },
-                    [](const MoonrakerError& err) {
-                        spdlog::warn(
-                            "[UpdateChecker] Moonraker restart for the update channel failed: {}",
-                            err.message);
-                    });
-            });
+            const bool matches = result && moonraker_entry_matches(*result, want_listed);
+            tok.defer(
+                "UpdateChecker::restart_moonraker_for_channel",
+                [this, api_ptr, gen, busy, matches, restart_key, job_blocks_restart]() {
+                    if (gen != moonraker_sync_generation_.load() || job_blocks_restart())
+                        return;
+                    if (matches) {
+                        spdlog::debug("[UpdateChecker] Moonraker's loaded update entry already "
+                                      "matches; no restart");
+                        return;
+                    }
+                    if (busy) {
+                        spdlog::info("[UpdateChecker] Update entry takes effect at Moonraker's "
+                                     "next restart (update_manager is busy)");
+                        return;
+                    }
+                    // A restart that cannot change the outcome is never made, and one
+                    // already made for this exact file and wish is not repeated: the
+                    // mismatch is logged once and left.
+                    if (restart_key.empty() || restart_key == moonraker_restarted_for_) {
+                        const std::string seen = restart_key.empty() ? "\n" : restart_key;
+                        if (moonraker_mismatch_logged_ != seen) {
+                            moonraker_mismatch_logged_ = seen;
+                            spdlog::warn("[UpdateChecker] Moonraker's update entry for "
+                                         "HelixScreen disagrees with the app's channel, and {}; "
+                                         "not restarting Moonraker for it",
+                                         restart_key.empty()
+                                             ? "another copy of the stanza decides it"
+                                             : "a restart for this file already happened");
+                        }
+                        return;
+                    }
+                    moonraker_restarted_for_ = restart_key;
+                    // The app's websocket drops with it and reconnects on its own; that
+                    // rediscovery syncs again, finds Moonraker matching, and stops.
+                    helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
+                    api_ptr->restart_moonraker(
+                        []() {
+                            spdlog::info(
+                                "[UpdateChecker] Restarting Moonraker to apply the update entry");
+                        },
+                        [](const MoonrakerError& err) {
+                            spdlog::warn(
+                                "[UpdateChecker] Moonraker restart for the update entry failed: {}",
+                                err.message);
+                        });
+                });
         },
         [](const MoonrakerError& err) {
-            spdlog::info("[UpdateChecker] Update channel takes effect at Moonraker's next "
+            spdlog::info("[UpdateChecker] Update entry takes effect at Moonraker's next "
                          "restart (update status unavailable: {})",
                          err.message);
         },
         0, /*silent=*/true);
 }
 
-UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
-    auto* config = Config::get_instance();
-    int channel = config->get<int>("/update/channel", 0);
-
+UpdateChecker::UpdateChannel UpdateChecker::effective_channel(int stored, bool beta_features) {
     // /update/channel persists independently of /beta_features. Stable and Beta
     // are both offered on a stock install (settings_updates_overlay.xml), so only
     // Dev is gated here: it fetches from the arbitrary dev_url in the
@@ -3407,19 +3565,24 @@ UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
     // Fall back to Stable, not to the Beta neighbour, since Beta is a choice the
     // user never made. Clamp the EFFECTIVE channel rather than rewriting the
     // stored value, so re-unlocking beta restores the channel the user picked.
-    if (channel == static_cast<int>(UpdateChannel::Dev) && !config->is_beta_features_enabled()) {
-        spdlog::info("[UpdateChecker] Dev channel needs beta features (disabled) — using stable");
-        return UpdateChannel::Stable;
-    }
-
-    switch (channel) {
+    switch (stored) {
     case 1:
         return UpdateChannel::Beta;
     case 2:
-        return UpdateChannel::Dev;
+        return beta_features ? UpdateChannel::Dev : UpdateChannel::Stable;
     default:
         return UpdateChannel::Stable;
     }
+}
+
+UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
+    auto* config = Config::get_instance();
+    const int channel = config->get<int>("/update/channel", 0);
+    const bool beta_features = config->is_beta_features_enabled();
+    if (channel == static_cast<int>(UpdateChannel::Dev) && !beta_features) {
+        spdlog::info("[UpdateChecker] Dev channel needs beta features (disabled) — using stable");
+    }
+    return effective_channel(channel, beta_features);
 }
 
 const char* UpdateChecker::channel_name(UpdateChannel channel) {
@@ -3590,6 +3753,11 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
 
 void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     ++moonraker_sync_generation_;
+    // A sync waiting on this printer's job ends with it, as does what was
+    // restarted or logged for this printer's Moonraker.
+    moonraker_sync_after_job_.reset();
+    moonraker_restarted_for_.clear();
+    moonraker_mismatch_logged_.clear();
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
 }
 

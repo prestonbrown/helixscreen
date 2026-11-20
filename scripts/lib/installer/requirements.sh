@@ -28,7 +28,7 @@ _helix_add_missing() { missing="${missing:+$missing, }$1"; }
 
 # Check required commands exist. unzip is mandatory because release archives
 # ship as .zip (Moonraker Update Manager contract); tar/gunzip remain required
-# for bridge-release tar.gz fallback until 1.0 retires the format.
+# for a --local tar.gz and for a pinned release old enough to ship one.
 check_requirements() {
     local missing=""
 

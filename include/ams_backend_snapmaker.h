@@ -1073,11 +1073,18 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// Auto-Replenish compares. Unset until the first frame carrying it.
     std::array<std::optional<snapmaker::ColorRecord>, kNumTools> task_color_multi_{};
 
-    /// Each head's filament record as it read when the current pause began
-    /// (the first frame naming one, if the pause cleared it first). Auto-
-    /// Replenish compares against the firmware's own copy from before the
-    /// runout, so a spool swapped in during the pause must not change it.
-    /// Empty outside a pause. Under mutex_.
+    /// Each head's last filament record that named a filament while the print
+    /// ran. The firmware clears a runout head's record (NONE) before or with
+    /// the frame that reports the pause, and keeps its pre-runout copy to
+    /// itself, so this is the only place the original survives. Frozen while
+    /// paused; empty when no print is in progress. Under mutex_.
+    std::array<std::optional<helix::runout_other_head::FilamentRecord>, kNumTools>
+        running_records_{};
+    /// Each head's filament record as it read when the current pause began:
+    /// its running_records_ entry, else the first frame of the pause naming
+    /// one. Auto-Replenish compares against the firmware's own copy from
+    /// before the runout, so a spool swapped in during the pause must not
+    /// change it. Empty outside a pause. Under mutex_.
     std::array<std::optional<helix::runout_other_head::FilamentRecord>, kNumTools> pause_records_{};
     /// Head @p head's filament record from print_task_config; nullopt when it
     /// names no vendor or type, or no colour record has arrived. Under mutex_.

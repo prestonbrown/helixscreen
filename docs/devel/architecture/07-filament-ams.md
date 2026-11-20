@@ -15,8 +15,7 @@ flowchart TB
         kReg["AmsBackendRegistry<br/>backends, consumption sinks, index-captured event routing"]
         EV["on_backend_event(index, ...)<br/>posts only - no locks, no subjects"]
         SYNC["sync_backend(i) / update_slot_for_backend(i, s)<br/>sync_from_backend(): named steps, change-gated writes"]
-        B0["primary backend index 0<br/>flat slot_colors_[] / slot_statuses_[] arrays"]
-        B1["secondary backends index 1+<br/>BackendSlotSubjects + SubjectLifetime token"]
+        B0["backend 0, the printer's one filament system<br/>flat slot_colors_[] / slot_statuses_[] arrays"]
     end
 
     CONC["Concrete backends, one file each:<br/>Happy Hare, AFC, ACE, CFS, AD5X IFS, Snapmaker,<br/>QIDI Box, OpenAMS, Lane Status, Tool Changer,<br/>INDX, MultiACE<br/>- all on the AmsSubscriptionBackend NVI base"]
@@ -37,9 +36,7 @@ flowchart TB
     CONC <-->|"ingest() readings, resolve() on parse"| LANE
     EV -->|"queue_update - main thread,<br/>shutdown-flag guarded"| SYNC
     SYNC --> B0
-    SYNC --> B1
     B0 --> UI
-    B1 --> UI
     B0 -->|"tool topology"| TS
     SM -->|"Spoolman records"| LANE
     SPOOL --- SM
@@ -53,7 +50,7 @@ flowchart TB
 | [`include/ams_subscription_backend.h`](../../../include/ams_subscription_backend.h) | `AmsSubscriptionBackend`: the NVI base every real backend derives from - final entry points, `do_*` hooks, subscription ownership, the one-in-flight op claim, resync |
 | [`include/ams_type.h`](../../../include/ams_type.h) / [`include/ams_types.h`](../../../include/ams_types.h) | `AmsType` enum (systems + `NONE`): the only vendor taxonomy generic code sees; `kAmsTypeTraits`, one row of names and per-type facts per value |
 | [`src/printer/ams_backend.cpp`](../../../src/printer/ams_backend.cpp) | `AmsBackend::create(AmsType, ...)` and `kBackendRows`, the one table mapping enum to class |
-| [`include/ams_state.h`](../../../include/ams_state.h) | `AmsState` singleton: thread-safety note, `BackendSlotSubjects`, the fixed subject set |
+| [`include/ams_state.h`](../../../include/ams_state.h) | `AmsState` singleton: thread-safety note, the fixed subject set |
 | [`src/printer/ams_state.cpp`](../../../src/printer/ams_state.cpp) | Backend creation, event routing, `sync_from_backend()` and its steps |
 | `src/printer/ams_state_*.cpp` | The rest of `AmsState`, one file per concern: `subjects`, `tool_mapping`, `external_spool`, `dryer`, `clog`, `buffer` |
 | [`include/ams_backend_registry.h`](../../../include/ams_backend_registry.h) | `AmsBackendRegistry`: the backend list, consumption sinks, and the queries safe off the main thread |
@@ -137,19 +134,16 @@ Routing is by captured index: `add_backend()` stamps the backend's index and han
 
 Event coarsening is deliberate: `STATE_CHANGED`, op completions, errors and attention trigger a full backend sync; `SLOT_CHANGED` parses a slot index for a one-slot update and falls back to a full sync when it cannot, so a backend that forgets the index still refreshes the UI (`src/printer/ams_state.cpp#"else if (event == AmsBackend::kEventSlotChanged) {"`).
 
-`sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp)) runs as named steps in a fixed order (`sync_system_subjects`, `sync_tool_topology`, `sync_filament_runout`, `sync_bypass`, `sync_tool_routing`, `sync_lanes_emptied`, `sync_unit_environment`, ...); the step declarations in `ams_state.h` document the order. Subject storage is two-shaped:
+`sync_from_backend()` ([`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp)) runs as named steps in a fixed order (`sync_system_subjects`, `sync_tool_topology`, `sync_filament_runout`, `sync_bypass`, `sync_tool_routing`, `sync_lanes_emptied`, `sync_unit_environment`, ...); the step declarations in `ams_state.h` document the order. A printer has one filament system ([FILAMENT_MANAGEMENT.md § One Filament System per Printer](../FILAMENT_MANAGEMENT.md#one-filament-system-per-printer)), so backend 0 writes the flat arrays the XML binds (`slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families), per-slot change-gated in `write_slot_subjects()` (`src/printer/ams_state.cpp#write_slot_subjects`). `sync_backend()` and `update_slot_for_backend()` ignore any other index.
 
-- **Backend 0** writes the flat arrays every single-backend XML binding knows (`slot_colors_[i]`, `slot_statuses_[i]`, `slot_fills_[i]`, plus string and live-state families), per-slot change-gated in `write_slot_subjects()` (`src/printer/ams_state.cpp#write_slot_subjects`).
-- **Backends at index 1+** get a `BackendSlotSubjects` struct ([`include/ams_state.h#AmsState`](../../../include/ams_state.h)) allocated at `add_backend()` time: dynamic `colors`/`statuses`/`fills`/`lane_states`/`has_errors`/`severities`/`materials` vectors sized to the backend's slot count. `clear_backends()` destroys them, on rediscovery and inside `deinit_subjects()`, flipping the struct's own `SubjectLifetime` token first (`src/printer/ams_state_subjects.cpp#"void AmsState::BackendSlotSubjects::deinit() {"`).
-
-Every per-slot accessor with a `SubjectLifetime&` out-param hands out a live token for the subject it returns (#1700). Backend 0 and the single-slot overloads return `get_subjects_lifetime()` (`include/ams_state.h#get_subjects_lifetime`), which `deinit_subjects()` flips; a secondary backend returns its `BackendSlotSubjects` token, which `clear_backends()` flips; a nullptr return comes with an empty token. Everything else registered with `subjects_` (per-unit subjects, the rest of the fixed set) dies in `deinit_subjects()`, so its long-lived observers pass `get_subjects_lifetime()` directly: `PrintStatusPanel` watching `get_current_color_subject()` and `get_tool_map_version_subject()` to recolor the gcode preview is the usual case.
+Every per-slot accessor with a `SubjectLifetime&` out-param hands out a live token for the subject it returns (#1700). They return `get_subjects_lifetime()` (`include/ams_state.h#get_subjects_lifetime`), which `deinit_subjects()` flips; a nullptr return comes with an empty token. Everything else registered with `subjects_` (per-unit subjects, the rest of the fixed set) dies in `deinit_subjects()`, so its long-lived observers pass `get_subjects_lifetime()` directly: `PrintStatusPanel` watching `get_current_color_subject()` and `get_tool_map_version_subject()` to recolor the gcode preview is the usual case.
 
 Writes are change-gated: every value is compared before `lv_subject_set_*` fires, and a material-name delta additionally bumps `slots_version_`, because container-level consumers re-read material through `refresh_slots()` (#1065). The fixed set (about a hundred members, capped at `kMaxSlots = 64` and `kMaxUnits = 16`) splits into families:
 
 | Family | Members (subject names) | Consumed by |
 |--------|--------------------------|-------------|
 | System identity | `ams_type`, `ams_system_name`, `ams_system_logo`, `ams_slot_count`, `ams_is_tool_changer`, `ams_is_filament_system` | Home AMS widget gate, AMS panel header |
-| Backend selector | `backend_count`, `active_backend`, `ams_data_revision` | Multi-system selector UI, data-wait code |
+| Backend registry | `backend_count`, `ams_data_revision` | Backend-arrival observers, data-wait code |
 | Per-slot state (x64) | `ams_slot_<n>_*`: color, status, fill, remaining, material, lane state, toolhead-present, active-loaded | Slot cards, `ams_slot` widget, filament-path canvas |
 | Current line | `current_slot`, `ams_current_tool`, `ams_filament_loaded`, `ams_filament_runout`, `current_color` | Filament panel, runout dialog |
 | Operation progress | `ams_action`, `ams_action_detail`, `ams_operation_phase`, `toolchange_step` | Step bar, action prompts |
@@ -329,9 +323,9 @@ Read in this order; about 30 minutes total.
 4. [`include/ams_backend_afc.h#AmsBackendAfc`](../../../include/ams_backend_afc.h) - one real backend: its section layout as the shape every backend shares; `manages_active_spool()` at `include/ams_backend_afc.h#manages_active_spool` and its constant answers in `include/ams_backend_afc.h#"static constexpr BackendTraits kTraits"`.
 5. [`src/printer/printer_discovery_parse.cpp#register_detected_ams_systems`](../../../src/printer/printer_discovery_parse.cpp) - the detection ladder; then [`src/printer/printer_discovery.cpp#init_subsystems_from_hardware`](../../../src/printer/printer_discovery.cpp), where discovery hands off to AmsState.
 6. [`src/printer/ams_state.cpp#init_backends_from_hardware`](../../../src/printer/ams_state.cpp) - mock skip, double-init guard, the create-start loop, the immediate sync.
-7. [`src/printer/ams_state.cpp#add_backend`](../../../src/printer/ams_state.cpp) - `add_backend()`: registration in [`src/printer/ams_backend_registry.cpp#add`](../../../src/printer/ams_backend_registry.cpp) (the captured-index event lambda, one consumption sink per slot; `ensure_sinks()` adds sinks for slots a backend reports later, from every sync), then secondary-subject allocation (`src/printer/ams_state.cpp#"BackendSlotSubjects subs;"`).
+7. [`src/printer/ams_state.cpp#add_backend`](../../../src/printer/ams_state.cpp) - `add_backend()`: registration in [`src/printer/ams_backend_registry.cpp#add`](../../../src/printer/ams_backend_registry.cpp) (the captured-index event lambda, one consumption sink per slot; `ensure_sinks()` adds sinks for slots a backend reports later, from every sync).
 8. [`src/printer/ams_state.cpp#on_backend_event`](../../../src/printer/ams_state.cpp) - queue-only body, shutdown guard, the SLOT_CHANGED parse-or-full-sync fallback; follow one queued call into `sync_backend()` (`src/printer/ams_state.cpp#sync_backend`).
-9. [`include/ams_state.h#AmsState`](../../../include/ams_state.h) - the thread-safety note in the class comment, `BackendSlotSubjects` and its lifetime-token comment, then the storage members `registry_` (`include/ams_state.h#registry_`), `runout_grace_` (`include/ams_state.h#runout_grace_`) and `secondary_slot_subjects_` (`include/ams_state.h#secondary_slot_subjects_`).
+9. [`include/ams_state.h#AmsState`](../../../include/ams_state.h) - the thread-safety note in the class comment, then the storage members `registry_` (`include/ams_state.h#registry_`) and `runout_grace_` (`include/ams_state.h#runout_grace_`).
 10. [`src/printer/ams_state.cpp#sync_from_backend`](../../../src/printer/ams_state.cpp) - the named steps in order.
 11. [`src/printer/ams_state.cpp#lane_feeding_tool`](../../../src/printer/ams_state.cpp) - a tool's spool is its lane's; then [`src/printer/spoolman_active_spool_sync.cpp#try_assign_active_spool_to_tool`](../../../src/printer/spoolman_active_spool_sync.cpp), which links Moonraker's active spool to that lane.
 12. [`src/printer/spoolman_manager.cpp#refresh_spoolman_weights`](../../../src/printer/spoolman_manager.cpp) - the re-fetch loop that files each spool as its lane's `Spoolman` record; then [`include/spoolman_manager.h#SpoolmanManager`](../../../include/spoolman_manager.h) for the charter.

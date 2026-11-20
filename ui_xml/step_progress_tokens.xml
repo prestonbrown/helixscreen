@@ -7,9 +7,9 @@
   All step_* responsive px tokens live here, following the same convention as
   ams_tokens.xml and fan_tokens.xml: widget-scoped tokens go in their own file
   rather than bloating globals.xml or living inside one consumer panel. The
-  consumers are ui_step_progress.cpp itself and the three surfaces that draw a
-  step list — the AMS sidebar, the timelapse installer and the network settings
-  overlay — so parking these in any one of them is the backward-coupling
+  consumers are the step_progress_* components, ui_step_progress.cpp, and the
+  three surfaces that draw a step list — the AMS sidebar, the timelapse
+  installer and the network settings overlay — so parking these in any one of them is the backward-coupling
   ams_tokens.xml warns about.
 
   Placement is also what makes them ship. release-copy-xml-config (mk/cross.mk)
@@ -39,5 +39,9 @@
     <px name="step_row_gap_small" value="8"/>
     <px name="step_row_gap_medium" value="12"/>
     <px name="step_row_gap_large" value="16"/>
+    <!-- Widest a horizontal step's wrapped label grows -->
+    <px name="step_label_max_width_small" value="120"/>
+    <px name="step_label_max_width_medium" value="120"/>
+    <px name="step_label_max_width_large" value="120"/>
   </consts>
 </component>

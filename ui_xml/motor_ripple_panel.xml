@@ -5,9 +5,8 @@
      and draws the chart into ripple_chart. -->
 <component>
   <view name="motor_ripple_panel" extends="overlay_panel" title="Vertical Artifact Check" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_sm">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
       <!-- START (0) -->
       <lv_obj name="ripple_start"
               width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scroll_dir="ver">
@@ -101,6 +100,6 @@
           </ui_button>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

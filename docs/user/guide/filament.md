@@ -199,16 +199,13 @@ See [Filament Drying and Humidity](filament-drying.md).
 
 ---
 
-## Multiple Filament Systems
+## Supported Filament Systems
 
-HelixScreen supports running multiple filament management backends at the same time. For example, a toolchanger printer might use both a Tool Changer backend and Happy Hare for different parts of the filament path.
+HelixScreen shows one filament system per printer. When a printer has more than one kind of hardware, one system covers all of it:
 
-When multiple backends are detected:
-
-- A **backend selector** appears at the top of the AMS panel
-- Tap to switch between systems (e.g. "Happy Hare" vs "Tool Changer")
-- Each backend has its own slots and status display
-- Slot assignments and controls are independent per backend
+- A filament changer (AFC, Happy Hare, ACE and the others below) is the one shown on a printer that also has a tool changer. AFC set up with a tool changer unit drives the heads itself.
+- A Snapmaker U1 with ACE Pro units through multiACE shows the U1 with the ACE units feeding it.
+- A Snapmaker U1 with Happy Hare or AFC shows that system.
 
 **Supported system types:**
 
@@ -224,8 +221,6 @@ When multiple backends are detected:
 | **SnapSwap** | Snapmaker U1 4-toolhead changer (parallel, one independent toolhead per slot) |
 
 Each system displays its own logo in the AMS panel header. Happy Hare and AFC show their firmware logos; specific hardware variants (ERCF, Box Turtle, ViViD, the QIDI Box, etc.) show hardware-specific logos when detected.
-
-With a single backend there is no selector: the panel just shows that system.
 
 ---
 

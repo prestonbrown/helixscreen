@@ -2671,6 +2671,7 @@
   <translation tag="No vendors found" zh="未找到供应商"/>
   <translation tag="No verified bypass command for this CFS firmware" zh="此 CFS 固件没有经验证的旁通命令"/>
   <translation tag="No video player installed - showing the timelapse library" zh="未安装视频播放器 – 显示延时摄影库"/>
+  <translation tag="No video player on this printer" zh="此打印机没有视频播放器"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." zh="未检测到摄像头。&#10;延时摄影需要摄像头。"/>
   <translation tag="No widgets found" zh="未找到小组件"/>
   <translation tag="No width sensor detected" zh="未检测到宽度传感器"/>
@@ -4272,6 +4273,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
   <translation tag="The unload did not start: unload by hand, then start again" zh="卸载未开始:请手动卸载,然后重新开始"/>
   <translation tag="The unload finishes on its own, but the plate will not move." zh="卸载会自行完成,但热床不会移动。"/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." zh="视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。"/>
   <translation tag="The {0} motor was not measured: {1}." zh="{0} 电机未测量：{1}。"/>
   <translation tag="Theme" zh="主题"/>
   <translation tag="Theme Colors" zh="主题颜色"/>
@@ -4342,6 +4344,7 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." zh="这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." zh="此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." zh="此打印机没有视频播放器。用手机扫描二维码观看延时摄影。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." zh="此打印机没有 {} 命令，因此无法保存 Z 偏移。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
@@ -4423,6 +4426,7 @@
   <translation tag="Tips" zh="提示"/>
   <translation tag="Tips database format error" zh="提示数据库格式错误"/>
   <translation tag="Tips database not found" zh="未找到提示数据库"/>
+  <translation tag="Title" zh="标题"/>
   <translation tag="To make videos, run this on your printer via SSH:" zh="要生成视频，请通过 SSH 在打印机上运行："/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。此打印机的 Moonraker 版本过旧，HelixPrint 插件无法在之后恢复原始文件名，因此完成的任务将以改写后的名称显示。耗材映射本身可正常工作。"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。如果没有 HelixPrint 插件，进入打印历史的就是改写后的副本，因此完成的任务会以类似 modified_1730824_benchy.gcode 的名称显示，而不是您选择的文件。&#10;&#10;安装插件很快，无需重启。"/>
@@ -4672,6 +4676,8 @@
   <translation tag="Vibration" zh="振动"/>
   <translation tag="Vibration compensation active" zh="振动补偿已启用"/>
   <translation tag="Video playback speed" zh="视频播放速度"/>
+  <translation tag="Video player failed to start" zh="视频播放器启动失败"/>
+  <translation tag="Video player failed to start ({})" zh="视频播放器启动失败（{}）"/>
   <translation tag="View" zh="查看"/>
   <translation tag="View Changelog" zh="查看更新日志"/>
   <translation tag="View Full History" zh="查看完整历史"/>
@@ -4721,6 +4727,7 @@
   <translation tag="Warning" zh="警告"/>
   <translation tag="Warnings &amp; errors" zh="警告与错误"/>
   <translation tag="Watch and control this screen from a browser" zh="从浏览器查看和控制此屏幕"/>
+  <translation tag="Watch on Your Phone" zh="在手机上观看"/>
   <translation tag="Watch the camera during a print for failed prints" zh="打印期间监视摄像头以发现打印失败"/>
   <translation tag="Watch which motor turns" zh="看看哪个电机在转动"/>
   <translation tag="Weak battery" zh="电池电量低"/>

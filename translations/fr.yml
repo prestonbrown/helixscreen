@@ -2760,6 +2760,7 @@ translations:
   No vendors found: Aucun fournisseur trouvé
   No verified bypass command for this CFS firmware: 'Aucune commande de bypass vérifiée pour ce firmware CFS'
   No video player installed - showing the timelapse library: 'Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse'
+  No video player on this printer: 'Aucun lecteur vidéo sur cette imprimante'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Aucune webcam détectée.\nUne webcam est requise pour le timelapse."
   No widgets found: Aucun widget trouvé
@@ -4405,6 +4406,7 @@ translations:
   'The unload did not start: unload by hand, then start again': 'Le déchargement n''a pas démarré : déchargez à la main, puis recommencez'
   The unload finishes on its own, but the plate will not move.: 'Le déchargement se termine de lui-même, mais le plateau ne bougera pas.'
   'The {0} motor was not measured: {1}.': 'Le moteur {0} n''a pas été mesuré : {1}.'
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Le lecteur vidéo n''a pas pu démarrer sur cette imprimante ({}). Scannez le code avec votre téléphone pour regarder le timelapse.'
   Theme: Thème
   Theme Colors: Couleurs du thème
   Theme Preset: Préréglage du thème
@@ -4490,6 +4492,7 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Cette imprimante n'a pas encore de stockage [save_variables]. Mettez à jour les macros d'aide pour en ajouter un, puis redémarrez Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Cette imprimante n'a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'Cette imprimante n''a pas de lecteur vidéo. Scannez le code avec votre téléphone pour regarder le timelapse.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
@@ -4579,6 +4582,7 @@ translations:
   Tips: 'Astuces'
   Tips database format error: Erreur de format de la base de données de conseils
   Tips database not found: Base de données de conseils introuvable
+  Title: Titre
   'To make videos, run this on your printer via SSH:': 'Pour créer des vidéos, exécutez ceci sur votre imprimante via SSH :'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : Pour mapper le filament, HelixScreen réécrit le fichier d'impression avant de l'imprimer. Le Moonraker de cette imprimante est trop ancien pour que le plugin HelixPrint restaure ensuite le nom de fichier original, donc le travail terminé est listé sous le nom réécrit. Le mappage du filament lui-même fonctionne normalement.
@@ -4822,6 +4826,8 @@ translations:
   Vibration: Vibration
   Vibration compensation active: Compensation de vibration active
   Video playback speed: Vitesse de lecture vidéo
+  Video player failed to start: 'Le lecteur vidéo n''a pas pu démarrer'
+  Video player failed to start ({}): 'Le lecteur vidéo n''a pas pu démarrer ({})'
   View: Voir
   View Changelog: Voir le journal des modifications
   View Full History: Voir l'historique complet
@@ -4871,6 +4877,7 @@ translations:
   Warning: Avertissement
   Warnings & errors: 'Avertissements et erreurs'
   Watch and control this screen from a browser: 'Voir et contrôler cet écran depuis un navigateur'
+  Watch on Your Phone: 'Regarder sur votre téléphone'
   Watch the camera during a print for failed prints: Surveille la caméra pendant une impression pour détecter les impressions échouées
   Watch which motor turns: "Regardez quel moteur tourne"
   Weak battery: Batterie faible

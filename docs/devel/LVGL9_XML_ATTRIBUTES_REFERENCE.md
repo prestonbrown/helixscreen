@@ -144,7 +144,7 @@ All widgets inherit these.
 | Attr | Notes |
 |------|-------|
 | `style_bg_color` | Hex: `0xff0000` |
-| `style_bg_opa` | 0-255 or `"50%"` |
+| `style_bg_opa` | 0-255, `"50%"`, `cover` (255) or `transp` (0) |
 | `style_bg_grad_dir` | `none`, `hor`, `ver` |
 | `style_bg_grad_color` | Gradient end |
 

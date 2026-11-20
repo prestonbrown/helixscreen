@@ -5,6 +5,7 @@
 #include "ui_utils.h"
 
 #include "helix-xml/src/xml/lv_xml.h"
+#include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/lv_xml_widget.h"
@@ -345,6 +346,12 @@ void ui_carousel_apply(lv_xml_parser_state_t* state, const char** attrs) {
         cstate->show_indicators = (strcmp(ind_str, "true") == 0 || strcmp(ind_str, "1") == 0);
     }
 
+    const char* bubble_str = lv_xml_get_value_of(attrs, "bubble_events");
+    if (bubble_str) {
+        helix::ui::carousel_set_bubble_events(container, strcmp(bubble_str, "true") == 0 ||
+                                                             strcmp(bubble_str, "1") == 0);
+    }
+
     // Hide indicator row if indicators are disabled
     if (!cstate->show_indicators && cstate->indicator_row) {
         lv_obj_set_hidden(cstate->indicator_row, true);
@@ -372,6 +379,31 @@ void ui_carousel_apply(lv_xml_parser_state_t* state, const char** attrs) {
 }
 
 } // namespace
+
+/**
+ * @brief Append a tile for one page, tracked as the last page, and rebuild the dots
+ */
+static lv_obj_t* add_tile(lv_obj_t* carousel, CarouselState* state) {
+    lv_obj_t* tile = lv_obj_create(state->scroll_container);
+    lv_obj_set_size(tile, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_style_pad_all(tile, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(tile, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(tile, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_scrollable(tile, false);
+    lv_obj_set_snappable(tile, true);
+    state->real_tiles.push_back(tile);
+    ui_carousel_rebuild_indicators(carousel);
+    return tile;
+}
+
+/// Each object child written under <ui_carousel> is a page, created in a tile of its own.
+static lv_obj_t* xml_page_host(lv_obj_t* carousel, void* /*user_data*/) {
+    CarouselState* state = ui_carousel_get_state(carousel);
+    if (!state || !state->scroll_container) {
+        return nullptr;
+    }
+    return add_tile(carousel, state);
+}
 
 /**
  * @brief Core carousel creation logic shared by XML factory and C++ API
@@ -432,6 +464,9 @@ static lv_obj_t* carousel_create_core(lv_obj_t* parent) {
 
     // Register delete handler for cleanup
     lv_obj_add_event_cb(container, carousel_delete_cb, LV_EVENT_DELETE, nullptr);
+
+    // XML children become pages
+    lv_xml_set_child_host(container, xml_page_host, nullptr);
 
     // Register scroll-end handler for page tracking from swipe gestures
     lv_obj_add_event_cb(scroll, carousel_scroll_end_cb, LV_EVENT_SCROLL_END, nullptr);
@@ -506,25 +541,7 @@ void ui_carousel_add_item(lv_obj_t* carousel, lv_obj_t* item) {
     if (!state || !state->scroll_container || !item) {
         return;
     }
-
-    // Create a tile container inside the scroll area
-    lv_obj_t* tile = lv_obj_create(state->scroll_container);
-    lv_obj_set_size(tile, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_pad_all(tile, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(tile, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(tile, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_scrollable(tile, false);
-    lv_obj_set_snappable(tile, true);
-
-    // Reparent the item into the tile
-    lv_obj_set_parent(item, tile);
-
-    // Track the tile
-    state->real_tiles.push_back(tile);
-
-    // Rebuild indicator dots to match new page count
-    ui_carousel_rebuild_indicators(carousel);
-
+    lv_obj_set_parent(item, add_tile(carousel, state));
     spdlog::trace("[ui_carousel] Added item, page count now {}", state->real_tiles.size());
 }
 

@@ -25,7 +25,7 @@ void apply_spool_spin(AmsSlotData* data) {
         return s ? lv_subject_get_int(s) : fallback;
     };
     helix::ui::SpoolSpinInput in;
-    in.lane = data->backend_index == ams.active_backend_index() ? data->slot_index : -1;
+    in.lane = data->slot_index;
     in.current_slot = int_of(ams.get_current_slot_subject(), -1);
     in.target_slot = int_of(ams.get_pending_target_slot_subject(), -1);
     in.action = static_cast<AmsAction>(

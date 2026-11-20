@@ -11,6 +11,7 @@
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_pause_markers.h"
+#include "ui_picker_option_row.h"
 #include "ui_progress_arc.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
@@ -100,6 +101,7 @@ void register_print_status_widget() {
         {"library_queue_cb", PrintStatusWidget::library_queue_cb},
         {"print_status_nozzle_chevron_cb", PrintStatusWidget::print_status_nozzle_chevron_cb},
         {"print_status_layout_library_cb", PrintStatusWidget::print_status_layout_library_cb},
+        {"print_status_option_cb", PrintStatusWidget::print_status_option_cb},
         {"print_status_layout_detailed_cb", PrintStatusWidget::print_status_layout_detailed_cb},
         {"on_print_status_nozzle_temp_clicked",
          [](lv_event_t* e) { open_temp_graph_for(e, TempGraphOverlay::Mode::Nozzle); }},
@@ -190,6 +192,13 @@ void PrintStatusWidget::init_static_subjects() {
             "print_status_arc_thickness_tier", &arc_thickness_tier_subject_);
         picker_detailed_subject_.init_int(0);
         s_static_subjects.publish("print_status_picker_detailed", &picker_detailed_subject_);
+        static constexpr const char* kOptNames[] = {
+            "print_status_picker_opt_0", "print_status_picker_opt_1", "print_status_picker_opt_2",
+            "print_status_picker_opt_3", "print_status_picker_opt_4"};
+        for (size_t i = 0; i < picker_opt_subjects_.size(); ++i) {
+            picker_opt_subjects_[i].init_int(1);
+            s_static_subjects.publish(kOptNames[i], &picker_opt_subjects_[i]);
+        }
     });
 }
 
@@ -1587,121 +1596,29 @@ void PrintStatusWidget::show_configure_picker() {
                                         helix::ui::ContextMenu::AnchorAlign::Center);
 }
 
-void PrintStatusWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
-    lv_obj_t* option_list = lv_obj_find_by_name(backdrop, "option_list");
-    if (!option_list) {
-        spdlog::error("[PrintStatusWidget] option_list not found in picker XML");
-        return;
+void PrintStatusWidget::ConfigurePicker::on_created(lv_obj_t* /*backdrop*/) {
+    const bool shown[] = {owner_.show_title_, owner_.show_print_files_, owner_.show_reprint_last_,
+                          owner_.show_recent_prints_, owner_.show_job_queue_};
+    for (size_t i = 0; i < picker_opt_subjects_.size(); ++i) {
+        lv_subject_set_int(&picker_opt_subjects_[i], shown[i] ? 1 : 0);
     }
-
-    // Helper to resolve space tokens
-    auto resolve_space = [](const char* name, int fallback) -> int {
-        const char* s = lv_xml_get_const(nullptr, name);
-        return s ? std::atoi(s) : fallback;
-    };
-    int space_sm = resolve_space("space_sm", 6);
-    int space_xs = resolve_space("space_xs", 4);
-
-    // Create checkbox rows for each toggle option
-    struct Option {
-        const char* name; // lv_obj name for lookup in apply_state()
-        const char* label;
-        bool checked;
-    };
-    Option options[] = {
-        {"opt_title", "Title", owner_.show_title_},
-        {"opt_print_files", "Print Files", owner_.show_print_files_},
-        {"opt_reprint_last", "Reprint Last", owner_.show_reprint_last_},
-        {"opt_recent_prints", "Recent Prints", owner_.show_recent_prints_},
-        {"opt_job_queue", "Job Queue", owner_.show_job_queue_},
-    };
-
-    for (const auto& opt : options) {
-        lv_obj_t* row = lv_obj_create(option_list);
-        lv_obj_set_name(row, opt.name);
-        lv_obj_set_width(row, LV_PCT(100));
-        lv_obj_set_height(row, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(row, space_sm, 0);
-        lv_obj_set_style_pad_gap(row, space_xs, 0);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_scrollable(row, false);
-        lv_obj_set_clickable(row, true);
-
-        lv_obj_t* cb = lv_checkbox_create(row);
-        lv_checkbox_set_text(cb, "");
-        lv_obj_set_style_pad_all(cb, 0, 0);
-        if (opt.checked) {
-            lv_obj_add_state(cb, LV_STATE_CHECKED);
-        }
-        lv_obj_set_clickable(cb, false);
-
-        lv_obj_t* label = lv_label_create(row);
-        lv_label_set_text(label, opt.label);
-        lv_obj_set_flex_grow(label, 1);
-        lv_obj_set_style_text_font(label, lv_font_get_default(), 0);
-
-        // Click row to toggle checkbox. The picker travels as the event's
-        // user_data, since a toggle applies straight through to the widget.
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[PrintStatusWidget] option_row_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                uint32_t count = lv_obj_get_child_count(target);
-                for (uint32_t i = 0; i < count; ++i) {
-                    lv_obj_t* child = lv_obj_get_child(target, static_cast<int32_t>(i));
-                    if (lv_obj_check_type(child, &lv_checkbox_class)) {
-                        if (lv_obj_has_state(child, LV_STATE_CHECKED)) {
-                            lv_obj_remove_state(child, LV_STATE_CHECKED);
-                        } else {
-                            lv_obj_add_state(child, LV_STATE_CHECKED);
-                        }
-                        break;
-                    }
-                }
-
-                // Apply immediately
-                if (auto* picker = static_cast<ConfigurePicker*>(lv_event_get_user_data(e))) {
-                    picker->apply_state();
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, this);
-    }
-
-    // Initial visual state: primary-fill the selected layout button, hide the
-    // Show Sections group when Detailed is active. Visuals-only — full
-    // apply_state() would re-save the config on every open.
+    // The layout buttons and the Show Sections group follow this. Visuals only:
+    // a full apply_state() would re-save the config on every open.
     apply_visuals();
-
     spdlog::debug("[PrintStatusWidget] Configure picker built");
 }
 
-void PrintStatusWidget::ConfigurePicker::apply_visuals() {
-    lv_obj_t* backdrop = menu();
-    if (!backdrop)
+void PrintStatusWidget::ConfigurePicker::toggle_option(int index) {
+    if (index < 0 || index >= static_cast<int>(picker_opt_subjects_.size()))
         return;
+    lv_subject_t* s = &picker_opt_subjects_[static_cast<size_t>(index)];
+    lv_subject_set_int(s, lv_subject_get_int(s) ? 0 : 1);
+    apply_state();
+}
 
-    // Library/Detailed selector buttons: selected = primary accent fill,
-    // unselected = outlined (XML default).
-    lv_obj_t* lib_btn = lv_obj_find_by_name(backdrop, "layout_btn_library");
-    lv_obj_t* det_btn = lv_obj_find_by_name(backdrop, "layout_btn_detailed");
-    if (lib_btn && det_btn) {
-        bool detailed = (owner_.layout_style_ == "detailed");
-        lv_obj_t* active_btn = detailed ? det_btn : lib_btn;
-        lv_obj_t* inactive = detailed ? lib_btn : det_btn;
-        lv_color_t accent = theme_manager_get_color("primary");
-        lv_obj_set_style_bg_color(active_btn, accent, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(active_btn, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(inactive, LV_OPA_TRANSP, LV_PART_MAIN);
-    } else {
-        spdlog::warn("[PrintStatusWidget] picker layout buttons not found "
-                     "(layout_btn_library={}, layout_btn_detailed={}) — XML name drift?",
-                     fmt::ptr(lib_btn), fmt::ptr(det_btn));
-    }
-
-    // Show Sections only applies to the Library layout; the group hides on this.
+void PrintStatusWidget::ConfigurePicker::apply_visuals() {
+    // The chosen layout button's fill and the Show Sections group (Library
+    // only) both follow this subject.
     lv_subject_set_int(&picker_detailed_subject_, owner_.layout_style_ == "detailed" ? 1 : 0);
 }
 
@@ -1712,30 +1629,12 @@ void PrintStatusWidget::ConfigurePicker::apply_state() {
 
     apply_visuals();
 
-    lv_obj_t* option_list = lv_obj_find_by_name(backdrop, "option_list");
-    if (!option_list)
-        return;
-
-    // Read checkbox states by named rows (not positional index)
-    auto read_checkbox = [&](const char* row_name) -> bool {
-        lv_obj_t* row = lv_obj_find_by_name(option_list, row_name);
-        if (!row)
-            return true;
-        uint32_t row_count = lv_obj_get_child_count(row);
-        for (uint32_t j = 0; j < row_count; ++j) {
-            lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(j));
-            if (lv_obj_check_type(child, &lv_checkbox_class)) {
-                return lv_obj_has_state(child, LV_STATE_CHECKED);
-            }
-        }
-        return true;
-    };
-
-    owner_.show_title_ = read_checkbox("opt_title");
-    owner_.show_print_files_ = read_checkbox("opt_print_files");
-    owner_.show_reprint_last_ = read_checkbox("opt_reprint_last");
-    owner_.show_recent_prints_ = read_checkbox("opt_recent_prints");
-    owner_.show_job_queue_ = read_checkbox("opt_job_queue");
+    auto shown = [](size_t i) { return lv_subject_get_int(&picker_opt_subjects_[i]) != 0; };
+    owner_.show_title_ = shown(0);
+    owner_.show_print_files_ = shown(1);
+    owner_.show_reprint_last_ = shown(2);
+    owner_.show_recent_prints_ = shown(3);
+    owner_.show_job_queue_ = shown(4);
 
     // Persist
     nlohmann::json new_config = owner_.config_;
@@ -1779,6 +1678,16 @@ void PrintStatusWidget::regate_after_configure() {
                       last_width_px_, last_height_px_);
         on_size_changed(0, 0, last_width_px_, last_height_px_);
     }
+}
+
+void PrintStatusWidget::print_status_option_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStatusWidget] print_status_option_cb");
+    // The rows live inside the configure picker's own card.
+    auto* picker = helix::ui::ContextMenu::active_as<ConfigurePicker>();
+    if (auto index = helix::ui::event_user_int(e); picker && index) {
+        picker->toggle_option(*index);
+    }
+    LVGL_SAFE_EVENT_CB_END();
 }
 
 void PrintStatusWidget::print_status_layout_library_cb(lv_event_t* /*e*/) {
@@ -1964,64 +1873,14 @@ void PrintStatusWidget::NozzleToolPicker::on_created(lv_obj_t* backdrop) {
         return;
     }
 
-    // Resolve a couple of space tokens for padding.
-    auto resolve_space = [](const char* name, int fallback) -> int {
-        const char* s = lv_xml_get_const(nullptr, name);
-        return s ? std::atoi(s) : fallback;
-    };
-    int space_sm = resolve_space("space_sm", 6);
-
-    auto add_row = [this, option_list, space_sm](const char* label, const std::string& tool_key) {
-        // Plain lv_obj row with a centered label — same shape the configure
-        // picker uses for its checkbox rows. Going through lv_xml_create on
-        // ui_button didn't render reliably here.
-        lv_obj_t* row = lv_obj_create(option_list);
-        lv_obj_set_width(row, LV_PCT(100));
-        lv_obj_set_height(row, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(row, space_sm, 0);
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_scrollable(row, false);
-        lv_obj_set_clickable(row, true);
-
-        lv_obj_t* lbl = lv_label_create(row);
-        lv_label_set_text(lbl, label);
-        lv_obj_set_style_text_color(lbl, theme_manager_get_color("text"), 0);
-        lv_obj_set_clickable(lbl, false);
-
-        lv_obj_set_user_data(row, new RowPayload{this, tool_key});
-
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("nozzle_picker_row_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
-                if (!payload)
-                    return;
-
-                // Copy the key: hide() takes the row - and this payload - with it.
-                std::string tool_key = payload->tool_key;
-                NozzleToolPicker* picker = payload->picker;
-                picker->hide();
-
+    auto add_row = [this, option_list](const char* label, const std::string& tool_key) {
+        helix::ui::create_picker_option_row(
+            option_list, label, owner_.nozzle_tool_override_ == tool_key, [this, tool_key]() {
+                hide();
                 // apply_nozzle_tool_override records whichever pin actually took
                 // effect, so a name the formatter refuses never reaches config.
-                picker->owner_.apply_nozzle_tool_override(tool_key);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("nozzle_picker_row_delete_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
-                lv_obj_set_user_data(target, nullptr);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_DELETE, nullptr);
+                owner_.apply_nozzle_tool_override(tool_key);
+            });
     };
 
     add_row(lv_tr("Follow active tool"), "auto");

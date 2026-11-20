@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One row of a vertical step progress bar: the dot, then the label filling
+       the rest of the row. C++ sets step_label's text after creation (it can be
+       printer text) and the step's state, which trickles to the dot and label:
+       LV_STATE_USER_1 while active, LV_STATE_CHECKED once done. -->
+  <api>
+    <prop name="number" type="string" default="1"/>
+    <prop name="number_pending_color" type="color" default="0xFFFFFF"/>
+    <prop name="number_active_color" type="color" default="0xFFFFFF"/>
+    <prop name="check_color" type="color" default="0xFFFFFF"/>
+  </api>
+  <view name="step_item"
+        extends="lv_obj" width="100%" height="content" state_trickle="true" style_bg_opa="0" style_border_width="0"
+        style_pad_all="0" style_pad_gap="0" scrollable="false" scrollbar_mode="off" flex_flow="row"
+        style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="start">
+    <step_progress_dot number="$number"
+                       number_pending_color="$number_pending_color" number_active_color="$number_active_color"
+                       check_color="$check_color"/>
+    <lv_label name="step_label"
+              text="" flex_grow="1" style_pad_left="#step_label_gap" style_pad_top="0" style_text_font="#font_small"
+              style_text_color="#text_subtle" style_text_font-user_1="#font_body" style_text_color-user_1="#text"/>
+  </view>
+</component>

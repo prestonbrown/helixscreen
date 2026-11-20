@@ -787,3 +787,63 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
 
     modal_.hide();
 }
+
+// Labels and text lines are the printer's own text, so one that starts with
+// '#' shows as sent instead of reading as a theme constant.
+TEST_CASE_METHOD(ActionPromptLayoutFixture,
+                 "ActionPromptModal: text and labels that start with # show as sent",
+                 "[action_prompt][layout][ui_integration]") {
+    helix::PromptData data;
+    data.title = "Hash";
+    data.text_lines = {"#primary", "#1 is loaded"};
+    data.buttons = {{"#1 Load", "LOAD_ONE", "primary", "", false, -1},
+                    {"#primary", "FOOT", "secondary", "", true, -1}};
+
+    REQUIRE(modal_.show_prompt(test_screen(), data));
+    const auto& btns = ActionPromptModalTestAccess::buttons(modal_);
+    REQUIRE(btns.size() == 2);
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(btns[0], 0))) == "#1 Load");
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(btns[1], 0))) == "#primary");
+
+    lv_obj_t* content = lv_obj_find_by_name(modal_.dialog(), "content_container");
+    REQUIRE(content != nullptr);
+    REQUIRE(lv_obj_get_child_count(content) == 2);
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(content, 0))) == "#primary");
+    CHECK(std::string(lv_label_get_text(lv_obj_get_child(content, 1))) == "#1 is loaded");
+
+    modal_.hide();
+}
+
+// A closed prompt's button is alive until its deferred delete runs. An event
+// that reaches it then sends nothing, not the command at the same index of
+// the prompt now on screen.
+TEST_CASE_METHOD(
+    ActionPromptLayoutFixture,
+    "ActionPromptModal: a closed prompt's button never sends the next prompt's command",
+    "[action_prompt][layout][ui_integration]") {
+    std::vector<std::string> sent;
+    helix::PromptData first;
+    first.title = "First";
+    first.buttons = {{"Go", "FIRST_GO", "primary", "", false, -1}};
+    REQUIRE(modal_.show_prompt(test_screen(), first));
+    lv_obj_t* stale = ActionPromptModalTestAccess::buttons(modal_)[0];
+    REQUIRE(stale != nullptr);
+    helix::ui::WeakWidget alive(stale);
+    modal_.hide();
+    // The exit finishes (the stack entry goes) while the tree's delete waits
+    // for the next timer pass.
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(alive.get() == stale);
+
+    helix::ui::ActionPromptModal next;
+    next.set_gcode_callback([&sent](const std::string& g) { sent.push_back(g); });
+    helix::PromptData second;
+    second.title = "Second";
+    second.buttons = {{"Go", "SECOND_GO", "primary", "", false, -1}};
+    REQUIRE(next.show_prompt(test_screen(), second));
+
+    lv_obj_send_event(stale, LV_EVENT_CLICKED, nullptr);
+    CHECK(sent.empty());
+
+    next.hide();
+}

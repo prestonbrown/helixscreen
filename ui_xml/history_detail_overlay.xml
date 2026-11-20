@@ -31,9 +31,8 @@
   -->
   <view name="history_detail_overlay" extends="overlay_panel" title="Print Details">
     <!-- Content Area - Horizontal split -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="row"
-            style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="false" flex_flow="row" style_pad_gap="#space_md">
       <!-- LEFT: Thumbnail Section (40%) -->
       <lv_obj name="thumbnail_section"
               height="100%" flex_grow="4" style_pad_all="0" scrollable="false" flex_flow="column">
@@ -257,6 +256,6 @@
           </ui_button>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>
