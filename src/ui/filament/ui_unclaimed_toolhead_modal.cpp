@@ -37,13 +37,20 @@ void UnclaimedToolheadModal::offer() {
     if (s_dialog.get() != nullptr) {
         return;
     }
+    const bool unload = offers_unload(AmsState::instance().get_backend());
+    const char* attrs[] = {"hide_unload", unload ? "false" : "true", "hide_by_hand",
+                           unload ? "true" : "false", nullptr};
     auto modal = std::make_unique<UnclaimedToolheadModal>();
     UnclaimedToolheadModal* shown = modal.get();
-    if (!Modal::show_owned(std::move(modal), lv_screen_active())) {
+    if (!Modal::show_owned(std::move(modal), lv_screen_active(), attrs)) {
         AmsState::instance().unclaimed_toolhead_prompt_closed();
         return;
     }
     s_dialog = shown->dialog();
+}
+
+bool UnclaimedToolheadModal::offers_unload(const AmsBackend* backend) {
+    return backend != nullptr && backend->can_unload_unclaimed_toolhead();
 }
 
 void UnclaimedToolheadModal::dismiss() {
@@ -75,7 +82,8 @@ void UnclaimedToolheadModal::on_ok() {
 
 void UnclaimedToolheadModal::on_tertiary() {
     if (still_unclaimed("Unload")) {
-        if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        if (AmsBackend* backend = AmsState::instance().get_backend();
+            backend != nullptr && offers_unload(backend)) {
             const bool loaded =
                 read_unload_target_loaded(backend, backend->get_system_info(), kActiveHeadSlot);
             execute_filament_unload(backend, kActiveHeadSlot, loaded, "[UnclaimedToolhead]");

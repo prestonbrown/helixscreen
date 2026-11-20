@@ -4,6 +4,10 @@
 
 #include "ui_modal.h"
 
+namespace helix {
+class AmsBackend;
+} // namespace helix
+
 namespace helix::ui {
 
 /**
@@ -11,8 +15,8 @@ namespace helix::ui {
  *
  * AmsState decides when to ask (ams::UnclaimedToolheadPromptGate) and when the
  * question has gone away. Use as bypass engages the bypass, Unload runs the
- * toolhead unload, Not now closes. Each action re-checks the state at tap time
- * and does nothing once it no longer holds. Every close tells AmsState.
+ * toolhead unload where the backend can (offers_unload()), Not now closes. Each action re-checks
+ * the state at tap time and does nothing once it no longer holds. Every close tells AmsState.
  */
 class UnclaimedToolheadModal : public Modal {
   public:
@@ -20,6 +24,9 @@ class UnclaimedToolheadModal : public Modal {
     static void offer();
     /// Close the prompt if it is up.
     static void dismiss();
+    /// Whether the prompt offers Unload for @p backend. Without it the prompt
+    /// tells the user to pull the filament by hand.
+    [[nodiscard]] static bool offers_unload(const AmsBackend* backend);
 
     [[nodiscard]] const char* get_name() const override {
         return "Unclaimed Toolhead Modal";

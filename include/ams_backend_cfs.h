@@ -757,6 +757,10 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// any_bypass_active early-out (gate_unaccounted_toolhead_filament,
     /// print_start_checks.cpp) — do not narrow to == -1.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+    /// The unload script runs whatever the bays report.
+    [[nodiscard]] bool can_unload_unclaimed_toolhead() const override {
+        return true;
+    }
 
   protected:
     /// Recovery buttons for a CFS runout. **Caller must hold mutex_** (base

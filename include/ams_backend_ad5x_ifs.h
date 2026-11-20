@@ -483,6 +483,11 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     /// alone (motion-sensor false negatives, see the block comment above).
     /// nullopt until the switch has ever published a reading.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+    /// A loaded head with no active port is the unknown-origin case
+    /// do_unload_filament() removes from the head.
+    [[nodiscard]] bool can_unload_unclaimed_toolhead() const override {
+        return true;
+    }
 
     /// Asks for the lane in the toolhead when no record names it, offering the
     /// lanes holding filament plus an extruder-only clear; with no lane holding

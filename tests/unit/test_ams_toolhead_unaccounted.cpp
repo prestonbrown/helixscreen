@@ -31,6 +31,8 @@
  * Run with: ./build/bin/helix-tests "[ams][toolhead-unaccounted]"
  */
 
+#include "ui_unclaimed_toolhead_modal.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "ams_backend_ad5x_ifs.h"
@@ -319,4 +321,17 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC: an unclaimed toolhead asks once, never m
         ams.unclaimed_toolhead_prompt_closed();
     }
     set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous);
+}
+
+// AFC's unload pulls only the lane it has loaded, and with none it does
+// nothing; the prompt there offers no Unload and says to pull by hand.
+TEST_CASE("unclaimed toolhead: Unload is offered only where the unload clears it",
+          "[ams][toolhead-unaccounted][unclaimed_toolhead]") {
+    AfcHelper afc;
+    CHECK_FALSE(helix::ui::UnclaimedToolheadModal::offers_unload(&afc));
+    CfsHarness h;
+    CHECK(helix::ui::UnclaimedToolheadModal::offers_unload(h.cfs.get()));
+    AmsBackendMock mock;
+    CHECK(helix::ui::UnclaimedToolheadModal::offers_unload(&mock));
+    CHECK_FALSE(helix::ui::UnclaimedToolheadModal::offers_unload(nullptr));
 }

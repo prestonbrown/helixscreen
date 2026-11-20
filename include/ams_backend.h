@@ -766,6 +766,18 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual bool is_filament_loaded() const = 0;
 
     /**
+     * @brief Whether this backend's unload clears filament at the toolhead
+     *        that no lane claims (toolhead_filament_unaccounted()).
+     *
+     * False unless the backend's unload_filament(-1) really pulls that
+     * filament: some firmware unloads only the lane it has loaded and does
+     * nothing when none is.
+     */
+    [[nodiscard]] virtual bool can_unload_unclaimed_toolhead() const {
+        return false;
+    }
+
+    /**
      * @brief Whether filament sits in the toolhead that this backend cannot
      *        account for (no lane/spool claims it).
      *
