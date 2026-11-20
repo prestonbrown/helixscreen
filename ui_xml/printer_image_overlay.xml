@@ -5,9 +5,8 @@
 <component>
   <view name="printer_image_overlay" extends="overlay_panel" title="Printer Image" bg_color="#screen_bg">
     <!-- Main content: left list + right preview in a ROW -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_sm" flex_flow="row" style_pad_gap="#space_sm"
-            scrollable="false">
+    <overlay_panel-overlay_content style_pad_all="#space_sm"
+                                   flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
 
       <!-- LEFT: Scrollable list -->
       <lv_obj name="image_list_container"
@@ -98,6 +97,6 @@
         </lv_obj>
       </lv_obj>
 
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

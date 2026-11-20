@@ -16,6 +16,9 @@ calibration_pa_panel.xml
 calibration_pid_panel.xml
 calibration_tool_offset_panel.xml
 calibration_zoffset_panel.xml
+components/action_prompt_button.xml
+components/action_prompt_swatch.xml
+components/action_prompt_text_line.xml
 components/barcode_scanner_device_row.xml
 components/bed_check_modal.xml
 components/camera_config_modal.xml
@@ -23,9 +26,11 @@ components/camera_fullscreen.xml
 components/panel_widget_camera.xml
 components/panel_widget_gcode_console.xml
 components/panel_widget_toolhead.xml
+components/printer_type_row.xml
 components/spaghetti_detection_modal.xml
 components/timelapse_macro_card.xml
 components/upgrade_banner.xml
+components/vendor_tile.xml
 console_panel.xml
 console_settings_overlay.xml
 crash_report_modal.xml

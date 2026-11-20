@@ -6,9 +6,9 @@
 <component>
   <view name="about_settings_overlay" extends="overlay_panel" title="About" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg"
+                                   scrollable="true" flex_flow="column">
       <!-- ================================================================== -->
       <!-- BRANDING HEADER -->
       <!-- ================================================================== -->
@@ -112,6 +112,6 @@
                  style_text_align="center" style_pad_top="#space_sm"/>
       <!-- Bottom padding for scroll -->
       <lv_obj width="100%" height="#space_lg" scrollable="false"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

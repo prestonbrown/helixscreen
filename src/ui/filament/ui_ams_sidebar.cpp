@@ -977,9 +977,8 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                 ++idx;
             }
             current_step_count_ = static_cast<int>(steps.size());
-            step_progress_ =
-                ui_step_progress_create(step_progress_container_, steps.data(), current_step_count_,
-                                        horizontal, "ams_step_progress");
+            step_progress_ = ui_step_progress_create(step_progress_container_, steps.data(),
+                                                     current_step_count_, horizontal);
             if (step_progress_ && horizontal)
                 ui_step_progress_set_current_label_only(step_progress_, true);
             if (step_progress_) {
@@ -1066,16 +1065,16 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
                 {lv_tr("Purge"), StepState::Pending},
             };
             current_step_count_ = 3;
-            step_progress_ = ui_step_progress_create(step_progress_container_, steps, 3, horizontal,
-                                                     "ams_step_progress");
+            step_progress_ =
+                ui_step_progress_create(step_progress_container_, steps, 3, horizontal);
         } else {
             ui_step_t steps[] = {
                 {lv_tr("Heat nozzle"), StepState::Pending},
                 {lv_tr("Feed filament"), StepState::Pending},
             };
             current_step_count_ = 2;
-            step_progress_ = ui_step_progress_create(step_progress_container_, steps, 2, horizontal,
-                                                     "ams_step_progress");
+            step_progress_ =
+                ui_step_progress_create(step_progress_container_, steps, 2, horizontal);
         }
         break;
     }
@@ -1089,8 +1088,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
         if (supports_purge)
             steps[n++] = {lv_tr("Purge"), StepState::Pending};
         current_step_count_ = n;
-        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal,
-                                                 "ams_step_progress");
+        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal);
         break;
     }
     case StepOperationType::UNLOAD: {
@@ -1101,8 +1099,7 @@ void AmsOperationSidebar::recreate_step_progress_for_operation(StepOperationType
             steps[n++] = {tip_step_label, StepState::Pending};
         steps[n++] = {lv_tr("Retract"), StepState::Pending};
         current_step_count_ = n;
-        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal,
-                                                 "ams_step_progress");
+        step_progress_ = ui_step_progress_create(step_progress_container_, steps, n, horizontal);
         break;
     }
     }

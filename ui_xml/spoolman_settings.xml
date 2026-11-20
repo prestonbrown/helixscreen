@@ -6,9 +6,9 @@
 <component>
   <view name="spoolman_settings" extends="overlay_panel" title="Spoolman" bg_color="#screen_bg">
     <!-- Content Area (scrollable) -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- Description text -->
       <text_small name="description"
                   width="100%" text="Configure Spoolman integration and weight sync settings."
@@ -170,6 +170,6 @@
           <bind_flag_if_eq subject="platform_extras_available" flag="hidden" ref_value="0"/>
         </setting_action_row>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

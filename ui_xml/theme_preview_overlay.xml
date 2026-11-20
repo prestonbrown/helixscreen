@@ -20,7 +20,7 @@
         action_button_height="#button_height_sm" action_button_pad="#space_sm"
         action_button_disabled_subject="theme_apply_disabled" hide_action_button_2="false" action_button_2_text="Edit"
         action_button_2_callback="on_edit_colors_clicked" action_button_2_bg_color="#secondary">
-    <lv_obj name="overlay_content" width="100%" flex_grow="1" flex_flow="column" scrollable="true">
+    <overlay_panel-overlay_content flex_flow="column" scrollable="true">
       <bind_style_if_eq name="explorer_content_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="explorer_content" subject="ui_breakpoint" ref_value="1"/>
       <!-- Theme Selection Controls -->
@@ -181,6 +181,6 @@
                     text="Surfaces inherit app background tokens for light and dark modes." long_mode="wrap"/>
       </ui_card>
       <!-- <info_note icon="info" text="Theme changes apply after restart." translation_tag="Theme changes apply after restart."/> -->
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

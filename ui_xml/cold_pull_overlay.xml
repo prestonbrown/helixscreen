@@ -7,9 +7,8 @@
      ColdPullRunner owns the run and every subject here. -->
 <component>
   <view name="cold_pull_overlay" extends="overlay_panel" title="Cold Pull" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_sm">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
       <!-- ================================================================ -->
       <!-- SETUP (0) -->
       <!-- ================================================================ -->
@@ -346,6 +345,6 @@
           <event_cb trigger="clicked" callback="on_cold_pull_close"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

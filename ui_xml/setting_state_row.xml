@@ -3,12 +3,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Auto-state mapping row: icon + label + dropdown (40% width) -->
 <!-- Used in LED settings for each printer state (idle, heating, printing, etc.) -->
-<!-- C++ sets dropdown options and event callbacks with state_key user_data -->
+<!-- The dropdown lists options_subject, two-way bound to value_subject; callback fires on a pick with user_data. -->
 <component>
   <api>
     <prop name="label" type="string" default="State"/>
     <prop name="label_tag" type="string" default=""/>
     <prop name="icon" type="string" default=""/>
+    <prop name="options_subject" type="string" default=""/>
+    <prop name="value_subject" type="string" default=""/>
+    <prop name="callback" type="string" default=""/>
+    <prop name="user_data" type="string" default=""/>
   </api>
   <view extends="lv_obj"
         width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_bg_opa="0"
@@ -16,6 +20,8 @@
         style_pad_bottom="#space_sm" style_pad_gap="#space_md" scrollable="false">
     <icon name="row_icon" src="$icon" size="sm" variant="secondary"/>
     <text_body name="label" text="$label" translation_tag="$label_tag" flex_grow="1"/>
-    <lv_dropdown name="dropdown" width="40%"/>
+    <lv_dropdown name="dropdown" width="40%" bind_options="$options_subject" bind_value="$value_subject">
+      <event_cb trigger="value_changed" callback="$callback" user_data="$user_data"/>
+    </lv_dropdown>
   </view>
 </component>

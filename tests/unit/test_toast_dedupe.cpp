@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_panel_common.h"
+#include "ui_row_text.h"
 #include "ui_toast_manager.h"
 
 #include "../lvgl_test_fixture.h"
@@ -183,7 +184,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "toast_notification renders without engine a
                  "[toast][xml]") {
     ScopedUnknownAttrCounter counter;
 
-    const char* attrs[] = {"message", "attribute warning pin", "hide_action", "false", nullptr};
+    const char* attrs[] = {"hide_action", "false", "hide_detail", "false", nullptr};
     lv_obj_t* toast =
         static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "toast_notification", attrs));
 
@@ -212,9 +213,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A new toast redraws only the area it ends u
     };
     lv_display_add_event_cb(disp, record, LV_EVENT_INVALIDATE_AREA, &invalidated);
 
-    const char* attrs[] = {
-        "message", "Showing the 50 newest files. See more in the printer's web UI.", nullptr};
-    lv_obj_t* toast = helix::ui::create_xml_laid_out(stack, "toast_notification", attrs);
+    lv_obj_t* toast =
+        helix::ui::create_xml_laid_out(stack, "toast_notification", nullptr, [](lv_obj_t* t) {
+            helix::ui::set_row_label_text(
+                t, "toast_message",
+                "Showing the 50 newest files. See more in the printer's web UI.");
+        });
     REQUIRE(toast != nullptr);
     lv_obj_update_layout(stack);
     lv_display_remove_event_cb_with_user_data(disp, record, &invalidated);

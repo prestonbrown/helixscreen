@@ -63,7 +63,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "job queue tile holds the filename to one li
     set_job_queue_state(nullptr);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "step progress caption holds one line",
+TEST_CASE_METHOD(XMLTestFixture, "step progress caption holds one line",
                  "[one_line][step_caption]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 264, 120);
@@ -71,7 +71,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "step progress caption holds one line",
         {{"Heat", StepState::Active},
          {"Purge a very long distance before the swap", StepState::Pending}}};
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
-                                               /*horizontal=*/true, nullptr);
+                                               /*horizontal=*/true);
     REQUIRE(widget != nullptr);
     ui_step_progress_set_current_label_only(widget, true);
     lv_obj_t* caption = ui_step_progress_get_caption(widget);

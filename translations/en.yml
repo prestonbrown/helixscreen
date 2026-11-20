@@ -4528,6 +4528,7 @@ translations:
   Tips: Tips
   Tips database format error: Tips database format error
   Tips database not found: Tips database not found
+  Title: Title
   'To make videos, run this on your printer via SSH:': 'To make videos, run this on your printer via SSH:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.

@@ -18,6 +18,7 @@ STRUCTURAL_TAGS = frozenset(
         "param",
         "api",
         "prop",
+        "slot",
         "translation",
         "translations",
     }

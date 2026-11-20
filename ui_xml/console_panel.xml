@@ -4,9 +4,8 @@
 <component>
   <view name="console_panel" extends="overlay_panel" title="Console">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_top="0" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_sm">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   style_pad_top="0" scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- Status message (hidden when empty to avoid dead space) -->
@@ -62,6 +61,6 @@
           <event_cb trigger="clicked" callback="on_console_send_clicked"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

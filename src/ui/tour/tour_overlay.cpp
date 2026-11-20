@@ -17,11 +17,7 @@
 namespace helix::tour {
 
 namespace {
-constexpr int kHighlightOutlineWidth = 3;
 constexpr int kTooltipMaxWidth = 480;
-
-// Per-screen dim fill with ~55% opacity.
-constexpr uint8_t kDimOpa = 140;
 
 // A preview would push the card off a screen shorter than this.
 constexpr int kMinScreenHeightForPreview = 400;
@@ -77,46 +73,20 @@ void TourOverlay::build_tree() {
     const int screen_w = lv_display_get_horizontal_resolution(lv_display_get_default());
     const int screen_h = lv_display_get_vertical_resolution(lv_display_get_default());
 
-    root_ = lv_obj_create(top);
+    const std::string width = std::to_string(screen_w);
+    const std::string height = std::to_string(screen_h);
+    const char* attrs[] = {"width", width.c_str(), "height", height.c_str(), nullptr};
+    root_ = static_cast<lv_obj_t*>(lv_xml_create(top, "tour_overlay", attrs));
+    if (!root_) {
+        spdlog::error("[TourOverlay] Failed to instantiate tour_overlay");
+        return;
+    }
     lv_obj_set_user_data(root_, this); // the card buttons find their overlay here
-    lv_obj_set_pos(root_, 0, 0);
-    lv_obj_set_size(root_, screen_w, screen_h);
-    lv_obj_set_style_bg_opa(root_, 0, 0);
-    lv_obj_set_style_border_width(root_, 0, 0);
-    lv_obj_set_style_pad_all(root_, 0, 0);
-    lv_obj_set_style_radius(root_, 0, 0);
-    lv_obj_set_scrollable(root_, false);
-    lv_obj_set_click_focusable(root_, false);
-
-    // Dim layer — click-blocking, absorbs all touches that miss the tooltip.
-    dim_ = lv_obj_create(root_);
-    lv_obj_set_pos(dim_, 0, 0);
-    lv_obj_set_size(dim_, screen_w, screen_h);
-    lv_obj_set_style_bg_color(dim_, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(dim_, kDimOpa, 0);
-    lv_obj_set_style_border_width(dim_, 0, 0);
-    lv_obj_set_style_pad_all(dim_, 0, 0);
-    lv_obj_set_style_radius(dim_, 0, 0);
-    lv_obj_set_clickable(dim_, true); // absorb clicks
-    lv_obj_set_scrollable(dim_, false);
-
-    // Highlight rect — transparent fill, outline + shadow. Hidden until step has target.
-    highlight_ = lv_obj_create(root_);
-    lv_obj_set_style_bg_opa(highlight_, 0, 0);
-    lv_obj_set_style_border_width(highlight_, 0, 0);
-    lv_obj_set_style_outline_width(highlight_, kHighlightOutlineWidth, 0);
-    lv_obj_set_style_outline_color(highlight_, theme_manager_get_color("primary"), 0);
-    lv_obj_set_style_outline_pad(highlight_, highlight_outline_pad(), 0);
-    lv_obj_set_style_shadow_width(highlight_, 24, 0);
-    lv_obj_set_style_shadow_opa(highlight_, 180, 0);
-    lv_obj_set_style_shadow_color(highlight_, theme_manager_get_color("primary"), 0);
-    lv_obj_set_clickable(highlight_, false);
-    lv_obj_set_hidden(highlight_, true);
-
-    // Tooltip — instantiated from XML component.
-    tooltip_ = static_cast<lv_obj_t*>(lv_xml_create(root_, "tour_tooltip_card", nullptr));
-    if (!tooltip_) {
-        spdlog::error("[TourOverlay] Failed to instantiate tour_tooltip_card");
+    dim_ = lv_obj_find_by_name(root_, "tour_dim");
+    highlight_ = lv_obj_find_by_name(root_, "tour_highlight");
+    tooltip_ = lv_obj_find_by_name(root_, "tour_tooltip");
+    if (!tooltip_ || !highlight_) {
+        spdlog::error("[TourOverlay] tour_overlay is missing its highlight or tooltip");
         return;
     }
     // Responsive tooltip width: ~55% of screen, clamped to [220, 480].

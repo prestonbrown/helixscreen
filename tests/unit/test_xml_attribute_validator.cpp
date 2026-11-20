@@ -646,3 +646,36 @@ TEST_CASE("build_inheritance_tree handles diamond inheritance", "[xml-validator]
         REQUIRE(full_attrs["right"].count("right_attr") == 1);
     }
 }
+
+TEST_CASE("extract_component_props ignores a view written inside a comment", "[xml-validator]") {
+    const std::string xml = R"(<component>
+  <!-- Usage: <view extends="my_panel" title="X"/> -->
+  <view extends="lv_obj"/>
+</component>)";
+    CHECK(extract_component_props(xml).extends == "lv_obj");
+}
+
+TEST_CASE("build_inheritance_tree stops at an inheritance cycle", "[xml-validator]") {
+    WidgetDatabase db;
+    db.widget_attrs["a"] = {"x"};
+    db.widget_attrs["b"] = {"y"};
+    db.widget_attrs["self"] = {"z"};
+    db.inheritance["a"] = "b";
+    db.inheritance["b"] = "a";
+    db.inheritance["self"] = "self";
+
+    auto full = build_inheritance_tree(db);
+    CHECK(full["a"] == std::unordered_set<std::string>{"x", "y"});
+    CHECK(full["self"] == std::unordered_set<std::string>{"z"});
+}
+
+TEST_CASE("extract_component_props ignores a prop written inside a comment", "[xml-validator]") {
+    const std::string xml = R"(<component>
+  <api>
+    <!-- <prop name="retired" type="string"/> -->
+    <prop name="live" type="string"/>
+  </api>
+  <view extends="lv_obj"/>
+</component>)";
+    CHECK(extract_component_props(xml).props == std::unordered_set<std::string>{"live"});
+}

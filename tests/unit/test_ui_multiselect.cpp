@@ -8,8 +8,7 @@
 
 #include "ui_multiselect.h"
 
-#include "../lvgl_test_fixture.h"
-#include "asset_manager.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "theme_manager.h"
 
 #include <algorithm>
@@ -18,35 +17,9 @@
 
 using namespace helix::ui;
 
-// ============================================================================
-// Fixture with theme initialized (eliminates theme token warnings)
-// ============================================================================
-
-class MultiSelectTestFixture : public LVGLTestFixture {
-    static bool s_theme_initialized;
-
-  public:
-    MultiSelectTestFixture() : LVGLTestFixture() {
-        if (!s_theme_initialized) {
-            // Theme init requires no screens present
-            if (m_test_screen) {
-                lv_obj_delete(m_test_screen);
-                m_test_screen = nullptr;
-            }
-
-            AssetManager::register_all();
-            lv_xml_register_component_from_file("A:ui_xml/globals.xml");
-            theme_manager_init(lv_display_get_default(), false);
-            s_theme_initialized = true;
-
-            // Recreate test screen with theme applied
-            m_test_screen = lv_obj_create(nullptr);
-            lv_screen_load(m_test_screen);
-        }
-    }
-};
-
-bool MultiSelectTestFixture::s_theme_initialized = false;
+// The app's own XML and theme registration, so multiselect_row builds with the
+// widgets and tokens it builds with on screen.
+using MultiSelectTestFixture = LVGLUITestFixture;
 
 // ============================================================================
 // Basic Lifecycle Tests
@@ -328,4 +301,43 @@ TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: no All row unless asked
     ms.attach(container);
     ms.set_items({{"0", "T0"}, {"1", "T1"}});
     CHECK(lv_obj_find_by_name(container, "item_all") == nullptr);
+}
+
+TEST_CASE_METHOD(MultiSelectTestFixture,
+                 "UiMultiselect: rows divide but the last, and a disabled row is muted and inert",
+                 "[multiselect]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    UiMultiselect ms;
+    ms.attach(container);
+    ms.set_select_all_label("All");
+    ms.set_items({{"0", "T0"}, {"1", "T1", false, false}});
+
+    auto divided = [](lv_obj_t* row) {
+        return lv_obj_get_style_border_width(row, LV_PART_MAIN) == 1 &&
+               lv_obj_get_style_border_side(row, LV_PART_MAIN) == LV_BORDER_SIDE_BOTTOM;
+    };
+    lv_obj_t* all = lv_obj_find_by_name(container, "item_all");
+    lv_obj_t* row0 = lv_obj_find_by_name(container, "item_0");
+    lv_obj_t* row1 = lv_obj_find_by_name(container, "item_1");
+    REQUIRE(all != nullptr);
+    REQUIRE(row0 != nullptr);
+    REQUIRE(row1 != nullptr);
+    CHECK(divided(all));
+    CHECK(divided(row0));
+    CHECK(lv_obj_get_style_border_width(row1, LV_PART_MAIN) == 0);
+
+    CHECK(lv_obj_is_clickable(row0));
+    CHECK_FALSE(lv_obj_is_clickable(row1));
+    CHECK(lv_obj_has_state(lv_obj_find_by_name(row1, "check"), LV_STATE_DISABLED));
+    lv_obj_t* label0 = lv_obj_get_child(row0, 0);
+    lv_obj_t* label1 = lv_obj_get_child(row1, 0);
+    // The row paints with the theme's XML tokens, read here the same way.
+    auto token = [](const char* name) {
+        const char* v = lv_xml_get_const(nullptr, name);
+        REQUIRE(v != nullptr);
+        return lv_xml_to_color(v);
+    };
+    REQUIRE_FALSE(lv_color_eq(token("text"), token("text_muted")));
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(label0, LV_PART_MAIN), token("text")));
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(label1, LV_PART_MAIN), token("text_muted")));
 }

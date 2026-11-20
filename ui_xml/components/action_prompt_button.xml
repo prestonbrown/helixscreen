@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One button of a Klipper action prompt. ActionPromptModal creates one per
+     PromptButton that has a label, with the cell geometry its row layout chose
+     and the fill and contrast text colors it computed, then sets the label
+     text, which comes from the printer and may start with '#'. A label-less
+     colored button is an action_prompt_swatch instead. -->
+<component>
+  <api>
+    <!-- The button's position in PromptData::buttons, handed to the click callback. -->
+    <prop name="index" type="string" default="0"/>
+    <prop name="width" type="string" default="content"/>
+    <prop name="height" type="string" default="content"/>
+    <prop name="flex_grow" type="string" default="0"/>
+    <prop name="pad_hor" type="string" default="#space_sm"/>
+    <prop name="radius" type="string" default="8"/>
+    <prop name="bg_color" type="string" default="#primary"/>
+    <prop name="text_color" type="string" default="#text"/>
+    <!-- A grid cell's label fills the cell and ends in an ellipsis. -->
+    <prop name="label_width" type="string" default="content"/>
+    <prop name="long_mode" type="string" default="wrap"/>
+    <prop name="text_align" type="string" default="auto"/>
+  </api>
+  <view extends="lv_button"
+        width="$width" height="$height" flex_grow="$flex_grow" style_pad_left="$pad_hor" style_pad_right="$pad_hor"
+        style_radius="$radius" style_border_width="0" style_shadow_width="0" style_bg_color="$bg_color"
+        style_bg_opa="255">
+    <event_cb trigger="clicked" callback="action_prompt_button_cb" user_data="$index"/>
+    <lv_label name="prompt_button_label"
+              width="$label_width" text="" long_mode="$long_mode" align="center" style_text_align="$text_align"
+              style_text_font="#font_body" style_text_color="$text_color"/>
+  </view>
+</component>

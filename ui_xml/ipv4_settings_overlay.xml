@@ -7,9 +7,9 @@
 <component>
   <view name="ipv4_settings_overlay"
         extends="overlay_panel" title="IPv4" title_subject="ipv4_title" title_transform="none" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" style_pad_top="0" flex_flow="column"
-            style_pad_gap="#space_sm" scrollable="true" scroll_dir="ver">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   style_pad_top="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="true"
+                                   scroll_dir="ver">
       <text_small name="ipv4_current_label" width="100%" bind_text="ipv4_current" long_mode="wrap"/>
       <!-- Two fields per row; each field keeps half the width -->
       <lv_obj name="ipv4_fields"
@@ -76,6 +76,6 @@
           <event_cb trigger="clicked" callback="on_ipv4_apply"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

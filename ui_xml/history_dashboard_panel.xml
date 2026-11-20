@@ -22,8 +22,7 @@
         extends="overlay_panel" title="Print History" hide_action_button="false" action_button_text="View Full History"
         action_button_callback="history_view_full_clicked">
     <!-- Content Area - scrollable to fit all content on small screens -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_all="#space_lg" scrollable="true" flex_flow="column">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- Time Filter Segmented Buttons (equal width via flex_grow) -->
@@ -102,7 +101,11 @@
           <lv_obj name="filament_chart_container"
                   width="100%" height="content" style_min_height="80" style_pad_all="0" flex_flow="column"
                   style_pad_gap="#space_xxs" scrollable="false">
-            <!-- Filament rows will be populated by C++ - each row has label + bar -->
+            <!-- The top four materials, heaviest first -->
+            <history_filament_row index="0"/>
+            <history_filament_row index="1"/>
+            <history_filament_row index="2"/>
+            <history_filament_row index="3"/>
           </lv_obj>
         </ui_card>
       </lv_obj>
@@ -131,7 +134,7 @@
         <text_muted width="100%" text="No print history yet" style_text_align="center"/>
         <text_small width="100%" text="Your completed prints will appear here" style_text_align="center"/>
       </centered_column>
-    </lv_obj>
+    </overlay_panel-overlay_content>
     <!-- End overlay_content -->
   </view>
 </component>

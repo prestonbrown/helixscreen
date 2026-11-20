@@ -1,6 +1,8 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_fonts.h"
+#include "ui_icon_codepoints.h"
 #include "ui_icon_picker.h"
 
 #include "../lvgl_test_fixture.h"
@@ -36,6 +38,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "icon grid: one cell per icon, selected one ou
     populate_icon_grid(grid, kIcons, 3, "flash", [](const char*) {});
     CHECK(lv_obj_get_child_count(grid) == 3);
     CHECK(outlined(grid) == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "icon grid: each cell is a fixed square holding its glyph",
+                 "[icon_picker]") {
+    lv_obj_t* grid = lv_obj_create(test_screen());
+    populate_icon_grid(grid, kIcons, 3, "", [](const char*) {});
+    lv_obj_update_layout(grid);
+    for (uint32_t i = 0; i < 3; ++i) {
+        lv_obj_t* cell = lv_obj_get_child(grid, i);
+        CHECK(lv_obj_get_width(cell) == 36);
+        CHECK(lv_obj_get_height(cell) == 36);
+        CHECK(lv_obj_is_clickable(cell));
+        CHECK_FALSE(lv_obj_is_scrollable(cell));
+        CHECK(lv_obj_get_style_bg_opa(cell, LV_PART_MAIN) == 0);
+        REQUIRE(lv_obj_get_child_count(cell) == 1);
+        lv_obj_t* glyph = lv_obj_get_child(cell, 0);
+        CHECK(std::string(lv_label_get_text(glyph)) == icon::lookup_codepoint(kIcons[i]));
+        CHECK(lv_obj_get_style_text_font(glyph, LV_PART_MAIN) == &mdi_icons_24);
+        CHECK_FALSE(lv_obj_is_clickable(glyph));
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,

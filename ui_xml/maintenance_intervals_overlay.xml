@@ -7,9 +7,9 @@
      come from the one choices table (MaintenanceIntervalsOverlay::apply_options). -->
 <component>
   <view name="maintenance_intervals_overlay" extends="overlay_panel" title="Reminder Intervals" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_hor="#space_lg" style_pad_bottom="#space_lg"
-            style_pad_row="#space_sm" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_hor="#space_lg" style_pad_bottom="#space_lg" style_pad_row="#space_sm"
+                                   scrollable="true" flex_flow="column">
       <repeat count="7">
         <ui_card name="mt_interval_${i}"
                  width="100%" height="content" flex_flow="row_wrap" style_pad_all="#space_sm" style_pad_gap="#space_sm"
@@ -26,6 +26,6 @@
           </lv_dropdown>
         </ui_card>
       </repeat>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

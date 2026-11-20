@@ -153,10 +153,9 @@
         </ui_button>
       </lv_obj>
     </header_bar-header_content>
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xs"
-            style_pad_bottom="#space_xs" flex_flow="column" style_pad_gap="#space_xs" scrollable="true"
-            scrollbar_mode="auto">
+    <overlay_panel-overlay_content style_pad_left="#space_md"
+                                   style_pad_right="#space_md" style_pad_top="#space_xs" style_pad_bottom="#space_xs"
+                                   flex_flow="column" style_pad_gap="#space_xs" scrollable="true" scrollbar_mode="auto">
 
       <!-- ============================================================ -->
       <!-- EDITOR VIEW (ams_edit_view=0): the entry view.               -->
@@ -685,6 +684,6 @@
         </lv_obj>
       </lv_obj>
 
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

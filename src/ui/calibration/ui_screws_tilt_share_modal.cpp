@@ -3,6 +3,8 @@
 
 #include "ui_screws_tilt_share_modal.h"
 
+#include "ui_qr_code.h"
+
 #include "core/static_subject_registry.h"
 #include "core/subject.h"
 #include "screws_tilt_share_text.h"
@@ -143,36 +145,11 @@ void ScrewsTiltShareModal::on_show() {
 }
 
 void ScrewsTiltShareModal::create_qr_code() {
-#if LV_USE_QRCODE
-    auto* container = find_widget("qr_container");
-    if (!container) {
-        spdlog::warn("[ScrewsTiltShare] qr_container not found");
-        return;
-    }
-
-    // Adaptive QR size: proportion of dialog width, clamped to a scannable
-    // range (same approach as InfoQrModal).
+    // A quarter of the dialog width, beside the screw rows, clamped to a
+    // scannable range.
     lv_obj_update_layout(dialog());
-    const int32_t dialog_w = lv_obj_get_content_width(dialog());
-    const int32_t qr_size = LV_CLAMP(110, dialog_w / 4, 160);
-
-    lv_obj_set_size(container, qr_size, qr_size);
-
-    lv_obj_t* qr = lv_qrcode_create(container);
-    if (!qr) {
-        spdlog::warn("[ScrewsTiltShare] lv_qrcode_create failed");
-        return;
-    }
-
-    lv_qrcode_set_size(qr, qr_size);
-    lv_qrcode_set_dark_color(qr, lv_color_black());
-    lv_qrcode_set_light_color(qr, lv_color_white());
-    lv_qrcode_update(qr, share_text_.c_str(), static_cast<uint32_t>(share_text_.size()));
-    lv_obj_center(qr);
-    spdlog::debug("[ScrewsTiltShare] QR code created: {}px", qr_size);
-#else
-    spdlog::warn("[ScrewsTiltShare] QR code support not compiled (LV_USE_QRCODE=0)");
-#endif
+    const int32_t qr_size = LV_CLAMP(110, lv_obj_get_content_width(dialog()) / 4, 160);
+    helix::ui::create_qr_code(dialog(), share_text_, qr_size, "ScrewsTiltShare");
 }
 
 } // namespace helix::ui

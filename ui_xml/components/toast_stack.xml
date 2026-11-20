@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The column toasts stack in on lv_layer_top(), newest last. It takes no
+       input itself: only the toasts inside it do. ToastManager sizes and anchors
+       it before every toast, from the breakpoint and the display width. -->
+  <view name="toast_stack"
+        extends="lv_obj" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+        style_border_width="0" scrollable="false" clickable="false"/>
+</component>

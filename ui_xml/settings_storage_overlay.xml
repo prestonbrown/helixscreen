@@ -4,9 +4,9 @@
 <!-- Storage: what fills the printer's disk, by consumer, with cleanup -->
 <component>
   <view name="settings_storage_overlay" extends="overlay_panel" title="Storage" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- The gcodes volume: free space, and where the numbers come from -->
       <setting_group name="group_storage_volume">
         <lv_obj name="storage_summary"
@@ -52,6 +52,6 @@
                                    subject="plugin_feature_on_storage_auto_cleanup"
                                    callback="on_plugin_feature_switch_changed"/>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

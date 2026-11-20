@@ -3,8 +3,10 @@
 
 #include "ui_wizard_printer_identify.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
+#include "ui_row_text.h"
 #include "ui_text.h"
 #include "ui_wizard.h"
 
@@ -410,6 +412,9 @@ void WizardPrinterIdentifyStep::register_callbacks() {
                              on_wizard_printer_search_changed);
     lv_xml_register_event_cb(nullptr, "on_wizard_vendor_back_clicked",
                              on_wizard_vendor_back_clicked);
+    lv_xml_register_event_cb(nullptr, "on_wizard_printer_type_clicked",
+                             on_printer_type_item_clicked);
+    lv_xml_register_event_cb(nullptr, "on_wizard_vendor_tile_clicked", on_vendor_tile_clicked);
 
     spdlog::debug("[{}] Event callbacks registered", get_name());
 }
@@ -448,9 +453,6 @@ lv_obj_t* WizardPrinterIdentifyStep::create(lv_obj_t* parent) {
                 lv_obj_t* child = lv_obj_get_child(list_cache_container_, 0);
                 lv_obj_set_parent(child, printer_type_list_);
             }
-            // Update selection highlight to reflect current state
-            int selected = lv_subject_get_int(&printer_type_selected_);
-            update_list_selection(selected);
             spdlog::debug("[{}] Restored cached printer type list ({} items)", get_name(),
                           lv_obj_get_child_count(printer_type_list_));
         } else {
@@ -684,94 +686,20 @@ void WizardPrinterIdentifyStep::populate_printer_type_list() {
     // Mirror the detector's list as selector entries (names + manufacturers);
     // rows are created in the same order so child i is entry i.
     build_selector_entries();
-    int selected = lv_subject_get_int(&printer_type_selected_);
 
     for (size_t i = 0; i < selector_entries_.size(); ++i) {
         const auto& entry = selector_entries_[i];
-
-        // Create button for each printer type
-        lv_obj_t* btn = lv_obj_create(printer_type_list_);
-        lv_obj_set_width(btn, lv_pct(100));
-        lv_obj_set_height(btn, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
-        lv_obj_set_style_radius(btn, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
-        lv_obj_set_scrollable(btn, false);
-        lv_obj_set_flex_flow(btn, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(btn, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-
-        // Style based on selection state - non-selected items are transparent
-        if (static_cast<int>(i) == selected) {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-        } else {
-            lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-        }
-
-        // Create label inside button
-        lv_obj_t* label = lv_label_create(btn);
-        lv_label_set_text(label, entry.label.c_str());
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
-        lv_obj_set_flex_grow(label, 1);
-
-        // Set text color based on selection
-        if (static_cast<int>(i) == selected) {
-            // Use contrast color for selected item
-            lv_color_t primary = theme_manager_get_color("primary");
-            uint8_t lum = lv_color_luminance(primary);
-            lv_color_t text_color = (lum > 140) ? lv_color_black() : lv_color_white();
-            lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
-        } else {
-            lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
-        }
-
-        // Vendor shown beside the model while searching, hidden otherwise (a
-        // drilled-in list is single-vendor by construction). Pseudo-machines
-        // have no vendor to show. Child 1 of the row.
-        lv_obj_t* vendor_label = lv_label_create(btn);
-        lv_label_set_text(vendor_label, entry.group.c_str());
-        lv_obj_set_style_text_font(vendor_label, theme_manager_get_font("font_small"),
-                                   LV_PART_MAIN);
-        lv_obj_set_style_text_color(vendor_label, theme_manager_get_color("text_muted"),
-                                    LV_PART_MAIN);
-        if (entry.group.empty()) {
-            lv_obj_set_hidden(vendor_label, true);
-        }
-
-        // Store index in user_data and attach click handler
-        lv_obj_set_user_data(btn, reinterpret_cast<void*>(i));
-        lv_obj_add_event_cb(btn, on_printer_type_item_clicked, LV_EVENT_CLICKED, this);
-    }
-}
-
-void WizardPrinterIdentifyStep::update_list_selection(int selected_index) {
-    if (!printer_type_list_) {
-        return;
-    }
-
-    uint32_t child_count = lv_obj_get_child_count(printer_type_list_);
-    for (uint32_t i = 0; i < child_count; ++i) {
-        lv_obj_t* btn = lv_obj_get_child(printer_type_list_, static_cast<int32_t>(i));
-        if (!btn)
+        const std::string index = std::to_string(i);
+        const char* attrs[] = {"index", index.c_str(), "has_vendor",
+                               entry.group.empty() ? "0" : "1", nullptr};
+        auto* row =
+            static_cast<lv_obj_t*>(lv_xml_create(printer_type_list_, "printer_type_row", attrs));
+        if (!row) {
             continue;
-
-        lv_obj_t* label = lv_obj_get_child(btn, 0);
-        bool is_selected = (static_cast<int>(i) == selected_index);
-
-        if (is_selected) {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-            if (label) {
-                lv_color_t primary = theme_manager_get_color("primary");
-                uint8_t lum = lv_color_luminance(primary);
-                lv_color_t text_color = (lum > 140) ? lv_color_black() : lv_color_white();
-                lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
-            }
-        } else {
-            lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-            if (label) {
-                lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
-            }
         }
+        // Model and vendor names are user text: as props a leading '#' would read as a const.
+        helix::ui::set_row_label_text(row, "model", entry.label.c_str());
+        helix::ui::set_row_label_text(row, "vendor", entry.group.c_str());
     }
 }
 
@@ -797,31 +725,12 @@ void WizardPrinterIdentifyStep::populate_vendor_tiles() {
     vendor_groups_ = ui::group_selector_entries(selector_entries_);
 
     for (size_t g = 0; g < vendor_groups_.size(); ++g) {
-        lv_obj_t* tile = lv_obj_create(vendor_tiles_);
-        char tile_name[32];
-        snprintf(tile_name, sizeof(tile_name), "vendor_tile_%u", static_cast<unsigned>(g));
-        lv_obj_set_name(tile, tile_name);
-        lv_obj_set_width(tile, lv_pct(48));
-        lv_obj_set_height(tile, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(tile, theme_manager_get_spacing("space_md"), LV_PART_MAIN);
-        lv_obj_set_style_radius(tile, theme_manager_get_spacing("border_radius"), LV_PART_MAIN);
-        lv_obj_set_style_bg_color(tile, theme_manager_get_color("card_bg"), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, LV_PART_MAIN);
-        lv_obj_set_scrollable(tile, false);
-
-        lv_obj_t* label = lv_label_create(tile);
-        lv_label_set_text(label, vendor_groups_[g].name.c_str());
-        // Vendor names are single unbreakable words at this tile width
-        // ("PrintersForAnts"), so wrapping would clip; dots keep them legible.
-        // Width is the tile's content width so the dots mode has a bound.
-        lv_obj_set_width(label, lv_pct(100));
-        lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_DOTS);
-        lv_label_set_max_lines(label, 1);
-        lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), LV_PART_MAIN);
-        lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
-
-        lv_obj_set_user_data(tile, reinterpret_cast<void*>(g));
-        lv_obj_add_event_cb(tile, on_vendor_tile_clicked, LV_EVENT_CLICKED, this);
+        const std::string index = std::to_string(g);
+        const char* attrs[] = {"index", index.c_str(), nullptr};
+        auto* tile = static_cast<lv_obj_t*>(lv_xml_create(vendor_tiles_, "vendor_tile", attrs));
+        if (tile) {
+            helix::ui::set_row_label_text(tile, "vendor_label", vendor_groups_[g].name.c_str());
+        }
     }
 
     spdlog::debug("[{}] Built {} vendor tiles", get_name(), vendor_groups_.size());
@@ -857,17 +766,6 @@ void WizardPrinterIdentifyStep::apply_view(int view) {
             ++visible;
         } else {
             lv_obj_set_hidden(row, true);
-        }
-
-        // Child 1 of a row is its vendor label (child 0 is the model name);
-        // shown only where the list can mix vendors: search and candidates.
-        lv_obj_t* vendor_label = lv_obj_get_child(row, 1);
-        if (vendor_label) {
-            if ((view == kViewSearch || view == kViewCandidates) && !entry.group.empty()) {
-                lv_obj_set_hidden(vendor_label, false);
-            } else {
-                lv_obj_set_hidden(vendor_label, true);
-            }
         }
     }
 
@@ -939,14 +837,12 @@ void WizardPrinterIdentifyStep::on_wizard_vendor_back_clicked(lv_event_t* e) {
 }
 
 void WizardPrinterIdentifyStep::on_vendor_tile_clicked(lv_event_t* e) {
-    auto* self = static_cast<WizardPrinterIdentifyStep*>(lv_event_get_user_data(e));
-    if (!self) {
+    WizardPrinterIdentifyStep* self = get_wizard_printer_identify_step();
+    const std::optional<int> tapped = helix::ui::event_user_int(e);
+    if (!self || !tapped) {
         return;
     }
-
-    lv_obj_t* tile = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    const int group_index =
-        static_cast<int>(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(tile)));
+    const int group_index = *tapped;
     if (group_index < 0 || static_cast<size_t>(group_index) >= self->vendor_groups_.size()) {
         return;
     }
@@ -960,12 +856,11 @@ void WizardPrinterIdentifyStep::on_vendor_tile_clicked(lv_event_t* e) {
 }
 
 void WizardPrinterIdentifyStep::on_printer_type_item_clicked(lv_event_t* e) {
-    auto* self = static_cast<WizardPrinterIdentifyStep*>(lv_event_get_user_data(e));
-    if (!self)
+    WizardPrinterIdentifyStep* self = get_wizard_printer_identify_step();
+    const std::optional<int> tapped = helix::ui::event_user_int(e);
+    if (!self || !tapped)
         return;
-
-    lv_obj_t* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    int index = static_cast<int>(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(btn)));
+    const int index = *tapped;
 
     const auto& names = PrinterDetector::get_list_names(self->detected_kinematics_);
     if (index >= 0 && index < static_cast<int>(names.size())) {
@@ -974,8 +869,6 @@ void WizardPrinterIdentifyStep::on_printer_type_item_clicked(lv_event_t* e) {
         // Update subject
         lv_subject_set_int(&self->printer_type_selected_, index);
 
-        // Update visual selection
-        self->update_list_selection(index);
         self->update_validation();
 
         // Update printer preview image (resolve name from filtered list)

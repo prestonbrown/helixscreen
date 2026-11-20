@@ -9,10 +9,9 @@
 <!-- best) and RESULT (the number, applied, with where to keep it). -->
 <component>
   <view name="pa_tuning_overlay" extends="overlay_panel" title="Pressure Advance Tuning">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_md" style_pad_top="0" flex_flow="column" style_pad_gap="#space_sm"
-            scrollable="false">
+    <overlay_panel-overlay_content style_pad_left="#space_lg"
+                                   style_pad_right="#space_lg" style_pad_bottom="#space_md" style_pad_top="0"
+                                   flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
       <!-- ============================================================ -->
@@ -276,6 +275,6 @@
           </ui_button>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

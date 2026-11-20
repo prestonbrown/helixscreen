@@ -6,9 +6,9 @@
 <component>
   <view name="hardware_health_overlay" extends="overlay_panel" title="Hardware Health" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="#space_lg" style_pad_bottom="#space_lg" style_pad_left="0"
-            style_pad_right="0" scrollable="true" flex_flow="column" style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_top="#space_lg"
+                                   style_pad_bottom="#space_lg" style_pad_left="0" style_pad_right="0" scrollable="true"
+                                   flex_flow="column" style_pad_gap="#space_md">
       <!-- ================================================================== -->
       <!-- STATUS CARD - Shows overall health status -->
       <!-- ================================================================== -->
@@ -102,6 +102,6 @@
         <icon src="info" size="xs" variant="secondary"/>
         <text_small text="Hardware is validated on startup and reconnection"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

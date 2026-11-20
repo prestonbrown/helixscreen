@@ -3,23 +3,20 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <api>
-    <prop name="message" type="string"/>
     <!-- Icon appearance driven per-instance so multiple stacked toasts of
          different severities can coexist without shared subjects. -->
     <prop name="icon_glyph" type="string" default="󰋼"/>
     <prop name="icon_color" type="string" default="#info"/>
-    <!-- Action button is hidden by default; set hide_action="false" to show it.
-         action_text / wiring of the click callback is done in C++ after create. -->
+    <!-- Action button is hidden by default; set hide_action="false" to show it. -->
     <prop name="action_text" type="string" default=""/>
     <prop name="hide_action" type="string" default="true"/>
-    <!-- Optional second line: what to DO about the message above. AmsError
-         carries this as `suggestion` and it was never rendered anywhere, so the
-         user saw "Cannot run filament operation while printing" without "Pause
-         the print first, then load, unload, or change filament". Hidden by
-         default, so every existing caller renders exactly as before. -->
-    <prop name="detail" type="string" default=""/>
+    <!-- Optional second line under the message: what to do about it (an
+         AmsError's suggestion). Hidden by default. -->
     <prop name="hide_detail" type="string" default="true"/>
   </api>
+  <!-- The message (toast_message) and detail (toast_detail) labels come up empty:
+       ToastManager sets them after creation, since printer and plugin text can
+       start with '#' and a prop would read it as a const. -->
   <!-- Toast card - floating appearance with shadow. Width comes from the parent
        stack container (sized in C++ based on screen width); height tight to
        content. Positioning of the stack itself is handled by ToastManager on
@@ -40,13 +37,15 @@
             height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_row="#space_xxs"
             style_pad_column="0" style_pad_left="#space_sm" style_pad_right="#space_sm" style_bg_opa="0"
             style_border_width="0" style_radius="0" scrollable="false" clickable="false" event_bubble="true">
-      <text_body name="toast_message" width="100%" text="$message" long_mode="wrap"/>
+      <text_body name="toast_message" width="100%" text="" long_mode="wrap"/>
       <text_small name="toast_detail"
-                  width="100%" text="$detail" long_mode="wrap" style_text_color="#text_muted" hidden="$hide_detail"/>
+                  width="100%" text="" long_mode="wrap" style_text_color="#text_muted" hidden="$hide_detail"/>
     </lv_obj>
     <ui_button name="toast_action_btn"
                width="content" height="#button_height_sm" text="$action_text" variant="success" style_min_width="72"
-               hidden="$hide_action"/>
+               hidden="$hide_action">
+      <event_cb trigger="clicked" callback="toast_action_btn_clicked"/>
+    </ui_button>
     <ui_button name="toast_close_btn" width="40" height="40" icon="xmark" variant="ghost">
       <event_cb trigger="clicked" callback="toast_close_btn_clicked"/>
     </ui_button>

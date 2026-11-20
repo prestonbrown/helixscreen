@@ -53,8 +53,7 @@
     <!-- Manage Printers: the labelled button in landscape; portrait is too narrow
          for it beside the title, so the round icon button takes its place. -->
     <!-- Body. Tapping it while the name is being edited saves the edit (C++). -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="0" scrollable="true">
+    <overlay_panel-overlay_content style_pad_all="0" style_pad_top="#space_sm" style_pad_gap="0" scrollable="true">
       <event_cb trigger="clicked" callback="pm_body_clicked"/>
       <bind_style_if_eq name="body_row" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="body_column" subject="ui_is_portrait" ref_value="1"/>
@@ -346,6 +345,6 @@
         </setting_group>
 
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

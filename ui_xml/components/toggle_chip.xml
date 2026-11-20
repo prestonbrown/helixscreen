@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One choice in a multi-select chip row (LED Settings' Applies to, Power
+       Devices' main power button), in the LEDs overlay's chip look: lit while
+       `selected`, which maps to LV_STATE_CHECKED. C++ sets chip_label after
+       creation (device names are user text, and as a prop a leading '#' would
+       read as a const) and resolves the tap from `index`. -->
+  <api>
+    <prop name="index" type="int" default="0"/>
+    <prop name="selected" type="boolean" default="false"/>
+    <prop name="callback" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="content" height="#led_chip_height" style_radius="#led_chip_height" style_min_width="#led_chip_min_width"
+        style_pad_left="#space_md" style_pad_right="#space_md" style_pad_ver="0" flex_flow="row"
+        style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+        ext_click_area="#led_chip_gap_half" scrollable="false" clickable="true" checked="$selected">
+    <!-- Idle first, active after: the later style wins while it is checked. -->
+    <style name="styles.chip_idle"/>
+    <style name="styles.chip_active" selector="checked"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <text_body name="chip_label" text="" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
+  </view>
+</component>

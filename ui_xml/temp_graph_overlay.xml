@@ -120,9 +120,9 @@
   </styles>
   <view name="temp_graph_overlay" extends="overlay_panel" title="Temperature">
     <!-- Content area: graph+chips left, controls right (side-by-side) -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_top="0" scrollable="false"
-            style_border_opa="0" style_flex_main_place="space_between" style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_lg"
+                                   style_pad_top="0" scrollable="false" style_border_opa="0"
+                                   style_flex_main_place="space_between" style_pad_gap="#space_md">
       <bind_style_if name="tg_content_column" cond="ui_is_portrait"/>
       <bind_style_if name="tg_content_row" cond="ui_is_portrait" invert="true"/>
       <!-- Disable content when printer not connected or klippy not ready -->
@@ -839,6 +839,6 @@
         </if>
       </lv_obj>
 
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

@@ -6,9 +6,9 @@
      (src/ui/panel_widgets/maintenance_model.h). -->
 <component>
   <view name="maintenance_task_overlay" extends="overlay_panel" title="Maintenance Task" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_hor="#space_lg" style_pad_bottom="#space_lg"
-            style_pad_row="#space_md" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_hor="#space_lg" style_pad_bottom="#space_lg" style_pad_row="#space_md"
+                                   scrollable="true" flex_flow="column">
       <ui_card name="mt_task_head"
                width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_column="#space_md"
                style_flex_cross_place="center" scrollable="false">
@@ -40,6 +40,6 @@
       <ui_button name="mt_task_done" width="content" height="#button_height_sm" variant="primary" text="Mark done">
         <event_cb trigger="clicked" callback="maintenance_mark_done_cb"/>
       </ui_button>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

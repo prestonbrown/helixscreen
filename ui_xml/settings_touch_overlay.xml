@@ -5,9 +5,9 @@
 <!-- Calibration, debug visualization, scroll feel -->
 <component>
   <view name="settings_touch_overlay" extends="overlay_panel" title="Touch &amp; Input" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- All touch settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
       <setting_group name="group_touch">
@@ -75,6 +75,6 @@
                             label="Scroll Buttons" icon="swap_vertical" description="Show up/down buttons on long lists"
                             subject="settings_page_scroll_buttons" callback="on_page_scroll_buttons_changed"/>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

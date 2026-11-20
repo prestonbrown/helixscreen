@@ -37,6 +37,14 @@ class TestLinterCleanFiles:
         assert len(errors) == 0, f"Unexpected errors: {[d.message for d in errors]}"
 
 
+    def test_slot_declarations_in_api_are_not_widgets(self, schema: Schema, fixtures_dir: Path) -> None:
+        """A component's <slot> declarations lint clean."""
+        linter = Linter(schema, LinterConfig(enable_xref=False))
+        result = linter.lint_file(fixtures_dir / "slot_declaration.xml")
+        errors = [d for d in result.diagnostics if d.severity == Severity.ERROR]
+        assert len(errors) == 0, f"Unexpected errors: {[d.message for d in errors]}"
+
+
 class TestLinterUnknownWidget:
     """Tests for unknown-widget detection."""
 

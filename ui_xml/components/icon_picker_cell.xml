@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One tappable glyph in an icon picker grid (favorite macro, fan, power
+       device and thermistor pickers). The cell is a fixed square and the glyph a
+       fixed 24px face, so every grid wraps the same at any breakpoint. The
+       outlined look follows LV_STATE_CHECKED, which `selected` sets at creation
+       and refresh_icon_grid() moves; C++ resolves the tap from `index`. -->
+  <api>
+    <prop name="index" type="int" default="0"/>
+    <prop name="glyph" type="string" default=""/>
+    <prop name="selected" type="boolean" default="false"/>
+  </api>
+  <consts>
+    <px name="cell_size" value="36"/>
+  </consts>
+  <styles>
+    <style name="cell_selected" border_width="2" border_color="#primary" bg_color="#primary" bg_opa="20"/>
+    <style name="cell_pressed" bg_color="#text_muted" bg_opa="20%"/>
+  </styles>
+  <view extends="lv_obj"
+        width="#cell_size" height="#cell_size" style_radius="#border_radius_small" style_pad_all="0" style_bg_opa="0"
+        style_border_width="0" scrollable="false" clickable="true" checked="$selected">
+    <style name="cell_selected" selector="checked"/>
+    <style name="cell_pressed" selector="pressed"/>
+    <lv_label name="glyph"
+              align="center" text="$glyph" style_text_font="mdi_icons_24" style_text_color="#text" clickable="false"
+              event_bubble="true"/>
+    <event_cb trigger="clicked" callback="icon_picker_cell_cb" user_data="$index"/>
+  </view>
+</component>
