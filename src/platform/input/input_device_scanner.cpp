@@ -226,7 +226,7 @@ PointerKind classify_pointer_capabilities(const std::string& abs_caps, const std
     return PointerKind::PanelAbsolute;
 }
 
-PointerKind pointer_kind_for_device(const std::string& device_path, const std::string& sysfs_base) {
+int event_number_for_device(const std::string& device_path) {
     // Resolve links such as /dev/input/by-id/*, whose names say nothing about the node.
     char resolved[PATH_MAX];
     const char* node_path =
@@ -236,6 +236,14 @@ PointerKind pointer_kind_for_device(const std::string& device_path, const std::s
 
     int event_num = -1;
     if (sscanf(node, "event%d", &event_num) != 1 || event_num < 0) {
+        return -1;
+    }
+    return event_num;
+}
+
+PointerKind pointer_kind_for_device(const std::string& device_path, const std::string& sysfs_base) {
+    const int event_num = event_number_for_device(device_path);
+    if (event_num < 0) {
         return PointerKind::PanelAbsolute;
     }
     return classify_pointer_capabilities(read_sysfs_capability(sysfs_base, event_num, "abs"),

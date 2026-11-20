@@ -306,8 +306,7 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
 
     // Determine if touch calibration is needed using unified logic.
     // Reads device name, phys, and capabilities from sysfs.
-    int event_num = -1;
-    sscanf(touch_path.c_str() + touch_path.rfind("event"), "event%d", &event_num);
+    const int event_num = helix::input::event_number_for_device(touch_path);
     std::string dev_name = (event_num >= 0) ? helix::input::get_input_device_name(event_num) : "";
     std::string dev_phys;
     if (event_num >= 0) {

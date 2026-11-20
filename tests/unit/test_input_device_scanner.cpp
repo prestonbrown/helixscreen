@@ -459,6 +459,33 @@ TEST_CASE("a touch panel that dropped off the bus is reopened only on a real tou
     }
 }
 
+TEST_CASE("event_number_for_device reads the number only from an event node", "[input][display]") {
+    using helix::input::event_number_for_device;
+
+    SECTION("an event node gives its number") {
+        CHECK(event_number_for_device("/dev/input/event7") == 7);
+    }
+
+    SECTION("a path with no event node gives none") {
+        CHECK(event_number_for_device("/dev/input/mouse0") == -1);
+        CHECK(event_number_for_device("/dev/input/by-id/usb-Panel-touch") == -1);
+        CHECK(event_number_for_device("event") == -1);
+        CHECK(event_number_for_device("") == -1);
+    }
+
+    SECTION("an event name in a directory is not the node") {
+        CHECK(event_number_for_device("/tmp/event3/touch") == -1);
+    }
+
+    SECTION("a link to an event node gives the node's number") {
+        MockInputTree tree("event_number_link");
+        tree.add_device(5, "Panel", {{"abs", "3"}});
+        const std::string link = tree.dev_dir + "/by-id-panel";
+        fs::create_symlink(tree.dev_dir + "/event5", link);
+        CHECK(event_number_for_device(link) == 5);
+    }
+}
+
 TEST_CASE("pointer devices are classified by how they position themselves", "[input][rotation]") {
     using helix::input::classify_pointer_capabilities;
     using helix::input::PointerKind;
