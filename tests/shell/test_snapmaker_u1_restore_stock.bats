@@ -28,10 +28,12 @@ setup() {
     # the platform hook under assets/, and scripts/u1_stock_ui.sh as the U1
     # package ships it (REL_SCRIPTS copies it flat into scripts/).
     DEPLOY_DIR="$MOCK_ROOT/userdata/helixscreen"
-    mkdir -p "$DEPLOY_DIR/config" "$DEPLOY_DIR/scripts" "$DEPLOY_DIR/assets/config/platform"
+    mkdir -p "$DEPLOY_DIR/config" "$DEPLOY_DIR/scripts" "$DEPLOY_DIR/assets/config/platform" \
+        "$DEPLOY_DIR/bin"
     export INIT_LOG="$BATS_TEST_TMPDIR/init.log"
     printf '#!/bin/sh\necho "$1" >> "%s"\n' "$INIT_LOG" > "$DEPLOY_DIR/config/helixscreen.init"
-    chmod +x "$DEPLOY_DIR/config/helixscreen.init"
+    printf '#!/bin/sh\nexit 0\n' > "$DEPLOY_DIR/bin/helix-screen"
+    chmod +x "$DEPLOY_DIR/config/helixscreen.init" "$DEPLOY_DIR/bin/helix-screen"
     cp "$HOOK" "$DEPLOY_DIR/assets/config/platform/"
     cp "$WORKTREE_ROOT/scripts/lib/installer/u1_stock_ui.sh" "$DEPLOY_DIR/scripts/"
 
@@ -128,7 +130,7 @@ boot_delegate() {
     run boot_delegate
     [ "$status" -eq 0 ]
     [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui still disabled"
-    contains "No HelixScreen launcher found" "$(cat "$HELIX_U1_RESTORE_LOG")"
+    contains "No usable HelixScreen launcher found" "$(cat "$HELIX_U1_RESTORE_LOG")"
 }
 
 @test "u1 boot delegate: launcher not executable -> stock screen switched back on" {
@@ -171,4 +173,65 @@ pre_start_exports() {
     run pre_start_exports
     [ "$status" -eq 0 ]
     contains "not exported" "$output"
+}
+
+@test "u1 boot delegate: the real helixscreen.init without its binary -> stock screen switched back on" {
+    # helixscreen.init exits 0 before the platform hook (and SSH) when
+    # bin/helix-screen is not executable, so it must not count as a launcher.
+    cp "$WORKTREE_ROOT/config/helixscreen.init" "$MOCK_ROOT/userdata/helixscreen/config/helixscreen.init"
+    chmod +x "$MOCK_ROOT/userdata/helixscreen/config/helixscreen.init"
+    rm -f "$MOCK_ROOT/userdata/helixscreen/bin/helix-screen"
+
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui still disabled: $output"
+}
+
+@test "u1 boot delegate: HelixScreen start fails -> stock screen switched back on" {
+    printf '#!/bin/sh\necho "$1" >> "%s"\nexit 1\n' "$INIT_LOG" \
+        > "$MOCK_ROOT/userdata/helixscreen/config/helixscreen.init"
+
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ "$(cat "$INIT_LOG")" = start ]
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui still disabled"
+    contains "HelixScreen failed to start" "$(cat "$HELIX_U1_RESTORE_LOG")"
+}
+
+@test "u1 boot delegate: stock screen already on -> HelixScreen not started beside it" {
+    chmod +x "$MOCK_ROOT/usr/bin/gui"
+
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ ! -e "$INIT_LOG" ] || fail "init called: $(cat "$INIT_LOG")"
+}
+
+@test "u1 boot delegate: restore without the overlay script -> next boot does not start HelixScreen" {
+    touch "$HELIX_U1_RESTORE_TRIGGER"
+    rm -rf "$MOCK_ROOT/etc/helixscreen"
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui not re-enabled"
+    rm -f "$INIT_LOG"
+
+    # The delegate is still in place, but gui now owns the screen.
+    run boot_delegate
+    [ "$status" -eq 0 ]
+    [ ! -e "$INIT_LOG" ] || fail "init called: $(cat "$INIT_LOG")"
+}
+
+@test "u1 boot delegate: busybox sh, as rcS runs it -> trigger restores, otherwise HelixScreen starts" {
+    command -v busybox >/dev/null || skip "busybox not installed"
+    # busybox runs its own logger applet ahead of PATH, so this case reads the
+    # restore log the delegate writes itself.
+    run env DELEGATE_SH="busybox sh" bash -c "$(declare -f boot_delegate); boot_delegate"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$INIT_LOG")" = start ] || fail "init calls: $(cat "$INIT_LOG" 2>/dev/null)"
+
+    touch "$HELIX_U1_RESTORE_TRIGGER"
+    run env DELEGATE_SH="busybox sh" bash -c "$(declare -f boot_delegate); boot_delegate"
+    [ "$status" -eq 0 ]
+    [ -x "$MOCK_ROOT/usr/bin/gui" ] || fail "gui not re-enabled"
+    grep -q STOCK "$MOCK_ROOT/etc/init.d/S99input-event-daemon" || fail "launcher not restored"
+    contains "Re-enabling stock UI binary" "$(cat "$HELIX_U1_RESTORE_LOG")"
 }
