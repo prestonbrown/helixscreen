@@ -6,6 +6,7 @@
 
 #include "ui_filament_path_plan.h"
 
+#include "ui_ams_lane_spool.h"
 #include "ui_bypass_spool_widget.h"
 #include "ui_icon_codepoints.h"
 
@@ -86,6 +87,36 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
     }
     return data.topology == static_cast<int>(PathTopology::HUB) ? f.hub_box_w
                                                                 : data.theme.hub_width;
+}
+
+int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
+                            const LinearHubFrame& f) {
+    if (data.topology != static_cast<int>(PathTopology::LINEAR) || !data.show_bypass ||
+        !data.feeds_toolhead || data.hub_on_toolhead || data.slot_count < 1)
+        return INT32_MAX;
+    // The box the spool widget stands in, over the merge line at kBypassXRatio.
+    const int32_t box = helix::ui::bypass_spool_box_size();
+    const int32_t spool_bottom = f.bypass_merge_y - helix::ui::bypass_spool_bottom_above_merge();
+    const int32_t spool_top = spool_bottom - box;
+    // The bar's gear may stand a little taller than the bar; half a bar's height of margin
+    // covers it.
+    const int32_t reach = f.hub_h;
+    if (spool_top > f.hub_y + reach || spool_bottom < f.hub_y - reach)
+        return INT32_MAX;
+    // The spool itself, inside its box's padding.
+    const int32_t spool_left =
+        g.x_off + (int32_t)(g.width * kBypassXRatio) - helix::ui::ams_slot_spool_size() / 2;
+    // The bar always reaches the last lane's tube.
+    return LV_MAX(spool_left, g.slot_x[data.slot_count - 1] + data.theme.tube_gauge);
+}
+
+lv_area_t hub_box_area(const FilamentPathData& data, const BaseGeometry& g,
+                       const LinearHubFrame& f) {
+    const int32_t w = hub_box_width(data, g, f);
+    const int32_t x1 = f.center_x - w / 2;
+    // An even width, so the box drawn about its middle is this one.
+    const int32_t x2 = LV_MIN(f.center_x + w / 2, hub_box_right_limit(data, g, f));
+    return {x1, f.hub_y - f.hub_h / 2, x1 + (x2 - x1) / 2 * 2, f.hub_y + f.hub_h / 2};
 }
 
 namespace {

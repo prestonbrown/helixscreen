@@ -1793,7 +1793,7 @@ translations:
   Free space unknown: '空き容量不明'
   Freed {}: '{}を解放しました'
   Freed {}, but some files could not be deleted: '{}を解放しましたが、一部のファイルは削除できませんでした'
-  From Buffer: バッファから
+  From Buffer: バッファーから
   From Printer: 'プリンターから'
   From SpoolmanDB: 'SpoolmanDB から'
   From Version: 更新前バージョン
@@ -1810,7 +1810,7 @@ translations:
   Gate: ゲート
   Gates: ゲート
   Gateway: 'ゲートウェイ'
-  Gear Buffer Speed: 'ギアのバッファ速度'
+  Gear Buffer Speed: 'ギアのバッファー速度'
   Gear Spool Speed: 'ギアのスプール速度'
   Gear Unload Speed: 'ギアのアンロード速度'
   Gear motor synced: ギアモーターを同期しました
@@ -2724,7 +2724,7 @@ translations:
   No tool on the head: "ツールヘッドにツールがありません"
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
-  No unit has a filament buffer: "フィラメントバッファを持つユニットがありません"
+  No unit has a filament buffer: "フィラメントバッファーを持つユニットがありません"
   No unit has a moving selector: "可動セレクターを持つユニットがありません"
   No unit has a servo: "サーボを持つユニットがありません"
   No unit has an encoder: "エンコーダーを持つユニットがありません"
@@ -4993,6 +4993,7 @@ translations:
   attempt {}: '試行 {}'
   auto: 自動
   bed: ベッド
+  buffer|Neutral: 中央
   busy: 'ビジー状態'
   by: '作成者:'
   by Preston Brown: by Preston Brown

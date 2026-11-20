@@ -108,6 +108,35 @@ TEST_CASE("family derivation reduces suffix variants to their base polymer",
     CHECK(filament::display_family("PC-GF") == "PC");
 }
 
+TEST_CASE("filled grade keeps its fillers and drops finishes and ratings",
+          "[filament][family][derivation][short-label]") {
+    // Fillers the variant table marks filled stay: they change how the lane prints.
+    CHECK(filament::display_grade("PLA-CF") == "PLA-CF");
+    CHECK(filament::display_grade("PA-GF") == "PA-GF");
+    CHECK(filament::display_grade("PETG-CF") == "PETG-CF");
+    CHECK(filament::display_grade("Silk PLA-CF") == "PLA-CF");
+    CHECK(filament::display_grade("Wood PLA") == "Wood PLA");
+    // Finishes, speed ratings and plain grades read their family.
+    CHECK(filament::display_grade("Silk PLA") == "PLA");
+    CHECK(filament::display_grade("Matte PLA") == "PLA");
+    CHECK(filament::display_grade("PLA-HS") == "PLA");
+    CHECK(filament::display_grade("PLA") == "PLA");
+    CHECK(filament::display_grade("") == "");
+}
+
+TEST_CASE("filled grade reads hand-typed names once, filler and all",
+          "[filament][family][derivation][short-label]") {
+    CHECK(filament::display_grade("silk pla-cf") == "PLA-CF");
+    CHECK(filament::display_grade("pla-cf") == "PLA-CF");
+    CHECK(filament::display_grade("PETG CF") == "PETG-CF");
+    // Nothing the database knows to reduce to: the name stands as typed, its filler once.
+    CHECK(filament::display_grade("CF") == "CF");
+    // A finish drops even with no polymer named.
+    CHECK(filament::display_grade("Silk CF") == "CF");
+    CHECK(filament::display_grade("Wood-CF") == "Wood-CF");
+    CHECK(filament::display_grade("Foo-CF") == "Foo-CF");
+}
+
 TEST_CASE("family derivation strips known variant PREFIXES", "[filament][family][derivation]") {
     // Left-prefix walking alone cannot reach these: the base polymer is not a
     // prefix of the string.

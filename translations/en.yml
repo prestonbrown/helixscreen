@@ -4969,6 +4969,7 @@ translations:
   attempt {}: attempt {}
   auto: auto
   bed: bed
+  buffer|Neutral: buffer|Neutral
   busy: busy
   by: by
   by Preston Brown: by Preston Brown

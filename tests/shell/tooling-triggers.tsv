@@ -186,7 +186,7 @@ tests/shell/test_symbol_ci.bats	mk/cross.mk
 tests/shell/test_symbol_extraction.bats	Makefile
 tests/shell/test_symbol_makefile.bats	Makefile
 tests/shell/test_target_specific_override_gate.bats	Makefile mk/ scripts/check_target_specific_override.py
-tests/shell/test_teardown_order_gate.bats	scripts/code_lint.sh src/application/application.cpp src/application/printer_session.cpp tests/shell/fixtures/shutdown_exit_tail_order.txt tests/shell/fixtures/teardown_printer_scope_order.txt
+tests/shell/test_teardown_order_gate.bats	scripts/code_lint.sh src/application/application_shutdown.cpp src/application/printer_session.cpp tests/shell/fixtures/shutdown_exit_tail_order.txt tests/shell/fixtures/teardown_printer_scope_order.txt
 tests/shell/test_teardown_worktree_portability.bats	scripts/lib/build_hosts.sh scripts/lib/worktree_lib.sh scripts/teardown-worktree.sh
 tests/shell/test_teardown_worktree_recovery.bats	lib/glm lib/helix-xml lib/lua lib/spdlog scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/lib/worktree_lib.sh scripts/teardown-worktree.sh scripts/test-host-run.sh
 tests/shell/test_telemetry_pull_args.bats	scripts/telemetry-pull.sh tests/shell/helpers.bash

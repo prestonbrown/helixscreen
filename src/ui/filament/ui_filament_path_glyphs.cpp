@@ -82,6 +82,70 @@ const lv_font_t* hub_gear_font(int32_t height) {
 }
 } // namespace
 
+HubBoxShape hub_box_shape(int32_t cx, int32_t width, int32_t label_w, int32_t gear_w,
+                          const HubBoxExtras* extras) {
+    constexpr int32_t kLabelPad = 4;
+    const int32_t slot_w = extras ? extras->slot_w : 0;
+    const int32_t max_right = extras ? extras->max_right : INT32_MAX;
+    // Its right end held to max_right, the box growing leftward instead.
+    const auto held = [max_right](int32_t x, int32_t w) {
+        const int64_t over = (int64_t)x + w / 2 - max_right;
+        return over > 0 ? x - (int32_t)over : x;
+    };
+    if (extras && extras->gear_outside) {
+        // The box holds the label and the slot; a gear stands outside where it stays clear.
+        const int32_t w = LV_MAX(width, label_w + 2 * kLabelPad + slot_w);
+        if (gear_w == 0)
+            return {held(cx, w), w, false};
+        if ((int64_t)cx + w / 2 + 2 * kGearPad + gear_w <= max_right)
+            return {cx, w, true};
+    }
+    const int32_t gear_in = gear_w > 0 ? gear_w + 2 * kGearPad : 0;
+    const int32_t w = gear_w > 0 ? LV_MAX(width, label_w + 2 * gear_in + slot_w) : width;
+    return {held(cx, w), w, false};
+}
+
+namespace {
+/// The width of the gear drawn in @p icon_font; 0 for none.
+int32_t hub_gear_width(const lv_font_t* icon_font) {
+    if (!icon_font)
+        return 0;
+    const int32_t measured = helix::ui::text_width(ICON_SETTINGS, icon_font);
+    return measured > 0 ? measured : lv_font_get_line_height(icon_font); // defensive fallback
+}
+
+} // namespace
+
+const char* hub_section_label(const FilamentPathData& data) {
+    return data.topology == 0 ? "SELECTOR" : "HUB";
+}
+
+bool hub_section_interactive(const FilamentPathData& data) {
+    return data.hub_callback != nullptr && data.hub_has_actions && !data.fixed_selector;
+}
+
+HubBoxExtras hub_section_extras(const FilamentPathData& data, const BaseGeometry& g,
+                                const LinearHubFrame& f) {
+    HubBoxExtras extras;
+    extras.gear_outside = data.view_hub_h > 0;
+    extras.max_right = hub_box_right_limit(data, g, f);
+    extras.slot_w = f.buffer_in_hub ? hub_buffer_glyph_width(f.hub_h) : 0;
+    return extras;
+}
+
+lv_area_t hub_box_drawn_area(const FilamentPathData& data, const BaseGeometry& g,
+                             const LinearHubFrame& f) {
+    const lv_area_t box = hub_box_area(data, g, f);
+    const lv_font_t* font = data.theme.label_font;
+    const int32_t label_w = font ? helix::ui::text_width(hub_section_label(data), font) : 0;
+    const int32_t gear_w =
+        hub_section_interactive(data) ? hub_gear_width(hub_gear_font(f.hub_h)) : 0;
+    const HubBoxExtras extras = hub_section_extras(data, g, f);
+    const HubBoxShape shape =
+        hub_box_shape((box.x1 + box.x2) / 2, box.x2 - box.x1, label_w, gear_w, &extras);
+    return {shape.cx - shape.width / 2, box.y1, shape.cx + shape.width / 2, box.y2};
+}
+
 int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width, int32_t height,
                      lv_color_t bg_color, lv_color_t border_color, const char* label,
                      lv_opa_t bg_opa, bool interactive, HubBoxExtras* extras) {
@@ -89,29 +153,19 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     lv_color_t text_color = ctx.data->theme.color_text;
     const lv_font_t* font = ctx.data->theme.label_font;
     int32_t radius = ctx.data->theme.border_radius;
-    const bool gear_outside = extras && extras->gear_outside;
     const int32_t slot_w = extras ? extras->slot_w : 0;
-    constexpr int32_t kLabelPad = 4;
 
     // Tappable affordance: a small gear glyph, vertically centered with the label, signals
-    // that the box opens a context menu. Inside the box's right edge the box grows, about its
-    // center, until the centered label and the gear both fit; outside it, the box holds only
-    // the label and the slot.
+    // that the box opens a context menu (hub_box_shape() places it and sizes the box).
     const lv_font_t* icon_font = interactive ? hub_gear_font(height) : nullptr;
-    int32_t gear_w = 0;
-    int32_t gear_h = 0;
-    int32_t label_w = 0;
-    if (label && label[0] && font)
-        label_w = helix::ui::text_width(label, font);
-    if (icon_font) {
-        gear_h = lv_font_get_line_height(icon_font);
-        const int32_t measured = helix::ui::text_width(ICON_SETTINGS, icon_font);
-        gear_w = measured > 0 ? measured : gear_h; // defensive fallback
-    }
+    const int32_t gear_w = hub_gear_width(icon_font);
+    const int32_t gear_h = icon_font ? lv_font_get_line_height(icon_font) : 0;
+    const int32_t label_w = label && label[0] && font ? helix::ui::text_width(label, font) : 0;
+    const HubBoxShape shape = hub_box_shape(cx, width, label_w, gear_w, extras);
+    cx = shape.cx;
+    width = shape.width;
+    const bool gear_outside = shape.gear_outside;
     const int32_t gear_in = icon_font && !gear_outside ? gear_w + 2 * kGearPad : 0;
-    width = gear_outside ? LV_MAX(width, label_w + 2 * kLabelPad + slot_w)
-            : icon_font  ? LV_MAX(width, label_w + 2 * gear_in + slot_w)
-                         : width;
 
     // Background
     lv_draw_fill_dsc_t fill_dsc;
@@ -121,6 +175,8 @@ int32_t draw_hub_box(const RenderCtx& ctx, int32_t cx, int32_t cy, int32_t width
     fill_dsc.radius = radius;
 
     lv_area_t box_area = {cx - width / 2, cy - height / 2, cx + width / 2, cy + height / 2};
+    if (extras)
+        extras->box = box_area;
     lv_draw_fill(layer, &fill_dsc, &box_area);
 
     // Border

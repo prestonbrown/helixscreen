@@ -1454,8 +1454,8 @@ translations:
   Exhaust fan speed: 'Velocità ventola di scarico'
   'Exhaust: keep chamber at or below': 'Scarico: mantieni la camera al massimo a'
   Exit Code: Codice di uscita
-  Expanded: Espanso
-  'Expanded: the toolhead pulls filament faster than it arrives': 'Espanso: la testina tira il filamento più velocemente di quanto arriva'
+  Expanded: Esteso
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Esteso: la testina tira il filamento più velocemente di quanto arriva'
   Expected boolean: 'Atteso un valore booleano'
   Expected float: 'Atteso un numero decimale'
   Explore how the selected palette shapes text, controls, and status colors.: Esplora come la palette selezionata definisce testo, controlli e colori di stato.
@@ -4993,6 +4993,7 @@ translations:
   attempt {}: 'tentativo {}'
   auto: auto
   bed: piano
+  buffer|Neutral: Centrato
   busy: 'occupato'
   by: 'di'
   by Preston Brown: di Preston Brown

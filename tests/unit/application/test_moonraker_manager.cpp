@@ -708,7 +708,7 @@ TEST_CASE("Method callbacks are unregistered by the shared teardown",
     // Neither teardown path can be driven at runtime (see application_test_access.h),
     // so this is a source-level contract in the same shape as the ObserverGuard release
     // contract above.
-    const std::string impl = read_file("src/application/application.cpp");
+    const std::string impl = read_file("src/application/application_shutdown.cpp");
     REQUIRE_FALSE(impl.empty());
 
     const std::string session_impl = read_file("src/application/printer_session.cpp");

@@ -223,4 +223,14 @@ void ui_ams_slot_clear_highlight(lv_obj_t* obj);
 /// (the label's own text then holds the cut form); "" without one.
 // NAMESPACE_OK: the widget's C API, beside its siblings
 std::string ui_ams_slot_get_material_text(lv_obj_t* obj);
+
+/// The whole text the slot's material label reads in @p short_form or not
+/// (ui_ams_slot_set_label_short()), whichever it shows now.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+std::string ui_ams_slot_get_material_text(lv_obj_t* obj, bool short_form);
+
+/// A label spread over a drawn unit reads its base material only ("Silk PLA" reads "PLA") in
+/// @p short_form, for a row too tight for whole names; the lane card keeps the whole name.
+// NAMESPACE_OK: the widget's C API, beside its siblings
+void ui_ams_slot_set_label_short(lv_obj_t* obj, bool short_form);
 #endif

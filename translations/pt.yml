@@ -554,7 +554,7 @@ translations:
   Brush the gear teeth clean.: "Escove os dentes da engrenagem."
   Brush the mounted tool's nozzle clean: 'Limpar com a escova o bico da ferramenta montada'
   Buffer: Buffer
-  Buffer Status: Estado do Buffer
+  Buffer Status: Estado do buffer
   Buffer tube problem: Problema no tubo do buffer
   Buffer-driven gear speed control: "Velocidade da engrenagem controlada pelo buffer"
   Build Volume: 'Volume de impressão'
@@ -1454,8 +1454,8 @@ translations:
   Exhaust fan speed: 'Velocidade da ventoinha de exaustão'
   'Exhaust: keep chamber at or below': 'Exaustão: manter a câmara no máximo a'
   Exit Code: Código de Saída
-  Expanded: Expandido
-  'Expanded: the toolhead pulls filament faster than it arrives': 'Expandido: o cabeçote puxa o filamento mais rápido do que ele chega'
+  Expanded: Esticado
+  'Expanded: the toolhead pulls filament faster than it arrives': 'Esticado: o cabeçote puxa o filamento mais rápido do que ele chega'
   Expected boolean: 'Esperava-se um valor booleano'
   Expected float: 'Esperava-se um número decimal'
   Explore how the selected palette shapes text, controls, and status colors.: Explore como a paleta selecionada molda texto, controles e cores de status.
@@ -4993,6 +4993,7 @@ translations:
   attempt {}: 'tentativa {}'
   auto: auto
   bed: mesa
+  buffer|Neutral: Centrado
   busy: 'ocupado'
   by: 'por'
   by Preston Brown: por Preston Brown

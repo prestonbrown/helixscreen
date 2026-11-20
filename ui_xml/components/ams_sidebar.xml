@@ -44,15 +44,15 @@
          holds three rows of action buttons under it only when it is compact. -->
     <style name="bypass_row" height="#button_height"/>
     <style name="bypass_row_compact" height="#button_height_sm"/>
-    <!-- While Cancel shares the status line, the text keeps at least half of it
-         and the line wraps where both do not fit (a 480x272 column, a long
-         locale): Cancel drops to a line of its own rather than the text
-         breaking mid-word. A growing item counts only its min width toward the
-         wrap, so the floor is what makes it wrap. The flow is bound both ways:
-         an inline flex_flow would override the bound one. -->
-    <style name="status_row" layout="flex" flex_flow="row"/>
-    <style name="status_wrap" layout="flex" flex_flow="row_wrap"/>
-    <style name="status_text_floor" min_width="50%"/>
+    <!-- The status line wraps, so whatever rides beside the text drops to a
+         line of its own rather than the text breaking mid-word. On a landscape
+         column the text is its own width (capped at the line), so the inline
+         Bypass toggle stays beside a word only where both fit. While Cancel
+         shares the line, and in portrait, where the line is wide, the text
+         grows into what the item beside it leaves and keeps at least half of
+         the line: a growing item counts only its min width toward the wrap, so
+         the floor is what makes the line wrap there. -->
+    <style name="status_text_floor" flex_grow="1" min_width="50%"/>
     <!-- In landscape the sidebar fills its column; in portrait it stands under the diagram at
          its own height, in a panel that scrolls to it. Bound both ways: an inline height
          would override the bound one. -->
@@ -81,15 +81,13 @@
     </ams_loaded_card>
     <!-- Status Section -->
     <lv_obj name="status_section"
-            width="100%" height="content" style_flex_main_place="center" style_flex_cross_place="center"
-            style_pad_gap="#space_sm" scrollable="false">
+            width="100%" height="content" flex_flow="row_wrap" style_flex_main_place="center"
+            style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
       <bind_style_if_eq name="status_landscape" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="status_portrait" subject="ui_is_portrait" ref_value="1"/>
-      <bind_style_if_eq name="status_row" subject="ams_sidebar_cancel_shown" ref_value="0"/>
-      <bind_style_if_eq name="status_wrap" subject="ams_sidebar_cancel_shown" ref_value="1"/>
       <!-- Status label - bound to ams_action_detail subject -->
-      <text_body name="status_label" bind_text="ams_action_detail" style_text_align="center" flex_grow="1">
-        <bind_style_if_eq name="status_text_floor" subject="ams_sidebar_cancel_shown" ref_value="1"/>
+      <text_body name="status_label" bind_text="ams_action_detail" style_text_align="center" style_max_width="100%">
+        <bind_style_if name="status_text_floor" cond="ams_sidebar_cancel_shown eq 1 or ui_is_portrait eq 1"/>
       </text_body>
       <!-- Cancel rides at the end of the status line while an operation the
            backend can stop is running (AmsOperationSidebar::refresh_button_gating),

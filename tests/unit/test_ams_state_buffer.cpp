@@ -6,11 +6,18 @@
  * @brief AmsState's filament buffer reading: its traces and its subjects.
  */
 
+#include "ui_language_refresh.h"
+
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/buffer_infos.h"
+#include "../test_helpers/registered_backend.h"
+#include "../test_helpers/scoped_language.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "clog_meter_geometry.h"
+#include "core/update_queue.h"
+#include "system_settings_manager.h"
 
 #include <string>
 
@@ -200,4 +207,43 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState publishes a fill reading with no bia
         CHECK(subject_int(ams.get_buffer_target_pct_subject()) == -1);
         CHECK(subject_int(ams.get_buffer_bias_pct_subject()) == -45);
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "A switched buffer's word reaches its subject whole",
+                 "[ams][buffer][subjects][i18n]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ResetBuffer reset{ams};
+    ScopedLanguage ru("ru");
+
+    AmsSystemInfo info;
+    info.units.emplace_back();
+    info.units[0].buffer_health = BufferHealth{};
+    AmsStateTestAccess::sync_buffer(ams, info, 0);
+    CHECK(text_of(ams.get_buffer_short_text_subject()) == "Нейтрален");
+    info.units[0].buffer_health->motion = BufferMotion::Expanded;
+    AmsStateTestAccess::sync_buffer(ams, info, 1000);
+    CHECK(text_of(ams.get_buffer_short_text_subject()) == "Растянут");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "A language switch re-renders the buffer's word with no new frame",
+                 "[ams][buffer][subjects][i18n]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ResetBuffer reset{ams};
+    test::RegisteredBackend<AmsBackendMock> mock(4);
+    mock->set_sync_feedback_bias(-2.0f); // no sync feedback: the unit's switch is the reading
+    mock->set_unit_buffer_health(0, BufferHealth{});
+    ams.sync_from_backend();
+    REQUIRE(text_of(ams.get_buffer_short_text_subject()) == "Neutral");
+
+    helix::ui::init_language_refresh();
+    auto& settings = SystemSettingsManager::instance();
+    settings.set_language("ru");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(text_of(ams.get_buffer_short_text_subject()) == "Нейтрален");
+    settings.set_language("en");
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(text_of(ams.get_buffer_short_text_subject()) == "Neutral");
 }

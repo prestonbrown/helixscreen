@@ -4,6 +4,7 @@
 #include "buffer_reading.h"
 
 #include "lvgl.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -104,7 +105,7 @@ std::string buffer_short_text(const BufferReading& r) {
     if (r.source == BufferSource::Switch) {
         return r.bias > 0.0f   ? lv_tr("Compressed")
                : r.bias < 0.0f ? lv_tr("Expanded")
-                               : lv_tr("Neutral");
+                               : helix::ui::tr_context("buffer|Neutral");
     }
     if (r.has_slider && r.source == BufferSource::Sync && r.value_pct != 0) {
         return fmt::format("{:+d}%", r.value_pct);

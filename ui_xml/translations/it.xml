@@ -1389,8 +1389,8 @@
   <translation tag="Exhaust fan speed" it="Velocità ventola di scarico"/>
   <translation tag="Exhaust: keep chamber at or below" it="Scarico: mantieni la camera al massimo a"/>
   <translation tag="Exit Code" it="Codice di uscita"/>
-  <translation tag="Expanded" it="Espanso"/>
-  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" it="Espanso: la testina tira il filamento più velocemente di quanto arriva"/>
+  <translation tag="Expanded" it="Esteso"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" it="Esteso: la testina tira il filamento più velocemente di quanto arriva"/>
   <translation tag="Expected boolean" it="Atteso un valore booleano"/>
   <translation tag="Expected float" it="Atteso un numero decimale"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." it="Esplora come la palette selezionata definisce testo, controlli e colori di stato."/>
@@ -4857,6 +4857,7 @@
   <translation tag="attempt {}" it="tentativo {}"/>
   <translation tag="auto" it="auto"/>
   <translation tag="bed" it="piano"/>
+  <translation tag="buffer|Neutral" it="Centrato"/>
   <translation tag="busy" it="occupato"/>
   <translation tag="by" it="di"/>
   <translation tag="by Preston Brown" it="di Preston Brown"/>

@@ -350,6 +350,12 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
         }
     }
     if (draws_tray() && helix::ui::ams_slot_spool_size() > 0) {
+        // The labels read what they will read over the unit (its short form among them) while
+        // their rows are counted: a slot not yet spread reads its card's text.
+        for (int i = 0; i < count; ++i) {
+            if (slot_widgets[i])
+                ui_ams_slot_set_layout_info(slot_widgets[i], i, count, 1);
+        }
         // A unit with every lane empty keeps one row's height, so it stands the same size as
         // a filled one and does not grow when its lanes empty.
         result.layout.label_rows =

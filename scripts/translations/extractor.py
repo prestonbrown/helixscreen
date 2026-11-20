@@ -298,6 +298,9 @@ CPP_TRANSLATABLE_PATTERNS = [
     # the lookup happens later at the call site via lv_tr(). See
     # include/translation_loader.h.
     r"TR_NOOP\s*\(\s*" + ADJACENT_LITERALS_GROUP,
+    # tr_context("buffer|Neutral") - one sense of a word with two; the key keeps
+    # its context prefix. See include/translation_loader.h.
+    r"\btr_context\s*\(\s*" + ADJACENT_LITERALS_GROUP,
     # tr_plural("1 thing", "%d things", n) - both keys, singular first; see
     # include/i18n_plural.h.
     r"\btr_plural\s*\(\s*" + ADJACENT_LITERALS_GROUP,

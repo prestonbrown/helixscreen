@@ -215,7 +215,7 @@
   <translation tag="ADXL" zh="ADXL"/>
   <translation tag="AFC" zh="AFC"/>
   <translation tag="AFC Update Available" zh="AFC 有可用更新"/>
-  <translation tag="AFC buffer" zh="AFC 缓冲区"/>
+  <translation tag="AFC buffer" zh="AFC 缓冲器"/>
   <translation tag="AFC failure reset complete" zh="AFC故障重置完成"/>
   <translation tag="AFC failure reset failed" zh="AFC故障重置失败"/>
   <translation tag="AFC has no Spoolman configured" zh="AFC 未设置 Spoolman"/>
@@ -538,10 +538,10 @@
   <translation tag="Brush nozzle" zh="刷洗喷嘴"/>
   <translation tag="Brush the gear teeth clean." zh="将齿轮齿面刷干净。"/>
   <translation tag="Brush the mounted tool&apos;s nozzle clean" zh="用刷子清洁当前安装工具的喷嘴"/>
-  <translation tag="Buffer" zh="缓冲区"/>
-  <translation tag="Buffer Status" zh="缓冲区状态"/>
+  <translation tag="Buffer" zh="缓冲器"/>
+  <translation tag="Buffer Status" zh="缓冲器状态"/>
   <translation tag="Buffer tube problem" zh="缓冲管故障"/>
-  <translation tag="Buffer-driven gear speed control" zh="由缓冲区控制齿轮速度"/>
+  <translation tag="Buffer-driven gear speed control" zh="由缓冲器控制齿轮速度"/>
   <translation tag="Build Volume" zh="打印尺寸"/>
   <translation tag="Build Volume: " zh="构建尺寸: "/>
   <translation tag="Building preview: %d%%" zh="正在生成预览：%d%%"/>
@@ -1389,8 +1389,8 @@
   <translation tag="Exhaust fan speed" zh="排气风扇速度"/>
   <translation tag="Exhaust: keep chamber at or below" zh="排气：将腔体保持在不高于"/>
   <translation tag="Exit Code" zh="退出代码"/>
-  <translation tag="Expanded" zh="伸展"/>
-  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" zh="伸展：打印头拉动耗材快于送入"/>
+  <translation tag="Expanded" zh="拉伸"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" zh="拉伸：打印头拉动耗材快于送入"/>
   <translation tag="Expected boolean" zh="需要布尔值"/>
   <translation tag="Expected float" zh="需要小数值"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." zh="探索所选调色板如何影响文本、控件和状态颜色。"/>
@@ -1574,7 +1574,7 @@
   <translation tag="Feeders" zh="送料器"/>
   <translation tag="Feeding filament to nozzle" zh="正在向喷嘴送料"/>
   <translation tag="Filament" zh="耗材"/>
-  <translation tag="Filament Buffer" zh="耗材缓冲区"/>
+  <translation tag="Filament Buffer" zh="耗材缓冲器"/>
   <translation tag="Filament Control" zh="耗材控制"/>
   <translation tag="Filament Detected" zh="检测到耗材"/>
   <translation tag="Filament Dryer" zh="耗材烘干"/>
@@ -1597,7 +1597,7 @@
   <translation tag="Filament Used" zh="已用耗材"/>
   <translation tag="Filament already exists" zh="耗材已存在"/>
   <translation tag="Filament buffer failure during feed" zh="送料时耗材缓冲器故障"/>
-  <translation tag="Filament buffer position against its target" zh="耗材缓冲区相对目标的位置"/>
+  <translation tag="Filament buffer position against its target" zh="耗材缓冲器相对目标的位置"/>
   <translation tag="Filament buffer stopped moving" zh="耗材缓冲器停止移动"/>
   <translation tag="Filament by Type" zh="按类型分类的耗材"/>
   <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" zh="低于最低挤出温度时无法加载耗材。请设置热端目标温度（例如 PLA 220°C、PETG 240°C），待达到温度后重试"/>
@@ -1723,7 +1723,7 @@
   <translation tag="Free space unknown" zh="可用空间未知"/>
   <translation tag="Freed {}" zh="已释放 {}"/>
   <translation tag="Freed {}, but some files could not be deleted" zh="已释放 {}，但部分文件无法删除"/>
-  <translation tag="From Buffer" zh="来自缓冲区"/>
+  <translation tag="From Buffer" zh="来自缓冲器"/>
   <translation tag="From Printer" zh="从打印机"/>
   <translation tag="From SpoolmanDB" zh="来自 SpoolmanDB"/>
   <translation tag="From Version" zh="起始版本"/>
@@ -1739,7 +1739,7 @@
   <translation tag="Gate" zh="通道"/>
   <translation tag="Gates" zh="通道"/>
   <translation tag="Gateway" zh="网关"/>
-  <translation tag="Gear Buffer Speed" zh="齿轮缓冲区速度"/>
+  <translation tag="Gear Buffer Speed" zh="齿轮缓冲器速度"/>
   <translation tag="Gear Spool Speed" zh="齿轮料盘速度"/>
   <translation tag="Gear Unload Speed" zh="齿轮卸载速度"/>
   <translation tag="Gear motor synced" zh="齿轮电机已同步"/>
@@ -2567,7 +2567,7 @@
   <translation tag="No answer from the printer; it may still be calibrating" zh="打印机无应答；可能仍在校准"/>
   <translation tag="No answer: check the IP address and that this device is on the printer&apos;s Wi-Fi, not mobile data." zh="无响应:请检查 IP 地址,并确认此设备连接的是打印机的 Wi-Fi,而不是移动数据。"/>
   <translation tag="No answer: check the IP address and that this device is on the printer&apos;s network." zh="无响应:请检查 IP 地址,并确认此设备与打印机在同一网络。"/>
-  <translation tag="No buffer data available" zh="无可用缓冲区数据"/>
+  <translation tag="No buffer data available" zh="无可用缓冲器数据"/>
   <translation tag="No camera — use USB barcode scanner" zh="无摄像头 — 请使用 USB 条码扫描器"/>
   <translation tag="No chamber temperature sensor detected" zh="未检测到腔体温度传感器"/>
   <translation tag="No changes to revert" zh="没有可撤销的更改"/>
@@ -4289,7 +4289,7 @@
   <translation tag="This doesn&apos;t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?" zh="与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？"/>
   <translation tag="This dryer cannot run while filament from the unit is loaded" zh="此单元的耗材处于装载状态时，烘干机无法运行"/>
   <translation tag="This feature requires different hardware or configuration" zh="此功能需要不同的硬件或配置"/>
-  <translation tag="This filament system does not report buffer or flow data." zh="此耗材系统不报告缓冲区或流量数据。"/>
+  <translation tag="This filament system does not report buffer or flow data." zh="此耗材系统不报告缓冲器或流量数据。"/>
   <translation tag="This filament system keeps its own spool records" zh="此耗材系统自行管理料盘记录"/>
   <translation tag="This file prints {0} and {1} through one nozzle. {0} can burn and clog the nozzle at {1} temperatures." zh="此文件通过同一个喷嘴打印 {0} 和 {1}。在 {1} 的温度下，{0} 可能过热并堵塞喷嘴。"/>
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." zh="此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。"/>
@@ -4857,6 +4857,7 @@
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
   <translation tag="bed" zh="热床"/>
+  <translation tag="buffer|Neutral" zh="中位"/>
   <translation tag="busy" zh="正忙"/>
   <translation tag="by" zh="作者："/>
   <translation tag="by Preston Brown" zh="by Preston Brown"/>

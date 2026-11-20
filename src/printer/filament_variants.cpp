@@ -494,6 +494,32 @@ bool variant_leads_with_word(const std::string& label) {
 } // namespace
 
 // NAMESPACE_OK: namespace filament, beside extract_base_material
+std::string display_grade(std::string_view type) {
+    const std::string_view typed = helix::text_io::trim(type);
+    if (typed.empty())
+        return {};
+    const std::set<std::string> fillers = filled_affixes_of(typed);
+    if (fillers.empty())
+        return display_family(typed);
+    // Only a family the database knows reduces, spelled its way ("pla-cf" reads "PLA-CF"); a
+    // name that is all affixes ("Silk CF") or an unknown polymer stands as typed.
+    const auto material = find_material(display_family(typed));
+    if (!material)
+        return std::string(typed);
+    std::string grade = material->name;
+    for (const std::string& filler : fillers) {
+        // The table's own spelling: "Wood", not the upper-cased key.
+        for (const VariantAffix& affix : kVariantAffixes) {
+            if (helix::text_io::equals_ignore_case(filler, affix.name)) {
+                grade = compose_family_type(grade, affix.name);
+                break;
+            }
+        }
+    }
+    return grade;
+}
+
+// NAMESPACE_OK: namespace filament, beside extract_base_material
 std::string variant_label(std::string_view type, std::string_view family) {
     std::string_view work = helix::text_io::trim(type);
     if (work.empty()) {

@@ -31,6 +31,7 @@ GLOSSARY_GROUPS: dict[str, list[str]] = {
         "Slots", "Lanes", "Gates", "Feeders", "Tools", "Toolheads",
     ],
     "Filament features": ["Endless Spool", "Filament Mapping", "Assigned Tool"],
+    "Filament buffer": ["Buffer", "Filament Buffer", "Compressed", "Expanded", "buffer|Neutral"],
     "Actions": [
         "Save", "Cancel", "Close", "Delete", "Edit", "Retry",
         "Install", "Uninstall", "Update", "Print", "Pause", "Resume",
@@ -114,6 +115,18 @@ translation agents (the relevant column is injected into their prompts).
 - **Spool**: the physical spool noun — keep one rendering per locale.
 - **Light**: ambiguous (theme "Light" vs LED light) — translate by context; not
   a fixed glossary term.
+- **Buffer** is the mechanical spring or slider in the tube between a filament
+  unit and the extruder, never memory. The noun follows Bambu's HMS catalogue
+  (`resources/hms/hms_<lang>_*.json` in Bambu Studio), which names this part in
+  every locale: de `Puffer`, fr `Tampon`, es `búfer`, ja `バッファー` (not
+  `バッファ`), zh `缓冲器` (Bambu and Creality both; `缓冲区` is the computing
+  sense). Its states are a spring pair: **Compressed** is pushed in, **Expanded**
+  is pulled out under tension, so Expanded renders as stretched (de `Gedehnt`, fr
+  `Étiré`, es `Estirado`, it `Esteso`, pt `Esticado`, zh `拉伸`), never as
+  relaxed or as swollen. The buffer's middle position has its own context key,
+  `buffer|Neutral` (translate only the text after the bar), so it can say
+  centered (zh `中位`, de `Mittelstellung`) while plain `Neutral` stays the LED
+  white tone.
 
 ## Glossary
 """
@@ -157,7 +170,9 @@ def generate_glossary_markdown(yaml_dir: Path) -> str:
         lines.append(header_row)
         lines.append(sep_row)
         for term, vals in rows:
-            lines.append(f"| {term} | {' | '.join(vals)} |")
+            # A context key ("buffer|Neutral") carries a bar that would split the cell.
+            cells = [c.replace("|", "\\|") for c in [term, *vals]]
+            lines.append(f"| {' | '.join(cells)} |")
         missing.extend(skipped)
     if missing:
         lines.append("\n<!-- Terms not yet translated in every locale (skipped): "

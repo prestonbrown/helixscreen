@@ -50,13 +50,23 @@ namespace {
 
 void register_ams_xml_once() {
     static bool done = false;
-    if (done)
+    static int32_t registered_w = 0, registered_h = 0;
+    lv_display_t* disp = lv_display_get_default();
+    const int32_t w = lv_display_get_horizontal_resolution(disp);
+    const int32_t h = lv_display_get_vertical_resolution(disp);
+    // A component's constants resolve when it registers: one registered at another screen size
+    // lays a later test's panel out for that size.
+    if (done && w == registered_w && h == registered_h)
         return;
-    ui_spool_canvas_register();
-    ui_ams_slot_register();
-    ui_filament_path_canvas_register();
-    ui_endless_spool_arrows_register();
-    helix::ui::AmsOperationSidebar::register_callbacks_static();
+    registered_w = w;
+    registered_h = h;
+    if (!done) {
+        ui_spool_canvas_register();
+        ui_ams_slot_register();
+        ui_filament_path_canvas_register();
+        ui_endless_spool_arrows_register();
+        helix::ui::AmsOperationSidebar::register_callbacks_static();
+    }
     lv_xml_register_component_from_file("A:ui_xml/components/ams_unit_detail.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/ams_loaded_card.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/ams_environment_indicator.xml");
@@ -1826,4 +1836,102 @@ TEST_CASE_METHOD(
     info.units[0].absent = true;
     helix::ui::ams_detail_sync_slot_states(slots, 4, info);
     CHECK(helix::ui::unit_art_lane_mark(art, 1).dim);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: a lane renamed to a longer material lays its labels out again",
+                 "[ams][tray][ui_integration][over-lane][lane-label-live]") {
+    const bool art = GENERATE(false, true);
+    CAPTURE(art);
+    if (art)
+        unit_name_ = "Box Turtle 1";
+    build("passive", 4);
+    for (int i = 0; i < 4; ++i)
+        set_lane_live(i, "PLA");
+    panel_->refresh_slots();
+    process_lvgl(20);
+    // Only the material changes: same color, same fill, the lane still loaded.
+    set_lane_live(1, "PETG-CF");
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+    const std::vector<lv_obj_t*> labels = over_lane_labels();
+    REQUIRE(labels.size() == 4);
+    CHECK(std::string(lv_label_get_text(labels[1])) == "PETG-CF");
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: on a compact screen, the unit reserves the label rows its short "
+                 "labels take",
+                 "[ams][tray][ui_integration][over-lane][short-label]") {
+    // Four "Silk PLA" lanes at 480x272 stand in one row of "PLA": the row laid out for them
+    // reserves that one row, not the two the whole names would take.
+    helix::test::ScopedGeometry geometry(480, 272);
+    build("passive", 4);
+    for (int i = 0; i < 4; ++i)
+        set_lane_live(i, "Silk PLA");
+    AmsDetailWidgets w = ams_detail_find_widgets(lv_obj_find_by_name(panel_obj_, "unit_detail"));
+    helix::ui::WidgetRef slots[kAmsDetailMaxSlots];
+    int count = (int)lv_obj_get_child_count(slot_grid_);
+    for (int i = 0; i < count; ++i)
+        slots[i].reset(slot(i));
+    ams_detail_destroy_slots(w, slots, count);
+    const AmsDetailSlotResult made =
+        ams_detail_create_slots(w, slots, kAmsDetailMaxSlots, -1, nullptr, nullptr);
+    REQUIRE(made.slot_count == 4);
+    CHECK(made.layout.label_rows == 1);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: on a compact screen, labels too crowded for whole names read the "
+                 "base material",
+                 "[ams][tray][ui_integration][over-lane][short-label]") {
+    // At 480x272 twelve "Silk PLA" lanes fit no row; four take two rows whole and one row as
+    // "PLA", which the unit's height wants more; two fit one row whole. 800x480 keeps whole
+    // names. A filled grade keeps its filler: "PLA-CF" reads "PLA-CF" short too.
+    struct Case {
+        int32_t w, h;
+        int lanes;
+        bool short_form;
+        const char* material = "Silk PLA";
+        const char* short_text = "PLA";
+    };
+    const Case c =
+        GENERATE(Case{480, 272, 12, true}, Case{480, 272, 4, true}, Case{480, 272, 2, false},
+                 Case{800, 480, 12, false}, Case{480, 272, 4, true, "Silk PLA-CF", "PLA-CF"});
+    CAPTURE(c.w, c.h, c.lanes);
+    helix::test::ScopedGeometry geometry(c.w, c.h);
+    build("passive", c.lanes);
+    for (int i = 0; i < c.lanes; ++i)
+        set_lane_live(i, c.material);
+    panel_->refresh_slots();
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+
+    const std::vector<lv_obj_t*> labels = over_lane_labels();
+    REQUIRE((int)labels.size() == c.lanes);
+    int shown = 0;
+    int32_t row_y = -1;
+    for (int i = 0; i < c.lanes; ++i) {
+        CAPTURE(i);
+        // The lane card's text stays the whole name.
+        CHECK(ui_ams_slot_get_material_text(slot(i), false) == c.material);
+        if (lv_obj_is_hidden(labels[(size_t)i]))
+            continue;
+        ++shown;
+        const std::string text = lv_label_get_text(labels[(size_t)i]);
+        CAPTURE(text);
+        if (c.short_form)
+            CHECK(text == c.short_text);
+        else
+            CHECK(text.rfind("Si", 0) == 0); // whole, or cut to its room
+        if (c.lanes <= 4) {
+            // One row: every label stands at the same height.
+            lv_area_t a;
+            lv_obj_get_coords(labels[(size_t)i], &a);
+            if (row_y < 0)
+                row_y = a.y1;
+            CHECK(a.y1 == row_y);
+        }
+    }
+    CHECK(shown > 0);
 }

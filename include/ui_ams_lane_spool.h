@@ -146,6 +146,9 @@ bool ams_lane_spool_error_dot(lv_obj_t* spool, helix::SlotError::Severity& sever
 /// Call @p listener with @p user whenever what the lane shows changes; nullptr stops it.
 void ams_lane_spool_set_listener(lv_obj_t* spool, void (*listener)(void*), void* user);
 
+/// Calls @p spool's listener for a change the lane shows outside the spool: its label's text.
+void ams_lane_spool_notify(lv_obj_t* spool);
+
 /**
  * @brief The spool family's material-label rule
  *

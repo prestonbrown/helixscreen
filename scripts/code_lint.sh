@@ -1198,13 +1198,15 @@ lint_own_endpoint_http() {
 # rebuilds every file that includes it, so a caller that only needs those
 # takes helix::nav::* and ui_nav.h. The count may fall, never rise: lower the
 # limit when an includer narrows. The class's own split-out implementation files
-# are not callers.
+# are not callers, and Application's translation units count as one caller.
 UI_NAV_MANAGER_INCLUDER_LIMIT=15
 
 lint_ui_nav_manager_includers() {
     local includers count
     includers=$(grep -rlE '^#include "ui_nav_manager\.h"' src include |
-        grep -vE '^src/ui/ui_nav_(navbar|transitions)\.cpp$' | sort)
+        grep -vE '^src/ui/ui_nav_(navbar|transitions)\.cpp$' |
+        sed -E 's#^src/application/application_(bootstrap|display|startup|shutdown)\.cpp$#src/application/application.cpp#' |
+        sort -u)
     count=$(printf '%s\n' "$includers" | grep -c .)
     [ "$count" -le "$UI_NAV_MANAGER_INCLUDER_LIMIT" ] && return 0
     echo "ui_nav_manager.h has $count includers in src/ and include/, limit $UI_NAV_MANAGER_INCLUDER_LIMIT."
@@ -1248,7 +1250,7 @@ lint_guided_device_flows() {
         [ "$(grep -cE "^[[:space:]]*${fn%();},\$" src/ui/filament/ui_guided_device_flow.cpp)" = 1 ] ||
             { echo "register_builtin_guided_device_flows() does not run ${fn%;}"; rc=1; }
     done
-    for f in src/application/application.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do
+    for f in src/application/application_startup.cpp firmware/helixscreen-esp32/components/helixapp/app_boot.cpp; do
         [ "$(grep -cF "register_builtin_guided_device_flows();" "$f")" = 1 ] ||
             { echo "$f does not call register_builtin_guided_device_flows()"; rc=1; }
     done
@@ -1616,7 +1618,7 @@ lint_teardown_call_order() {
         fi
     done <<'EOF'
 src/application/printer_session.cpp PrinterSession::teardown_printer_scope tests/shell/fixtures/teardown_printer_scope_order.txt
-src/application/application.cpp Application::shutdown tests/shell/fixtures/shutdown_exit_tail_order.txt
+src/application/application_shutdown.cpp Application::shutdown tests/shell/fixtures/shutdown_exit_tail_order.txt
 EOF
     return $rc
 }

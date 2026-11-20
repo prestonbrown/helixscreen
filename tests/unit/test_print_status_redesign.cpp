@@ -17,6 +17,7 @@
 #include "led/led_controller.h"
 #include "prerendered_images.h"
 #include "print_start_phase.h"
+#include "print_start_phase_label.h"
 #include "print_status_chips.h"
 #include "print_status_layout_fitter.h"
 #include "printer_discovery.h"
@@ -25,6 +26,7 @@
 #include "status_dispatch.h"
 #include "theme_manager.h"
 #include "tool_state.h"
+#include "translation_loader.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -224,6 +226,48 @@ TEST_CASE_METHOD(Landscape800, "preparing shows checklist rows from collector in
     CHECK(subject_str("ps_step_position_text") == "Step 2 of 4");
     CHECK(subject_str("ps_step_current_name") == subject_str("ps_step_1_name"));
     CHECK_FALSE(subject_str("ps_step_current_name").empty());
+}
+
+TEST_CASE_METHOD(Landscape800, "every locale's step names reach the checklist whole",
+                 "[print_status][i18n]") {
+    // Cyrillic takes two bytes a letter, so the Russian names are the longest
+    // in bytes; every locale and step is walked so a longer translation fails here.
+    const std::vector<PrintStartPhase> steps = {PrintStartPhase::HOMING,
+                                                PrintStartPhase::MOTOR_SYNC,
+                                                PrintStartPhase::HEATING_BED,
+                                                PrintStartPhase::SOAKING,
+                                                PrintStartPhase::HEATING_CHAMBER,
+                                                PrintStartPhase::HEATING_NOZZLE,
+                                                PrintStartPhase::QGL,
+                                                PrintStartPhase::Z_TILT,
+                                                PrintStartPhase::BED_MESH,
+                                                PrintStartPhase::CLEANING,
+                                                PrintStartPhase::PURGING};
+    for (const char* lang : {"ru", "de", "es", "fr", "it", "ja", "pt", "zh", "en"}) {
+        INFO("locale " << lang);
+        helix::ui::ensure_translation_loaded(lang);
+        lv_translation_set_language(lang);
+        if (std::string(lang) != "en") {
+            REQUIRE(std::string(lv_tr("Motor sync")) != "Motor sync");
+        }
+        for (PrintStartPhase phase : steps) {
+            const std::string expected = print_start_phase_step_label(phase);
+            INFO("step " << expected);
+            tiles().set_checklist_source([phase]() -> std::optional<PreprintChecklistInput> {
+                PreprintChecklistInput in;
+                in.current = phase;
+                in.expected_order = {phase};
+                return in;
+            });
+            set_int(state().print_state().get_print_start_phase_subject(),
+                    static_cast<int>(PrintStartPhase::IDLE));
+            UpdateQueue::instance().drain();
+            set_int(state().print_state().get_print_start_phase_subject(), static_cast<int>(phase));
+            UpdateQueue::instance().drain();
+            CHECK(subject_str("ps_step_0_name") == expected);
+            CHECK(subject_str("ps_step_current_name") == expected);
+        }
+    }
 }
 
 TEST_CASE_METHOD(Landscape800, "printing hides checklist and shows preview", "[print_status]") {

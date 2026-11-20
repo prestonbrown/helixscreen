@@ -870,8 +870,8 @@
   <translation tag="Completed {}h ago" fr="Terminé il y a {} h"/>
   <translation tag="Completed {}m ago" fr="Terminé il y a {} min"/>
   <translation tag="Completed: {}" fr="Terminé : {}"/>
-  <translation tag="Compressed" fr="Compressé"/>
-  <translation tag="Compressed: filament arrives faster than it is used" fr="Compressé : le filament arrive plus vite qu&apos;il n&apos;est utilisé"/>
+  <translation tag="Compressed" fr="Comprimé"/>
+  <translation tag="Compressed: filament arrives faster than it is used" fr="Comprimé : le filament arrive plus vite qu&apos;il n&apos;est utilisé"/>
   <translation tag="Computing calibration..." fr="Calcul de la calibration..."/>
   <translation tag="Config Dir" fr="Dossier de configuration"/>
   <translation tag="Config Edit Failed" fr="Échec de la modification de la configuration"/>
@@ -1395,8 +1395,8 @@
   <translation tag="Exhaust fan speed" fr="Vitesse du ventilateur d&apos;extraction"/>
   <translation tag="Exhaust: keep chamber at or below" fr="Extraction : garder la chambre au plus à"/>
   <translation tag="Exit Code" fr="Code de sortie"/>
-  <translation tag="Expanded" fr="Détendu"/>
-  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" fr="Détendu : la tête tire le filament plus vite qu&apos;il n&apos;arrive"/>
+  <translation tag="Expanded" fr="Étiré"/>
+  <translation tag="Expanded: the toolhead pulls filament faster than it arrives" fr="Étiré : la tête tire le filament plus vite qu&apos;il n&apos;arrive"/>
   <translation tag="Expected boolean" fr="Valeur booléenne attendue"/>
   <translation tag="Expected float" fr="Nombre décimal attendu"/>
   <translation tag="Explore how the selected palette shapes text, controls, and status colors." fr="Explorez comment la palette sélectionnée façonne les couleurs du texte, des contrôles et des statuts."/>
@@ -4863,6 +4863,7 @@
   <translation tag="attempt {}" fr="essai {}"/>
   <translation tag="auto" fr="auto"/>
   <translation tag="bed" fr="plateau"/>
+  <translation tag="buffer|Neutral" fr="Centré"/>
   <translation tag="busy" fr="occupé"/>
   <translation tag="by" fr="par"/>
   <translation tag="by Preston Brown" fr="par Preston Brown"/>

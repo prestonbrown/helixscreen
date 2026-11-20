@@ -65,6 +65,25 @@ void ensure_translation_loaded(const std::string& lang);
 bool is_translation_key(std::string_view text);
 
 /**
+ * @brief Translate an English word that means different things in different places.
+ *
+ * One English tag carries one translation per language, so a word with two
+ * senses ("Neutral" the buffer position, "Neutral" the LED white tone) would get
+ * one rendering for both. A context key gives one sense its own tag: a lowercase
+ * context, a bar, then the English text (`"buffer|Neutral"`). It is an ordinary
+ * key everywhere else: en.yml maps it to itself, translators see the context in
+ * the source string, and each locale translates only the text after the bar.
+ *
+ * English loads no pack, so the lookup returns the key itself, and this returns
+ * the text after the bar. A locale with no translation for the key gets the same
+ * English text rather than the raw key.
+ *
+ * @p key must be a string literal: scripts/translations/extractor.py reads it
+ * from the call. A key without a `context|` prefix behaves like lv_tr().
+ */
+const char* tr_context(const char* key);
+
+/**
  * @brief Locale whose translations are the tags themselves, so it needs no pack.
  */
 inline constexpr const char* kIdentityLocale = "en";
