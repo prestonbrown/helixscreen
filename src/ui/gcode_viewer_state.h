@@ -418,6 +418,15 @@ class GCodeViewerState {
     /// (helix::ui::gcode_viewer_set_layer_index_sidecar).
     std::string layer_index_sidecar_;
 
+#ifdef ENABLE_3D_RENDERER
+    /// The render mode and the GPU crash-loop block leave 3D available. The
+    /// per-file and per-session 2D fallbacks (streaming, budget, a renderer
+    /// that gave up) are separate.
+    bool render_settings_allow_3d() const {
+        return render_mode_ != GcodeViewerRenderMode::Layer2D && !gpu_3d_blocked_;
+    }
+#endif
+
     /// Helper to check if currently using 2D layer renderer
     bool is_using_2d_mode() const {
 #ifdef ENABLE_3D_RENDERER
@@ -428,8 +437,7 @@ class GCodeViewerState {
             return true;
         }
         // With GPU-accelerated GLES: Auto defaults to 3D, only Layer2D forces 2D
-        return render_mode_ == GcodeViewerRenderMode::Layer2D || budget_forced_2d_ ||
-               gpu_3d_blocked_;
+        return !render_settings_allow_3d() || budget_forced_2d_;
 #else
         // Without a 3D renderer there is no 3D mode, full stop. A stored
         // display/gcode_render_mode of 3D (copied from a GLES device, or

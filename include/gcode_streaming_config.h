@@ -99,28 +99,37 @@ std::string get_streaming_config_description();
  * @brief Final say on whether a viewer streams, given what the screen asked for.
  *
  * A screen may ask to opt out of streaming when it would rather have the
- * full-load path feeding a 3D render (PrintSelectDetailView does). That request
- * is only honourable when the build actually HAS a 3D renderer: without one the
- * viewer can only draw 2D, and the full-load path it would fall back to parses
- * the whole file into RAM with no budget of its own.
+ * full-load path feeding a 3D render (PrintSelectDetailView does). The full
+ * load parses the whole file into RAM, so the request is honored only when
+ * both hold:
  *
- * On a K2 Plus (488 MB, built with ENABLE_GLES_3D=no) that combination opened a
+ * - The viewer will actually render 3D: the build has a 3D renderer, the
+ *   render mode is not forced to 2D, and the GPU path is not blocked or given
+ *   up. A 2D view streams as well as it full-loads.
+ * - The full parse fits this device's memory (is_gcode_3d_render_safe()).
+ *   The preview gate in front of the load prices the STREAMING renderer, so
+ *   nothing else stops an oversized full parse.
+ *
+ * Without the first, a K2 Plus (488 MB, built with ENABLE_GLES_3D=no) opened a
  * 130 MB gcode with "streaming mode: OFF", grew helix-screen to 387 MB RSS and
- * got it OOM-killed by the kernel; the same file on the same device renders
- * fine streaming. The size gate in front of it cannot catch this either - it
- * prices the STREAMING renderer, which is not the path that ends up running.
+ * was OOM-killed, while the same file streamed fine from another screen. The
+ * second closes the same hole on 3D builds running on low-RAM boards (pi32).
  *
- * Kept as a pure function of its three inputs so both answers are testable in a
+ * The opt-out never makes a file stream that would otherwise full-load.
+ *
+ * Kept as a pure function of its inputs so every answer is testable in a
  * binary that is itself compiled with 3D enabled.
  *
  * @param screen_opted_out    The screen called helix::ui::gcode_viewer_disable_streaming().
- * @param build_has_3d        This build can render 3D (ENABLE_3D_RENDERER).
+ * @param renders_3d          This viewer will render 3D for the load.
+ * @param full_parse_fits     A full in-RAM parse of this file fits available memory.
  * @param streaming_for_size  should_use_gcode_streaming() for this file.
  * @return true if the viewer should stream.
  */
-[[nodiscard]] inline bool gcode_viewer_should_stream(bool screen_opted_out, bool build_has_3d,
+[[nodiscard]] inline bool gcode_viewer_should_stream(bool screen_opted_out, bool renders_3d,
+                                                     bool full_parse_fits,
                                                      bool streaming_for_size) {
-    if (screen_opted_out && build_has_3d) {
+    if (screen_opted_out && renders_3d && full_parse_fits) {
         return false;
     }
     return streaming_for_size;

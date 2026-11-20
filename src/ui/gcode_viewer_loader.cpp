@@ -29,6 +29,7 @@
 #include "gcode_viewer_state.h"
 #include "geometry_budget_manager.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "memory_utils.h"
 #include "print_status_preview_decision.h"
 #include "printer_state.h"
 #include "system/crash_handler.h"
@@ -259,16 +260,29 @@ build_3d_geometry_in_budget(const helix::gcode::ParsedGCodeFile& file, const cha
 #endif
 
 /// Whether a load of a @p file_size byte file streams. A screen's opt-out
-/// only counts when 3D is actually available to fall back on; see
-/// gcode_viewer_should_stream() for the K2 OOM this guards.
-static bool load_streams(const gcode_viewer_state_t* st, uint64_t file_size) {
+/// only counts when this viewer will render 3D and the full parse fits RAM;
+/// see gcode_viewer_should_stream(). @p log_override says at INFO when the
+/// opt-out is set aside.
+static bool load_streams(const gcode_viewer_state_t* st, uint64_t file_size, bool log_override) {
 #ifdef ENABLE_3D_RENDERER
-    constexpr bool kBuildHas3D = true;
+    const bool renders_3d =
+        st->render_settings_allow_3d() && !(st->renderer_ && st->renderer_->render_failed());
 #else
-    constexpr bool kBuildHas3D = false;
+    constexpr bool renders_3d = false;
 #endif
-    return helix::gcode_viewer_should_stream(st->streaming_disabled_, kBuildHas3D,
-                                             helix::should_use_gcode_streaming(file_size));
+    const bool streaming_for_size = helix::should_use_gcode_streaming(file_size);
+    // Only priced when it can change the answer: it reads /proc/meminfo.
+    const bool weighs_full_parse = st->streaming_disabled_ && renders_3d && streaming_for_size;
+    const bool full_parse_fits =
+        weighs_full_parse && helix::is_gcode_3d_render_safe(static_cast<size_t>(file_size));
+    const bool streams = helix::gcode_viewer_should_stream(st->streaming_disabled_, renders_3d,
+                                                           full_parse_fits, streaming_for_size);
+    if (log_override && st->streaming_disabled_ && streams) {
+        spdlog::info("[GCode Viewer] Streaming despite the screen's full-load request: {}",
+                     !renders_3d ? "this view renders 2D"
+                                 : "a full parse of this file would not fit in memory");
+    }
+    return streams;
 }
 
 // Result structure for async geometry building
@@ -348,7 +362,7 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     // A sidecar belongs to this load whichever path it takes.
     const std::string layer_index_sidecar = std::move(st->layer_index_sidecar_);
     st->layer_index_sidecar_.clear();
-    const bool use_streaming = load_streams(st, file_size);
+    const bool use_streaming = load_streams(st, file_size, /*log_override=*/true);
     spdlog::info("[GCode Viewer] File size: {}KB, streaming mode: {}", file_size / 1024,
                  use_streaming ? "ON" : "OFF");
 
@@ -776,7 +790,8 @@ bool helix::ui::gcode_viewer_would_stream(lv_obj_t* obj, const std::string& file
     if (st == nullptr) {
         return false;
     }
-    return load_streams(st, helix::text_io::file_size(file_path).value_or(0));
+    return load_streams(st, helix::text_io::file_size(file_path).value_or(0),
+                        /*log_override=*/false);
 }
 
 void helix::ui::gcode_viewer_set_layer_index_sidecar(lv_obj_t* obj, std::string sidecar) {
