@@ -17,7 +17,9 @@
 #include "ui_step_progress.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_fixtures.h"
 #include "lvgl/lvgl.h"
+#include "theme_manager.h"
 
 #include <array>
 #include <cstdlib>
@@ -46,15 +48,51 @@ lv_obj_t* make_sized_parent(lv_obj_t* screen) {
     return parent;
 }
 
+// The step rows, in order: the widget's children named step_item.
+std::vector<lv_obj_t*> step_items(lv_obj_t* widget) {
+    std::vector<lv_obj_t*> items;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(widget); ++i) {
+        lv_obj_t* child = lv_obj_get_child(widget, static_cast<int32_t>(i));
+        const char* name = lv_obj_get_name(child);
+        if (name && std::string(name) == "step_item")
+            items.push_back(child);
+    }
+    return items;
+}
+
+lv_obj_t* part(lv_obj_t* item, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(item, name);
+    REQUIRE(obj != nullptr);
+    return obj;
+}
+
+// Drawn: neither hidden nor fully transparent.
+bool shown(lv_obj_t* obj) {
+    return !lv_obj_is_hidden(obj) && lv_obj_get_style_opa(obj, LV_PART_MAIN) > LV_OPA_TRANSP;
+}
+
+uint32_t rgb(lv_color_t c) {
+    return lv_color_to_u32(c) & 0xFFFFFF;
+}
+
+uint32_t token(const char* name) {
+    return rgb(theme_manager_get_color(name));
+}
+
+uint32_t text_on(const char* fill) {
+    return rgb(theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
+                                                        theme_manager_get_color(fill)));
+}
+
 } // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture, "step progress creates vertical connectors when visible",
+TEST_CASE_METHOD(XMLTestFixture, "step progress creates vertical connectors when visible",
                  "[ui][step]") {
     lv_obj_t* parent = make_sized_parent(test_screen());
 
     auto steps = make_vertical_steps();
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
-                                               /*horizontal=*/false, nullptr);
+                                               /*horizontal=*/false);
     REQUIRE(widget != nullptr);
 
     lv_obj_update_layout(parent);
@@ -67,7 +105,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "step progress creates vertical connectors whe
     }
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "step progress recomputes connectors on reflow (SIZE_CHANGED)",
+TEST_CASE_METHOD(XMLTestFixture, "step progress recomputes connectors on reflow (SIZE_CHANGED)",
                  "[ui][step]") {
     // Connectors are absolutely-positioned rects sized from the layout. When the
     // widget reflows — a becoming-visible container or a growing live-temp label
@@ -80,7 +118,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "step progress recomputes connectors on reflow
 
     auto steps = make_vertical_steps(); // labels/states reused; horizontal layout
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
-                                               /*horizontal=*/true, nullptr);
+                                               /*horizontal=*/true);
     REQUIRE(widget != nullptr);
     lv_obj_update_layout(parent);
 
@@ -121,14 +159,14 @@ TEST_CASE("step progress caption: the active step, else the last done, else the 
     CHECK(ui_step_progress_caption_step(nullptr, 0) == -1);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
+TEST_CASE_METHOD(XMLTestFixture,
                  "step progress current-label-only mode: one centred caption, no per-step labels",
                  "[ui][step][step_caption]") {
     lv_obj_t* parent = make_sized_parent(test_screen());
     lv_obj_set_width(parent, 264);
     auto steps = make_vertical_steps();
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
-                                               /*horizontal=*/true, nullptr);
+                                               /*horizontal=*/true);
     REQUIRE(widget != nullptr);
     ui_step_progress_set_current_label_only(widget, true);
     ui_step_progress_set_current(widget, 2);
@@ -170,7 +208,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(std::string(lv_label_get_text(caption)) == "Clean");
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "step progress horizontal: the row of dots is centred",
+TEST_CASE_METHOD(XMLTestFixture, "step progress horizontal: the row of dots is centred",
                  "[ui][step][step_caption]") {
     const char* names[] = {"Heat nozzle", "Cut & retract", "Feed filament", "Purge"};
     for (int n = 2; n <= 4; ++n) {
@@ -182,7 +220,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "step progress horizontal: the row of dots is 
             for (int i = 0; i < n; ++i)
                 steps.push_back({names[i], helix::StepState::Pending});
             lv_obj_t* widget =
-                ui_step_progress_create(parent, steps.data(), n, /*horizontal=*/true, nullptr);
+                ui_step_progress_create(parent, steps.data(), n, /*horizontal=*/true);
             REQUIRE(widget != nullptr);
             if (caption_only)
                 ui_step_progress_set_current_label_only(widget, true);
@@ -220,7 +258,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "step progress horizontal: the row of dots is 
     }
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
+TEST_CASE_METHOD(XMLTestFixture,
                  "step progress: a list taller than its scrolling parent follows the current step",
                  "[ui][step]") {
     // The AMS sidebar's stepper container: a short box that scrolls, holding a
@@ -238,7 +276,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         steps.push_back({n.c_str(), helix::StepState::Pending});
     }
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
-                                               /*horizontal=*/false, nullptr);
+                                               /*horizontal=*/false);
     REQUIRE(widget != nullptr);
     lv_obj_update_layout(parent);
     REQUIRE(lv_obj_get_scroll_bottom(parent) > 0); // the bar overflows its parent
@@ -268,7 +306,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(row.y2 <= box.y2);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
+TEST_CASE_METHOD(XMLTestFixture,
                  "step progress horizontal: a row wider than its column scrolls itself",
                  "[ui][step]") {
     // The sidebar's stepper container scrolls only vertically, so a horizontal
@@ -276,7 +314,97 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_obj_t* parent = make_sized_parent(test_screen());
     auto steps = make_vertical_steps();
     lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
-                                               /*horizontal=*/true, nullptr);
+                                               /*horizontal=*/true);
     REQUIRE(widget != nullptr);
     CHECK(lv_obj_is_scrollable(widget));
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "step progress: each step's dot, glyph and label follow its state",
+                 "[ui][step][step_state]") {
+    lv_obj_t* parent = make_sized_parent(test_screen());
+    auto steps = make_vertical_steps();
+    lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
+                                               /*horizontal=*/false);
+    REQUIRE(widget != nullptr);
+    ui_step_progress_set_current(widget, 1);
+    ui_step_progress_set_completed(widget, 2);
+    lv_obj_update_layout(parent);
+
+    auto items = step_items(widget);
+    REQUIRE(items.size() == 4);
+    const char* fills[] = {"success", "primary", "success", "text_subtle"};
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        lv_obj_t* circle = part(items[i], "step_circle");
+        CHECK(rgb(lv_obj_get_style_bg_color(circle, LV_PART_MAIN)) == token(fills[i]));
+        CHECK(rgb(lv_obj_get_style_border_color(circle, LV_PART_MAIN)) == token(fills[i]));
+        CHECK(lv_obj_get_style_bg_opa(circle, LV_PART_MAIN) == LV_OPA_COVER);
+        CHECK(lv_obj_get_width(circle) == theme_manager_get_spacing("step_indicator"));
+        CHECK(lv_obj_get_style_radius(circle, LV_PART_MAIN) * 2 >= lv_obj_get_height(circle));
+
+        lv_obj_t* number = part(items[i], "step_number");
+        lv_obj_t* check = part(items[i], "step_check");
+        CHECK(std::string(lv_label_get_text(number)) == std::to_string(i + 1));
+        const bool done = (i == 0 || i == 2);
+        CHECK(shown(number) == !done);
+        CHECK(shown(check) == done);
+        if (done) {
+            CHECK(rgb(lv_obj_get_style_text_color(check, LV_PART_MAIN)) == text_on("success"));
+        } else {
+            CHECK(rgb(lv_obj_get_style_text_color(number, LV_PART_MAIN)) == text_on(fills[i]));
+        }
+
+        lv_obj_t* label = part(items[i], "step_label");
+        CHECK(std::string(lv_label_get_text(label)) == steps[i].label);
+        const bool active = (i == 1);
+        CHECK(lv_obj_get_style_text_font(label, LV_PART_MAIN) ==
+              theme_manager_get_font(active ? "font_body" : "font_small"));
+        CHECK(rgb(lv_obj_get_style_text_color(label, LV_PART_MAIN)) ==
+              token(active ? "text" : "text_subtle"));
+        // The row is sized for the label's font in its current state.
+        CHECK(lv_obj_get_height(label) ==
+              lv_font_get_line_height(theme_manager_get_font(active ? "font_body" : "font_small")));
+    }
+
+    // A connector takes the color of the step it leaves.
+    CHECK(rgb(lv_obj_get_style_bg_color(ui_step_progress_test_get_connector(widget, 0),
+                                        LV_PART_MAIN)) == token("success"));
+    CHECK(rgb(lv_obj_get_style_bg_color(ui_step_progress_test_get_connector(widget, 1),
+                                        LV_PART_MAIN)) == token("text_subtle"));
+    CHECK(rgb(lv_obj_get_style_bg_color(ui_step_progress_test_get_connector(widget, 2),
+                                        LV_PART_MAIN)) == token("success"));
+
+    // Going back to the first step makes the later ones pending again.
+    ui_step_progress_set_current(widget, 0);
+    CHECK(shown(part(items[2], "step_number")));
+    CHECK_FALSE(shown(part(items[2], "step_check")));
+    CHECK(rgb(lv_obj_get_style_bg_color(part(items[2], "step_circle"), LV_PART_MAIN)) ==
+          token("text_subtle"));
+    CHECK(rgb(lv_obj_get_style_bg_color(ui_step_progress_test_get_connector(widget, 0),
+                                        LV_PART_MAIN)) == token("text_subtle"));
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "step progress: a vertical row puts its label beside the dot",
+                 "[ui][step][step_state]") {
+    lv_obj_t* parent = make_sized_parent(test_screen());
+    auto steps = make_vertical_steps();
+    lv_obj_t* widget = ui_step_progress_create(parent, steps.data(), static_cast<int>(steps.size()),
+                                               /*horizontal=*/false);
+    REQUIRE(widget != nullptr);
+    lv_obj_update_layout(parent);
+    auto items = step_items(widget);
+    REQUIRE(items.size() == 4);
+    lv_area_t dot, label, w;
+    lv_obj_get_coords(part(items[1], "step_circle"), &dot);
+    lv_obj_get_coords(part(items[1], "step_label"), &label);
+    lv_obj_get_coords(widget, &w);
+    CHECK(label.x1 > dot.x2);
+    CHECK(label.x2 == w.x2);
+    CHECK(lv_obj_get_style_pad_left(part(items[1], "step_label"), LV_PART_MAIN) ==
+          theme_manager_get_spacing("step_label_gap"));
+    // Rows sit one row gap apart.
+    lv_area_t r0, r1;
+    lv_obj_get_coords(items[0], &r0);
+    lv_obj_get_coords(items[1], &r1);
+    CHECK(r1.y1 - r0.y2 - 1 == theme_manager_get_spacing("step_row_gap"));
 }

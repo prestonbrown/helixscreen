@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One step's dot: a filled circle holding the step number, or a check once
+       the step is done. Its state trickles down from the step: none for
+       pending, LV_STATE_USER_1 for active, LV_STATE_CHECKED for completed. The glyph colors are each fill's contrast-adjusted text
+       color, computed in C++ and passed as "0xRRGGBB". -->
+  <api>
+    <prop name="number" type="string" default="1"/>
+    <prop name="number_pending_color" type="color" default="0xFFFFFF"/>
+    <prop name="number_active_color" type="color" default="0xFFFFFF"/>
+    <prop name="check_color" type="color" default="0xFFFFFF"/>
+  </api>
+  <view name="step_dot_column"
+        extends="lv_obj" width="#step_indicator" height="#step_indicator" state_trickle="true" style_bg_opa="0"
+        style_border_width="0" style_pad_all="0" style_pad_gap="0" scrollable="false" scrollbar_mode="off"
+        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="start">
+    <lv_obj name="step_circle"
+            width="#step_indicator" height="#step_indicator" state_trickle="true" style_radius="9999"
+            style_border_width="2" style_pad_all="0" style_margin_left="0" style_margin_right="0" style_margin_top="0"
+            style_margin_bottom="0" style_bg_opa="255" style_bg_color="#text_subtle" style_border_color="#text_subtle"
+            style_bg_color-user_1="#primary" style_border_color-user_1="#primary" style_bg_color-checked="#success"
+            style_border_color-checked="#success" scrollable="false" scrollbar_mode="off">
+      <lv_label name="step_number"
+                text="$number" align="center" style_text_font="#font_body" style_text_color="$number_pending_color"
+                style_text_color-user_1="$number_active_color" style_opa-checked="0"/>
+      <lv_label name="step_check"
+                text="#icon_check" align="center" style_text_font="mdi_icons_16" style_text_color="$check_color"
+                style_opa="0" style_opa-checked="255"/>
+    </lv_obj>
+  </view>
+</component>

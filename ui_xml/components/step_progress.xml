@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- A step progress bar's frame: a column of step_progress_step_v rows, or a row
+       of step_progress_step_h dots. C++ (ui_step_progress.cpp) fills it with one
+       step per entry and draws the connectors between the dots, which it sizes
+       from the measured layout.
+
+       A column does not scroll: its parent scrolls a list too long for it, and a
+       bar that scrolled as well would take the drag and slide its rows inside its
+       own box. A row is its own scroller, since its parent scrolls only
+       vertically. Steps in a row sit edge to edge; the connectors fill the space. -->
+  <api>
+    <prop name="flow" type="string" default="column"/>
+    <prop name="scrollable" type="boolean" default="false"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        style_pad_row="#step_row_gap" style_pad_column="0" flex_flow="$flow" style_flex_main_place="start"
+        style_flex_cross_place="start" style_flex_track_place="start" scrollable="$scrollable"/>
+</component>
