@@ -13,8 +13,10 @@ it has one, so drift is seen weekly:
                 layering, vendor branches, declarative UI, swatches, LVGL 9.6 names,
                 work markers, comment SHAs). A commit and a landing warn on each new
                 site; here every site that appeared in the window is listed with the
-                commit that added it (git blame at HEAD) and the reason that commit
-                gave on a `Ratchet: <rule>: <reason>` line, so drift has an author.
+                commit that added it (git blame at HEAD) and the reason given on a
+                `Ratchet: <rule>: <reason>` line: by that commit, else by the
+                first-parent merge that brought it in or another commit of that
+                branch, so drift has an author.
 
 Each count is taken on a commit's tree (git archive into a scratch directory), never on
 the working tree, and every count uses this checkout's checkers, so the two columns
@@ -167,11 +169,31 @@ def blame(root: Path, path: str, line: int) -> str:
     return out.stdout.split(" ", 1)[0] if out.returncode == 0 and out.stdout else ""
 
 
+def carriers(root: Path, sha: str, mainline: list[str]) -> list[str]:
+    """Messages that may state the reason for SHA's line when SHA's own does not: the
+    first-parent merge that brought SHA into HEAD, then every commit of the branch that
+    merge joined. A commit made on the first-parent line has none."""
+    if sha in mainline:
+        return []
+    descendants = set(git(root, "rev-list", "--ancestry-path", f"{sha}..HEAD").split())
+    # mainline runs newest first; the oldest first-parent descendant is the merge.
+    merge = next((c for c in reversed(mainline) if c in descendants), "")
+    if not merge:
+        return []
+    out = [git(root, "show", "-s", "--format=%B", merge)]
+    parents = git(root, "show", "-s", "--format=%P", merge).split()
+    if len(parents) > 1:
+        out += [m for m in git(root, "log", "--format=%B%x00",
+                                f"{parents[0]}..{parents[1]}").split("\0") if m.strip()]
+    return out
+
+
 def growth(root: Path, then_rev: str, now: dict, then: dict) -> list[Growth]:
     """Sites at HEAD that the older tree lacked, each with the commit that wrote its line."""
     import design_ratchets
     from collections import Counter
     rows = []
+    mainline = git(root, "rev-list", "--first-parent", f"{then_rev}..HEAD").split()
     for rule, sites in now.items():
         if rule not in then:
             continue
@@ -185,10 +207,14 @@ def growth(root: Path, then_rev: str, now: dict, then: dict) -> list[Growth]:
             subject = reason = ""
             if sha and subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor",
                                        sha, then_rev]).returncode != 0:
+                full = sha
                 body = git(root, "show", "-s", "--format=%h%n%s%n%b", sha)
                 sha, subject, rest = (body.split("\n", 2) + ["", ""])[:3]
-                said = design_ratchets.stated_reasons(f"{subject}\n{rest}")
-                reason = "; ".join(said.get(rule, []))
+                for message in [f"{subject}\n{rest}", *carriers(root, full, mainline)]:
+                    said = design_ratchets.stated_reasons(message).get(rule, [])
+                    if said:
+                        reason = "; ".join(said)
+                        break
             else:
                 sha = ""
             rows.append(Growth(rule, site, sha, subject, reason))

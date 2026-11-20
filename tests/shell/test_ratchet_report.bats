@@ -100,3 +100,29 @@ row() { # <ratchet name>: that row of the last run's output
     [ "$status" -eq 0 ] || fail "$output"
     contains "New design-ratchet sites in the window: none" "$output"
 }
+
+@test "a reason stated by the merge that brought a site in, or a later commit of its branch, is the site's reason" {
+    printf 'namespace helix {\nint ok = 1;\n}\n' >"$REPO/src/x.cpp"
+    commit_at 9 "before the window"
+    git -C "$REPO" checkout -q -b one
+    printf 'class FromMerge { int y; };\n' >>"$REPO/src/x.cpp"
+    commit_at 3 "add one global"
+    git -C "$REPO" checkout -q main
+    GIT_COMMITTER_DATE=$(date -d '-3 days' '+%Y-%m-%dT%H:%M:%S') git -C "$REPO" merge -q --no-ff one \
+        -m "Merge one" -m "Ratchet: namespace: the merge says why"
+    git -C "$REPO" checkout -q -b two
+    printf 'class FromBranch { int z; };\n' >"$REPO/src/y.cpp"
+    commit_at 2 "add another global"
+    printf '// tidy\n' >>"$REPO/src/y.cpp"
+    git -C "$REPO" add -A
+    GIT_AUTHOR_DATE=$(date -d '-2 days' '+%Y-%m-%dT%H:%M:%S') GIT_COMMITTER_DATE=$(date -d '-2 days' '+%Y-%m-%dT%H:%M:%S') \
+        git -C "$REPO" commit -q -m "follow-up" -m "Ratchet: namespace: a later branch commit says why"
+    git -C "$REPO" checkout -q main
+    GIT_COMMITTER_DATE=$(date -d '-1 days' '+%Y-%m-%dT%H:%M:%S') git -C "$REPO" merge -q --no-ff two -m "Merge two"
+    run python3 "$REPORT" --root "$REPO" --days 7
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "  namespace  src/x.cpp:4" "$output"
+    contains "reason: the merge says why" "$output"
+    contains "  namespace  src/y.cpp:1" "$output"
+    contains "reason: a later branch commit says why" "$output"
+}
