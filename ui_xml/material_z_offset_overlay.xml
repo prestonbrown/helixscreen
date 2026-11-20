@@ -21,8 +21,8 @@
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
           <text_body width="100%"
-                     text="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets."
-                     long_mode="wrap"/>
+                     text="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets."
+                     long_mode="wrap" wrap_at_spaces="true"/>
           <ui_button name="btn_install_macros" width="100%" variant="primary" text="Install Helper Macros">
             <event_cb trigger="clicked" callback="on_helix_macros_install_clicked"/>
           </ui_button>
@@ -43,15 +43,15 @@
           <code_block bind_text="material_zoffset_slicer_line"/>
         </lv_obj>
       </setting_group>
-      <!-- The helper macros predate the store for the offsets -->
+      <!-- The helper macros predate the [save_variables] store -->
       <setting_group name="group_update">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="1"/>
         <lv_obj name="update_card"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
           <text_body width="100%"
-                     text="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper."
-                     long_mode="wrap"/>
+                     text="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper."
+                     long_mode="wrap" wrap_at_spaces="true"/>
           <ui_button name="btn_update_macros" width="100%" variant="primary" text="Update Helper Macros">
             <event_cb trigger="clicked" callback="on_helix_macros_update_clicked"/>
           </ui_button>

@@ -117,7 +117,6 @@ translations:
   1, 2, 3: 1, 2, 3
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Each nozzle is heated, wiped and parked at the front for you to brush clean
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: 1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.
-  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: 1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.
   1. Printer homes all axes (~1 minute): 1. Printer homes all axes (~1 minute)
   1. Printer homes and probes the bed: 1. Printer homes and probes the bed
   1. Printer will home and probe each screw: 1. Printer will home and probe each screw
@@ -4216,7 +4215,6 @@ translations:
   The heater was turned off at the heater.: The heater was turned off at the heater.
   The heater will cycle on and off several times.: The heater will cycle on and off several times.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
-  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service

@@ -112,7 +112,6 @@
   <translation tag="1, 2, 3" fr="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" fr="1. Chaque buse est chauffée, essuyée puis garée à l&apos;avant pour que vous la brossiez"/>
   <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." fr="1. Installez les macros d&apos;aide. Elles ajoutent HELIX_MATERIAL_OFFSET et un stockage [save_variables] pour les décalages."/>
-  <translation tag="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets." fr="1. Installez les macros d&apos;aide. Elles ajoutent la macro de l&apos;étape 2 et un stockage Klipper pour les décalages."/>
   <translation tag="1. Printer homes all axes (~1 minute)" fr="1. L&apos;imprimante prend l&apos;origine de tous les axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" fr="1. L&apos;imprimante fait l&apos;origine et palpe le plateau"/>
   <translation tag="1. Printer will home and probe each screw" fr="1. L&apos;imprimante fera l&apos;origine et palpera chaque vis"/>
@@ -4142,7 +4141,6 @@
   <translation tag="The heater was turned off at the heater." fr="Le chauffage a été éteint sur l&apos;appareil lui-même."/>
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." fr="Les macros d&apos;aide sont installées et s&apos;activent après un redémarrage de Klipper."/>
-  <translation tag="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper." fr="Les macros d&apos;aide de cette imprimante n&apos;ont pas encore de stockage pour les décalages. Mettez-les à jour, puis redémarrez Klipper."/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." fr="La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." fr="Le verrou s&apos;ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" fr="Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention"/>
