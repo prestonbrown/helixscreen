@@ -4,6 +4,7 @@
 #pragma once
 
 #include "afc_config_manager.h"
+#include "afc_unit_hardware.h"
 #include "ams_subscription_backend.h"
 #include "async_lifetime_guard.h"
 #include "error_event.h"
@@ -297,10 +298,26 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     }();
     [[nodiscard]] BackendTraits traits() const override {
         BackendTraits t = kTraits;
-        // Only OpenAMS units carry a temperature/humidity sensor.
+        // Only OpenAMS and ACE units carry a temperature/humidity sensor.
         t.has_environment_sensors = has_unit_environment_;
         return t;
     }
+
+    // ========================================================================
+    // Dryer (ACE Pro units run through AFC; every other unit reports none)
+    // ========================================================================
+
+    /// The ACE unit's dryer, supported only once its object has published
+    /// `ace_dryer`; every other unit, and AFC without ACE support, has none.
+    [[nodiscard]] DryerInfo get_dryer_info(int unit = 0) const override;
+    /// `AFC_ACE_DRY UNIT=<name> TEMP=<C> DURATION=<min>`. AFC keeps FAN at its
+    /// own default: the ACE Pro firmware runs its fan at a fixed speed.
+    AmsError start_drying(float temp_c, int duration_min, int fan_pct = -1, int unit = 0) override;
+    /// `AFC_ACE_DRY_STOP UNIT=<name>`.
+    AmsError stop_drying(int unit = 0) override;
+    /// Stop and restart: AFC has no command that retargets a running cycle.
+    AmsError update_drying(float temp_c = -1, int duration_min = -1, int fan_pct = -1,
+                           int unit = 0) override;
 
     [[nodiscard]] helix::ui::LaneNoun lane_noun() const override {
         return helix::ui::LaneNoun::Lane;
@@ -1510,6 +1527,21 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// Lowercased AFC_OpenAMS unit name -> lowercased [AFC_OAMS] name, from configfile.
     std::unordered_map<std::string, std::string> unit_oams_names_;
     std::atomic<bool> has_unit_environment_{false};
+
+    /// An ACE Pro unit's hardware state, keyed by the unit's display name
+    /// ("ACE Ace_1", the AmsUnit::name rebuild_unit_map_from_klipper() gives it).
+    struct AfcAceUnit {
+        std::string name;       ///< AFC's unit name, the `UNIT=` of AFC_ACE_DRY
+        bool has_dryer = false; ///< The object has published `ace_dryer`
+        DryerInfo dryer;
+        std::optional<EnvironmentData> environment;
+    };
+    std::unordered_map<std::string, AfcAceUnit> ace_units_;
+
+    /// Folds one ACE unit object's hardware fields in. Caller holds mutex_.
+    void apply_ace_unit(const AfcUnitInfo& unit_info, const helix::afc::AceUnitDelta& data);
+    /// The ACE unit behind @p unit, or nullptr. Caller holds mutex_.
+    [[nodiscard]] const AfcAceUnit* ace_unit_locked(int unit) const;
 
     /// What AFC itself has said about a lane, per observation source, built up
     /// field by field across status frames and keyed by lane name the way the

@@ -466,7 +466,10 @@ TEST_CASE("Subscription: AFC field lists are exactly the parsers' inputs",
                        "lanes"}));
     CHECK(subs["AFC_extruder extruder"] ==
           json::array({"lane_loaded", "tool_end_status", "tool_start_status"}));
-    CHECK(subs["AFC_BoxTurtle turtle1"] == json::array({"lanes", "extruders", "hubs", "buffers"}));
+    // A unit object also carries an ACE's dryer and climate.
+    CHECK(subs["AFC_BoxTurtle turtle1"] ==
+          json::array({"lanes", "extruders", "hubs", "buffers", "ace_dryer", "ace_dryer_target",
+                       "ace_dryer_remain", "ace_dryer_duration", "ace_temp", "ace_humidity"}));
 }
 
 TEST_CASE("Subscription: bed_mesh covers moonraker_advanced_api parser",

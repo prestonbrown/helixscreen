@@ -32,7 +32,13 @@
     "lanes",
     "extruders",
     "hubs",
-    "buffers"
+    "buffers",
+    "ace_dryer",
+    "ace_dryer_target",
+    "ace_dryer_remain",
+    "ace_dryer_duration",
+    "ace_temp",
+    "ace_humidity"
   ],
   "AFC_buffer Turtle_1": [
     "state",
