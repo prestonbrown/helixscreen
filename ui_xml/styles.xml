@@ -128,7 +128,7 @@
          transparent, so the picture under a chip still reads. -->
     <!-- An activity chip's text when its tone is Warn, and in a compact (pinned) chip. -->
     <style name="chip_text_warning" text_color="#warning"/>
-    <style name="chip_text_compact" text_font="#font_xs"/>
+    <style name="chip_text_compact" text_font="#font_callout_compact"/>
     <style name="activity_chip"
            layout="flex" flex_flow="row_reverse" flex_main_place="center" flex_cross_place="center" pad_hor="#space_sm"
            pad_ver="#space_xxs" pad_column="#space_xxs" radius="#space_md" bg_color="#card_bg" bg_opa="65%"

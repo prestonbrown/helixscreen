@@ -36,7 +36,21 @@ enum class CalloutKind {
 inline constexpr size_t kCalloutKindCount = 10;
 
 /// The `printer_callout_mode` subject ints; XML ref_values read these.
-enum class CalloutMode { ImageOnly = 0, Pinned = 1, Docked = 2, BothSides = 3, OneSide = 4 };
+/// Staggered: compact chips against the left and right area edges, beside the
+/// full-size picture and over its edge where the margin is narrower than a chip.
+enum class CalloutMode {
+    ImageOnly = 0,
+    Pinned = 1,
+    Docked = 2,
+    BothSides = 3,
+    OneSide = 4,
+    Staggered = 5
+};
+
+/// Modes whose chips draw compact: bare text, no icons but a heater's status glyph.
+[[nodiscard]] inline bool callout_mode_is_compact(CalloutMode m) {
+    return m == CalloutMode::Pinned || m == CalloutMode::Staggered;
+}
 
 struct CalloutRect {
     int x = 0;
@@ -56,6 +70,10 @@ struct CalloutChipIn {
     int w_unlabeled = 0;
     /// Measured height of a chip taller than one text line; 0 is the layout's chip_h.
     int h = 0;
+    /// Its compact width (bare text, no icons but a heater's status glyph), which
+    /// the Staggered mode lays out; 0 keeps `w`.
+    int w_compact = 0;
+    int h_compact = 0; ///< `h` in compact form; 0 is the layout's compact_chip_h
 };
 
 struct CalloutChipOut {
@@ -78,10 +96,11 @@ struct CalloutLayoutInput {
     bool single_cell = false; ///< the grid granted one cell on both axes
     int image_w = 0;          ///< natural image size; only the aspect is used
     int image_h = 0;
-    bool tagged = false; ///< the image has a regions entry
-    int chip_h = 0;      ///< a one-line chip's height; a taller chip carries its own h
-    int gap = 0;         ///< between stacked chips, and from the area edge
-    int min_line = 0;    ///< shortest leader run worth drawing
+    bool tagged = false;    ///< the image has a regions entry
+    int chip_h = 0;         ///< a one-line chip's height; a taller chip carries its own h
+    int compact_chip_h = 0; ///< chip_h in compact form; 0 keeps chip_h
+    int gap = 0;            ///< between stacked chips, and from the area edge
+    int min_line = 0;       ///< shortest leader run worth drawing
     /// Pinned chips draw a leader only when they land farther than this from their
     /// point; 0 keeps pinned chips line-free.
     int leader_min_distance = 0;
@@ -838,6 +857,59 @@ inline bool try_line_modes(const CalloutLayoutInput& in, CalloutLayout& out,
     return false;
 }
 
+/// Compact chips beside the contain-fit picture: each in the band on its
+/// point's side, against the area edge and spread down it near its point, over
+/// the picture's edge where the margin is narrower than the chip. The picture
+/// stays at its contain-fit size here as in Pinned, so the chips showing now,
+/// not the budget, decide between the two; the budget still picks each chip's
+/// side, so a chip never changes edge as others come and go. A leader runs only
+/// where the chip's inner edge clears its point by min_line; a chip over its
+/// point needs none.
+inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out) {
+    const auto compacted = [](std::vector<CalloutChipIn> v) {
+        for (auto& c : v) {
+            if (c.w_compact > 0)
+                c.w = c.w_compact;
+            c.h = c.h_compact;
+        }
+        return v;
+    };
+    const std::vector<CalloutChipIn> budget = compacted(in_full.budget);
+    const std::vector<CalloutChipIn> active = compacted(in_full.active);
+    // A chip wider than the area has no edge to stand against; pinning clamps it.
+    if (budget.empty() || std::any_of(active.begin(), active.end(), [&](const CalloutChipIn& c) {
+            return c.w > in_full.area_w - 2 * in_full.gap;
+        }))
+        return false;
+    CalloutLayoutInput in = in_full;
+    if (in.compact_chip_h > 0)
+        in.chip_h = in.compact_chip_h;
+    const CalloutRect img = fit_image(in.area_w, in.area_h, in.image_w, in.image_h);
+    const BandSides sides = band_sides(budget, false);
+    std::vector<CalloutChipOut> placed;
+    if (!place_band(in, img, false, sides, active, placed) ||
+        !place_band(in, img, true, sides, active, placed))
+        return false;
+    // Over the picture a left chip and a right chip can meet; neither band sees the other.
+    for (size_t i = 0; i < placed.size(); ++i)
+        for (size_t j = i + 1; j < placed.size(); ++j)
+            if (sides[size_t(placed[i].kind)] != sides[size_t(placed[j].kind)] &&
+                rects_near(placed[i].rect, placed[j].rect, in.gap))
+                return false;
+    for (auto& o : placed) {
+        if (!o.has_line)
+            continue;
+        const bool right = sides[size_t(o.kind)];
+        const int inner = right ? o.rect.x : o.rect.x + o.rect.w;
+        if (right ? inner - o.line_x0 < in.min_line : o.line_x0 - inner < in.min_line)
+            o.has_line = false;
+    }
+    out.image = img;
+    out.chips = std::move(placed);
+    out.mode = CalloutMode::Staggered;
+    return true;
+}
+
 } // namespace callout_detail
 
 [[nodiscard]] inline CalloutLayout compute_callout_layout(const CalloutLayoutInput& in) {
@@ -884,6 +956,12 @@ inline bool try_line_modes(const CalloutLayoutInput& in, CalloutLayout& out,
                     return out;
                 }
             }
+        }
+        // Compact chips in the side margins before any lands on the picture's
+        // middle, when every chip fits there: pinning sheds nothing it can keep.
+        if (try_staggered(base, out)) {
+            out.unlabeled = can_unlabel;
+            return out;
         }
         // Pinned chips sit on their parts, so their place names them: no labels.
         out.unlabeled = can_unlabel;

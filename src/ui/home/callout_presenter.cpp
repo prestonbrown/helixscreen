@@ -93,6 +93,7 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     in.image_w = regions ? regions->src_w : natural_w;
     in.image_h = regions ? regions->src_h : natural_h;
     in.chip_h = config.chip_h;
+    in.compact_chip_h = config.compact_chip_h;
     in.gap = config.gap;
     in.min_line = config.min_line;
     in.leader_min_distance = config.leader_min_distance;
@@ -106,10 +107,10 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     for (const Chip& c : parts.chips) {
         if (c.in_budget)
             in.budget.push_back({c.kind, c.w_budget, anchor(c.kind), c.budget_expendable,
-                                 c.w_budget_unlabeled, c.h});
+                                 c.w_budget_unlabeled, c.h, c.w_compact_budget, c.h_compact});
         if (c.active)
-            in.active.push_back(
-                {c.kind, c.w_full, anchor(c.kind), c.budget_expendable, c.w_full_unlabeled, c.h});
+            in.active.push_back({c.kind, c.w_full, anchor(c.kind), c.budget_expendable,
+                                 c.w_full_unlabeled, c.h, c.w_compact, c.h_compact});
     }
     out = compute_callout_layout(in);
     if (spdlog::should_log(spdlog::level::trace)) {
@@ -140,7 +141,7 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         const bool unlabeled = out.unlabeled;
         out = compute_callout_layout(in);
         out.unlabeled = unlabeled;
-    } else {
+    } else if (!callout_mode_is_compact(out.mode)) {
         // The mode stays fixed for the phase: a shed chip whose reading turns
         // unusual docks into the room the line mode left free instead of
         // relayouting the picture. With no free room it stays off: dock_free's
@@ -171,7 +172,7 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         for (const Chip& c : parts.chips)
             place_glow(c, *regions, out.image);
     }
-    const bool compact = out.mode == CalloutMode::Pinned;
+    const bool compact = callout_mode_is_compact(out.mode);
     for (const CalloutChipOut& c : out.chips) {
         if (const Chip* part = part_for(parts, c.kind)) {
             place_line(c, *part);
@@ -265,14 +266,24 @@ void CalloutPresenter::place_glow(const Chip& part, const ImageRegions& r,
 
 void CalloutPresenter::place_line(const CalloutChipOut& c, const Chip& part) {
     const auto k = static_cast<size_t>(c.kind);
-    if (!c.has_line || !part.line || k >= line_pts_.size())
+    if (!part.line || k >= line_pts_.size())
         return;
+    // A chip over its own point draws no leader; the home layer shows every
+    // line in a line mode, so an empty one is how it draws nothing.
+    if (!c.has_line) {
+        if (lv_line_get_point_count(part.line) != 0) {
+            // DECLARATIVE_OK: measured callout layout
+            lv_line_set_points(part.line, line_pts_[k].data(), 0);
+        }
+        return;
+    }
     auto& pts = line_pts_[k];
     const auto v = [](int n) { return static_cast<lv_value_precise_t>(n); };
     const std::array<lv_point_precise_t, 3> want = {
         {{v(c.line_x0), v(c.line_y0)}, {v(c.line_xm), v(c.line_ym)}, {v(c.line_x1), v(c.line_y1)}}};
     const bool same =
         lv_line_get_points(part.line) == pts.data() &&
+        lv_line_get_point_count(part.line) == pts.size() &&
         std::equal(pts.begin(), pts.end(), want.begin(),
                    [](const auto& p, const auto& q) { return p.x == q.x && p.y == q.y; });
     if (!same) {
@@ -304,7 +315,8 @@ void CalloutPresenter::place_chip(const CalloutChipOut& c, const Chip& part, boo
                          lv_obj_get_style_pad_right(obj, LV_PART_MAIN) +
                          2 * lv_obj_get_style_border_width(obj, LV_PART_MAIN);
     const int around_text = chrome_w + part.icons + lv_obj_get_style_pad_column(obj, LV_PART_MAIN);
-    const int label_max = std::max(0, c.rect.w - (compact ? chrome_w : around_text));
+    const int label_max =
+        std::max(0, c.rect.w - (compact ? chrome_w + part.icons_compact : around_text));
     if (label && lv_obj_get_style_max_width(label, LV_PART_MAIN) != label_max) {
         // DECLARATIVE_OK: measured callout layout
         lv_obj_set_style_max_width(label, label_max, 0);
