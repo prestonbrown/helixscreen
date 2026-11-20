@@ -232,3 +232,4 @@ tests/shell/test_xml_validator_tools_gate.bats	scripts/qc/xml_tools.sh scripts/q
 tests/shell/test_zoneinfo_bundle_gate.bats	assets/zoneinfo/ scripts/regen_zoneinfo.sh src/system/display_settings_manager.cpp
 tests/shell/test_doc_images_gate.bats	scripts/check_doc_images.py scripts/qc/doc_images.sh scripts/quality-checks.sh
 tests/shell/test_doc_anchors_gate.bats	scripts/doc_anchors.py scripts/qc/doc_anchors.sh scripts/quality-checks.sh
+tests/shell/test_depfile_moved_source.bats	mk/depfiles.mk

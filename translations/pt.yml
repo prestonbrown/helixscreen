@@ -117,7 +117,6 @@ translations:
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Cada bico é aquecido, limpo e estacionado na frente para você escová-lo
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Instale as macros de ajuda. Elas adicionam HELIX_MATERIAL_OFFSET e um armazenamento [save_variables] para os offsets."
-  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: "1. Instale as macros de ajuda. Elas adicionam a macro do passo 2 e um armazenamento do Klipper para os offsets."
   1. Printer homes all axes (~1 minute): 1. A impressora referencia todos os eixos (~1 minuto)
   1. Printer homes and probes the bed: 1. A impressora faz home e sonda a mesa
   1. Printer will home and probe each screw: 1. A impressora fará home e sondará cada parafuso
@@ -1299,6 +1298,7 @@ translations:
   E-Stop Confirmation: Confirmação de Parada de Emergência
   EDDY CURRENT: EDDY CURRENT
   EEPROM error on CFS unit: Erro de EEPROM na unidade CFS
+  ELECTRICITY: "ELETRICIDADE"
   ELECTRONICS & ACCESSORIES: 'ELETRÔNICA E ACESSÓRIOS'
   EMERGENCY STOP: PARADA DE EMERGÊNCIA
   EMPTY: VAZIO
@@ -1494,6 +1494,7 @@ translations:
   FAILED: FALHOU
   FILAMENT: FILAMENTO
   FILAMENT & TOOLHEAD: 'FILAMENTO E CABEÇOTE'
+  FILAMENT PRICE PER KG: "PREÇO DO FILAMENTO POR KG"
   FILAMENTS: FILAMENTOS
   FILTERS: FILTROS
   Factory Reset: Restauração de Fábrica
@@ -4243,7 +4244,6 @@ translations:
   The heater was turned off at the heater.: 'O aquecedor foi desligado no próprio aquecedor.'
   The heater will cycle on and off several times.: O aquecedor ligará e desligará várias vezes.
   The helper macros are installed and activate after Klipper restarts.: 'As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper.'
-  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: "As macros de ajuda desta impressora ainda não têm um armazenamento para os offsets. Atualize-as e reinicie o Klipper."
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "A última impressão pode ainda estar na mesa. Retire-a antes de a cabeça se mover e depois toque em Liberado."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca.
   The left RFID reader in this CFS unit may need service: O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção

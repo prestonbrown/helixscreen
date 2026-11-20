@@ -12,6 +12,7 @@
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_button.h"
+#include "ui_bypass_spool_widget.h"
 #include "ui_endless_spool_arrows.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_panel_ams.h"
@@ -25,6 +26,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "lvgl.h"
+#include "settings_manager.h"
 #include "translation_loader.h"
 
 #include <cmath>
@@ -365,4 +367,52 @@ TEST_CASE_METHOD(XMLTestFixture, "AMS panel header gear follows the device opera
 
     lv_obj_delete(panel_obj);
     AmsState::instance().set_backend(nullptr);
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "AMS panel: the bypass spool on a virtual bypass follows the always-show setting",
+                 "[ui_integration][ams][bypass][bypass-always-show]") {
+    auto& settings = helix::SettingsManager::instance();
+    settings.init_subjects();
+    struct Restore {
+        bool value;
+        ~Restore() {
+            helix::SettingsManager::instance().set_ams_always_show_bypass_spool(value);
+        }
+    } restore{settings.get_ams_always_show_bypass_spool()};
+    settings.set_ams_always_show_bypass_spool(false);
+
+    // AFC publishes a virtual bypass, here disengaged.
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_afc_mode(true);
+    REQUIRE(mock->start().success());
+    AmsState::instance().set_backend(std::move(mock));
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().sync_from_backend();
+    register_ams_widgets_and_xml_once();
+    AmsPanel panel(state(), &api());
+    panel.init_subjects();
+    lv_obj_t* panel_obj =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_panel", nullptr));
+    REQUIRE(panel_obj != nullptr);
+    panel.setup(panel_obj, test_screen());
+    panel.on_activate();
+    process_lvgl(20);
+    REQUIRE_FALSE(AmsState::instance().get_backend()->is_bypass_active());
+    lv_obj_t* box = lv_obj_find_by_name(panel_obj, "bypass_spool_box");
+    REQUIRE(box != nullptr);
+    REQUIRE(lv_obj_is_hidden(box));
+
+    // The Device Operations toggle changes nothing the backend publishes; the card follows it.
+    settings.set_ams_always_show_bypass_spool(true);
+    process_lvgl(20);
+    CHECK_FALSE(lv_obj_is_hidden(box));
+    settings.set_ams_always_show_bypass_spool(false);
+    process_lvgl(20);
+    CHECK(lv_obj_is_hidden(box));
+
+    // The backend leaves while the panel's widgets still stand: its observers touch them.
+    AmsState::instance().set_backend(nullptr);
+    process_lvgl(20);
+    lv_obj_delete(panel_obj);
 }

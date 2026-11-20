@@ -106,7 +106,6 @@
   <translation tag="1, 2, 3" en="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" en="1. Each nozzle is heated, wiped and parked at the front for you to brush clean"/>
   <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." en="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets."/>
-  <translation tag="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets." en="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets."/>
   <translation tag="1. Printer homes all axes (~1 minute)" en="1. Printer homes all axes (~1 minute)"/>
   <translation tag="1. Printer homes and probes the bed" en="1. Printer homes and probes the bed"/>
   <translation tag="1. Printer will home and probe each screw" en="1. Printer will home and probe each screw"/>
@@ -1235,6 +1234,7 @@
   <translation tag="E-Stop Confirmation" en="E-Stop Confirmation"/>
   <translation tag="EDDY CURRENT" en="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" en="EEPROM error on CFS unit"/>
+  <translation tag="ELECTRICITY" en="ELECTRICITY"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" en="ELECTRONICS &amp; ACCESSORIES"/>
   <translation tag="EMERGENCY STOP" en="EMERGENCY STOP"/>
   <translation tag="EMPTY" en="EMPTY"/>
@@ -1429,6 +1429,7 @@
   <translation tag="FAILED" en="FAILED"/>
   <translation tag="FILAMENT" en="FILAMENT"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" en="FILAMENT &amp; TOOLHEAD"/>
+  <translation tag="FILAMENT PRICE PER KG" en="FILAMENT PRICE PER KG"/>
   <translation tag="FILAMENTS" en="FILAMENTS"/>
   <translation tag="FILTERS" en="FILTERS"/>
   <translation tag="Factory Reset" en="Factory Reset"/>
@@ -4136,7 +4137,6 @@
   <translation tag="The heater was turned off at the heater." en="The heater was turned off at the heater."/>
   <translation tag="The heater will cycle on and off several times." en="The heater will cycle on and off several times."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." en="The helper macros are installed and activate after Klipper restarts."/>
-  <translation tag="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper." en="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper."/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." en="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." en="The latch opens and {} can drop. Hold it before you continue, then put it in its dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" en="The left RFID reader in this CFS unit may need service"/>

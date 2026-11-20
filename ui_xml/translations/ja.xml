@@ -106,7 +106,6 @@
   <translation tag="1, 2, 3" ja="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" ja="1. 各ノズルを加熱・拭き取りし、ブラシで清掃できるよう前方に移動します"/>
   <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." ja="1. ヘルパーマクロをインストールします。HELIX_MATERIAL_OFFSET とオフセット用の [save_variables] ストアが追加されます。"/>
-  <translation tag="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets." ja="1. ヘルパーマクロをインストールします。手順 2 のマクロとオフセット用の Klipper ストアが追加されます。"/>
   <translation tag="1. Printer homes all axes (~1 minute)" ja="1. プリンターが全軸の原点復帰を行います（約1分）"/>
   <translation tag="1. Printer homes and probes the bed" ja="1. プリンターがホーミングしてベッドをプローブします"/>
   <translation tag="1. Printer will home and probe each screw" ja="1. プリンターがホーミングして各ネジをプローブします"/>
@@ -1235,6 +1234,7 @@
   <translation tag="E-Stop Confirmation" ja="緊急停止の確認"/>
   <translation tag="EDDY CURRENT" ja="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" ja="CFS ユニットの EEPROM エラー"/>
+  <translation tag="ELECTRICITY" ja="電気代"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" ja="電子機器とアクセサリー"/>
   <translation tag="EMERGENCY STOP" ja="緊急停止"/>
   <translation tag="EMPTY" ja="空"/>
@@ -1429,6 +1429,7 @@
   <translation tag="FAILED" ja="失敗"/>
   <translation tag="FILAMENT" ja="フィラメント"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ja="フィラメントとツールヘッド"/>
+  <translation tag="FILAMENT PRICE PER KG" ja="フィラメントのkg単価"/>
   <translation tag="FILAMENTS" ja="フィラメント"/>
   <translation tag="FILTERS" ja="フィルター"/>
   <translation tag="Factory Reset" ja="工場出荷時リセット"/>
@@ -4136,7 +4137,6 @@
   <translation tag="The heater was turned off at the heater." ja="ヒーター本体で電源がオフにされました。"/>
   <translation tag="The heater will cycle on and off several times." ja="ヒーターは数回オン/オフを繰り返します。"/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ja="ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。"/>
-  <translation tag="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper." ja="このプリンターのヘルパーマクロにはまだオフセット用のストアがありません。更新してから Klipper を再起動してください。"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ja="最後のプリントがまだベッドに残っている可能性があります。ツールヘッドが動く前に取り除き、「クリア済み」をタップしてください。"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ja="ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。"/>
   <translation tag="The left RFID reader in this CFS unit may need service" ja="この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります"/>

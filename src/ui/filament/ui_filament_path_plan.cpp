@@ -91,11 +91,15 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
 
 int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
                             const LinearHubFrame& f) {
+    // A spool standing across the merge line stands right of the hub, which it never clips.
     if (data.topology != static_cast<int>(PathTopology::LINEAR) || !data.show_bypass ||
-        !data.feeds_toolhead || data.hub_on_toolhead || data.slot_count < 1)
+        !data.feeds_toolhead || data.hub_on_toolhead || data.slot_count < 1 ||
+        data.bypass_side_entry)
         return INT32_MAX;
-    // The box the spool widget stands in, over the merge line at kBypassXRatio.
-    const int32_t box = helix::ui::bypass_spool_box_size();
+    // The box the spool widget stands in, over the merge line at its spot.
+    const int32_t spool =
+        data.bypass_spool_size > 0 ? data.bypass_spool_size : helix::ui::ams_slot_spool_size();
+    const int32_t box = helix::ui::bypass_spool_box_size(spool);
     const int32_t spool_bottom = f.bypass_merge_y - helix::ui::bypass_spool_bottom_above_merge();
     const int32_t spool_top = spool_bottom - box;
     // The bar's gear may stand a little taller than the bar; half a bar's height of margin
@@ -104,8 +108,7 @@ int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
     if (spool_top > f.hub_y + reach || spool_bottom < f.hub_y - reach)
         return INT32_MAX;
     // The spool itself, inside its box's padding.
-    const int32_t spool_left =
-        g.x_off + (int32_t)(g.width * kBypassXRatio) - helix::ui::ams_slot_spool_size() / 2;
+    const int32_t spool_left = bypass_spool_x(data, g.x_off, g.width) - spool / 2;
     // The bar always reaches the last lane's tube.
     return LV_MAX(spool_left, g.slot_x[data.slot_count - 1] + data.theme.tube_gauge);
 }
@@ -2126,12 +2129,14 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
 
     if (bypass) {
         const float merge_y = (float)f.bypass_merge_y;
-        // The spool widget stands over the merge line at kBypassXRatio.
-        const float spool_x = (float)(g.x_off + (int32_t)(g.width * kBypassXRatio));
+        const float spool_x = (float)bypass_feed_x(data, g.x_off, g.width);
         out.bypass_route = out.route_count;
         Route& b = new_route(out);
         // Spool → merge carries the SPOOL tag: no AMS error lands on it.
-        append_bypass_feed(b, spool_x, merge_y, cx, bypass_lane.style(PathSegment::SPOOL));
+        if (data.bypass_side_entry)
+            append_line(b, spool_x, merge_y, cx, merge_y, bypass_lane.style(PathSegment::SPOOL));
+        else
+            append_bypass_feed(b, spool_x, merge_y, cx, bypass_lane.style(PathSegment::SPOOL));
         if (bypass_owns) {
             append_line(b, cx, merge_y, cx, (float)f.toolhead_y,
                         bypass_lane.style(PathSegment::TOOLHEAD));

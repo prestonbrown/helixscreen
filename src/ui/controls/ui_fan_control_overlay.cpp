@@ -334,12 +334,9 @@ void FanControlOverlay::on_root_deleted(lv_event_t* e) {
 void FanControlOverlay::set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
                                                 std::optional<int> rpm) {
     char text[sizeof(speed.buf)];
-    if (rpm.has_value() && *rpm > 0) {
-        std::snprintf(text, sizeof(text), "%d%% \xC2\xB7 %d RPM", speed_pct, *rpm);
-    } else {
-        helix::format::format_percent(speed_pct, text, sizeof(text));
-    }
+    helix::format::format_percent(speed_pct, text, sizeof(text));
     lv_subject_set_string(&speed.subject, text);
+    lv_subject_set_int(&speed.rpm, rpm.value_or(0) > 0 ? *rpm : 0);
 }
 
 void FanControlOverlay::populate_fans() {
@@ -461,6 +458,8 @@ void FanControlOverlay::populate_fans() {
             speed->name = "fan_status_card_" + std::to_string(next_card_id++) + "_speed";
             speed->subject.init_string(speed->buf, nullptr, sizeof(speed->buf), "");
             speed->manager.publish(speed->name.c_str(), &speed->subject);
+            speed->rpm.init_int(0);
+            speed->manager.register_subject(&speed->rpm);
             set_auto_fan_speed_text(*speed, fan.speed_percent, fan.rpm);
 
             const char* attrs[] = {"fan_name",    fan.display_name.c_str(), "speed_percent",
@@ -475,6 +474,11 @@ void FanControlOverlay::populate_fans() {
                 lv_obj_t* arc = helix::ui::find_required(card, "dial_arc", get_name());
                 if (arc) {
                     lv_obj_set_event_bubble(arc, true);
+                }
+
+                if (lv_obj_t* rpm_label = helix::ui::find_required(card, "rpm_label", get_name())) {
+                    lv_label_bind_text(rpm_label, &speed->rpm, "%d RPM");
+                    lv_obj_bind_flag_if_eq(rpm_label, &speed->rpm, LV_OBJ_FLAG_HIDDEN, 0);
                 }
 
                 // Find fan icon for spin animation

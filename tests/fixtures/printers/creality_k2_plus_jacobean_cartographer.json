@@ -1,5 +1,5 @@
 {
-  "provenance": "Real K2 Plus on an earlier build of Jacobean's K2 Plus firmware (printer.info app Kalico, software_version v2026.11.00-0-g49450e88), from debug bundle BQTRAX9J (HelixScreen 1.0.7). Cartographer is its only probe: no prtouch.cfg, no prtouch section. printer_objects is every section of its live config in include order, include and thermistor sections left out. Hostname is the firmware's K2Plus with the per-unit suffix dropped",
+  "provenance": "Real K2 Plus on an earlier build of Jacobean's K2 Plus firmware (printer.info app Kalico, software_version v2026.11.00-0-g49450e88), from debug bundle BQTRAX9J (HelixScreen 1.0.7). Cartographer is its only probe: no prtouch.cfg, no prtouch section. printer_objects is every section of its live config in include order, include and thermistor sections left out. Hostname is the firmware's K2Plus with the per-unit suffix dropped. configfile_settings is the stepper travel its printer.cfg resolves to, with cartographer.cfg's spacer moving stepper_y position_min to -0.4; it declares no gcode_macro product_param",
   "notes": "Saved as the stock 'Creality K2 Plus'. A second unit and firmware build beside creality_k2_plus_jacobean (prestonbrown/helixscreen#2087)",
   "heaters": [
     "extruder",
@@ -123,5 +123,18 @@
     "gcode_macro TEST_STREAM_DELAY",
     "gcode_macro _START_PRINT_VARS"
   ],
-  "kinematics": "corexy"
+  "kinematics": "corexy",
+  "configfile_settings": {
+    "stepper_x": {
+      "position_min": -4.0,
+      "position_max": 352.5
+    },
+    "stepper_y": {
+      "position_min": -0.4,
+      "position_max": 352.0
+    },
+    "stepper_z": {
+      "position_max": 360.0
+    }
+  }
 }

@@ -8,6 +8,7 @@
 #include "lvgl.h"
 
 #include <cstdint>
+#include <functional>
 
 namespace helix {
 class AmsBackend;
@@ -76,7 +77,8 @@ struct BypassSpoolWidgets {
     WeakWidget spool_canvas;   ///< The spool icon inside the box
     WeakWidget bypass_label;   ///< "Bypass" text below the box
     WeakWidget material_label; ///< Material name above the box (hidden if empty)
-    int32_t box_size = 0;      ///< Box edge: the lane spool size plus padding
+    int32_t spool_size = 0;    ///< The spool icon's edge
+    int32_t box_size = 0;      ///< Box edge: the spool plus padding
 
     // Cached state for change-detection (avoids spurious invalidates on every
     // panel refresh). Not part of the public API surface — read via setters.
@@ -105,6 +107,72 @@ struct BypassSpoolWidgets {
 /// Edge of the bypass card in px: a lane-sized spool plus the card's padding.
 /// The path canvases keep the spool's centre this far from what it must clear.
 [[nodiscard]] int32_t bypass_spool_box_size();
+
+/// Edge of the bypass card around a spool @p spool_size px across.
+[[nodiscard]] int32_t bypass_spool_box_size(int32_t spool_size);
+
+/// Where the bypass spool stands beside a drawn unit, and how large it is drawn.
+struct BypassSpoolSpot {
+    int32_t spool = 0;       ///< The spool icon's edge
+    int32_t box = 0;         ///< The card's edge (bypass_spool_box_size(spool))
+    int32_t cx = 0;          ///< The card's centre, same coordinates as the inputs
+    int32_t top = 0;         ///< The card's top, where side_entry
+    bool side_entry = false; ///< Below the unit: the tube runs into the card's side
+};
+
+/// The room a unit view gives the bypass spool's card, in one set of coordinates.
+struct BypassSpoolRoom {
+    int32_t home_cx = 0;    ///< The card's centre where nothing moves it
+    int32_t right = 0;      ///< The card's right edge stands no further right
+    int32_t box_bottom = 0; ///< Just under the card (bypass_spool_card_bottom_on())
+    int32_t top = 0;        ///< The card's material label rises no higher
+    int32_t gap = 0;        ///< Kept between the card and the unit
+};
+
+/// The bypass spool beside a drawn unit is drawn as large as the unit's own spools
+/// (@p lane_spool), never smaller than @p min_spool, the size it has everywhere else. It grows
+/// only while its card, with its material label above it, fits @p room right of the unit:
+/// @p unit_right(top, bottom) is the rightmost x the unit covers in rows @p top to @p bottom
+/// (INT32_MIN where it covers none). Its centre stays at the room's home unless the card
+/// must move right to clear the unit; when no larger card fits, it keeps @p min_spool at home.
+[[nodiscard]] BypassSpoolSpot
+bypass_spool_spot(int32_t lane_spool, int32_t min_spool, const BypassSpoolRoom& room,
+                  const std::function<int32_t(int32_t top, int32_t bottom)>& unit_right);
+
+/// The room right of the hub and below a drawn unit, in one set of coordinates.
+struct BypassSpoolBelowRoom {
+    int32_t left = 0;    ///< The card's left edge stands no further left (clear of the hub)
+    int32_t right = 0;   ///< The card's right edge stands no further right
+    int32_t bottom = 0;  ///< The card's bottom, with its "Bypass" label under it, no lower
+    int32_t merge_y = 0; ///< The merge line, which runs into the card's side
+    int32_t gap = 0;     ///< Kept between the card's material label and the unit
+    int32_t side_entry_clear = 0; ///< The tube enters the card's side this far from its corners
+};
+
+/// The bypass spool on the merge line right of the hub, below the unit: as large as the unit's
+/// spools (@p lane_spool) as far as its card, with its material label above it, fits under the
+/// unit and over @p room's bottom, standing across the merge line so the tube runs into its
+/// side. @p unit_bottom(x) is the lowest row the unit covers at or right of x (INT32_MIN where
+/// it covers none). The card stands at the room's right. With no card larger than
+/// @p min_spool, the spot is @p min_spool and not side_entry: there is no lower spot.
+[[nodiscard]] BypassSpoolSpot
+bypass_spool_spot_below(int32_t lane_spool, int32_t min_spool, const BypassSpoolBelowRoom& room,
+                        const std::function<int32_t(int32_t x)>& unit_bottom);
+
+/// The spot the bypass spool takes: @p beside while it reaches @p lane_spool there, else
+/// whichever of @p beside and @p below draws the larger spool (beside on a tie).
+[[nodiscard]] BypassSpoolSpot bypass_spool_better(const BypassSpoolSpot& beside,
+                                                  const BypassSpoolSpot& below, int32_t lane_spool);
+
+/// Stand the card with its top at @p top, centred on @p cx, its "Bypass" label under it and
+/// its material label above it.
+void bypass_spool_set_card_position(BypassSpoolWidgets& w, int32_t cx, int32_t top);
+
+/// The room the "Bypass" label takes under a card standing below the unit.
+int32_t bypass_spool_label_below_room(const BypassSpoolWidgets& w);
+
+/// Draw the spool @p spool_size px across, its card sized to hold it. No-op when unchanged.
+void bypass_spool_set_size(BypassSpoolWidgets& w, int32_t spool_size);
 
 /// Create the bypass spool overlay widgets as floating children of `parent`.
 /// Clicks dispatch to the caller-supplied `on_click` LVGL event handler with
@@ -137,6 +205,12 @@ void bypass_spool_set_active(BypassSpoolWidgets& w, bool active);
 /// How far above the bypass merge line the spool's bottom edge stands: its tube leaves
 /// the spool there and turns along the merge line, between the spool and its label.
 int32_t bypass_spool_bottom_above_merge();
+
+/// The room the material label takes above the spool's card.
+int32_t bypass_spool_label_room();
+
+/// Just under the card of a spool standing on the merge line at @p merge_y: its bottom edge.
+int32_t bypass_spool_card_bottom_on(int32_t merge_y);
 
 /// What the overlay among @p parent's children covers on screen: its spool box, and its material
 /// label where that shows. False where @p parent holds no overlay or its box is hidden.

@@ -106,7 +106,6 @@
   <translation tag="1, 2, 3" pt="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" pt="1. Cada bico é aquecido, limpo e estacionado na frente para você escová-lo"/>
   <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." pt="1. Instale as macros de ajuda. Elas adicionam HELIX_MATERIAL_OFFSET e um armazenamento [save_variables] para os offsets."/>
-  <translation tag="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets." pt="1. Instale as macros de ajuda. Elas adicionam a macro do passo 2 e um armazenamento do Klipper para os offsets."/>
   <translation tag="1. Printer homes all axes (~1 minute)" pt="1. A impressora referencia todos os eixos (~1 minuto)"/>
   <translation tag="1. Printer homes and probes the bed" pt="1. A impressora faz home e sonda a mesa"/>
   <translation tag="1. Printer will home and probe each screw" pt="1. A impressora fará home e sondará cada parafuso"/>
@@ -1235,6 +1234,7 @@
   <translation tag="E-Stop Confirmation" pt="Confirmação de Parada de Emergência"/>
   <translation tag="EDDY CURRENT" pt="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" pt="Erro de EEPROM na unidade CFS"/>
+  <translation tag="ELECTRICITY" pt="ELETRICIDADE"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" pt="ELETRÔNICA E ACESSÓRIOS"/>
   <translation tag="EMERGENCY STOP" pt="PARADA DE EMERGÊNCIA"/>
   <translation tag="EMPTY" pt="VAZIO"/>
@@ -1429,6 +1429,7 @@
   <translation tag="FAILED" pt="FALHOU"/>
   <translation tag="FILAMENT" pt="FILAMENTO"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" pt="FILAMENTO E CABEÇOTE"/>
+  <translation tag="FILAMENT PRICE PER KG" pt="PREÇO DO FILAMENTO POR KG"/>
   <translation tag="FILAMENTS" pt="FILAMENTOS"/>
   <translation tag="FILTERS" pt="FILTROS"/>
   <translation tag="Factory Reset" pt="Restauração de Fábrica"/>
@@ -4136,7 +4137,6 @@
   <translation tag="The heater was turned off at the heater." pt="O aquecedor foi desligado no próprio aquecedor."/>
   <translation tag="The heater will cycle on and off several times." pt="O aquecedor ligará e desligará várias vezes."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." pt="As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper."/>
-  <translation tag="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper." pt="As macros de ajuda desta impressora ainda não têm um armazenamento para os offsets. Atualize-as e reinicie o Klipper."/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." pt="A última impressão pode ainda estar na mesa. Retire-a antes de a cabeça se mover e depois toque em Liberado."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." pt="A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca."/>
   <translation tag="The left RFID reader in this CFS unit may need service" pt="O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção"/>

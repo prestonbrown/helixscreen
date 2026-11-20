@@ -21,8 +21,8 @@
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
           <text_body width="100%"
-                     text="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets."
-                     long_mode="wrap"/>
+                     text="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets."
+                     long_mode="wrap" wrap_at_spaces="true"/>
           <ui_button name="btn_install_macros" width="100%" variant="primary" text="Install Helper Macros">
             <event_cb trigger="clicked" callback="on_helix_macros_install_clicked"/>
           </ui_button>
@@ -43,15 +43,15 @@
           <code_block bind_text="material_zoffset_slicer_line"/>
         </lv_obj>
       </setting_group>
-      <!-- The helper macros predate the store for the offsets -->
+      <!-- The helper macros predate the [save_variables] store -->
       <setting_group name="group_update">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="1"/>
         <lv_obj name="update_card"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
           <text_body width="100%"
-                     text="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper."
-                     long_mode="wrap"/>
+                     text="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper."
+                     long_mode="wrap" wrap_at_spaces="true"/>
           <ui_button name="btn_update_macros" width="100%" variant="primary" text="Update Helper Macros">
             <event_cb trigger="clicked" callback="on_helix_macros_update_clicked"/>
           </ui_button>
@@ -68,30 +68,38 @@
       <setting_group name="group_materials">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="2"/>
         <setting_group_header title="OFFSET PER MATERIAL"/>
-        <material_z_offset_row label="Any other material"
-                               temp_subject="material_zoffset_temp_default" mesh_subject="material_zoffset_mesh_default"
-                               value_subject="material_zoffset_value_default" user_data="DEFAULT"/>
-        <material_z_offset_row label="PLA"
-                               temp_subject="material_zoffset_temp_pla" mesh_subject="material_zoffset_mesh_pla"
-                               value_subject="material_zoffset_value_pla" user_data="PLA"/>
-        <material_z_offset_row label="PETG"
-                               temp_subject="material_zoffset_temp_petg" mesh_subject="material_zoffset_mesh_petg"
-                               value_subject="material_zoffset_value_petg" user_data="PETG"/>
-        <material_z_offset_row label="ABS"
-                               temp_subject="material_zoffset_temp_abs" mesh_subject="material_zoffset_mesh_abs"
-                               value_subject="material_zoffset_value_abs" user_data="ABS"/>
-        <material_z_offset_row label="ASA"
-                               temp_subject="material_zoffset_temp_asa" mesh_subject="material_zoffset_mesh_asa"
-                               value_subject="material_zoffset_value_asa" user_data="ASA"/>
-        <material_z_offset_row label="TPU"
-                               temp_subject="material_zoffset_temp_tpu" mesh_subject="material_zoffset_mesh_tpu"
-                               value_subject="material_zoffset_value_tpu" user_data="TPU"/>
-        <material_z_offset_row label="PA"
-                               temp_subject="material_zoffset_temp_pa" mesh_subject="material_zoffset_mesh_pa"
-                               value_subject="material_zoffset_value_pa" user_data="PA"/>
-        <material_z_offset_row label="PC"
-                               temp_subject="material_zoffset_temp_pc" mesh_subject="material_zoffset_mesh_pc"
-                               value_subject="material_zoffset_value_pc" user_data="PC"/>
+        <setting_value_row label="Any other material"
+                           bind_description="material_zoffset_temp_default" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_default" value_subject="material_zoffset_value_default"
+                           callback="on_material_zoffset_field_clicked" user_data="DEFAULT"/>
+        <setting_value_row label="PLA"
+                           bind_description="material_zoffset_temp_pla" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_pla" value_subject="material_zoffset_value_pla"
+                           callback="on_material_zoffset_field_clicked" user_data="PLA"/>
+        <setting_value_row label="PETG"
+                           bind_description="material_zoffset_temp_petg" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_petg" value_subject="material_zoffset_value_petg"
+                           callback="on_material_zoffset_field_clicked" user_data="PETG"/>
+        <setting_value_row label="ABS"
+                           bind_description="material_zoffset_temp_abs" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_abs" value_subject="material_zoffset_value_abs"
+                           callback="on_material_zoffset_field_clicked" user_data="ABS"/>
+        <setting_value_row label="ASA"
+                           bind_description="material_zoffset_temp_asa" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_asa" value_subject="material_zoffset_value_asa"
+                           callback="on_material_zoffset_field_clicked" user_data="ASA"/>
+        <setting_value_row label="TPU"
+                           bind_description="material_zoffset_temp_tpu" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_tpu" value_subject="material_zoffset_value_tpu"
+                           callback="on_material_zoffset_field_clicked" user_data="TPU"/>
+        <setting_value_row label="PA"
+                           bind_description="material_zoffset_temp_pa" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_pa" value_subject="material_zoffset_value_pa"
+                           callback="on_material_zoffset_field_clicked" user_data="PA"/>
+        <setting_value_row label="PC"
+                           bind_description="material_zoffset_temp_pc" marker_icon="grid_large"
+                           marker_subject="material_zoffset_mesh_pc" value_subject="material_zoffset_value_pc"
+                           callback="on_material_zoffset_field_clicked" user_data="PC"/>
       </setting_group>
       <info_note icon="grid_large"
                  icon_variant="muted"

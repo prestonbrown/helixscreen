@@ -177,6 +177,9 @@
           "type": "enum",
           "enum": "label_long_mode"
         },
+        "wrap_at_spaces": {
+          "type": "bool"
+        },
         "translation_tag": {
           "type": "string"
         },
@@ -4356,6 +4359,12 @@
     "size_xs",
     "size_xs_micro",
     "slider_height",
+    "slider_knob_room",
+    "slider_knob_room_large",
+    "slider_knob_room_medium",
+    "slider_knob_room_micro",
+    "slider_knob_room_small",
+    "slider_knob_room_tiny",
     "space_2xl",
     "space_2xl_large",
     "space_2xl_medium",

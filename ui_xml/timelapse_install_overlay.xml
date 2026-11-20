@@ -30,14 +30,8 @@
         <lv_obj width="100%" height="content" flex_flow="column" style_pad_row="#space_sm" style_bg_opa="0">
           <text_body width="100%"
                      text="Connect to your printer via SSH and run:" style_text_color="#text_muted" long_mode="wrap"/>
-          <lv_obj width="100%"
-                  height="content" style_bg_color="#overlay_bg" style_radius="#border_radius" style_pad_all="#space_sm"
-                  style_bg_opa="255">
-            <text_small name="ssh_commands"
-                        width="100%"
-                        text="cd ~&#10;git clone https://github.com/mainsail-crew/moonraker-timelapse.git&#10;cd moonraker-timelapse&#10;make install"
-                        style_text_color="#text" long_mode="wrap"/>
-          </lv_obj>
+          <code_block name="ssh_commands"
+                      text="cd ~&#10;git clone https://github.com/mainsail-crew/moonraker-timelapse.git&#10;cd moonraker-timelapse&#10;make install"/>
           <text_small width="100%"
                       text="After running the commands, tap Check Again below." style_text_color="#text_muted"
                       long_mode="wrap"/>
@@ -53,13 +47,7 @@
           <text_body width="100%"
                      text="To make videos, run this on your printer via SSH:" style_text_color="#text_muted"
                      long_mode="wrap"/>
-          <lv_obj width="100%"
-                  height="content" style_bg_color="#overlay_bg" style_radius="#border_radius" style_pad_all="#space_sm"
-                  style_bg_opa="255">
-            <text_small name="ffmpeg_command"
-                        width="100%" bind_text="timelapse_install_ffmpeg_command" style_text_color="#text"
-                        long_mode="wrap"/>
-          </lv_obj>
+          <code_block name="ffmpeg_command" bind_text="timelapse_install_ffmpeg_command"/>
         </lv_obj>
       </lv_obj>
 

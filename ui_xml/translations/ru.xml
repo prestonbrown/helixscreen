@@ -142,7 +142,6 @@
   <translation tag="1, 2, 3" ru="1, 2, 3"/>
   <translation tag="1. Each nozzle is heated, wiped and parked at the front for you to brush clean" ru="1. Каждое сопло нагревается, протирается и паркуется спереди, чтобы вы его почистили щёткой"/>
   <translation tag="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets." ru="1. Установите вспомогательные макросы. Они добавляют HELIX_MATERIAL_OFFSET и хранилище [save_variables] для смещений."/>
-  <translation tag="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets." ru="1. Установите вспомогательные макросы. Они добавляют макрос из шага 2 и хранилище Klipper для смещений."/>
   <translation tag="1. Printer homes all axes (~1 minute)" ru="1. Принтер ищет ноль по всем осям (~1 минута)"/>
   <translation tag="1. Printer homes and probes the bed" ru="1. Принтер паркуется и зондирует стол"/>
   <translation tag="1. Printer will home and probe each screw" ru="1. Принтер запаркуется и проверит каждый винт"/>
@@ -1280,6 +1279,7 @@
   <translation tag="E-Stop Confirmation" ru="Подтверждение аварийной остановки"/>
   <translation tag="EDDY CURRENT" ru="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" ru="Ошибка EEPROM в блоке CFS"/>
+  <translation tag="ELECTRICITY" ru="ЭЛЕКТРИЧЕСТВО"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" ru="ЭЛЕКТРОНИКА И АКСЕССУАРЫ"/>
   <translation tag="EMERGENCY STOP" ru="АВАРИЙНАЯ ОСТАНОВКА"/>
   <translation tag="EMPTY" ru="ПУСТО"/>
@@ -1474,6 +1474,7 @@
   <translation tag="FAILED" ru="ОШИБКА"/>
   <translation tag="FILAMENT" ru="ФИЛАМЕНТ"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ru="ФИЛАМЕНТ И ГОЛОВКА"/>
+  <translation tag="FILAMENT PRICE PER KG" ru="ЦЕНА ФИЛАМЕНТА ЗА КГ"/>
   <translation tag="FILAMENTS" ru="ФИЛАМЕНТЫ"/>
   <translation tag="FILTERS" ru="ФИЛЬТРЫ"/>
   <translation tag="Factory Reset" ru="Сброс к заводским настройкам"/>
@@ -4202,7 +4203,6 @@
   <translation tag="The heater was turned off at the heater." ru="Нагреватель был выключен на самом нагревателе."/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
-  <translation tag="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper." ru="У вспомогательных макросов на этом принтере ещё нет хранилища для смещений. Обновите их, затем перезапустите Klipper."/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ru="Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>

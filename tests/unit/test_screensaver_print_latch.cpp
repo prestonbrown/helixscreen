@@ -55,7 +55,7 @@ TEST_CASE("a print that ends while running latches its end",
     in.host.phase = end;
     CHECK(after(latch, in, 16) == end);
     CHECK(latch.latched() == end);
-    CHECK(idle_minutes(latch, in, 120) == end);
+    CHECK(idle_minutes(latch, in, 9) == end);
 }
 
 TEST_CASE("running phases pass through the latch", "[screensaver][screensaver_print_latch]") {
@@ -152,12 +152,29 @@ TEST_CASE("an end keeps the progress the print reached", "[screensaver][screensa
     CHECK(latch.latched_progress_pct() == 64);
 }
 
-TEST_CASE("display sleep does not clear the latch", "[screensaver][screensaver_print_latch]") {
+TEST_CASE("an end nobody acknowledges lets go after the hold",
+          "[screensaver][screensaver_print_latch]") {
     PrintLatchInput in;
     PrintEndLatch latch = running_latch(in);
     in.host.phase = ClockPrintPhase::COMPLETE;
     after(latch, in, 16);
-    CHECK(idle_minutes(latch, in, 8 * 60) == ClockPrintPhase::COMPLETE);
+    // The printer keeps reporting complete throughout, as Klipper does until the next print.
+    CHECK(after(latch, in, helix::ui::kPrintEndHoldMs - 1) == ClockPrintPhase::COMPLETE);
+    CHECK(after(latch, in, 1) == ClockPrintPhase::NONE);
+    CHECK(latch.latched() == ClockPrintPhase::NONE);
+    CHECK(idle_minutes(latch, in, 60) == ClockPrintPhase::NONE);
+}
+
+TEST_CASE("the hold survives the millisecond clock wrapping",
+          "[screensaver][screensaver_print_latch]") {
+    PrintLatchInput in;
+    PrintEndLatch latch = running_latch(in);
+    in.now_ms = UINT32_MAX - 60000;
+    in.host.phase = ClockPrintPhase::COMPLETE;
+    latch.step(in);
+    REQUIRE(latch.latched() == ClockPrintPhase::COMPLETE);
+    CHECK(idle_minutes(latch, in, 9) == ClockPrintPhase::COMPLETE);
+    CHECK(idle_minutes(latch, in, 1) == ClockPrintPhase::NONE);
 }
 
 TEST_CASE("reset forgets the latch and what it saw", "[screensaver][screensaver_print_latch]") {

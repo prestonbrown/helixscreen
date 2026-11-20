@@ -177,20 +177,8 @@ endif
 
 endif # PLATFORM_TARGET != yocto
 
-# Dependency generation flags for proper header tracking
-# -MMD: Generate .d dependency files for user headers (not system headers)
-# -MP: Add phony targets for headers (prevents errors when headers are deleted)
-# Note: -MF path is computed in the pattern rules to get the correct output path
-DEPFLAGS = -MMD -MP
-
-# A compile rewrites its .d in place, and a make that parses one mid-write stops
-# with "missing separator". The goals below compile nothing, so they read no .d:
-# land-gate runs them while its other lanes compile in this tree. Every .d
-# include goes through $(call depfiles,<glob>) so the rule holds for all of them.
-DEPFILE_FREE_GOALS := check-theme-tokens regen-tokens check-xml-schema lint-xml lint-xml-all \
-                      check-lvgl-event-codes test-python
-READ_DEPFILES := $(filter-out $(DEPFILE_FREE_GOALS),$(or $(MAKECMDGOALS),all))
-depfiles = $(if $(READ_DEPFILES),$(wildcard $(1)))
+# DEPFLAGS and the depfiles helper every .d include goes through
+include mk/depfiles.mk
 
 # Optimization level: -O2 by default, override with OPT=0 or OPT=1 for faster builds
 # 'make dev' sets OPT=0 automatically (~2x faster compilation)

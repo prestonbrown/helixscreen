@@ -2051,3 +2051,155 @@ TEST_CASE_METHOD(LVGLTestFixture, "The bypass spool's drawn area is its box and 
     CHECK_FALSE(helix::ui::bypass_spool_drawn_area(parent, &area));
     helix::ui::bypass_spool_destroy(w);
 }
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: the bypass spool beside a drawn unit takes its spools' size where "
+                 "there is room, and stands clear of it",
+                 "[ams][tray][ui_integration][unit-art][bypass]") {
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    REQUIRE(AmsState::instance().get_backend()->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    panel_->refresh_slots();
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    lv_obj_t* box = lv_obj_find_by_name(panel_obj_, "bypass_spool_box");
+    REQUIRE(box != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(box));
+    lv_obj_t* lane_spool = lv_obj_find_by_name(slot(0), "spool_graphic");
+    REQUIRE(lane_spool != nullptr);
+    const int32_t lane = lv_obj_get_width(lane_spool);
+    lv_area_t b, art, canvas;
+    lv_obj_get_coords(box, &b);
+    lv_obj_get_coords(drawing, &art);
+    lv_obj_get_coords(lv_obj_find_by_name(panel_obj_, "path_canvas"), &canvas);
+    const int32_t card = lv_area_get_width(&b);
+    CAPTURE(size, lane, card, b.x1, b.y1, b.x2, b.y2, art.x1, art.y1, art.x2, art.y2);
+    // Never smaller than everywhere else, never larger than the unit's own spools.
+    CHECK(card >= helix::ui::bypass_spool_box_size());
+    CHECK(card <= helix::ui::bypass_spool_box_size(lane));
+    CHECK(lv_area_get_height(&b) == card);
+    CHECK(b.x2 <= canvas.x2);
+    // Where it grew, nothing of the unit stands beside it: from its material label down, every
+    // row of the drawing ends left of the card.
+    if (card > helix::ui::bypass_spool_box_size()) {
+        std::vector<int32_t> edge;
+        REQUIRE(helix::ui::unit_art_row_right_edges(drawing, edge));
+        const int32_t from = std::max(b.y1 - helix::ui::bypass_spool_label_room(), art.y1);
+        const int32_t to = std::min(b.y2, art.y1 + (int32_t)edge.size() - 1);
+        for (int32_t y = from; y <= to; ++y) {
+            const int32_t x = edge[static_cast<size_t>(y - art.y1)];
+            if (x >= 0) {
+                CAPTURE(y, art.x1 + x);
+                CHECK(art.x1 + x < b.x1);
+            }
+        }
+    }
+    // It stands clear of the hub, the toolhead and the environment pill, with its "Bypass"
+    // label under it inside the path.
+    lv_obj_t* path = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    const auto overlaps = [](const lv_area_t& a, const lv_area_t& o) {
+        return a.x1 <= o.x2 && o.x1 <= a.x2 && a.y1 <= o.y2 && o.y1 <= a.y2;
+    };
+    lv_area_t hub, head, label;
+    if (ui_filament_path_canvas_get_hub_box(path, &hub))
+        CHECK_FALSE(overlaps(hub, b));
+    if (ui_filament_path_canvas_get_toolhead_box(path, &head))
+        CHECK_FALSE(overlaps(head, b));
+    if (lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
+        pill && !lv_obj_is_hidden(pill)) {
+        lv_area_t pa;
+        lv_obj_get_coords(pill, &pa);
+        CAPTURE(pa.x1, pa.y1, pa.x2, pa.y2);
+        CHECK_FALSE(overlaps(pa, b));
+    }
+    lv_obj_t* bypass_label = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(lv_obj_get_parent(box)); ++i) {
+        lv_obj_t* child = lv_obj_get_child(lv_obj_get_parent(box), (int32_t)i);
+        if (lv_obj_check_type(child, &lv_label_class) &&
+            std::strcmp(lv_label_get_text(child), "Bypass") == 0)
+            bypass_label = child;
+    }
+    REQUIRE(bypass_label != nullptr);
+    lv_obj_get_coords(bypass_label, &label);
+    CAPTURE(label.y1, label.y2, canvas.y2);
+    CHECK(label.y1 > b.y2);
+    CHECK(label.y2 <= canvas.y2);
+    // With room beside or below the unit (the 800x400 and 1024x500 hosts), it grows.
+    if (size == 1 || size == 2)
+        CHECK(card > helix::ui::bypass_spool_box_size());
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: placing the bypass spool again with nothing changed keeps its spot",
+                 "[ams][tray][ui_integration][unit-art][bypass]") {
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    REQUIRE(AmsState::instance().get_backend()->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    auto& w = helix::AmsPanelTestAccess::bypass(*panel_);
+    REQUIRE(w.valid());
+    lv_obj_t* path = helix::AmsPanelTestAccess::path_canvas(*panel_);
+    const auto* d = helix::ui::fpath::get_data(path);
+    helix::AmsPanelTestAccess::place_bypass(*panel_);
+    lv_obj_update_layout(test_screen());
+    lv_area_t first;
+    lv_obj_get_coords(w.box, &first);
+    const int32_t cx = d->bypass_spool_cx, spool = d->bypass_spool_size;
+    const bool side = d->bypass_side_entry;
+    for (int i = 0; i < 3; ++i) {
+        helix::AmsPanelTestAccess::place_bypass(*panel_);
+        process_lvgl(10);
+        lv_obj_update_layout(test_screen());
+        lv_area_t now;
+        lv_obj_get_coords(w.box, &now);
+        CAPTURE(size, i, first.x1, first.y1, first.x2, now.x1, now.y1, now.x2);
+        CHECK(
+            (now.x1 == first.x1 && now.y1 == first.y1 && now.x2 == first.x2 && now.y2 == first.y2));
+        CHECK(d->bypass_spool_cx == cx);
+        CHECK(d->bypass_spool_size == spool);
+        CHECK(d->bypass_side_entry == side);
+    }
+}
+
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS unit art: a bypass spool that leaves the path gives the canvas its default spot",
+    "[ams][tray][ui_integration][unit-art][bypass]") {
+    host_at(1);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    REQUIRE(AmsState::instance().get_backend()->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    auto& w = helix::AmsPanelTestAccess::bypass(*panel_);
+    const auto* d = helix::ui::fpath::get_data(helix::AmsPanelTestAccess::path_canvas(*panel_));
+    helix::AmsPanelTestAccess::sync_bypass(*panel_);
+    REQUIRE_FALSE(lv_obj_is_hidden(w.box));
+    // Placed beside the drawn unit, the spool stands at its own spot, larger than the token.
+    REQUIRE(d->bypass_spool_size > 0);
+
+    // The node leaves the path (no system to feed it), and the panel hides the spool.
+    AmsState::instance().set_backend(nullptr);
+    helix::AmsPanelTestAccess::sync_bypass(*panel_);
+    REQUIRE(lv_obj_is_hidden(w.box));
+    CHECK(d->bypass_spool_cx == -1);
+    CHECK(d->bypass_spool_size == 0);
+    CHECK_FALSE(d->bypass_side_entry);
+}

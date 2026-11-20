@@ -1057,9 +1057,11 @@ switch state is unreported nothing is offered. The firmware takes the first head
 whose record matches, so a lower head holding the identical spool record wins over the choice;
 the plan names it.
 
-`filament_info_backup` is not in the firmware's status, so the backend keeps each head's record
-as it read when the pause began (`src/printer/ams_backend_snapmaker.cpp#note_pause_records_locked`)
-and compares against that: a spool swapped in during the pause changes the live record only.
+`filament_info_backup` is not in the firmware's status, and by the frame reporting the pause the
+runout head's published record already reads `NONE` (`filament_exist` false). So the backend keeps
+each head's last record that named a filament while the print ran, freezes it when the pause
+begins (`src/printer/ams_backend_snapmaker.cpp#note_pause_records_locked`) and compares against
+that: a spool swapped in during the pause changes the live record only. The print ending forgets it.
 
 Every refusal inside `INNER_AUTO_REPLENISH_FILAMENT` is log-and-return, so a clean reply proves
 nothing. After sending, the chooser watches for the pause ending or `extruder_map_table`

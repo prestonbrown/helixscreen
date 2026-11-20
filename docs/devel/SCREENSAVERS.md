@@ -527,6 +527,12 @@ compares the lifecycle with the one its previous tick read and passes the edge t
 dropped connection, so a reconnect into a print the screen already knew of is no edge; a job
 the controller first hears of mid-print (its starting value is Idle) counts as a start.
 
+A pause that waits on the user wakes the display when its dialog appears: the runout guidance
+(`src/ui/filament/ui_filament_runout_handler.cpp#show_runout_guidance_modal`), a detection's
+pause and the bed check (`src/ui/modals/ui_spaghetti_detection_modal.cpp`) each call
+`DisplayManager::wake_display()` before showing it (the runout handler through the wake its
+owner, `PrintStatusPanel`, gives it).
+
 Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SCENE savers
 (the flip clock, the nixie clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`
 creates a card on its own canvas above the scene (`start_print_card`): a ring that fills in

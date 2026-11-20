@@ -22,6 +22,17 @@ class AmsPanelTestAccess {
     static lv_obj_t* path_canvas(const AmsPanel& p) {
         return p.path_canvas_;
     }
+    static helix::ui::BypassSpoolWidgets& bypass(AmsPanel& p) {
+        return p.bypass_widgets_;
+    }
+    /// Place the bypass spool on the path again, as a refresh does.
+    static void place_bypass(AmsPanel& p) {
+        p.update_bypass_spool_position();
+    }
+    /// The bypass node's state pushed to its widgets, as a backend change does.
+    static void sync_bypass(AmsPanel& p) {
+        p.update_bypass_spool_from_state();
+    }
     /// Re-read the endless-spool relation from the backend into the arrows widget.
     static void update_endless_arrows(AmsPanel& p) {
         p.update_endless_arrows_from_backend();

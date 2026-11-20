@@ -127,8 +127,9 @@ constexpr double kMockPartFanMaxRpm = 6800.0;
     return 1.0 - 0.1 * t;
 }
 
-/// The part fan's status block, as every frame the mock serves carries it.
-[[nodiscard]] inline nlohmann::json part_fan_status(double speed) {
+/// A tachometer-equipped fan's status block (the part fan and the heater fans),
+/// as every frame the mock serves carries it.
+[[nodiscard]] inline nlohmann::json tach_fan_status(double speed) {
     return {{"speed", speed}, {"rpm", speed > 0.0 ? std::round(kMockPartFanMaxRpm * speed) : 0.0}};
 }
 
