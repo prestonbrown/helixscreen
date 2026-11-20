@@ -3,6 +3,7 @@
 
 #include "timelapse_thumbnailer.h"
 
+#include "cloexec_pipe.h"
 #include "core/text_io.h"
 #include "host_identity.h"
 #include "hv/hurl.h"
@@ -120,7 +121,7 @@ std::optional<PlayerWatch> spawn_watched_player(const std::vector<std::string>& 
     argv.push_back(nullptr);
 
     int fds[2];
-    if (pipe2(fds, O_CLOEXEC) != 0) {
+    if (!helix::open_cloexec_pipe(fds)) {
         return std::nullopt;
     }
     pid_t watcher = fork();
