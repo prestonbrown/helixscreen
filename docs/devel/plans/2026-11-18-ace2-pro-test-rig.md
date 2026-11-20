@@ -79,18 +79,27 @@ addition: point `[AFC_hub]` `switch_pin` at the foot sensor's pin and delete
 
 ## Phase 1: AFC DEV on the V0 (remote; each install or restart confirmed with Preston)
 
-- [ ] Back up `printer_data/config` and the Moonraker database (memory
-      `feedback_preserve_moonraker_db_on_printer_reverts`).
-- [ ] Install AFC from `DEV` with its installer, unit type ACE, `V2 Pro`. sudo needs
-      Preston's password.
-- [ ] `[AFC_ACE2 Ace2_1]`: combined mode, `serial_port` pinned by-id rather than `auto`
-      (the BMCU adapter may not be a CH343), `[AFC_extruder]` `pin_tool_start` = the SHT36
-      sensor. Stock ACE 2 firmware.
-- [ ] `AFC_ACE_STATUS UNIT=Ace2_1`, then `AFC_ACE_CALIBRATE` per lane.
+- [x] Backed up `printer_data/config` and the Moonraker database to thelio
+      `~/printer-backups/voronv0/printer_data-config-database-20261119-1828-before-afc.tgz`.
+- [x] AFC DEV `1e400e2` installed 2026-11-19 at `~/AFC-Klipper-Add-On` by running AFC's own
+      `install_afc()` non-interactively (no sudo): unit ACE `V2_Pro` `Ace2_1`, buffer
+      Internal, `pin_tool_start: ^sht36:LIMIT_1`, tip forming on, cutter/poop/kick/wipe/park
+      macros off. `conf.d/toolhead.cfg`'s `[filament_switch_sensor toolhead_sensor]` is
+      commented out (AFC owns the pin). `moonraker.conf` update_manager entry uses
+      `primary_branch: DEV`. Virtual hub for now; stock ACE 2 firmware V1.1.22.
+- [x] Klipper ready, `AFC_ACE2 Ace2_1` reports `ace_connected: true`; HelixScreen detects AFC.
+- [ ] Hub at the foot sensor: `[AFC_hub]` `switch_pin: gpio16`, delete
+      `[filament_switch_sensor Filament_Runout_Sensor]` in `printer.cfg`, per-lane `dist_hub`.
+- [ ] `AFC_ACE_CALIBRATE` per lane.
 - [ ] Tip forming tuned until a swap unloads cleanly past the hub.
 - [ ] One two-color print end to end.
 
 ## Phase 2: HelixScreen under AFC
+
+Found and fixed on the rig so far (main 7933d35598): a phantom "ASA" on an empty AFC lane
+(HelixScreen's own external-spool record under the 1-based `lane1` key read as AFC's
+0-based `lane1`), and the "Filament in the toolhead, no lane loaded" prompt
+(`FILAMENT_MANAGEMENT.md`). The V0 runs that build.
 
 A dev build with the ctl server (`make deploy-pi PI_HOST=192.168.1.133 PI_USER=pbrown`; the
 packaged install has none). Capture each `AFC_ACE2` status frame we see into
