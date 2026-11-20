@@ -668,3 +668,14 @@ TEST_CASE("build_inheritance_tree stops at an inheritance cycle", "[xml-validato
     CHECK(full["a"] == std::unordered_set<std::string>{"x", "y"});
     CHECK(full["self"] == std::unordered_set<std::string>{"z"});
 }
+
+TEST_CASE("extract_component_props ignores a prop written inside a comment", "[xml-validator]") {
+    const std::string xml = R"(<component>
+  <api>
+    <!-- <prop name="retired" type="string"/> -->
+    <prop name="live" type="string"/>
+  </api>
+  <view extends="lv_obj"/>
+</component>)";
+    CHECK(extract_component_props(xml).props == std::unordered_set<std::string>{"live"});
+}

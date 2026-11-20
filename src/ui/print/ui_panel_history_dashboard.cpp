@@ -545,7 +545,7 @@ void HistoryDashboardPanel::create_filament_chart() {
         return;
     }
 
-    // Container is a flex column - rows will be added dynamically in update_filament_chart()
+    // The rows are static XML; update_filament_chart() publishes their subjects.
     spdlog::debug("[{}] Filament chart container ready for labeled bars", get_name());
 }
 

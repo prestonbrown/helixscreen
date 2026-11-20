@@ -86,10 +86,16 @@ TEST_CASE_METHOD(TempGraphSwatchFixture, "Temp graph series chip dims while its 
     REQUIRE(lv_obj_get_child_count(chip_row) > 0);
     lv_obj_t* chip = lv_obj_get_child(chip_row, 0);
     const lv_opa_t shown = lv_obj_get_style_opa(chip, LV_PART_MAIN);
+    // The chip's XML binds its dimming to this subject, which says whether the
+    // series is drawn.
+    lv_subject_t* visible = lv_xml_get_subject(nullptr, "temp_graph_chip_visible_0");
+    REQUIRE(visible != nullptr);
+    const int32_t visible_before = lv_subject_get_int(visible);
 
     lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
     settle();
     const lv_opa_t after_one = lv_obj_get_style_opa(chip, LV_PART_MAIN);
+    CHECK(lv_subject_get_int(visible) == 1 - visible_before);
     lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
     settle();
     const lv_opa_t after_two = lv_obj_get_style_opa(chip, LV_PART_MAIN);

@@ -45,6 +45,9 @@ class LedSettingsOverlayTestAccess {
     static void add_macro() {
         get_led_settings_overlay().handle_add_macro_device();
     }
+    static void edit_macro(int index) {
+        get_led_settings_overlay().handle_edit_macro_device(index);
+    }
 };
 } // namespace helix::settings
 
@@ -514,4 +517,32 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     lv_obj_t* name = named("macro_device_name");
     REQUIRE(name != nullptr);
     CHECK(std::string(lv_label_get_text(name)) == "#1 Strip");
+}
+
+// The edit form is bound to one draft. Adding a device loads the new, blank
+// device into it, so the form never offers the last device's name to save
+// onto the new one.
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a new macro device opens with a blank form",
+                 "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedMacroInfo m;
+    m.display_name = "Strip";
+    m.type = helix::led::MacroLedType::TOGGLE;
+    m.toggle_macro = "STRIP_TOGGLE";
+    ctrl.set_configured_macros({m});
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    lv_subject_t* name = lv_xml_get_subject(nullptr, "led_macro_draft_name");
+    REQUIRE(name != nullptr);
+
+    helix::settings::LedSettingsOverlayTestAccess::edit_macro(0);
+    settle();
+    REQUIRE(std::string(lv_subject_get_string(name)) == "Strip");
+
+    helix::settings::LedSettingsOverlayTestAccess::add_macro();
+    settle();
+    CHECK(std::string(lv_subject_get_string(name)).empty());
 }
