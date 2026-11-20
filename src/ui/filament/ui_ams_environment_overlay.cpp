@@ -1051,7 +1051,13 @@ void AmsEnvironmentOverlay::populate_presets() {
         options += buf;
     }
 
+    // Setting the options resets the selection; refresh() runs on every dryer change,
+    // so keep the preset the user is looking at.
+    const uint32_t selected = lv_dropdown_get_selected(preset_dropdown_);
     lv_dropdown_set_options(preset_dropdown_, options.c_str());
+    if (selected < cached_presets_.size()) {
+        lv_dropdown_set_selected(preset_dropdown_, selected);
+    }
 
     spdlog::debug("[{}] Populated {} presets", get_name(), cached_presets_.size());
 }
@@ -1123,6 +1129,8 @@ void AmsEnvironmentOverlay::auto_select_preset() {
     }
 
     if (best_match_name.empty()) {
+        // No loaded material picks one: the fields follow the preset the dropdown shows.
+        apply_preset(static_cast<int>(lv_dropdown_get_selected(preset_dropdown_)));
         return;
     }
 
