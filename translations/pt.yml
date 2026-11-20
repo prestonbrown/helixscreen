@@ -4554,6 +4554,7 @@ translations:
   Tips: 'Dicas'
   Tips database format error: Erro de formato do banco de dados de dicas
   Tips database not found: Banco de dados de dicas não encontrado
+  Title: Título
   'To make videos, run this on your printer via SSH:': 'Para criar vídeos, execute isto na sua impressora via SSH:'
   ? To map filament, HelixScreen rewrites the job file before printing it. This printer's Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally.
   : Para mapear o filamento, o HelixScreen reescreve o arquivo de trabalho antes de imprimi-lo. O Moonraker desta impressora é antigo demais para o plugin HelixPrint restaurar o nome do arquivo original depois, então o trabalho concluído aparece com o nome reescrito. O mapeamento de filamento em si funciona normalmente.
