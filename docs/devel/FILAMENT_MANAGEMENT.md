@@ -1238,8 +1238,9 @@ panels (the AMS panel's `ams_system_name`/`ams_system_logo`, the unit view's
 `ams_page_unit_name`/`ams_page_unit_logo`), the "Multi-Filament" title and ":" hidden, the
 logo and name centred in the header's height (`flex_track_place` center, the name at
 content height). The logo hides when the system has none (`ams_system_has_logo`,
-`ams_page_has_logo`). The name is the backend's type name, else its type, so it is never
-empty while a backend exists. Landscape keeps its rule: title, then ":" + logo + name from
+`ams_page_has_logo`). The name is the unit's (`ams_draw::get_unit_display_name`) when the system is one
+named unit, else the backend's type name, else its type, so it is never empty while a backend
+exists; the logo is always the system's. Landscape keeps its rule: title, then ":" + logo + name from
 SMALL up.
 
 The full-width box takes the same rules as landscape at the same breakpoint: two label rows

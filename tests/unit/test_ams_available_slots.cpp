@@ -288,3 +288,23 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_system_has_logo follows whether the syste
     ams.clear_backends();
     ams.deinit_subjects();
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "AMS header: one named unit is named; several units name the system",
+                 "[ams][ams_state]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    auto* mock_ptr = mock.get();
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) == "Mock MMU");
+
+    mock_ptr->set_multi_unit_mode(true);
+    ams.sync_from_backend();
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) ==
+          "AFC (Mock Multi-Unit)");
+
+    ams.clear_backends();
+    ams.deinit_subjects();
+}

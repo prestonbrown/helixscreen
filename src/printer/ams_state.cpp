@@ -48,6 +48,7 @@
 #include "spoolman_types.h"
 #include "text_io.h"
 #include "tool_state.h"
+#include "ui/ams_drawing_utils.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
@@ -803,7 +804,7 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
         lv_subject_set_int(&ams_operation_indeterminate_, new_indet);
     }
 
-    // Set system name from backend type_name or fallback to type string
+    // The system's name picks the logo: the backend's type_name, else its type string.
     std::string sys_name;
     if (presented == AmsType::NONE) {
         // No system shown, so no name or logo for one.
@@ -812,8 +813,15 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     } else {
         sys_name = ams_type_to_string(info.type);
     }
-    if (strcmp(lv_subject_get_string(&ams_system_name_), sys_name.c_str()) != 0) {
-        lv_subject_copy_string(&ams_system_name_, sys_name.c_str());
+    // The header names the unit when the system is one named unit, as the multi-unit
+    // overview's unit view does; otherwise the system.
+    std::string header_name = sys_name;
+    if (!sys_name.empty() && info.units.size() == 1 &&
+        (!info.units[0].display_name.empty() || !info.units[0].name.empty())) {
+        header_name = ams_draw::get_unit_display_name(info.units[0], 0);
+    }
+    if (strcmp(lv_subject_get_string(&ams_system_name_), header_name.c_str()) != 0) {
+        lv_subject_copy_string(&ams_system_name_, header_name.c_str());
     }
 
     // Set system logo path for declarative image binding (pointer subject for bind_src)
