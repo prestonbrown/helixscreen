@@ -3044,21 +3044,31 @@ there instead of when the gcode was queued.
 
 A filament system can see filament at its toolhead sensor while no lane is loaded
 and bypass is off: a spool fed by hand before the system was installed, or one
-left when bypass was switched off. HelixScreen asks once: "Filament is in the
-toolhead, but no lane is loaded", with **Use as bypass** (the shared
-`BypassToggleController` engage, so the external spool then feeds) and
-**Unload** (the toolhead unload, `execute_filament_unload()` on the active head).
+left when bypass was switched off. HelixScreen asks once, in
+`UnclaimedToolheadModal` (`src/ui/filament/ui_unclaimed_toolhead_modal.cpp`):
+"Filament is in the toolhead, but no lane is loaded", with **Use as bypass** (the
+shared `BypassToggleController` engage, so the external spool then feeds),
+**Unload** (the toolhead unload, `execute_filament_unload()` on the active head)
+and **Not now**, which holds the cancel slot that ESC and the backdrop reach.
+Both actions re-check the state at tap time (`AmsState::unclaimed_toolhead_now()`)
+and do nothing once it no longer holds.
 
 The inputs are generic: `AmsBackend::toolhead_filament_unaccounted()`,
-`is_bypass_active()`, and `supports_bypass && !has_hardware_bypass_sensor` (a
-bypass the hardware sets itself is never asked about).
-`AmsState::sync_unclaimed_toolhead()` feeds them to
+`is_bypass_active()`, `get_current_action()`, and `supports_bypass &&
+!has_hardware_bypass_sensor` (a bypass the hardware sets itself is never asked
+about). `AmsState::sync_unclaimed_toolhead()` feeds them to
 `ams::UnclaimedToolheadPromptGate` (`include/ams_unclaimed_toolhead.h`) after
-every sync, and publishes `UiRequestKind::OfferUnclaimedToolheadAsBypass` when it
-opens. The gate asks once per occurrence, re-arms only after a look finds the
-state cleared, never during a print, and not until the primary backend has read
-its lane records and a 15-second startup grace has passed. Every way the prompt
-closes, the dismissal included, calls `AmsState::unclaimed_toolhead_prompt_closed()`.
+every sync. The gate opens the prompt once per occurrence
+(`UiRequestKind::OfferUnclaimedToolheadAsBypass`) and closes one still open when
+a settled, idle look finds the state cleared (`DismissUnclaimedToolheadPrompt`).
+It never asks during a print, nor while the backend is busy: a load trips the
+toolhead sensor before the backend names the lane, so a busy look neither opens
+nor re-arms the prompt. It waits until the primary backend has read its lane
+records and a 15-second startup grace has passed, and a gate reset never stacks a
+second prompt over an open one. Every close calls
+`AmsState::unclaimed_toolhead_prompt_closed()`. On AFC, unaccounted means a
+toolhead sensor up, no current load or `lane_loaded`, no lane `tool_loaded`, and
+bypass off.
 
 ### Bypass visibility and the force override
 

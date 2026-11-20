@@ -226,15 +226,22 @@ no in-memory copy.
   before matching a record to a lane: the shared store parse and AFC's own
   `lane_data` read (`src/printer/afc_status_parse.cpp#parse_lane_data`).
 - **Moving with its holder.** A backend that keeps its records in an extras
-  namespace cannot see AmsState's `lane_data` copy, so the record moves when the
-  holder changes. `AmsState::hand_bypass_record_to_holder()` runs after every
-  sync: once the new holder has read its lane records and holds no bypass record,
-  it gets the one AmsState last read, and AmsState deletes its own copy (after a
-  fresh read confirms the key still holds the bypass record). When discovery
-  finds no filament system, `AmsState::reclaim_orphaned_bypass_record()` reads
-  the extras namespaces (`AmsBackend::private_lane_record_namespaces()`) once per
-  connection and, if its own store holds none, moves a bypass record found there
-  back to `lane_data`.
+  namespace (`AmsBackend::lane_records_private()`) cannot see AmsState's
+  `lane_data` copy, so the record moves when that holder arrives. A holder that
+  reads `lane_data` already reads AmsState's record as its own, and nothing
+  moves. `AmsState::hand_bypass_record_to_holder()` runs after every sync: once
+  the new holder has read its lane records and holds no bypass record, it gets
+  the one AmsState last read. AmsState's copy goes only once the holder's own
+  read shows that record (`same_bypass_spool()`), and only after a fresh read
+  confirms the key still holds it; a refused or failed write leaves it.
+- **Back from a departed holder.** When discovery finds no filament system,
+  `AmsState::reclaim_orphaned_bypass_record()` reads the private namespaces
+  (`AmsBackend::private_lane_record_namespaces()`, a column of `kBackendRows`)
+  once per connection. If its own store holds none, the first bypass record
+  found is written through `write_bypass_record()`, so a poll already out cannot
+  file over it; the private copy is deleted once AmsState's own read shows the
+  record. Bypass reads key on a per-connection generation, so a reply from an
+  earlier connection is never filed.
 
 ### Editing waits for the first read
 
