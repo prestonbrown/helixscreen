@@ -863,6 +863,32 @@ jobs:
         EOF
         fi
 
+    # GitHub's "latest" release must never move backwards. Moonraker's stable
+    # channel reads releases/latest and offers an update whenever that version
+    # differs from the installed one, downgrades included (helixscreen#2147), and
+    # by default every new non-prerelease becomes latest, so a v1.0.x tag cut
+    # after v1.1.0 would offer every 1.1 install a downgrade. The read uses
+    # GITHUB_TOKEN; drafts are never "latest" either way.
+    - name: Decide whether this release becomes GitHub's latest
+      id: latest
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PRERELEASE: ${{ steps.channel.outputs.prerelease }}
+      run: |
+        set -euo pipefail
+        if current=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name' 2>latest.err); then
+          :
+        elif grep -q 'HTTP 404' latest.err; then
+          current=""   # no latest release yet
+        else
+          cat latest.err >&2
+          echo "::error::Cannot read releases/latest; refusing to guess make_latest."
+          exit 1
+        fi
+        make_latest=$(scripts/release-make-latest.sh "$GITHUB_REF_NAME" "$PRERELEASE" "$current")
+        echo "releases/latest is '${current:-<none>}'; ${GITHUB_REF_NAME} make_latest=${make_latest}"
+        echo "make_latest=${make_latest}" >> "$GITHUB_OUTPUT"
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v3
       with:
@@ -870,6 +896,7 @@ jobs:
         body_path: release-notes.md
         draft: false
         prerelease: ${{ steps.channel.outputs.prerelease }}  # from RELEASE_CHANNEL
+        make_latest: ${{ steps.latest.outputs.make_latest }}
         files: |
           release-files/*.tar.gz
           release-files/*.zip
