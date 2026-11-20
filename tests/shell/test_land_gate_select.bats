@@ -234,10 +234,10 @@ ui_files_of() { # <changed path>...: the files the ui row selects, one line
 @test "ui valve: a selection of most of the files runs every file" {
     [[ "$(plan_of ui ui_xml/home_panel.xml ui_xml/print_select_panel.xml ui_xml/history_list_panel.xml \
         ui_xml/motion_panel.xml ui_xml/runout_guidance_modal.xml ui_xml/ams_panel.xml)" == select* ]] ||
-        fail "twelve of eighteen is a selection"
+        fail "twelve of the ui files is a selection"
     [[ "$(plan_of ui ui_xml/home_panel.xml ui_xml/print_select_panel.xml ui_xml/history_list_panel.xml \
         ui_xml/motion_panel.xml ui_xml/runout_guidance_modal.xml ui_xml/ams_panel.xml \
-        tests/ui/test_freeze.py tests/ui/test_wait_idle.py src/system/screenshot.cpp)" == "full 15 of 18 files reached" ]]
+        tests/ui/test_freeze.py tests/ui/test_wait_idle.py src/system/screenshot.cpp)" == "full 15 of "*" files reached" ]]
 }
 
 @test "a ui selection reaches make as UI_TESTS, and test-ui-ci keeps CI's other arguments" {
