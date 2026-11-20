@@ -25,6 +25,28 @@ setup() {
     mkdir -p "$BATS_TEST_TMPDIR/bin"
     export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
     mock_pidof_dropbear ""
+
+    # No waiting for a dropbear the stubs never start.
+    export HELIX_ROOT_SSH_WAIT=0
+    export LOGGER_LOG="$BATS_TEST_TMPDIR/logger.log"
+    cat > "$BATS_TEST_TMPDIR/bin/logger" <<'STUB'
+#!/bin/sh
+echo "$*" >> "$LOGGER_LOG"
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/bin/logger"
+}
+
+# Stub pidof that reports dropbear running once a start left $1 behind.
+mock_pidof_dropbear_after_start() {
+    cat > "$BATS_TEST_TMPDIR/bin/pidof" <<STUB
+#!/bin/sh
+if [ "\$1" = dropbear ] && [ -e "$1" ]; then
+    echo 4242
+    exit 0
+fi
+exit 1
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/bin/pidof"
 }
 
 # Stub pidof: prints PIDS for `pidof dropbear` (empty = not running).
@@ -194,4 +216,50 @@ EOF
     '
     [ "$status" -eq 0 ]
     [ "$(cat "$DROPBEAR_LOG")" = "start --force" ]
+}
+
+# --- A start that leaves no dropbear is reported, not swallowed --------------
+
+@test "u1 root ssh: start --force leaves no dropbear -> syslog error, stderr, app flag" {
+    seed_stock_dropbear
+    seed_gui_config 1
+
+    run bash -c '. "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    [ "$(cat "$DROPBEAR_LOG")" = "start --force" ]
+    contains "flag=1" "$output"
+    contains "ERROR: Root Access is on but SSH (dropbear) did not start" "$output"
+    [ -f "$LOGGER_LOG" ] || fail "nothing sent to syslog"
+    contains "-p user.err -t helixscreen" "$(cat "$LOGGER_LOG")"
+}
+
+@test "u1 root ssh: start --force brings dropbear up -> no error, no app flag" {
+    seed_gui_config 1
+    cat > "$HELIX_DROPBEAR_INIT" <<STUB
+#!/bin/sh
+if [ "\$2" != "--force" ] ; then
+	[ x"\$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
+fi
+touch "$BATS_TEST_TMPDIR/dropbear.up"
+STUB
+    chmod +x "$HELIX_DROPBEAR_INIT"
+    mock_pidof_dropbear_after_start "$BATS_TEST_TMPDIR/dropbear.up"
+
+    run bash -c '. "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    [ -e "$BATS_TEST_TMPDIR/dropbear.up" ]
+    contains "flag=" "$output"
+    lacks "flag=1" "$output"
+    lacks "ERROR" "$output"
+    [ ! -e "$LOGGER_LOG" ]
+}
+
+@test "u1 root ssh: Root Access off -> no error even though dropbear is down" {
+    seed_stock_dropbear
+    seed_gui_config 0
+
+    run bash -c '. "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    lacks "flag=1" "$output"
+    [ ! -e "$LOGGER_LOG" ]
 }

@@ -19,6 +19,8 @@ translations:
   '%zu changes': '%zu modifiche'
   '%zu events queued': '%zu eventi in coda'
   '%zu plugins failed to load': Caricamento di %zu plugin non riuscito
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Riavvia la stampante. Se SSH rifiuta ancora la connessione, consulta la guida di installazione dello Snapmaker U1'
+  SSH did not start although Root access is on: 'SSH non si è avviato anche se l''accesso root è attivo'
   "'{}' already exists. Replace the stored mesh?": "'{}' esiste già. Sostituire la mesh salvata?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' e '{}' esistono già. Sostituire le mesh salvate?"
   (different grade): (grado diverso)

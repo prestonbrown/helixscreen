@@ -1613,6 +1613,18 @@ The init script starts the early splash for the fastest possible first pixel, th
 
 **Verified before adoption:** the PID's `/proc/<pid>/comm` must read `helix-splash`, so a recycled PID cannot be signalled by mistake. Adoption is logged as `[SplashManager] Adopted early splash PID <n> from HELIX_SPLASH_PID`.
 
+### `HELIX_U1_ROOT_SSH_DOWN`
+
+Set to `1` by the Snapmaker U1 platform hook (`ensure_root_ssh`) when the stock firmware's Root access setting is on but `S50dropbear start --force` left no dropbear running. With the stock screen disabled SSH is how the user gets back to it, so the app shows a warning at startup. The hook also logs the failure to syslog (`-t helixscreen`, `user.err`) and to the launcher log.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, or unset |
+| **Default** | Unset |
+| **Files** | `assets/config/platform/hooks-snapmaker-u1.sh` (`ensure_root_ssh`), `src/system/u1_stock_screen.cpp` (`surface_root_ssh_down_from_hook`) |
+
+Only the launcher's own `platform_pre_start` call reaches `helix-screen`; it re-runs the check, so the variable is set only when dropbear is still down at that call.
+
 ### `HELIX_SUPERVISED`
 
 Marks that `helix-screen` is running under `helix-watchdog`. When an in-app action needs a service restart, a supervised process exits cleanly and lets the supervisor bring it back — forking a replacement itself would leave two instances running at once.

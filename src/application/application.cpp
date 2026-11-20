@@ -53,6 +53,7 @@
 #include "printer_cache_registry.h"
 #include "printer_recovery_service.h"
 #include "recovery_modal_presenter.h"
+#include "u1_stock_screen.h"
 #ifdef HELIX_ENABLE_REMOTE_CONTROL
 #include "remote_control_server.h"
 #endif
@@ -588,6 +589,9 @@ int Application::run(int argc, char** argv) {
     if (!init_config()) {
         return 1;
     }
+
+    // Stock-firmware U1: SSH did not come up although Root access is on.
+    helix::u1::surface_root_ssh_down_from_hook();
 
     // Snapshot the marker path for the SIGTERM handler. init_config() has run,
     // so writable_path() now resolves; the handler cannot construct this itself.

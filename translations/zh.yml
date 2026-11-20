@@ -19,6 +19,8 @@ translations:
   '%zu changes': '%zu 项更改'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: '请重启打印机。如果 SSH 仍然拒绝连接，请参阅 Snapmaker U1 安装指南'
+  SSH did not start although Root access is on: 'Root 访问已开启，但 SSH 未能启动'
   "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' 和 '{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）
