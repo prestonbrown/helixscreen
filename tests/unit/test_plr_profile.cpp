@@ -267,9 +267,9 @@ TEST_CASE("Printer database: designs that cannot resume at tier 1 are listed at 
 TEST_CASE("Printer database: a firmware's own recovery keeps the plugin out", "[plr][profile]") {
     for (const char* name :
          {"Creality K1", "Creality K1C", "Creality K1 Max", "Creality K1 SE", "Creality K2 Plus",
-          "Creality K2 Plus (Jacobean firmware)", "Creality Hi", "Creality Ender-3 V3",
-          "Creality Ender-3 V3 KE", "Snapmaker U1", "Qidi Plus 4", "Qidi Q1 Pro", "Qidi Max 4",
-          "Qidi Plus 5", "Qidi X-Max 3"}) {
+          "Creality K2 Plus (Jacobean firmware)", "Creality K2 Pro (Jacobean firmware)",
+          "Creality Hi", "Creality Ender-3 V3", "Creality Ender-3 V3 KE", "Snapmaker U1",
+          "Qidi Plus 4", "Qidi Q1 Pro", "Qidi Max 4", "Qidi Plus 5", "Qidi X-Max 3"}) {
         CAPTURE(name);
         const auto db = PrinterDetector::get_plr_block(name);
         REQUIRE(db.has_value());
