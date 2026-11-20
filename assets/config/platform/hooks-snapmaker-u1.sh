@@ -311,58 +311,11 @@ ensure_root_ssh() {
 
 # ── Restore the stock screen without SSH ─────────────────────────────────────
 #
-# On stock firmware the stock screen is also the only way to flash firmware, so
-# a printer whose SSH is gone needs a way back that SSH does not provide. The
-# trigger is a file in Moonraker's config root, so Mainsail or Fluidd can create
-# it (an empty file named helixscreen-restore-stock beside printer.cfg), and the
-# app's Settings > System > Restore Stock Screen writes the same file. At the
-# next HelixScreen start (every boot runs this hook as root) the hook removes
-# the trigger, runs the uninstaller's own restore (u1_stock_ui.sh, shipped in
-# the package's scripts/), logs what it did, and reboots into the stock screen.
-# HelixScreen's files stay; the installer brings it back.
+# The boot delegate autostart installs over S99input-event-daemon acts on this
+# trigger file at boot (snapmaker-u1-setup-autostart.sh step 4c). The hook only
+# tells the app where it goes, which offers Settings > System > Restore Stock
+# Screen on stock firmware.
 HELIX_U1_RESTORE_TRIGGER="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
-HELIX_U1_RESTORE_LOG="${HELIX_U1_RESTORE_LOG:-/home/lava/printer_data/logs/helixscreen-restore-stock.log}"
-HELIX_U1_REBOOT_CMD="${HELIX_U1_REBOOT_CMD:-reboot}"
-
-_u1_restore_note() {
-    _note="$(date '+%Y-%m-%d %H:%M:%S') $*"
-    echo "$_note"
-    echo "$_note" >> "$HELIX_U1_RESTORE_LOG" 2>/dev/null || true
-    if command -v logger >/dev/null 2>&1; then
-        logger -p user.warn -t helixscreen -- "$*" 2>/dev/null || true
-    fi
-    unset _note
-}
-
-# Act on the trigger when it is there; a no-op otherwise. The trigger goes
-# first, so a restore that fails part-way cannot reboot the printer in a loop.
-u1_restore_stock_if_requested() {
-    [ -e "$HELIX_U1_RESTORE_TRIGGER" ] || return 0
-    _lib="${HELIX_U1_RESTORE_LIB:-${DAEMON_DIR:-${INSTALL_DIR:-/userdata/helixscreen}}/scripts/u1_stock_ui.sh}"
-    if [ ! -f "$_lib" ]; then
-        _u1_restore_note "Restore stock screen requested, but $_lib is missing: not restoring"
-        unset _lib
-        return 0
-    fi
-    if ! rm -f "$HELIX_U1_RESTORE_TRIGGER" 2>/dev/null || [ -e "$HELIX_U1_RESTORE_TRIGGER" ]; then
-        _u1_restore_note "Restore stock screen requested, but $HELIX_U1_RESTORE_TRIGGER cannot be removed: not restoring"
-        unset _lib
-        return 0
-    fi
-    _u1_restore_note "Restore stock screen requested ($HELIX_U1_RESTORE_TRIGGER): restoring and rebooting"
-    # shellcheck disable=SC1090
-    . "$_lib"
-    u1_restore_stock_ui 2>&1 | while IFS= read -r _line; do _u1_restore_note "  $_line"; done
-    unset _lib
-    _u1_restore_note "Stock screen restored; rebooting"
-    sync
-    $HELIX_U1_REBOOT_CMD
-    # Hold here so HelixScreen does not start over the screen just handed
-    # back while the reboot takes the system down.
-    sleep "${HELIX_U1_REBOOT_WAIT:-60}"
-    _u1_restore_note "Reboot did not happen; restart the printer to finish restoring the stock screen"
-    return 0
-}
 
 # ── Remote screen: serve the live UI to Mainsail/Fluidd ──────────────────────
 #
@@ -518,10 +471,6 @@ platform_pre_start() {
     export HELIX_CACHE_DIR="${HELIX_CACHE_DIR:-/userdata/helixscreen-state/cache}"
     # Force DRM device — skip auto-detection which may race with connector state
     export HELIX_DRM_DEVICE="${HELIX_DRM_DEVICE:-/dev/dri/card0}"
-
-    # A restore-stock trigger (Fluidd/Mainsail, or the Settings row) comes
-    # before everything else here: it reboots into the stock screen.
-    u1_restore_stock_if_requested
 
     # Stock firmware: tell the app where the restore trigger goes, which is
     # what offers Settings > System > Restore Stock Screen. PAXX firmware has

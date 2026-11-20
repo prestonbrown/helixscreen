@@ -298,8 +298,21 @@ fi
 # is idempotent (pidof guard), so on PAXX — where S99fb-http/S99screen already
 # started HelixScreen earlier in the same sequential boot glob — this second call
 # is a harmless no-op. 1.2/1.3/stock without the binary: [ -f ] guard skips it.
+#
+# The delegate also keeps the stock screen reachable without /userdata: it acts
+# on the restore-stock trigger at boot, and re-enables /usr/bin/gui when no
+# HelixScreen launcher is executable. For the trigger it runs the uninstaller's
+# own restore, copied into the overlay here (/etc/helixscreen/u1_stock_ui.sh)
+# so it survives losing the install directory.
 S99IED_TARGET="${SYSROOT}/etc/init.d/S99input-event-daemon"
 if [ -f "$S99IED_TARGET" ]; then
+    RESTORE_LIB_SRC="$DEPLOY_DIR/scripts/u1_stock_ui.sh"
+    if [ -f "$RESTORE_LIB_SRC" ]; then
+        mkdir -p "${SYSROOT}/etc/helixscreen"
+        cp "$RESTORE_LIB_SRC" "${SYSROOT}/etc/helixscreen/u1_stock_ui.sh"
+    else
+        echo "Warning: $RESTORE_LIB_SRC missing; the boot-time restore trigger can only re-enable /usr/bin/gui"
+    fi
     TMP_IED=$(mktemp)
     # Wrapper body runs ON-DEVICE — absolute device paths, no SYSROOT. Quoted
     # heredoc: nothing is expanded at render time.
@@ -312,15 +325,72 @@ if [ -f "$S99IED_TARGET" ]; then
 # launcher). helixscreen.init `start` is idempotent, so on PAXX — where an
 # earlier launcher already started HelixScreen — the call below is a no-op.
 #
-if [ -x /etc/init.d/S99input-event-daemon.stock ]; then
-    /etc/init.d/S99input-event-daemon.stock "$@"
+# This file lives in the persistent overlay, so it works without
+# /userdata/helixscreen. On stock firmware the stock screen is also what starts
+# SSH and firmware updates, so it is never left disabled with nothing to
+# replace it:
+#   - helixscreen-restore-stock in Moonraker's config folder (created from
+#     Mainsail/Fluidd, or by HelixScreen's Settings) hands the display back:
+#     the overlay copy of the uninstaller's restore runs, and HelixScreen is
+#     not started.
+#   - No executable HelixScreen launcher (install removed, partial, or lost its
+#     exec bit): the stock screen is switched back on.
+# Both act at boot only, never on a service restart.
+# The HELIX_U1_* overrides exist for tests; boot runs with none set.
+_root="${HELIX_U1_ROOT:-}"
+_trigger="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
+_log="${HELIX_U1_RESTORE_LOG:-/home/lava/printer_data/logs/helixscreen-restore-stock.log}"
+_lib="$_root/etc/helixscreen/u1_stock_ui.sh"
+
+_note() {
+	echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$_log" 2>/dev/null
+	logger -p user.warn -t helixscreen -- "$*" 2>/dev/null
+	echo "$*"
+}
+
+if [ -x "$_root/etc/init.d/S99input-event-daemon.stock" ]; then
+    "$_root/etc/init.d/S99input-event-daemon.stock" "$@"
 fi
-for helix_init in /userdata/helixscreen/config/helixscreen.init /opt/helixscreen/config/helixscreen.init; do
-    if [ -x "$helix_init" ]; then
-        "$helix_init" "$1"
+
+_helix_init=""
+for _i in /userdata/helixscreen/config/helixscreen.init /opt/helixscreen/config/helixscreen.init; do
+    if [ -x "$_root$_i" ]; then
+        _helix_init="$_root$_i"
         break
     fi
 done
+
+if [ "$1" = start ]; then
+    if [ -e "$_trigger" ]; then
+        # The trigger goes first, so a restore that fails part-way cannot repeat
+        # on every boot.
+        if rm -f "$_trigger" 2>/dev/null && [ ! -e "$_trigger" ]; then
+            _note "Restore stock screen requested ($_trigger): restoring the stock screen"
+            if [ -f "$_lib" ]; then
+                HELIX_U1_ROOT="$_root"
+                # shellcheck disable=SC1090
+                . "$_lib"
+                u1_restore_stock_ui 2>&1 | while IFS= read -r _l; do _note "  $_l"; done
+            else
+                chmod +x "$_root/usr/bin/gui" 2>/dev/null
+                _note "  restore script missing: only re-enabled /usr/bin/gui"
+            fi
+            [ -n "$_helix_init" ] && "$_helix_init" stop >/dev/null 2>&1
+            _note "Stock screen restored; HelixScreen not started"
+            exit 0
+        fi
+        _note "Restore stock screen requested, but $_trigger cannot be removed: not restoring"
+    fi
+    if [ -z "$_helix_init" ]; then
+        if [ -f "$_root/usr/bin/gui" ] && [ ! -x "$_root/usr/bin/gui" ]; then
+            chmod +x "$_root/usr/bin/gui" 2>/dev/null
+            _note "No HelixScreen launcher found: re-enabled the stock screen (/usr/bin/gui)"
+        fi
+        exit 0
+    fi
+fi
+
+[ -n "$_helix_init" ] && "$_helix_init" "$1"
 exit 0
 IEDPATCH
     if cmp -s "$TMP_IED" "$S99IED_TARGET"; then

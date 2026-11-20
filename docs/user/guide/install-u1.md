@@ -160,8 +160,10 @@ rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sy
 
 On stock firmware the stock screen is also where firmware updates start, so there are two ways back to it that need no SSH. Both switch the stock screen program back on, put back the firmware's startup scripts, and restart the printer into the stock screen. HelixScreen's files and settings stay on the printer, and the installer brings it back.
 
-- **On the HelixScreen screen:** **Settings > System > Restore Stock Screen**, then confirm. The row appears only on stock firmware.
-- **From Mainsail or Fluidd:** in the configuration files (where `printer.cfg` is), create an empty file named `helixscreen-restore-stock`. Restart the printer. On the way up it restores the stock screen and restarts once more. What it did is written to `helixscreen-restore-stock.log` in the printer's logs folder.
+- **On the HelixScreen screen:** **Settings > System > Restore Stock Screen**, then confirm. The printer restarts into the stock screen. The row appears only on stock firmware.
+- **From Mainsail or Fluidd:** in the configuration files (where `printer.cfg` is), create an empty file named `helixscreen-restore-stock`, then restart the printer. It comes up with the stock screen. What it did is written to `helixscreen-restore-stock.log` in the printer's logs folder.
+
+If HelixScreen's own files are missing or damaged, the printer also switches the stock screen back on by itself at the next restart.
 
 ## SSH refused after installing on stock firmware
 

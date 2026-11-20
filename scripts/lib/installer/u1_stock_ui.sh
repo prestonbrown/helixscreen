@@ -3,9 +3,10 @@
 # Snapmaker U1: give the display back to the stock screen.
 #
 # One copy of the rule, used by every door: the uninstaller (bundled into
-# install.sh and uninstall.sh), and the platform hook's restore trigger, which
-# sources the copy the U1 package ships as scripts/u1_stock_ui.sh. Plain POSIX
-# sh with no installer dependencies, because the hook runs it at boot.
+# install.sh and uninstall.sh), and the restore trigger in the boot delegate
+# (snapmaker-u1-setup-autostart.sh step 4c), which sources the copy autostart
+# puts in the overlay from the package's scripts/u1_stock_ui.sh. Plain POSIX
+# sh with no installer dependencies, because it runs at boot.
 
 [ -n "${_HELIX_U1_STOCK_UI_SOURCED:-}" ] && return 0
 _HELIX_U1_STOCK_UI_SOURCED=1
@@ -76,6 +77,9 @@ u1_restore_stock_ui() {
     elif [ -f "$_r/oem/.debug" ]; then
         _u1_stock_log info "Keeping /oem/.debug: HelixScreen did not create it"
     fi
+    # The overlay copy of this file the boot delegate sources (autostart step
+    # 4c). The running shell has already read it.
+    ${SUDO:-} rm -rf "$_r/etc/helixscreen" 2>/dev/null || true
     unset _r _u1_level
     return 0
 }
