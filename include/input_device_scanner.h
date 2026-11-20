@@ -83,6 +83,10 @@ const char* pointer_kind_name(PointerKind kind);
 PointerKind classify_pointer_capabilities(const std::string& abs_caps, const std::string& rel_caps,
                                           const std::string& key_caps);
 
+/// The N of the /dev/input/eventN node @p device_path names, following links such as
+/// /dev/input/by-id/*. -1 when the node it names is not an event node.
+int event_number_for_device(const std::string& device_path);
+
 /// Classify the device opened from @p device_path, an /dev/input/eventN node or a link
 /// to one, from its sysfs capabilities. PanelAbsolute when the path names no event node.
 PointerKind pointer_kind_for_device(const std::string& device_path);
