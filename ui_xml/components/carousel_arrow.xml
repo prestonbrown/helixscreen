@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A page-turn arrow floated over a carousel's edge: a translucent circle with
+     a chevron, deeper while pressed. align is an LVGL alignment (left_mid,
+     right_mid); callback turns the page. -->
+<component>
+  <api>
+    <prop name="icon" type="string" default="chevron_left"/>
+    <prop name="align" type="string" default="left_mid"/>
+    <prop name="callback" type="string" default=""/>
+  </api>
+  <styles>
+    <style name="arrow_pressed" bg_opa="80%"/>
+  </styles>
+  <view extends="lv_obj"
+        width="#button_height" height="#button_height" style_radius="9999" style_bg_color="#card_bg" style_bg_opa="40%"
+        style_border_width="0" align="$align" floating="true" clickable="true" scrollable="false">
+    <style name="arrow_pressed" selector="pressed"/>
+    <icon src="$icon" size="sm" align="center" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="$callback"/>
+  </view>
+</component>

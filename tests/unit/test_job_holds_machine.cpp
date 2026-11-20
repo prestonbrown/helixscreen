@@ -438,6 +438,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/camera_config_modal.xml",
     "ui_xml/components/camera_fullscreen.xml",
     "ui_xml/components/capability_chip.xml",
+    "ui_xml/components/carousel_arrow.xml",
     "ui_xml/components/chamber_fault_banner.xml",
     "ui_xml/components/chamber_stall_modal.xml",
     "ui_xml/components/check_option_row.xml",
