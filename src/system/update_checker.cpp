@@ -1431,9 +1431,7 @@ UpdateChecker::repair_release_info(const std::string& install_root) {
         // resolver accepts .../build/bin too), so creating the file whenever it
         // is missing would drop an untracked release_info.json into the repo.
         // Only a deployed layout — binary directly under <root>/bin — gets one.
-        const std::string deployed_bin = install_root + "/bin/helix-screen";
-        struct stat st {};
-        if (stat(deployed_bin.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
+        if (!is_deployed_layout(install_root)) {
             spdlog::debug("[UpdateChecker] No release_info.json at {} and no deployed "
                           "install layout — nothing to repair",
                           path);
@@ -2657,8 +2655,19 @@ void UpdateChecker::perform_update_restart(const std::string& install_root) {
 // External update detection (Moonraker notify_update_response)
 // ============================================================================
 
-bool UpdateChecker::external_update_needs_restore(const char* service_restarts) {
-    return service_restarts == nullptr || service_restarts[0] == '\0';
+bool UpdateChecker::is_deployed_layout(const std::string& install_root) {
+    if (install_root.empty()) {
+        return false;
+    }
+    const std::string deployed_bin = install_root + "/bin/helix-screen";
+    struct stat st {};
+    return stat(deployed_bin.c_str(), &st) == 0 && S_ISREG(st.st_mode);
+}
+
+bool UpdateChecker::startup_runs_restore(const char* service_restarts,
+                                         const std::string& install_root) {
+    const bool service_runs_it = service_restarts != nullptr && service_restarts[0] != '\0';
+    return !service_runs_it && is_deployed_layout(install_root);
 }
 
 int UpdateChecker::run_restore_user_config(const std::string& install_root,
@@ -2697,15 +2706,15 @@ int UpdateChecker::run_restore_user_config(const std::string& install_root,
                                 std::chrono::steady_clock::now() - start)
                                 .count();
     if (wait.outcome != ChildWaitOutcome::Exited) {
-        spdlog::warn("[UpdateChecker] {} did not finish within {} ms; restarting without it",
-                     script, deadline.count());
+        spdlog::warn("[UpdateChecker] {} did not finish within {} ms; starting without it", script,
+                     deadline.count());
         return -1;
     }
     const int code = wait.exit_code();
     if (code == 0) {
         spdlog::info("[UpdateChecker] User config relinked in {} ms", elapsed_ms);
     } else {
-        spdlog::warn("[UpdateChecker] {} exited {} after {} ms; restarting anyway", script, code,
+        spdlog::warn("[UpdateChecker] {} exited {} after {} ms; starting anyway", script, code,
                      elapsed_ms);
     }
     return code;
@@ -2713,12 +2722,6 @@ int UpdateChecker::run_restore_user_config(const std::string& install_root,
 
 void UpdateChecker::handle_external_update_complete() {
     spdlog::info("[UpdateChecker] Moonraker completed external update of HelixScreen — restarting");
-
-    // Without a restarting service the watchdog starts the extracted binary
-    // straight away, which would read the zip's packaged config/settings.json.
-    if (external_update_needs_restore(getenv("HELIX_SERVICE_RESTARTS"))) {
-        run_restore_user_config(app_get_install_root());
-    }
 
     // Write sentinel so helixscreen-update.service (systemd path watcher) skips
     // its restart — we're handling it here.  Same sentinel as self-update path.

@@ -111,15 +111,37 @@ TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_check
     fs::remove_all(root);
 }
 
-TEST_CASE("An update Moonraker finished relinks the user config only without a restarting service",
+TEST_CASE("Startup relinks the user config only on a deployed layout without a restarting service",
           "[update_checker][external_update][2147]") {
-    // helixscreen.service sets HELIX_SERVICE_RESTARTS and runs the restore itself
-    // before the restarted service starts.
-    CHECK_FALSE(UpdateChecker::external_update_needs_restore("1"));
-    // SysV, procd and an unsupervised run: the watchdog starts the new binary
-    // directly, so the app has to run it.
-    CHECK(UpdateChecker::external_update_needs_restore(nullptr));
-    CHECK(UpdateChecker::external_update_needs_restore(""));
+    namespace fs = std::filesystem;
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-startup-restore-" + std::to_string(getpid()));
+    fs::remove_all(root);
+    fs::create_directories(root / "bin");
+    const std::string deployed = root.string();
+
+    SECTION("a dev tree, with no binary under <root>/bin, is never relinked") {
+        CHECK_FALSE(UpdateChecker::startup_runs_restore(nullptr, deployed));
+        CHECK_FALSE(UpdateChecker::startup_runs_restore(nullptr, ""));
+    }
+
+    SECTION("a deployed layout") {
+        { std::ofstream bin(root / "bin" / "helix-screen"); }
+        // helixscreen.service sets HELIX_SERVICE_RESTARTS and runs the restore
+        // itself before every start.
+        CHECK_FALSE(UpdateChecker::startup_runs_restore("1", deployed));
+        // SysV, procd and an unsupervised run: the watchdog starts the new binary
+        // directly, so the app runs it.
+        CHECK(UpdateChecker::startup_runs_restore(nullptr, deployed));
+        CHECK(UpdateChecker::startup_runs_restore("", deployed));
+    }
+
+    SECTION("a directory named bin/helix-screen is not a deployed binary") {
+        fs::create_directories(root / "bin" / "helix-screen");
+        CHECK_FALSE(UpdateChecker::startup_runs_restore(nullptr, deployed));
+    }
+
+    fs::remove_all(root);
 }
 
 TEST_CASE("run_restore_user_config runs the root's script and is bounded",
