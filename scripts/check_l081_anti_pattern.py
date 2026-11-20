@@ -366,6 +366,10 @@ def scan_source(src: str, checks: tuple = LIFETIME_CHECK_RES) -> list[tuple[int,
     necessarily what sits on disk) can scan that directly instead of a re-read
     that would silently prefer the working tree.
     """
+    # Every lifetime check names expired() or is_valid(); a file naming neither
+    # skips the blanking, the costly part.
+    if checks is LIFETIME_CHECK_RES and "expired" not in src and "is_valid" not in src:
+        return []
     lines = src.splitlines()
     if not lines:
         return []

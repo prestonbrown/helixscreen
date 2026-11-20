@@ -110,6 +110,8 @@ def function_body(sources: dict[Path, str], name: str, near: Path | None = None)
     order = sorted(sources, key=lambda p: p != near)
     for path in order:
         text = sources[path]
+        if bare not in text:  # the regex costs a scan per word; most files lack the name
+            continue
         m = pattern.search(text)
         if m:
             body = brace_body(text, m.end() - 1)
@@ -196,6 +198,8 @@ def check(root: Path) -> list[str]:
                                 "nor says HOLD_DECLINES_OK")
 
     for path, text in sources.items():
+        if "LV_EVENT_LONG_PRESSED" not in text:
+            continue
         for m in CPP_REGISTRATION.finditer(text):
             line = text.count("\n", 0, m.start()) + 1
             body = function_body(sources, m.group(1), path)
