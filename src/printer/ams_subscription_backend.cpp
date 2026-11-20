@@ -329,6 +329,7 @@ void AmsSubscriptionBackend::adopt_lane_records(
         }
         changed = lane_records_unread_ || previous != lane_wire_seen_;
         lane_records_unread_ = false;
+        ++lane_record_reads_;
         on_lane_records_read_locked();
     }
 

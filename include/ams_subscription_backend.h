@@ -79,6 +79,10 @@ class AmsSubscriptionBackend : public AmsBackend {
         return true;
     }
     [[nodiscard]] bool lane_records_private() const override;
+    [[nodiscard]] uint64_t lane_record_reads() const override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return lane_record_reads_;
+    }
     [[nodiscard]] std::optional<helix::ams::FilamentSlotOverride> bypass_record() const override;
     /// Written at bypass_lane_index_locked(). A record of ours left at an
     /// earlier index is deleted; a slot's record at the index is never
@@ -733,6 +737,8 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// since sources filed before it (a Spoolman fetch) were never painted.
     /// Main thread.
     bool lane_records_unread_ = false;
+    /// Reads filed since the store opened (lane_record_reads()).
+    uint64_t lane_record_reads_ = 0;
     /// One firmware write from record_once_written(): whether a Clear waits on it.
     struct FirmwareEditFate {
         bool clear_after = false;

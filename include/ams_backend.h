@@ -2107,6 +2107,12 @@ class AmsBackend : public AmsCapabilityHost {
         return false;
     }
 
+    /// How many reads of its lane records this backend has filed. A caller
+    /// waiting on a write compares two answers to tell a fresh read.
+    [[nodiscard]] virtual uint64_t lane_record_reads() const {
+        return 0;
+    }
+
     /// Whether this backend keeps its lane records, the bypass record among
     /// them, outside lane_data, where AmsState's own store does not read.
     [[nodiscard]] virtual bool lane_records_private() const {

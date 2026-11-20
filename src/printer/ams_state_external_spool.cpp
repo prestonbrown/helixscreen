@@ -54,6 +54,11 @@ AmsBackend* AmsState::bypass_record_holder() const {
 
 std::optional<helix::ams::FilamentSlotOverride> AmsState::bypass_record() const {
     if (AmsBackend* holder = bypass_record_holder()) {
+        // A record still being handed over is the bypass spool until the
+        // holder's own read shows it.
+        if (bypass_handover_carried_.has_value()) {
+            return bypass_handover_carried_;
+        }
         return holder->bypass_record();
     }
     return bypass_record_read_;
@@ -156,8 +161,7 @@ void AmsState::restart_bypass_reads() {
     bypass_handover_done_ = false;
     bypass_handover_carried_.reset();
     bypass_reclaim_done_ = false;
-    bypass_reclaim_.reset();
-    bypass_reclaim_stores_.clear();
+    bypass_reclaim_taken_ = false;
     ++bypass_connection_generation_;
     bypass_read_in_flight_ = false;
     bypass_read_again_ = false;
@@ -173,9 +177,15 @@ void AmsState::restart_bypass_reads() {
                     []() { AmsState::instance().refresh_bypass_record(); });
     });
     if (lv_is_initialized()) {
-        bypass_poll_.reset(
-            lv_timer_create([](lv_timer_t*) { AmsState::instance().refresh_bypass_record(); },
-                            kBypassPollPeriodMs, nullptr));
+        bypass_poll_.reset(lv_timer_create(
+            [](lv_timer_t*) {
+                AmsState& self = AmsState::instance();
+                self.refresh_bypass_record();
+                // A handover waiting on the holder retries off the holder's
+                // own reads, which raise no event when nothing changed.
+                self.hand_bypass_record_to_holder();
+            },
+            kBypassPollPeriodMs, nullptr));
     }
 }
 
@@ -237,7 +247,6 @@ void AmsState::adopt_bypass_records(
     helix::ams::file_bypass_record(record ? &*record : nullptr);
     bypass_record_read_ = std::move(record);
     bypass_store_read_ = true;
-    finish_bypass_reclaim(bypass_record_read_);
     sync_lane_records_ready();
     refresh_external_spool();
     run_legacy_spool_import();
@@ -257,23 +266,43 @@ void AmsState::hand_bypass_record_to_holder() {
     }
     const std::optional<helix::ams::FilamentSlotOverride> held = holder->bypass_record();
     if (!bypass_handover_carried_.has_value()) {
-        if (!bypass_record_read_.has_value() || held.has_value()) {
-            // Nothing to move, or the holder already has a bypass record of its
-            // own; AmsState's copy then stays where it is.
+        if (!bypass_record_read_.has_value()) {
             bypass_handover_done_ = true;
             return;
         }
+        if (held.has_value() && helix::ams::same_bypass_spool(*held, *bypass_record_read_)) {
+            // The holder already has this record: AmsState's copy is spare.
+            bypass_handover_done_ = true;
+            delete_own_bypass_copy();
+            return;
+        }
+        // AmsState's record is the newer one when the two differ: only
+        // AmsState could write it while the holder was away.
         bypass_handover_carried_ = bypass_record_read_;
+        bypass_handover_published_at_ = holder->lane_record_reads();
         spdlog::info("{} the filament system holds the bypass record now; moving {} to it",
                      kBypassTag, bypass_handover_carried_->material);
         holder->publish_external_spool_lane(&*bypass_handover_carried_);
+        helix::ams::file_bypass_record(&*bypass_handover_carried_);
         return;
     }
-    // AmsState's copy goes only once the holder's own read shows the record it
-    // was given. A refused or failed write never shows, and the copy stays.
     if (!held.has_value() || !helix::ams::same_bypass_spool(*held, *bypass_handover_carried_)) {
+        // The holder's read files what it holds, which is not this yet; the
+        // bypass spool stays the carried record meanwhile.
+        helix::ams::file_bypass_record(&*bypass_handover_carried_);
+        // A refused or failed write shows on the holder's next read; publish
+        // once more per read until one lands.
+        const uint64_t reads = holder->lane_record_reads();
+        if (reads > bypass_handover_published_at_) {
+            bypass_handover_published_at_ = reads;
+            spdlog::info("{} the filament system does not show the bypass record yet; "
+                         "writing it again",
+                         kBypassTag);
+            holder->publish_external_spool_lane(&*bypass_handover_carried_);
+        }
         return;
     }
+    // AmsState's copy goes only once the holder's own read shows the record.
     bypass_handover_done_ = true;
     bypass_handover_carried_.reset();
     delete_own_bypass_copy();
@@ -313,7 +342,7 @@ void AmsState::delete_own_bypass_copy() {
 
 void AmsState::reclaim_orphaned_bypass_record() {
     assert_main_thread();
-    if (!bypass_store_ || bypass_reclaim_done_ || registry_.count() > 0) {
+    if (!bypass_store_ || api_ == nullptr || bypass_reclaim_done_ || registry_.count() > 0) {
         return;
     }
     bypass_reclaim_done_ = true;
@@ -330,58 +359,44 @@ void AmsState::reclaim_orphaned_bypass_record() {
                 return;
             }
             own->adopt_read(mine);
+            // A plain read: the private copy is never written or deleted from
+            // here. It is what survives when a returning system wipes lane_data
+            // at its boot.
             for (const std::string& ns : AmsBackend::private_lane_record_namespaces()) {
-                auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
-                    self.api_, "bypass", helix::ams::LaneKeyStyle::Lane, ns);
-                helix::ams::FilamentSlotOverrideStore* source = store.get();
-                self.bypass_reclaim_stores_.push_back(std::move(store));
                 auto inner = self.async_lifetime_.token();
-                source->reload_async(
-                    [inner, connection,
-                     source](std::unordered_map<int, helix::ams::LaneDataRecord> found) {
-                        inner.defer("AmsState::reclaim_orphaned_bypass_record_found",
-                                    [connection, source, found = std::move(found)]() {
-                                        AmsState::instance().take_orphaned_bypass_record(
-                                            connection, source, found);
-                                    });
-                    });
+                self.api_->database_get_namespace(
+                    ns,
+                    [inner, connection, ns](const nlohmann::json& doc) {
+                        inner.defer("AmsState::reclaim_orphaned_bypass_record_found", [connection,
+                                                                                       ns, doc]() {
+                            AmsState::instance().take_orphaned_bypass_record(connection, ns, doc);
+                        });
+                    },
+                    [](const MoonrakerError&) {});
             }
         });
     });
 }
 
-void AmsState::take_orphaned_bypass_record(
-    uint64_t connection, helix::ams::FilamentSlotOverrideStore* source,
-    const std::unordered_map<int, helix::ams::LaneDataRecord>& found) {
+void AmsState::take_orphaned_bypass_record(uint64_t connection, const std::string& ns,
+                                           const nlohmann::json& doc) {
     assert_main_thread();
-    const auto record = helix::ams::find_bypass_record(found);
-    // One reclaim per connection: the first namespace that answers with a
-    // record is taken, and a record AmsState has read since stands.
     if (bypass_connection_generation_ != connection || registry_.count() > 0 ||
-        !record.has_value() || bypass_reclaim_.has_value() || bypass_record_read_.has_value()) {
+        bypass_reclaim_taken_ || bypass_record_read_.has_value() || !doc.is_object()) {
         return;
     }
-    spdlog::info("{} no filament system holds the bypass record; taking {} back from {}",
-                 kBypassTag, record->second.material, source->namespace_name());
-    bypass_reclaim_ = BypassReclaim{record->second, source, record->first, found};
+    const auto record = helix::ams::find_bypass_record(
+        helix::ams::parse_namespace_document(doc, helix::ams::LaneKeyStyle::Lane, "bypass"));
+    if (!record.has_value()) {
+        return;
+    }
+    // One reclaim per connection: the first namespace that answers with a
+    // record is taken.
+    bypass_reclaim_taken_ = true;
+    spdlog::info("{} no filament system holds the bypass record; copying {} from {}", kBypassTag,
+                 record->second.material, ns);
     // Through the one writer, so a poll read already out cannot file over it.
     write_bypass_record(&record->second);
-}
-
-void AmsState::finish_bypass_reclaim(const std::optional<helix::ams::FilamentSlotOverride>& read) {
-    // The private copy goes only once AmsState's own read shows the record.
-    if (!bypass_reclaim_.has_value() || !read.has_value() ||
-        !helix::ams::same_bypass_spool(*read, bypass_reclaim_->record)) {
-        return;
-    }
-    BypassReclaim done = std::move(*bypass_reclaim_);
-    bypass_reclaim_.reset();
-    done.source->adopt_read(done.source_read);
-    done.source->clear_async(done.slot, [](bool ok, const std::string& err) {
-        if (!ok) {
-            spdlog::warn("{} deleting the reclaimed record failed: {}", kBypassTag, err);
-        }
-    });
 }
 
 void AmsState::restart_unclaimed_toolhead_grace() {

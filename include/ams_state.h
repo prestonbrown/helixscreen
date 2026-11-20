@@ -2361,15 +2361,11 @@ class AmsState {
     /// Delete the bypass record from AmsState's own store, if a fresh read
     /// still finds it there. Main thread.
     void delete_own_bypass_copy();
-    /// A private namespace answered reclaim_orphaned_bypass_record() with
-    /// @p found, read on connection @p connection: write its bypass record to
-    /// AmsState's own store. Main thread.
-    void
-    take_orphaned_bypass_record(uint64_t connection, helix::ams::FilamentSlotOverrideStore* source,
-                                const std::unordered_map<int, helix::ams::LaneDataRecord>& found);
-    /// AmsState's own read found @p read: once it shows the reclaimed record,
-    /// delete the private copy. Main thread.
-    void finish_bypass_reclaim(const std::optional<helix::ams::FilamentSlotOverride>& read);
+    /// A private namespace @p ns answered reclaim_orphaned_bypass_record()
+    /// with @p doc, read on connection @p connection: copy its bypass record
+    /// into AmsState's own store. Main thread.
+    void take_orphaned_bypass_record(uint64_t connection, const std::string& ns,
+                                     const nlohmann::json& doc);
     /// Ask about filament at the toolhead that no lane claims, once per
     /// occurrence (ams::UnclaimedToolheadPromptGate). Main thread.
     void sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
@@ -2804,19 +2800,13 @@ class AmsState {
     /// The record hand_bypass_record_to_holder() gave the holder, until the
     /// holder's own read shows it.
     std::optional<helix::ams::FilamentSlotOverride> bypass_handover_carried_;
+    /// The holder's lane_record_reads() when the carried record was last
+    /// published: one more publish per holder read until it shows.
+    uint64_t bypass_handover_published_at_ = 0;
     /// reclaim_orphaned_bypass_record() has run for this connection.
     bool bypass_reclaim_done_ = false;
-    /// The private-namespace stores reclaim_orphaned_bypass_record() reads.
-    std::vector<std::unique_ptr<helix::ams::FilamentSlotOverrideStore>> bypass_reclaim_stores_;
-    /// A reclaimed record written to AmsState's store, its private copy kept
-    /// until AmsState's own read shows it.
-    struct BypassReclaim {
-        helix::ams::FilamentSlotOverride record;
-        helix::ams::FilamentSlotOverrideStore* source = nullptr;
-        int slot = -1;
-        std::unordered_map<int, helix::ams::LaneDataRecord> source_read;
-    };
-    std::optional<BypassReclaim> bypass_reclaim_;
+    /// reclaim_orphaned_bypass_record() has copied a record this connection.
+    bool bypass_reclaim_taken_ = false;
     /// Advanced by every restart_bypass_reads(): a read or reclaim sent on an
     /// earlier connection is not filed.
     uint64_t bypass_connection_generation_ = 0;
