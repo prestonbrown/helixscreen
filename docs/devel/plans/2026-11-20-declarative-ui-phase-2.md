@@ -44,6 +44,12 @@ then `docs/devel/LVGL9_XML_GUIDE.md` and `.claude/rules/declarative-ui.md` updat
 | S11 | home tile chrome (`panel_widget_fan`, `_thermistor`, `_humidity`, `_led`, `_network`, ...) | `icon`, `reading`, `caption` | 17 files repeat `styles.tile_column`/`tile_row` + `bind_tile_rung` | one `tile` component |
 | S12 | `ui_carousel` (C++ widget) | default (pages) | pages only through `ui_carousel_add_item` (temp stack, fan stack, power device widgets) | E3: a C++ widget names the host its XML children go to |
 
+Looked at and left: S6 (`setting_group` is a C++ widget that draws dividers between its
+children; folding the header into it saves one line per group for new C++ coupling), S7
+(only `spoolman_context_menu.xml` puts content above the rule, and a slot host there adds a
+pad gap when both its labels are hidden), S11 (the tiles differ in root type, a `ui_button`
+in some, and in how many icons they carry; what they share is two style lines).
+
 Not slots: a widget's own internal list (`option_list`, `fan_list`, `sensor_list`, ...), filled
 by its own controller.
 

@@ -19,7 +19,7 @@
         flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
         style_flex_track_place="center" clickable="true">
     <event_cb trigger="clicked" callback="temp_carousel_page_cb"/>
-    <if cond="${nozzle} eq 1">
+    <if cond="$nozzle eq 1">
       <nozzle_icon name="carousel_nozzle_icon" size="md" badge_subject=""/>
       <else/>
       <icon name="$icon_name" src="$icon" size="md" variant="secondary"/>
