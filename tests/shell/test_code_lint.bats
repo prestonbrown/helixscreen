@@ -394,20 +394,25 @@ SHAPES
   [[ "$output" == *"^src/"* ]]
 }
 
-@test "the coverage gate fails on empty locale values via CI's pytest" {
+@test "empty locale values are the python step's: the gate leaves them to it, and the step selects them" {
   # The dry run proves a KEY exists; `make translation-sync` writes a new key
   # as an EMPTY placeholder, and an empty value renders as empty text in that
-  # locale (the English-tag fallback only fires on a MISSING key). The gate
-  # must run the same scan CI's Code Quality job runs -
-  # tests/python/test_cpp_translation_coverage.py - so a tree the hook passes
-  # cannot fail CI on the same rule.
-  if [ ! -x .venv/bin/python ]; then
-    skip "translations venv not set up (run 'make venv-setup')"
-  fi
+  # locale. tests/python/test_cpp_translation_coverage.py and
+  # test_explicit_tag_coverage.py fail on it, and must still run wherever the
+  # quality sweep no longer runs them: CI's pytest step and land-gate's python
+  # step, for a C++, XML or catalog change.
   run bash -c "sed -n '/^qc_translation_coverage() {/,/^}/p' scripts/qc/translation_coverage.sh"
-  [ "$status" -eq 0 ]
-  contains "tests/python/test_cpp_translation_coverage.py" "$output"
-  contains "-m pytest" "$output"
+  lacks "-m pytest" "$output"
+  run grep -F '.venv/bin/pytest tests/python/' .github/workflows/quality.yml
+  [ "$status" -eq 0 ] || fail "CI no longer runs tests/python"
+  run python3 - <<'PY'
+import sys; sys.path.insert(0, "scripts")
+import gate_select as g
+assert "tests/python/test_cpp_translation_coverage.py" in g.PYTHON_CXX_READERS
+for p in ("ui_xml/x.xml", "translations/de.yml"):
+    assert g.matches(p, g.PYTHON_ALL), p
+PY
+  [ "$status" -eq 0 ] || fail "$output"
 }
 
 # A missing .venv used to turn this gate into a warning in every mode. The full
