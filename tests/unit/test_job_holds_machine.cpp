@@ -729,6 +729,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/tool_switcher_picker.xml",
     "ui_xml/toolhead_preset_config_modal.xml",
     "ui_xml/touch_calibration_overlay.xml",
+    "ui_xml/tour_overlay.xml",
     "ui_xml/tour_tooltip_card.xml",
     "ui_xml/update_channel_rows.xml",
     "ui_xml/update_download_modal.xml",
