@@ -64,6 +64,7 @@ plan_adds_line() {
     for _pa in ${MOONRAKER_ADDS:-}; do
         case "$_pa" in
             update-manager) _pa_text="Moonraker update manager" ;;
+            update-manager-off) _pa_text="Moonraker update manager (off while on beta or dev)" ;;
             allowlist) _pa_text="service allowlist" ;;
             *) continue ;;
         esac
@@ -154,6 +155,7 @@ moonraker_step_detail() {
     for _ma in ${MOONRAKER_ADDS:-}; do
         case "$_ma" in
             update-manager) _ma_text="update manager" ;;
+            update-manager-off) _ma_text="update manager (off while on beta or dev)" ;;
             allowlist) _ma_text="service allowlist" ;;
             *) continue ;;
         esac

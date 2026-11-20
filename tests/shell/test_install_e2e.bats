@@ -375,7 +375,7 @@ snap_resolve() {
         || fail "--clean kept the old settings.json"
 }
 
-@test "install.sh e2e: --version of a prerelease with no saved channel moves app and Moonraker to beta" {
+@test "install.sh e2e: --version of a prerelease with no saved channel moves the app to beta and switches its Moonraker entry off" {
     # The stub CDN is a curl stub bound over the host's own curl.
     [ -x /usr/bin/curl ] || [ -x /usr/sbin/curl ] || [ -x /bin/curl ] || [ -x /sbin/curl ] \
         || skip "no curl on this host for the stub CDN to bind over"
@@ -388,14 +388,19 @@ snap_resolve() {
 
     [ "$(cat "$s$INST/ui_xml/e2e-release.txt")" = "v1.1.0-beta.1" ]
     contains "SHA256 verified" "$output"
-    grep -qx "channel: beta" "$s/root/printer_data/config/moonraker.conf" \
-        || fail "update_manager still on $(grep '^channel:' "$s/root/printer_data/config/moonraker.conf")"
+    # Moonraker lists HelixScreen on the stable channel only (#2147): on beta the
+    # entry is kept switched off, naming stable.
+    local mconf="$s/root/printer_data/config/moonraker.conf"
+    ! grep -q '^\[update_manager helixscreen\]' "$mconf" \
+        || fail "update_manager still listed: $(grep -A4 '^\[update_manager helixscreen\]' "$mconf")"
+    grep -qx '#~ \[update_manager helixscreen\]' "$mconf" || fail "no switched-off entry: $(cat "$mconf")"
+    grep -qx '#~ channel: stable' "$mconf" || fail "the switched-off entry does not name stable"
     [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["update"]["channel"])' "$settings")" = "1" ] \
         || fail "settings.json has no beta channel: $(cat "$settings")"
     grep -q '"e2e_user_value": "kept"' "$settings" || fail "user settings lost"
 }
 
-@test "install.sh e2e: a --local prerelease archive with no saved channel moves app and Moonraker to beta" {
+@test "install.sh e2e: a --local prerelease archive with no saved channel moves the app to beta and switches its Moonraker entry off" {
     # seed-user writes a settings.json with no update channel, so the beta
     # archive decides it, as a prerelease --version does.
     run_scenario install seed-user update-beta-local
@@ -404,8 +409,13 @@ snap_resolve() {
     settings=$(snap_resolve "$s" "$INST/config/settings.json")
 
     [ "$(cat "$s$INST/ui_xml/e2e-release.txt")" = "v1.1.0-beta.1" ]
-    grep -qx "channel: beta" "$s/root/printer_data/config/moonraker.conf" \
-        || fail "update_manager still on $(grep '^channel:' "$s/root/printer_data/config/moonraker.conf")"
+    # Moonraker lists HelixScreen on the stable channel only (#2147): on beta the
+    # entry is kept switched off, naming stable.
+    local mconf="$s/root/printer_data/config/moonraker.conf"
+    ! grep -q '^\[update_manager helixscreen\]' "$mconf" \
+        || fail "update_manager still listed: $(grep -A4 '^\[update_manager helixscreen\]' "$mconf")"
+    grep -qx '#~ \[update_manager helixscreen\]' "$mconf" || fail "no switched-off entry: $(cat "$mconf")"
+    grep -qx '#~ channel: stable' "$mconf" || fail "the switched-off entry does not name stable"
     [ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["update"]["channel"])' "$settings")" = "1" ] \
         || fail "settings.json has no beta channel: $(cat "$settings")"
     grep -q '"e2e_user_value": "kept"' "$settings" || fail "user settings lost"
