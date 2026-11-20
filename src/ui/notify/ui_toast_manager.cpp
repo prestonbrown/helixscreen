@@ -9,6 +9,7 @@
 #include "ui_notification_history.h"
 #include "ui_notification_manager.h"
 #include "ui_panel_common.h"
+#include "ui_row_text.h"
 #include "ui_utils.h"
 
 #include "core/static_subject_registry.h"
@@ -256,6 +257,7 @@ void ToastManager::init() {
     }
 
     lv_xml_register_event_cb(nullptr, "toast_close_btn_clicked", close_btn_clicked);
+    lv_xml_register_event_cb(nullptr, "toast_action_btn_clicked", action_btn_clicked);
 
     StaticSubjectRegistry::instance().register_deinit(
         "ToastManager", []() { ToastManager::instance().deinit_subjects(); });
@@ -315,17 +317,11 @@ void ToastManager::ensure_stack_container() {
     }
 
     if (!toast_stack_) {
-        lv_obj_t* layer = lv_layer_top();
-        toast_stack_ = lv_obj_create(layer);
-
-        lv_obj_set_flex_flow(toast_stack_, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_style_pad_gap(toast_stack_, xml_int_const("space_sm", 8), LV_PART_MAIN);
-        lv_obj_set_style_pad_all(toast_stack_, 0, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(toast_stack_, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(toast_stack_, 0, LV_PART_MAIN);
-        // Container itself should never intercept clicks — only the toasts inside do.
-        lv_obj_set_scrollable(toast_stack_, false);
-        lv_obj_set_clickable(toast_stack_, false);
+        toast_stack_ =
+            static_cast<lv_obj_t*>(lv_xml_create(lv_layer_top(), "toast_stack", nullptr));
+        if (!toast_stack_) {
+            return;
+        }
     }
 
     // (Re)apply size + anchor every time — picks up breakpoint changes between
@@ -553,12 +549,16 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     const char* detail_safe = has_detail ? detail : "";
     const char* hide_detail_str = has_detail ? "false" : "true";
     // lv_xml_create's attrs are key/value pairs terminated by a null entry.
-    const char* attrs[] = {"message",     message,         "icon_glyph",  icon_glyph,
-                           "icon_color",  icon_color,      "action_text", action_text_safe,
-                           "hide_action", hide_action_str, "detail",      detail_safe,
-                           "hide_detail", hide_detail_str, nullptr};
+    const char* attrs[] = {"icon_glyph",  icon_glyph,       "icon_color",  icon_color,
+                           "action_text", action_text_safe, "hide_action", hide_action_str,
+                           "hide_detail", hide_detail_str,  nullptr};
 
-    lv_obj_t* widget = helix::ui::create_xml_laid_out(toast_stack_, "toast_notification", attrs);
+    // Message and detail can be printer or plugin text: set, never props.
+    lv_obj_t* widget = helix::ui::create_xml_laid_out(
+        toast_stack_, "toast_notification", attrs, [&](lv_obj_t* toast) {
+            helix::ui::set_row_label_text(toast, "toast_message", message);
+            helix::ui::set_row_label_text(toast, "toast_detail", detail_safe);
+        });
     if (!widget) {
         spdlog::error("[ToastManager] Failed to create toast notification widget");
         return;
@@ -573,18 +573,6 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     it->action_user_data = with_action ? action_user_data : nullptr;
     it->severity = severity;
     it->message = message;
-
-    if (with_action) {
-        lv_obj_t* action_btn = helix::ui::find_required(widget, "toast_action_btn", "ToastManager");
-        if (action_btn) {
-            // No user_data: a ToastInstance* would dangle once deinit_subjects()
-            // clears active_ while the widget is still on screen (printer
-            // switch). action_btn_clicked re-resolves the entry instead.
-            lv_obj_add_event_cb(action_btn, action_btn_clicked, LV_EVENT_CLICKED, nullptr);
-        } else {
-            spdlog::warn("[ToastManager] action toast missing toast_action_btn widget");
-        }
-    }
 
     animate_entrance(widget);
 
@@ -742,10 +730,10 @@ void ToastManager::user_close_toast(ToastList::iterator it) {
 }
 
 void ToastManager::action_btn_clicked(lv_event_t* e) {
-    // Registered with nullptr user_data: resolve the owning toast from the
-    // widget tree, so a click on a toast whose list entry is already gone
-    // (deinit_subjects cleared it, e.g. mid printer switch) is a no-op
-    // instead of a dereference of freed memory.
+    // event_cb is registered via XML, with no user_data: resolve the owning
+    // toast from the widget tree, so a click on a toast whose list entry is
+    // already gone (deinit_subjects cleared it, e.g. mid printer switch) is a
+    // no-op instead of a dereference of freed memory.
     auto& mgr = ToastManager::instance();
     auto it = mgr.find_owning_toast(lv_event_get_target_obj(e));
     if (it == mgr.active_.end())
