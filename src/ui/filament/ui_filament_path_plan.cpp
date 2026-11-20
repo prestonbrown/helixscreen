@@ -164,9 +164,9 @@ RailArtRect fit_art(const FilamentPathData& data, const BaseGeometry& g, int32_t
 
 namespace {
 /// How many tubes' and bands' room the lanes keep straight below the spool box's edge before
-/// their row: two, a compact path one, so the unit's drawing keeps the height.
+/// their row: two, under a view scale one, so the unit's drawing keeps the height.
 int32_t lane_stub_tubes(const FilamentPathData& data) {
-    return compact_path(view_unit(data)) ? 1 : 2;
+    return view_unit(data) > 0.0f ? 1 : 2;
 }
 } // namespace
 
@@ -274,8 +274,8 @@ int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g)
 }
 
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g, int32_t scale) {
-    if (compact_path(view_unit(data)))
-        return toolhead_standing_on(g.y_off + g.height - kCompactHeadFoot, scale);
+    if (const float unit = view_unit(data); unit > 0.0f)
+        return toolhead_standing_on(g.y_off + g.height - head_foot(unit), scale);
     return toolhead_standing_on(g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio), scale);
 }
 
@@ -328,11 +328,10 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         // aside: a flatter one reads as a step sideways just above the hub.
         const bool fan =
             data.topology == static_cast<int>(PathTopology::HUB) && !data.hub_on_toolhead;
-        const bool compact = compact_path(view_unit(data));
         for (int i = 0; fan && i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i) {
             const pg::MergeLaneOut& lane = f.hub_fan[i];
             const float drop = lane.pts[3].y - lane.pts[0].y;
-            if (fan_lean_drop(std::fabs(lane.pts[3].x - lane.pts[0].x), compact) > drop + 0.5f)
+            if (fan_lean_drop(std::fabs(lane.pts[3].x - lane.pts[0].x), /*hub=*/true) > drop + 0.5f)
                 return false;
         }
         if (f.output_y + 2 * r > toolhead_top_y(nozzle, data.theme.extruder_scale))
@@ -765,13 +764,12 @@ int32_t scaled_fan_hub_top(const HubFrameCtx& c, const pg::MergeLaneIn* fan_in, 
     const LinearHubFrame& f = c.f;
     const float usable = (float)(s.min_width - 2 * s.entry_margin);
     const float step = usable / (float)(n - 1);
-    const bool compact = compact_path(view_unit(c.data));
     float need = -1e9f;
     for (int i = 0; i < n; ++i) {
         const float offset = (float)i - (float)(n - 1) / 2.0f;
         const float run = std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x);
         const float start = std::max(fan_in[i].start_y, (float)f.prep_band_y);
-        need = std::max(need, start + fan_drop_needed(run, f.hub_h, compact));
+        need = std::max(need, start + fan_drop_needed(run, f.hub_h, /*hub=*/true));
     }
     return (int32_t)std::ceil(need + (float)f.sensor_r);
 }

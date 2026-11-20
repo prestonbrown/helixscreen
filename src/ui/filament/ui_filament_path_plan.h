@@ -97,29 +97,28 @@ inline constexpr float kFanLegRoom = kScaledFanFillet + 4.0f;
 /// drawn through two fillets reads as a step.
 inline constexpr float kStraightLaneSlack = 2.5f;
 
-/// At and under this many pixels to the view unit (path_view_scale.h) a path is compact: its
-/// column is short, so the runs under the unit take their least length and the unit's drawing
-/// keeps the height.
-inline constexpr float kCompactPathUnit = 7.0f;
-/// Whether a path @p view_unit pixels to the unit (0: no view scale) is compact.
-inline bool compact_path(float view_unit) {
-    return view_unit > 0.0f && view_unit <= kCompactPathUnit;
+/// A hub's fan under a view scale keeps a shorter straight leg: the fillet and a pixel, so the
+/// unit's drawing above keeps the height.
+inline constexpr float kHubFanLegRoom = kScaledFanFillet + 1.0f;
+/// Under a view scale a hub path's head stands this share of a view unit above the canvas
+/// bottom, never under kMinHeadFoot px.
+inline constexpr float kHeadFootUnits = 0.25f;
+inline constexpr int32_t kMinHeadFoot = 2;
+/// The head's foot room at @p view_unit pixels to the unit.
+inline int32_t head_foot(float view_unit) {
+    return std::max<int32_t>(kMinHeadFoot, (int32_t)std::lround(view_unit * kHeadFootUnits));
 }
-/// A compact path's fan keeps a shorter straight leg: the fillet and a pixel.
-inline constexpr float kCompactFanLegRoom = kScaledFanFillet + 1.0f;
-/// A compact path's head stands this far above the canvas bottom.
-inline constexpr int32_t kCompactHeadFoot = 2;
 
 /// The drop a lane's diagonal needs to run @p run sideways no flatter than kFanMinSlope, its
-/// fillets' straight legs included (a @p compact path's shorter ones).
-inline float fan_lean_drop(float run, bool compact = false) {
-    return run * kFanMinSlope + 2.0f * (compact ? kCompactFanLegRoom : kFanLegRoom);
+/// fillets' straight legs included (a @p hub fan's shorter ones).
+inline float fan_lean_drop(float run, bool hub = false) {
+    return run * kFanMinSlope + 2.0f * (hub ? kHubFanLegRoom : kFanLegRoom);
 }
 
 /// The height lanes converging into a hub @p hub_h tall take above it, the farthest running
 /// @p run sideways: its lean, and never under three quarters of the hub.
-inline float fan_drop_needed(float run, int32_t hub_h, bool compact = false) {
-    return std::max(0.75f * (float)hub_h, fan_lean_drop(run, compact));
+inline float fan_drop_needed(float run, int32_t hub_h, bool hub = false) {
+    return std::max(0.75f * (float)hub_h, fan_lean_drop(run, hub));
 }
 
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
@@ -327,8 +326,7 @@ lv_area_t hub_box_drawn_area(const FilamentPathData& data, const BaseGeometry& g
                              const LinearHubFrame& f);
 
 /// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
-/// kToolheadGlyphBottomRatio of the canvas height, a compact path's kCompactHeadFoot above its
-/// bottom (the column's padding already clears it).
+/// kToolheadGlyphBottomRatio of the canvas height; under a view scale head_foot() above its bottom.
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g, int32_t scale);
 
