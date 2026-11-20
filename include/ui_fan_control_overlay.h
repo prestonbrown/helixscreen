@@ -188,9 +188,10 @@ class FanControlOverlay : public OverlayBase {
         std::string object_name;
         lv_obj_t* card = nullptr;
         lv_obj_t* speed_label = nullptr;
-        lv_obj_t* arc = nullptr;      ///< Arc widget for live speed updates
-        lv_obj_t* fan_icon = nullptr; ///< Fan icon for spin animation
-        int last_speed_pct = 0;       ///< Cached speed for animation refresh
+        lv_obj_t* rpm_label = nullptr; ///< Tachometer line under the percentage
+        lv_obj_t* arc = nullptr;       ///< Arc widget for live speed updates
+        lv_obj_t* fan_icon = nullptr;  ///< Fan icon for spin animation
+        int last_speed_pct = 0;        ///< Cached speed for animation refresh
     };
     std::vector<AutoFanCard> auto_fan_cards_;
 
@@ -211,6 +212,9 @@ class FanControlOverlay : public OverlayBase {
     //
 
     void update_auto_fan_animation(AutoFanCard& card, int speed_pct);
+    /// The card's percentage ("40%") and, under it, its tachometer reading when there is one.
+    static void set_auto_fan_speed_text(const AutoFanCard& card, int speed_pct,
+                                        std::optional<int> rpm);
     void refresh_all_auto_fan_animations();
 };
 

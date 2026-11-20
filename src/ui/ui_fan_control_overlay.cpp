@@ -445,21 +445,8 @@ void FanControlOverlay::populate_fans() {
                 static_cast<lv_obj_t*>(lv_xml_create(fans_container_, "fan_status_card", attrs));
 
             if (card) {
-                // Find speed label and format with % suffix, including RPM when available
                 lv_obj_t* speed_label = helix::ui::find_required(card, "speed_label", get_name());
-                if (speed_label) {
-                    if (fan.rpm.has_value() && fan.rpm.value() > 0) {
-                        char speed_str[32];
-                        std::snprintf(speed_str, sizeof(speed_str), "%d%% \xC2\xB7 %d RPM",
-                                      fan.speed_percent, fan.rpm.value());
-                        lv_label_set_text(speed_label, speed_str);
-                    } else {
-                        char speed_str[16];
-                        helix::format::format_percent(fan.speed_percent, speed_str,
-                                                      sizeof(speed_str));
-                        lv_label_set_text(speed_label, speed_str);
-                    }
-                }
+                lv_obj_t* rpm_label = helix::ui::find_required(card, "rpm_label", get_name());
 
                 // Find arc and make read-only (fan_arc_core is interactive by default)
                 // Also bubble events so long-press reaches the card
@@ -489,6 +476,8 @@ void FanControlOverlay::populate_fans() {
                 afc.object_name = fan.object_name;
                 afc.card = card;
                 afc.speed_label = speed_label;
+                afc.rpm_label = rpm_label;
+                set_auto_fan_speed_text(afc, fan.speed_percent, fan.rpm);
                 afc.arc = arc;
                 afc.fan_icon = fan_icon;
                 afc.last_speed_pct = fan.speed_percent;
@@ -531,20 +520,7 @@ void FanControlOverlay::update_fan_speeds() {
     for (auto& card_info : auto_fan_cards_) {
         for (const auto& fan : fans) {
             if (fan.object_name == card_info.object_name) {
-                // Update speed label with RPM when available
-                if (card_info.speed_label) {
-                    if (fan.rpm.has_value() && fan.rpm.value() > 0) {
-                        char speed_str[32];
-                        std::snprintf(speed_str, sizeof(speed_str), "%d%% \xC2\xB7 %d RPM",
-                                      fan.speed_percent, fan.rpm.value());
-                        lv_label_set_text(card_info.speed_label, speed_str);
-                    } else {
-                        char speed_str[16];
-                        helix::format::format_percent(fan.speed_percent, speed_str,
-                                                      sizeof(speed_str));
-                        lv_label_set_text(card_info.speed_label, speed_str);
-                    }
-                }
+                set_auto_fan_speed_text(card_info, fan.speed_percent, fan.rpm);
                 // Update arc indicator
                 if (card_info.arc) {
                     lv_arc_set_value(card_info.arc, fan.speed_percent);
@@ -762,6 +738,24 @@ void FanControlOverlay::unsubscribe_from_fan_speeds() {
 // ============================================================================
 // FAN ICON SPIN ANIMATION
 // ============================================================================
+
+void FanControlOverlay::set_auto_fan_speed_text(const AutoFanCard& card, int speed_pct,
+                                                std::optional<int> rpm) {
+    if (card.speed_label) {
+        char speed_str[16];
+        helix::format::format_percent(speed_pct, speed_str, sizeof(speed_str));
+        lv_label_set_text(card.speed_label, speed_str);
+    }
+    if (card.rpm_label) {
+        const bool has_reading = rpm.value_or(0) > 0;
+        if (has_reading) {
+            char rpm_str[24];
+            std::snprintf(rpm_str, sizeof(rpm_str), "%d RPM", *rpm);
+            lv_label_set_text(card.rpm_label, rpm_str);
+        }
+        lv_obj_set_flag(card.rpm_label, LV_OBJ_FLAG_HIDDEN, !has_reading);
+    }
+}
 
 void FanControlOverlay::update_auto_fan_animation(AutoFanCard& card, int speed_pct) {
     card.last_speed_pct = speed_pct;

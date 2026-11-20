@@ -971,8 +971,8 @@ git log --no-merges --oneline 7915d7fa5b..origin/release/1.1 --not origin/releas
   its camera option does not claim the Plus's AI model.
 - **QIDI Plus 5** (#1791) - detected and supported, with the QIDI Box and HelixScreen running
   on the printer's own display. (thanks @Gromatou)
-- **Jacobean's K2 Plus firmware is recognized** (#2087) - a K2 Plus running Jacobean's
-  Kalico-based replacement firmware is detected as itself instead of as k2-improvements, with
+- **Jacobean's K2 Plus and K2 Pro firmware is recognized** (#2087, #2148) - a K2 Plus or K2 Pro running
+  Jacobean's Kalico-based replacement firmware is detected as itself instead of as k2-improvements, with
   print-start progress that follows its own START_PRINT. A printer type mismatch warning
   also leaves the screen as soon as the type is changed in Settings. Its CFS works with the
   commands that firmware has: the spool editor opens on the product the box reports and

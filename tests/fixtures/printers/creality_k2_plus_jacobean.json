@@ -1,5 +1,5 @@
 {
-  "provenance": "Real K2 Plus on Jacobean's K2 Plus firmware (printer.info app Kalico, software_version 089cf65), from debug bundle 29C5PWLS (HelixScreen 1.1.0-beta.17, 2026-11-07). printer_objects is every section of the printer's live config (printer.cfg and its includes, in include order), include and thermistor sections left out; the bundle carries config files rather than an objects list. Hostname is the firmware's K2Plus with the per-unit suffix dropped. The bundle declares no gcode_macro product_param, so there is no configfile_settings bed",
+  "provenance": "Real K2 Plus on Jacobean's K2 Plus firmware (printer.info app Kalico, software_version 089cf65), from debug bundle 29C5PWLS (HelixScreen 1.1.0-beta.17, 2026-11-07). printer_objects is every section of the printer's live config (printer.cfg and its includes, in include order), include and thermistor sections left out; the bundle carries config files rather than an objects list. Hostname is the firmware's K2Plus with the per-unit suffix dropped. configfile_settings is the stepper travel its printer.cfg and overrides.cfg resolve to. The bundle declares no gcode_macro product_param, so configfile_settings carries no declared bed",
   "notes": "HelixScreen saved it as the stock 'Creality K2 Plus' and detected 'Creality K2 Plus (k2-improvements)' tied with the K2 Pro mod entry at 100 (prestonbrown/helixscreen#2087): its _START_PRINT_VARS is the firmware's own",
   "heaters": [
     "extruder",
@@ -128,5 +128,18 @@
     "gcode_macro M109",
     "gcode_macro _SET_MPC_MATERIAL"
   ],
-  "kinematics": "corexy"
+  "kinematics": "corexy",
+  "configfile_settings": {
+    "stepper_x": {
+      "position_min": -4.0,
+      "position_max": 352.5
+    },
+    "stepper_y": {
+      "position_min": -6.2,
+      "position_max": 352.0
+    },
+    "stepper_z": {
+      "position_max": 360.0
+    }
+  }
 }
