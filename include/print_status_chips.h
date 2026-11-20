@@ -62,11 +62,14 @@ struct OtherHead {
 };
 
 /// The heads besides the one printing, in head order, each named by its
-/// representative tool. Lanes feeding one extruder are one head, and a head
-/// naming no extruder has no reading to list. Empty on a one-head printer, and
-/// where the heads share one heater: a parked head there reads nothing of its own.
+/// representative tool. The printing head is the one holding `active_tool`, or
+/// heating `active_extruder` (the toolhead's extruder) when no tool is active.
+/// Lanes feeding one extruder are one head, and a head naming no extruder has no
+/// reading to list. Empty on a one-head printer, and where the heads share one
+/// heater: a parked head there reads nothing of its own.
 [[nodiscard]] std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads,
-                                                 int active_tool, bool heads_share_heater);
+                                                 int active_tool, bool heads_share_heater,
+                                                 std::string_view active_extruder = {});
 
 /// One head's reading for the other-tools chip. `start_deci` is the reading
 /// when its target was set, for the progress bar.
@@ -84,17 +87,18 @@ struct OtherToolReading {
 [[nodiscard]] OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view name,
                                                 int index);
 
-/// The chip listing every head but the printing one: "2 150° · 3 off · 4 off".
-/// A head climbing to its target leads with value / target, the chip is
-/// Active and its bar follows the first climbing head. `fits` says whether a
-/// text fits the chip's room; the full list gives way to as many heads as fit,
-/// in that order, and a count of the rest ("2 off · +2"). A climbing head
-/// always stays ("2 184 / 220° · +2"); with none climbing and no head fitting,
-/// the count alone ("+3 tools"). Configured names give way to the heads'
-/// numbers where the list with names does not fit. Expendable only while no head climbs; Dim while
-/// every head is off. Not shown with no other heads.
+/// The chip listing the other heads that have a target, pre-heating or holding:
+/// "3 184 / 220° · 2 150°". Heads with no target are left out, and with none
+/// left the chip is not shown. A head climbing to its target leads with value /
+/// target, the chip is Active and its bar follows the first climbing head.
+/// `fits` says whether a text fits the chip's room; the full list gives way to
+/// as many heads as fit, in that order, followed by a count of the rest
+/// ("· +2") only where `count_rest` allows it. The first head always stays.
+/// Configured names give way to the heads' numbers where the list with names
+/// does not fit. Expendable while no head climbs.
 [[nodiscard]] ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
-                                           const std::function<bool(const std::string&)>& fits);
+                                           const std::function<bool(const std::string&)>& fits,
+                                           bool count_rest = true);
 
 /// The text the layout budgets the other-tools chip at: one head climbing at
 /// the widest reading, by its number, and the count of the rest, the shortest text

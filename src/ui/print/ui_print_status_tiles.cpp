@@ -225,6 +225,8 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         [](PrintStatusTiles* self, const char*) { self->request_update(); },
         tools.get_subjects_lifetime());
     const SubjectLifetime ps = printer_state_.get_subjects_lifetime();
+    print_active_observer_ =
+        observe<int>(printer_state_.print_state().get_print_active_subject(), this, update, ps);
     const auto heaters = [](PrintStatusTiles* self, int) { self->request_heater_update(); };
     nozzle_power_observer_ = observe<int>(
         printer_state_.get_heater_power_subject(HeaterType::Nozzle), this, heaters, ps);
@@ -280,6 +282,7 @@ void PrintStatusTiles::deinit() {
     bed_power_observer_.reset();
     chamber_power_observer_.reset();
     temp_unit_observer_.reset();
+    print_active_observer_.reset();
     extruder_version_observer_.reset();
     tools_version_observer_.reset();
     extruder_watches_.clear();
@@ -404,8 +407,9 @@ std::vector<OtherToolReading> PrintStatusTiles::other_tool_readings() {
     auto& temps = printer_state_.temperature_state();
     std::vector<OtherToolReading> out;
     const ui::ToolNumberStyle style = ui::active_tool_number_style();
-    for (const OtherHead& head : other_heads(tools.physical_heads(), tools.active_tool_index(),
-                                             tools.heads_share_heater())) {
+    for (const OtherHead& head :
+         other_heads(tools.physical_heads(), tools.active_tool_index(), tools.heads_share_heater(),
+                     temps.active_extruder_name())) {
         const auto& all = tools.tools();
         const auto t = static_cast<size_t>(head.tool);
         OtherToolReading r = other_tool_label(
@@ -522,9 +526,12 @@ std::array<ChipContent, kPrintStatusChipCount> PrintStatusTiles::decide_chips(bo
         light_chip(subject_int_or_zero(
                        helix::led::LedController::instance().get_led_controllable_subject()) != 0,
                    helix::home_light_buttons_lit());
-    out[index_of(PrintStatusChip::SpeedFlow)] =
-        speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
-                        host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
+    // Speed and flow say nothing while no job runs.
+    if (subject_int_or_zero(printer_state_.print_state().get_print_active_subject()) != 0) {
+        out[index_of(PrintStatusChip::SpeedFlow)] =
+            speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
+                            host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
+    }
     // Unmeasured here: update_now() sizes it to the room the layout gives it.
     out[index_of(PrintStatusChip::OtherTools)] =
         other_tools_chip(other_tool_readings(), [](const std::string&) { return true; });
@@ -767,8 +774,10 @@ void PrintStatusTiles::update_now() {
     // The other-tools chip says as much as the column it shares holds.
     {
         const size_t i = index_of(PrintStatusChip::OtherTools);
+        // A count of the heads left off only means something beside a labeled list.
         contents[i] = other_tools_chip(
-            others, [&](const std::string& t) { return m.chip_w(icons[i], t) <= column_w; });
+            others, [&](const std::string& t) { return m.chip_w(icons[i], t) <= column_w; },
+            !callout_mode_is_compact(last_mode_));
         bare[i] = contents[i];
     }
 
