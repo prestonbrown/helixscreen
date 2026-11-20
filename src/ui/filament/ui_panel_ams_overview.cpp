@@ -1307,17 +1307,8 @@ void AmsOverviewPanel::update_page_bypass_widgets_position() {
     if (!page_bypass_widgets_.valid() || !detail_path_canvas_ || !path_container_) {
         return;
     }
-    int32_t abs_cx = 0;
-    int32_t abs_cy = 0;
-    if (!ui_filament_path_canvas_get_bypass_merge_pos(detail_path_canvas_, &abs_cx, &abs_cy)) {
-        return;
-    }
     lv_obj_update_layout(path_container_);
-    lv_area_t parent_abs;
-    lv_obj_get_content_coords(path_container_, &parent_abs);
-    helix::ui::bypass_spool_set_position(page_bypass_widgets_, abs_cx - parent_abs.x1,
-                                         abs_cy - parent_abs.y1);
-    helix::ui::ams_detail_keep_env_pill_clear(detail_path_canvas_);
+    helix::ui::ams_detail_place_bypass_spool(detail_path_canvas_, page_bypass_widgets_);
 }
 
 // ============================================================================

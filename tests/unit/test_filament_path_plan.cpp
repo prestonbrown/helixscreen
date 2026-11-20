@@ -2307,3 +2307,62 @@ TEST_CASE_METHOD(LVGLTestFixture, "FilamentPath: a unit view ends where the over
                get_data(w)->filament_segment == static_cast<int>(PathSegment::NOZZLE)));
     }
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath: a bypass spool placed larger and further right moves its tube "
+                 "and keeps the selector bar clear of it",
+                 "[filament-path][plan][hits][bypass]") {
+    helix::test::ScopedGeometry micro(480, 272);
+    constexpr int32_t kW = 285;
+    constexpr int32_t kH = 151;
+    lv_obj_t* w = ui_filament_path_canvas_create(test_screen());
+    lv_obj_set_size(w, kW, kH);
+    ui_filament_path_canvas_set_slot_count(w, 12);
+    ui_filament_path_canvas_set_slot_width(w, 20);
+    ui_filament_path_canvas_set_slot_overlap(w, 3);
+    ui_filament_path_canvas_set_topology(w, static_cast<int>(helix::PathTopology::LINEAR));
+    ui_filament_path_canvas_set_view_scale(
+        w, helix::ui::path_view_scale(kH, helix::ui::kPathTubeLimits));
+    ui_filament_path_canvas_set_show_bypass(w, true);
+    ui_filament_path_canvas_set_hub_callback(w, [](lv_point_t, void*) {}, nullptr);
+    ui_filament_path_canvas_set_hub_actions(w, true);
+    // A spool twice the lane size, its centre 10 px right of where it stands by default.
+    const int32_t spool = helix::ui::ams_slot_spool_size() * 2;
+    int32_t home_x = 0;
+    int32_t home_y = 0;
+    REQUIRE(helix::ui::filament_path_get_bypass_home(w, &home_x, &home_y));
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    helix::ui::filament_path_set_bypass_spot(w, home_x - c.x1 + 10, spool);
+    render(*this, w);
+
+    int32_t mx = 0;
+    int32_t my = 0;
+    REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, &my));
+    CHECK(mx == home_x + 10);
+    CHECK(my == home_y);
+    // The default spot is still where a unit view starts from.
+    int32_t again_x = 0;
+    REQUIRE(helix::ui::filament_path_get_bypass_home(w, &again_x, nullptr));
+    CHECK(again_x == home_x);
+
+    const FilamentPathData* d = get_data(w);
+    REQUIRE(d->hits.hub_valid);
+    const LinearHubFrame f = widget_frame(w);
+    const int32_t spool_left = mx - spool / 2;
+    const int32_t spool_bottom = my - helix::ui::bypass_spool_bottom_above_merge();
+    const int32_t last_lane = c.x1 + get_slot_x(d, 11, c.x1);
+    CAPTURE(spool_left, spool_bottom, last_lane, d->hits.hub.x2, f.hub_y);
+    REQUIRE(spool_bottom - helix::ui::bypass_spool_box_size(spool) <= f.hub_y + f.hub_h / 2);
+    // The bar ends at the larger spool's edge, or at the last lane's tube when that is further.
+    CHECK(d->hits.hub.x2 <=
+          std::max(spool_left, last_lane + static_cast<int32_t>(d->theme.tube_gauge)));
+    // The bypass hit area follows the tube to the placed spot.
+    REQUIRE(d->hits.bypass_valid);
+    CHECK(d->hits.bypass.x1 + (d->hits.bypass.x2 - d->hits.bypass.x1) / 2 == mx);
+
+    // Back at its default, it stands where it did.
+    helix::ui::filament_path_set_bypass_spot(w, -1, 0);
+    REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, nullptr));
+    CHECK(mx == home_x);
+}

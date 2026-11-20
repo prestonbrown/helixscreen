@@ -997,18 +997,7 @@ void AmsPanel::setup_bypass_spool() {
 void AmsPanel::update_bypass_spool_position() {
     if (!bypass_widgets_.valid() || !path_canvas_)
         return;
-
-    int32_t abs_cx = 0;
-    int32_t abs_cy = 0;
-    if (!ui_filament_path_canvas_get_bypass_merge_pos(path_canvas_, &abs_cx, &abs_cy)) {
-        return;
-    }
-    lv_obj_t* parent = lv_obj_get_parent(bypass_widgets_.box);
-    lv_area_t parent_abs;
-    lv_obj_get_content_coords(parent, &parent_abs);
-    helix::ui::bypass_spool_set_position(bypass_widgets_, abs_cx - parent_abs.x1,
-                                         abs_cy - parent_abs.y1);
-    helix::ui::ams_detail_keep_env_pill_clear(path_canvas_);
+    helix::ui::ams_detail_place_bypass_spool(path_canvas_, bypass_widgets_);
 }
 
 void AmsPanel::update_bypass_spool_from_state() {

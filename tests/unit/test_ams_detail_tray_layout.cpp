@@ -2051,3 +2051,57 @@ TEST_CASE_METHOD(LVGLTestFixture, "The bypass spool's drawn area is its box and 
     CHECK_FALSE(helix::ui::bypass_spool_drawn_area(parent, &area));
     helix::ui::bypass_spool_destroy(w);
 }
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: the bypass spool beside a drawn unit takes its spools' size where "
+                 "there is room, and stands clear of it",
+                 "[ams][tray][ui_integration][unit-art][bypass]") {
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    REQUIRE(AmsState::instance().get_backend()->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    panel_->refresh_slots();
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    lv_obj_t* box = lv_obj_find_by_name(panel_obj_, "bypass_spool_box");
+    REQUIRE(box != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(box));
+    lv_obj_t* lane_spool = lv_obj_find_by_name(slot(0), "spool_graphic");
+    REQUIRE(lane_spool != nullptr);
+    const int32_t lane = lv_obj_get_width(lane_spool);
+    lv_area_t b, art, canvas;
+    lv_obj_get_coords(box, &b);
+    lv_obj_get_coords(drawing, &art);
+    lv_obj_get_coords(lv_obj_find_by_name(panel_obj_, "path_canvas"), &canvas);
+    const int32_t card = lv_area_get_width(&b);
+    CAPTURE(size, lane, card, b.x1, b.y1, b.x2, b.y2, art.x1, art.y1, art.x2, art.y2);
+    // Never smaller than everywhere else, never larger than the unit's own spools.
+    CHECK(card >= helix::ui::bypass_spool_box_size());
+    CHECK(card <= helix::ui::bypass_spool_box_size(lane));
+    CHECK(lv_area_get_height(&b) == card);
+    CHECK(b.x2 <= canvas.x2);
+    // Where it grew, nothing of the unit stands beside it: from its material label down, every
+    // row of the drawing ends left of the card.
+    if (card > helix::ui::bypass_spool_box_size()) {
+        std::vector<int32_t> edge;
+        REQUIRE(helix::ui::unit_art_row_right_edges(drawing, edge));
+        const int32_t from = std::max(b.y1 - helix::ui::bypass_spool_label_room(), art.y1);
+        const int32_t to = std::min(b.y2, art.y1 + (int32_t)edge.size() - 1);
+        for (int32_t y = from; y <= to; ++y) {
+            const int32_t x = edge[static_cast<size_t>(y - art.y1)];
+            if (x >= 0) {
+                CAPTURE(y, art.x1 + x);
+                CHECK(art.x1 + x < b.x1);
+            }
+        }
+    }
+    // With room beside the unit (the 1024x600 host), it grows.
+    if (size == 2)
+        CHECK(card > helix::ui::bypass_spool_box_size());
+}

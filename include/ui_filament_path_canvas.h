@@ -569,6 +569,23 @@ void ui_filament_path_canvas_set_bypass_has_spool(lv_obj_t* obj, bool has_spool)
  */
 bool ui_filament_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out, int32_t* cy_out);
 
+namespace helix::ui {
+/**
+ * @brief Place the bypass spool beside a drawn unit
+ *
+ * The spool's tube drops to the merge line under its centre, and the hub bar keeps clear of it.
+ *
+ * @param obj The filament_path_canvas widget
+ * @param cx The spool's centre, px from the canvas's left edge; -1 restores the default spot
+ * @param spool_size The spool's edge in px; 0 restores the lane spool size
+ */
+void filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size);
+
+/// Where the bypass tube would terminate at its default spot, before any
+/// filament_path_set_bypass_spot(): the spot a unit view starts from.
+bool filament_path_get_bypass_home(lv_obj_t* obj, int32_t* cx_out, int32_t* cy_out);
+} // namespace helix::ui
+
 /**
  * @brief Set the mapped tool index for a slot
  *

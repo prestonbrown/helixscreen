@@ -1452,10 +1452,30 @@ bool ui_filament_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out
         return false;
     }
     if (cx_out) {
-        *cx_out = obj_coords.x1 + (int32_t)(width * kBypassXRatio);
+        *cx_out = bypass_spool_x(*data, obj_coords.x1, width);
     }
     if (cy_out) {
         *cy_out = obj_coords.y1 + (int32_t)(height * kBypassMergeYRatio);
     }
     return true;
+}
+
+bool helix::ui::filament_path_get_bypass_home(lv_obj_t* obj, int32_t* cx_out, int32_t* cy_out) {
+    if (!ui_filament_path_canvas_get_bypass_merge_pos(obj, nullptr, cy_out))
+        return false;
+    if (cx_out) {
+        lv_area_t c;
+        lv_obj_get_coords(obj, &c);
+        *cx_out = c.x1 + (int32_t)(lv_area_get_width(&c) * kBypassXRatio);
+    }
+    return true;
+}
+
+void helix::ui::filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size) {
+    auto* data = get_data(obj);
+    if (!data || (data->bypass_spool_cx == cx && data->bypass_spool_size == spool_size))
+        return;
+    data->bypass_spool_cx = cx;
+    data->bypass_spool_size = spool_size;
+    layered_mark_dirty(obj);
 }

@@ -13,6 +13,7 @@
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 
+#include <algorithm>
 #include <cstring>
 
 namespace helix::ui {
@@ -106,8 +107,35 @@ int32_t bypass_spool_bottom_above_merge() {
     return kTubeDrop + kBoxPad;
 }
 
+int32_t bypass_spool_label_room() {
+    return kLabelHeight + kLabelGap;
+}
+
 int32_t bypass_spool_box_size() {
-    return ams_slot_spool_size() + kBoxPad * 2;
+    return bypass_spool_box_size(ams_slot_spool_size());
+}
+
+int32_t bypass_spool_box_size(int32_t spool_size) {
+    return spool_size + kBoxPad * 2;
+}
+
+BypassSpoolSpot bypass_spool_spot(int32_t lane_spool, int32_t min_spool,
+                                  const BypassSpoolRoom& room,
+                                  const std::function<int32_t(int32_t top)>& unit_right) {
+    for (int32_t spool = lane_spool; spool > min_spool; --spool) {
+        const int32_t box = bypass_spool_box_size(spool);
+        const int32_t label_top = room.box_bottom - box - bypass_spool_label_room();
+        if (label_top < room.top)
+            continue;
+        const int32_t unit = unit_right(label_top);
+        const int32_t clear_left = unit == INT32_MIN ? INT32_MIN / 2 : unit + room.gap;
+        if (room.right - clear_left < box)
+            continue;
+        const int32_t cx =
+            std::clamp(room.home_cx, clear_left + box / 2, room.right - (box - box / 2));
+        return {spool, box, cx};
+    }
+    return {min_spool, bypass_spool_box_size(min_spool), room.home_cx};
 }
 
 namespace {
@@ -154,7 +182,8 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     }
 
     const int32_t spool_size = ams_slot_spool_size();
-    w.box_size = bypass_spool_box_size();
+    w.spool_size = spool_size;
+    w.box_size = bypass_spool_box_size(spool_size);
     w.box = lv_obj_create(parent);
     lv_obj_set_name(w.box, kBoxName);
     lv_obj_set_size(w.box, w.box_size, w.box_size);
@@ -207,6 +236,16 @@ void bypass_spool_destroy(BypassSpoolWidgets& w) {
         lv_obj_delete(w.material_label);
     }
     w = {};
+}
+
+void bypass_spool_set_size(BypassSpoolWidgets& w, int32_t spool_size) {
+    if (!w.box || !w.spool_canvas || spool_size <= 0 || spool_size == w.spool_size) {
+        return;
+    }
+    w.spool_size = spool_size;
+    w.box_size = bypass_spool_box_size(spool_size);
+    lv_obj_set_size(w.box, w.box_size, w.box_size);
+    ui_spool_canvas_set_size(w.spool_canvas, spool_size);
 }
 
 void bypass_spool_set_color(BypassSpoolWidgets& w, uint32_t color_rgb) {

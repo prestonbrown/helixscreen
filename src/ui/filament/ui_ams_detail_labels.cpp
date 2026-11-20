@@ -1067,6 +1067,92 @@ void helix::ui::ams_detail_keep_env_pill_clear(lv_obj_t* canvas) {
     keep_env_pill_clear_of_bypass(canvas);
 }
 
+namespace {
+/// Where the bypass spool stands on @p canvas's merge line at @p merge_y, starting from its
+/// default centre @p home_x, its card a child of @p parent: beside the unit view's drawn unit
+/// it takes the unit's spool size.
+helix::ui::BypassSpoolSpot bypass_spot_beside_unit(lv_obj_t* canvas, lv_obj_t* parent,
+                                                   int32_t home_x, int32_t merge_y) {
+    const int32_t token = helix::ui::ams_slot_spool_size();
+    lv_obj_t* art = s_tray.art_obj;
+    lv_area_t drawn;
+    if (!s_tray.art || !art || s_tray.spool_size <= 0 || view_column(art) != view_column(canvas) ||
+        !helix::ui::unit_art_drawn_area(art, drawn))
+        return {token, helix::ui::bypass_spool_box_size(token), home_x};
+    lv_area_t art_abs, c, p;
+    lv_obj_get_coords(art, &art_abs);
+    lv_obj_get_coords(canvas, &c);
+    lv_obj_get_coords(parent, &p);
+
+    helix::ui::BypassSpoolRoom room;
+    room.home_cx = home_x;
+    room.right = std::min(c.x2, p.x2) - theme_manager_get_spacing("space_sm");
+    room.box_bottom = merge_y - helix::ui::bypass_spool_bottom_above_merge();
+    room.gap = theme_manager_get_spacing("space_sm");
+    // The card may rise beside the unit as high as leaves the environment pill, which rises
+    // clear of it, room under the top of the view.
+    room.top = c.y1;
+    if (lv_obj_t* column = view_column(canvas)) {
+        lv_area_t v;
+        lv_obj_get_coords(column, &v);
+        room.top = v.y1;
+    }
+    if (lv_obj_t* pill = s_tray.env_indicator; pill && !lv_obj_is_hidden(pill))
+        room.top += lv_obj_get_height(pill) + theme_manager_get_spacing("space_xs");
+
+    // The unit's right edge from each row down to the card's bottom: the drawing's own outline
+    // where it is flattened, else the box it is drawn in.
+    std::vector<int32_t> edge;
+    std::vector<int32_t> right_below;
+    if (helix::ui::unit_art_row_right_edges(art, edge)) {
+        const int32_t first = art_abs.y1;
+        const int32_t last = std::min<int32_t>(room.box_bottom, first + (int32_t)edge.size() - 1);
+        if (last >= first) {
+            right_below.assign(static_cast<size_t>(last - first + 1), INT32_MIN);
+            int32_t run = INT32_MIN;
+            for (int32_t y = last; y >= first; --y) {
+                const int32_t x = edge[static_cast<size_t>(y - first)];
+                if (x >= 0)
+                    run = std::max(run, art_abs.x1 + x);
+                right_below[static_cast<size_t>(y - first)] = run;
+            }
+        }
+        return helix::ui::bypass_spool_spot(
+            (int32_t)s_tray.spool_size, token, room, [&](int32_t top) {
+                if (right_below.empty() || top > first + (int32_t)right_below.size() - 1)
+                    return INT32_MIN;
+                return right_below[static_cast<size_t>(std::max(top, first) - first)];
+            });
+    }
+    const lv_area_t box = {art_abs.x1 + drawn.x1, art_abs.y1 + drawn.y1, art_abs.x1 + drawn.x2,
+                           art_abs.y1 + drawn.y2};
+    return helix::ui::bypass_spool_spot((int32_t)s_tray.spool_size, token, room, [&](int32_t top) {
+        return top <= box.y2 && room.box_bottom >= box.y1 ? box.x2 : INT32_MIN;
+    });
+}
+} // namespace
+
+void helix::ui::ams_detail_place_bypass_spool(lv_obj_t* canvas, BypassSpoolWidgets& w) {
+    if (!canvas || !w.valid())
+        return;
+    int32_t home_x = 0;
+    int32_t merge_y = 0;
+    if (!helix::ui::filament_path_get_bypass_home(canvas, &home_x, &merge_y))
+        return;
+    lv_obj_t* parent = lv_obj_get_parent(w.box);
+    const BypassSpoolSpot spot = bypass_spot_beside_unit(canvas, parent, home_x, merge_y);
+    bypass_spool_set_size(w, spot.spool);
+    const bool home = spot.cx == home_x && spot.spool == ams_slot_spool_size();
+    lv_area_t c;
+    lv_obj_get_coords(canvas, &c);
+    helix::ui::filament_path_set_bypass_spot(canvas, home ? -1 : spot.cx - c.x1,
+                                             home ? 0 : spot.spool);
+    lv_area_t parent_abs;
+    lv_obj_get_content_coords(parent, &parent_abs);
+    bypass_spool_set_position(w, spot.cx - parent_abs.x1, merge_y - parent_abs.y1);
+    keep_env_pill_clear_of_bypass(canvas);
+}
+
 bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid) {
     if (!canvas)
         return false;

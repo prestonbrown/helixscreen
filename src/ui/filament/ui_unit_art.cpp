@@ -828,6 +828,30 @@ float unit_art_aspect(lv_obj_t* art) {
     return data && data->geom ? data->geom->aspect : 0.0f;
 }
 
+namespace {
+// Fainter than this is the drawing's soft shadow, not the unit.
+constexpr uint8_t kArtBodyAlpha = 64;
+} // namespace
+
+bool unit_art_row_right_edges(lv_obj_t* art, std::vector<int32_t>& out) {
+    if (!unit_art_is_flattened(art))
+        return false;
+    const lv_draw_buf_t* buf = data_of(art)->flat_buf;
+    const int32_t w = buf->header.w;
+    const int32_t h = buf->header.h;
+    out.assign(static_cast<size_t>(h), -1);
+    for (int32_t y = 0; y < h; ++y) {
+        const auto* row = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(buf, 0, y));
+        for (int32_t x = w - 1; x >= 0; --x) {
+            if (row[x * 4 + 3] >= kArtBodyAlpha) {
+                out[static_cast<size_t>(y)] = x;
+                break;
+            }
+        }
+    }
+    return true;
+}
+
 bool unit_art_is_flattened(lv_obj_t* art) {
     ArtData* data = art ? data_of(art) : nullptr;
     return data && data->flat_buf && !lv_obj_is_hidden(data->flat);
