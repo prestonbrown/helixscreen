@@ -1575,6 +1575,34 @@ seed_legacy_install() {
         || fail "the adopt still tells the operator to remove the boot path"
 }
 
+@test "legacy adopt: the stanza and the service name the adopted root, not the default's chroot spelling" {
+    # set_install_paths resolved the in-chroot spelling for the mod's default
+    # root before the adopt moved INSTALL_DIR; a prior payload install there
+    # makes that spelling resolve.
+    updatable_payload
+    moonraker_reads supported
+    MOD_PAYLOAD_ROOT=""
+    STANDALONE_INSTALL=""
+    uninstall_mode=false
+    seed_legacy_install
+    payload_legacy_prompt_adopt() { return 0; }
+
+    mod_payload_mode_block >/dev/null 2>&1
+
+    [ "$INSTALL_DIR" = "$HOST_LEGACY_INSTALL_ROOT" ] || fail "setup: the adopt did not take"
+    [ "$(update_manager_path)" = "$HOST_LEGACY_INSTALL_ROOT" ] \
+        || fail "path: would name '$(update_manager_path)'"
+    run configure_moonraker_updates "ad5m"
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    [[ "$output" == *"cannot reach"* ]] || fail "the adopted root was not refused: $output"
+
+    INIT_SCRIPT_DEST="$BATS_TEST_TMPDIR/S90helixscreen"
+    printf 'DAEMON_DIR="/opt/helixscreen"\nHELIX_PD_HELIX=""\n' > "$INIT_SCRIPT_DEST"
+    _set_init_script_daemon_dir
+    grep -qx "DAEMON_DIR=\"$HOST_LEGACY_INSTALL_ROOT\"" "$INIT_SCRIPT_DEST" \
+        || fail "the S90 boots $(grep '^DAEMON_DIR=' "$INIT_SCRIPT_DEST")"
+}
+
 @test "legacy decline: the payload stays at the mod default and the warning names both roots" {
     HELIX_MOD_PAYLOAD=1
     MOD_PAYLOAD_ROOT=""
