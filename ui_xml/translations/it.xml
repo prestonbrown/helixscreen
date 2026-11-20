@@ -1610,8 +1610,10 @@
   <translation tag="Filament didn&apos;t fully retract, may need manual removal" it="Il filamento non si è ritratto completamente, potrebbe essere necessario rimuoverlo a mano"/>
   <translation tag="Filament dust packs into the drive gears and costs grip." it="La polvere di filamento intasa gli ingranaggi e riduce la presa."/>
   <translation tag="Filament feeder" it="Alimentatore filamento"/>
+  <translation tag="Filament in the toolhead" it="Filamento nella testina"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." it="Il filamento non è più nella testina. Estrailo del tutto."/>
   <translation tag="Filament is dragging" it="Il filamento oppone resistenza"/>
+  <translation tag="Filament is in the toolhead, but no lane is loaded." it="C&apos;è filamento nella testina, ma nessuna corsia è caricata."/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." it="Il filamento è caricato nella testina. Scaricalo prima di attivare il bypass."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." it="C&apos;è filamento caricato nella testina. Scaricalo prima, così non si ammorbidisce nell&apos;estrusore mentre il piano si scalda."/>
   <translation tag="Filament is still at the empty head&apos;s feeder" it="C&apos;è ancora filamento nell&apos;alimentatore della testina vuota"/>
@@ -4407,6 +4409,7 @@
   <translation tag="To make videos, run this on your printer via SSH:" it="Per creare i video, esegui questo sulla stampante via SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." it="Per mappare il filamento, HelixScreen riscrive il file di stampa prima di stamparlo. Il Moonraker di questa stampante è troppo vecchio perché il plugin HelixPrint ripristini in seguito il nome del file originale, quindi il lavoro completato viene elencato con il nome riscritto. La mappatura filamento stessa funziona normalmente."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." it="Per mappare il filamento, HelixScreen riscrive il file di stampa prima di stamparlo. Senza il plugin HelixPrint, la copia riscritta è quella che finisce nella cronologia di stampa, quindi i lavori completati vengono elencati con nomi come modified_1730824_benchy.gcode invece del file scelto.&#10;&#10;L&apos;installazione del plugin richiede un momento e non è necessario riavviare."/>
+  <translation tag="To use the lanes, pull the filament out of the toolhead by hand." it="Per usare le corsie, estrai il filamento dalla testina a mano."/>
   <translation tag="Toggle" it="Alterna"/>
   <translation tag="Toggle (fire-and-forget)" it="Alterna (senza tracciamento)"/>
   <translation tag="Toggle AFC LED strip" it="Alterna la striscia LED AFC"/>
@@ -4612,6 +4615,7 @@
   <translation tag="Use New Address" it="Usa nuovo indirizzo"/>
   <translation tag="Use Scan" it="Usa scansione"/>
   <translation tag="Use Unload before Eject" it="Usa Scarica prima di Espelli"/>
+  <translation tag="Use as bypass" it="Usa come bypass"/>
   <translation tag="Use existing" it="Usa esistente"/>
   <translation tag="Use existing filament?" it="Usare un filamento esistente?"/>
   <translation tag="Use first HID scanner found" it="Usa il primo scanner HID trovato"/>

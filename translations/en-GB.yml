@@ -1669,8 +1669,10 @@ translations:
   Filament didn't fully retract, may need manual removal: ''
   Filament dust packs into the drive gears and costs grip.: ''
   Filament feeder: ''
+  Filament in the toolhead: ''
   Filament is clear of the toolhead. Pull it out the rest of the way.: ''
   Filament is dragging: ''
+  Filament is in the toolhead, but no lane is loaded.: ''
   Filament is loaded at the toolhead. Unload it before enabling bypass.: ''
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: ''
   Filament is still at the empty head's feeder: 'Filament is still at the empty head''s feeder'
@@ -4527,6 +4529,7 @@ translations:
   : ''
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : ""
+  To use the lanes, pull the filament out of the toolhead by hand.: ''
   Toggle: ''
   Toggle (fire-and-forget): ''
   Toggle AFC LED strip: ''
@@ -4730,6 +4733,7 @@ translations:
   Use G10/G11 firmware retraction: ''
   Use New Address: ''
   Use Unload before Eject: ''
+  Use as bypass: ''
   Use existing: ''
   Use existing filament?: ''
   Use first HID scanner found: ''

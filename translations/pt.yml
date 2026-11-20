@@ -1677,8 +1677,10 @@ translations:
   Filament didn't fully retract, may need manual removal: O filamento não recuou totalmente; pode ser necessário removê-lo à mão
   Filament dust packs into the drive gears and costs grip.: "O pó de filamento se acumula nas engrenagens e reduz a tração."
   Filament feeder: Alimentador de Filamento
+  Filament in the toolhead: "Filamento no cabeçote"
   Filament is clear of the toolhead. Pull it out the rest of the way.: O filamento já saiu do cabeçote. Puxe o restante até o fim.
   Filament is dragging: O filamento está com atrito
+  Filament is in the toolhead, but no lane is loaded.: "Há filamento no cabeçote, mas nenhuma lane está carregada."
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Há filamento carregado no cabeçote. Descarregue-o antes de ativar o bypass.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: Há filamento carregado no cabeçote. Descarregue-o primeiro para que não amoleça na extrusora enquanto a mesa aquece.
 
@@ -4553,6 +4555,7 @@ translations:
   : Para mapear o filamento, o HelixScreen reescreve o arquivo de trabalho antes de imprimi-lo. O Moonraker desta impressora é antigo demais para o plugin HelixPrint restaurar o nome do arquivo original depois, então o trabalho concluído aparece com o nome reescrito. O mapeamento de filamento em si funciona normalmente.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "Para mapear o filamento, o HelixScreen reescreve o arquivo de trabalho antes de imprimi-lo. Sem o plugin HelixPrint, a cópia reescrita é o que entra no seu histórico de impressões, então os trabalhos concluídos aparecem com nomes como modified_1730824_benchy.gcode em vez do arquivo escolhido.\n\nInstalar o plugin leva um momento e não exige reinicialização."
+  To use the lanes, pull the filament out of the toolhead by hand.: "Para usar as lanes, puxe o filamento do cabeçote à mão."
   Toggle: Alternar
   Toggle (fire-and-forget): Alternar (sem rastreamento)
   Toggle AFC LED strip: 'Alternar a fita LED do AFC'
@@ -4752,6 +4755,7 @@ translations:
   Use G10/G11 firmware retraction: Usar retração de firmware G10/G11
   Use New Address: 'Usar novo endereço'
   Use Unload before Eject: 'Use Descarregar antes de Ejetar'
+  Use as bypass: "Usar como bypass"
   Use existing: "Usar existente"
   Use existing filament?: "Usar um filamento existente?"
   Use first HID scanner found: 'Usar o primeiro leitor HID encontrado'
