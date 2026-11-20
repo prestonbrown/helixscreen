@@ -49,6 +49,17 @@ std::optional<PreviewRateEntry> parse_preview_rate(const nlohmann::json* node);
 
 nlohmann::json preview_rate_json(const PreviewRateEntry& entry);
 
+/// "/display/gcode_3d_rate": triangles per millisecond this board's 3D G-code
+/// renderer measured, the same shape and key as the index rate.
+inline constexpr const char* kRenderRatePath = "/display/gcode_3d_rate";
+
+/// The rate stored at @p path when it was measured on @p board by @p version, else 0.
+double learned_rate(const helix::Config& config, const char* path, const std::string& board,
+                    const std::string& version);
+
+/// Writes the entry at @p path and saves the config file.
+void save_rate(helix::Config& config, const char* path, const PreviewRateEntry& entry);
+
 /// The stored rate when it was measured on @p board by @p version, else 0.
 double learned_preview_rate(const helix::Config& config, const std::string& board,
                             const std::string& version);
@@ -107,5 +118,14 @@ RateRecord decide_rate_record(double mb_per_cpu_s, bool board_known, bool printi
 /// Main thread: keep a rate a scan just measured, per decide_rate_record(). The
 /// gate prefers a stored rate and falls back to the last one kept this session.
 void record_preview_rate(double mb_per_cpu_s);
+
+/// Main thread: the 3D render rate (triangles/ms) stored for this board and
+/// version, else 0.
+double learned_render_rate();
+
+/// Main thread: keep a 3D render rate the renderer measured, per
+/// decide_rate_record(). Nothing is kept for the session here: the renderer
+/// publishes its own rate for the rest of the run.
+void record_render_rate(double tris_per_ms);
 
 } // namespace helix::ui

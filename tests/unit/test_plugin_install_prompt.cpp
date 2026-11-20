@@ -31,6 +31,7 @@
 #include "../test_helpers/print_select_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_env.h"
+#include "../test_helpers/slow_lane_settle.h"
 #include "../ui_test_utils.h"
 #include "config.h"
 #include "core/http_executor.h"
@@ -46,7 +47,6 @@
 #include <iterator>
 #include <optional>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -126,14 +126,20 @@ struct PromptFixture : PrintSelectGlobalStateReset, PrintSelectPanelFixture {
         return nullptr;
     }
 
-    void click(const char* name) {
+    /// Tap @p name and leave whatever it handed to the slow lane in flight.
+    void press(const char* name) {
         lv_obj_t* dialog = prompt();
         REQUIRE(dialog != nullptr);
         lv_obj_t* button = lv_obj_find_by_name(dialog, name);
         REQUIRE(button != nullptr);
         // The modal's handlers run inside send_event; no render pass is needed.
         lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
-        drain();
+    }
+
+    /// Tap @p name; Install hands install.sh to the slow lane, so its outcome is waited for.
+    void click(const char* name) {
+        press(name);
+        test::settle_slow_lane([&] { drain(); });
     }
 
     std::string result_message() {
@@ -328,6 +334,54 @@ TEST_CASE_METHOD(PromptFixture, "a failed install from the prompt restarts nothi
     // The failure shows its own icon in place of the success one.
     CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(prompt(), "result_icon_failed")));
     CHECK(lv_obj_is_hidden(lv_obj_find_by_name(prompt(), "result_icon")));
+}
+
+TEST_CASE_METHOD(PromptFixture,
+                 "an install whose prompt closed while it ran still restarts Moonraker and toasts",
+                 "[plugin_installer][print_select]") {
+    scripts.write_script("exit 0");
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+    const int restarts_before = moonraker_restarts();
+    std::vector<std::pair<ToastSeverity, std::string>> toasts;
+    ui::set_test_toast_hook([&](ToastSeverity severity, const std::string& message, uint32_t) {
+        toasts.emplace_back(severity, message);
+    });
+
+    press("btn_install");
+    // The outcome lands on this thread only when the queue drains, so the
+    // dialog is closed before it can.
+    Modal::hide(prompt(), ModalCloseReason::BackdropTap);
+    test::settle_slow_lane([&] { drain(); });
+
+    CHECK(scripts.script_args() == "--no-restart --auto ");
+    CHECK(moonraker_restarts() == restarts_before + 1);
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].first == ToastSeverity::SUCCESS);
+    CHECK(toasts[0].second.find("restarting") != std::string::npos);
+    ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(PromptFixture,
+                 "an install that ends while a job holds the machine restarts nothing",
+                 "[plugin_installer][print_select]") {
+    // install.sh waits for the go file, so it cannot end before the print starts.
+    const std::string go = scripts.root + "/go";
+    scripts.write_script("while [ ! -f '" + go + "' ]; do sleep 0.01; done\nexit 0");
+    set_plugin_installed(false);
+    REQUIRE(prompt() != nullptr);
+    const int restarts_before = moonraker_restarts();
+
+    press("btn_install");
+    test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    drain();
+    std::ofstream(go).flush();
+    test::settle_slow_lane([&] { drain(); });
+    REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
+
+    CHECK(scripts.script_args() == "--no-restart --auto ");
+    CHECK(moonraker_restarts() == restarts_before);
+    CHECK(result_message().find("Restart Moonraker") != std::string::npos);
 }
 
 TEST_CASE_METHOD(PromptFixture,
@@ -607,15 +661,7 @@ struct SelfHealFixture : PromptFixture {
     /// The check's install.sh runs on the slow lane; wait for it, then for its
     /// outcome on this thread.
     void settle() {
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-        drain();
-        // An outcome drained here may start the restart, the next script run.
-        while (http::HttpExecutor::slow().inflight() > 0 &&
-               std::chrono::steady_clock::now() < deadline) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            drain();
-        }
-        drain();
+        test::settle_slow_lane([&] { drain(); });
     }
 
     /// The plugin reads as absent at a new app start, and the check runs again.

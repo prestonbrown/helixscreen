@@ -277,6 +277,10 @@ uint32_t picked_color(uint32_t rgb) {
     return is_declarable_color(rgb) ? rgb : 0x7F7F7F;
 }
 
+std::string slot_color_name(uint32_t rgb) {
+    return is_declarable_color(rgb) ? helix::get_color_name_from_hex(rgb) : std::string();
+}
+
 ColorReading read_lane_color(const std::string& raw) {
     // A value that is only whitespace and a prefix carries no colour to fail
     // to parse, so it is the producer saying the lane has none.

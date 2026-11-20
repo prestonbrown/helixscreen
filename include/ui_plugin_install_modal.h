@@ -5,6 +5,7 @@
 
 #include "ui_modal.h"
 
+#include "async_lifetime_guard.h"
 #include "helix_plugin_installer.h"
 
 #include <atomic>
@@ -14,6 +15,7 @@
 namespace helix {
 class IMoonrakerAPI;
 class PrinterState;
+struct PluginInstallModalTestAccess; // test-only friend (tests/test_helpers/)
 } // namespace helix
 
 namespace helix::ui {
@@ -32,12 +34,14 @@ bool request_moonraker_restart_for_plugin(IMoonrakerAPI* api);
 /**
  * @brief Refuse a plugin install or uninstall while a job holds the machine
  *
- * Both restart Moonraker, and the install also blocks this thread while its
- * script runs. Shows the warning toast when it refuses.
+ * Both restart Moonraker. Shows the warning toast when it refuses.
  *
  * @return true when refused
  */
 bool refuse_plugin_change_during_job(PrinterState& printer_state);
+
+/// Whether a job holds the machine, so the plugin must not change now. No toast.
+bool job_blocks_plugin_change(PrinterState& printer_state);
 
 } // namespace helix::ui
 
@@ -101,6 +105,12 @@ class PluginInstallModal : public Modal {
     using JobGate = std::function<bool()>;
     void set_job_gate(JobGate gate);
 
+    /// Asked again when the install ends, since a job can start while install.sh
+    /// runs; true holds the Moonraker restart back. Reports nothing itself.
+    /// Unset never holds it.
+    using JobCheck = std::function<bool()>;
+    void set_job_check(JobCheck check);
+
   protected:
     void on_show() override;
     void on_hide() override;
@@ -111,9 +121,15 @@ class PluginInstallModal : public Modal {
     void on_dismissed() override;
 
   private:
+    friend struct helix::PluginInstallModalTestAccess;
+
+    /// Runs the install off the main thread; unset submits to HttpExecutor::slow().
+    using InstallSubmitter = std::function<void(std::function<void()>)>;
+
     helix::HelixPluginInstaller* installer_ = nullptr;
     MoonrakerRestarter moonraker_restarter_;
     JobGate job_gate_;
+    JobCheck job_check_;
 
     // Destruction guard - prevents async callbacks from accessing destroyed object
     std::atomic<bool> is_destroying_{false};
@@ -121,12 +137,22 @@ class PluginInstallModal : public Modal {
     // UI state
     bool is_local_mode_ = false;
 
+    // install.sh runs on a worker; its outcome comes back to on_install_finished().
+    // Closing the dialog does not drop it (the Moonraker restart and the
+    // installer state still follow), so it has its own guard rather than
+    // lifetime_, which hide() invalidates.
+    bool install_running_ = false;
+    InstallSubmitter install_submitter_;
+    helix::AsyncLifetimeGuard install_lifetime_;
+
     // Widget references (populated in on_show)
     lv_obj_t* command_textarea_ = nullptr;
     lv_obj_t* dont_ask_checkbox_ = nullptr;
 
     // Internal handlers
     void on_install_clicked();
+    void on_install_finished(const helix::HelixPluginInstaller::LocalInstallJob& job,
+                             const helix::HelixPluginInstaller::LocalInstallRun& run);
     void on_copy_clicked();
     void show_installing_state();
     void show_result_state(bool success, const std::string& message);
