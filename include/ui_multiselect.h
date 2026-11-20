@@ -162,8 +162,8 @@ class UiMultiselect {
 
     std::unique_ptr<RowData> all_row_;
 
-    lv_obj_t* create_row(const MultiSelectItem& item);
-    std::unique_ptr<RowData> build_row(const MultiSelectItem& item);
+    /// A row for @p item, with a hairline under it when @p divider.
+    std::unique_ptr<RowData> build_row(const MultiSelectItem& item, bool divider);
     void sync_all_row();
     void clear_rows();
     void update_checkbox_visual(RowData* data);

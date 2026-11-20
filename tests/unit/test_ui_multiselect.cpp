@@ -37,6 +37,7 @@ class MultiSelectTestFixture : public LVGLTestFixture {
             AssetManager::register_all();
             lv_xml_register_component_from_file("A:ui_xml/globals.xml");
             theme_manager_init(lv_display_get_default(), false);
+            lv_xml_register_component_from_file("A:ui_xml/components/multiselect_row.xml");
             s_theme_initialized = true;
 
             // Recreate test screen with theme applied
@@ -328,4 +329,38 @@ TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: no All row unless asked
     ms.attach(container);
     ms.set_items({{"0", "T0"}, {"1", "T1"}});
     CHECK(lv_obj_find_by_name(container, "item_all") == nullptr);
+}
+
+TEST_CASE_METHOD(MultiSelectTestFixture,
+                 "UiMultiselect: rows divide but the last, and a disabled row is muted and inert",
+                 "[multiselect]") {
+    lv_obj_t* container = lv_obj_create(test_screen());
+    UiMultiselect ms;
+    ms.attach(container);
+    ms.set_select_all_label("All");
+    ms.set_items({{"0", "T0"}, {"1", "T1", false, false}});
+
+    auto divided = [](lv_obj_t* row) {
+        return lv_obj_get_style_border_width(row, LV_PART_MAIN) == 1 &&
+               lv_obj_get_style_border_side(row, LV_PART_MAIN) == LV_BORDER_SIDE_BOTTOM;
+    };
+    lv_obj_t* all = lv_obj_find_by_name(container, "item_all");
+    lv_obj_t* row0 = lv_obj_find_by_name(container, "item_0");
+    lv_obj_t* row1 = lv_obj_find_by_name(container, "item_1");
+    REQUIRE(all != nullptr);
+    REQUIRE(row0 != nullptr);
+    REQUIRE(row1 != nullptr);
+    CHECK(divided(all));
+    CHECK(divided(row0));
+    CHECK(lv_obj_get_style_border_width(row1, LV_PART_MAIN) == 0);
+
+    CHECK(lv_obj_is_clickable(row0));
+    CHECK_FALSE(lv_obj_is_clickable(row1));
+    CHECK(lv_obj_has_state(lv_obj_find_by_name(row1, "check"), LV_STATE_DISABLED));
+    lv_obj_t* label0 = lv_obj_get_child(row0, 0);
+    lv_obj_t* label1 = lv_obj_get_child(row1, 0);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(label0, LV_PART_MAIN),
+                      theme_manager_get_color("text")));
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(label1, LV_PART_MAIN),
+                      theme_manager_get_color("text_muted")));
 }

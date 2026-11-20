@@ -479,6 +479,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/motion_jog_modes.xml",
     "ui_xml/components/motion_jog_rows.xml",
     "ui_xml/components/motion_step_bar.xml",
+    "ui_xml/components/multiselect_row.xml",
     "ui_xml/components/navbar_drying.xml",
     "ui_xml/components/navbar_estop.xml",
     "ui_xml/components/option_tile.xml",
