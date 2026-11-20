@@ -1007,6 +1007,11 @@ src/calibration/hann_windowed_signal.cpp
 src/calibration/motor_ripple_analysis.cpp
 src/calibration/motor_ripple_store.cpp
 src/calibration/motor_ripple_view.cpp
+# The calibration catalog and history: session wiring loads the history, and the
+# Calibration screen reads both. Pure data and the Moonraker database.
+src/printer/calibration_catalog.cpp
+src/printer/calibration_catalog_inputs.cpp
+src/calibration/calibration_history_store.cpp
 
 # ===== mocks (CONFIG_HELIX_MOCK_PRINTER only) =====
 # MOCK: src/mock/moonraker_api_mock.cpp
