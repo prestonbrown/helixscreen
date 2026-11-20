@@ -1208,19 +1208,25 @@ detect_moonraker_integration() {
     conf=$(find_moonraker_conf)
     [ -n "$conf" ] || return 0
 
-    local support
+    # On beta or dev the stanza is added switched off (configure_unlisted_update_manager),
+    # and only where no stanza exists in either form.
+    local support adds="update-manager" none_yet=yes
     support=$(moonraker_asset_name_support)
+    [ -z "$(update_manager_stanza_files "$conf")" ] || none_yet=""
+    if ! update_manager_listed; then
+        adds="update-manager-off"
+        [ -z "$(update_manager_off_stanza_files "$conf")" ] \
+            && [ -z "$(update_manager_damaged_off_files "$conf")" ] || none_yet=""
+    fi
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
         # The allowlist is the mod's file; only the stanza can be added.
-        if update_manager_listed && [ -z "$(payload_updater_blocker "$1" "$support")" ] \
-            && [ -z "$(update_manager_stanza_files "$conf")" ]; then
-            MOONRAKER_ADDS="update-manager"
+        if [ -n "$none_yet" ] && [ -z "$(payload_updater_blocker "$1" "$support")" ]; then
+            MOONRAKER_ADDS="$adds"
         fi
         return 0
     fi
-    if update_manager_listed && [ -z "$(update_manager_stanza_files "$conf")" ] \
-        && [ "$support" != "unsupported" ]; then
-        MOONRAKER_ADDS="update-manager"
+    if [ -n "$none_yet" ] && [ "$support" != "unsupported" ]; then
+        MOONRAKER_ADDS="$adds"
     fi
     asvc="$(dirname "$(dirname "$conf")")/moonraker.asvc"
     if [ -f "$asvc" ] && ! grep -q '^helixscreen$' "$asvc" 2>/dev/null; then
