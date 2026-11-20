@@ -454,6 +454,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/exclude_object_row.xml",
     "ui_xml/components/exclude_object_side_list.xml",
     "ui_xml/components/exclude_objects_button.xml",
+    "ui_xml/components/fan_carousel_page.xml",
     "ui_xml/components/filament_catalog_add_row.xml",
     "ui_xml/components/filament_catalog_picker.xml",
     "ui_xml/components/filament_catalog_row.xml",
