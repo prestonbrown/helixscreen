@@ -51,6 +51,7 @@
 #include <netinet/in.h>
 #include <optional>
 #include <poll.h>
+#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -3303,6 +3304,102 @@ TEST_CASE("The stanza switches off and on exactly as the installer does",
     CHECK(MoonrakerConfigManager::switch_section_on(on, "update_manager helixscreen") == on);
 }
 
+TEST_CASE("effective_channel answers the installer's channel table",
+          "[update_checker][moonraker_channel][2147]") {
+    // tests/fixtures/update_channel_mapping.tsv is read by test_r2_installer.bats too.
+    std::string src = __FILE__;
+    const auto pos = src.rfind("/tests/unit/");
+    const std::string dir = pos == std::string::npos ? "tests/" : src.substr(0, pos) + "/tests/";
+    std::ifstream in(dir + "fixtures/update_channel_mapping.tsv");
+    REQUIRE(in.is_open());
+    int rows = 0;
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.empty() || line[0] == '#')
+            continue;
+        std::istringstream fields(line);
+        int stored = 0;
+        std::string beta, want;
+        fields >> stored >> beta >> want;
+        INFO(line);
+        CHECK(std::string(UpdateChecker::channel_name(
+                  UpdateChecker::effective_channel(stored, beta == "true"))) == want);
+        ++rows;
+    }
+    CHECK(rows >= 6);
+}
+
+TEST_CASE("Only the installer's exact switched-off block is ever switched on",
+          "[update_checker][moonraker_channel][2147]") {
+    using helix::MoonrakerConfigManager;
+    const char* section = "update_manager helixscreen";
+    const std::string user_lines = GENERATE(
+        // A user's own commented-out copy, without the end line.
+        std::string("#~ [update_manager helixscreen]\n#~ type: web\n#~ channel: beta\n"),
+        // Plain comments, and a "#~" without the space.
+        std::string("# [update_manager helixscreen]\n# channel: beta\n"),
+        std::string("#~[update_manager helixscreen]\n#~channel: beta\n"
+                    "#~ # end [update_manager helixscreen]\n"),
+        // The header with something after it.
+        std::string("#~ [update_manager helixscreen] old\n#~ type: web\n"
+                    "#~ # end [update_manager helixscreen]\n"),
+        // A line without the exact prefix inside the block.
+        std::string("#~ [update_manager helixscreen]\n# type: web\n"
+                    "#~ # end [update_manager helixscreen]\n"),
+        // Another section opening before the end line.
+        std::string("#~ [update_manager helixscreen]\n#~ [update_manager other]\n"
+                    "#~ # end [update_manager helixscreen]\n"));
+    const std::string content = "[server]\nhost: 0.0.0.0\n\n" + user_lines;
+
+    CHECK(MoonrakerConfigManager::switch_section_on(content, section) == content);
+    CHECK_FALSE(MoonrakerConfigManager::has_switched_off_section(content, section));
+}
+
+TEST_CASE("A settings.json still holding /update/moonraker_channel loads as before",
+          "[update_checker][moonraker_channel][2147]") {
+    namespace fs = std::filesystem;
+    const fs::path dir =
+        fs::temp_directory_path() / ("helix-old-mr-channel-" + std::to_string(getpid()));
+    fs::remove_all(dir);
+    fs::create_directories(dir);
+    const char* prev_dir = std::getenv("HELIX_CONFIG_DIR");
+    const std::string saved_dir = prev_dir ? prev_dir : "";
+    setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
+    const std::string path = (dir / "settings.json").string();
+    {
+        std::ofstream f(path);
+        f << json{{"config_version", helix::kCurrentConfigVersion},
+                  {"update", {{"channel", 1}, {"moonraker_channel", "beta"}}},
+                  {"wizard_completed", true}}
+                 .dump(2);
+    }
+
+    {
+        Config config;
+        config.init(path);
+        CHECK(config.get<int>("/update/channel", -1) == 1);
+        CHECK(config.get<bool>("/wizard_completed", false));
+        config.clear_path();
+    }
+
+    if (prev_dir)
+        setenv("HELIX_CONFIG_DIR", saved_dir.c_str(), 1);
+    else
+        unsetenv("HELIX_CONFIG_DIR");
+    fs::remove_all(dir);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync ignores a leftover /update/moonraker_channel",
+                 "[update_checker][moonraker_channel][2147]") {
+    Config::get_instance()->set<std::string>("/update/moonraker_channel", "beta");
+    seed(conf("stable"));
+    set_app_channel(0, false);
+
+    CHECK(sync() == conf("stable"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(UpdateChecker::instance().get_channel() == UpdateChecker::UpdateChannel::Stable);
+}
+
 TEST_CASE("Only the mod's user include is editable where a firmware mod owns moonraker.conf",
           "[update_checker][moonraker_channel][2147]") {
     CHECK(UpdateChecker::stanza_file_editable("mod_data/user.moonraker.conf", true));
@@ -3409,16 +3506,27 @@ TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync leaves another install's incl
     CHECK(api.restarts == 0);
 }
 
-TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never restarts Moonraker under a job",
-                 "[update_checker][moonraker_channel]") {
+TEST_CASE_METHOD(
+    ChannelSyncFixture,
+    "Channel sync waits for a printing or paused job to end, then switches and restarts",
+    "[update_checker][moonraker_channel][2147]") {
     seed(conf("stable"));
     set_app_channel(1, true);
-    drive_lifecycle(get_printer_state(), "paused", PrintStartPhase::IDLE);
+    const char* held = GENERATE("printing", "paused");
+    drive_lifecycle(get_printer_state(), held, PrintStartPhase::IDLE);
     REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
 
-    // The file is still switched off, so Moonraker's next start drops the entry.
-    CHECK(sync() == off("stable"));
+    // Nothing is written or restarted while the job holds the machine.
+    CHECK(sync() == conf("stable"));
+    CHECK(api.xfers_.uploads == 0);
     CHECK(api.restarts == 0);
+
+    const char* ended = GENERATE("standby", "complete", "cancelled", "error");
+    drive_lifecycle(get_printer_state(), ended, PrintStartPhase::IDLE);
+    REQUIRE_FALSE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
+    CHECK(drain() == off("stable"));
+    CHECK(api.xfers_.uploads == 1);
+    CHECK(api.restarts == 1);
 }
 
 TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync matches the stanza path after canonicalizing",
@@ -3559,6 +3667,11 @@ TEST_CASE_METHOD(ChannelSyncFixture,
     REQUIRE(job_holds_machine(get_printer_state().print_state().get_print_lifecycle()));
     client.fire_deferred("machine.update.status");
     drain();
-
     CHECK(api.restarts == 0);
+
+    // The restart is owed, and made once the job ends; the file is not written again.
+    drive_lifecycle(get_printer_state(), "complete", PrintStartPhase::IDLE);
+    drain();
+    CHECK(api.restarts == 1);
+    CHECK(api.xfers_.uploads == 1);
 }

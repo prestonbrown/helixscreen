@@ -2314,3 +2314,26 @@ fixture_for_install() {
     refute_grep 'update_manager helixscreen' "$conf"
     grep -q '^\[update_manager other\]' "$conf" || fail "another stanza went too"
 }
+
+@test "only the installer's exact switched-off block is switched on or removed" {
+    # A user's own commented-out lines: no end line, no space after #~, a header
+    # with more after it, a line without the prefix, another section inside.
+    local conf="$BATS_TEST_TMPDIR/u.conf" case_text
+    for case_text in \
+        '#~ [update_manager helixscreen]\n#~ type: web\n#~ channel: beta\n' \
+        '# [update_manager helixscreen]\n# channel: beta\n' \
+        '#~[update_manager helixscreen]\n#~channel: beta\n#~ # end [update_manager helixscreen]\n' \
+        '#~ [update_manager helixscreen] old\n#~ type: web\n#~ # end [update_manager helixscreen]\n' \
+        '#~ [update_manager helixscreen]\n# type: web\n#~ # end [update_manager helixscreen]\n' \
+        '#~ [update_manager helixscreen]\n#~ [update_manager other]\n#~ # end [update_manager helixscreen]\n'; do
+        printf "[server]\nhost: 0.0.0.0\n\n$case_text" > "$conf"
+        cp "$conf" "$conf.orig"
+        switch_update_manager_section "$conf" on >/dev/null
+        cmp -s "$conf.orig" "$conf" || fail "switched on: $(cat "$conf.orig")"
+    done
+    # A user's "#~ " line after the end line survives removal of our block.
+    { cat "$FIXTURES/off.conf"; printf '#~ my own note\n'; } > "$conf"
+    remove_update_manager_section "$conf" >/dev/null
+    grep -qx '#~ my own note' "$conf" || fail "the user's line went with the stanza"
+    refute_grep 'update_manager helixscreen\]$' "$conf"
+}

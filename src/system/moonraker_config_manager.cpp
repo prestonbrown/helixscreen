@@ -506,8 +506,9 @@ bool is_header_for(const std::string& line, const std::string& section_name) {
     return line.find_first_not_of(" \t\r", target.size()) == std::string::npos;
 }
 
-bool is_switched_off_line(const std::string& line) {
-    return line == "#~" || line.rfind(MoonrakerConfigManager::kSwitchedOffPrefix, 0) == 0;
+/// The line that closes a switched-off section.
+std::string switched_off_end(const std::string& section_name) {
+    return std::string(MoonrakerConfigManager::kSwitchedOffPrefix) + "# end [" + section_name + "]";
 }
 
 /// An option line, as opposed to a blank or comment line.
@@ -535,8 +536,10 @@ std::string MoonrakerConfigManager::switch_section_off(const std::string& conten
                 last = j;
         for (size_t j = i; j <= last; ++j)
             lines[j] = kSwitchedOffPrefix + lines[j];
+        lines.insert(lines.begin() + static_cast<std::ptrdiff_t>(last) + 1,
+                     switched_off_end(section_name));
         changed = true;
-        i = end - 1;
+        i = end; // the inserted end line shifted the section's end by one
     }
     return changed ? join_lines(lines, trailing) : content;
 }
@@ -545,30 +548,40 @@ std::string MoonrakerConfigManager::switch_section_on(const std::string& content
                                                       const std::string& section_name) {
     bool trailing = true;
     std::vector<std::string> lines = split_lines(content, trailing);
-    const std::string off_header = std::string(kSwitchedOffPrefix) + "[" + section_name + "]";
+    const std::string prefix = kSwitchedOffPrefix;
+    const std::string end_line = switched_off_end(section_name);
+    std::vector<std::string> out;
+    out.reserve(lines.size());
     bool changed = false;
-    bool on = false;
-    for (auto& line : lines) {
-        if (line.rfind(off_header, 0) == 0)
-            on = true;
-        if (on && is_switched_off_line(line)) {
-            line = line == "#~" ? std::string() : line.substr(std::strlen(kSwitchedOffPrefix));
-            changed = true;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const std::string& line = lines[i];
+        const bool off_header =
+            line.rfind(prefix, 0) == 0 && is_header_for(line.substr(prefix.size()), section_name);
+        if (!off_header) {
+            out.push_back(line);
             continue;
         }
-        on = false;
+        // Ours only when every line to the end line carries the exact prefix and
+        // none opens another section; anything else is left as written.
+        size_t j = i + 1;
+        while (j < lines.size() && lines[j] != end_line && lines[j].rfind(prefix, 0) == 0 &&
+               lines[j].compare(prefix.size(), 1, "[") != 0)
+            ++j;
+        if (j >= lines.size() || lines[j] != end_line) {
+            out.push_back(line);
+            continue;
+        }
+        for (size_t k = i; k < j; ++k)
+            out.push_back(lines[k].substr(prefix.size()));
+        changed = true;
+        i = j; // the end line goes
     }
-    return changed ? join_lines(lines, trailing) : content;
+    return changed ? join_lines(out, trailing) : content;
 }
 
 bool MoonrakerConfigManager::has_switched_off_section(const std::string& content,
                                                       const std::string& section_name) {
-    const std::string off_header = std::string(kSwitchedOffPrefix) + "[" + section_name + "]";
-    bool trailing = true;
-    for (const auto& line : split_lines(content, trailing))
-        if (line.rfind(off_header, 0) == 0)
-            return true;
-    return false;
+    return switch_section_on(content, section_name) != content;
 }
 
 std::string MoonrakerConfigManager::remove_section(const std::string& content,
