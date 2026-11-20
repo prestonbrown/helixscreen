@@ -880,7 +880,7 @@ void MoonrakerClientMock::append_k2_status(json& status) const {
     }
     status["fan_feedback"] = {{"fan0_speed", 0},
                               {"fan1_speed", 0},
-                              {"fan2_speed", mock_internal::part_fan_status(part)["rpm"]},
+                              {"fan2_speed", mock_internal::tach_fan_status(part)["rpm"]},
                               {"fan3_speed", 0},
                               {"fan4_speed", 0}};
 }
@@ -2367,7 +2367,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
           {"speed_factor", speed / 100.0},
           {"extrude_factor", flow / 100.0},
           {"homing_origin", {gcode_offset_x_.load(), gcode_offset_y_.load(), z_offset, 0.0}}}},
-        {"fan", mock_internal::part_fan_status(fan / 255.0)},
+        {"fan", mock_internal::tach_fan_status(fan / 255.0)},
         {"webhooks",
          {{"state", klippy_str},
           {"state_message", klippy == KlippyState::SHUTDOWN ? std::string(kM112ShutdownMessage)
@@ -2394,7 +2394,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
         double hotend_fan_speed = (ext_temp > 50.0) ? 1.0 : 0.0;
         for (const auto& fan_name : discovery_.fans()) {
             if (fan_name.rfind("heater_fan ", 0) == 0) {
-                initial_status[fan_name] = {{"speed", hotend_fan_speed}};
+                initial_status[fan_name] = mock_internal::tach_fan_status(hotend_fan_speed);
             }
         }
         initial_status.merge_patch(toolchanger_fan_status(fan / 255.0));
@@ -2405,7 +2405,7 @@ void MoonrakerClientMock::dispatch_initial_state() {
         std::lock_guard<std::mutex> lock(fan_mutex_);
         for (const auto& [name, spd] : fan_speeds_) {
             if (name == "fan") {
-                initial_status["fan"] = mock_internal::part_fan_status(spd);
+                initial_status["fan"] = mock_internal::tach_fan_status(spd);
             } else {
                 initial_status[name] = {{"speed", spd}};
             }
@@ -2850,7 +2850,7 @@ void MoonrakerClientMock::set_fan_speed_internal(const std::string& fan_name, do
     json fan_status;
     if (fan_name == "fan") {
         // Part cooling fan uses simple format
-        fan_status["fan"] = mock_internal::part_fan_status(speed);
+        fan_status["fan"] = mock_internal::tach_fan_status(speed);
     } else {
         // Generic/heater fans use full name as key
         fan_status[fan_name] = {{"speed", speed}};

@@ -196,11 +196,12 @@ class FanControlOverlay : public OverlayBase {
     struct AutoFanCard {
         std::string object_name;
         lv_obj_t* card = nullptr;
-        /// The card's speed line, which its component binds. Heap-held so the
-        /// binding's address survives the vector growing.
+        /// The card's speed line, which its component binds, and its tachometer
+        /// line under it. Heap-held so the bindings' addresses survive the vector growing.
         struct SpeedText {
             helix::Subject subject{};
-            char buf[32] = {};
+            char buf[16] = {};
+            helix::Subject rpm{}; ///< 0 hides the tachometer line
             std::string name;
             SubjectManager manager;
         };
@@ -228,7 +229,7 @@ class FanControlOverlay : public OverlayBase {
     //
 
     void update_auto_fan_animation(AutoFanCard& card, int speed_pct);
-    /// The card's speed line: "40%", or "40% · 3100 RPM" with a tachometer reading.
+    /// The card's speed line ("40%") and its tachometer reading (0 when there is none).
     static void set_auto_fan_speed_text(AutoFanCard::SpeedText& speed, int speed_pct,
                                         std::optional<int> rpm);
     void refresh_all_auto_fan_animations();
