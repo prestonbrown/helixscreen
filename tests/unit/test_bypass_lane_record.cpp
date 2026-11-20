@@ -429,6 +429,49 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(spool->material == "ASA");
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a reclaimed bypass record keeps its private copy until lane_data shows it",
+                 "[bypass][lane][extras][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("helix-screen-afc-overrides", "lane3",
+                               bypass_record(2, "ASA", "#101010"));
+    OwnBypassStore store(printer);
+    printer.client.fail_next("server.database.post_item");
+
+    AmsState::instance().init_backend_from_hardware(PrinterDiscovery{}, &printer.api, nullptr);
+    settle();
+
+    CHECK(printer.client.mock_db_get("lane_data", "lane1").is_null());
+    const json kept = printer.client.mock_db_get("helix-screen-afc-overrides", "lane3");
+    REQUIRE(kept.is_object());
+    CHECK(kept["filament_type"] == "ASA");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "two private bypass records: only one is reclaimed",
+                 "[bypass][lane][extras][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("helix-screen-afc-overrides", "lane3",
+                               bypass_record(2, "ASA", "#101010"));
+    printer.client.mock_db_set("helix-screen-hh-overrides", "lane3",
+                               bypass_record(2, "PETG", "#1E5AA8"));
+    OwnBypassStore store(printer);
+
+    AmsState::instance().init_backend_from_hardware(PrinterDiscovery{}, &printer.api, nullptr);
+    settle();
+    settle();
+
+    const json back = printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(back.is_object());
+    const bool afc_left =
+        printer.client.mock_db_get("helix-screen-afc-overrides", "lane3").is_object();
+    const bool hh_left =
+        printer.client.mock_db_get("helix-screen-hh-overrides", "lane3").is_object();
+    // The one taken is gone from its namespace; the other is left alone.
+    CHECK(afc_left != hh_left);
+    CHECK(back["filament_type"] == (afc_left ? "PETG" : "ASA"));
+    CHECK(printer.client.call_count("server.database.post_item") == 1);
+}
+
 // A bypass record written before records named their writer sits at the
 // bypass index unmarked; it is taken over, not treated as a slot's.
 TEST_CASE_METHOD(LVGLTestFixture, "an unmarked writerless record past the lanes is taken over",

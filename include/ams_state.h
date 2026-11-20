@@ -2361,6 +2361,15 @@ class AmsState {
     /// Delete the bypass record from AmsState's own store, if a fresh read
     /// still finds it there. Main thread.
     void delete_own_bypass_copy();
+    /// A private namespace answered reclaim_orphaned_bypass_record() with
+    /// @p found, read on connection @p connection: write its bypass record to
+    /// AmsState's own store. Main thread.
+    void
+    take_orphaned_bypass_record(uint64_t connection, helix::ams::FilamentSlotOverrideStore* source,
+                                const std::unordered_map<int, helix::ams::LaneDataRecord>& found);
+    /// AmsState's own read found @p read: once it shows the reclaimed record,
+    /// delete the private copy. Main thread.
+    void finish_bypass_reclaim(const std::optional<helix::ams::FilamentSlotOverride>& read);
     /// Ask about filament at the toolhead that no lane claims, once per
     /// occurrence (ams::UnclaimedToolheadPromptGate). Main thread.
     void sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
@@ -2799,6 +2808,18 @@ class AmsState {
     bool bypass_reclaim_done_ = false;
     /// The private-namespace stores reclaim_orphaned_bypass_record() reads.
     std::vector<std::unique_ptr<helix::ams::FilamentSlotOverrideStore>> bypass_reclaim_stores_;
+    /// A reclaimed record written to AmsState's store, its private copy kept
+    /// until AmsState's own read shows it.
+    struct BypassReclaim {
+        helix::ams::FilamentSlotOverride record;
+        helix::ams::FilamentSlotOverrideStore* source = nullptr;
+        int slot = -1;
+        std::unordered_map<int, helix::ams::LaneDataRecord> source_read;
+    };
+    std::optional<BypassReclaim> bypass_reclaim_;
+    /// Advanced by every restart_bypass_reads(): a read or reclaim sent on an
+    /// earlier connection is not filed.
+    uint64_t bypass_connection_generation_ = 0;
     helix::ams::UnclaimedToolheadPromptGate unclaimed_toolhead_gate_;
     /// The primary backend's startup frames have had their grace period.
     bool unclaimed_toolhead_grace_over_ = false;

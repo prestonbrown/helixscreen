@@ -156,7 +156,9 @@ void AmsState::restart_bypass_reads() {
     bypass_handover_done_ = false;
     bypass_handover_carried_.reset();
     bypass_reclaim_done_ = false;
+    bypass_reclaim_.reset();
     bypass_reclaim_stores_.clear();
+    ++bypass_connection_generation_;
     bypass_read_in_flight_ = false;
     bypass_read_again_ = false;
     if (api_ == nullptr) {
@@ -190,13 +192,15 @@ void AmsState::refresh_bypass_record() {
     auto token = async_lifetime_.token();
     helix::ams::FilamentSlotOverrideStore* store = bypass_store_.get();
     const uint64_t generation = bypass_write_generation_;
+    const uint64_t connection = bypass_connection_generation_;
     store->reload_async(
-        [token, store, generation](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+        [token, connection,
+         generation](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
             token.defer("AmsState::adopt_bypass_records",
-                        [store, generation, records = std::move(records)]() {
+                        [connection, generation, records = std::move(records)]() {
                             AmsState& self = AmsState::instance();
                             // A reconnect replaced the store while this read was out.
-                            if (self.bypass_store_.get() != store) {
+                            if (self.bypass_connection_generation_ != connection) {
                                 return;
                             }
                             self.bypass_read_in_flight_ = false;
@@ -233,6 +237,7 @@ void AmsState::adopt_bypass_records(
     helix::ams::file_bypass_record(record ? &*record : nullptr);
     bypass_record_read_ = std::move(record);
     bypass_store_read_ = true;
+    finish_bypass_reclaim(bypass_record_read_);
     sync_lane_records_ready();
     refresh_external_spool();
     run_legacy_spool_import();
@@ -280,28 +285,30 @@ void AmsState::delete_own_bypass_copy() {
         return;
     }
     auto token = async_lifetime_.token();
+    const uint64_t connection = bypass_connection_generation_;
     helix::ams::FilamentSlotOverrideStore* store = bypass_store_.get();
     // Read first: the key may name a lane of the firmware's own by now, and only
     // the bypass record is AmsState's to delete.
-    store->reload_async([token,
-                         store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
-        token.defer("AmsState::delete_own_bypass_copy", [store, records = std::move(records)]() {
-            AmsState& self = AmsState::instance();
-            if (self.bypass_store_.get() != store) {
-                return;
-            }
-            const auto found = helix::ams::find_bypass_record(records);
-            if (!found.has_value() || found->first != kOwnBypassIndex) {
-                return;
-            }
-            store->adopt_read(records);
-            store->clear_async(kOwnBypassIndex, [](bool ok, const std::string& err) {
-                if (!ok) {
-                    spdlog::warn("{} deleting the moved record failed: {}", kBypassTag, err);
+    store->reload_async(
+        [token, connection, store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+            token.defer("AmsState::delete_own_bypass_copy", [connection, store,
+                                                             records = std::move(records)]() {
+                AmsState& self = AmsState::instance();
+                if (self.bypass_connection_generation_ != connection) {
+                    return;
                 }
+                const auto found = helix::ams::find_bypass_record(records);
+                if (!found.has_value() || found->first != kOwnBypassIndex) {
+                    return;
+                }
+                store->adopt_read(records);
+                store->clear_async(kOwnBypassIndex, [](bool ok, const std::string& err) {
+                    if (!ok) {
+                        spdlog::warn("{} deleting the moved record failed: {}", kBypassTag, err);
+                    }
+                });
             });
         });
-    });
 }
 
 void AmsState::reclaim_orphaned_bypass_record() {
@@ -311,11 +318,14 @@ void AmsState::reclaim_orphaned_bypass_record() {
     }
     bypass_reclaim_done_ = true;
     auto token = async_lifetime_.token();
+    const uint64_t connection = bypass_connection_generation_;
     helix::ams::FilamentSlotOverrideStore* own = bypass_store_.get();
-    own->reload_async([token, own](std::unordered_map<int, helix::ams::LaneDataRecord> mine) {
-        token.defer("AmsState::reclaim_orphaned_bypass_record", [own, mine = std::move(mine)]() {
+    own->reload_async([token, connection,
+                       own](std::unordered_map<int, helix::ams::LaneDataRecord> mine) {
+        token.defer("AmsState::reclaim_orphaned_bypass_record", [connection, own,
+                                                                 mine = std::move(mine)]() {
             AmsState& self = AmsState::instance();
-            if (self.bypass_store_.get() != own || self.registry_.count() > 0 ||
+            if (self.bypass_connection_generation_ != connection || self.registry_.count() > 0 ||
                 helix::ams::find_bypass_record(mine).has_value()) {
                 return;
             }
@@ -323,41 +333,54 @@ void AmsState::reclaim_orphaned_bypass_record() {
             for (const std::string& ns : AmsBackend::private_lane_record_namespaces()) {
                 auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
                     self.api_, "bypass", helix::ams::LaneKeyStyle::Lane, ns);
-                helix::ams::FilamentSlotOverrideStore* left = store.get();
+                helix::ams::FilamentSlotOverrideStore* source = store.get();
                 self.bypass_reclaim_stores_.push_back(std::move(store));
                 auto inner = self.async_lifetime_.token();
-                left->reload_async([inner, own, left](
-                                       std::unordered_map<int, helix::ams::LaneDataRecord> found) {
-                    inner.defer(
-                        "AmsState::reclaim_orphaned_bypass_record_found",
-                        [own, left, found = std::move(found)]() {
-                            AmsState& self = AmsState::instance();
-                            const auto record = helix::ams::find_bypass_record(found);
-                            // One reclaim per connection: the first namespace that
-                            // answers with a record wins, and the store has it then.
-                            if (self.bypass_store_.get() != own || self.registry_.count() > 0 ||
-                                !record.has_value() || self.bypass_record_read_.has_value()) {
-                                return;
-                            }
-                            spdlog::info("{} no filament system holds the bypass record; taking {} "
-                                         "back from {}",
-                                         kBypassTag, record->second.material,
-                                         left->namespace_name());
-                            self.bypass_record_read_ = record->second;
-                            helix::ams::save_override_async(own, kOwnBypassIndex, record->second,
-                                                            kBypassTag, "Bypass spool",
-                                                            helix::ams::kBypassLaneId);
-                            left->adopt_read(found);
-                            left->clear_async(record->first, [](bool ok, const std::string& err) {
-                                if (!ok) {
-                                    spdlog::warn("{} deleting the reclaimed record failed: {}",
-                                                 kBypassTag, err);
-                                }
-                            });
-                        });
-                });
+                source->reload_async(
+                    [inner, connection,
+                     source](std::unordered_map<int, helix::ams::LaneDataRecord> found) {
+                        inner.defer("AmsState::reclaim_orphaned_bypass_record_found",
+                                    [connection, source, found = std::move(found)]() {
+                                        AmsState::instance().take_orphaned_bypass_record(
+                                            connection, source, found);
+                                    });
+                    });
             }
         });
+    });
+}
+
+void AmsState::take_orphaned_bypass_record(
+    uint64_t connection, helix::ams::FilamentSlotOverrideStore* source,
+    const std::unordered_map<int, helix::ams::LaneDataRecord>& found) {
+    assert_main_thread();
+    const auto record = helix::ams::find_bypass_record(found);
+    // One reclaim per connection: the first namespace that answers with a
+    // record is taken, and a record AmsState has read since stands.
+    if (bypass_connection_generation_ != connection || registry_.count() > 0 ||
+        !record.has_value() || bypass_reclaim_.has_value() || bypass_record_read_.has_value()) {
+        return;
+    }
+    spdlog::info("{} no filament system holds the bypass record; taking {} back from {}",
+                 kBypassTag, record->second.material, source->namespace_name());
+    bypass_reclaim_ = BypassReclaim{record->second, source, record->first, found};
+    // Through the one writer, so a poll read already out cannot file over it.
+    write_bypass_record(&record->second);
+}
+
+void AmsState::finish_bypass_reclaim(const std::optional<helix::ams::FilamentSlotOverride>& read) {
+    // The private copy goes only once AmsState's own read shows the record.
+    if (!bypass_reclaim_.has_value() || !read.has_value() ||
+        !helix::ams::same_bypass_spool(*read, bypass_reclaim_->record)) {
+        return;
+    }
+    BypassReclaim done = std::move(*bypass_reclaim_);
+    bypass_reclaim_.reset();
+    done.source->adopt_read(done.source_read);
+    done.source->clear_async(done.slot, [](bool ok, const std::string& err) {
+        if (!ok) {
+            spdlog::warn("{} deleting the reclaimed record failed: {}", kBypassTag, err);
+        }
     });
 }
 

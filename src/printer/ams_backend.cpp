@@ -52,6 +52,7 @@ struct BackendClassOps {
     AmsBackendRow::Construct construct = nullptr;
     AmsBackendRow::OwnsFilamentSensor owns_filament_sensor = nullptr;
     AmsBackendRow::RequiredStatusObjects required_status_objects = nullptr;
+    const char* private_lane_record_namespace = nullptr;
 };
 
 template <class Backend>
@@ -940,12 +941,12 @@ static std::unique_ptr<AmsBackend> try_create_mock(IMoonrakerClient* mock_client
 
 namespace {
 
-constexpr BackendClassOps kHappyHareOps{construct_backend<AmsBackendHappyHare>,
-                                        AmsBackendHappyHare::owns_filament_sensor,
-                                        AmsBackendHappyHare::required_status_objects};
-constexpr BackendClassOps kAfcOps{construct_backend<AmsBackendAfc>,
-                                  AmsBackendAfc::owns_filament_sensor,
-                                  AmsBackendAfc::required_status_objects};
+constexpr BackendClassOps kHappyHareOps{
+    construct_backend<AmsBackendHappyHare>, AmsBackendHappyHare::owns_filament_sensor,
+    AmsBackendHappyHare::required_status_objects, AmsBackendHappyHare::kOverrideNamespace};
+constexpr BackendClassOps kAfcOps{
+    construct_backend<AmsBackendAfc>, AmsBackendAfc::owns_filament_sensor,
+    AmsBackendAfc::required_status_objects, AmsBackendAfc::kOverrideNamespace};
 constexpr BackendClassOps kOpenAmsOps{construct_backend<AmsBackendOpenAms>, nullptr,
                                       AmsBackendOpenAms::required_status_objects};
 // Sized and wired by set_discovery() before start().
@@ -983,7 +984,8 @@ constexpr AmsBackendRow make_row(AmsType type, const BackendClassOps& ops, bool 
             tool_changer,
             filament_system,
             name_aliases,
-            telemetry_feature};
+            telemetry_feature,
+            ops.private_lane_record_namespace};
 }
 
 // NONE comes first: it answers for a value with no row. AmsBackend::required_status_objects()
@@ -1048,7 +1050,13 @@ bool AmsBackend::sensor_belongs_to_backend(AmsType type, const std::string& bare
 }
 
 std::vector<std::string> AmsBackend::private_lane_record_namespaces() {
-    return {AmsBackendAfc::kOverrideNamespace, AmsBackendHappyHare::kOverrideNamespace};
+    std::vector<std::string> out;
+    for (const auto& row : kBackendRows) {
+        if (row.private_lane_record_namespace != nullptr) {
+            out.emplace_back(row.private_lane_record_namespace);
+        }
+    }
+    return out;
 }
 
 bool AmsBackend::sensor_name_names_filament_system(std::string_view lower_name) {
