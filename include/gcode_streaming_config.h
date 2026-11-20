@@ -110,10 +110,10 @@ std::string get_streaming_config_description();
  *   The preview gate in front of the load prices the STREAMING renderer, so
  *   nothing else stops an oversized full parse.
  *
- * Without the first, a K2 Plus (488 MB, built with ENABLE_GLES_3D=no) opened a
- * 130 MB gcode with "streaming mode: OFF", grew helix-screen to 387 MB RSS and
- * was OOM-killed, while the same file streamed fine from another screen. The
- * second closes the same hole on 3D builds running on low-RAM boards (pi32).
+ * A full parse grows with the file and has no ceiling of its own, so on a
+ * low-RAM board a large file can exhaust memory and get the process
+ * OOM-killed, whether or not the build has 3D. Streaming the same file costs
+ * a bounded layer cache.
  *
  * The opt-out never makes a file stream that would otherwise full-load.
  *
