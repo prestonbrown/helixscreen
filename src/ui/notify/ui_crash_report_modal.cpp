@@ -3,6 +3,7 @@
 
 #include "ui_crash_report_modal.h"
 
+#include "ui_qr_code.h"
 #include "ui_toast_manager.h"
 
 #include "core/subject.h"
@@ -15,12 +16,6 @@
 #include <spdlog/spdlog.h>
 
 #include <lvgl.h>
-
-#if LV_USE_QRCODE
-extern "C" {
-#include "lvgl/src/libs/qrcode/qrcodegen.h"
-}
-#endif
 
 // =============================================================================
 // Static Members
@@ -301,45 +296,16 @@ void CrashReportModal::show_local_fallback(const CrashReporter::CrashReport& rep
 }
 
 void CrashReportModal::show_qr_code(const std::string& url) {
-    // Show the QR container
     lv_subject_set_int(&show_qr_subject_, 1);
-
-    // Find the QR container and create QR code widget
     if (!dialog()) {
         return;
     }
 
-    lv_obj_t* qr_container = lv_obj_find_by_name(dialog(), "qr_container");
-    if (!qr_container) {
-        spdlog::warn("[CrashReportModal] QR container not found");
-        return;
-    }
-
 #if LV_USE_QRCODE
-    lv_obj_t* qr = lv_qrcode_create(qr_container);
-    if (qr) {
-        // Compute exact canvas size to eliminate white margin:
-        // Get QR version for this data, then size canvas to exact multiple of modules
-        int qr_version = qrcodegen_getMinFitVersion(qrcodegen_Ecc_MEDIUM, url.size());
-        int qr_modules = (qr_version > 0) ? qrcodegen_version2size(qr_version) : 0;
-        int target_px = 180;
-        int canvas_size = target_px;
-        if (qr_modules > 0) {
-            int scale = target_px / qr_modules;
-            if (scale < 1)
-                scale = 1;
-            canvas_size = qr_modules * scale;
-        }
-        lv_qrcode_set_size(qr, canvas_size);
-        lv_qrcode_set_quiet_zone(qr, false);
-        lv_qrcode_update(qr, url.c_str(), static_cast<uint32_t>(url.size()));
-        lv_obj_center(qr);
-        spdlog::debug(
-            "[CrashReportModal] QR code created: {} chars, version={}, modules={}, canvas={}px",
-            url.size(), qr_version, qr_modules, canvas_size);
-    }
+    // Whole pixels per module, so the code fills its card edge to edge.
+    helix::ui::create_qr_code(dialog(), url, helix::ui::qr_size_snapped_to_modules(url, 180),
+                              "CrashReportModal");
 #else
-    spdlog::warn("[CrashReportModal] QR code support not compiled in (LV_USE_QRCODE=0)");
     lv_subject_set_string(&status_subject_, lv_tr("Saved to crash_report.txt (QR not available)"));
     (void)url;
 #endif
