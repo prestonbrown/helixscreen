@@ -11,6 +11,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_format_utils.h"
 #include "ui_gradient_canvas.h"
+#include "ui_info_qr_modal.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
 #include "ui_utils.h"
@@ -18,14 +19,17 @@
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
+#include "http_executor.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
 #include "static_panel_registry.h"
+#include "system/process_runner.h"
 #include "system/run_capture.h"
 #include "theme_manager.h"
 #include "thumbnail_cache.h"
 #include "thumbnail_processor.h"
+#include "thumbnail_rules.h"
 #include "timelapse_state.h"
 #include "timelapse_thumbnailer.h"
 #include "ui/ui_widget_helpers.h"
@@ -34,6 +38,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -41,12 +46,17 @@
 #include <ctime>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 // Where a same-host Moonraker keeps its videos when server.files.roots has not
 // answered yet (or names no timelapse root): the stock data_path layout.
 static constexpr const char* kTimelapseDataSubpath = "printer_data/timelapse/";
+
+// A player still running this long after launch has opened its window.
+static constexpr int kPlayerWatchMs = 2000;
+static constexpr uint32_t kPlayerWatchPollMs = 100;
+// One frame from a local file; a run this long is a stuck ffmpeg.
+static constexpr int kFrameExtractTimeoutSec = 10;
 
 static std::string default_timelapse_dir() {
     const char* home = getenv("HOME");
@@ -86,14 +96,7 @@ void helix::ui::open_timelapse_video(const std::string& filename) {
     if (!show_timelapse_videos()) {
         return;
     }
-    auto& overlay = get_global_timelapse_videos();
-    if (!overlay.can_play()) {
-        spdlog::info("[Timelapse Videos] No video player on this host; showing the library for {}",
-                     filename);
-        ui_notification_info(lv_tr("No video player installed - showing the timelapse library"));
-        return;
-    }
-    overlay.play_video(filename);
+    get_global_timelapse_videos().open_video(filename);
 }
 
 bool helix::ui::timelapse_viewer_available() {
@@ -364,9 +367,19 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
     // Invalidate stale thumbnail callbacks from previous grid population
     thumb_lifetime_.invalidate();
 
-    for (const auto& video : videos_) {
-        const char* attrs[] = {"filename", video.filename.c_str(), "file_info",
-                               video.file_info.c_str(), nullptr};
+    for (auto& video : videos_) {
+        // The badge says what a tap does: play here, or hand the video to a phone.
+        const auto action =
+            helix::timelapse::choose_video_open_action(can_play_, phone_url_for(video.filename));
+        const char* badge_icon =
+            action == helix::timelapse::VideoOpenAction::Play ? "play" : "qrcode_scan";
+        const char* badge_hidden =
+            action == helix::timelapse::VideoOpenAction::NoPlayerToast ? "true" : "false";
+        const char* attrs[] = {"filename",     video.filename.c_str(),
+                               "file_info",    video.file_info.c_str(),
+                               "badge_icon",   badge_icon,
+                               "badge_hidden", badge_hidden,
+                               nullptr};
 
         lv_obj_t* card = static_cast<lv_obj_t*>(
             lv_xml_create(video_grid_container_, "timelapse_video_card", attrs));
@@ -400,23 +413,14 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
         lv_obj_add_event_cb(card, on_card_clicked, LV_EVENT_CLICKED, this);
         lv_obj_add_event_cb(card, on_card_long_pressed, LV_EVENT_LONG_PRESSED, this);
 
-        // Show/hide play overlay based on playback capability
-        lv_obj_t* play_overlay = helix::ui::find_required(card, "play_overlay", get_name());
-        if (play_overlay) {
-            if (can_play_) {
-                lv_obj_remove_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
-            } else {
-                lv_obj_add_flag(play_overlay, LV_OBJ_FLAG_HIDDEN);
-            }
-        }
-
         // Load thumbnail (companion image) or show placeholder
-        load_thumbnail_for_card(card, video.filename, available_files);
+        load_thumbnail_for_card(card, video, available_files);
     }
 }
 
-void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::string& filename,
+void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, VideoEntry& video,
                                                      const std::set<std::string>& available_files) {
+    const std::string& filename = video.filename;
     lv_obj_t* thumbnail = helix::ui::find_required(card, "thumbnail", get_name());
     lv_obj_t* no_thumb_icon = helix::ui::find_required(card, "no_thumbnail_icon", get_name());
 
@@ -431,6 +435,8 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
         if (thumbnail) {
             lv_obj_add_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
         }
+        video.needs_frame = true;
+        load_extracted_thumbnail(card, video);
         return;
     }
 
@@ -534,29 +540,7 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const std::
                         if (tok.expired() || !video_grid_container_)
                             return;
 
-                        // Find the card for this filename by scanning children
-                        uint32_t count = lv_obj_get_child_count(video_grid_container_);
-                        for (uint32_t i = 0; i < count; i++) {
-                            lv_obj_t* child =
-                                lv_obj_get_child(video_grid_container_, static_cast<int32_t>(i));
-                            const char* stored_name = helix::ui::get_owned_user_string(child);
-                            if (stored_name && filename_copy == stored_name) {
-                                lv_obj_t* thumb =
-                                    helix::ui::find_required(child, "thumbnail", get_name());
-                                lv_obj_t* icon = helix::ui::find_required(
-                                    child, "no_thumbnail_icon", get_name());
-                                if (thumb) {
-                                    lv_image_set_src(thumb, lvbin_path.c_str());
-                                    lv_obj_remove_flag(thumb, LV_OBJ_FLAG_HIDDEN);
-                                }
-                                if (icon) {
-                                    lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
-                                }
-                                spdlog::debug("[Timelapse Videos] Thumbnail loaded for '{}'",
-                                              filename_copy);
-                                break;
-                            }
-                        }
+                        show_card_thumbnail(find_card(filename_copy), lvbin_path);
                     });
                 },
                 [filename_copy](const std::string& error) {
@@ -577,6 +561,153 @@ void TimelapseVideosOverlay::clear_video_grid() {
         helix::ui::safe_clean_children(video_grid_container_);
     }
     videos_.clear();
+    for (const auto& job : extract_queue_) {
+        extract_pending_.erase(job.key);
+    }
+    extract_queue_.clear();
+}
+
+lv_obj_t* TimelapseVideosOverlay::find_card(const std::string& filename) const {
+    if (!video_grid_container_) {
+        return nullptr;
+    }
+    uint32_t count = lv_obj_get_child_count(video_grid_container_);
+    for (uint32_t i = 0; i < count; i++) {
+        lv_obj_t* child = lv_obj_get_child(video_grid_container_, static_cast<int32_t>(i));
+        const char* stored_name = helix::ui::get_owned_user_string(child);
+        if (stored_name && filename == stored_name) {
+            return child;
+        }
+    }
+    return nullptr;
+}
+
+void TimelapseVideosOverlay::show_card_thumbnail(lv_obj_t* card, const std::string& lvbin_path) {
+    if (!card) {
+        return;
+    }
+    lv_obj_t* thumb = helix::ui::find_required(card, "thumbnail", get_name());
+    lv_obj_t* icon = helix::ui::find_required(card, "no_thumbnail_icon", get_name());
+    if (thumb) {
+        lv_image_set_src(thumb, lvbin_path.c_str());
+        lv_obj_remove_flag(thumb, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (icon) {
+        lv_obj_add_flag(icon, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+// ============================================================================
+// THUMBNAILS EXTRACTED FROM THE VIDEO
+// ============================================================================
+
+void TimelapseVideosOverlay::load_extracted_thumbnail(lv_obj_t* card, const VideoEntry& video) {
+    ThumbnailRequest req;
+    req.key = helix::timelapse::extracted_thumbnail_key(video.filename, video.size, video.modified);
+    req.source = helix::ThumbnailSource::Timelapse;
+    req.target = helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Card);
+
+    std::string cached = get_thumbnail_cache().get_if_cached(req);
+    if (!cached.empty()) {
+        show_card_thumbnail(card, cached);
+        return;
+    }
+
+    helix::timelapse::ThumbnailExtractInputs in;
+    in.has_companion = false;
+    in.ffmpeg_available = has_ffmpeg_;
+    in.moonraker_local = is_local_moonraker_;
+    in.print_active =
+        lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0;
+    in.already_failed = extract_failed_.count(req.key) != 0;
+    if (!helix::timelapse::should_extract_thumbnail(in) || extract_pending_.count(req.key) != 0) {
+        return;
+    }
+    extract_pending_.insert(req.key);
+    extract_queue_.push_back({video.filename, req.key});
+    run_next_extraction();
+}
+
+/// One frame of @p input as a JPEG at @p output: the last, else the first.
+/// BLOCKING: runs ffmpeg, so only on a worker.
+static bool extract_video_frame(const std::string& input, const std::string& output) {
+    for (auto frame :
+         {helix::timelapse::ExtractFrame::Last, helix::timelapse::ExtractFrame::First}) {
+        unlink(output.c_str());
+        helix::CommandResult result = helix::run_process(
+            helix::timelapse::ffmpeg_extract_args(input, output, frame), kFrameExtractTimeoutSec);
+        struct stat st {};
+        if (result.succeeded() && stat(output.c_str(), &st) == 0 && st.st_size > 0) {
+            return true;
+        }
+    }
+    unlink(output.c_str());
+    return false;
+}
+
+void TimelapseVideosOverlay::run_next_extraction() {
+    // One ffmpeg at a time: the printer's few cores also run Klipper.
+    if (extract_busy_ || extract_queue_.empty()) {
+        return;
+    }
+    ExtractJob job = extract_queue_.front();
+    extract_queue_.pop_front();
+    extract_busy_ = true;
+    job.root_known = timelapse_root_known_;
+
+    const std::string input = local_video_path(job.filename);
+    // Its own file: a job that outlives the view cannot overwrite the next one's frame.
+    const std::string output =
+        app_get_runtime_dir() + "/helix_timelapse_frame_" + std::to_string(++extract_seq_) + ".jpg";
+    const std::string cache_key =
+        helix::thumbnail_cache_id(helix::ThumbnailSource::Timelapse, job.key);
+    const auto target =
+        helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Card);
+    // The object's lifetime, not the view's: leaving the overlay mid-job must
+    // still deliver the finish, or extract_busy_ never clears.
+    auto tok = object_lifetime_.token();
+    spdlog::debug("[{}] Extracting a thumbnail from {}", get_name(), input);
+
+    helix::http::HttpExecutor::fast().submit([this, tok, job, input, output, cache_key, target]() {
+        if (!extract_video_frame(input, output)) {
+            tok.defer("TimelapseVideosOverlay::extract_failed",
+                      [this, job]() { finish_extraction(job, {}); });
+            return;
+        }
+        helix::ThumbnailProcessor::instance().process_file_async(
+            output, cache_key, target,
+            [this, tok, job, output](const std::string& lvbin_path) {
+                unlink(output.c_str());
+                tok.defer("TimelapseVideosOverlay::extract_done",
+                          [this, job, lvbin_path]() { finish_extraction(job, lvbin_path); });
+            },
+            [this, tok, job, output](const std::string&) {
+                unlink(output.c_str());
+                tok.defer("TimelapseVideosOverlay::extract_failed",
+                          [this, job]() { finish_extraction(job, {}); });
+            });
+    });
+}
+
+void TimelapseVideosOverlay::finish_extraction(const ExtractJob& job,
+                                               const std::string& lvbin_path) {
+    extract_busy_ = false;
+    extract_pending_.erase(job.key);
+    if (lvbin_path.empty()) {
+        // Before Moonraker names its timelapse root the path is the stock
+        // layout's guess; that miss is retried once the root is known.
+        if (!job.root_known) {
+            spdlog::debug("[{}] No frame from {} at the default path; retrying once the "
+                          "timelapse root is known",
+                          get_name(), job.filename);
+        } else if (extract_failed_.insert(job.key).second) {
+            spdlog::debug("[{}] No thumbnail could be extracted from {}", get_name(), job.filename);
+        }
+    } else {
+        spdlog::debug("[{}] Extracted thumbnail for {}", get_name(), job.filename);
+        show_card_thumbnail(find_card(job.filename), lvbin_path);
+    }
+    run_next_extraction();
 }
 
 // ============================================================================
@@ -587,33 +718,41 @@ void TimelapseVideosOverlay::detect_playback_capability() {
     // Cache detection results: player availability doesn't change at runtime
     static bool detected = false;
     static bool cached_can_play = false;
+    static bool cached_has_ffmpeg = false;
     static std::string cached_player;
 
     if (!detected) {
         detected = true;
+        auto on_path = [](const char* program) {
+            int exit_code = -1;
+            return !helix::run_capture(std::string("which ") + program + " 2>/dev/null", exit_code)
+                        .empty();
+        };
 
         // Check for available players (only once per process)
         for (const char* player : {"mpv", "ffplay"}) {
-            int exit_code = -1;
-            if (!helix::run_capture(std::string("which ") + player + " 2>/dev/null", exit_code)
-                     .empty()) {
+            if (on_path(player)) {
                 cached_player = player;
                 cached_can_play = true;
                 break;
             }
         }
+        cached_has_ffmpeg = on_path("ffmpeg");
     }
 
     can_play_ = cached_can_play;
+    has_ffmpeg_ = cached_has_ffmpeg;
     player_command_ = cached_player;
 
     // Remote vs same-host playback path follows the live connection verdict
-    // (moonraker_is_remote subject) — replaces the hand-rolled websocket-URL
-    // parse + loopback-literal check this function used to carry.
+    // (moonraker_is_remote subject).
     is_local_moonraker_ = !get_printer_state().is_moonraker_remote();
+    lan_ipv4_ = helix::select_lan_ipv4(helix::local_interface_ips());
 
-    spdlog::debug("[{}] Playback capability: can_play={} player='{}' local={}", get_name(),
-                  can_play_, player_command_, is_local_moonraker_);
+    spdlog::info("[{}] Playback capability: can_play={} player='{}' ffmpeg={} local={} "
+                 "lan_ip='{}'",
+                 get_name(), can_play_, player_command_, has_ffmpeg_, is_local_moonraker_,
+                 lan_ipv4_);
 }
 
 // ============================================================================
@@ -630,8 +769,9 @@ void TimelapseVideosOverlay::fetch_timelapse_root() {
         [this, tok](const std::vector<FileRoot>& roots) {
             tok.defer([this, roots]() { apply_timelapse_root(roots); });
         },
-        [](const MoonrakerError& error) {
+        [this, tok](const MoonrakerError& error) {
             spdlog::debug("[Timelapse Videos] server.files.roots unavailable: {}", error.message);
+            tok.defer([this]() { settle_timelapse_root(); });
         });
 }
 
@@ -640,10 +780,26 @@ void TimelapseVideosOverlay::apply_timelapse_root(const std::vector<FileRoot>& r
     if (path.empty()) {
         spdlog::debug("[{}] No timelapse root reported; using {}", get_name(),
                       default_timelapse_dir());
+    } else {
+        timelapse_root_ = path;
+        spdlog::debug("[{}] Timelapse root: {}", get_name(), timelapse_root_);
+    }
+    settle_timelapse_root();
+}
+
+void TimelapseVideosOverlay::settle_timelapse_root() {
+    if (timelapse_root_known_) {
         return;
     }
-    timelapse_root_ = path;
-    spdlog::debug("[{}] Timelapse root: {}", get_name(), timelapse_root_);
+    timelapse_root_known_ = true;
+    // A frame missed at the guessed default path gets another try at the real one.
+    for (const auto& video : videos_) {
+        if (video.needs_frame) {
+            if (lv_obj_t* card = find_card(video.filename)) {
+                load_extracted_thumbnail(card, video);
+            }
+        }
+    }
 }
 
 std::string TimelapseVideosOverlay::local_video_path(const std::string& filename) const {
@@ -654,37 +810,99 @@ std::string TimelapseVideosOverlay::local_video_path(const std::string& filename
     return dir + filename;
 }
 
-/// Launch a child process via double-fork to prevent zombie processes.
-/// The grandchild is adopted by init so no waitpid is needed long-term.
-static void spawn_detached(const std::vector<std::string>& args) {
-    if (args.empty())
-        return;
+std::string TimelapseVideosOverlay::phone_url_for(const std::string& filename) const {
+    if (!api_) {
+        return {};
+    }
+    return helix::timelapse::phone_video_url(api_->get_http_base_url(), filename, lan_ipv4_);
+}
 
-    pid_t pid = fork();
-    if (pid < 0) {
-        spdlog::error("[Timelapse Videos] fork() failed for video playback");
+void TimelapseVideosOverlay::open_video(const std::string& filename) {
+    const std::string url = phone_url_for(filename);
+    switch (helix::timelapse::choose_video_open_action(can_play_, url)) {
+    case helix::timelapse::VideoOpenAction::Play:
+        play_video(filename);
+        return;
+    case helix::timelapse::VideoOpenAction::PhoneQr:
+        spdlog::info("[{}] No video player on this host; offering {} to a phone", get_name(),
+                     filename);
+        show_phone_fallback(filename,
+                            lv_tr("This printer has no video player. Scan the code with your "
+                                  "phone to watch the timelapse."),
+                            lv_tr("No video player on this printer"));
+        return;
+    case helix::timelapse::VideoOpenAction::NoPlayerToast:
+        spdlog::warn("[{}] No video player on this host and no LAN address for a phone; "
+                     "cannot open {}",
+                     get_name(), filename);
+        ui_notification_warning(lv_tr("No video player on this printer"));
         return;
     }
-    if (pid == 0) {
-        // First child: fork again and exit immediately
-        pid_t pid2 = fork();
-        if (pid2 < 0)
-            _exit(127);
-        if (pid2 > 0)
-            _exit(0); // First child exits; grandchild continues
+}
 
-        // Grandchild: exec the player
-        std::vector<const char*> argv;
-        argv.reserve(args.size() + 1);
-        for (const auto& a : args)
-            argv.push_back(a.c_str());
-        argv.push_back(nullptr);
-        execvp(argv[0], const_cast<char* const*>(argv.data()));
-        _exit(127);
+void TimelapseVideosOverlay::show_phone_fallback(const std::string& filename,
+                                                 const std::string& message,
+                                                 const std::string& no_url_toast) {
+    const std::string url = phone_url_for(filename);
+    if (url.empty()) {
+        ui_notification_warning(no_url_toast.c_str());
+        return;
     }
-    // Parent: reap the first child (exits immediately)
-    int status = 0;
-    waitpid(pid, &status, 0);
+    helix::ui::InfoQrModal::Config config;
+    config.icon = "qrcode_scan";
+    config.title = lv_tr("Watch on Your Phone");
+    config.message = message;
+    config.url = url;
+    config.url_text = url;
+    if (!helix::ui::InfoQrModal::show_owned(std::move(config))) {
+        spdlog::warn("[{}] QR modal failed to open for {}", get_name(), filename);
+        ui_notification_warning(no_url_toast.c_str());
+    }
+}
+
+void TimelapseVideosOverlay::launch_player(const std::vector<std::string>& args,
+                                           const std::string& filename) {
+    auto watch = helix::timelapse::spawn_watched_player(args, kPlayerWatchMs);
+    if (!watch) {
+        spdlog::error("[{}] Could not start {}: {}", get_name(), args.front(), strerror(errno));
+        ui_notification_warning(lv_tr("Video player failed to start"));
+        return;
+    }
+    player_watches_.push_back({*watch, filename});
+    if (!player_watch_timer_.get()) {
+        player_watch_timer_.reset(lv_timer_create(
+            [](lv_timer_t* t) {
+                static_cast<TimelapseVideosOverlay*>(lv_timer_get_user_data(t))
+                    ->poll_player_watches();
+            },
+            kPlayerWatchPollMs, this));
+    }
+}
+
+void TimelapseVideosOverlay::poll_player_watches() {
+    for (auto it = player_watches_.begin(); it != player_watches_.end();) {
+        const auto poll = helix::timelapse::poll_player_watch(it->watch);
+        if (poll.state == helix::timelapse::PlayerWatchState::Pending) {
+            ++it;
+            continue;
+        }
+        if (poll.state == helix::timelapse::PlayerWatchState::Exited &&
+            helix::timelapse::player_exit_failed(poll.wait_status)) {
+            const std::string how = helix::timelapse::describe_wait_status(poll.wait_status);
+            spdlog::warn("[{}] Video player for {} quit right after launch ({})", get_name(),
+                         it->filename, how);
+            show_phone_fallback(
+                it->filename,
+                fmt::format(lv_tr("The video player could not start on this printer ({}). Scan "
+                                  "the code with your phone to watch the timelapse."),
+                            how),
+                fmt::format(lv_tr("Video player failed to start ({})"), how));
+        }
+        it = player_watches_.erase(it);
+    }
+    if (player_watches_.empty()) {
+        player_watch_timer_.reset();
+    }
 }
 
 void TimelapseVideosOverlay::play_video(const std::string& filename) {
@@ -699,7 +917,7 @@ void TimelapseVideosOverlay::play_video(const std::string& filename) {
         std::string path = local_video_path(filename);
         auto args = helix::timelapse::build_player_args(player_command_, path);
         spdlog::info("[{}] Playing local video: {} {}", get_name(), args[0], path);
-        spawn_detached(args);
+        launch_player(args, filename);
     } else {
         // Remote: download to /tmp then play
         if (!api_)
@@ -718,12 +936,12 @@ void TimelapseVideosOverlay::play_video(const std::string& filename) {
 
         api_->transfers().download_file_to_path(
             "timelapse", filename, dest_path,
-            [this, tok, dest_path, player](const std::string& /*path*/) {
-                tok.defer([this, dest_path, player]() {
+            [this, tok, dest_path, player, filename](const std::string& /*path*/) {
+                tok.defer([this, dest_path, player, filename]() {
                     auto args = helix::timelapse::build_player_args(player, dest_path);
                     spdlog::info("[{}] Playing downloaded video: {} {}", get_name(), args[0],
                                  dest_path);
-                    spawn_detached(args);
+                    launch_player(args, filename);
                 });
             },
             [](const MoonrakerError& error) {
@@ -800,10 +1018,7 @@ void TimelapseVideosOverlay::on_card_clicked(lv_event_t* e) {
         return;
 
     spdlog::debug("[Timelapse Videos] Card clicked: {}", filename);
-
-    if (self->can_play_) {
-        self->play_video(filename);
-    }
+    self->open_video(filename);
 }
 
 void TimelapseVideosOverlay::on_card_long_pressed(lv_event_t* e) {

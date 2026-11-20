@@ -564,7 +564,7 @@ void DisplayBackendDRM::request_full_upload() {
 
 lv_indev_t* DisplayBackendDRM::create_input_pointer() {
     open_pointer_devices();
-    return hook_pointer_devices();
+    return hook_pointer_devices(false);
 }
 
 lv_indev_t* DisplayBackendDRM::reopen_input_pointer() {
@@ -577,17 +577,23 @@ lv_indev_t* DisplayBackendDRM::reopen_input_pointer() {
         }
         spdlog::info("[DRM Backend] Touch device reopened on {}", pointer_path_);
     }
-    return hook_pointer_devices();
+    return hook_pointer_devices(true);
 }
 
-lv_indev_t* DisplayBackendDRM::hook_pointer_devices() {
+lv_indev_t* DisplayBackendDRM::hook_pointer_devices(bool reopening) {
     // The calibration wrapper places its affine on a panel-space sample, so it
     // has to sit beneath the pointer frame hook. Device opening installs it for a
     // discovered touch panel; every other path installs it here, a passthrough
-    // until a valid calibration is set.
+    // until a valid calibration is set. A reopened device keeps the calibration
+    // live when the old one dropped.
     if (pointer_ != nullptr && !calibration_wrapper_installed_) {
-        helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
-                                           screen_width_, screen_height_);
+        if (reopening) {
+            helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
+                                                 screen_height_);
+        } else {
+            helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                               screen_width_, screen_height_);
+        }
         calibration_wrapper_installed_ = true;
     }
 
@@ -632,29 +638,18 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
     // A reopen retries every second while the device is away; only its success is news.
     const auto announce = reopening ? spdlog::level::debug : spdlog::level::info;
 
-    std::string device_override;
-
-    // Priority 1: Environment variable override (for debugging/testing)
-    const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
-    if (env_device && env_device[0] != '\0') {
-        device_override = env_device;
-        spdlog::log(announce, "[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}",
+    // Priority 1 and 2: HELIX_TOUCH_DEVICE (for debugging/testing), then the config file
+    const helix::input::TouchDeviceOverride touch_override = helix::input::touch_device_override();
+    const std::string& device_override = touch_override.path;
+    if (!device_override.empty()) {
+        spdlog::log(announce, "[DRM Backend] Using touch device from {}: {}", touch_override.source,
                     device_override);
-    }
-
-    // Priority 2: Config file override
-    if (device_override.empty()) {
-        helix::Config* cfg = helix::Config::get_instance();
-        device_override = cfg->get<std::string>("/input/touch_device", "");
-        if (!device_override.empty()) {
-            spdlog::log(announce, "[DRM Backend] Using touch device from config: {}",
-                        device_override);
-        }
     }
 
     // While a re-enumerating device is away its node is missing; trying to open
     // it would log a driver error every retry.
-    if (reopening && !device_override.empty() && access(device_override.c_str(), F_OK) != 0) {
+    if (reopening && !device_override.empty() &&
+        !helix::input::find_touch_reopen_path(device_override)) {
         return true;
     }
 
@@ -1016,8 +1011,15 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
                 };
             }
 
-            helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
-                                               screen_width_, screen_height_);
+            // A reopened device keeps the calibration live when the old one dropped,
+            // a capture's disabled affine included.
+            if (reopening) {
+                helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
+                                                     screen_height_);
+            } else {
+                helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                                   screen_width_, screen_height_);
+            }
             calibration_wrapper_installed_ = true;
 
             // Record the pipeline exactly as programmed above, so a debug bundle

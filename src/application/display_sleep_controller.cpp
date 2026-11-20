@@ -524,6 +524,12 @@ void DisplaySleepController::restore_display_output() {
         // Software path: remove the black overlay (no FBIOBLANK to undo).
         destroy_sleep_overlay();
     }
+
+    // Only after the power-on above: the panel this wake brings back was powered off.
+    if (m_stop_power_off_on_wake) {
+        m_stop_power_off_on_wake = false;
+        m_use_power_off = false;
+    }
 }
 
 void DisplaySleepController::wake() {
@@ -625,6 +631,29 @@ bool DisplaySleepController::note_press(int x, int y) {
     spdlog::info("[DisplaySleep] Wake touch at ({},{}) while {}: swallowed until release", x, y,
                  m_display_sleeping ? "sleeping" : "dimmed");
     return true;
+}
+
+void DisplaySleepController::note_pointer_lost(bool power_off_explicit) {
+    if (!pointer_loss_ends_power_off(m_display_sleeping, m_last_sleep_mechanism)) {
+        return;
+    }
+    // The next tick wakes, as for a touch: the panel powers on and the touch device can
+    // come back for DisplayManager's pointer reopen.
+    m_wake_requested = true;
+    if (m_stop_power_off_on_wake) {
+        return;
+    }
+    m_stop_power_off_on_wake = true;
+    if (power_off_explicit) {
+        spdlog::warn("[DisplaySleep] Touch device lost while the panel was powered off: its "
+                     "touch controller drops when the panel powers off. Waking, and "
+                     "overriding /display/panel_power_off for this session; set it to 0 in "
+                     "settings.json to stop powering the panel off");
+    } else {
+        spdlog::warn("[DisplaySleep] Touch device lost while the panel was powered off; "
+                     "waking, and panel power-off is disabled for this session. Set "
+                     "/display/panel_power_off to 0 in settings.json to make it permanent");
+    }
 }
 
 #if HELIX_ENABLE_SCREENSAVER

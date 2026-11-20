@@ -234,4 +234,23 @@ inline bool host_sleep_needs_wake(bool sleeping_via_host, int resume_seq_at_slee
     return sleeping_via_host && resume_seq_now != resume_seq_at_sleep;
 }
 
+/**
+ * @brief Whether LVGL deleting the touch pointer shows that panel power-off cannot
+ *        work on this panel (prestonbrown/helixscreen#2069). Pure.
+ *
+ * A panel whose touch controller is powered from the panel board drops it off
+ * the bus when the panel is powered down, and it comes back only when the panel
+ * is powered on. Touch is then the one wake path that cannot work. A pointer
+ * lost while asleep under panel power-off therefore wakes the display so the
+ * device can return, and the panel sleeps another way for the rest of the
+ * session, or every sleep would end the same way. That holds even when the user
+ * chose power-off through /display/panel_power_off: on this panel it cannot work.
+ *
+ * @param sleeping  The display is asleep
+ * @param mechanism How the current (or last) sleep cut the panel
+ */
+inline bool pointer_loss_ends_power_off(bool sleeping, SleepMechanism mechanism) {
+    return sleeping && mechanism == SleepMechanism::PanelPowerOff;
+}
+
 } // namespace helix

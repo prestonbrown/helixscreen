@@ -2553,6 +2553,7 @@ translations:
   No vendors found: ベンダーが見つかりません
   No verified bypass command for this CFS firmware: 'この CFS ファームウェアには検証済みのバイパスコマンドがありません'
   No video player installed - showing the timelapse library: '動画プレーヤーがありません – タイムラプス一覧を表示します'
+  No video player on this printer: 'このプリンターには動画プレーヤーがありません'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "ウェブカメラが検出されませんでした。\nタイムラプスにはウェブカメラが必要です。"
   No widgets found: ウィジェットが見つかりません
@@ -4087,6 +4088,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   Theme: テーマ
   Theme Colors: テーマカラー
   Theme Preset: テーマプリセット
@@ -4160,6 +4162,7 @@ translations:
   This printer has no IFS.: "このプリンターにはIFSがありません。"
   This printer has no INDX LOAD_FILAMENT macro: "このプリンターにはINDXのLOAD_FILAMENTマクロがありません"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'このプリンターには動画プレーヤーがありません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
@@ -4474,6 +4477,8 @@ translations:
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
   Video playback speed: 動画再生速度
+  Video player failed to start: '動画プレーヤーを起動できませんでした'
+  Video player failed to start ({}): '動画プレーヤーを起動できませんでした（{}）'
   View: 表示
   View Changelog: 変更履歴を表示
   View Full History: 全履歴を表示
@@ -4522,6 +4527,7 @@ translations:
   Warning: 警告
   Warnings & errors: '警告とエラー'
   Watch and control this screen from a browser: 'ブラウザからこの画面を表示・操作'
+  Watch on Your Phone: 'スマートフォンで見る'
   Watch the camera during a print for failed prints: 印刷中にカメラで印刷失敗を監視します
   Watch which motor turns: "どのモーターが回るか見てください"
   Weak battery: バッテリー残量低下

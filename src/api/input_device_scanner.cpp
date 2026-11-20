@@ -226,7 +226,7 @@ PointerKind classify_pointer_capabilities(const std::string& abs_caps, const std
     return PointerKind::PanelAbsolute;
 }
 
-PointerKind pointer_kind_for_device(const std::string& device_path, const std::string& sysfs_base) {
+int event_number_for_device(const std::string& device_path) {
     // Resolve links such as /dev/input/by-id/*, whose names say nothing about the node.
     char resolved[PATH_MAX];
     const char* node_path =
@@ -236,6 +236,14 @@ PointerKind pointer_kind_for_device(const std::string& device_path, const std::s
 
     int event_num = -1;
     if (sscanf(node, "event%d", &event_num) != 1 || event_num < 0) {
+        return -1;
+    }
+    return event_num;
+}
+
+PointerKind pointer_kind_for_device(const std::string& device_path, const std::string& sysfs_base) {
+    const int event_num = event_number_for_device(device_path);
+    if (event_num < 0) {
         return PointerKind::PanelAbsolute;
     }
     return classify_pointer_capabilities(read_sysfs_capability(sysfs_base, event_num, "abs"),
@@ -372,6 +380,34 @@ std::optional<ScannedDevice> find_touch_device(const std::string& dev_base,
 
 std::optional<ScannedDevice> find_touch_device() {
     return find_touch_device("/dev/input", "/sys/class/input");
+}
+
+TouchDeviceOverride touch_device_override() {
+    const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
+    if (env_device != nullptr && env_device[0] != '\0') {
+        return {env_device, "HELIX_TOUCH_DEVICE"};
+    }
+    return {Config::get_instance()->get<std::string>("/input/touch_device", ""), "config"};
+}
+
+std::optional<std::string> find_touch_reopen_path(const std::string& override_path,
+                                                  const std::string& dev_base,
+                                                  const std::string& sysfs_base) {
+    if (!override_path.empty()) {
+        if (access(override_path.c_str(), F_OK) != 0) {
+            return std::nullopt;
+        }
+        return override_path;
+    }
+    auto touch = find_touch_device(dev_base, sysfs_base);
+    if (!touch) {
+        return std::nullopt;
+    }
+    return touch->path;
+}
+
+std::optional<std::string> find_touch_reopen_path(const std::string& override_path) {
+    return find_touch_reopen_path(override_path, "/dev/input", "/sys/class/input");
 }
 
 std::optional<ScannedDevice> find_keyboard_device(const std::string& dev_base,

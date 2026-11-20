@@ -441,6 +441,7 @@ bool DisplayManager::init(const Config& config) {
     {
         int power_off_override =
             helix::Config::get_instance()->get<int>("/display/panel_power_off", -1);
+        m_power_off_explicit = power_off_override >= 0;
         if (power_off_override >= 0) {
             use_power_off = (power_off_override != 0) && backend_can_power_off;
             spdlog::info("[DisplayManager] Display power-off: {} (config override)", use_power_off);
@@ -664,7 +665,13 @@ void DisplayManager::watch_pointer() {
 
 void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) {
     auto* dm = static_cast<DisplayManager*>(ctx);
-    if (dm->m_shutting_down || !dm->m_backend || dm->m_pointer_reopen_timer.get()) {
+    if (dm->m_shutting_down || !dm->m_backend) {
+        return;
+    }
+    // Before the retry: a panel that powers its touch controller has to be lit for the
+    // device to come back at all.
+    dm->m_sleep.note_pointer_lost(dm->m_power_off_explicit);
+    if (dm->m_pointer_reopen_timer.get()) {
         return;
     }
     if (!dm->m_backend->can_reopen_input_pointer()) {

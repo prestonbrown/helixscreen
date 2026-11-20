@@ -153,6 +153,12 @@ void save_touch_range(const TouchRangeSettings& range);
 void install_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
                                  const TouchCalibration& cal, int screen_w, int screen_h);
 
+/// install_calibration_wrapper() for a device reopened after LVGL deleted the one
+/// ctx served: the new device reads with the calibration ctx has live, so an
+/// affine a calibration capture disabled stays off for the rest of the capture.
+void reinstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx, int screen_w,
+                                   int screen_h);
+
 /// Tear down the wrapper installed by install_calibration_wrapper(): silence the
 /// calibrated read callback on `indev` and drop the active-context handle if it
 /// still refers to `ctx`. Call from the backend destructor before ctx is

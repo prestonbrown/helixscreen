@@ -26,7 +26,8 @@
       <text_body width="100%" text="$message" long_mode="wrap" style_text_align="center"/>
       <!-- QR code inserted programmatically for adaptive sizing -->
       <lv_obj name="qr_container" width="content" height="content" style_pad_all="0" style_border_width="0"/>
-      <text_small text="$url_text" style_text_color="#text_muted"/>
+      <text_small width="100%"
+                  text="$url_text" long_mode="wrap" style_text_align="center" style_text_color="#text_muted"/>
     </lv_obj>
     <modal_button_row hide_secondary="true"
                       primary_name="btn_ok" primary_text="OK" primary_callback="on_modal_ok_clicked"/>

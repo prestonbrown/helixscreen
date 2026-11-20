@@ -107,3 +107,21 @@ TEST_CASE("extract_host_from_websocket_url edge cases", "[host_identity]") {
         REQUIRE(helix::extract_host_from_websocket_url("ws://localhost") == "localhost");
     }
 }
+
+TEST_CASE("extract_host_from_url reads http and websocket URLs", "[host_identity]") {
+    CHECK(helix::extract_host_from_url("http://192.168.1.100:7125") == "192.168.1.100");
+    CHECK(helix::extract_host_from_url("https://printer.local/moonraker") == "printer.local");
+    CHECK(helix::extract_host_from_url("http://[::1]:7125") == "::1");
+    CHECK(helix::extract_host_from_url("ws://localhost:7125/websocket") == "localhost");
+    CHECK(helix::extract_host_from_url("ftp://printer.local").empty());
+    CHECK(helix::extract_host_from_url("").empty());
+}
+
+TEST_CASE("is_loopback_host names this machine's loopback only", "[host_identity]") {
+    CHECK(helix::is_loopback_host("localhost"));
+    CHECK(helix::is_loopback_host("LocalHost"));
+    CHECK(helix::is_loopback_host("127.0.0.1"));
+    CHECK(helix::is_loopback_host("::1"));
+    CHECK_FALSE(helix::is_loopback_host("192.168.1.5"));
+    CHECK_FALSE(helix::is_loopback_host("localhost.example.com"));
+}

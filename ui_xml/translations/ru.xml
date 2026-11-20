@@ -2508,6 +2508,7 @@
   <translation tag="No vendors found" ru="Производители не найдены"/>
   <translation tag="No verified bypass command for this CFS firmware" ru="Нет проверенной команды обхода для этой прошивки CFS"/>
   <translation tag="No video player installed - showing the timelapse library" ru="Видеоплеер не установлен – показана библиотека таймлапсов"/>
+  <translation tag="No video player on this printer" ru="На этом принтере нет видеоплеера"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." ru="Веб-камера не обнаружена.&#10;Для таймлапса необходима веб-камера."/>
   <translation tag="No widgets found" ru="Виджеты не найдены"/>
   <translation tag="No width sensor detected" ru="Датчик диаметра не обнаружен"/>
@@ -3996,6 +3997,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ru="Встроенная память блока вышла из строя. Требуется замена материнской платы CFS"/>
   <translation tag="The unload did not start: unload by hand, then start again" ru="Выгрузка не началась: выгрузите вручную и начните заново"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ru="Выгрузка завершится сама, но стол не будет перемещаться."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ru="Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="Theme" ru="Тема"/>
   <translation tag="Theme Colors" ru="Цвета темы"/>
   <translation tag="Theme Preset" ru="Пресет темы"/>
@@ -4054,6 +4056,7 @@
   <translation tag="This printer has no IFS." ru="У этого принтера нет IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" ru="На этом принтере нет макроса INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." ru="На этом принтере нет видеоплеера. Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
@@ -4361,6 +4364,8 @@
   <translation tag="Vibration" ru="Вибрация"/>
   <translation tag="Vibration compensation active" ru="Компенсация вибраций активна"/>
   <translation tag="Video playback speed" ru="Скорость воспроизведения видео"/>
+  <translation tag="Video player failed to start" ru="Не удалось запустить видеоплеер"/>
+  <translation tag="Video player failed to start ({})" ru="Не удалось запустить видеоплеер ({})"/>
   <translation tag="View" ru="Просмотр"/>
   <translation tag="View Changelog" ru="Просмотр изменений"/>
   <translation tag="View Full History" ru="Просмотреть полную историю"/>
@@ -4409,6 +4414,7 @@
   <translation tag="Warning" ru="Предупреждение"/>
   <translation tag="Warnings &amp; errors" ru="Предупреждения и ошибки"/>
   <translation tag="Watch and control this screen from a browser" ru="Просмотр и управление этим экраном из браузера"/>
+  <translation tag="Watch on Your Phone" ru="Смотреть на телефоне"/>
   <translation tag="Watch the camera during a print for failed prints" ru="Следит за камерой во время печати, выявляя неудачные печати"/>
   <translation tag="Watch which motor turns" ru="Смотрите, какой двигатель вращается"/>
   <translation tag="Weak battery" ru="Слабый заряд"/>

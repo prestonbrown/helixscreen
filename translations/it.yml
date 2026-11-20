@@ -2687,6 +2687,7 @@ translations:
   No vendors found: Nessun fornitore trovato
   No verified bypass command for this CFS firmware: 'Nessun comando bypass verificato per questo firmware CFS'
   No video player installed - showing the timelapse library: 'Nessun lettore video installato – viene mostrata la libreria timelapse'
+  No video player on this printer: 'Nessun lettore video su questa stampante'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Nessuna webcam rilevata.\nUna webcam è necessaria per il timelapse."
   No widgets found: Nessun widget trovato
@@ -4306,6 +4307,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La memoria interna dell'unità è guasta. La scheda madre del CFS va sostituita
   'The unload did not start: unload by hand, then start again': 'Lo scarico non è partito: scarica a mano, poi ricomincia'
   The unload finishes on its own, but the plate will not move.: 'Lo scaricamento termina da solo, ma il piano non si sposterà.'
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Il lettore video non è riuscito ad avviarsi su questa stampante ({}). Scansiona il codice con il telefono per guardare il timelapse.'
   Theme: Tema
   Theme Colors: Colori tema
   Theme Preset: Preset tema
@@ -4385,6 +4387,7 @@ translations:
   This printer has no IFS.: "Questa stampante non ha l'IFS."
   This printer has no INDX LOAD_FILAMENT macro: "Questa stampante non ha la macro INDX LOAD_FILAMENT"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Questa stampante non ha lo scarico automatico. Taglia il filamento sulla testina ed estrailo a mano.
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'Questa stampante non ha un lettore video. Scansiona il codice con il telefono per guardare il timelapse.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Questa stampante non ha il comando {}, quindi l''offset Z non può essere salvato.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Questa stampante sembra una {} (affidabilità {}%), ma è configurata come {}. Un tipo errato applica opzioni pre-stampa e preset errati.
@@ -4718,6 +4721,8 @@ translations:
   Vibration: Vibrazione
   Vibration compensation active: Compensazione vibrazione attiva
   Video playback speed: Velocità riproduzione video
+  Video player failed to start: 'Impossibile avviare il lettore video'
+  Video player failed to start ({}): 'Impossibile avviare il lettore video ({})'
   View: Visualizza
   View Changelog: Visualizza Modifiche
   View Full History: Visualizza cronologia completa
@@ -4768,6 +4773,7 @@ translations:
   Warning: Avviso
   Warnings & errors: 'Avvisi ed errori'
   Watch and control this screen from a browser: 'Visualizza e controlla questo schermo da un browser'
+  Watch on Your Phone: 'Guarda sul telefono'
   Watch the camera during a print for failed prints: Controlla la telecamera durante la stampa per individuare stampe non riuscite
   Watch which motor turns: "Guarda quale motore gira"
   Weak battery: Batteria scarica

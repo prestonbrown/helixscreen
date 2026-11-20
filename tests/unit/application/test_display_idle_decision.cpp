@@ -351,3 +351,25 @@ TEST_CASE("wake_should_auto_lock truth table", "[display][idle_decision]") {
               r.want);
     }
 }
+
+TEST_CASE("pointer_loss_ends_power_off truth table", "[display][idle_decision][2069]") {
+    using helix::SleepMechanism;
+    struct LossRow {
+        const char* label;
+        bool sleeping;
+        SleepMechanism mechanism;
+        bool want;
+    };
+    const LossRow rows[] = {
+        {"lost while the panel is powered off", true, SleepMechanism::PanelPowerOff, true},
+        {"lost under the overlay: the panel stays powered", true, SleepMechanism::SoftwareOverlay,
+         false},
+        {"lost under a hardware blank", true, SleepMechanism::HardwareBlank, false},
+        {"lost under host sleep", true, SleepMechanism::HostSleep, false},
+        {"lost while awake after a power-off sleep", false, SleepMechanism::PanelPowerOff, false},
+    };
+    for (const auto& r : rows) {
+        INFO(r.label);
+        CHECK(helix::pointer_loss_ends_power_off(r.sleeping, r.mechanism) == r.want);
+    }
+}

@@ -3,13 +3,17 @@
 
 #pragma once
 
+#include "ui_timer_guard.h"
+
 #include "async_lifetime_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 #include "thumbnail_cache.h"
+#include "timelapse_thumbnailer.h"
 
+#include <deque>
 #include <set>
 #include <string>
 #include <vector>
@@ -42,10 +46,21 @@ class TimelapseVideosOverlay : public OverlayBase {
     }
 
     /**
+     * @brief What a tap on a video does: play it, or offer it to a phone
+     *
+     * Follows helix::timelapse::choose_video_open_action(): the detected player
+     * when there is one, else a QR code of the video's URL, else a toast saying
+     * there is neither. Every entry point that opens a video comes through here.
+     */
+    void open_video(const std::string& filename);
+
+    /**
      * @brief Play one video through the detected player
      *
      * Downloads first when Moonraker is remote. Without a player (no mpv or
      * ffplay on the host) this logs and returns; can_play() says so up front.
+     * A player that exits with an error within two seconds of launch gets a
+     * toast and the phone fallback.
      */
     void play_video(const std::string& filename);
 
@@ -59,6 +74,7 @@ class TimelapseVideosOverlay : public OverlayBase {
         std::string file_info; // "12.4 MB · Mar 12"
         uint64_t size = 0;
         double modified = 0.0;
+        bool needs_frame = false; ///< no companion preview; a frame is extracted instead
     };
 
     void fetch_frame_info();
@@ -66,18 +82,45 @@ class TimelapseVideosOverlay : public OverlayBase {
     void fetch_video_list();
     TimelapseCardDimensions calculate_card_dimensions();
     void populate_video_grid(const std::vector<FileInfo>& files);
-    void load_thumbnail_for_card(lv_obj_t* card, const std::string& filename,
+    void load_thumbnail_for_card(lv_obj_t* card, VideoEntry& video,
                                  const std::set<std::string>& available_files);
     void clear_video_grid();
+    /// The live card showing @p filename, or nullptr once the grid has moved on.
+    [[nodiscard]] lv_obj_t* find_card(const std::string& filename) const;
+    void show_card_thumbnail(lv_obj_t* card, const std::string& lvbin_path);
+
+    /// A video with no companion preview: its cached extracted frame, or queue
+    /// an ffmpeg extraction when helix::timelapse::should_extract_thumbnail() allows.
+    void load_extracted_thumbnail(lv_obj_t* card, const VideoEntry& video);
+    struct ExtractJob {
+        std::string filename;
+        std::string key;         ///< helix::timelapse::extracted_thumbnail_key()
+        bool root_known = false; ///< the path came from Moonraker's root, not the default
+    };
+    void run_next_extraction();
+    void finish_extraction(const ExtractJob& job, const std::string& lvbin_path);
 
     void detect_playback_capability();
     /// Adopt Moonraker's "timelapse" root from a server.files.roots answer.
     void apply_timelapse_root(const std::vector<FileRoot>& roots);
+    /// Moonraker has answered (or failed to answer) where its timelapse root is:
+    /// local paths are final, so frames missed at the default path are retried.
+    void settle_timelapse_root();
     /// Where a same-host player opens `filename`: under the reported root,
     /// or the stock data_path layout until one is reported.
     [[nodiscard]] std::string local_video_path(const std::string& filename) const;
 
     void confirm_delete(const std::string& filename);
+
+    /// The URL a phone on the LAN fetches @p filename from; "" when there is none.
+    [[nodiscard]] std::string phone_url_for(const std::string& filename) const;
+    /// The QR modal for @p filename saying @p message, or @p no_url_toast when
+    /// no URL can be built.
+    void show_phone_fallback(const std::string& filename, const std::string& message,
+                             const std::string& no_url_toast);
+    /// Launch @p args and watch for a player that dies at once.
+    void launch_player(const std::vector<std::string>& args, const std::string& filename);
+    void poll_player_watches();
 
     static void on_card_clicked(lv_event_t* e);
     static void on_card_long_pressed(lv_event_t* e);
@@ -87,9 +130,26 @@ class TimelapseVideosOverlay : public OverlayBase {
     helix::IMoonrakerAPI* api_;
     std::vector<VideoEntry> videos_;
     bool can_play_ = false;
+    bool has_ffmpeg_ = false;
     std::string player_command_;
     bool is_local_moonraker_ = false;
     std::string timelapse_root_; ///< Moonraker's "timelapse" root on disk, when reported
+    std::string lan_ipv4_;       ///< This machine's LAN address, read at each activation
+
+    struct WatchedPlayer {
+        helix::timelapse::PlayerWatch watch;
+        std::string filename;
+    };
+    std::vector<WatchedPlayer> player_watches_;
+
+    std::deque<ExtractJob> extract_queue_;
+    bool extract_busy_ = false;
+    std::set<std::string> extract_pending_; ///< keys queued or running; never queued twice
+    uint64_t extract_seq_ = 0;              ///< numbers each job's temporary frame file
+    bool timelapse_root_known_ = false;     ///< see settle_timelapse_root()            ///< an
+                                            ///< extraction is running; the next waits for it
+    std::set<std::string> extract_failed_;  ///< keys that gave no frame; not retried this run
+    helix::ui::LvglTimerGuard player_watch_timer_;
 
     helix::AsyncLifetimeGuard thumb_lifetime_;
 

@@ -2463,6 +2463,7 @@
   <translation tag="No vendors found" de="Keine Hersteller gefunden"/>
   <translation tag="No verified bypass command for this CFS firmware" de="Kein verifizierter Bypass-Befehl für diese CFS-Firmware"/>
   <translation tag="No video player installed - showing the timelapse library" de="Kein Videoplayer installiert – Zeitraffer-Bibliothek wird angezeigt"/>
+  <translation tag="No video player on this printer" de="Kein Videoplayer auf diesem Drucker"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." de="Keine Webcam erkannt.&#10;Eine Webcam wird für Zeitraffer benötigt."/>
   <translation tag="No widgets found" de="Keine Widgets gefunden"/>
   <translation tag="No width sensor detected" de="Kein Breitensensor erkannt"/>
@@ -3933,6 +3934,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" de="Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden"/>
   <translation tag="The unload did not start: unload by hand, then start again" de="Das Entladen hat nicht begonnen: Entlade von Hand und starte dann erneut"/>
   <translation tag="The unload finishes on its own, but the plate will not move." de="Das Entladen läuft zu Ende, aber das Heizbett bewegt sich nicht."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." de="Der Videoplayer konnte auf diesem Drucker nicht starten ({}). Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen."/>
   <translation tag="Theme" de="Thema"/>
   <translation tag="Theme Colors" de="Themenfarben"/>
   <translation tag="Theme Preset" de="Thema-Voreinstellung"/>
@@ -3991,6 +3993,7 @@
   <translation tag="This printer has no IFS." de="Dieser Drucker hat kein IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" de="Dieser Drucker hat kein INDX-Makro LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." de="Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." de="Dieser Drucker hat keinen Videoplayer. Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." de="Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." de="Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" de="Den INDX-Makros dieses Druckers fehlt: {}"/>
@@ -4298,6 +4301,8 @@
   <translation tag="Vibration" de="Vibration"/>
   <translation tag="Vibration compensation active" de="Vibrationskompensation aktiv"/>
   <translation tag="Video playback speed" de="Videowiedergabegeschwindigkeit"/>
+  <translation tag="Video player failed to start" de="Videoplayer konnte nicht starten"/>
+  <translation tag="Video player failed to start ({})" de="Videoplayer konnte nicht starten ({})"/>
   <translation tag="View" de="Ansicht"/>
   <translation tag="View Changelog" de="Changelog anzeigen"/>
   <translation tag="View Full History" de="Vollständigen Verlauf anzeigen"/>
@@ -4346,6 +4351,7 @@
   <translation tag="Warning" de="Warnung"/>
   <translation tag="Warnings &amp; errors" de="Warnungen &amp; Fehler"/>
   <translation tag="Watch and control this screen from a browser" de="Diesen Bildschirm im Browser ansehen und bedienen"/>
+  <translation tag="Watch on Your Phone" de="Auf dem Telefon ansehen"/>
   <translation tag="Watch the camera during a print for failed prints" de="Überwacht die Kamera während des Drucks auf fehlgeschlagene Drucke"/>
   <translation tag="Watch which motor turns" de="Achte darauf, welcher Motor sich dreht"/>
   <translation tag="Weak battery" de="Schwache Batterie"/>
