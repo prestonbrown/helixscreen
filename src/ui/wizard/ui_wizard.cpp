@@ -848,9 +848,9 @@ static void ui_wizard_load_screen(helix::wizard::StepId step) {
         return;
     }
 
-    // Find wizard_content container
-    lv_obj_t* content = helix::ui::find_required(wizard_container, "wizard_content", "Wizard");
+    lv_obj_t* content = lv_xml_component_get_slot(wizard_container, "wizard_content");
     if (!content) {
+        spdlog::error("[Wizard] wizard_container has no wizard_content slot");
         return;
     }
 
