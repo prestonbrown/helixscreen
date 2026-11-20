@@ -12,11 +12,11 @@
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
+#include "helix-xml/src/xml/lv_xml.h"
 #include "i18n_plural.h"
 #include "json_utils.h"
 #include "lvgl.h"
 #include "system/telemetry_manager.h"
-#include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -572,38 +572,19 @@ void TelemetryDataOverlay::populate_events() {
     }
 
     for (const auto& event : snapshot) {
-        // Create a card for each event
-        lv_obj_t* card = lv_obj_create(event_list);
+        auto* card =
+            static_cast<lv_obj_t*>(lv_xml_create(event_list, "telemetry_event_card", nullptr));
         if (!card) {
             continue;
         }
-
-        // Style the card
-        lv_obj_set_width(card, lv_pct(100));
-        lv_obj_set_height(card, LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_color(card, theme_manager_get_color("card_bg"), 0);
-        lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(card, 8, 0);
-        lv_obj_set_style_pad_all(card, theme_manager_get_spacing("space_md"), 0);
-        lv_obj_set_style_pad_gap(card, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_set_style_border_width(card, 0, 0);
-        lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_scrollable(card, false);
-
-        // Helper: create a label that wraps within the card
-        auto make_label = [&](lv_obj_t* parent, const std::string& text,
-                              const char* color_token) -> lv_obj_t* {
-            lv_obj_t* label = lv_label_create(parent);
-            lv_label_set_text(label, text.c_str());
-            lv_label_set_long_mode(label, LV_LABEL_LONG_MODE_WRAP);
-            lv_obj_set_width(label, lv_pct(100));
-            lv_obj_set_style_text_color(label, theme_manager_get_color(color_token), 0);
-            lv_obj_set_style_text_font(label, lv_font_get_default(), 0);
-            return label;
-        };
-
         for (const auto& line : describe_telemetry_event(event)) {
-            make_label(card, line.text, line.color_token);
+            const std::string color = std::string("#") + line.color_token;
+            const char* attrs[] = {"color", color.c_str(), nullptr};
+            auto* label =
+                static_cast<lv_obj_t*>(lv_xml_create(card, "telemetry_event_line", attrs));
+            if (label) {
+                lv_label_set_text(label, line.text.c_str());
+            }
         }
     }
 

@@ -4,6 +4,9 @@
 #include "ui_settings_telemetry_data.h"
 
 #include "../helix_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "theme_manager.h"
 
 #include <algorithm>
 #include <string>
@@ -80,5 +83,21 @@ TEST_CASE_METHOD(HelixTestFixture, "Telemetry event cards show only well-typed f
             CHECK(std::none_of(lines.begin(), lines.end(),
                                [&](const std::string& l) { return l.rfind(prefix, 0) == 0; }));
         }
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Telemetry event line takes the theme colour its line names",
+                 "[telemetry][ui]") {
+    for (const char* token : {"text", "text_subtle"}) {
+        INFO(token);
+        const std::string color = std::string("#") + token;
+        const char* attrs[] = {"color", color.c_str(), nullptr};
+        auto* line =
+            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "telemetry_event_line", attrs));
+        REQUIRE(line != nullptr);
+        CHECK(lv_color_eq(lv_obj_get_style_text_color(line, LV_PART_MAIN),
+                          theme_manager_get_color(token)));
+        CHECK(lv_label_get_long_mode(line) == LV_LABEL_LONG_MODE_WRAP);
+        lv_obj_delete(line);
     }
 }
