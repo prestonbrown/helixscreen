@@ -1726,7 +1726,7 @@ class AmsState {
     [[nodiscard]] lv_subject_t* get_slot_name_subject(int slot_index, SubjectLifetime& lifetime);
 
     /**
-     * @brief Re-derive every backend's per-slot name subjects
+     * @brief Re-derive the backend's per-slot name subjects
      *
      * A Spoolman identity changes what a slot is called without changing the
      * slot, so no backend event carries it. SpoolmanManager calls this when it
