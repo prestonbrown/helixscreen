@@ -66,7 +66,7 @@ enum class LaneSurface {
 struct LaneIdentity {
     /// `color`, when it is a string: a colour, a clear ('' or '#'), or junk.
     std::optional<ams::ColorReading> color;
-    std::optional<std::string> material;   ///< Empty is a deliberate clear
+    std::optional<std::string> material;   ///< Empty is a deliberate clear (or a status null)
     std::optional<std::string> spool_name; ///< Empty is a deliberate clear
     /// `spool_id`: an integer link, or null (AFC unlinks on eject).
     Clearable<int> spool_id;

@@ -151,3 +151,17 @@ TEST_CASE("AFC lane_data never reads the bypass spool's record as a lane", "[ams
     CHECK(lane.status != SlotStatus::AVAILABLE);
     CHECK(helix::ui::classify_lane(lane) == helix::ui::LaneState::Empty);
 }
+
+// get_status reports an empty lane's material as null, and that clears the
+// material the lane read before, whatever surface it came from.
+TEST_CASE("AFC status material null clears the lane's material", "[ams][afc][bypass]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane0", "lane1"});
+
+    helix::test::feed_lane_status(afc, "lane0", json{{"material", "PLA"}});
+    REQUIRE(afc.get_slot_info(0).material == "PLA");
+
+    helix::test::feed_lane_status(afc, "lane0", json{{"material", nullptr}});
+    CHECK(afc.get_slot_info(0).material.empty());
+}

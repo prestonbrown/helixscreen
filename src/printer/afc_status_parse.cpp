@@ -200,6 +200,14 @@ LaneIdentity read_lane_identity(const nlohmann::json& lane, LaneSurface surface)
     // parse is a value we cannot read, not a lane with no colour.
     id.color = read_color(lane, "color");
     id.material = ams::read_field<std::string>(lane, "material");
+    // get_status reports an empty lane's material as null (AFC's None), and a
+    // delta carries a key only when it changed, so a null here is AFC
+    // clearing the material.
+    if (surface == LaneSurface::Status && !id.material) {
+        if (const auto it = lane.find("material"); it != lane.end() && it->is_null()) {
+            id.material = std::string{};
+        }
+    }
 
     // The filament name AFC copied out of Spoolman. get_status calls it
     // `filament_name`, AFCLane's attribute; lane_data uses `name`, the shared
