@@ -128,14 +128,28 @@ row() { # <status> <step>: the table row for step has that status
     contains "mk/tests.mk changed (build system or submodule)" "$output"
 }
 
-@test "a skipped step counts as a pass: the commit is stamped and the history records SKIP" {
+@test "a skipped step counts as a pass, and the history records SKIP" {
     change docs/devel/BUILD_SYSTEM.md
-    git -C "$REPO_ROOT" diff --quiet HEAD && [ -z "$(git -C "$REPO_ROOT" status --porcelain)" ] ||
-        skip "the tree is dirty, so no stamp is written"
     run "$GATE"
     [ "$status" -eq 0 ]
-    contains "recorded: pushing" "$output"
+    contains "LAND GATE: PASS" "$output"
     grep -q " ci-shards=SKIP:- " "$LAND_GATE_HISTORY"
+}
+
+@test "a gate judging a change from LAND_GATE_CHANGED_FILE never stamps the commit" {
+    local repo
+    repo=$(gate_clone)
+    export LAND_GATE_LOGDIR="$repo/build/land-gate"
+    change src/a.cpp
+    cd "$repo"
+    run ./scripts/land-gate.sh
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "LAND_GATE_CHANGED_FILE" "$output"
+    lacks "recorded: pushing" "$output"
+    [ -z "$(ls -A "$HELIX_LAND_GATE_STAMP_DIR" 2>/dev/null)" ] || fail "stamped: $(ls "$HELIX_LAND_GATE_STAMP_DIR")"
+    unset LAND_GATE_CHANGED_FILE
+    run ./scripts/land-gate.sh
+    contains "recorded: pushing" "$output"
 }
 
 @test "the table names why each skipped step was not reached" {
@@ -295,6 +309,17 @@ cxx_fixture() {
     printf 'obj/core.o: src/core.cpp include/core.h\n' >"$root/obj/core.d"
     echo 'auto* p = create("c_panel");' >"$root/tests/unit/test_c.cpp"
     echo 'load_fixture("d.json");' >"$root/tests/unit/test_d.cpp"
+    # Data a test reaches only through the code that loads it: src/loader.cpp
+    # reads assets/config/db.json, test_e includes loader.h. src/packager.cpp
+    # names every data file (an asset list), which makes it no one file's loader.
+    mkdir -p "$root/assets/config"
+    for u in db other1 other2 other3 other4 other5; do echo '{}' >"$root/assets/config/$u.json"; done
+    echo 'open("db.json");' >"$root/src/loader.cpp"
+    printf 'obj/loader.o: src/loader.cpp include/loader.h\n' >"$root/obj/loader.d"
+    printf 'pack("db.json", "other1.json", "other2.json", "other3.json", "other4.json", "other5.json");\n' >"$root/src/packager.cpp"
+    printf 'obj/packager.o: src/packager.cpp include/packager.h\n' >"$root/obj/packager.d"
+    printf 'obj/tests/test_e.o: tests/unit/test_e.cpp include/loader.h include/core.h\n' >"$root/obj/tests/test_e.d"
+    printf 'obj/tests/test_f.o: tests/unit/test_f.cpp include/packager.h include/core.h\n' >"$root/obj/tests/test_f.d"
     cat >"$root/bin/helix-tests" <<'SH'
 #!/bin/sh
 spec="$1"
@@ -673,4 +698,12 @@ gate_clone() {
     printf '%s 90 PASS(sel) local x y\n' 1 2 3 >"$LAND_GATE_HISTORY"
     run "$GATE"
     contains "expect ~2m (median of the last 3)" "$output"
+}
+
+@test "cxx: a data file reaches the tests that include its loader's header, not an asset list's" {
+    local root
+    root=$(cxx_fixture)
+    run cxx "$root" "~[.] ~[slow]" assets/config/db.json
+    [ "$(cat "$root/out.txt")" = '"case e"' ] || fail "$output"
+    contains "tests/unit/test_e.cpp: includes include/loader.h, whose src/loader.cpp loads assets/config/db.json" "$output"
 }

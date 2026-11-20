@@ -656,6 +656,12 @@ stamp_if_complete() {
         echo "  run the whole gate once on this commit: $(full_prefix)make land-gate"
         return 1
     fi
+    # The test hook hands the planner a made-up change: its verdicts judge
+    # that list, not the commit, so they never vouch for it to pre-push.
+    if [ -n "${LAND_GATE_CHANGED_FILE:-}" ]; then
+        echo "  not stamped: the plan came from LAND_GATE_CHANGED_FILE, not from $judged's own change"
+        return 0
+    fi
     if still_judged && land_gate_stamp_write "$judged_sha"; then
         echo "  recorded: pushing $judged skips pre-push's quality sweep"
     fi

@@ -31,7 +31,12 @@ A test translation unit (a tests/unit/**.cpp) is reached when:
      config/, translations/, tests/fixtures/, anything that is not C++ source),
      and the unit's text, or a tests/ header it includes, names the file (its
      basename as a word, or for ui_xml/ its component name; any
-     translations/ file reaches units that say "translations"). ui_xml/globals.xml reaches
+     translations/ file reaches units that say "translations"), or that
+     include the header of the production code loading the file: a source
+     under src/ naming it (printer_detector.cpp names printer_database.json,
+     so a change to the database reaches every unit including
+     printer_detector.h). A source naming more than LOADER_FANOUT data files
+     is an asset list (the Android extractor), no one file's loader. ui_xml/globals.xml reaches
      every unit that builds UI from XML (one that includes an LVGL test fixture).
 
 The whole suite runs instead (a "valve") when any of these hold, because a
@@ -54,8 +59,9 @@ Changes that reach no C++ test: docs/ and any *.md, scripts/ (other than those b
 steps), tests/shell/, tests/python/, tests/ui/, moonraker-plugin/, .github/,
 android/, firmware/, server/, .claude/, .githooks/.
 
-What the rule cannot see: a production .cpp whose behaviour a test reaches
-only through another class (bar.cpp calls foo.cpp, the test includes bar.h
+What the rule cannot see: data a loader names only in pieces (a directory and
+a file name joined at run time), and a production .cpp whose behaviour a test
+reaches only through another class (bar.cpp calls foo.cpp, the test includes bar.h
 alone). Rule 3 covers the class the .cpp implements, not its callers, and the
 selector does not follow callers: one hop would select most of the suite for
 any change to a class many others use. The backstop is CI: build.yml runs the
@@ -72,6 +78,10 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 MAX_CHANGED = 200
+# Where the data the app loads at run time lives, and how many data files a
+# source may name and still count as one file's loader.
+DATA_ROOTS = ('assets', 'config')
+LOADER_FANOUT = 4
 # A path the gate can hand to make (and the test host's shell) as one word of
 # a comma-separated list.
 SAFE_PATH = re.compile(r'[A-Za-z0-9_./@+=-]+')
@@ -284,6 +294,7 @@ class DepIndex:
         self.deps = deps
         self._texts = {}
         self._stems = None
+        self._data = None
         self.rev = {}
         for u, d in self.tests.items():
             for f in d:
@@ -298,6 +309,35 @@ class DepIndex:
             self._texts[unit] = [unit] + sorted(
                 h for h in self.tests[unit] if h.startswith('tests/') and h.endswith(HEADER_EXT))
         return self._texts[unit]
+
+    def loaders(self, root, path):
+        """The production sources that load a data file: those naming it (its
+        file name, or with its directory when another data file shares the
+        name), unless a source names more than LOADER_FANOUT data files, which
+        makes it an asset list rather than one file's loader."""
+        if self._data is None:
+            self._data = {}
+            for top in DATA_ROOTS:
+                for f in (root / top).rglob('*'):
+                    if f.is_file() and not f.name.endswith(SOURCE_EXT):
+                        self._data[f.name] = self._data.get(f.name, 0) + 1
+            self._sources = sorted(str(f.relative_to(root)) for f in (root / 'src').rglob('*')
+                                   if f.suffix in ('.cpp', '.c', '.cc', '.mm'))
+        name = Path(path).name
+        if name not in self._data:
+            return []
+        out = []
+        for src in self._sources:
+            words = text_words(root, src)
+            if self._data[name] == 1:
+                if name not in words:
+                    continue
+            elif f'{Path(path).parent.name}/{name}' not in read_text(root, src):
+                continue
+            if len(words & set(self._data)) > LOADER_FANOUT:
+                continue
+            out.append(src)
+        return out
 
     def headers_by_stem(self, root, cpp):
         """Fallback for a .cpp with no .d (not built here): same-stem headers in the tree."""
@@ -361,6 +401,13 @@ def select_units(root, changed, index):
             needles.add(Path(c).stem)
         if c.startswith(('translations/', 'ui_xml/translations/')):
             needles.add('translations')
+        # A test that reaches the file only through the code loading it:
+        # the loader's header stands for the file.
+        for loader in index.loaders(root, c):
+            own = deps.get(loader)
+            for h in implemented_headers(loader, own) if own else index.headers_by_stem(root, loader):
+                for u in includers(h):
+                    reach(u, f'includes {h}, whose {loader} loads {c}')
 
     if needles:
         for u in tests:
@@ -377,6 +424,18 @@ def select_units(root, changed, index):
                                     f'over {int(SELECTED_FRACTION * 100)}%')
     return CxxSelection('select', f'{len(reasons)} of {total} test units reached',
                         reasons.keys(), reasons)
+
+
+_TEXTS = {}
+
+
+def read_text(root, rel):
+    if rel not in _TEXTS:
+        try:
+            _TEXTS[rel] = (root / rel).read_text(errors='replace')
+        except OSError:
+            _TEXTS[rel] = ''
+    return _TEXTS[rel]
 
 
 _WORDS = {}

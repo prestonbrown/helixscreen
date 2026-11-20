@@ -940,8 +940,10 @@ procedure sets it.
 The C++ selection comes from the build's dependency files. After the test build, the sweep
 (`make unit-sweep TEST_SELECT_CHANGED=<paths>`, and `make test-slow` the same way) asks
 `gate_select.py cxx` which test units list a changed header or source in their `.d`, which
-include a header a changed `.cpp` implements, and which name a changed data file
-(`ui_xml/`, `assets/`, `tests/fixtures/`); it writes their cases as a Catch2 `--input-file`
+include a header a changed `.cpp` implements, which name a changed data file
+(`ui_xml/`, `assets/`, `tests/fixtures/`), and which include the header of the code
+that loads a changed data file (`printer_database.json` counts as a change to
+`printer_detector.h`); it writes their cases as a Catch2 `--input-file`
 under `build/test-select/` and shards them, one shard per case up to `NPROCS`. The rule,
 its blind spot (a test that reaches a `.cpp` only through another class) and its valves
 are in the script's header. The valves run the whole suite: a change to the build
