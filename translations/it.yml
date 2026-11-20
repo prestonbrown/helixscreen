@@ -55,6 +55,14 @@ translations:
   '%u layers': '%u strati'
   '%zu events queued': '%zu eventi in coda'
   '%zu plugins failed to load': Caricamento di %zu plugin non riuscito
+  Could not restore the stock screen: 'Impossibile ripristinare lo schermo originale'
+  Restart the printer to finish restoring the stock screen: 'Riavvia la stampante per completare il ripristino dello schermo originale'
+  Restarting the printer...: 'Riavvio della stampante...'
+  Restore: 'Ripristina'
+  Restore Stock Screen: 'Ripristina schermo originale'
+  Switch back to the Snapmaker screen: 'Torna allo schermo Snapmaker'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'La stampante si riavvia con lo schermo Snapmaker e HelixScreen non si avvia più. Le impostazioni di HelixScreen restano sulla stampante; esegui di nuovo il programma di installazione per tornare.'
   "'{}' already exists. Replace the stored mesh?": "'{}' esiste già. Sostituire la mesh salvata?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' e '{}' esistono già. Sostituire le mesh salvate?"
   (different grade): (grado diverso)

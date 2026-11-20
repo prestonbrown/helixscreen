@@ -67,6 +67,14 @@ translations:
   '%u layers': '%u couches'
   '%zu events queued': '%zu événements en file'
   '%zu plugins failed to load': '%zu plugins n''ont pas pu se charger'
+  Could not restore the stock screen: 'Impossible de restaurer l''écran d''origine'
+  Restart the printer to finish restoring the stock screen: 'Redémarrez l''imprimante pour terminer la restauration de l''écran d''origine'
+  Restarting the printer...: 'Redémarrage de l''imprimante...'
+  Restore: 'Restaurer'
+  Restore Stock Screen: 'Restaurer l''écran d''origine'
+  Switch back to the Snapmaker screen: 'Revenir à l''écran Snapmaker'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'L''imprimante redémarre avec l''écran Snapmaker et HelixScreen ne démarre plus. Vos réglages HelixScreen restent sur l''imprimante ; relancez l''installateur pour revenir.'
   "'{}' already exists. Replace the stored mesh?": "'{}' existe déjà. Remplacer le maillage enregistré ?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' et '{}' existent déjà. Remplacer les maillages enregistrés ?"
   (different grade): (grade différent)

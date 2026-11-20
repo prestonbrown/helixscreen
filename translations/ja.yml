@@ -55,6 +55,14 @@ translations:
   '%u layers': '%uレイヤー'
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
+  Could not restore the stock screen: '標準画面に戻せませんでした'
+  Restart the printer to finish restoring the stock screen: '標準画面への復元を完了するにはプリンターを再起動してください'
+  Restarting the printer...: 'プリンターを再起動しています...'
+  Restore: '復元'
+  Restore Stock Screen: '標準画面に戻す'
+  Switch back to the Snapmaker screen: 'Snapmakerの画面に戻します'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'
   "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' と '{}' は既に存在します。保存されたメッシュを置き換えますか？"
   (different grade): (グレード違い)

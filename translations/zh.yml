@@ -55,6 +55,14 @@ translations:
   '%u layers': '%u 层'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  Could not restore the stock screen: '无法恢复原厂屏幕'
+  Restart the printer to finish restoring the stock screen: '请重启打印机以完成恢复原厂屏幕'
+  Restarting the printer...: '正在重启打印机...'
+  Restore: '恢复'
+  Restore Stock Screen: '恢复原厂屏幕'
+  Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'
   "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' 和 '{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）

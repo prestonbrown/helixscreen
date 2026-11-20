@@ -2431,6 +2431,8 @@ define snapmaker-u1-deploy-common
 	fi
 	@echo "  $(DIM)Setting up auto-start...$(RESET)"
 	scp scripts/snapmaker-u1-setup-autostart.sh $(SNAPMAKER_U1_SSH_TARGET):/tmp/
+	ssh $(SNAPMAKER_U1_SSH_TARGET) "mkdir -p $(SNAPMAKER_U1_DEPLOY_DIR)/scripts"
+	scp scripts/lib/installer/u1_stock_ui.sh $(SNAPMAKER_U1_SSH_TARGET):$(SNAPMAKER_U1_DEPLOY_DIR)/scripts/
 	ssh $(SNAPMAKER_U1_SSH_TARGET) "sh /tmp/snapmaker-u1-setup-autostart.sh $(SNAPMAKER_U1_DEPLOY_DIR)"
 	@# Mirror the installer's setup_config_symlink: helixscreen.env lives at the
 	@# Klipper-convention path (printer_data/config/helixscreen/) so Mainsail/Fluidd
@@ -3061,7 +3063,7 @@ REL_PRESET.k2 := k2
 REL_PRESET.snapmaker-u1 := snapmaker_u1
 
 # Scripts shipped in scripts/ beside the uninstaller.
-REL_SCRIPTS.snapmaker-u1 := scripts/snapmaker-u1-setup-autostart.sh
+REL_SCRIPTS.snapmaker-u1 := scripts/snapmaker-u1-setup-autostart.sh scripts/lib/installer/u1_stock_ui.sh
 
 # Closing-line suffix for packages that publish extra names.
 REL_NOTE.mips := (+ k1/ad5x transition aliases)

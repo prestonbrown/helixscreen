@@ -4,6 +4,7 @@
 #include "ui_settings_system.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_overlay_performance.h"
 #include "ui_panel_common.h"
@@ -19,9 +20,13 @@
 #include "app_globals.h"
 #include "config.h"
 #include "lvgl/src/others/translation/lv_translation.h"
+#include "system_power.h"
 #include "system_settings_manager.h"
+#include "u1_stock_screen.h"
 
 #include <spdlog/spdlog.h>
+
+#include <cstdlib>
 
 namespace helix::settings {
 
@@ -79,6 +84,8 @@ void SystemSettingsOverlay::register_callbacks() {
                  helix::nav::go_back(); // Animation + callback clean up
              }
          }},
+        {"on_restore_stock_screen_clicked",
+         [](lv_event_t*) { get_system_settings_overlay().handle_restore_stock_screen_clicked(); }},
     });
 }
 
@@ -169,6 +176,37 @@ void SystemSettingsOverlay::perform_factory_reset() {
     helix::ui::queue_update("SystemSettingsOverlay::factory_reset_restart", []() {
         spdlog::info("[SystemSettingsOverlay] Restarting after factory reset...");
         app_request_restart_service();
+    });
+}
+
+void SystemSettingsOverlay::handle_restore_stock_screen_clicked() {
+    helix::ui::ConfirmOptions options;
+    options.destructive = true;
+    helix::ui::modal_confirm(
+        lv_tr("Restore Stock Screen"),
+        lv_tr("The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. "
+              "Your HelixScreen settings stay on the printer; run the installer again to come "
+              "back."),
+        ModalSeverity::Warning, lv_tr("Restore"),
+        []() { get_system_settings_overlay().perform_restore_stock_screen(); }, options);
+}
+
+void SystemSettingsOverlay::perform_restore_stock_screen() {
+    const char* path = std::getenv(helix::u1::kRestoreTriggerEnv);
+    if (!helix::u1::restore_stock_screen_offered(path) || !helix::u1::write_restore_trigger(path)) {
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      lv_tr("Could not restore the stock screen"), 4000);
+        return;
+    }
+    // The platform hook restores the stock screen at the next start, as root,
+    // and reboots again into it.
+    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Restarting the printer..."), 1500);
+    helix::ui::queue_update("SystemSettingsOverlay::restore_stock_reboot", []() {
+        if (SystemPower::reboot_local() != PowerResult::Dispatched) {
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("Restart the printer to finish restoring the stock screen"), 6000);
+        }
     });
 }
 

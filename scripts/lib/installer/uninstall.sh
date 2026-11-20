@@ -442,63 +442,11 @@ restore_previous_ui_platform() {
         fi
     fi
 
-    # Snapmaker U1: re-enable the stock UI we neutralized at install time.
-    # snapmaker-u1-setup-autostart.sh disables the stock UI binary
-    # (chmod a-x /usr/bin/gui) so no launcher (PAXX's S99screen / 1.4's relocated
-    # launcher, or stock's supervisor) can start it; it also patches the boot
-    # launchers to start HelixScreen. Reverse all of it:
-    #   1. Re-enable /usr/bin/gui (chmod +x) so a stock launcher can exec it.
-    #   2. Restore the launcher(s) — from S99screen.stock on PAXX 1.3, by
-    #      removing our HelixScreen-marked S99screen on PAXX 1.4, from
-    #      S99fb-http.stock on PAXX 1.4, and from S99input-event-daemon.stock on
-    #      stock firmware (the stock-safe boot hook).
+    # Snapmaker U1: re-enable the stock UI we neutralized at install time
+    # (u1_stock_ui.sh, shared with the platform hook's restore trigger).
     if [ -z "$restored_ui" ] && [ "$platform" = "snapmaker-u1" ]; then
-        if [ -f /usr/bin/gui ] && [ ! -x /usr/bin/gui ]; then
-            log_info "Re-enabling stock UI binary (/usr/bin/gui)"
-            $SUDO chmod +x /usr/bin/gui 2>/dev/null \
-                || log_warn "Could not re-enable /usr/bin/gui — stock UI may not start on next boot"
-        fi
-        if [ -f /etc/init.d/S99screen.stock ]; then
-            log_info "Restoring stock /etc/init.d/S99screen (firmware 1.3)"
-            $SUDO mv /etc/init.d/S99screen.stock /etc/init.d/S99screen \
-                || log_warn "Could not restore /etc/init.d/S99screen — stock UI launcher may be missing"
-        elif [ -f /etc/init.d/S99screen ] && \
-             grep -q HelixScreen /etc/init.d/S99screen 2>/dev/null; then
-            log_info "Removing HelixScreen-created /etc/init.d/S99screen (firmware 1.4)"
-            $SUDO rm -f /etc/init.d/S99screen 2>/dev/null || true
-        fi
-        # Firmware 1.4: restore the stock framebuffer-HTTP screen launcher we
-        # took over for boot-time autostart (1.2/1.3 have no .stock — no-op).
-        if [ -f /etc/init.d/S99fb-http.stock ]; then
-            log_info "Restoring stock /etc/init.d/S99fb-http (firmware 1.4)"
-            $SUDO mv /etc/init.d/S99fb-http.stock /etc/init.d/S99fb-http \
-                || log_warn "Could not restore /etc/init.d/S99fb-http — stock screen launcher may be missing"
-        fi
-        # Stock firmware: restore the input-event-daemon launcher we took over for
-        # boot-time autostart. .stock is present only if we patched it, so this is
-        # a no-op where it was never hooked.
-        if [ -f /etc/init.d/S99input-event-daemon.stock ]; then
-            log_info "Restoring stock /etc/init.d/S99input-event-daemon"
-            $SUDO mv /etc/init.d/S99input-event-daemon.stock /etc/init.d/S99input-event-daemon \
-                || log_warn "Could not restore /etc/init.d/S99input-event-daemon"
-        fi
+        u1_restore_stock_ui
         restored_ui="Snapmaker stock UI (/usr/bin/gui re-enabled)"
-        # Final step: drop the /oem/.debug firmware debug-mode flag, which stops
-        # /etc/init.d/S01aoverlayfs from wiping /oem/overlay/* on boot, but only
-        # when our installer created it (snapmaker-u1-setup-autostart.sh step 1
-        # leaves /oem/.debug.helixscreen beside it). Removing it restores stock
-        # overlay-wipe-on-boot: the next boot discards the overlay-upper and runs
-        # the pristine squashfs-lower rootfs. A flag another mod created (multiACE
-        # creates it too) stays, or that mod's overlay files go at the next boot.
-        if [ -f /oem/.debug.helixscreen ]; then
-            if [ -f /oem/.debug ]; then
-                log_info "Removing /oem/.debug (restores stock overlay-wipe-on-boot)"
-                $SUDO rm -f /oem/.debug 2>/dev/null || true
-            fi
-            $SUDO rm -f /oem/.debug.helixscreen 2>/dev/null || true
-        elif [ -f /oem/.debug ]; then
-            log_info "Keeping /oem/.debug: HelixScreen did not create it"
-        fi
     fi
 
     HELIX_RESTORED_UI="$restored_ui"

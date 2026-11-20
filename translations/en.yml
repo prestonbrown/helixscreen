@@ -55,6 +55,14 @@ translations:
   '%u layers': '%u layers'
   '%zu events queued': '%zu events queued'
   '%zu plugins failed to load': '%zu plugins failed to load'
+  Could not restore the stock screen: Could not restore the stock screen
+  Restart the printer to finish restoring the stock screen: Restart the printer to finish restoring the stock screen
+  Restarting the printer...: Restarting the printer...
+  Restore: Restore
+  Restore Stock Screen: Restore Stock Screen
+  Switch back to the Snapmaker screen: Switch back to the Snapmaker screen
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   "'{}' already exists. Replace the stored mesh?": "'{}' already exists. Replace the stored mesh?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' and '{}' already exist. Replace the stored meshes?"
   (different grade): (different grade)
