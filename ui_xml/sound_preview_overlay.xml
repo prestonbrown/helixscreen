@@ -3,12 +3,11 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <view extends="overlay_panel" title="Preview Sounds">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" scrollable="true">
+    <overlay_panel-overlay_content style_pad_all="#space_md" flex_flow="column" scrollable="true">
       <!-- Buttons are created dynamically in C++ -->
       <lv_obj name="sound_button_grid"
               width="100%" height="content" flex_flow="row_wrap" style_pad_all="0" style_pad_gap="#space_sm"
               scrollable="false"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

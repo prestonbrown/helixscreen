@@ -51,6 +51,8 @@
   </styles>
   <!-- API Properties -->
   <api>
+    <!-- Widgets a screen adds to its header: <header_bar-header_content>. -->
+    <slot name="header_content"/>
     <prop name="title" type="string"/>
     <prop name="title_tag" type="string" default=""/>
     <!-- Optional live title. When a screen's header names something that changes
@@ -185,9 +187,8 @@
         <text_body name="header_title_badge_text" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
       </lv_obj>
     </lv_obj>
-    <!-- Content slot: a screen injects its own widgets here by nesting a
-         <header_bar-header_content> tag inside its header_bar instantiation;
-         the engine re-parents that tag's children into this object. Sits
+    <!-- Host of the header_content slot: a screen fills it with a
+         <header_bar-header_content> tag inside its header_bar instance. Sits
          between the title region and the action buttons, so the growing
          back_button keeps it clear of the title. Carries no padding of its
          own: injected content brings its left margin with it (see

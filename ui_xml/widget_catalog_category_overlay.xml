@@ -20,11 +20,14 @@
         extends="overlay_panel" width="70%" title="$title" title_tag="$title_tag" bg_color="#screen_bg">
     <bind_style_if name="styles.catalog_portrait_full" cond="ui_is_portrait eq 1 and ui_breakpoint lt 4"/>
     <bind_style_if name="styles.catalog_portrait_min" cond="ui_is_portrait eq 1 and ui_breakpoint ge 4"/>
-    <lv_obj name="catalog_scroll"
-            width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_gap="#space_xs"
-            style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-            style_pad_bottom="#space_md">
-      <!-- Widget rows populated dynamically by C++ -->
-    </lv_obj>
+    <overlay_panel-overlay_content flex_flow="column" scrollable="false">
+      <lv_obj name="catalog_scroll"
+              width="100%" flex_grow="1" scrollable="true" flex_flow="column" style_pad_gap="#space_xs"
+              style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
+              style_pad_bottom="#space_md">
+        <!-- Widget rows populated dynamically by C++ -->
+      </lv_obj>
+    </overlay_panel-overlay_content>
+
   </view>
 </component>

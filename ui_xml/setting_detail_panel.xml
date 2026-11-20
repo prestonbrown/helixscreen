@@ -2,9 +2,10 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Indented detail panel for contextual sub-controls below a state row -->
-<!-- Contains a "controls" child for C++ to populate with type-specific widgets -->
+<!-- Its children land in the "controls" column (the default slot). -->
 <component>
   <api>
+    <slot name="controls" default="true"/>
     <!-- Int subject: the panel shows while it is non-zero. Empty always shows. -->
     <prop name="shown_subject" type="string" default=""/>
   </api>

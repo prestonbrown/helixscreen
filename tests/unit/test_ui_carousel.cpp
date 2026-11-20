@@ -12,6 +12,8 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/widget_in_tree.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "helix-xml/src/xml/lv_xml_component.h"
 
 #include <vector>
 
@@ -1073,4 +1075,37 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(lv_anim_get(scroll, nullptr) == nullptr);
     CHECK(ui_carousel_get_current_page(rc.carousel) == 1);
     CHECK(rc.scroll_x() == rc.page_w);
+}
+
+// ============================================================================
+// Pages written as XML children
+// ============================================================================
+
+TEST_CASE_METHOD(LVGLTestFixture, "each XML child of a carousel is a page in its own tile",
+                 "[carousel][xml]") {
+    ui_carousel_init();
+    REQUIRE(lv_xml_register_component_from_data(
+                "carousel_xml_pages_probe",
+                "<component><view name=\"root\">"
+                "<ui_carousel name=\"c\" width=\"200\" height=\"100\" bubble_events=\"true\">"
+                "<lv_obj name=\"first\"><lv_label name=\"inside\"/></lv_obj>"
+                "<lv_label name=\"second\"/>"
+                "</ui_carousel>"
+                "</view></component>") == LV_RESULT_OK);
+    auto* root =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "carousel_xml_pages_probe", nullptr));
+    REQUIRE(root != nullptr);
+    lv_obj_t* carousel = lv_obj_find_by_name(root, "c");
+    CarouselState* state = ui_carousel_get_state(carousel);
+    REQUIRE(state != nullptr);
+
+    REQUIRE(ui_carousel_get_page_count(carousel) == 2);
+    lv_obj_t* first = lv_obj_find_by_name(root, "first");
+    lv_obj_t* second = lv_obj_find_by_name(root, "second");
+    CHECK(lv_obj_get_parent(first) == state->real_tiles[0]);
+    CHECK(lv_obj_get_parent(second) == state->real_tiles[1]);
+    CHECK(lv_obj_get_parent(lv_obj_find_by_name(root, "inside")) == first);
+    CHECK(lv_obj_get_child_count(state->indicator_row) == 2);
+    CHECK(state->bubble_events);
+    lv_obj_delete(root);
 }

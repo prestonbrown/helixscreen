@@ -78,3 +78,55 @@ TEST_CASE_METHOD(XMLTestFixture, "PrintStatusWidget picker: Show Sections follow
 
     w.detach();
 }
+
+namespace {
+bool row_checked(lv_obj_t* row) {
+    for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
+        lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
+        if (lv_obj_check_type(child, &lv_checkbox_class))
+            return lv_obj_has_state(child, LV_STATE_CHECKED);
+    }
+    FAIL("no checkbox in the row");
+    return false;
+}
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrintStatusWidget picker: section rows show and toggle the widget's options",
+                 "[print_status][config][context_menu]") {
+    using Flags = std::array<bool, 5>; // title, files, reprint, recent, queue
+    helix::ui::ContextMenu::register_shared_callbacks();
+    register_print_status_widget();
+    REQUIRE(register_component("print_status_configure_picker"));
+    PrintStatusWidget w;
+    w.set_config({{"layout_style", "library"}, {"show_print_files", false}});
+    lv_obj_t* tile = lv_obj_create(test_screen());
+    w.attach(tile, test_screen());
+    w.on_edit_configure();
+
+    lv_obj_t* files = lv_obj_find_by_name(test_screen(), "opt_print_files");
+    lv_obj_t* title = lv_obj_find_by_name(test_screen(), "opt_title");
+    REQUIRE(files != nullptr);
+    REQUIRE(title != nullptr);
+    CHECK_FALSE(row_checked(files));
+    CHECK(row_checked(title));
+
+    lv_obj_send_event(files, LV_EVENT_CLICKED, nullptr);
+    CHECK(row_checked(files));
+    CHECK(w.show_options_for_test() == Flags{true, true, true, true, true});
+    lv_obj_send_event(title, LV_EVENT_CLICKED, nullptr);
+    CHECK_FALSE(row_checked(title));
+    CHECK(w.show_options_for_test() == Flags{false, true, true, true, true});
+
+    // The chosen layout's button carries the primary fill, the other none.
+    lv_obj_t* lib = lv_obj_find_by_name(test_screen(), "layout_btn_library");
+    lv_obj_t* det = lv_obj_find_by_name(test_screen(), "layout_btn_detailed");
+    CHECK(lv_obj_get_style_bg_opa(lib, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(lib, LV_PART_MAIN),
+                      theme_manager_get_color("primary")));
+    CHECK(lv_obj_get_style_bg_opa(det, LV_PART_MAIN) == LV_OPA_TRANSP);
+    lv_obj_send_event(det, LV_EVENT_CLICKED, nullptr);
+    CHECK(lv_obj_get_style_bg_opa(det, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_obj_get_style_bg_opa(lib, LV_PART_MAIN) == LV_OPA_TRANSP);
+    w.detach();
+}

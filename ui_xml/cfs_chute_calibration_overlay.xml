@@ -7,9 +7,8 @@
   <view name="cfs_chute_calibration_overlay"
         extends="overlay_panel" title="Purge Chute Calibration" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="false" flex_flow="column" style_pad_gap="#space_md">
       <!-- ================================================================== -->
       <!-- STATE: IDLE (0) - Instructions and Start Button -->
       <!-- ================================================================== -->
@@ -121,6 +120,6 @@
           <event_cb trigger="clicked" callback="on_chute_done_clicked"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

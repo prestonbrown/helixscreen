@@ -5,6 +5,7 @@
 
 #include "ui_event_safety.h"
 #include "ui_fan_control_overlay.h"
+#include "ui_picker_option_row.h"
 #include "ui_text.h"
 
 #include "app_globals.h"
@@ -40,16 +41,6 @@ void FanWidget::on_size_changed(int colspan, int rowspan, int width_px, int heig
 } // namespace helix
 
 using namespace helix;
-
-namespace {
-
-/// Resolve a responsive spacing token to pixels, with a fallback.
-int resolve_space_token(const char* name, int fallback) {
-    const char* s = lv_xml_get_const(nullptr, name);
-    return s ? std::atoi(s) : fallback;
-}
-
-} // anonymous namespace
 
 FanWidget::FanWidget(const std::string& instance_id)
     : TiledPanelWidget(instance_id), instance_id_(instance_id) {
@@ -279,74 +270,21 @@ void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
 
     const auto& fans = get_printer_state().fan_state().get_fans();
 
-    int space_xs = resolve_space_token("space_xs", 4);
-    int space_sm = resolve_space_token("space_sm", 6);
-
     // Cap the list at a share of the screen so a printer with a dozen fans
     // scrolls the list instead of growing the card past the panel.
     lv_obj_set_style_max_height(fan_list, screen_height_pct(66), 0);
 
     for (const auto& fan : fans) {
-        bool is_selected = (fan.object_name == owner_.selected_fan_);
-
-        lv_obj_t* row = lv_obj_create(fan_list);
-        lv_obj_set_width(row, LV_PCT(100));
-        lv_obj_set_height(row, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(row, space_sm, 0);
-        lv_obj_set_style_pad_gap(row, space_xs, 0);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_scrollable(row, false);
-        lv_obj_set_clickable(row, true);
-
-        // Highlight for single-select
-        lv_obj_set_style_bg_opa(row, is_selected ? 30 : 0, 0);
-
-        lv_obj_t* name = lv_label_create(row);
-        lv_label_set_text(name, fan.display_name.c_str());
-        lv_obj_set_flex_grow(name, 1);
-        lv_label_set_long_mode(name, LV_LABEL_LONG_MODE_DOTS);
-        lv_label_set_max_lines(name, 1);
-        lv_obj_set_style_text_font(name, lv_font_get_default(), 0);
-
-        // Current speed
-        char speed_buf[16];
-        snprintf(speed_buf, sizeof(speed_buf), "%d%%", fan.speed_percent);
-        lv_obj_t* speed = lv_label_create(row);
-        lv_label_set_text(speed, speed_buf);
-        lv_obj_set_style_text_font(speed, lv_font_get_default(), 0);
-        lv_obj_set_style_text_opa(speed, 180, 0);
-
-        lv_obj_set_user_data(row, new RowPayload{this, fan.object_name});
-
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[FanWidget] fan_row_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
-                if (!payload)
-                    return;
-
-                // Copy the name: hide() takes the row - and this payload - with it.
-                std::string fan_name = payload->object_name;
-                FanPicker* picker = payload->picker;
-                picker->owner_.select_fan(fan_name);
-                picker->hide();
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[FanWidget] fan_row_delete_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
-                lv_obj_set_user_data(target, nullptr);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_DELETE, nullptr);
+        char speed[16];
+        snprintf(speed, sizeof(speed), "%d%%", fan.speed_percent);
+        const std::string fan_name = fan.object_name;
+        helix::ui::create_picker_option_row(fan_list, fan.display_name.c_str(),
+                                            fan_name == owner_.selected_fan_,
+                                            [this, fan_name]() {
+                                                owner_.select_fan(fan_name);
+                                                hide();
+                                            },
+                                            {"value", speed});
     }
 
     spdlog::debug("[FanWidget] Fan picker built with {} fans", fans.size());

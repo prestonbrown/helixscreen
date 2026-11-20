@@ -35,7 +35,6 @@
         <!-- Toggle for klipper/moonraker logs -->
         <lv_obj width="100%"
                 height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
-                style_bg_opa="cover" style_bg_color="#card_bg" style_radius="#border_radius"
                 style_flex_main_place="space_between" style_flex_cross_place="center">
           <text_body text="Include Klipper/Moonraker logs"/>
           <ui_switch name="include_logs_switch" bind_checked="debug_bundle_include_logs"/>
@@ -44,7 +43,8 @@
         <lv_textarea name="user_note_textarea"
                      width="100%" height="content" style_min_height="56" style_max_height="100"
                      placeholder_text="Describe the issue (optional)" placeholder_tag="Describe the issue (optional)"
-                     one_line="false" style_pad_all="#space_sm" style_text_font="#font_small"/>
+                     one_line="false" style_pad_all="#space_sm" style_text_font="#font_small" style_bg_color="#card_bg"
+                     style_bg_opa="cover"/>
       </lv_obj>
 
       <!-- STATE 1: Uploading -->

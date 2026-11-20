@@ -135,6 +135,28 @@ void HomePanel::init_subjects() {
         {"on_home_grid_released", on_home_grid_released},
         {"on_home_grid_press_cancelled", on_home_grid_press_cancelled},
         {"on_add_page_clicked", [](lv_event_t*) { get_global_home_panel().add_page_from_slot(); }},
+        {"on_home_arrow_left",
+         [](lv_event_t*) {
+             auto& panel = get_global_home_panel();
+             if (panel.carousel_) {
+                 int cur = ui_carousel_get_current_page(panel.carousel_);
+                 if (cur > 0) {
+                     ui_carousel_goto_page(panel.carousel_, cur - 1, true);
+                 }
+             }
+         }},
+        {"on_home_arrow_right",
+         [](lv_event_t*) {
+             auto& panel = get_global_home_panel();
+             if (panel.carousel_) {
+                 auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
+                 int cur = ui_carousel_get_current_page(panel.carousel_);
+                 int max_page = static_cast<int>(config.page_count()) - 1;
+                 if (cur < max_page) {
+                     ui_carousel_goto_page(panel.carousel_, cur + 1, true);
+                 }
+             }
+         }},
     });
 
     subjects_initialized_ = true;
@@ -368,72 +390,21 @@ void HomePanel::build_carousel(int initial_page) {
     bool show_arrows = get_runtime_config()->test_mode ||
                        (display != nullptr && display->needs_touch_calibration());
     if (show_arrows) {
-        auto arrow_size = theme_manager_get_spacing("button_height");
-        auto create_arrow = [&](const char* icon_name, lv_align_t align) -> lv_obj_t* {
-            lv_obj_t* arrow = lv_obj_create(carousel_host_);
-            lv_obj_set_size(arrow, arrow_size, arrow_size);
-            lv_obj_set_style_radius(arrow, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-            lv_obj_set_style_bg_color(arrow, theme_manager_get_color("card_bg"), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(arrow, LV_OPA_40, LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(arrow, LV_OPA_80, LV_PART_MAIN | LV_STATE_PRESSED);
-            lv_obj_set_style_border_width(arrow, 0, LV_PART_MAIN);
-            lv_obj_align(arrow, align, 0, 0);
-            lv_obj_set_floating(arrow, true);
-            lv_obj_set_clickable(arrow, true);
-            lv_obj_set_scrollable(arrow, false);
-
-            lv_obj_t* label = lv_label_create(arrow);
-            lv_label_set_text(label, helix::ui::icon::lookup_codepoint(icon_name));
-            lv_obj_set_style_text_font(label, &mdi_icons_24, LV_PART_MAIN);
-            lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
-            lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
-            return arrow;
-        };
-
-        arrow_left_ = create_arrow("chevron_left", LV_ALIGN_LEFT_MID);
-        arrow_right_ = create_arrow("chevron_right", LV_ALIGN_RIGHT_MID);
+        const char* left_attrs[] = {"name",  "home_arrow_left", "icon",     "chevron_left",
+                                    "align", "left_mid",        "callback", "on_home_arrow_left",
+                                    nullptr};
+        const char* right_attrs[] = {"name",  "home_arrow_right", "icon",     "chevron_right",
+                                     "align", "right_mid",        "callback", "on_home_arrow_right",
+                                     nullptr};
+        arrow_left_ =
+            static_cast<lv_obj_t*>(lv_xml_create(carousel_host_, "carousel_arrow", left_attrs));
+        arrow_right_ =
+            static_cast<lv_obj_t*>(lv_xml_create(carousel_host_, "carousel_arrow", right_attrs));
     }
 
     // The swipe and the slot's reach for the edit state this carousel is built
     // in, and for whether it has arrows
     apply_edit_swipe_policy();
-
-    // Arrow click handlers (only when arrows were created)
-    if (arrow_left_) {
-        lv_obj_add_event_cb(
-            arrow_left_,
-            [](lv_event_t* /*e*/) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] arrow_left_clicked");
-                auto& panel = get_global_home_panel();
-                if (panel.carousel_) {
-                    int cur = ui_carousel_get_current_page(panel.carousel_);
-                    if (cur > 0) {
-                        ui_carousel_goto_page(panel.carousel_, cur - 1, true);
-                    }
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
-
-    if (arrow_right_) {
-        lv_obj_add_event_cb(
-            arrow_right_,
-            [](lv_event_t* /*e*/) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[HomePanel] arrow_right_clicked");
-                auto& panel = get_global_home_panel();
-                if (panel.carousel_) {
-                    auto& config = helix::PanelWidgetManager::instance().get_widget_config("home");
-                    int cur = ui_carousel_get_current_page(panel.carousel_);
-                    int max_page = static_cast<int>(config.page_count()) - 1;
-                    if (cur < max_page) {
-                        ui_carousel_goto_page(panel.carousel_, cur + 1, true);
-                    }
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-    }
 
     // The initial page, before anything observes the page subject
     if (shown > 0) {

@@ -7,9 +7,9 @@
 <component>
   <view name="led_settings_overlay" extends="overlay_panel" title="LED Settings" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- ================================================================== -->
       <!-- STARTUP SECTION -->
       <!-- ================================================================== -->
@@ -47,12 +47,18 @@
                               description="Lights that follow the printer's state">
           <bind_flag_if_eq subject="led_auto_state_enabled" flag="hidden" ref_value="0"/>
         </setting_led_chip_row>
-        <!-- Auto-state mapping rows (populated dynamically in C++) -->
+        <!-- One row per printer state, in LedSettingsOverlay's kStateRows order -->
         <lv_obj name="auto_state_rows_container"
                 width="100%" height="content" flex_flow="column" style_pad_gap="0" style_bg_opa="0"
                 style_border_width="0" style_pad_left="0" style_pad_right="0" style_pad_top="#space_sm"
                 style_pad_bottom="0" scrollable="false">
           <bind_flag_if_eq subject="led_auto_state_enabled" flag="hidden" ref_value="0"/>
+          <led_auto_state_row index="0" key="idle" label="Idle" icon="sleep"/>
+          <led_auto_state_row index="1" key="heating" label="Heating" icon="fire"/>
+          <led_auto_state_row index="2" key="printing" label="Printing" icon="printer_3d"/>
+          <led_auto_state_row index="3" key="paused" label="Paused" icon="pause"/>
+          <led_auto_state_row index="4" key="error" label="Error" icon="alert_circle"/>
+          <led_auto_state_row index="5" key="complete" label="Complete" icon="check_circle"/>
         </lv_obj>
       </setting_group>
       <!-- ================================================================== -->
@@ -62,7 +68,16 @@
                               icon="code_braces" action_button_text="Add" action_button_icon="plus"
                               action_button_callback="on_add_macro_device" hide_action_button="false"
                               hide_action_button_icon="false"/>
-      <!-- Macro device cards are populated dynamically in C++ -->
+      <setting_info_row name="macro_devices_empty"
+                        label="No macro devices configured" icon="code_braces" value="Tap + to add">
+        <bind_flag_if_not_eq subject="led_macro_count" flag="hidden" ref_value="0"/>
+      </setting_info_row>
+      <text_body name="macro_devices_none_detected"
+                 width="100%" text="No LED macros detected on your printer. Add Klipper macros for LED control first."
+                 long_mode="wrap" style_text_color="#text_subtle" style_pad_left="#space_xl" style_pad_right="#space_xl">
+        <bind_flag_if cond="led_macro_count gt 0 or led_macro_discovered_count gt 0" flag="hidden"/>
+      </text_body>
+      <!-- One setting_macro_card per configured device, created by C++ -->
       <lv_obj name="macro_devices_container"
               width="100%" height="content" flex_flow="column" style_pad_gap="#space_sm" style_bg_opa="0"
               style_border_width="0" style_pad_all="0" scrollable="false"/>
@@ -74,6 +89,6 @@
         <icon src="info" size="xs" variant="secondary"/>
         <text_small text="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

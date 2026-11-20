@@ -9,10 +9,10 @@
   </api>
   <view name="fan_control_overlay" extends="overlay_panel" title="$title" bg_color="#screen_bg">
     <!-- Main Content Area - minimal padding for maximum card space -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
-            style_pad_bottom="#space_sm" style_pad_row="0" scrollable="false" flex_flow="column"
-            style_flex_main_place="start" style_flex_cross_place="center">
+    <overlay_panel-overlay_content style_pad_left="#space_md"
+                                   style_pad_right="#space_md" style_pad_top="0" style_pad_bottom="#space_sm"
+                                   style_pad_row="0" scrollable="false" flex_flow="column" style_flex_main_place="start"
+                                   style_flex_cross_place="center">
       <!-- Chamber air modes (helix::chamber_air): each button sends its mode.
            Hidden unless the printer offers at least one mode and any accessory
            the modes need is fitted (chamber_air_available). A printer that
@@ -57,6 +57,6 @@
         <!-- All fan widgets (FanDial and fan_status_card) are created here dynamically by C++ -->
         <!-- Controllable fans are added first, then auto-controlled fans -->
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

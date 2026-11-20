@@ -5,6 +5,8 @@
 
 #include "lvgl/lvgl.h"
 
+#include <functional>
+
 /**
  * @file ui_panel_common.h
  * @brief Common helper utilities for panel setup to reduce boilerplate
@@ -115,10 +117,12 @@ lv_obj_t* create_xml_hidden(lv_obj_t* parent, const char* component, const char*
  * root invalidates every one of those sizes, most of the screen for a toast.
  * Laid out while hidden, only the final area is redrawn.
  *
+ * @param fill Runs on the root before the layout pass, for content that cannot
+ *             travel as a prop (user text set with set_row_label_text()).
  * @return The component root, visible and parented to @p parent, or nullptr
  */
-lv_obj_t* create_xml_laid_out(lv_obj_t* parent, const char* component,
-                              const char** attrs = nullptr);
+lv_obj_t* create_xml_laid_out(lv_obj_t* parent, const char* component, const char** attrs = nullptr,
+                              const std::function<void(lv_obj_t*)>& fill = {});
 } // namespace helix::ui
 
 /**

@@ -3,7 +3,9 @@
 
 #include "ui_multiselect.h"
 
-#include "theme_manager.h"
+#include "ui_row_text.h"
+
+#include "helix-xml/src/xml/lv_xml.h"
 
 #include <spdlog/spdlog.h>
 
@@ -63,29 +65,17 @@ void UiMultiselect::set_items(const std::vector<MultiSelectItem>& items) {
     clear_rows();
 
     if (!select_all_label_.empty()) {
-        all_row_ = build_row({"all", select_all_label_});
-        lv_obj_set_style_border_side(all_row_->row, LV_BORDER_SIDE_BOTTOM, 0);
-        lv_obj_set_style_border_width(all_row_->row, 1, 0);
-        lv_obj_set_style_border_color(all_row_->row, theme_manager_get_color("border"), 0);
+        all_row_ = build_row({"all", select_all_label_}, true);
     }
 
     for (size_t i = 0; i < items.size(); ++i) {
-        auto* row_obj = create_row(items[i]);
-        // Add bottom border as divider (except last row)
-        if (i < items.size() - 1) {
-            lv_obj_set_style_border_side(row_obj, LV_BORDER_SIDE_BOTTOM, 0);
-            lv_obj_set_style_border_width(row_obj, 1, 0);
-            lv_obj_set_style_border_color(row_obj, theme_manager_get_color("border"), 0);
-        }
+        // A hairline under every row but the last
+        rows_.push_back(build_row(items[i], i + 1 < items.size()));
     }
 }
 
-lv_obj_t* UiMultiselect::create_row(const MultiSelectItem& item) {
-    rows_.push_back(build_row(item));
-    return rows_.back()->row;
-}
-
-std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSelectItem& item) {
+std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSelectItem& item,
+                                                                 bool divider) {
     auto data = std::make_unique<RowData>();
     data->key = item.key.empty() ? item.label : item.key;
     data->label = item.label;
@@ -93,49 +83,24 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     data->enabled = item.enabled;
     data->owner = this;
 
-    // Row container: flex row, full width, content height
-    lv_obj_t* row = lv_obj_create(container_);
-    lv_obj_set_name(row, fmt::format("item_{}", data->key).c_str());
-    lv_obj_set_width(row, lv_pct(100));
-    lv_obj_set_height(row, LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-
-    // Padding from theme
-    int pad = theme_manager_get_spacing("space_md");
-    lv_obj_set_style_pad_left(row, pad, 0);
-    lv_obj_set_style_pad_right(row, pad, 0);
-    lv_obj_set_style_pad_top(row, pad, 0);
-    lv_obj_set_style_pad_bottom(row, pad, 0);
-    lv_obj_set_style_pad_gap(row, pad, 0);
-
-    // Transparent background, no border by default
-    lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(row, 0, 0);
-    lv_obj_set_scrollable(row, false);
-
-    // Label: flex grow to fill available space
-    lv_obj_t* label = lv_label_create(row);
-    lv_label_set_text(label, item.label.c_str());
-    lv_obj_set_flex_grow(label, 1);
-    lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
-    lv_obj_set_style_text_color(label,
-                                theme_manager_get_color(item.enabled ? "text" : "text_muted"), 0);
-
-    // Checkbox: right-aligned, empty text, not directly clickable
-    lv_obj_t* cb = lv_checkbox_create(row);
-    lv_obj_set_name(cb, "check");
-    lv_checkbox_set_text(cb, "");
-    lv_obj_set_clickable(cb, false);
-
-    // Set initial state
-    if (data->selected) {
-        lv_obj_add_state(cb, LV_STATE_CHECKED);
+    const std::string name = fmt::format("item_{}", data->key);
+    const char* attrs[] = {
+        "name",          name.c_str(),
+        "checked",       data->selected ? "true" : "false",
+        "disabled",      item.enabled ? "false" : "true",
+        "clickable",     item.enabled ? "true" : "false",
+        "text_color",    item.enabled ? "#text" : "#text_muted",
+        "divider_width", divider ? "1" : "0",
+        nullptr,
+    };
+    auto* row = static_cast<lv_obj_t*>(lv_xml_create(container_, "multiselect_row", attrs));
+    if (!row) {
+        spdlog::error("[UiMultiselect] multiselect_row failed to build for '{}'", data->key);
+        return data;
     }
-    if (!item.enabled) {
-        lv_obj_add_state(cb, LV_STATE_DISABLED);
-        lv_obj_set_clickable(row, false);
-    }
+    // A label is user text: as a prop a leading '#' would read as a const.
+    set_row_label_text(row, "label", item.label.c_str());
+    lv_obj_t* cb = lv_obj_find_by_name(row, "check");
 
     data->row = row;
     data->checkbox = cb;

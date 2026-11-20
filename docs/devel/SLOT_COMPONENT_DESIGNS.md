@@ -15,35 +15,16 @@ nobody re-proposes moving string formatting into XML.
 `lib/helix-xml/` is our MIT fork of the XML engine LVGL removed in 9.5. See
 `HELIX_XML_FORK.md` for the fork's origin and licensing position.
 
-### There is no slot system
+### Slots
 
-The engine has the `<component-slotname>` **usage** syntax and nothing behind it, inherited from
-upstream LVGL (lvgl/lvgl#9193). The implementation is `lib/helix-xml/src/xml/lv_xml.c`, in the
-"If not a component either, check if it is a slot" branch of the view element handler.
-
-What it does: split the tag on `-`, look up the component scope, then
-`lv_obj_find_by_name(state->parent, slot_name)`. That is the whole mechanism.
-
-What is missing:
-
-- No `<slot>` declaration. A component cannot say which slots it offers.
-- No `<api>` validation. Filling a slot that does not exist is not an error at parse time.
-- No default content.
-- No multi-slot dispatch beyond "find a descendant with this name".
-- The fallback exists only on the parse path. `lv_xml_create()` tries the widget processor,
-  then the component scope, and returns NULL without ever splitting the name, so the two entry
-  points into the engine disagree about whether a slot tag means anything.
-- A NULL result falls through to the unknown-tag path, which logs the misleading
-  "not a known widget/element/component/slot - likely an unregistered widget in a STALE
-  BINARY" error. The failure mode for a typo'd slot name is a message about rebuilding.
-
-Real slot declarations are tracked as
-[helix-xml#1](https://github.com/prestonbrown/helix-xml/issues/1). Every design below needs
-that first.
+Components declare slots in `<api>` (`<slot name="body" default="true"/>`): an instance's
+widget children land in the default slot, `<component-slot>` fills a named one, and C++
+reaches a host with `lv_xml_component_get_slot()`. Semantics:
+`lib/helix-xml/docs/BINDINGS.md` § "Slots".
 
 ### What the engine does have
 
-These cover most of what slots were wanted for:
+Alongside slots:
 
 - `<repeat count="4">` / `<repeat count="a_subject">` for repeated fragments, with `$i` /
   `${i}` substitution. Reactive form rebuilds on subject change.

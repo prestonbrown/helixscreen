@@ -6,9 +6,8 @@
 <component>
   <view name="snapmaker_nozzle_offset_overlay"
         extends="overlay_panel" title="Toolhead Offset Calibration" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_lg">
+    <overlay_panel-overlay_content style_pad_all="#space_lg"
+                                   scrollable="false" flex_flow="column" style_pad_gap="#space_lg">
       <!-- ================================================================== -->
       <!-- INTRO (0) -->
       <!-- ================================================================== -->
@@ -132,6 +131,6 @@
           <event_cb trigger="clicked" callback="on_nozzle_offset_close"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

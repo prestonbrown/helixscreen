@@ -6,9 +6,9 @@
 <component>
   <view name="motion_settings_overlay" extends="overlay_panel" title="Motion" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg"
+                                   scrollable="true" flex_flow="column">
       <!-- Jog-tab arrangement: MotionLayout order (Pad, Arrows, Arrows + Home,
            Axis Rows). -->
       <setting_dropdown_row name="row_motion_layout"
@@ -192,16 +192,20 @@
       </setting_toggle_row>
       <!-- Spacer to push buttons to bottom -->
       <lv_obj width="100%" flex_grow="1" scrollable="false"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
     <!-- ================================================================== -->
     <!-- ACTION BUTTONS -->
     <!-- ================================================================== -->
-    <divider_horizontal/>
-    <lv_obj width="100%"
-            height="content" style_pad_all="#space_md" flex_flow="row" style_flex_main_place="center" scrollable="false">
-      <ui_button name="reset_distances_btn" width="180" text="Reset Distances">
-        <event_cb trigger="clicked" callback="on_reset_distances"/>
-      </ui_button>
-    </lv_obj>
+    <overlay_panel-overlay_footer>
+      <divider_horizontal/>
+      <lv_obj width="100%"
+              height="content" style_pad_all="#space_md" flex_flow="row" style_flex_main_place="center"
+              scrollable="false">
+        <ui_button name="reset_distances_btn" width="180" text="Reset Distances">
+          <event_cb trigger="clicked" callback="on_reset_distances"/>
+        </ui_button>
+      </lv_obj>
+    </overlay_panel-overlay_footer>
+
   </view>
 </component>

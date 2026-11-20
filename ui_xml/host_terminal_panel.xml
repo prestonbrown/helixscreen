@@ -6,9 +6,8 @@
      view and draws it as text in the monospace face. -->
 <component>
   <view name="host_terminal_panel" extends="overlay_panel" title="Host Terminal">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_sm" style_pad_top="0" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_xs">
+    <overlay_panel-overlay_content style_pad_all="#space_sm"
+                                   style_pad_top="0" scrollable="false" flex_flow="column" style_pad_gap="#space_xs">
       <!-- Why there is no shell: it exited, or it could not start -->
       <text_small name="status_message" width="100%" text="" bind_text="host_terminal_status" long_mode="wrap">
         <bind_flag_if_eq subject="host_terminal_status_visible" flag="hidden" ref_value="0"/>
@@ -102,6 +101,6 @@
           </lv_obj>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

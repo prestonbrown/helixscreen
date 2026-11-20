@@ -4,9 +4,9 @@
 <component>
   <view name="power_panel" extends="overlay_panel" title="Power Devices" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="0" style_pad_right="0" style_pad_top="0"
-            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="0" scrollable="true">
+    <overlay_panel-overlay_content style_pad_left="0"
+                                   style_pad_right="0" style_pad_top="0" style_pad_bottom="#space_lg" flex_flow="column"
+                                   style_pad_gap="0" scrollable="true">
       <!-- Disable content when Moonraker WebSocket not connected -->
       <bind_state_if_not_eq subject="moonraker_connection_state" state="disabled" ref_value="1"/>
       <!-- Home button device selection chips -->
@@ -43,6 +43,6 @@
       </lv_obj>
       <!-- Status message at bottom -->
       <text_small name="status_message" width="100%" bind_text="power_status" text="" style_text_align="center"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

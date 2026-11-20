@@ -8,9 +8,9 @@
 <component>
   <view name="settings_printing_overlay" extends="overlay_panel" title="Printing" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- ================================================================== -->
       <!-- MACHINE -->
       <!-- ================================================================== -->
@@ -132,6 +132,6 @@
                             description="Configure quick buttons and standard macros"
                             callback="on_macro_buttons_clicked"/>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

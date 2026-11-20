@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One field of a telemetry_event_card, wrapped to the card. color is a theme
+     token (#text, #text_subtle); TelemetryDataOverlay sets the text, which is
+     event data. -->
+<component>
+  <api>
+    <prop name="color" type="string" default="#text"/>
+  </api>
+  <view name="event_line"
+        extends="lv_label" width="100%" text="" long_mode="wrap" style_text_color="$color"
+        style_text_font="noto_sans_14"/>
+</component>

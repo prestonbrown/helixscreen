@@ -30,6 +30,14 @@ replaces the site.
 | 8 | **NO C++ create-and-wire loop for repeated fragments** | `for(int i=0;i<n;i++) { lv_obj_create(...); ... }` in C++ | XML `<repeat count="4">…$i…</repeat>` (fixed) or `<repeat count="a_subject">…${i}…</repeat>` (reactive rebuild). See `docs/devel/LVGL9_XML_GUIDE.md` § "Repeating fragments with `<repeat>`". Measured layout, computed callbacks and data population still belong in C++; `<repeat>` only replaces the widget-creation loop |
 | 9 | **A hold that acts ends its press** | A tap on `short_clicked` (a slow tap then does nothing), a flag the hold handler sets to swallow the tap, or a hold handler that acts and leaves the press running (its release also fires `clicked`) | The tap binds `clicked`; the `long_pressed` handler calls `helix::ui::end_press(e)` when it acts and leaves the press alone when it declines. Gated by `scripts/check_hold_ends_press.py`. See `docs/devel/LVGL9_XML_GUIDE.md` § "Tap and hold" |
 
+**Data lists:** a list whose length comes from data (devices, macros, sensors) is a C++ loop
+of `lv_xml_create(parent, "<row component>", props)`, never `lv_obj_create` plus setters: the
+row's markup, styles, bindings and `<event_cb user_data="$index">` live in the component, and C++
+passes data. A dropdown's data-driven options bind with `bind_options="string_subject"`. C++ that
+fills a component's container asks `lv_xml_component_get_slot(instance, "slot")` for a declared
+`<slot>` instead of finding it by name. A fixed set of carousel pages is written as `<ui_carousel>`
+children; `ui_carousel_add_item` is for a page per data item.
+
 **Structural exceptions - C++ is correct here, permanently:**
 
 | Case | Why |

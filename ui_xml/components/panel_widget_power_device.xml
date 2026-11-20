@@ -20,58 +20,77 @@
     <prop name="accent_subject" type="string" default=""/>
     <prop name="badge_opa_subject" type="string" default=""/>
     <prop name="status_color_subject" type="string" default=""/>
+    <!-- The energy meter's readings, formatted -->
+    <prop name="energy_power_subject" type="string" default=""/>
+    <prop name="energy_voltage_subject" type="string" default=""/>
+    <prop name="energy_current_subject" type="string" default=""/>
+    <prop name="energy_energy_subject" type="string" default=""/>
   </api>
   <view name="panel_widget_power_device"
-        extends="lv_obj" height="100%" flex_grow="1" style_pad_ver="0" style_pad_gap="#space_xxs" scrollable="false"
-        clickable="true">
+        extends="lv_obj" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" clickable="true">
     <bind_state_if_not_eq subject="moonraker_connection_state" state="disabled" ref_value="1"/>
     <event_cb trigger="clicked" callback="power_device_clicked_cb"/>
-    <!-- The badge over the device's state and name, or beside them when the
-         box is too short to stack: the two shapes TileSizing measures. -->
-    <style name="styles.tile_column"/>
-    <bind_style_if_eq name="styles.tile_row" subject="$tile_dir_subject" ref_value="1"/>
+    <!-- The device page, then the energy meter's readings. Without a meter the
+         widget keeps the second page out of reach, so the tile is the device
+         page alone. A tap on either page reaches the tile's click handler. -->
+    <ui_carousel name="power_carousel"
+                 width="100%" height="100%" wrap="true" show_indicators="true" bubble_events="true">
+      <!-- The badge over the device's state and name, or beside them when the
+           box is too short to stack: the two shapes TileSizing measures. -->
+      <lv_obj name="power_device_page"
+              width="100%" height="100%" style_pad_ver="0" style_pad_gap="#space_xxs" style_bg_opa="0"
+              style_border_width="0" scrollable="false" clickable="true" event_bubble="true">
+        <style name="styles.tile_column"/>
+        <bind_style_if_eq name="styles.tile_row" subject="$tile_dir_subject" ref_value="1"/>
 
-    <tile_badge name="power_badge" icon="power_cycle" icon_name="power_icon" rung_subject="$tile_icon_subject">
-      <bind_style_prop prop="bg_color" subject="$accent_subject"/>
-      <bind_style_prop prop="bg_opa" subject="$badge_opa_subject"/>
-      <!-- Lock overlaid at the badge's bottom-right -->
-      <icon name="power_lock_icon"
-            src="lock" size="xs" variant="muted" clickable="false" event_bubble="true" hidden="true"
-            align="bottom_right">
-        <bind_tile_rung ladder="icon" subject="$tile_icon_subject" offset="-2"/>
-        <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="2"/>
-      </icon>
-    </tile_badge>
+        <tile_badge name="power_badge" icon="power_cycle" icon_name="power_icon" rung_subject="$tile_icon_subject">
+          <bind_style_prop prop="bg_color" subject="$accent_subject"/>
+          <bind_style_prop prop="bg_opa" subject="$badge_opa_subject"/>
+          <!-- Lock overlaid at the badge's bottom-right -->
+          <icon name="power_lock_icon"
+                src="lock" size="xs" variant="muted" clickable="false" event_bubble="true" hidden="true"
+                align="bottom_right">
+            <bind_tile_rung ladder="icon" subject="$tile_icon_subject" offset="-2"/>
+            <bind_flag_if_not_eq subject="$state_subject" flag="hidden" ref_value="2"/>
+          </icon>
+        </tile_badge>
 
-    <lv_obj name="power_text_col"
-            width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xxs" scrollable="false"
-            clickable="false" event_bubble="true">
-      <style name="styles.tile_column"/>
-      <bind_style_if_eq name="styles.tile_fill" subject="$tile_dir_subject" ref_value="1"/>
-      <!-- ON/OFF/LOCKED: the tile's reading, in the value face -->
-      <text_tiny name="power_device_status"
-                 bind_text="$status_text_subject" style_text_align="center" style_text_color="#text_muted"
-                 clickable="false" event_bubble="true">
-        <bind_style_prop prop="text_color" subject="$status_color_subject"/>
-        <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
-        <bind_flag_if_eq subject="$status_subject" flag="hidden" ref_value="0"/>
-      </text_tiny>
-      <!-- Device name: always drawn, it says which device this is -->
-      <text_tiny name="power_device_name"
-                 width="100%" bind_text="$name_subject" style_text_align="center" style_text_color="#text"
-                 long_mode="dots" clickable="false" event_bubble="true">
-        <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
-        <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
-        <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="0"/>
-      </text_tiny>
-      <!-- Until a device is picked: a literal, so it re-translates itself -->
-      <text_tiny name="power_device_configure"
-                 width="100%" text="Configure" style_text_align="center" style_text_color="#text" long_mode="dots"
-                 clickable="false" event_bubble="true">
-        <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
-        <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
-        <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="1"/>
-      </text_tiny>
-    </lv_obj>
+        <lv_obj name="power_text_col"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xxs" scrollable="false"
+                clickable="false" event_bubble="true">
+          <style name="styles.tile_column"/>
+          <bind_style_if_eq name="styles.tile_fill" subject="$tile_dir_subject" ref_value="1"/>
+          <!-- ON/OFF/LOCKED: the tile's reading, in the value face -->
+          <text_tiny name="power_device_status"
+                     bind_text="$status_text_subject" style_text_align="center" style_text_color="#text_muted"
+                     clickable="false" event_bubble="true">
+            <bind_style_prop prop="text_color" subject="$status_color_subject"/>
+            <bind_tile_rung ladder="value" subject="$tile_icon_subject"/>
+            <bind_flag_if_eq subject="$status_subject" flag="hidden" ref_value="0"/>
+          </text_tiny>
+          <!-- Device name: always drawn, it says which device this is -->
+          <text_tiny name="power_device_name"
+                     width="100%" bind_text="$name_subject" style_text_align="center" style_text_color="#text"
+                     long_mode="dots" clickable="false" event_bubble="true">
+            <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
+            <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
+            <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="0"/>
+          </text_tiny>
+          <!-- Until a device is picked: a literal, so it re-translates itself -->
+          <text_tiny name="power_device_configure"
+                     width="100%" text="Configure" style_text_align="center" style_text_color="#text" long_mode="dots"
+                     clickable="false" event_bubble="true">
+            <bind_tile_rung ladder="label" subject="$tile_icon_subject" one_line="true"/>
+            <bind_flag_if_eq subject="$tile_label_subject" flag="hidden" ref_value="0"/>
+            <bind_flag_if_eq subject="$named_subject" flag="hidden" ref_value="1"/>
+          </text_tiny>
+        </lv_obj>
+      </lv_obj>
+      <power_device_energy_page name="power_energy_page"
+                                energy_power_subject="$energy_power_subject"
+                                energy_voltage_subject="$energy_voltage_subject"
+                                energy_current_subject="$energy_current_subject"
+                                energy_energy_subject="$energy_energy_subject"/>
+    </ui_carousel>
   </view>
 </component>

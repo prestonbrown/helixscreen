@@ -115,7 +115,7 @@ lv_obj_t* TimelapseInstallOverlay::create(lv_obj_t* parent) {
                              {lv_tr("Configure Moonraker"), StepState::Pending},
                              {lv_tr("Restart Moonraker"), StepState::Pending},
                              {lv_tr("Verify"), StepState::Pending}};
-        step_progress_ = ui_step_progress_create(step_container, steps, STEP_COUNT, false, nullptr);
+        step_progress_ = ui_step_progress_create(step_container, steps, STEP_COUNT, false);
     }
 
     hide_action_button();

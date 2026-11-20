@@ -22,69 +22,10 @@
          reveals the description on small screens. -->
     <prop name="info_callback" type="string" default=""/>
   </api>
-  <styles>
-    <style name="label_enabled" text_color="#text"/>
-    <style name="label_disabled" text_color="#text_subtle"/>
-    <style name="pad_standard"
-           pad_left="#space_lg" pad_right="#space_lg" pad_top="#space_lg" pad_bottom="#space_lg" pad_gap="#space_sm"/>
-    <style name="pad_micro"
-           pad_left="#space_md" pad_right="#space_md" pad_top="#space_lg" pad_bottom="#space_lg" pad_gap="#space_sm"/>
-  </styles>
   <view name="toggle_row"
-        extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_main_place="start"
-        style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false">
-    <bind_style_if_eq name="pad_micro" subject="ui_breakpoint" ref_value="0"/>
-    <bind_style_if_ge name="pad_standard" subject="ui_breakpoint" ref_value="1"/>
-    <!-- Left side: Optional icon — hidden (no broken-glyph fallback) when none given -->
-    <icon name="row_icon" src="$icon" size="sm" variant="secondary" hidden_if_empty="$icon"/>
-    <!-- Middle: Label and optional description -->
-    <lv_obj width="0"
-            height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" flex_grow="1"
-            scrollable="false">
-      <text_body name="label" width="100%" text="$label" translation_tag="$label_tag" long_mode="wrap">
-        <bind_style_if_not_eq name="label_enabled" subject="$disabled" ref_value="$disabled_ref_value"/>
-        <bind_style_if_eq name="label_disabled" subject="$disabled" ref_value="$disabled_ref_value"/>
-      </text_body>
-      <!-- Description wrapper: collapsed entirely when no description (parse-time,
-           so it doesn't fight the reactive breakpoint bind below). With no
-           description the column holds only the label, which then centers
-           vertically against the icon/switch. -->
-      <lv_obj width="100%"
-              height="content" style_pad_all="0" style_border_width="0" scrollable="false"
-              hidden_if_empty="$description">
-        <!-- Description: hidden on micro/tiny by default -->
-        <text_small name="description"
-                    width="100%" text="$description" translation_tag="$description_tag" long_mode="wrap">
-          <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
-        </text_small>
-      </lv_obj>
-    </lv_obj>
-    <!-- Info icon: only when a description exists, and only on small breakpoints
-         (where the description text itself is hidden). The empty-check lives on
-         an outer wrapper (parse-time, permanent) so it isn't cleared by the
-         reactive breakpoint bind on the inner button — otherwise an empty (i)
-         reappears at micro/tiny. -->
-    <lv_obj width="content"
-            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-            hidden_if_empty="$description" hidden_if_prop_not_eq="$info_callback|">
-      <lv_obj name="info_btn"
-              width="content" height="content" style_pad_all="2" style_bg_opa="0" style_border_width="0"
-              clickable="true" event_bubble="false" scrollable="false">
-        <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-        <icon src="info_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-        <event_cb trigger="clicked" callback="on_setting_info_clicked"/>
-      </lv_obj>
-    </lv_obj>
-    <!-- Info button for info_callback. The callback name rides as user_data on the shared
-         info handler, which calls it: a callback attribute left empty would warn on every
-         row that has none. -->
-    <lv_obj name="info_modal_btn"
-            width="content" height="content" style_pad_all="#space_xxs" style_bg_opa="0" style_border_width="0"
-            clickable="true" event_bubble="false" scrollable="false" hidden_if_empty="$info_callback">
-      <icon src="info_outline" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-      <event_cb trigger="clicked" callback="on_setting_info_clicked" user_data="$info_callback"/>
-    </lv_obj>
-    <!-- Right side: Switch toggle -->
+        extends="setting_row" label="$label" label_tag="$label_tag" icon="$icon" description="$description"
+        description_tag="$description_tag" disabled="$disabled" disabled_ref_value="$disabled_ref_value"
+        info_callback="$info_callback">
     <ui_switch name="toggle" size="small" moves_machine="$moves_machine">
       <bind_state_if_eq subject="$subject" state="checked" ref_value="1"/>
       <bind_state_if_eq subject="$disabled" state="disabled" ref_value="$disabled_ref_value"/>

@@ -601,3 +601,27 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack: two tiles keep their own text",
     CHECK(std::string(lv_label_get_text(a.child("fan_stack_part_name"))) == lv_tr("P"));
     CHECK(std::string(lv_label_get_text(b.child("fan_stack_part_name"))) != lv_tr("P"));
 }
+
+// Each carousel page is the fan's arc over its name, in muted xs text; the page
+// takes taps the arc does not.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan_stack carousel pages show the fan's arc and name",
+                 "[fan_stack][carousel]") {
+    PanelWidgetHarness<FanStackWidget> h(
+        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, "fan_stack", state());
+
+    lv_obj_t* arc = h.child("dial_container");
+    REQUIRE(arc != nullptr);
+    lv_obj_t* page = lv_obj_get_parent(arc);
+    CHECK(lv_obj_is_clickable(page));
+    REQUIRE(lv_obj_get_child_count(page) == 2);
+    CHECK(lv_obj_get_child(page, 0) == arc);
+    CHECK(lv_obj_get_style_flex_grow(arc, LV_PART_MAIN) == 1);
+
+    lv_obj_t* name = lv_obj_get_child(page, 1);
+    REQUIRE(lv_obj_check_type(name, &lv_label_class));
+    CHECK(std::string(lv_label_get_text(name)) == lv_tr("Part"));
+    CHECK(lv_obj_get_style_text_font(name, LV_PART_MAIN) == theme_manager_get_font("font_xs"));
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(name, LV_PART_MAIN),
+                      theme_manager_get_color("text_muted")));
+    CHECK(lv_obj_get_style_pad_bottom(page, LV_PART_MAIN) == theme_manager_get_spacing("space_lg"));
+}

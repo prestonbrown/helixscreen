@@ -12,6 +12,8 @@
     <prop name="selected" type="boolean" default="false"/>
     <prop name="pad_all" type="string" default="#space_sm"/>
     <prop name="pad_gap" type="string" default="#space_xs"/>
+    <!-- Optional trailing reading (a fan's speed), dimmed; hidden when empty. -->
+    <prop name="value" type="string" default=""/>
   </api>
   <styles>
     <style name="selected" bg_color="#primary" bg_opa="30"/>
@@ -25,5 +27,8 @@
     <text_body name="option_label"
                text="" flex_grow="1" long_mode="dots" style_text_font="noto_sans_14" clickable="false"
                event_bubble="true"/>
+    <text_body name="option_value"
+               text="$value" style_text_font="noto_sans_14" style_text_opa="180" hidden_if_empty="$value"
+               clickable="false" event_bubble="true"/>
   </view>
 </component>

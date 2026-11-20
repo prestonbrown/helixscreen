@@ -181,13 +181,22 @@ Components are reusable UI pieces defined with the `<component>` tag.
 | `color` | Hex colors | `default="0xff4444"` |
 | `subject` | Subject references | For data binding |
 
-#### Slot Injection into a Component Instance
+#### Slots: filling a component from outside
 
-A component can expose a named widget as a slot for the instantiating screen to
-fill. Nest a `<component_name-slot_name>` tag inside the instantiation; the
-engine splits the tag at the first `-`, requires the prefix to be a registered
-component, and re-parents the tag's children into the widget named `slot_name`
-inside that instance:
+A component declares slots in its `<api>` (`<slot name="body" default="true"/>`,
+`<slot name="footer" target="footer_row"/>`), each naming an object in its view.
+An instance's widget children land in the default slot; `<component-slot>` fills
+a named one; `bind_*`, `event_cb` and `style` children still act on the instance
+root. A host's default content shows until the slot is filled. C++ that fills a
+slot at runtime asks `lv_xml_component_get_slot(instance, "body")` (`nullptr` for
+the default) instead of looking a container up by name. Semantics:
+[`BINDINGS.md` § *Slots*](../../lib/helix-xml/docs/BINDINGS.md#slots--where-an-instances-children-go).
+
+A widget written in C++ takes XML children the same way when its create_cb calls
+`lv_xml_set_child_host(obj, cb, user_data)`: `cb` returns the object each child
+goes on. `<ui_carousel>` does this, so a fixed set of pages is written as its
+children, each placed in a tile of its own (`ui_xml/components/panel_widget_temp_carousel.xml`).
+A page per data item still goes through `ui_carousel_add_item`.
 
 ```xml
 <header_bar title="Motion">
@@ -698,7 +707,7 @@ subject-referencing cond rebuilds repeatedly rather than once:
 
 `<else/>` is an inline divider *inside* the single matched `<if>…</if>` block, not a separate sibling tag: everything before it is the true-body, everything after it (up to `</if>`) is the false-body. Both spellings behave identically - self-closing `<else/>` and empty-element `<else></else>` - the split point is the `<else>` open tag; the marker's own open/close events aren't part of either body. `<else>` is optional: `<if cond="X">…</if>` with no `<else>` creates nothing when `cond` is false, and the component still loads. A second `<else/>` inside one `<if>` is a mistake - it warns and the first split wins. A stray `<else/>` with no enclosing `<if>` also warns and is ignored; the component still loads.
 
-`cond` uses the same expression grammar as [Expression Conditionals](#expression-conditionals). A cond with **no subject operands is static**: it's evaluated once at load time and the losing branch is never created - no observer. A cond that **references one or more subjects is reactive**: it fires immediately for the initial build, then re-evaluates and rebuilds (tears down the current branch, builds the other) on every change to *any* referenced subject - `cond="a and b gt c"` rebuilds whether `a`, `b`, or `c` changes.
+`cond` uses the same expression grammar as [Expression Conditionals](#expression-conditionals). A component's props splice in as `$prop` or `${prop}` (`<if cond="$editing eq 1">`); a cond over props alone is static, so each instance builds the branch its own props ask for. A cond with **no subject operands is static**: it's evaluated once at load time and the losing branch is never created - no observer. A cond that **references one or more subjects is reactive**: it fires immediately for the initial build, then re-evaluates and rebuilds (tears down the current branch, builds the other) on every change to *any* referenced subject - `cond="a and b gt c"` rebuilds whether `a`, `b`, or `c` changes.
 
 > ⚠️ **A reactively-rebuilt `<if>` must be the last child of its parent, or the only child of a dedicated container** - the same ordering constraint as [`<repeat>`](#repeating-fragments-with-repeat). On rebuild, LVGL appends the freshly-built body to the *end* of the parent's child list, so static siblings that come after the `<if>` in the document stay put while the rebuilt body lands after them, silently reordering the layout on every flip. A static `<if>` never rebuilds, so this only matters for a subject-referencing `cond`.
 

@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The edit form of the LED macro device being edited. Every field is bound to
+     LedSettingsOverlay's draft subjects, so switching the type only changes
+     which fields show, and nothing reaches the device list until Save. -->
+<component>
+  <api>
+    <prop name="index" type="int" default="0"/>
+  </api>
+  <view name="macro_edit_${index}"
+        extends="lv_obj" width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm"
+        style_bg_opa="0" style_border_width="0" scrollable="false">
+    <setting_form_input label="Name:"
+                        placeholder="Device name" input_name="macro_name_input" text_subject="led_macro_draft_name"/>
+    <setting_form_dropdown label="Type:"
+                           dropdown_name="macro_type_dropdown"
+                           options="On/Off (state-aware)&#10;Toggle (fire-and-forget)&#10;Preset"
+                           options_tag="On/Off (state-aware)&#10;Toggle (fire-and-forget)&#10;Preset"
+                           value_subject="led_macro_draft_type"/>
+    <text_body width="100%"
+               text="Separate on/off macros. HelixScreen tracks the state." long_mode="wrap"
+               style_text_color="#text_subtle" style_pad_left="#space_xl" style_pad_right="#space_xl">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="0"/>
+    </text_body>
+    <text_body width="100%"
+               text="Single toggle macro. State is not tracked." long_mode="wrap" style_text_color="#text_subtle"
+               style_pad_left="#space_xl" style_pad_right="#space_xl">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="1"/>
+    </text_body>
+    <text_body width="100%"
+               text="Named actions in the LED Controls widget. Not shown under LED selection." long_mode="wrap"
+               style_text_color="#text_subtle" style_pad_left="#space_xl" style_pad_right="#space_xl">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="2"/>
+    </text_body>
+    <text_body width="100%"
+               text="No LED macros detected. Type a macro name below." long_mode="wrap" style_text_color="#text_subtle">
+      <bind_flag_if_not_eq subject="led_macro_discovered_count" flag="hidden" ref_value="0"/>
+    </text_body>
+    <setting_form_macro_field label="On:"
+                              placeholder="or type a macro name" dropdown_name="macro_on_dropdown"
+                              input_name="macro_on_text" options_subject="led_macro_field_options"
+                              value_subject="led_macro_draft_on_sel" text_subject="led_macro_draft_on_text">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="0"/>
+    </setting_form_macro_field>
+    <setting_form_macro_field label="Off:"
+                              placeholder="or type a macro name" dropdown_name="macro_off_dropdown"
+                              input_name="macro_off_text" options_subject="led_macro_field_options"
+                              value_subject="led_macro_draft_off_sel" text_subject="led_macro_draft_off_text">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="0"/>
+    </setting_form_macro_field>
+    <setting_form_macro_field label="Toggle:"
+                              placeholder="or type a macro name" dropdown_name="macro_toggle_dropdown"
+                              input_name="macro_toggle_text" options_subject="led_macro_field_options"
+                              value_subject="led_macro_draft_toggle_sel" text_subject="led_macro_draft_toggle_text">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="1"/>
+    </setting_form_macro_field>
+    <lv_obj width="100%"
+            height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+            style_border_width="0" scrollable="false">
+      <bind_flag_if_not_eq subject="led_macro_draft_type" flag="hidden" ref_value="2"/>
+      <!-- A subject-bound repeat must be its container's only child. -->
+      <lv_obj width="100%"
+              height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" scrollable="false">
+        <repeat count="led_macro_draft_preset_count">
+          <led_macro_preset_row index="${i}" device="$index"/>
+        </repeat>
+      </lv_obj>
+      <lv_button name="macro_add_preset_${index}"
+                 width="100%" height="content" style_bg_opa="10%" style_border_width="1" style_border_color="#border"
+                 style_radius="6" style_pad_all="#space_sm">
+        <text_body text="+ Add Preset" style_text_color="#primary" align="center"/>
+        <event_cb trigger="clicked" callback="led_macro_add_preset_cb"/>
+      </lv_button>
+    </lv_obj>
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_flex_main_place="end" style_flex_cross_place="center"
+            style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <ui_button name="macro_save_${index}" height="#button_height_sm" text="Save" variant="primary">
+        <event_cb trigger="clicked" callback="led_macro_save_cb"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

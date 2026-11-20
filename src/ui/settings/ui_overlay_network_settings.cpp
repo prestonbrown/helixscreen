@@ -1203,7 +1203,7 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
                          {"Gateway", StepState::Pending},
                          {"Internet access", StepState::Pending}};
 
-    step_widget_ = ui_step_progress_create(step_container, steps, 3, false, "network_test");
+    step_widget_ = ui_step_progress_create(step_container, steps, 3, false);
     if (!step_widget_) {
         spdlog::error("[NetworkSettingsOverlay] Failed to create step widget");
         helix::ui::modal_hide(test_modal_);

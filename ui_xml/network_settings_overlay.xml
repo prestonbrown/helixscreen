@@ -16,9 +16,9 @@
   </styles>
   <view name="network_settings_overlay" extends="overlay_panel" title="Network Settings" bg_color="#screen_bg">
     <!-- Two-Column Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_gap="#space_lg" scrollable="false"
-            flex_flow="row" style_flex_main_place="start" style_flex_cross_place="start">
+    <overlay_panel-overlay_content style_pad_all="#space_lg"
+                                   style_pad_gap="#space_lg" scrollable="false" flex_flow="row"
+                                   style_flex_main_place="start" style_flex_cross_place="start">
       <!-- ================================================================== -->
       <!-- LEFT COLUMN (40%) - WiFi status, Ethernet status, network test -->
       <!-- ================================================================== -->
@@ -309,6 +309,6 @@
           <event_cb trigger="clicked" callback="on_add_other_clicked"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

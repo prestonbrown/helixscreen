@@ -5,6 +5,9 @@
 <!-- There is no OS clipboard on a printer; the QR is how values reach a phone. -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
+  <api>
+    <slot name="qr" target="qr_frame"/>
+  </api>
   <view name="screws_tilt_share_modal"
         extends="ui_dialog" width="90%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
         style_pad_gap="0">
@@ -39,8 +42,7 @@
             </lv_obj>
           </repeat>
         </lv_obj>
-        <!-- QR code inserted programmatically for adaptive sizing -->
-        <lv_obj name="qr_container" width="content" height="content" style_pad_all="0" style_border_width="0"/>
+        <qr_frame name="qr_frame"/>
       </lv_obj>
       <text_xs width="100%"
                text="Scan with your phone to save these values" style_text_color="#text_muted" style_text_align="center"

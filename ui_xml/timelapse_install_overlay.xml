@@ -7,9 +7,8 @@
 <component>
   <view name="timelapse_install_overlay" extends="overlay_panel" title="Setup Timelapse" bg_color="#screen_bg">
 
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="true" flex_flow="column"
-            style_pad_row="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="true" flex_flow="column" style_pad_row="#space_md">
 
       <!-- Step progress container (populated programmatically) -->
       <lv_obj name="step_container" width="100%" height="content" style_pad_all="#space_sm" style_bg_opa="0"/>
@@ -54,16 +53,19 @@
       <!-- moonraker-timelapse's Klipper macros: the include line or the restart that loads them -->
       <timelapse_macro_card name="timelapse_macro_card"/>
 
-    </lv_obj>
+    </overlay_panel-overlay_content>
 
     <!-- The wizard's next action, outside the scroll area so it is always on screen -->
-    <lv_obj name="install_footer"
-            width="100%" height="content" style_pad_left="#space_md" style_pad_right="#space_md"
-            style_pad_bottom="#space_md" style_pad_top="0" style_bg_opa="0" scrollable="false">
-      <bind_flag_if_eq subject="timelapse_install_action_visible" flag="hidden" ref_value="0"/>
-      <ui_button name="install_action_button" width="100%" bind_text="timelapse_install_action_text" variant="primary">
-        <event_cb trigger="clicked" callback="on_timelapse_install_action"/>
-      </ui_button>
-    </lv_obj>
+    <overlay_panel-overlay_footer>
+      <lv_obj name="install_footer"
+              width="100%" height="content" style_pad_left="#space_md" style_pad_right="#space_md"
+              style_pad_bottom="#space_md" style_pad_top="0" style_bg_opa="0" scrollable="false">
+        <bind_flag_if_eq subject="timelapse_install_action_visible" flag="hidden" ref_value="0"/>
+        <ui_button name="install_action_button" width="100%" bind_text="timelapse_install_action_text" variant="primary">
+          <event_cb trigger="clicked" callback="on_timelapse_install_action"/>
+        </ui_button>
+      </lv_obj>
+    </overlay_panel-overlay_footer>
+
   </view>
 </component>

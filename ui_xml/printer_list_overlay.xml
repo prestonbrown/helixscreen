@@ -3,9 +3,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <view name="printer_list_overlay" extends="overlay_panel" title="Manage Printers" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" flex_flow="column" scrollable="true">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg"
+                                   flex_flow="column" scrollable="true">
       <setting_group name="group_printer_switcher">
         <!-- Printer Switcher navbar icon toggle -->
         <setting_toggle_row name="row_printer_switcher"
@@ -28,6 +28,6 @@
           </ui_button>
         </lv_obj>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>
