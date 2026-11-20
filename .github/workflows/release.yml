@@ -1138,6 +1138,33 @@ jobs:
           } >> release-notes.md
         fi
 
+    # GitHub's "latest" release must never move backwards. Moonraker's stable
+    # channel reads releases/latest and offers an update whenever that version
+    # differs from the installed one, downgrades included (helixscreen#2147), and
+    # by default every new non-prerelease becomes latest, so a v1.0.x tag cut
+    # after v1.1.0 would offer every 1.1 install a downgrade. The read uses
+    # GITHUB_TOKEN; drafts are never "latest" either way.
+    - name: Decide whether this release becomes GitHub's latest
+      id: latest
+      if: env.RELEASE_MODE == 'publish'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PRERELEASE: ${{ steps.channel.outputs.prerelease }}
+      run: |
+        set -euo pipefail
+        if current=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name' 2>latest.err); then
+          :
+        elif grep -q 'HTTP 404' latest.err; then
+          current=""   # no latest release yet
+        else
+          cat latest.err >&2
+          echo "::error::Cannot read releases/latest; refusing to guess make_latest."
+          exit 1
+        fi
+        make_latest=$(scripts/release-make-latest.sh "$RELEASE_TAG" "$PRERELEASE" "$current")
+        echo "releases/latest is '${current:-<none>}'; ${RELEASE_TAG} make_latest=${make_latest}"
+        echo "make_latest=${make_latest}" >> "$GITHUB_OUTPUT"
+
     - name: Create GitHub Release
       if: env.RELEASE_MODE == 'publish'
       uses: softprops/action-gh-release@v3
@@ -1146,6 +1173,7 @@ jobs:
         body_path: release-notes.md
         draft: false
         prerelease: ${{ steps.channel.outputs.prerelease }}  # from RELEASE_CHANNEL
+        make_latest: ${{ steps.latest.outputs.make_latest }}
         files: |
           release-files/*.zip
           release-files/*.apk
@@ -1155,24 +1183,6 @@ jobs:
         fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # The pre-publish guard in "Prepare symbol files for release" predicts the
-    # order; this reads it back from the API that old Moonraker's zip_deploy
-    # takes assets[0] from (helixscreen#993, #2147).
-    - name: Verify assets[0] of the published release
-      if: env.RELEASE_MODE == 'publish'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        set -euo pipefail
-        first_asset=$(gh api "repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}" \
-          --jq '.assets[0].name')
-        if [ "$first_asset" != "helixscreen-ad5m.zip" ]; then
-          echo "::error::Published release lists '$first_asset' as assets[0], not helixscreen-ad5m.zip." \
-               "Old Moonraker zip_deploy would install it; see helixscreen#993 and #2147."
-          exit 1
-        fi
-        echo "assets[0] = $first_asset (ok)"
 
     # The dry-run stand-in for the release above: the same file set less the
     # AAB (only Play consumes it), kept as a workflow artifact for
@@ -1259,6 +1269,41 @@ jobs:
             }]
           }" \
           "$DISCORD_WEBHOOK_URL"
+
+  # ============================================================================
+  # Read assets[0] of the published release back from the GitHub API
+  # ============================================================================
+  # The pre-publish guard in "Prepare symbol files for release" predicts the
+  # order; this reads it back from the API that old Moonraker's zip_deploy
+  # takes assets[0] from (helixscreen#993, #2147). It is its own job, and
+  # nothing needs it, because the release is already public by now: a mismatch
+  # must not stop upload-r2 from publishing the manifests the in-app updaters
+  # read. It turns the run red instead.
+  verify-release-assets:
+    name: Verify assets[0] of the published release
+    runs-on: ubuntu-latest
+    needs: [release, plan]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+    - name: Check assets[0] is helixscreen-ad5m.zip
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        first_asset=$(gh api "repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}" \
+          --jq '.assets[0].name')
+        if [ "$first_asset" != "helixscreen-ad5m.zip" ]; then
+          echo "::error::Release ${RELEASE_TAG} is published with '$first_asset' as assets[0]," \
+               "not helixscreen-ad5m.zip. An old Moonraker's zip_deploy installs assets[0]" \
+               "(helixscreen#993, #2147). R2 and install.sh still publish. Remove or rename the" \
+               "asset that sorts first (gh release delete-asset ${RELEASE_TAG} <name>)."
+          exit 1
+        fi
+        echo "assets[0] = $first_asset (ok)"
 
   # ============================================================================
   # Upload release artifacts to R2 for auto-update
