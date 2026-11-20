@@ -333,9 +333,12 @@ if [ -f "$S99IED_TARGET" ]; then
 #     Mainsail/Fluidd, or by HelixScreen's Settings) hands the display back:
 #     the overlay copy of the uninstaller's restore runs, and HelixScreen is
 #     not started.
-#   - No executable HelixScreen launcher (install removed, partial, or lost its
-#     exec bit): the stock screen is switched back on.
-# Both act at boot only, never on a service restart.
+#   - No usable HelixScreen launcher (install removed or partial, init script
+#     or binary not executable, or the start failed): the stock screen is
+#     switched back on.
+#   - The stock screen already switched on: HelixScreen is not started, so the
+#     two never fight over the display and WiFi.
+# All of it acts at boot only, never on a service restart.
 # The HELIX_U1_* overrides exist for tests; boot runs with none set.
 _root="${HELIX_U1_ROOT:-}"
 _trigger="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
@@ -352,13 +355,23 @@ if [ -x "$_root/etc/init.d/S99input-event-daemon.stock" ]; then
     "$_root/etc/init.d/S99input-event-daemon.stock" "$@"
 fi
 
+# A launcher counts only with its binary: helixscreen.init exits 0 without
+# doing anything (platform hook and SSH included) when bin/helix-screen is not
+# executable.
 _helix_init=""
-for _i in /userdata/helixscreen/config/helixscreen.init /opt/helixscreen/config/helixscreen.init; do
-    if [ -x "$_root$_i" ]; then
-        _helix_init="$_root$_i"
+for _d in /userdata/helixscreen /opt/helixscreen; do
+    if [ -x "$_root$_d/config/helixscreen.init" ] && [ -x "$_root$_d/bin/helix-screen" ]; then
+        _helix_init="$_root$_d/config/helixscreen.init"
         break
     fi
 done
+
+_enable_stock_screen() {
+    if [ -f "$_root/usr/bin/gui" ] && [ ! -x "$_root/usr/bin/gui" ]; then
+        chmod +x "$_root/usr/bin/gui" 2>/dev/null
+        _note "$1: re-enabled the stock screen (/usr/bin/gui)"
+    fi
+}
 
 if [ "$1" = start ]; then
     if [ -e "$_trigger" ]; then
@@ -382,12 +395,15 @@ if [ "$1" = start ]; then
         _note "Restore stock screen requested, but $_trigger cannot be removed: not restoring"
     fi
     if [ -z "$_helix_init" ]; then
-        if [ -f "$_root/usr/bin/gui" ] && [ ! -x "$_root/usr/bin/gui" ]; then
-            chmod +x "$_root/usr/bin/gui" 2>/dev/null
-            _note "No HelixScreen launcher found: re-enabled the stock screen (/usr/bin/gui)"
-        fi
+        _enable_stock_screen "No usable HelixScreen launcher found"
         exit 0
     fi
+    if [ -x "$_root/usr/bin/gui" ]; then
+        _note "The stock screen is switched on: not starting HelixScreen"
+        exit 0
+    fi
+    "$_helix_init" start || _enable_stock_screen "HelixScreen failed to start"
+    exit 0
 fi
 
 [ -n "$_helix_init" ] && "$_helix_init" "$1"
