@@ -27,7 +27,8 @@ for a in "$@"; do pkg="$a"; done
 case " $IMAGE_PKGS " in *" $pkg "*) printf 'install ok installed' ;; esac
 STUB
     printf '#!/bin/sh\necho "apt-get $*" >> "$CALLS"\n' > "$STUBBIN/apt-get"
-    # curl -o FILE URL: serves $SERVE/<last path element of URL>.
+    # curl -o FILE URL: serves $SERVE/<second-to-last path element>/<last path element>,
+# so a release's unversioned zip is kept apart per tag.
     cat > "$STUBBIN/curl" <<'STUB'
 #!/bin/sh
 out=""; url=""
@@ -36,7 +37,8 @@ while [ $# -gt 0 ]; do
     shift
 done
 echo "curl $url" >> "$CALLS"
-cp "$SERVE/${url##*/}" "$out"
+dir="${url%/*}"
+cp "$SERVE/${dir##*/}/${url##*/}" "$out"
 STUB
     chmod +x "$STUBBIN"/*
     PATH="$STUBBIN:$PATH"
@@ -45,18 +47,20 @@ STUB
     unset BASE_USER
     for v in VERSION PLATFORM ARCHIVE SHA256 USER OWN_DISPLAY INSTALL_ARGS REPO DEPS; do unset "HELIXSCREEN_$v"; done
 
-    printf '{\n  "url": "x",\n  "tag_name": "v1.2.0",\n  "name": "v1.2.0"\n}\n' > "$SERVE/latest"
+    mkdir -p "$SERVE/releases"
+    printf '{\n  "url": "x",\n  "tag_name": "v1.2.0",\n  "name": "v1.2.0"\n}\n' > "$SERVE/releases/latest"
     make_release pi v1.2.0
 }
 
-# make_release PLATFORM TAG [INSTALLER_TEXT]: a release archive whose install.sh
+# make_release PLATFORM TAG [INSTALLER_TEXT]: a release zip, laid out as
+# make release-<platform> writes it (package at the root), whose install.sh
 # records its arguments.
 make_release() {
-    local pkg="$BATS_TEST_TMPDIR/pkg/$1/helixscreen"
-    mkdir -p "$pkg"
+    local pkg="$BATS_TEST_TMPDIR/pkg/$1-$2"
+    mkdir -p "$pkg" "$SERVE/$2"
     printf '#!/bin/sh\n# %s\necho "install.sh $*" >> "$CALLS"\n' "${3:---target-root and --first-boot-moonraker}" \
         > "$pkg/install.sh"
-    tar -czf "$SERVE/helixscreen-$1-$2.tar.gz" -C "$(dirname "$pkg")" helixscreen
+    (cd "$pkg" && zip -qr "$SERVE/$2/helixscreen-$1.zip" .)
 }
 
 installer_args() { sed -n 's/^install.sh //p' "$CALLS"; }
@@ -65,10 +69,10 @@ installer_args() { sed -n 's/^install.sh //p' "$CALLS"; }
     BASE_USER=pi run bash "$MODULE"
     [ "$status" -eq 0 ] || fail "module failed ($status): $output"
     grep -qx "curl https://api.github.com/repos/prestonbrown/helixscreen/releases/latest" "$CALLS"
-    grep -qx "curl https://github.com/prestonbrown/helixscreen/releases/download/v1.2.0/helixscreen-pi-v1.2.0.tar.gz" "$CALLS"
+    grep -qx "curl https://github.com/prestonbrown/helixscreen/releases/download/v1.2.0/helixscreen-pi.zip" "$CALLS"
     grep -qx "apt-get install -y --no-install-recommends libegl1 libgles2" "$CALLS" || fail "$(cat "$CALLS")"
     args=$(installer_args)
-    [[ "$args" == "--target-root / --platform pi --local "*"/helixscreen-pi-v1.2.0.tar.gz --user pi" ]] ||
+    [[ "$args" == "--target-root / --platform pi --local "*"/helixscreen-pi-v1.2.0.zip --user pi" ]] ||
         fail "install.sh got: $args"
 
     : > "$CALLS"
@@ -79,7 +83,7 @@ installer_args() { sed -n 's/^install.sh //p' "$CALLS"; }
     [ "$status" -eq 0 ] || fail "module failed ($status): $output"
     if grep -q "releases/latest\|^apt-get" "$CALLS"; then fail "pinned, fully provisioned image: $(cat "$CALLS")"; fi
     args=$(installer_args)
-    [[ "$args" == "--target-root / --platform pi32 --local "*"-pi32-v1.1.5.tar.gz --own-display --skip-kiauh-registration --dry-run" ]] ||
+    [[ "$args" == "--target-root / --platform pi32 --local "*"-pi32-v1.1.5.zip --own-display --skip-kiauh-registration --dry-run" ]] ||
         fail "install.sh got: $args"
 }
 
@@ -101,7 +105,7 @@ installer_args() { sed -n 's/^install.sh //p' "$CALLS"; }
     contains "does not match HELIXSCREEN_SHA256" "$output"
     [ -z "$(installer_args)" ]
 
-    sum=$(sha256sum "$SERVE/helixscreen-pi-v1.2.0.tar.gz" | cut -d' ' -f1)
+    sum=$(sha256sum "$SERVE/v1.2.0/helixscreen-pi.zip" | cut -d' ' -f1)
     HELIXSCREEN_VERSION=v1.2.0 HELIXSCREEN_SHA256="$sum" run bash "$MODULE"
     [ "$status" -eq 0 ] || fail "a matching checksum was refused: $output"
 
@@ -112,13 +116,23 @@ installer_args() { sed -n 's/^install.sh //p' "$CALLS"; }
     contains "predates image installs" "$output"
     [ -z "$(installer_args)" ]
 
-    HELIXSCREEN_ARCHIVE="$BATS_TEST_TMPDIR/nowhere.tar.gz" run bash "$MODULE"
+    HELIXSCREEN_ARCHIVE="$BATS_TEST_TMPDIR/nowhere.zip" run bash "$MODULE"
     [ "$status" -ne 0 ]
     contains "HELIXSCREEN_ARCHIVE not found" "$output"
 
     : > "$CALLS"
-    HELIXSCREEN_ARCHIVE="$SERVE/helixscreen-pi-v1.2.0.tar.gz" run bash "$MODULE"
+    HELIXSCREEN_ARCHIVE="$SERVE/v1.2.0/helixscreen-pi.zip" run bash "$MODULE"
     [ "$status" -eq 0 ] || fail "module failed ($status): $output"
     if grep -q "^curl" "$CALLS"; then fail "a provided archive was downloaded anyway: $(cat "$CALLS")"; fi
-    [[ "$(installer_args)" == *"--local $SERVE/helixscreen-pi-v1.2.0.tar.gz" ]]
+    [[ "$(installer_args)" == *"--local $SERVE/v1.2.0/helixscreen-pi.zip" ]]
+}
+
+@test "a tarball from an older release handed in as HELIXSCREEN_ARCHIVE still installs" {
+    local pkg="$BATS_TEST_TMPDIR/oldpkg/helixscreen"
+    mkdir -p "$pkg"
+    printf '#!/bin/sh\n# --target-root\necho "install.sh $*" >> "$CALLS"\n' > "$pkg/install.sh"
+    tar -czf "$BATS_TEST_TMPDIR/helixscreen-pi-v1.2.0.tar.gz" -C "$(dirname "$pkg")" helixscreen
+    HELIXSCREEN_ARCHIVE="$BATS_TEST_TMPDIR/helixscreen-pi-v1.2.0.tar.gz" run bash "$MODULE"
+    [ "$status" -eq 0 ] || fail "module failed ($status): $output"
+    [[ "$(installer_args)" == *"--local $BATS_TEST_TMPDIR/helixscreen-pi-v1.2.0.tar.gz" ]]
 }

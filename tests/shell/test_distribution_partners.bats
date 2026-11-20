@@ -11,14 +11,11 @@ DOC="docs/devel/INSTALLER.md"
 
 # Every name a partner fetches for tag v1.2.3, written out rather than read from the data,
 # so dropping or renaming an entry in scripts/distribution_partners.json fails here too.
+# PAXX's U1 tarball is a known break: it is reported, never required.
 FULL_LISTING="install.sh
 helixscreen-ad5m.zip
-helixscreen-ad5m-v1.2.3.tar.gz
 helixscreen-ad5x.zip
-helixscreen-ad5x-v1.2.3.tar.gz
-helixscreen-cc1.zip
-helixscreen-cc1-v1.2.3.tar.gz
-helixscreen-snapmaker-u1-v1.2.3.tar.gz"
+helixscreen-cc1.zip"
 
 setup() {
     TEST_DIR="$(mktemp -d)"
@@ -37,14 +34,13 @@ listing() {
         [ -n "$name" ] && : > "$REL/$name"
     done <<< "$1"
     : > "$REL/helixscreen-pi.zip"
-    : > "$REL/helixscreen-pi-v1.2.3.tar.gz"
 }
 
 @test "a release carrying every partner asset passes" {
     listing "$FULL_LISTING"
     run python3 "$SCRIPT" check "$REL" --tag v1.2.3
     [ "$status" -eq 0 ]
-    [[ "$output" == *"All 8 partner assets present"* ]]
+    [[ "$output" == *"All 4 partner assets present"* ]]
 }
 
 @test "a release missing the Z-Mod zip fails and names Z-Mod" {
@@ -54,11 +50,35 @@ listing() {
     [[ "$output" == *"::error::release is missing helixscreen-ad5x.zip, which Z-Mod, Forge-X fetches"* ]]
 }
 
-@test "the PAXX archive is required under the release's own tag" {
-    listing "$(sed 's/snapmaker-u1-v1.2.3/snapmaker-u1-v1.2.2/' <<< "$FULL_LISTING")"
+@test "the PAXX tarball is a known break: not required, and named in a warning on every check" {
+    listing "$FULL_LISTING"
     run python3 "$SCRIPT" check "$REL" --tag v1.2.3
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"missing helixscreen-snapmaker-u1-v1.2.3.tar.gz, which PAXX"* ]]
+    [ "$status" -eq 0 ]
+    contains "::warning::known break: PAXX (Snapmaker U1 Extended Firmware) fetches helixscreen-snapmaker-u1-v1.2.3.tar.gz" "$output"
+    contains "must fetch helixscreen-snapmaker-u1.zip instead" "$output"
+
+    # A dry run that builds no U1 still says so.
+    run python3 "$SCRIPT" check "$REL" --tag v1.2.3 --platforms "ad5m mips cc1"
+    [ "$status" -eq 0 ]
+    contains "known break: PAXX" "$output"
+
+    # The table shows it too.
+    run python3 "$SCRIPT" table
+    contains "(**known break**: Releases ship no tarballs" "$output"
+}
+
+@test "a known break without the fix text fails to load" {
+    python3 -c '
+import json, sys
+d = json.load(open(sys.argv[1]))
+for p in d["partners"]:
+    for f in p["fetches"]:
+        if "known_break" in f:
+            f["known_break"] = " "
+json.dump(d, open(sys.argv[2], "w"))' scripts/distribution_partners.json "$TEST_DIR/data.json"
+    run python3 "$SCRIPT" --data "$TEST_DIR/data.json" check "$REL" --tag v1.2.3
+    [ "$status" -eq 2 ]
+    contains "without saying what the partner must change" "$output"
 }
 
 @test "a dry run of a subset requires only what it built, plus install.sh" {
@@ -148,19 +168,21 @@ print(steps[i]["run"])' > "$TEST_DIR/step.sh" || return 1
         bash "$TEST_DIR/step.sh")
 }
 
-@test "the release step checks a dry run under VERSION.txt and a tag push under its tag" {
-    listing "$(sed 's/v1.2.3/v1.2.0-beta.1/' <<< "$FULL_LISTING")"
+@test "the release step names assets from VERSION.txt on a dry run and from the tag on a tag push" {
+    listing "$FULL_LISTING"
     run run_partner_step dryrun v0.0.0-dryrun.7
     [ "$status" -eq 0 ] || fail "dry run: $output"
+    contains "helixscreen-snapmaker-u1-v1.2.0-beta.1.tar.gz" "$output"
 
-    listing "$(sed 's/v1.2.3/v1.2.0-beta.1/' <<< "$FULL_LISTING")"
-    rm -rf "$TEST_DIR/job"
-    run run_partner_step publish v1.2.0-beta.1
-    [ "$status" -eq 0 ] || fail "tag push: $output"
-
-    listing "$(sed 's/v1.2.3/v1.2.0-beta.1/' <<< "$FULL_LISTING")"
+    listing "$FULL_LISTING"
     rm -rf "$TEST_DIR/job"
     run run_partner_step publish v1.2.0-beta.2
-    [ "$status" -eq 1 ] || fail "a tag VERSION.txt disagrees with passed: $output"
-    contains "missing helixscreen-snapmaker-u1-v1.2.0-beta.2.tar.gz" "$output"
+    [ "$status" -eq 0 ] || fail "tag push: $output"
+    contains "helixscreen-snapmaker-u1-v1.2.0-beta.2.tar.gz" "$output"
+
+    listing "$(grep -v '^helixscreen-cc1.zip$' <<< "$FULL_LISTING")"
+    rm -rf "$TEST_DIR/job"
+    run run_partner_step publish v1.2.0-beta.2
+    [ "$status" -eq 1 ] || fail "a release missing a partner zip passed: $output"
+    contains "missing helixscreen-cc1.zip" "$output"
 }

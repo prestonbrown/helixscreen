@@ -649,8 +649,8 @@ The module's README lists every setting. It needs HelixScreen 1.2 or newer.
 Mount the image's root filesystem (or work from the directory you build it in), download the release archive for its platform, take `install.sh` out of the archive, and run it against that directory. It runs as root, since it writes into the image:
 
 ```bash
-tar -xzf helixscreen-pi-v1.2.0.tar.gz -O helixscreen/install.sh > install.sh
-sudo sh install.sh --target-root /mnt/image --platform pi --local helixscreen-pi-v1.2.0.tar.gz
+unzip -p helixscreen-pi.zip install.sh > install.sh
+sudo sh install.sh --target-root /mnt/image --platform pi --local helixscreen-pi.zip
 ```
 
 Run it inside the image's chroot instead and the target root is `/`. Outside a chroot, the installer refuses `/` on a running system, so it can never install onto the machine you build on.
