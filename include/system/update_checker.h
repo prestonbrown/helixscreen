@@ -19,6 +19,7 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -226,9 +227,10 @@ class UpdateChecker {
      * is held to `channel: stable`; on Beta or Dev a listed one is switched off. Nothing
      * is ever created: where the installer wrote no stanza, it judged the update unsafe.
      * Only a stanza whose `path:` is this install, in a file stanza_file_editable()
-     * allows, is touched. Moonraker reads its config only at startup, so a change
-     * restarts it, except while a job holds the machine, when the file is still written
-     * and the change lands at Moonraker's next start. Called on every Moonraker
+     * allows, is touched. Moonraker reads its config only at startup, so it is restarted
+     * whenever the entry it has loaded disagrees (moonraker_entry_matches()), even when
+     * the file already matches. While a job holds the machine nothing is written or
+     * restarted, and the sync runs again when the job ends. Called on every Moonraker
      * discovery and whenever the effective channel changes. Main thread only.
      */
     void sync_moonraker_channel();
@@ -516,6 +518,15 @@ class UpdateChecker {
     static bool stanza_file_editable(const std::string& file, bool mod_host);
 
     /**
+     * @brief Whether Moonraker's loaded update entry already matches the app's channel
+     *
+     * @p status_result is machine.update.status's `result`. Matching means a
+     * "helixscreen" entry in its `version_info` exactly when @p want_listed, and that
+     * entry, when listed, following the stable channel (or reporting none).
+     */
+    static bool moonraker_entry_matches(const nlohmann::json& status_result, bool want_listed);
+
+    /**
      * @brief Resolve the R2 base URL the next check will actually use.
      *
      * Reads r2_url from the trusted update_urls.json, falls back to
@@ -775,9 +786,20 @@ class UpdateChecker {
     /// no build for this board.
     void report_fetched_release(ReleaseInfo info, const std::string& current_version);
 
-    /// Last hop of sync_moonraker_channel(): restart Moonraker unless a job holds the
-    /// machine or update_manager is busy. @p gen is the sync's moonraker_sync_generation_.
-    void restart_moonraker_for_channel(helix::IMoonrakerAPI& api, uint64_t gen);
+    /// Last hop of sync_moonraker_channel(): restart Moonraker when the entry it has
+    /// loaded (machine.update.status) does not match @p want_listed, unless a job holds
+    /// the machine (the sync then runs again when it ends) or update_manager is busy.
+    /// @p restart_key names the file state and wish a restart would be for; empty when
+    /// another copy of the stanza decides what Moonraker lists, so no restart can help.
+    /// A mismatch with an empty key, or one a restart for the same key already met, is
+    /// logged once and left, so nothing restarts Moonraker in a loop.
+    /// @p gen is the sync's moonraker_sync_generation_.
+    void restart_moonraker_for_channel(helix::IMoonrakerAPI& api, uint64_t gen, bool want_listed,
+                                       const std::string& restart_key);
+    /// The restart_key of the last Moonraker restart a channel sync made.
+    std::string moonraker_restarted_for_;
+    /// The mismatch last logged as left alone, so it is logged once.
+    std::string moonraker_mismatch_logged_;
     /// sync_moonraker_channel() with this install's directory supplied; the stanza's
     /// `path:` must resolve to it.
     void sync_moonraker_channel_for(const std::string& install_root);
@@ -788,8 +810,6 @@ class UpdateChecker {
     ObserverGuard moonraker_sync_after_job_;
     /// The install root the last channel sync was for, which a deferred run reuses.
     std::string moonraker_sync_root_;
-    /// A switched stanza is on disk but a job held Moonraker's restart off.
-    bool moonraker_restart_owed_ = false;
     /// on_channel_changed() short of the moonraker.conf sync.
     void recheck_for_channel();
 

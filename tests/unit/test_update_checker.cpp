@@ -3300,11 +3300,15 @@ class ChannelSyncApi : public MoonrakerAPIMock {
     }
     void restart_moonraker(SuccessCallback on_success, ErrorCallback) override {
         ++restarts;
+        if (on_restart)
+            on_restart();
         if (on_success)
             on_success();
     }
     CountingTransfers xfers_;
     int restarts = 0;
+    /// Moonraker re-reading its config: the fixture reloads the loaded entries.
+    std::function<void()> on_restart;
 };
 
 const char* const kConf = "[server]\nhost: 0.0.0.0\n\n"
@@ -3321,6 +3325,9 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
     bool checks_were_blocked = false;
 
     ChannelSyncFixture() {
+        api.on_restart = [this] { load_entries(); };
+        // A printer of its own: nothing restarted or logged for an earlier one.
+        UpdateChecker::instance().detach(client);
         get_printer_state().init_subjects(false);
         api.set_http_base_url("http://127.0.0.1:7125");
         set_moonraker_api(&api);
@@ -3341,7 +3348,26 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
     void seed_files(const std::map<std::string, std::string>& files) {
         api.xfers_.set_config_files(files);
         api.files_mock().set_config_files(files);
+        seeded_names.clear();
+        for (const auto& [name, text] : files)
+            seeded_names.push_back(name);
+        load_entries();
     }
+    /// What Moonraker loads from the files as they are now: the stanza, if any is
+    /// listed, with its channel.
+    void load_entries() {
+        std::map<std::string, std::string> current;
+        for (const auto& name : seeded_names)
+            current[name] = api.xfers_.get_uploaded_config(name).value_or("");
+        std::map<std::string, std::string> entries;
+        const std::string file = helix::MoonrakerConfigManager::find_section_file(
+            current, "moonraker.conf", "update_manager helixscreen");
+        if (!file.empty())
+            entries["helixscreen"] = helix::MoonrakerConfigManager::get_section_value(
+                current[file], "update_manager helixscreen", "channel");
+        client.set_update_manager_entries(entries);
+    }
+    std::vector<std::string> seeded_names;
     void set_app_channel(int channel, bool beta_features) {
         auto* config = Config::get_instance();
         config->set<bool>("/beta_features", beta_features);
@@ -3735,6 +3761,95 @@ TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync never restarts a busy update_
     }
     CHECK(sync() == off("stable"));
     CHECK(api.restarts == 0);
+
+    // The next sync finds the file matching but Moonraker still listing it.
+    client.set_update_manager_busy(false);
+    CHECK(sync() == off("stable"));
+    CHECK(api.xfers_.uploads == 1);
+    CHECK(api.restarts == 1);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync restarts Moonraker when its loaded entry disagrees with a file that "
+                 "already matches",
+                 "[update_checker][moonraker_channel][2147]") {
+    SECTION("beta, file switched off, Moonraker still listing it") {
+        seed(off("stable"));
+        client.set_update_manager_entries({{"helixscreen", "stable"}});
+        set_app_channel(1, true);
+    }
+    SECTION("stable, file listed, Moonraker not listing it") {
+        seed(conf("stable"));
+        client.set_update_manager_entries({});
+        set_app_channel(0, false);
+    }
+    SECTION("stable, file listed on stable, Moonraker still on beta") {
+        seed(conf("stable"));
+        client.set_update_manager_entries({{"helixscreen", "beta"}});
+        set_app_channel(0, false);
+    }
+    start_sync();
+    drain();
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 1);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync never restarts Moonraker for a stanza another copy decides",
+                 "[update_checker][moonraker_channel][2147]") {
+    // Another file Moonraker reads defines the stanza too (a firmware mod's conf, a
+    // second include): switching this one off cannot unlist HelixScreen.
+    const std::string root = "[update_manager helixscreen]\ntype: web\nchannel: beta\n"
+                             "path: /home/pi/helixscreen\n\n[include extra.conf]\n";
+    seed_files({{"moonraker.conf", root}, {"extra.conf", conf("stable")}});
+    client.set_update_manager_entries({{"helixscreen", "beta"}});
+    set_app_channel(1, true);
+
+    for (int round = 0; round < 3; ++round) {
+        start_sync();
+        drain();
+    }
+    CHECK(api.xfers_.get_uploaded_config("extra.conf") == off("stable"));
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync restarts Moonraker once for a file state a restart did not fix",
+                 "[update_checker][moonraker_channel][2147]") {
+    seed(off("stable"));
+    client.set_update_manager_entries({{"helixscreen", "stable"}});
+    api.on_restart = nullptr; // Moonraker comes back still listing it
+    set_app_channel(1, true);
+
+    for (int round = 0; round < 3; ++round) {
+        start_sync();
+        drain();
+    }
+    CHECK(api.restarts == 1);
+    CHECK(api.xfers_.uploads == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync writes nothing when a job starts during the read",
+                 "[update_checker][moonraker_channel][2147]") {
+    seed(conf("stable"));
+    set_app_channel(1, true);
+    bool started = false;
+    api.xfers_.after_download = [this, &started] {
+        if (started)
+            return;
+        started = true;
+        drive_lifecycle(get_printer_state(), "printing", PrintStartPhase::IDLE);
+    };
+
+    CHECK(sync() == conf("stable"));
+    CHECK(api.xfers_.uploads == 0);
+    CHECK(api.restarts == 0);
+
+    drive_lifecycle(get_printer_state(), "complete", PrintStartPhase::IDLE);
+    CHECK(drain() == off("stable"));
+    CHECK(api.xfers_.uploads == 1);
+    CHECK(api.restarts == 1);
 }
 
 TEST_CASE_METHOD(ChannelSyncFixture, "The newest channel sync wins over one still in flight",

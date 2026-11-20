@@ -384,12 +384,51 @@ update_manager_on_awk() {
 }
 
 # Each file among moonraker.conf @1 and its includes holding a switched-off
-# stanza, mod-owned files left out: the ones the installer may switch back on.
+# stanza by update_manager_on_awk's strict reading, mod-owned files left out:
+# the ones the installer may switch back on or remove.
 update_manager_off_stanza_files() {
+    local prog
+    prog=$(update_manager_on_awk)
+    _update_manager_commented_files "$1" | while IFS= read -r _umos_file; do
+        awk "$prog" "$_umos_file" 2>/dev/null | cmp -s - "$_umos_file" || printf '%s\n' "$_umos_file"
+    done
+}
+
+# Each file among moonraker.conf @1 and its includes with a commented-out
+# "#~ [update_manager helixscreen]" header that is not a whole switched-off
+# block (hand-commented, or damaged by an editor), mod-owned files left out.
+# Neither the installer nor the app edits these; the user is told instead.
+update_manager_damaged_off_files() {
+    local prog
+    prog=$(update_manager_on_awk)
+    _update_manager_commented_files "$1" | while IFS= read -r _umdo_file; do
+        if awk "$prog" "$_umdo_file" 2>/dev/null | cmp -s - "$_umdo_file"; then
+            printf '%s\n' "$_umdo_file"
+        fi
+    done
+    return 0
+}
+
+# Files with a "#~ [update_manager helixscreen]" header line, mod-owned left out.
+_update_manager_commented_files() {
     helix_conf_files_matching "$1" "$(running_moonraker_root)" '^#~ \[update_manager helixscreen\][[:space:]]*$' |
-        while IFS= read -r _umos_file; do
-            host_path_is_mod_owned "$_umos_file" || printf '%s\n' "$_umos_file"
+        while IFS= read -r _umcf_file; do
+            host_path_is_mod_owned "$_umcf_file" || printf '%s\n' "$_umcf_file"
         done
+}
+
+# Tell the user about damaged switched-off blocks (update_manager_damaged_off_files
+# list @1), which are left exactly as they are.
+warn_damaged_off_stanzas() {
+    [ -n "$1" ] || return 0
+    printf '%s\n' "$1" | while IFS= read -r _wdos_file; do
+        [ -n "$_wdos_file" ] || continue
+        log_warn "$_wdos_file has a commented-out [update_manager helixscreen] that HelixScreen"
+        log_warn "did not write whole, so it is left as it is and no new entry is added."
+        log_warn "Delete those lines (or restore them) and re-run the installer to get the"
+        log_warn "Mainsail/Fluidd update entry back."
+    done
+    return 0
 }
 
 # Switch the stanza in conf @1 off (@2 = off) or on (@2 = on).
@@ -1188,6 +1227,11 @@ configure_unlisted_update_manager() {
     log_info "the stable channel; update it from the screen (Settings -> Updates)."
     while IFS= read -r file; do
         [ -n "$file" ] || continue
+        # An old type is migrated first, as on stable, so what the app later
+        # switches back on is a type: web stanza.
+        if has_old_git_repo_section "$file" || has_old_zip_section "$file"; then
+            migrate_to_web_type "$file" || continue
+        fi
         sync_update_manager_path "$file"
         sync_update_manager_channel "$file"
         cleanup_unsupported_options "$file"
@@ -1360,8 +1404,17 @@ STALE_FILES
     # Only the stable channel lists HelixScreen (update_manager_listed). A
     # switched-off stanza goes back on here when no live one exists, so the
     # flow below syncs it like any other.
-    local off_files
+    local off_files damaged_files
     off_files=$(update_manager_off_stanza_files "${mod_conf:-$conf}")
+    damaged_files=$(update_manager_damaged_off_files "${mod_conf:-$conf}")
+    warn_damaged_off_stanzas "$damaged_files"
+    # A damaged block is the user's to sort out: adding a fresh stanza beside it
+    # would leave the old one there for good.
+    if [ -n "$damaged_files" ] && [ -z "$editable_files" ] && [ -z "$off_files" ]; then
+        ensure_moonraker_asvc "$conf"
+        [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ] && restart_moonraker
+        return 0
+    fi
     if ! update_manager_listed; then
         configure_unlisted_update_manager "$conf" "$editable_files" "$off_files" "$mod_stanza_files"
         return 0
@@ -1487,26 +1540,30 @@ _remove_update_manager_section_from() {
     # On reaching our section, the trailing run of comment lines plus at most one
     # blank line before it is dropped, which is exactly the generator's output;
     # anything earlier is another line's comment and is printed back.
-    # A switched-off stanza goes the same way: its header is a comment line,
-    # so it is matched before the comment buffering, and its "#~" lines after.
+    # A switched-off stanza goes the same way, only when it is whole: its
+    # lines are held until the end line commits the removal, and anything else
+    # (a line without the exact prefix, another "#~ [" section, the end of the
+    # file) puts back everything held, exactly as update_manager_on_awk reads it.
     local prog='
-        skip_off {
-            if ($0 == "#~ # end [update_manager helixscreen]") { skip_off = 0; next }
-            if ($0 ~ /^#~ /) next
-            skip_off = 0
+        function put_back(   k) {
+            for (k = 1; k <= n; k++) print buf[k]
+            for (k = 1; k <= m; k++) print ob[k]
+            n = 0; m = 0; in_off = 0
         }
-        skip {
-            if ($0 ~ /^\[/) { skip = 0 } else { next }
-        }
-        /^#~ \[update_manager helixscreen\][ \t\r]*$/ {
+        in_off && $0 == "#~ # end [update_manager helixscreen]" {
             i = n
             while (i >= 1 && buf[i] ~ /^[[:space:]]*#/) i--
             if (i >= 1 && buf[i] ~ /^[[:space:]]*$/) i--
             for (j = 1; j <= i; j++) print buf[j]
-            n = 0
-            skip_off = 1
+            n = 0; m = 0; in_off = 0
             next
         }
+        in_off && /^#~ / && !/^#~ \[/ { ob[++m] = $0; next }
+        in_off { put_back() }
+        skip {
+            if ($0 ~ /^\[/) { skip = 0 } else { next }
+        }
+        /^#~ \[update_manager helixscreen\][ \t\r]*$/ { in_off = 1; ob[++m] = $0; next }
         /^[[:space:]]*#/ || /^[[:space:]]*$/ { buf[++n] = $0; next }
         /^\[update_manager helixscreen\]/ {
             i = n
@@ -1522,7 +1579,7 @@ _remove_update_manager_section_from() {
             n = 0
             print
         }
-        END { for (j = 1; j <= n; j++) print buf[j] }
+        END { put_back() }
     '
     if ! helix_rewrite_conf "$conf" "$prog" "$fs"; then
         log_warn "Could not remove the update_manager section from $conf - edit it by hand, backup at ${conf}.bak.helixscreen-uninstall"
