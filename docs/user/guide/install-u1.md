@@ -120,7 +120,9 @@ curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall
 reboot
 ```
 
-If you can't run the uninstaller, revert manually. HelixScreen *disables* the stock UI program rather than deleting it, so re-enable it and remove HelixScreen's files:
+It switches the stock screen program back on, puts back the firmware's own startup scripts, removes HelixScreen, and turns off the setting that kept the changes across restarts if HelixScreen's installer turned it on. Another mod, such as multiACE, may have turned that setting on first; then it stays on, so that mod keeps its files. After the restart the printer runs the way it did before HelixScreen.
+
+If you cannot run the uninstaller, undo it by hand:
 
 ```bash
 chmod +x /usr/bin/gui          # re-enable the stock UI program

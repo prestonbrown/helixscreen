@@ -72,8 +72,12 @@ chmod +x "$INIT_SCRIPT" 2>/dev/null || true
 
 # Step 1: Create /oem/.debug to prevent overlay wipe on boot
 # Without this, S01aoverlayfs runs: rm -rf /oem/overlay/*
+# /oem/.debug.helixscreen records that we created it, so the uninstaller
+# removes the flag only then. Other mods (multiACE) rely on the same flag, and
+# removing one they created wipes their overlay files at the next boot.
 if [ ! -f "${SYSROOT}/oem/.debug" ]; then
     touch "${SYSROOT}/oem/.debug"
+    echo "created by the HelixScreen installer" > "${SYSROOT}/oem/.debug.helixscreen"
     echo "Created ${SYSROOT}/oem/.debug (overlay persistence enabled)"
 else
     echo "${SYSROOT}/oem/.debug already exists"
