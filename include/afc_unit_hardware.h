@@ -3,8 +3,10 @@
 
 #pragma once
 
+#include "ams_tag_reading.h"
 #include "json_fwd.h"
 
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -14,8 +16,8 @@
  * @brief The hardware readings an AFC unit object carries beyond its topology.
  *
  * AFC DEV runs an Anycubic ACE Pro (`AFC_ACE <name>`, `AFC_ACE2 <name>`) and a Creality
- * CFS (`AFC_CFS <name>`) as units of their own. An ACE's unit object adds the hub's dryer
- * and climate to the usual lanes / extruders / hubs / buffers arrays, which
+ * CFS (`AFC_CFS <name>`) as units of their own. Their unit objects add the ACE's dryer and
+ * climate and each unit's RFID reads to the usual lanes / extruders / hubs / buffers arrays, which
  * AmsBackendAfc::parse_afc_unit_object() reads.
  *
  * Pure functions over JSON: no LVGL, no backend state, no locking.
@@ -36,6 +38,9 @@ struct AceUnitDelta {
     std::optional<int> dryer_duration_min;  ///< `ace_dryer_duration`
     std::optional<float> temperature_c;     ///< `ace_temp`, the box's ambient reading
     std::optional<float> humidity_pct;      ///< `ace_humidity` (ACE 2 only)
+    /// `ace_slots`, by ACE slot (0-based): each slot's tag, nullopt where the
+    /// ACE has no tag read for it (no tag, a read in progress, no spool).
+    std::optional<std::vector<std::optional<ams::TagReading>>> slot_tags;
 };
 
 /// Whether an ACE dryer status word means a cycle is running. The idle words
@@ -46,6 +51,9 @@ struct AceUnitDelta {
 struct UnitHardwareDelta {
     /// Set when the object carries any `ace_` hardware field.
     std::optional<AceUnitDelta> ace;
+    /// A CFS unit's `cfs.lanes.<lane>.tag`, by lane name: the decoded tag, or
+    /// nullopt for a lane whose last read found none (AFC_CFS.py, AFC DEV).
+    std::optional<std::map<std::string, std::optional<ams::TagReading>>> cfs_lane_tags;
 };
 
 [[nodiscard]] UnitHardwareDelta parse_unit_hardware(const nlohmann::json& data);
