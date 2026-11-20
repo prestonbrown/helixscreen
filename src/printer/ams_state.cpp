@@ -340,15 +340,6 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
         });
     invalidate_system_info();
 
-    // Per-backend slot subjects for secondary backends
-    if (index > 0) {
-        if (auto* b = registry_.get(index)) {
-            BackendSlotSubjects subs;
-            subs.init(b->get_system_info().total_slots);
-            secondary_slot_subjects_.push_back(std::move(subs));
-        }
-    }
-
     lv_subject_set_int(&backend_count_, registry_.count());
     sync_lane_records_ready();
     if (index == 0) {
@@ -446,11 +437,6 @@ void AmsState::clear_backends() {
     helix::ToolState::instance().clear_ams_topology();
     helix::ToolState::instance().clear_backend_active_tool();
 
-    for (auto& subs : secondary_slot_subjects_) {
-        subs.deinit();
-    }
-    secondary_slot_subjects_.clear();
-
     reset_backend_subjects();
 }
 
@@ -459,7 +445,6 @@ void AmsState::reset_backend_subjects() {
     // printer switch keeps every panel, so one value left behind shows the departed
     // printer's filament system on the next one.
     lv_subject_set_int(&backend_count_, 0);
-    lv_subject_set_int(&active_backend_, 0);
     fault_cause_.clear();
 
     // System, action and current-tool state: the sync path with an empty system.
@@ -558,17 +543,6 @@ AmsBackend* AmsState::get_backend() const {
     return get_backend(0);
 }
 
-int AmsState::active_backend_index() const {
-    return lv_subject_get_int(const_cast<lv_subject_t*>(&active_backend_));
-}
-
-void AmsState::set_active_backend(int index) {
-    assert_main_thread();
-    if (index >= 0 && index < registry_.count()) {
-        lv_subject_set_int(&active_backend_, index);
-    }
-}
-
 bool AmsState::is_available() const {
     assert_main_thread();
     const auto primary = system_info(0);
@@ -595,72 +569,15 @@ void AmsState::set_gcode_response_callback(std::function<void(const std::string&
 
 void AmsState::sync_backend(int backend_index) {
     assert_main_thread();
-
     if (backend_index == 0) {
         sync_from_backend();
-        return;
     }
-
-    auto* backend = get_backend(backend_index);
-    if (!backend) {
-        return;
-    }
-
-    int sec_idx = backend_index - 1;
-    if (sec_idx < 0 || sec_idx >= static_cast<int>(secondary_slot_subjects_.size())) {
-        return;
-    }
-
-    const auto snapshot = read_system_info(backend_index);
-    const AmsSystemInfo& info = *snapshot;
-    registry_.ensure_sinks(backend_index, info.total_slots);
-    auto& subs = secondary_slot_subjects_[sec_idx];
-
-    for (int i = 0; i < std::min(info.total_slots, subs.slot_count); ++i) {
-        const SlotInfo* slot = info.get_slot_global(i);
-        if (slot) {
-            subs.write(i, *slot);
-        }
-    }
-
-    spdlog::debug("[AMS State] Synced secondary backend {} - slots={}", backend_index,
-                  info.total_slots);
-
-    // Re-evaluate "Currently Loaded" display — the active loaded filament may
-    // belong to this secondary backend (e.g., AMS_2 just finished loading).
-    sync_current_loaded_from_backend();
 }
 
 void AmsState::update_slot_for_backend(int backend_index, int slot_index) {
     assert_main_thread();
-
     if (backend_index == 0) {
         update_slot(slot_index);
-        return;
-    }
-
-    auto* backend = get_backend(backend_index);
-    if (!backend || slot_index < 0) {
-        return;
-    }
-
-    int sec_idx = backend_index - 1;
-    if (sec_idx < 0 || sec_idx >= static_cast<int>(secondary_slot_subjects_.size())) {
-        return;
-    }
-
-    auto& subs = secondary_slot_subjects_[sec_idx];
-    if (slot_index >= subs.slot_count) {
-        return;
-    }
-
-    SlotInfo slot = backend->get_slot_info(slot_index);
-    if (slot.slot_index >= 0) {
-        subs.write(slot_index, slot);
-
-        spdlog::trace("[AMS State] Updated backend {} slot {} - color=0x{:06X}, status={}",
-                      backend_index, slot_index, slot.color_rgb,
-                      slot_status_to_string(slot.status));
     }
 }
 
@@ -1460,20 +1377,6 @@ void AmsState::refresh_slot_names() {
         for (int i = 0; i < std::min(info.total_slots, kMaxSlots); ++i) {
             const SlotInfo* slot = info.get_slot_global(i);
             if (slot && write_slot_name(&slot_names_[i], sizeof(slot_names_buf_[i]), *slot)) {
-                changed = true;
-            }
-        }
-    }
-    for (size_t sec = 0; sec < secondary_slot_subjects_.size(); ++sec) {
-        auto* backend = get_backend(static_cast<int>(sec) + 1);
-        if (!backend) {
-            continue;
-        }
-        auto& subs = secondary_slot_subjects_[sec];
-        const AmsSystemInfo info = backend->get_system_info();
-        for (int i = 0; i < std::min(info.total_slots, subs.slot_count); ++i) {
-            const SlotInfo* slot = info.get_slot_global(i);
-            if (slot && write_slot_name(&subs.names[i], kSlotNameBufSize, *slot)) {
                 changed = true;
             }
         }

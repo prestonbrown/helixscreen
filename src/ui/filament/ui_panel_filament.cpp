@@ -107,6 +107,16 @@ using helix::ui::filament_load_fallback_gcode;
 using helix::ui::filament_purge_fallback_gcode;
 using helix::ui::filament_unload_fallback_gcode;
 
+// A preset button or its temperature line resized: show the nozzle-and-bed line
+// only when it fits the button.
+static void preset_fit_temps(lv_event_t* e) {
+    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    lv_obj_t* button =
+        lv_obj_find_by_name(target, "preset_temps") ? target : lv_obj_get_parent(target);
+    helix::ui::show_label_that_fits(lv_obj_find_by_name(button, "preset_temps"),
+                                    lv_obj_find_by_name(button, "preset_nozzle_temp"));
+}
+
 /// A hold on preset @p slot opens its material picker. The hold is still the active
 /// press, so it ends here: its release would otherwise be a tap on the preset, or
 /// land on whatever the picker put under the finger.
@@ -169,6 +179,7 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         {"on_filament_preset_spool",
          [](lv_event_t*) { get_global_filament_panel().handle_spool_preset_button(); }},
         // Material preset long-press (opens material picker)
+        {"filament_preset_fit_temps", [](lv_event_t* e) { preset_fit_temps(e); }},
         {"on_filament_preset_pla_hold", [](lv_event_t* e) { preset_hold(e, 0); }},
         {"on_filament_preset_petg_hold", [](lv_event_t* e) { preset_hold(e, 1); }},
         {"on_filament_preset_abs_hold", [](lv_event_t* e) { preset_hold(e, 2); }},
@@ -452,6 +463,8 @@ void FilamentPanel::init_subjects() {
                                   "filament_spool_preset_name", subjects_);
         UI_MANAGED_SUBJECT_STRING(spool_preset_temps_subject_, spool_preset_temps_buf_, "",
                                   "filament_spool_preset_temps", subjects_);
+        UI_MANAGED_SUBJECT_STRING(spool_preset_nozzle_temp_subject_, spool_preset_nozzle_temp_buf_,
+                                  "", "filament_spool_preset_nozzle_temp", subjects_);
 
         // Card title subject (dynamic: "Multi-Filament" or "External Spool")
         std::strncpy(card_title_buf_, lv_tr("Multi-Filament"), sizeof(card_title_buf_) - 1);
@@ -2207,6 +2220,8 @@ void FilamentPanel::publish_spool_preset_temps() {
         fmt::format("{} / {}", helix::units::to_display_temp_whole(info.nozzle_recommended()),
                     helix::units::format_display_temp(info.bed_temp));
     lv_subject_set_string(&spool_preset_temps_subject_, text.c_str());
+    lv_subject_set_string(&spool_preset_nozzle_temp_subject_,
+                          helix::units::format_display_temp(info.nozzle_recommended()).c_str());
 }
 
 void FilamentPanel::update_spool_preset() {

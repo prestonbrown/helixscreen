@@ -239,7 +239,7 @@ make cross-info          # Show cross-compilation help
 
 #### x86_64 Linux Desktop (`x86-desktop`)
 - **What it is**: the app in an SDL window beside the user's own desktop, connected to a
-  printer over the network. Released as `helixscreen-x86-desktop-<ver>.tar.gz`; the
+  printer over the network. Released as `helixscreen-x86-desktop.zip`; the
   installer's `--desktop` flavour installs it per user (`docs/devel/INSTALLER.md`).
 - **Toolchain**: the x86 Bullseye image (`helixscreen/toolchain-x86`), glibc 2.31, so the
   binary runs on Debian 11 / Ubuntu 20.04 and newer.

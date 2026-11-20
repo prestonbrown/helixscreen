@@ -126,7 +126,7 @@ When you run a downloaded copy of the installer, put them straight after it: `sh
 | `--desktop` | x86_64 Linux: installs HelixScreen as a window on this desktop, for your user only, with no root and no service |
 | `--kiosk` | x86_64 Linux: installs HelixScreen as a service that takes over the whole screen |
 | `--skip-kiauh-registration` | Does not register the KIAUH extension, even when KIAUH is installed |
-| `--standalone`, `--payload-root PATH`, `--auto-update` | For printers running the Forge-X or Z-Mod firmware mod, which manage HelixScreen themselves. Your printer's install guide says when you need them |
+| `--standalone`, `--payload-root PATH` | For printers running the Forge-X or Z-Mod firmware mod, which manage HelixScreen themselves. Your printer's install guide says when you need them |
 | `--help` | Lists every option |
 
 Two settings go in front of `sh` instead:
@@ -302,13 +302,13 @@ Every run writes a full log to `~/printer_data/logs/helixscreen-install.log` (in
 If you already downloaded a release from the [releases page](https://github.com/prestonbrown/helixscreen/releases), the installer can install exactly that release without downloading anything. Either name the archive:
 
 ```bash
-sh install.sh helixscreen-pi-v1.1.0.tar.gz
+sh install.sh helixscreen-pi.zip
 ```
 
-(`--local helixscreen-pi-v1.1.0.tar.gz` does the same), or extract it and run the installer inside it:
+(`--local helixscreen-pi.zip` does the same), or extract it and run the installer inside it:
 
 ```bash
-tar -xzf helixscreen-pi-v1.1.0.tar.gz
+unzip helixscreen-pi.zip -d helixscreen
 ./helixscreen/install.sh
 ```
 
@@ -544,7 +544,7 @@ Over SSH, on a generic Linux install (other printers' paths are in their guides)
 
 ### From Mainsail or Fluidd
 
-The installer adds HelixScreen to Moonraker's update manager wherever it finds your `moonraker.conf` (Raspberry Pi and other generic Linux hosts, and most all-in-one printers; not the Adventurer 5M, and not printers whose firmware mod manages HelixScreen), following the update channel you installed on. Open the update manager (Mainsail: **Machine**; Fluidd: **Settings**), find **HelixScreen**, and click **Update** when a new version is out.
+The installer adds HelixScreen to Moonraker's update manager wherever it finds your `moonraker.conf` (Raspberry Pi and other generic Linux hosts, most all-in-one printers, and the Adventurer 5M on Forge-X; not the Adventurer 5M on Klipper Mod, and not printers where Z-Mod installs HelixScreen itself), listed while you follow the Stable channel. Open the update manager (Mainsail: **Machine**; Fluidd: **Settings**), find **HelixScreen**, and click **Update** when a new version is out.
 
 If you installed by hand, or the installer could not find your `moonraker.conf`, add this section to it yourself, with `path` set to your install folder:
 
@@ -556,7 +556,7 @@ repo: prestonbrown/helixscreen
 path: ~/helixscreen
 ```
 
-Use `channel: beta` to follow betas. Do not add `install_script`, `managed_services` or `persistent_files`: Moonraker ignores the first two for this kind of entry and warns about them, and the third cannot keep your settings because the update replaces the whole install folder. Your settings are safe anyway, in `printer_data/config/helixscreen/`, and HelixScreen restarts by itself after the update.
+Keep `channel: stable`. Mainsail and Fluidd list HelixScreen only on the Stable channel: on Beta or Dev, HelixScreen switches this section off (its lines stay behind `#~ `) and you update from the screen, because Moonraker's beta updates would offer every HelixScreen line's newest release, older versions included. Do not add `install_script`, `managed_services` or `persistent_files`: Moonraker ignores the first two for this kind of entry and warns about them, and the third cannot keep your settings because the update replaces the whole install folder. Your settings are safe anyway, in `printer_data/config/helixscreen/`, and HelixScreen restarts by itself after the update.
 
 Then restart Moonraker:
 
@@ -649,8 +649,8 @@ The module's README lists every setting. It needs HelixScreen 1.2 or newer.
 Mount the image's root filesystem (or work from the directory you build it in), download the release archive for its platform, take `install.sh` out of the archive, and run it against that directory. It runs as root, since it writes into the image:
 
 ```bash
-tar -xzf helixscreen-pi-v1.2.0.tar.gz -O helixscreen/install.sh > install.sh
-sudo sh install.sh --target-root /mnt/image --platform pi --local helixscreen-pi-v1.2.0.tar.gz
+unzip -p helixscreen-pi.zip install.sh > install.sh
+sudo sh install.sh --target-root /mnt/image --platform pi --local helixscreen-pi.zip
 ```
 
 Run it inside the image's chroot instead and the target root is `/`. Outside a chroot, the installer refuses `/` on a running system, so it can never install onto the machine you build on.

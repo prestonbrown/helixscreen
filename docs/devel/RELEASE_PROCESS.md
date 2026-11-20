@@ -173,7 +173,7 @@ Setup (the environment, the exact `gh secret set` commands), what each client ch
 | ESP32 K-Touch | `helixscreen-esp32-ktouch-<version>.zip` | Firmware image and `README.txt` |
 | Android | APK and AAB; Play Store upload via `publish-android` | |
 
-The `helixscreen-{platform}-v{version}.tar.gz` form is still published beside the zips for installed versions that fetch it.
+Each platform ships as `helixscreen-{platform}.zip` (unversioned filename) and nothing else. `helixscreen-ad5m.zip` must stay the alphabetically first asset of the release, which the release job checks: an old Moonraker's `zip_deploy` installs `assets[0]` (helixscreen#993, #2147).
 
 ---
 
@@ -368,7 +368,7 @@ make PLATFORM_TARGET=ad5m clean release-ad5m
 1. Go to GitHub **Releases** → **Draft a new release**
 2. Choose the tag
 3. Write release notes
-4. Upload the `.zip` files from `releases/` (plus the `.tar.gz` files)
+4. Upload the `.zip` files from `releases/`
 5. Publish
 
 ---

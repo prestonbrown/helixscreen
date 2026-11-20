@@ -650,20 +650,6 @@ void AmsOperationSidebar::init_observers() {
         [](AmsOperationSidebar* self, int) { self->refresh_button_gating(); },
         printer_state_.print_state().get_static_subjects_lifetime());
 
-    // Active backend observer: re-syncs reset button label when the user switches backend tabs
-    active_backend_observer_ = observe<int>(
-        AmsState::instance().get_active_backend_subject(), this,
-        [](AmsOperationSidebar* self, int /*active_index*/) {
-            if (!self->active_ || !self->sidebar_root_)
-                return;
-            self->sync_reset_button_label();
-            self->update_check_gates_visibility();
-            // reset_moves_filament() is a per-backend answer, so switching tabs
-            // changes Reset's gating even with the job state unmoved.
-            self->refresh_button_gating();
-        },
-        AmsState::instance().get_subjects_lifetime());
-
     // The mounted line follows the carriage.
     active_tool_observer_ = observe<int>(
         ToolState::instance().get_active_tool_subject(), this,
@@ -787,7 +773,6 @@ void AmsOperationSidebar::cleanup() {
     // observer still holds a raw pointer to it.
     action_observer_.reset();
     current_slot_observer_.reset();
-    active_backend_observer_.reset();
     bypass_spool_observer_.reset();
     color_observer_.reset();
     colors_observer_.reset();

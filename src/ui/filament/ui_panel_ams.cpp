@@ -9,7 +9,6 @@
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
-#include "ui_callback_helpers.h"
 #include "ui_endless_spool_arrows.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
@@ -23,7 +22,6 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_panel_common.h"
-#include "ui_row_text.h"
 #include "ui_spool_canvas.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
@@ -136,13 +134,6 @@ void ensure_ams_widgets_registered() {
     // ams_environment_indicator registered above via ensure_ams_env_indicator_registered()
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/components/ams_sidebar.xml").c_str());
-    lv_xml_register_event_cb(nullptr, "ams_backend_segment_cb", [](lv_event_t* e) {
-        if (auto index = helix::ui::event_user_int(e)) {
-            AmsState::instance().set_active_backend(*index);
-        }
-    });
-    lv_xml_register_component_from_file(
-        helix::asset_component_uri("ui_xml/components/ams_backend_segment.xml").c_str());
     lv_xml_register_component_from_file(helix::asset_component_uri("ui_xml/ams_panel.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_context_menu.xml").c_str());
@@ -355,32 +346,6 @@ void AmsPanel::init_subjects() {
                                            path_handler, ams_state.get_subjects_lifetime());
     buffer_gauge_observer_ = observe<int>(ams_state.get_buffer_gauge_subject(), this, path_handler,
                                           ams_state.get_subjects_lifetime());
-
-    // Backend count observer for multi-backend selector
-    backend_count_observer_ = observe<int>(
-        AmsState::instance().get_backend_count_subject(), this,
-        [](AmsPanel* self, int /*count*/) {
-            if (!self->backend_rebuild_pending_) {
-                self->backend_rebuild_pending_ = true;
-                self->object_lifetime_.defer("AmsPanel::rebuild_backend_selector", [self]() {
-                    self->backend_rebuild_pending_ = false;
-                    self->rebuild_backend_selector();
-                });
-            }
-        },
-        AmsState::instance().get_subjects_lifetime());
-
-    // A backend segment's tap sets active_backend; the slots follow it here.
-    active_backend_observer_ = observe<int>(
-        AmsState::instance().get_active_backend_subject(), this,
-        [](AmsPanel* self, int index) {
-            if (index == self->shown_backend_idx_) {
-                return;
-            }
-            self->object_lifetime_.defer("AmsPanel::show_backend",
-                                         [self, index]() { self->show_backend(index); });
-        },
-        AmsState::instance().get_subjects_lifetime());
 
     // Observe external spool color changes to reactively update bypass in path canvas.
     // NOTE: set_external_spool_info() calls lv_subject_set_int() directly (not via
@@ -703,9 +668,6 @@ void AmsPanel::clear_panel_reference() {
     // observer callbacks during teardown will see null and bail out.
     panel_ = nullptr;
     parent_screen_ = nullptr;
-    // A rebuilt panel starts out drawing backend 0, as a fresh one does, so the
-    // active-backend observer switches it again if another backend is selected.
-    shown_backend_idx_ = 0;
     slot_grid_ = nullptr;
     detail_widgets_ = AmsDetailWidgets{};
     path_canvas_ = nullptr;
@@ -732,8 +694,6 @@ void AmsPanel::clear_panel_reference() {
     buffer_gauge_observer_.reset();
     slot_path_observers_.clear();
     print_state_observer_.reset();
-    backend_count_observer_.reset();
-    active_backend_observer_.reset();
     external_spool_observer_.reset();
 
     // Re-arm the edge sentinels: a rebuilt panel has observed nothing yet.
@@ -746,68 +706,6 @@ void AmsPanel::clear_panel_reference() {
 // ============================================================================
 // Setup Helpers
 // ============================================================================
-
-void AmsPanel::rebuild_backend_selector() {
-    if (!panel_) {
-        return;
-    }
-
-    lv_obj_t* row = helix::ui::find_required(panel_, "backend_selector_row", get_name());
-    if (!row) {
-        return;
-    }
-
-    auto& ams = AmsState::instance();
-    int count = ams.backend_count();
-
-    // The row hides itself below two backends (backend_count in ams_panel.xml).
-    if (count <= 1) {
-        return;
-    }
-
-    // Clear existing children. rebuild_backend_selector runs from
-    // backend_count_observer_ via object_lifetime_.defer (UpdateQueue batch). [L081]
-    helix::ui::safe_clean_children(row);
-
-    for (int i = 0; i < count; ++i) {
-        auto* backend = ams.get_backend(i);
-        if (!backend) {
-            continue;
-        }
-        const std::string index = std::to_string(i);
-        const char* attrs[] = {"index", index.c_str(), nullptr};
-        auto* segment = static_cast<lv_obj_t*>(lv_xml_create(row, "ams_backend_segment", attrs));
-        if (segment) {
-            helix::ui::set_row_label_text(segment, "segment_label",
-                                          ams_type_to_string(backend->get_type()));
-        }
-    }
-
-    spdlog::debug("[AmsPanel] Backend selector rebuilt with {} segments (active={})", count,
-                  ams.active_backend_index());
-}
-
-void AmsPanel::show_backend(int index) {
-    if (index == shown_backend_idx_) {
-        return;
-    }
-    shown_backend_idx_ = index;
-
-    // Sync the selected backend and recreate slots
-    AmsState::instance().sync_backend(index);
-
-    auto* backend = AmsState::instance().get_backend(index);
-    if (backend) {
-        auto info = backend->get_system_info();
-        create_slots(info.total_slots);
-
-        // Update path visualization for this backend
-        update_path_canvas_from_backend();
-    }
-
-    spdlog::info("[AmsPanel] Switched to backend {} ({})", index,
-                 backend ? ams_type_to_string(backend->get_type()) : "null");
-}
 
 void AmsPanel::setup_slots() {
     lv_obj_t* unit_detail = helix::ui::find_required(panel_, "unit_detail", get_name());

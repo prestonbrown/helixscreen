@@ -485,6 +485,19 @@ void resync_palette_manager(bool is_dark) {
     tm.set_dark_mode(is_dark);
 }
 
+/// LVGL strips every style off the top and system layers when it creates the
+/// display, so they do not inherit the theme's screen style. Without the base
+/// font set here, text on them that names no font falls back to
+/// LV_FONT_DEFAULT, and a widget moved onto them after layout keeps the size
+/// it measured under the screen's font.
+static void apply_base_font_to_layers(lv_display_t* display, const lv_font_t* font) {
+    for (lv_obj_t* layer : {lv_display_get_layer_top(display), lv_display_get_layer_sys(display)}) {
+        if (layer) {
+            lv_obj_set_style_text_font(layer, font, LV_PART_MAIN);
+        }
+    }
+}
+
 /**
  * @brief Initialize the HelixScreen LVGL theme
  *
@@ -512,6 +525,7 @@ lv_theme_t* theme_init_lvgl(lv_display_t* display, const theme_palette_t* palett
     helix_theme.font_large = base_font;
     helix_theme.color_primary = palette->primary;
     helix_theme.color_secondary = palette->secondary;
+    apply_base_font_to_layers(display, base_font);
 
     spdlog::trace("[Theme] Initialized HelixScreen theme via ThemeManager");
     return &helix_theme;
@@ -530,6 +544,7 @@ void theme_set_base_font(lv_display_t* display, const lv_font_t* font) {
     helix_theme.font_small = font;
     helix_theme.font_normal = font;
     helix_theme.font_large = font;
+    apply_base_font_to_layers(display, font);
     lv_obj_report_style_change(nullptr);
 }
 

@@ -629,7 +629,7 @@ uninstall_mod_payload() {
         uninstall_forgex || true
     fi
 
-    # Drop the --auto-update stanza if this install wrote one. find_moonraker_conf
+    # Drop the update_manager stanza if this install wrote one. find_moonraker_conf
     # answers the mod's user.moonraker.conf on mod hosts
     # (HOST_MOONRAKER_USER_CONF), so this touches nothing of the mod's own.
     if type remove_update_manager_section >/dev/null 2>&1; then
@@ -1095,7 +1095,7 @@ clean_old_installation() {
     # A --clean must also remove the root the PREVIOUS install recorded:
     # mod_payload_mode_block re-records THIS run's root before this sweep
     # runs, so without this the old custom payload root - and any
-    # --auto-update stanza still pointing at it - survives a mode whose
+    # update_manager stanza still pointing at it - survives a mode whose
     # contract is "remove old installation completely". Name-gated like every
     # other root the uninstall side acts on.
     if [ -n "${HELIX_PRIOR_PAYLOAD_ROOT:-}" ] \

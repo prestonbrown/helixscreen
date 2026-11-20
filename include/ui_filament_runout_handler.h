@@ -26,6 +26,8 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 
+#include <functional>
+
 // Forward declarations
 namespace helix {
 class IMoonrakerAPI;
@@ -105,6 +107,13 @@ class FilamentRunoutHandler {
      */
     void hide_modal();
 
+    using WakeFn = std::function<void()>;
+    /// Wakes the display when the guidance appears. Its owner supplies it; unset, the
+    /// guidance shows without waking.
+    void set_wake(WakeFn wake) {
+        wake_ = std::move(wake);
+    }
+
     //
     // === Testing API ===
     //
@@ -131,6 +140,7 @@ class FilamentRunoutHandler {
     //
 
     IMoonrakerAPI* api_;
+    WakeFn wake_;
 
     //
     // === State ===

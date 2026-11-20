@@ -58,6 +58,10 @@
          would override the bound one. -->
     <style name="height_landscape" height="100%"/>
     <style name="height_portrait" height="content"/>
+    <!-- A content-high sidebar has no free height to share out, so a growing stepper
+         would get none: in portrait the stepper stands at its own height. -->
+    <style name="stepper_landscape" flex_grow="1"/>
+    <style name="stepper_portrait" flex_grow="0"/>
   </styles>
   <view name="ams_sidebar"
         extends="lv_obj" width="100%" style_pad_all="0" scrollable="true" scroll_dir="ver" flex_flow="column"
@@ -116,12 +120,13 @@
         </ui_switch>
       </lv_obj>
     </lv_obj>
-    <!-- Step Progress Stepper (shown during load operations). It fills the
+    <!-- Step Progress Stepper (shown during load operations). In landscape it fills the
          column's free height and scrolls inside it, so a run of many steps never
          scrolls the column and the status line above it off screen. -->
     <lv_obj name="progress_stepper_container"
-            width="100%" height="content" flex_grow="1" style_pad_all="0" scrollable="true" scroll_dir="ver"
-            scrollbar_mode="auto">
+            width="100%" height="content" style_pad_all="0" scrollable="true" scroll_dir="ver" scrollbar_mode="auto">
+      <bind_style_if_eq name="stepper_landscape" subject="ui_is_portrait" ref_value="0"/>
+      <bind_style_if_eq name="stepper_portrait" subject="ui_is_portrait" ref_value="1"/>
       <bind_flag_if_eq subject="ams_sidebar_stepper_shown" flag="hidden" ref_value="0"/>
       <!-- Step progress widget created dynamically by AmsOperationSidebar -->
     </lv_obj>

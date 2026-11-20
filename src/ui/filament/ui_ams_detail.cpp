@@ -627,8 +627,8 @@ void pick_lane_cb(lv_event_t* e) {
     std::vector<helix::AvailableSlot> lanes;
     const std::vector<helix::AvailableSlot> all =
         helix::AmsState::instance().collect_available_slots();
-    // Slot indices restart in every backend: this unit's lanes are the active backend's.
-    const int backend = helix::AmsState::instance().active_backend_index();
+    // Slot indices restart in every backend: this unit's lanes are backend 0's.
+    const int backend = 0;
     for (int i = 0; i < s_tray.lane_count; ++i) {
         lv_obj_t* slot = s_tray.slot[i].get();
         const int global = slot ? (int)reinterpret_cast<intptr_t>(lv_obj_get_user_data(slot)) : -1;

@@ -78,19 +78,29 @@ else
         tag=$(sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$work/latest.json" | head -n 1)
         [ -n "$tag" ] || die "could not read the latest release tag of $HELIXSCREEN_REPO"
     fi
-    archive="$work/helixscreen-${platform}-${tag}.tar.gz"
-    fetch "https://github.com/${HELIXSCREEN_REPO}/releases/download/${tag}/helixscreen-${platform}-${tag}.tar.gz" "$archive"
+    # The release asset is the unversioned zip; the local copy carries the tag
+    # so the build log shows which release went in.
+    archive="$work/helixscreen-${platform}-${tag}.zip"
+    fetch "https://github.com/${HELIXSCREEN_REPO}/releases/download/${tag}/helixscreen-${platform}.zip" "$archive"
 fi
 
 if [ -n "$HELIXSCREEN_SHA256" ]; then
     echo "${HELIXSCREEN_SHA256}  ${archive}" | sha256sum -c - || die "$archive does not match HELIXSCREEN_SHA256"
 fi
 
+# A release zip holds the package at its root; a tarball from an older release
+# holds it under helixscreen/.
 case "$archive" in
-    *.zip) unzip -p "$archive" helixscreen/install.sh > "$work/install.sh" ;;
-    *) tar -xzf "$archive" -O helixscreen/install.sh > "$work/install.sh" ;;
+    *.zip)
+        if ! command -v unzip >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y --no-install-recommends unzip
+        fi
+        unzip -p "$archive" install.sh > "$work/install.sh" || true
+        ;;
+    *) tar -xzf "$archive" -O helixscreen/install.sh > "$work/install.sh" || true ;;
 esac
-[ -s "$work/install.sh" ] || die "$archive holds no helixscreen/install.sh; is it a HelixScreen release archive?"
+[ -s "$work/install.sh" ] || die "$archive holds no install.sh; is it a HelixScreen release archive?"
 grep -q -- '--target-root' "$work/install.sh" ||
     die "$archive predates image installs; use HelixScreen 1.2 or newer"
 

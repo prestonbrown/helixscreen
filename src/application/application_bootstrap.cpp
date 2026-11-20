@@ -6,6 +6,7 @@
  *        CLI/env argument parsing, config load and logging setup.
  */
 
+#include "app_globals.h"
 #include "application.h"
 #include "board_identity.h"
 #include "cli_args.h"
@@ -17,6 +18,7 @@
 #include "logging_init.h"
 #include "runtime_config.h"
 #include "system/config_trust.h"
+#include "system/update_checker.h"
 #include "thermal_rate_model.h"
 
 #include <spdlog/spdlog.h>
@@ -154,6 +156,15 @@ bool Application::init_config() {
     const char* config_path = get_runtime_config()->test_mode ? RuntimeConfig::kTestConfigPath
                                                               : RuntimeConfig::kProdConfigPath;
     spdlog::info("[Application] Using config: {}", config_path);
+    // A Moonraker update removes the config links into printer_data, and
+    // without a restarting service the watchdog starts this binary before
+    // anything puts them back (#2147). Relink before init reads settings.json.
+    if (!get_runtime_config()->test_mode) {
+        const std::string install_root = app_get_install_root();
+        if (UpdateChecker::startup_runs_restore(getenv("HELIX_SERVICE_RESTARTS"), install_root)) {
+            UpdateChecker::run_restore_user_config(install_root);
+        }
+    }
     m_config->init(config_path);
 
     // Load persisted thermal heating rates so estimates are available immediately

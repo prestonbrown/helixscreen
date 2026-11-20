@@ -2,6 +2,6 @@ HelixScreen installer v1.1.0-beta.1 (beta)
   Printer    x86 · systemd · user root
   Mode       kiosk, takes over the screen (running as root)
   Install    v1.1.0-beta.1 (beta) · SHA256 available
-  Add        Moonraker update manager
+  Add        Moonraker update manager (off while on beta or dev)
 
 Dry run, nothing changed.

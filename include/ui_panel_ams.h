@@ -210,8 +210,6 @@ class AmsPanel : public PanelBase {
     /// (singleton lifetime) — no SubjectLifetime token needed.
     std::vector<ObserverGuard> slot_path_observers_;
     ObserverGuard print_state_observer_;    ///< Dismisses a stale error dialog when a print resumes
-    ObserverGuard backend_count_observer_;  ///< Rebuilds the backend selector's segments
-    ObserverGuard active_backend_observer_; ///< Redraws the slots for a newly chosen backend
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     ObserverGuard
         supports_bypass_observer_;         ///< Bypass node appears/disappears with backend support
@@ -220,8 +218,7 @@ class AmsPanel : public PanelBase {
     /// The endless-spool status line under the path showing or hiding re-fits the unit above it.
     ObserverGuard endless_status_observer_;
     int endless_status_shown_ = -1; ///< whether that line showed at the last layout; -1 unknown
-    bool backend_rebuild_pending_ = false; ///< Coalesces rapid backend count changes
-    bool slot_creation_pending_ = false;   ///< Coalesces rapid slot count changes
+    bool slot_creation_pending_ = false; ///< Coalesces rapid slot count changes
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait
     /// Opened while the backend reported one unit. A backend that reports its units one at a
     /// time (multiACE's ACEs arrive after the SnapSwap) can turn that into several while the
@@ -258,15 +255,6 @@ class AmsPanel : public PanelBase {
     // === Endless Spool Arrows Canvas ===
 
     lv_obj_t* endless_arrows_ = nullptr; ///< Endless spool backup chain visualization
-
-    // === Backend Selector State ===
-
-    int shown_backend_idx_ = 0; ///< Backend whose slots and path the panel draws
-
-    // === Backend Selector Helpers ===
-
-    void rebuild_backend_selector();
-    void show_backend(int index);
 
     // === Setup Helpers ===
 

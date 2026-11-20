@@ -426,7 +426,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/action_prompt_button.xml",
     "ui_xml/components/action_prompt_swatch.xml",
     "ui_xml/components/activity_chip.xml",
-    "ui_xml/components/ams_backend_segment.xml",
     "ui_xml/components/ams_env_pill.xml",
     "ui_xml/components/ams_loaded_card.xml",
     "ui_xml/components/ams_environment_indicator.xml",

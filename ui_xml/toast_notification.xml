@@ -42,7 +42,7 @@
                   width="100%" text="" long_mode="wrap" style_text_color="#text_muted" hidden="$hide_detail"/>
     </lv_obj>
     <ui_button name="toast_action_btn"
-               width="content" height="36" text="$action_text" variant="success" style_min_width="72"
+               width="content" height="#button_height_sm" text="$action_text" variant="success" style_min_width="72"
                hidden="$hide_action">
       <event_cb trigger="clicked" callback="toast_action_btn_clicked"/>
     </ui_button>

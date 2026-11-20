@@ -573,6 +573,8 @@ class FilamentPanel : public PanelBase {
     char spool_preset_name_buf_[64] = {};
     helix::Subject spool_preset_temps_subject_{};
     char spool_preset_temps_buf_[32] = {};
+    helix::Subject spool_preset_nozzle_temp_subject_{};
+    char spool_preset_nozzle_temp_buf_[16] = {};
     // Warning dialogs for filament sensor integration
     helix::ui::WidgetRef load_warning_dialog_;
     helix::ui::WidgetRef unload_warning_dialog_;
@@ -726,7 +728,8 @@ class FilamentPanel : public PanelBase {
     void handle_preset_button(int material_id);
     void handle_spool_preset_button();
     void update_spool_preset();
-    void publish_spool_preset_temps(); ///< the novel spool's "210 / 60°C" in the display unit
+    /// The novel spool's "210 / 60°C", and "210°C" for a button too narrow for both.
+    void publish_spool_preset_temps();
     /// Send nozzle_target_ through TemperatureController; a refusal or failure
     /// puts the printer's real target back on screen.
     void send_nozzle_target();

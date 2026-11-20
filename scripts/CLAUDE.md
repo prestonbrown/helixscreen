@@ -27,7 +27,7 @@ are in `docs/devel/SCRIPTS_REFERENCE.md`, and the script's own header carries th
 | `release-health.sh` | Newest beta vs stable in telemetry; WARN lines only, always exits 0 |
 | `latest-green-sha.sh` | The commit `/release` cuts from: newest push whose required workflows all passed |
 | `dev-release.sh` | Local dev release workflow (build + package + upload) |
-| `generate-manifest.sh` | Generates `manifest.json` from release archives. Used by CI and dev-release |
+| `generate-manifest.sh` | Generates `manifest.json` from release zips. Used by CI and dev-release |
 | `package-helix-plugin.sh` | Builds the HelixPrint plugin tarball the remote installer unpacks |
 | `ci/gpu_libs_hidden_smoke.sh` | CI smoke: a packaged binary with its GPU libraries missing must still reach the framebuffer |
 | `ci/ci_watch.py` | `ci-watch.yml`: rerun main's infrastructure failures once, track real ones in the one `ci-red` issue |

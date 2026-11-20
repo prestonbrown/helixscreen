@@ -190,8 +190,9 @@ json MoonrakerClientMock::toolchanger_fan_status(double part_speed) const {
         const double temp = t == 0 ? extruder_temp_.load() : secondary_extruder_temp(t);
         out["fan_generic " + mock_internal::toolchanger_part_fan(t)] = {
             {"speed", t == mounted ? part_speed : 0.0}};
-        out["heater_fan " + mock_internal::toolchanger_hotend_fan(t)] = {
-            {"speed", temp > 50.0 ? mock_internal::toolchanger_hotend_fan_speed(t) : 0.0}};
+        out["heater_fan " + mock_internal::toolchanger_hotend_fan(t)] =
+            mock_internal::tach_fan_status(
+                temp > 50.0 ? mock_internal::toolchanger_hotend_fan_speed(t) : 0.0);
     }
     return out;
 }
@@ -677,7 +678,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
              {{"live_position", {x, y, z + z_offset, 0.0}},
               {"live_velocity", feed_mm_s * (speed / 100.0)},
               {"live_extruder_velocity", extruder_mm_s}}},
-            {"fan", mock_internal::part_fan_status(fan / 255.0)},
+            {"fan", mock_internal::tach_fan_status(fan / 255.0)},
             {"print_stats",
              {{"state", print_state_str},
               {"filename", filename},
@@ -835,7 +836,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
         // can still pin a fan speed via M106 for testing.
         for (const auto& fan_name : fans_snapshot) {
             if (fan_name.rfind("heater_fan ", 0) == 0) {
-                status_obj[fan_name] = {{"speed", hotend_fan_speed}};
+                status_obj[fan_name] = mock_internal::tach_fan_status(hotend_fan_speed);
             }
         }
         status_obj.merge_patch(toolchanger_fan_status(fan / 255.0));
@@ -847,7 +848,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
                 if (name == "fan" && has_toolchanger_tool_fans()) {
                     status_obj.merge_patch(toolchanger_fan_status(spd));
                 } else if (name == "fan") {
-                    status_obj["fan"] = mock_internal::part_fan_status(spd);
+                    status_obj["fan"] = mock_internal::tach_fan_status(spd);
                 } else {
                     status_obj[name] = {{"speed", spd}};
                 }

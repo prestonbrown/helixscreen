@@ -155,6 +155,7 @@ HelixScreen keeps its logs and caches in `/data/.helixscreen`. The dot keeps tha
 **Check your version** on the touchscreen in **Settings > Help & About > About**.
 
 - **On the touchscreen:** **Settings > Updates**. See [Updates](settings/updates.md).
+- **From Mainsail or Fluidd (Forge-X, Stable channel only):** HelixScreen is listed in the web interface's update manager beside Forge-X, Fluidd and Mainsail. On the Beta or Dev channel it is not listed, and you update from the touchscreen. Press **Update** next to `helixscreen`, and HelixScreen restarts on the new version when Moonraker finishes. The installer adds this entry to `mod_data/user.moonraker.conf`, the file Forge-X keeps for your own Moonraker settings, and never to Forge-X's own `moonraker.conf`. Your settings are kept, because they live in the `helixscreen` folder of your printer configuration, outside the folder the update replaces.
 - **Over SSH**, with the installer HelixScreen keeps in its own folder (Forge-X shown; on Klipper Mod use `/root/printer_software/helixscreen` or `/opt/helixscreen`):
 
   ```bash
@@ -167,7 +168,7 @@ HelixScreen keeps its logs and caches in `/data/.helixscreen`. The dot keeps tha
 
 Your settings are kept. See [Upgrading](../UPGRADING.md) for installing a specific version or reinstalling with fresh settings.
 
-> **Forge-X:** the installer refuses `--auto-update`, which would let Moonraker replace the whole HelixScreen folder and lose your settings. Update with the commands above.
+> **Forge-X:** an update from Mainsail or Fluidd replaces the whole HelixScreen folder, so files kept only inside it, such as its logs, start over. If HelixScreen is missing from the update manager, re-run the installer with `--update` and it adds the entry. Klipper Mod installs do not get the entry; update them on the touchscreen or over SSH.
 
 ---
 
