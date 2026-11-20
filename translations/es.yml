@@ -3440,6 +3440,7 @@ translations:
   Restart print: 'Reiniciar impresión'
   Restart the display application: Reiniciar la aplicación de pantalla
   Restart the printer or screen: Reiniciar la impresora o pantalla
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie la impresora. Si SSH sigue rechazando la conexión, consulte la guía de instalación del Snapmaker U1'
   Restarting HelixScreen...: Reiniciando HelixScreen...
   Restarting Klipper...: Reiniciando Klipper...
   Restarting Moonraker...: Reiniciando Moonraker...
@@ -3537,6 +3538,7 @@ translations:
   SETTINGS: AJUSTES
   SHIPPED IMAGES: IMÁGENES INCLUIDAS
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: 'SSH no se inició aunque el acceso root está activado'
   STANDARD MACROS: MACROS ESTÁNDAR
   STARTUP: INICIO
   STOP: DETENER

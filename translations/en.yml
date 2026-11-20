@@ -3367,6 +3367,7 @@ translations:
   Restart print: Restart print
   Restart the display application: Restart the display application
   Restart the printer or screen: Restart the printer or screen
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide
   Restarting HelixScreen...: Restarting HelixScreen...
   Restarting Klipper...: Restarting Klipper...
   Restarting Moonraker...: Restarting Moonraker...
@@ -3463,6 +3464,7 @@ translations:
   SETTINGS: SETTINGS
   SHIPPED IMAGES: SHIPPED IMAGES
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: SSH did not start although Root access is on
   STANDARD MACROS: STANDARD MACROS
   STARTUP: STARTUP
   STOP: STOP
