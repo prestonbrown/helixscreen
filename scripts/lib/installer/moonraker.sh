@@ -349,6 +349,17 @@ update_manager_path() {
     fi
 }
 
+# Whether a Moonraker without asset_name support may be armed on platform @1.
+# Such a Moonraker installs assets[0] of the release it picks itself:
+# releases/latest on the stable channel, the first entry of the release list
+# on beta. That release need not come from the 1.1 line: a release/1.0 tag
+# becomes "latest", and its assets still start with a tarball. Every arm for
+# an old Moonraker goes through this one predicate, so it can be switched off
+# or limited to a channel in one place (#2147).
+old_moonraker_may_arm() {
+    helix_zip_is_first_release_asset "$1"
+}
+
 # Why a payload install must not arm Moonraker's updater, or nothing when it
 # may. A type:web update rmtree()s `path:` and extracts the zip in its place,
 # then HelixScreen restarts itself and restore-user-config.sh puts the user
@@ -361,7 +372,7 @@ update_manager_path() {
 #   - the Moonraker running in the mod's chroot reaches the root (an adopted
 #     legacy root outside the chroot's binds is invisible to it);
 #   - Moonraker downloads this platform's zip: it reads asset_name, or the
-#     platform's zip is the release's assets[0] (helix_zip_is_first_release_asset).
+#     platform's zip is the release's assets[0] (old_moonraker_may_arm).
 # Args: $1 = platform, $2 = moonraker_asset_name_support's answer
 payload_updater_blocker() {
     local platform="$1" support="$2" settings
@@ -378,7 +389,7 @@ payload_updater_blocker() {
         echo "the mod's Moonraker cannot reach $(update_manager_path)"
         return 0
     fi
-    if [ "$support" != "supported" ] && ! helix_zip_is_first_release_asset "$platform"; then
+    if [ "$support" != "supported" ] && ! old_moonraker_may_arm "$platform"; then
         echo "this Moonraker downloads a release's first asset, which is not the ${platform} zip"
         return 0
     fi
