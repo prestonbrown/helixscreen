@@ -489,6 +489,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Bed mesh calibration failed: {}'
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
+  Bed screws: Bed screws
   Bed size unknown: Bed size unknown
   Bed target set to {}: Bed target set to {}
   Bed temp must be %d-%s: Bed temp must be %d-%s
@@ -501,6 +502,7 @@ translations:
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt Tension needs a CoreXY printer. This one is {}.: Belt Tension needs a CoreXY printer. This one is {}.
+  Belt compare: Belt compare
   Belt tension: Belt tension
   Belt tension and cutter calibration: Belt tension and cutter calibration
   Belt tensioning completed: Belt tensioning completed
@@ -1139,6 +1141,7 @@ translations:
   Cutter calibration completed: Cutter calibration completed
   'Cutter calibration failed: {}': 'Cutter calibration failed: {}'
   Cutter jam: Cutter jam
+  Cutter position: Cutter position
   Cutting: Cutting
   Cutting filament: Cutting filament
   Cutting filament...: Cutting filament...
@@ -1883,6 +1886,7 @@ translations:
   Heater over-temperature: 'Heater over-temperature'
   Heater sensor fault: 'Heater sensor fault'
   HeaterSelect: HeaterSelect
+  Heaters: Heaters
   Heaters off: Heaters off
   Heating: Heating
   Heating (%s below minimum): Heating (%s below minimum)
@@ -2060,6 +2064,7 @@ translations:
   Input Shaper Calibration: Input Shaper Calibration
   Input Shaper Help: Input Shaper Help
   Input Shaping: Input Shaping
+  Input shaper: Input shaper
   Input shaper calibration sensors: Input shaper calibration sensors
   'Input shaper calibration...': 'Input shaper calibration...'
   Input shaper settings applied!: Input shaper settings applied!
@@ -3076,6 +3081,7 @@ translations:
   Pressure advance: Pressure advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
+  Pressure advance tuning: Pressure advance tuning
   'Pressure:': 'Pressure:'
   Pressed: Pressed
   Pressure Adv.: Pressure Adv.
@@ -4563,6 +4569,7 @@ translations:
   Tool cycle finished: Tool cycle finished
   Tool is seated: Tool is seated
   Tool may be half seated: Tool may be half seated
+  Tool offsets: Tool offsets
   Tool offsets (mm): Tool offsets (mm)
   Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
@@ -4774,6 +4781,8 @@ translations:
   Vertical: Vertical
   Vertical Artifact Check: Vertical Artifact Check
   Vertical Artifact Compensation: Vertical Artifact Compensation
+  Vertical artifact check: Vertical artifact check
+  Vertical artifact compensation: Vertical artifact compensation
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
   Video playback speed: Video playback speed
@@ -4950,6 +4959,7 @@ translations:
   Z is at its limit ({}mm): Z is at its limit ({}mm)
   Z jog feedrate: Z jog feedrate
   Z motor calibration failed: Z motor calibration failed
+  Z offset: Z offset
   Z offset by material: Z offset by material
   Z probes for bed leveling and mesh generation: Z probes for bed leveling and mesh generation
   Z tilt: Z tilt

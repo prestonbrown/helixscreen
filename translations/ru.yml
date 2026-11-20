@@ -545,6 +545,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Ошибка калибровки сетки стола: {}'
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
   Bed mesh...: Сетка стола...
+  Bed screws: ''
   Bed size unknown: 'Размер стола неизвестен'
   Bed target set to {}: Целевая температура стола {}
   Bed temp must be %d-%s: Температура стола должна быть %d-%s
@@ -557,6 +558,7 @@ translations:
   Belt Tension: Натяжение ремня
   Belt Tension Check: Проверка натяжения ремня
   Belt Tension needs a CoreXY printer. This one is {}.: 'Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}.'
+  Belt compare: ''
   Belt tension: "Натяжение ремня"
   Belt tension and cutter calibration: "Натяжение ремней и калибровка резака"
   Belt tensioning completed: "Натяжение ремней завершено"
@@ -1203,6 +1205,7 @@ translations:
   Cutter calibration completed: Калибровка резака завершена
   'Cutter calibration failed: {}': 'Не удалось калибровать резак: {}'
   Cutter jam: Замятие резака
+  Cutter position: ''
   Cutting: Резка
   Cutting filament: "Обрезка филамента"
   Cutting filament...: Обрезка филамента...
@@ -1961,6 +1964,7 @@ translations:
   Heater over-temperature: Перегрев нагревателя
   Heater sensor fault: Неисправность датчика нагревателя
   HeaterSelect: Выбрать нагреватель
+  Heaters: ''
   Heaters off: Нагреватели выключены
   Heating: Нагрев
   Heating (%s below minimum): Нагрев (%s ниже минимума)
@@ -2139,6 +2143,7 @@ translations:
   Input Shaper Calibration: 'Калибровка Input Shaper''а'
   Input Shaper Help: Справка по Input Shaper
   Input Shaping: Компенсация вибраций
+  Input shaper: ''
   Input shaper calibration sensors: Датчики калибровки Input Shaper'а
   Input shaper calibration...: Калибровка Input Shaper'а...
   Input shaper settings applied!: Настройки компенсатора вибраций применены!
@@ -3168,6 +3173,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
+  Pressure advance tuning: ''
   'Pressure:': 'Давление:'
   Pressed: Нажата
   Pressure Adv.: 'Pressure Adv.'
@@ -4680,6 +4686,7 @@ translations:
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен
   Tool may be half seated: "Инструмент может быть установлен не полностью"
+  Tool offsets: ''
   Tool offsets (mm): Смещения инструментов (мм)
   Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента
@@ -4886,6 +4893,8 @@ translations:
   Vertical: Вертикально
   Vertical Artifact Check: 'Проверка вертикальных артефактов'
   Vertical Artifact Compensation: 'Компенсация вертикальных артефактов'
+  Vertical artifact check: ''
+  Vertical artifact compensation: ''
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
@@ -5062,6 +5071,7 @@ translations:
   Z is at its limit ({}mm): Z на пределе ({}mm)
   Z jog feedrate: Скорость перемещения по оси Z
   Z motor calibration failed: Не удалась калибровка двигателя Z
+  Z offset: ''
   Z offset by material: "Z-Offset по материалу"
   Z probes for bed leveling and mesh generation: Z-зонды для выравнивания стола и создания сетки
   Z tilt: Наклон Z

@@ -20,40 +20,39 @@
         <bind_style_if name="tiles_standard" cond="ui_breakpoint gt 0"/>
         <bind_style_if name="tiles_micro" cond="ui_breakpoint eq 0"/>
         <calibration_hub_tile name="cal_tile_belt_tension"
-                              step="belt_tension" icon="vibrate" label="Auto Belt Tension"
+                              step="belt_tension" icon="vibrate" label="Belt tension"
                               callback="on_belt_tension_auto_clicked"/>
         <calibration_hub_tile name="cal_tile_cutter"
-                              step="cutter" icon="content_cut" label="Cutter Calibration"
+                              step="cutter" icon="content_cut" label="Cutter position"
                               callback="on_cutter_calibration_clicked"/>
         <calibration_hub_tile name="cal_tile_z_offset"
-                              step="z_offset" icon="z_closer" label="Z-Offset Calibration"
-                              callback="on_zoffset_row_clicked"/>
+                              step="z_offset" icon="z_closer" label="Z offset" callback="on_zoffset_row_clicked"/>
         <calibration_hub_tile name="cal_tile_heaters"
-                              step="heaters" icon="heater" label="Heater Calibration" callback="on_pid_tuning_clicked"/>
+                              step="heaters" icon="heater" label="Heaters" callback="on_pid_tuning_clicked"/>
         <calibration_hub_tile name="cal_tile_bed_mesh"
-                              step="bed_mesh" icon="grid_large" label="Bed Mesh" callback="on_calibration_bed_mesh"/>
+                              step="bed_mesh" icon="grid_large" label="Bed mesh" callback="on_calibration_bed_mesh"/>
         <calibration_hub_tile name="cal_tile_input_shaper"
-                              step="input_shaper" icon="inputshaper" label="Input Shaping"
+                              step="input_shaper" icon="inputshaper" label="Input shaper"
                               callback="on_input_shaper_row_clicked"/>
         <calibration_hub_tile name="cal_tile_pressure_advance"
-                              step="pressure_advance" icon="gauge" label="Pressure Advance" callback="on_calibration_pa"/>
+                              step="pressure_advance" icon="gauge" label="Pressure advance" callback="on_calibration_pa"/>
         <calibration_hub_tile name="cal_tile_belt_compare"
-                              step="belt_compare" icon="vibrate" label="Belt Tension"
+                              step="belt_compare" icon="vibrate" label="Belt compare"
                               callback="on_belt_tension_row_clicked"/>
         <calibration_hub_tile name="cal_tile_bed_screws"
-                              step="bed_screws" icon="grid_large" label="Bed Leveling"
+                              step="bed_screws" icon="grid_large" label="Bed screws"
                               callback="on_screws_tilt_row_clicked"/>
         <calibration_hub_tile name="cal_tile_tool_offsets"
-                              step="tool_offsets" icon="axis_arrow" label="Tool Offsets"
+                              step="tool_offsets" icon="axis_arrow" label="Tool offsets"
                               callback="on_tool_offset_row_clicked"/>
         <calibration_hub_tile name="cal_tile_vertical_artifact"
-                              step="vertical_artifact" icon="sine_wave" label="Vertical Artifact Compensation"
+                              step="vertical_artifact" icon="sine_wave" label="Vertical artifact compensation"
                               callback="on_stepper_resonance_cal_clicked"/>
         <calibration_hub_tile name="cal_tile_pa_tuning"
-                              step="pa_tuning" icon="gauge" label="Pressure Advance Tuning"
+                              step="pa_tuning" icon="gauge" label="Pressure advance tuning"
                               callback="on_pa_tuning_clicked"/>
         <calibration_hub_tile name="cal_tile_vibration_check"
-                              step="vibration_check" icon="vibrate" label="Vertical Artifact Check"
+                              step="vibration_check" icon="vibrate" label="Vertical artifact check"
                               callback="on_motor_ripple_row_clicked"/>
       </lv_obj>
     </lv_obj>

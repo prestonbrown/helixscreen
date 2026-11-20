@@ -489,6 +489,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Calibrazione della mesh del piano non riuscita: {}'
   Bed mesh operation timed out: Mesh piano — tempo scaduto
   Bed mesh...: Mesh piano...
+  Bed screws: ''
   Bed size unknown: 'Dimensione del piatto sconosciuta'
   Bed target set to {}: Obiettivo piano impostato a {}
   Bed temp must be %d-%s: La temperatura del piano deve essere %d-%s
@@ -501,6 +502,7 @@ translations:
   Belt Tension: Tensione cinghia
   Belt Tension Check: Controllo tensione cinghia
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tensione cinghia richiede una stampante CoreXY. Questa è {}.'
+  Belt compare: ''
   Belt tension: "Tensione cinghia"
   Belt tension and cutter calibration: "Tensione cinghie e calibrazione taglierina"
   Belt tensioning completed: "Tensionamento cinghie completato"
@@ -1143,6 +1145,7 @@ translations:
   Cutter calibration completed: Calibrazione taglierina completata
   'Cutter calibration failed: {}': 'Calibrazione taglierina non riuscita: {}'
   Cutter jam: Inceppamento taglierina
+  Cutter position: ''
   Cutting: Taglio
   Cutting filament: "Taglio filamento"
   Cutting filament...: Taglio filamento...
@@ -1897,6 +1900,7 @@ translations:
   Heater over-temperature: Sovratemperatura del riscaldatore
   Heater sensor fault: Guasto al sensore del riscaldatore
   HeaterSelect: Seleziona riscaldatore
+  Heaters: ''
   Heaters off: Riscaldatori spenti
   Heating: Riscaldamento
   Heating (%s below minimum): Riscaldamento (%s sotto il minimo)
@@ -2075,6 +2079,7 @@ translations:
   Input Shaper Calibration: 'Calibrazione input shaper'
   Input Shaper Help: Guida Input Shaper
   Input Shaping: Input Shaping
+  Input shaper: ''
   Input shaper calibration sensors: Sensori calibrazione input shaper
   Input shaper calibration...: Calibrazione input shaper...
   Input shaper settings applied!: Impostazioni input shaper applicate!
@@ -3096,6 +3101,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore.'
+  Pressure advance tuning: ''
   'Pressure:': 'Pressione:'
   Pressed: Premuto
   Pressure Adv.: 'Pressure Adv.'
@@ -4592,6 +4598,7 @@ translations:
   Tool cycle finished: Ciclo degli strumenti completato
   Tool is seated: Lo strumento è inserito
   Tool may be half seated: "Lo strumento potrebbe essere inserito a metà"
+  Tool offsets: ''
   Tool offsets (mm): Offset strumenti (mm)
   Tool offsets saved: Offset strumenti salvati
   Tool swap: Cambio utensile
@@ -4798,6 +4805,8 @@ translations:
   Vertical: Verticale
   Vertical Artifact Check: 'Verifica artefatti verticali'
   Vertical Artifact Compensation: 'Compensazione artefatti verticali'
+  Vertical artifact check: ''
+  Vertical artifact compensation: ''
   Vibration: Vibrazione
   Vibration compensation active: Compensazione vibrazione attiva
   Video playback speed: Velocità riproduzione video
@@ -4974,6 +4983,7 @@ translations:
   Z is at its limit ({}mm): Z è al suo limite ({}mm)
   Z jog feedrate: Velocità di avanzamento del movimento Z
   Z motor calibration failed: Calibrazione del motore Z non riuscita
+  Z offset: ''
   Z offset by material: "Z-Offset per materiale"
   Z probes for bed leveling and mesh generation: Sonde Z per livellamento piano e generazione mesh
   Z tilt: Inclinazione Z

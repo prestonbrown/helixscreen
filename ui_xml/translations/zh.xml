@@ -472,6 +472,7 @@
   <translation tag="Bed mesh calibration failed: {}" zh="热床网格校准失败：{}"/>
   <translation tag="Bed mesh operation timed out" zh="热床网格操作超时"/>
   <translation tag="Bed mesh..." zh="热床网格..."/>
+  <translation tag="Bed screws"/>
   <translation tag="Bed size unknown" zh="热床尺寸未知"/>
   <translation tag="Bed target set to {}" zh="热床目标已设为 {}"/>
   <translation tag="Bed temp must be %d-%s" zh="热床温度必须为 %d-%s"/>
@@ -484,6 +485,7 @@
   <translation tag="Belt Tension" zh="皮带张力"/>
   <translation tag="Belt Tension Check" zh="皮带张力检查"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." zh="皮带张力需要 CoreXY 打印机。此打印机为{}。"/>
+  <translation tag="Belt compare"/>
   <translation tag="Belt tension" zh="皮带张力"/>
   <translation tag="Belt tension and cutter calibration" zh="皮带张紧与切刀校准"/>
   <translation tag="Belt tensioning completed" zh="皮带张紧完成"/>
@@ -1084,6 +1086,7 @@
   <translation tag="Cutter calibration completed" zh="切刀校准完成"/>
   <translation tag="Cutter calibration failed: {}" zh="切刀校准失败：{}"/>
   <translation tag="Cutter jam" zh="切刀卡住"/>
+  <translation tag="Cutter position"/>
   <translation tag="Cutting" zh="切割中"/>
   <translation tag="Cutting filament" zh="正在切断耗材"/>
   <translation tag="Cutting filament..." zh="正在切断耗材..."/>
@@ -1824,6 +1827,7 @@
   <translation tag="Heater over-temperature" zh="加热器过热"/>
   <translation tag="Heater sensor fault" zh="加热器传感器故障"/>
   <translation tag="HeaterSelect" zh="选择加热器"/>
+  <translation tag="Heaters"/>
   <translation tag="Heaters off" zh="加热器已关闭"/>
   <translation tag="Heating" zh="加热中"/>
   <translation tag="Heating (%s below minimum)" zh="加热中（低于最低温度 %s）"/>
@@ -1998,6 +2002,7 @@
   <translation tag="Input Shaper Calibration" zh="输入整形器校准"/>
   <translation tag="Input Shaper Help" zh="输入整形器帮助"/>
   <translation tag="Input Shaping" zh="输入整形"/>
+  <translation tag="Input shaper"/>
   <translation tag="Input shaper calibration sensors" zh="输入整形器校准传感器"/>
   <translation tag="Input shaper calibration..." zh="正在校准输入整形器..."/>
   <translation tag="Input shaper settings applied!" zh="输入整形器设置已应用！"/>
@@ -3008,6 +3013,7 @@
   <translation tag="Pressure Advance Tuning" zh="压力提前调校"/>
   <translation tag="Pressure advance" zh="压力提前"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." zh="压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。"/>
+  <translation tag="Pressure advance tuning"/>
   <translation tag="Pressure:" zh="压力:"/>
   <translation tag="Preview" zh="预览"/>
   <translation tag="Preview Sounds" zh="预览声音"/>
@@ -4446,6 +4452,7 @@
   <translation tag="Tool cycle finished" zh="依次更换工具完成"/>
   <translation tag="Tool is seated" zh="工具已装好"/>
   <translation tag="Tool may be half seated" zh="工具可能未完全安装到位"/>
+  <translation tag="Tool offsets"/>
   <translation tag="Tool offsets (mm)" zh="工具偏移 (mm)"/>
   <translation tag="Tool offsets saved" zh="工具偏移已保存"/>
   <translation tag="Tool swap" zh="工具切换"/>
@@ -4660,6 +4667,8 @@
   <translation tag="Vertical" zh="垂直"/>
   <translation tag="Vertical Artifact Check" zh="垂直纹路检查"/>
   <translation tag="Vertical Artifact Compensation" zh="垂直纹路补偿"/>
+  <translation tag="Vertical artifact check"/>
+  <translation tag="Vertical artifact compensation"/>
   <translation tag="Vibration" zh="振动"/>
   <translation tag="Vibration compensation active" zh="振动补偿已启用"/>
   <translation tag="Video playback speed" zh="视频播放速度"/>
@@ -4838,6 +4847,7 @@
   <translation tag="Z is at its limit ({}mm)" zh="Z 轴已到达限位 ({}mm)"/>
   <translation tag="Z jog feedrate" zh="Z 轴移动速度"/>
   <translation tag="Z motor calibration failed" zh="Z 电机校准失败"/>
+  <translation tag="Z offset"/>
   <translation tag="Z offset by material" zh="按材料 Z 偏移"/>
   <translation tag="Z probes for bed leveling and mesh generation" zh="用于热床调平和网格生成的 Z 探针"/>
   <translation tag="Z tilt" zh="Z倾斜"/>

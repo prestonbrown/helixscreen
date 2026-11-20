@@ -489,6 +489,7 @@ translations:
   'Bed mesh calibration failed: {}': 'ベッドメッシュのキャリブレーションに失敗しました: {}'
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
+  Bed screws: ''
   Bed size unknown: 'ベッドサイズが不明です'
   Bed target set to {}: ベッド目標温度を {} に設定しました
   Bed temp must be %d-%s: ベッド温度は %d〜%s にしてください
@@ -501,6 +502,7 @@ translations:
   Belt Tension: ベルトテンション
   Belt Tension Check: ベルトテンション確認
   Belt Tension needs a CoreXY printer. This one is {}.: 'ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。'
+  Belt compare: ''
   Belt tension: "ベルトテンション"
   Belt tension and cutter calibration: "ベルトテンションとカッターのキャリブレーション"
   Belt tensioning completed: "ベルトの張り調整が完了しました"
@@ -1143,6 +1145,7 @@ translations:
   Cutter calibration completed: カッターのキャリブレーションが完了しました
   'Cutter calibration failed: {}': 'カッターのキャリブレーションに失敗しました: {}'
   Cutter jam: カッター詰まり
+  Cutter position: ''
   Cutting: カット中
   Cutting filament: "フィラメントを切断中"
   Cutting filament...: フィラメントを切断中...
@@ -1897,6 +1900,7 @@ translations:
   Heater over-temperature: ヒーター過昇温
   Heater sensor fault: ヒーターセンサー異常
   HeaterSelect: ヒーターを選択
+  Heaters: ''
   Heaters off: ヒーターをオフにしました
   Heating: 加熱中
   Heating (%s below minimum): '"加熱中（最低温度より%s低い）"'
@@ -2075,6 +2079,7 @@ translations:
   Input Shaper Calibration: 'インプットシェーパーキャリブレーション'
   Input Shaper Help: 入力シェーパーヘルプ
   Input Shaping: インプットシェーピング
+  Input shaper: ''
   Input shaper calibration sensors: インプットシェーパーキャリブレーションセンサー
   Input shaper calibration...: インプットシェーパーキャリブレーション中...
   Input shaper settings applied!: インプットシェーパー設定が適用されました！
@@ -3096,6 +3101,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
+  Pressure advance tuning: ''
   'Pressure:': '圧力:'
   Pressed: 押下
   Pressure Adv.: 'Pressure Adv.'
@@ -4592,6 +4598,7 @@ translations:
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
   Tool may be half seated: "ツールが半分しか装着されていない可能性があります"
+  Tool offsets: ''
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
   Tool swap: ツール交換
@@ -4798,6 +4805,8 @@ translations:
   Vertical: 垂直
   Vertical Artifact Check: '垂直アーティファクトチェック'
   Vertical Artifact Compensation: '垂直アーティファクト補正'
+  Vertical artifact check: ''
+  Vertical artifact compensation: ''
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
   Video playback speed: 動画再生速度
@@ -4974,6 +4983,7 @@ translations:
   Z is at its limit ({}mm): Z軸は限界に達しています ({}mm)
   Z jog feedrate: Z軸のジョグ移動速度
   Z motor calibration failed: Z モーターの校正に失敗しました
+  Z offset: ''
   Z offset by material: "素材別 Z-Offset"
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   Z tilt: Zチルト

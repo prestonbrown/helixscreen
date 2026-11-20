@@ -489,6 +489,7 @@ translations:
   'Bed mesh calibration failed: {}': '热床网格校准失败：{}'
   Bed mesh operation timed out: 热床网格操作超时
   Bed mesh...: 热床网格...
+  Bed screws: ''
   Bed size unknown: '热床尺寸未知'
   Bed target set to {}: 热床目标已设为 {}
   Bed temp must be %d-%s: 热床温度必须为 %d-%s
@@ -501,6 +502,7 @@ translations:
   Belt Tension: 皮带张力
   Belt Tension Check: 皮带张力检查
   Belt Tension needs a CoreXY printer. This one is {}.: '皮带张力需要 CoreXY 打印机。此打印机为{}。'
+  Belt compare: ''
   Belt tension: "皮带张力"
   Belt tension and cutter calibration: "皮带张紧与切刀校准"
   Belt tensioning completed: "皮带张紧完成"
@@ -1143,6 +1145,7 @@ translations:
   Cutter calibration completed: 切刀校准完成
   'Cutter calibration failed: {}': 切刀校准失败：{}
   Cutter jam: 切刀卡住
+  Cutter position: ''
   Cutting: 切割中
   Cutting filament: "正在切断耗材"
   Cutting filament...: 正在切断耗材...
@@ -1897,6 +1900,7 @@ translations:
   Heater over-temperature: 加热器过热
   Heater sensor fault: 加热器传感器故障
   HeaterSelect: 选择加热器
+  Heaters: ''
   Heaters off: 加热器已关闭
   Heating: 加热中
   Heating (%s below minimum): 加热中（低于最低温度 %s）
@@ -2075,6 +2079,7 @@ translations:
   Input Shaper Calibration: '输入整形器校准'
   Input Shaper Help: 输入整形器帮助
   Input Shaping: 输入整形
+  Input shaper: ''
   Input shaper calibration sensors: 输入整形器校准传感器
   Input shaper calibration...: 正在校准输入整形器...
   Input shaper settings applied!: 输入整形器设置已应用！
@@ -3096,6 +3101,7 @@ translations:
   Pressure advance: 压力提前
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : '压力提前随测试塔升高而增加。查看角落: 随时点击-或+,自动步进就会停止,方便你判断自己的数值。'
+  Pressure advance tuning: ''
   'Pressure:': '压力:'
   Pressed: 按下
   Pressure Adv.: '压力提前'
@@ -4592,6 +4598,7 @@ translations:
   Tool cycle finished: 依次更换工具完成
   Tool is seated: 工具已装好
   Tool may be half seated: "工具可能未完全安装到位"
+  Tool offsets: ''
   Tool offsets (mm): 工具偏移 (mm)
   Tool offsets saved: 工具偏移已保存
   Tool swap: 工具切换
@@ -4798,6 +4805,8 @@ translations:
   Vertical: 垂直
   Vertical Artifact Check: '垂直纹路检查'
   Vertical Artifact Compensation: '垂直纹路补偿'
+  Vertical artifact check: ''
+  Vertical artifact compensation: ''
   Vibration: 振动
   Vibration compensation active: 振动补偿已启用
   Video playback speed: 视频播放速度
@@ -4974,6 +4983,7 @@ translations:
   Z is at its limit ({}mm): Z 轴已到达限位 ({}mm)
   Z jog feedrate: Z 轴移动速度
   Z motor calibration failed: Z 电机校准失败
+  Z offset: ''
   Z offset by material: "按材料 Z 偏移"
   Z probes for bed leveling and mesh generation: 用于热床调平和网格生成的 Z 探针
   Z tilt: Z倾斜

@@ -472,6 +472,7 @@
   <translation tag="Bed mesh calibration failed: {}" ja="ベッドメッシュのキャリブレーションに失敗しました: {}"/>
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
   <translation tag="Bed mesh..." ja="ベッドメッシュ..."/>
+  <translation tag="Bed screws"/>
   <translation tag="Bed size unknown" ja="ベッドサイズが不明です"/>
   <translation tag="Bed target set to {}" ja="ベッド目標温度を {} に設定しました"/>
   <translation tag="Bed temp must be %d-%s" ja="ベッド温度は %d〜%s にしてください"/>
@@ -484,6 +485,7 @@
   <translation tag="Belt Tension" ja="ベルトテンション"/>
   <translation tag="Belt Tension Check" ja="ベルトテンション確認"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ja="ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。"/>
+  <translation tag="Belt compare"/>
   <translation tag="Belt tension" ja="ベルトテンション"/>
   <translation tag="Belt tension and cutter calibration" ja="ベルトテンションとカッターのキャリブレーション"/>
   <translation tag="Belt tensioning completed" ja="ベルトの張り調整が完了しました"/>
@@ -1084,6 +1086,7 @@
   <translation tag="Cutter calibration completed" ja="カッターのキャリブレーションが完了しました"/>
   <translation tag="Cutter calibration failed: {}" ja="カッターのキャリブレーションに失敗しました: {}"/>
   <translation tag="Cutter jam" ja="カッター詰まり"/>
+  <translation tag="Cutter position"/>
   <translation tag="Cutting" ja="カット中"/>
   <translation tag="Cutting filament" ja="フィラメントを切断中"/>
   <translation tag="Cutting filament..." ja="フィラメントを切断中..."/>
@@ -1824,6 +1827,7 @@
   <translation tag="Heater over-temperature" ja="ヒーター過昇温"/>
   <translation tag="Heater sensor fault" ja="ヒーターセンサー異常"/>
   <translation tag="HeaterSelect" ja="ヒーターを選択"/>
+  <translation tag="Heaters"/>
   <translation tag="Heaters off" ja="ヒーターをオフにしました"/>
   <translation tag="Heating" ja="加熱中"/>
   <translation tag="Heating (%s below minimum)" ja="&quot;加熱中（最低温度より%s低い）&quot;"/>
@@ -1998,6 +2002,7 @@
   <translation tag="Input Shaper Calibration" ja="インプットシェーパーキャリブレーション"/>
   <translation tag="Input Shaper Help" ja="入力シェーパーヘルプ"/>
   <translation tag="Input Shaping" ja="インプットシェーピング"/>
+  <translation tag="Input shaper"/>
   <translation tag="Input shaper calibration sensors" ja="インプットシェーパーキャリブレーションセンサー"/>
   <translation tag="Input shaper calibration..." ja="インプットシェーパーキャリブレーション中..."/>
   <translation tag="Input shaper settings applied!" ja="インプットシェーパー設定が適用されました！"/>
@@ -3008,6 +3013,7 @@
   <translation tag="Pressure Advance Tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure advance" ja="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ja="タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。"/>
+  <translation tag="Pressure advance tuning"/>
   <translation tag="Pressure:" ja="圧力:"/>
   <translation tag="Preview" ja="プレビュー"/>
   <translation tag="Preview Sounds" ja="サウンドをプレビュー"/>
@@ -4446,6 +4452,7 @@
   <translation tag="Tool cycle finished" ja="ツールの順次交換が完了しました"/>
   <translation tag="Tool is seated" ja="ツールは装着済み"/>
   <translation tag="Tool may be half seated" ja="ツールが半分しか装着されていない可能性があります"/>
+  <translation tag="Tool offsets"/>
   <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>
@@ -4660,6 +4667,8 @@
   <translation tag="Vertical" ja="垂直"/>
   <translation tag="Vertical Artifact Check" ja="垂直アーティファクトチェック"/>
   <translation tag="Vertical Artifact Compensation" ja="垂直アーティファクト補正"/>
+  <translation tag="Vertical artifact check"/>
+  <translation tag="Vertical artifact compensation"/>
   <translation tag="Vibration" ja="振動"/>
   <translation tag="Vibration compensation active" ja="振動補正が有効です"/>
   <translation tag="Video playback speed" ja="動画再生速度"/>
@@ -4838,6 +4847,7 @@
   <translation tag="Z is at its limit ({}mm)" ja="Z軸は限界に達しています ({}mm)"/>
   <translation tag="Z jog feedrate" ja="Z軸のジョグ移動速度"/>
   <translation tag="Z motor calibration failed" ja="Z モーターの校正に失敗しました"/>
+  <translation tag="Z offset"/>
   <translation tag="Z offset by material" ja="素材別 Z-Offset"/>
   <translation tag="Z probes for bed leveling and mesh generation" ja="ベッドレベリングとメッシュ生成用 Z プローブ"/>
   <translation tag="Z tilt" ja="Zチルト"/>

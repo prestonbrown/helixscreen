@@ -472,6 +472,7 @@
   <translation tag="Bed mesh calibration failed: {}" it="Calibrazione della mesh del piano non riuscita: {}"/>
   <translation tag="Bed mesh operation timed out" it="Mesh piano — tempo scaduto"/>
   <translation tag="Bed mesh..." it="Mesh piano..."/>
+  <translation tag="Bed screws"/>
   <translation tag="Bed size unknown" it="Dimensione del piatto sconosciuta"/>
   <translation tag="Bed target set to {}" it="Obiettivo piano impostato a {}"/>
   <translation tag="Bed temp must be %d-%s" it="La temperatura del piano deve essere %d-%s"/>
@@ -484,6 +485,7 @@
   <translation tag="Belt Tension" it="Tensione cinghia"/>
   <translation tag="Belt Tension Check" it="Controllo tensione cinghia"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." it="La tensione cinghia richiede una stampante CoreXY. Questa è {}."/>
+  <translation tag="Belt compare"/>
   <translation tag="Belt tension" it="Tensione cinghia"/>
   <translation tag="Belt tension and cutter calibration" it="Tensione cinghie e calibrazione taglierina"/>
   <translation tag="Belt tensioning completed" it="Tensionamento cinghie completato"/>
@@ -1084,6 +1086,7 @@
   <translation tag="Cutter calibration completed" it="Calibrazione taglierina completata"/>
   <translation tag="Cutter calibration failed: {}" it="Calibrazione taglierina non riuscita: {}"/>
   <translation tag="Cutter jam" it="Inceppamento taglierina"/>
+  <translation tag="Cutter position"/>
   <translation tag="Cutting" it="Taglio"/>
   <translation tag="Cutting filament" it="Taglio filamento"/>
   <translation tag="Cutting filament..." it="Taglio filamento..."/>
@@ -1824,6 +1827,7 @@
   <translation tag="Heater over-temperature" it="Sovratemperatura del riscaldatore"/>
   <translation tag="Heater sensor fault" it="Guasto al sensore del riscaldatore"/>
   <translation tag="HeaterSelect" it="Seleziona riscaldatore"/>
+  <translation tag="Heaters"/>
   <translation tag="Heaters off" it="Riscaldatori spenti"/>
   <translation tag="Heating" it="Riscaldamento"/>
   <translation tag="Heating (%s below minimum)" it="Riscaldamento (%s sotto il minimo)"/>
@@ -1998,6 +2002,7 @@
   <translation tag="Input Shaper Calibration" it="Calibrazione input shaper"/>
   <translation tag="Input Shaper Help" it="Guida Input Shaper"/>
   <translation tag="Input Shaping" it="Input Shaping"/>
+  <translation tag="Input shaper"/>
   <translation tag="Input shaper calibration sensors" it="Sensori calibrazione input shaper"/>
   <translation tag="Input shaper calibration..." it="Calibrazione input shaper..."/>
   <translation tag="Input shaper settings applied!" it="Impostazioni input shaper applicate!"/>
@@ -3008,6 +3013,7 @@
   <translation tag="Pressure Advance Tuning" it="Taratura Pressure Advance"/>
   <translation tag="Pressure advance" it="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." it="Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore."/>
+  <translation tag="Pressure advance tuning"/>
   <translation tag="Pressure:" it="Pressione:"/>
   <translation tag="Preview" it="Anteprima"/>
   <translation tag="Preview Sounds" it="Anteprima suoni"/>
@@ -4446,6 +4452,7 @@
   <translation tag="Tool cycle finished" it="Ciclo degli strumenti completato"/>
   <translation tag="Tool is seated" it="Lo strumento è inserito"/>
   <translation tag="Tool may be half seated" it="Lo strumento potrebbe essere inserito a metà"/>
+  <translation tag="Tool offsets"/>
   <translation tag="Tool offsets (mm)" it="Offset strumenti (mm)"/>
   <translation tag="Tool offsets saved" it="Offset strumenti salvati"/>
   <translation tag="Tool swap" it="Cambio utensile"/>
@@ -4660,6 +4667,8 @@
   <translation tag="Vertical" it="Verticale"/>
   <translation tag="Vertical Artifact Check" it="Verifica artefatti verticali"/>
   <translation tag="Vertical Artifact Compensation" it="Compensazione artefatti verticali"/>
+  <translation tag="Vertical artifact check"/>
+  <translation tag="Vertical artifact compensation"/>
   <translation tag="Vibration" it="Vibrazione"/>
   <translation tag="Vibration compensation active" it="Compensazione vibrazione attiva"/>
   <translation tag="Video playback speed" it="Velocità riproduzione video"/>
@@ -4838,6 +4847,7 @@
   <translation tag="Z is at its limit ({}mm)" it="Z è al suo limite ({}mm)"/>
   <translation tag="Z jog feedrate" it="Velocità di avanzamento del movimento Z"/>
   <translation tag="Z motor calibration failed" it="Calibrazione del motore Z non riuscita"/>
+  <translation tag="Z offset"/>
   <translation tag="Z offset by material" it="Z-Offset per materiale"/>
   <translation tag="Z probes for bed leveling and mesh generation" it="Sonde Z per livellamento piano e generazione mesh"/>
   <translation tag="Z tilt" it="Inclinazione Z"/>
