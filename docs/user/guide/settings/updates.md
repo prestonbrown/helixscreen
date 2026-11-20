@@ -20,11 +20,12 @@ Which releases you get:
 
 Changing the channel checks the new channel straight away.
 
-The channel also stays in step with the `channel:` line of the `[update_manager helixscreen]` section in `moonraker.conf`, which Mainsail and Fluidd use for their own update button. This only happens when HelixScreen runs on the same computer as Moonraker, and only for the section that points at this HelixScreen install. The section may sit in a file that `moonraker.conf` includes.
+**Mainsail and Fluidd list HelixScreen only on the Stable channel.** On **Beta** or **Dev**, HelixScreen does not appear in their update manager, and you update it from this screen. Moonraker's own beta updates would offer the newest release of every HelixScreen line, older versions included, so HelixScreen keeps it out of that.
 
-- Changing the channel here rewrites that line. **Stable** writes `stable`; **Beta** and **Dev** both write `beta`. Moonraker then restarts so the new line takes effect. If a print is running, or Moonraker is busy updating something, it does not restart; the new channel takes effect the next time Moonraker restarts.
-- If you edit the line yourself to `stable` or `beta` (by hand, or in Mainsail or Fluidd's config editor), HelixScreen switches its own channel to match the next time it connects to the printer, instead of writing its old channel back.
-- A value HelixScreen does not know is left alone.
+- Switching to **Beta** or **Dev** switches the `[update_manager helixscreen]` section in `moonraker.conf` off: its lines stay in the file behind `#~ `, so Moonraker ignores them. Switching back to **Stable** switches it on again. Either way Moonraker then restarts, unless a print is running or Moonraker is busy updating something, in which case the change takes effect the next time Moonraker restarts.
+- The section always names the `stable` channel. Editing it to `beta` by hand does not change HelixScreen's channel, and HelixScreen sets it back to `stable`.
+- This only happens when HelixScreen runs on the same computer as Moonraker, and only for the section that points at this HelixScreen install. The section may sit in a file that `moonraker.conf` includes. On a printer with a firmware mod (Forge-X, Z-Mod), HelixScreen edits only the mod's `user.moonraker.conf`.
+- HelixScreen never adds the section itself. If the installer did not add one, because your printer's Moonraker could not update HelixScreen safely, none appears on Stable either.
 
 > **Note:** Choosing **Dev** without a `dev_url` in `update_urls.json` shows "Dev channel requires dev_url in update_urls.json" and doesn't check. Dev builds are meant for people working on HelixScreen. Most people should stay on **Stable** or **Beta**.
 

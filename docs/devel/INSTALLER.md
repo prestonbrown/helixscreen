@@ -634,8 +634,9 @@ removes a stanza an earlier install left in the user conf:
   GitHub lists assets sorted by name and releases carry no `.tar.gz` assets, so
   `helixscreen-ad5m.zip` is `assets[0]`. Only one asset can be first, so a Moonraker without
   `asset_name` support gets a stanza only on that platform
-  (`scripts/lib/installer/platform.sh#helix_zip_is_first_release_asset`); the Forge-X AD5X
-  needs a Moonraker that reads `asset_name`.
+  (`scripts/lib/installer/moonraker.sh#old_moonraker_may_arm`); the Forge-X AD5X needs a
+  Moonraker that reads `asset_name`. The stanza is listed only on the stable channel
+  ([Listed on Stable only](#listed-on-stable-only)), where Moonraker reads `releases/latest`.
 
 No `managed_services` is written: Forge-X's `[machine]` provider is `simple`, which restarts
 a service by running `<script_path>/<name> restart` from the mod's tree, and its
@@ -912,7 +913,7 @@ The installer configures Moonraker to enable one-click updates from Mainsail/Flu
 
 ### What Gets Configured
 
-1. **`[update_manager helixscreen]` section** appended to `moonraker.conf`, unless one is already there or in a file moonraker.conf pulls in with `[include]` (`update_manager_stanza_files`, the same walk `helix_print_conf.sh` uses for `[helix_print]`). An existing stanza has its `path:` and `channel:` synced, and an old `type: git_repo`/`type: zip` one is migrated, in whichever file holds it. A stanza in a firmware mod's files is never edited (`conf_left_to_mod` warns and leaves it):
+1. **`[update_manager helixscreen]` section** appended to `moonraker.conf`, unless one is already there or in a file moonraker.conf pulls in with `[include]` (`update_manager_stanza_files`, the same walk `helix_print_conf.sh` uses for `[helix_print]`). An existing stanza has its `path:` and `channel:` synced, and an old `type: git_repo`/`type: zip` one is migrated, in whichever file holds it. A stanza in a firmware mod's files is never edited (`conf_left_to_mod` warns and leaves it). The stanza always names `channel: stable`; see [Listed on Stable only](#listed-on-stable-only):
    ```ini
    [update_manager helixscreen]
    type: web
@@ -924,6 +925,15 @@ The installer configures Moonraker to enable one-click updates from Mainsail/Flu
 2. **release_info.json** written to `$INSTALL_DIR/` -- Moonraker `type:web` needs this to detect the installed version
 
 3. **`moonraker.asvc`** -- HelixScreen added to Moonraker's service allowlist so it can restart the service after updates. Moonraker reads the allowlist only at startup, so when `ensure_moonraker_asvc` appends `helixscreen` it sets `_MOONRAKER_ASVC_CHANGED`, and the run restarts Moonraker once, together with any restart it needed for its own stanza edits (`scripts/lib/installer/moonraker.sh#ensure_moonraker_asvc`)
+
+### Listed on Stable only
+
+Moonraker picks the release to offer itself: `releases/latest` on its stable lane and the first entry of `releases?per_page=1` on beta, which is the newest release of every line, and it offers an update whenever that release's version differs from the installed one, downgrades included. A release without the `asset_name` the install names falls back to `assets[0]` (#2147). So `[update_manager helixscreen]` is listed only while the app follows Stable, on every platform (`update_manager_listed`):
+
+- On beta or dev the installer switches the stanza off rather than removing it: every line of the section, from its header to its last option line, gets a `#~ ` prefix (`update_manager_off_awk`), so Moonraker and the web UIs ignore it while the file keeps its place and exact text. Where every gate passes and no stanza exists yet, it adds one switched off. On stable it switches an off stanza back on before the usual sync. A gate that blocks the stanza (no `asset_name` support, `payload_updater_blocker`), and uninstall, remove both forms.
+- The app does the same when its channel changes: `src/system/update_checker.cpp#sync_moonraker_channel_for` switches the stanza off on Beta or Dev and back on, held to `channel: stable`, on Stable, then restarts Moonraker (`restart_moonraker_for_channel`). It never creates one, so it cannot list a stanza the installer judged unsafe. It edits only a stanza whose `path:` is this install, and where a firmware mod owns moonraker.conf (`firmware_mod_owns_moonraker_conf`), only in `user.moonraker.conf`.
+- The two transforms are one format: `tests/fixtures/moonraker_stanza/` holds the installer's stanza on and off, and both `tests/shell/test_moonraker_config.bats` and the `[2147]` unit tests check against it.
+- The installer reads the channel from `/update/channel` as written (`resolve_update_channel`); Dev without beta features is Stable to the app, so the app switches such a stanza back on at its next connect.
 
 ### Config Survival on Updates
 
