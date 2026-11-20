@@ -99,17 +99,24 @@ addition: point `[AFC_hub]` `switch_pin` at the foot sensor's pin and delete
 Found and fixed on the rig so far (main 7933d35598): a phantom "ASA" on an empty AFC lane
 (HelixScreen's own external-spool record under the 1-based `lane1` key read as AFC's
 0-based `lane1`), and the "Filament in the toolhead, no lane loaded" prompt
-(`FILAMENT_MANAGEMENT.md`). The V0 runs that build.
+(`FILAMENT_MANAGEMENT.md`). 2026-11-19, driving the rig with ctl (main fcb0b6f6ff, release/1.1
+4a81368e72): AFC's unit-object and lane subscriptions never asked for the `ace_*`, `cfs` and
+`lane` fields, so no climate, dryer or slot-mapped tags arrived; the ACE firmware's dryer times
+are seconds (ACE 2: duration and time left; ACE Pro: time left), read as minutes on every ACE
+path; the single-unit header names the unit; the dryer form follows the preset it shows. The
+V0 runs a dev build of those fixes. Open, on both branches: a disconnected ACE keeps its last
+climate and dryer state; `ace_units_` / lane positions are never pruned when `AFC.units`
+changes. 1.1 has no unit art for ACE/CFS under AFC (no `ams_unit_shell`).
 
 A dev build with the ctl server (`make deploy-pi PI_HOST=192.168.1.133 PI_USER=pbrown`; the
 packaged install has none). Capture each `AFC_ACE2` status frame we see into
 `printer-research/` as fixtures for tests.
 
-- [ ] Detection picks `AmsBackendAfc`; the unit draws as the ACE (`ams_unit_shell.cpp` maps
+- [x] Detection picks `AmsBackendAfc`; the unit draws as the ACE (`ams_unit_shell.cpp` maps
       AFC `ace2` to `ace_pro`).
 - [ ] Lanes, colors and materials, from Anycubic RFID tags and from manual edits.
-- [ ] Dryer start and stop (`AFC_ACE_DRY` / `AFC_ACE_DRY_STOP`), target, remaining time,
-      box temperature and humidity on screen.
+- [x] Dryer start and stop (`AFC_ACE_DRY` / `AFC_ACE_DRY_STOP`), target, remaining time,
+      box temperature and humidity on screen (45 C, 1 h cycle, 2026-11-19).
 - [ ] Load, unload and a tool change from the UI; a swap mid-print; a runout.
 - [ ] Whatever breaks becomes a fix with a test pinned to the captured frame.
 
