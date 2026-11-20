@@ -393,7 +393,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().update_from_status(json{{"heater_fan hotend_fan", {{"rpm", 6000.0}}}});
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50);
-    CHECK(has_label(root, "100% \xC2\xB7 6000 RPM"));
+    CHECK(has_label(root, "100%"));
+    CHECK(has_label(root, "6000 RPM"));
 }
 
 namespace {
@@ -514,7 +515,15 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().update_from_status(json{{"heater_fan hotend_fan", {{"rpm", 3100.0}}}});
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(1);
-    REQUIRE(has_label(root, "50% \xC2\xB7 3100 RPM"));
+    std::string hotend_name;
+    for (const auto& f : state().fan_state().get_fans()) {
+        if (f.object_name == "heater_fan hotend_fan") {
+            hotend_name = f.display_name;
+        }
+    }
+    // The heading keeps the percentage alone; the reading sits on the line under it.
+    REQUIRE(shows(dial_rpm_label(root, hotend_name), "3100 RPM"));
+    CHECK(has_label(root, "50%"));
     CHECK(has_label(root, "25%"));
     CHECK(lv_anim_get(icon, helix::ui::fan_spin_anim_cb) != nullptr);
     CHECK(lv_obj_get_style_transform_rotation(icon, LV_PART_MAIN) >= turned);

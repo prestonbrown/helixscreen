@@ -60,6 +60,15 @@
     <px name="swatch_grid_gap_small" value="16"/>
     <px name="swatch_grid_gap_medium" value="12"/>
     <px name="swatch_grid_gap_large" value="12"/>
+    <!-- slider_knob_room: how far a slider's round knob reaches past its track
+         end (half the track plus the theme's knob padding, LV_DPX(4) up to TINY
+         and LV_DPX(6) above, plus its border). A container that clips at its
+         edges pads a slider by this much so the knob stays whole at 0 and 100%. -->
+    <px name="slider_knob_room_micro" value="14"/>
+    <px name="slider_knob_room_tiny" value="14"/>
+    <px name="slider_knob_room_small" value="16"/>
+    <px name="slider_knob_room_medium" value="16"/>
+    <px name="slider_knob_room_large" value="20"/>
     <px name="swatch_grid_gap_half_micro" value="9"/>
     <px name="swatch_grid_gap_half_tiny" value="9"/>
     <px name="swatch_grid_gap_half_small" value="8"/>
