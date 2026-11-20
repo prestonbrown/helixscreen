@@ -1,0 +1,124 @@
+diff --git a/include/lvgl/font/lv_text.h b/include/lvgl/font/lv_text.h
+--- a/include/lvgl/font/lv_text.h
++++ b/include/lvgl/font/lv_text.h
+@@ -48,6 +48,10 @@
+     /**Enable parsing of recolor command*/
+     LV_TEXT_FLAG_RECOLOR   = 0x08,
+ 
++    /** Wrap only at spaces and new lines: the other LV_TXT_BREAK_CHARS stay inside their word.
++     *  (HelixScreen extension)*/
++    LV_TEXT_FLAG_BREAK_SPACES_ONLY = 0x10,
++
+ } lv_text_flag_t;
+ 
+ /** Label align policy*/
+diff --git a/include/lvgl/widgets/lv_label.h b/include/lvgl/widgets/lv_label.h
+--- a/include/lvgl/widgets/lv_label.h
++++ b/include/lvgl/widgets/lv_label.h
+@@ -177,6 +177,17 @@
+  */
+ void lv_label_set_recolor(lv_obj_t * obj, bool en);
+ 
++/** lv_label_set_wrap_at_spaces() is available (HelixScreen extension) */
++#define LV_LABEL_WRAP_AT_SPACES 1
++
++/**
++ * Wrap the text only at spaces and new lines, so `-`, `_` and the other LV_TXT_BREAK_CHARS
++ * never split a word. A word wider than the label still breaks as usual. (HelixScreen extension)
++ * @param obj           pointer to a label object
++ * @param en            true: wrap only at spaces, false: wrap at every LV_TXT_BREAK_CHARS
++ */
++void lv_label_set_wrap_at_spaces(lv_obj_t * obj, bool en);
++
+ #if LV_USE_TRANSLATION
+ 
+ /**
+@@ -263,6 +274,13 @@
+  */
+ bool lv_label_get_recolor(const lv_obj_t * obj);
+ 
++/**
++ * Get whether the label wraps only at spaces (HelixScreen extension)
++ * @param obj       pointer to a label object.
++ * @return          true: wraps only at spaces and new lines
++ */
++bool lv_label_get_wrap_at_spaces(const lv_obj_t * obj);
++
+ /*=====================
+  * Other functions
+  *====================*/
+diff --git a/src/misc/lv_text.c b/src/misc/lv_text.c
+--- a/src/misc/lv_text.c
++++ b/src/misc/lv_text.c
+@@ -273,7 +273,8 @@
+             cur_w += letter_space;
+         }
+ 
+-        const bool is_break = (letter == '\n' || letter == '\r' || lv_text_is_break_char(letter));
++        const bool is_break = (letter == '\n' || letter == '\r' ||
++                               ((flag & LV_TEXT_FLAG_BREAK_SPACES_ONLY) ? letter == ' ' : lv_text_is_break_char(letter)));
+ 
+         /*Test if this character fits within max_width*/
+         if(!lv_text_is_hanging_space(letter) && break_index == NO_BREAK_FOUND &&
+diff --git a/src/widgets/label/lv_label.c b/src/widgets/label/lv_label.c
+--- a/src/widgets/label/lv_label.c
++++ b/src/widgets/label/lv_label.c
+@@ -292,6 +292,17 @@
+     lv_label_mark_need_refr_text(obj);
+ }
+ 
++void lv_label_set_wrap_at_spaces(lv_obj_t * obj, bool en)
++{
++    LV_CHECK_OBJ(obj, MY_CLASS, return);
++
++    lv_label_t * label = (lv_label_t *)obj;
++    if(label->wrap_at_spaces == en) return;
++
++    label->wrap_at_spaces = en ? 1 : 0;
++    lv_label_mark_need_refr_text(obj);
++}
++
+ /*=====================
+  * Getter functions
+  *====================*/
+@@ -688,6 +699,13 @@
+     return label->recolor == 0 ? false : true;
+ }
+ 
++bool lv_label_get_wrap_at_spaces(const lv_obj_t * obj)
++{
++    LV_CHECK_OBJ(obj, MY_CLASS, return false);
++
++    return ((lv_label_t *)obj)->wrap_at_spaces != 0;
++}
++
+ /*=====================
+  * Other functions
+  *====================*/
+@@ -878,6 +896,7 @@
+             lv_text_flag_t flag = LV_TEXT_FLAG_NONE;
+             if(label->recolor != 0) flag |= LV_TEXT_FLAG_RECOLOR;
+             if(label->expand != 0) flag |= LV_TEXT_FLAG_EXPAND;
++            if(label->wrap_at_spaces != 0) flag |= LV_TEXT_FLAG_BREAK_SPACES_ONLY;
+ 
+             int32_t w;
+             if(lv_obj_get_style_width_internal(obj, LV_PART_MAIN) == LV_SIZE_CONTENT && !obj->w_layout) w = LV_COORD_MAX;
+@@ -1624,6 +1643,7 @@
+ 
+     if(label->recolor) flag |= LV_TEXT_FLAG_RECOLOR;
+     if(label->expand) flag |= LV_TEXT_FLAG_EXPAND;
++    if(label->wrap_at_spaces) flag |= LV_TEXT_FLAG_BREAK_SPACES_ONLY;
+ 
+     lv_obj_t * obj = (lv_obj_t *) label;
+     if(lv_obj_get_style_width_internal(obj, LV_PART_MAIN) == LV_SIZE_CONTENT &&
+diff --git a/src/widgets/label/lv_label_private.h b/src/widgets/label/lv_label_private.h
+--- a/src/widgets/label/lv_label_private.h
++++ b/src/widgets/label/lv_label_private.h
+@@ -56,6 +56,7 @@
+     uint8_t invalid_size_cache : 1;     /**< 1: Recalculate size and update cache */
+     uint8_t need_refr_text : 1;         /**< 1: Refresh text after layout update completion */
+     uint8_t text_transform_upper : 1;   /**< 1: Uppercase text before display (HelixScreen extension) */
++    uint8_t wrap_at_spaces : 1;         /**< 1: Wrap only at spaces and new lines (HelixScreen extension) */
+ 
+     lv_point_t text_size;
+ };

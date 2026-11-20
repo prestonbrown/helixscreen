@@ -177,6 +177,9 @@
           "type": "enum",
           "enum": "label_long_mode"
         },
+        "wrap_at_spaces": {
+          "type": "bool"
+        },
         "translation_tag": {
           "type": "string"
         },

@@ -925,6 +925,27 @@ its siblings. HelixScreen closes that gap in one place:
 
 Regression cover: `tests/unit/test_label_one_line.cpp`.
 
+#### Keeping identifiers whole: `wrap_at_spaces`
+
+LVGL wraps at every character in `LV_TXT_BREAK_CHARS` (`" ,.;:-_)]}"`), so a
+wrapping label splits `[save_variables]` into `[save_` and `variables]`, and
+`HELIX_MATERIAL_OFFSET` at any underscore. Text that names a Klipper section, a
+macro or a path sets `wrap_at_spaces="true"` instead of being reworded:
+
+```xml
+<text_body width="100%" long_mode="wrap" wrap_at_spaces="true"
+           text="This printer has no [save_variables] store yet."/>
+```
+
+- Lines break only at spaces and new lines. A word wider than the whole label
+  still breaks mid-word, as it would without the attribute.
+- It works on `lv_label` and every `text_*` widget. In C++:
+  `lv_label_set_wrap_at_spaces(label, true)` (`lvgl_label_wrap_at_spaces.patch`).
+- The label measures its height with the same rule it draws with, so a card
+  sized to the text fits the lines shown.
+
+Regression cover: `tests/unit/test_label_wrap_at_spaces.cpp`.
+
 Regression cover: `tests/unit/test_setting_row_description_wrap.cpp` asserts the
 wrapped label is taller than one line and never wider than the row.
 
