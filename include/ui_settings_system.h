@@ -14,6 +14,7 @@
  * - Plugins
  * - Telemetry
  * - Restart / Factory reset
+ * - Restore Stock Screen (stock-firmware Snapmaker U1 only)
  *
  * Most callbacks are delegated to the global SettingsPanel which already
  * owns the complex logic (change host modal, factory reset dialog, etc.).
@@ -77,6 +78,8 @@ class SystemSettingsOverlay : public OverlayBase {
     void init_touch_cal_description();
     void init_host_description();
     void init_log_level_dropdown();
+    void handle_restore_stock_screen_clicked();
+    void perform_restore_stock_screen();
 };
 
 /**

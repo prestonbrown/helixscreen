@@ -409,8 +409,8 @@ EOF
 }
 
 # --- Uninstall restore block -------------------------------------------------
-# Extract just the snapmaker-u1 branch from uninstall.sh and exercise it against
-# the mock rootfs, using the same path-rewriting trick as test_cc1_uninstall.
+# Extract just the snapmaker-u1 branch from uninstall.sh and run it with the
+# shared restore (u1_stock_ui.sh) pointed at the mock rootfs.
 
 extract_u1_restore() {
     cat > "$BATS_TEST_TMPDIR/u1_restore.sh" <<'SH_EOF'
@@ -422,20 +422,12 @@ SH_EOF
         capture && /^    fi$/ && ++blocks==1 { exit }
     ' "$WORKTREE_ROOT/scripts/lib/installer/uninstall.sh" >> "$BATS_TEST_TMPDIR/u1_restore.sh"
 
-    # Portable in-place rewrite (BSD sed on macOS needs a suffix arg for -i;
-    # GNU sed does not — sidestep both by writing through a temp file).
-    sed \
-        -e "s|/usr/bin/gui|$MOCK_ROOT/usr/bin/gui|g" \
-        -e "s|/etc/init.d/S99fb-http|$MOCK_ROOT/etc/init.d/S99fb-http|g" \
-        -e "s|/etc/init.d/S99screen|$MOCK_ROOT/etc/init.d/S99screen|g" \
-        -e "s|/etc/init.d/S99input-event-daemon|$MOCK_ROOT/etc/init.d/S99input-event-daemon|g" \
-        -e "s|/oem/.debug|$MOCK_ROOT/oem/.debug|g" \
-        "$BATS_TEST_TMPDIR/u1_restore.sh" > "$BATS_TEST_TMPDIR/u1_restore.sh.tmp"
-    mv "$BATS_TEST_TMPDIR/u1_restore.sh.tmp" "$BATS_TEST_TMPDIR/u1_restore.sh"
-
     u1_restore() {
         local platform="snapmaker-u1"
         local restored_ui=""
+        # shellcheck disable=SC1091
+        . "$WORKTREE_ROOT/scripts/lib/installer/u1_stock_ui.sh"
+        HELIX_U1_ROOT="$MOCK_ROOT"
         # shellcheck disable=SC1091
         . "$BATS_TEST_TMPDIR/u1_restore.sh"
         printf '%s' "$restored_ui"

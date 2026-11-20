@@ -7234,7 +7234,14 @@ install_service_snapmaker_u1() {
 
     # --- Patch S99screen to delegate to helixscreen.init on boot ---
     if [ -f "${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh" ]; then
-        if ! bash "${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh" "${INSTALL_DIR}"; then
+        local autostart_rc=0
+        bash "${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh" "${INSTALL_DIR}" || autostart_rc=$?
+        if [ "$autostart_rc" -eq 3 ]; then
+            # The script printed why: SSH would not survive the stock screen
+            # being switched off. It changed nothing, so the stock screen stays.
+            log_error "Install stopped before switching off the stock screen."
+            exit 1
+        elif [ "$autostart_rc" -ne 0 ]; then
             log_error "Snapmaker U1 autostart configuration failed."
             log_error "Ensure /oem and /etc/init.d are writable."
             exit 1
@@ -9980,6 +9987,81 @@ install_kiauh_extension() {
 }
 
 # ============================================
+# Module: u1_stock_ui.sh
+# ============================================
+
+#
+# Log through the installer's log_info/log_warn when they exist, else plain
+# echo (the hook's output goes to the launcher log).
+_u1_stock_log() {
+    _u1_level="$1"
+    shift
+    if [ "$_u1_level" = warn ] && command -v log_warn >/dev/null 2>&1; then
+        log_warn "$*"
+    elif [ "$_u1_level" = info ] && command -v log_info >/dev/null 2>&1; then
+        log_info "$*"
+    else
+        echo "$*"
+    fi
+}
+
+# Undo what snapmaker-u1-setup-autostart.sh did to the firmware:
+#   1. Re-enable /usr/bin/gui (chmod +x) so a stock launcher can exec it.
+#   2. Restore the launcher(s): from S99screen.stock on PAXX 1.3, by removing
+#      our HelixScreen-marked S99screen on PAXX 1.4, from S99fb-http.stock on
+#      PAXX 1.4, and from S99input-event-daemon.stock on stock firmware.
+#   3. Drop the /oem/.debug flag, which stops /etc/init.d/S01aoverlayfs from
+#      wiping /oem/overlay/* on boot, but only when our installer created it
+#      (autostart step 1 leaves /oem/.debug.helixscreen beside it). Removing it
+#      restores stock overlay-wipe-on-boot: the next boot discards the
+#      overlay-upper and runs the pristine squashfs-lower rootfs. A flag another
+#      mod created (multiACE creates it too) stays, or that mod's overlay files
+#      go at the next boot.
+# HELIX_U1_ROOT prefixes every path (empty on the device; a mock rootfs in
+# tests). $SUDO is empty when run as root. Never fails the caller.
+u1_restore_stock_ui() {
+    _r="${HELIX_U1_ROOT:-}"
+    if [ -f "$_r/usr/bin/gui" ] && [ ! -x "$_r/usr/bin/gui" ]; then
+        _u1_stock_log info "Re-enabling stock UI binary (/usr/bin/gui)"
+        ${SUDO:-} chmod +x "$_r/usr/bin/gui" 2>/dev/null \
+            || _u1_stock_log warn "Could not re-enable /usr/bin/gui — stock UI may not start on next boot"
+    fi
+    if [ -f "$_r/etc/init.d/S99screen.stock" ]; then
+        _u1_stock_log info "Restoring stock /etc/init.d/S99screen (firmware 1.3)"
+        ${SUDO:-} mv "$_r/etc/init.d/S99screen.stock" "$_r/etc/init.d/S99screen" \
+            || _u1_stock_log warn "Could not restore /etc/init.d/S99screen — stock UI launcher may be missing"
+    elif [ -f "$_r/etc/init.d/S99screen" ] && \
+         grep -q HelixScreen "$_r/etc/init.d/S99screen" 2>/dev/null; then
+        _u1_stock_log info "Removing HelixScreen-created /etc/init.d/S99screen (firmware 1.4)"
+        ${SUDO:-} rm -f "$_r/etc/init.d/S99screen" 2>/dev/null || true
+    fi
+    # Firmware 1.4: the framebuffer-HTTP screen launcher (1.2/1.3 have no .stock).
+    if [ -f "$_r/etc/init.d/S99fb-http.stock" ]; then
+        _u1_stock_log info "Restoring stock /etc/init.d/S99fb-http (firmware 1.4)"
+        ${SUDO:-} mv "$_r/etc/init.d/S99fb-http.stock" "$_r/etc/init.d/S99fb-http" \
+            || _u1_stock_log warn "Could not restore /etc/init.d/S99fb-http — stock screen launcher may be missing"
+    fi
+    # Stock firmware: the input-event-daemon launcher. .stock is present only if
+    # we patched it.
+    if [ -f "$_r/etc/init.d/S99input-event-daemon.stock" ]; then
+        _u1_stock_log info "Restoring stock /etc/init.d/S99input-event-daemon"
+        ${SUDO:-} mv "$_r/etc/init.d/S99input-event-daemon.stock" "$_r/etc/init.d/S99input-event-daemon" \
+            || _u1_stock_log warn "Could not restore /etc/init.d/S99input-event-daemon"
+    fi
+    if [ -f "$_r/oem/.debug.helixscreen" ]; then
+        if [ -f "$_r/oem/.debug" ]; then
+            _u1_stock_log info "Removing /oem/.debug (restores stock overlay-wipe-on-boot)"
+            ${SUDO:-} rm -f "$_r/oem/.debug" 2>/dev/null || true
+        fi
+        ${SUDO:-} rm -f "$_r/oem/.debug.helixscreen" 2>/dev/null || true
+    elif [ -f "$_r/oem/.debug" ]; then
+        _u1_stock_log info "Keeping /oem/.debug: HelixScreen did not create it"
+    fi
+    unset _r _u1_level
+    return 0
+}
+
+# ============================================
 # Module: uninstall.sh
 # ============================================
 
@@ -10399,59 +10481,11 @@ restore_previous_ui_platform() {
         fi
     fi
 
-    # Snapmaker U1: re-enable the stock UI we neutralized at install time.
-    # snapmaker-u1-setup-autostart.sh disables the stock UI binary
-    # (chmod a-x /usr/bin/gui) so no launcher (PAXX's S99screen / 1.4's relocated
-    # launcher, or stock's supervisor) can start it; it also patches the boot
-    # launchers to start HelixScreen. Reverse all of it:
-    #   1. Re-enable /usr/bin/gui (chmod +x) so a stock launcher can exec it.
-    #   2. Restore the launcher(s) — from S99screen.stock on PAXX 1.3, by
-    #      removing our HelixScreen-marked S99screen on PAXX 1.4, from
-    #      S99fb-http.stock on PAXX 1.4, and from S99input-event-daemon.stock on
-    #      stock firmware (the stock-safe boot hook).
+    # Snapmaker U1: re-enable the stock UI we neutralized at install time
+    # (u1_stock_ui.sh, shared with the platform hook's restore trigger).
     if [ -z "$restored_ui" ] && [ "$platform" = "snapmaker-u1" ]; then
-        if [ -f /usr/bin/gui ] && [ ! -x /usr/bin/gui ]; then
-            log_info "Re-enabling stock UI binary (/usr/bin/gui)"
-            $SUDO chmod +x /usr/bin/gui 2>/dev/null \
-                || log_warn "Could not re-enable /usr/bin/gui — stock UI may not start on next boot"
-        fi
-        if [ -f /etc/init.d/S99screen.stock ]; then
-            log_info "Restoring stock /etc/init.d/S99screen (firmware 1.3)"
-            $SUDO mv /etc/init.d/S99screen.stock /etc/init.d/S99screen \
-                || log_warn "Could not restore /etc/init.d/S99screen — stock UI launcher may be missing"
-        elif [ -f /etc/init.d/S99screen ] && \
-             grep -q HelixScreen /etc/init.d/S99screen 2>/dev/null; then
-            log_info "Removing HelixScreen-created /etc/init.d/S99screen (firmware 1.4)"
-            $SUDO rm -f /etc/init.d/S99screen 2>/dev/null || true
-        fi
-        # Firmware 1.4: restore the stock framebuffer-HTTP screen launcher we
-        # took over for boot-time autostart (1.2/1.3 have no .stock — no-op).
-        if [ -f /etc/init.d/S99fb-http.stock ]; then
-            log_info "Restoring stock /etc/init.d/S99fb-http (firmware 1.4)"
-            $SUDO mv /etc/init.d/S99fb-http.stock /etc/init.d/S99fb-http \
-                || log_warn "Could not restore /etc/init.d/S99fb-http — stock screen launcher may be missing"
-        fi
-        # Stock firmware: restore the input-event-daemon launcher we took over for
-        # boot-time autostart. .stock is present only if we patched it, so this is
-        # a no-op where it was never hooked.
-        if [ -f /etc/init.d/S99input-event-daemon.stock ]; then
-            log_info "Restoring stock /etc/init.d/S99input-event-daemon"
-            $SUDO mv /etc/init.d/S99input-event-daemon.stock /etc/init.d/S99input-event-daemon \
-                || log_warn "Could not restore /etc/init.d/S99input-event-daemon"
-        fi
+        u1_restore_stock_ui
         restored_ui="Snapmaker stock UI (/usr/bin/gui re-enabled)"
-        # Final step: drop the /oem/.debug firmware debug-mode flag the installer
-        # created (snapmaker-u1-setup-autostart.sh step 1) to stop
-        # /etc/init.d/S01aoverlayfs from wiping /oem/overlay/* on boot. Removing it
-        # restores stock overlay-wipe-on-boot behavior: on the next boot the
-        # overlay-upper (our patched init scripts) is discarded and the pristine
-        # squashfs-lower stock rootfs is what runs — the cleanest possible
-        # uninstall, leaving no HelixScreen state change behind. No-op if the flag
-        # was never created (guarded by -f).
-        if [ -f /oem/.debug ]; then
-            log_info "Removing /oem/.debug (restores stock overlay-wipe-on-boot)"
-            $SUDO rm -f /oem/.debug 2>/dev/null || true
-        fi
     fi
 
     HELIX_RESTORED_UI="$restored_ui"

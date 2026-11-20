@@ -19,8 +19,16 @@ translations:
   '%zu changes': '%zu cambios'
   '%zu events queued': '%zu eventos en cola'
   '%zu plugins failed to load': '%zu plugins no se cargaron'
+  Could not restore the stock screen: 'No se pudo restaurar la pantalla original'
+  Restart the printer to finish restoring the stock screen: 'Reinicie la impresora para terminar de restaurar la pantalla original'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie la impresora. Si SSH sigue rechazando la conexión, consulte la guía de instalación del Snapmaker U1'
+  Restarting the printer...: 'Reiniciando la impresora...'
+  Restore: 'Restaurar'
+  Restore Stock Screen: 'Restaurar pantalla original'
   SSH did not start although Root access is on: 'SSH no se inició aunque el acceso root está activado'
+  Switch back to the Snapmaker screen: 'Volver a la pantalla de Snapmaker'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'La impresora se reinicia con la pantalla de Snapmaker y HelixScreen deja de iniciarse. Sus ajustes de HelixScreen se conservan en la impresora; ejecute de nuevo el instalador para volver.'
   "'{}' already exists. Replace the stored mesh?": "'{}' ya existe. ¿Reemplazar la malla guardada?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' y '{}' ya existen. ¿Reemplazar las mallas guardadas?"
   (different grade): (grado diferente)

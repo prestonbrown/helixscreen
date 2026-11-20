@@ -147,6 +147,13 @@ If something goes wrong and the printer comes up with a blank screen and is unre
 
 > If the uninstaller can't run, reset HelixScreen's persistence flag and files manually, then reboot: `rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sync && reboot`. This returns the printer to a clean stock state.
 
+## Going back to the stock screen without SSH
+
+On stock firmware the stock screen is also where firmware updates start, so there are two ways back to it that need no SSH. Both switch the stock screen program back on, put back the firmware's startup scripts, and restart the printer into the stock screen. HelixScreen's files and settings stay on the printer, and the installer brings it back.
+
+- **On the HelixScreen screen:** **Settings > System > Restore Stock Screen**, then confirm. The row appears only on stock firmware.
+- **From Mainsail or Fluidd:** in the configuration files (where `printer.cfg` is), create an empty file named `helixscreen-restore-stock`. Restart the printer. On the way up it restores the stock screen and restarts once more. What it did is written to `helixscreen-restore-stock.log` in the printer's logs folder.
+
 ## SSH refused after installing on stock firmware
 
 On stock Snapmaker firmware, SSH only runs because the stock screen starts it at boot while **Root access** is on. Older HelixScreen versions disabled the stock screen without taking over that job, so after the next reboot `ssh` answers "Connection refused". Fluidd and Mainsail keep working, but they give you no shell.

@@ -35,6 +35,7 @@
 #include "static_subject_registry.h"
 #include "system/helix_paths.h"
 #include "temperature_controller.h"
+#include "u1_stock_screen.h"
 
 #include <spdlog/spdlog.h>
 
@@ -81,6 +82,7 @@ static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_camera_supported_subject;
 static lv_subject_t g_wizard_active_subject;
+static lv_subject_t g_u1_restore_stock_offered_subject;
 
 // Application quit flag (volatile sig_atomic_t for async-signal-safety)
 static volatile sig_atomic_t g_quit_requested = 0;
@@ -253,6 +255,16 @@ void app_globals_init_subjects() {
     lv_subject_init_int(&g_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
     g_subjects.register_subject(&g_camera_supported_subject);
     lv_xml_register_subject(nullptr, "platform_camera_supported", &g_camera_supported_subject);
+
+    // Whether Settings > System offers Restore Stock Screen
+    // (helix::u1::restore_stock_screen_offered(): a stock-firmware Snapmaker U1).
+    lv_subject_init_int(
+        &g_u1_restore_stock_offered_subject,
+        helix::u1::restore_stock_screen_offered(std::getenv(helix::u1::kRestoreTriggerEnv)) ? 1
+                                                                                            : 0);
+    g_subjects.register_subject(&g_u1_restore_stock_offered_subject);
+    lv_xml_register_subject(nullptr, "u1_restore_stock_offered",
+                            &g_u1_restore_stock_offered_subject);
 
     // Initialize wizard-active subject (observable mirror of is_wizard_active()).
     // Seed from the current flag so it is correct even when set_wizard_active()

@@ -54,6 +54,7 @@ if [ -z "${_HELIX_BUNDLED_INSTALLER:-}" ]; then
     . "$LIB_DIR/camera.sh"           # K2 ustreamer camera (replaces stock WebRTC)
     . "$LIB_DIR/recovery.sh"
     . "$LIB_DIR/kiauh.sh"
+    . "$LIB_DIR/u1_stock_ui.sh"
     . "$LIB_DIR/uninstall.sh"  # uses functions from other modules
     . "$LIB_DIR/main.sh"       # must be last - defines main() that calls everything
 fi

@@ -87,7 +87,7 @@ HEADER
     # Include each module (skip shebang and source guards).
     # Order matters: common.sh first (logging/colors), uninstall.sh and main.sh
     # last (they reference functions defined elsewhere in this list).
-    for module in common.sh platform.sh permissions.sh requirements.sh forgex.sh competing_uis.sh printer_seed.sh klipper_include.sh release.sh service.sh audio.sh moonraker.sh camera.sh recovery.sh kiauh.sh uninstall.sh main.sh; do
+    for module in common.sh platform.sh permissions.sh requirements.sh forgex.sh competing_uis.sh printer_seed.sh klipper_include.sh release.sh service.sh audio.sh moonraker.sh camera.sh recovery.sh kiauh.sh u1_stock_ui.sh uninstall.sh main.sh; do
         module_path="$LIB_DIR/$module"
         if [ ! -f "$module_path" ]; then
             echo "ERROR: Module not found: $module_path" >&2

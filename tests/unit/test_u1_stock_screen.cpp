@@ -9,9 +9,11 @@
  */
 
 #include "../ui_test_utils.h"
+#include "test_helpers/unique_temp_dir.h"
 #include "u1_stock_screen.h"
 
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -54,4 +56,27 @@ TEST_CASE("u1 ssh: only the hook's 1 means SSH is down", "[u1-stock-screen]") {
     CHECK_FALSE(helix::u1::root_ssh_down(""));
     CHECK_FALSE(helix::u1::root_ssh_down("0"));
     CHECK_FALSE(helix::u1::root_ssh_down("10"));
+}
+
+TEST_CASE("u1 restore: offered only where the hook named a trigger path", "[u1-stock-screen]") {
+    CHECK(helix::u1::restore_stock_screen_offered(
+        "/home/lava/printer_data/config/helixscreen-restore-stock"));
+    CHECK_FALSE(helix::u1::restore_stock_screen_offered(nullptr));
+    CHECK_FALSE(helix::u1::restore_stock_screen_offered(""));
+}
+
+TEST_CASE("u1 restore: the trigger file is created where the hook looks", "[u1-stock-screen]") {
+    namespace fs = std::filesystem;
+    const fs::path dir = helix::test::unique_temp_dir("u1_restore");
+    fs::create_directories(dir);
+    const std::string trigger = (dir / "helixscreen-restore-stock").string();
+    REQUIRE_FALSE(fs::exists(trigger));
+
+    CHECK(helix::u1::write_restore_trigger(trigger));
+    CHECK(fs::exists(trigger));
+
+    // A directory that does not exist: nothing would restore, and the caller
+    // must be told.
+    CHECK_FALSE(helix::u1::write_restore_trigger((dir / "missing" / "trigger").string()));
+    fs::remove_all(dir);
 }

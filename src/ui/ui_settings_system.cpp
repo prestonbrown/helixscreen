@@ -5,15 +5,22 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
+#include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_settings.h"
+#include "ui_toast_manager.h"
+#include "ui_update_queue.h"
 
 #include "config.h"
+#include "lvgl/src/others/translation/lv_translation.h"
 #include "static_panel_registry.h"
+#include "system_power.h"
 #include "system_settings_manager.h"
+#include "u1_stock_screen.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstdlib>
 #include <memory>
 
 namespace helix::settings {
@@ -62,10 +69,14 @@ void SystemSettingsOverlay::init_subjects() {
 }
 
 void SystemSettingsOverlay::register_callbacks() {
-    // All callbacks used in settings_system_overlay.xml are already registered
-    // globally by SettingsPanel in init_subjects() and register_settings_panel_callbacks().
-    // No additional registrations needed here.
-    spdlog::debug("[{}] Callbacks registered (delegated to SettingsPanel)", get_name());
+    // The other callbacks in settings_system_overlay.xml are registered
+    // globally by SettingsPanel in init_subjects() and
+    // register_settings_panel_callbacks(); only the U1 restore row is ours.
+    register_xml_callbacks({
+        {"on_restore_stock_screen_clicked",
+         [](lv_event_t*) { get_system_settings_overlay().handle_restore_stock_screen_clicked(); }},
+    });
+    spdlog::debug("[{}] Callbacks registered", get_name());
 }
 
 // ============================================================================
@@ -195,6 +206,35 @@ void SystemSettingsOverlay::init_log_level_dropdown() {
         lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
         spdlog::trace("[{}] Log level dropdown initialized (index={})", get_name(), index);
     }
+}
+
+void SystemSettingsOverlay::handle_restore_stock_screen_clicked() {
+    helix::ui::modal_confirm(
+        lv_tr("Restore Stock Screen"),
+        lv_tr("The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. "
+              "Your HelixScreen settings stay on the printer; run the installer again to come "
+              "back."),
+        ModalSeverity::Warning, lv_tr("Restore"),
+        []() { get_system_settings_overlay().perform_restore_stock_screen(); });
+}
+
+void SystemSettingsOverlay::perform_restore_stock_screen() {
+    const char* path = std::getenv(helix::u1::kRestoreTriggerEnv);
+    if (!helix::u1::restore_stock_screen_offered(path) || !helix::u1::write_restore_trigger(path)) {
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      lv_tr("Could not restore the stock screen"), 4000);
+        return;
+    }
+    // The platform hook restores the stock screen at the next start, as root,
+    // and reboots again into it.
+    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Restarting the printer..."), 1500);
+    helix::ui::queue_update("SystemSettingsOverlay::restore_stock_reboot", []() {
+        if (!SystemPower::reboot_local()) {
+            ToastManager::instance().show(
+                ToastSeverity::WARNING,
+                lv_tr("Restart the printer to finish restoring the stock screen"), 6000);
+        }
+    });
 }
 
 } // namespace helix::settings

@@ -2290,6 +2290,8 @@ define snapmaker-u1-deploy-common
 	fi
 	@echo "  $(DIM)Setting up auto-start...$(RESET)"
 	scp scripts/snapmaker-u1-setup-autostart.sh $(SNAPMAKER_U1_SSH_TARGET):/tmp/
+	ssh $(SNAPMAKER_U1_SSH_TARGET) "mkdir -p $(SNAPMAKER_U1_DEPLOY_DIR)/scripts"
+	scp scripts/lib/installer/u1_stock_ui.sh $(SNAPMAKER_U1_SSH_TARGET):$(SNAPMAKER_U1_DEPLOY_DIR)/scripts/
 	ssh $(SNAPMAKER_U1_SSH_TARGET) "sh /tmp/snapmaker-u1-setup-autostart.sh $(SNAPMAKER_U1_DEPLOY_DIR)"
 	@# Mirror the installer's setup_config_symlink: helixscreen.env lives at the
 	@# Klipper-convention path (printer_data/config/helixscreen/) so Mainsail/Fluidd
@@ -3263,6 +3265,7 @@ release-snapmaker-u1: | build/snapmaker-u1/bin/helix-screen
 	@cp scripts/uninstall.sh $(RELEASE_DIR)/helixscreen/scripts/ 2>/dev/null || true
 	@cp -r scripts/kiauh $(RELEASE_DIR)/helixscreen/scripts/ 2>/dev/null || true
 	@cp scripts/snapmaker-u1-setup-autostart.sh $(RELEASE_DIR)/helixscreen/scripts/ 2>/dev/null || true
+	@cp scripts/lib/installer/u1_stock_ui.sh $(RELEASE_DIR)/helixscreen/scripts/
 	@mkdir -p $(RELEASE_DIR)/helixscreen/assets
 	@for asset in $(RELEASE_ASSETS); do \
 		if [ -d "$$asset" ]; then cp -r "$$asset" $(RELEASE_DIR)/helixscreen/assets/; fi; \
