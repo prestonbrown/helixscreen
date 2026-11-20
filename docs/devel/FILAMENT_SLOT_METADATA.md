@@ -220,6 +220,21 @@ no in-memory copy.
   write withdraws it. `AmsSubscriptionBackend::publish_external_spool_lane()`
   is the one writer on the backend side: it deletes a record of ours left at an
   earlier index and never overwrites a slot's record at the index.
+- **Never a lane.** AmsState's key `lane1` is also the name of a real lane on
+  AFC, which names lanes from 0. Every reader of a lane namespace asks
+  `is_bypass_record()` (`include/filament_slot_override_store.h#is_bypass_record`)
+  before matching a record to a lane: the shared store parse and AFC's own
+  `lane_data` read (`src/printer/afc_status_parse.cpp#parse_lane_data`).
+- **Moving with its holder.** A backend that keeps its records in an extras
+  namespace cannot see AmsState's `lane_data` copy, so the record moves when the
+  holder changes. `AmsState::hand_bypass_record_to_holder()` runs after every
+  sync: once the new holder has read its lane records and holds no bypass record,
+  it gets the one AmsState last read, and AmsState deletes its own copy (after a
+  fresh read confirms the key still holds the bypass record). When discovery
+  finds no filament system, `AmsState::reclaim_orphaned_bypass_record()` reads
+  the extras namespaces (`AmsBackend::private_lane_record_namespaces()`) once per
+  connection and, if its own store holds none, moves a bypass record found there
+  back to `lane_data`.
 
 ### Editing waits for the first read
 
