@@ -55,7 +55,7 @@ void bypass_spool_sync_from_state(BypassSpoolWidgets& w, bool show) {
         bypass_spool_set_has_spool(w, true);
         bypass_spool_set_material(w, ext->material.c_str());
     } else {
-        bypass_spool_set_color(w, 0x505050);
+        bypass_spool_set_color(w, kBypassNoSpoolRgb);
         bypass_spool_set_has_spool(w, false);
         bypass_spool_set_material(w, "");
     }

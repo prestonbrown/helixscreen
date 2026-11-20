@@ -53,6 +53,9 @@ namespace helix::ui {
     return always_show;
 }
 
+/// The colour the bypass spool is drawn in while no spool is assigned to it.
+inline constexpr uint32_t kBypassNoSpoolRgb = 0x505050;
+
 /// Gather bypass_node_visible()'s inputs from the live backend and settings.
 /// Returns false when no backend is attached.
 [[nodiscard]] bool bypass_node_visible_for(const AmsBackend* backend);
