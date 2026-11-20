@@ -2246,7 +2246,14 @@ void AmsBackendAfc::apply_afc_state(const afc::StateDelta& afc, std::string& def
 
     // When bypass is active, current_slot = -2 (convention from Happy Hare)
     if (afc.bypass_state) {
+        const bool was_bypass = bypass_active_;
         bypass_active_ = *afc.bypass_state;
+        // A lone bypass_state:false delta carries no lane data, and nothing else
+        // would release the bypass sentinel until the next lane frame.
+        if (was_bypass && !bypass_active_ && system_info_.current_slot == -2) {
+            system_info_.current_slot = -1;
+            system_info_.filament_loaded = false;
+        }
         apply_bypass_to_system_info();
     }
 
