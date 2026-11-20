@@ -25,6 +25,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/timer_guard.h"
 
 #include <functional>
 
@@ -202,6 +203,13 @@ class FilamentRunoutHandler {
     /// watching_paused_: a pause cause naming the run-out lane after the pause.
     ObserverGuard pause_cause_observer_;
 
+    /// The head the guidance offers "Use Another Toolhead" for; -1 while no
+    /// guidance is up.
+    int other_head_runout_head_{-1};
+
+    /// Re-checks that offer every second while the guidance is up.
+    LvglTimerGuard other_head_offer_timer_;
+
     /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
 
@@ -223,6 +231,9 @@ class FilamentRunoutHandler {
 
     /// Drop the re-check observers; the pause ended or its guidance showed.
     void stop_watching_for_runout();
+
+    /// Offer "Use Another Toolhead" exactly while the printer's facts allow it.
+    void refresh_other_head_offer();
 
     /**
      * @brief Show the runout guidance modal

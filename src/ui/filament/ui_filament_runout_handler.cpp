@@ -59,6 +59,10 @@ FilamentRunoutHandler::~FilamentRunoutHandler() {
 void FilamentRunoutHandler::on_print_state_changed(::PrintState old_state, ::PrintState new_state) {
     (void)old_state;
 
+    // A setting a switch to another head changed and could not put back (an
+    // app restart mid-switch) goes back at the next print state change.
+    helix::ui::RunoutOtherHeadModal::settle_pending_restore();
+
     // Check for runout condition when entering Paused state
     if (new_state == ::PrintState::Paused) {
         check_and_show_runout_guidance();
@@ -309,15 +313,30 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         if (backend && runout_lane_ >= 0) {
             runout_head = backend->head_for_slot(runout_lane_).value_or(runout_head);
         }
-        runout_modal_.set_other_head_offered(
-            runout_head >= 0 && helix::ui::RunoutOtherHeadModal::available(runout_head));
-        runout_modal_.set_on_use_other_head([token, runout_head]() {
+        other_head_runout_head_ = runout_head;
+        refresh_other_head_offer();
+        // The offer follows the printer while the dialog is up: a spool at the
+        // empty head's feeder, the firmware's own switch starting, the routing
+        // moving. The facts come from the backend's frames, not one subject.
+        other_head_offer_timer_.reset(lv_timer_create(
+            [](lv_timer_t* t) {
+                static_cast<FilamentRunoutHandler*>(lv_timer_get_user_data(t))
+                    ->refresh_other_head_offer();
+            },
+            1000, this));
+        runout_modal_.set_on_use_other_head([this, token, runout_head]() {
             if (token.expired())
                 return;
             spdlog::info("[FilamentRunoutHandler] User chose another toolhead after a runout "
                          "on head {}",
                          runout_head);
-            helix::ui::RunoutOtherHeadModal::show_owned(runout_head);
+            // Once the print moves off the runout head, this dialog's advice
+            // about that head is out of date, resumed or not.
+            helix::ui::RunoutOtherHeadModal::show_owned(runout_head, [this, token]() {
+                if (token.expired())
+                    return;
+                hide_runout_guidance_modal();
+            });
         });
     }
 
@@ -448,6 +467,12 @@ void FilamentRunoutHandler::hide_modal() {
     hide_runout_guidance_modal();
 }
 
+void FilamentRunoutHandler::refresh_other_head_offer() {
+    const int head = other_head_runout_head_;
+    runout_modal_.set_other_head_offered(head >= 0 &&
+                                         helix::ui::RunoutOtherHeadModal::available(head));
+}
+
 void FilamentRunoutHandler::hide_runout_guidance_modal() {
     if (!runout_modal_.is_visible()) {
         return;
@@ -455,6 +480,8 @@ void FilamentRunoutHandler::hide_runout_guidance_modal() {
 
     spdlog::debug("[FilamentRunoutHandler] Hiding runout guidance modal");
     runout_modal_.hide();
+    other_head_offer_timer_.reset();
+    other_head_runout_head_ = -1;
     // Stop observing the runout-cleared subject so it doesn't linger across pauses.
     runout_cleared_observer_.reset();
     // Stop gating Resume; clear the block so a future non-auto-feed modal starts
