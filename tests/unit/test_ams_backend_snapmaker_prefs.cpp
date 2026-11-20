@@ -153,3 +153,78 @@ TEST_CASE("snapmaker backend reports the facts a runout switch to another head n
     backend.fire_status(resumed);
     CHECK(backend.runout_other_head_facts(0)->original->type == "PETG");
 }
+
+TEST_CASE("snapmaker backend keeps the record a runout head printed after the firmware clears it",
+          "[ams][snapmaker][runout_other_head]") {
+    // The firmware clears the runout head's record (NONE, filament_exist
+    // false) before or with the frame that reports the pause.
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    const nlohmann::json orange = {
+        {"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FF8000"}}};
+    const nlohmann::json white = {{"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FFFFFF"}}};
+    nlohmann::json printing = frame({{"auto_replenish_filament", true},
+                                     {"filament_vendor", {"Generic", "Generic", "NONE", "Generic"}},
+                                     {"filament_type", {"ASA", "PLA", "NONE", "ASA"}},
+                                     {"filament_sub_type", {"Basic", "Basic", "NONE", "Basic"}},
+                                     {"filament_exist", {true, true, false, true}},
+                                     {"filament_color_multi", {orange, white, white, orange}}});
+    printing["print_stats"] = {{"state", "printing"}};
+    printing["toolhead"] = {{"extruder", "extruder"}};
+    printing["extruder"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
+    printing["extruder3"] = {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}};
+    printing["filament_feed right"] = {{"extruder3",
+                                        {{"channel_state", "load_finish"},
+                                         {"filament_detected", true},
+                                         {"module_exist", true},
+                                         {"disable_auto", false}}}};
+    printing["filament_motion_sensor e3_filament"] = {{"enabled", true}};
+    backend.fire_status(printing);
+
+    const nlohmann::json cleared = {{"filament_vendor", {"NONE"}},
+                                    {"filament_type", {"NONE"}},
+                                    {"filament_sub_type", {"NONE"}},
+                                    {"filament_exist", {false}},
+                                    {"filament_color_multi", {white}}};
+    nlohmann::json paused;
+    SECTION("cleared in the frame before the pause") {
+        backend.fire_status(frame(cleared));
+        paused["print_stats"] = {{"state", "paused"}};
+    }
+    SECTION("cleared in the frame that reports the pause") {
+        paused = frame(cleared);
+        paused["print_stats"] = {{"state", "paused"}};
+    }
+    backend.fire_status(paused);
+
+    const auto facts = backend.runout_other_head_facts(0);
+    REQUIRE(facts.has_value());
+    CHECK_FALSE(facts->heads[0].record.has_value());
+    REQUIRE(facts->original.has_value());
+    CHECK(facts->original->vendor == "Generic");
+    CHECK(facts->original->type == "ASA");
+    CHECK(facts->original->subtype == "Basic");
+    CHECK(facts->original->colors == std::vector<std::string>{"FF8000"});
+    const auto verdicts = helix::runout_other_head::assess(*facts);
+    REQUIRE(verdicts.size() == 4);
+    CHECK(verdicts[3].eligible());
+    CHECK_FALSE(verdicts[3].color_differs);
+
+    // A record written during the pause does not replace what ran out.
+    backend.fire_status(frame({{"filament_vendor", {"Generic"}},
+                               {"filament_type", {"PETG"}},
+                               {"filament_sub_type", {"Basic"}},
+                               {"filament_exist", {true}},
+                               {"filament_color_multi", {white}}}));
+    CHECK(backend.runout_other_head_facts(0)->original->type == "ASA");
+
+    // The end of the print forgets it.
+    nlohmann::json cancelled = frame(cleared);
+    cancelled["print_stats"] = {{"state", "cancelled"}};
+    backend.fire_status(cancelled);
+    CHECK_FALSE(backend.runout_other_head_facts(0)->original.has_value());
+    nlohmann::json next_pause;
+    next_pause["print_stats"] = {{"state", "paused"}};
+    backend.fire_status(next_pause);
+    CHECK_FALSE(backend.runout_other_head_facts(0)->original.has_value());
+}
