@@ -1557,6 +1557,10 @@ void AmsBackendAfc::handle_status(const nlohmann::json& params) {
             }
         }
 
+        // The lane scans above answer for lanes only, so they read an engaged
+        // bypass as an empty toolhead.
+        apply_bypass_to_system_info();
+
         // Single authority for machines that have a carriage. Runs last, so it
         // overrides whatever the individual parsers negotiated among themselves
         // (#1229). No-op on every backend without a toolchanger.
@@ -2505,14 +2509,10 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     }
 
     // Parse bypass state (AFC exposes this via printer.AFC.bypass_state)
-    // When bypass is active, current_gate = -2 (convention from Happy Hare)
+    // When bypass is active, current_slot = -2 (convention from Happy Hare)
     if (afc_data.contains("bypass_state") && afc_data["bypass_state"].is_boolean()) {
         bypass_active_ = afc_data["bypass_state"].get<bool>();
-        if (bypass_active_) {
-            system_info_.current_slot = -2; // -2 = bypass mode
-            system_info_.filament_loaded = true;
-            spdlog::trace("[AMS AFC] Bypass mode active");
-        }
+        apply_bypass_to_system_info();
     }
 
     // AFC keeps the head of its message queue until a client sends
@@ -4883,6 +4883,16 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
     // first tool_loaded lane is not necessarily the active one.
     if (any_tool_loaded && system_info_.current_slot < 0) {
         system_info_.current_slot = tool_loaded_slot;
+    }
+    apply_bypass_to_system_info();
+}
+
+void AmsBackendAfc::apply_bypass_to_system_info() {
+    // An engaged bypass feeds the toolhead with no lane behind it: whatever the
+    // lanes report, the external spool is what is loaded.
+    if (bypass_active_) {
+        system_info_.current_slot = -2; // -2 = bypass mode
+        system_info_.filament_loaded = true;
     }
 }
 
