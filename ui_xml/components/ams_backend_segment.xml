@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One filament system in the AMS panel's backend selector, shown when the
+       printer has two or more. Lit while active_backend equals `index`; a tap
+       resolves the backend from `index`. C++ sets segment_label after creation. -->
+  <api>
+    <prop name="index" type="int" default="0"/>
+  </api>
+  <styles>
+    <!-- Idle first, active after: the later style wins while it is checked. -->
+    <style name="segment_idle" bg_color="#elevated_bg" bg_opa="255"/>
+    <style name="segment_active" bg_color="#primary"/>
+  </styles>
+  <view extends="lv_obj"
+        width="content" height="content" style_radius="#border_radius" style_pad_ver="#space_sm"
+        style_pad_left="#space_md" style_pad_right="#space_md" scrollable="false" clickable="true">
+    <style name="segment_idle"/>
+    <style name="segment_active" selector="checked"/>
+    <bind_state_if_eq subject="active_backend" state="checked" ref_value="$index"/>
+    <text_small name="segment_label" text="" style_text_color="0xFFFFFF" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="ams_backend_segment_cb" user_data="$index"/>
+  </view>
+</component>

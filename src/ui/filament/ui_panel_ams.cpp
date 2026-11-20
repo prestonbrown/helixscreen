@@ -9,6 +9,7 @@
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
+#include "ui_callback_helpers.h"
 #include "ui_endless_spool_arrows.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
@@ -22,6 +23,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_panel_common.h"
+#include "ui_row_text.h"
 #include "ui_spool_canvas.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
@@ -134,6 +136,13 @@ void ensure_ams_widgets_registered() {
     // ams_environment_indicator registered above via ensure_ams_env_indicator_registered()
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/components/ams_sidebar.xml").c_str());
+    lv_xml_register_event_cb(nullptr, "ams_backend_segment_cb", [](lv_event_t* e) {
+        if (auto index = helix::ui::event_user_int(e)) {
+            AmsState::instance().set_active_backend(*index);
+        }
+    });
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/components/ams_backend_segment.xml").c_str());
     lv_xml_register_component_from_file(helix::asset_component_uri("ui_xml/ams_panel.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_context_menu.xml").c_str());
@@ -358,6 +367,18 @@ void AmsPanel::init_subjects() {
                     self->rebuild_backend_selector();
                 });
             }
+        },
+        AmsState::instance().get_subjects_lifetime());
+
+    // A backend segment's tap sets active_backend; the slots follow it here.
+    active_backend_observer_ = observe<int>(
+        AmsState::instance().get_active_backend_subject(), this,
+        [](AmsPanel* self, int index) {
+            if (index == self->shown_backend_idx_) {
+                return;
+            }
+            self->object_lifetime_.defer("AmsPanel::show_backend",
+                                         [self, index]() { self->show_backend(index); });
         },
         AmsState::instance().get_subjects_lifetime());
 
@@ -709,6 +730,7 @@ void AmsPanel::clear_panel_reference() {
     slot_path_observers_.clear();
     print_state_observer_.reset();
     backend_count_observer_.reset();
+    active_backend_observer_.reset();
     external_spool_observer_.reset();
 
     // Re-arm the edge sentinels: a rebuilt panel has observed nothing yet.
@@ -749,60 +771,24 @@ void AmsPanel::rebuild_backend_selector() {
         if (!backend) {
             continue;
         }
-
-        std::string label = ams_type_to_string(backend->get_type());
-
-        // Create a button-like segment for each backend
-        lv_obj_t* btn = lv_obj_create(row);
-        lv_obj_set_size(btn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        int32_t btn_pad_hor = theme_manager_get_spacing("space_md");
-        lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_sm"), 0);
-        lv_obj_set_style_pad_left(btn, btn_pad_hor, 0);
-        lv_obj_set_style_pad_right(btn, btn_pad_hor, 0);
-        lv_obj_set_style_radius(btn, 8, 0);
-        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-
-        if (i == active_backend_idx_) {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), 0);
-        } else {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("elevated_bg"), 0);
+        const std::string index = std::to_string(i);
+        const char* attrs[] = {"index", index.c_str(), nullptr};
+        auto* segment = static_cast<lv_obj_t*>(lv_xml_create(row, "ams_backend_segment", attrs));
+        if (segment) {
+            helix::ui::set_row_label_text(segment, "segment_label",
+                                          ams_type_to_string(backend->get_type()));
         }
-
-        lv_obj_t* lbl = lv_label_create(btn);
-        lv_label_set_text(lbl, label.c_str());
-        lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(lbl, theme_manager_get_font("font_small"), 0);
-
-        // Store index in user_data for click handler (dynamic buttons are a documented exception)
-        lv_obj_set_user_data(btn, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
-        lv_obj_add_event_cb(
-            btn,
-            [](lv_event_t* e) {
-                auto* btn_obj = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                int idx =
-                    static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(btn_obj)));
-                auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
-                if (self) {
-                    self->on_backend_segment_selected(idx);
-                }
-            },
-            LV_EVENT_CLICKED, this);
     }
 
     spdlog::debug("[AmsPanel] Backend selector rebuilt with {} segments (active={})", count,
-                  active_backend_idx_);
+                  ams.active_backend_index());
 }
 
-void AmsPanel::on_backend_segment_selected(int index) {
-    if (index == active_backend_idx_) {
+void AmsPanel::show_backend(int index) {
+    if (index == shown_backend_idx_) {
         return;
     }
-
-    active_backend_idx_ = index;
-    AmsState::instance().set_active_backend(index);
-
-    // Rebuild selector to update visual highlight
-    rebuild_backend_selector();
+    shown_backend_idx_ = index;
 
     // Sync the selected backend and recreate slots
     AmsState::instance().sync_backend(index);

@@ -210,7 +210,8 @@ class AmsPanel : public PanelBase {
     /// (singleton lifetime) — no SubjectLifetime token needed.
     std::vector<ObserverGuard> slot_path_observers_;
     ObserverGuard print_state_observer_;    ///< Dismisses a stale error dialog when a print resumes
-    ObserverGuard backend_count_observer_;  ///< For backend selector visibility
+    ObserverGuard backend_count_observer_;  ///< Rebuilds the backend selector's segments
+    ObserverGuard active_backend_observer_; ///< Redraws the slots for a newly chosen backend
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     ObserverGuard
         supports_bypass_observer_;         ///< Bypass node appears/disappears with backend support
@@ -260,12 +261,12 @@ class AmsPanel : public PanelBase {
 
     // === Backend Selector State ===
 
-    int active_backend_idx_ = 0; ///< Currently selected backend index
+    int shown_backend_idx_ = 0; ///< Backend whose slots and path the panel draws
 
     // === Backend Selector Helpers ===
 
     void rebuild_backend_selector();
-    void on_backend_segment_selected(int index);
+    void show_backend(int index);
 
     // === Setup Helpers ===
 
