@@ -799,8 +799,17 @@ class UpdateChecker {
     /// Last hop of sync_moonraker_channel(): restart Moonraker when the entry it has
     /// loaded (machine.update.status) does not match @p want_listed, unless a job holds
     /// the machine (the sync then runs again when it ends) or update_manager is busy.
+    /// @p restart_key names the file state and wish a restart would be for; empty when
+    /// another copy of the stanza decides what Moonraker lists, so no restart can help.
+    /// A mismatch with an empty key, or one a restart for the same key already met, is
+    /// logged once and left, so nothing restarts Moonraker in a loop.
     /// @p gen is the sync's moonraker_sync_generation_.
-    void restart_moonraker_for_channel(helix::IMoonrakerAPI& api, uint64_t gen, bool want_listed);
+    void restart_moonraker_for_channel(helix::IMoonrakerAPI& api, uint64_t gen, bool want_listed,
+                                       const std::string& restart_key);
+    /// The restart_key of the last Moonraker restart a channel sync made.
+    std::string moonraker_restarted_for_;
+    /// The mismatch last logged as left alone, so it is logged once.
+    std::string moonraker_mismatch_logged_;
     /// sync_moonraker_channel() with this install's directory supplied; the stanza's
     /// `path:` must resolve to it.
     void sync_moonraker_channel_for(const std::string& install_root);

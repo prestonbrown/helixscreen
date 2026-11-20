@@ -3391,20 +3391,36 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
             } else if (listed) {
                 updated = MoonrakerConfigManager::switch_section_off(held, kHelixStanza);
             }
+            // A restart can change what Moonraker lists only when this file is the one
+            // copy of the stanza it reads; another copy (a mod's file, a second
+            // include) wins whatever this one says, and restarting would loop.
+            bool sole_copy = true;
+            for (const auto& [name, text] : files) {
+                if (name != file && MoonrakerConfigManager::has_section(text, kHelixStanza)) {
+                    sole_copy = false;
+                    break;
+                }
+            }
+            // What a restart is made for: the file as it will stand and the state
+            // wanted. Empty when a restart cannot help.
+            const std::string restart_key =
+                sole_copy ? file + '\n' + (want_listed ? "listed" : "off") + '\n' + updated
+                          : std::string();
             if (updated == content) {
                 // The file matches; Moonraker may still have the other state loaded
                 // (a restart that was skipped, failed, or lost with an app restart).
                 tok.defer("UpdateChecker::sync_moonraker_channel_loaded",
-                          [this, api, gen, want_listed]() {
+                          [this, api, gen, want_listed, restart_key]() {
                               if (gen == moonraker_sync_generation_.load())
-                                  restart_moonraker_for_channel(*api, gen, want_listed);
+                                  restart_moonraker_for_channel(*api, gen, want_listed,
+                                                                restart_key);
                           });
                 return;
             }
             const std::string want = want_listed ? "listed" : "switched off";
             tok.defer("UpdateChecker::sync_moonraker_channel", [this, tok, api, want, want_listed,
-                                                                gen, file, updated,
-                                                                install_root]() {
+                                                                gen, file, updated, install_root,
+                                                                restart_key]() {
                 if (gen != moonraker_sync_generation_.load())
                     return;
                 // The download took round-trips a print may have started in.
@@ -3416,12 +3432,13 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
                              want);
                 api->transfers().upload_file(
                     "config", file, updated,
-                    [this, tok, api, gen, want_listed]() {
+                    [this, tok, api, gen, want_listed, restart_key]() {
                         tok.defer("UpdateChecker::sync_moonraker_channel_restart",
-                                  [this, api, gen, want_listed]() {
+                                  [this, api, gen, want_listed, restart_key]() {
                                       if (gen != moonraker_sync_generation_.load())
                                           return;
-                                      restart_moonraker_for_channel(*api, gen, want_listed);
+                                      restart_moonraker_for_channel(*api, gen, want_listed,
+                                                                    restart_key);
                                   });
                     },
                     [file](const MoonrakerError& err) {
@@ -3457,7 +3474,8 @@ bool UpdateChecker::moonraker_entry_matches(const json& status_result, bool want
 }
 
 void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen,
-                                                  bool want_listed) {
+                                                  bool want_listed,
+                                                  const std::string& restart_key) {
     // Restarting Moonraker drops Klipper's API clients mid-job. Checked again after
     // the status round-trip, during which a print can start; the sync then runs
     // again when the job ends.
@@ -3479,13 +3497,14 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
     IMoonrakerAPI* api_ptr = &api;
     api.get_client().send_jsonrpc(
         "machine.update.status", json::object(),
-        [this, tok, api_ptr, gen, want_listed, job_blocks_restart](const json& response) {
+        [this, tok, api_ptr, gen, want_listed, restart_key,
+         job_blocks_restart](const json& response) {
             const json* result = helix::json_util::find_member(response, "result");
             const bool busy = !result || helix::json_util::safe_bool(*result, "busy", /*def=*/true);
             const bool matches = result && moonraker_entry_matches(*result, want_listed);
             tok.defer(
                 "UpdateChecker::restart_moonraker_for_channel",
-                [this, api_ptr, gen, busy, matches, job_blocks_restart]() {
+                [this, api_ptr, gen, busy, matches, restart_key, job_blocks_restart]() {
                     if (gen != moonraker_sync_generation_.load() || job_blocks_restart())
                         return;
                     if (matches) {
@@ -3498,6 +3517,23 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
                                      "next restart (update_manager is busy)");
                         return;
                     }
+                    // A restart that cannot change the outcome is never made, and one
+                    // already made for this exact file and wish is not repeated: the
+                    // mismatch is logged once and left.
+                    if (restart_key.empty() || restart_key == moonraker_restarted_for_) {
+                        const std::string seen = restart_key.empty() ? "\n" : restart_key;
+                        if (moonraker_mismatch_logged_ != seen) {
+                            moonraker_mismatch_logged_ = seen;
+                            spdlog::warn("[UpdateChecker] Moonraker's update entry for "
+                                         "HelixScreen disagrees with the app's channel, and {}; "
+                                         "not restarting Moonraker for it",
+                                         restart_key.empty()
+                                             ? "another copy of the stanza decides it"
+                                             : "a restart for this file already happened");
+                        }
+                        return;
+                    }
+                    moonraker_restarted_for_ = restart_key;
                     // The app's websocket drops with it and reconnects on its own; that
                     // rediscovery syncs again, finds Moonraker matching, and stops.
                     helix::publish_ui_request({helix::UiRequestKind::ExpectMoonrakerRestart});
@@ -3718,8 +3754,11 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
 
 void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     ++moonraker_sync_generation_;
-    // A sync waiting on this printer's job ends with it.
+    // A sync waiting on this printer's job ends with it, as does what was
+    // restarted or logged for this printer's Moonraker.
     moonraker_sync_after_job_.reset();
+    moonraker_restarted_for_.clear();
+    moonraker_mismatch_logged_.clear();
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
 }
 
