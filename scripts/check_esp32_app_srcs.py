@@ -85,13 +85,18 @@ Exit 0 when the manifest and exclusion baseline cover src/ exactly, 1 otherwise.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from qc_file_cache import FileCache, digest  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST = REPO_ROOT / "firmware/helixscreen-esp32/components/helixapp/app_srcs.txt"
@@ -597,14 +602,23 @@ def older_than_inputs(objects: dict[str, Path], base: Path) -> list[str]:
 
 
 def nm_symbols(objects: dict[str, Path], flag: str) -> dict[str, set[str]]:
-    """rel -> symbols `nm <flag>` lists for that object."""
+    """rel -> symbols `nm <flag>` lists for that object.
+
+    The objects go to nm in batches of 200, four at a time: one nm over thousands of
+    objects is the slowest step of the link check.
+    """
     by_path = {str(p): rel for rel, p in objects.items()}
     out: dict[str, set[str]] = {rel: set() for rel in objects}
     paths = list(by_path)
-    for i in range(0, len(paths), 500):
-        res = subprocess.run(["nm", "-A", "-P", flag, *paths[i:i + 500]],
-                             capture_output=True, text=True, check=True)
-        for line in res.stdout.splitlines():
+
+    def run(batch: list[str]) -> str:
+        return subprocess.run(["nm", "-A", "-P", flag, *batch],
+                              capture_output=True, text=True, check=True).stdout
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        listings = list(pool.map(run, [paths[i:i + 200] for i in range(0, len(paths), 200)]))
+    for listing in listings:
+        for line in listing.splitlines():
             obj, _, rest = line.partition(": ")
             if rest:
                 out[by_path[obj]].add(rest.split()[0])
@@ -775,58 +789,71 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     header_dirs = [base / "include", *include_dirs]
     forced = [base / h for h in re.findall(r"-include\b[^$]*?\$\{REPO_ROOT\}/([\w./-]+)",
                                            cmake_text, re.S) if (base / h).is_file()]
-    header_words: dict[Path, set[str]] = {}
-    header_live_words: dict[Path, set[str]] = {}
-    header_includes: dict[tuple[Path, bool], list[Path]] = {}
-    header_usings: dict[Path, list[tuple[str, set[str]]]] = {}
-    texts: dict[Path, str] = {}
-    resolved: dict[tuple[Path, str], Path | None] = {}
+    # Headers travel as path strings: hashing a Path costs more than the rest of a
+    # closure walk over a few thousand of them.
+    header_includes: dict[tuple[str, bool], list[str]] = {}
+    resolved: dict[tuple[str, str], str | None] = {}
+    facts: dict[str, dict] = {}
+    dirs = [str(d) for d in header_dirs]
+    cache = FileCache("esp32_link_facts", [Path(__file__), Path(__file__).with_name("qc_file_cache.py")])
+    reading = "firmware:" + digest(json.dumps(sorted(defines.items(), key=str)))
 
-    def text_of(p: Path) -> str:
-        if p not in texts:
-            texts[p] = p.read_text(errors="replace")
-        return texts[p]
+    def file_facts(text: str) -> dict:
+        """What the link check reads from one source or header, under the firmware's
+        defines: its identifiers (raw, and with comments and strings blanked), the
+        identifiers and #include names in the branches the firmware compiles, every
+        #include name, and each `using Alias = ...;` with the words it names."""
+        code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", text, flags=re.S)
+        code = STRING_LITERAL.sub('""', code)
+        return {
+            "raw_words": sorted(set(IDENTIFIER.findall(text))),
+            "words": sorted(set(IDENTIFIER.findall(code))),
+            "live_words": sorted({w for _, c in firmware_code_lines(text, defines)
+                                  for w in IDENTIFIER.findall(c)}),
+            "inc_live": [h for _, c in firmware_code_lines(text, defines, includes=True)
+                         for h in INCLUDE.findall(c)],
+            "inc_all": INCLUDE.findall(text),
+            "usings": [[a, sorted(set(IDENTIFIER.findall(rhs)))]
+                       for a, rhs in USING_ALIAS.findall(text)],
+        }
 
-    def resolve_one(h: str, here: Path) -> Path | None:
+    def facts_of(p: str) -> dict:
+        if p not in facts:
+            f = cache.get(Path(p), reading, file_facts)
+            facts[p] = {"raw_words": set(f["raw_words"]), "words": set(f["words"]),
+                        "live_words": set(f["live_words"]), "inc_live": f["inc_live"],
+                        "inc_all": f["inc_all"],
+                        "usings": [(a, set(named)) for a, named in f["usings"]]}
+        return facts[p]
+
+    def resolve_one(h: str, here: str) -> str | None:
         key = (here, h)
         if key not in resolved:
-            hit = next((d / h for d in (here, *header_dirs) if (d / h).is_file()), None)
-            resolved[key] = Path(os.path.normpath(hit)) if hit else None
+            hit = next((os.path.join(d, h) for d in (here, *dirs)
+                        if os.path.isfile(os.path.join(d, h))), None)
+            resolved[key] = os.path.normpath(hit) if hit else None
         return resolved[key]
 
-    def resolve(names, includer: Path) -> list[Path]:
-        return [r for h in names if (r := resolve_one(h, includer.parent)) is not None]
+    def resolve(names, includer: str) -> list[str]:
+        here = os.path.dirname(includer)
+        return [r for h in names if (r := resolve_one(h, here)) is not None]
 
-    def usings_of(header: Path) -> list[tuple[str, set[str]]]:
+    def usings_of(header: str) -> list[tuple[str, set[str]]]:
         """Each `using Alias = ...;` in the header: the alias and the words it names."""
-        if header not in header_usings:
-            header_usings[header] = [(a, set(IDENTIFIER.findall(rhs)))
-                                     for a, rhs in USING_ALIAS.findall(text_of(header))]
-        return header_usings[header]
+        return facts_of(header)["usings"]
 
-    def words_of(header: Path) -> set[str]:
+    def words_of(header: str) -> set[str]:
         """Every identifier the header spells, in any branch."""
-        if header not in header_words:
-            code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", text_of(header),
-                          flags=re.S)
-            code = STRING_LITERAL.sub('""', code)
-            header_words[header] = set(IDENTIFIER.findall(code))
-        return header_words[header]
+        return facts_of(header)["words"]
 
-    def live_words_of(header: Path) -> set[str]:
+    def live_words_of(header: str) -> set[str]:
         """The identifiers in the header's branches the firmware compiles."""
-        if header not in header_live_words:
-            header_live_words[header] = {
-                w for _, c in firmware_code_lines(text_of(header), defines)
-                for w in IDENTIFIER.findall(c)}
-        return header_live_words[header]
+        return facts_of(header)["live_words"]
 
-    def includes_of(text: str, includer: Path, live: bool) -> list[Path]:
-        names = ([h for _, c in firmware_code_lines(text, defines, includes=True)
-                  for h in INCLUDE.findall(c)] if live else INCLUDE.findall(text))
-        return resolve(names, includer)
+    def includes_of(path: str, live: bool) -> list[str]:
+        return resolve(facts_of(path)["inc_live" if live else "inc_all"], path)
 
-    def closure(roots: list[Path], live: bool) -> set[Path]:
+    def closure(roots: list[str], live: bool) -> set[str]:
         """Every header `roots` reach, through compiled branches only when `live`."""
         out, todo = set(), list(roots)
         while todo:
@@ -835,7 +862,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
                 continue
             out.add(h)
             if (h, live) not in header_includes:
-                header_includes[(h, live)] = includes_of(text_of(h), h, live)
+                header_includes[(h, live)] = includes_of(h, live)
             todo += header_includes[(h, live)]
         return out
 
@@ -844,13 +871,11 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
         syms = sorted(undefined[f] & demangled.keys())
         if not syms:
             continue
-        text = (base / f).read_text(errors="replace")
-        words = set(IDENTIFIER.findall(text))
-        live_words = {w for _, c in firmware_code_lines(text, defines)
-                      for w in IDENTIFIER.findall(c)}
-        src = base / f
-        live_headers = closure(forced + includes_of(text, src, True), True)
-        all_headers = live_headers | closure(includes_of(text, src, False), False)
+        src = str(base / f)
+        words = facts_of(src)["raw_words"]
+        live_words = facts_of(src)["live_words"]
+        live_headers = closure([str(h) for h in forced] + includes_of(src, True), True)
+        all_headers = live_headers | closure(includes_of(src, False), False)
 
         def aliases_of(word: str) -> set[str]:
             """Names a header gives `word` with `using Alias = ...word;`."""
@@ -892,6 +917,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
             if edge not in seen and edge not in baseline:
                 found.new.append(edge)
             seen.add(edge)
+    cache.save()
     found.stale_baseline = sorted(baseline - seen)
     return found
 
