@@ -304,6 +304,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ams.sync_from_backend();
     CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) ==
           "AFC (Mock Multi-Unit)");
+    // The dryer page titles each box as the screens name its unit.
+    mock_ptr->set_dryer_enabled(true);
+    mock_ptr->set_environment_mode("dryer");
+    const auto zones = mock_ptr->get_environment_zones(-1);
+    REQUIRE_FALSE(zones.empty());
+    CHECK(zones[0].label == "Turtle 1");
 
     ams.clear_backends();
     ams.deinit_subjects();

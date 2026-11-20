@@ -10,6 +10,7 @@
 #include "ams_state.h"
 #include "settings_manager.h"
 #include "system/afc_message_dedup.h"
+#include "ui/ams_drawing_utils.h"
 #ifdef HELIX_ENABLE_MOCKS
 #include "ams_backend_mock.h"
 #include "app_globals.h"
@@ -274,7 +275,8 @@ std::vector<helix::printer::EnvironmentZone> AmsBackend::get_environment_zones(i
             // collide on id == "" and let update_from_backend()'s id-match bind the
             // wrong zone's values.
             z.id = au.name.empty() ? "unit-" + std::to_string(unit_idx) : au.name;
-            z.label = au.display_name.empty() ? au.name : au.display_name;
+            // The unit's name as every other screen shows it.
+            z.label = ams_draw::get_unit_display_name(au, unit_idx);
             z.unit_index = unit_idx;
             z.gates.reserve(static_cast<size_t>(au.slot_count));
             for (int g = 0; g < au.slot_count; ++g) {

@@ -198,5 +198,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_dropdown_get_selected(dropdown) == 1);
     CHECK(shown_preset().find(" " + temp_text()) != std::string::npos);
 
-    AmsState::instance().clear_backends();
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain();
+    AmsState::instance().set_backend(nullptr);
 }
