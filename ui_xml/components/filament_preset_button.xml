@@ -16,8 +16,17 @@
     <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
     <event_cb trigger="clicked" callback="$callback"/>
     <event_cb trigger="long_pressed" callback="$hold_callback"/>
+    <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
     <text_body bind_text="preset_material_${slot}_name" long_mode="dots" style_max_width="100%"/>
-    <text_small bind_text="preset_material_${slot}_temps"
-                style_text_align="center" style_text_color="#text_muted" long_mode="dots" style_max_width="100%"/>
+    <!-- Nozzle and bed when both fit the button's width, the nozzle alone when
+         they do not (filament_preset_fit_temps), never an ellipsis. -->
+    <text_small name="preset_temps"
+                bind_text="preset_material_${slot}_temps" style_text_align="center" style_text_color="#text_muted"
+                long_mode="clip" style_max_width="100%">
+      <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+    </text_small>
+    <text_small name="preset_nozzle_temp"
+                bind_text="preset_material_${slot}_nozzle_temp" style_text_align="center" style_text_color="#text_muted"
+                long_mode="clip" style_max_width="100%" hidden="true"/>
   </view>
 </component>

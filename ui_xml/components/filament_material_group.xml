@@ -4,8 +4,8 @@
 <!-- The Material card: the four material presets (filament_preset_button.xml),
      the active spool's own preset when it matches none of them, and Cool
      Down. Landscape lays them out 3x2 (PLA/PETG/ABS, TPU/spool/Cool Down);
-     portrait has the height for one row only, so the presets share it and
-     Cool Down moves to the card's header. Each preset is one touch target
+     portrait, and tiny and micro screens in landscape, have the height for one
+     row only, so the presets share it and Cool Down moves to the card's header. Each preset is one touch target
      tall, so the Operations card below keeps its room. Instantiated by both
      orientation branches of filament_panel.xml. -->
 <component>
@@ -18,7 +18,7 @@
       <icon src="palette" size="sm" variant="primary"/>
       <text_small text="Material"
                   flex_grow="1" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
-      <if cond="ui_is_portrait eq 1">
+      <if cond="ui_is_portrait eq 1 or ui_breakpoint le 1">
         <ui_button name="btn_cooldown"
                    width="content" height="#touch_target_min" style_pad_hor="#space_sm"
                    style_bg_color="#temp_gradient_cold" icon="cooldown" text="Cool Down">
@@ -27,7 +27,7 @@
         </ui_button>
       </if>
     </lv_obj>
-    <if cond="ui_is_portrait eq 1">
+    <if cond="ui_is_portrait eq 1 or ui_breakpoint le 1">
       <!-- One row: the four presets, and the spool's own beside them while
            it shows. -->
       <lv_obj name="spool_preset_row"
@@ -75,7 +75,7 @@
                the grid never reflows. It takes the row's height, which the TPU
                preset sets, and stacks its icon over a label that wraps rather
                than truncates. -->
-          <!-- DUPLICATE_NAME_OK: the header's Cool Down is built only in portrait, this one only in landscape -->
+          <!-- DUPLICATE_NAME_OK: the header's Cool Down is built only in the one-row layout (portrait, or tiny and micro screens), this one only in the grid -->
           <ui_button name="btn_cooldown"
                      width="0" height="100%" flex_grow="1" style_pad_ver="#space_xs" style_pad_hor="#space_xs"
                      style_bg_color="#temp_gradient_cold" icon="cooldown" icon_position="top" text="Cool Down"

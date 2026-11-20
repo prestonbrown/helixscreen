@@ -26,6 +26,7 @@
 #include "ams_state.h"
 #include "ams_types.h"
 #include "core/update_queue.h"
+#include "helix/ui/text_metrics.h"
 #include "printer_discovery.h"
 #include "target_tool.h"
 #include "theme_manager.h"
@@ -398,6 +399,62 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Portrait 320x480 Filament panel fits with n
         CHECK_FALSE(h.hidden("spool_card"));
     }
     lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Landscape 480x320 Filament panel fits with nothing clipped",
+                 "[filament][ui][layout]") {
+    const bool multi_head = GENERATE(false, true);
+    CAPTURE(multi_head);
+    lv_display_t* disp = lv_display_get_default();
+    ScopedResolution res(disp, 480, 320);
+    theme_manager_refresh_layout_constants(disp);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "ui_is_portrait"), 0);
+    ui_ams_mini_status_init();
+    ManageRowHarness h(
+        *this,
+        multi_head ? std::vector<std::string>{"extruder", "extruder1", "extruder2", "extruder3"}
+                   : std::vector<std::string>{"extruder"},
+        AmsType::AFC);
+    // What a 480x320 screen leaves the panel beside the navigation bar.
+    lv_obj_set_size(h.root, 426, 320);
+    lv_obj_update_layout(h.root);
+    process_lvgl(30);
+    lv_obj_update_layout(h.root);
+
+    lv_obj_t* column = lv_obj_find_by_name(h.root, "right_column");
+    REQUIRE(column != nullptr);
+    lv_area_t col;
+    lv_obj_get_content_coords(column, &col);
+    lv_obj_t* ops = lv_obj_find_by_name(column, "filament_operations_group");
+    REQUIRE(ops != nullptr);
+    lv_area_t a;
+    lv_obj_get_coords(ops, &a);
+    CAPTURE(a.y2, col.y2);
+    CHECK(a.y2 <= col.y2);
+    // Heads, Park and the action rows stay touch targets.
+    if (multi_head) {
+        CHECK(h.hidden("operations_heading_row"));
+        lv_obj_t* cell = lv_obj_find_by_name(h.root, "tool_target_cell_0");
+        REQUIRE(cell != nullptr);
+        CHECK(lv_obj_get_height(cell) >= 48);
+    } else {
+        CHECK_FALSE(h.hidden("operations_heading_row"));
+    }
+    lv_obj_t* load = lv_obj_find_by_name(h.root, "btn_load");
+    REQUIRE(load != nullptr);
+    CHECK(lv_obj_get_height(load) >= 40);
+    // The cold-extrusion warning covers the row it disables rather than
+    // adding one.
+    CHECK_FALSE(h.hidden("safety_warning"));
+    // Four presets share one row: whichever temperature line shows fits.
+    lv_obj_t* pla = lv_obj_find_by_name(h.root, "preset_pla");
+    REQUIRE(pla != nullptr);
+    lv_obj_t* full = lv_obj_find_by_name(pla, "preset_temps");
+    lv_obj_t* shown =
+        lv_obj_is_hidden(full) ? lv_obj_find_by_name(pla, "preset_nozzle_temp") : full;
+    CHECK(helix::ui::text_width(lv_label_get_text(shown),
+                                lv_obj_get_style_text_font(shown, LV_PART_MAIN)) <=
+          lv_obj_get_content_width(pla));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Strip graph button stays hidden in landscape",
