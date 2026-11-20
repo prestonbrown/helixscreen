@@ -1737,8 +1737,10 @@ translations:
   Filament didn't fully retract, may need manual removal: Филамент втянут не полностью, может потребоваться извлечь его вручную
   Filament dust packs into the drive gears and costs grip.: "Пыль филамента забивает шестерни и ухудшает захват."
   Filament feeder: Фидер филамента
+  Filament in the toolhead: "Филамент в печатающей головке"
   Filament is clear of the toolhead. Pull it out the rest of the way.: Филамент вышел из печатающей головки. Вытяните его до конца.
   Filament is dragging: Филамент идёт с натягом
+  Filament is in the toolhead, but no lane is loaded.: "В печатающей головке есть филамент, но ни один канал не загружен."
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Филамент загружен в печатающую головку. Выгрузите его перед включением обхода.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: В печатающей головке загружен филамент. Сначала выгрузите его, чтобы он не размягчился в экструдере, пока греется стол.
 
@@ -4641,6 +4643,7 @@ translations:
   : Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Moonraker этого принтера слишком старый, чтобы плагин HelixPrint потом восстановил исходное имя файла, поэтому выполненное задание отображается под изменённым именем. Само сопоставление филамента работает нормально.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Без плагина HelixPrint в историю печати попадает изменённая копия, поэтому выполненные задания отображаются под именами вроде modified_1730824_benchy.gcode вместо выбранного файла.\n\nУстановка плагина занимает немного времени и не требует перезапуска."
+  To use the lanes, pull the filament out of the toolhead by hand.: "Чтобы использовать каналы, вытяните филамент из печатающей головки вручную."
   Toggle: Переключить
   Toggle (fire-and-forget): Переключение (без отслеживания)
   Toggle AFC LED strip: 'Переключить LED-ленту AFC'
@@ -4840,6 +4843,7 @@ translations:
   Use G10/G11 firmware retraction: Использовать аппаратный ретракт G10/G11
   Use New Address: 'Использовать новый адрес'
   Use Unload before Eject: 'Используйте «Выгрузить» перед «Извлечь»'
+  Use as bypass: "Использовать как обход"
   Use existing: "Использовать имеющийся"
   Use existing filament?: "Использовать имеющийся филамент?"
   Use first HID scanner found: 'Использовать первый найденный HID-сканер'

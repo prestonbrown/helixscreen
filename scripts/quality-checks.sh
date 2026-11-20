@@ -115,6 +115,14 @@ qc_state_hash() {
     echo "link verdict required: ${HELIX_LINK_BOUNDARY_REQUIRED:-0}"
     # A sweep that left tests/python to the land gate is not a full sweep.
     echo "python tests skipped: ${HELIX_QC_SKIP_PYTHON_TESTS:-0}"
+    # A sweep of the gates some paths wake (land-gate's docs-only run) is not
+    # a full sweep, and answers only for those paths.
+    if [ -n "${HELIX_QC_CHANGED_FROM:-}" ]; then
+      echo "gates woken by:"
+      cat "$HELIX_QC_CHANGED_FROM" 2>/dev/null || echo "(unreadable)"
+    else
+      echo "gates: all"
+    fi
   } | sha256sum 2>/dev/null | cut -d' ' -f1
 }
 # A cached pass replays the counts the full run recorded (qc_count, _lib.sh), so a
@@ -273,6 +281,17 @@ QC_DEFERRED=""
 QC_LEFT=""
 qc_wanted() {
   local re
+  # HELIX_QC_CHANGED_FROM names a file of changed paths (land-gate's
+  # docs-only change): a gate runs when its QC_TRIGGER matches one of them,
+  # or when it has no trigger, as at commit, push-only gates included.
+  if [ -n "${HELIX_QC_CHANGED_FROM:-}" ]; then
+    re="$(qc_trigger_re "$1")"
+    if [ -z "$re" ] || grep -qE "$re" "$HELIX_QC_CHANGED_FROM" 2>/dev/null; then
+      return 0
+    fi
+    QC_SKIPPED="$QC_SKIPPED $1"
+    return 1
+  fi
   # A work-branch push (.githooks/pre-push) leaves the push-only gates to the
   # land gate and CI, which every branch passes before it reaches main.
   if [ "${HELIX_QC_SKIP_PUSH_ONLY:-0}" = 1 ]; then

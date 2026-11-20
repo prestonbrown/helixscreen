@@ -84,6 +84,7 @@ SHIM
     # and the plain environment alike) and the variables the Makefile exports,
     # and a make a test runs would read all of it as its own.
     unset MAKEFLAGS MFLAGS GNUMAKEFLAGS MAKELEVEL MAKEOVERRIDES BATS_REQUIRED BATS_BIN \
+        BATS_GATE BATS_ALL BATS_BASE BATS_APP \
         ABI_STAMPED_FOR HELIX_PATCHES_FROM_CLEAN HELIX_FROM_CLEAN_SENTINEL HELIX_TESTS_NO_STALE_CHECK
 
     # make never runs in the tree under test. A gate runs this suite while its

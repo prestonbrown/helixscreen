@@ -75,6 +75,11 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
                             public helix::IClogDetectionConfig,
                             public helix::IFirmwarePromptDedup {
   public:
+    // PRIVATE namespace: lane_data belongs to the Happy Hare plugin, same as
+    // AFC. See AmsBackendAfc for the full rationale. Listed in
+    // private_lane_record_namespaces().
+    static constexpr const char* kOverrideNamespace = "helix-screen-hh-overrides";
+
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IGateSelector>()) {
             return static_cast<helix::IGateSelector*>(this);
@@ -475,11 +480,6 @@ class AmsBackendHappyHare : public AmsSubscriptionBackend,
     // Happy Hare's gate map carries spool_id / material / colour, but not brand,
     // spool_name, total_weight_g, colour name or the Spoolman filament+vendor
     // ids. Those live only here.
-    //
-    // PRIVATE namespace: lane_data belongs to the Happy Hare plugin, same as
-    // AFC. See AmsBackendAfc for the full rationale.
-    //
-    static constexpr const char* kOverrideNamespace = "helix-screen-hh-overrides";
 
     // The MMU_HEATER target for @p unit: UNIT= where unit_suffix_locked() needs
     // one, then " GATES=g0,g1,..." naming the unit's gates on multi-unit (EMU)

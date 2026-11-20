@@ -70,6 +70,10 @@ struct AmsBackendRow {
     /// The entry in the telemetry `features` list; nullptr for none. A published
     /// schema: never rename one.
     const char* telemetry_feature;
+    /// The namespace the backend keeps its lane records in when its firmware
+    /// owns lane_data (AmsBackend::private_lane_record_namespaces()); nullptr
+    /// for a backend that writes lane_data itself.
+    const char* private_lane_record_namespace;
 };
 
 /// The row for @p type; the NONE row for a value with none.

@@ -129,3 +129,18 @@ setup() {
         return 1
     }
 }
+
+# Buildroot's TARGET_CONFIGURE_OPTS passes the toolchain as CC/CXX and never sets
+# CROSS_COMPILE. The build must still take the cross path: target tuning, and no
+# host include path, which Buildroot's compiler wrapper refuses outright.
+@test "ad5m-br: a Buildroot-style CC without CROSS_COMPILE builds for the target" {
+    local cc=/opt/br/host/bin/arm-buildroot-linux-gnueabihf-gcc
+    run env -u CROSS_COMPILE make -n PLATFORM_TARGET=ad5m-br CC="$cc" CXX="${cc%gcc}g++" print-cxxflags
+    [ "$status" -eq 0 ] || { echo "$output"; return 1; }
+    ! echo "$output" | grep -q '/usr/include/libusb-1.0' || {
+        echo "Host libusb include path in a Buildroot ad5m-br build:"; echo "$output"; return 1
+    }
+    echo "$output" | grep -qE 'mtune=cortex-a7' || {
+        echo "ad5m-br target tuning missing (took the host branch):"; echo "$output"; return 1
+    }
+}

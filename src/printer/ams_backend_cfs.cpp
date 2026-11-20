@@ -3832,6 +3832,15 @@ void AmsBackendCfs::retire_resolved_phase_fault_locked(bool filament_detected) {
     phase_fault_spool_used_up_ = false;
 }
 
+bool AmsBackendCfs::can_clear_unaccounted_toolhead() const {
+    return AmsBackend::can_clear_unaccounted_toolhead() &&
+           macro_variant_ != CfsMacroVariant::Fork && flat_schema_verified();
+}
+
+int AmsBackendCfs::unaccounted_toolhead_clear_slot() const {
+    return helix::ui::kExternalSpoolSlot;
+}
+
 std::optional<bool> AmsBackendCfs::toolhead_filament_unaccounted() const {
     std::lock_guard<std::mutex> lock(mutex_);
     // Klipper reports filament_detected null until the sensor takes a first

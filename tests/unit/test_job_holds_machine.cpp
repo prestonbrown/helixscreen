@@ -551,6 +551,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/tool_switcher_segment.xml",
     "ui_xml/components/tool_target_row.xml",
     "ui_xml/components/tune_pa_row.xml",
+    "ui_xml/components/unclaimed_toolhead_modal.xml",
     "ui_xml/components/upgrade_banner.xml",
     "ui_xml/components/zone_row.xml",
     "ui_xml/components/zone_tab.xml",

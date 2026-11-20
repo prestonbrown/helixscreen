@@ -96,7 +96,8 @@ SLOW_ORDER ?= --order rand --rng-seed 1
 # and shares the tokens with compiles. Asked once, when a sweep starts.
 SHARD_CONCURRENCY ?= $(eval SHARD_CONCURRENCY := $(shell echo $$(($(JOBS_CLAIMED) * 3))))$(SHARD_CONCURRENCY)
 
-# Run tests in parallel using Catch2 sharding
+# Run tests in parallel using Catch2 sharding. Leaves ran_cases, the cases the
+# shards' summaries report, in the recipe's shell.
 # Args: $(1) = test filter (e.g., "~[.] ~[slow]"), $(2) = shard count (default NPROCS),
 #       $(3) = Catch2 order flags (default: declaration order)
 # Collects PIDs and waits for all, failing if any shard fails
@@ -151,7 +152,7 @@ define run_tests_parallel
 				if grep -q "test cases.*|.*failed" "$$shard_dir/$$i.log" 2>/dev/null; then \
 					echo "$(RED)$(BOLD)✗ Shard $$i had test failures (exit $$ec)$(RESET)"; \
 					failed=1; suspect="$$suspect $$i"; \
-				elif [ "$$ec" -gt 128 ] 2>/dev/null; then \
+				elif [ "$$ec" -gt 128 ] 2>/dev/null && [ "$$ec" -le 192 ]; then \
 					sig=$$((ec - 128)); \
 					if [ "$(SHARD_CRASH_FAILS)" = 1 ]; then \
 						echo "$(RED)$(BOLD)✗ Shard $$i crashed after its assertions passed (signal $$sig)$(RESET)"; \
@@ -167,6 +168,8 @@ define run_tests_parallel
 			fi; \
 		fi; \
 	done; \
+	ran_cases=$$(cat "$$shard_dir"/*.log 2>/dev/null | grep -oE "in [0-9]+ test cases?\)|test cases: +[0-9]+" | \
+		grep -oE "[0-9]+" | awk '{ s += $$1 } END { print s + 0 }'); \
 	if [ -n "$$suspect" ]; then \
 		$(call diagnose_shards,$$shard_dir,$$suspect,$(1),$(or $(2),$(NPROCS)),$(3)); \
 	else \
@@ -176,6 +179,44 @@ define run_tests_parallel
 		echo "$(RED)$(BOLD)✗ One or more test shards failed!$(RESET)"; \
 		exit 1; \
 	fi
+endef
+
+# Test selection for a gate. TEST_SELECT_CHANGED is the change as a
+# comma-separated list of paths (land-gate passes it); scripts/gate_select.py
+# reads the test build's dependency files and writes the Catch2 input file of
+# the cases matching $(1) that the change reaches. Sets, in the recipe's
+# shell: sel_verdict (FULL, SELECT or NONE), sel_file (the input file),
+# sel_count (its cases) and sel_shards (at most NPROCS, at most one shard per
+# case). sel_file and sel_shards are exported: under a live jobpool each batch
+# of shards runs in a fresh bash that sees nothing else. Without
+# TEST_SELECT_CHANGED the verdict is FULL, the whole filter. check_selected_ran
+# fails a run whose shards ran fewer cases than were selected.
+# The rule and its safety valves: scripts/gate_select.py's header.
+TEST_SELECT_CHANGED ?=
+TEST_SELECT_DIR = $(BUILD_DIR)/test-select
+
+# Args: $(1) = Catch2 test spec, $(2) = name of the input file under TEST_SELECT_DIR.
+define select_cases
+	sel_verdict=FULL; sel_file=; sel_count=0; sel_shards=$(NPROCS); \
+	if [ -n "$(TEST_SELECT_CHANGED)" ]; then \
+		sel_file="$(TEST_SELECT_DIR)/$(2).txt"; \
+		sel_out=$$(python3 scripts/gate_select.py cxx --changed "$(TEST_SELECT_CHANGED)" \
+			--obj-dir "$(OBJ_DIR)" --bin "$(TEST_BIN)" --filter "$(1)" --out "$$sel_file") || exit 1; \
+		printf '%s\n' "$$sel_out" | sed 's/^/[test-select $(2)] /'; \
+		sel_verdict=$${sel_out%% *}; \
+		if [ "$$sel_verdict" = SELECT ]; then \
+			sel_count=$$(wc -l <"$$sel_file"); sel_shards=$$(( sel_count < $(NPROCS) ? sel_count : $(NPROCS) )); \
+		fi; \
+	fi; \
+	export sel_file sel_shards
+endef
+
+define check_selected_ran
+	if [ "$$ran_cases" != "$$sel_count" ]; then \
+		echo "$(RED)$(BOLD)✗ selected $$sel_count case(s), but the shards ran $$ran_cases$(RESET)"; \
+		exit 1; \
+	fi; \
+	echo "ran $$ran_cases of $$sel_count selected case(s)"
 endef
 
 # Post-mortem for shards that failed, crashed, or timed out.
@@ -448,7 +489,12 @@ endif
 unit-sweep: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Running unit tests in parallel (excluding slow)...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	$(call run_tests_parallel,"~[.] ~[slow]"); \
+	$(call select_cases,~[.] ~[slow],fast); \
+	case $$sel_verdict in \
+		NONE) exit 0 ;; \
+		SELECT) $(call run_tests_parallel,-f $$sel_file,$$sel_shards); $(call check_selected_ran) ;; \
+		*) $(call run_tests_parallel,"~[.] ~[slow]") ;; \
+	esac; \
 	END_TIME=$$(date +%s); \
 	DURATION=$$((END_TIME - START_TIME)); \
 	echo "$(GREEN)$(BOLD)✓ Unit tests passed in $${DURATION}s$(RESET)"
@@ -635,12 +681,13 @@ BATS_ALLOW_SERIAL ?=
 BATS_BASE ?=
 BATS_ALL ?=
 BATS_APP ?=
+BATS_GATE ?=
 
 test-shell:
 	$(ECHO) "$(CYAN)$(BOLD)Running shell tests (bats)...$(RESET)"
 	@if command -v "$(BATS_BIN)" >/dev/null 2>&1; then \
 		START_TIME=$$(date +%s); \
-		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(BATS_APP),--app "$(BATS_APP)") $(if $(filter 1,$(BATS_ALL)),--all) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
+		BATS_FILES=$$(python3 scripts/bats_select.py $(if $(BATS_APP),--app "$(BATS_APP)") $(if $(filter 1,$(BATS_ALL)),--all) $(if $(filter 1,$(BATS_GATE)),--gate) $(if $(BATS_BASE),--base "$(BATS_BASE)")) || exit 1; \
 		if [ -z "$$BATS_FILES" ]; then echo "✓ no shell test file selected$(if $(BATS_APP), (BATS_APP=$(BATS_APP)))"; exit 0; fi; \
 		if command -v parallel >/dev/null 2>&1; then \
 			jobs_dir=$$(mktemp -d); \
@@ -771,9 +818,13 @@ test-ui-pytest:
 # fails when the two invocations drift apart. Headless, so no window or sound
 # reaches the desktop; one pool slot, since the cases boot one app at a time.
 UI_CI_PYTEST_ARGS := tests/ui/ -v --ignore=tests/ui/test_screens.py -m "not slow"
+# UI_TESTS narrows the slice to some files (land-gate passes the ones a change
+# reaches, scripts/gate_select.py); the rest of CI's arguments still apply.
+UI_TESTS ?=
+UI_CI_PYTEST_RUN = $(if $(strip $(UI_TESTS)),$(UI_TESTS) $(filter-out tests/ui/,$(UI_CI_PYTEST_ARGS)),$(UI_CI_PYTEST_ARGS))
 
 test-ui-ci:
-	$(ECHO) "$(CYAN)$(BOLD)Running out-of-process UI tests, CI's slice (pytest $(UI_CI_PYTEST_ARGS))...$(RESET)"
+	$(ECHO) "$(CYAN)$(BOLD)Running out-of-process UI tests, CI's slice (pytest $(UI_CI_PYTEST_RUN))...$(RESET)"
 	@if [ ! -x "$(VENV_PYTHON)" ]; then \
 		echo "$(RED)$(BOLD)✗ Python venv not found — run 'make venv-setup' first$(RESET)"; \
 		exit 1; \
@@ -784,7 +835,7 @@ test-ui-ci:
 	fi
 	@START_TIME=$$(date +%s); \
 	HELIX_HEADLESS=1 SDL_VIDEODRIVER=dummy scripts/helix-claim hold -n 1 -- \
-		$(VENV_PYTHON) -m pytest $(UI_CI_PYTEST_ARGS); \
+		$(VENV_PYTHON) -m pytest $(UI_CI_PYTEST_RUN); \
 	$(call report_test_result,Out-of-process UI tests (CI slice))
 
 # ============================================================================
@@ -805,7 +856,9 @@ test-plugin:
 	$(call report_test_result,Moonraker plugin tests)
 
 # The script-side tooling's pytest suite, as quality.yml's "Run Python script
-# tests" step runs it.
+# tests" step runs it. PYTHON_TESTS narrows it to some files (land-gate does,
+# for a change to C++ source alone).
+PYTHON_TESTS ?= tests/python/
 test-python:
 	$(ECHO) "$(CYAN)$(BOLD)Running Python script tests (pytest, tests/python/)...$(RESET)"
 	@if [ ! -x "$(VENV_PYTHON)" ]; then \
@@ -813,7 +866,7 @@ test-python:
 		exit 1; \
 	fi
 	@START_TIME=$$(date +%s); \
-	$(VENV_PYTHON) -m pytest tests/python/ -v --tb=short; \
+	$(VENV_PYTHON) -m pytest $(PYTHON_TESTS) -v --tb=short; \
 	$(call report_test_result,Python script tests)
 
 # ============================================================================
@@ -866,11 +919,27 @@ define run_slow_tiers
 	$(TEST_BIN) "[slow][serial]" --allow-running-no-tests --durations yes
 endef
 
-# Run only slow tests - for thorough validation before commit
+# Run only slow tests - for thorough validation before commit. Under
+# TEST_SELECT_CHANGED, only the [slow] cases the change reaches.
 test-slow: test-build
 	$(ECHO) "$(CYAN)$(BOLD)Running slow tests only...$(RESET)"
 	@START_TIME=$$(date +%s); \
-	$(call run_slow_tiers); \
+	$(call select_cases,[slow] ~[serial],slow); \
+	case $$sel_verdict in \
+		FULL) $(call run_slow_tiers) ;; \
+		*) slow_file=$$sel_file; slow_verdict=$$sel_verdict; \
+		   $(call select_cases,[slow][serial],slow-serial); \
+		   if [ "$$slow_verdict" = SELECT ]; then \
+		       sel_file=$$slow_file; sel_count=$$(wc -l <"$$sel_file"); \
+		       sel_shards=$$(( sel_count < $(SLOW_SHARDS) ? sel_count : $(SLOW_SHARDS) )); \
+		       export sel_file sel_shards; \
+		       $(call run_tests_parallel,-f $$sel_file,$$sel_shards,$(SLOW_ORDER)); \
+		       $(call check_selected_ran); \
+		   fi; \
+		   if [ "$$sel_verdict" = SELECT ]; then \
+		       $(TEST_BIN) -f "$$sel_file" --durations yes; \
+		   else true; fi ;; \
+	esac; \
 	$(call report_test_result,Slow tests)
 
 # Run only eventloop tests - hv::EventLoop network tests (very slow, 5-10 min)

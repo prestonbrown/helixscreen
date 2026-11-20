@@ -1610,8 +1610,10 @@
   <translation tag="Filament didn&apos;t fully retract, may need manual removal" zh="耗材未完全回抽，可能需要手动取出"/>
   <translation tag="Filament dust packs into the drive gears and costs grip." zh="耗材粉尘堵塞驱动齿轮，降低抓力。"/>
   <translation tag="Filament feeder" zh="耗材送料器"/>
+  <translation tag="Filament in the toolhead" zh="工具头中有耗材"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." zh="耗材已脱离工具头。请将剩余部分拉出。"/>
   <translation tag="Filament is dragging" zh="耗材阻力过大"/>
+  <translation tag="Filament is in the toolhead, but no lane is loaded." zh="工具头中有耗材，但没有加载任何耗材通道。"/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." zh="工具头上已装载耗材。启用旁通前请先卸载。"/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." zh="工具头中已装有耗材。请先卸载,以免热床加热时耗材在挤出机中变软。"/>
   <translation tag="Filament is still at the empty head&apos;s feeder" zh="空工具头的送料器中仍有耗材"/>
@@ -4407,6 +4409,7 @@
   <translation tag="To make videos, run this on your printer via SSH:" zh="要生成视频，请通过 SSH 在打印机上运行："/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。此打印机的 Moonraker 版本过旧，HelixPrint 插件无法在之后恢复原始文件名，因此完成的任务将以改写后的名称显示。耗材映射本身可正常工作。"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。如果没有 HelixPrint 插件，进入打印历史的就是改写后的副本，因此完成的任务会以类似 modified_1730824_benchy.gcode 的名称显示，而不是您选择的文件。&#10;&#10;安装插件很快，无需重启。"/>
+  <translation tag="To use the lanes, pull the filament out of the toolhead by hand." zh="要使用耗材通道，请用手将耗材从工具头中拔出。"/>
   <translation tag="Toggle" zh="切换"/>
   <translation tag="Toggle (fire-and-forget)" zh="切换（无状态跟踪）"/>
   <translation tag="Toggle AFC LED strip" zh="切换 AFC LED 灯带"/>
@@ -4612,6 +4615,7 @@
   <translation tag="Use New Address" zh="使用新地址"/>
   <translation tag="Use Scan" zh="使用扫描"/>
   <translation tag="Use Unload before Eject" zh="请先使用“卸载”，再使用“弹出”"/>
+  <translation tag="Use as bypass" zh="用作旁路"/>
   <translation tag="Use existing" zh="使用现有"/>
   <translation tag="Use existing filament?" zh="使用现有耗材？"/>
   <translation tag="Use first HID scanner found" zh="使用找到的第一个 HID 扫描器"/>

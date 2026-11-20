@@ -66,6 +66,18 @@ static uint32_t default_3d_extrusion_rgb() {
     return lv_color_to_int(helix::gcode::GCodeLayerRenderer::default_extrusion_color());
 }
 
+/// The rate a 3D build plans with: what this run's renderer measured, kept per
+/// board through record_render_rate(), or the rate stored for this board while
+/// nothing has drawn yet this run. Main thread.
+static float planning_render_rate() {
+    const float measured = helix::gcode::render_schedule::last_measured_rate().load();
+    if (measured > 0.0f) {
+        helix::ui::record_render_rate(measured);
+        return measured;
+    }
+    return static_cast<float>(helix::ui::learned_render_rate());
+}
+
 #ifdef ENABLE_3D_RENDERER
 /// Segments a banded build keeps: shells are strided by the band depth;
 /// surfaces (skins, and the whole first layer so the model keeps its bottom)
@@ -94,18 +106,6 @@ static BandSegmentCounts count_band_segments(const helix::gcode::ParsedGCodeFile
         }
     }
     return counts;
-}
-
-/// The rate a 3D build plans with: what this run's renderer measured, kept per
-/// board through record_render_rate(), or the rate stored for this board while
-/// nothing has drawn yet this run. Main thread.
-static float planning_render_rate() {
-    const float measured = helix::gcode::render_schedule::last_measured_rate().load();
-    if (measured > 0.0f) {
-        helix::ui::record_render_rate(measured);
-        return measured;
-    }
-    return static_cast<float>(helix::ui::learned_render_rate());
 }
 
 /// Build a 3D RibbonGeometry from a parsed gcode file using the memory budget

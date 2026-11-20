@@ -220,6 +220,35 @@ no in-memory copy.
   write withdraws it. `AmsSubscriptionBackend::publish_external_spool_lane()`
   is the one writer on the backend side: it deletes a record of ours left at an
   earlier index and never overwrites a slot's record at the index.
+- **Never a lane.** AmsState's key `lane1` is also the name of a real lane on
+  AFC, which names lanes from 0. Every reader of a lane namespace asks
+  `is_bypass_record()` (`include/filament_slot_override_store.h#is_bypass_record`)
+  before matching a record to a lane: the shared store parse and AFC's own
+  `lane_data` read (`src/printer/afc_status_parse.cpp#parse_lane_data`).
+- **Moving with its holder.** A backend that keeps its records in an extras
+  namespace (`AmsBackend::lane_records_private()`) cannot see AmsState's
+  `lane_data` copy, so the record moves when that holder arrives. A holder that
+  reads `lane_data` already reads AmsState's record as its own, and nothing
+  moves. `AmsState::hand_bypass_record_to_holder()` runs after every sync and on
+  AmsState's poll, once the new holder has read its lane records. A holder with
+  a bypass record of its own keeps it: AmsState never writes over it, and its
+  own copy goes as stale. A holder with none gets AmsState's record. Until the
+  holder's own read shows it (`same_bypass_spool()`), `bypass_record()` answers
+  with the carried record and files it, so the bypass spool never blanks, and it
+  is published again once per holder read (`lane_record_reads()`): a refused or
+  failed write retries. AmsState's copy goes once the holder shows the record,
+  after a fresh read confirms the key still holds it. A write through
+  `write_bypass_record()` ends a pending move: the carried record is dropped and
+  never published after the user's edit.
+- **Back from a departed holder.** When discovery finds no filament system,
+  `AmsState::reclaim_orphaned_bypass_record()` reads the private namespaces
+  (`AmsBackend::private_lane_record_namespaces()`, a column of `kBackendRows`)
+  with a plain database read, once per connection. If its own store holds none,
+  the first bypass record found is copied through `write_bypass_record()`, so a
+  poll already out cannot file over it. The private copy is never deleted: AFC
+  wipes `lane_data` at every Klipper boot, and that copy is what survives when
+  the system returns. Bypass reads key on a per-connection generation, so a
+  reply from an earlier connection is never filed.
 
 ### Editing waits for the first read
 

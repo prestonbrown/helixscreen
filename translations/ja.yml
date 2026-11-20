@@ -1677,8 +1677,10 @@ translations:
   Filament didn't fully retract, may need manual removal: フィラメントが完全に戻りませんでした。手で取り除く必要があるかもしれません
   Filament dust packs into the drive gears and costs grip.: "フィラメント粉が駆動ギアに詰まり、グリップが落ちます。"
   Filament feeder: フィラメントフィーダー
+  Filament in the toolhead: "ツールヘッドにフィラメント"
   Filament is clear of the toolhead. Pull it out the rest of the way.: フィラメントはツールヘッドから出ました。残りを手で引き抜いてください。
   Filament is dragging: フィラメントに抵抗がかかっています
+  Filament is in the toolhead, but no lane is loaded.: "ツールヘッドにフィラメントがありますが、レーンはロードされていません。"
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'ツールヘッドにフィラメントが装填されています。バイパスを有効にする前に取り出してください。'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: ツールヘッドにフィラメントがロードされています。ベッドの加熱中にエクストルーダー内で柔らかくならないよう、先に排出してください。
 
@@ -4553,6 +4555,7 @@ translations:
   : フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。このプリンターのMoonrakerは旧バージョンのため、HelixPrintプラグインが後から元のファイル名を復元できず、完了したジョブは書き換え後の名前で表示されます。フィラメントマッピング自体は正常に動作します。
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。HelixPrintプラグインがない場合、書き換えられたコピーが印刷履歴に残るため、完了したジョブは選んだファイルではなくmodified_1730824_benchy.gcodeのような名前で表示されます。\n\nプラグインのインストールはすぐに完了し、再起動は必要ありません。"
+  To use the lanes, pull the filament out of the toolhead by hand.: "レーンを使うには、ツールヘッドからフィラメントを手で引き抜いてください。"
   Toggle: トグル
   Toggle (fire-and-forget): トグル（状態追跡なし）
   Toggle AFC LED strip: 'AFC LEDストリップを切り替え'
@@ -4752,6 +4755,7 @@ translations:
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
   Use New Address: '新しいアドレスを使用'
   Use Unload before Eject: '先に「アンロード」してから「排出」してください'
+  Use as bypass: "バイパスとして使用"
   Use existing: "既存を使用"
   Use existing filament?: "既存のフィラメントを使用しますか？"
   Use first HID scanner found: '最初に見つかった HID スキャナーを使用'

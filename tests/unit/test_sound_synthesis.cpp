@@ -88,7 +88,7 @@ TEST_CASE("Square wave duty cycle 0.25 produces 25% time above zero", "[sound][s
 // Sine wave RMS
 // ============================================================================
 
-TEST_CASE("Sine wave RMS is amplitude / sqrt(2)", "[sound][synthesis]") {
+TEST_CASE("Synthesized sine wave RMS is amplitude / sqrt(2)", "[sound][synthesis]") {
     constexpr int num_samples = kSampleRate; // 1 full second = many complete periods
     std::vector<float> buffer(num_samples);
     float phase = 0;

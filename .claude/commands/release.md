@@ -164,10 +164,12 @@ there is no separate "is CI red" check here and no reason to look at the branch 
 ### The landing gate
 
 ```bash
-make land-gate
+HELIX_GATE_FULL=1 make land-gate
 ```
 
-Run it in the release worktree. It is the local mirror of CI: the unit sweep, the sweep
+Run it in the release worktree. `HELIX_GATE_FULL=1` turns off the gate's test selection
+(a landing runs only what its change can reach), so a release gate runs every step and
+every test, as it does on a `release/*` or `release-prep/*` branch without it. It is the local mirror of CI: the unit sweep, the sweep
 again in CI's 8-shard layout, the bats suite, CI's `tests/ui` pytest slice (headless) and
 the moonraker plugin tests, and the generated-artefact checks: the theme token table
 (`check-theme-tokens`), the XML linter schema against a regeneration (`check-xml-schema`),
@@ -449,7 +451,7 @@ if [ "$(git -C "$MAIN_TREE" rev-parse --abbrev-ref HEAD)" = "$BRANCH" ]; then
 fi
 ```
 
-If the merge in step 3 brought in commits whose CI is not yet green, run `make land-gate`
+If the merge in step 3 brought in commits whose CI is not yet green, run `HELIX_GATE_FULL=1 make land-gate`
 in the release worktree before pushing (step 3 then becomes merge, gate, push); skip it
 when every one of them already passed CI on `$BRANCH`. After the script succeeds:
 `scripts/teardown-worktree.sh "v{NEW_VERSION}"`.

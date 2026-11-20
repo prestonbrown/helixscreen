@@ -109,7 +109,8 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
 | `ratchet.py` | The shared ratchet verdicts: under the baseline lenient at commit, fails at push (`HELIX_RATCHET_STRICT=1`) except for bookkeeping ratchets; `WARN_EXIT` for their warnings |
 | `ratchet_report.py` | Weekly trend of the bookkeeping ratchets against a week ago and their baselines; `.github/workflows/ratchet-report.yml` |
-| `bats_select.py` | Which `tests/shell/*.bats` files a run needs |
+| `bats_select.py` | Which `tests/shell/*.bats` files a run needs; `--gate` narrows the product files to what a change reaches |
+| `gate_select.py` | What `land-gate` runs for a change: each step's plan, and the C++ cases the build's `.d` files reach |
 | `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read |
 | `check_doc_refs.py` | Doc-reference gate: dead paths, links, `make` targets, docs/devel index, shipped counts |
 | `check_doc_images.py` | Fail if a user-facing page shows an image with no `docs/images/doc-screenshots.yml` entry, an entry's file is missing, or no doc shows an entry. Gated as `qc_doc_images` |
@@ -145,6 +146,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_pytest_asyncio_deps.py` | Fail on async pytest tests that would be skipped or fail without pytest-asyncio |
 | `check_modal_chrome_budget.py` | Fail if a modal's chrome does not match the content cap it budgets against |
 | `check_source_rules.py` | One table of C++ shape rules the compiler accepts and no unit test reaches |
+| `check_duplicate_test_names.py` | Fail on two Catch2 TEST_CASEs sharing a name under `tests/`; an `#if`/`#else` pair is one test. Run as `lint_test_case_names_unique` (`qc_test_lint`) |
 | `check_section_returns.py` | Fail on a `return` inside a Catch2 SECTION with a later sibling, which then never runs. Run as `lint_section_returns` (`qc_test_lint`) |
 | `check_cached_widget_pointers.py` | Ratchet on raw `lv_obj_t*` data members |
 | `check_ams_xml_mirror.py` | Fail if AmsState's re-entry mirror and `init_subjects()` publish different XML names |
@@ -225,7 +227,7 @@ each screen maps to a navigation recipe in `screenshot-recipes.sh`, the single s
 | `lib/mem_available.sh` | MemAvailable bounded by the cgroup cap, for sizing `-j` |
 | `lib/ccache_shared.sh` | Runs this tree's `ccache-shared-config.sh` in the test container |
 | `full-test-run.sh` | `make full-test-run`: unit sweep plus bats, local or on the test host |
-| `land-gate.sh` | `make land-gate`: the pre-landing gate, CI's shard layout on one clean HEAD |
+| `land-gate.sh` | `make land-gate`: the pre-landing gate, the steps and tests a change reaches (`HELIX_GATE_FULL=1`: all) |
 | `../.githooks/lib/land-gate-stamp.sh` | Writes and reads the land-gate pass stamp |
 | `lib/sweep_location.sh` | Local or test host for a gate's C++ sweep |
 | `git-stats.sh` | Comprehensive repo statistics with effort estimation |

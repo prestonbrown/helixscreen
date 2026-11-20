@@ -313,15 +313,68 @@ TEST_CASE("one side may take more of the image than both sides",
     CHECK(l.image.w == 186 - 65);
 }
 
-TEST_CASE("a column needing more than the shrink limit stays pinned",
+TEST_CASE("a column needing more than the shrink limit staggers at full size",
           "[printer_image][callout_layout]") {
     auto in = wide();
     // One pixel more than the image may give up.
     in.area_w = 186 + (70 + in.gap + in.min_line) -
                 (186 * helix::callout_detail::kMaxImageShrinkPctOneSide / 100 + 1);
     const auto l = compute_callout_layout(in);
-    CHECK(l.mode == CalloutMode::Pinned);
+    CHECK(l.mode == CalloutMode::Staggered);
     CHECK(l.image.w == 186);
+}
+
+TEST_CASE("staggered chips stand compact at the area edges beside the full-size picture",
+          "[printer_image][callout_layout]") {
+    auto in = wide();
+    // Past the shrink limit for one 70px column: no line mode fits, nothing shrinks.
+    in.area_w = 186 + (70 + in.gap + in.min_line) -
+                (186 * helix::callout_detail::kMaxImageShrinkPctOneSide / 100 + 1);
+    // The chamber's chip reaches past its point (x 60: the 186px picture at x 3).
+    for (auto* v : {&in.budget, &in.active})
+        for (auto& c : *v)
+            c.w_compact = c.kind == CalloutKind::Chamber ? 80 : 40;
+    const auto l = compute_callout_layout(in);
+    REQUIRE(l.mode == CalloutMode::Staggered);
+    CHECK(l.image.w == fit_image(in.area_w, in.area_h, in.image_w, in.image_h).w);
+    REQUIRE(l.chips.size() == in.active.size());
+    for (const auto& c : l.chips) {
+        CHECK(c.rect.w == (c.kind == CalloutKind::Chamber ? 80 : 40));
+        CHECK((c.rect.x == in.gap || c.rect.x + c.rect.w == in.area_w - in.gap));
+        // A leader runs only from a point the chip's inner edge clears.
+        if (c.has_line)
+            CHECK((c.line_x0 >= c.rect.x + c.rect.w + in.min_line ||
+                   c.line_x0 <= c.rect.x - in.min_line));
+    }
+    // Over its own point, the chamber chip needs no leader.
+    const auto* chamber = find(l, CalloutKind::Chamber);
+    REQUIRE(chamber);
+    CHECK(chamber->rect.x == in.gap);
+    CHECK_FALSE(chamber->has_line);
+    const auto* bed = find(l, CalloutKind::Bed);
+    REQUIRE(bed);
+    CHECK(bed->has_line);
+
+    // A left chip and a right chip level with each other: 80px leave a gap, 100px
+    // meet over the picture and it pins.
+    {
+        auto pair = in;
+        pair.budget = {{CalloutKind::Bed, 70, NormPoint{0.3f, 0.5f}},
+                       {CalloutKind::Nozzle, 70, NormPoint{0.7f, 0.5f}}};
+        for (auto& c : pair.budget)
+            c.w_compact = 80;
+        pair.active = pair.budget;
+        CHECK(compute_callout_layout(pair).mode == CalloutMode::Staggered);
+        for (auto* v : {&pair.budget, &pair.active})
+            for (auto& c : *v)
+                c.w_compact = 100;
+        CHECK(compute_callout_layout(pair).mode == CalloutMode::Pinned);
+    }
+
+    // A chip wider than the area has no edge to stand against: it pins.
+    for (auto* v : {&in.budget, &in.active})
+        v->front().w_compact = in.area_w;
+    CHECK(compute_callout_layout(in).mode == CalloutMode::Pinned);
 }
 
 TEST_CASE("a small image shrink unlocks both sides when one side cannot stack",
@@ -1103,7 +1156,8 @@ TEST_CASE("a lined tile keeps its labels and drops an idle chip instead",
     REQUIRE(fan != nullptr);
     CHECK(fan->rect.w == 110);
 
-    // A tile too small for lines pins, and pinned chips carry no labels.
+    // A tile too small for lines, where chips at its two edges would meet over
+    // the picture, pins, and pinned chips carry no labels.
     in.area_w = 150;
     const auto pinned = compute_callout_layout(in);
     CHECK(pinned.mode == CalloutMode::Pinned);
@@ -1148,11 +1202,12 @@ TEST_CASE("a tall chip stacks in its column at its own height and clear of the o
 
 TEST_CASE("the column's stack-fit counts a tall chip's real height",
           "[printer_image][callout_layout]") {
-    // One text line tall the chip fits the column; 50px tall the five need 138 of 132.
+    // One text line tall the chip fits the column; 50px tall the five need 138 of 132,
+    // so they split over both edges instead.
     CHECK(compute_callout_layout(one_side_with_tall_chip(0)).mode == CalloutMode::OneSide);
     const auto in = one_side_with_tall_chip(50);
     const auto l = compute_callout_layout(in);
-    CHECK(l.mode == CalloutMode::Pinned);
+    CHECK(l.mode == CalloutMode::Staggered);
     check_apart_and_inside(l, in);
 }
 
