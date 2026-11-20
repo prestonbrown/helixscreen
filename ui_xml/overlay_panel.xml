@@ -97,6 +97,11 @@
          for any redraw band touching it, so the whole screen beneath the panel
          is drawn again in that band, every frame of a scroll. -->
     <style name="corners_square" radius="0"/>
+    <!-- overlay_content's layout for a view that never names the slot tag (the
+         plugin overlays): a bare column like the panel itself, so a child with
+         flex_grow fills it. A style rather than local attributes, so the tag's
+         attributes and any bound style on it still win. -->
+    <style name="content_column" layout="flex" flex_flow="column" pad_all="0" border_width="0" bg_opa="0"/>
   </styles>
   <view extends="lv_obj"
         width="#overlay_width_transient" height="100%" align="right_mid" style_pad_all="0" style_border_width="0"
@@ -124,7 +129,9 @@
                 action_icon_callback="$action_icon_callback" hide_action_icon="$hide_action_icon"
                 action_icon_hidden_cond="$action_icon_hidden_cond" title_badge_icon="$title_badge_icon"
                 title_badge_subject="$title_badge_subject" back_button_callback="$back_button_callback"/>
-    <lv_obj name="overlay_content" width="100%" flex_grow="1"/>
+    <lv_obj name="overlay_content" width="100%" flex_grow="1">
+      <style name="content_column"/>
+    </lv_obj>
     <lv_obj name="overlay_footer" width="100%" height="content" scrollable="false" flex_flow="column"/>
   </view>
 </component>
