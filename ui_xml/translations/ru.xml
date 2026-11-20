@@ -3615,6 +3615,12 @@
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." ru="Сохраняет снимок камеры после 2-го слоя и в конце каждой печати; он показывается в истории печати."/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." ru="Сохраняет позицию печати примерно раз в секунду, чтобы печать можно было продолжить после отключения питания. На SD-карте это увеличивает износ."/>
   <translation tag="Saves to Klipper config and restarts firmware." ru="Сохраняет в конфигурацию Klipper и перезапускает прошивку."/>
+  <translation tag="Saves when the filament operation finishes."/>
+  <translation tag="Saves when the filament operation on {} finishes."/>
+  <translation tag="Saves when the load finishes."/>
+  <translation tag="Saves when the load on {} finishes."/>
+  <translation tag="Saves when the unload finishes."/>
+  <translation tag="Saves when the unload on {} finishes."/>
   <translation tag="Saving Configuration..." ru="Сохранение конфигурации..."/>
   <translation tag="Saving Z-offset..." ru="Сохранение Z-offset..."/>
   <translation tag="Saving and finishing..." ru="Сохранение и завершение..."/>

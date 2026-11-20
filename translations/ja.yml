@@ -3645,6 +3645,12 @@ translations:
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: 'レイヤー2の後と各印刷の終了時にカメラの写真を保存し、印刷履歴に表示します。'
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: 停電後に印刷を再開できるよう、約1秒ごとに印刷位置を保存します。SDカードでは摩耗が多くなります。
   Saves to Klipper config and restarts firmware.: Klipper 設定に保存してファームウェアを再起動します。
+  Saves when the filament operation finishes.: ''
+  Saves when the filament operation on {} finishes.: ''
+  Saves when the load finishes.: ''
+  Saves when the load on {} finishes.: ''
+  Saves when the unload finishes.: ''
+  Saves when the unload on {} finishes.: ''
   Saving Configuration...: 設定を保存中...
   Saving Z-offset...: Zオフセットを保存中...
   Saving and finishing...: 保存して終了中...

@@ -3657,6 +3657,12 @@ translations:
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: 'Enregistre une photo de la caméra après la couche 2 et à la fin de chaque impression, visible dans l''historique d''impression.'
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Enregistre la position d'impression environ une fois par seconde pour qu'une impression puisse reprendre après une coupure de courant. Sur une carte SD, cela ajoute de l'usure.
   Saves to Klipper config and restarts firmware.: Enregistre dans la config Klipper et redémarre le firmware.
+  Saves when the filament operation finishes.: ''
+  Saves when the filament operation on {} finishes.: ''
+  Saves when the load finishes.: ''
+  Saves when the load on {} finishes.: ''
+  Saves when the unload finishes.: ''
+  Saves when the unload on {} finishes.: ''
   Saving Configuration...: Enregistrement de la configuration...
   Saving Z-offset...: Enregistrement du Z-offset...
   Saving and finishing...: Enregistrement et finalisation...
