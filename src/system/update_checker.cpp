@@ -52,6 +52,7 @@
 #include "system/tls_trust.h"
 #include "system_power.h"
 #include "system_settings_manager.h"
+#include "update_manager_status.h"
 #include "utils/network_validation.h"
 
 #include <cctype>
@@ -3688,20 +3689,11 @@ constexpr const char* kExternalUpdateHandler = "external_update_restart";
 //   "proc_id":N, "message":"...", "complete":true/false}]
 // Method callbacks always receive the full JSON-RPC message.
 void handle_update_response(const json& msg) {
-    const json* payload = helix::json_util::notification_payload(msg);
-    if (!payload)
+    const auto response = helix::fwupdate::parse_update_response(msg);
+    if (!response || response->application != helix::fwupdate::kHelixScreenEntry)
         return;
-    const auto& p = *payload;
-    const json* application = helix::json_util::find_member(p, "application");
-    const json* complete_field = helix::json_util::find_member(p, "complete");
-    if (!application || !complete_field)
-        return;
-    std::string app = application->get<std::string>();
-    bool complete = complete_field->get<bool>();
-    if (app != "helixscreen")
-        return;
-    if (!complete) {
-        spdlog::debug("[UpdateChecker] Moonraker updating helixscreen: {}", p.value("message", ""));
+    if (!response->complete) {
+        spdlog::debug("[UpdateChecker] Moonraker updating helixscreen: {}", response->message);
         return;
     }
     // Defer to main thread — _exit(0) from a WebSocket callback
