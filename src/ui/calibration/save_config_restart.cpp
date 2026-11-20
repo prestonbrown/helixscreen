@@ -9,6 +9,7 @@
 #include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "moonraker_types.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -49,6 +50,11 @@ void SaveConfigWatch::begin(IMoonrakerAPI* api, const char* initiation_message,
 
     latch_.reset(); // Never inherit a previous save's latch
     in_flight_ = true;
+
+    if (!api->hardware().save_config_restarts_klipper()) {
+        begin_without_restart(api);
+        return;
+    }
 
     // Watch klippy for the whole save. This, not the rpc, is what tells us the
     // save worked: SAVE_CONFIG's reply is dropped by the restart it causes.
@@ -107,6 +113,21 @@ void SaveConfigWatch::begin(IMoonrakerAPI* api, const char* initiation_message,
             // already down before we sent it. That is a real failure.
             spdlog::error("[SaveConfigWatch] SAVE_CONFIG failed with no restart in progress: {}",
                           err.message);
+            settle_failed(err.message);
+        }));
+}
+
+void SaveConfigWatch::begin_without_restart(IMoonrakerAPI* api) {
+    // Klipper stays up, so the rpc itself is the outcome: no restart to
+    // suppress the recovery dialog for, and no READY transition to wait on.
+    api->advanced().save_config(
+        lifetime_.bg_cb("SaveConfigWatch::rpc_ok_no_restart",
+                        [this]() {
+                            spdlog::info("[SaveConfigWatch] Config saved without a restart");
+                            settle_saved();
+                        }),
+        lifetime_.bg_cb("SaveConfigWatch::rpc_error_no_restart", [this](const MoonrakerError& err) {
+            spdlog::error("[SaveConfigWatch] SAVE_CONFIG failed: {}", err.message);
             settle_failed(err.message);
         }));
 }

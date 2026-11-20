@@ -16,6 +16,9 @@ namespace {
 struct Row {
     Procedure procedure;
     bool (*detect)(const PrinterDiscovery& hw);
+    /// The routine ends in the save this app sends (PrinterDiscovery::save_config_gcode()), so
+    /// whether it restarts Klipper is that policy's answer, not the row's.
+    bool ends_in_our_save = false;
 };
 
 // --- Firmware wrapper: CALIBRATE_VFA ----------------------------------------
@@ -55,7 +58,7 @@ std::string tester_build(const PrinterDiscovery& hw, int /*tool*/) {
                                                     "STEPPER=stepper_x\n"
                                                     "STEPPER_RESONANCE_SEARCH_CALIBRATE "
                                                     "STEPPER=stepper_y");
-    return calibrate + "\nSAVE_CONFIG";
+    return calibrate + "\n" + hw.save_config_gcode();
 }
 
 // --- Firmware wrapper: VFA_COMPENSATION ---------------------------------------
@@ -84,7 +87,8 @@ const Row kRows[] = {
      compensation_detect},
     {{"stepper_resonance_tester", /*per_tool=*/false, /*needs_home=*/true,
       /*restarts_klipper=*/true, tester_build},
-     tester_detect},
+     tester_detect,
+     /*ends_in_our_save=*/true},
 };
 
 } // namespace
@@ -92,7 +96,11 @@ const Row kRows[] = {
 Procedure resolve(const PrinterDiscovery& hw) {
     for (const auto& row : kRows) {
         if (row.detect(hw)) {
-            return row.procedure;
+            Procedure p = row.procedure;
+            if (row.ends_in_our_save) {
+                p.restarts_klipper = hw.save_config_restarts_klipper();
+            }
+            return p;
         }
     }
     return {};

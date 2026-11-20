@@ -29,6 +29,7 @@
 #include "../test_helpers/input_shaper_panel_test_access.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
+#include "../test_helpers/scoped_env.h"
 #include "../ui_test_utils.h"
 #include "app_globals.h"
 #include "core/http_executor.h"
@@ -172,7 +173,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "z-offset apply-and-save initiates the 
 
 TEST_CASE_METHOD(ExpectedRestartFixture,
                  "z-offset apply-and-save survives the rpc its own restart drops",
-                 "[expectedrestart][zoffset][1359]") {
+                 "[expectedrestart][zoffset][1359][save_config_policy]") {
     // The mock fails SAVE_CONFIG's rpc by design: Klipper drops the reply when
     // it restarts. Reporting that as a failure is #1359. Treating it as success
     // before Klipper is back is the opposite bug - nothing is known yet - and
@@ -209,7 +210,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "bed-mesh SAVE_CONFIG initiates the restart contract",
-                 "[expectedrestart][bedmesh][1359]") {
+                 "[expectedrestart][bedmesh][1359][save_config_policy]") {
     BedMeshPanel panel;
     panel.set_api(&api);
     panel.init_subjects();
@@ -301,7 +302,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the
 }
 
 TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart contract",
-                 "[expectedrestart][1359]") {
+                 "[expectedrestart][1359][save_config_policy]") {
     PIDCalibrationPanel panel;
     panel.init_subjects();
     panel.set_api(&api);
@@ -319,4 +320,75 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "PID SAVE_CONFIG initiates the restart 
     CHECK(toasts[0].severity == ToastSeverity::INFO);
     CHECK(toasts[0].message == "Saving config... Klipper will restart.");
     CHECK(notifications.empty());
+}
+
+// On Kalico the save keeps Klipper up: SAVE_CONFIG RESTART=0 answers its rpc,
+// so the save settles on that reply, and nothing announces a restart that
+// never comes (no toast, no suppression window).
+
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "Kalico: bed-mesh save sends RESTART=0 and arms no restart contract",
+                 "[expectedrestart][bedmesh][save_config_policy]") {
+    helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
+    api.hardware().set_is_kalico(true);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    helix::ui::BedMeshPanelTestAccess::save_config(panel);
+    settle();
+
+    const auto& hist = client.gcode_script_history();
+    REQUIRE(hist.size() == 1);
+    CHECK(hist[0] == "SAVE_CONFIG RESTART=0");
+    CHECK_FALSE(EmergencyStopOverlay::instance().is_recovery_suppressed());
+    CHECK(api.suppress_disconnect_modal_calls() == 0);
+    CHECK(toasts.empty());
+    CHECK(no_failure_reported());
+}
+
+TEST_CASE_METHOD(ExpectedRestartFixture,
+                 "Kalico: z-offset apply-and-save settles on the save's own reply",
+                 "[expectedrestart][zoffset][save_config_policy]") {
+    helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
+    api.hardware().set_is_kalico(true);
+    get_printer_state().init_subjects(false);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    helix::zoffset::apply_and_save(
+        &api, save_watch, helix::ZOffsetCalibrationStrategy::PROBE_CALIBRATE, [&] { saved = true; },
+        [&](const std::string& m) { error = m; });
+    settle();
+
+    const auto& hist = client.gcode_script_history();
+    REQUIRE(hist.size() == 2);
+    CHECK(hist[1] == "SAVE_CONFIG RESTART=0");
+    // Klipper never left READY: the reply alone said the save worked.
+    CHECK(saved);
+    CHECK(error.empty());
+    CHECK_FALSE(save_watch.in_flight());
+}
+
+TEST_CASE_METHOD(ExpectedRestartFixture, "Kalico: a rejected save is reported as a failure",
+                 "[expectedrestart][save_config_policy]") {
+    // The firmware is Kalico but the mock answers as mainline (no
+    // HELIX_MOCK_KALICO), so the rpc fails. With no restart coming, that error
+    // is the save's real outcome and must not be waited out.
+    api.hardware().set_is_kalico(true);
+    get_printer_state().init_subjects(false);
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    save_watch.begin(
+        &api, "unused", [&] { saved = true; }, [&](const std::string& m) { error = m; });
+    settle();
+
+    CHECK_FALSE(saved);
+    CHECK_FALSE(error.empty());
+    CHECK_FALSE(save_watch.in_flight());
+    CHECK(api.suppress_disconnect_modal_calls() == 0);
 }

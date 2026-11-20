@@ -2002,6 +2002,12 @@ Make the mock report Kalico-style MPC heater control instead of Klipper's PID. T
 HELIX_MOCK_KALICO=1 ./build/bin/helix-screen --test -vv
 ```
 
+It also makes `SAVE_CONFIG RESTART=0` behave as on Kalico: the config is written, the
+command succeeds and Klipper is not restarted (`src/mock/moonraker_client_mock_gcode_calibration.cpp`).
+A plain `SAVE_CONFIG` still restarts. The app sends `RESTART=0` only to a printer that reports
+itself as Kalico (`include/printer_discovery.h#save_config_gcode`), so a bed mesh or Z-offset save then settles on
+the command's reply instead of waiting for a reconnect.
+
 With `HELIX_MOCK_PRINTER=k2` it also swaps the K2 Plus objects for the Kalico port's:
 `belt_mdl x` / `belt_mdl y`, the `BELT_TENSION` macro and `motor_control`, and no
 `CALIBRATE_CUT_POS` macro (the port registers it as a Python command). Advanced >

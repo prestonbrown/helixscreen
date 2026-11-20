@@ -1076,6 +1076,7 @@ void PrinterDiscovery::apply_printer_info(const nlohmann::json& result) {
     software_version_ = json_util::safe_string(result, "software_version", "unknown");
     if (json_util::safe_string(result, "app") == "Kalico") {
         is_kalico_ = true;
+        save_config_keeps_klipper_up_ = true;
     }
 }
 
@@ -1183,6 +1184,7 @@ void PrinterDiscovery::clear() {
     has_speaker_ = false;
     has_fan_feedback_ = false;
     is_kalico_ = false;
+    save_config_keeps_klipper_up_ = false;
     mmu_type_ = AmsType::NONE;
     qidi_box_slot_count_ = 0;
     detected_ams_systems_.clear();

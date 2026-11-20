@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "env_knobs.h"
 #include "moonraker_client_mock.h"
 
 #include <spdlog/spdlog.h>
@@ -134,6 +135,15 @@ MoonrakerClientMock::gcode_mpc_calibrate(const std::string& gcode) {
 // message, and klippy actually restarts. No "ok" is dispatched, because real
 // Klipper never sends one for this command.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_save_config(const std::string& gcode) {
+    // Kalico's cmd_SAVE_CONFIG takes RESTART=0: it writes the file, answers the
+    // command, and leaves Klipper up. Mainline has no such parameter.
+    if (helix::env_flag("HELIX_MOCK_KALICO") && gcode.find("RESTART=0") != std::string::npos) {
+        spdlog::info("[MoonrakerClientMock] SAVE_CONFIG RESTART=0 - config written, no restart "
+                     "(as on Kalico)");
+        commit_pending_config();
+        dispatch_gcode_response("// Config update without restart successful");
+        return 0;
+    }
     spdlog::info("[MoonrakerClientMock] SAVE_CONFIG - config written; restarting, and its "
                  "RPC is dropped (as on real Klipper)");
     // Write the file BEFORE restarting, in that order, because the restart

@@ -64,6 +64,25 @@ TEST_CASE("stepper resonance cal: the bare extra runs the stock macro, then save
     CHECK(cal::calibrate_gcode(hw, -1) == cal::calibrate_gcode(hw, 2));
 }
 
+TEST_CASE("stepper resonance cal: on Kalico the bare extra saves without a restart",
+          "[stepper_resonance_cal][save_config_policy]") {
+    PrinterDiscovery hw = printer_with({kTester, kFactoryMacro});
+    hw.set_is_kalico(true);
+    const cal::Procedure p = cal::resolve(hw);
+    REQUIRE(p.present());
+    CHECK_FALSE(p.restarts_klipper);
+    CHECK(cal::calibrate_gcode(hw, 0) ==
+          "STEPPER_RESONANCE_FACTORY_CALIBRATE\nSAVE_CONFIG RESTART=0");
+}
+
+TEST_CASE("stepper resonance cal: on Kalico a firmware wrapper still restarts",
+          "[stepper_resonance_cal][save_config_policy]") {
+    // CALIBRATE_VFA's SAVE_CONFIG is in the firmware's own config, not ours.
+    PrinterDiscovery hw = printer_with({kWrapperMacro});
+    hw.set_is_kalico(true);
+    CHECK(cal::resolve(hw).restarts_klipper);
+}
+
 TEST_CASE("stepper resonance cal: without the stock macro, each XY motor is searched",
           "[stepper_resonance_cal]") {
     const PrinterDiscovery hw = printer_with({kTester});

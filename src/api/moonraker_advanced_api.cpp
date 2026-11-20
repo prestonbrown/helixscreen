@@ -2900,8 +2900,9 @@ void MoonrakerAdvancedAPI::set_machine_limits(const MachineLimits& limits,
 }
 
 void MoonrakerAdvancedAPI::save_config(SuccessCallback on_success, ErrorCallback on_error) {
-    spdlog::info("[MoonrakerAPI] Sending SAVE_CONFIG");
-    api_.execute_gcode("SAVE_CONFIG", std::move(on_success), std::move(on_error));
+    const char* gcode = api_.hardware().save_config_gcode();
+    spdlog::info("[MoonrakerAPI] Sending {}", gcode);
+    api_.execute_gcode(gcode, std::move(on_success), std::move(on_error));
 }
 
 void MoonrakerAdvancedAPI::execute_macro(const std::string& name,

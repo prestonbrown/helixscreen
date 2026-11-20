@@ -6,6 +6,7 @@
 #include "../../include/printer_state.h"
 #include "../../include/z_offset_utils.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/scoped_env.h"
 #include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "save_config_restart.h"
@@ -400,4 +401,43 @@ TEST_CASE_METHOD(ReforgeSaveFixture, "Reforge: Save stages a live Z tune, then S
     REQUIRE(wait_until([&] { return saved; }, 3000));
     CHECK(error.empty());
     CHECK(ts.dirty_tool_indices().empty());
+}
+
+TEST_CASE_METHOD(ReforgeSaveFixture,
+                 "a staged tool save puts the live offset back only after a restart",
+                 "[z_offset][mock][tool_offsets][save_config_policy]") {
+    auto& ts = ToolState::instance();
+    ts.update_from_status(
+        {{"tool T1", {{"gcode_x_offset", 0.1}, {"gcode_y_offset", 0.2}, {"gcode_z_offset", 3.2}}}});
+    ts.update_from_status({{"tool T1", {{"gcode_x_offset", 0.12}}}});
+    lv_subject_set_int(state.motion_state().get_gcode_z_offset_subject(), 120);
+    mock_client.clear_gcode_script_history();
+
+    bool saved = false;
+    std::string error;
+    helix::ui::SaveConfigWatch save_watch;
+    auto save = [&] {
+        helix::zoffset::save_dirty_offsets(
+            api.get(), save_watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE,
+            state.get_discovery(), /*global_dirty=*/false, [&]() { saved = true; },
+            [&](const std::string& msg) { error = msg; }, &state);
+    };
+
+    SECTION("mainline: the restart reset it, so it is restored once Klipper is back") {
+        save();
+        REQUIRE(wait_until([&] { return last_sent() == "SAVE_CONFIG"; }, 3000));
+        get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+        REQUIRE(wait_until([&] { return saved; }, 3000));
+        CHECK(last_sent() == "SET_GCODE_OFFSET Z=0.120");
+    }
+    SECTION("Kalico: no restart, so nothing is reset and nothing is resent") {
+        helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
+        api->hardware().set_is_kalico(true);
+        save();
+        REQUIRE(wait_until([&] { return saved; }, 3000));
+        CHECK(mock_client.gcode_script_history() ==
+              std::vector<std::string>{"SAVE_CONFIG RESTART=0"});
+    }
+    CHECK(error.empty());
 }

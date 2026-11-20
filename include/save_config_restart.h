@@ -126,6 +126,10 @@ bool should_extend_save_timeout(bool restart_latched, unsigned extensions_used,
 /// suppression window is 15s, so anything window-based re-reports the error on
 /// slow boards.
 ///
+/// On a firmware whose save does not restart Klipper
+/// (PrinterDiscovery::save_config_restarts_klipper()), none of the restart half applies: no
+/// suppressions are armed, and the rpc's own success or error is the outcome.
+///
 /// Hold one of these as a member of the panel that saves. Main-thread only.
 class SaveConfigWatch {
   public:
@@ -172,6 +176,9 @@ class SaveConfigWatch {
     }
 
   private:
+    /// The save on a firmware whose SAVE_CONFIG does not restart Klipper
+    /// (PrinterDiscovery::save_config_restarts_klipper()): the rpc's own reply settles it.
+    void begin_without_restart(IMoonrakerAPI* api);
     void settle_saved();
     void settle_failed(const std::string& message);
 

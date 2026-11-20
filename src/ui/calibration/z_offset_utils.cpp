@@ -14,6 +14,7 @@
 #include "gcode_help.h"
 #include "i_moonraker_api.h"
 #include "material_z_offset_state.h"
+#include "printer_discovery.h"
 #include "save_config_restart.h"
 #include "settings_manager.h"
 #include "state/subject_macros.h"
@@ -871,8 +872,12 @@ namespace {
 void commit_staged_tool_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                                 PrinterState* ps, helix::SharedCallback<void()> on_saved,
                                 helix::SharedCallback<void(const std::string& error)> on_error) {
+    // Only a restart resets the live offset; a save that keeps Klipper up has
+    // nothing to put back.
     const int live_microns =
-        ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
+        ps && api && api->hardware().save_config_restarts_klipper()
+            ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject())
+            : 0;
     auto on_restarted = [api, live_microns, saved = std::move(on_saved)]() {
         if (live_microns != 0) {
             const std::string restore = fmt::format("SET_GCODE_OFFSET Z={:.3f}",
