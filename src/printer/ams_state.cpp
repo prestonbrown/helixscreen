@@ -833,17 +833,17 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     } else {
         sys_name = ams_type_to_string(info.type);
     }
-    // The header names the unit when the system is one named unit, as the multi-unit
-    // overview's unit view does; otherwise the system. A product name is not a catalog
-    // key and passes through lv_tr() unchanged; a generic one ("Tool Changer") is
-    // translated.
-    std::string header_name = sys_name;
-    if (!sys_name.empty() && info.units.size() == 1 &&
-        (!info.units[0].display_name.empty() || !info.units[0].name.empty())) {
-        header_name = helix::ui::unit_display_name(info.units[0], 0);
-    }
+    // The header names the unit when the system is one unit with a display name (one
+    // the user or the firmware gave it), as the multi-unit overview's unit view does;
+    // otherwise the system. The system's name passes through lv_tr(): a product name
+    // is not a catalog key and comes back unchanged, a generic one ("Tool Changer") is
+    // translated. A unit's name is shown as given.
+    const std::string header_name =
+        !sys_name.empty() && info.units.size() == 1 && !info.units[0].display_name.empty()
+            ? helix::ui::unit_display_name(info.units[0], 0)
+            : std::string(lv_tr(sys_name.c_str()));
     const std::string shown_name(
-        helix::text_io::utf8_prefix(lv_tr(header_name.c_str()), sizeof(system_name_buf_) - 1));
+        helix::text_io::utf8_prefix(header_name, sizeof(system_name_buf_) - 1));
     if (strcmp(lv_subject_get_string(&ams_system_name_), shown_name.c_str()) != 0) {
         lv_subject_set_string(&ams_system_name_, shown_name.c_str());
     }

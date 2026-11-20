@@ -329,3 +329,19 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_system_has_logo follows whether the syste
     ams.clear_backends();
     ams.deinit_subjects();
 }
+
+TEST_CASE_METHOD(LVGLTestFixture, "AMS header: a unit with no display name leaves the system name",
+                 "[ams][ams_state]") {
+    // The mock's lone unit has only its internal name, "Mock MMU".
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    auto* mock_ptr = mock.get();
+    ams.set_backend(std::move(mock));
+    REQUIRE(mock_ptr->get_system_info().units.size() == 1);
+    ams.sync_from_backend();
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) ==
+          mock_ptr->get_system_info().type_name);
+    ams.clear_backends();
+    ams.deinit_subjects();
+}

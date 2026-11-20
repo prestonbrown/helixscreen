@@ -207,7 +207,7 @@ int dryer_remaining_minutes(int remain_time_s) {
 int dryer_duration_minutes(int duration) {
     // The longest cycle an ACE Pro accepts, in minutes.
     constexpr int kAceProMaxDurationMin = 480;
-    return duration > kAceProMaxDurationMin ? (duration + 30) / 60 : duration;
+    return duration > kAceProMaxDurationMin ? dryer_remaining_minutes(duration) : duration;
 }
 
 void apply_dryer_state(const json& data, DryerInfo& out) {

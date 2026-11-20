@@ -398,8 +398,11 @@ std::vector<helix::printer::EnvironmentZone> AmsBackend::get_environment_zones(i
             // collide on id == "" and let update_from_backend()'s id-match bind the
             // wrong zone's values.
             z.id = au.name.empty() ? "unit-" + std::to_string(unit_idx) : au.name;
-            // The unit's name as every other screen shows it.
-            z.label = helix::ui::unit_display_name(au, unit_idx);
+            // The unit's name as every other screen shows it. A nameless unit keeps the
+            // empty label, which zone_display_label() turns into a translated one.
+            z.label = au.display_name.empty() && au.name.empty()
+                          ? std::string{}
+                          : helix::ui::unit_display_name(au, unit_idx);
             z.unit_index = unit_idx;
             z.gates.reserve(static_cast<size_t>(au.slot_count));
             for (int g = 0; g < au.slot_count; ++g) {

@@ -1699,8 +1699,11 @@ TEST_CASE("Happy Hare splits gates across units from per-unit counts or evenly",
             first += row.counts[u];
         }
         CHECK(info.total_slots == first);
-        if (row.counts.size() == 1)
+        if (row.counts.size() == 1) {
             CHECK(info.units[0].name == "MMU");
+            // "MMU" is a fallback, not a name to show in place of the system's.
+            CHECK(info.units[0].display_name.empty());
+        }
     }
 }
 
@@ -5082,6 +5085,8 @@ TEST_CASE_METHOD(HhHelperWithClient, "Happy Hare single v4 unit is named by its 
     const auto info = helper.get_system_info();
     REQUIRE(info.units.size() == 1);
     CHECK(info.units[0].name == "QIDI-0");
+    // The configured name is one to show; the AMS header names the unit by it.
+    CHECK(info.units[0].display_name == "QIDI-0");
     CHECK(info.units[0].topology == PathTopology::HUB);
 }
 

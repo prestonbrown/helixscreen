@@ -251,7 +251,8 @@ nlohmann::json MoonrakerClientMock::afc_boxturtle_status_json() const {
         unit_object["ace_dryer"] = dryer.status;
         unit_object["ace_dryer_target"] = dryer.target_c;
         unit_object["ace_dryer_duration"] = dryer.duration_min;
-        unit_object["ace_dryer_remain"] = dryer.remain_min;
+        // The firmware states the time left in seconds.
+        unit_object["ace_dryer_remain"] = dryer.remain_min * 60;
         unit_object["ace_temp"] = dryer.status == "stop" ? 27.5 : 47.0;
         unit_object["ace_humidity"] = 21.0;
         // Every spool in the mock carries an RFID tag the ACE has read.
