@@ -5,9 +5,11 @@
 
 #include "ui_ams_lane_bar.h"
 #include "ui_ams_lane_spool.h"
+#include "ui_bypass_spool_widget.h"
 #include "ui_fonts.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_spool_canvas.h"
 #include "ui_text.h"
 #include "ui_utils.h"
 
@@ -23,6 +25,7 @@
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "panel_widget_size.h"
+#include "settings_manager.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 #include "widget_data_registry.h"
@@ -33,6 +36,7 @@
 #include <array>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -142,6 +146,30 @@ struct UnitRowInfo {
 };
 
 /**
+ * @brief What the strip draws for the bypass: whether it is on the strip at all
+ * (bypass_node_visible_for, the AMS panel's rule), the external spool on it,
+ * and whether it is the node feeding the toolhead.
+ */
+struct BypassView {
+    bool shown = false;
+    std::optional<helix::SlotInfo> spool; // the external spool; none = hollow
+    bool active = false;
+
+    bool operator==(const BypassView& o) const {
+        if (shown != o.shown || active != o.active || spool.has_value() != o.spool.has_value())
+            return false;
+        if (!spool)
+            return true;
+        return spool->color_rgb == o.spool->color_rgb &&
+               spool->multi_color_hexes == o.spool->multi_color_hexes &&
+               spool->material == o.spool->material;
+    }
+    bool operator!=(const BypassView& o) const {
+        return !(*this == o);
+    }
+};
+
+/**
  * @brief User data stored on each ams_mini_status widget
  */
 struct AmsMiniStatusData {
@@ -195,11 +223,25 @@ struct AmsMiniStatusData {
     // nor counted in the "+N" overflow.
     std::vector<int> absent_slots;
 
+    // The bypass, drawn past a divider after every unit's lanes. In bar mode it
+    // stands in its own column beside bars_container, so on a stacked
+    // multi-unit strip it spans every row rather than joining one unit's.
+    BypassView bypass;
+    lv_obj_t* bypass_column = nullptr;  // bar mode: divider + bar
+    lv_obj_t* bypass_bar = nullptr;     // bar mode: unbound ams_lane_bar
+    lv_obj_t* bypass_divider = nullptr; // spool mode: divider before the cell
+    lv_obj_t* bypass_cell = nullptr;    // spool mode: spool + material
+
     // Auto-binding observer (observe AmsState slots_version subject)
     // Uses ObserverGuard for RAII lifecycle management
     // Note: slots_version is always bumped after slot_count changes, so one observer suffices
     ObserverGuard slots_version_observer;
     ObserverGuard current_slot_observer;
+    // The bypass's inputs: none of them bumps slots_version.
+    ObserverGuard supports_bypass_observer;
+    ObserverGuard bypass_active_observer;
+    ObserverGuard external_spool_observer;
+    ObserverGuard always_show_bypass_observer;
 
     // Re-entrancy guard: slots_version and current_slot observers can both fire
     // in one UpdateQueue batch. Without this, the second rebuild_bars would try
@@ -269,8 +311,10 @@ static int effective_max_visible(const AmsMiniStatusData* data) {
     // same as width_px >= 100.
     if (data->width_px <= 0)
         return data->max_visible;
-    if (data->width_px < 100)
-        return std::min(data->max_visible, 6); // Tight: show max 6 bars
+    if (data->width_px < 100) {
+        // Tight: show max 6 bars, the bypass's among them
+        return std::min(data->max_visible, data->bypass.shown ? 5 : 6);
+    }
     // width_px >= 100 shows every configured slot: max_visible is already
     // clamped to <= AMS_MINI_STATUS_MAX_VISIBLE (8) by the setter, so a
     // second min(max_visible, 8) here was always a no-op.
@@ -289,6 +333,89 @@ static lv_obj_t* create_lane_bar(lv_obj_t* parent, int slot_index, int32_t bar_w
     if (!bar)
         spdlog::error("[AmsMiniStatus] ams_lane_bar creation failed for slot {}", slot_index);
     return bar;
+}
+
+/** The material a bypass cell names: the external spool's, or "External" with none. */
+static const char* bypass_label_text(const BypassView& bv) {
+    if (bv.spool && !bv.spool->material.empty())
+        return bv.spool->material.c_str();
+    return lv_tr("External");
+}
+
+/** The thin rule that sets the bypass apart from the unit's lanes. */
+static lv_obj_t* create_bypass_divider(lv_obj_t* parent) {
+    lv_obj_t* d = lv_obj_create(parent);
+    lv_obj_set_name(d, "bypass_divider");
+    lv_obj_set_width(d, 1);
+    lv_obj_set_style_pad_all(d, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(d, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(d, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_color(d, theme_manager_get_color("border"), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(d, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_scrollable(d, false);
+    lv_obj_set_clickable(d, false);
+    lv_obj_set_event_bubble(d, true);
+    return d;
+}
+
+/** What the divider and its gap take from the lanes' width, beyond one more bar and gap. */
+static int32_t bypass_width_overhead(const AmsMiniStatusData* data) {
+    return data->bypass.shown ? theme_manager_get_spacing("space_xs") + 1 : 0;
+}
+
+/**
+ * @brief Bar mode's bypass: a divider and one unbound lane bar in a column
+ * beside bars_container, standing as tall as every unit row together.
+ *
+ * @param bar_width The lanes' bar width (the narrowest row's, stacked)
+ * @param bar_height The bar body's height, status line excluded
+ * @param stretch The body also takes the status line's room while that line is
+ *        hidden, as a stacked row's lanes do
+ */
+static void layout_bypass_bar(AmsMiniStatusData* data, int32_t bar_width, int32_t bar_height,
+                              bool stretch, int32_t gap) {
+    if (!data->bypass.shown || data->slot_count <= 0) {
+        if (data->bypass_column)
+            lv_obj_set_hidden(data->bypass_column, true);
+        return;
+    }
+    if (!data->bypass_column) {
+        lv_obj_t* col = ams_draw::create_transparent_container(data->container);
+        lv_obj_set_name(col, "ams_bypass_column");
+        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
+        lv_obj_set_width(col, LV_SIZE_CONTENT);
+        create_bypass_divider(col);
+        data->bypass_bar = helix::ui::ams_lane_bar_create_unbound(col, bar_width, bar_height);
+        if (data->bypass_bar)
+            lv_obj_set_name(data->bypass_bar, "bypass_bar");
+        data->bypass_column = col;
+    }
+    lv_obj_t* col = data->bypass_column;
+    // Content-tall: the widget's row centres it as it centres the lanes, so a bar
+    // as tall as theirs stands level with them.
+    lv_obj_set_height(col, LV_SIZE_CONTENT);
+    lv_obj_set_style_pad_column(col, gap, LV_PART_MAIN);
+    // Past the "+N" overflow, which counts the unit's lanes.
+    if (lv_obj_get_index(col) != static_cast<int32_t>(lv_obj_get_child_count(data->container)) - 1)
+        lv_obj_move_to_index(col, -1);
+
+    const int32_t line_room = ams_draw::kStatusLineHeightPx + ams_draw::kStatusLineGapPx;
+    if (lv_obj_t* div = lv_obj_find_by_name(col, "bypass_divider")) {
+        // Inset a tenth top and bottom of the bar body.
+        const int32_t body = stretch ? bar_height + line_room : bar_height;
+        lv_obj_set_height(div, std::max<int32_t>(1, body * 8 / 10));
+        lv_obj_set_style_margin_bottom(div, (stretch ? 0 : line_room) + body / 10, LV_PART_MAIN);
+    }
+    if (data->bypass_bar) {
+        helix::ui::ams_lane_bar_resize(data->bypass_bar, bar_width, bar_height);
+        if (lv_obj_t* bg = lv_obj_find_by_name(data->bypass_bar, "bar_bg"))
+            lv_obj_set_style_flex_grow(bg, stretch ? 1 : 0, LV_PART_MAIN);
+        const auto& spool = data->bypass.spool;
+        helix::ui::ams_lane_bar_paint_unbound(data->bypass_bar, spool.has_value(),
+                                              spool ? spool->color_rgb : 0, data->bypass.active);
+    }
+    lv_obj_set_hidden(col, false);
 }
 
 /** Rebuild the bars based on slot_count, max_visible, and unit_count */
@@ -367,6 +494,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     }
 
     bool is_multi_unit = (data->unit_count >= 2);
+    int32_t bypass_bar_width = max_bw;
+    int32_t bypass_bar_height = 0;
 
     // Collect condemned row containers here; batch-delete at end via a single
     // temporary parent to avoid cascading lv_obj_delete_async() calls that
@@ -427,6 +556,12 @@ static void rebuild_bars(AmsMiniStatusData* data) {
             per_row_height - ams_draw::kStatusLineHeightPx - ams_draw::kStatusLineGapPx;
         if (bar_height < 6)
             bar_height = 6;
+        // The bypass belongs to no unit: it stands as tall as the rows together,
+        // which grow to fill the container, from the top row's bar to the bottom
+        // row's status line.
+        const int32_t rows_height = container_height >= 20 ? container_height : effective_height;
+        bypass_bar_height = std::max<int32_t>(6, rows_height - ams_draw::kStatusLineHeightPx -
+                                                     ams_draw::kStatusLineGapPx);
 
         // Condemn any row containers beyond current unit_count
         for (int u = data->unit_count; u < 8; ++u) {
@@ -447,8 +582,12 @@ static void rebuild_bars(AmsMiniStatusData* data) {
                 row_slots = 0;
 
             int32_t max_bw = effective_max_bar_width(data);
-            int32_t bar_width = ams_draw::calc_bar_width(container_width, row_slots, gap,
-                                                         kMinBarWidthPx, max_bw, 90);
+            const int bypass_bars = data->bypass.shown ? 1 : 0;
+            int32_t bar_width =
+                ams_draw::calc_bar_width(container_width - bypass_width_overhead(data),
+                                         row_slots + bypass_bars, gap, kMinBarWidthPx, max_bw, 90);
+            if (row_slots > 0)
+                bypass_bar_width = std::min(bypass_bar_width, bar_width);
 
             // Create/update slots in this unit row
             for (int s = 0; s < row_info->slot_count; ++s) {
@@ -511,10 +650,15 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         int32_t bar_height =
             effective_height - ams_draw::kStatusLineHeightPx - ams_draw::kStatusLineGapPx;
 
-        // Use 90% of container width for bars (leave 10% margin for centering)
+        // Use 90% of container width for bars (leave 10% margin for centering);
+        // the bypass is one more bar of the same width, past its divider.
         int32_t max_bw = effective_max_bar_width(data);
-        int32_t bar_width = ams_draw::calc_bar_width(container_width, visible_count, gap,
-                                                     kMinBarWidthPx, max_bw, 90);
+        const int bypass_bars = data->bypass.shown ? 1 : 0;
+        int32_t bar_width =
+            ams_draw::calc_bar_width(container_width - bypass_width_overhead(data),
+                                     visible_count + bypass_bars, gap, kMinBarWidthPx, max_bw, 90);
+        bypass_bar_width = bar_width;
+        bypass_bar_height = bar_height;
 
         // Create/update bars
         for (int i = 0; i < AMS_MINI_STATUS_MAX_VISIBLE; i++) {
@@ -535,6 +679,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
             }
         }
     }
+
+    layout_bypass_bar(data, bypass_bar_width, bypass_bar_height, is_multi_unit, gap);
 
     // Batch-delete all condemned rows via a single deferred deletion
     if (condemned_parent) {
@@ -633,13 +779,16 @@ static int measure_widest_material(const AmsMiniStatusData* data, lv_obj_t* sc) 
     const int32_t letter_space = lv_obj_get_style_text_letter_space(sc, LV_PART_MAIN);
     const int32_t line_space = lv_obj_get_style_text_line_space(sc, LV_PART_MAIN);
     int widest = 0;
-    for (const auto& cd : data->spool_cells) {
+    auto measure = [&](const char* text) {
         lv_point_t size;
-        lv_text_get_size(&size, spool_material_text(cd), font, letter_space, line_space,
-                         LV_COORD_MAX, LV_TEXT_FLAG_NONE);
-        if (size.x > widest)
-            widest = static_cast<int>(size.x);
-    }
+        lv_text_get_size(&size, text, font, letter_space, line_space, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        widest = std::max(widest, static_cast<int>(size.x));
+    };
+    for (const auto& cd : data->spool_cells)
+        measure(spool_material_text(cd));
+    if (data->bypass.shown)
+        measure(bypass_label_text(data->bypass));
     return widest;
 }
 
@@ -723,7 +872,9 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     const std::string sz = std::to_string(spool_size);
     const char* attrs[] = {"slot_index", idx.c_str(), "spool_size", sz.c_str(), nullptr};
     lv_obj_t* lspool = static_cast<lv_obj_t*>(lv_xml_create(wrap, "ams_lane_spool", attrs));
-    if (!lspool)
+    if (lspool)
+        lv_obj_set_name(lspool, "lane_spool"); // rebuild_spools() resizes it by this name
+    else
         spdlog::error("[AmsMiniStatus] ams_lane_spool creation failed for slot {}", slot_index);
 
     // The lane's spool number, so a lane sharing another's spool wears that
@@ -771,6 +922,118 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     lv_obj_set_style_text_color(pct, theme_manager_get_color("text_muted"), LV_PART_MAIN);
 
     return cell;
+}
+
+/**
+ * @brief Spool mode's bypass: a divider and one more cell at the end of the
+ * row, sized like a lane's, its spool painted from the external spool and its
+ * label naming the material, or "External" with none.
+ */
+static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* sc, int cell_px, int spool_size,
+                               int text_w, bool stacked, bool ellipsize, bool show_pct, int gap) {
+    const bool show = data->bypass.shown && !data->spool_cells.empty();
+    if (!show) {
+        if (data->bypass_divider)
+            lv_obj_set_hidden(data->bypass_divider, true);
+        if (data->bypass_cell)
+            lv_obj_set_hidden(data->bypass_cell, true);
+        return;
+    }
+    const int badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
+    if (!data->bypass_cell) {
+        data->bypass_divider = create_bypass_divider(sc);
+        lv_obj_t* cell = lv_obj_create(sc);
+        lv_obj_set_name(cell, "bypass_cell");
+        lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
+        lv_obj_set_scrollable(cell, false);
+        lv_obj_set_event_bubble(cell, true);
+
+        lv_obj_t* wrap = ams_draw::create_transparent_container(cell);
+        lv_obj_set_name(wrap, "bypass_spool_wrap");
+        lv_obj_t* canvas = ui_spool_canvas_create(wrap, spool_size);
+        if (canvas) {
+            lv_obj_set_name(canvas, "bypass_spool");
+            lv_obj_set_event_bubble(canvas, true);
+        }
+
+        lv_obj_t* col = ams_draw::create_transparent_container(cell);
+        lv_obj_set_name(col, "bypass_text");
+        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+        lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
+        lv_obj_t* mat = lv_label_create(col);
+        lv_obj_set_name(mat, "bypass_material");
+        lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
+        lv_obj_set_event_bubble(mat, true);
+        if (const lv_font_t* fs = theme_manager_get_font("font_small"))
+            lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
+        lv_obj_set_style_text_color(mat, theme_manager_get_color("text"), LV_PART_MAIN);
+        // Nothing weighs the bypass spool, so its percent line stays blank; it
+        // holds the line a lane's percent takes so the spools stand level.
+        lv_obj_t* pct = lv_label_create(col);
+        lv_obj_set_name(pct, "bypass_pct");
+        lv_label_set_text(pct, "");
+        lv_obj_set_event_bubble(pct, true);
+        if (const lv_font_t* fxs = theme_manager_get_font("font_xs"))
+            lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
+        data->bypass_cell = cell;
+    }
+    // Lane cells are created as the lane count grows; the bypass stays last.
+    const auto last = static_cast<int32_t>(lv_obj_get_child_count(sc)) - 1;
+    if (lv_obj_get_index(data->bypass_cell) != last) {
+        lv_obj_move_to_index(data->bypass_divider, -1);
+        lv_obj_move_to_index(data->bypass_cell, -1);
+    }
+    lv_obj_set_height(data->bypass_divider, lv_pct(80));
+    lv_obj_set_hidden(data->bypass_divider, false);
+
+    lv_obj_t* cell = data->bypass_cell;
+    lv_obj_set_size(cell, cell_px, lv_pct(100));
+    lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN_REVERSE : LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(cell, gap, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(cell, gap, LV_PART_MAIN);
+
+    // The same footprint a lane's spool takes with its badge slack, so the
+    // bypass spool lines up with theirs.
+    lv_obj_t* wrap = lv_obj_find_by_name(cell, "bypass_spool_wrap");
+    if (wrap) {
+        lv_obj_set_size(wrap, spool_size + badge_margin, spool_size + badge_margin);
+        ams_draw::set_active_ring(wrap, data->bypass.active);
+    }
+    if (lv_obj_t* canvas = lv_obj_find_by_name(cell, "bypass_spool")) {
+        ui_spool_canvas_set_size(canvas, spool_size);
+        // Where a lane's graphic stands inside its badge slack.
+        lv_obj_align(canvas, LV_ALIGN_TOP_LEFT, 0, 0);
+        const auto& spool = data->bypass.spool;
+        if (spool) {
+            helix::ui::spool_canvas_set_filament(canvas, *spool);
+            ui_spool_canvas_set_fill_level(canvas, 1.0f);
+        } else {
+            ui_spool_canvas_set_color(canvas, lv_color_hex(helix::ui::kBypassNoSpoolRgb));
+            ui_spool_canvas_set_fill_level(canvas, 0.0f);
+        }
+        ui_spool_canvas_redraw(canvas);
+    }
+
+    lv_obj_t* col = lv_obj_find_by_name(cell, "bypass_text");
+    if (col) {
+        lv_obj_set_width(col, text_w);
+        lv_obj_set_height(col, stacked ? LV_SIZE_CONTENT : lv_pct(100));
+        lv_obj_set_hidden(col, text_w <= 0);
+    }
+    if (lv_obj_t* mat = lv_obj_find_by_name(cell, "bypass_material")) {
+        lv_obj_set_width(mat, text_w);
+        lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_MODE_DOTS : LV_LABEL_LONG_MODE_WRAP);
+        lv_label_set_max_lines(mat, ellipsize ? 1 : 0);
+        lv_label_set_text(mat, bypass_label_text(data->bypass));
+    }
+    if (lv_obj_t* pct = lv_obj_find_by_name(cell, "bypass_pct"))
+        lv_obj_set_hidden(pct, !show_pct);
+    lv_obj_set_hidden(cell, false);
 }
 
 static void on_spools_size_changed(lv_event_t* e) {
@@ -849,7 +1112,11 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     // What the ams_lane_spool widget adds around the graphic for the lane
     // badge, so a cell is this much wider than the spool size asked for.
     const int badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
-    const int lanes = std::max(1, data->slot_count);
+    // The bypass takes one more cell's share, and its divider and gap come off the row.
+    const bool bypass_cell = data->bypass.shown;
+    const int lanes = std::max(1, data->slot_count) + (bypass_cell ? 1 : 0);
+    if (bypass_cell)
+        avail_w -= 1 + gap;
     // The widest material string this render will draw, in the font that will
     // draw it. Both the cell count and the text reservation come from it, so the
     // divisor and the reservation cannot disagree the way two independently
@@ -1058,6 +1325,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         }
     }
 
+    layout_bypass_cell(data, sc, cell_px, spool_size, text_w, stacked, ellipsize,
+                       !stacked || stacked_pct, gap);
+
     if (condemned)
         helix::ui::safe_delete_deferred(condemned);
 }
@@ -1078,6 +1348,8 @@ static void rebuild(AmsMiniStatusData* data) {
     if (data->mode == AmsMiniMode::SPOOL) {
         if (data->bars_container)
             lv_obj_set_hidden(data->bars_container, true);
+        if (data->bypass_column)
+            lv_obj_set_hidden(data->bypass_column, true);
         rebuild_spools(data);
     } else {
         if (data->spools_container)
@@ -1096,6 +1368,10 @@ static void on_delete(lv_event_t* e) {
         if (data) {
             data->slots_version_observer.reset();
             data->current_slot_observer.reset();
+            data->supports_bypass_observer.reset();
+            data->bypass_active_observer.reset();
+            data->external_spool_observer.reset();
+            data->always_show_bypass_observer.reset();
         }
         // data automatically freed when unique_ptr goes out of scope
         s_registry.take(obj);
@@ -1116,6 +1392,32 @@ static void on_click(lv_event_t* e) {
     (void)e;
     spdlog::debug("[AmsMiniStatus] Clicked - navigating to AMS panel");
     navigate_to_ams_panel();
+}
+
+/** Observer handler: re-read AmsState, if the widget still stands. */
+static void resync_widget(lv_obj_t* obj, int /*value*/) {
+    if (auto* d = get_data(obj))
+        sync_from_ams_state(d);
+}
+
+/**
+ * @brief Follow the bypass's inputs. None of them bumps slots_version: the
+ * always-show setting changes nothing the backend publishes, and engaging
+ * bypass touches no slot.
+ */
+static void bind_bypass_observers(AmsMiniStatusData* data, lv_obj_t* container) {
+    using helix::ui::observe;
+    auto& ams = helix::AmsState::instance();
+    data->supports_bypass_observer = observe<int>(ams.get_supports_bypass_subject(), container,
+                                                  resync_widget, ams.get_subjects_lifetime());
+    data->bypass_active_observer = observe<int>(ams.get_bypass_active_subject(), container,
+                                                resync_widget, ams.get_subjects_lifetime());
+    data->external_spool_observer = observe<int>(ams.get_external_spool_color_subject(), container,
+                                                 resync_widget, ams.get_subjects_lifetime());
+    auto& settings = helix::SettingsManager::instance();
+    data->always_show_bypass_observer =
+        observe<int>(settings.subject_ams_always_show_bypass_spool(), container, resync_widget,
+                     settings.get_subjects_lifetime());
 }
 
 // ============================================================================
@@ -1161,7 +1463,9 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
                           LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(data_ptr->bars_container, theme_manager_get_spacing("space_xxs"),
                                 LV_PART_MAIN);
+    // Grows into the row the bypass column leaves it.
     lv_obj_set_size(data_ptr->bars_container, LV_PCT(100), height);
+    lv_obj_set_style_flex_grow(data_ptr->bars_container, 1, LV_PART_MAIN);
 
     // Create overflow label (hidden by default) - use responsive font
     data_ptr->overflow_label = lv_label_create(container);
@@ -1234,6 +1538,8 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
             },
             helix::AmsState::instance().get_subjects_lifetime());
     }
+
+    bind_bypass_observers(data, container);
 
     spdlog::trace("[AmsMiniStatus] Created (height={})", height);
     return container;
@@ -1366,6 +1672,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         // No backend - hide widget
         data->slot_count = 0;
         data->spool_cells.clear();
+        data->bypass = {};
         rebuild(data);
         return;
     }
@@ -1378,6 +1685,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     for (int u = 0; u < 8; ++u)
         prev_rows[u] = {data->unit_rows[u].first_slot, data->unit_rows[u].slot_count};
     const std::vector<SpoolCellData> prev_cells = data->spool_cells;
+    const BypassView prev_bypass = data->bypass;
 
     int slot_count = lv_subject_get_int(helix::AmsState::instance().get_slot_count_subject());
     data->slot_count = slot_count;
@@ -1440,8 +1748,18 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
         c.active = active_subject && lv_subject_get_int(active_subject) != 0;
     }
 
+    // The AMS panel's rule for whether the bypass is on the path at all.
+    data->bypass = {};
+    data->bypass.shown = helix::ui::bypass_node_visible_for(backend, info);
+    if (data->bypass.shown) {
+        data->bypass.spool = helix::AmsState::instance().get_external_spool_info();
+        data->bypass.active =
+            lv_subject_get_int(helix::AmsState::instance().get_bypass_active_subject()) != 0;
+    }
+
     bool unchanged = data->synced && prev_slot_count == slot_count &&
-                     prev_unit_count == data->unit_count && prev_cells == data->spool_cells;
+                     prev_unit_count == data->unit_count && prev_cells == data->spool_cells &&
+                     prev_bypass == data->bypass;
     for (int u = 0; unchanged && u < 8; ++u)
         unchanged = prev_rows[u] ==
                     std::make_pair(data->unit_rows[u].first_slot, data->unit_rows[u].slot_count);
@@ -1571,6 +1889,8 @@ static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const c
             },
             helix::AmsState::instance().get_subjects_lifetime());
     }
+
+    bind_bypass_observers(data, container);
 
     spdlog::trace("[AmsMiniStatus] Created via XML (responsive height)");
     return container;
