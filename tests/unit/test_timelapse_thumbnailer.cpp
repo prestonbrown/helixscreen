@@ -46,7 +46,8 @@ TEST_CASE("Thumbnailer: companion thumbnail lookup", "[timelapse][thumbnailer]")
 
 TEST_CASE("Thumbnailer: ffmpeg argument list construction", "[timelapse][thumbnailer]") {
     auto args = ffmpeg_extract_args("/home/pi/printer_data/timelapse/benchy.mp4",
-                                    "/home/pi/printer_data/timelapse/benchy.thumb.jpg");
+                                    "/home/pi/printer_data/timelapse/benchy.thumb.jpg",
+                                    ExtractFrame::First);
 
     REQUIRE(args.size() == 11);
     REQUIRE(args[0] == "ffmpeg");
@@ -63,8 +64,66 @@ TEST_CASE("Thumbnailer: ffmpeg argument list construction", "[timelapse][thumbna
     REQUIRE(args[10] == "/home/pi/printer_data/timelapse/benchy.thumb.jpg");
 }
 
+TEST_CASE("Thumbnailer: the last frame seeks from the end before the input",
+          "[timelapse][thumbnailer]") {
+    auto args = ffmpeg_extract_args("/v/a.mp4", "/c/a.jpg", ExtractFrame::Last);
+
+    REQUIRE(args.size() == 13);
+    CHECK(args[0] == "ffmpeg");
+    CHECK(args[1] == "-y");
+    CHECK(args[2] == "-sseof");
+    CHECK(args[3] == "-1");
+    CHECK(args[4] == "-i");
+    CHECK(args[5] == "/v/a.mp4");
+    CHECK(args[6] == "-vframes");
+    CHECK(args[7] == "1");
+    CHECK(args.back() == "/c/a.jpg");
+}
+
+TEST_CASE("Thumbnailer: an extracted thumbnail is keyed by name, size and time",
+          "[timelapse][thumbnailer]") {
+    const std::string key = extracted_thumbnail_key("a.mp4", 1000, 1772985600.0);
+    CHECK(key == extracted_thumbnail_key("a.mp4", 1000, 1772985600.0));
+    CHECK(key != extracted_thumbnail_key("b.mp4", 1000, 1772985600.0));
+    CHECK(key != extracted_thumbnail_key("a.mp4", 1001, 1772985600.0));
+    CHECK(key != extracted_thumbnail_key("a.mp4", 1000, 1772985700.0));
+    CHECK(key != "a.mp4"); // never collides with a companion's cache key
+}
+
+TEST_CASE("Thumbnailer: a frame is extracted only for a local video with no preview",
+          "[timelapse][thumbnailer]") {
+    ThumbnailExtractInputs in;
+    in.has_companion = false;
+    in.ffmpeg_available = true;
+    in.moonraker_local = true;
+    in.print_active = false;
+    in.already_failed = false;
+    CHECK(should_extract_thumbnail(in));
+
+    SECTION("a companion preview wins") {
+        in.has_companion = true;
+        CHECK_FALSE(should_extract_thumbnail(in));
+    }
+    SECTION("no ffmpeg") {
+        in.ffmpeg_available = false;
+        CHECK_FALSE(should_extract_thumbnail(in));
+    }
+    SECTION("a remote Moonraker: the video is not on this disk") {
+        in.moonraker_local = false;
+        CHECK_FALSE(should_extract_thumbnail(in));
+    }
+    SECTION("a print is running") {
+        in.print_active = true;
+        CHECK_FALSE(should_extract_thumbnail(in));
+    }
+    SECTION("this file already failed") {
+        in.already_failed = true;
+        CHECK_FALSE(should_extract_thumbnail(in));
+    }
+}
+
 TEST_CASE("Thumbnailer: ffmpeg args are safe from shell injection", "[timelapse][thumbnailer]") {
-    auto args = ffmpeg_extract_args("/tmp/$(rm -rf /).mp4", "/tmp/out.jpg");
+    auto args = ffmpeg_extract_args("/tmp/$(rm -rf /).mp4", "/tmp/out.jpg", ExtractFrame::First);
 
     // The malicious filename is passed as a single argument element, not shell-interpreted
     REQUIRE(args[3] == "/tmp/$(rm -rf /).mp4");

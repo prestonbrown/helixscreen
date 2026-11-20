@@ -2660,6 +2660,7 @@
   <translation tag="No vendors found" pt="Nenhum fornecedor encontrado"/>
   <translation tag="No verified bypass command for this CFS firmware" pt="Nenhum comando de bypass verificado para este firmware do CFS"/>
   <translation tag="No video player installed - showing the timelapse library" pt="Nenhum reprodutor de vídeo instalado – mostrando a biblioteca de timelapse"/>
+  <translation tag="No video player on this printer" pt="Nenhum reprodutor de vídeo nesta impressora"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." pt="Nenhuma webcam detectada.&#10;Uma webcam é necessária para timelapse."/>
   <translation tag="No widgets found" pt="Nenhum widget encontrado"/>
   <translation tag="No width sensor detected" pt="Nenhum sensor de largura detectado"/>
@@ -4259,6 +4260,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" pt="O armazenamento interno da unidade falhou. A placa-mãe do CFS precisa ser substituída"/>
   <translation tag="The unload did not start: unload by hand, then start again" pt="A descarga não começou: descarregue à mão e comece de novo"/>
   <translation tag="The unload finishes on its own, but the plate will not move." pt="A descarga termina sozinha, mas a mesa não vai se mover."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." pt="O reprodutor de vídeo não pôde iniciar nesta impressora ({}). Escaneie o código com seu celular para assistir ao timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." pt="O motor {0} não foi medido: {1}."/>
   <translation tag="Theme" pt="Tema"/>
   <translation tag="Theme Colors" pt="Cores do Tema"/>
@@ -4329,6 +4331,7 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." pt="Esta impressora ainda não tem um armazenamento [save_variables]. Atualize as macros de ajuda para adicioná-lo e reinicie o Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." pt="Esta impressora não tem descarga automática. Corte o filamento no cabeçote e retire-o à mão."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." pt="Esta impressora não tem fuso horário, então o relógio mostra UTC. Escolha o seu."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." pt="Esta impressora não tem reprodutor de vídeo. Escaneie o código com seu celular para assistir ao timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." pt="Esta impressora não tem o comando {}, então o Z-offset não pode ser salvo."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." pt="Esta impressora parece ser uma {} ({}% de confiança), mas está configurada como {}. Um tipo errado aplica opções de pré-impressão e predefinições incorretas."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" pt="Faltam nas macros do INDX desta impressora: {}"/>
@@ -4657,6 +4660,8 @@
   <translation tag="Vibration" pt="Vibração"/>
   <translation tag="Vibration compensation active" pt="Compensação de vibração ativa"/>
   <translation tag="Video playback speed" pt="Velocidade de reprodução do vídeo"/>
+  <translation tag="Video player failed to start" pt="Falha ao iniciar o reprodutor de vídeo"/>
+  <translation tag="Video player failed to start ({})" pt="Falha ao iniciar o reprodutor de vídeo ({})"/>
   <translation tag="View" pt="Visualizar"/>
   <translation tag="View Changelog" pt="Ver Registro de Alterações"/>
   <translation tag="View Full History" pt="Ver Histórico Completo"/>
@@ -4706,6 +4711,7 @@
   <translation tag="Warning" pt="Aviso"/>
   <translation tag="Warnings &amp; errors" pt="Avisos e erros"/>
   <translation tag="Watch and control this screen from a browser" pt="Ver e controlar esta tela a partir de um navegador"/>
+  <translation tag="Watch on Your Phone" pt="Assistir no celular"/>
   <translation tag="Watch the camera during a print for failed prints" pt="Observa a câmera durante a impressão para detectar impressões com falha"/>
   <translation tag="Watch which motor turns" pt="Veja qual motor gira"/>
   <translation tag="Weak battery" pt="Bateria fraca"/>

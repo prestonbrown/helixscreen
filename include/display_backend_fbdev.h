@@ -63,6 +63,10 @@ class DisplayBackendFbdev : public DisplayBackend {
     std::vector<helix::InputWakeSource> input_wake_sources() const override {
         return input_wake_sources_.sources();
     }
+    lv_indev_t* reopen_input_pointer() override;
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
     lv_indev_t* create_input_keyboard() override;
     bool has_hardware_keyboard() const override {
         return keyboard_ != nullptr;
@@ -197,6 +201,9 @@ class DisplayBackendFbdev : public DisplayBackend {
     lv_display_t* display_ = nullptr;
     lv_indev_t* touch_ = nullptr;
     lv_indev_t* mouse_ = nullptr;
+    /// The nodes touch_ and mouse_ were opened on, for the pointer frame hook.
+    std::string touch_path_;
+    std::string mouse_path_;
     lv_indev_t* keyboard_ = nullptr;
     /// Every evdev device this backend opened that LVGL has not deleted, with its fd
     helix::InputWakeSourceList input_wake_sources_;
@@ -265,6 +272,15 @@ class DisplayBackendFbdev : public DisplayBackend {
      * @return Path to touch device
      */
     std::string auto_detect_touch_device() const;
+
+    /// Opens touch_ on @p touch_path with the coordinate mapping, gestures and
+    /// calibration wrapper startup gives it. A reopen keeps the calibration already
+    /// live and logs its misses at debug. False when the device would not open.
+    bool open_touch_device(const std::string& touch_path, bool reopening);
+    void open_mouse_device();
+    /// Installs the pointer frame hook on whichever devices lack it and returns
+    /// touch_. Every path that opens a device ends here.
+    lv_indev_t* hook_pointer_devices();
 };
 
 #endif // HELIX_DISPLAY_FBDEV

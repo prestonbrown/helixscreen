@@ -446,6 +446,12 @@ void install_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
     lv_indev_set_read_cb(indev, helix::calibrated_read_cb);
 }
 
+void reinstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx, int screen_w,
+                                   int screen_h) {
+    const TouchCalibration live = ctx.calibration;
+    install_calibration_wrapper(indev, ctx, live, screen_w, screen_h);
+}
+
 void uninstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx) {
     // Silence our callback on this indev so it can't fire against a freed ctx
     // between backend destruction and lv_deinit (prestonbrown/helixscreen#1102).

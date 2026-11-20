@@ -710,6 +710,9 @@ class DisplayManager : public helix::ICalibrationSink {
     // manager, so it must not outlive it.
     helix::ui::LvglTimerGuard m_pointer_reopen_timer;
     static constexpr uint32_t kPointerReopenPeriodMs = 1000;
+    // /display/panel_power_off is set rather than automatic, which the warning for a
+    // touch device lost at power-off names.
+    bool m_power_off_explicit = false;
     // The scroll setup init() gave the pointer, for a reopened one to get the same.
     int m_scroll_throw = 0;
     int m_scroll_limit = 0;

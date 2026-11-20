@@ -2,6 +2,7 @@
 
 #include "pcm_pipe_sound_backend.h"
 
+#include "cloexec_pipe.h"
 #include "helix_thread.h"
 
 #include <spdlog/spdlog.h>
@@ -37,19 +38,6 @@ constexpr int kPipeCapacityBytes = 4096;
 
 bool env_disables(const char* v) {
     return std::strcmp(v, "0") == 0 || std::strcmp(v, "off") == 0 || std::strcmp(v, "no") == 0;
-}
-
-/// A pipe whose ends do not leak into any other child the app spawns.
-bool open_cloexec_pipe(int fds[2]) {
-#ifdef __linux__
-    return pipe2(fds, O_CLOEXEC) == 0;
-#else
-    if (pipe(fds) != 0)
-        return false;
-    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
-    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
-    return true;
-#endif
 }
 
 /// Reap @p pid within @p timeout_ms. A pid already gone (ECHILD) reads as a clean exit.
@@ -183,7 +171,7 @@ void PcmPipeSoundBackend::shutdown() {
 
 bool PcmPipeSoundBackend::spawn_player() {
     int fds[2];
-    if (!open_cloexec_pipe(fds)) {
+    if (!helix::open_cloexec_pipe(fds)) {
         spdlog::warn("[PcmPipeSound] pipe: {}", std::strerror(errno));
         return false;
     }

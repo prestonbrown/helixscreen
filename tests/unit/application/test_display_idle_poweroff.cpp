@@ -1020,3 +1020,62 @@ TEST_CASE_METHOD(LVGLTestFixture, "panel power-off hides the screen until the fl
 
     DisplayManagerTestAccess::set_display(mgr, nullptr);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a touch device lost at panel power-off wakes the panel to let it return",
+                 "[application][display][sleep][poweroff][2069]") {
+    const bool power_off_explicit = GENERATE(false, true);
+    CAPTURE(power_off_explicit);
+
+    DisplayManager mgr;
+    auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/true);
+    FakePowerOffBackend* raw = backend.get();
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
+    DisplayManagerTestAccess::set_use_hardware_blank(mgr, false);
+    DisplayManagerTestAccess::set_use_power_off(mgr, true);
+    DisplayManagerTestAccess::set_power_off_explicit(mgr, power_off_explicit);
+    DisplayManagerTestAccess::set_pointer(mgr, create_noop_pointer());
+    DisplayManagerTestAccess::watch_pointer(mgr);
+
+    DisplayManagerTestAccess::enter_sleep(mgr, 60);
+    REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
+            helix::SleepMechanism::PanelPowerOff);
+    REQUIRE_FALSE(DisplayManagerTestAccess::wake_requested(mgr));
+
+    // lv_evdev deletes its device when the controller drops off the bus.
+    lv_indev_delete(mgr.pointer_input());
+    REQUIRE(mgr.pointer_input() == nullptr);
+
+    CHECK(DisplayManagerTestAccess::wake_requested(mgr));
+    DisplayManagerTestAccess::restore_display_output(mgr);
+    CHECK(raw->power_on_calls == 1);
+
+    // The next sleep keeps the panel powered, even when the user chose power-off:
+    // on this panel every power-off would drop touch again.
+    DisplayManagerTestAccess::enter_sleep(mgr, 60);
+    CHECK(raw->power_off_calls == 1);
+    CHECK(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
+          helix::SleepMechanism::SoftwareOverlay);
+    DisplayManagerTestAccess::restore_display_output(mgr);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a touch device lost under the sleep overlay leaves the display asleep",
+                 "[application][display][sleep][poweroff][2069]") {
+    DisplayManager mgr;
+    auto backend = std::make_unique<FakePowerOffBackend>(/*supports_power_off=*/false);
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
+    DisplayManagerTestAccess::set_use_hardware_blank(mgr, false);
+    DisplayManagerTestAccess::set_use_power_off(mgr, false);
+    DisplayManagerTestAccess::set_pointer(mgr, create_noop_pointer());
+    DisplayManagerTestAccess::watch_pointer(mgr);
+
+    DisplayManagerTestAccess::enter_sleep(mgr, 60);
+    REQUIRE(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
+            helix::SleepMechanism::SoftwareOverlay);
+
+    lv_indev_delete(mgr.pointer_input());
+
+    CHECK_FALSE(DisplayManagerTestAccess::wake_requested(mgr));
+    DisplayManagerTestAccess::restore_display_output(mgr);
+}
