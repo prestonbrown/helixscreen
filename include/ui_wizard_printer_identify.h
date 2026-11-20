@@ -207,7 +207,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
 
     // Printer type list helpers
     void populate_printer_type_list();
-    void update_list_selection(int selected_index);
     static void on_printer_type_item_clicked(lv_event_t* e);
 
     // Selector helpers (search + vendor drill-in over selector_entries_)

@@ -20,6 +20,7 @@
 #include "moonraker_api.h"
 #include "printer_detector.h"
 #include "printer_discovery.h"
+#include "theme_manager.h"
 #include "wizard_config_paths.h"
 
 #include <spdlog/spdlog.h>
@@ -705,4 +706,28 @@ TEST_CASE_METHOD(WizardPrinterIdentifyKobraXFixture,
     close_step();
     Config* config = Config::get_instance();
     CHECK(config->get<std::string>(config->df() + helix::wizard::PRINTER_TYPE, "") == kobra_x);
+}
+
+TEST_CASE_METHOD(WizardPrinterIdentifyUIFixture,
+                 "Wizard printer row fills while it is the chosen one", "[wizard][selector]") {
+    require_ready();
+    lv_textarea_set_text(search_input(), "");
+    lv_obj_t* tile = tile_for("Anycubic");
+    REQUIRE(tile != nullptr);
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+    const auto shown = visible_rows();
+    REQUIRE(shown.size() > 1);
+
+    auto filled = [](lv_obj_t* row) {
+        return lv_obj_get_style_bg_opa(row, LV_PART_MAIN) == LV_OPA_COVER &&
+               lv_color_eq(lv_obj_get_style_bg_color(row, LV_PART_MAIN),
+                           theme_manager_get_color("primary"));
+    };
+    lv_obj_send_event(shown[0], LV_EVENT_CLICKED, nullptr);
+    CHECK(filled(shown[0]));
+    CHECK_FALSE(filled(shown[1]));
+    lv_obj_send_event(shown[1], LV_EVENT_CLICKED, nullptr);
+    CHECK(filled(shown[1]));
+    CHECK_FALSE(filled(shown[0]));
+    set_moonraker_api(nullptr);
 }

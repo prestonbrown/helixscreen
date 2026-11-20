@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One machine in the wizard's printer list: its model name, then its vendor
+     where the list can mix vendors (search, tied candidates). Filled while it is
+     printer_type_selected. WizardPrinterIdentifyStep creates one per detector
+     entry and sets both names (user text). has_vendor is 0 for the
+     pseudo-machines, which have no vendor to show. -->
+<component>
+  <api>
+    <prop name="index" type="int" default="0"/>
+    <prop name="has_vendor" type="int" default="1"/>
+  </api>
+  <styles>
+    <style name="row_chosen" bg_color="#primary" bg_opa="255"/>
+    <style name="label_chosen" text_color="#text_on_primary"/>
+  </styles>
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_all="#space_md" style_radius="#border_radius" scrollable="false"
+        flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="start">
+    <bind_style_if_eq name="row_chosen" subject="printer_type_selected" ref_value="$index"/>
+    <text_body name="model" text="" flex_grow="1">
+      <bind_style_if_eq name="label_chosen" subject="printer_type_selected" ref_value="$index"/>
+    </text_body>
+    <text_small name="vendor" text="" style_text_color="#text_muted">
+      <bind_flag_if cond="${has_vendor} eq 0 or wizard_printer_view eq 0 or wizard_printer_view eq 1" flag="hidden"/>
+    </text_small>
+    <event_cb trigger="clicked" callback="on_wizard_printer_type_clicked" user_data="$index"/>
+  </view>
+</component>
