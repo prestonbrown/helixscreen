@@ -230,15 +230,16 @@ no in-memory copy.
   `lane_data` copy, so the record moves when that holder arrives. A holder that
   reads `lane_data` already reads AmsState's record as its own, and nothing
   moves. `AmsState::hand_bypass_record_to_holder()` runs after every sync and on
-  AmsState's poll: once the new holder has read its lane records, a holder
-  showing the same record (`same_bypass_spool()`) only costs AmsState its copy.
-  Otherwise the holder gets AmsState's record, the newer one, since only
-  AmsState could write it while the holder was away. Until the holder's own read
-  shows it, `bypass_record()` answers with the carried record and files it, so
-  the bypass spool never blanks, and the record is published again once per
-  holder read (`lane_record_reads()`): a refused or failed write retries. AmsState's
-  copy goes only once the holder shows the record, after a fresh read confirms
-  the key still holds it.
+  AmsState's poll, once the new holder has read its lane records. A holder with
+  a bypass record of its own keeps it: AmsState never writes over it, and its
+  own copy goes as stale. A holder with none gets AmsState's record. Until the
+  holder's own read shows it (`same_bypass_spool()`), `bypass_record()` answers
+  with the carried record and files it, so the bypass spool never blanks, and it
+  is published again once per holder read (`lane_record_reads()`): a refused or
+  failed write retries. AmsState's copy goes once the holder shows the record,
+  after a fresh read confirms the key still holds it. A write through
+  `write_bypass_record()` ends a pending move: the carried record is dropped and
+  never published after the user's edit.
 - **Back from a departed holder.** When discovery finds no filament system,
   `AmsState::reclaim_orphaned_bypass_record()` reads the private namespaces
   (`AmsBackend::private_lane_record_namespaces()`, a column of `kBackendRows`)

@@ -3050,8 +3050,12 @@ left when bypass was switched off. HelixScreen asks once, in
 shared `BypassToggleController` engage, so the external spool then feeds),
 **Unload** (the toolhead unload, `execute_filament_unload()` on the active head)
 and **Not now**, which holds the cancel slot that ESC and the backdrop reach.
-Unload shows only where `AmsBackend::can_unload_unclaimed_toolhead()` says the
-backend's unload clears filament no lane claims (CFS, AD5X IFS). AFC's
+Unload shows only where `AmsBackend::can_clear_unaccounted_toolhead()`, the
+answer the pre-print warning's advice reads, says the backend clears filament no
+lane claims. It asks the lane question first where the backend has one
+(`ask_lane_then_unload()`, AD5X IFS), then unloads
+`unaccounted_toolhead_clear_slot()`: the bypass slot on CFS, whose lane-free clear
+is `bypass_unload_gcode()`. Fork and an unverified flat CFS answer false. AFC's
 `TOOL_UNLOAD` does nothing with no lane current, so there the prompt offers Use
 as bypass and Not now, with a line to pull the filament out by hand.
 Both actions re-check the state at tap time (`AmsState::unclaimed_toolhead_now()`)
