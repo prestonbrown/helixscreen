@@ -57,7 +57,9 @@ ClockPrintPhase PrintEndLatch::step(const PrintLatchInput& in) {
     }
     // Input after the end means someone has seen it. Unsigned differences survive the clock
     // wrapping.
-    if (latched_ != ClockPrintPhase::NONE && in.inactive_ms < in.now_ms - latched_at_ms_) {
+    const uint32_t latched_for_ms = in.now_ms - latched_at_ms_;
+    if (latched_ != ClockPrintPhase::NONE &&
+        (in.inactive_ms < latched_for_ms || latched_for_ms >= kPrintEndHoldMs)) {
         latched_ = ClockPrintPhase::NONE;
     }
     return latched_;

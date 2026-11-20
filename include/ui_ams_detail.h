@@ -30,6 +30,7 @@ static constexpr int kAmsDetailMaxSlots = helix::kAmsMaxSlots;
 /// down through several sizes. The AMS panel and the overview's unit pages share it.
 namespace helix::ui {
 inline constexpr int kAmsDetailMaxRelayoutPasses = 4;
+struct BypassSpoolWidgets;
 } // namespace helix::ui
 
 /// Widget pointers resolved from an ams_unit_detail component
@@ -182,6 +183,12 @@ bool ams_detail_error_in_view(const AmsSystemInfo& info, int unit_index);
 /// short of it, the unit must shrink: the spool size that fits is recorded for this unit and
 /// screen, and true asks the caller to lay the unit out again. False when it fits.
 bool ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
+
+/// Place the unit view's bypass spool on @p canvas's merge line. Beside a drawn unit it is drawn
+/// as large as the unit's spools, as far as the room right of the unit allows, and moved right
+/// to clear the unit; then the environment pill rises clear of it. A hidden spool gives the
+/// canvas back its default spot.
+void ams_detail_place_bypass_spool(lv_obj_t* canvas, BypassSpoolWidgets& w);
 
 /// The unit view's environment pill rises clear of the bypass spool overlay beside @p canvas,
 /// or back to its place when the overlay no longer reaches it. The owner of the overlay calls

@@ -40,6 +40,7 @@
  *   ui_filament_path_layers.cpp   canvas buffer management + async refresh
  */
 
+#include "ui_bypass_spool_widget.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toolhead_badge.h"
 #include "ui_toolhead_view.h"
@@ -354,6 +355,14 @@ struct FilamentPathData {
     uint32_t bypass_color = 0x888888; // Default gray for bypass filament
     bool bypass_has_spool = false;    // true when external spool is assigned
     bool show_bypass = true; // false = hide bypass path/spool entirely (e.g. tool changers)
+    // Where the bypass spool stands and how large, once a unit view has placed it beside a
+    // drawn unit: its centre across the canvas (-1 = kBypassXRatio) and its edge (0 = the
+    // lane spool token).
+    int32_t bypass_spool_cx = -1;
+    int32_t bypass_spool_size = 0;
+    // The spool stands across the merge line right of the hub: the tube runs into its card's
+    // side instead of dropping from its bottom.
+    bool bypass_side_entry = false;
 
     // Paging: units of this hub shown on other pages, before and after the one
     // on screen (0 = none). The hub draws each side's as one dashed stub.
@@ -465,6 +474,21 @@ int32_t get_slot_x(const FilamentPathData* data, int slot_index, int32_t canvas_
 // Canvas dimensions + pre-computed per-slot X positions, shared across all
 // topology renderers. Computed once per draw to avoid repeated get_slot_x()
 // calls inside the per-slot phase loops.
+/// The bypass spool's centre across a canvas whose left edge is @p x_off and @p width wide.
+inline int32_t bypass_spool_x(const FilamentPathData& data, int32_t x_off, int32_t width) {
+    return x_off +
+           (data.bypass_spool_cx >= 0 ? data.bypass_spool_cx : (int32_t)(width * kBypassXRatio));
+}
+
+/// Where the bypass tube leaves the spool along the merge line: under the spool's centre, or
+/// at its card's left side when it stands across the line.
+inline int32_t bypass_feed_x(const FilamentPathData& data, int32_t x_off, int32_t width) {
+    const int32_t cx = bypass_spool_x(data, x_off, width);
+    return data.bypass_side_entry
+               ? cx - helix::ui::bypass_spool_box_size(data.bypass_spool_size) / 2
+               : cx;
+}
+
 struct BaseGeometry {
     int32_t x_off = 0; // canvas left edge (absolute display coords)
     int32_t y_off = 0; // canvas top edge

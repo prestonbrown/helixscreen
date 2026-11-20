@@ -663,6 +663,74 @@ TEST_CASE_METHOD(
     }
 }
 
+// Jacobean's firmware runs on the K2 Plus and the K2 Pro alike, and declares no
+// product_param bed on either, so stepper travel is what names the model. No K2
+// Pro on this firmware has been captured: its machine here is the real K2 Plus
+// capture with the K2 Pro config's travel (config/k2-pro/printer.cfg: X -4 to
+// 302, Y -6.5 to 302) and without the Plus's second Z stepper and z_tilt.
+TEST_CASE_METHOD(PrinterDetectorFixture,
+                 "PrinterDetector: Jacobean's firmware on a K2 Pro is named by its travel",
+                 "[printer][detector][build_volume][k2][2148]") {
+    auto jacobean_pro = [] {
+        PrinterHardwareData hardware = printer_capture("creality_k2_plus_jacobean");
+        auto& objects = hardware.printer_objects;
+        objects.erase(
+            std::remove_if(objects.begin(), objects.end(),
+                           [](const std::string& o) { return o == "stepper_z1" || o == "z_tilt"; }),
+            objects.end());
+        hardware.build_volume.x_min = -4.0f;
+        hardware.build_volume.x_max = 302.0f;
+        hardware.build_volume.y_min = -6.5f;
+        hardware.build_volume.y_max = 302.0f;
+        return hardware;
+    };
+    using PD = PrinterDetector;
+
+    SECTION("K2 Pro travel names the K2 Pro entry") {
+        const auto result = PD::detect(jacobean_pro());
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.type_name == "Creality K2 Pro (Jacobean firmware)");
+        CHECK(result.runner_up_type_name == "Creality K2 Plus (Jacobean firmware)");
+        CHECK(result.margin() >= PD::kDetectMinMargin);
+        CHECK(PD::meets_autosave_threshold(result));
+
+        const auto rel = PD::relate_types("Creality K2 Pro", result.type_name);
+        CHECK(rel.relation == PD::TypeRelation::DetectedVariant);
+        CHECK(rel.detected_label == "Jacobean firmware");
+    }
+
+    SECTION("K2 Plus travel names the K2 Plus entry over its Pro sibling") {
+        const auto result = PD::detect(printer_capture("creality_k2_plus_jacobean"));
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.type_name == "Creality K2 Plus (Jacobean firmware)");
+        CHECK(result.runner_up_type_name == "Creality K2 Pro (Jacobean firmware)");
+        CHECK(result.margin() >= PD::kDetectMinMargin);
+    }
+
+    SECTION("Without travel the two stay a tie nothing may save") {
+        PrinterHardwareData hardware = jacobean_pro();
+        hardware.build_volume = {};
+        const auto result = PD::detect(hardware);
+        CAPTURE(result.type_name, result.confidence, result.runner_up_type_name,
+                result.runner_up_confidence, result.margin(), result.tied_count);
+        REQUIRE(result.type_name.find("(Jacobean firmware)") != std::string::npos);
+        REQUIRE(result.runner_up_type_name.find("(Jacobean firmware)") != std::string::npos);
+        CHECK(result.margin() == 0);
+        CHECK_FALSE(PD::meets_autosave_threshold(result));
+    }
+
+    SECTION("A stock K2 Pro never names a Jacobean entry") {
+        const auto result = PD::detect(printer_capture("creality_k2_pro"));
+        CAPTURE(result.type_name, result.runner_up_type_name);
+        REQUIRE(result.type_name == "Creality K2 Pro");
+        for (const auto& contender : result.contenders) {
+            CHECK(contender.find("Jacobean") == std::string::npos);
+        }
+    }
+}
+
 TEST_CASE("PrinterDetector: a tied model sharing the saved model's picture does not settle the tie",
           "[printer][detector][mismatch]") {
     // The Neptune 4 line shares one image across four sizes. A Max tied with

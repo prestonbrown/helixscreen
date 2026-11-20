@@ -37,13 +37,16 @@ itself from its own `cartographer` object. The base K2
 entry is the preset's `preset_default`, so a K2 preset install that identifies no K2 machine
 persists "Creality K2". Its image is a copy of the K2 Plus photo until one of the base model exists.
 
-Jacobean's K2 Plus firmware ([Jacob10383/k2-plus-custom-firmware](https://github.com/Jacob10383/k2-plus-custom-firmware))
-replaces Creality's firmware with a Linux image running Jacob10383's Kalico fork and its own CFS,
-motor, probe and power-loss modules. Its shipped configs (`config/k2` in
-[Jacob10383/kalico](https://github.com/Jacob10383/kalico)) carry a `_START_PRINT_VARS` of their
-own and no `product_param`, so without an entry of its own it ties the two k2-improvements entries.
-`Creality K2 Plus (Jacobean firmware)` is a variant of the K2 Plus keyed on its
-`extended_zone_transform` object, which every other K2 entry excludes. It has no preset (its fans,
+Jacobean's K2 firmware ([Jacob10383/k2-plus-custom-firmware](https://github.com/Jacob10383/k2-plus-custom-firmware))
+replaces Creality's firmware on a K2 Plus or K2 Pro with a Linux image running Jacob10383's Kalico
+fork and its own CFS, motor, probe and power-loss modules. Its shipped configs (`config/k2` and
+`config/k2-pro` in [Jacob10383/kalico](https://github.com/Jacob10383/kalico)) carry a
+`_START_PRINT_VARS` of their own and no `product_param`, so without an entry of its own it ties the
+two k2-improvements entries. `Creality K2 Plus (Jacobean firmware)` and
+`Creality K2 Pro (Jacobean firmware)` are variants of the K2 Plus and K2 Pro keyed on its
+`extended_zone_transform` object, which every other K2 entry excludes. With no declared bed to
+read, their separator windows measure stepper travel instead: about 357mm on the K2 Plus config,
+about 307mm on the K2 Pro's (#2148). Each has no preset (its fans,
 sensors and CFS macros differ from the `k2` preset's), no `probe_type` (Cartographer or its own
 `prtouch`, never `prtouch_v3`), and its own `k2_jacobean` print-start profile written from its
 START_PRINT's STATUS_MSG text. Its `on_error_gcode` turns the heaters off itself when a print

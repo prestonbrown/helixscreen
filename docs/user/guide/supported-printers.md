@@ -116,7 +116,7 @@ Runs on the K2's built-in screen and, unlike the K1, **works with stock firmware
 
 **Status:** Tested, with CFS support.
 
-> **Community firmware:** the list above describes stock Creality firmware. Community firmware that brings its own rewritten CFS module is recognized and supported too, including load, unload and filament changes; see [Filament: CFS](filament.md#creality-filament-system-cfs). On the K2 Plus, the Kalico-based community port (including Jacobean's firmware, which is recognized as itself) adds more with recent module versions:
+> **Community firmware:** the list above describes stock Creality firmware. Community firmware that brings its own rewritten CFS module is recognized and supported too, including load, unload and filament changes; see [Filament: CFS](filament.md#creality-filament-system-cfs). On the K2 Plus and K2 Pro, the Kalico-based community port (including Jacobean's firmware, which is recognized as itself) adds more with recent module versions:
 > - **Per-unit readings**: each CFS unit shows its own temperature and humidity
 > - **Filament Mapping**: the tool-to-slot choices you make when starting a print are sent to the CFS just before the print starts, and apply to that print only. If a mapping points at a slot the CFS cannot feed from, or at a unit that has stopped answering, the print does not start and HelixScreen tells you why. Older module versions have no Filament Mapping
 > - **Disconnected units**: a CFS unit that stops answering is marked **Disconnected** on its card until it comes back

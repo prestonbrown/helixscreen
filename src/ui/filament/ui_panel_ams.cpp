@@ -44,6 +44,7 @@
 #include "overlay_base.h"
 #include "printer_detector.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
@@ -401,6 +402,18 @@ void AmsPanel::init_subjects() {
         AmsState::instance().get_bypass_active_subject(), this,
         [](AmsPanel* self, int /*active*/) { self->update_bypass_spool_from_state(); },
         AmsState::instance().get_subjects_lifetime());
+
+    // On a virtual bypass the setting alone decides whether the node is on the path, and the
+    // Device Operations toggle changes nothing the backend publishes.
+    always_show_bypass_observer_ = observe<int>(
+        SettingsManager::instance().subject_ams_always_show_bypass_spool(), this,
+        [](AmsPanel* self, int /*shown*/) {
+            if (!self->path_canvas_)
+                return;
+            self->update_path_canvas_from_backend();
+            self->update_bypass_spool_from_state();
+        },
+        SettingsManager::instance().get_subjects_lifetime());
 
     // ams_panel.xml hides the line for kinds Hidden and On (hide_when_healthy); the path stands
     // over it, so it showing or hiding lays the unit and its path out again.
@@ -997,18 +1010,7 @@ void AmsPanel::setup_bypass_spool() {
 void AmsPanel::update_bypass_spool_position() {
     if (!bypass_widgets_.valid() || !path_canvas_)
         return;
-
-    int32_t abs_cx = 0;
-    int32_t abs_cy = 0;
-    if (!ui_filament_path_canvas_get_bypass_merge_pos(path_canvas_, &abs_cx, &abs_cy)) {
-        return;
-    }
-    lv_obj_t* parent = lv_obj_get_parent(bypass_widgets_.box);
-    lv_area_t parent_abs;
-    lv_obj_get_content_coords(parent, &parent_abs);
-    helix::ui::bypass_spool_set_position(bypass_widgets_, abs_cx - parent_abs.x1,
-                                         abs_cy - parent_abs.y1);
-    helix::ui::ams_detail_keep_env_pill_clear(path_canvas_);
+    helix::ui::ams_detail_place_bypass_spool(path_canvas_, bypass_widgets_);
 }
 
 void AmsPanel::update_bypass_spool_from_state() {
@@ -1019,13 +1021,8 @@ void AmsPanel::update_bypass_spool_from_state() {
     const bool node_visible =
         helix::ui::bypass_node_visible_for(AmsState::instance().get_backend());
     helix::ui::bypass_spool_sync_from_state(bypass_widgets_, node_visible);
-    if (!node_visible) {
-        helix::ui::ams_detail_keep_env_pill_clear(path_canvas_);
-        return;
-    }
-
-    // Reposition because the material label visibility may have changed,
-    // which affects the layout above the spool box.
+    // Placed again whether shown or not: the material label's visibility moves what stands
+    // above the card, and a hidden spool gives the canvas back its default spot.
     update_bypass_spool_position();
 }
 

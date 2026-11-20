@@ -955,3 +955,23 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art spin: the far flange turns with the 
     const int32_t y = (int32_t)std::lround(geom->lane[0].far_y * 320.0f);
     CHECK(spin_alpha_at(art, 0, x, y, /*far_flange=*/true) == 0);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "unit art widget: its row outline is read only from an image of its current size",
+                 "[ams][unit-art][bypass]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Thumb);
+    lv_obj_set_size(art, 80, 80);
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_is_flattened(art));
+    std::vector<int32_t> rows;
+    REQUIRE(unit_art_row_right_edges(art, rows));
+    CHECK(rows.size() == 80);
+    // Resized and not yet flattened again: the old image's rows would land on the wrong place.
+    lv_obj_set_size(art, 120, 60);
+    lv_obj_update_layout(art);
+    CHECK_FALSE(unit_art_row_right_edges(art, rows));
+    // Flattened at its new size, it reads again.
+    unit_art_set_unit(art, ace_system(), 0);
+    REQUIRE(unit_art_row_right_edges(art, rows));
+    CHECK(rows.size() == 60);
+}
