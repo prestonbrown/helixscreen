@@ -463,6 +463,7 @@ struct SensorBand {
     lv_color_t fill;          // the lane's filament color (Loaded)
     bool on_box_edge = false; // straddles a hub/selector edge: painted over the box
     bool dot = false;         // a round dot, ringed dark, instead of a band across the tube
+    int32_t thickness = 0;    // the band's stroke along the tube; 0 for kBandThickness
 };
 
 inline constexpr int kMaxRoutes = FilamentPathData::kMaxSlots + 2; // lanes + trunk + bypass
@@ -594,6 +595,9 @@ void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f);
 // Clamp band: a short rounded bar across the tube.
 inline constexpr int32_t kBandExtra = 10;    // band length = gauge + kBandExtra
 inline constexpr int32_t kBandThickness = 4; // stroke width, round caps
+/// The hub's output sensor stands inside the hub box's bottom edge, thinner than a band on a
+/// tube so the box's label keeps clear of it on a short box.
+inline constexpr int32_t kHubSensorThickness = 3;
 
 /// Centerline of the band bar: at ± normal * ((gauge + kBandExtra)/2 - kBandThickness/2).
 void band_segment(const SensorBand& band, int32_t gauge, pg::PathPoint& p0, pg::PathPoint& p1);

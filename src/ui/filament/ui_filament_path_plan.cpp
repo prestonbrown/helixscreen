@@ -436,9 +436,12 @@ int32_t jog_room(const HubFrameCtx& c) {
 
 /// The room the trunk keeps under a hub: with a buffer, a gap, the buffer and an equal gap, each
 /// gap the buffer's least gap plus the band's clear room above the head where the bypass merges
-/// and the toolhead band sit; with none, a gap of a radius and that room.
+/// and the toolhead band sit; with none, only that room, and a radius more where the bypass
+/// merges below the hub (the output sensor stands inside the hub box).
 int32_t room_under_hub(const HubFrameCtx& c, bool buffer) {
-    return buffer ? 2 * (buffer_gap(c) + 2 * c.r) + c.buf_box_h : c.r + 2 * c.r;
+    if (buffer)
+        return 2 * (buffer_gap(c) + 2 * c.r) + c.buf_box_h;
+    return (c.data.show_bypass ? c.r : 0) + 2 * c.r;
 }
 
 /// The lowest a hub's top stands and still leaves its sensor room and a gap above the bypass
@@ -1505,7 +1508,7 @@ void draw_sensor_band(lv_layer_t* layer, const SensorBand& band, int32_t gauge, 
     lv_draw_line_dsc_t dsc;
     lv_draw_line_dsc_init(&dsc);
     dsc.color = color;
-    dsc.width = kBandThickness;
+    dsc.width = band.thickness > 0 ? band.thickness : kBandThickness;
     dsc.opa = LV_OPA_COVER;
     dsc.p1.x = p0.x;
     dsc.p1.y = p0.y;
@@ -1568,9 +1571,9 @@ SpanStyle unpainted(SpanStyle s) {
 
 namespace {
 
-// The hub's output sensor, on the hub box's bottom edge. With the buffer box given way, that
-// outlet carries its sync sensor instead, banded in the buffer's colour while there is a reading
-// to judge.
+// The hub's output sensor, on the hub box's bottom edge: inside a HUB's box, so the trunk below
+// keeps no room for it; across a selector's outlet. With the buffer box given way, that outlet
+// carries its sync sensor instead, banded in the buffer's colour while there is a reading to judge.
 
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,
                          const FilamentPathData& data) {
@@ -1583,8 +1586,15 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         state = BandState::Sync;
         fill = buffer_box_colors(data, false, fill).border;
     }
-    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1}, state, fill,
+    const bool in_box = data.topology == static_cast<int>(PathTopology::HUB);
+    // In the box: its bottom row is the box's last (f.output_y), the band's thickness above it.
+    const float y =
+        in_box ? (float)f.output_y - (kHubSensorThickness - 1) / 2.0f : (float)f.output_y;
+    const int before = plan.band_count;
+    add_band(plan, BandKind::Trunk, {(float)f.output_x, y}, {0, 1}, state, fill,
              /*on_box_edge=*/true);
+    if (in_box && plan.band_count > before)
+        plan.bands[plan.band_count - 1].thickness = kHubSensorThickness;
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the

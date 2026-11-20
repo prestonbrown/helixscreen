@@ -309,9 +309,10 @@ TEST_CASE_METHOD(HubStackFixture,
     // The tube ends at the head's filament inlet.
     CHECK(f.inlet_y == inlet);
     // The buffer keeps its control's height, with a clear gap above and below it; the head
-    // keeps a clear gap above it for the toolhead band.
+    // keeps a clear gap above it for the toolhead band, and a bypass merging under the hub a
+    // radius clear of the box (the hub's own sensor stands inside it).
     CHECK(f.has_buffer == buffer);
-    CHECK(hub_bottom + (buffer ? r + buf_h : 0) + r + 2 * r <= inlet);
+    CHECK(hub_bottom + (buffer ? r + buf_h + r : (bypass ? r : 0)) + 2 * r <= inlet);
     if (buffer) {
         CHECK(f.buffer_y - buf_h / 2 >= hub_bottom + r);
         CHECK(f.buffer_y + buf_h / 2 + r + 2 * r <= head_top);
@@ -646,6 +647,45 @@ TEST_CASE("A compact path keeps its runs under the unit short so the unit keeps 
         CHECK(foot == g.y_off + g.height - kCompactHeadFoot);
     else
         CHECK(foot == g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio));
+}
+
+TEST_CASE("The hub's output sensor stands on the hub box, and the trunk keeps no room for it",
+          "[filament-path][hub-stack]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 22;
+    d.view_cap_h = 16;
+    d.buffer_in_hub = true;
+    const bool bypass = GENERATE(false, true);
+    const float unit = GENERATE(5.45f, 9.5f);
+    CAPTURE(bypass, unit);
+    d.show_bypass = bypass;
+    d.view_unit = unit;
+    g.height = linear_hub_required_height(d, g);
+    const LinearHubFrame f = compute_linear_hub_frame(d, g);
+    const lv_area_t hub = hub_box_area(d, g, f);
+    static PathPlan plan;
+    plan_linear_hub(f, d, g, plan);
+    // The output sensor's band lies wholly inside the hub box, across its bottom edge's inside.
+    int found = 0;
+    for (int i = 0; i < plan.band_count; ++i) {
+        const SensorBand& b = plan.bands[i];
+        if (!b.on_box_edge || b.at.y < (float)hub.y1 || b.at.x != (float)f.output_x)
+            continue;
+        ++found;
+        CAPTURE(b.at.y, hub.y1, hub.y2);
+        const float half = (b.thickness > 0 ? b.thickness : kBandThickness) / 2.0f;
+        CHECK(b.at.y - half >= (float)hub.y1);
+        CHECK(b.at.y + half <= (float)hub.y2 + 0.5f);
+    }
+    CHECK(found == 1);
+    // Below the hub the trunk keeps only the head's clear room, and a radius more where the
+    // bypass merges under the box.
+    const int32_t r = d.theme.sensor_radius;
+    const int32_t head_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
+    CAPTURE(hub.y2, head_top);
+    CHECK(head_top - f.output_y <= 2 * r + (bypass ? r : 0) + 1);
 }
 
 TEST_CASE("A path no taller canvas would help asks for no height past its own",
