@@ -1166,7 +1166,7 @@ helix::ui::BypassSpoolSpot bypass_spot_for_unit(lv_obj_t* canvas,
     // Below the unit, right of everything the trunk carries down from the hub.
     lv_area_t hub, head;
     int32_t left = INT32_MIN;
-    if (ui_filament_path_canvas_get_hub_box(canvas, &hub))
+    if (helix::ui::filament_path_get_hub_box_unclipped(canvas, &hub))
         left = std::max(left, hub.x2);
     if (ui_filament_path_canvas_get_toolhead_box(canvas, &head))
         left = std::max(left, head.x2);

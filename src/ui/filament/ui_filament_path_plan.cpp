@@ -91,8 +91,10 @@ int32_t hub_box_width(const FilamentPathData& data, const BaseGeometry& g,
 
 int32_t hub_box_right_limit(const FilamentPathData& data, const BaseGeometry& g,
                             const LinearHubFrame& f) {
+    // A spool standing across the merge line stands right of the hub, which it never clips.
     if (data.topology != static_cast<int>(PathTopology::LINEAR) || !data.show_bypass ||
-        !data.feeds_toolhead || data.hub_on_toolhead || data.slot_count < 1)
+        !data.feeds_toolhead || data.hub_on_toolhead || data.slot_count < 1 ||
+        data.bypass_side_entry)
         return INT32_MAX;
     // The box the spool widget stands in, over the merge line at its spot.
     const int32_t spool =

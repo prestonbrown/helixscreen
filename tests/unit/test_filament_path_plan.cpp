@@ -2373,3 +2373,54 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, nullptr));
     CHECK(mx == home_x);
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "FilamentPath: the hub a lower bypass spool must clear is the same whatever spot "
+                 "the spool held before",
+                 "[filament-path][plan][hits][bypass]") {
+    // A 12-lane selector whose bar, with its label and gear, would run past the spool's left
+    // edge at its default spot.
+    helix::test::ScopedGeometry micro(480, 272);
+    constexpr int lanes = 12;
+    constexpr int32_t kW = 240;
+    constexpr int32_t kH = 151;
+    lv_obj_t* w = ui_filament_path_canvas_create(test_screen());
+    lv_obj_set_size(w, kW, kH);
+    ui_filament_path_canvas_set_slot_count(w, lanes);
+    ui_filament_path_canvas_set_slot_width(w, 20);
+    ui_filament_path_canvas_set_slot_overlap(w, 3);
+    ui_filament_path_canvas_set_topology(w, static_cast<int>(helix::PathTopology::LINEAR));
+    ui_filament_path_canvas_set_view_scale(
+        w, helix::ui::path_view_scale(kH, helix::ui::kPathTubeLimits));
+    ui_filament_path_canvas_set_show_bypass(w, true);
+    ui_filament_path_canvas_set_hub_callback(w, [](lv_point_t, void*) {}, nullptr);
+    ui_filament_path_canvas_set_hub_actions(w, true);
+    render(*this, w);
+
+    int32_t home_x = 0;
+    REQUIRE(helix::ui::filament_path_get_bypass_home(w, &home_x, nullptr));
+    const int32_t home_spool_left = home_x - helix::ui::ams_slot_spool_size() / 2;
+    lv_area_t clipped, natural;
+    REQUIRE(ui_filament_path_canvas_get_hub_box(w, &clipped));
+    REQUIRE(helix::ui::filament_path_get_hub_box_unclipped(w, &natural));
+    CAPTURE(home_spool_left, clipped.x2, natural.x2);
+    // The case at hand: the bar would run past the home spool's left edge, and is cut short.
+    REQUIRE(natural.x2 > home_spool_left);
+    REQUIRE(clipped.x2 < natural.x2);
+
+    // Whatever spot the spool held, the hub it must clear below the unit is the same.
+    lv_area_t c;
+    lv_obj_get_coords(w, &c);
+    helix::ui::filament_path_set_bypass_spot(w, home_x - c.x1 - 30,
+                                             2 * helix::ui::ams_slot_spool_size());
+    lv_area_t again;
+    REQUIRE(helix::ui::filament_path_get_hub_box_unclipped(w, &again));
+    CHECK(again.x2 == natural.x2);
+    CHECK(again.x1 == natural.x1);
+
+    // Standing below the unit, the spool clips nothing: the bar is drawn whole.
+    helix::ui::filament_path_set_bypass_spot(w, home_x - c.x1 + 20, 80, /*side_entry=*/true);
+    lv_area_t below;
+    REQUIRE(ui_filament_path_canvas_get_hub_box(w, &below));
+    CHECK(below.x2 == natural.x2);
+}

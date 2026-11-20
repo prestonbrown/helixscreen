@@ -2135,3 +2135,42 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     if (size == 1 || size == 2)
         CHECK(card > helix::ui::bypass_spool_box_size());
 }
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit art: placing the bypass spool again with nothing changed keeps its spot",
+                 "[ams][tray][ui_integration][unit-art][bypass]") {
+    const int size = GENERATE(range(0, kHostSizes));
+    host_at(size);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    REQUIRE(AmsState::instance().get_backend()->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    auto& w = helix::AmsPanelTestAccess::bypass(*panel_);
+    REQUIRE(w.valid());
+    lv_obj_t* path = helix::AmsPanelTestAccess::path_canvas(*panel_);
+    const auto* d = helix::ui::fpath::get_data(path);
+    helix::AmsPanelTestAccess::place_bypass(*panel_);
+    lv_obj_update_layout(test_screen());
+    lv_area_t first;
+    lv_obj_get_coords(w.box, &first);
+    const int32_t cx = d->bypass_spool_cx, spool = d->bypass_spool_size;
+    const bool side = d->bypass_side_entry;
+    for (int i = 0; i < 3; ++i) {
+        helix::AmsPanelTestAccess::place_bypass(*panel_);
+        process_lvgl(10);
+        lv_obj_update_layout(test_screen());
+        lv_area_t now;
+        lv_obj_get_coords(w.box, &now);
+        CAPTURE(size, i, first.x1, first.y1, first.x2, now.x1, now.y1, now.x2);
+        CHECK(
+            (now.x1 == first.x1 && now.y1 == first.y1 && now.x2 == first.x2 && now.y2 == first.y2));
+        CHECK(d->bypass_spool_cx == cx);
+        CHECK(d->bypass_spool_size == spool);
+        CHECK(d->bypass_side_entry == side);
+    }
+}

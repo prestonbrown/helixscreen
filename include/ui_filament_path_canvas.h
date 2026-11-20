@@ -584,6 +584,10 @@ namespace helix::ui {
 void filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size,
                                    bool side_entry = false);
 
+/// The hub or selector box as drawn whole, clipped by no bypass spool beside it: what a spool
+/// standing below the unit must clear, whatever spot the spool held before. Absolute coords.
+bool filament_path_get_hub_box_unclipped(lv_obj_t* obj, lv_area_t* area_out);
+
 /// Where the bypass tube would terminate at its default spot, before any
 /// filament_path_set_bypass_spot(): the spot a unit view starts from.
 bool filament_path_get_bypass_home(lv_obj_t* obj, int32_t* cx_out, int32_t* cy_out);

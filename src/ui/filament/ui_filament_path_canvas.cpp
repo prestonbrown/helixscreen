@@ -1460,6 +1460,18 @@ bool ui_filament_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out
     return true;
 }
 
+bool helix::ui::filament_path_get_hub_box_unclipped(lv_obj_t* obj, lv_area_t* area_out) {
+    auto* data = get_data(obj);
+    if (!data)
+        return false;
+    // The bar as drawn with the spool standing across the merge line, where it clips nothing.
+    const bool side_entry = data->bypass_side_entry;
+    data->bypass_side_entry = true;
+    const bool ok = ui_filament_path_canvas_get_hub_box(obj, area_out);
+    data->bypass_side_entry = side_entry;
+    return ok;
+}
+
 bool helix::ui::filament_path_get_bypass_home(lv_obj_t* obj, int32_t* cx_out, int32_t* cy_out) {
     if (!ui_filament_path_canvas_get_bypass_merge_pos(obj, nullptr, cy_out))
         return false;
