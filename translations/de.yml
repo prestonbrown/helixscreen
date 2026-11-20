@@ -117,6 +117,7 @@ translations:
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Jede Düse wird aufgeheizt, abgewischt und vorne geparkt, damit du sie sauber bürsten kannst
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Installiere die Hilfsmakros. Sie fügen HELIX_MATERIAL_OFFSET und einen [save_variables]-Speicher für die Offsets hinzu."
+  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: "1. Installiere die Hilfsmakros. Sie fügen das Makro aus Schritt 2 und einen Klipper-Speicher für die Offsets hinzu."
   1. Printer homes all axes (~1 minute): 1. Drucker referenziert alle Achsen (~1 Minute)
   1. Printer homes and probes the bed: 1. Drucker referenziert und prüft das Bett
   1. Printer will home and probe each screw: 1. Drucker referenziert und prüft jede Schraube
@@ -2830,9 +2831,11 @@ translations:
   Nylon: "Nylon"
   OD: OD
   'OFF': AUS
+  OFFSET PER MATERIAL: "OFFSET PRO MATERIAL"
   OK: OK
   'ON': EIN
   'ON: {} | OFF: {}': 'EIN: {} | AUS: {}'
+  ONE-TIME SETUP: "EINMALIGE EINRICHTUNG"
   OS: OS
   'OS: ': 'OS: '
   Object: 'Objekt'
@@ -4240,6 +4243,7 @@ translations:
   The heater was turned off at the heater.: 'Die Heizung wurde am Gerät ausgeschaltet.'
   The heater will cycle on and off several times.: Die Heizung wird mehrmals ein- und ausschalten.
   The helper macros are installed and activate after Klipper restarts.: 'Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv.'
+  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: "Die Hilfsmakros auf diesem Drucker haben noch keinen Speicher für die Offsets. Aktualisiere sie und starte dann Klipper neu."
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Der letzte Druck liegt möglicherweise noch auf dem Heizbett. Entfernen Sie ihn, bevor sich der Werkzeugkopf bewegt, und tippen Sie dann auf Geräumt."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock.
   The left RFID reader in this CFS unit may need service: Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden

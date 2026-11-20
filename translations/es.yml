@@ -117,6 +117,7 @@ translations:
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Cada boquilla se calienta, se limpia y se aparca delante para que la cepilles
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Instala las macros de ayuda. Añaden HELIX_MATERIAL_OFFSET y un almacén [save_variables] para los offsets."
+  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: "1. Instala las macros de ayuda. Añaden la macro del paso 2 y un almacén de Klipper para los offsets."
   1. Printer homes all axes (~1 minute): 1. La impresora referencia todos los ejes (~1 minuto)
   1. Printer homes and probes the bed: 1. La impresora hace origen y sondea la cama
   1. Printer will home and probe each screw: 1. La impresora hará origen y sondeará cada tornillo
@@ -2830,9 +2831,11 @@ translations:
   Nylon: "Nailon"
   OD: OD
   'OFF': 'OFF'
+  OFFSET PER MATERIAL: "OFFSET POR MATERIAL"
   OK: OK
   'ON': 'ON'
   'ON: {} | OFF: {}': 'ON: {} | OFF: {}'
+  ONE-TIME SETUP: "CONFIGURACIÓN INICIAL"
   OS: OS
   'OS: ': 'SO: '
   Object: 'Objeto'
@@ -4240,6 +4243,7 @@ translations:
   The heater was turned off at the heater.: 'El calentador se apagó desde el propio calentador.'
   The heater will cycle on and off several times.: El calentador se encenderá y apagará varias veces.
   The helper macros are installed and activate after Klipper restarts.: 'Las macros de ayuda están instaladas y se activan tras reiniciar Klipper.'
+  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: "Las macros de ayuda de esta impresora aún no tienen un almacén para los offsets. Actualízalas y reinicia Klipper."
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Puede que la última impresión siga en la cama. Retírala antes de que se mueva el cabezal y luego toca Despejado."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base.
   The left RFID reader in this CFS unit may need service: Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio

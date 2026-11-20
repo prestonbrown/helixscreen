@@ -117,6 +117,7 @@ translations:
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. 每个喷嘴依次加热、擦拭，并停在前方供你用刷子清洁
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. 安装帮助宏。它们会添加 HELIX_MATERIAL_OFFSET 和用于存储偏移的 [save_variables]。"
+  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: "1. 安装帮助宏。它们会添加第 2 步中的宏和用于存储偏移的 Klipper 存储。"
   1. Printer homes all axes (~1 minute): 1. 打印机全部轴归零（约1分钟）
   1. Printer homes and probes the bed: 1. 打印机归位并探测热床
   1. Printer will home and probe each screw: 1. 打印机将归位并探测每个螺丝位置
@@ -2830,9 +2831,11 @@ translations:
   Nylon: "尼龙"
   OD: OD
   'OFF': 关
+  OFFSET PER MATERIAL: "按材料的偏移"
   OK: 确定
   'ON': 开
   'ON: {} | OFF: {}': '开: {} | 关: {}'
+  ONE-TIME SETUP: "一次性设置"
   OS: OS
   'OS: ': '操作系统: '
   Object: '对象'
@@ -4240,6 +4243,7 @@ translations:
   The heater was turned off at the heater.: '加热器已在加热器本身上关闭。'
   The heater will cycle on and off several times.: 加热器将多次开关循环。
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
+  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: "这台打印机上的帮助宏还没有用于存储偏移的位置。请更新它们，然后重启 Klipper。"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最后一次打印件可能仍在热床上。请在工具头移动前将其取下，然后点按“已清空”。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
   The left RFID reader in this CFS unit may need service: 此 CFS 单元的左侧 RFID 读取器可能需要维修

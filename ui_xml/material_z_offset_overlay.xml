@@ -8,53 +8,66 @@
 <component>
   <view name="material_z_offset_overlay" extends="overlay_panel" title="Z Offset by Material" bg_color="#screen_bg">
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="#space_xs" scrollable="true">
+            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
+            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
       <text_small width="100%"
                   text="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material."
-                  long_mode="wrap" style_text_color="#text_muted"/>
+                  long_mode="wrap" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_sm"/>
       <!-- Setup: no storage this screen can use -->
-      <lv_obj name="setup_steps"
-              width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-              scrollable="false">
+      <setting_group name="group_setup">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="0"/>
-        <setting_section_header title="One-time setup" hide_icon="true"/>
-        <text_body width="100%"
-                   text="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets."
-                   long_mode="wrap"/>
-        <text_body width="100%"
-                   text="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:"
-                   long_mode="wrap"/>
-        <text_small width="100%" bind_text="material_zoffset_macro_line" long_mode="wrap" style_pad_left="#space_lg"/>
-        <text_body width="100%"
-                   text="3. Have the slicer's start G-code pass the material to PRINT_START:" long_mode="wrap"/>
-        <text_small width="100%" bind_text="material_zoffset_slicer_line" long_mode="wrap" style_pad_left="#space_lg"/>
-        <ui_button name="btn_install_macros" width="content" text="Install Helper Macros">
-          <event_cb trigger="clicked" callback="on_helix_macros_install_clicked"/>
-        </ui_button>
-      </lv_obj>
-      <!-- The helper macros predate the [save_variables] store -->
-      <lv_obj name="setup_update"
-              width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-              scrollable="false">
+        <setting_group_header title="ONE-TIME SETUP"/>
+        <lv_obj name="step_install"
+                width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
+                style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <text_body width="100%"
+                     text="1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets."
+                     long_mode="wrap"/>
+          <ui_button name="btn_install_macros" width="100%" variant="primary" text="Install Helper Macros">
+            <event_cb trigger="clicked" callback="on_helix_macros_install_clicked"/>
+          </ui_button>
+        </lv_obj>
+        <lv_obj name="step_print_start"
+                width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
+                style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <text_body width="100%"
+                     text="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:"
+                     long_mode="wrap"/>
+          <code_block bind_text="material_zoffset_macro_line"/>
+        </lv_obj>
+        <lv_obj name="step_slicer"
+                width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
+                style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <text_body width="100%"
+                     text="3. Have the slicer's start G-code pass the material to PRINT_START:" long_mode="wrap"/>
+          <code_block bind_text="material_zoffset_slicer_line"/>
+        </lv_obj>
+      </setting_group>
+      <!-- The helper macros predate the store for the offsets -->
+      <setting_group name="group_update">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="1"/>
-        <text_body width="100%"
-                   text="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper."
-                   long_mode="wrap"/>
-        <ui_button name="btn_update_macros" width="content" text="Update Helper Macros">
-          <event_cb trigger="clicked" callback="on_helix_macros_update_clicked"/>
-        </ui_button>
-      </lv_obj>
+        <lv_obj name="update_card"
+                width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
+                style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <text_body width="100%"
+                     text="The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper."
+                     long_mode="wrap"/>
+          <ui_button name="btn_update_macros" width="100%" variant="primary" text="Update Helper Macros">
+            <event_cb trigger="clicked" callback="on_helix_macros_update_clicked"/>
+          </ui_button>
+        </lv_obj>
+      </setting_group>
       <!-- Ready -->
-      <lv_obj name="material_rows"
-              width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
-              scrollable="false">
+      <setting_group name="group_enabled">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="2"/>
         <setting_toggle_row name="row_material_zoffset_enabled"
                             label="Z offset by material" icon="layers"
                             description="Save writes the print's material; off, it saves one offset for every print"
                             subject="material_zoffset_enabled" callback="on_material_zoffset_enabled_changed"/>
-        <setting_section_header title="Offset per material" hide_icon="true"/>
+      </setting_group>
+      <setting_group name="group_materials">
+        <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="2"/>
+        <setting_group_header title="OFFSET PER MATERIAL"/>
         <material_z_offset_row label="Any other material"
                                temp_subject="material_zoffset_temp_default" mesh_subject="material_zoffset_mesh_default"
                                value_subject="material_zoffset_value_default" user_data="DEFAULT"/>
@@ -79,10 +92,13 @@
         <material_z_offset_row label="PC"
                                temp_subject="material_zoffset_temp_pc" mesh_subject="material_zoffset_mesh_pc"
                                value_subject="material_zoffset_value_pc" user_data="PC"/>
-        <text_small width="100%"
-                    text="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh."
-                    long_mode="wrap" style_text_color="#text_muted"/>
-      </lv_obj>
+      </setting_group>
+      <info_note icon="grid_large"
+                 icon_variant="muted"
+                 text="A grid marks a material with a stored bed mesh, loaded at print start for prints that do not mesh."
+                 style_pad_left="#space_md" style_pad_right="#space_md">
+        <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="2"/>
+      </info_note>
     </lv_obj>
   </view>
 </component>
