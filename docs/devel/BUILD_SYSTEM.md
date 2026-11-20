@@ -2298,7 +2298,7 @@ Absorbed from the `helix-build` skill so there is one home for it. Values verifi
 | `OPT` | `2` | Optimization level: 0 (dev), 1, 2 (release) |
 | `CXXFLAGS` | `-std=c++17 -Wall -Wextra -O{OPT} -g` | Extended per platform |
 | `SUBMODULE_CFLAGS` | `-std=c11 -O2 -g -D_GNU_SOURCE -w` | Third-party code, warnings suppressed |
-| `DEPFLAGS` | `-MMD -MP` | Header dependency tracking |
+| `DEPFLAGS` | `-MMD -MP` | Header dependency tracking. A `.d` whose source is gone is deleted with its object at parse time (`mk/depfiles.mk`) |
 
 ### Version
 
