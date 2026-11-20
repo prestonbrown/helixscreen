@@ -2737,7 +2737,7 @@ translations:
   No vendors found: 未找到供应商
   No verified bypass command for this CFS firmware: '此 CFS 固件没有经验证的旁通命令'
   No video player installed - showing the timelapse library: '未安装视频播放器 – 显示延时摄影库'
-  No video player on this printer: ''
+  No video player on this printer: '此打印机没有视频播放器'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "未检测到摄像头。\n延时摄影需要摄像头。"
   No widgets found: 未找到小组件
@@ -4381,7 +4381,7 @@ translations:
   'The unload did not start: unload by hand, then start again': 卸载未开始:请手动卸载,然后重新开始
   The unload finishes on its own, but the plate will not move.: '卸载会自行完成,但热床不会移动。'
   'The {0} motor was not measured: {1}.': '{0} 电机未测量：{1}。'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: ''
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: '视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。'
   Theme: 主题
   Theme Colors: 主题颜色
   Theme Preset: 主题预设
@@ -4467,7 +4467,7 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: ''
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: '此打印机没有视频播放器。用手机扫描二维码观看延时摄影。'
   'This printer has no {} command, so the Z-offset cannot be saved.': '此打印机没有 {} 命令，因此无法保存 Z 偏移。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
@@ -4797,8 +4797,8 @@ translations:
   Vibration: 振动
   Vibration compensation active: 振动补偿已启用
   Video playback speed: 视频播放速度
-  Video player failed to start: ''
-  Video player failed to start ({}): ''
+  Video player failed to start: '视频播放器启动失败'
+  Video player failed to start ({}): '视频播放器启动失败（{}）'
   View: 查看
   View Changelog: 查看更新日志
   View Full History: 查看完整历史
@@ -4848,7 +4848,7 @@ translations:
   Warning: 警告
   Warnings & errors: '警告与错误'
   Watch and control this screen from a browser: '从浏览器查看和控制此屏幕'
-  Watch on Your Phone: ''
+  Watch on Your Phone: '在手机上观看'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
   Watch which motor turns: "看看哪个电机在转动"
   Weak battery: 电池电量低

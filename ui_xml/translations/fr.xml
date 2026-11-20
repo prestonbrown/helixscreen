@@ -2666,7 +2666,7 @@
   <translation tag="No vendors found" fr="Aucun fournisseur trouvé"/>
   <translation tag="No verified bypass command for this CFS firmware" fr="Aucune commande de bypass vérifiée pour ce firmware CFS"/>
   <translation tag="No video player installed - showing the timelapse library" fr="Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse"/>
-  <translation tag="No video player on this printer"/>
+  <translation tag="No video player on this printer" fr="Aucun lecteur vidéo sur cette imprimante"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." fr="Aucune webcam détectée.&#10;Une webcam est requise pour le timelapse."/>
   <translation tag="No widgets found" fr="Aucun widget trouvé"/>
   <translation tag="No width sensor detected" fr="Aucun capteur de diamètre détecté"/>
@@ -4266,7 +4266,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" fr="La mémoire interne de l&apos;unité est défaillante. La carte mère du CFS doit être remplacée"/>
   <translation tag="The unload did not start: unload by hand, then start again" fr="Le déchargement n&apos;a pas démarré : déchargez à la main, puis recommencez"/>
   <translation tag="The unload finishes on its own, but the plate will not move." fr="Le déchargement se termine de lui-même, mais le plateau ne bougera pas."/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." fr="Le lecteur vidéo n&apos;a pas pu démarrer sur cette imprimante ({}). Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." fr="Le moteur {0} n&apos;a pas été mesuré : {1}."/>
   <translation tag="Theme" fr="Thème"/>
   <translation tag="Theme Colors" fr="Couleurs du thème"/>
@@ -4337,7 +4337,7 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." fr="Cette imprimante n&apos;a pas encore de stockage [save_variables]. Mettez à jour les macros d&apos;aide pour en ajouter un, puis redémarrez Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." fr="Cette imprimante n&apos;a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." fr="Cette imprimante n&apos;a pas de lecteur vidéo. Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." fr="Cette imprimante n&apos;a pas de commande {}, le décalage Z ne peut donc pas être enregistré."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" fr="Il manque aux macros INDX de cette imprimante : {}"/>
@@ -4665,8 +4665,8 @@
   <translation tag="Vibration" fr="Vibration"/>
   <translation tag="Vibration compensation active" fr="Compensation de vibration active"/>
   <translation tag="Video playback speed" fr="Vitesse de lecture vidéo"/>
-  <translation tag="Video player failed to start"/>
-  <translation tag="Video player failed to start ({})"/>
+  <translation tag="Video player failed to start" fr="Le lecteur vidéo n&apos;a pas pu démarrer"/>
+  <translation tag="Video player failed to start ({})" fr="Le lecteur vidéo n&apos;a pas pu démarrer ({})"/>
   <translation tag="View" fr="Voir"/>
   <translation tag="View Changelog" fr="Voir le journal des modifications"/>
   <translation tag="View Full History" fr="Voir l&apos;historique complet"/>
@@ -4716,7 +4716,7 @@
   <translation tag="Warning" fr="Avertissement"/>
   <translation tag="Warnings &amp; errors" fr="Avertissements et erreurs"/>
   <translation tag="Watch and control this screen from a browser" fr="Voir et contrôler cet écran depuis un navigateur"/>
-  <translation tag="Watch on Your Phone"/>
+  <translation tag="Watch on Your Phone" fr="Regarder sur votre téléphone"/>
   <translation tag="Watch the camera during a print for failed prints" fr="Surveille la caméra pendant une impression pour détecter les impressions échouées"/>
   <translation tag="Watch which motor turns" fr="Regardez quel moteur tourne"/>
   <translation tag="Weak battery" fr="Batterie faible"/>

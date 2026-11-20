@@ -2660,7 +2660,7 @@
   <translation tag="No vendors found" ja="ベンダーが見つかりません"/>
   <translation tag="No verified bypass command for this CFS firmware" ja="この CFS ファームウェアには検証済みのバイパスコマンドがありません"/>
   <translation tag="No video player installed - showing the timelapse library" ja="動画プレーヤーがありません – タイムラプス一覧を表示します"/>
-  <translation tag="No video player on this printer"/>
+  <translation tag="No video player on this printer" ja="このプリンターには動画プレーヤーがありません"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." ja="ウェブカメラが検出されませんでした。&#10;タイムラプスにはウェブカメラが必要です。"/>
   <translation tag="No widgets found" ja="ウィジェットが見つかりません"/>
   <translation tag="No width sensor detected" ja="幅センサーが検出されません"/>
@@ -4260,7 +4260,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ja="ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です"/>
   <translation tag="The unload did not start: unload by hand, then start again" ja="排出が始まりませんでした: 手で排出してから、もう一度始めてください"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ja="排出はそのまま完了しますが、ベッドは移動しません。"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ja="このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。"/>
   <translation tag="The {0} motor was not measured: {1}." ja="{0} モーターは測定されませんでした: {1}。"/>
   <translation tag="Theme" ja="テーマ"/>
   <translation tag="Theme Colors" ja="テーマカラー"/>
@@ -4331,7 +4331,7 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ja="このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ja="このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ja="このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." ja="このプリンターには動画プレーヤーがありません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ja="このプリンターには {} コマンドがないため、Zオフセットを保存できません。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ja="このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ja="このプリンターのINDXマクロに不足があります: {}"/>
@@ -4659,8 +4659,8 @@
   <translation tag="Vibration" ja="振動"/>
   <translation tag="Vibration compensation active" ja="振動補正が有効です"/>
   <translation tag="Video playback speed" ja="動画再生速度"/>
-  <translation tag="Video player failed to start"/>
-  <translation tag="Video player failed to start ({})"/>
+  <translation tag="Video player failed to start" ja="動画プレーヤーを起動できませんでした"/>
+  <translation tag="Video player failed to start ({})" ja="動画プレーヤーを起動できませんでした（{}）"/>
   <translation tag="View" ja="表示"/>
   <translation tag="View Changelog" ja="変更履歴を表示"/>
   <translation tag="View Full History" ja="全履歴を表示"/>
@@ -4710,7 +4710,7 @@
   <translation tag="Warning" ja="警告"/>
   <translation tag="Warnings &amp; errors" ja="警告とエラー"/>
   <translation tag="Watch and control this screen from a browser" ja="ブラウザからこの画面を表示・操作"/>
-  <translation tag="Watch on Your Phone"/>
+  <translation tag="Watch on Your Phone" ja="スマートフォンで見る"/>
   <translation tag="Watch the camera during a print for failed prints" ja="印刷中にカメラで印刷失敗を監視します"/>
   <translation tag="Watch which motor turns" ja="どのモーターが回るか見てください"/>
   <translation tag="Weak battery" ja="バッテリー残量低下"/>
