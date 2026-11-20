@@ -201,7 +201,8 @@ struct AmsMiniStatusData {
     // Child objects
     lv_obj_t* container = nullptr;        // Main container
     lv_obj_t* bars_container = nullptr;   // Container for slot bars
-    lv_obj_t* spools_container = nullptr; // Container for wide spool cells
+    lv_obj_t* spools_row = nullptr;       // Spool view: lane scroller + pinned bypass
+    lv_obj_t* spools_container = nullptr; // The lanes' horizontal scroller, in spools_row
     lv_obj_t* overflow_label = nullptr;   // "+N" overflow indicator
 
     // Bar-mode lane pool: one ams_lane_bar widget per visible slot, created
@@ -231,8 +232,8 @@ struct AmsMiniStatusData {
     BypassView bypass;
     lv_obj_t* bypass_column = nullptr;  // bar mode: divider + bar
     lv_obj_t* bypass_bar = nullptr;     // bar mode: unbound ams_lane_bar
-    lv_obj_t* bypass_divider = nullptr; // spool mode: divider before the cell
-    lv_obj_t* bypass_cell = nullptr;    // spool mode: spool + material
+    lv_obj_t* bypass_divider = nullptr; // spool mode: divider past the lanes' scroller
+    lv_obj_t* bypass_cell = nullptr;    // spool mode: spool + material, pinned at the right
 
     // Auto-binding observer (observe AmsState slots_version subject)
     // Uses ObserverGuard for RAII lifecycle management
@@ -727,9 +728,9 @@ static void rebuild_bars(AmsMiniStatusData* data) {
  * parsed after the container exists, so toggling must add or remove, not only build.
  */
 static void apply_spools_card_surface(AmsMiniStatusData* data) {
-    if (!data || !data->spools_container)
+    if (!data || !data->spools_row)
         return;
-    lv_obj_t* sc = data->spools_container;
+    lv_obj_t* sc = data->spools_row;
     lv_style_t* card_style = ThemeManager::instance().get_style(StyleRole::Card);
     if (data->card) {
         lv_obj_add_style(sc, card_style, LV_PART_MAIN);
@@ -927,11 +928,11 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
 }
 
 /**
- * @brief Spool mode's bypass: a divider and one more cell at the end of the
- * row, sized like a lane's, its spool painted from the external spool and its
- * label naming the material, or "External" with none.
+ * @brief Spool mode's bypass: a divider and one more cell pinned past the
+ * lanes' scroller, sized like a lane's, its spool painted from the external
+ * spool and its label naming the material, or "External" with none.
  */
-static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* sc, int cell_px, int spool_size,
+static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_px, int spool_size,
                                int text_w, bool stacked, bool ellipsize, bool show_pct, int gap) {
     const bool show = data->bypass.shown && !data->spool_cells.empty();
     if (!show) {
@@ -943,8 +944,8 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* sc, int cell_p
     }
     const int badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
     if (!data->bypass_cell) {
-        data->bypass_divider = create_bypass_divider(sc);
-        lv_obj_t* cell = lv_obj_create(sc);
+        data->bypass_divider = create_bypass_divider(row);
+        lv_obj_t* cell = lv_obj_create(row);
         lv_obj_set_name(cell, "bypass_cell");
         lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
         lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
@@ -982,12 +983,6 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* sc, int cell_p
         if (const lv_font_t* fxs = theme_manager_get_font("font_xs"))
             lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
         data->bypass_cell = cell;
-    }
-    // Lane cells are created as the lane count grows; the bypass stays last.
-    const auto last = static_cast<int32_t>(lv_obj_get_child_count(sc)) - 1;
-    if (lv_obj_get_index(data->bypass_cell) != last) {
-        lv_obj_move_to_index(data->bypass_divider, -1);
-        lv_obj_move_to_index(data->bypass_cell, -1);
     }
     lv_obj_set_height(data->bypass_divider, lv_pct(80));
     lv_obj_set_hidden(data->bypass_divider, false);
@@ -1040,7 +1035,7 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* sc, int cell_p
 
 static void on_spools_size_changed(lv_event_t* e) {
     lv_obj_t* sc = lv_event_get_target_obj(e);
-    auto* data = get_data(lv_obj_get_parent(sc));
+    auto* data = get_data(static_cast<lv_obj_t*>(lv_event_get_user_data(e)));
     const int w = lv_obj_get_content_width(sc);
     const int h = lv_obj_get_content_height(sc);
     // A content-sized host leaves the row no height of its own (h <= 0), and
@@ -1074,38 +1069,50 @@ static void rebuild_spools(AmsMiniStatusData* data) {
 
     const bool cur_3d = helix::ui::ams_spool_style_3d();
 
-    if (!data->spools_container) {
-        lv_obj_t* sc = lv_obj_create(data->container);
-        lv_obj_set_name(sc, "ams_spools_container");
-        lv_obj_set_width(sc, lv_pct(100));
-        lv_obj_set_height(sc, lv_pct(100));
-        lv_obj_set_flex_flow(sc, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(sc, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(sc, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
-        data->spools_container = sc;
+    if (!data->spools_row) {
+        // The row carries the card and holds the lanes' scroller, then the
+        // bypass pinned past it: only the lanes scroll, so the bypass, often
+        // the node feeding the toolhead, never scrolls out of sight.
+        lv_obj_t* row = ams_draw::create_transparent_container(data->container);
+        lv_obj_set_name(row, "ams_spools_row");
+        lv_obj_set_size(row, lv_pct(100), lv_pct(100));
+        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(row, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
+        data->spools_row = row;
         apply_spools_card_surface(data);
-        lv_obj_set_scrollable(sc, true);
-        lv_obj_set_scroll_dir(sc, LV_DIR_HOR);
-        lv_obj_set_scrollbar_mode(sc, LV_SCROLLBAR_MODE_AUTO);
-        lv_obj_set_event_bubble(sc, true); // tap/long-press bubble to widget root
         // The container's own SIZE_CHANGED fires before its children are laid
         // out, so a rebuild there reads this row at its old size, or at zero
         // and the width_px hint, which runs a few px wide. The row's real size
         // arrives here.
-        lv_obj_add_event_cb(sc, on_spools_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
+        lv_obj_add_event_cb(row, on_spools_size_changed, LV_EVENT_SIZE_CHANGED, data->container);
+
+        lv_obj_t* sc = ams_draw::create_transparent_container(row);
+        lv_obj_set_name(sc, "ams_spools_container");
+        lv_obj_set_size(sc, lv_pct(100), lv_pct(100));
+        lv_obj_set_style_flex_grow(sc, 1, LV_PART_MAIN);
+        lv_obj_set_flex_flow(sc, LV_FLEX_FLOW_ROW);
+        lv_obj_set_flex_align(sc, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_column(sc, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
+        lv_obj_set_scrollable(sc, true);
+        lv_obj_set_scroll_dir(sc, LV_DIR_HOR);
+        lv_obj_set_scrollbar_mode(sc, LV_SCROLLBAR_MODE_AUTO);
+        data->spools_container = sc;
     }
+    lv_obj_t* row = data->spools_row;
     lv_obj_t* sc = data->spools_container;
+    lv_obj_set_hidden(row, false);
     lv_obj_set_hidden(sc, false);
 
     // Give each lane an equal share of the width, gaps subtracted so the row
     // fits exactly. The spool+label group is centered within each share.
-    lv_obj_update_layout(sc);
-    int avail_h = lv_obj_get_content_height(sc);
+    lv_obj_update_layout(row);
+    int avail_h = lv_obj_get_content_height(row);
     if (avail_h <= 0)
         avail_h = data->height; // before layout resolves
     // Use the REAL laid-out content width (not data->width_px, which is the manager's
     // cell_w*colspan estimate and runs a few px wide → spurious scrollbar).
-    int avail_w = lv_obj_get_content_width(sc);
+    int avail_w = lv_obj_get_content_width(row);
     if (avail_w <= 0)
         avail_w = data->width_px; // before layout resolves
     data->spools_built_w = avail_w;
@@ -1114,7 +1121,8 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     // What the ams_lane_spool widget adds around the graphic for the lane
     // badge, so a cell is this much wider than the spool size asked for.
     const int badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
-    // The bypass takes one more cell's share, and its divider and gap come off the row.
+    // The bypass takes one more cell's share, and its divider and gap come off
+    // the row; the lanes' scroller gets the rest.
     const bool bypass_cell = data->bypass.shown;
     const int lanes = std::max(1, data->slot_count) + (bypass_cell ? 1 : 0);
     if (bypass_cell)
@@ -1327,7 +1335,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         }
     }
 
-    layout_bypass_cell(data, sc, cell_px, spool_size, text_w, stacked, ellipsize,
+    layout_bypass_cell(data, row, cell_px, spool_size, text_w, stacked, ellipsize,
                        !stacked || stacked_pct, gap);
 
     if (condemned)
@@ -1354,6 +1362,8 @@ static void rebuild(AmsMiniStatusData* data) {
             lv_obj_set_hidden(data->bypass_column, true);
         rebuild_spools(data);
     } else {
+        if (data->spools_row)
+            lv_obj_set_hidden(data->spools_row, true);
         if (data->spools_container)
             lv_obj_set_hidden(data->spools_container, true);
         if (data->bars_container)
