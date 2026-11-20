@@ -94,6 +94,9 @@ int chamber_request(int material_chamber_c, const PrinterTemperatureState& temps
 /// otherwise the filament database recommendation). "---" if the material is unknown.
 std::string temp_label(int slot);
 
+/// The nozzle half of temp_label(): "220°C", or "---" if the material is unknown.
+std::string nozzle_temp_label(int slot);
+
 /**
  * @brief Create the globally-scoped preset subjects. Idempotent.
  *

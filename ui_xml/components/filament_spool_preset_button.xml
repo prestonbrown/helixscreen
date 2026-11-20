@@ -11,6 +11,14 @@
     <bind_style name="styles.heat_blocked" subject="ams_nozzle_heat_blocked" ref_value="1"/>
     <event_cb trigger="clicked" callback="on_filament_preset_spool"/>
     <text_body name="spool_preset_label" width="100%" text="" style_text_align="center" long_mode="dots"/>
-    <text_small name="spool_preset_temps" text="" style_text_align="center" style_text_color="#text_muted"/>
+    <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+    <!-- Same pair as filament_preset_button.xml: nozzle and bed when they fit, the nozzle alone when not. -->
+    <text_small name="preset_temps"
+                text="" style_text_align="center" style_text_color="#text_muted" long_mode="clip" style_max_width="100%">
+      <event_cb trigger="size_changed" callback="filament_preset_fit_temps"/>
+    </text_small>
+    <text_small name="preset_nozzle_temp"
+                text="" style_text_align="center" style_text_color="#text_muted" long_mode="clip" style_max_width="100%"
+                hidden="true"/>
   </view>
 </component>

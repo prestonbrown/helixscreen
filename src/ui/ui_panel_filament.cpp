@@ -105,6 +105,16 @@ using helix::ui::filament_load_fallback_gcode;
 using helix::ui::filament_purge_fallback_gcode;
 using helix::ui::filament_unload_fallback_gcode;
 
+// A preset button or its temperature line resized: show the nozzle-and-bed line
+// only when it fits the button.
+static void preset_fit_temps(lv_event_t* e) {
+    auto* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    lv_obj_t* button =
+        lv_obj_find_by_name(target, "preset_temps") ? target : lv_obj_get_parent(target);
+    helix::ui::show_label_that_fits(lv_obj_find_by_name(button, "preset_temps"),
+                                    lv_obj_find_by_name(button, "preset_nozzle_temp"));
+}
+
 /// A hold on preset @p slot opens its material picker. The hold is still the active
 /// press, so it ends here: its release would otherwise be a tap on the preset, or
 /// land on whatever the picker put under the finger.
@@ -158,6 +168,7 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         {"on_filament_preset_spool",
          [](lv_event_t*) { get_global_filament_panel().handle_spool_preset_button(); }},
         // Material preset long-press (opens material picker)
+        {"filament_preset_fit_temps", [](lv_event_t* e) { preset_fit_temps(e); }},
         {"on_filament_preset_pla_hold", [](lv_event_t* e) { preset_hold(e, 0); }},
         {"on_filament_preset_petg_hold", [](lv_event_t* e) { preset_hold(e, 1); }},
         {"on_filament_preset_abs_hold", [](lv_event_t* e) { preset_hold(e, 2); }},
@@ -590,7 +601,11 @@ void FilamentPanel::bind_widgets() {
     spool_preset_row_ = helix::ui::find_required(panel_, "spool_preset_row", get_name());
     spool_preset_button_ = helix::ui::find_required(panel_, "preset_spool", get_name());
     spool_preset_label_ = helix::ui::find_required(panel_, "spool_preset_label", get_name());
-    spool_preset_temps_ = helix::ui::find_required(panel_, "spool_preset_temps", get_name());
+    // Every preset button holds a "preset_temps"; this one is the spool's.
+    spool_preset_temps_ =
+        helix::ui::find_required(spool_preset_button_, "preset_temps", get_name());
+    spool_preset_nozzle_temp_ =
+        helix::ui::find_required(spool_preset_button_, "preset_nozzle_temp", get_name());
 
     // Setup external spool display (creates canvas, wires observer)
     setup_external_spool_display();
@@ -2129,6 +2144,11 @@ void FilamentPanel::update_spool_preset() {
         auto text = fmt::format("{} / {}°C", active.material_info.nozzle_recommended(),
                                 active.material_info.bed_temp);
         lv_label_set_text(spool_preset_temps_, text.c_str());
+    }
+    if (spool_preset_nozzle_temp_) {
+        lv_label_set_text(spool_preset_nozzle_temp_,
+                          fmt::format("{}°C", active.material_info.nozzle_recommended()).c_str());
+        helix::ui::show_label_that_fits(spool_preset_temps_, spool_preset_nozzle_temp_);
     }
 
     // Deselect spool button initially (user must tap)

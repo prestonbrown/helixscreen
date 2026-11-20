@@ -33,6 +33,8 @@ struct SubjectState {
     std::array<lv_subject_t, kPresetCount> temp_subjects{};
     std::array<std::array<char, kLabelBufSize>, kPresetCount> name_bufs{};
     std::array<std::array<char, kTempBufSize>, kPresetCount> temp_bufs{};
+    std::array<lv_subject_t, kPresetCount> nozzle_subjects{};
+    std::array<std::array<char, kTempBufSize>, kPresetCount> nozzle_bufs{};
     lv_subject_t count_subject{};
     SubjectManager subjects;
     bool ready = false;
@@ -135,6 +137,19 @@ std::string temp_label(int slot) {
     return buf;
 }
 
+std::string nozzle_temp_label(int slot) {
+    if (!slot_valid(slot)) {
+        return {};
+    }
+    const auto temps = slot_temps(slot);
+    if (!temps) {
+        return "---";
+    }
+    char buf[kTempBufSize];
+    std::snprintf(buf, sizeof(buf), "%d°C", temps->nozzle);
+    return buf;
+}
+
 void init_subjects() {
     auto& s = state();
     if (s.ready) {
@@ -150,6 +165,9 @@ void init_subjects() {
     static constexpr const char* kTempSubjects[kPresetCount] = {
         "preset_material_0_temps", "preset_material_1_temps", "preset_material_2_temps",
         "preset_material_3_temps"};
+    static constexpr const char* kNozzleSubjects[kPresetCount] = {
+        "preset_material_0_nozzle_temp", "preset_material_1_nozzle_temp",
+        "preset_material_2_nozzle_temp", "preset_material_3_nozzle_temp"};
 
     for (int i = 0; i < kPresetCount; ++i) {
         s.name_bufs[i][0] = '\0';
@@ -166,6 +184,13 @@ void init_subjects() {
         s.subjects.publish(kTempSubjects[i], &s.temp_subjects[i]);
         SubjectDebugRegistry::instance().register_subject(
             &s.temp_subjects[i], kTempSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
+
+        s.nozzle_bufs[i][0] = '\0';
+        lv_subject_init_string(&s.nozzle_subjects[i], s.nozzle_bufs[i].data(), nullptr,
+                               s.nozzle_bufs[i].size(), s.nozzle_bufs[i].data());
+        s.subjects.publish(kNozzleSubjects[i], &s.nozzle_subjects[i]);
+        SubjectDebugRegistry::instance().register_subject(
+            &s.nozzle_subjects[i], kNozzleSubjects[i], LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);
     }
 
     lv_subject_init_int(&s.count_subject, kPresetCount);
@@ -195,6 +220,9 @@ void refresh_subjects() {
         std::snprintf(s.temp_bufs[i].data(), s.temp_bufs[i].size(), "%s", temps.c_str());
         lv_subject_copy_string(&s.name_subjects[i], s.name_bufs[i].data());
         lv_subject_copy_string(&s.temp_subjects[i], s.temp_bufs[i].data());
+        std::snprintf(s.nozzle_bufs[i].data(), s.nozzle_bufs[i].size(), "%s",
+                      nozzle_temp_label(i).c_str());
+        lv_subject_copy_string(&s.nozzle_subjects[i], s.nozzle_bufs[i].data());
     }
 }
 

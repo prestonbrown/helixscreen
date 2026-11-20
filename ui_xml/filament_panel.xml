@@ -13,6 +13,16 @@
     <px name="filament_portrait_length_h_small" value="48"/>
     <px name="filament_portrait_length_h_medium" value="48"/>
     <px name="filament_portrait_length_h_large" value="48"/>
+    <!-- Landscape Operations rows: button height, except a 480x320 column,
+         where the rows give up a few pixels so a printer with several heads
+         keeps every row on screen. -->
+    <px name="filament_landscape_row_h_micro" value="26"/>
+    <px name="filament_landscape_row_h_tiny" value="42"/>
+    <px name="filament_landscape_row_h_small" value="48"/>
+    <px name="filament_landscape_row_h_medium" value="52"/>
+    <px name="filament_landscape_row_h_large" value="72"/>
+    <px name="filament_landscape_row_h_xlarge" value="80"/>
+    <px name="filament_landscape_row_h_xxlarge" value="96"/>
     <!-- The lane bars' width in the portrait Operations header, beside its chevron and Pick up. -->
     <px name="filament_header_lanes_w_small" value="80"/>
     <px name="filament_header_lanes_w_medium" value="96"/>
@@ -135,10 +145,11 @@
                level with the left column's bottom. The spacer is the gap: with
                no slack it stays #space_md and the column overflows downward. -->
           <lv_obj name="right_column_spacer"
-                  width="100%" height="0" flex_grow="1" style_min_height="#space_md" style_pad_all="0" style_bg_opa="0"
+                  width="100%" height="0" flex_grow="1" style_min_height="#space_sm" style_pad_all="0" style_bg_opa="0"
                   style_border_width="0" scrollable="false" clickable="false"/>
-          <!-- Landscape action rows are standard button height. -->
-          <filament_operations_group name="filament_operations_group" row_height="#button_height"/>
+          <!-- The length row shares portrait's compact height; it only steps down at tiny. -->
+          <filament_operations_group name="filament_operations_group"
+                                     row_height="#filament_landscape_row_h" length_height="#filament_portrait_length_h"/>
         </lv_obj>
       </lv_obj>
     </if>

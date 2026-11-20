@@ -536,8 +536,8 @@ class FilamentPanel : public PanelBase {
     lv_obj_t* spool_preset_button_ = nullptr;
     lv_obj_t* spool_preset_label_ = nullptr;
     lv_obj_t* spool_preset_temps_ = nullptr;
+    lv_obj_t* spool_preset_nozzle_temp_ = nullptr;
     std::optional<helix::ActiveMaterial> cached_active_material_;
-
     // Warning dialogs for filament sensor integration
     lv_obj_t* load_warning_dialog_ = nullptr;
     lv_obj_t* unload_warning_dialog_ = nullptr;
