@@ -76,12 +76,12 @@ inline constexpr int32_t kAmsLaneSpoolBadgeMarginPx = 8;
 bool ams_spool_style_3d();
 
 /**
- * @brief Point an ams_lane_spool widget at a slot of a backend
+ * @brief Point an ams_lane_spool widget at a slot
  *
- * Rebinds all per-slot observers when either index changes. No-op on a
- * non-ams_lane_spool object. A widget created from XML binds backend 0.
+ * Rebinds all per-slot observers when the index changes. No-op on a
+ * non-ams_lane_spool object.
  */
-void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index);
+void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index);
 
 /**
  * @brief Last fill level the widget applied (0.0-1.0), 1.0 when unbound

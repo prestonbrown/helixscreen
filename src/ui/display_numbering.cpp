@@ -236,7 +236,7 @@ std::string lane_count_label(LaneNoun noun, int count) {
 
 LaneNoun active_lane_noun() {
     auto& ams = AmsState::instance();
-    const auto* backend = ams.get_backend(ams.active_backend_index());
+    const auto* backend = ams.get_backend();
     return backend ? backend->lane_noun() : LaneNoun::Slot;
 }
 
@@ -247,13 +247,13 @@ std::string backend_lane_label(const AmsBackend& backend, int slot) {
 
 std::string active_lane_label(int slot) {
     auto& ams = AmsState::instance();
-    const auto* backend = ams.get_backend(ams.active_backend_index());
+    const auto* backend = ams.get_backend();
     return backend ? backend_lane_label(*backend, slot) : lane_label(LaneNoun::Slot, slot);
 }
 
 LaneNoun active_tool_noun() {
     auto& ams = AmsState::instance();
-    const auto* backend = ams.get_backend(ams.active_backend_index());
+    const auto* backend = ams.get_backend();
     return backend ? backend->tool_noun() : LaneNoun::Tool;
 }
 

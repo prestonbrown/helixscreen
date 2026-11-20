@@ -216,7 +216,6 @@ class AmsOperationSidebar {
     // Observers
     ObserverGuard action_observer_;
     ObserverGuard current_slot_observer_;
-    ObserverGuard active_backend_observer_;
     ObserverGuard active_tool_observer_;
     ObserverGuard extruder_temp_observer_;
     ObserverGuard extruder_target_observer_;

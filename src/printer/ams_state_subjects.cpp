@@ -82,10 +82,9 @@ void AmsState::init_subjects(bool register_xml) {
 
     spdlog::trace("[AMS State] Initializing subjects");
 
-    // Backend selector subjects
+    // Backend registry subjects
     INIT_SUBJECT_INT(backend_count, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_data_revision, 0, subjects_, register_xml);
-    INIT_SUBJECT_INT(active_backend, 0, subjects_, register_xml);
 
     // System-level subjects
     INIT_SUBJECT_INT(ams_type, static_cast<int>(AmsType::NONE), subjects_, register_xml);
@@ -753,10 +752,9 @@ void AmsState::register_xml_subject_names() {
     // (prestonbrown/helixscreen#1374). scripts/check_ams_xml_mirror.py fails
     // the commit when the two name sets differ.
 
-    // Backend selector subjects
+    // Backend registry subjects
     helix::xml::register_subject_in_current_scope("backend_count", &backend_count_);
     helix::xml::register_subject_in_current_scope("ams_data_revision", &ams_data_revision_);
-    helix::xml::register_subject_in_current_scope("active_backend", &active_backend_);
 
     // System-level subjects
     helix::xml::register_subject_in_current_scope("ams_type", &ams_type_);
@@ -1030,8 +1028,8 @@ void AmsState::deinit_subjects() {
     motion_sensor_observer_.reset();
     print_lifecycle_observer_.reset();
 
-    // IMPORTANT: clear_backends() MUST precede subjects_.deinit_all() because
-    // BackendSlotSubjects are managed outside SubjectManager for lifetime reasons
+    // clear_backends() writes subjects (reset_backend_subjects()), so it runs
+    // while they are still alive.
     clear_backends();
 
     // Use SubjectManager for automatic cleanup of all registered subjects
@@ -1277,178 +1275,50 @@ std::string AmsState::unit_logo_color_subject_name(int unit_index) {
     return unit_flag_subject_name(unit_index, "logo_color");
 }
 
-lv_subject_t* AmsState::backend_slot_subject(int backend_index, int slot_index,
-                                             SubjectLifetime& lifetime,
-                                             std::vector<lv_subject_t> BackendSlotSubjects::*member,
-                                             lv_subject_t (&primary)[kMaxSlots]) {
+lv_subject_t* AmsState::slot_subject(int slot_index, SubjectLifetime& lifetime,
+                                     lv_subject_t (&subjects)[kMaxSlots]) {
     assert_main_thread();
     lifetime.reset();
-    if (backend_index == 0) {
-        if (slot_index < 0 || slot_index >= kMaxSlots) {
-            return nullptr;
-        }
-        lifetime = get_subjects_lifetime();
-        return &primary[slot_index];
-    }
-    int sec_idx = backend_index - 1;
-    if (sec_idx < 0 || sec_idx >= static_cast<int>(secondary_slot_subjects_.size())) {
+    if (slot_index < 0 || slot_index >= kMaxSlots) {
         return nullptr;
     }
-    auto& subs = secondary_slot_subjects_[sec_idx];
-    if (slot_index < 0 || slot_index >= subs.slot_count) {
-        return nullptr;
-    }
-    lifetime = subs.lifetime;
-    return &(subs.*member)[slot_index];
+    lifetime = get_subjects_lifetime();
+    return &subjects[slot_index];
 }
 
-lv_subject_t* AmsState::get_slot_color_subject(int backend_index, int slot_index) {
-    SubjectLifetime unused;
-    return get_slot_color_subject(backend_index, slot_index, unused);
+lv_subject_t* AmsState::get_slot_color_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_colors_);
 }
 
-lv_subject_t* AmsState::get_slot_status_subject(int backend_index, int slot_index) {
-    SubjectLifetime unused;
-    return get_slot_status_subject(backend_index, slot_index, unused);
+lv_subject_t* AmsState::get_slot_status_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_statuses_);
 }
 
-lv_subject_t* AmsState::get_slot_material_subject(int backend_index, int slot_index) {
-    SubjectLifetime unused;
-    return get_slot_material_subject(backend_index, slot_index, unused);
+lv_subject_t* AmsState::get_slot_fill_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_fills_);
 }
 
-lv_subject_t* AmsState::get_slot_name_subject(int backend_index, int slot_index) {
-    SubjectLifetime unused;
-    return get_slot_name_subject(backend_index, slot_index, unused);
+lv_subject_t* AmsState::get_slot_material_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_materials_);
 }
 
-lv_subject_t* AmsState::get_slot_color_subject(int backend_index, int slot_index,
-                                               SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime, &BackendSlotSubjects::colors,
-                                slot_colors_);
+lv_subject_t* AmsState::get_slot_name_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_names_);
 }
 
-lv_subject_t* AmsState::get_slot_status_subject(int backend_index, int slot_index,
-                                                SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime, &BackendSlotSubjects::statuses,
-                                slot_statuses_);
+lv_subject_t* AmsState::get_slot_paint_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_paints_);
 }
 
-lv_subject_t* AmsState::get_slot_fill_subject(int backend_index, int slot_index,
-                                              SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime, &BackendSlotSubjects::fills,
-                                slot_fills_);
+lv_subject_t* AmsState::get_slot_lane_state_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_lane_states_);
 }
 
-lv_subject_t* AmsState::get_slot_material_subject(int backend_index, int slot_index,
-                                                  SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime,
-                                &BackendSlotSubjects::materials, slot_materials_);
+lv_subject_t* AmsState::get_slot_has_error_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_has_error_);
 }
 
-lv_subject_t* AmsState::get_slot_name_subject(int backend_index, int slot_index,
-                                              SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime, &BackendSlotSubjects::names,
-                                slot_names_);
-}
-
-lv_subject_t* AmsState::get_slot_paint_subject(int backend_index, int slot_index,
-                                               SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime, &BackendSlotSubjects::paints,
-                                slot_paints_);
-}
-
-lv_subject_t* AmsState::get_slot_lane_state_subject(int backend_index, int slot_index,
-                                                    SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime,
-                                &BackendSlotSubjects::lane_states, slot_lane_states_);
-}
-
-lv_subject_t* AmsState::get_slot_has_error_subject(int backend_index, int slot_index,
-                                                   SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime,
-                                &BackendSlotSubjects::has_errors, slot_has_error_);
-}
-
-lv_subject_t* AmsState::get_slot_error_severity_subject(int backend_index, int slot_index,
-                                                        SubjectLifetime& lifetime) {
-    return backend_slot_subject(backend_index, slot_index, lifetime,
-                                &BackendSlotSubjects::severities, slot_error_severity_);
-}
-
-void AmsState::BackendSlotSubjects::init(int count) {
-    slot_count = count;
-    colors.resize(count);
-    statuses.resize(count);
-    fills.resize(count);
-    lane_states.resize(count);
-    has_errors.resize(count);
-    severities.resize(count);
-    paints.resize(count);
-    material_bufs.resize(count);
-    materials.resize(count);
-    name_bufs.resize(count);
-    names.resize(count);
-    for (int i = 0; i < count; ++i) {
-        lv_subject_init_int(&colors[i], static_cast<int>(kAmsDefaultSlotColor));
-        lv_subject_init_int(&statuses[i], static_cast<int>(SlotStatus::UNKNOWN));
-        lv_subject_init_int(&fills[i], -1);
-        lv_subject_init_int(&lane_states[i], static_cast<int>(helix::ui::LaneState::Empty));
-        lv_subject_init_int(&has_errors[i], 0);
-        lv_subject_init_int(&severities[i], static_cast<int>(SlotError::Severity::INFO));
-        lv_subject_init_int(&paints[i], 0);
-        lv_subject_init_string(&materials[i], material_bufs[i].data(), nullptr,
-                               BackendSlotSubjects::kMaterialBufSize, "");
-        lv_subject_init_string(&names[i], name_bufs[i].data(), nullptr, kSlotNameBufSize, "");
-    }
-    // Fresh lifetime token: observers bound via the token'd accessors expire
-    // when deinit() invalidates it on backend rediscovery.
-    lifetime = std::make_shared<bool>(true);
-}
-
-void AmsState::BackendSlotSubjects::deinit() {
-    // Invalidate the lifetime token FIRST so any live observer's weak_ptr is
-    // dead before the subjects it points at are freed (#705 ordering).
-    if (lifetime) {
-        *lifetime = false;
-    }
-    lifetime.reset();
-    for (auto& c : colors)
-        lv_subject_deinit(&c);
-    for (auto& s : statuses)
-        lv_subject_deinit(&s);
-    for (auto* group :
-         {&fills, &lane_states, &has_errors, &severities, &paints, &materials, &names})
-        for (auto& subj : *group)
-            lv_subject_deinit(&subj);
-    colors.clear();
-    statuses.clear();
-    fills.clear();
-    lane_states.clear();
-    has_errors.clear();
-    severities.clear();
-    paints.clear();
-    materials.clear();
-    material_bufs.clear();
-    names.clear();
-    name_bufs.clear();
-    slot_count = 0;
-}
-
-void AmsState::BackendSlotSubjects::write(int i, const SlotInfo& slot) {
-    lv_subject_set_int(&colors[i], static_cast<int>(slot.color_rgb));
-    lv_subject_set_int(&statuses[i], static_cast<int>(slot.status));
-    lv_subject_set_int(&fills[i], slot.display_fill_pct());
-    lv_subject_set_int(&paints[i], slot.paint_key());
-    lv_subject_set_int(&lane_states[i], static_cast<int>(helix::ui::classify_lane(slot)));
-    // No prev buffer, so LVGL notifies on every copy; compare here instead.
-    if (strcmp(lv_subject_get_string(&materials[i]), slot.material.c_str()) != 0)
-        lv_subject_copy_string(&materials[i], slot.material.c_str());
-    write_slot_name(&names[i], kSlotNameBufSize, slot);
-    bool has_error = false;
-    int severity = 0;
-    slot_error_state(slot, has_error, severity);
-    lv_subject_set_int(&has_errors[i], has_error ? 1 : 0);
-    lv_subject_set_int(&severities[i], severity);
+lv_subject_t* AmsState::get_slot_error_severity_subject(int slot_index, SubjectLifetime& lifetime) {
+    return slot_subject(slot_index, lifetime, slot_error_severity_);
 }
 } // namespace helix

@@ -166,16 +166,15 @@ void WiFiManager::handle_scan_complete(const std::string& data) {
 `AmsState`'s own state is main-thread only, with no lock: its methods assert
 `helix::ui::is_main_thread()`. A backend emitting an event on a background thread only posts a
 `queue_update()`; the queued body reads backend state and writes subjects on the main thread.
-Each backend's callback captures its index at registration time so events route to the
-correct per-backend subject storage. The queries background threads do make go to state with
+Each backend's callback captures its index at registration time, and only backend 0's events
+write the slot subjects. The queries background threads do make go to state with
 its own guard: `AmsBackendRegistry` (backend list, `std::mutex`, held across calls into a
 backend, so the order is registry -> `AmsBackend::mutex_`), `RunoutGrace` (unload grace, leaf
 mutex) and the action atomic.
 
-For secondary backends (index 1+), slot subjects live in `BackendSlotSubjects` structs rather
-than the flat `slot_colors_[]` / `slot_statuses_[]` arrays; `sync_backend(int)` and
-`update_slot_for_backend(int, int)` handle the routing. Because all subject writes happen on
-the LVGL thread, the subject values themselves need no further synchronization.
+Slot subjects are the flat `slot_colors_[]` / `slot_statuses_[]` arrays, written for backend 0
+only. Because all subject writes happen on the LVGL thread, the subject values themselves need
+no further synchronization.
 
 ---
 
