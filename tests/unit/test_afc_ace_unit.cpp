@@ -67,9 +67,9 @@ nlohmann::json ace_and_turtle(const nlohmann::json& ace_fields) {
               {"buffers", nlohmann::json::array()}}}};
 }
 
-const nlohmann::json kDrying = {{"ace_dryer", "drying"},   {"ace_dryer_target", 50},
-                                {"ace_dryer_remain", 120}, {"ace_dryer_duration", 240},
-                                {"ace_temp", 44.5},        {"ace_humidity", 18.0}};
+const nlohmann::json kDrying = {{"ace_dryer", "drying"},    {"ace_dryer_target", 50},
+                                {"ace_dryer_remain", 7200}, {"ace_dryer_duration", 240},
+                                {"ace_temp", 44.5},         {"ace_humidity", 18.0}};
 
 std::vector<std::string> eight_lanes() {
     return {"lane1", "lane2", "lane3", "lane4", "lane5", "lane6", "lane7", "lane8"};

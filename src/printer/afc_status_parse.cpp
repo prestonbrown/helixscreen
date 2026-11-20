@@ -630,7 +630,7 @@ bool ace_dryer_running(const std::string& status) {
 
 namespace {
 
-std::optional<int> read_whole_minutes(const nlohmann::json& data, const char* key) {
+std::optional<int> read_whole_number(const nlohmann::json& data, const char* key) {
     const auto v = ams::read_field<float>(data, key);
     if (!v) {
         return std::nullopt;
@@ -716,8 +716,13 @@ std::optional<AceUnitDelta> parse_ace_unit(const nlohmann::json& data) {
     AceUnitDelta ace;
     ace.dryer_status = ams::read_field<std::string>(data, "ace_dryer");
     ace.dryer_target_c = ams::read_field<float>(data, "ace_dryer_target");
-    ace.dryer_remaining_min = read_whole_minutes(data, "ace_dryer_remain");
-    ace.dryer_duration_min = read_whole_minutes(data, "ace_dryer_duration");
+    // AFC passes the firmware's dryer times through unconverted.
+    if (const auto v = read_whole_number(data, "ace_dryer_remain")) {
+        ace.dryer_remaining_min = helix::ace::dryer_remaining_minutes(*v);
+    }
+    if (const auto v = read_whole_number(data, "ace_dryer_duration")) {
+        ace.dryer_duration_min = helix::ace::dryer_duration_minutes(*v);
+    }
     ace.temperature_c = ams::read_field<float>(data, "ace_temp");
     ace.humidity_pct = ams::read_field<float>(data, "ace_humidity");
     if (const auto slots = data.find("ace_slots"); slots != data.end() && slots->is_array()) {

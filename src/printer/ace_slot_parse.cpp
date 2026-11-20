@@ -177,10 +177,10 @@ DryerDelta read_dryer_state(const json& data) {
         d.target_temp_c = *v;
     }
     if (const auto v = ams::read_field<int>(*dryer, "duration")) {
-        d.duration_min = *v;
+        d.duration_min = dryer_duration_minutes(*v);
     }
     if (const auto v = ams::read_field<int>(*dryer, "remain_time")) {
-        d.remaining_min = *v;
+        d.remaining_min = dryer_remaining_minutes(*v);
     }
 
     // REST-bridge spelling: {active, current_temp, remaining_minutes,
@@ -198,6 +198,16 @@ DryerDelta read_dryer_state(const json& data) {
         d.duration_min = *v;
     }
     return d;
+}
+
+int dryer_remaining_minutes(int remain_time_s) {
+    return remain_time_s <= 0 ? 0 : (remain_time_s + 59) / 60;
+}
+
+int dryer_duration_minutes(int duration) {
+    // The longest cycle an ACE Pro accepts, in minutes.
+    constexpr int kAceProMaxDurationMin = 480;
+    return duration > kAceProMaxDurationMin ? (duration + 30) / 60 : duration;
 }
 
 void apply_dryer_state(const json& data, DryerInfo& out) {

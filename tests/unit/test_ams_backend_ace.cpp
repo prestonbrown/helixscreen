@@ -126,7 +126,7 @@ json make_native_filament_hub_payload() {
              {"status", "drying"},
              {"target_temp", 55},
              {"duration", 240},
-             {"remain_time", 180},
+             {"remain_time", 10800},
          }},
         {"slots", json::array({
                       json{{"index", 0},
@@ -1856,7 +1856,7 @@ TEST_CASE("ACE parses native filament_hub schema (slots, dryer, current_filament
     CHECK(dryer.active == true);
     CHECK(dryer.target_temp_c == Catch::Approx(55.0f));
     CHECK(dryer.duration_min == 240);
-    CHECK(dryer.remaining_min == 180); // native remain_time -> remaining_min
+    CHECK(dryer.remaining_min == 180); // remain_time is seconds
 
     // current_filament "0-1" => local slot 1 loaded.
     CHECK(info.current_slot == 1);

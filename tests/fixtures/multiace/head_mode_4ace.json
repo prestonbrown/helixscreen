@@ -381,7 +381,7 @@
         "status": "drying",
         "target_temp": 45,
         "duration": 240,
-        "remain_time": 180
+        "remain_time": 10800
       },
       "gate_status": [
         1,

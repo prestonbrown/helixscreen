@@ -183,12 +183,21 @@ TEST_CASE("ACE status parse reads the dryer under either spelling", "[ace][statu
     const ObjectDelta klipper = parse_ace_object(json{
         {"temp", 41},
         {"dryer_status",
-         json{{"status", "run"}, {"target_temp", 55}, {"duration", 240}, {"remain_time", 200}}}});
+         json{{"status", "run"}, {"target_temp", 55}, {"duration", 240}, {"remain_time", 7170}}}});
     CHECK(klipper.dryer.active == true);
     CHECK(klipper.dryer.target_temp_c == Catch::Approx(55.0f));
+    // The ACE Pro states the duration in minutes and the time left in seconds.
     CHECK(klipper.dryer.duration_min == 240);
-    CHECK(klipper.dryer.remaining_min == 200);
+    CHECK(klipper.dryer.remaining_min == 120);
     CHECK(klipper.dryer.current_temp_c == Catch::Approx(41.0f));
+
+    // The ACE 2 Pro states both in seconds: a 60-minute cycle, five seconds in.
+    const ObjectDelta ace2 = parse_ace_object(json{{"dryer_status", json{{"status", "keeping"},
+                                                                         {"target_temp", 45},
+                                                                         {"duration", 3600},
+                                                                         {"remain_time", 3595}}}});
+    CHECK(ace2.dryer.duration_min == 60);
+    CHECK(ace2.dryer.remaining_min == 60);
 
     // A dryer's own current temp is more specific than the ambient one.
     const ObjectDelta bridge = parse_ace_object(

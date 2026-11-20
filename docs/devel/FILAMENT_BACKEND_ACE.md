@@ -238,7 +238,7 @@ The native GoKlipper `filament_hub.get_status()` is **flat and single-hub** (one
 | `dryer.status` | string | Dryer running/idle |
 | `dryer.target_temp` | int | Dryer target temperature |
 | `dryer.duration` | int | Configured drying duration |
-| `dryer.remain_time` | int | Remaining drying time |
+| `dryer.remain_time` | int | Remaining drying time in seconds on both generations; `duration` is minutes on the ACE Pro and seconds on the ACE 2 Pro (`src/printer/ace_slot_parse.cpp#dryer_duration_minutes`) |
 | `temp` | int | Hub temperature |
 | `slots[]` | array | Per-slot state (4 entries) |
 | `slots[].index` | int | Slot index |
