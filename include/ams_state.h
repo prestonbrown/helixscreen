@@ -8,6 +8,7 @@
 #include "ams_runout_grace.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
+#include "ams_unclaimed_toolhead.h"
 #include "async_lifetime_guard.h"
 #include "buffer_reading.h"
 #include "core/observer_guard.h"
@@ -2068,6 +2069,14 @@ class AmsState {
      */
     void set_external_spool_info(const SlotInfo& info);
 
+    /// The prompt about filament at the toolhead that no lane claims closed,
+    /// by either action or a dismissal. Main thread.
+    void unclaimed_toolhead_prompt_closed();
+    /// Whether filament sits at the toolhead unclaimed right now, the backend
+    /// idle and no print running: what the prompt's actions re-check at tap
+    /// time. Main thread.
+    [[nodiscard]] bool unclaimed_toolhead_now();
+
     /**
      * @brief Delete the bypass spool's record
      */
@@ -2339,6 +2348,32 @@ class AmsState {
     /// Whether the bypass record's holder has read it, so its absence is
     /// Moonraker's answer. Main thread.
     [[nodiscard]] bool bypass_record_known() const;
+    /// A filament system that keeps its lane records outside lane_data now
+    /// holds the bypass record: once it has read its lane records and holds
+    /// none, give it the record AmsState last read from its own store, and
+    /// delete AmsState's copy once the holder's read shows it. Runs after every
+    /// sync. Main thread.
+    void hand_bypass_record_to_holder();
+    /// Discovery found no filament system: when AmsState's own store holds no
+    /// bypass record, take the one a departed system left in its private
+    /// namespace. Once per printer connection. Main thread.
+    void reclaim_orphaned_bypass_record();
+    /// Delete the bypass record from AmsState's own store, if a fresh read
+    /// still finds it there. Main thread.
+    void delete_own_bypass_copy();
+    /// A private namespace @p ns answered reclaim_orphaned_bypass_record()
+    /// with @p doc, read on connection @p connection: copy its bypass record
+    /// into AmsState's own store. Main thread.
+    void take_orphaned_bypass_record(uint64_t connection, const std::string& ns,
+                                     const nlohmann::json& doc);
+    /// Ask about filament at the toolhead that no lane claims, once per
+    /// occurrence (ams::UnclaimedToolheadPromptGate). Main thread.
+    void sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
+    /// What the prompt rule reads of @p backend now.
+    [[nodiscard]] helix::ams::UnclaimedToolheadReading
+    read_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
+    /// A new primary backend: no prompt until its startup grace is over.
+    void restart_unclaimed_toolhead_grace();
     /// Write what start_legacy_spool_import() read, each half once its lanes
     /// are read. Runs after every sync and bypass read. Main thread.
     void run_legacy_spool_import();
@@ -2760,6 +2795,29 @@ class AmsState {
     std::optional<helix::ams::FilamentSlotOverride> bypass_record_read_;
     /// AmsState's own bypass store has answered a read since it opened.
     bool bypass_store_read_ = false;
+    /// hand_bypass_record_to_holder() has finished for the current holder.
+    bool bypass_handover_done_ = false;
+    /// The record hand_bypass_record_to_holder() gave the holder, until the
+    /// holder's own read shows it.
+    std::optional<helix::ams::FilamentSlotOverride> bypass_handover_carried_;
+    /// The holder's lane_record_reads() when the carried record was last
+    /// published: one more publish per holder read until it shows.
+    uint64_t bypass_handover_published_at_ = 0;
+    /// A user write ended a pending move; AmsState's copy goes once the
+    /// holder's read shows bypass_superseded_by_ (nullopt: a clear).
+    bool bypass_supersede_pending_ = false;
+    std::optional<helix::ams::FilamentSlotOverride> bypass_superseded_by_;
+    /// reclaim_orphaned_bypass_record() has run for this connection.
+    bool bypass_reclaim_done_ = false;
+    /// reclaim_orphaned_bypass_record() has copied a record this connection.
+    bool bypass_reclaim_taken_ = false;
+    /// Advanced by every restart_bypass_reads(): a read or reclaim sent on an
+    /// earlier connection is not filed.
+    uint64_t bypass_connection_generation_ = 0;
+    helix::ams::UnclaimedToolheadPromptGate unclaimed_toolhead_gate_;
+    /// The primary backend's startup frames have had their grace period.
+    bool unclaimed_toolhead_grace_over_ = false;
+    helix::ui::LvglTimerGuard unclaimed_toolhead_grace_timer_;
 
     /// What start_legacy_spool_import() read, and which halves are written.
     struct LegacyImport {

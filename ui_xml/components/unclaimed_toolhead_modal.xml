@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Filament sits at the toolhead, no lane is loaded and bypass is off. -->
+<!-- NOTE: Backdrop is created programmatically by the Modal class in C++. -->
+<!-- Buttons are wired programmatically in UnclaimedToolheadModal::on_show(). -->
+<component>
+  <api>
+    <!-- "true" on a backend whose unload cannot clear an unclaimed toolhead -->
+    <prop name="hide_unload" type="string" default="false"/>
+    <prop name="hide_by_hand" type="string" default="true"/>
+  </api>
+  <view name="unclaimed_toolhead_modal"
+        extends="ui_dialog" width="80%" height="content" style_max_height="90%" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0">
+    <modal_header icon_src="alert" icon_variant="warning" title="Filament in the toolhead"/>
+
+    <lv_obj width="100%"
+            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
+            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="#space_sm">
+      <text_body name="unclaimed_toolhead_text"
+                 width="100%" long_mode="wrap" text="Filament is in the toolhead, but no lane is loaded."/>
+      <text_muted name="unclaimed_toolhead_by_hand"
+                  width="100%" long_mode="wrap" hidden="$hide_by_hand"
+                  text="To use the lanes, pull the filament out of the toolhead by hand."/>
+    </lv_obj>
+
+    <!-- Left to right: Unload (btn_tertiary, where the backend can unload it), Not now (btn_secondary, the Modal cancel
+         role that ESC and the backdrop also reach), Use as bypass (btn_primary). -->
+    <modal_button_row hide_tertiary="$hide_unload"
+                      tertiary_name="btn_tertiary" tertiary_variant="secondary" tertiary_text="Unload"
+                      secondary_text="Not now" primary_text="Use as bypass"/>
+  </view>
+</component>

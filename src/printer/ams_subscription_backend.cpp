@@ -329,6 +329,7 @@ void AmsSubscriptionBackend::adopt_lane_records(
         }
         changed = lane_records_unread_ || previous != lane_wire_seen_;
         lane_records_unread_ = false;
+        ++lane_record_reads_;
         on_lane_records_read_locked();
     }
 
@@ -379,6 +380,11 @@ void AmsSubscriptionBackend::adopt_lane_records(
         refresh_again_ = false;
         refresh_lane_records();
     }
+}
+
+bool AmsSubscriptionBackend::lane_records_private() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return override_store_ != nullptr && override_store_->holds_extras_only();
 }
 
 std::optional<helix::ams::FilamentSlotOverride> AmsSubscriptionBackend::bypass_record() const {

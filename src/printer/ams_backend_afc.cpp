@@ -4957,6 +4957,10 @@ std::optional<bool> AmsBackendAfc::toolhead_filament_unaccounted() const {
     if (!sensor_present) {
         return false; // hardware without sensors reports both false — no false positive
     }
+    // Bypass on: the filament at the head is the bypass spool's.
+    if (bypass_active_) {
+        return false;
+    }
     // (2) AFC.current names the seated lane -> accounted
     if (!toolhead_lane_.empty()) {
         return false;

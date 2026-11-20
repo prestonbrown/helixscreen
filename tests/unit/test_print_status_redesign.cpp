@@ -1394,7 +1394,8 @@ TEST_CASE_METHOD(Landscape800, "a chip the phase sheds is never placed without r
     clear_all_eight_chips(*this);
 }
 
-TEST_CASE_METHOD(Landscape800, "a warm chamber's glow takes over from the light's",
+TEST_CASE_METHOD(Landscape800,
+                 "on the print status screen, a warm chamber's glow takes over from the light's",
                  "[print_status]") {
     auto& ctrl = helix::led::LedController::instance();
     helix::led::LedStripInfo strip;

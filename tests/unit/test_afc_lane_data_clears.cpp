@@ -11,7 +11,9 @@
  */
 
 #include "ams_backend_afc.h"
+#include "ams_lane_state.h"
 #include "ams_types.h"
+#include "filament_slot_override_store.h"
 #include "test_helpers/afc_lane_feed.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
@@ -125,4 +127,41 @@ TEST_CASE("AFC lane_data still bootstraps when discovery found no lanes",
 
     CHECK(afc.get_system_info().total_slots == 2);
     CHECK(afc.get_slot_info(1).spoolman_id == 2);
+}
+
+// With no filament system AmsState keeps the bypass spool's record at
+// lane_data `lane1`; AFC names its lanes from 0, so its own `lane1` is the
+// second lane, and the record must not land there.
+TEST_CASE("AFC lane_data never reads the bypass spool's record as a lane", "[ams][afc][bypass]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane0", "lane1", "lane2", "lane3"});
+
+    helix::ams::FilamentSlotOverride bypass;
+    bypass.material = "ASA";
+    bypass.spoolman_id = 151;
+    bypass.external_mirror = true;
+    const json record = helix::ams::to_lane_data_record(0, bypass, helix::ams::LaneKeyStyle::Lane);
+    REQUIRE(record["lane_name"] == "bypass");
+    feed_lane_data(afc, json{{"lane1", record}});
+
+    const SlotInfo lane = afc.get_slot_info(1);
+    CHECK(lane.material.empty());
+    CHECK(lane.spoolman_id == 0);
+    CHECK(lane.status != SlotStatus::AVAILABLE);
+    CHECK(helix::ui::classify_lane(lane) == helix::ui::LaneState::Empty);
+}
+
+// get_status reports an empty lane's material as null, and that clears the
+// material the lane read before, whatever surface it came from.
+TEST_CASE("AFC status material null clears the lane's material", "[ams][afc][bypass]") {
+    helix::test::RegisteredBackend<AmsBackendAfc> afc_reg(nullptr, nullptr);
+    AmsBackendAfc& afc = *afc_reg;
+    helix::test::init_afc_lanes(afc, {"lane0", "lane1"});
+
+    helix::test::feed_lane_status(afc, "lane0", json{{"material", "PLA"}});
+    REQUIRE(afc.get_slot_info(0).material == "PLA");
+
+    helix::test::feed_lane_status(afc, "lane0", json{{"material", nullptr}});
+    CHECK(afc.get_slot_info(0).material.empty());
 }

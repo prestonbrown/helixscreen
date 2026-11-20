@@ -601,6 +601,7 @@ src/ui/ui_busy_overlay.cpp
 src/ui/components/ui_button.cpp
 src/ui/filament/ui_bypass_spool_widget.cpp
 src/ui/filament/ui_bypass_toggle_controller.cpp
+src/ui/filament/ui_unclaimed_toolhead_modal.cpp
 src/ui/components/ui_card.cpp
 src/ui/components/ui_carousel.cpp
 src/ui/filament/ui_chamber_dryer_modal.cpp

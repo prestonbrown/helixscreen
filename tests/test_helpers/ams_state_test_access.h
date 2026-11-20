@@ -64,6 +64,11 @@ class AmsStateTestAccess {
         return RunoutGrace::kWindow;
     }
 
+    /// End the primary backend's startup grace, as its timer does.
+    static void end_unclaimed_toolhead_grace(AmsState& ams) {
+        ams.unclaimed_toolhead_grace_over_ = true;
+    }
+
     /// Drop the cached system_info() readings, as a backend event does, for a
     /// test backend whose answer changes without raising one.
     static void invalidate_system_info(AmsState& ams) {

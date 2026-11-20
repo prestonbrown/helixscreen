@@ -165,6 +165,18 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
                       public helix::ISpoolRetention,
                       public helix::ILaneFaults {
   public:
+    // The namespace is PRIVATE, deliberately NOT the shared "lane_data": AFC's
+    // own plugin owns that one, deletes the whole namespace on every Klipper
+    // boot and full-POSTs each lane record, so our data would not survive and
+    // AFC's records would be ingested as if the user had authored them.
+    //
+    // This is also what restores retention across an eject, since
+    // apply_lane_status honours AFC's clears: firmware truth clears, and the
+    // override re-supplies the identity the user attached.
+    //
+    // Listed in private_lane_record_namespaces().
+    static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";
+
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IDryer>()) {
             return static_cast<helix::IDryer*>(this);
@@ -708,15 +720,6 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     // from AFC v1.2.0, which publishes filament_name and initial_weight, but only
     // for a lane with a live Spoolman link; a user's override still outranks both.
     //
-    // The namespace is PRIVATE, deliberately NOT the shared "lane_data": AFC's
-    // own plugin owns that one, deletes the whole namespace on every Klipper
-    // boot and full-POSTs each lane record, so our data would not survive and
-    // AFC's records would be ingested as if the user had authored them.
-    //
-    // This is also what restores retention across an eject, since
-    // apply_lane_status honours AFC's clears: firmware truth clears, and the
-    // override re-supplies the identity the user attached.
-    static constexpr const char* kOverrideNamespace = "helix-screen-afc-overrides";
     // overrides_ is keyed by the lane's registry position (slots_ index), the
     // one key every per-lane store here shares, lane_id() included. Never a
     // SlotInfo field: slot_index there is unit-local, and global_index is a

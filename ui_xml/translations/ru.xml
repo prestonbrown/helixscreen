@@ -1655,8 +1655,10 @@
   <translation tag="Filament didn&apos;t fully retract, may need manual removal" ru="Филамент втянут не полностью, может потребоваться извлечь его вручную"/>
   <translation tag="Filament dust packs into the drive gears and costs grip." ru="Пыль филамента забивает шестерни и ухудшает захват."/>
   <translation tag="Filament feeder" ru="Фидер филамента"/>
+  <translation tag="Filament in the toolhead" ru="Филамент в печатающей головке"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." ru="Филамент вышел из печатающей головки. Вытяните его до конца."/>
   <translation tag="Filament is dragging" ru="Филамент идёт с натягом"/>
+  <translation tag="Filament is in the toolhead, but no lane is loaded." ru="В печатающей головке есть филамент, но ни один канал не загружен."/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." ru="Филамент загружен в печатающую головку. Выгрузите его перед включением обхода."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." ru="В печатающей головке загружен филамент. Сначала выгрузите его, чтобы он не размягчился в экструдере, пока греется стол."/>
   <translation tag="Filament is still at the empty head&apos;s feeder" ru="В фидере пустой печатающей головки ещё есть филамент"/>
@@ -4473,6 +4475,7 @@
   <translation tag="To make videos, run this on your printer via SSH:" ru="Чтобы создавать видео, выполните это на принтере через SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." ru="Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Moonraker этого принтера слишком старый, чтобы плагин HelixPrint потом восстановил исходное имя файла, поэтому выполненное задание отображается под изменённым именем. Само сопоставление филамента работает нормально."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." ru="Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Без плагина HelixPrint в историю печати попадает изменённая копия, поэтому выполненные задания отображаются под именами вроде modified_1730824_benchy.gcode вместо выбранного файла.&#10;&#10;Установка плагина занимает немного времени и не требует перезапуска."/>
+  <translation tag="To use the lanes, pull the filament out of the toolhead by hand." ru="Чтобы использовать каналы, вытяните филамент из печатающей головки вручную."/>
   <translation tag="Toggle" ru="Переключить"/>
   <translation tag="Toggle (fire-and-forget)" ru="Переключение (без отслеживания)"/>
   <translation tag="Toggle AFC LED strip" ru="Переключить LED-ленту AFC"/>
@@ -4678,6 +4681,7 @@
   <translation tag="Use New Address" ru="Использовать новый адрес"/>
   <translation tag="Use Scan" ru="Взять скан"/>
   <translation tag="Use Unload before Eject" ru="Используйте «Выгрузить» перед «Извлечь»"/>
+  <translation tag="Use as bypass" ru="Использовать как обход"/>
   <translation tag="Use existing" ru="Использовать имеющийся"/>
   <translation tag="Use existing filament?" ru="Использовать имеющийся филамент?"/>
   <translation tag="Use first HID scanner found" ru="Использовать первый найденный HID-сканер"/>

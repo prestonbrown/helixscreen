@@ -44,6 +44,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "print_stop_reason.h"
 #include "printer_discovery.h"
 #include "printer_event_journal.h"
@@ -265,6 +266,8 @@ void AmsState::init_backends_from_hardware(const helix::PrinterDiscovery& hardwa
     const auto& systems = hardware.detected_ams_systems();
     if (systems.empty()) {
         spdlog::debug("[AMS State] No AMS systems detected, skipping");
+        assert_main_thread();
+        reclaim_orphaned_bypass_record();
         return;
     }
 
@@ -348,6 +351,9 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
 
     lv_subject_set_int(&backend_count_, registry_.count());
     sync_lane_records_ready();
+    if (index == 0) {
+        restart_unclaimed_toolhead_grace();
+    }
     return index;
 }
 
@@ -398,6 +404,14 @@ void AmsState::clear_backends() {
     helix::ams::reset_lane_sources();
     // The bypass record goes with them; the next printer's is read afresh.
     restart_bypass_reads();
+    // A prompt about the departing system's toolhead asks about hardware that
+    // is gone.
+    if (unclaimed_toolhead_gate_.prompt_open()) {
+        helix::publish_ui_request({helix::UiRequestKind::DismissUnclaimedToolheadPrompt});
+    }
+    unclaimed_toolhead_gate_.reset();
+    unclaimed_toolhead_grace_over_ = false;
+    unclaimed_toolhead_grace_timer_.reset();
     refresh_bypass_record();
     // So does a 1.0 import still waiting on the departing backend's lanes: the next
     // discovery starts its own, and this one would finish against the next backend.
@@ -668,6 +682,7 @@ void AmsState::sync_from_backend() {
     sync_lane_records_ready();
     sync_filament_runout(info);
     sync_bypass(backend, info);
+    sync_unclaimed_toolhead(backend, info);
     sync_feeder(backend);
     const bool presented = info.presents_filament_system();
     lv_subject_set_int(&ams_slot_count_, presented ? info.total_slots : 0);
@@ -716,6 +731,7 @@ void AmsState::sync_from_backend() {
 
     sync_lanes_emptied(backend, info);
 
+    hand_bypass_record_to_holder();
     run_legacy_spool_import();
 
     sync_unit_environment(backend, info);

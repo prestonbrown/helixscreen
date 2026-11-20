@@ -31,18 +31,25 @@
  * Run with: ./build/bin/helix-tests "[ams][toolhead-unaccounted]"
  */
 
+#include "ui_unclaimed_toolhead_modal.h"
+
+#include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
 #include "ams_backend_ad5x_ifs.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_cfs.h"
 #include "ams_backend_happy_hare.h"
 #include "ams_backend_mock.h"
+#include "ams_state.h"
 #include "ams_types.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
+#include "notice.h"
 #include "printer_state.h"
 #include "test_helpers/ad5x_ifs_test_access.h"
 #include "test_helpers/afc_test_access.h"
 #include "test_helpers/cfs_test_access.h"
+#include "test_helpers/registered_backend.h"
 
 #include <memory>
 #include <optional>
@@ -72,6 +79,13 @@ class AfcHelper : public AmsBackendAfc {
             ext["lane_loaded"] = lane_loaded;
         json params;
         params["AFC_extruder extruder"] = ext;
+        json notification;
+        notification["params"] = json::array({params, 0.0});
+        handle_status_update(notification);
+    }
+    void feed_afc(const json& afc) {
+        json params;
+        params["AFC"] = afc;
         json notification;
         notification["params"] = json::array({params, 0.0});
         handle_status_update(notification);
@@ -106,6 +120,14 @@ TEST_CASE("AFC unaccounted: sensors tripped, no lane claims -> true",
     afc.feed_extruder(/*lane_loaded=*/"", /*tool_start=*/true, /*tool_end=*/true);
     REQUIRE(afc.toolhead_filament_unaccounted().has_value());
     CHECK(*afc.toolhead_filament_unaccounted() == true);
+}
+
+TEST_CASE("AFC unaccounted: bypass on accounts for it -> false", "[ams][toolhead-unaccounted]") {
+    AfcHelper afc;
+    afc.feed_afc(json{{"bypass_state", true}});
+    afc.feed_extruder("", true, false);
+    REQUIRE(afc.toolhead_filament_unaccounted().has_value());
+    CHECK(*afc.toolhead_filament_unaccounted() == false);
 }
 
 TEST_CASE("AFC unaccounted: lane_loaded accounts for it -> false", "[ams][toolhead-unaccounted]") {
@@ -256,4 +278,58 @@ TEST_CASE("Mock scenario 'unaccounted' cleared on stop (no stale flag across res
     CHECK(*mock.toolhead_filament_unaccounted() == true);
     mock.stop();
     CHECK_FALSE(mock.toolhead_filament_unaccounted().has_value());
+}
+
+namespace {
+int g_afc_prompts = 0;
+void count_afc_prompt(const UiRequest&) {
+    ++g_afc_prompts;
+}
+} // namespace
+
+// The V0 state: AFC idle, its toolhead sensor up, no lane loaded, the virtual
+// bypass off. AFC's own load trips the same sensor first, while it reports
+// Loading.
+TEST_CASE_METHOD(LVGLTestFixture, "AFC: an unclaimed toolhead asks once, never mid-load",
+                 "[ams][toolhead-unaccounted][unclaimed_toolhead]") {
+    g_afc_prompts = 0;
+    const UiRequestHandler previous =
+        set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, count_afc_prompt);
+    {
+        test::RegisteredBackend<AfcHelper> reg;
+        reg->set_discovered_sensors({"filament_switch_sensor virtual_bypass"});
+        auto& ams = AmsState::instance();
+        AmsStateTestAccess::end_unclaimed_toolhead_grace(ams);
+        REQUIRE(reg->get_system_info().supports_bypass);
+
+        SECTION("loading frames ask nothing") {
+            reg->feed_afc(json{
+                {"current_state", "Loading"}, {"current_load", nullptr}, {"bypass_state", false}});
+            reg->feed_extruder("", true, false);
+            ams.sync_from_backend();
+            CHECK(g_afc_prompts == 0);
+        }
+
+        SECTION("idle with the sensor up and no load asks") {
+            reg->feed_afc(json{
+                {"current_state", "Idle"}, {"current_load", nullptr}, {"bypass_state", false}});
+            reg->feed_extruder("", true, false);
+            ams.sync_from_backend();
+            ams.sync_from_backend();
+            CHECK(g_afc_prompts == 1);
+        }
+        ams.unclaimed_toolhead_prompt_closed();
+    }
+    set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous);
+}
+
+// AFC's unload pulls only the lane it has loaded, and with none it does
+// nothing; the prompt there offers no Unload and says to pull by hand.
+TEST_CASE("unclaimed toolhead: Unload is offered only where the unload clears it",
+          "[ams][toolhead-unaccounted][unclaimed_toolhead]") {
+    AfcHelper afc;
+    CHECK_FALSE(helix::ui::UnclaimedToolheadModal::offers_unload(&afc));
+    CfsHarness h;
+    CHECK(helix::ui::UnclaimedToolheadModal::offers_unload(h.cfs.get()));
+    CHECK_FALSE(helix::ui::UnclaimedToolheadModal::offers_unload(nullptr));
 }

@@ -4728,6 +4728,30 @@ TEST_CASE("CFS load routes the bypass sentinel instead of refusing it", "[ams][c
     }
 }
 
+// The unclaimed-toolhead prompt's Unload: no bay is loaded, so the bay
+// script's retract has nothing to key on; the lane-free clear is the bypass
+// unload.
+TEST_CASE("CFS clears an unclaimed toolhead with the bypass unload, not a bay script",
+          "[ams][cfs][bypass][unclaimed_toolhead]") {
+    helix::MacroParamCache::instance().clear();
+
+    SECTION("stock K2") {
+        helix::test::StartedBackend<CfsRemapHelper> backend;
+        REQUIRE(backend.can_clear_unaccounted_toolhead());
+        const int slot = backend.unaccounted_toolhead_clear_slot();
+        REQUIRE(backend.unload_filament(slot).result == AmsResult::SUCCESS);
+        REQUIRE(backend.dispatched.size() == 1);
+        CHECK(backend.dispatched[0] ==
+              AmsBackendCfs::bypass_unload_gcode(CfsMacroVariant::K2, false));
+    }
+
+    SECTION("Fork routes its own unload, so the prompt offers none") {
+        helix::test::StartedBackend<CfsRemapHelper> backend;
+        backend.fire_status(make_cfs_notification(make_flat_fork_box()));
+        CHECK_FALSE(backend.can_clear_unaccounted_toolhead());
+    }
+}
+
 TEST_CASE("CFS bypass unload gcode: QUIT_MATERIAL when the printer defines it",
           "[ams][cfs][bypass]") {
     using V = helix::printer::CfsMacroVariant;

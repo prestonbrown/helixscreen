@@ -70,6 +70,7 @@ src packaging_seed_dirs
 src stripped_assets_unreferenced
 src ui_xml_formatted
 tests test_access_defined_once
+tests test_case_names_unique
 tests test_mode_restored
 tests test_displays_deleted
 tests ams_state_published
@@ -1342,6 +1343,13 @@ test_access_duplicates() {
         return
     fi
     echo "$defs" | awk '{n[$1]++; f[$1]=f[$1]" "$2} END {for (c in n) if (n[c] > 1) print c ":" f[c]}'
+}
+
+# Catch2 runs every case with a name a run names, so two TEST_CASEs sharing
+# one make a by-name selection run a case it did not choose, and the gate's
+# selected-vs-ran count disagrees. Platform alternatives (#if/#else) are one test.
+lint_test_case_names_unique() {
+    python3 "$CODE_LINT_DIR/check_duplicate_test_names.py" tests
 }
 
 lint_test_access_defined_once() {

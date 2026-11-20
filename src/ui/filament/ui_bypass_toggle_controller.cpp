@@ -4,12 +4,14 @@
 #include "ui_bypass_toggle_controller.h"
 
 #include "ui_error_reporting.h"
+#include "ui_unclaimed_toolhead_modal.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
@@ -238,5 +240,19 @@ void BypassToggleController::disarm_backend_observer() {
     // subject so a settled controller is not pinged forever.
     backend_observer_.reset();
 }
+
+namespace {
+
+// Here rather than in the modal's own file: this file is linked on every
+// target, and a registration in a file nothing names is dropped by the
+// firmware's archive.
+const UiRequestRegistration s_unclaimed_toolhead_offer{
+    UiRequestKind::OfferUnclaimedToolheadAsBypass,
+    [](const UiRequest&) { UnclaimedToolheadModal::offer(); }};
+const UiRequestRegistration s_unclaimed_toolhead_dismiss{
+    UiRequestKind::DismissUnclaimedToolheadPrompt,
+    [](const UiRequest&) { UnclaimedToolheadModal::dismiss(); }};
+
+} // namespace
 
 } // namespace helix::ui
