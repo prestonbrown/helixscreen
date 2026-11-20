@@ -326,6 +326,54 @@ update_manager_web_channel() {
     esac
 }
 
+# The stanza's `path:`: INSTALL_DIR as the running Moonraker spells it. A mod
+# payload's Moonraker runs in the mod's chroot, which reaches the root by the
+# spelling resolve_chroot_daemon_dir found (the same one the service starts it
+# from); everywhere else that is INSTALL_DIR itself.
+update_manager_path() {
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ -n "${HELIX_CHROOT_DAEMON_DIR:-}" ]; then
+        echo "$HELIX_CHROOT_DAEMON_DIR"
+    else
+        echo "$INSTALL_DIR"
+    fi
+}
+
+# Why a payload install must not arm Moonraker's updater, or nothing when it
+# may. A type:web update rmtree()s `path:` and extracts the zip in its place,
+# then HelixScreen restarts itself and restore-user-config.sh puts the user
+# files back, so a payload is safe to update only when:
+#   - the root is outside the mod's tree (an operator-chosen --payload-root
+#     can put it inside, where host_refuse_mod_owned exempts the payload);
+#   - its user config lives outside the root: config/settings.json is a link
+#     into printer_data (setup_config_symlink), or not there yet (the plan,
+#     before any extraction);
+#   - the Moonraker running in the mod's chroot reaches the root (an adopted
+#     legacy root outside the chroot's binds is invisible to it);
+#   - Moonraker downloads this platform's zip: it reads asset_name, or the
+#     platform's zip is the release's assets[0] (helix_zip_is_first_release_asset).
+# Args: $1 = platform, $2 = moonraker_asset_name_support's answer
+payload_updater_blocker() {
+    local platform="$1" support="$2" settings
+    settings="${INSTALL_DIR}/config/settings.json"
+    if host_path_is_mod_owned "$INSTALL_DIR"; then
+        echo "${INSTALL_DIR} is inside the mod's tree, which only the mod's OTA may replace"
+        return 0
+    fi
+    if [ -e "$settings" ] && [ ! -L "$settings" ]; then
+        echo "its settings live inside ${INSTALL_DIR}, which a Moonraker update replaces"
+        return 0
+    fi
+    if [ ! -d "${HOST_MOD_CHROOT:-}$(update_manager_path)" ]; then
+        echo "the mod's Moonraker cannot reach $(update_manager_path)"
+        return 0
+    fi
+    if [ "$support" != "supported" ] && ! helix_zip_is_first_release_asset "$platform"; then
+        echo "this Moonraker downloads a release's first asset, which is not the ${platform} zip"
+        return 0
+    fi
+    return 0
+}
+
 # Generate update_manager configuration block
 generate_update_manager_config() {
     local web_channel
@@ -341,7 +389,7 @@ generate_update_manager_config() {
 type: web
 channel: ${web_channel}
 repo: prestonbrown/helixscreen
-path: ${INSTALL_DIR}
+path: $(update_manager_path)
 EOF
 }
 
@@ -354,11 +402,11 @@ add_update_manager_section() {
     # The stanza's `path:` hands INSTALL_DIR to Moonraker's NetDeploy, whose
     # update flow rmtree()s the path before extracting. Every writer funnels
     # through here (fresh add + migrate_to_web_type), so this one guard covers
-    # every UNARMED stanza write. Armed payload runs are exempt BY DESIGN - the
-    # armed path is instead refused upstream in configure_moonraker_updates
-    # whenever INSTALL_DIR is mod-owned (an operator-chosen in-tree root; the
-    # probed default lives outside the mod's namespaces), so the exemption
-    # this guard grants can never put an updater against the mod's tree.
+    # every UNARMED stanza write. Armed payload runs are exempt BY DESIGN - a
+    # payload root inside the mod's tree (an operator-chosen in-tree root; the
+    # probed default lives outside the mod's namespaces) is refused upstream by
+    # payload_updater_blocker, so the exemption this guard grants can never
+    # put an updater against the mod's tree.
     host_refuse_mod_owned "arming the Moonraker updater against" "$INSTALL_DIR"
 
     fs=$(file_sudo "$conf")
@@ -516,6 +564,9 @@ bare_update_manager_has_enable_key() {
 disable_system_updates_on_buildroot() {
     local conf="$1"
 
+    # A mod payload's conf is the mod's user include; the bare [update_manager]
+    # section belongs to the mod's own conf, which decides it.
+    [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && return 0
     system_updates_unavailable || return 0
     [ -f "$conf" ] || return 0
 
@@ -579,7 +630,7 @@ disable_system_updates_on_buildroot() {
 # useful and is removed. User config survives through the symlinks into
 # printer_data/config/helixscreen/ instead (setup_config_symlink).
 # Args: $1 = moonraker.conf path
-# Point an existing stanza's `path:` at INSTALL_DIR.
+# Point an existing stanza's `path:` at update_manager_path.
 # The value is interpolated once, when the section is first added, and nothing
 # revisits it. Moonraker's NetDeploy rmtree()s that path before extracting, so a
 # stale one aims a delete-and-repopulate at a tree we no longer own while the
@@ -595,7 +646,9 @@ sync_update_manager_path() {
         found && /^path:/ { sub(/^path:[[:space:]]*/, ""); print; exit }
     ' "$conf" 2>/dev/null)
 
-    if [ -z "$current" ] || [ "$current" = "$INSTALL_DIR" ]; then
+    local want
+    want=$(update_manager_path)
+    if [ -z "$current" ] || [ "$current" = "$want" ]; then
         return 0
     fi
 
@@ -603,19 +656,19 @@ sync_update_manager_path() {
     # arming one there, so it answers to the same guard.
     host_refuse_mod_owned "pointing the Moonraker updater at" "$INSTALL_DIR"
 
-    log_info "Repointing update_manager path: ${current} -> ${INSTALL_DIR}"
+    log_info "Repointing update_manager path: ${current} -> ${want}"
     local fs
     fs=$(file_sudo "$conf")
     $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
 
-    $fs awk -v want="$INSTALL_DIR" '
+    $fs awk -v want="$want" '
         /^\[update_manager helixscreen\]/ { in_section=1 }
         in_section && /^\[/ && !/^\[update_manager helixscreen\]/ { in_section=0 }
         in_section && /^path:/ { print "path: " want; next }
         { print }
     ' "$conf" > "${conf}.tmp" && $fs mv "${conf}.tmp" "$conf"
 
-    log_success "update_manager path now names ${INSTALL_DIR}"
+    log_success "update_manager path now names ${want}"
     _UPDATE_MANAGER_SYNCED=yes
 }
 
@@ -995,17 +1048,26 @@ restart_moonraker() {
 detect_moonraker_integration() {
     local conf asvc
     MOONRAKER_ADDS=""
-    [ "${1:-}" = "ad5m" ] && return 0
+    [ "${1:-}" = "ad5m" ] && [ "${HELIX_MOD_PAYLOAD:-}" != "1" ] && return 0
     # A desktop install talks to a printer elsewhere; this box's Moonraker,
     # if it has one, does not manage it.
     [ "${1:-}" = "x86-desktop" ] && return 0
-    [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && return 0
 
     conf=$(find_moonraker_conf)
     [ -n "$conf" ] || return 0
 
+    local support
+    support=$(moonraker_asset_name_support)
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        # The allowlist is the mod's file; only the stanza can be added.
+        if [ -z "$(payload_updater_blocker "$1" "$support")" ] \
+            && [ -z "$(update_manager_stanza_files "$conf")" ]; then
+            MOONRAKER_ADDS="update-manager"
+        fi
+        return 0
+    fi
     if [ -z "$(update_manager_stanza_files "$conf")" ] \
-        && [ "$(moonraker_asset_name_support)" != "unsupported" ]; then
+        && [ "$support" != "unsupported" ]; then
         MOONRAKER_ADDS="update-manager"
     fi
     asvc="$(dirname "$(dirname "$conf")")/moonraker.asvc"
@@ -1016,48 +1078,37 @@ detect_moonraker_integration() {
 }
 
 # Configure Moonraker update_manager
-# Called during installation on platforms with web UI (Pi, K1 with Simple AF)
+# Called during installation on platforms with a web UI. On a mod payload the
+# stanza goes into the mod's user.moonraker.conf (find_moonraker_conf's
+# mod-host answer), never into the mod's git-tracked conf.
 configure_moonraker_updates() {
     local platform=$1
 
-    # Skip on AD5M (stock Flashforge firmware lacks Mainsail/Fluidd).
-    # NOTE: AD5X is intentionally NOT skipped — it's only ever installed via the
-    # ZMOD chroot, which ships Mainsail/Fluidd.
-    if [ "$platform" = "ad5m" ]; then
-        log_info "Skipping Moonraker update_manager on AD5M (typically no web UI)"
+    # A standalone AD5M install (Klipper Mod, a Forge-X --standalone or legacy
+    # root) keeps the skip: its updater path, restart and user-config layout
+    # are unverified. A Forge-X payload install is gated below like any other.
+    if [ "$platform" = "ad5m" ] && [ "${HELIX_MOD_PAYLOAD:-}" != "1" ]; then
+        log_info "Skipping Moonraker update_manager on a standalone AD5M install"
         return 0
     fi
 
-    # A payload install writes NOTHING to any Moonraker conf unless the
-    # operator opted in with --auto-update. The stanza arms Moonraker's
-    # NetDeploy against `path:` (its update flow rmtree()s the path), and on a
-    # mod host the payload's lifecycle belongs to the mod's OTA, not to a
-    # second updater. With the opt-in the stanza lands in the mod's
-    # user.moonraker.conf - find_moonraker_conf's mod-host answer - never in
-    # the mod's git-tracked conf.
-    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ] && [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" != "1" ]; then
-        log_info "Payload install: skipping Moonraker update_manager"
-        log_info "(pass --auto-update to write the stanza into the mod's user.moonraker.conf)"
-        return 0
-    fi
+    local mr_support
+    mr_support=$(moonraker_asset_name_support)
 
-    # --auto-update is refused for every payload install, wherever the root
-    # sits. Moonraker's type:web updater rmtree()s `path:` before extracting
-    # persistent_files matches only top-level names of path:, so nothing can
-    # keep the config/ and platform/ preservation the payload contract exists
-    # to provide - and config/ lives inside the root. Where the root sits changes
-    # nothing: a payload's lifecycle belongs to the mod's OTA, not to a second
-    # updater that cannot see the contract. The option is refused, not the
-    # install; completing without the updater armed is the safe outcome,
-    # because nothing remote-triggered can then touch the root.
-    if [ "${HELIX_MOD_PAYLOAD_UPDATES:-}" = "1" ] \
-       && [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
-        log_error "--auto-update refused: this is a payload install."
-        log_error "  ${INSTALL_DIR}"
-        log_error "Moonraker's type:web updater replaces the whole root on update, destroying"
-        log_error "the config/ and platform/ preservation the payload contract provides."
-        log_error "The mod's own OTA updates a payload install; arm nothing else against it."
-        return 0
+    if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        local blocker
+        blocker=$(payload_updater_blocker "$platform" "$mr_support")
+        if [ -n "$blocker" ]; then
+            log_info "Payload install: skipping Moonraker update_manager: ${blocker}"
+            log_info "Update from HelixScreen itself (Settings -> Updates) or by re-running the installer."
+            # A stanza an earlier install wrote would arm the same update.
+            local block_conf
+            block_conf=$(find_moonraker_conf)
+            if [ -n "$block_conf" ] && [ -n "$(update_manager_editable_stanza_files "$block_conf")" ]; then
+                remove_update_manager_section && restart_moonraker
+            fi
+            return 0
+        fi
     fi
 
     log_info "Configuring Moonraker update_manager..."
@@ -1116,8 +1167,13 @@ configure_moonraker_updates() {
     # asset_name, the Update button in Mainsail/Fluidd rmtree()s the install
     # directory and then fails on a non-zip asset -- strictly worse than no
     # button at all.
-    local mr_support
-    mr_support=$(moonraker_asset_name_support)
+    # A payload that passed payload_updater_blocker on an old Moonraker is
+    # the platform whose zip is the release's assets[0]: the right archive
+    # whatever this Moonraker reads.
+    if [ "$mr_support" != "supported" ] && [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
+        log_info "This Moonraker downloads the release's first asset, $(helix_self_update_asset "$platform"), which is this platform's zip."
+        mr_support="first-asset"
+    fi
 
     if [ "$mr_support" = "unsupported" ]; then
         log_warn "This Moonraker predates release_info.json asset_name support."

@@ -504,15 +504,15 @@ On a verified mod host a bare install is the payload contract, no flags:
   sets `HELIX_UI_CONFIRMED`, which also suppresses the "You may need to reboot" hedge (`scripts/lib/installer/plan.sh#print_reboot_note`).
 - **Nothing is written to any mod-owned Moonraker conf.** The mod's `moonraker.conf` is
   git-tracked - dirtying it breaks their OTA. The sanctioned include point is
-  `mod_data/user.moonraker.conf`, and even that only gains an `[update_manager helixscreen]`
-  stanza with `--auto-update` (refused while the root is mod-owned: a `type: web` updater
-  replaces the path wholesale, violating the preservation contract).
+  `mod_data/user.moonraker.conf`, which gains an `[update_manager helixscreen]` stanza (`type:
+  web`) whenever a Moonraker update can replace the payload safely; see
+  [Moonraker updates of a payload](#moonraker-updates-of-a-payload).
 - The binary is **linked against the mod chroot's glibc** and runs inside it; host-side
   execution failing is the expected state, warned not errored.
 
 Flags are overrides, named for what they do: `--standalone` (self-managed install beside the
-mod, with a warning that the mod will not start it), `--payload-root PATH` (where), and
-`--auto-update` (the stanza opt-in). The uninstall direction mirrors this: `install.sh
+mod, with a warning that the mod will not start it) and `--payload-root PATH` (where).
+`--auto-update` is accepted and ignored. The uninstall direction mirrors this: `install.sh
 --uninstall` auto-arms; the standalone `uninstall.sh` run bare refuses removal and requires
 its explicit `--mod-payload` - removal must never be the destructive default of a bare
 uninstaller.
@@ -523,6 +523,49 @@ last-component-`helixscreen` name gate that refuses `--payload-root /usr/data` o
 after any successful install that leaves a payload in place, the record in `mod_data` names
 that payload's root; and only terminating removals consume the record - `--clean` continues
 into a fresh install and must not orphan the record the fresh install relies on.
+
+### Moonraker updates of a payload
+
+Moonraker's `type: web` updater removes `path:` and extracts the release zip in its place
+(Config Survival on Updates below), so `scripts/lib/installer/moonraker.sh#payload_updater_blocker`
+arms it for a payload only when all of these hold, and otherwise logs which one failed and
+removes a stanza an earlier install left in the user conf:
+
+- The root is outside the mod's tree. `host_refuse_mod_owned` exempts payload runs, so an
+  operator's in-tree `--payload-root` is refused here.
+- The user config lives outside the root: `config/settings.json` is a link into
+  `printer_data/config/helixscreen` (`setup_config_symlink`). On Forge-X that is
+  `/root/printer_data/config/helixscreen`, the same directory as `/opt/config/helixscreen`.
+- The mod's chroot reaches the root. Moonraker runs in it, so `path:` is the spelling
+  `resolve_chroot_daemon_dir` found (`update_manager_path`), and an adopted legacy root
+  outside the chroot's binds gets no stanza.
+- Moonraker downloads this platform's zip. Forge-X ships a Moonraker with zip_deploy.py,
+  which downloads a release's `assets[0]` whatever release_info.json names (#993).
+  GitHub lists assets sorted by name and releases carry no `.tar.gz` assets, so
+  `helixscreen-ad5m.zip` is `assets[0]`. Only one asset can be first, so a Moonraker without
+  `asset_name` support gets a stanza only on that platform
+  (`scripts/lib/installer/platform.sh#helix_zip_is_first_release_asset`); the Forge-X AD5X
+  needs a Moonraker that reads `asset_name`.
+
+No `managed_services` is written: Forge-X's `[machine]` provider is `simple`, which restarts
+a service by running `<script_path>/<name> restart` from the mod's tree, and its
+`moonraker.asvc` is in that tree too, so Moonraker cannot be given a HelixScreen service
+without editing the mod. HelixScreen restarts itself instead: on Moonraker's
+`notify_update_response` for `helixscreen` with `complete: true`,
+`src/system/update_checker.cpp#handle_external_update_complete` exits, `helix-watchdog`
+starts the extracted binary, and that binary runs the extracted `restore-user-config.sh`
+before it reads its config (no service manager restarts it on Forge-X; Config Survival
+below). A Moonraker update leaves the chroot's `/etc/init.d/S90helixscreen` as the
+installer wrote it; the next installer run refreshes it.
+
+What the update loses: files kept only inside the root, which are all regenerated
+(`logs/`, and in `config/` the telemetry queue and snapshot, event_journal.json,
+`.crash_restart_count`, `settings.json.pre-migration`, `helixscreen.env.new`).
+`restore-user-config.sh` relinks the user files and restores the platform hooks file from the
+`.platform_hook` record in printer_data.
+
+Uninstall removes the stanza from the user conf (`remove_update_manager_section`, through
+`find_moonraker_conf`'s mod-host answer), leaving the rest of the file as it was.
 
 ### The scope boundary - and why it is safe everywhere else
 
@@ -796,12 +839,12 @@ The installer configures Moonraker to enable one-click updates from Mainsail/Flu
 
 Moonraker's `type: web` updater moves any `persistent_files` entries aside, `shutil.rmtree`s the install directory, extracts the zip and moves the saved entries back. `persistent_files` is read for `type: web`, but entries match only top-level names of `path:`: there are no globs and a nested entry such as `config/settings.json` never matches. The release zip ships a top-level `config/`, so listing `config` would restore the saved directory to `config/config` after extraction. The installer therefore writes no `persistent_files` and removes one from an existing stanza (`cleanup_unsupported_options`, which also drops `managed_services` and `install_script`, options a `type: web` stanza does not read). Config is preserved by three layers:
 
-1. **Config symlinks** -- user-owned files live in `printer_data/config/helixscreen/` (outside the managed path) and `$INSTALL_DIR/config/<file>` are symlinks into it (`setup_config_symlink`). `rmtree` unlinks the symlinks and leaves the targets. After the zip extracts, `config/restore-user-config.sh` re-creates the symlinks (`restore_config_symlinks`) and the platform hooks file (`restore_platform_hooks`). It runs from `refresh-service-units.sh` on systemd (update watcher and every service start) and from `config/helixscreen.init` `start` on SysV and procd platforms (the K2 procd shim delegates to that init script). The init script copy in `/etc/init.d` is installed by the installer, so a printer picks the call up on its next installer run. Which files and directories qualify is `HELIX_USER_CONFIG_FILES` / `HELIX_USER_CONFIG_DIRS`; the installer and `restore-user-config.sh` each carry a copy, and `tests/shell/test_state_ledger_survival.bats` fails when they differ.
+1. **Config symlinks** -- user-owned files live in `printer_data/config/helixscreen/` (outside the managed path) and `$INSTALL_DIR/config/<file>` are symlinks into it (`setup_config_symlink`). `rmtree` unlinks the symlinks and leaves the targets. After the zip extracts, `config/restore-user-config.sh` re-creates the symlinks (`restore_config_symlinks`) and the platform hooks file (`restore_platform_hooks`). It runs from `refresh-service-units.sh` on systemd (update watcher and every service start), from `config/helixscreen.init` `start` on SysV and procd platforms (the K2 procd shim delegates to that init script), and from the app itself at every start on a deployed layout when no service manager restarts the service (`HELIX_SERVICE_RESTARTS` unset): `src/application/application.cpp#init_config` runs it (`UpdateChecker::run_restore_user_config`, bounded at 10 s) before `Config::init` reads `settings.json`. After a Moonraker update `helix-watchdog` starts the extracted binary directly, which would otherwise run on the zip's packaged config until the next service start; because the starting binary runs it, an update from a version without this call is covered too. After an init-script start it is a second, idempotent run. The init script exports `HELIX_PD_HELIX_DIR` for it; an init script installed before that export leaves the script's own search to find printer_data. The init script copy in `/etc/init.d` is installed by the installer, so a printer picks the call up on its next installer run. Which files and directories qualify is `HELIX_USER_CONFIG_FILES` / `HELIX_USER_CONFIG_DIRS`; the installer and `restore-user-config.sh` each carry a copy, and `tests/shell/test_state_ledger_survival.bats` fails when they differ.
 
    **Z-Mod (AD5X, AD5M) has no printer_data directory to link into**, and Z-Mod installs and launches HelixScreen itself at `/srv/helixscreen`, so neither `setup_config_symlink` nor our init script runs there. When the printer_data scan finds nothing and the install dir is `/srv/helixscreen`, `restore-user-config.sh` keeps the user files in `/srv/helixscreen-state/config` instead and links them the same way. It moves every real user file across, not only the runtime-only ones, copying before it links, never replacing a file already in the state dir, and logging each move with a timestamp. `scripts/helix-launcher.sh` runs it (`HELIX_RESTORE_ZMOD_ONLY=1`, which does nothing on any other layout) before it reads `helixscreen.env` or the platform hooks, because Z-Mod's `S80helixscreen` never calls it. Where each platform's user config lives is `storage.user_config_dir` in `assets/config/platforms.json`; `scripts/check_platform_manifest.py` reports one that is missing, inside the payload root, or unknown to the restore script (#2085).
 
    telemetry_device.json (the telemetry uuid and salt) is deliberately not a user config file: printer_data is listed by web UIs and pushed by config backups, often to public repositories. The app keeps it in the state root instead (`app_get_state_root()`: the board's `storage.state_root`, else `/var/lib/helixscreen`, else `$HOME/.helixscreen`), outside both the install root and the Klipper config tree, and moves one left in `config/` there on first start.
-2. **Rolling backups** -- `Config::save()` maintains backups in `/var/lib/helixscreen/` (systemd `StateDirectory`) and `$HOME/.helixscreen/` (fallback). `Config::init()` auto-restores from these if the config file is missing, or is the packaged default, after an update.
+2. **Rolling backups** -- `Config::save()` maintains backups in `/var/lib/helixscreen/` (systemd `StateDirectory`) and `$HOME/.helixscreen/` (fallback). `Config::init()` restores from these when the config file is missing, and when it is the packaged default (no `config_version`) while a backup has one, unless the installer's fresh-install marker sits beside it. The packaged `helixscreen.env` is not replaced: its backup is restored only when the file is missing.
 3. **SysV init script** -- On BusyBox systems (K1, AD5M) where systemd isn't available, the init script exports `HOME=/root` and creates `/var/lib/helixscreen/` so backup paths are persistent (not volatile `/tmp/`).
 
 The uninstall ledgers (disabled services, Klipper includes, settings seeds, camera migration, K2 camera and K2 nginx markers) are in `HELIX_USER_CONFIG_FILES`, so they survive too. They are never seeded: a ledger that was not written stays absent, because its presence is what uninstall reads as "this was done". The steps that write them run after `setup_config_symlink`, so `main` calls it a second time (`quiet`) to relocate them. `restore_config_symlinks` also moves a real dotfile ledger (and pending_remap.json, which no zip ships) into printer_data when none exists there, which migrates an install that predates the relocation on its next service start. Uninstall finds a ledger with `_ledger_path`, which prefers the install dir and falls back to the printer_data copy, and removes it through `remove_state_file`, which deletes the printer_data target as well as the link.
@@ -824,7 +867,10 @@ The installer detects old `type: git_repo` and `type: zip` configurations and au
 
 ### Skipped Platforms
 
-Moonraker update_manager is skipped on AD5M (typically no Mainsail/Fluidd web UI).
+A standalone AD5M install (Klipper Mod, a Forge-X `--standalone` or legacy root) gets no
+update_manager stanza: its updater path, restart and user-config layout are unverified. A
+Forge-X payload install is gated by `payload_updater_blocker` instead
+([Moonraker updates of a payload](#moonraker-updates-of-a-payload)).
 
 ---
 

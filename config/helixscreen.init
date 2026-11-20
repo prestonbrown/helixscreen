@@ -115,6 +115,9 @@ case "$1" in
             HELIX_PD_HELIX_DIR="$HELIX_PD_HELIX" \
                 sh "${DAEMON_DIR}/config/restore-user-config.sh" >/dev/null 2>&1 || true
         fi
+        # The app runs the same restore at every start, since a Moonraker update
+        # restarts it through the watchdog and never through this script.
+        [ -n "$HELIX_PD_HELIX" ] && export HELIX_PD_HELIX_DIR="$HELIX_PD_HELIX"
         ;;
 esac
 

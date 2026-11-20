@@ -1667,7 +1667,8 @@ attached and remote screens.
 - **Forge-X: installs stay put** - HelixScreen installs outside the folder Forge-X cleans
   (either of its clean actions deleted the install), and an install that replaces an older
   one removes it, which could hold 81MB and put two screens on the display at boot. A
-  Forge-X install refuses `--auto-update`, which would have wiped your preserved settings.
+  Forge-X install on the AD5M appears in Mainsail and Fluidd's update manager, and an
+  update from there keeps your settings (#2147).
   An update with the installer restarts HelixScreen the way the printer does at boot,
   instead of leaving the screen dark until a reboot. The installer takes over the display on
   a fresh Forge-X too, and when a display change is still waiting for a reboot it says to

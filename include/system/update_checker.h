@@ -616,6 +616,39 @@ class UpdateChecker {
     static void handle_external_update_complete();
 
     /**
+     * @brief Whether startup must relink the user config before Config::init reads it
+     *
+     * Moonraker's type:web update replaces the install root, so the config links
+     * into printer_data and the platform hooks file are gone until
+     * config/restore-user-config.sh runs. A service manager that restarts the
+     * service (@p service_restarts, getenv("HELIX_SERVICE_RESTARTS"), set by
+     * helixscreen.service) runs it before every start. Without one, helix-watchdog
+     * starts the extracted binary directly after an update and nothing else runs
+     * it, so the starting process does, whichever version it was updated from
+     * (#2147). Only a deployed layout (is_deployed_layout) has the script to run.
+     */
+    static bool startup_runs_restore(const char* service_restarts, const std::string& install_root);
+
+    /// True when @p install_root is an installed tree: <root>/bin/helix-screen is a
+    /// regular file. A dev build's root is the source checkout, which is not.
+    static bool is_deployed_layout(const std::string& install_root);
+
+    /// Upper bound on the restore before startup goes ahead without it.
+    static constexpr std::chrono::milliseconds kRestoreDeadline{10000};
+
+    /**
+     * @brief Run <install_root>/config/restore-user-config.sh and wait for it
+     *
+     * /bin/sh with a fixed argv, no shell string; the child inherits the
+     * environment. Ended past @p deadline. Every outcome is logged and none is
+     * fatal: startup goes ahead either way.
+     * @return the script's exit code, or -1 when it is missing, could not be
+     *         started, or was ended at the deadline
+     */
+    static int run_restore_user_config(const std::string& install_root,
+                                       std::chrono::milliseconds deadline = kRestoreDeadline);
+
+    /**
      * @brief React to a (re)connected Moonraker: finish a self-restart and listen for updates
      *
      * Clears the self-restart sentinel (the app came back up, so

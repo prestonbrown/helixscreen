@@ -111,6 +111,76 @@ TEST_CASE("Self-restart sentinel creates a missing fallback dir", "[update_check
     fs::remove_all(root);
 }
 
+TEST_CASE("Startup relinks the user config only on a deployed layout without a restarting service",
+          "[update_checker][external_update][2147]") {
+    namespace fs = std::filesystem;
+    const fs::path root =
+        fs::temp_directory_path() / ("helix-startup-restore-" + std::to_string(getpid()));
+    fs::remove_all(root);
+    fs::create_directories(root / "bin");
+    const std::string deployed = root.string();
+
+    SECTION("a dev tree, with no binary under <root>/bin, is never relinked") {
+        CHECK_FALSE(UpdateChecker::startup_runs_restore(nullptr, deployed));
+        CHECK_FALSE(UpdateChecker::startup_runs_restore(nullptr, ""));
+    }
+
+    SECTION("a deployed layout") {
+        { std::ofstream bin(root / "bin" / "helix-screen"); }
+        // helixscreen.service sets HELIX_SERVICE_RESTARTS and runs the restore
+        // itself before every start.
+        CHECK_FALSE(UpdateChecker::startup_runs_restore("1", deployed));
+        // SysV, procd and an unsupervised run: the watchdog starts the new binary
+        // directly, so the app runs it.
+        CHECK(UpdateChecker::startup_runs_restore(nullptr, deployed));
+        CHECK(UpdateChecker::startup_runs_restore("", deployed));
+    }
+
+    SECTION("a directory named bin/helix-screen is not a deployed binary") {
+        fs::create_directories(root / "bin" / "helix-screen");
+        CHECK_FALSE(UpdateChecker::startup_runs_restore(nullptr, deployed));
+    }
+
+    fs::remove_all(root);
+}
+
+TEST_CASE("run_restore_user_config runs the root's script and is bounded",
+          "[update_checker][external_update][2147]") {
+    namespace fs = std::filesystem;
+    const fs::path root = fs::temp_directory_path() / ("helix-restore-" + std::to_string(getpid()));
+    fs::remove_all(root);
+    fs::create_directories(root / "config");
+    const fs::path script = root / "config" / "restore-user-config.sh";
+    const fs::path ran = root / "ran";
+
+    SECTION("a missing script is reported, not run") {
+        CHECK(UpdateChecker::run_restore_user_config(root.string()) == -1);
+        CHECK(UpdateChecker::run_restore_user_config("") == -1);
+    }
+
+    SECTION("the script runs from the install root and its exit code comes back") {
+        {
+            std::ofstream out(script);
+            out << "touch '" << ran.string() << "'\nexit 3\n";
+        }
+        CHECK(UpdateChecker::run_restore_user_config(root.string()) == 3);
+        CHECK(fs::exists(ran));
+    }
+
+    SECTION("a script that outlives the deadline is ended and the restart goes ahead") {
+        {
+            std::ofstream out(script);
+            out << "exec sleep 30\n";
+        }
+        const auto start = std::chrono::steady_clock::now();
+        CHECK(UpdateChecker::run_restore_user_config(root.string(),
+                                                     std::chrono::milliseconds(200)) == -1);
+        CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds(5));
+    }
+
+    fs::remove_all(root);
+}
+
 // The three-way update rule lives in compare_channel_version() and is pinned
 // against that shipped function at the bottom of this file. What remains here
 // is the parse_version behaviour the rule is built on.
