@@ -7,6 +7,7 @@
  * in on lv_layer_top() and the text its labels carry.
  */
 
+#include "ui_button.h"
 #include "ui_toast_manager.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -93,4 +94,15 @@ TEST_CASE_METHOD(ToastMarkupFixture, "Toast markup: a toast without detail hides
     CHECK(label_text("toast_message") == "Saved");
     CHECK(lv_obj_is_hidden(lv_obj_find_by_name(lv_layer_top(), "toast_detail")));
     CHECK(lv_obj_is_hidden(lv_obj_find_by_name(lv_layer_top(), "toast_action_btn")));
+}
+
+TEST_CASE_METHOD(ToastMarkupFixture, "Toast markup: an action button shows its label verbatim",
+                 "[toast][xml]") {
+    ToastManager::instance().show_with_action(
+        ToastSeverity::WARNING, "Filament runout", "#2 Resume", [](void*) {}, nullptr, 0);
+    REQUIRE(shown("toast_root") != nullptr);
+    lv_obj_t* btn = lv_obj_find_by_name(lv_layer_top(), "toast_action_btn");
+    REQUIRE(btn != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(btn));
+    CHECK(std::string(lv_label_get_text(ui_button_get_label(btn))) == "#2 Resume");
 }

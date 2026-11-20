@@ -703,6 +703,9 @@ void AmsPanel::clear_panel_reference() {
     // observer callbacks during teardown will see null and bail out.
     panel_ = nullptr;
     parent_screen_ = nullptr;
+    // A rebuilt panel starts out drawing backend 0, as a fresh one does, so the
+    // active-backend observer switches it again if another backend is selected.
+    shown_backend_idx_ = 0;
     slot_grid_ = nullptr;
     detail_widgets_ = AmsDetailWidgets{};
     path_canvas_ = nullptr;

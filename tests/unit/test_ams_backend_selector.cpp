@@ -12,6 +12,7 @@
 #include "../test_fixtures.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "theme_manager.h"
 
 #include <memory>
@@ -73,6 +74,7 @@ TEST_CASE_METHOD(XMLTestFixture, "AmsPanel backend selector shows and switches b
     CHECK_FALSE(segment_lit(second_seg));
 
     lv_obj_send_event(second_seg, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50);
 
     CHECK(ams.active_backend_index() == 1);

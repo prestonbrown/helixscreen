@@ -64,6 +64,10 @@ void populate_icon_grid(lv_obj_t* grid, const char* const* icons, size_t count,
     lv_xml_register_event_cb(nullptr, "icon_picker_cell_cb", cell_clicked);
     IconGrid* d = ensure_grid_data(grid);
     d->on_pick = std::move(on_pick);
+    // Cell i names names[i]: a grid cleaned for a refill starts the list over.
+    if (lv_obj_get_child_count(grid) == 0) {
+        d->names.clear();
+    }
     for (size_t i = 0; i < count; ++i) {
         const std::string index = std::to_string(d->names.size());
         const char* glyph = icon::lookup_codepoint(icons[i]);

@@ -4,6 +4,7 @@
 #include "ui_toast_manager.h"
 
 #include "ui_breakpoint.h"
+#include "ui_button.h"
 #include "ui_icon_codepoints.h"
 #include "ui_notification.h"
 #include "ui_notification_history.h"
@@ -544,7 +545,9 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
 
     // Build attrs. Keep the buffers alive for the lv_xml_create call.
     const char* hide_action_str = with_action ? "false" : "true";
-    const char* action_text_safe = (with_action && action_text) ? action_text : "";
+    // The action label is set after creation like the message; a one-space
+    // placeholder makes ui_button create the label it goes into.
+    const char* action_text_safe = (with_action && action_text) ? " " : "";
     const bool has_detail = detail && *detail;
     const char* detail_safe = has_detail ? detail : "";
     const char* hide_detail_str = has_detail ? "false" : "true";
@@ -553,11 +556,14 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
                            "action_text", action_text_safe, "hide_action", hide_action_str,
                            "hide_detail", hide_detail_str,  nullptr};
 
-    // Message and detail can be printer or plugin text: set, never props.
+    // Message, detail and action label can be printer or plugin text: set, never props.
     lv_obj_t* widget = helix::ui::create_xml_laid_out(
         toast_stack_, "toast_notification", attrs, [&](lv_obj_t* toast) {
             helix::ui::set_row_label_text(toast, "toast_message", message);
             helix::ui::set_row_label_text(toast, "toast_detail", detail_safe);
+            if (with_action && action_text) {
+                ui_button_set_text(lv_obj_find_by_name(toast, "toast_action_btn"), action_text);
+            }
         });
     if (!widget) {
         spdlog::error("[ToastManager] Failed to create toast notification widget");
