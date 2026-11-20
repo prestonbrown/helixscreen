@@ -132,6 +132,13 @@ void AmsState::store_external_spool_info(const SlotInfo& info) {
 void AmsState::write_bypass_record(const helix::ams::FilamentSlotOverride* record) {
     ++bypass_write_generation_;
     if (AmsBackend* holder = bypass_record_holder()) {
+        // A write supersedes a move still waiting on the holder: the carried
+        // record is older than this one and must never be published after it.
+        if (bypass_handover_carried_.has_value()) {
+            bypass_handover_carried_.reset();
+            bypass_handover_done_ = true;
+            delete_own_bypass_copy();
+        }
         holder->publish_external_spool_lane(record);
         return;
     }
@@ -270,14 +277,13 @@ void AmsState::hand_bypass_record_to_holder() {
             bypass_handover_done_ = true;
             return;
         }
-        if (held.has_value() && helix::ams::same_bypass_spool(*held, *bypass_record_read_)) {
-            // The holder already has this record: AmsState's copy is spare.
+        if (held.has_value()) {
+            // The holder's own record stands, and AmsState never writes over
+            // it: AmsState's copy is stale or the same.
             bypass_handover_done_ = true;
             delete_own_bypass_copy();
             return;
         }
-        // AmsState's record is the newer one when the two differ: only
-        // AmsState could write it while the holder was away.
         bypass_handover_carried_ = bypass_record_read_;
         bypass_handover_published_at_ = holder->lane_record_reads();
         spdlog::info("{} the filament system holds the bypass record now; moving {} to it",

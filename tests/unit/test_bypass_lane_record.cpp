@@ -560,6 +560,72 @@ TEST_CASE_METHOD(LVGLTestFixture, "a refused handover shows the record and write
     AmsState::instance().clear_backends();
 }
 
+// A holder that already has a bypass record keeps it: AmsState's lane_data
+// copy is stale, and nothing writes it over the holder's.
+TEST_CASE_METHOD(LVGLTestFixture, "a holder's own bypass record stands over AmsState's",
+                 "[bypass][lane][extras][afc][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ASA", "#101010"));
+    printer.client.mock_db_set("helix-screen-afc-overrides", "lane3",
+                               bypass_record(2, "PLA", "#FFFFFF"));
+    OwnBypassStore store(printer);
+    const int posts_before = printer.client.call_count("server.database.post_item");
+
+    auto owned = std::make_unique<StartedAfc>(&printer.api);
+    StartedAfc* afc = owned.get();
+    AmsState::instance().add_backend(std::move(owned));
+    afc->start_now();
+    for (int i = 0; i < 3; ++i) {
+        AmsState::instance().sync_from_backend();
+        settle();
+    }
+
+    CHECK(printer.client.mock_db_get("helix-screen-afc-overrides", "lane3")["filament_type"] ==
+          "PLA");
+    CHECK(printer.client.call_count("server.database.post_item") == posts_before);
+    const auto spool = AmsState::instance().get_external_spool_info();
+    REQUIRE(spool.has_value());
+    CHECK(spool->material == "PLA");
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a user edit supersedes a handover still pending",
+                 "[bypass][lane][extras][afc][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ASA", "#101010"));
+    OwnBypassStore store(printer);
+
+    auto owned = std::make_unique<RefuseOnceAfc>(&printer.api);
+    RefuseOnceAfc* afc = owned.get();
+    AmsState::instance().add_backend(std::move(owned));
+    afc->start_now();
+    AmsState::instance().sync_from_backend();
+    settle();
+    REQUIRE(afc->publishes_ == 1); // the handover, refused
+
+    AmsState::instance().set_external_spool_info(petg_spool());
+    settle();
+    REQUIRE(afc->publishes_ == 2);
+    for (int i = 0; i < 3; ++i) {
+        afc->refresh_lane_records();
+        settle();
+        AmsState::instance().sync_from_backend();
+        settle();
+    }
+
+    CHECK(afc->publishes_ == 2); // no retry of the old record
+    CHECK(printer.client.mock_db_get("helix-screen-afc-overrides", "lane3")["filament_type"] ==
+          "PETG");
+    const auto spool = AmsState::instance().get_external_spool_info();
+    REQUIRE(spool.has_value());
+    CHECK(spool->material == "PETG");
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    AmsState::instance().clear_backends();
+}
+
 // A bypass record written before records named their writer sits at the
 // bypass index unmarked; it is taken over, not treated as a slot's.
 TEST_CASE_METHOD(LVGLTestFixture, "an unmarked writerless record past the lanes is taken over",
