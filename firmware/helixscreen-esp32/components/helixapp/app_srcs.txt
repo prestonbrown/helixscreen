@@ -153,6 +153,7 @@ src/printer/bed_occupancy_state.cpp
 src/printer/afc_config_manager.cpp
 src/printer/afc_defaults.cpp
 src/printer/afc_fault_position.cpp
+src/printer/afc_unit_hardware.cpp
 src/printer/ams_device_action_rows.cpp
 src/printer/fault_path_position.cpp
 src/printer/fan_heaters.cpp
