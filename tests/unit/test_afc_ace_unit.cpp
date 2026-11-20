@@ -219,4 +219,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: the subscription carries the cl
     ams.init_subjects(false);
     ams.sync_from_backend();
     CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) == "Ace2 1");
+    // The dryer page titles the box the same way.
+    const auto zones = afc.get_environment_zones(-1);
+    REQUIRE(zones.size() == 1);
+    CHECK(zones[0].label == "Ace2 1");
 }
