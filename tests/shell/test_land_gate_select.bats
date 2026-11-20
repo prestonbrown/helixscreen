@@ -706,6 +706,15 @@ gate_clone() {
     [ "$(hash_with "$list")" != "$(hash_with "")" ] || fail "a scoped sweep shares the full sweep's stamp"
 }
 
+@test "a path-scoped gate's own script wakes it, so a change to the check is judged on the whole tree" {
+    run bash -c 'for g in link_parity translation_files shellcheck; do
+            . "scripts/qc/$g.sh"; re=$(eval echo "\$QC_TRIGGER_qc_$g")
+            echo "scripts/qc/$g.sh" | grep -qE "$re" || echo "MISSING $g"
+        done; echo done'
+    [ "$status" -eq 0 ]
+    lacks "MISSING" "$output"
+}
+
 @test "plan: python runs for the doc-screenshot manifest and for the workflows its tests read" {
     [[ "$(plan_of python docs/images/doc-screenshots.yml)" == run* ]] || fail "manifest"
     [[ "$(plan_of python .github/workflows/ci-watch.yml)" == run* ]] || fail "workflows"

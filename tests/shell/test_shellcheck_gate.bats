@@ -245,3 +245,36 @@ run_scoped() {
     [ "$status" -ne 0 ]
     [[ "$output" == *"scripts/bad.sh"* ]]
 }
+
+@test "at the land gate a change to the gate itself lints every script, not just the changed paths" {
+    local tree="$BATS_TEST_TMPDIR/tree"
+    mkdir -p "$tree/assets/config/platform" "$tree/config"
+    printf '#!/bin/sh\nrm -rf $DIR/*\n' >"$tree/assets/config/platform/hooks-x.sh"
+    printf '#!/bin/sh\necho ok\n' >"$tree/config/x.init"
+    run_scoped scripts/qc/shellcheck.sh
+    [ "$status" -ne 0 ] || { echo "a gate change linted nothing: $output"; false; }
+    [[ "$output" == *"assets/config/platform/hooks-x.sh"* ]] || { echo "$output"; false; }
+    run_scoped .shellcheckrc
+    [ "$status" -ne 0 ] || { echo "a config change linted nothing: $output"; false; }
+}
+
+@test "the full sweep lints the platform hooks under assets/config/platform" {
+    local tree="$BATS_TEST_TMPDIR/full" repo="$PWD"
+    mkdir -p "$tree/assets/config/platform"
+    printf '#!/bin/sh\nrm -rf $DIR/*\n' >"$tree/assets/config/platform/hooks-x.sh"
+    run bash -c 'cd "$1" && . "$2/scripts/qc/_lib.sh" && . "$2/scripts/qc/shellcheck.sh" &&
+        QC_TMP=$(mktemp -d) STAGED_ONLY=false QC_COUNTS=/dev/null qc_shellcheck' _ "$tree" "$repo"
+    [ "$status" -ne 0 ] || { echo "the hooks were not linted: $output"; false; }
+    [[ "$output" == *"assets/config/platform/hooks-x.sh"* ]] || { echo "$output"; false; }
+}
+
+@test "the gate wakes on every path it lints and on its own script and config" {
+    local re
+    re="$(bash -c '. scripts/qc/shellcheck.sh; echo "$QC_TRIGGER_qc_shellcheck"')"
+    [ -n "$re" ] || { echo "no trigger"; false; }
+    for p in config/helixscreen.init assets/config/platform/hooks-ad5m-kmod.sh scripts/x.sh \
+        config/restore-user-config.sh scripts/qc/shellcheck.sh .shellcheckrc; do
+        [[ "$p" =~ $re ]] || { echo "$p does not wake the gate"; false; }
+    done
+    [[ ! "docs/devel/X.md" =~ $re ]] || { echo "a doc wakes the gate"; false; }
+}
