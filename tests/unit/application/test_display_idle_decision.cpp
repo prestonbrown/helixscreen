@@ -365,35 +365,24 @@ TEST_CASE("wake_should_auto_lock truth table", "[display][idle_decision]") {
     }
 }
 
-TEST_CASE("decide_pointer_loss truth table", "[display][idle_decision][2069]") {
+TEST_CASE("pointer_loss_ends_power_off truth table", "[display][idle_decision][2069]") {
     using helix::SleepMechanism;
     struct LossRow {
         const char* label;
         bool sleeping;
         SleepMechanism mechanism;
-        bool power_off_explicit;
-        bool want_wake;
-        bool want_stop_power_off;
+        bool want;
     };
     const LossRow rows[] = {
-        {"lost under auto power-off: wake and stop powering off", true,
-         SleepMechanism::PanelPowerOff, false, true, true},
-        {"lost under a power-off the user chose: wake, keep powering off", true,
-         SleepMechanism::PanelPowerOff, true, true, false},
-        {"lost under the overlay: the panel stays powered, nothing to do", true,
-         SleepMechanism::SoftwareOverlay, false, false, false},
-        {"lost under a hardware blank: nothing to do", true, SleepMechanism::HardwareBlank, false,
-         false, false},
-        {"lost under host sleep: nothing to do", true, SleepMechanism::HostSleep, false, false,
+        {"lost while the panel is powered off", true, SleepMechanism::PanelPowerOff, true},
+        {"lost under the overlay: the panel stays powered", true, SleepMechanism::SoftwareOverlay,
          false},
-        {"lost while awake after a power-off sleep: nothing to do", false,
-         SleepMechanism::PanelPowerOff, false, false, false},
+        {"lost under a hardware blank", true, SleepMechanism::HardwareBlank, false},
+        {"lost under host sleep", true, SleepMechanism::HostSleep, false},
+        {"lost while awake after a power-off sleep", false, SleepMechanism::PanelPowerOff, false},
     };
     for (const auto& r : rows) {
         INFO(r.label);
-        const helix::PointerLossResponse got =
-            helix::decide_pointer_loss(r.sleeping, r.mechanism, r.power_off_explicit);
-        CHECK(got.wake == r.want_wake);
-        CHECK(got.stop_power_off == r.want_stop_power_off);
+        CHECK(helix::pointer_loss_ends_power_off(r.sleeping, r.mechanism) == r.want);
     }
 }
