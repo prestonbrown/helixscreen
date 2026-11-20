@@ -38,6 +38,8 @@ ssh root@<printer-ip>
 curl -sSL https://releases.helixscreen.org/install.sh | sh
 ```
 
+On stock firmware the installer first checks that SSH will keep working without the stock screen: **Root access** must be on and SSH running. If not, it stops before changing anything, the stock screen stays, and it tells you to turn on **Root access** (**Settings > Maintenance** on the stock screen) and run it again.
+
 <details>
 <summary>Manual Install (if you prefer, or the one-liner doesn't work on your network)</summary>
 

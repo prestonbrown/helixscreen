@@ -63,6 +63,50 @@ if [ ! -f "$INIT_SCRIPT" ]; then
     exit 1
 fi
 
+# Pre-flight: on stock firmware the stock UI is what starts SSH at boot, and
+# step 5 disables it. Only the platform hook's ensure_root_ssh takes that job
+# over, so refuse before changing anything unless the hook's own rule
+# (u1_root_ssh_state) says SSH will come back: Root Access on in the
+# gui_config.json the hook reads, and dropbear running now. Otherwise the next
+# boot leaves no SSH and no stock screen to flash firmware from (#2131).
+# Exit 3 tells the installer this was a refusal, not a write failure.
+GUI_BIN="${SYSROOT}/usr/bin/gui"
+U1_HOOK=""
+for _hook in "$DEPLOY_DIR/assets/config/platform/hooks-snapmaker-u1.sh" \
+             "$DEPLOY_DIR/platform/hooks.sh"; do
+    if [ -f "$_hook" ]; then
+        U1_HOOK="$_hook"
+        break
+    fi
+done
+SSH_STATE=ungated
+if [ -n "$U1_HOOK" ]; then
+    # shellcheck disable=SC1090
+    . "$U1_HOOK"
+    SSH_STATE=$(u1_root_ssh_state)
+elif [ -x "$GUI_BIN" ]; then
+    echo "Error: the Snapmaker U1 platform hook is missing from $DEPLOY_DIR"
+    echo "Nothing was changed; the stock screen stays on. Re-run the installer to fetch a complete package."
+    exit 3
+fi
+if [ -x "$GUI_BIN" ]; then
+    case "$SSH_STATE" in
+        ungated|ok) ;;
+        *)
+            echo "Error: SSH would not survive a reboot with the stock screen switched off."
+            case "$SSH_STATE" in
+                no_config) echo "  The stock screen's settings file is missing: $HELIX_GUI_CONFIG" ;;
+                off)       echo "  Root access is off in the stock screen's settings." ;;
+                down)      echo "  Root access is on, but SSH (dropbear) is not running." ;;
+            esac
+            echo "Nothing was changed; the stock screen stays on."
+            echo "On the printer's own screen, open Settings > Maintenance, turn on Root access,"
+            echo "check that 'ssh root@<printer-ip>' works, then run the installer again."
+            exit 3
+            ;;
+    esac
+fi
+
 # Belt-and-suspenders: the S99screen / S99fb-http delegates only start HelixScreen
 # if helixscreen.init is executable ([ -x ... ]); otherwise they silently fall
 # through to the (disabled) stock UI and nothing comes up at boot. The installer
@@ -303,7 +347,6 @@ fi
 # patch by name. Disabling the binary itself is launcher-independent: no stock
 # script on either firmware can exec it, so the stock UI never grabs the
 # framebuffer / DRM. Reversible — the uninstaller restores the exec bit.
-GUI_BIN="${SYSROOT}/usr/bin/gui"
 if [ -x "$GUI_BIN" ]; then
     if chmod a-x "$GUI_BIN" 2>/dev/null; then
         echo "Disabled stock UI binary ($GUI_BIN) — HelixScreen owns the display"
@@ -319,7 +362,7 @@ fi
 # Stock firmware starts SSH only from the stock UI's Root Access setting. The
 # platform hook (ensure_root_ssh) takes over starting it, but the switch itself
 # lives in the disabled stock UI.
-if grep -q '^[^#]*custom_misc vertype' "${SYSROOT}/etc/init.d/S50dropbear" 2>/dev/null; then
+if [ "$SSH_STATE" != ungated ]; then
     echo "Note: SSH stays available while the stock Root Access setting is on; HelixScreen starts it at boot."
     echo "      To change Root Access, uninstall HelixScreen, switch it in the stock UI, then reinstall."
 fi

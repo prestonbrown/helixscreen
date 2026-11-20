@@ -263,15 +263,34 @@ _root_access_enabled() {
         grep -Eq '"open_root":(true|-?[0-9]*[1-9])'
 }
 
+# Who keeps SSH up with the stock UI disabled. Prints one word:
+#   ungated    S50dropbear has no live --force gate (PAXX, or no S50dropbear):
+#              SSH does not depend on the stock UI, so nothing here is needed
+#   no_config  gated, and gui_config.json is not where this hook reads it
+#   off        gated, and Root Access is off
+#   down       gated, Root Access on, dropbear not running
+#   ok         gated, Root Access on, dropbear running
+# The one rule both ensure_root_ssh and the installer's pre-flight
+# (snapmaker-u1-setup-autostart.sh) act on.
+u1_root_ssh_state() {
+    if [ ! -f "$HELIX_DROPBEAR_INIT" ] || \
+       ! grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null; then
+        echo ungated
+    elif [ ! -f "$HELIX_GUI_CONFIG" ]; then
+        echo no_config
+    elif ! _root_access_enabled; then
+        echo off
+    elif pidof dropbear >/dev/null 2>&1; then
+        echo ok
+    else
+        echo down
+    fi
+}
+
 # Start dropbear with --force when Root Access is on and it is not running.
 # Idempotent; never fails the caller.
 ensure_root_ssh() {
-    [ -f "$HELIX_DROPBEAR_INIT" ] || return 0
-    grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null || return 0
-    _root_access_enabled || return 0
-    if pidof dropbear >/dev/null 2>&1; then
-        return 0
-    fi
+    [ "$(u1_root_ssh_state)" = down ] || return 0
     echo "Root Access is enabled: starting SSH (dropbear)"
     "$HELIX_DROPBEAR_INIT" start --force || true
     return 0
