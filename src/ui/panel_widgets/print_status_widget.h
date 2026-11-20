@@ -321,14 +321,6 @@ class PrintStatusWidget : public PanelWidget {
         void on_created(lv_obj_t* backdrop) override;
 
       private:
-        /// What a row needs to act on a tap: which tool it names, and the picker
-        /// that owns it. Heap-allocated per row, hung off the row's user_data and
-        /// freed by that row's own LV_EVENT_DELETE handler.
-        struct RowPayload {
-            NozzleToolPicker* picker;
-            std::string tool_key;
-        };
-
         PrintStatusWidget& owner_;
     };
 

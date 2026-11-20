@@ -11,6 +11,7 @@
 #include "ui_panel_print_select.h"
 #include "ui_panel_print_status.h"
 #include "ui_pause_markers.h"
+#include "ui_picker_option_row.h"
 #include "ui_progress_arc.h"
 #include "ui_temperature_utils.h"
 #include "ui_utils.h"
@@ -1872,64 +1873,14 @@ void PrintStatusWidget::NozzleToolPicker::on_created(lv_obj_t* backdrop) {
         return;
     }
 
-    // Resolve a couple of space tokens for padding.
-    auto resolve_space = [](const char* name, int fallback) -> int {
-        const char* s = lv_xml_get_const(nullptr, name);
-        return s ? std::atoi(s) : fallback;
-    };
-    int space_sm = resolve_space("space_sm", 6);
-
-    auto add_row = [this, option_list, space_sm](const char* label, const std::string& tool_key) {
-        // Plain lv_obj row with a centered label — same shape the configure
-        // picker uses for its checkbox rows. Going through lv_xml_create on
-        // ui_button didn't render reliably here.
-        lv_obj_t* row = lv_obj_create(option_list);
-        lv_obj_set_width(row, LV_PCT(100));
-        lv_obj_set_height(row, LV_SIZE_CONTENT);
-        lv_obj_set_style_pad_all(row, space_sm, 0);
-        lv_obj_set_style_bg_opa(row, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_scrollable(row, false);
-        lv_obj_set_clickable(row, true);
-
-        lv_obj_t* lbl = lv_label_create(row);
-        lv_label_set_text(lbl, label);
-        lv_obj_set_style_text_color(lbl, theme_manager_get_color("text"), 0);
-        lv_obj_set_clickable(lbl, false);
-
-        lv_obj_set_user_data(row, new RowPayload{this, tool_key});
-
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("nozzle_picker_row_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
-                if (!payload)
-                    return;
-
-                // Copy the key: hide() takes the row - and this payload - with it.
-                std::string tool_key = payload->tool_key;
-                NozzleToolPicker* picker = payload->picker;
-                picker->hide();
-
+    auto add_row = [this, option_list](const char* label, const std::string& tool_key) {
+        helix::ui::create_picker_option_row(
+            option_list, label, owner_.nozzle_tool_override_ == tool_key, [this, tool_key]() {
+                hide();
                 // apply_nozzle_tool_override records whichever pin actually took
                 // effect, so a name the formatter refuses never reaches config.
-                picker->owner_.apply_nozzle_tool_override(tool_key);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("nozzle_picker_row_delete_cb");
-                auto* target = lv_event_get_current_target_obj(e);
-                delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
-                lv_obj_set_user_data(target, nullptr);
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_DELETE, nullptr);
+                owner_.apply_nozzle_tool_override(tool_key);
+            });
     };
 
     add_row(lv_tr("Follow active tool"), "auto");
