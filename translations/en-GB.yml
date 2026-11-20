@@ -2722,6 +2722,7 @@ translations:
   No vendors found: ''
   No verified bypass command for this CFS firmware: ''
   No video player installed - showing the timelapse library: ''
+  No video player on this printer: ''
   ? "No webcam detected.\nA webcam is required for timelapse."
   : ""
   No widgets found: ''
@@ -4353,6 +4354,7 @@ translations:
   'The unload did not start: unload by hand, then start again': ''
   The unload finishes on its own, but the plate will not move.: ''
   'The {0} motor was not measured: {1}.': ''
+  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: ''
   Theme: ''
   Theme Colors: Theme Colours
   Theme Preset: ''
@@ -4439,6 +4441,7 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: ''
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: ''
   This printer has no timezone, so its clock reads UTC. Pick yours.: ''
+  This printer has no video player. Scan the code with your phone to watch the timelapse.: ''
   'This printer has no {} command, so the Z-offset cannot be saved.': ''
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : ''
@@ -4773,6 +4776,8 @@ translations:
   Vibration: ''
   Vibration compensation active: ''
   Video playback speed: ''
+  Video player failed to start: ''
+  Video player failed to start ({}): ''
   View: ''
   View Changelog: ''
   View Full History: ''
@@ -4822,6 +4827,7 @@ translations:
   Warning: ''
   Warnings & errors: ''
   Watch and control this screen from a browser: ''
+  Watch on Your Phone: ''
   Watch the camera during a print for failed prints: ''
   Watch which motor turns: ''
   Weak battery: ''

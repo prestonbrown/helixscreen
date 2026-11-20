@@ -7,12 +7,14 @@
 
 #include "async_lifetime_guard.h"
 #include "core/subject.h"
+#include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 #include "thumbnail_cache.h"
+#include "timelapse_thumbnailer.h"
 
 #include <set>
 #include <string>
@@ -51,10 +53,21 @@ class TimelapseVideosOverlay : public OverlayBase {
     }
 
     /**
+     * @brief What a tap on a video does: play it, or offer it to a phone
+     *
+     * Follows helix::timelapse::choose_video_open_action(): the detected player
+     * when there is one, else a QR code of the video's URL, else a toast saying
+     * there is neither. Every entry point that opens a video comes through here.
+     */
+    void open_video(const std::string& filename);
+
+    /**
      * @brief Play one video through the detected player
      *
      * Downloads first when Moonraker is remote. Without a player (no mpv or
      * ffplay on the host) this logs and returns; can_play() says so up front.
+     * A player that exits with an error within two seconds of launch gets a
+     * toast and the phone fallback.
      */
     void play_video(const std::string& filename);
 
@@ -88,6 +101,16 @@ class TimelapseVideosOverlay : public OverlayBase {
 
     void confirm_delete(const std::string& filename);
 
+    /// The URL a phone on the LAN fetches @p filename from; "" when there is none.
+    [[nodiscard]] std::string phone_url_for(const std::string& filename) const;
+    /// The QR modal for @p filename saying @p message, or @p no_url_toast when
+    /// no URL can be built.
+    void show_phone_fallback(const std::string& filename, const std::string& message,
+                             const std::string& no_url_toast);
+    /// Launch @p args and watch for a player that dies at once.
+    void launch_player(const std::vector<std::string>& args, const std::string& filename);
+    void poll_player_watches();
+
     static void on_card_clicked(lv_event_t* e);
     static void on_card_long_pressed(lv_event_t* e);
 
@@ -99,6 +122,14 @@ class TimelapseVideosOverlay : public OverlayBase {
     std::string player_command_;
     bool is_local_moonraker_ = false;
     std::string timelapse_root_; ///< Moonraker's "timelapse" root on disk, when reported
+    std::string lan_ipv4_;       ///< This machine's LAN address, read at each activation
+
+    struct WatchedPlayer {
+        helix::timelapse::PlayerWatch watch;
+        std::string filename;
+    };
+    std::vector<WatchedPlayer> player_watches_;
+    helix::ui::LvglTimerGuard player_watch_timer_;
 
     helix::AsyncLifetimeGuard thumb_lifetime_;
 
@@ -107,8 +138,8 @@ class TimelapseVideosOverlay : public OverlayBase {
     SubjectManager subjects_;
     /// 1 = the listing came back with no video: the empty state replaces the grid
     helix::Subject videos_empty_subject_{};
-    /// 1 = a player exists on this host, so each card carries the play glyph
-    helix::Subject can_play_subject_{};
+    /// What each card's badge shows: 0 none, 1 play here, 2 watch on a phone
+    helix::Subject tap_badge_subject_{};
 
     void on_ui_destroyed() override {
         thumb_lifetime_.invalidate();

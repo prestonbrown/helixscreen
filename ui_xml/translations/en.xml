@@ -2660,6 +2660,7 @@
   <translation tag="No vendors found" en="No vendors found"/>
   <translation tag="No verified bypass command for this CFS firmware" en="No verified bypass command for this CFS firmware"/>
   <translation tag="No video player installed - showing the timelapse library" en="No video player installed - showing the timelapse library"/>
+  <translation tag="No video player on this printer" en="No video player on this printer"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." en="No webcam detected.&#10;A webcam is required for timelapse."/>
   <translation tag="No widgets found" en="No widgets found"/>
   <translation tag="No width sensor detected" en="No width sensor detected"/>
@@ -4259,6 +4260,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
   <translation tag="The unload did not start: unload by hand, then start again" en="The unload did not start: unload by hand, then start again"/>
   <translation tag="The unload finishes on its own, but the plate will not move." en="The unload finishes on its own, but the plate will not move."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="Theme" en="Theme"/>
   <translation tag="Theme Colors" en="Theme Colors"/>
@@ -4329,6 +4331,7 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." en="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." en="This printer has no automatic unload. Cut the filament at the head and pull it out by hand."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." en="This printer has no timezone, so its clock reads UTC. Pick yours."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." en="This printer has no video player. Scan the code with your phone to watch the timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." en="This printer has no {} command, so the Z-offset cannot be saved."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." en="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" en="This printer&apos;s INDX macros are missing: {}"/>
@@ -4656,6 +4659,8 @@
   <translation tag="Vibration" en="Vibration"/>
   <translation tag="Vibration compensation active" en="Vibration compensation active"/>
   <translation tag="Video playback speed" en="Video playback speed"/>
+  <translation tag="Video player failed to start" en="Video player failed to start"/>
+  <translation tag="Video player failed to start ({})" en="Video player failed to start ({})"/>
   <translation tag="View" en="View"/>
   <translation tag="View Changelog" en="View Changelog"/>
   <translation tag="View Full History" en="View Full History"/>
@@ -4705,6 +4710,7 @@
   <translation tag="Warning" en="Warning"/>
   <translation tag="Warnings &amp; errors" en="Warnings &amp; errors"/>
   <translation tag="Watch and control this screen from a browser" en="Watch and control this screen from a browser"/>
+  <translation tag="Watch on Your Phone" en="Watch on Your Phone"/>
   <translation tag="Watch the camera during a print for failed prints" en="Watch the camera during a print for failed prints"/>
   <translation tag="Watch which motor turns" en="Watch which motor turns"/>
   <translation tag="Weak battery" en="Weak battery"/>
