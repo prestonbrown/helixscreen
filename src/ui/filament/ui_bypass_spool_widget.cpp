@@ -98,8 +98,6 @@ constexpr int32_t kLabelHeight = 16;
 // line and the "Bypass" label under it.
 constexpr int32_t kTubeDrop = 10;
 constexpr int32_t kTubeClear = 8;
-// How far inside a card's top and bottom the tube may enter its side.
-constexpr int32_t kSideEntryClear = 12;
 // What bypass_spool_drawn_area() finds the overlay by among its parent's children.
 constexpr const char* kBoxName = "bypass_spool_box";
 constexpr const char* kMaterialLabelName = "bypass_material_label";
@@ -152,8 +150,8 @@ BypassSpoolSpot bypass_spool_spot_below(int32_t lane_spool, int32_t min_spool,
         const int32_t lowest_top =
             unit == INT32_MIN ? INT32_MIN / 2 : unit + room.gap + bypass_spool_label_room();
         // The tube enters the side clear of the card's rounded corners.
-        const int32_t lo = std::max(lowest_top, room.merge_y - box + kSideEntryClear);
-        const int32_t hi = std::min(room.bottom - box, room.merge_y - kSideEntryClear);
+        const int32_t lo = std::max(lowest_top, room.merge_y - box + room.side_entry_clear);
+        const int32_t hi = std::min(room.bottom - box, room.merge_y - room.side_entry_clear);
         if (lo > hi)
             continue;
         const int32_t top = std::clamp(room.merge_y - box / 2, lo, hi);

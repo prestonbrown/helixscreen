@@ -146,6 +146,7 @@ struct BypassSpoolBelowRoom {
     int32_t bottom = 0;  ///< The card's bottom, with its "Bypass" label under it, no lower
     int32_t merge_y = 0; ///< The merge line, which runs into the card's side
     int32_t gap = 0;     ///< Kept between the card's material label and the unit
+    int32_t side_entry_clear = 0; ///< The tube enters the card's side this far from its corners
 };
 
 /// The bypass spool on the merge line right of the hub, below the unit: as large as the unit's

@@ -207,6 +207,7 @@ TEST_CASE("bypass spool below a drawn unit stands right of the hub, its tube int
     room.bottom = 460;
     room.merge_y = 400;
     room.gap = 8;
+    room.side_entry_clear = 12;
     // The unit ends at y=330 everywhere right of x=300.
     const auto unit = [](int32_t x) { return x < 430 ? 330 : INT32_MIN; };
 
@@ -229,6 +230,20 @@ TEST_CASE("bypass spool below a drawn unit stands right of the hub, its tube int
         const auto spot = bypass_spool_spot_below(80, kMin, room, [](int32_t) { return 200; });
         REQUIRE(spot.spool == 80);
         CHECK(spot.cx + (spot.box - spot.box / 2) == room.right);
+    }
+    SECTION("the tube enters the card's side no nearer its corners than the room's clearance") {
+        // Under a unit ending at y=330, the card's top stands at 358 at the highest.
+        const auto low = [](int32_t) { return 330; };
+        room.merge_y = 380;
+        room.side_entry_clear = 10;
+        const auto near = bypass_spool_spot_below(200, kMin, room, low);
+        REQUIRE(near.side_entry);
+        CHECK(near.top <= room.merge_y - room.side_entry_clear);
+        CHECK(near.top + near.box >= room.merge_y + room.side_entry_clear);
+        // A rounder card needs its tube further from the corner than the room under the unit
+        // leaves: no lower spot.
+        room.side_entry_clear = 30;
+        CHECK_FALSE(bypass_spool_spot_below(200, kMin, room, low).side_entry);
     }
     SECTION("a merge line it cannot stand across leaves no lower spot") {
         // The merge line runs just under a unit that spans the whole room.

@@ -1180,6 +1180,9 @@ helix::ui::BypassSpoolSpot bypass_spot_for_unit(lv_obj_t* canvas,
     below.bottom = c.y2 - helix::ui::bypass_spool_label_below_room(w);
     below.merge_y = merge_y;
     below.gap = gap;
+    // Clear of the card's rounded corner, with a little straight edge to spare.
+    below.side_entry_clear =
+        theme_manager_get_spacing("border_radius") + theme_manager_get_spacing("space_xs");
     const helix::ui::BypassSpoolSpot under = helix::ui::bypass_spool_spot_below(
         lane, token, below, [&](int32_t x) { return unit.bottom_right_of(x); });
     return helix::ui::bypass_spool_better(by, under, lane);
