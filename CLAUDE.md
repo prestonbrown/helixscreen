@@ -106,6 +106,8 @@ Doc index: `docs/devel/CLAUDE.md` (loads in `docs/devel/`). Start with `docs/dev
 | **Comment archaeology** | `// unlike the three widgets 3d0875bff fixed` | Present-tense constraint (global CLAUDE.md); `scripts/check_comment_archaeology.py`, escape hatch `ARCHAEOLOGY_OK: <reason>` |
 | **Submodule mods** | Edit `lib/lvgl/...` / `lib/libhv/...` directly | `patches/*.patch`; `lib/helix-xml/` is ours and edited directly |
 
+**A design-ratchet warning means stop and look for the better design, never "an exception this time"**: it blocks nothing, so the judgment is yours. Only when no better design exists, say why in the commit body as `Ratchet: <rule>: <reason>`; `scripts/ratchet_report.py` lists every growth weekly with that reason.
+
 ---
 
 ## Patterns

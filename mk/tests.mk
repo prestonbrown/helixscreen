@@ -612,10 +612,8 @@ test-all: test-build
 # attribution when something goes red.
 #
 # Still NOT part of full-test-run — these cannot share that run's sharded, parallel,
-# arbitrary-cwd execution. scripts/quality-checks.sh does gate on this target
-# now that the set is green, but only when the test binary is already current
-# (it never builds one) — see the "Hidden test set" block there and
-# docs/devel/HIDDEN_TESTS_TRACKER.md for the inventory.
+# arbitrary-cwd execution. nightly.yml's test-all job runs the set serially from
+# the checkout root; docs/devel/HIDDEN_TESTS_TRACKER.md has the inventory.
 #
 # Override the filter to run one slice: make test-hidden HIDDEN_FILTER='[.ui_integration]'
 HIDDEN_FILTER ?= [.]

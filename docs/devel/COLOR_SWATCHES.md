@@ -145,7 +145,8 @@ default).
 
 ## The gate
 
-`scripts/check_hand_rolled_swatch.py` (`qc_hand_rolled_swatch`) fails a new circle filled
+`scripts/check_hand_rolled_swatch.py` finds every circle filled
 with a filament, spool, slot, LED, tool or swatch colour outside the painter and its
-components, in XML or C++. A circle that is not a colour swatch (a homing dot) takes
+components, in XML or C++, and the hand-rolled-swatch design ratchet
+(`scripts/design_ratchets.py`) warns on each new one at commit and at the gate. A circle that is not a colour swatch (a homing dot) takes
 `SWATCH_OK: <reason>`. Meta-tests: `tests/shell/test_hand_rolled_swatch_gate.bats`.

@@ -16,7 +16,7 @@ make test-hidden-list                             # inventory without running
 
 > **Run from the repo root.** Every `[.ui_integration]` and `[.xml_required]` test reads `ui_xml/` by relative path. From any other cwd they fail or skip en masse, which reads as a regression. `make test-hidden` `cd`s to `$(CURDIR)` for exactly this reason.
 
-> **`make test-hidden` is not part of `make unit-sweep`** — these tests cannot share that run's sharded, parallel, arbitrary-cwd execution. It *is* gated in `scripts/quality-checks.sh`, but only when the test binary is already current: the gate never builds one, so a cold checkout and the CI Code Quality runner both skip it with an instruction rather than eating a ten-minute build on a commit hook. Broad `src/` coverage of this set therefore still belongs in nightly.
+> **`make test-hidden` is not part of `make unit-sweep`** — these tests cannot share that run's sharded, parallel, arbitrary-cwd execution. Nightly runs it: `nightly.yml`'s `test-all` job runs `helix-tests "[.]"` serially from the checkout root after the sharded and slow runs, so a hidden test that goes red shows in the next nightly. Run `make test-hidden` by hand when you change code one of these tests covers.
 
 > **Scope:** this tracker covers `[.]`-prefixed hidden tests in compiled `tests/**/*.cpp`. Two other categories are tracked separately and are NOT covered here: `[!mayfail]` tests (which run but are allowed to fail) and any `*.cpp.disabled` files (excluded from the build entirely).
 

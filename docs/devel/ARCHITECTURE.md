@@ -201,11 +201,14 @@ A header belongs to the directory holding the `.cpp` of the same stem; one with 
 `.cpp` belongs to the layer its name or `include/` subdirectory serves (`include/core/`
 is core's; `ui_*.h`, `include/ui/` and `include/helix/ui/` are ui's; `include/led/`,
 `include/system/` and `include/state/` are led's, system's and printer's), and one matching neither is
-header-only and belongs to nobody until it is moved under a layer. The
-gate (`qc_layering`, pre-push and land-gate) measures a branch from its fork point:
-a file may lose upward includes and may not gain one, a refactor that empties a
-directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and a commit
-message line `Layering: <path> <reason>` grants one file that cannot wait. The
+header-only and belongs to nobody until it is moved under a layer. A commit and
+every full sweep name each new upward include through the layering design ratchet
+(`scripts/design_ratchets.py`, `qc_design_ratchets`), which warns and asks for the
+design that does not need it; when there is none, the commit body says why with
+`Ratchet: layering: <reason>`. `scripts/check_layering.py --base REV` measures a
+branch by hand: a file may lose upward includes and may not gain one. A refactor that
+empties a directory-to-header pair bans it tree-wide through `CLEARED_PAIRS`, and
+`qc_layering` fails that pair's return at every push and landing. The
 upward includes the tree still carries are tracked in #1952.
 
 To tell the user something, `src/printer` publishes a plain `helix::Notice`

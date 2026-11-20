@@ -1079,7 +1079,6 @@ Each is path-gated, so a commit staging none of its inputs pays nothing:
 
 | Gate | Staged trigger | Cost | Catches |
 |------|----------------|------|---------|
-| `qc_esp32_compile` | a `.c`/`.cpp`/`.h`/`.hpp` under `src/`, `include/` or the firmware | ~6s for two units | host-green, ESP32-red code: `scripts/esp32_syntax_check.py --staged` compiles the staged firmware sources and one includer per staged header in the IDF image, from an index overlay (`git checkout-index` of `src/`, `include/` and the firmware, ~0.25s), so the commit's content decides and not the working tree. Never configures (pre-push does, once per CMake change); advisory skip without docker or the image |
 | `qc_toolhead_census` | `ui_xml/**/*.xml`, the census test | ~0.2s | all five XML cases of `tests/unit/test_job_holds_machine.cpp`: an unclassified control-bearing file, a stale row, a drifted or misspelled guard count, a guard in a no-machine file, a `<bind_state_*>` disabling on `print_active`, and XML naming `job_holds_machine` (`scripts/check_toolhead_census.py`) |
 | `qc_double_binds` | `ui_xml/**/*.xml`, the table, the scanner | ~0.2s | `tests/unit/double_bind_widgets.inc` not matching what `scripts/scan_double_binds.py` generates from the staged `ui_xml/` (regenerated in memory; prints a diff and `python3 scripts/scan_double_binds.py --emit-cpp`). `[bind_compose]` drives only the rows the table lists, so a stale one drops coverage silently |
 | `qc_theme_artifacts` | top-level `ui_xml/*.xml`, the two artefacts | ~0.1s | `src/generated/theme_token_table.cpp` not matching the staged tokens (`make regen-tokens`), and a `tests/fixtures/theme_const_golden.txt` the token change provably invalidates (`scripts/check_theme_artifacts.py`; the fix needs the test binary, so it prints the regen command; when regenerating leaves the golden unchanged, `HELIX_GOLDEN_CURRENT=1 git commit ...` says it is current) |
@@ -1104,12 +1103,8 @@ worktrees sharing one checkout, a dirty tree is the normal case.
   `lib/` submodules (patch-drift and the doc-reference gate resolve against the
   filesystem, so an empty `lib/` reads as mass breakage).
 
-`build/` is deliberately **not** shared wholesale: `build/helix-xml-tests` holds a
-cmake cache recording an absolute source path, and sharing it bakes the throwaway
-path into the real tree's cache, breaking that gate for every later run. The
-consequence is that the helix-xml submodule-test gate finds no configured build
-tree on the isolated path and skips - its designed behaviour, since its first
-configure clones LVGL over the network.
+`build/` is deliberately **not** shared wholesale: the throwaway checkout must never write
+into the real tree's caches.
 
 - **The pushed commit passed `make land-gate`** (its stamp, `.githooks/lib/land-gate-stamp.sh`)
   - the quality sweep and its clang/GCC divergence gate are skipped: the gate ran them on that
@@ -1123,24 +1118,33 @@ configure clones LVGL over the network.
 Escape hatches: `HELIX_PREPUSH_IN_PLACE=1` forces the old in-place sweep, and
 `git push --no-verify` skips the hook. Expect CI to find whatever you skipped.
 
-### Bookkeeping ratchets warn
+### Count ratchets warn; the design ratchets ask for a better design
 
-The test-line budget, the TestAccess and friend counts (`check_test_budget.py`), the
-file-size cap (`check_growth_ratchets.py`), hardcoded pixels (`check_hardcoded_pixels.py`)
-and unreferenced callbacks (`check_orphan_callbacks.py`) never fail a commit, a push,
-`make land-gate` or CI (#2004). Their checkers exit 3 (`ratchet.WARN_EXIT`) when a warning
-is all they found, and `qc_ratchet_verdict` (`scripts/qc/_lib.sh`) prints it and passes. A
-count under their baseline passes at every stage too (`ratchet.under_baseline(...,
-bookkeeping=True)`). Every other ratchet keeps its strict under-baseline verdict: lenient at
-commit, failing at the push stages (`HELIX_RATCHET_STRICT=1`) until the baseline is lowered.
-`scripts/ratchet_report.py` prints each one's count against a week ago and its baseline,
-weekly in `.github/workflows/ratchet-report.yml`.
+No count ratchet fails a commit, a push, `make land-gate` or CI (#2004), and a count under
+its baseline passes at every stage (`ratchet.under_baseline`). There are two kinds.
 
-The test budget and the file-size cap run at commit, from the fork point to the index
-(`--staged`, well under a second), and `qc_orphan_callbacks` reads an index snapshot, so
-their findings show on the commit that causes them. Global access, active instance and
-the bans in `check_growth_ratchets.py`, an unregistered or duplicate callback, and every
-other ratchet still fail.
+**Bookkeeping:** C++ test lines, TestAccess and friend counts, C++ files over the line cap
+(`check_growth_ratchets.FILE_CAP`), hardcoded pixels (`check_hardcoded_pixels.py`) and
+unreferenced callbacks (`check_orphan_callbacks.py`). The first four print nothing at commit
+or at the gate and need no grant line; the last two warn through `qc_ratchet_verdict`
+(`scripts/qc/_lib.sh`, exit 3 = `ratchet.WARN_EXIT`).
+
+**Design:** namespace, layering, vendor branches, hand-rolled swatches, imperative UI,
+orphan subjects, overlay boilerplate, raw widget pointers, LVGL 9.6 names, work markers and
+comment SHAs. `qc_design_ratchets` runs `scripts/design_ratchets.py` at commit (the staged
+lines) and at every full sweep (the fork point onward). For each rule a change grows it
+prints a block naming the rule, why it exists, its doc and each new `file:line`, and the
+driver repeats the blocks beside the final verdict. A site counts only when it sits on a
+line the change adds, so old debt in a touched file stays quiet. The warning asks for the
+better design first; when there is none, the commit body says why with a line
+`Ratchet: <rule>: <reason>`, which the next gate run shows beside the block.
+
+`scripts/ratchet_report.py` prints every count against a week ago and its baseline, and
+lists each new design site in the window with the commit that wrote it (`git blame` at HEAD)
+and the reason that commit stated, weekly in `.github/workflows/ratchet-report.yml`.
+
+Global access, active instance and the bans in `check_growth_ratchets.py`, and an
+unregistered or duplicate callback, still fail.
 
 ### Generated files on a merge
 
@@ -2134,7 +2138,7 @@ The project uses git submodules for external dependencies:
 
 Additionally, `lib/helix-xml/` is the XML engine — a permanent MIT fork taken from LVGL at `a15dcbeb5` (`v9.4.0-358`), the last commit before v9.5 removed XML from core. It is a submodule, but **ours**: [prestonbrown/helix-xml](https://github.com/prestonbrown/helix-xml). That makes its workflow the opposite of every other submodule here — edit the files directly, commit and push inside `lib/helix-xml/`, then commit the bumped pointer in this repo. It gets no `patches/*.patch` entry, and it is excluded from clang-format. See `HELIX_XML_FORK.md`.
 
-Being its own repo, it also carries its own tests and its own CI. `lib/helix-xml/tests/` is a standalone CMake + Unity suite that builds the engine against a pinned upstream LVGL v9.5.0 rather than our patched `lib/lvgl`; run it with `make test-xml` (`make test` does not build it), and see **[TESTING.md](TESTING.md)** § "helix-xml Engine Tests". `.github/workflows/ci.yml` *inside* the submodule covers a gcc + clang matrix, ASAN/UBSAN, and a conf-guards job. `scripts/quality-checks.sh` runs the suite on commits that stage a `lib/helix-xml` change, but only once `build/helix-xml-tests/` has been configured by hand - the first configure fetches LVGL and is too slow for a commit hook.
+Being its own repo, it also carries its own tests and its own CI. `lib/helix-xml/tests/` is a standalone CMake + Unity suite that builds the engine against a pinned upstream LVGL v9.5.0 rather than our patched `lib/lvgl`; run it with `make test-xml` (`make test` does not build it), and see **[TESTING.md](TESTING.md)** § "helix-xml Engine Tests". `.github/workflows/ci.yml` *inside* the submodule covers a gcc + clang matrix, ASAN/UBSAN, and a conf-guards job. That CI judges every helix-xml commit before this repo pins it, so this repo's quality sweep does not rerun the suite; run `make test-xml` by hand when you change the engine and want the answer before you push it.
 
 **Automatic handling**: Submodule dependencies are built automatically when missing. Patches are applied automatically before builds. Never commit changes directly to submodules - always create patches instead.
 
