@@ -975,17 +975,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     DisplayManagerTestAccess::restore_display_output(mgr);
     CHECK(raw->power_on_calls == 1);
 
-    // The next sleep keeps the panel powered unless the user chose power-off.
+    // The next sleep keeps the panel powered, even when the user chose power-off:
+    // on this panel every power-off would drop touch again.
     DisplayManagerTestAccess::enter_sleep(mgr, 60);
-    if (power_off_explicit) {
-        CHECK(raw->power_off_calls == 2);
-        CHECK(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
-              helix::SleepMechanism::PanelPowerOff);
-    } else {
-        CHECK(raw->power_off_calls == 1);
-        CHECK(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
-              helix::SleepMechanism::SoftwareOverlay);
-    }
+    CHECK(raw->power_off_calls == 1);
+    CHECK(DisplayManagerTestAccess::last_sleep_mechanism(mgr) ==
+          helix::SleepMechanism::SoftwareOverlay);
     DisplayManagerTestAccess::restore_display_output(mgr);
 }
 

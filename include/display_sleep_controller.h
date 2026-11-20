@@ -103,8 +103,9 @@ class DisplaySleepController {
     bool note_press(int x, int y);
 
     /// LVGL deleted the touch pointer. Under panel power-off that asks for a wake, so the
-    /// panel powers on and a touch controller it powers can return; under automatic
-    /// power-off the wake also ends power-off for the session (helix::decide_pointer_loss).
+    /// panel powers on and a touch controller it powers can return, and the wake ends
+    /// power-off for the session (helix::pointer_loss_ends_power_off).
+    /// @p power_off_explicit only words the warning.
     void note_pointer_lost(bool power_off_explicit);
 
 #if HELIX_ENABLE_SCREENSAVER
