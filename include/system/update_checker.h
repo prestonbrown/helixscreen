@@ -616,6 +616,33 @@ class UpdateChecker {
     static void handle_external_update_complete();
 
     /**
+     * @brief Whether an update Moonraker finished must relink the user config first
+     *
+     * Moonraker's type:web update replaces the install root, so the config links
+     * into printer_data and the platform hooks file are gone until
+     * config/restore-user-config.sh runs. A service manager that restarts the
+     * service (@p service_restarts, getenv("HELIX_SERVICE_RESTARTS"), set by
+     * helixscreen.service) runs it before the next start; without one,
+     * helix-watchdog starts the new binary directly, and nothing else does (#2147).
+     */
+    static bool external_update_needs_restore(const char* service_restarts);
+
+    /// Upper bound on the restore before the restart goes ahead without it.
+    static constexpr std::chrono::milliseconds kRestoreDeadline{10000};
+
+    /**
+     * @brief Run <install_root>/config/restore-user-config.sh and wait for it
+     *
+     * /bin/sh with a fixed argv, no shell string; the child inherits the
+     * environment. Ended past @p deadline. Every outcome is logged and none is
+     * fatal: the restart goes ahead either way.
+     * @return the script's exit code, or -1 when it is missing, could not be
+     *         started, or was ended at the deadline
+     */
+    static int run_restore_user_config(const std::string& install_root,
+                                       std::chrono::milliseconds deadline = kRestoreDeadline);
+
+    /**
      * @brief React to a (re)connected Moonraker: finish a self-restart and listen for updates
      *
      * Clears the self-restart sentinel (the app came back up, so
