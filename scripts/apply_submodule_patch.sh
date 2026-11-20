@@ -68,16 +68,19 @@ submodule_is_own_repo() {
 }
 
 standalone_git_dir=
+standalone_work_tree=
 if ! submodule_is_own_repo; then
   standalone_git_dir=$(mktemp -d "${TMPDIR:-/tmp}/helix-patch-git.XXXXXX") || exit 1
   trap 'rm -rf "$standalone_git_dir"' EXIT
   git init -q --bare "$standalone_git_dir" || exit 1
+  # Absolute: git resolves GIT_WORK_TREE after -C has already moved into it.
+  standalone_work_tree=$(cd "$submodule" && pwd -P) || exit 1
 fi
 
 git_submodule() {
   if [ -n "$standalone_git_dir" ]; then
     env -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
-      GIT_DIR="$standalone_git_dir" GIT_WORK_TREE="$submodule" \
+      GIT_DIR="$standalone_git_dir" GIT_WORK_TREE="$standalone_work_tree" \
       git -C "$submodule" "$@"
     return
   fi

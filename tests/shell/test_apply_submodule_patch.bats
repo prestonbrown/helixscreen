@@ -86,12 +86,15 @@ EOF
 @test "a submodule whose .git file points nowhere is still patched" {
     rm -rf "$SUB/.git"
     printf 'gitdir: ../../.git/modules/fake\n' > "$SUB/.git"
-    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    # mk/patches.mk names the submodule relative to the tree, as here.
+    local helper="$PWD/$HELPER"
+    cd "$ROOT" || return 1
+    run "$helper" lib/fake "$ROOT/patches/good.patch" "fixture patch"
     [ "$status" -eq 0 ]
     grep -q 'fixture patch applied' <<<"$output"
     grep -q '^ALPHA$' "$SUB/one.txt"
 
-    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    run "$helper" lib/fake "$ROOT/patches/good.patch" "fixture patch"
     [ "$status" -eq 0 ]
     grep -q 'fixture patch already applied' <<<"$output"
     [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
@@ -104,7 +107,9 @@ EOF
 @test "a plain source tree inside another repository is patched in place" {
     rm -rf "$SUB/.git"
     git -C "$ROOT" init -q
-    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    local helper="$PWD/$HELPER"
+    cd "$ROOT" || return 1
+    run "$helper" lib/fake "$ROOT/patches/good.patch" "fixture patch"
     [ "$status" -eq 0 ]
     grep -q 'fixture patch applied' <<<"$output"
     grep -q '^ALPHA$' "$SUB/one.txt"
