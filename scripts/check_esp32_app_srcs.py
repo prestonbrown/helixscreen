@@ -557,6 +557,7 @@ def load_link_baseline(path: Path) -> tuple[set[tuple[str, str, str]], int | Non
 
 IDENTIFIER = re.compile(r"[A-Za-z_]\w*")
 INCLUDE = re.compile(r'^\s*#\s*include\s*["<]([^">]+)[">]', re.M)
+USING_ALIAS = re.compile(r"\busing\s+(\w+)\s*=([^;]*);")
 
 
 def object_path(obj_root: Path, rel: str) -> Path:
@@ -777,15 +778,36 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
     header_words: dict[Path, set[str]] = {}
     header_live_words: dict[Path, set[str]] = {}
     header_includes: dict[tuple[Path, bool], list[Path]] = {}
+    header_usings: dict[Path, list[tuple[str, set[str]]]] = {}
+    texts: dict[Path, str] = {}
+    resolved: dict[tuple[Path, str], Path | None] = {}
+
+    def text_of(p: Path) -> str:
+        if p not in texts:
+            texts[p] = p.read_text(errors="replace")
+        return texts[p]
+
+    def resolve_one(h: str, here: Path) -> Path | None:
+        key = (here, h)
+        if key not in resolved:
+            hit = next((d / h for d in (here, *header_dirs) if (d / h).is_file()), None)
+            resolved[key] = Path(os.path.normpath(hit)) if hit else None
+        return resolved[key]
 
     def resolve(names, includer: Path) -> list[Path]:
-        return [Path(os.path.normpath(hits[0])) for h in names
-                if (hits := [d / h for d in (includer.parent, *header_dirs) if (d / h).is_file()])]
+        return [r for h in names if (r := resolve_one(h, includer.parent)) is not None]
+
+    def usings_of(header: Path) -> list[tuple[str, set[str]]]:
+        """Each `using Alias = ...;` in the header: the alias and the words it names."""
+        if header not in header_usings:
+            header_usings[header] = [(a, set(IDENTIFIER.findall(rhs)))
+                                     for a, rhs in USING_ALIAS.findall(text_of(header))]
+        return header_usings[header]
 
     def words_of(header: Path) -> set[str]:
         """Every identifier the header spells, in any branch."""
         if header not in header_words:
-            code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", header.read_text(errors="replace"),
+            code = re.sub(r"/\*.*?\*/|//[^\n]*", " ", text_of(header),
                           flags=re.S)
             code = STRING_LITERAL.sub('""', code)
             header_words[header] = set(IDENTIFIER.findall(code))
@@ -795,7 +817,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
         """The identifiers in the header's branches the firmware compiles."""
         if header not in header_live_words:
             header_live_words[header] = {
-                w for _, c in firmware_code_lines(header.read_text(errors="replace"), defines)
+                w for _, c in firmware_code_lines(text_of(header), defines)
                 for w in IDENTIFIER.findall(c)}
         return header_live_words[header]
 
@@ -813,7 +835,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
                 continue
             out.add(h)
             if (h, live) not in header_includes:
-                header_includes[(h, live)] = includes_of(h.read_text(errors="replace"), h, live)
+                header_includes[(h, live)] = includes_of(text_of(h), h, live)
             todo += header_includes[(h, live)]
         return out
 
@@ -832,9 +854,7 @@ def compute_link(manifest: Path, exclusions: Path, src_root: Path, obj_root: Pat
 
         def aliases_of(word: str) -> set[str]:
             """Names a header gives `word` with `using Alias = ...word;`."""
-            pat = re.compile(r"\busing\s+(\w+)\s*=[^;]*\b" + re.escape(word) + r"\b[^;]*;")
-            return {a for h in all_headers
-                    for a in pat.findall(h.read_text(errors="replace"))}
+            return {a for h in all_headers for a, named in usings_of(h) if word in named}
 
         def dead(word: str, _seen: frozenset = frozenset()) -> bool:
             """Every mention of `word` sits in a branch the firmware does not compile.

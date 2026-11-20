@@ -44,6 +44,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from pathlib import Path
@@ -51,6 +52,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_orphan_callbacks as callbacks  # noqa: E402
 import check_orphan_subjects as subjects  # noqa: E402
+from qc_file_cache import digest, files_digest  # noqa: E402
 from check_esp32_app_srcs import firmware_code_lines, firmware_defines, load_manifest  # noqa: E402
 
 FIRMWARE = Path("firmware/helixscreen-esp32")
@@ -67,7 +69,11 @@ def firmware_files(root: Path) -> list[Path]:
 
 
 def compiled_text_reader(root: Path):
-    """Read a file with every line the firmware compiles out blanked."""
+    """Read a file with every line the firmware compiles out blanked.
+
+    Returns (read, key): key names the reading for a per-file cache, from the define
+    set and the code that evaluates the branches.
+    """
     cmake = (root / HELIXAPP / "CMakeLists.txt").read_text(errors="replace")
     defines = firmware_defines(cmake, root)
 
@@ -76,7 +82,10 @@ def compiled_text_reader(root: Path):
         live = {n for n, _ in firmware_code_lines(text, defines)}
         return "\n".join(line if n in live else ""
                          for n, line in enumerate(text.splitlines(), 1))
-    return read
+    key = "firmware:" + digest(json.dumps(sorted(defines.items(), key=str)),
+                               files_digest([Path(__file__),
+                                             Path(__file__).with_name("check_esp32_app_srcs.py")]))
+    return read, key
 
 
 def findings(root: Path) -> dict[str, tuple[str, set[str]]]:
@@ -86,20 +95,20 @@ def findings(root: Path) -> dict[str, tuple[str, set[str]]]:
     C++ file naming a callback through a component prop."""
     fw = firmware_files(root)
     fw_rel = {str(f.relative_to(root)) for f in fw}
-    read = compiled_text_reader(root)
+    read, read_key = compiled_text_reader(root)
     shipped = firmware_xml_files(root)
     staged = {str(src.relative_to(root)): str(rel) for rel, src in shipped.items()}
     out = {}
 
     cb_all = callbacks.collect_registrations(root)
-    cb_fw = callbacks.collect_registrations(root, fw, read)
+    cb_fw = callbacks.collect_registrations(root, fw, read, read_key)
     for name, files in callbacks.collect_xml_refs(root, list(shipped.values())).items():
         sites = {staged.get(f, f) for f in files if f in staged or f in fw_rel}
         if sites and name in cb_all and name not in cb_fw:
             out[f"callback:{name}"] = (", ".join(sorted(cb_all[name])), sites)
 
     subj_all = subjects.collect_registrations(root)[0]
-    subj_fw = subjects.collect_registrations(root, fw, read)[0]
+    subj_fw = subjects.collect_registrations(root, fw, read, read_key)[0]
     subj_sites: dict[str, set[str]] = {}
     for rel, src in shipped.items():
         for name in subjects.collect_xml_refs(root, [src], ignore_attrs=("name",)):

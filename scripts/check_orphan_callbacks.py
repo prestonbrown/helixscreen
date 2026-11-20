@@ -51,6 +51,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from check_required_names import call_args  # noqa: E402
 
 from source_strip import blank_cxx  # noqa: E402
+from qc_file_cache import FileCache  # noqa: E402
 
 XML_REF_RE = re.compile(r'\b(?:[a-z0-9_]*callback|event_cb)="([^"]*)"')
 # C++ naming a callback through a component's `$..._callback` prop:
@@ -64,36 +65,62 @@ def source_files(root: Path) -> list[Path]:
                   for f in (root / d).rglob(ext))
 
 
-def collect_registrations(root: Path, files=None, read=None) -> dict[str, set[str]]:
+def file_registrations(text: str) -> list[str]:
+    """The callback names one source's text registers, in order, repeats kept."""
+    code = blank_cxx(text, strings="keep")
+    names: list[str] = []
+    loop_registers = False
+    for m in re.finditer(r"\blv_xml_register_event_cb\s*\(", code):
+        args, _ = call_args(code, m.end() - 1)
+        if len(args) < 3:
+            continue  # a declaration or a wrapper's own body
+        lit = re.fullmatch(r'"(\w+)"', args[1])
+        if lit:
+            names.append(lit.group(1))
+        elif args[1] != "cb.name":  # cb.name: register_xml_callbacks itself
+            loop_registers = True
+    for m in re.finditer(r"\bregister_xml_callbacks\s*\(", code):
+        args, end = call_args(code, m.end() - 1)
+        if not args or args[0].startswith("std::initializer_list"):
+            continue
+        names.extend(ENTRY_RE.findall(code[m.end():end]))
+    if loop_registers:
+        names.extend(ENTRY_RE.findall(code))
+    return names
+
+
+def cpp_attr_refs(text: str) -> list[str]:
+    """Callback names a source passes through a component's `$..._callback` prop."""
+    return CPP_ATTR_REF_RE.findall(blank_cxx(text, strings="keep"))
+
+
+# Every script whose code decides a cached per-file answer below.
+_SALT = [Path(__file__), Path(__file__).with_name("source_strip.py"),
+         Path(__file__).with_name("check_required_names.py")]
+
+
+def collect_registrations(root: Path, files=None, read=None,
+                          read_key: str | None = None) -> dict[str, set[str]]:
     """name -> files registering it.
 
     `files` narrows the scan to a build's own sources and `read` lets a caller
     preprocess each file's text; both default to src/ and include/ as is.
+    Each file's answer is cached by content (qc_file_cache); a caller passing `read`
+    names what it does with `read_key`, or its files are parsed afresh.
     """
     regs: dict[str, set[str]] = defaultdict(set)
-    read = read or (lambda f: f.read_text(errors="replace"))
+    cache = FileCache("callback_registrations", _SALT)
     for f in source_files(root) if files is None else files:
-        code = blank_cxx(read(f), strings="keep")
         rel = str(f.relative_to(root))
-        loop_registers = False
-        for m in re.finditer(r"\blv_xml_register_event_cb\s*\(", code):
-            args, _ = call_args(code, m.end() - 1)
-            if len(args) < 3:
-                continue  # a declaration or a wrapper's own body
-            lit = re.fullmatch(r'"(\w+)"', args[1])
-            if lit:
-                regs[lit.group(1)].add(rel)
-            elif args[1] != "cb.name":  # cb.name: register_xml_callbacks itself
-                loop_registers = True
-        for m in re.finditer(r"\bregister_xml_callbacks\s*\(", code):
-            args, end = call_args(code, m.end() - 1)
-            if not args or args[0].startswith("std::initializer_list"):
-                continue
-            for name in ENTRY_RE.findall(code[m.end():end]):
-                regs[name].add(rel)
-        if loop_registers:
-            for name in ENTRY_RE.findall(code):
-                regs[name].add(rel)
+        if read is None:
+            names = cache.get(f, "raw", file_registrations)
+        elif read_key is not None:
+            names = cache.get(f, read_key, lambda _t, f=f: file_registrations(read(f)))
+        else:
+            names = file_registrations(read(f))
+        for name in names:
+            regs[name].add(rel)
+    cache.save()
     return regs
 
 
@@ -110,9 +137,11 @@ def collect_xml_refs(root: Path, xml_files=None) -> dict[str, set[str]]:
                 refs[value].add(rel)
     src = root / "src"
     if src.is_dir():
+        cache = FileCache("callback_cpp_refs", _SALT)
         for f in sorted(src.rglob("*.cpp")):
-            for name in CPP_ATTR_REF_RE.findall(blank_cxx(f.read_text(errors="replace"), strings="keep")):
+            for name in cache.get(f, "raw", cpp_attr_refs):
                 refs[name].add(str(f.relative_to(root)))
+        cache.save()
     return refs
 
 
