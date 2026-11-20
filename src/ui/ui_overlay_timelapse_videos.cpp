@@ -56,7 +56,7 @@ static constexpr const char* kTimelapseDataSubpath = "printer_data/timelapse/";
 static constexpr int kPlayerWatchMs = 2000;
 static constexpr uint32_t kPlayerWatchPollMs = 100;
 // One frame from a local file; a run this long is a stuck ffmpeg.
-static constexpr int kFrameExtractTimeoutSec = 30;
+static constexpr int kFrameExtractTimeoutSec = 10;
 
 static std::string default_timelapse_dir() {
     const char* home = getenv("HOME");
@@ -367,7 +367,7 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
     // Invalidate stale thumbnail callbacks from previous grid population
     thumb_lifetime_.invalidate();
 
-    for (const auto& video : videos_) {
+    for (auto& video : videos_) {
         // The badge says what a tap does: play here, or hand the video to a phone.
         const auto action =
             helix::timelapse::choose_video_open_action(can_play_, phone_url_for(video.filename));
@@ -418,7 +418,7 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
     }
 }
 
-void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const VideoEntry& video,
+void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, VideoEntry& video,
                                                      const std::set<std::string>& available_files) {
     const std::string& filename = video.filename;
     lv_obj_t* thumbnail = helix::ui::find_required(card, "thumbnail", get_name());
@@ -435,6 +435,7 @@ void TimelapseVideosOverlay::load_thumbnail_for_card(lv_obj_t* card, const Video
         if (thumbnail) {
             lv_obj_add_flag(thumbnail, LV_OBJ_FLAG_HIDDEN);
         }
+        video.needs_frame = true;
         load_extracted_thumbnail(card, video);
         return;
     }
@@ -560,6 +561,9 @@ void TimelapseVideosOverlay::clear_video_grid() {
         helix::ui::safe_clean_children(video_grid_container_);
     }
     videos_.clear();
+    for (const auto& job : extract_queue_) {
+        extract_pending_.erase(job.key);
+    }
     extract_queue_.clear();
 }
 
@@ -616,9 +620,10 @@ void TimelapseVideosOverlay::load_extracted_thumbnail(lv_obj_t* card, const Vide
     in.print_active =
         lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0;
     in.already_failed = extract_failed_.count(req.key) != 0;
-    if (!helix::timelapse::should_extract_thumbnail(in)) {
+    if (!helix::timelapse::should_extract_thumbnail(in) || extract_pending_.count(req.key) != 0) {
         return;
     }
+    extract_pending_.insert(req.key);
     extract_queue_.push_back({video.filename, req.key});
     run_next_extraction();
 }
@@ -648,17 +653,22 @@ void TimelapseVideosOverlay::run_next_extraction() {
     ExtractJob job = extract_queue_.front();
     extract_queue_.pop_front();
     extract_busy_ = true;
+    job.root_known = timelapse_root_known_;
 
     const std::string input = local_video_path(job.filename);
-    const std::string output = app_get_runtime_dir() + "/helix_timelapse_frame.jpg";
+    // Its own file: a job that outlives the view cannot overwrite the next one's frame.
+    const std::string output =
+        app_get_runtime_dir() + "/helix_timelapse_frame_" + std::to_string(++extract_seq_) + ".jpg";
     const std::string cache_key =
         helix::thumbnail_cache_id(helix::ThumbnailSource::Timelapse, job.key);
     const auto target =
         helix::ThumbnailProcessor::get_target_for_display(helix::ThumbnailSize::Card);
-    auto tok = lifetime_.token();
+    // The object's lifetime, not the view's: leaving the overlay mid-job must
+    // still deliver the finish, or extract_busy_ never clears.
+    auto tok = object_lifetime_.token();
     spdlog::debug("[{}] Extracting a thumbnail from {}", get_name(), input);
 
-    helix::http::HttpExecutor::slow().submit([this, tok, job, input, output, cache_key, target]() {
+    helix::http::HttpExecutor::fast().submit([this, tok, job, input, output, cache_key, target]() {
         if (!extract_video_frame(input, output)) {
             tok.defer("TimelapseVideosOverlay::extract_failed",
                       [this, job]() { finish_extraction(job, {}); });
@@ -682,8 +692,15 @@ void TimelapseVideosOverlay::run_next_extraction() {
 void TimelapseVideosOverlay::finish_extraction(const ExtractJob& job,
                                                const std::string& lvbin_path) {
     extract_busy_ = false;
+    extract_pending_.erase(job.key);
     if (lvbin_path.empty()) {
-        if (extract_failed_.insert(job.key).second) {
+        // Before Moonraker names its timelapse root the path is the stock
+        // layout's guess; that miss is retried once the root is known.
+        if (!job.root_known) {
+            spdlog::debug("[{}] No frame from {} at the default path; retrying once the "
+                          "timelapse root is known",
+                          get_name(), job.filename);
+        } else if (extract_failed_.insert(job.key).second) {
             spdlog::debug("[{}] No thumbnail could be extracted from {}", get_name(), job.filename);
         }
     } else {
@@ -752,8 +769,9 @@ void TimelapseVideosOverlay::fetch_timelapse_root() {
         [this, tok](const std::vector<FileRoot>& roots) {
             tok.defer([this, roots]() { apply_timelapse_root(roots); });
         },
-        [](const MoonrakerError& error) {
+        [this, tok](const MoonrakerError& error) {
             spdlog::debug("[Timelapse Videos] server.files.roots unavailable: {}", error.message);
+            tok.defer([this]() { settle_timelapse_root(); });
         });
 }
 
@@ -762,10 +780,26 @@ void TimelapseVideosOverlay::apply_timelapse_root(const std::vector<FileRoot>& r
     if (path.empty()) {
         spdlog::debug("[{}] No timelapse root reported; using {}", get_name(),
                       default_timelapse_dir());
+    } else {
+        timelapse_root_ = path;
+        spdlog::debug("[{}] Timelapse root: {}", get_name(), timelapse_root_);
+    }
+    settle_timelapse_root();
+}
+
+void TimelapseVideosOverlay::settle_timelapse_root() {
+    if (timelapse_root_known_) {
         return;
     }
-    timelapse_root_ = path;
-    spdlog::debug("[{}] Timelapse root: {}", get_name(), timelapse_root_);
+    timelapse_root_known_ = true;
+    // A frame missed at the guessed default path gets another try at the real one.
+    for (const auto& video : videos_) {
+        if (video.needs_frame) {
+            if (lv_obj_t* card = find_card(video.filename)) {
+                load_extracted_thumbnail(card, video);
+            }
+        }
+    }
 }
 
 std::string TimelapseVideosOverlay::local_video_path(const std::string& filename) const {
