@@ -587,28 +587,18 @@ setup_k2_moonraker() {
 # update channel in the stanza
 # =============================================================================
 
-@test "add_update_manager_section: stanza channel follows R2_CHANNEL=beta" {
-    local conf
+@test "add_update_manager_section: the stanza names stable whatever the app's channel" {
+    # Moonraker's beta lane reads the newest release of every line and offers
+    # downgrades, so the stanza never names it (#2147).
+    local conf ch
     conf=$(setup_moonraker_home)
-    create_moonraker_conf "$conf"
-    R2_CHANNEL=beta
-
-    add_update_manager_section "$conf"
-
-    awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^channel:/{print; exit}' \
-        "$conf" | grep -qx 'channel: beta'
-}
-
-@test "add_update_manager_section: dev channel maps to beta in the stanza" {
-    local conf
-    conf=$(setup_moonraker_home)
-    create_moonraker_conf "$conf"
-    R2_CHANNEL=dev
-
-    add_update_manager_section "$conf"
-
-    awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^channel:/{print; exit}' \
-        "$conf" | grep -qx 'channel: beta'
+    for ch in beta dev; do
+        create_moonraker_conf "$conf"
+        R2_CHANNEL=$ch
+        add_update_manager_section "$conf"
+        awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^channel:/{print; exit}' \
+            "$conf" | grep -qx 'channel: stable' || fail "R2_CHANNEL=$ch wrote another channel"
+    done
 }
 
 @test "add_update_manager_section: stanza defaults to stable with no R2_CHANNEL" {
@@ -623,16 +613,18 @@ setup_k2_moonraker() {
         "$conf" | grep -qx 'channel: stable'
 }
 
-@test "sync_update_manager_channel rewrites a stale channel line" {
+@test "sync_update_manager_channel rewrites a beta channel line to stable" {
     local conf
     conf=$(setup_moonraker_home)
     create_moonraker_conf_with_helix "$conf"
+    awk '/^\[update_manager helixscreen\]/{s=1} s && /^channel:/{print "channel: beta"; s=0; next} {print}' \
+        "$conf" > "$conf.new" && mv "$conf.new" "$conf"
     R2_CHANNEL=beta
 
     sync_update_manager_channel "$conf"
 
     awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^channel:/{print; exit}' \
-        "$conf" | grep -qx 'channel: beta'
+        "$conf" | grep -qx 'channel: stable'
     # The mainsail stanza's channel line is not ours to touch.
     awk '/^\[update_manager mainsail\]/{found=1; next} found && /^\[/{exit} found && /^channel:/{print; exit}' \
         "$conf" | grep -qx 'channel: stable'
@@ -650,18 +642,22 @@ setup_k2_moonraker() {
     grep -qx 'channel: stable' "$conf"
 }
 
-@test "configure_moonraker_updates syncs an existing stanza to the resolved channel" {
-    local conf
+@test "configure_moonraker_updates on beta switches an existing stanza off" {
+    local conf restarted="$BATS_TEST_TMPDIR/restarted"
     conf=$(setup_moonraker_home)
     create_moonraker_conf_with_helix "$conf"
     MOONRAKER_CONF_PATHS="$conf"
     rm -f "$INSTALL_DIR/bin/helix-screen"
+    restart_moonraker() { touch "$restarted"; }
     R2_CHANNEL=beta
 
     configure_moonraker_updates "pi"
 
-    awk '/^\[update_manager helixscreen\]/{found=1; next} found && /^\[/{exit} found && /^channel:/{print; exit}' \
-        "$conf" | grep -qx 'channel: beta'
+    refute_grep '^\[update_manager helixscreen\]' "$conf"
+    grep -qx '#~ \[update_manager helixscreen\]' "$conf" || fail "no switched-off stanza left"
+    grep -qx '#~ channel: stable' "$conf" || fail "the switched-off stanza does not name stable"
+    grep -q '^\[update_manager mainsail\]' "$conf" || fail "another stanza went too"
+    [ -f "$restarted" ] || fail "Moonraker kept listing HelixScreen"
 }
 
 @test "configure_moonraker_updates restarts Moonraker when it rewrites the stanza's channel" {
@@ -787,7 +783,7 @@ create_moonraker_conf_including_helix() {
         "$INSTALL_DIR" > "$INCLUDED_CONF"
 }
 
-@test "configure_moonraker_updates syncs the channel of a stanza moonraker.conf includes" {
+@test "configure_moonraker_updates on beta switches off a stanza moonraker.conf includes" {
     local conf restarted="$BATS_TEST_TMPDIR/restarted"
     conf=$(setup_moonraker_home)
     create_moonraker_conf_including_helix "$conf"
@@ -798,9 +794,10 @@ create_moonraker_conf_including_helix() {
 
     configure_moonraker_updates "pi"
 
-    grep -qx 'channel: beta' "$INCLUDED_CONF"
-    # No second stanza for Moonraker to merge.
-    refute_grep '^\[update_manager helixscreen\]' "$conf"
+    grep -qx '#~ \[update_manager helixscreen\]' "$INCLUDED_CONF" \
+        || fail "the included stanza was not switched off where it is"
+    # No second stanza, live or off, in the conf itself.
+    refute_grep 'update_manager helixscreen' "$conf"
     [ -f "$restarted" ]
 }
 
@@ -819,8 +816,8 @@ create_moonraker_conf_including_helix() {
 
     configure_moonraker_updates "pi"
 
-    grep -qx 'channel: beta' "$conf_dir/conf.d/helix.conf"
-    refute_grep '^\[update_manager helixscreen\]' "$conf"
+    grep -qx '#~ \[update_manager helixscreen\]' "$conf_dir/conf.d/helix.conf"
+    refute_grep 'update_manager helixscreen' "$conf"
 }
 
 @test "configure_moonraker_updates: unsupported removes a stanza moonraker.conf includes" {
@@ -2220,4 +2217,100 @@ stage_private_install() {
     run open_plugin_to_moonraker
     [ "$status" -eq 0 ]
     [ "$(mode_of "$BATS_TEST_TMPDIR/printer_data/config/helixscreen")" = 755 ] || fail "chmodded printer_data through the link"
+}
+
+# =============================================================================
+# Stable-only listing: the switched-off stanza (#2147)
+# =============================================================================
+
+FIXTURES="$BATS_TEST_DIRNAME/../fixtures/moonraker_stanza"
+
+# on.conf with the stanza's path: pointed at this run's INSTALL_DIR.
+fixture_for_install() {
+    sed "s|^\(#~ \)\{0,1\}path: /opt/helixscreen$|\1path: $INSTALL_DIR|" "$FIXTURES/$1"
+}
+
+@test "the generator writes exactly the stanza the shared fixture holds" {
+    # The C++ side switches this text on and off ([2147] tests); both read
+    # tests/fixtures/moonraker_stanza, so the two stay one format.
+    local got="$BATS_TEST_TMPDIR/got.conf"
+    INSTALL_DIR=/opt/helixscreen
+    { printf '[server]\nhost: 0.0.0.0\n'; generate_update_manager_config
+      printf '\n# The next section keeps its comment.\n[update_manager other]\ntype: web\n'; } > "$got"
+    cmp -s "$got" "$FIXTURES/on.conf" || fail "$(diff "$FIXTURES/on.conf" "$got")"
+}
+
+@test "switching the stanza off and on maps between the shared fixtures" {
+    local conf="$BATS_TEST_TMPDIR/m.conf"
+    cp "$FIXTURES/on.conf" "$conf"
+    switch_update_manager_section "$conf" off >/dev/null
+    cmp -s "$conf" "$FIXTURES/off.conf" || fail "off: $(diff "$FIXTURES/off.conf" "$conf")"
+    switch_update_manager_section "$conf" on >/dev/null
+    cmp -s "$conf" "$FIXTURES/on.conf" || fail "on: $(diff "$FIXTURES/on.conf" "$conf")"
+}
+
+@test "configure_moonraker_updates on beta adds the stanza switched off" {
+    local conf restarted="$BATS_TEST_TMPDIR/restarted"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "net_deploy.py" "$NET_DEPLOY_MODERN" >/dev/null
+    fake_non_buildroot_os_release
+    restart_moonraker() { touch "$restarted"; }
+    R2_CHANNEL=dev
+
+    configure_moonraker_updates "pi"
+
+    refute_grep '^\[update_manager helixscreen\]' "$conf"
+    grep -qx '#~ \[update_manager helixscreen\]' "$conf" || fail "no switched-off stanza"
+    grep -qx "#~ path: $INSTALL_DIR" "$conf" || fail "the switched-off stanza names another path"
+    [ ! -e "$restarted" ] || fail "Moonraker restarted for a stanza it does not read"
+}
+
+@test "configure_moonraker_updates on stable switches the stanza back on in place" {
+    local conf restarted="$BATS_TEST_TMPDIR/restarted"
+    conf=$(setup_moonraker_home)
+    fixture_for_install off.conf > "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "net_deploy.py" "$NET_DEPLOY_MODERN" >/dev/null
+    fake_non_buildroot_os_release
+    restart_moonraker() { touch "$restarted"; }
+    R2_CHANNEL=stable
+
+    configure_moonraker_updates "pi"
+
+    fixture_for_install on.conf | cmp -s - "$conf" \
+        || fail "not the installer's stanza: $(fixture_for_install on.conf | diff - "$conf")"
+    [ -f "$restarted" ] || fail "Moonraker was not restarted to read it"
+}
+
+@test "remove_update_manager_section removes a switched-off stanza too" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    cp "$conf" "$BATS_TEST_TMPDIR/before.conf"
+    R2_CHANNEL=beta
+    add_update_manager_section "$conf" off >/dev/null
+    grep -q '^#~ \[update_manager helixscreen\]' "$conf" || fail "setup: nothing switched off"
+
+    remove_update_manager_section "$conf" >/dev/null
+
+    cmp -s "$BATS_TEST_TMPDIR/before.conf" "$conf" || fail "$(diff "$BATS_TEST_TMPDIR/before.conf" "$conf")"
+}
+
+@test "configure_moonraker_updates: unsupported removes a switched-off stanza" {
+    local conf
+    conf=$(setup_moonraker_home)
+    fixture_for_install off.conf > "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "zip_deploy.py" "class ZipDeploy(AppDeploy): pass" >/dev/null
+    restart_moonraker() { :; }
+
+    configure_moonraker_updates "pi" 2>/dev/null
+
+    refute_grep 'update_manager helixscreen' "$conf"
+    grep -q '^\[update_manager other\]' "$conf" || fail "another stanza went too"
 }
