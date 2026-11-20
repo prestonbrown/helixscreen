@@ -84,7 +84,7 @@ void AmsState::init_subjects(bool register_xml) {
 
     spdlog::trace("[AMS State] Initializing subjects");
 
-    // Backend selector subjects
+    // Backend registry subjects
     INIT_SUBJECT_INT(backend_count, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(ams_data_revision, 0, subjects_, register_xml);
 
@@ -758,7 +758,7 @@ void AmsState::register_xml_subject_names() {
     // (prestonbrown/helixscreen#1374). scripts/check_ams_xml_mirror.py fails
     // the commit when the two name sets differ.
 
-    // Backend selector subjects
+    // Backend registry subjects
     helix::xml::register_subject_in_current_scope("backend_count", &backend_count_);
     helix::xml::register_subject_in_current_scope("ams_data_revision", &ams_data_revision_);
 
