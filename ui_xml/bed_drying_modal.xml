@@ -25,7 +25,6 @@
       <!-- bed_drying_chamber_assist: 0 nothing heats the chamber, 1 its dryer, 2 a plain heater -->
       <lv_obj name="appliance_row"
               width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
-              style_bg_opa="cover" style_bg_color="#card_bg" style_radius="#border_radius"
               style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false">
         <bind_flag_if_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="0"/>
         <text_body text="Run the chamber dryer too" flex_grow="1" long_mode="wrap">
