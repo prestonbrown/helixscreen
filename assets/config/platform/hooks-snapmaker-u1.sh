@@ -279,10 +279,33 @@ u1_root_ssh_state() {
 
 # Start dropbear with --force when Root Access is on and it is not running.
 # Idempotent; never fails the caller.
+#
+# When it still is not running afterwards, SSH is gone until something changes,
+# and with the stock screen disabled SSH is how the user gets back to it. So
+# say so loudly: syslog, this hook's output (the
+# launcher log), and HELIX_U1_ROOT_SSH_DOWN=1, which the app turns into an
+# on-screen notification. The launcher's own platform_pre_start call is the one
+# whose environment reaches helix-screen, and it re-runs this check.
 ensure_root_ssh() {
     [ "$(u1_root_ssh_state)" = down ] || return 0
     echo "Root Access is enabled: starting SSH (dropbear)"
     "$HELIX_DROPBEAR_INIT" start --force || true
+    _ssh_wait=0
+    while [ "$_ssh_wait" -lt "${HELIX_ROOT_SSH_WAIT:-2}" ]; do
+        [ "$(u1_root_ssh_state)" = down ] || { unset _ssh_wait; return 0; }
+        sleep 1
+        _ssh_wait=$((_ssh_wait + 1))
+    done
+    unset _ssh_wait
+    if [ "$(u1_root_ssh_state)" = down ]; then
+        _ssh_msg="Root Access is on but SSH (dropbear) did not start: '$HELIX_DROPBEAR_INIT start --force' left no dropbear running"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: $_ssh_msg" >&2
+        if command -v logger >/dev/null 2>&1; then
+            logger -p user.err -t helixscreen -- "$_ssh_msg" 2>/dev/null || true
+        fi
+        unset _ssh_msg
+        export HELIX_U1_ROOT_SSH_DOWN=1
+    fi
     return 0
 }
 
