@@ -7,9 +7,9 @@
         action_button_callback="on_macros_edit_save" action_button_hidden_subject="macros_edit_save_hidden"
         back_button_callback="on_macros_back_clicked">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_sm" scrollable="false" flex_flow="column" style_pad_gap="0">
+    <overlay_panel-overlay_content style_pad_left="#space_lg"
+                                   style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_sm"
+                                   scrollable="false" flex_flow="column" style_pad_gap="0">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- Status message (hidden when macros are present — C++ sets empty string) -->
@@ -59,6 +59,6 @@
         <text_heading width="content" text="No Macros Found" style_text_align="center"/>
         <text_muted width="content" text="Define macros in your printer.cfg" style_text_align="center"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

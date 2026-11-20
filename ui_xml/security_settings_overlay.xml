@@ -6,9 +6,9 @@
 <component>
   <view name="security_settings_overlay" extends="overlay_panel" title="Security" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- All security settings live in a single grouped-list card (no section
            headers in this overlay); the card owns the horizontal inset. -->
       <setting_group name="group_security">
@@ -49,6 +49,6 @@
                               callback="on_auto_lock_changed"/>
         </lv_obj>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

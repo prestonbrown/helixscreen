@@ -7,10 +7,9 @@
 <component>
   <view name="fan_settings_overlay" extends="overlay_panel" title="Fans" bg_color="#screen_bg">
     <!-- Content Area (cards own the horizontal inset via their side margins) -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_md" scrollable="true" scroll_elastic="false" flex_flow="column"
-            style_pad_gap="#space_sm">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_md" scrollable="true"
+                                   scroll_elastic="false" flex_flow="column" style_pad_gap="#space_sm">
 
       <!-- ================================================================== -->
       <!-- CHAMBER AIR TARGETS: what the fan screen's Exhaust and Recirculate  -->
@@ -65,6 +64,6 @@
         <icon name="no_fans_icon" src="fan" size="xl" variant="secondary" style_opa="80"/>
         <text_body text="No fans detected" style_text_color="#text_muted"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

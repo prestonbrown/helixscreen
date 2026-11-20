@@ -6,9 +6,9 @@
 <component>
   <view name="settings_updates_overlay" extends="overlay_panel" title="Updates" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <setting_group name="group_updates">
         <update_channel_rows/>
         <!-- Check for Updates (reactive description shows available version) -->
@@ -58,6 +58,6 @@
                               callback="on_about_updates_unavailable_clicked"/>
         </lv_obj>
       </setting_group>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

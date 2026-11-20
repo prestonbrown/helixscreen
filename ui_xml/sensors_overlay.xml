@@ -7,10 +7,9 @@
 <component>
   <view name="sensors_overlay" extends="overlay_panel" title="Sensors" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_md" scrollable="true" scroll_elastic="false" flex_flow="column"
-            style_pad_gap="#space_sm">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_md" scrollable="true"
+                                   scroll_elastic="false" flex_flow="column" style_pad_gap="#space_sm">
 
       <!-- ================================================================== -->
       <!-- SWITCH SENSORS SECTION (filament runout/motion sensors) -->
@@ -252,6 +251,6 @@
       <info_note icon="info"
                  text="Assign a role to enable sensor monitoring" style_pad_left="#space_sm"
                  style_pad_bottom="#space_md"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

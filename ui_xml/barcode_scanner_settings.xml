@@ -5,9 +5,9 @@
 <!-- input-device selection and keyboard layout. Replaces ScannerPickerModal.-->
 <component>
   <view name="barcode_scanner_settings" extends="overlay_panel" title="Barcode Scanner" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
 
       <!-- Current Selection -->
       <setting_group name="group_current_selection">
@@ -83,6 +83,6 @@
         </setting_group>
       </lv_obj>
 
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

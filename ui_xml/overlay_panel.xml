@@ -5,16 +5,25 @@
   <!-- Reusable Overlay Panel Wrapper Component -->
   <!-- Provides consistent positioning and header for all overlay panels -->
   <!-- Uses shared backdrop from navigation system (ui_nav.cpp) -->
-  <!-- Usage Pattern:
-       <overlay_panel name="my_panel" title="My Panel" title_tag="My Panel">
-         <lv_obj name="overlay_content" width="100%" flex_grow="1"
-                 style_pad_all="#space_lg" flex_flow="column">
+  <!-- Usage: a view that extends overlay_panel puts its widgets straight in
+       the view, and they land in overlay_content, the scrolling column under
+       the header. The host is only full-width and grows; its layout, padding
+       and scrolling go on the slot tag, as local attributes, so a bound style
+       on it still wins where it did. Anything pinned below goes in
+       overlay_footer:
+       <view extends="overlay_panel" title="My Panel">
+         <overlay_panel-overlay_content style_pad_all="#space_md" scrollable="false">
            [panel-specific controls]
-         </lv_obj>
-       </overlay_panel>
+         </overlay_panel-overlay_content>
+         <overlay_panel-overlay_footer>[buttons]</overlay_panel-overlay_footer>
+       </view>
   -->
   <!-- API Properties -->
   <api>
+    <slot name="overlay_content" default="true"/>
+    <slot name="overlay_footer" hide_empty="true"/>
+    <!-- header_bar's own slot, reachable from a view that extends this one. -->
+    <slot name="header_content"/>
     <prop name="title" type="string" default="Overlay"/>
     <prop name="title_tag" type="string" default=""/>
     <!-- Forwarded to header_bar: bind a string subject to retitle the header live. -->
@@ -115,6 +124,7 @@
                 action_icon_callback="$action_icon_callback" hide_action_icon="$hide_action_icon"
                 action_icon_hidden_cond="$action_icon_hidden_cond" title_badge_icon="$title_badge_icon"
                 title_badge_subject="$title_badge_subject" back_button_callback="$back_button_callback"/>
-    <!-- Panel-specific overlay_content and children go here -->
+    <lv_obj name="overlay_content" width="100%" flex_grow="1"/>
+    <lv_obj name="overlay_footer" width="100%" height="content" scrollable="false" flex_flow="column"/>
   </view>
 </component>

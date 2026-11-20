@@ -7,9 +7,9 @@
   <!-- overlay_bg is a theme-aware pair defined in globals.xml -->
   <view name="timelapse_settings_overlay" extends="overlay_panel" title="Timelapse Settings" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- moonraker-timelapse's Klipper macros, when Klipper has not loaded them -->
       <lv_obj width="100%"
               height="content" style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_md"
@@ -67,6 +67,6 @@
         <icon src="info" size="xs" variant="secondary"/>
         <text_small text="Requires Moonraker-Timelapse plugin"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

@@ -6,9 +6,8 @@
      publishes the plan and the answers it still needs. -->
 <component>
   <view name="plr_wizard_overlay" extends="overlay_panel" title="Resume Print" bg_color="#screen_bg">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
-            style_pad_gap="#space_md">
+    <overlay_panel-overlay_content style_pad_all="#space_md"
+                                   scrollable="false" flex_flow="column" style_pad_gap="#space_md">
       <!-- ================================================================ -->
       <!-- STEP: OFFER (0) - waiting for the plan -->
       <!-- ================================================================ -->
@@ -235,6 +234,6 @@
           <event_cb trigger="clicked" callback="on_plr_wizard_close"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

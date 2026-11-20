@@ -7,9 +7,9 @@
 <component>
   <view name="led_settings_overlay" extends="overlay_panel" title="LED Settings" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- ================================================================== -->
       <!-- STARTUP SECTION -->
       <!-- ================================================================== -->
@@ -74,6 +74,6 @@
         <icon src="info" size="xs" variant="secondary"/>
         <text_small text="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

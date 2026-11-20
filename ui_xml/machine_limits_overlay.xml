@@ -7,9 +7,9 @@
 <component>
   <view name="machine_limits_overlay" extends="overlay_panel" title="Machine Limits" bg_color="#screen_bg">
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg"
+                                   scrollable="true" flex_flow="column">
       <!-- ================================================================== -->
       <!-- INFO BANNER - Changes are temporary -->
       <!-- ================================================================== -->
@@ -236,19 +236,23 @@
       <setting_info_row name="row_max_z_accel" label="Max Z Accel" icon="axis_z_arrow" bind_value="max_z_accel_display"/>
       <!-- Spacer to push buttons to bottom -->
       <lv_obj width="100%" flex_grow="1" scrollable="false"/>
-    </lv_obj>
+    </overlay_panel-overlay_content>
     <!-- ================================================================== -->
     <!-- ACTION BUTTONS -->
     <!-- ================================================================== -->
     <!-- Horizontal divider above buttons -->
-    <divider_horizontal/>
-    <!-- Action buttons row - centered Reset button only (changes apply immediately) -->
-    <lv_obj width="100%"
-            height="content" style_pad_all="#space_md" flex_flow="row" style_flex_main_place="center" scrollable="false">
-      <!-- Reset button - restores to original config values from API -->
-      <ui_button name="btn_reset" width="150" text="Reset">
-        <event_cb trigger="clicked" callback="on_limits_reset"/>
-      </ui_button>
-    </lv_obj>
+    <overlay_panel-overlay_footer>
+      <divider_horizontal/>
+      <!-- Action buttons row - centered Reset button only (changes apply immediately) -->
+      <lv_obj width="100%"
+              height="content" style_pad_all="#space_md" flex_flow="row" style_flex_main_place="center"
+              scrollable="false">
+        <!-- Reset button - restores to original config values from API -->
+        <ui_button name="btn_reset" width="150" text="Reset">
+          <event_cb trigger="clicked" callback="on_limits_reset"/>
+        </ui_button>
+      </lv_obj>
+    </overlay_panel-overlay_footer>
+
   </view>
 </component>

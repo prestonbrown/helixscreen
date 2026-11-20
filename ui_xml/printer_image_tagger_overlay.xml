@@ -8,9 +8,9 @@
   <view name="printer_image_tagger_overlay"
         extends="overlay_panel" width="100%" title="Tag Parts" bg_color="#card_bg"
         back_button_callback="on_printer_image_tagger_cancel">
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_sm" flex_flow="column" style_pad_gap="#space_xs"
-            scrollable="false" style_bg_opa="0" style_border_width="0">
+    <overlay_panel-overlay_content style_pad_all="#space_sm"
+                                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false" style_bg_opa="0"
+                                   style_border_width="0">
       <text_body name="tagger_prompt" width="100%" bind_text="printer_image_tagger_prompt" style_text_align="center"/>
 
       <lv_obj name="tagger_area"
@@ -88,6 +88,6 @@
           <event_cb trigger="clicked" callback="on_printer_image_tagger_save"/>
         </ui_button>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>

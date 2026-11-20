@@ -14,9 +14,9 @@
   </consts>
   <view name="macro_buttons_overlay" extends="overlay_panel" title="Macro Buttons" bg_color="#screen_bg">
     <!-- Content Area - scrollable column of settings -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
-            style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="0" style_pad_right="0" style_pad_bottom="#space_lg" scrollable="true"
+                                   flex_flow="column">
       <!-- ================================================================== -->
       <!-- QUICK BUTTONS SECTION -->
       <!-- ================================================================== -->
@@ -102,6 +102,6 @@
         <icon src="info" size="xs" variant="secondary"/>
         <text_small text="Empty slots disable the associated functionality"/>
       </lv_obj>
-    </lv_obj>
+    </overlay_panel-overlay_content>
   </view>
 </component>
