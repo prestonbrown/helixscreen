@@ -28,11 +28,13 @@
  * technique as test_widget_size_active_spool.cpp.
  */
 
+#include "ui_carousel.h"
 #include "ui_fonts.h"
 #include "ui_temp_display.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/src/misc/lv_event_private.h"
 #include "panel_widget_size.h"
 #include "src/ui/panel_widgets/temp_stack_widget.h"
@@ -227,4 +229,32 @@ TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel pages open their own he
     // A page's temp_display shows the heater's target beside its reading.
     lv_obj_t* bed_display = lv_obj_get_child(bed, 1);
     CHECK(lv_obj_get_child_count(bed_display) > 2);
+}
+
+// The chamber page joins the carousel only on a printer with a chamber.
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel shows a chamber page only with a chamber",
+                 "[temp_stack][panel_widget][carousel]") {
+    lv_subject_t* has_chamber = lv_xml_get_subject(nullptr, "printer_has_chamber");
+    REQUIRE(has_chamber != nullptr);
+    const bool chamber = GENERATE(false, true);
+    lv_subject_set_int(has_chamber, chamber ? 1 : 0);
+    PanelWidgetHarness<TempStackWidget> h(
+        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, state(), nullptr);
+
+    lv_obj_t* carousel = h.child("temp_carousel");
+    CarouselState* cs = ui_carousel_get_state(carousel);
+    REQUIRE(cs != nullptr);
+    int reachable = 0;
+    for (lv_obj_t* tile : cs->real_tiles) {
+        reachable += lv_obj_is_hidden(tile) ? 0 : 1;
+    }
+    INFO("chamber=" << chamber);
+    CHECK(reachable == (chamber ? 3 : 2));
+    lv_obj_t* page = h.child("chamber");
+    const bool page_shown = page && !lv_obj_is_hidden(lv_obj_get_parent(page));
+    CHECK(page_shown == chamber);
+    if (chamber) {
+        CHECK(lv_obj_find_by_name(page, "chamber_icon_glyph") != nullptr);
+    }
+    lv_subject_set_int(has_chamber, 0);
 }

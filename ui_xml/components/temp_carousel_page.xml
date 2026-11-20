@@ -2,10 +2,9 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- One page of the temperature carousel: a heater's icon over its reading and
-     target. TempStackWidget names each instance for the heater it opens
-     (nozzle, bed, chamber), which temp_carousel_page_cb reads, and hands it to
-     ui_carousel_add_item. The nozzle page shows the nozzle_icon component; the
-     others a plain icon. -->
+     target. panel_widget_temp_carousel names each instance for the heater it
+     opens (nozzle, bed, chamber), which temp_carousel_page_cb reads. The nozzle
+     page shows the nozzle_icon component; the others a plain icon. -->
 <component>
   <api>
     <prop name="nozzle" type="int" default="0"/>

@@ -72,6 +72,22 @@ static const char* const kPowerIcons[] = {
 static constexpr size_t kPowerIconCount = std::size(kPowerIcons);
 static constexpr const char* kDefaultIcon = "power_cycle";
 
+/// The meter readings on the energy page, in the widget's readings_ order: the
+/// sensor value key, the instance subject suffix and component prop, and the
+/// text shown until the meter reports that key.
+struct EnergyKey {
+    const char* key;
+    const char* suffix;
+    const char* prop;
+    const char* placeholder;
+};
+static constexpr EnergyKey kEnergyKeys[] = {
+    {"power", "energy_power", "energy_power_subject", "-- W"},
+    {"voltage", "energy_voltage", "energy_voltage_subject", "-- V"},
+    {"current", "energy_current", "energy_current_subject", "-- A"},
+    {"energy", "energy_energy", "energy_energy_subject", "-- kWh"},
+};
+
 } // namespace
 
 using namespace helix;
@@ -105,6 +121,13 @@ PowerDeviceWidget::PowerDeviceWidget(const std::string& instance_id)
     status_color_subject_.init_color(theme_manager_get_color("text_muted"));
     sizing_.publish_instance_subject(subjects_, &status_color_subject_, "status_color_subject",
                                      "status_color");
+    static_assert(std::size(kEnergyKeys) == kEnergyReadingCount);
+    for (size_t i = 0; i < kEnergyReadingCount; ++i) {
+        EnergyReading& r = readings_[i];
+        r.text.init_string(r.buf, nullptr, sizeof(r.buf), kEnergyKeys[i].placeholder);
+        sizing_.publish_instance_subject(subjects_, &r.text, kEnergyKeys[i].prop,
+                                         kEnergyKeys[i].suffix);
+    }
 }
 
 void PowerDeviceWidget::set_name_text(const char* text) {
@@ -195,14 +218,16 @@ void PowerDeviceWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
             save_config();
         }
     }
-    setup_carousel();
+    carousel_ = helix::ui::find_required(widget_obj_, "power_carousel", "PowerDeviceWidget");
+    show_energy_page();
 
     spdlog::debug("[PowerDeviceWidget] Attached {} (device: {})", instance_id_,
                   device_name_.empty() ? "none" : device_name_);
 }
 
 void PowerDeviceWidget::detach() {
-    teardown_carousel();
+    detach_sensor_observers();
+    carousel_ = nullptr;
     lifetime_.invalidate();
     picker_.hide();
 
@@ -502,10 +527,9 @@ void PowerDeviceWidget::DevicePicker::refresh_icon_highlights() {
 }
 
 void PowerDeviceWidget::select_sensor(const std::string& sensor_id) {
-    teardown_carousel();
     sensor_id_ = sensor_id;
     save_config();
-    setup_carousel();
+    show_energy_page();
 }
 
 void PowerDeviceWidget::select_device(const std::string& name) {
@@ -708,197 +732,63 @@ std::string PowerDeviceWidget::auto_match_sensor() const {
     return "";
 }
 
-void PowerDeviceWidget::setup_carousel() {
-    if (sensor_id_.empty() || !widget_obj_)
+void PowerDeviceWidget::show_energy_page() {
+    hide_energy_page();
+    if (sensor_id_.empty() || !carousel_)
         return;
-
-    // Verify sensor exists
-    const auto info = SensorState::instance().get_sensor_info(sensor_id_);
-    if (!info) {
-        spdlog::debug("[PowerDeviceWidget] Sensor '{}' not found, skipping carousel", sensor_id_);
+    if (!SensorState::instance().get_sensor_info(sensor_id_)) {
+        spdlog::debug("[PowerDeviceWidget] Sensor '{}' not found, no energy page", sensor_id_);
         return;
     }
-
-    // Collect existing children of widget_ before creating carousel
-    std::vector<lv_obj_t*> existing_children;
-    uint32_t child_count = lv_obj_get_child_count(widget_obj_);
-    for (uint32_t i = 0; i < child_count; ++i) {
-        existing_children.push_back(lv_obj_get_child(widget_obj_, static_cast<int32_t>(i)));
-    }
-
-    // Create carousel as child of widget_
-    carousel_ = ui_carousel_create_obj(widget_obj_);
-    if (!carousel_) {
-        spdlog::warn("[PowerDeviceWidget] Failed to create carousel");
-        return;
-    }
-
-    lv_obj_set_size(carousel_, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_pad_all(carousel_, 0, 0);
-    lv_obj_set_style_bg_opa(carousel_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(carousel_, 0, 0);
-
-    auto* state = ui_carousel_get_state(carousel_);
-    if (state) {
-        state->wrap = true;
-        state->show_indicators = true;
-    }
-
-    // Page 1 (control): create a container and reparent existing children into it
-    lv_obj_t* control_page = lv_obj_create(carousel_);
-    lv_obj_set_size(control_page, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_pad_all(control_page, 0, 0);
-    lv_obj_set_style_bg_opa(control_page, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(control_page, 0, 0);
-    lv_obj_set_scrollable(control_page, false);
-
-    // Copy the original widget's flex layout to the control page
-    lv_obj_set_flex_flow(control_page, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(control_page, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-
-    // Allow click events to bubble up from control page
-    lv_obj_set_clickable(control_page, true);
-    lv_obj_set_event_bubble(control_page, true);
-
-    for (auto* child : existing_children) {
-        lv_obj_set_parent(child, control_page);
-    }
-
-    ui_carousel_add_item(carousel_, control_page);
-
-    // Page 2 (energy): create container and instantiate XML component
-    lv_obj_t* energy_container = lv_obj_create(carousel_);
-    lv_obj_set_size(energy_container, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_pad_all(energy_container, 0, 0);
-    lv_obj_set_style_bg_opa(energy_container, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(energy_container, 0, 0);
-    lv_obj_set_scrollable(energy_container, false);
-    lv_obj_set_clickable(energy_container, true);
-    lv_obj_set_event_bubble(energy_container, true);
-
-    energy_page_ = static_cast<lv_obj_t*>(
-        lv_xml_create(energy_container, "power_device_energy_page", nullptr));
-    if (!energy_page_) {
-        spdlog::warn("[PowerDeviceWidget] Failed to create energy page XML");
-        // Remove the carousel and restore children
-        for (auto* child : existing_children) {
-            lv_obj_set_parent(child, widget_obj_);
-        }
-        // Same indev-dispatch constraint as teardown_carousel(): setup_carousel()
-        // also runs from the sensor-chip click handler.
-        helix::ui::safe_delete_deferred(carousel_);
-        return;
-    }
-
-    ui_carousel_add_item(carousel_, energy_container);
-
-    // Cache label pointers from the energy page XML
-    energy_power_label_ =
-        helix::ui::find_required(energy_page_, "energy_power_label", "PowerDeviceWidget");
-    energy_voltage_label_ =
-        helix::ui::find_required(energy_page_, "energy_voltage_label", "PowerDeviceWidget");
-    energy_current_label_ =
-        helix::ui::find_required(energy_page_, "energy_current_label", "PowerDeviceWidget");
-    energy_energy_label_ =
-        helix::ui::find_required(energy_page_, "energy_energy_label", "PowerDeviceWidget");
-
-    // Rebuild indicators to show 2 dots
-    ui_carousel_rebuild_indicators(carousel_);
-
+    helix::ui::carousel_set_trailing_tiles_reachable(carousel_, true);
+    ui_carousel_set_real_page_count(carousel_, -1);
     attach_sensor_observers();
-
-    spdlog::debug("[PowerDeviceWidget] Carousel setup complete for sensor '{}'", sensor_id_);
+    spdlog::debug("[PowerDeviceWidget] Energy page shown for sensor '{}'", sensor_id_);
 }
 
-void PowerDeviceWidget::teardown_carousel() {
+void PowerDeviceWidget::hide_energy_page() {
     detach_sensor_observers();
-
-    if (carousel_ && widget_obj_) {
-        // Get carousel state to access the scroll container
-        auto* state = ui_carousel_get_state(carousel_);
-        if (state && state->scroll_container) {
-            // Page 0 is the control page — reparent its children back to widget_
-            lv_obj_t* first_tile = lv_obj_get_child(state->scroll_container, 0);
-            if (first_tile) {
-                // The tile wraps a control_page container; get the control_page
-                lv_obj_t* control_page = lv_obj_get_child(first_tile, 0);
-                if (control_page) {
-                    // Collect children before reparenting (iteration invalidation)
-                    std::vector<lv_obj_t*> children;
-                    uint32_t count = lv_obj_get_child_count(control_page);
-                    for (uint32_t i = 0; i < count; ++i) {
-                        children.push_back(lv_obj_get_child(control_page, static_cast<int32_t>(i)));
-                    }
-                    for (auto* child : children) {
-                        lv_obj_set_parent(child, widget_obj_);
-                    }
-                }
-            }
-        }
-
-        // Reached from the sensor-chip LV_EVENT_CLICKED handler, i.e. from inside
-        // LVGL's indev dispatch — a synchronous delete corrupts the parent's child
-        // iteration. safe_delete_deferred() detaches the carousel to lv_layer_top()
-        // right now (so the setup_carousel() that follows never sees it among
-        // widget_obj_'s children) and async-deletes it on the next tick.
-        helix::ui::safe_delete_deferred(carousel_);
+    for (size_t i = 0; i < kEnergyReadingCount; ++i) {
+        lv_subject_set_string(&readings_[i].text, kEnergyKeys[i].placeholder);
     }
-
-    energy_page_ = nullptr;
-    energy_power_label_ = nullptr;
-    energy_voltage_label_ = nullptr;
-    energy_current_label_ = nullptr;
-    energy_energy_label_ = nullptr;
-    carousel_ = nullptr;
+    if (!carousel_)
+        return;
+    helix::ui::carousel_set_trailing_tiles_reachable(carousel_, false);
+    ui_carousel_set_real_page_count(carousel_, 1);
+    ui_carousel_goto_page(carousel_, 0, false);
 }
 
 void PowerDeviceWidget::attach_sensor_observers() {
     if (sensor_id_.empty())
         return;
-    auto& sensor_state = SensorState::instance();
     auto token = lifetime_.token();
-
-    auto observe_key = [&](const std::string& key, lv_obj_t* label, ObserverGuard& guard,
-                           SubjectLifetime& lt) {
-        lt = {};
-        auto* subj = sensor_state.get_value_subject(sensor_id_, key, lt);
-        if (!subj || !label)
-            return;
-        std::string key_copy = key;
-        guard = helix::ui::observe<int>(
+    for (size_t i = 0; i < kEnergyReadingCount; ++i) {
+        EnergyReading& r = readings_[i];
+        r.lifetime = {};
+        lv_subject_t* subj =
+            SensorState::instance().get_value_subject(sensor_id_, kEnergyKeys[i].key, r.lifetime);
+        if (!subj)
+            continue;
+        r.observer = helix::ui::observe<int>(
             subj, this,
-            [token, key_copy, label](PowerDeviceWidget* self, int centi_value) {
+            [token, i](PowerDeviceWidget* self, int centi_value) {
                 if (token.expired())
                     return;
-                self->update_energy_label(key_copy, label, centi_value);
+                lv_subject_set_string(
+                    &self->readings_[i].text,
+                    SensorState::format_value(kEnergyKeys[i].key, centi_value).c_str());
             },
-            lt);
-    };
-
-    observe_key("power", energy_power_label_, power_observer_, power_lifetime_);
-    observe_key("voltage", energy_voltage_label_, voltage_observer_, voltage_lifetime_);
-    observe_key("current", energy_current_label_, current_observer_, current_lifetime_);
-    observe_key("energy", energy_energy_label_, energy_observer_, energy_lifetime_);
+            r.lifetime);
+    }
 }
 
 void PowerDeviceWidget::detach_sensor_observers() {
-    // Reset lifetimes BEFORE observers so the guard's weak_ptr expires and
+    // Lifetimes reset BEFORE observers so the guard's weak_ptr expires and
     // skips lv_observer_delete() on potentially-freed subjects (#705).
-    power_lifetime_ = {};
-    voltage_lifetime_ = {};
-    current_lifetime_ = {};
-    energy_lifetime_ = {};
-    power_observer_.reset();
-    voltage_observer_.reset();
-    current_observer_.reset();
-    energy_observer_.reset();
-}
-
-void PowerDeviceWidget::update_energy_label(const std::string& key, lv_obj_t* label,
-                                            int centi_value) {
-    if (!label)
-        return;
-    auto text = SensorState::format_value(key, centi_value);
-    lv_label_set_text(label, text.c_str());
+    for (auto& r : readings_) {
+        r.lifetime = {};
+    }
+    for (auto& r : readings_) {
+        r.observer.reset();
+    }
 }

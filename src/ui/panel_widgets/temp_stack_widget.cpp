@@ -22,6 +22,7 @@
 #include "stacked_row_layout.h"
 #include "temperature_service.h"
 #include "theme_manager.h"
+#include "ui/ui_widget_helpers.h"
 
 #include <spdlog/spdlog.h>
 
@@ -133,52 +134,33 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
         return;
     }
 
-    // A page per heater, built under the carousel and reparented into its tile
-    // by ui_carousel_add_item. Children pass taps and long-presses to the page.
-    auto add_page = [carousel](const char* name, const char* nozzle, const char* icon,
-                               const char* icon_name, const char* bind_current,
-                               const char* bind_target) -> lv_obj_t* {
-        const char* attrs[] = {"name",        name,        "nozzle",  nozzle,         "icon",
-                               icon,          "icon_name", icon_name, "bind_current", bind_current,
-                               "bind_target", bind_target, nullptr};
-        auto* page = static_cast<lv_obj_t*>(lv_xml_create(carousel, "temp_carousel_page", attrs));
-        if (!page) {
-            spdlog::error("[TempStackWidget] Failed to build carousel page '{}'", name);
-            return nullptr;
-        }
-        make_children_passthrough(page);
-        ui_carousel_add_item(carousel, page);
-        return page;
+    // The pages are the component's; their children pass taps and long-presses
+    // to the page. Each icon binder binds from its own page root, which keeps it
+    // immune to any other same-named icon in the tree.
+    auto page = [carousel](const char* name) {
+        lv_obj_t* p = helix::ui::find_required(carousel, name, "TempStackWidget");
+        make_children_passthrough(p);
+        return p;
     };
-
-    lv_obj_t* nozzle_page = add_page("nozzle", "1", "", "", "extruder_temp", "extruder_target");
-    if (!nozzle_page) {
-        return;
+    if (lv_obj_t* nozzle_page = page("nozzle")) {
+        nozzle_icon_binder_.bind(nozzle_page, printer_state_, HeaterType::Nozzle);
     }
-
-    // Bind nozzle heating icon from its own page root. Carousel pages are
-    // separate subtrees under widget_obj_ — binding from the page (rather than
-    // widget_obj_) keeps this immune to any other same-named icon in the tree.
-    nozzle_icon_binder_.bind(nozzle_page, printer_state_, HeaterType::Nozzle);
-
     // The bed glyph is named "bed_icon_glyph" so the binder's default lookup
     // finds it directly: it is a leaf label with no wrapper child.
-    if (lv_obj_t* bed_page =
-            add_page("bed", "0", "radiator", "bed_icon_glyph", "bed_temp", "bed_target")) {
+    if (lv_obj_t* bed_page = page("bed")) {
         bed_icon_binder_.bind(bed_page, printer_state_, HeaterType::Bed);
     }
 
-    // Chamber page (only if sensor present). Target is the effective target
-    // subject (heater target while heating, cooling-fan ceiling while
-    // maintaining), never "chamber_temp", so the displayed target reflects the
-    // real setpoint.
+    // The chamber page, last, is in reach only on a printer with a chamber. Its
+    // target is the effective target subject (heater target while heating,
+    // cooling-fan ceiling while maintaining), so it shows the real setpoint.
+    lv_obj_t* chamber_page = page("chamber");
     lv_subject_t* chamber_gate = lv_xml_get_subject(nullptr, "printer_has_chamber");
-    if (chamber_gate && lv_subject_get_int(chamber_gate) != 0) {
-        if (lv_obj_t* chamber_page =
-                add_page("chamber", "0", "fridge_industrial", "chamber_icon_glyph", "chamber_temp",
-                         "chamber_effective_target")) {
-            chamber_icon_binder_.bind(chamber_page, printer_state_, HeaterType::Chamber);
-        }
+    const bool has_chamber = chamber_gate && lv_subject_get_int(chamber_gate) != 0;
+    helix::ui::carousel_set_trailing_tiles_reachable(carousel, has_chamber);
+    ui_carousel_set_real_page_count(carousel, has_chamber ? -1 : 2);
+    if (has_chamber && chamber_page) {
+        chamber_icon_binder_.bind(chamber_page, printer_state_, HeaterType::Chamber);
     }
 
     int page_count = ui_carousel_get_page_count(carousel);

@@ -7,6 +7,7 @@
  *        and the user colour it paints with
  */
 
+#include "ui_carousel.h"
 #include "ui_icon.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -24,6 +25,7 @@
 #include "power_device_state.h"
 #include "power_device_widget.h"
 #include "printer_state.h"
+#include "sensor_state.h"
 #include "theme_manager.h"
 #include "tile_color.h"
 
@@ -326,4 +328,105 @@ TEST_CASE_METHOD(PowerTileFixture, "Power tile: a picked device with no state re
     CHECK_FALSE(lv_obj_is_hidden(name));
     CHECK(std::string(lv_label_get_text(name)) ==
           helix::get_display_name("bed_lamp", helix::DeviceType::POWER_DEVICE));
+}
+
+namespace {
+
+/// Drawn: present, and neither it nor any ancestor is hidden.
+bool shown(lv_obj_t* obj) {
+    if (!obj)
+        return false;
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (lv_obj_is_hidden(o))
+            return false;
+    }
+    return true;
+}
+
+/// The pages a swipe reaches on the carousel holding @p obj, or 0 when none holds it.
+int reachable_pages(lv_obj_t* obj) {
+    for (lv_obj_t* o = obj; o; o = lv_obj_get_parent(o)) {
+        if (CarouselState* state = ui_carousel_get_state(o)) {
+            int n = 0;
+            for (lv_obj_t* tile : state->real_tiles) {
+                n += lv_obj_is_hidden(tile) ? 0 : 1;
+            }
+            return n;
+        }
+    }
+    return 0;
+}
+
+const SensorInfo kMeter{
+    "ina219_psu", "PSU meter", "INA219", {"power", "voltage", "current", "energy"}};
+const SensorInfo kOtherMeter{"ina219_bed", "Bed meter", "INA219", {"power"}};
+
+} // namespace
+
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: an energy sensor adds a page of its readings",
+                 "[power_device_widget][energy]") {
+    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
+    SensorState::instance().set_sensors(
+        {kMeter, kOtherMeter},
+        {{"ina219_psu", {{"power", 42.5}, {"voltage", 24.1}, {"current", 1.75}, {"energy", 3.2}}},
+         {"ina219_bed", {{"power", 99.0}}}});
+    auto& widget = make_tile({{"device", "printer_psu"}, {"sensor", "ina219_psu"}});
+
+    lv_obj_t* power = harness_->child("energy_power_label");
+    REQUIRE(shown(power));
+    CHECK(std::string(lv_label_get_text(power)) ==
+          SensorState::format_value("power", SensorState::to_centi_units("power", 42.5)));
+    CHECK(std::string(lv_label_get_text(harness_->child("energy_current_label"))) ==
+          SensorState::format_value("current", SensorState::to_centi_units("current", 1.75)));
+    CHECK(shown(harness_->child("power_badge")));
+    CHECK(reachable_pages(harness_->child("power_badge")) == 2);
+    CHECK(reachable_pages(power) == 2);
+
+    // Another meter reads its own values; a reading it lacks is not the last meter's.
+    Access::select_sensor(widget, "ina219_bed");
+    drain();
+    power = harness_->child("energy_power_label");
+    REQUIRE(shown(power));
+    CHECK(std::string(lv_label_get_text(power)) ==
+          SensorState::format_value("power", SensorState::to_centi_units("power", 99.0)));
+    CHECK(std::string(lv_label_get_text(harness_->child("energy_voltage_label"))) == "-- V");
+
+    // No sensor: the device page alone, the readings gone.
+    Access::select_sensor(widget, "");
+    drain();
+    CHECK_FALSE(shown(harness_->child("energy_power_label")));
+    REQUIRE(shown(harness_->child("power_badge")));
+    CHECK(reachable_pages(harness_->child("power_badge")) <= 1);
+}
+
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: without a sensor the tile shows the device alone",
+                 "[power_device_widget][energy]") {
+    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
+    // Two meters: nothing to auto-match.
+    SensorState::instance().set_sensors({kMeter, kOtherMeter});
+    make_tile({{"device", "printer_psu"}});
+
+    CHECK_FALSE(shown(harness_->child("energy_power_label")));
+    REQUIRE(shown(harness_->child("power_badge")));
+    CHECK(reachable_pages(harness_->child("power_badge")) <= 1);
+}
+
+// A tap anywhere on the tile reaches the tile's click handler, with or without
+// the readings page.
+TEST_CASE_METHOD(PowerTileFixture, "Power tile: a tap on the device page reaches the tile",
+                 "[power_device_widget][energy]") {
+    PowerDeviceState::instance().set_devices({{"printer_psu", "gpio", "on", false}});
+    SensorState::instance().set_sensors({kMeter, kOtherMeter});
+    const bool with_sensor = GENERATE(false, true);
+    nlohmann::json config = {{"device", "printer_psu"}};
+    if (with_sensor)
+        config["sensor"] = "ina219_psu";
+    make_tile(config);
+
+    static int clicks;
+    clicks = 0;
+    lv_obj_add_event_cb(harness_->root(), [](lv_event_t*) { ++clicks; }, LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(harness_->child("power_device_status"), LV_EVENT_CLICKED, nullptr);
+    INFO("with_sensor=" << with_sensor);
+    CHECK(clicks == 1);
 }

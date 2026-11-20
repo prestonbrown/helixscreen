@@ -1694,6 +1694,9 @@
         "show_indicators": {
           "type": "bool"
         },
+        "bubble_events": {
+          "type": "bool"
+        },
         "current_page_subject": {
           "type": "string"
         }
