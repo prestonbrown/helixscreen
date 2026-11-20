@@ -47,8 +47,6 @@ DEFAULT_OUT = REPO_ROOT / "firmware" / "helixscreen-esp32" / "build" / "littlefs
 # under ui_xml/ (so ui_xml_overrides/app_layout.xml replaces ui_xml/app_layout.xml).
 UI_XML_OVERRIDES_DIR = REPO_ROOT / "firmware" / "helixscreen-esp32" / "ui_xml_overrides"
 
-# ui_xml subtrees/files excluded from staging.
-EXCLUDED_XML_DIRS = ("micro",)
 # Languages that need a CJK font. The firmware builds HELIX_HAS_CJK=0 and ships
 # no CJK face, so their packs would render as empty boxes; --with-cjk is for a
 # build that ships the font.
@@ -157,8 +155,6 @@ def stage_ui_xml(ui_xml_dir: Path, out_dir: Path) -> int:
     total = 0
     for src in sorted(ui_xml_dir.rglob("*.xml")):
         rel = src.relative_to(ui_xml_dir)
-        if rel.parts and rel.parts[0] in EXCLUDED_XML_DIRS:
-            continue
         if rel.parts and rel.parts[0] == "translations":
             continue  # handled by stage_translations
         if src.name == MERGED_CATALOGUE:
