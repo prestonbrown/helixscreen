@@ -1191,8 +1191,13 @@ void helix::ui::ams_detail_place_bypass_spool(lv_obj_t* canvas, BypassSpoolWidge
         return;
     int32_t home_x = 0;
     int32_t merge_y = 0;
-    if (!helix::ui::filament_path_get_bypass_home(canvas, &home_x, &merge_y))
+    if (lv_obj_is_hidden(w.box) ||
+        !helix::ui::filament_path_get_bypass_home(canvas, &home_x, &merge_y)) {
+        // Off the path, the spool leaves the canvas nothing to clear or route to.
+        helix::ui::filament_path_set_bypass_spot(canvas, -1, 0, false);
+        keep_env_pill_clear_of_bypass(canvas);
         return;
+    }
     const BypassSpoolSpot spot = bypass_spot_for_unit(canvas, w, home_x, merge_y);
     bypass_spool_set_size(w, spot.spool);
     const bool home = !spot.side_entry && spot.cx == home_x && spot.spool == ams_slot_spool_size();

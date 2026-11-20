@@ -1008,13 +1008,8 @@ void AmsPanel::update_bypass_spool_from_state() {
     const bool node_visible =
         helix::ui::bypass_node_visible_for(AmsState::instance().get_backend());
     helix::ui::bypass_spool_sync_from_state(bypass_widgets_, node_visible);
-    if (!node_visible) {
-        helix::ui::ams_detail_keep_env_pill_clear(path_canvas_);
-        return;
-    }
-
-    // Reposition because the material label visibility may have changed,
-    // which affects the layout above the spool box.
+    // Placed again whether shown or not: the material label's visibility moves what stands
+    // above the card, and a hidden spool gives the canvas back its default spot.
     update_bypass_spool_position();
 }
 

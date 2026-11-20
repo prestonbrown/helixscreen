@@ -186,7 +186,8 @@ bool ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 
 /// Place the unit view's bypass spool on @p canvas's merge line. Beside a drawn unit it is drawn
 /// as large as the unit's spools, as far as the room right of the unit allows, and moved right
-/// to clear the unit; then the environment pill rises clear of it.
+/// to clear the unit; then the environment pill rises clear of it. A hidden spool gives the
+/// canvas back its default spot.
 void ams_detail_place_bypass_spool(lv_obj_t* canvas, BypassSpoolWidgets& w);
 
 /// The unit view's environment pill rises clear of the bypass spool overlay beside @p canvas,

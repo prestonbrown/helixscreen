@@ -2174,3 +2174,32 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         CHECK(d->bypass_side_entry == side);
     }
 }
+
+TEST_CASE_METHOD(
+    AmsTrayPanelFixture,
+    "AMS unit art: a bypass spool that leaves the path gives the canvas its default spot",
+    "[ams][tray][ui_integration][unit-art][bypass]") {
+    host_at(1);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    REQUIRE(AmsState::instance().get_backend()->enable_bypass().success());
+    AmsState::instance().sync_from_backend();
+    process_lvgl(50);
+    lv_obj_t* drawing = lv_obj_find_by_name(container_, "unit_view_art");
+    if (!drawing || lv_obj_is_hidden(drawing))
+        SKIP("no art for this unit here");
+    auto& w = helix::AmsPanelTestAccess::bypass(*panel_);
+    const auto* d = helix::ui::fpath::get_data(helix::AmsPanelTestAccess::path_canvas(*panel_));
+    helix::AmsPanelTestAccess::sync_bypass(*panel_);
+    REQUIRE_FALSE(lv_obj_is_hidden(w.box));
+    // Placed beside the drawn unit, the spool stands at its own spot, larger than the token.
+    REQUIRE(d->bypass_spool_size > 0);
+
+    // The node leaves the path (no system to feed it), and the panel hides the spool.
+    AmsState::instance().set_backend(nullptr);
+    helix::AmsPanelTestAccess::sync_bypass(*panel_);
+    REQUIRE(lv_obj_is_hidden(w.box));
+    CHECK(d->bypass_spool_cx == -1);
+    CHECK(d->bypass_spool_size == 0);
+    CHECK_FALSE(d->bypass_side_entry);
+}
