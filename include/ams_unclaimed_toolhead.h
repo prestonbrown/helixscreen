@@ -21,6 +21,10 @@ struct UnclaimedToolheadReading {
     bool settled = false;
     /// A job holds the machine.
     bool printing = false;
+    /// The backend is mid-operation (its action is not IDLE). A load trips the
+    /// toolhead sensor before the backend names the lane, so a busy look says
+    /// nothing about who owns the filament.
+    bool busy = false;
     /// AmsBackend::toolhead_filament_unaccounted() answered true.
     bool filament_unclaimed = false;
     bool bypass_active = false;
@@ -37,14 +41,15 @@ struct UnclaimedToolheadReading {
  * @brief Asks once per occurrence of the unclaimed state.
  *
  * The prompt opens on the first settled, idle look that finds the state, and
- * not again until a look finds it cleared (a lane loads, bypass goes on, the
- * sensor clears). While the prompt is open no second one opens.
+ * not again until a settled, idle look finds it cleared (a lane loads, bypass
+ * goes on, the sensor clears). A busy look neither opens nor re-arms it. While
+ * the prompt is open no second one opens.
  */
 class UnclaimedToolheadPromptGate {
   public:
     /// Whether the prompt opens on this look.
     [[nodiscard]] bool observe(const UnclaimedToolheadReading& r) {
-        if (!r.settled) {
+        if (!r.settled || r.busy) {
             return false;
         }
         if (!unclaimed_toolhead_filament(r)) {

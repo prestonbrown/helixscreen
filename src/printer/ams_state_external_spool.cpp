@@ -388,6 +388,7 @@ void AmsState::sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo&
     helix::ams::UnclaimedToolheadReading reading;
     reading.settled = unclaimed_toolhead_grace_over_ && backend->lane_records_ready();
     reading.printing = job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+    reading.busy = backend->get_current_action() != AmsAction::IDLE;
     reading.filament_unclaimed = backend->toolhead_filament_unaccounted().value_or(false);
     reading.bypass_active = backend->is_bypass_active();
     reading.bypass_switchable = info.supports_bypass && !info.has_hardware_bypass_sensor;

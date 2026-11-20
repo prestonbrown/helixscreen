@@ -60,6 +60,19 @@ TEST_CASE("the unclaimed-toolhead prompt opens once per occurrence", "[ams][uncl
         CHECK(gate.observe(unclaimed()));
     }
 
+    SECTION("a busy backend neither asks nor counts as cleared") {
+        UnclaimedToolheadReading loading = unclaimed();
+        loading.busy = true;
+        CHECK_FALSE(gate.observe(loading));
+        CHECK(gate.observe(unclaimed()));
+        gate.prompt_closed();
+        UnclaimedToolheadReading busy_clear = unclaimed();
+        busy_clear.busy = true;
+        busy_clear.filament_unclaimed = false;
+        CHECK_FALSE(gate.observe(busy_clear));
+        CHECK_FALSE(gate.observe(unclaimed()));
+    }
+
     SECTION("a bypass the hardware sets is never asked about") {
         UnclaimedToolheadReading sensor = unclaimed();
         sensor.bypass_switchable = false;
@@ -74,7 +87,11 @@ class UnclaimedHeadMock : public AmsBackendMock {
     std::optional<bool> toolhead_filament_unaccounted() const override {
         return unclaimed_;
     }
+    AmsAction get_current_action() const override {
+        return action_;
+    }
     bool unclaimed_ = false;
+    AmsAction action_ = AmsAction::IDLE;
 };
 
 int g_prompts = 0;
@@ -112,6 +129,26 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState asks about an unclaimed toolhead onc
         reg->unclaimed_ = true;
         ams.sync_from_backend();
         CHECK(g_prompts == 2);
+        ams.unclaimed_toolhead_prompt_closed();
+    }
+    set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState never asks mid-load", "[ams][unclaimed_toolhead]") {
+    g_prompts = 0;
+    const UiRequestHandler previous =
+        set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, count_prompt);
+    {
+        // A load trips the toolhead sensor before the backend names the lane.
+        test::RegisteredBackend<UnclaimedHeadMock> reg;
+        auto& ams = AmsState::instance();
+        AmsStateTestAccess::end_unclaimed_toolhead_grace(ams);
+        reg->unclaimed_ = true;
+        reg->action_ = AmsAction::LOADING;
+        for (int i = 0; i < 3; ++i) {
+            ams.sync_from_backend();
+        }
+        CHECK(g_prompts == 0);
         ams.unclaimed_toolhead_prompt_closed();
     }
     set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous);
