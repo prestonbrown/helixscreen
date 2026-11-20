@@ -546,6 +546,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/storage_consumer_row.xml",
     "ui_xml/components/temp_graph_config_modal.xml",
     "ui_xml/components/temp_graph_series_row.xml",
+    "ui_xml/components/temp_series_chip.xml",
     "ui_xml/components/thermistor_carousel_page.xml",
     "ui_xml/components/thermistor_picker_row.xml",
     "ui_xml/components/tile_color_grid.xml",
