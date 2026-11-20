@@ -52,8 +52,8 @@ gate_baseline() {
 # everything, which would turn every scope test below into a false pass.
 gate_filter() {
     local f
-    f=$(grep -F 'config/platform/.*\.sh' "$QC" | head -1 \
-        | sed "s/.*grep -E '//; s/' *|| true.*//")
+    f=$(grep '^SHELLCHECK_PATH_RE=' "$QC" | head -1 \
+        | sed "s/^SHELLCHECK_PATH_RE='//; s/'$//")
     [ -n "$f" ] || { echo "could not extract the gate's path filter from $QC" >&2; return 1; }
     printf '%s\n' "$f"
 }
@@ -220,4 +220,28 @@ EOF
     # Widening this list is how a gate quietly dies. Both codes are justified
     # in the comment above SHELLCHECK_SCRIPTS_EXCLUDE; a third needs the same.
     [ "$(gate_excludes)" = "SC3043,SC1091" ]
+}
+
+# make land-gate hands the gate its change (HELIX_QC_GATE_CHANGED): each script is
+# linted on its own, so the changed ones are the ones to lint.
+run_scoped() {
+    local tree="$BATS_TEST_TMPDIR/tree" repo="$PWD"
+    mkdir -p "$tree/scripts" "$tree/config/platform"
+    printf '%s\n' "$@" >"$BATS_TEST_TMPDIR/changed"
+    run bash -c 'cd "$1" && . "$2/scripts/qc/_lib.sh" && . "$2/scripts/qc/shellcheck.sh" &&
+        QC_TMP=$(mktemp -d) STAGED_ONLY=false HELIX_QC_GATE_CHANGED="$3" QC_COUNTS=/dev/null qc_shellcheck' \
+        _ "$tree" "$repo" "$BATS_TEST_TMPDIR/changed"
+}
+
+@test "at the land gate only the changed scripts are linted, and a dirty one fails" {
+    mkdir -p "$BATS_TEST_TMPDIR/tree/scripts"
+    printf '#!/bin/sh\nrm -rf $DIR/*\n' >"$BATS_TEST_TMPDIR/tree/scripts/bad.sh"
+    printf '#!/bin/sh\necho ok\n' >"$BATS_TEST_TMPDIR/tree/scripts/clean.sh"
+    run_scoped scripts/clean.sh docs/x.md
+    echo "$output"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"(1 file(s) linted)"* ]] || return 1
+    run_scoped scripts/bad.sh scripts/deleted.sh
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"scripts/bad.sh"* ]]
 }

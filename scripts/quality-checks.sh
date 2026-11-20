@@ -123,6 +123,11 @@ qc_state_hash() {
     else
       echo "gates: all"
     fi
+    # Nor is a sweep whose path-scoped gates read only a landing's change.
+    if [ -n "${HELIX_QC_GATE_CHANGED:-}" ]; then
+      echo "path-scoped gates read:"
+      cat "$HELIX_QC_GATE_CHANGED" 2>/dev/null || echo "(unreadable)"
+    fi
   } | sha256sum 2>/dev/null | cut -d' ' -f1
 }
 # A cached pass replays the counts the full run recorded (qc_count, _lib.sh), so a
@@ -247,6 +252,14 @@ QC_ALL="qc_phase1 qc_xml_tools qc_xml_const qc_xml_attr qc_dup_names qc_xml_lint
 # parity, without which a breakpoint loses the widgets its code looks up).
 QC_PUSH_ONLY="qc_python_tests qc_hidden_tests qc_decl_ui qc_translation_coverage qc_hand_rolled_swatch qc_esp32_xml_bindings qc_esp32_app_srcs qc_esp32_compile qc_translation_fmt qc_namespace qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press qc_test_budget qc_growth_ratchets qc_layering qc_code_lint"
 
+# Gates whose answer depends only on the files their QC_TRIGGER matches, judged
+# file by file or from those files alone. make land-gate names its change in
+# HELIX_QC_GATE_CHANGED (a file of changed paths), and there these run only when
+# a changed path matches their trigger, and qc_shellcheck lints only the changed
+# scripts. Pre-push and CI set nothing and sweep them whole, as does a forced-full
+# gate (HELIX_GATE_FULL=1, release branches).
+QC_GATE_PATH_SCOPED="qc_link_parity qc_translation_files qc_shellcheck"
+
 # Push-only gates that a commit still runs, in a staged form that takes well
 # under a second: the test budget and the file-size ratchet, measured from the
 # fork point to the index, so their warnings show on the commit that causes
@@ -291,6 +304,13 @@ qc_wanted() {
     fi
     QC_SKIPPED="$QC_SKIPPED $1"
     return 1
+  fi
+  if [ -n "${HELIX_QC_GATE_CHANGED:-}" ] && [[ " $QC_GATE_PATH_SCOPED " == *" $1 "* ]]; then
+    re="$(qc_trigger_re "$1")"
+    if [ -n "$re" ] && ! grep -qE "$re" "$HELIX_QC_GATE_CHANGED" 2>/dev/null; then
+      QC_SKIPPED="$QC_SKIPPED $1"
+      return 1
+    fi
   fi
   # A work-branch push (.githooks/pre-push) leaves the push-only gates to the
   # land gate and CI, which every branch passes before it reaches main.

@@ -43,10 +43,16 @@ SHELLCHECK_BASELINE=""
 # `local` allowed for BusyBox ash) rather than the hook/init bar.
 SHELLCHECK_CONFIG_SCRIPTS="config/restore-user-config.sh config/refresh-service-units.sh config/fix-user-config-owner.sh"
 
+# The scripts this gate lints, out of a list of paths.
+SHELLCHECK_PATH_RE='(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh|^config/(restore-user-config|refresh-service-units|fix-user-config-owner)\.sh)$'
+
 SHELL_FILES=""
 if [ "$STAGED_ONLY" = true ]; then
-  SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
-    grep -E '(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh|^config/(restore-user-config|refresh-service-units|fix-user-config-owner)\.sh)$' || true)
+  SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "$SHELLCHECK_PATH_RE" || true)
+elif [ -n "${HELIX_QC_GATE_CHANGED:-}" ]; then
+  # make land-gate: each script is linted on its own, so the changed ones answer
+  # for the change; a deleted one drops out as a missing file below.
+  SHELL_FILES=$(grep -E "$SHELLCHECK_PATH_RE" "$HELIX_QC_GATE_CHANGED" 2>/dev/null || true)
 else
   SHELL_FILES=$(find config/platform -name "*.sh" 2>/dev/null || true)
   # Every init script at the top of config/ ships to devices (helixscreen.init,

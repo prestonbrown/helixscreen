@@ -389,7 +389,14 @@ run_step() {
         no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
         quality)
             # A docs-only change: the gates whose triggers its paths match.
-            [ "$(planned quality)" != select ] || sel=("HELIX_QC_CHANGED_FROM=$(cd "$(dirname "$CHANGED_LIST")" && pwd)/$(basename "$CHANGED_LIST")")
+            # Any other selected change: the path-scoped gates read only it.
+            local changed_abs
+            changed_abs="$(cd "$(dirname "$CHANGED_LIST")" && pwd)/$(basename "$CHANGED_LIST")"
+            if [ "$(planned quality)" = select ]; then
+                sel=("HELIX_QC_CHANGED_FROM=$changed_abs")
+            else
+                case "$(plan_mode)" in selected | tests) sel=("HELIX_QC_GATE_CHANGED=$changed_abs") ;; esac
+            fi
             step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 HELIX_QC_SKIP_PYTHON_TESTS=1 "${sel[@]}" "${mk[@]}" quality ;;
         *) echo "✗ unknown step '$1'" >&2; return 2 ;;
     esac
