@@ -290,7 +290,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "ams_system_has_logo follows whether the syste
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "AMS header: one named unit is named; several units name the system",
+                 "AMS header: a unit without a display name and several units name the system",
                  "[ams][ams_state]") {
     auto& ams = AmsState::instance();
     ams.init_subjects(false);
@@ -298,7 +298,9 @@ TEST_CASE_METHOD(LVGLTestFixture,
     auto* mock_ptr = mock.get();
     ams.set_backend(std::move(mock));
     ams.sync_from_backend();
-    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) == "Mock MMU");
+    // The lone unit has only its internal name, "Mock MMU".
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) ==
+          "Happy Hare (Mock)");
 
     mock_ptr->set_multi_unit_mode(true);
     ams.sync_from_backend();

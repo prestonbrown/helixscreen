@@ -6676,6 +6676,8 @@ TEST_CASE("Happy Hare single v4 unit is named by its display_name",
     const auto info = helper.get_system_info();
     REQUIRE(info.units.size() == 1);
     CHECK(info.units[0].name == "QIDI-0");
+    // The configured name is one to show; the AMS header names the unit by it.
+    CHECK(info.units[0].display_name == "QIDI-0");
     CHECK(info.units[0].topology == PathTopology::HUB);
 }
 

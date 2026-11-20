@@ -813,13 +813,13 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     } else {
         sys_name = ams_type_to_string(info.type);
     }
-    // The header names the unit when the system is one named unit, as the multi-unit
-    // overview's unit view does; otherwise the system.
-    std::string header_name = sys_name;
-    if (!sys_name.empty() && info.units.size() == 1 &&
-        (!info.units[0].display_name.empty() || !info.units[0].name.empty())) {
-        header_name = ams_draw::get_unit_display_name(info.units[0], 0);
-    }
+    // The header names the unit when the system is one unit with a display name (one
+    // the user or the firmware gave it), as the multi-unit overview's unit view does;
+    // otherwise the system.
+    const std::string header_name =
+        !sys_name.empty() && info.units.size() == 1 && !info.units[0].display_name.empty()
+            ? ams_draw::get_unit_display_name(info.units[0], 0)
+            : sys_name;
     if (strcmp(lv_subject_get_string(&ams_system_name_), header_name.c_str()) != 0) {
         lv_subject_copy_string(&ams_system_name_, header_name.c_str());
     }

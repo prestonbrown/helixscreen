@@ -1643,6 +1643,9 @@ void AmsBackendHappyHare::initialize_slots(int gate_count) {
         AmsUnit unit;
         unit.unit_index = u;
         unit.name = unit_name(u);
+        // Only a name the config gives is one to show; "MMU" and "Unit N" are fallbacks.
+        if (u < static_cast<int>(machine_units_.size()))
+            unit.display_name = machine_units_[u].display_name;
         unit.slot_count = unit_gates;
         unit.first_slot_global_index = global_offset;
         unit.connected = true;
