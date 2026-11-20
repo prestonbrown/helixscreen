@@ -34,10 +34,11 @@ setup() {
     [ "$output" = "false" ]
 }
 
-@test "a release equal to latest does not reassert it" {
+@test "a re-run of the latest release keeps it latest" {
+    # make_latest=false on the current latest could demote it.
     run "$SCRIPT" v1.1.0 false v1.1.0
     [ "$status" -eq 0 ]
-    [ "$output" = "false" ]
+    [ "$output" = "true" ]
 }
 
 @test "with no latest release yet, a stable release becomes latest" {
