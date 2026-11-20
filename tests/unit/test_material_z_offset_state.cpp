@@ -15,13 +15,17 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/gcode_recording_api.h"
 #include "../test_helpers/modal_answer.h"
+#include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/tile_boxes.h"
 #include "app_globals.h"
 #include "material_z_offset_state.h"
 #include "moonraker_client_mock.h"
+#include "panel_widget_manager.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "save_config_restart.h"
 #include "settings_manager.h"
+#include "src/ui/panel_widgets/z_offset_widget.h"
 #include "tool_state.h"
 #include "z_offset_utils.h"
 
@@ -335,6 +339,33 @@ TEST_CASE_METHOD(MaterialStateFixture,
         CHECK(api.sent ==
               std::vector<std::string>{"SAVE_VARIABLE VARIABLE=helix_zoffset_petg VALUE=0.080"});
         CHECK_FALSE(sent_anything_that_folds_or_restarts());
+    }
+    SECTION("per material: the home tile's Save goes through too") {
+        enable();
+        helix::PanelWidgetManager::instance().init_widget_subjects();
+        helix::PanelWidgetHarness<helix::ZOffsetWidget> tile(test_screen(), get_printer_state());
+        tile.resize(1, 1, helix::test::kFull.w, helix::test::kFull.h);
+        lv_obj_t* save_btn = tile.child("z_offset_save_full");
+        REQUIRE(save_btn != nullptr);
+        REQUIRE_FALSE(lv_obj_is_hidden(save_btn));
+        lv_obj_send_event(save_btn, LV_EVENT_CLICKED, nullptr);
+        process_lvgl(50);
+        helix::test::answer_top_modal("btn_primary");
+        REQUIRE(wait_until([&] { return !api.sent.empty(); }, 5000));
+        CHECK(api.sent ==
+              std::vector<std::string>{"SAVE_VARIABLE VARIABLE=helix_zoffset_petg VALUE=0.080"});
+    }
+    SECTION("machine-wide: a caller that skips the route is refused as well") {
+        status(json{{"save_variables", {{"variables", {{"helix_material_offset_enabled", 0}}}}}});
+        REQUIRE_FALSE(state().start_macro_applies());
+        std::string error;
+        helix::zoffset::save_dirty_offsets(
+            &api, watch, ZOffsetCalibrationStrategy::PROBE_CALIBRATE,
+            get_printer_state().get_discovery(), true, []() {},
+            [&error](const std::string& e) { error = e; }, &get_printer_state());
+        process_lvgl(50);
+        CHECK(error.find("after the print") != std::string::npos);
+        CHECK(api.sent.empty());
     }
     SECTION("machine-wide: the guard holds and a tap that gets through is refused") {
         // The macro switched off: nothing owns the offset but the probe.
