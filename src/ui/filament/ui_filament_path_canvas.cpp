@@ -1461,6 +1461,7 @@ bool ui_filament_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out
     return true;
 }
 
+// NAMESPACE_OK: the widget's C getter API, beside its siblings
 bool ui_filament_path_canvas_get_bypass_spool_area(lv_obj_t* obj, lv_area_t* out) {
     int32_t cx = 0, cy = 0;
     if (!out || !ui_filament_path_canvas_get_bypass_merge_pos(obj, &cx, &cy))
