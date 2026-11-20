@@ -390,16 +390,16 @@ void HomePanel::build_carousel(int initial_page) {
     bool show_arrows = get_runtime_config()->test_mode ||
                        (display != nullptr && display->needs_touch_calibration());
     if (show_arrows) {
-        auto create_arrow = [this](const char* name, const char* icon, const char* align,
-                                   const char* callback) -> lv_obj_t* {
-            const char* attrs[] = {"name", name,       "icon",   icon,   "align",
-                                   align,  "callback", callback, nullptr};
-            return static_cast<lv_obj_t*>(lv_xml_create(carousel_host_, "carousel_arrow", attrs));
-        };
+        const char* left_attrs[] = {"name",  "home_arrow_left", "icon",     "chevron_left",
+                                    "align", "left_mid",        "callback", "on_home_arrow_left",
+                                    nullptr};
+        const char* right_attrs[] = {"name",  "home_arrow_right", "icon",     "chevron_right",
+                                     "align", "right_mid",        "callback", "on_home_arrow_right",
+                                     nullptr};
         arrow_left_ =
-            create_arrow("home_arrow_left", "chevron_left", "left_mid", "on_home_arrow_left");
+            static_cast<lv_obj_t*>(lv_xml_create(carousel_host_, "carousel_arrow", left_attrs));
         arrow_right_ =
-            create_arrow("home_arrow_right", "chevron_right", "right_mid", "on_home_arrow_right");
+            static_cast<lv_obj_t*>(lv_xml_create(carousel_host_, "carousel_arrow", right_attrs));
     }
 
     // The swipe and the slot's reach for the edit state this carousel is built

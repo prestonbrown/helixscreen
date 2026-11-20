@@ -22,7 +22,6 @@ unreferenced:on_profile_4_delete
 unreferenced:on_profile_4_rename
 unreferenced:on_zone_tab_clicked
 unreferenced:plugin_event
-unreferenced:temp_carousel_page_cb
 unreferenced:temperature
 unregistered:bed_temp_clicked_cb
 unregistered:chamber_temp_clicked_cb
