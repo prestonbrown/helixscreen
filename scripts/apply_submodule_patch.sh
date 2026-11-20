@@ -43,6 +43,12 @@ set -u
 
 submodule=$1
 patch_file=$2
+# Every git call below runs under -C <submodule>, which would resolve a
+# relative patch path from inside the submodule.
+case $patch_file in
+  /*) ;;
+  *) patch_file="$PWD/$patch_file" ;;
+esac
 label=$3
 note=${4:-}
 

@@ -115,6 +115,17 @@ EOF
     grep -q '^ALPHA$' "$SUB/one.txt"
 }
 
+# mk/deps.mk names the libnl patches relative to the tree; git resolves a
+# relative patch path after -C has moved into the submodule.
+@test "a patch named relative to the tree applies" {
+    local helper="$PWD/$HELPER"
+    cd "$ROOT" || return 1
+    run "$helper" lib/fake patches/good.patch "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    grep -q '^ALPHA$' "$SUB/one.txt"
+}
+
 @test "a dead patch warns but does not fail an incremental run" {
     run "$HELPER" "$SUB" "$ROOT/patches/dead.patch" "fixture patch"
     [ "$status" -eq 0 ]
