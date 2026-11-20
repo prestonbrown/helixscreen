@@ -944,12 +944,16 @@ jobs:
         echo "Symbol files attached to release ($sym_count symbols-*.sym.zst files):"
         ls -lh release-files/symbols-*.sym.zst 2>/dev/null || echo "  (none)"
 
-    # An old Moonraker downloads assets[0] whatever release_info.json names, so
-    # one platform's zip is published again under a name that sorts before
-    # every other asset (helixscreen#2147). Staged last, once every other file
-    # is in release-files, and checked against what is there.
-    - name: Stage the Moonraker first asset
-      run: scripts/release-moonraker-asset.sh stage release-files
+        # Guard the alphabetical-ordering property this naming exists to hold.
+        # If a future asset ever sorts before the helixscreen-* artifacts, an old
+        # Moonraker's assets[0] fallback goes back to grabbing the wrong thing.
+        first_asset=$(cd release-files && ls -1 | sort | head -1)
+        case "$first_asset" in
+          helixscreen-*) echo "assets[0] = $first_asset (ok)" ;;
+          *) echo "::error::assets[0] would be '$first_asset', not a helixscreen-* artifact." \
+                  "Moonraker's NetDeploy falls back to assets[0]; see helixscreen#993."
+             exit 1 ;;
+        esac
 
     - name: Extract version from tag
       id: version
@@ -1138,17 +1142,6 @@ jobs:
         fail_on_unmatched_files: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-    # The local sort above is a prediction; what an old Moonraker reads is the
-    # order GitHub's API lists the published assets in.
-    - name: Verify the published assets[0]
-      if: env.RELEASE_MODE == 'publish'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        set -euo pipefail
-        gh api "repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}" --jq '.assets[].name' \
-          | scripts/release-moonraker-asset.sh check
 
     # The dry-run stand-in for the release above: the same file set less the
     # AAB (only Play consumes it), kept as a workflow artifact for

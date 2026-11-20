@@ -1171,7 +1171,7 @@ configure_moonraker_updates() {
     # the platform whose zip is the release's assets[0]: the right archive
     # whatever this Moonraker reads.
     if [ "$mr_support" != "supported" ] && [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
-        log_info "This Moonraker downloads the release's first asset, $(helix_moonraker_first_asset), which is this platform's zip."
+        log_info "This Moonraker downloads the release's first asset, $(helix_self_update_asset "$platform"), which is this platform's zip."
         mr_support="first-asset"
     fi
 

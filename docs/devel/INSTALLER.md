@@ -541,14 +541,11 @@ removes a stanza an earlier install left in the user conf:
   outside the chroot's binds gets no stanza.
 - Moonraker downloads this platform's zip. Forge-X ships a Moonraker with zip_deploy.py,
   which downloads a release's `assets[0]` whatever release_info.json names (#993).
-  `release.yml` therefore publishes one more copy of the AD5M zip,
-  `helixscreen-ad5m-moonraker.zip`, which sorts before every other asset, and fails the
-  release when GitHub's listing does not start with it
-  (`scripts/release-moonraker-asset.sh`). Only one asset can be first, so a Moonraker
-  without `asset_name` support gets a stanza only on the platform that copy serves
-  (`HELIX_MOONRAKER_FIRST_ASSET_PLATFORM` in `scripts/lib/installer/platform.sh`); the
-  Forge-X AD5X needs a Moonraker that reads `asset_name`. Renaming either existing AD5M asset
-  instead would break the installer's downloads and every partner that links them.
+  GitHub lists assets sorted by name and releases carry no `.tar.gz` assets, so
+  `helixscreen-ad5m.zip` is `assets[0]`. Only one asset can be first, so a Moonraker without
+  `asset_name` support gets a stanza only on that platform
+  (`scripts/lib/installer/platform.sh#helix_zip_is_first_release_asset`); the Forge-X AD5X
+  needs a Moonraker that reads `asset_name`.
 
 No `managed_services` is written: Forge-X's `[machine]` provider is `simple`, which restarts
 a service by running `<script_path>/<name> restart` from the mod's tree, and its

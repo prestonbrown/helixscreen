@@ -139,7 +139,6 @@ tests/shell/test_release_config_deploy.bats	Makefile config/99-helixscreen-backl
 tests/shell/test_release_dry_run.bats	scripts/generate-manifest.sh scripts/verify-dry-run-release.sh
 tests/shell/test_release_gate.bats	CHANGELOG.md VERSION.txt scripts/android-version-code.sh scripts/changelog-section.sh scripts/generate-whatsnew.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/release-gate.sh scripts/release-health.sh
 tests/shell/test_release_health.bats	VERSION.txt scripts/release-health.sh server/telemetry-worker/
-tests/shell/test_release_moonraker_asset.bats	scripts/release-moonraker-asset.sh scripts/lib/installer/platform.sh .github/workflows/release.yml
 tests/shell/test_release_naming_agreement.bats	scripts/dev-release.sh scripts/generate-manifest.sh scripts/lib/installer/release.sh tests/fixtures/version_precedence.txt
 tests/shell/test_release_packaging_artifacts.bats	lv_conf.h mk/cross.mk moonraker-plugin/helix_print.py moonraker-plugin/install.sh scripts/gen_splash_3d.py scripts/lib/lvgl_image_lib.sh
 tests/shell/test_release_packaging_make.bats	Makefile mk/cross.mk

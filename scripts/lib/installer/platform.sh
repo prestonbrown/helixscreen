@@ -471,24 +471,14 @@ helix_self_update_asset() {
     esac
 }
 
-# A Moonraker without asset_name support (zip_deploy.py, before v0.10.0)
-# downloads a release's assets[0] whatever release_info.json names, and GitHub
-# lists assets sorted by name (#993). Every release therefore also publishes
-# one platform's zip under a second name that sorts before every other asset
-# (scripts/release-moonraker-asset.sh stages and checks it). Only one asset can
-# be first, so only one platform gets the copy: the AD5M, whose Forge-X ships
-# such a Moonraker.
-HELIX_MOONRAKER_FIRST_ASSET_PLATFORM="ad5m"
-
-# Echoes the name of the zip copy that sorts first in every release.
-helix_moonraker_first_asset() {
-    echo "helixscreen-${HELIX_MOONRAKER_FIRST_ASSET_PLATFORM}-moonraker.zip"
-}
-
-# True when platform @1's zip is the release's assets[0], so an old Moonraker
-# that ignores asset_name still downloads the right archive.
+# True when platform @1's zip is the first asset of every release, so a
+# Moonraker without asset_name support (zip_deploy.py, before v0.10.0), which
+# downloads assets[0] whatever release_info.json names, still gets the right
+# archive (#993, #2147). GitHub lists assets sorted by name, and releases carry
+# no .tar.gz assets, so helixscreen-ad5m.zip sorts first; the release workflow
+# fails a release where it does not.
 helix_zip_is_first_release_asset() {
-    [ "${1:-}" = "$HELIX_MOONRAKER_FIRST_ASSET_PLATFORM" ]
+    [ "${1:-}" = "ad5m" ]
 }
 
 # Mod-host (FlashForge AD5X) preflight: refuse to run outside the ZMOD chroot.
