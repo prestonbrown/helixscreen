@@ -687,7 +687,7 @@ class HelixConfig:
 
     async def handle_config_edit(self, web_request: Any) -> Dict[str, Any]:
         await self._check_enabled()
-        edits = web_request.get_list("edits", [])
+        edits = web_request.get("edits", [])
         dry_run = web_request.get_boolean("dry_run", False)
         root = self.config_root()
         loop = self.server.get_event_loop()
