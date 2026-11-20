@@ -1628,6 +1628,36 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
 }
 
 TEST_CASE_METHOD(AmsTrayPanelFixture,
+                 "AMS unit: with the endless-spool status shown, the path stops above it",
+                 "[ams][tray][ui_integration][full-height]") {
+    const bool small = GENERATE(false, true);
+    CAPTURE(small);
+    helix::test::ScopedGeometry scoped(small ? 480 : 800, small ? 272 : 480);
+    unit_name_ = "ACE 1";
+    build("passive", 4, /*tool_changer=*/false, /*ace=*/true);
+    // An attention state: the status line shows under the path.
+    lv_subject_set_int(AmsState::instance().get_endless_state_subject(),
+                       static_cast<int>(helix::printer::EndlessSpoolStatusKind::Off));
+    lv_subject_set_string(AmsState::instance().get_endless_text_subject(),
+                          "Endless spool is off: a runout stops the print");
+    lv_obj_update_layout(test_screen());
+    panel_->refresh_slots();
+    process_lvgl(20);
+    lv_obj_update_layout(test_screen());
+    lv_obj_t* status = lv_obj_find_by_name(panel_obj_, "endless_status");
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    REQUIRE((status != nullptr && canvas != nullptr));
+    REQUIRE_FALSE(lv_obj_is_hidden(status));
+    lv_area_t sa, cc, head;
+    lv_obj_get_coords(status, &sa);
+    lv_obj_get_coords(canvas, &cc);
+    REQUIRE(ui_filament_path_canvas_get_toolhead_box(canvas, &head));
+    CAPTURE(sa.y1, sa.y2, cc.y1, cc.y2, head.y2);
+    CHECK(cc.y2 < sa.y1);
+    CHECK(head.y2 < sa.y1);
+}
+
+TEST_CASE_METHOD(AmsTrayPanelFixture,
                  "AMS unit: each label stands over its own spool on a short vertical tick",
                  "[ams][tray][ui_integration][stagger][over-lane]") {
     const bool art = GENERATE(false, true);
@@ -1800,19 +1830,38 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_area_t view;
     lv_obj_get_coords(lv_obj_get_parent(pill), &view);
     // At the drawing's foot, or the view's bottom where the foot stands lower, risen clear of
-    // the bypass spool where it would stand on it.
+    // the bypass spool below it where it would stand on it.
     const int32_t rest = std::min(aa.y1 + drawn.y2 + tuck, view.y2);
     lv_area_t spool;
+    REQUIRE(helix::ui::bypass_spool_drawn_area(
+        lv_obj_get_parent(lv_obj_find_by_name(panel_obj_, "path_canvas")), &spool));
+    CAPTURE(rest, spool.x1, spool.y1, spool.x2, spool.y2);
     const int32_t gap = theme_manager_get_spacing("space_xs");
-    int32_t lift = 0;
-    if (ui_filament_path_canvas_get_bypass_spool_area(
-            lv_obj_find_by_name(panel_obj_, "path_canvas"), &spool)) {
-        CAPTURE(spool.x1, spool.y1, spool.x2, spool.y2);
-        lift = helix::ui::ams_detail_layout::env_pill_lift(
-            {pa.x1, pa.y1 + rest - pa.y2, pa.x2, rest}, spool, gap);
-        CHECK((pa.x2 + gap < spool.x1 || pa.y2 + gap <= spool.y1));
-    }
-    CHECK(pa.y2 == rest - lift);
+    const bool over_spool = pa.x2 + gap >= spool.x1 && spool.x2 + gap >= pa.x1;
+    REQUIRE(over_spool);
+    CHECK(pa.y2 == std::min(rest, spool.y1 - gap));
+    // The spool's label appearing above it lifts the pill clear of that too, and going away
+    // lets it back down; asking again changes nothing.
+    lv_obj_t* canvas = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    lv_obj_t* material = lv_obj_find_by_name(lv_obj_get_parent(canvas), "bypass_material_label");
+    REQUIRE(material != nullptr);
+    lv_label_set_text(material, "PLA");
+    lv_obj_set_hidden(material, false);
+    helix::ui::ams_detail_keep_env_pill_clear(canvas);
+    helix::ui::ams_detail_keep_env_pill_clear(canvas);
+    lv_obj_update_layout(test_screen());
+    lv_area_t with_label;
+    REQUIRE(helix::ui::bypass_spool_drawn_area(lv_obj_get_parent(canvas), &with_label));
+    lv_area_t lifted;
+    lv_obj_get_coords(pill, &lifted);
+    CAPTURE(with_label.y1, lifted.y2);
+    CHECK(lifted.y2 == std::min(rest, with_label.y1 - gap));
+    lv_obj_set_hidden(material, true);
+    helix::ui::ams_detail_keep_env_pill_clear(canvas);
+    lv_obj_update_layout(test_screen());
+    lv_area_t back;
+    lv_obj_get_coords(pill, &back);
+    CHECK(back.y2 == pa.y2);
     CHECK(pa.x2 <= view.x2);
 }
 
@@ -1960,17 +2009,22 @@ TEST_CASE("The environment pill rises clear of what stands below it, and only th
           "[ams][tray]") {
     using helix::ui::ams_detail_layout::env_pill_lift;
     const lv_area_t pill{200, 100, 240, 140};
+    constexpr int32_t kTop = 0;
     // A spool box under the pill's right half, its top 10 px above the pill's bottom.
-    CHECK(env_pill_lift(pill, {220, 130, 270, 180}, 4) == 14);
+    CHECK(env_pill_lift(pill, {220, 130, 270, 180}, 4, kTop) == 14);
     // Already a gap clear above it, beside it, or wholly above the pill: nothing to do.
-    CHECK(env_pill_lift(pill, {220, 145, 270, 190}, 4) == 0);
-    CHECK(env_pill_lift(pill, {245, 120, 290, 170}, 4) == 0);
-    CHECK(env_pill_lift(pill, {200, 40, 240, 95}, 4) == 0);
+    CHECK(env_pill_lift(pill, {220, 145, 270, 190}, 4, kTop) == 0);
+    CHECK(env_pill_lift(pill, {245, 120, 290, 170}, 4, kTop) == 0);
+    CHECK(env_pill_lift(pill, {200, 40, 240, 95}, 4, kTop) == 0);
+    // One ending just above the pill, within the gap, stays above it: the pill never jumps it.
+    CHECK(env_pill_lift(pill, {200, 60, 240, 97}, 4, kTop) == 0);
     // Within the gap beside it still counts as under it.
-    CHECK(env_pill_lift(pill, {243, 138, 290, 170}, 4) == 6);
+    CHECK(env_pill_lift(pill, {243, 138, 290, 170}, 4, kTop) == 6);
+    // It rises no higher than the view's top.
+    CHECK(env_pill_lift(pill, {220, 110, 270, 180}, 4, 95) == 5);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "The bypass spool's room is where the overlay stands",
+TEST_CASE_METHOD(LVGLTestFixture, "The bypass spool's drawn area is its box and its shown label",
                  "[ams][tray]") {
     lv_obj_t* parent = lv_obj_create(test_screen());
     lv_obj_set_size(parent, 480, 272);
@@ -1978,16 +2032,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "The bypass spool's room is where the overlay 
     helix::ui::BypassSpoolWidgets w = helix::ui::bypass_spool_create(parent, nullptr, nullptr);
     REQUIRE(w.valid());
     helix::ui::bypass_spool_set_position(w, 300, 200);
-    lv_obj_update_layout(parent);
-    lv_area_t box, parent_area;
+    lv_area_t area, box;
+    REQUIRE(helix::ui::bypass_spool_drawn_area(parent, &area));
     lv_obj_get_coords(w.box, &box);
-    lv_obj_get_coords(parent, &parent_area);
-    const lv_area_t room = helix::ui::bypass_spool_area(300, 200, false);
-    CHECK(room.x1 == box.x1 - parent_area.x1);
-    CHECK(room.y1 == box.y1 - parent_area.y1);
-    CHECK(room.x2 == box.x2 - parent_area.x1);
-    CHECK(room.y2 == box.y2 - parent_area.y1);
-    // The material label's row stands above the box.
-    CHECK(helix::ui::bypass_spool_area(300, 200, true).y1 < room.y1);
+    CHECK((area.x1 == box.x1 && area.y1 == box.y1 && area.x2 == box.x2 && area.y2 == box.y2));
+    // A material name wider than the box widens the area to the label's own width.
+    helix::ui::bypass_spool_set_material(w, "A material name far wider than the spool box");
+    helix::ui::bypass_spool_set_position(w, 300, 200);
+    lv_area_t label;
+    REQUIRE(helix::ui::bypass_spool_drawn_area(parent, &area));
+    lv_obj_get_coords(w.material_label, &label);
+    CHECK(area.y1 == label.y1);
+    CHECK(area.x1 == std::min(box.x1, label.x1));
+    CHECK(area.x2 == std::max(box.x2, label.x2));
+    CHECK(lv_area_get_width(&label) > lv_area_get_width(&box));
+    // Hidden, it covers nothing.
+    helix::ui::bypass_spool_set_visible(w, false);
+    CHECK_FALSE(helix::ui::bypass_spool_drawn_area(parent, &area));
     helix::ui::bypass_spool_destroy(w);
 }

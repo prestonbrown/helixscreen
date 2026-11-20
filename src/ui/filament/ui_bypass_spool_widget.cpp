@@ -97,6 +97,9 @@ constexpr int32_t kLabelHeight = 16;
 // line and the "Bypass" label under it.
 constexpr int32_t kTubeDrop = 10;
 constexpr int32_t kTubeClear = 8;
+// What bypass_spool_drawn_area() finds the overlay by among its parent's children.
+constexpr const char* kBoxName = "bypass_spool_box";
+constexpr const char* kMaterialLabelName = "bypass_material_label";
 } // namespace
 
 int32_t bypass_spool_bottom_above_merge() {
@@ -114,11 +117,34 @@ int32_t box_top_on(int32_t cy, int32_t box_size) {
 }
 } // namespace
 
-lv_area_t bypass_spool_area(int32_t cx, int32_t cy, bool with_label) {
-    const int32_t size = bypass_spool_box_size();
-    const int32_t top = box_top_on(cy, size);
-    return {cx - size / 2, with_label ? top - kLabelHeight - kLabelGap : top,
-            cx - size / 2 + size - 1, top + size - 1};
+bool bypass_spool_drawn_area(lv_obj_t* parent, lv_area_t* out) {
+    if (!parent || !out)
+        return false;
+    lv_obj_t* box = nullptr;
+    lv_obj_t* material = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(parent); ++i) {
+        lv_obj_t* child = lv_obj_get_child(parent, (int32_t)i);
+        const char* name = lv_obj_get_name(child);
+        if (!name)
+            continue;
+        if (std::strcmp(name, kBoxName) == 0)
+            box = child;
+        else if (std::strcmp(name, kMaterialLabelName) == 0)
+            material = child;
+    }
+    if (!box || lv_obj_is_hidden(box))
+        return false;
+    lv_obj_update_layout(parent);
+    lv_obj_get_coords(box, out);
+    if (material && !lv_obj_is_hidden(material)) {
+        lv_area_t m;
+        lv_obj_get_coords(material, &m);
+        out->x1 = LV_MIN(out->x1, m.x1);
+        out->y1 = LV_MIN(out->y1, m.y1);
+        out->x2 = LV_MAX(out->x2, m.x2);
+        out->y2 = LV_MAX(out->y2, m.y2);
+    }
+    return true;
 }
 
 BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click, void* user_data) {
@@ -130,6 +156,7 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     const int32_t spool_size = ams_slot_spool_size();
     w.box_size = bypass_spool_box_size();
     w.box = lv_obj_create(parent);
+    lv_obj_set_name(w.box, kBoxName);
     lv_obj_set_size(w.box, w.box_size, w.box_size);
     lv_obj_set_style_pad_all(w.box, 0, 0);
     lv_obj_set_style_bg_opa(w.box, LV_OPA_TRANSP, 0);
@@ -160,6 +187,7 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     w.cached_bypass_label_w = lv_obj_get_width(w.bypass_label);
 
     w.material_label = lv_label_create(parent);
+    lv_obj_set_name(w.material_label, kMaterialLabelName);
     lv_label_set_text(w.material_label, "");
     lv_obj_set_style_text_color(w.material_label, theme_manager_get_color("text"), 0);
     lv_obj_set_floating(w.material_label, true);

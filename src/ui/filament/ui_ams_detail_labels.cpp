@@ -11,6 +11,7 @@
 #include "ui_ams_lane_spool.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
+#include "ui_bypass_spool_widget.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_toolhead_view.h"
 #include "ui_unit_art.h"
@@ -144,12 +145,26 @@ lv_obj_t* view_column(lv_obj_t* from) {
 /// The height a path container that fills its column (flex grow) stands short of the room the
 /// column gives it: flex sizes a growing item without its margins, so a negative top margin
 /// (the container tucked up under the unit) lifts its bottom by as much. The canvas reaches
-/// down by it; a container below which more follows keeps it as a bottom margin, so what
-/// follows stays clear (ams_overview_panel.xml).
+/// down by it, as far as the column's foot where nothing follows the container, and no further
+/// than the container's bottom margin keeps what does follow clear (the AMS panel's endless-spool
+/// status, the overview's page dots).
 int32_t tucked_container_shortfall(lv_obj_t* box) {
     if (lv_obj_get_style_flex_grow(box, LV_PART_MAIN) <= 0)
         return 0;
-    return std::max<int32_t>(0, -lv_obj_get_style_margin_top(box, LV_PART_MAIN));
+    int32_t reach = std::max<int32_t>(0, -lv_obj_get_style_margin_top(box, LV_PART_MAIN));
+    lv_obj_t* parent = lv_obj_get_parent(box);
+    bool after = false;
+    for (uint32_t i = 0; parent && i < lv_obj_get_child_count(parent); ++i) {
+        lv_obj_t* sibling = lv_obj_get_child(parent, (int32_t)i);
+        if (sibling == box) {
+            after = true;
+        } else if (after && !lv_obj_is_hidden(sibling) && !lv_obj_is_floating(sibling)) {
+            reach = std::min(
+                reach, std::max<int32_t>(0, lv_obj_get_style_margin_bottom(box, LV_PART_MAIN)));
+            break;
+        }
+    }
+    return reach;
 }
 
 /// A column sized to its content (portrait, the sidebar below it) takes this share of the
@@ -394,16 +409,19 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
                                                over_lane_label_max_rows(), form.pack);
 }
 
-/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands:
-/// just under the foot, the lane's number standing on the unit's face above it.
-int32_t env_pill_lift(const lv_area_t& pill, const lv_area_t& keep_out, int32_t gap) {
+int32_t env_pill_lift(const lv_area_t& pill, const lv_area_t& keep_out, int32_t gap, int32_t top) {
     const bool beside = pill.x2 + gap < keep_out.x1 || keep_out.x2 + gap < pill.x1;
-    const bool above = keep_out.y2 + gap < pill.y1;
+    // Only what stands below the pill pushes it up: one above it, even within the gap, is left
+    // for its own layout.
+    const bool above = keep_out.y1 + keep_out.y2 < pill.y1 + pill.y2;
     if (beside || above)
         return 0;
-    return std::max<int32_t>(0, pill.y2 - (keep_out.y1 - gap));
+    const int32_t lift = std::max<int32_t>(0, pill.y2 - (keep_out.y1 - gap));
+    return std::min(lift, std::max<int32_t>(0, pill.y1 - top));
 }
 
+/// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands:
+/// just under the foot, the lane's number standing on the unit's face above it.
 int32_t art_lane_band_drop() {
     return std::max<int32_t>(2, theme_manager_get_spacing("space_xs"));
 }
@@ -1013,25 +1031,41 @@ using namespace helix::ui::ams_detail_layout;
 
 namespace {
 /// The environment pill stands against the drawn unit's foot; a unit drawn large brings it
-/// down onto the bypass spool under the path's right side. It rises clear of the spool.
+/// down onto the bypass spool beside the path, which it rises clear of. Measured from the
+/// pill's own place each time, so the spool's label coming or going moves it back as well.
 void keep_env_pill_clear_of_bypass(lv_obj_t* canvas) {
     lv_obj_t* pill = s_tray.env_indicator;
+    if (!pill || !canvas || view_column(pill) != view_column(canvas))
+        return;
+    // DECLARATIVE_OK: measured layout; the pill clears the bypass spool below it
+    if (s_tray.env_pill_lift != 0) {
+        lv_obj_set_style_translate_y(
+            pill, lv_obj_get_style_translate_y(pill, LV_PART_MAIN) + s_tray.env_pill_lift,
+            LV_PART_MAIN);
+        s_tray.env_pill_lift = 0;
+    }
     lv_area_t spool;
-    if (!pill || lv_obj_is_hidden(pill) ||
-        !ui_filament_path_canvas_get_bypass_spool_area(canvas, &spool))
+    if (lv_obj_is_hidden(pill) ||
+        !helix::ui::bypass_spool_drawn_area(lv_obj_get_parent(canvas), &spool))
         return;
     lv_obj_update_layout(pill);
-    lv_area_t a;
+    lv_area_t a, view;
     lv_obj_get_coords(pill, &a);
-    const int32_t lift = env_pill_lift(a, spool, theme_manager_get_spacing("space_xs"));
+    lv_obj_get_coords(lv_obj_get_parent(pill), &view);
+    const int32_t lift = env_pill_lift(a, spool, theme_manager_get_spacing("space_xs"), view.y1);
     if (lift <= 0)
         return;
     // DECLARATIVE_OK: measured layout; the pill clears the bypass spool below it
     lv_obj_set_style_translate_y(pill, lv_obj_get_style_translate_y(pill, LV_PART_MAIN) - lift,
                                  LV_PART_MAIN);
+    s_tray.env_pill_lift = lift;
     spdlog::debug("[AmsDetail] Env pill lifted {} px clear of the bypass spool", lift);
 }
 } // namespace
+
+void helix::ui::ams_detail_keep_env_pill_clear(lv_obj_t* canvas) {
+    keep_env_pill_clear_of_bypass(canvas);
+}
 
 bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid) {
     if (!canvas)

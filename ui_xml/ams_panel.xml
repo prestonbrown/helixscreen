@@ -18,7 +18,9 @@
     <style name="left_portrait" height="content" flex_grow="0"/>
     <!-- The canvas tucks under the spool box's front edge, where the lanes enter it;
          deeper in portrait, where every pixel of height goes to the sidebar. -->
-    <style name="path_landscape" flex_grow="1" margin_top="-8"/>
+    <!-- The bottom margin gives the endless-spool status below back the height the tuck takes:
+         the canvas reaches down into it only while that row is hidden. -->
+    <style name="path_landscape" flex_grow="1" margin_top="-8" margin_bottom="8"/>
     <style name="path_portrait" height="#ams_portrait_path_h" flex_grow="0" margin_top="-12"/>
     <style name="waiting_landscape" flex_grow="1"/>
     <!-- The header names the system: the logo and the name centred on one axis in

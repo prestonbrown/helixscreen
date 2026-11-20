@@ -215,6 +215,9 @@ class AmsPanel : public PanelBase {
     ObserverGuard
         supports_bypass_observer_;         ///< Bypass node appears/disappears with backend support
     ObserverGuard bypass_active_observer_; ///< Active ring follows bypass engage/disengage
+    /// The endless-spool status line under the path showing or hiding re-fits the unit above it.
+    ObserverGuard endless_status_observer_;
+    int endless_status_shown_ = -1; ///< whether that line showed at the last layout; -1 unknown
     bool backend_rebuild_pending_ = false; ///< Coalesces rapid backend count changes
     bool slot_creation_pending_ = false;   ///< Coalesces rapid slot count changes
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait

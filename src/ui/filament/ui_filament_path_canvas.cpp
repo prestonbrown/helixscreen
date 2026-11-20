@@ -12,7 +12,6 @@
 #include "ui_filament_path_canvas.h"
 
 #include "ui_ams_slot.h"
-#include "ui_bypass_spool_widget.h"
 #include "ui_filament_path_internal.h"
 #include "ui_filament_path_plan.h"
 #include "ui_fonts.h"
@@ -1458,14 +1457,5 @@ bool ui_filament_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out
     if (cy_out) {
         *cy_out = obj_coords.y1 + (int32_t)(height * kBypassMergeYRatio);
     }
-    return true;
-}
-
-// NAMESPACE_OK: the widget's C getter API, beside its siblings
-bool ui_filament_path_canvas_get_bypass_spool_area(lv_obj_t* obj, lv_area_t* out) {
-    int32_t cx = 0, cy = 0;
-    if (!out || !ui_filament_path_canvas_get_bypass_merge_pos(obj, &cx, &cy))
-        return false;
-    *out = helix::ui::bypass_spool_area(cx, cy, get_data(obj)->bypass_has_spool);
     return true;
 }

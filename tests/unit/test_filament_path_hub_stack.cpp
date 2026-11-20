@@ -639,6 +639,12 @@ TEST_CASE("Under a view scale a hub path keeps its runs under the unit short at 
                            2.0f * (kScaledFanFillet + 1.0f);
         CHECK(lean <= drop + 0.5f);
         tightest = std::min(tightest, drop - lean);
+        // Each bend's fillet fits on the straight leg the router keeps beside it: the lane bends
+        // round, with no step where a fillet would run past its leg.
+        if (std::fabs(lane.pts[3].x - lane.pts[0].x) > kStraightLaneSlack) {
+            CHECK(lane.pts[1].y - lane.pts[0].y >= kScaledFanFillet - 0.5f);
+            CHECK(lane.pts[3].y - lane.pts[2].y >= kScaledFanFillet - 0.5f);
+        }
     }
     CHECK(tightest <= 2.5f);
     // The head stands a little off the canvas bottom, more on a larger view.
@@ -702,6 +708,49 @@ TEST_CASE("An empty hub output sensor reads as a dark inset on the hub box's edg
     in_box.state = BandState::Loaded;
     in_box.fill = lv_color_hex(0x00FF00);
     CHECK(lv_color_to_u32(band_color(in_box, pal)) == lv_color_to_u32(in_box.fill));
+}
+
+TEST_CASE("Under a view scale per-lane paths keep their box-edge rule; a selector's head its foot",
+          "[filament-path][hub-stack]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 17;
+    d.view_unit = 9.5f;
+    d.theme.tube_gauge = 4;
+    d.theme.sensor_radius = 3;
+    g.height = 200;
+    const int32_t cap = (d.theme.tube_gauge + 1) / 2;
+    const int32_t one_stub = d.theme.tube_gauge + kBandThickness;
+    const int32_t two_stub = 2 * d.theme.tube_gauge + kBandThickness;
+    SECTION("PARALLEL and MIXED lanes hang from the box edge only with two tubes' room") {
+        const bool mixed = GENERATE(false, true);
+        CAPTURE(mixed);
+        d.topology =
+            static_cast<int>(mixed ? helix::PathTopology::MIXED : helix::PathTopology::PARALLEL);
+        if (mixed)
+            d.slot_is_hub_routed[0] = d.slot_is_hub_routed[1] = true;
+        const auto rows = [&](int32_t entry) {
+            g.lane_entry_y = entry;
+            return mixed ? std::pair{compute_mixed_frame(d, g).entry_y,
+                                     compute_mixed_frame(d, g).sensor_y}
+                         : std::pair{parallel_rows(d, g).entry_y, parallel_rows(d, g).sensor_y};
+        };
+        const int32_t sensor = rows(INT32_MIN).second;
+        // Room for one tube and band, not two: the lanes keep their own entry row.
+        const int32_t short_edge = sensor - cap - one_stub - 1;
+        CHECK(rows(short_edge).first != short_edge + cap);
+        // Room for two: they hang from the edge.
+        const int32_t edge = sensor - cap - two_stub - 1;
+        CHECK(rows(edge).first == edge + cap);
+    }
+    SECTION("a LINEAR selector's head stands its foot off the canvas bottom") {
+        d.topology = static_cast<int>(helix::PathTopology::LINEAR);
+        const int32_t nozzle = linear_hub_nozzle_y(d, g);
+        // 9.5 px to the unit: a quarter unit rounds to 2 px.
+        CHECK(toolhead_glyph_bounds(0, nozzle, d.theme.extruder_scale).bottom ==
+              g.y_off + g.height - 2);
+    }
 }
 
 TEST_CASE("A path no taller canvas would help asks for no height past its own",

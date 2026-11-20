@@ -402,6 +402,28 @@ void AmsPanel::init_subjects() {
         [](AmsPanel* self, int /*active*/) { self->update_bypass_spool_from_state(); },
         AmsState::instance().get_subjects_lifetime());
 
+    // ams_panel.xml hides the line for kinds Hidden and On (hide_when_healthy); the path stands
+    // over it, so it showing or hiding lays the unit and its path out again.
+    endless_status_observer_ = observe<int>(
+        AmsState::instance().get_endless_state_subject(), this,
+        [](AmsPanel* self, int kind) {
+            const int shown =
+                kind != static_cast<int>(helix::printer::EndlessSpoolStatusKind::Hidden) &&
+                kind != static_cast<int>(helix::printer::EndlessSpoolStatusKind::On);
+            const bool changed =
+                self->endless_status_shown_ >= 0 && shown != self->endless_status_shown_;
+            self->endless_status_shown_ = shown;
+            if (!changed || !self->open_ || !self->panel_ || self->slot_creation_pending_)
+                return;
+            self->slot_creation_pending_ = true;
+            self->object_lifetime_.defer("AmsPanel::endless_status_relayout", [self]() {
+                self->slot_creation_pending_ = false;
+                if (self->open_ && self->current_slot_count_ > 0)
+                    self->create_slots(self->current_slot_count_);
+            });
+        },
+        AmsState::instance().get_subjects_lifetime());
+
     // UI module subjects are now encapsulated in their respective classes:
     // - helix::ui::AmsEditOverlay
     // - helix::ui::AmsColorPicker
@@ -986,6 +1008,7 @@ void AmsPanel::update_bypass_spool_position() {
     lv_obj_get_content_coords(parent, &parent_abs);
     helix::ui::bypass_spool_set_position(bypass_widgets_, abs_cx - parent_abs.x1,
                                          abs_cy - parent_abs.y1);
+    helix::ui::ams_detail_keep_env_pill_clear(path_canvas_);
 }
 
 void AmsPanel::update_bypass_spool_from_state() {
@@ -997,6 +1020,7 @@ void AmsPanel::update_bypass_spool_from_state() {
         helix::ui::bypass_node_visible_for(AmsState::instance().get_backend());
     helix::ui::bypass_spool_sync_from_state(bypass_widgets_, node_visible);
     if (!node_visible) {
+        helix::ui::ams_detail_keep_env_pill_clear(path_canvas_);
         return;
     }
 

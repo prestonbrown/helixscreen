@@ -66,7 +66,8 @@ void place_tool_badges();
 /// A lane's spool changed what it shows: the labels and the art's marks follow.
 void unit_view_lane_changed(void* user);
 /// How far the environment pill at @p pill must rise to stand @p gap clear above @p keep_out
-/// where the two overlap, each side grown by @p gap; 0 where they do not.
-int32_t env_pill_lift(const lv_area_t& pill, const lv_area_t& keep_out, int32_t gap);
+/// standing below it, where the two overlap, each side grown by @p gap: never past @p top, and
+/// 0 where they do not overlap or @p keep_out stands higher than the pill.
+int32_t env_pill_lift(const lv_area_t& pill, const lv_area_t& keep_out, int32_t gap, int32_t top);
 
 } // namespace helix::ui::ams_detail_layout

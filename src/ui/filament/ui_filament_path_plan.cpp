@@ -163,20 +163,20 @@ RailArtRect fit_art(const FilamentPathData& data, const BaseGeometry& g, int32_t
 } // namespace
 
 namespace {
-/// How many tubes' and bands' room the lanes keep straight below the spool box's edge before
-/// their row: two, under a view scale one, so the unit's drawing keeps the height.
+/// How many tubes' and bands' room a hub's or selector's lanes keep straight below the spool
+/// box's edge before their row: two, under a view scale one, so the unit's drawing keeps the
+/// height. Per-lane paths keep two (box_edge_above()'s default).
 int32_t lane_stub_tubes(const FilamentPathData& data) {
     return view_unit(data) > 0.0f ? 1 : 2;
 }
 } // namespace
 
 int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
-                       int32_t row) {
+                       int32_t row, int32_t stub_tubes) {
     if (g.lane_entry_y == INT32_MIN)
         return INT32_MIN;
     const int32_t y = g.lane_entry_y + cap;
-    return y <= row - lane_stub_tubes(data) * data.theme.tube_gauge - kBandThickness ? y
-                                                                                     : INT32_MIN;
+    return y <= row - stub_tubes * data.theme.tube_gauge - kBandThickness ? y : INT32_MIN;
 }
 
 int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g) {
@@ -197,7 +197,7 @@ int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g) {
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t prep_y = lanes_row_y(data, g);
     // The lanes leave the spool box at its front edge, through their prep sensors.
-    const int32_t edge = box_edge_above(data, g, 0, prep_y);
+    const int32_t edge = box_edge_above(data, g, 0, prep_y, lane_stub_tubes(data));
     return edge != INT32_MIN ? edge : prep_y;
 }
 
