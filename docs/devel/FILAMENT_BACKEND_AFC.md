@@ -945,7 +945,7 @@ the usual `lanes` / `extruders` / `hubs` / `buffers`:
 |-------|---------|----------|
 | `ace_dryer` | Dryer status word. `""`, `stop`, `stopped`, `stopping`, `idle`, `off` and `none` mean no cycle (AFC_ACE.py `_DRYER_IDLE`) | `DryerInfo::active`; its presence makes `DryerInfo::supported` |
 | `ace_dryer_target` | Setpoint, °C | `DryerInfo::target_temp_c` |
-| `ace_dryer_duration` / `ace_dryer_remain` | Cycle length and time left, minutes, as the ACE backend reads the same firmware fields | `DryerInfo::duration_min` / `remaining_min` |
+| `ace_dryer_duration` / `ace_dryer_remain` | Cycle length and time left as the firmware states them: time left in seconds, length in minutes on the ACE Pro and seconds on the ACE 2 Pro (`src/printer/ace_slot_parse.cpp#dryer_duration_minutes`) | `DryerInfo::duration_min` / `remaining_min` |
 | `ace_temp` | The box's temperature | `AmsUnit::environment` and `DryerInfo::current_temp_c` |
 | `ace_humidity` | Relative humidity (the ACE 2 always; the ACE Pro when its status carries it) | `AmsUnit::environment` |
 
