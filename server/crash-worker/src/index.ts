@@ -29,7 +29,7 @@ import {
   addDuplicateComment,
   isKnownRelease,
 } from "./github-app";
-import { resolveBacktrace } from "./symbol-resolver";
+import { resolveBacktrace, symbolMapName } from "./symbol-resolver";
 import type { CrashReport, ResolvedBacktrace } from "./symbol-resolver";
 
 /** Worker environment bindings. */
@@ -723,7 +723,7 @@ export function formatIssueBody(r: CrashReport, fingerprint: string, resolved: R
             : `load_base: ${resolved.loadBase}`
         );
       }
-      parts.push(`symbol file: v${r.app_version}/${r.platform || r.app_platform}.sym`);
+      parts.push(`symbol file: v${r.app_version}/${symbolMapName(r)}.sym`);
       if (r.bt_source === "stack_scan") {
         parts.push("frames below crash_signal_handler are stack-scanned, not live (may be stale)");
       }
@@ -732,7 +732,7 @@ export function formatIssueBody(r: CrashReport, fingerprint: string, resolved: R
       // Unresolved: raw addresses in code block (original format)
       md += `\`\`\`\n${r.backtrace.join("\n")}\n\`\`\`\n`;
       if (resolved?.symbolFileFound === false) {
-        md += `\n<sub>No symbol file found for v${r.app_version}/${r.platform || r.app_platform || "unknown"}</sub>\n`;
+        md += `\n<sub>No symbol file found for v${r.app_version}/${symbolMapName(r) ?? "unknown"}</sub>\n`;
       }
     }
   }

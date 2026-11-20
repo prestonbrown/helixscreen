@@ -2,7 +2,7 @@
 // Tests for server-side symbol resolution.
 
 import { describe, it, expect } from "vitest";
-import {
+import { symbolMapName,
   parseSymbolTable,
   lookupSymbol,
   autoDetectLoadBase,
@@ -287,6 +287,33 @@ describe("resolveBacktrace", () => {
 
     const result = await resolveBacktrace(bucket, report);
     expect(result.frames[0].symbol).toBe("main+0x0");
+  });
+
+  it("an fbdev binary resolves against its own -fbdev map, not the DRM map", async () => {
+    const bucket = createMockBucket({
+      "symbols/v0.9.9/pi.sym.zst": new TextEncoder().encode("not used"),
+      "symbols/v0.9.9/pi.sym": "00020000 T drm_build_only\n",
+      "symbols/v0.9.9/pi-fbdev.sym.zst": symFileZstd,
+    });
+
+    const report = {
+      app_version: "0.9.9",
+      platform: "pi",
+      display_backend: "fbdev",
+      load_base: "0x0",
+      backtrace: ["0x00020000"],
+    };
+
+    const result = await resolveBacktrace(bucket, report);
+    expect(result.symbolFileFound).toBe(true);
+    expect(result.frames[0].symbol).toBe("main+0x0");
+  });
+
+  it("names the map by platform, with -fbdev only for an fbdev binary", () => {
+    expect(symbolMapName({ platform: "pi32", display_backend: "fbdev" })).toBe("pi32-fbdev");
+    expect(symbolMapName({ platform: "pi", display_backend: "drm" })).toBe("pi");
+    expect(symbolMapName({ app_platform: "k1" })).toBe("k1");
+    expect(symbolMapName({})).toBeUndefined();
   });
 
   it("resolves backtrace with explicit load_base", async () => {
