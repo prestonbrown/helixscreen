@@ -347,20 +347,6 @@ void AmsPanel::init_subjects() {
     buffer_gauge_observer_ = observe<int>(ams_state.get_buffer_gauge_subject(), this, path_handler,
                                           ams_state.get_subjects_lifetime());
 
-    // Backend count observer for multi-backend selector
-    backend_count_observer_ = observe<int>(
-        AmsState::instance().get_backend_count_subject(), this,
-        [](AmsPanel* self, int /*count*/) {
-            if (!self->backend_rebuild_pending_) {
-                self->backend_rebuild_pending_ = true;
-                self->object_lifetime_.defer("AmsPanel::rebuild_backend_selector", [self]() {
-                    self->backend_rebuild_pending_ = false;
-                    self->rebuild_backend_selector();
-                });
-            }
-        },
-        AmsState::instance().get_subjects_lifetime());
-
     // Observe external spool color changes to reactively update bypass in path canvas.
     // NOTE: set_external_spool_info() calls lv_subject_set_int() directly (not via
     // ui_queue_update) which is safe because all current callers are on the LVGL thread.
@@ -708,7 +694,6 @@ void AmsPanel::clear_panel_reference() {
     buffer_gauge_observer_.reset();
     slot_path_observers_.clear();
     print_state_observer_.reset();
-    backend_count_observer_.reset();
     external_spool_observer_.reset();
 
     // Re-arm the edge sentinels: a rebuilt panel has observed nothing yet.
@@ -721,104 +706,6 @@ void AmsPanel::clear_panel_reference() {
 // ============================================================================
 // Setup Helpers
 // ============================================================================
-
-void AmsPanel::rebuild_backend_selector() {
-    if (!panel_) {
-        return;
-    }
-
-    lv_obj_t* row = helix::ui::find_required(panel_, "backend_selector_row", get_name());
-    if (!row) {
-        return;
-    }
-
-    auto& ams = AmsState::instance();
-    int count = ams.backend_count();
-
-    // The row hides itself below two backends (backend_count in ams_panel.xml).
-    if (count <= 1) {
-        return;
-    }
-
-    // Clear existing children. rebuild_backend_selector runs from
-    // backend_count_observer_ via object_lifetime_.defer (UpdateQueue batch). [L081]
-    helix::ui::safe_clean_children(row);
-
-    for (int i = 0; i < count; ++i) {
-        auto* backend = ams.get_backend(i);
-        if (!backend) {
-            continue;
-        }
-
-        std::string label = ams_type_to_string(backend->get_type());
-
-        // Create a button-like segment for each backend
-        lv_obj_t* btn = lv_obj_create(row);
-        lv_obj_set_size(btn, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-        int32_t btn_pad_hor = theme_manager_get_spacing("space_md");
-        lv_obj_set_style_pad_all(btn, theme_manager_get_spacing("space_sm"), 0);
-        lv_obj_set_style_pad_left(btn, btn_pad_hor, 0);
-        lv_obj_set_style_pad_right(btn, btn_pad_hor, 0);
-        lv_obj_set_style_radius(btn, 8, 0);
-        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-
-        if (i == active_backend_idx_) {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), 0);
-        } else {
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("elevated_bg"), 0);
-        }
-
-        lv_obj_t* lbl = lv_label_create(btn);
-        lv_label_set_text(lbl, label.c_str());
-        lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
-        lv_obj_set_style_text_font(lbl, theme_manager_get_font("font_small"), 0);
-
-        // Store index in user_data for click handler (dynamic buttons are a documented exception)
-        lv_obj_set_user_data(btn, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
-        lv_obj_add_event_cb(
-            btn,
-            [](lv_event_t* e) {
-                auto* btn_obj = static_cast<lv_obj_t*>(lv_event_get_target(e));
-                int idx =
-                    static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(btn_obj)));
-                auto* self = static_cast<AmsPanel*>(lv_event_get_user_data(e));
-                if (self) {
-                    self->on_backend_segment_selected(idx);
-                }
-            },
-            LV_EVENT_CLICKED, this);
-    }
-
-    spdlog::debug("[AmsPanel] Backend selector rebuilt with {} segments (active={})", count,
-                  active_backend_idx_);
-}
-
-void AmsPanel::on_backend_segment_selected(int index) {
-    if (index == active_backend_idx_) {
-        return;
-    }
-
-    active_backend_idx_ = index;
-    AmsState::instance().set_active_backend(index);
-
-    // Rebuild selector to update visual highlight
-    rebuild_backend_selector();
-
-    // Sync the selected backend and recreate slots
-    AmsState::instance().sync_backend(index);
-
-    auto* backend = AmsState::instance().get_backend(index);
-    if (backend) {
-        auto info = backend->get_system_info();
-        create_slots(info.total_slots);
-
-        // Update path visualization for this backend
-        update_path_canvas_from_backend();
-    }
-
-    spdlog::info("[AmsPanel] Switched to backend {} ({})", index,
-                 backend ? ams_type_to_string(backend->get_type()) : "null");
-}
 
 void AmsPanel::setup_slots() {
     lv_obj_t* unit_detail = helix::ui::find_required(panel_, "unit_detail", get_name());

@@ -795,22 +795,6 @@ class AmsState {
     }
 
     /**
-     * @brief Get active backend subject
-     * @return Subject holding index of the currently selected backend
-     */
-    lv_subject_t* get_active_backend_subject() {
-        return &active_backend_;
-    }
-
-    [[nodiscard]] int active_backend_index() const;
-
-    /**
-     * @brief Set the active backend index
-     * @param index Backend index to make active (bounds-checked)
-     */
-    void set_active_backend(int index);
-
-    /**
      * @brief Get AMS type subject
      * @return Subject holding the AmsType enum (ams_type.h) as int
      */
@@ -1662,58 +1646,20 @@ class AmsState {
     [[nodiscard]] lv_subject_t* get_slot_error_severity_subject(int slot_index);
 
     /**
-     * @brief Per-backend lane_state / has_error / error_severity subjects.
+     * @brief Token'd slot subject accessors for observers.
      *
-     * Same token rule as get_slot_fill_subject(int, int, SubjectLifetime&):
-     * observers MUST hold the token for every backend.
+     * Each sets @p lifetime to get_subjects_lifetime(), which dies in
+     * deinit_subjects(), and observers MUST hold it. An out-of-range slot
+     * returns nullptr with an empty token.
      */
-    [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int backend_index, int slot_index,
+    [[nodiscard]] lv_subject_t* get_slot_lane_state_subject(int slot_index,
                                                             SubjectLifetime& lifetime);
-    [[nodiscard]] lv_subject_t* get_slot_has_error_subject(int backend_index, int slot_index,
+    [[nodiscard]] lv_subject_t* get_slot_has_error_subject(int slot_index,
                                                            SubjectLifetime& lifetime);
-    [[nodiscard]] lv_subject_t* get_slot_error_severity_subject(int backend_index, int slot_index,
+    [[nodiscard]] lv_subject_t* get_slot_error_severity_subject(int slot_index,
                                                                 SubjectLifetime& lifetime);
-
-    /**
-     * @brief Get slot color subject for a specific backend and slot
-     *
-     * For backend_index 0, delegates to existing flat slot subjects.
-     * For secondary backends, returns from per-backend subject storage.
-     *
-     * @param backend_index Backend index (0 = primary)
-     * @param slot_index Slot index within that backend
-     * @return Subject pointer or nullptr if out of range
-     */
-    [[nodiscard]] lv_subject_t* get_slot_color_subject(int backend_index, int slot_index);
-
-    /**
-     * @brief Token'd overload of get_slot_color_subject for observer safety.
-     *
-     * Observers MUST hold the lifetime token. For secondary backends it dies
-     * when the subject is recreated on backend rediscovery; for backend 0 it
-     * is get_subjects_lifetime(), which dies in deinit_subjects().
-     */
-    [[nodiscard]] lv_subject_t* get_slot_color_subject(int backend_index, int slot_index,
-                                                       SubjectLifetime& lifetime);
-
-    /**
-     * @brief Get slot status subject for a specific backend and slot
-     *
-     * For backend_index 0, delegates to existing flat slot subjects.
-     * For secondary backends, returns from per-backend subject storage.
-     *
-     * @param backend_index Backend index (0 = primary)
-     * @param slot_index Slot index within that backend
-     * @return Subject pointer or nullptr if out of range
-     */
-    [[nodiscard]] lv_subject_t* get_slot_status_subject(int backend_index, int slot_index);
-
-    /**
-     * @brief Token'd overload of get_slot_status_subject for observer safety.
-     * @see get_slot_color_subject(int, int, SubjectLifetime&)
-     */
-    [[nodiscard]] lv_subject_t* get_slot_status_subject(int backend_index, int slot_index,
-                                                        SubjectLifetime& lifetime);
+    [[nodiscard]] lv_subject_t* get_slot_color_subject(int slot_index, SubjectLifetime& lifetime);
+    [[nodiscard]] lv_subject_t* get_slot_status_subject(int slot_index, SubjectLifetime& lifetime);
 
     /**
      * @brief Get remaining filament subject for a specific slot
@@ -1750,23 +1696,8 @@ class AmsState {
      */
     [[nodiscard]] lv_subject_t* get_slot_material_subject(int slot_index);
 
-    /**
-     * @brief Get per-slot material-type subject for a specific backend and slot
-     *
-     * For backend_index 0, delegates to the flat slot subjects above.
-     * For secondary backends, returns from per-backend subject storage.
-     *
-     * @param backend_index Backend index (0 = primary)
-     * @param slot_index Slot index within that backend
-     * @return Subject pointer or nullptr if out of range
-     */
-    [[nodiscard]] lv_subject_t* get_slot_material_subject(int backend_index, int slot_index);
-
-    /**
-     * @brief Token'd overload of get_slot_material_subject for observer safety.
-     * @see get_slot_color_subject(int, int, SubjectLifetime&)
-     */
-    [[nodiscard]] lv_subject_t* get_slot_material_subject(int backend_index, int slot_index,
+    /// Token'd overload; @see get_slot_color_subject(int, SubjectLifetime&)
+    [[nodiscard]] lv_subject_t* get_slot_material_subject(int slot_index,
                                                           SubjectLifetime& lifetime);
 
     /**
@@ -1783,18 +1714,8 @@ class AmsState {
      */
     [[nodiscard]] lv_subject_t* get_slot_name_subject(int slot_index);
 
-    /**
-     * @brief Get per-slot spool-name subject for a specific backend and slot
-     * @see get_slot_material_subject(int, int)
-     */
-    [[nodiscard]] lv_subject_t* get_slot_name_subject(int backend_index, int slot_index);
-
-    /**
-     * @brief Token'd overload of get_slot_name_subject for observer safety.
-     * @see get_slot_color_subject(int, int, SubjectLifetime&)
-     */
-    [[nodiscard]] lv_subject_t* get_slot_name_subject(int backend_index, int slot_index,
-                                                      SubjectLifetime& lifetime);
+    /// Token'd overload; @see get_slot_color_subject(int, SubjectLifetime&)
+    [[nodiscard]] lv_subject_t* get_slot_name_subject(int slot_index, SubjectLifetime& lifetime);
 
     /**
      * @brief Re-derive every backend's per-slot name subjects
@@ -1819,25 +1740,17 @@ class AmsState {
      */
     [[nodiscard]] lv_subject_t* get_slot_fill_subject(int slot_index);
 
-    /**
-     * @brief Get per-slot fill-level subject for a specific backend and slot.
-     *
-     * Observers MUST hold the lifetime token: get_subjects_lifetime() for
-     * backend 0, the per-backend token for secondary backends.
-     * @see get_slot_color_subject(int, int, SubjectLifetime&)
-     */
-    [[nodiscard]] lv_subject_t* get_slot_fill_subject(int backend_index, int slot_index,
-                                                      SubjectLifetime& lifetime);
+    /// Token'd overload; @see get_slot_color_subject(int, SubjectLifetime&)
+    [[nodiscard]] lv_subject_t* get_slot_fill_subject(int slot_index, SubjectLifetime& lifetime);
 
     /**
      * @brief Per-slot paint key: changes whenever the slot's multi-colour list
      *        or finish does, so a swatch observing it beside the colour subject
      *        repaints when only those change (SlotInfo::paint_key()).
      *
-     * Same token rule as get_slot_color_subject(int, int, SubjectLifetime&).
+     * Same token rule as get_slot_color_subject(int, SubjectLifetime&).
      */
-    [[nodiscard]] lv_subject_t* get_slot_paint_subject(int backend_index, int slot_index,
-                                                       SubjectLifetime& lifetime);
+    [[nodiscard]] lv_subject_t* get_slot_paint_subject(int slot_index, SubjectLifetime& lifetime);
 
     // ========================================================================
     // Per-Slot LIVE State Subject Accessors
@@ -1972,20 +1885,20 @@ class AmsState {
     void sync_from_backend();
 
     /**
-     * @brief Sync state from a specific backend by index
+     * @brief Sync state from the backend at @p backend_index
      *
-     * For backend_index 0, delegates to sync_from_backend().
-     * For secondary backends, updates per-backend slot subjects only.
+     * Backend 0 is the printer's one filament system (see
+     * FILAMENT_MANAGEMENT.md § "One Filament System per Printer"), so this
+     * runs sync_from_backend() for index 0 and does nothing for any other.
      *
      * @param backend_index Backend index to sync
      */
     void sync_backend(int backend_index);
 
     /**
-     * @brief Update a single slot's subjects for a specific backend
+     * @brief Update a single slot's subjects for the backend at @p backend_index
      *
-     * For backend_index 0, delegates to update_slot().
-     * For secondary backends, updates per-backend slot subjects only.
+     * Runs update_slot() for backend 0 and does nothing for any other.
      *
      * @param backend_index Backend index
      * @param slot_index Slot that changed
@@ -2507,43 +2420,12 @@ class AmsState {
      */
     void create_ace_backend(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
 
-    /// Per-backend slot subject storage for secondary backends (index > 0)
-    struct BackendSlotSubjects {
-        std::vector<helix::Subject> colors;
-        std::vector<helix::Subject> statuses;
-        std::vector<helix::Subject> fills;       // int: fill percent 0-100, -1 = unknown
-        std::vector<helix::Subject> lane_states; // int: helix::ui::LaneState
-        std::vector<helix::Subject> has_errors;
-        std::vector<helix::Subject> severities; // int: SlotError::Severity
-        std::vector<helix::Subject> paints;     // int: SlotInfo::paint_key()
-        /// Material strings need storage the subject points into; same size as
-        /// slot_materials_buf_ ("PETG-CF" etc. fits comfortably).
-        static constexpr int kMaterialBufSize = 24;
-        std::vector<helix::Subject> materials; // string: "PLA", "PETG", … or ""
-        std::vector<std::array<char, kMaterialBufSize>> material_bufs;
-        std::vector<helix::Subject> names; // string: slot card spool name, or ""
-        std::vector<std::array<char, kSlotNameBufSize>> name_bufs;
-        int slot_count = 0;
-        /// Lifetime token shared by every subject in this struct. These subjects
-        /// are DYNAMIC (destroyed in deinit() on backend rediscovery), so any
-        /// observer bound to them MUST hold a copy of this token — the token'd
-        /// accessor overloads hand it out. deinit() invalidates it.
-        SubjectLifetime lifetime;
-        void init(int count);
-        void deinit();
-        /// Write every per-slot subject for slot @p i from @p slot.
-        void write(int i, const SlotInfo& slot);
-    };
-
-    /// Secondary-backend subject from @p member, or @p primary's slot for
-    /// backend 0, with the lifetime token set accordingly. Every per-backend
-    /// slot getter resolves through here.
-    lv_subject_t* backend_slot_subject(int backend_index, int slot_index, SubjectLifetime& lifetime,
-                                       std::vector<helix::Subject> BackendSlotSubjects::*member,
-                                       helix::Subject (&primary)[kMaxSlots]);
+    /// Backend-0 slot subject from @p subjects with @p lifetime set to
+    /// get_subjects_lifetime(); nullptr and an empty token out of range.
+    lv_subject_t* slot_subject(int slot_index, SubjectLifetime& lifetime,
+                               helix::Subject (&subjects)[kMaxSlots]);
 
     AmsBackendRegistry registry_;
-    std::vector<BackendSlotSubjects> secondary_slot_subjects_;
     helix::PendingToolMapRestore pending_tool_map_restore_;
     bool initialized_ = false;
 
@@ -2589,9 +2471,7 @@ class AmsState {
     /// tests (#1165, #1146).
     helix::AsyncLifetimeGuard async_lifetime_;
 
-    // Backend selector subjects
     helix::Subject backend_count_{};
-    helix::Subject active_backend_{};
     helix::Subject ams_data_revision_{};
 
     // System-level subjects

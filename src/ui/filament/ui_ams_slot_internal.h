@@ -17,12 +17,6 @@ struct AmsSlotData {
     int total_count = 4; // Total slots being displayed (for stagger calculation)
     helix::ui::AmsSlotHitBand hit_band;
 
-    /// Backend whose subjects the observers below are bound to (captured at
-    /// setup_slot_observers time from the active backend). Kept so later
-    /// re-reads (apply_slot_label) hit the same backend the
-    /// observers are bound to, even if the active backend moved on.
-    int backend_index = 0;
-
     // Last lane classification seen from the per-slot lane_state subject. The
     // material label's text and ghost strength depend on it (an Empty lane
     // reads "Empty", a Ghosted one dims alongside its spool), and lane_state

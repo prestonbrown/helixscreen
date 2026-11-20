@@ -412,9 +412,9 @@ tool T1: active, mounted, detect_state, ...
 
 `ToolState::update_from_status()` parses these keys and bumps the `tools_version` subject on changes.
 
-### Multi-Backend AMS
+### AMS Backends
 
-Each AMS backend manages its own Moonraker subscriptions independently. When `AmsState::init_backends_from_hardware()` creates multiple backends, each backend registers its own WebSocket subscriptions for its object types (e.g., `mmu` for Happy Hare, `AFC` for AFC, `tool T*` for tool changers). Backend state changes are synced to per-backend slot subjects via `AmsState::sync_backend()`.
+Each AMS backend manages its own Moonraker subscriptions. `AmsState::init_backends_from_hardware()` creates the printer's one filament backend (FILAMENT_MANAGEMENT.md § "One Filament System per Printer"), which registers WebSocket subscriptions for its object types (e.g., `mmu` for Happy Hare, `AFC` for AFC, `tool T*` for tool changers). Backend state changes are synced to the per-slot subjects via `AmsState::sync_backend()`.
 
 **Full docs:** [TOOL_ABSTRACTION.md](TOOL_ABSTRACTION.md), [MULTI_EXTRUDER_TEMPERATURE.md](MULTI_EXTRUDER_TEMPERATURE.md), [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md)
 
