@@ -10,7 +10,8 @@
 # to its default, every new non-prerelease becomes "latest", so a v1.0.x tag cut
 # after v1.1.0 would offer every 1.1 install a downgrade. A release therefore
 # becomes latest only when it is not a prerelease and outranks the current
-# latest release by semver precedence (scripts/version-compare.sh).
+# latest release by semver precedence (scripts/version-compare.sh), or is that
+# release: a re-run for the latest tag keeps it latest rather than demoting it.
 #
 # Usage: release-make-latest.sh VERSION PRERELEASE [LATEST_TAG]
 #   VERSION     the tag being released (v1.2.3 or 1.2.3)
@@ -43,7 +44,7 @@ make_latest_for() {
     fi
 
     order=$("$SCRIPT_DIR/version-compare.sh" "$version" "$latest") || return 1
-    if [ "$order" = 1 ]; then
+    if [ "$order" != -1 ]; then
         echo true
     else
         echo false
