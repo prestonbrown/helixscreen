@@ -824,7 +824,7 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
         lv_subject_set_int(&ams_operation_indeterminate_, new_indet);
     }
 
-    // Set system name from backend type_name or fallback to type string
+    // The system's name picks the logo: the backend's type_name, else its type string.
     std::string sys_name;
     if (presented == AmsType::NONE) {
         // No system shown, so no name or logo for one.
@@ -833,10 +833,17 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     } else {
         sys_name = ams_type_to_string(info.type);
     }
-    // A product name is not a catalog key and passes through lv_tr()
-    // unchanged; a generic one ("Tool Changer") is translated.
+    // The header names the unit when the system is one named unit, as the multi-unit
+    // overview's unit view does; otherwise the system. A product name is not a catalog
+    // key and passes through lv_tr() unchanged; a generic one ("Tool Changer") is
+    // translated.
+    std::string header_name = sys_name;
+    if (!sys_name.empty() && info.units.size() == 1 &&
+        (!info.units[0].display_name.empty() || !info.units[0].name.empty())) {
+        header_name = helix::ui::unit_display_name(info.units[0], 0);
+    }
     const std::string shown_name(
-        helix::text_io::utf8_prefix(lv_tr(sys_name.c_str()), sizeof(system_name_buf_) - 1));
+        helix::text_io::utf8_prefix(lv_tr(header_name.c_str()), sizeof(system_name_buf_) - 1));
     if (strcmp(lv_subject_get_string(&ams_system_name_), shown_name.c_str()) != 0) {
         lv_subject_set_string(&ams_system_name_, shown_name.c_str());
     }

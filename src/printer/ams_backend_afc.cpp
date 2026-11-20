@@ -4376,13 +4376,14 @@ void AmsBackendAfc::initialize_slots(const std::vector<std::string>& lane_names)
     int lane_count = static_cast<int>(lane_names.size());
 
     // Initialize registry (sets is_initialized = true, creates SlotEntry per lane)
-    slots_.initialize("AFC Box Turtle", lane_names);
+    // AFC names its units in AFC.units; until that arrives the unit is AFC's own.
+    slots_.initialize("AFC", lane_names);
     lane_sensors_.clear();
 
     // Set up system_info_ for non-slot fields (unit-level metadata)
     AmsUnit unit;
     unit.unit_index = 0;
-    unit.name = "AFC Box Turtle";
+    unit.name = "AFC";
     unit.slot_count = lane_count;
     unit.first_slot_global_index = 0;
     unit.connected = true;

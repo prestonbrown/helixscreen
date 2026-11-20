@@ -11,6 +11,7 @@
 #include "afc_status_parse.h"
 #include "ams_backend_afc.h"
 #include "ams_dryer.h"
+#include "ams_state.h"
 #include "test_helpers/registered_backend.h"
 
 #include <string>
@@ -124,6 +125,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: the dryer and climate reach the
     CHECK(afc.unit(0).environment->humidity_pct == 18.0f);
     CHECK(afc.traits().has_environment_sensors);
 
+    // Two units: the header names the system.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ams.sync_from_backend();
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) == "AFC");
+
     // The Box Turtle beside it has neither.
     CHECK_FALSE(helix::dryer_info(afc, 1).supported);
     CHECK_FALSE(afc.unit(1).environment.has_value());
@@ -206,4 +213,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC ACE unit: the subscription carries the cl
     CHECK(afc.unit(0).environment->temperature_c == 28.0f);
     CHECK(afc.unit(0).environment->humidity_pct == 39.0f);
     CHECK(afc.traits().has_environment_sensors);
+
+    // One named unit: the AMS panel's header names it rather than the system.
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    ams.sync_from_backend();
+    CHECK(std::string(lv_subject_get_string(ams.get_ams_system_name_subject())) == "Ace2 1");
 }
