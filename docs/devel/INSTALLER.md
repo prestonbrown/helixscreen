@@ -323,12 +323,11 @@ installer exits. Pinned by `tests/shell/test_install_swap_space.bats`.
 An installed tree must never carry the build machine's uid/gid. Two independent
 guarantees, because either one alone leaves a hole:
 
-**Packaging** — every release tarball is created with `$(TAR_OWNER_FLAGS)`
-(`mk/cross.mk`), which zeroes owner and group. A bare `tar -czvf` stamps each entry with
-whatever uid built it: 1001 on the GitHub Actions runner, 1000 on a local build host. The
-flag spelling is probed once, because GNU tar wants `--owner=0 --group=0` and bsdtar wants
-`--uid 0 --gid 0`, neither accepts the other's, and releases are packaged on both. The
-`.zip` artifacts need nothing — neither `unzip` nor Python's `zipfile` restores ownership.
+**Packaging** — releases ship only `.zip` archives, which need nothing: neither `unzip`
+(info-zip without `-X`, BusyBox) nor Python's `zipfile` restores ownership from one. A
+tarball made with a bare `tar -czvf` would stamp each entry with whatever uid built it
+(1001 on the GitHub Actions runner, 1000 on a local build host), so
+`tests/shell/test_installer_archive_ownership.bats` fails any release recipe that creates one.
 
 **Extraction** — every `tar` extract passes **`-o`** ("don't restore user:group"). Root
 extracts with `--same-owner` by default on both GNU and BusyBox tar, so without this an
@@ -933,11 +932,11 @@ If R2 is unavailable or returns a corrupt file:
 
 ### Plain-HTTP Mirror (Last Resort)
 
-`dl.helixscreen.org` (`server/dl-worker`) serves the same R2 bucket over plain HTTP, tarballs and manifests only: it has no `.zip`, so the installer asks it for the `.tar.gz` alone. Hashes fetched from it detect corruption but cannot prove authenticity, and an archive with no published hash is refused over this transport.
+`dl.helixscreen.org` (`server/dl-worker`) serves the same R2 bucket over plain HTTP: manifests, the release zips under `releases/<version>/`, and the tarballs of releases from before the zip-only ones. The installer asks it for the `.zip` first, then the `.tar.gz`. Hashes fetched from it detect corruption but cannot prove authenticity, and an archive with no published hash is refused over this transport.
 
 ### HTTPS Capability Check
 
-On embedded platforms (AD5M), BusyBox wget does not support HTTPS. `check_https_capability` tests python's `ssl`, then curl, then wget. Without HTTPS, `download_release` asks the mirror's tarball first and tries the CDN and GitHub candidates only after it, since the probe tests github.com and a host that cannot reach GitHub may still reach the CDN; when even that fails, `get_latest_version` prints step-by-step manual install instructions with `scp` commands.
+On embedded platforms (AD5M), BusyBox wget does not support HTTPS. `check_https_capability` tests python's `ssl`, then curl, then wget. Without HTTPS, `download_release` asks the mirror first (zip, then tarball) and tries the CDN and GitHub candidates only after it, since the probe tests github.com and a host that cannot reach GitHub may still reach the CDN; when even that fails, `get_latest_version` prints step-by-step manual install instructions with `scp` commands.
 
 ### Architecture Validation
 

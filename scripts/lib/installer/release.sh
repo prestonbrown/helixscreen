@@ -544,12 +544,11 @@ _UNVERIFIED_HTTP_REFUSED=false
 #     HTTPS-incapable firmware, where no manifest hash exists to check.
 #
 # The no-hash-over-HTTP rejection is a WARNING, not an error, because it fires
-# mid-cascade in the normal case: generate-manifest.sh withholds zip_url /
-# zip_sha256 from the platforms in its ZIP_EXCLUDE_PLATFORMS list
-# (helixscreen#993), so on exactly those HTTP-only devices the zip candidate
-# has no hash and must be skipped before the tar.gz
-# candidate, which does have one, succeeds. Only download_release's final
-# all-candidates-exhausted message spells out the override.
+# mid-cascade: the zip and tar.gz candidates carry separate hashes, and a
+# release older than the zip-only manifests publishes a hash for one format and
+# not the other, so the unhashed candidate is skipped and the next one, which
+# has a hash, succeeds. Only download_release's final all-candidates-exhausted
+# message spells out the override.
 _verify_archive_hash() {
     local file=$1 expected=$2 transport=$3
     local actual
@@ -938,15 +937,9 @@ _try_download_candidate() {
 
     case "$dest" in
         *.zip)
-            # unzip -tqq returns 0 if the central directory + every entry CRC is valid.
-            # Fall back to python zipfile when unzip isn't present (K2 firmware).
-            if command -v unzip >/dev/null 2>&1; then
-                unzip -tqq "$dest" >/dev/null 2>&1 || return 1
-            elif _has_python; then
-                _py_unzip_test "$dest" || return 1
-            else
-                return 1
-            fi
+            # Not `unzip -t`: BusyBox before 1.32 (K1, AD5M) rejects the option
+            # and so every intact zip. _zip_integrity picks a check that works.
+            [ "$(_zip_integrity "$dest")" = ok ] || return 1
             ;;
         *)
             gunzip -t "$dest" 2>/dev/null || return 1
@@ -975,9 +968,9 @@ _release_tag() {
 # The candidate archive URLs, in the order download_release tries them, and
 # the manifest's hashes for them. Fetches the manifest when it is not cached.
 # Sets, in the caller's scope (declare them local first): zip_filename
-# tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http zip_sha tar_sha
-# manifest_ok. The plain-HTTP mirror (server/dl-worker) serves tarballs only,
-# so it has no zip candidate.
+# tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http zip_sha tar_sha
+# manifest_ok. Releases ship only the zip; the tar.gz candidates reach the
+# releases from before that, which shipped both.
 # Args: release tag (from _release_tag), release platform (get_release_platform)
 _release_candidates() {
     local version=$1 platform=$2 manifest_url
@@ -1003,12 +996,19 @@ _release_candidates() {
         manifest_ok=true
         manifest_url=$(echo "$_R2_MANIFEST" | parse_manifest_platform_url "$platform")
     fi
+    # A zip-only manifest's url/sha256 describe the zip, not a tarball.
+    local manifest_has_tar=true
+    case "$manifest_url" in
+        "" | *.tar.gz) ;;
+        *) manifest_url="" manifest_has_tar=false ;;
+    esac
 
     # Zip gets tried before tar at each HTTPS transport.
     zip_r2="${R2_BASE_URL}/releases/${version}/${zip_filename}"
     tar_r2="${manifest_url:-${R2_BASE_URL}/releases/${version}/${tar_filename}}"
     zip_gh="https://github.com/${GITHUB_REPO}/releases/download/${version}/${zip_filename}"
     tar_gh="https://github.com/${GITHUB_REPO}/releases/download/${version}/${tar_filename}"
+    zip_http="${HTTP_BASE_URL}/releases/${version}/${zip_filename}"
     tar_http="${HTTP_BASE_URL}/releases/${version}/${tar_filename}"
     if [ -n "$manifest_url" ]; then
         tar_http=$(echo "$manifest_url" | sed "s|${R2_BASE_URL}|${HTTP_BASE_URL}|")
@@ -1021,7 +1021,9 @@ _release_candidates() {
     tar_sha=""
     if [ "$manifest_ok" = true ]; then
         zip_sha=$(echo "$_R2_MANIFEST" | parse_manifest_platform_sha256 "$platform" zip)
-        tar_sha=$(echo "$_R2_MANIFEST" | parse_manifest_platform_sha256 "$platform")
+        if [ "$manifest_has_tar" = true ]; then
+            tar_sha=$(echo "$_R2_MANIFEST" | parse_manifest_platform_sha256 "$platform")
+        fi
     fi
 }
 
@@ -1068,7 +1070,7 @@ probe_release() {
         PROBE_SIZE_TEXT="package next to the installer, $(_tree_size_mb "$package_dir") MB"
         return 0
     fi
-    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http
     local zip_sha tar_sha manifest_ok url answer unknown=false
     _release_candidates "$(_release_tag "$1")" "$(get_release_platform "$2")"
     # shellcheck disable=SC2034  # consumed by plan.sh (confirm_point)
@@ -1077,7 +1079,7 @@ probe_release() {
     else
         PROBE_SIZE_TEXT="no SHA256 published"
     fi
-    for url in "$zip_r2" "$tar_r2" "$zip_gh" "$tar_gh" "$tar_http"; do
+    for url in "$zip_r2" "$tar_r2" "$zip_gh" "$tar_gh" "$zip_http" "$tar_http"; do
         answer=$(_url_probe "$url")
         [ "$answer" = found ] && return 0
         [ "$answer" = unknown ] && unknown=true
@@ -1130,12 +1132,12 @@ print_release_with_platform_hint() {
 }
 
 # Download release archive. Prefers the unversioned .zip (consumed by both this
-# installer and Moonraker Update Manager) and falls back to the legacy versioned
-# .tar.gz if no .zip is available at any transport — kept for bridge releases
-# during the zip migration. Sets _ARCHIVE_FORMAT to record which format won.
-# Tries R2 CDN, then GitHub Releases, then the plain-HTTP mirror's tarball. A
-# host that cannot do HTTPS (BusyBox wget on the AD5M) goes straight to the
-# mirror, since every https:// candidate would fail there.
+# installer and Moonraker Update Manager) and falls back to the versioned
+# .tar.gz that releases from before the zip-only ones also shipped. Sets
+# _ARCHIVE_FORMAT to record which format won. Tries R2 CDN, then GitHub
+# Releases, then the plain-HTTP mirror. A host that cannot do HTTPS (BusyBox
+# wget on the AD5M) goes straight to the mirror, since every https://
+# candidate would fail there.
 download_release() {
     local version
     local platform
@@ -1152,7 +1154,7 @@ download_release() {
 
     # *_dest are the local staged paths; keep them in sync with
     # _archive_tmp_path() above.
-    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh tar_http
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http
     local zip_sha tar_sha manifest_ok
     _release_candidates "$version" "$platform"
     local zip_dest="${TMP_DIR}/helixscreen-${platform}-${version}.zip"
@@ -1216,9 +1218,17 @@ download_release() {
         rm -f "$tar_dest"
         return 1
     }
-    # The plain-HTTP mirror (server/dl-worker) serves tarballs only.
+    # The plain-HTTP mirror (server/dl-worker), zip before tar.
     _download_release_http() {
         log_info "Trying HTTP fallback..."
+        log_info "URL: $zip_http"
+        if _try_download_candidate "$zip_http" "$zip_dest" http "$zip_sha"; then
+            _ARCHIVE_FORMAT="zip"
+            size=$(ls -lh "$zip_dest" | awk '{print $5}')
+            log_success "Downloaded ${zip_filename} (${size}) via HTTP"
+            return 0
+        fi
+        rm -f "$zip_dest"
         log_info "URL: $tar_http"
         if _try_download_candidate "$tar_http" "$tar_dest" http "$tar_sha"; then
             _ARCHIVE_FORMAT="tar.gz"
@@ -1245,6 +1255,7 @@ download_release() {
     log_error "Failed to download release."
     log_error "Tried zip: $zip_r2"
     log_error "Tried zip: $zip_gh"
+    log_error "Tried zip: $zip_http"
     log_error "Tried tar: $tar_r2"
     log_error "Tried tar: $tar_gh"
     log_error "Tried tar: $tar_http"

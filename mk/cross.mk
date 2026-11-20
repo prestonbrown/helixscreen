@@ -1728,20 +1728,6 @@ DEPLOY_ASSET_EXCLUDES := --exclude='test_gcodes' --exclude='gcode' --exclude='.D
 	--exclude='assets/fonts/*.c' --exclude='assets/fonts/*.ttf' --exclude='assets/fonts/*.otf' --exclude='assets/fonts/.clang-format' \
 	--exclude='*.icns' --exclude='mdi-icon-metadata.json.gz' --exclude='moonraker-plugin/tests' \
 	$(DEPLOY_RUNTIME_EXCLUDES)
-# Zero the owner/group recorded in every archive we create.
-#
-# A bare `tar -czvf` stamps each entry with the build machine's numeric uid/gid
-# (1001 for the GitHub Actions runner, 1000 for a local build host). Root
-# extracts with --same-owner by default on both GNU and BusyBox tar, so the
-# install lands owned by a uid that has no /etc/passwd entry on the printer.
-#
-# GNU tar and bsdtar spell this differently and neither accepts the other's
-# form, and release packaging runs on both (Linux in CI, macOS locally) — so
-# probe once here rather than guessing.
-TAR_OWNER_FLAGS := $(shell if tar --owner=0 --group=0 -cf /dev/null -T /dev/null >/dev/null 2>&1; \
-	then echo --owner=0 --group=0 --numeric-owner; \
-	else echo --uid 0 --gid 0 --numeric-owner; fi)
-
 # Tar-compatible excludes (same patterns, different syntax)
 DEPLOY_TAR_EXCLUDES := --exclude='test_gcodes' --exclude='gcode' --exclude='.DS_Store' --exclude='*.pyc' --exclude='settings*.json' --exclude='helixconfig*.json' --exclude='helixscreen.env' --exclude='._*' \
 	--exclude='assets/fonts/*.c' --exclude='assets/fonts/*.ttf' --exclude='assets/fonts/*.otf' --exclude='assets/fonts/.clang-format' \
@@ -2850,15 +2836,15 @@ k2-test: k2-docker deploy-k2-fg
 # =============================================================================
 # Release Packaging
 # =============================================================================
-# Creates distributable tar.gz archives for each platform
+# Creates one distributable zip archive per platform
 # Includes: binaries, ui_xml, config, assets (fonts/images only, no test files)
 
 RELEASE_DIR := releases
 VERSION := $(shell cat VERSION.txt 2>/dev/null || echo "dev")
-# Release filenames include 'v' prefix to match git tag convention (v0.9.3)
+# The release version carries the 'v' prefix of the git tag convention (v0.9.3)
 RELEASE_VERSION := v$(VERSION)
 
-# Top-level asset dirs to include in release tarballs, derived from the shared
+# Top-level asset dirs to include in release archives, derived from the shared
 # packaging manifest (scripts/gen-packaging-manifest.sh) minus test-data dirs
 # that are too large to ship. This replaces a hand-maintained whitelist, which
 # is prone to silently missing a directory — assets/config and assets/sounds
@@ -3100,16 +3086,13 @@ endef
 # Every released K1/AD5X binary computes its self-update asset from its own
 # platform key ("k1"/"ad5x") and downloads by that name, so the names must keep
 # existing with unified content until no deployed binary reports those keys
-# anymore. The in-app updater prefers the versioned tar.gz, Moonraker the
-# unversioned zip - ship both.
+# anymore.
 define release-post-mips
 	@cp $(RELEASE_DIR)/helixscreen-mips.zip $(RELEASE_DIR)/helixscreen-k1.zip
 	@cp $(RELEASE_DIR)/helixscreen-mips.zip $(RELEASE_DIR)/helixscreen-ad5x.zip
-	@cp $(RELEASE_DIR)/helixscreen-mips-$(RELEASE_VERSION).tar.gz $(RELEASE_DIR)/helixscreen-k1-$(RELEASE_VERSION).tar.gz
-	@cp $(RELEASE_DIR)/helixscreen-mips-$(RELEASE_VERSION).tar.gz $(RELEASE_DIR)/helixscreen-ad5x-$(RELEASE_VERSION).tar.gz
 endef
 
-# Assemble helixscreen-<plat>.zip and helixscreen-<plat>-<version>.tar.gz from
+# Assemble helixscreen-<plat>.zip from
 # build/<plat>/ and the source tree. $(1) = platform key. The release-<plat>
 # targets below carry only their prerequisites.
 define release-package
@@ -3166,11 +3149,10 @@ define release-package
 	@xattr -cr $(RELEASE_DIR)/helixscreen 2>/dev/null || true
 	$(call write-release-info,$(1))
 	@cd $(RELEASE_DIR)/helixscreen && zip -qr ../helixscreen-$(1).zip .
-	@cd $(RELEASE_DIR) && COPYFILE_DISABLE=1 tar $(TAR_OWNER_FLAGS) -czvf helixscreen-$(1)-$(RELEASE_VERSION).tar.gz helixscreen
 	@rm -rf $(RELEASE_DIR)/helixscreen
 	$(release-post-$(1))
-	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-$(1)-$(RELEASE_VERSION).tar.gz + helixscreen-$(1).zip$(if $(REL_NOTE.$(1)), $(REL_NOTE.$(1)))$(RESET)"
-	@ls -lh $(RELEASE_DIR)/helixscreen-$(1)-$(RELEASE_VERSION).tar.gz $(RELEASE_DIR)/helixscreen-$(1).zip
+	@echo "$(GREEN)✓ Created $(RELEASE_DIR)/helixscreen-$(1).zip$(if $(REL_NOTE.$(1)), $(REL_NOTE.$(1)))$(RESET)"
+	@ls -lh $(RELEASE_DIR)/helixscreen-$(1).zip
 endef
 
 # Package Pi release
@@ -3226,7 +3208,7 @@ release-x86-desktop: $(INSTALLER_BUNDLES) | build/x86-desktop/bin/helix-screen
 # Package all releases
 release-all: release-pi release-pi32 release-ad5m release-cc1 release-mips release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-x86-desktop
 	@echo "$(GREEN)$(BOLD)✓ All releases packaged in $(RELEASE_DIR)/$(RESET)"
-	@ls -lh $(RELEASE_DIR)/*.tar.gz $(RELEASE_DIR)/*.zip
+	@ls -lh $(RELEASE_DIR)/*.zip
 
 # Clean release artifacts
 release-clean:
