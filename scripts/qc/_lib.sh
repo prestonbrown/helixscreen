@@ -16,21 +16,9 @@ section_time() {
   fi
 }
 
-# Whether a count ratchet under its baseline fails this run (scripts/ratchet.py reads
-# HELIX_RATCHET_STRICT). Strict at the stages a push to main runs: a full sweep (pre-push,
-# make land-gate, CI) that is not a work-branch push. A commit (--staged-only) and a
-# work-branch push stay lenient, so a commit that removes violations needs no baseline
-# edit; the land gate holds the baseline to the count before the work reaches main.
-# The bookkeeping ratchets below are lenient at every stage (ratchet.under_baseline's
-# `bookkeeping`). $1 = STAGED_ONLY, $2 = HELIX_QC_SKIP_PUSH_ONLY.
-qc_ratchet_strictness() {
-  if [ "$1" != true ] && [ "${2:-0}" != 1 ]; then echo 1; else echo 0; fi
-}
-
-# Exit status of a checker whose only findings are bookkeeping ratchets
-# (scripts/ratchet.py WARN_EXIT): the test-line budget, TestAccess and friend
-# counts, file size, hardcoded pixels and unreferenced callbacks. They warn at
-# every stage, under their baseline as well as over it, and block nothing;
+# Exit status of a checker whose only findings are count ratchets
+# (scripts/ratchet.py WARN_EXIT), such as hardcoded pixels and unreferenced
+# callbacks. They warn over their baseline, pass under it, and block nothing;
 # scripts/ratchet_report.py shows their trend.
 QC_RATCHET_WARN_EXIT=3
 

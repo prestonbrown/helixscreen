@@ -68,7 +68,6 @@ src teardown_call_order
 src translation_duplicate_keys
 src packaging_seed_dirs
 src stripped_assets_unreferenced
-src ui_xml_formatted
 tests test_access_defined_once
 tests test_mode_restored
 tests test_displays_deleted
@@ -1525,20 +1524,6 @@ lint_filaments_android_mirror() {
     [ -f "$mirror" ] || return 0
     diff assets/filaments.json "$mirror" >/dev/null && return 0
     echo "$mirror differs from assets/filaments.json; it is a stale build output (docs/devel/ANDROID_ASSETS.md): rm -rf android/app/src/main/assets and rebuild"
-    return 1
-}
-
-# Every file under ui_xml/ parses and is already formatted. qc_phase2 only warns
-# on formatting and repairs it at commit; this is the hard verdict, in the
-# push-only group so it never races the commit hook's repair. Needs lxml in
-# .venv, as the formatter does; without it there is no formatter to ask.
-lint_ui_xml_formatted() {
-    local py=.venv/bin/python out
-    [ -x "$py" ] && "$py" -c 'import lxml' 2>/dev/null || return 0
-    # shellcheck disable=SC2046  # one path per word; ui_xml names have no spaces
-    out=$("$py" scripts/format-xml.py --check $(find ui_xml -name '*.xml' | LC_ALL=C sort) 2>&1) && return 0
-    printf '%s\n' "$out"
-    echo "Fix with: .venv/bin/python scripts/format-xml.py <files>"
     return 1
 }
 

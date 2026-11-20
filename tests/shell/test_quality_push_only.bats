@@ -29,29 +29,19 @@ with_driver() {
   run with_driver true 'for g in $QC_PUSH_ONLY; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:$QC_DEFERRED"'
   [ "$status" -eq 0 ]
   lacks "RAN " "$output"
-  contains "deferred: qc_python_tests" "$output"
-  contains "qc_hidden_tests" "$output"
-  contains "qc_decl_ui" "$output"
+  contains "deferred: qc_decl_ui" "$output"
+  contains "qc_esp32_app_srcs" "$output"
 }
 
-@test "the repo-wide test and vendor lints wait for the push" {
-  run with_driver true 'for g in qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:$QC_DEFERRED"'
+@test "the repo-wide test lints wait for the push" {
+  run with_driver true 'for g in qc_test_tautology qc_test_widget_registry qc_hold_ends_press; do qc_wanted "$g" && echo "RAN $g"; done; echo "deferred:$QC_DEFERRED"'
   [ "$status" -eq 0 ]
   lacks "RAN " "$output"
-  contains "deferred: qc_test_tautology qc_test_widget_registry qc_vendor_branches qc_hold_ends_press" "$output"
+  contains "deferred: qc_test_tautology qc_test_widget_registry qc_hold_ends_press" "$output"
 }
 
-# A branch may add a test in one commit and pay for it in the next, so the budget
-# is a branch-level verdict: measured at a single commit it would fail work in flight.
-@test "the test budget waits for the push" {
-  run with_driver true 'qc_wanted qc_test_budget && echo "RAN qc_test_budget"; echo "deferred:$QC_DEFERRED"'
-  [ "$status" -eq 0 ]
-  lacks "RAN " "$output"
-  contains "qc_test_budget" "$output"
-}
-
-# The growth ratchets measure a branch the same way: a commit may grow a file that a
-# later commit on the branch splits.
+# The growth ratchets measure a branch: a commit may add a global call that a later
+# commit on the branch routes through its parameter.
 @test "the growth ratchets wait for the push" {
   run with_driver true 'qc_wanted qc_growth_ratchets && echo "RAN qc_growth_ratchets"; echo "deferred:$QC_DEFERRED"'
   [ "$status" -eq 0 ]
@@ -97,7 +87,7 @@ now_ms_with_date() {
 }
 
 @test "HELIX_QC_ALL_AT_COMMIT=1 runs the push-only gates at commit" {
-  run with_driver true 'export HELIX_QC_ALL_AT_COMMIT=1; qc_wanted qc_python_tests && echo RAN; echo "deferred:[$QC_DEFERRED]"'
+  run with_driver true 'export HELIX_QC_ALL_AT_COMMIT=1; qc_wanted qc_decl_ui && echo RAN; echo "deferred:[$QC_DEFERRED]"'
   [ "$status" -eq 0 ]
   contains "RAN" "$output"
   contains "deferred:[]" "$output"
@@ -467,4 +457,11 @@ SH
   contains "src/b.cpp: FAILED" "$output"
   contains "error: b is broken" "$output"
   contains "summary: 2 compiled, 0 skipped, 1 failed" "$output"
+}
+
+@test "the design ratchets run at commit: their warning belongs on the commit that adds the site" {
+  run with_driver true 'qc_wanted qc_design_ratchets && echo RAN; echo "deferred:[$QC_DEFERRED]"'
+  [ "$status" -eq 0 ]
+  contains "RAN" "$output"
+  contains "deferred:[]" "$output"
 }

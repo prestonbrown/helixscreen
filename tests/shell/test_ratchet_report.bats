@@ -70,3 +70,33 @@ row() { # <ratchet name>: that row of the last run's output
     [ "$status" -eq 2 ]
     contains "pass --since REV" "$output"
 }
+
+@test "each new design-ratchet site is listed with the commit that added it and its stated reason" {
+    printf 'namespace helix {\nint ok = 1;\n}\n' >"$REPO/src/x.cpp"
+    commit_at 9 "before the window"
+    printf 'class NewGlobal { int y; };\n' >>"$REPO/src/x.cpp"
+    git -C "$REPO" add -A
+    GIT_AUTHOR_DATE=$(date -d '-2 days' '+%Y-%m-%dT%H:%M:%S') GIT_COMMITTER_DATE=$(date -d '-2 days' '+%Y-%m-%dT%H:%M:%S') \
+        git -C "$REPO" commit -q -m "add a global" -m "Ratchet: namespace: the C ABI needs a global symbol"
+    printf 'namespace helix {\nbool cfs(AmsType t) { return t == AmsType::CFS; }\n}\n' >"$REPO/src/v.cpp"
+    commit_at 1 "add a vendor branch"
+    run python3 "$REPORT" --root "$REPO" --days 7
+    [ "$status" -eq 0 ] || fail "$output"
+    [[ "$(row 'design: namespace')" =~ \ 2\ +1\ +\+1\ \(worse\) ]] || fail "$(row 'design: namespace')"
+    contains "New design-ratchet sites in the window: 2" "$output"
+    contains "  namespace  src/x.cpp:4" "$output"
+    contains "add a global" "$output"
+    contains "reason: the C ABI needs a global symbol" "$output"
+    contains "  vendor-branches  src/v.cpp:2" "$output"
+    contains "add a vendor branch" "$output"
+    contains "reason: (no reason stated)" "$output"
+}
+
+@test "a site older than the window is not listed as growth" {
+    printf 'class OldGlobal { int y; };\n' >"$REPO/src/x.cpp"
+    commit_at 9 "old global"
+    commit_at 1 "nothing new"
+    run python3 "$REPORT" --root "$REPO" --days 7
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "New design-ratchet sites in the window: none" "$output"
+}

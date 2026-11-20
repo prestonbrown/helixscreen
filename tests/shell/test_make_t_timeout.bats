@@ -66,24 +66,3 @@ make_t() {
     contains "was killed after 1s" "$output"
     contains "Error 137" "$output"
 }
-
-@test "the commit hook's hidden-test gate kills a hung binary and fails" {
-    # qc_hidden_tests runs build/bin/helix-tests from the tree it is in, after
-    # scripts/check_test_binary_current.sh says the binary is current.
-    local tree="$BATS_TEST_TMPDIR/tree"
-    mkdir -p "$tree/build/bin" "$tree/scripts"
-    printf '#!/bin/sh\necho $$ > "%s"\ntrap "" TERM\nwhile :; do sleep 1; done\n' "$STUB_PID" \
-        > "$tree/build/bin/helix-tests"
-    printf '#!/bin/sh\nexit 0\n' > "$tree/scripts/check_test_binary_current.sh"
-    chmod +x "$tree/build/bin/helix-tests" "$tree/scripts/check_test_binary_current.sh"
-    # The outer bound only keeps a regression from hanging the suite.
-    SECONDS=0
-    run timeout 25 bash -c 'section_time() { :; }; STAGED_ONLY=false
-        TEST_TIMEOUT=1 TIMEOUT_KILL_AFTER=1
-        source "$1/scripts/qc/hidden_tests.sh"; cd "$2" && qc_hidden_tests' _ "$REPO" "$tree"
-    if [ -f "$STUB_PID" ]; then kill -KILL "$(cat "$STUB_PID")" 2>/dev/null || true; fi
-    [ "$status" -ne 0 ]
-    [ "$status" -ne 124 ]
-    [ "$SECONDS" -lt 20 ]
-    contains "Hidden tests were killed after 1s" "$output"
-}

@@ -7,7 +7,12 @@
 # shellcheck disable=SC2034,SC2154
 
 # ====================================================================
-# Declarative UI: no XML-owned widget driven imperatively from C++
+# Declarative UI and source-shape hard gates: required names, guarded
+# queue_update, gcode error ownership, timer cancels, X11 macros, clang/GCC
+# divergence, source rules, 64-bit off_t sites, target overrides, the
+# platform manifest (advisory) and guarded ThumbnailCache access. Imperative
+# UI, orphan subjects, overlay boilerplate, raw widget pointers and comment
+# SHAs are design ratchets: qc_design_ratchets warns on them.
 # ====================================================================
 # True when the caller has said this tree cannot answer the clang question. The
 # gate derives its repo root from its own location and needs a compile database
@@ -19,61 +24,6 @@ qc_clang_divergence_deferred() {
 
 qc_decl_ui() {
   local EXIT_CODE=0
-SECTION_START=$(date +%s)
-echo -n "🎨 Checking declarative UI (imperative XML-widget mutation)..."
-
-# Ratcheting baseline. These are XML widgets fetched by name (lv_obj_find_by_name(),
-# find_required(), find_optional(), find_widget()) and then mutated from C++ instead of bound
-# to a subject. Some predate the gate
-# as deliberate pragmatism (the XML engine couldn't express it at the time), some
-# are plain mistakes — both are debt. The number may go DOWN (port a site, then
-# lower this baseline) but must never go up.
-if python3 scripts/check_imperative_ui.py --max-allowed 24 --summary >/tmp/imperative_ui.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/imperative_ui.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/imperative_ui.out
-  echo "   Run: python3 scripts/check_imperative_ui.py --list"
-  echo "   Bind subjects in XML; see .claude/rules/declarative-ui.md."
-  EXIT_CODE=1
-fi
-
-echo ""
-
-SECTION_START=$(date +%s)
-echo -n "🔌 Checking orphan subjects (registered, never read)..."
-
-# A ratcheting baseline over the whole registered population. The XML linter
-# already rejects a bind_* naming a subject nobody registers; this is the other
-# direction — a subject registered and kept current but read by neither an XML
-# binding nor a C++ consumer. It renders nothing and costs every update that
-# writes it. Usually what a binding leaves behind when its widget is deleted or
-# renamed. Genuinely-unreadable-by-static-analysis cases (a subject handed to a
-# helper by pointer, or observed only from a test accessor) take
-# `// SUBJECT_OK: <reason>` on the registration.
-#
-# scripts/orphan_subject_baseline.txt names the orphans that are accepted debt;
-# the gate fails on any subject not on that list, and says so when one leaves
-# it so the list can be shrunk.
-if python3 scripts/check_orphan_subjects.py --baseline scripts/orphan_subject_baseline.txt        --summary >/tmp/orphan_subjects.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/orphan_subjects.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/orphan_subjects.out
-  echo "   Run: python3 scripts/check_orphan_subjects.py --list"
-  echo "   Bind it in XML, read it from C++, or delete it."
-  echo "   scripts/orphan_subject_baseline.txt is the accepted-debt list, not a parking spot."
-  EXIT_CODE=1
-fi
-
-echo ""
-
 SECTION_START=$(date +%s)
 echo -n "🔎 Checking find_required() names exist in every layout variant..."
 # find_required() aborts a --test run on a missing name, but only on paths the
@@ -93,22 +43,7 @@ fi
 echo ""
 
 SECTION_START=$(date +%s)
-echo -n "🧱 Checking hand-rolled overlay boilerplate only shrinks..."
-# OverlayBase::show() owns the create-once lifecycle and lazy_global<T> the
-# instance; scripts/overlay_boilerplate_baseline.txt holds the shrink-only counts.
-if python3 scripts/check_overlay_boilerplate.py --baseline scripts/overlay_boilerplate_baseline.txt \
-    >/tmp/overlay_boilerplate.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/overlay_boilerplate.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/overlay_boilerplate.out
-  EXIT_CODE=1
-fi
-
-echo ""
+echo -n "🧵 Checking queue_update() never captures a raw this..."
 
 # The ratchet has reached zero (#1165) — every queue_update() in src/ now routes
 # through an AsyncLifetimeGuard, so this is a hard gate, not a baseline.
@@ -282,27 +217,6 @@ cat /tmp/source_rules.out
 echo ""
 
 SECTION_START=$(date +%s)
-echo -n "🧷 Checking raw cached widget pointers..."
-
-# Ratcheting baseline: the count of raw lv_obj_t* data members may fall, never
-# rise. A cached widget outlives its widget whenever something other than its
-# owner deletes the tree, and owner-keyed guards still read valid then. Hold
-# new ones as helix::ui::WidgetRef, or annotate `// WIDGET_PTR_OK: <why>`.
-if python3 scripts/check_cached_widget_pointers.py --max-allowed=308 \
-    >/tmp/cached_widget_ptrs.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  tail -1 /tmp/cached_widget_ptrs.out
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/cached_widget_ptrs.out
-  EXIT_CODE=1
-fi
-
-echo ""
-
-SECTION_START=$(date +%s)
 echo -n "🖥️  Checking large-file (64-bit off_t) sites..."
 
 # Each site's sizeof(off_t) assertion fires only on a 32-bit build, and
@@ -373,24 +287,6 @@ else
   section_time $SECTION_START
   echo ""
   echo "✅ platform manifest agrees with its consumers"
-fi
-
-echo ""
-
-SECTION_START=$(date +%s)
-echo -n "🕰️  Checking comments for commit-SHA citations..."
-
-# Ratchet. Comments explain the code as it is; how it got here belongs in the
-# commit message, where git blame will surface it on demand.
-if python3 scripts/check_comment_archaeology.py >/tmp/comment_arch.out 2>&1; then
-  section_time $SECTION_START
-  echo ""
-  echo "✅ no new commit-SHA citations in comments"
-else
-  section_time $SECTION_START
-  echo ""
-  cat /tmp/comment_arch.out
-  EXIT_CODE=1
 fi
 
 echo ""

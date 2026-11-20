@@ -77,24 +77,24 @@ with_stamp_helpers() {
 @test "a gate that failed or ran long keeps its logs under a timestamped dir; a quick pass does not" {
   local tmp="$BATS_TEST_TMPDIR/qc" kept="$BATS_TEST_TMPDIR/kept"
   mkdir -p "$tmp"
-  echo "gate out" > "$tmp/qc_python_tests.out"
-  echo "pytest log" > "$tmp/python_tests.log"
+  echo "gate out" > "$tmp/qc_test_lint.out"
+  echo "lint log" > "$tmp/test_lint.log"
   eval "$(sed -n "/^qc_keep_gate_log() {/,/^}/p" scripts/quality-checks.sh)"
 
-  run qc_keep_gate_log qc_python_tests 0 2000 "$tmp" "$kept"
+  run qc_keep_gate_log qc_test_lint 0 2000 "$tmp" "$kept"
   [ -z "$output" ]
   [ ! -e "$kept" ]
 
-  run qc_keep_gate_log qc_python_tests 0 400000 "$tmp" "$kept"
-  contains "qc_python_tests log kept: $kept/" "$output"
-  run cat "$kept"/*-python_tests/python_tests.log "$kept"/*-python_tests/summary
-  contains "pytest log" "$output"
+  run qc_keep_gate_log qc_test_lint 0 400000 "$tmp" "$kept"
+  contains "qc_test_lint log kept: $kept/" "$output"
+  run cat "$kept"/*-test_lint/test_lint.log "$kept"/*-test_lint/summary
+  contains "lint log" "$output"
   contains "exit 0 after 400s" "$output"
 
   rm -rf "$kept"
-  run qc_keep_gate_log qc_python_tests 1 2000 "$tmp" "$kept"
+  run qc_keep_gate_log qc_test_lint 1 2000 "$tmp" "$kept"
   contains "log kept" "$output"
-  run cat "$kept"/*-python_tests/qc_python_tests.out
+  run cat "$kept"/*-test_lint/qc_test_lint.out
   contains "gate out" "$output"
 }
 
@@ -150,20 +150,12 @@ with_gate_results() {
   lacks "Failed gates" "$output"
 }
 
-@test "HELIX_QC_SKIP_PYTHON_TESTS=1 leaves tests/python to the caller, and its pass never stands in for a full one" {
-  unset GITHUB_ACTIONS
-  local venv="$BATS_TEST_TMPDIR/venv-python"
-  printf '#!/bin/sh\necho "pytest ran" >> "%s/ran"\necho "1 passed"\n' "$BATS_TEST_TMPDIR" >"$venv"
-  chmod +x "$venv"
-  run bash -c '. scripts/qc/_lib.sh; . scripts/qc/python_tests.sh; VENV_PYTHON="$1" QC_TMP="$2" HELIX_QC_SKIP_PYTHON_TESTS=1 qc_python_tests' _ "$venv" "$BATS_TEST_TMPDIR"
-  [ "$status" -eq 0 ]
-  [ ! -e "$BATS_TEST_TMPDIR/ran" ]
-  contains "the land gate's python step runs tests/python" "$output"
-  run bash -c '. scripts/qc/_lib.sh; . scripts/qc/python_tests.sh; VENV_PYTHON="$1" QC_TMP="$2" qc_python_tests' _ "$venv" "$BATS_TEST_TMPDIR"
-  [ -e "$BATS_TEST_TMPDIR/ran" ]
-  hash_with() {
-    HELIX_QC_SKIP_PYTHON_TESTS="$1" bash -c \
-      'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
-  }
-  [ "$(hash_with 1)" != "$(hash_with 0)" ]
+@test "the sweep runs no pytest suite: tests/python belongs to CI's step and the land gate's" {
+  [ ! -e scripts/qc/python_tests.sh ] || fail "the pytest gate is back"
+  run grep -nE 'qc_python_tests|SKIP_PYTHON|pytest[^|]*tests/python/?( |"|$)' scripts/quality-checks.sh scripts/qc/*.sh
+  [ "$status" -eq 1 ] || fail "quality-checks runs the whole tests/python suite again: $output"
+  run grep -F '.venv/bin/pytest tests/python/' .github/workflows/quality.yml
+  [ "$status" -eq 0 ] || fail "CI no longer runs tests/python"
+  run grep -E '^test-python:' mk/tests.mk
+  [ "$status" -eq 0 ] || fail "no make test-python for the land gate's python step"
 }

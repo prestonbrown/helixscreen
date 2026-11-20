@@ -199,42 +199,29 @@ EOF
     contains "no committed work" "$output"
 }
 
-# --- the qc wrapper -------------------------------------------------------------
+# --- wiring ---------------------------------------------------------------------
+#
+# A commit and a landing meet the layer map through scripts/design_ratchets.py, which
+# names each new upward include and warns (tests/shell/test_design_ratchets_gate.bats).
 
-qc_layering_run() {
-    run bash -c '
-        STAGED_ONLY=false; QC_TMP="$(mktemp -d)"; QC_COUNTS="$QC_TMP/counts"
-        . "$1/scripts/qc/_lib.sh"
-        . "$1/scripts/qc/layering.sh"
-        cd "$2" && mkdir -p scripts && ln -sf "$1/scripts/check_layering.py" scripts/ \
-            && ln -sf "$1/scripts/diff_base.py" scripts/
-        qc_layering' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
-}
-
-@test "the qc wrapper measures the branch from its fork point and fails on a new upward include" {
-    echo '#include "ui_status_banner.h"' >> "$REPO/src/printer/clean.cpp"
-    commit_all "toast"
-    qc_layering_run
-    [ "$status" -eq 1 ]
-    contains "src/printer/clean.cpp: upward includes grew 0 -> 1" "$output"
-}
-
-@test "the qc wrapper passes a branch that adds none" {
-    echo '// touched' >> "$REPO/src/printer/clean.cpp"
-    commit_all "touch"
-    qc_layering_run
+@test "the design ratchets judge new includes with this checker's layer map" {
+    run grep -q 'import check_layering' scripts/design_ratchets.py
     [ "$status" -eq 0 ]
-    contains "Layering" "$output"
 }
 
-@test "the qc wrapper triggers on C++ under src and include and on its script" {
-    cd "$BATS_TEST_DIRNAME/../.." || return 1
-    re="$(qc_trigger layering)"
-    [ -n "$re" ]
-    for p in src/ui/ui_x.cpp src/printer/x.h include/x.h scripts/check_layering.py; do
-        echo "$p" | grep -qE "$re" || fail "$p should trigger"
-    done
-    for p in docs/devel/README.md tests/unit/test_x.cpp tests/shell/test_x.bats ui_xml/globals.xml; do
-        if echo "$p" | grep -qE "$re"; then fail "$p should not trigger"; fi
-    done
+@test "the qc wrapper fails a cleared pair at HEAD and passes a tree without one" {
+    run bash -c '
+        STAGED_ONLY=false; QC_TMP="$(mktemp -d)"
+        . "$1/scripts/qc/_lib.sh"; . "$1/scripts/qc/layering.sh"
+        cd "$2" && mkdir -p scripts && cp "$1"/scripts/check_layering.py "$1"/scripts/diff_base.py scripts/
+        sed -i "s/^CLEARED_PAIRS: tuple\[tuple\[str, str\], ...\] = (/&\n    (\"printer\", \"ui_status_banner.h\"),/" scripts/check_layering.py
+        qc_layering' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
+    [ "$status" -eq 1 ] || fail "$output"
+    contains "no longer includes it anywhere" "$output"
+    run bash -c '
+        STAGED_ONLY=false; QC_TMP="$(mktemp -d)"
+        . "$1/scripts/qc/_lib.sh"; . "$1/scripts/qc/layering.sh"
+        cd "$2" && cp "$1"/scripts/check_layering.py scripts/ && qc_layering' _ "$BATS_TEST_DIRNAME/../.." "$REPO"
+    [ "$status" -eq 0 ] || fail "$output"
+    contains "no cleared include pair is back" "$output"
 }

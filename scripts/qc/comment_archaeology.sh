@@ -10,8 +10,8 @@
 # Comment archaeology: no history phrases in added comment lines
 # ====================================================================
 # Reads added lines only: the pre-commit run checks the index, the full run the
-# branch's committed work since its fork point. The whole-tree SHA ratchet in
-# the same script is the push-time half, run from qc_decl_ui.
+# branch's committed work since its fork point. A commit SHA cited in a comment
+# is a design ratchet: qc_design_ratchets warns on each new one.
 qc_comment_archaeology() {
   local EXIT_CODE=0 out="$QC_TMP/comment_archaeology.out" mode="--base auto"
   SECTION_START=$(date +%s)

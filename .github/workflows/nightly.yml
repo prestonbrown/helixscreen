@@ -231,13 +231,13 @@ jobs:
         retention-days: 1
 
   # ===========================================================================
-  # Test-all: every C++ test including [slow] (excludes only hidden [.] tests)
+  # Test-all: every C++ test, [slow] and the hidden [.] set included
   # ===========================================================================
   test-all:
     name: All C++ Tests (incl. slow)
     needs: build
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 80
 
     steps:
     - name: Checkout repository
@@ -320,6 +320,16 @@ jobs:
         timeout 1680 ./build/bin/helix-tests "[slow]" --durations yes
         echo "Slow tests passed"
 
+
+    # The hidden set ([.]): tests that need ui_xml/ on a relative path, own
+    # destructive global state, or are stress harnesses, so no sharded run can
+    # take them. Nothing else runs them; this step is where one going red shows.
+    # Serially, from the checkout root (docs/devel/HIDDEN_TESTS_TRACKER.md).
+    - name: Run hidden tests ([.]) serially from the repo root
+      timeout-minutes: 20
+      run: |
+        ulimit -c unlimited
+        timeout 1140 ./build/bin/helix-tests "[.]" --durations yes
     - name: Inspect core dumps (on failure)
       if: failure()
       run: |

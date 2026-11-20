@@ -1,12 +1,13 @@
 #!/usr/bin/env bats
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Meta-tests for the lvgl_deprecated quality gate: scripts/lvgl96_rename.py --check.
+# Meta-tests for scripts/lvgl96_rename.py --check, which the lvgl-deprecated design
+# ratchet (scripts/design_ratchets.py) runs over a change's files.
 #
 # LV_DISABLE_API_MAPPING turns a renamed LVGL name into a compile error, but the
 # generic flag calls (lv_obj_add_flag, lv_obj_has_flag, ...) are real functions LVGL
-# only marks deprecated, and the build keeps deprecation a warning. This gate is what
-# fails a new one. It also keeps helix::ui::obj_set_flags()/obj_has_flags() to the
+# only marks deprecated, and the build keeps deprecation a warning. This check names
+# a new one. It also keeps helix::ui::obj_set_flags()/obj_has_flags() to the
 # flags LVGL gives no per-flag function, so the wrapper cannot hide a hidden-flag
 # toggle from the declarative-UI gates.
 
@@ -62,9 +63,7 @@ setup() {
     [ "$status" -eq 0 ]
 }
 
-@test "quality-checks.sh runs the gate" {
-    run grep -c 'qc_lvgl_deprecated' scripts/quality-checks.sh
-    [ "$status" -eq 0 ]
-    run grep -c -- 'lvgl96_rename.py --check' scripts/qc/lvgl_deprecated.sh
+@test "the design ratchets carry the LVGL 9.6 rule through --check" {
+    run grep -q '"lvgl96_rename.py", "--check"' scripts/design_ratchets.py
     [ "$status" -eq 0 ]
 }

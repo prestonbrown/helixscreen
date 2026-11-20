@@ -253,10 +253,8 @@ if [ -n "$XML_FILES" ]; then
     if $VENV_PYTHON scripts/format-xml.py --check $XML_FILES; then
       echo "✅ All XML files properly formatted"
     elif [ "$AUTO_FIX" = true ]; then
-      # Close the loop the way qc_phase2 does for C++. qc_code_lint
-      # (lint_ui_xml_formatted, at push) checks the WHOLE ui_xml tree and fails hard, so
-      # an unformatted file that sailed past a mere warning here would fail the
-      # next push.
+      # Close the loop the way qc_phase2 does for C++: this auto-fix is the only
+      # place XML formatting is enforced, so a commit formats what it stages.
       # Which files already had unstaged work — recorded BEFORE formatting,
       # because the reformat itself makes every file differ from the index.
       XML_PRE_DIRTY=""

@@ -7,21 +7,17 @@
 # shellcheck disable=SC2034,SC2154
 
 # ====================================================================
-# Growth ratchets: file size, global access beside an injected
-# dependency, static active-instance pointers (#1945)
+# Growth ratchets: global access beside an injected dependency,
+# static active-instance pointers (#1945)
 # ====================================================================
 qc_growth_ratchets() {
-  local out="$QC_TMP/growth_ratchets.out" rc=0 args=(--base auto)
+  local out="$QC_TMP/growth_ratchets.out" rc=0
   SECTION_START=$(date +%s)
   echo -n "📏 Checking the branch's growth ratchets..."
-  # Branch-level by construction: a commit may grow a file that a later commit
-  # on the same branch splits, so this measures from the fork point. A commit
-  # runs only the file-size ratchet, to the index; the global-access and
-  # active-instance ratchets and the bans take seconds over the tree and run at
-  # push and in make land-gate. File size is a bookkeeping warning and never
-  # fails the run; the rest still do.
-  [ "$STAGED_ONLY" != true ] || args+=(--staged)
-  python3 scripts/check_growth_ratchets.py "${args[@]}" >"$out" 2>&1 || rc=$?
+  # Branch-level by construction: a commit may add a global call that a later
+  # commit on the same branch routes through its parameter, so this measures
+  # from the fork point, at push and in make land-gate.
+  python3 scripts/check_growth_ratchets.py --base auto >"$out" 2>&1 || rc=$?
   section_time "$SECTION_START"
   echo ""
   qc_ratchet_verdict "$rc" "$out" || { echo ""; return 1; }

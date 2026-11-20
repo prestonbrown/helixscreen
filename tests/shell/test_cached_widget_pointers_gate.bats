@@ -64,19 +64,15 @@ EOF
     contains "3 > baseline 0" "$output"
 }
 
-@test "a count at the baseline passes; under it passes at commit and fails at a push" {
+@test "a count at the baseline passes; under it passes and asks to ratchet down" {
     printf '    lv_obj_t* label_ = nullptr;\n' > "$FILE"
     run python3 "$GATE" --max-allowed=1 "$FILE"
     [ "$status" -eq 0 ]
     contains "1 == baseline (1)" "$output"
 
-    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed=4 "$FILE"
-    [ "$status" -eq 0 ] || fail "under the baseline failed at commit: $output"
+    run python3 "$GATE" --max-allowed=4 "$FILE"
+    [ "$status" -eq 0 ] || fail "under the baseline failed: $output"
     contains "ratchet it down" "$output"
-    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed=4 "$FILE"
-    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
-    contains "scripts/qc/decl_ui.sh" "$output"
-    contains "--max-allowed: 4 -> 1" "$output"
 }
 
 # ------------------------------------------------------------ quiet shapes

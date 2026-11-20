@@ -266,15 +266,12 @@ run_gate() {
     [[ "$output" == *'== baseline'* ]]
 }
 
-@test "--max-allowed above the count asks for a lower baseline and passes, even at a push: a bookkeeping ratchet" {
+@test "--max-allowed above the count asks for a lower baseline and passes" {
     printf '%s\n' '<component><view>
   <lv_obj style_pad_all="12"/>
 </view></component>' > "$FIXTURE_DIR/below.xml"
-    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
+    run python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
     [ "$status" -eq 0 ]
-    contains 'ratchet the baseline down' "$output"
-    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$FIXTURE_DIR/below.xml"
-    [ "$status" -eq 0 ] || fail "a bookkeeping ratchet failed under its baseline at a push: $output"
     contains 'ratchet the baseline down' "$output"
 }
 

@@ -18,9 +18,6 @@
 # and the baseline would stall above zero forever.
 
 GATE="scripts/check_namespace_compliance.py"
-# The ratchet baseline, carried here as a literal so it cannot move in
-# scripts/quality-checks.sh alone. See the wiring section at the end.
-BASELINE=1867
 
 setup() {
     load helpers
@@ -265,59 +262,25 @@ void f() {
     [ "$status" -eq 1 ]
 }
 
-@test "under the baseline passes at commit and fails at a push, naming the new value" {
+@test "under the baseline passes and asks for the baseline to come down" {
     f=$(fixture probe.h 'namespace helix {
 class Widget {
     int x;
 };
 }')
-    run env HELIX_RATCHET_STRICT=0 python3 "$GATE" --max-allowed 5 "$f"
-    [ "$status" -eq 0 ]
+    run python3 "$GATE" --max-allowed 5 "$f"
+    [ "$status" -eq 0 ] || fail "under the baseline failed: $output"
     contains "ratchet the baseline down" "$output"
-    run env HELIX_RATCHET_STRICT=1 python3 "$GATE" --max-allowed 5 "$f"
-    [ "$status" -eq 1 ] || fail "under the baseline passed at a push: $output"
-    contains "scripts/qc/namespace.sh" "$output"
-    contains "--max-allowed: 5 -> 0" "$output"
 }
 
 # --- wiring ---
 #
-# The gate has to run from quality-checks.sh, not only from here: that is what the
-# pre-commit hook, the pre-push hook and the Code Quality workflow all call.
-# `make test-shell` runs late enough that a gate wired only into this file would
-# sit green through every commit that broke it.
+# The rule reaches every commit and landing through scripts/design_ratchets.py,
+# which warns with the new site and never fails (tests/shell/test_design_ratchets_gate.bats).
 
-@test "gate is wired into quality-checks.sh" {
-    run grep -q "check_namespace_compliance.py" scripts/qc/namespace.sh
+@test "the design ratchets carry the namespace rule through this checker" {
+    run grep -q '"check_namespace_compliance.py", "--list"' scripts/design_ratchets.py
     [ "$status" -eq 0 ]
-}
-
-@test "gate section is registered in the quality-checks section list" {
-    run grep -q 'QC_ALL=.*qc_namespace' scripts/quality-checks.sh
-    [ "$status" -eq 0 ]
-}
-
-@test "gate wakes on C++ sources" {
-    run qc_trigger namespace
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"cpp"* ]]
-}
-
-@test "the tree sits exactly at the baseline, not under it" {
-    # Under the baseline is a pass, and a silent one: the number keeps
-    # describing debt that is already gone, and the slack absorbs the next
-    # global declaration without the gate saying anything. Pinning equality is
-    # what makes "can only go down" a property rather than an intention -
-    # lowering the count and lowering the number become the same commit.
-    run python3 "$GATE" --summary --max-allowed "$BASELINE"
-    [ "$status" -eq 0 ]
-    contains "== baseline" "$output"
-}
-
-@test "quality-checks.sh wires the gate in at the same baseline" {
-    # The literal above and the literal there are one number. Raising it in
-    # quality-checks.sh to clear new violations fails here.
-    run grep -F "check_namespace_compliance.py --max-allowed $BASELINE" \
-        scripts/qc/namespace.sh
-    [ "$status" -eq 0 ]
+    run python3 scripts/design_ratchets.py --list-rules
+    contains "namespace:" "$output"
 }
