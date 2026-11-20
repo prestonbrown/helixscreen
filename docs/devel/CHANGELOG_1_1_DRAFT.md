@@ -1669,7 +1669,8 @@ attached and remote screens.
   one removes it, which could hold 81MB and put two screens on the display at boot. A
   Forge-X install on the AD5M appears in Mainsail and Fluidd's update manager on the Stable
   channel, and an update from there keeps your settings (#2147). On every printer, Mainsail
-  and Fluidd list HelixScreen only on Stable: on Beta or Dev it updates from the screen.
+  and Fluidd list HelixScreen only on Stable, except where a firmware mod owns the stanza:
+  on Beta or Dev it updates from the screen.
   An update with the installer restarts HelixScreen the way the printer does at boot,
   instead of leaving the screen dark until a reboot. The installer takes over the display on
   a fresh Forge-X too, and when a display change is still waiting for a reboot it says to

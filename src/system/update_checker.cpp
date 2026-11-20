@@ -930,6 +930,9 @@ void UpdateChecker::shutdown() {
         download_error_.clear();
     }
 
+    // A sync waiting for a job to end must not start after shutdown.
+    moonraker_sync_after_job_.reset();
+
     // Cleanup subjects
     if (subjects_initialized_) {
         // Expire any worker-thread callback still queued on the UpdateQueue
@@ -3224,6 +3227,8 @@ constexpr const char* kMoonrakerConf = "moonraker.conf";
 constexpr const char* kHelixStanza = "update_manager helixscreen";
 /// The only channel the stanza ever names (update_manager_web_channel in the installer).
 constexpr const char* kStanzaChannel = "stable";
+/// The stanza's name in machine.update.status's version_info.
+constexpr const char* kHelixEntry = "helixscreen";
 
 /// Both name the same directory once `.`, `..`, symlinks and trailing slashes are
 /// resolved. Empty never matches: an unknown directory proves nothing.
@@ -3328,6 +3333,18 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
                 }
             }
             if (file.empty()) {
+                // A "#~" header that is not a whole switched-off block was commented
+                // or damaged by hand; it is left alone, as the installer leaves it.
+                const std::string loose = std::string(MoonrakerConfigManager::kSwitchedOffPrefix) +
+                                          "[" + kHelixStanza + "]";
+                for (const auto& [name, text] : files) {
+                    if (text.rfind(loose, 0) == 0 || text.find("\n" + loose) != std::string::npos) {
+                        spdlog::warn("[UpdateChecker] {} has a commented-out [{}] HelixScreen did "
+                                     "not write whole; leaving it alone. Delete or restore it and "
+                                     "re-run the installer to list HelixScreen in Mainsail/Fluidd",
+                                     name, kHelixStanza);
+                    }
+                }
                 spdlog::debug("[UpdateChecker] No [{}] in moonraker.conf or its includes; "
                               "nothing to list or unlist",
                               kHelixStanza);
@@ -3359,28 +3376,36 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
                 updated = MoonrakerConfigManager::switch_section_off(held, kHelixStanza);
             }
             if (updated == content) {
-                // A restart a job held off is still owed for the file as it stands.
-                tok.defer("UpdateChecker::sync_moonraker_channel_owed", [this, api, gen]() {
-                    if (gen == moonraker_sync_generation_.load() && moonraker_restart_owed_)
-                        restart_moonraker_for_channel(*api, gen);
-                });
+                // The file matches; Moonraker may still have the other state loaded
+                // (a restart that was skipped, failed, or lost with an app restart).
+                tok.defer("UpdateChecker::sync_moonraker_channel_loaded",
+                          [this, api, gen, want_listed]() {
+                              if (gen == moonraker_sync_generation_.load())
+                                  restart_moonraker_for_channel(*api, gen, want_listed);
+                          });
                 return;
             }
             const std::string want = want_listed ? "listed" : "switched off";
-            tok.defer("UpdateChecker::sync_moonraker_channel", [this, tok, api, want, gen, file,
-                                                                updated]() {
+            tok.defer("UpdateChecker::sync_moonraker_channel", [this, tok, api, want, want_listed,
+                                                                gen, file, updated,
+                                                                install_root]() {
                 if (gen != moonraker_sync_generation_.load())
                     return;
+                // The download took round-trips a print may have started in.
+                if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+                    defer_moonraker_sync_until_job_ends(install_root);
+                    return;
+                }
                 spdlog::info("[UpdateChecker] HelixScreen's Moonraker update entry in {}: {}", file,
                              want);
                 api->transfers().upload_file(
                     "config", file, updated,
-                    [this, tok, api, gen]() {
+                    [this, tok, api, gen, want_listed]() {
                         tok.defer("UpdateChecker::sync_moonraker_channel_restart",
-                                  [this, api, gen]() {
+                                  [this, api, gen, want_listed]() {
                                       if (gen != moonraker_sync_generation_.load())
                                           return;
-                                      restart_moonraker_for_channel(*api, gen);
+                                      restart_moonraker_for_channel(*api, gen, want_listed);
                                   });
                     },
                     [file](const MoonrakerError& err) {
@@ -3401,56 +3426,80 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
         std::move(download));
 }
 
-void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen) {
+bool UpdateChecker::moonraker_entry_matches(const json& status_result, bool want_listed) {
+    const json* info = helix::json_util::find_member(status_result, "version_info");
+    const json* entry =
+        info && info->is_object() ? helix::json_util::find_member(*info, kHelixEntry) : nullptr;
+    if (!entry)
+        return !want_listed;
+    if (!want_listed)
+        return false;
+    // A loaded entry following another channel is stale too; one that reports no
+    // channel is taken as current.
+    const std::string channel = helix::json_util::safe_string(*entry, "channel", kStanzaChannel);
+    return channel == kStanzaChannel;
+}
+
+void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen,
+                                                  bool want_listed) {
     // Restarting Moonraker drops Klipper's API clients mid-job. Checked again after
-    // the status round-trip, during which a print can start; the restart is then
-    // owed, and the sync that runs when the job ends makes it.
+    // the status round-trip, during which a print can start; the sync then runs
+    // again when the job ends.
     auto job_blocks_restart = [this]() {
         if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle()))
             return false;
-        moonraker_restart_owed_ = true;
         defer_moonraker_sync_until_job_ends(moonraker_sync_root_);
         return true;
     };
     if (job_blocks_restart())
         return;
     auto tok = async_lifetime_.token();
-    // Nor mid-update: right after Moonraker updates this app, "Update All" may still
-    // be updating Klipper or the OS. An unknown state counts as busy.
+    // Moonraker's own view decides: it reads its config only at startup, so the
+    // entry it has loaded, not the file, says whether a restart is needed. Every
+    // path that skips one (busy, status unavailable, a failed restart, an app
+    // restart in between) meets the same check at the next sync. Nor mid-update:
+    // right after Moonraker updates this app, "Update All" may still be updating
+    // Klipper or the OS. An unknown state counts as busy.
     IMoonrakerAPI* api_ptr = &api;
     api.get_client().send_jsonrpc(
         "machine.update.status", json::object(),
-        [this, tok, api_ptr, gen, job_blocks_restart](const json& response) {
+        [this, tok, api_ptr, gen, want_listed, job_blocks_restart](const json& response) {
             const json* result = helix::json_util::find_member(response, "result");
             const bool busy = !result || helix::json_util::safe_bool(*result, "busy", /*def=*/true);
-            tok.defer("UpdateChecker::restart_moonraker_for_channel", [this, api_ptr, gen, busy,
-                                                                       job_blocks_restart]() {
-                if (gen != moonraker_sync_generation_.load() || job_blocks_restart())
-                    return;
-                if (busy) {
-                    spdlog::info("[UpdateChecker] Update channel takes effect at Moonraker's "
-                                 "next restart (update_manager is busy)");
-                    return;
-                }
-                // The app's websocket drops with it and reconnects on its own; that
-                // rediscovery syncs again, finds the stanza matching, and stops.
-                moonraker_restart_owed_ = false;
-                EmergencyStopOverlay::instance().suppress_recovery_dialog(
-                    recovery_suppression::LONG);
-                api_ptr->restart_moonraker(
-                    []() {
-                        spdlog::info(
-                            "[UpdateChecker] Restarting Moonraker to apply the update channel");
-                    },
-                    [](const MoonrakerError& err) {
-                        spdlog::warn(
-                            "[UpdateChecker] Moonraker restart for the update channel failed: {}",
-                            err.message);
-                    });
-            });
+            const bool matches = result && moonraker_entry_matches(*result, want_listed);
+            tok.defer(
+                "UpdateChecker::restart_moonraker_for_channel",
+                [this, api_ptr, gen, busy, matches, job_blocks_restart]() {
+                    if (gen != moonraker_sync_generation_.load() || job_blocks_restart())
+                        return;
+                    if (matches) {
+                        spdlog::debug("[UpdateChecker] Moonraker's loaded update entry already "
+                                      "matches; no restart");
+                        return;
+                    }
+                    if (busy) {
+                        spdlog::info("[UpdateChecker] Update entry takes effect at Moonraker's "
+                                     "next restart (update_manager is busy)");
+                        return;
+                    }
+                    // The app's websocket drops with it and reconnects on its own; that
+                    // rediscovery syncs again, finds Moonraker matching, and stops.
+                    EmergencyStopOverlay::instance().suppress_recovery_dialog(
+                        recovery_suppression::LONG);
+                    api_ptr->restart_moonraker(
+                        []() {
+                            spdlog::info(
+                                "[UpdateChecker] Restarting Moonraker to apply the update entry");
+                        },
+                        [](const MoonrakerError& err) {
+                            spdlog::warn(
+                                "[UpdateChecker] Moonraker restart for the update entry failed: {}",
+                                err.message);
+                        });
+                });
         },
         [](const MoonrakerError& err) {
-            spdlog::info("[UpdateChecker] Update channel takes effect at Moonraker's next "
+            spdlog::info("[UpdateChecker] Update entry takes effect at Moonraker's next "
                          "restart (update status unavailable: {})",
                          err.message);
         },
@@ -3651,9 +3700,8 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
 
 void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     ++moonraker_sync_generation_;
-    // A sync waiting on this printer's job, or a restart it owed, ends with it.
+    // A sync waiting on this printer's job ends with it.
     moonraker_sync_after_job_.reset();
-    moonraker_restart_owed_ = false;
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
 }
 

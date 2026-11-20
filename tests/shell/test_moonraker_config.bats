@@ -2336,3 +2336,53 @@ fixture_for_install() {
     grep -qx '#~ my own note' "$conf" || fail "the user's line went with the stanza"
     refute_grep 'update_manager helixscreen\]$' "$conf"
 }
+
+@test "removal leaves a commented-out helixscreen block that is not whole" {
+    local conf="$BATS_TEST_TMPDIR/u.conf"
+    printf '[server]\nhost: 0.0.0.0\n\n# my note about the old helix block\n#~ [update_manager helixscreen]\n#~ type: web\n#~ path: /old\n#~ [update_manager mine]\n#~ type: git_repo\n#~ path: ~/mine\n' > "$conf"
+    cp "$conf" "$conf.orig"
+
+    remove_update_manager_section "$conf" >/dev/null
+
+    cmp -s "$conf.orig" "$conf" || fail "$(diff "$conf.orig" "$conf")"
+}
+
+@test "configure_moonraker_updates leaves a damaged switched-off block alone and says so" {
+    local conf restarted="$BATS_TEST_TMPDIR/restarted"
+    conf=$(setup_moonraker_home)
+    # An editor trimmed the blank-line prefix inside the block: no longer whole.
+    fixture_for_install off.conf | sed 's/^#~ # end .*$/#~ # end (edited)/' > "$conf"
+    cp "$conf" "$BATS_TEST_TMPDIR/before.conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "net_deploy.py" "$NET_DEPLOY_MODERN" >/dev/null
+    fake_non_buildroot_os_release
+    restart_moonraker() { touch "$restarted"; }
+    R2_CHANNEL=stable
+
+    configure_moonraker_updates "pi" > "$BATS_TEST_TMPDIR/out" 2>&1
+
+    cmp -s "$BATS_TEST_TMPDIR/before.conf" "$conf" \
+        || fail "the file was changed: $(diff "$BATS_TEST_TMPDIR/before.conf" "$conf")"
+    grep -q "did not write whole" "$BATS_TEST_TMPDIR/out" || fail "the user was not told"
+    [ ! -e "$restarted" ]
+}
+
+@test "configure_moonraker_updates on beta migrates an old git_repo stanza before switching it off" {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_git_repo "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "net_deploy.py" "$NET_DEPLOY_MODERN" >/dev/null
+    fake_non_buildroot_os_release
+    restart_moonraker() { :; }
+    R2_CHANNEL=beta
+
+    configure_moonraker_updates "pi" >/dev/null 2>&1
+
+    refute_grep '^\[update_manager helixscreen\]' "$conf"
+    grep -qx '#~ type: web' "$conf" || fail "the switched-off stanza is not type: web: $(cat "$conf")"
+    refute_grep 'git_repo' "$conf"
+    [ "$(grep -c '^#~ \[update_manager helixscreen\]' "$conf")" -eq 1 ] || fail "not exactly one stanza"
+}
