@@ -16,6 +16,9 @@ calibration_pa_panel.xml
 calibration_pid_panel.xml
 calibration_tool_offset_panel.xml
 calibration_zoffset_panel.xml
+components/action_prompt_button.xml
+components/action_prompt_swatch.xml
+components/action_prompt_text_line.xml
 components/barcode_scanner_device_row.xml
 components/bed_check_modal.xml
 components/camera_config_modal.xml
