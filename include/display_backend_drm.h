@@ -225,8 +225,8 @@ class DisplayBackendDRM : public DisplayBackend {
     void open_mouse_device();
     /// Installs the calibration wrapper and the pointer frame hook on whichever
     /// devices lack them, and returns pointer_. Every path that opens a device
-    /// ends here.
-    lv_indev_t* hook_pointer_devices();
+    /// ends here; a reopen keeps the calibration the dropped device had live.
+    lv_indev_t* hook_pointer_devices(bool reopening);
     /// Auto-fire the first-run wizard (resistive controllers, broken ABS ranges)
     bool needs_calibration_ = false;
     /// Offer the manual Settings entry point (any real touch panel)
