@@ -94,11 +94,11 @@ void glow_opa_anim_cb(void* glow, int32_t opa) {
     lv_obj_set_style_bg_opa(static_cast<lv_obj_t*>(glow), static_cast<lv_opa_t>(opa), 0);
 }
 
-/// Writes a chip's text, compact while the chips are pinned. True on a change.
+/// Writes a chip's text, compact while the chips draw compact. True on a change.
 bool publish_callout_text(lv_subject_t* text, const std::string& full) {
-    const bool pinned =
-        lv_subject_get_int(&s_printer_callout_mode) == static_cast<int>(helix::CalloutMode::Pinned);
-    const std::string t = pinned ? helix::ui::compact_callout_text(full) : full;
+    const bool compact = helix::callout_mode_is_compact(
+        static_cast<helix::CalloutMode>(lv_subject_get_int(&s_printer_callout_mode)));
+    const std::string t = compact ? helix::ui::compact_callout_text(full) : full;
     if (t == lv_subject_get_string(text))
         return false;
     lv_subject_copy_string(text, t.c_str());
@@ -910,10 +910,11 @@ void PrinterImageWidget::apply_callout_layout() {
     const auto chip_w = [&](int icons, const std::string& text) {
         return metrics.chip_w(icons, text);
     };
-    // Pinned chips drop their icons and set chip_text in font_xs (the
-    // printer_callout_mode binding in panel_widget_printer_image.xml).
+    // Pinned chips drop their icons and set chip_text in font_callout_compact (the
+    // printer_callout_mode binding in panel_widget_printer_image.xml); an
+    // icon-only chip keeps its icon.
     const auto compact_w = [&](int icons, const std::string& text) {
-        return helix::ui::compact_callout_chip_w(probe, text, icons);
+        return helix::ui::compact_callout_chip_w(probe, text, text.empty() ? icons : 0);
     };
     cfg.chip_h = metrics.chip_h;
     cfg.compact_chip_h =
@@ -982,6 +983,7 @@ void PrinterImageWidget::apply_callout_layout() {
         part.w_budget = c.capable ? chip_w(c.icons, c.worst) : 0;
         part.w_full = part.active ? chip_w(c.icons, c.now) : 0;
         part.w_compact = part.active ? compact_w(c.icons, c.now) : 0;
+        part.w_compact_budget = c.capable ? compact_w(c.icons, c.worst) : 0;
         parts.chips.push_back(part);
     }
     {

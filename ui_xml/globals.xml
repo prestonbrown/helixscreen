@@ -912,6 +912,17 @@
     <string name="font_xs_xlarge" value="noto_sans_light_16"/>
     <string name="font_xs_xxlarge" value="noto_sans_light_20"/>
     <!-- NO BASE font_xs - registered at runtime -->
+    <!-- font_callout_compact variants (a heater chip pinned on the printer picture) - font_xs from
+         small up; the regular face at 12px below that, where xs Light is too thin to read a
+         temperature at arm's length -->
+    <string name="font_callout_compact_micro" value="noto_sans_12"/>
+    <string name="font_callout_compact_tiny" value="noto_sans_12"/>
+    <string name="font_callout_compact_small" value="noto_sans_light_10"/>
+    <string name="font_callout_compact_medium" value="noto_sans_light_12"/>
+    <string name="font_callout_compact_large" value="noto_sans_light_14"/>
+    <string name="font_callout_compact_xlarge" value="noto_sans_light_16"/>
+    <string name="font_callout_compact_xxlarge" value="noto_sans_light_20"/>
+    <!-- NO BASE font_callout_compact - registered at runtime -->
     <!-- font_chip_material variants (a FILAMENTS-card chip's material header) - Bold where the
          chip is wide enough to hold "ABS-GF" in it, Light below that -->
     <string name="font_chip_material_micro" value="noto_sans_light_10"/>

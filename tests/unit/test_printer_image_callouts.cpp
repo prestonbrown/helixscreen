@@ -390,7 +390,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: a heating nozzle with the fan on merges into the toolhead chip",
+                 "callouts: a small tile staggers the nozzle and fan chips at its edges",
                  "[printer_image][callouts]") {
     const auto regions = prepare_tagged_widget();
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
@@ -399,15 +399,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(state().temperature_state().get_active_extruder_target_subject(), 2200);
     lv_subject_set_int(state().fan_state().get_fan_speed_subject(), 50);
     settle();
-    CHECK(shown(h, "callout_chip_toolhead"));
-    CHECK_FALSE(shown(h, "callout_chip_nozzle"));
-    CHECK_FALSE(shown(h, "callout_chip_fan"));
-    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Pinned));
-    CHECK(text_of(h, "callout_chip_toolhead") == "180 / 220°  50%");
+    lv_obj_update_layout(h.root());
+    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Staggered));
+    CHECK_FALSE(shown(h, "callout_chip_toolhead"));
+    CHECK(shown(h, "callout_chip_nozzle"));
+    CHECK(shown(h, "callout_chip_fan"));
+    CHECK(text_of(h, "callout_chip_nozzle") == "180 / 220°");
+    const lv_obj_t* layer = h.child("callout_layer");
+    for (const char* name : {"callout_chip_nozzle", "callout_chip_fan"}) {
+        lv_obj_t* chip = h.child(name);
+        const int x = lv_obj_get_x(chip), w = lv_obj_get_width(chip);
+        INFO(name << " x " << x << " w " << w);
+        CHECK((x <= 8 || x + w >= lv_obj_get_content_width(layer) - 8));
+    }
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: pinned chips are compact: no icon, no unit letter, a smaller font",
+                 "callouts: compact chips: no icon, no unit letter, a smaller font",
                  "[printer_image][callouts]") {
     const auto regions = prepare_tagged_widget();
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
@@ -416,13 +424,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
-    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Pinned));
+    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Staggered));
     lv_obj_t* chip = h.child("callout_chip_bed");
     lv_obj_t* label = lv_obj_find_by_name(chip, "chip_text");
     CHECK(text_of(h, "callout_chip_bed") == "40 / 60°");
     CHECK(lv_obj_has_flag(lv_obj_find_by_name(chip, "heater_icon"), LV_OBJ_FLAG_HIDDEN));
     const lv_font_t* font = lv_obj_get_style_text_font(label, LV_PART_MAIN);
-    CHECK(font == theme_manager_get_font("font_xs"));
+    CHECK(font == theme_manager_get_font("font_callout_compact"));
     // Placed at the width it renders: its text plus chrome, no icon gap.
     const int text_px = helix::ui::measure_text_px(lv_label_get_text(label), font);
     CHECK(lv_obj_get_width(label) >= text_px);
@@ -1035,9 +1043,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "callouts: wide widget draws a line to the b
 
 TEST_CASE_METHOD(LVGLUITestFixture, "callouts: pinned mode draws no lines",
                  "[printer_image][callouts]") {
-    const auto regions = prepare_tagged_widget();
+    // A tile narrower than the bed chip has no edge to stagger it against: it pins.
+    const auto regions = prepare_tagged_widget(400, 1600);
     PanelWidgetHarness<PrinterImageWidget> h(test_screen());
-    h.resize(4, 4, 160, 160);
+    h.resize(4, 4, 48, 320);
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     REQUIRE(mode_now() == static_cast<int>(CalloutMode::Pinned));
@@ -1443,7 +1452,7 @@ CalloutPoint bed_point(const CalloutRect& img, float x0, float x1, float y) {
 } // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "callouts: a user entry at the image's natural size pins chips at the user's "
+                 "callouts: a user entry at the image's natural size places chips by the user's "
                  "points; one pixel off falls back to the shipped entry",
                  "[printer_image][callouts][image_tagger]") {
     const ConfigDirGuard cfg("callouts_user_entry");
@@ -1467,12 +1476,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_subject_set_int(state().temperature_state().get_bed_target_subject(), 600);
     settle();
     lv_obj_update_layout(h.root());
-    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Pinned));
+    // Staggered: the bed chip stands at the tile's edge, level with its point.
+    REQUIRE(mode_now() == static_cast<int>(CalloutMode::Staggered));
     lv_obj_t* c = h.child("printer_container");
     const CalloutRect user_img =
         fit_image(lv_obj_get_content_width(c), lv_obj_get_content_height(c), nat_w, nat_h);
     const CalloutPoint want_user = bed_point(user_img, 0.6f, 0.8f, 0.75f);
-    CHECK(std::abs(bed_chip_centre(h).x - want_user.x) <= 1);
     CHECK(std::abs(bed_chip_centre(h).y - want_user.y) <= 1);
 
     // A save that cannot reach the disk changes nothing the widget draws.
@@ -1486,7 +1495,6 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     h.widget().refresh_printer_image();
     settle();
     lv_obj_update_layout(h.root());
-    CHECK(std::abs(bed_chip_centre(h).x - want_user.x) <= 1);
     CHECK(std::abs(bed_chip_centre(h).y - want_user.y) <= 1);
     std::filesystem::remove_all(file);
 
@@ -1495,6 +1503,5 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     settle();
     lv_obj_update_layout(h.root());
     const CalloutPoint want_shipped = bed_point(fitted_image(h), 0.308f, 0.611f, 0.572f);
-    CHECK(std::abs(bed_chip_centre(h).x - want_shipped.x) <= 1);
     CHECK(std::abs(bed_chip_centre(h).y - want_shipped.y) <= 1);
 }

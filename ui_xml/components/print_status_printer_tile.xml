@@ -6,7 +6,8 @@
      shared CalloutPresenter positions the image, chips, lines and glows inside
      ps_printer_area's content box; everything else is bound here.
      ps_callout_mode: 0 ImageOnly, 1 Pinned (compact chips on the picture),
-     2 Docked (untagged image, no lines or glows), 3 BothSides, 4 OneSide.
+     2 Docked (untagged image, no lines or glows), 3 BothSides, 4 OneSide,
+     5 Staggered (compact chips at the side edges, over the picture's edge).
      A glow is strong while its chip's tone is Active (a heater climbing, a fan
      spinning, the light on) and soft otherwise; ps_glow_<key> 0 hides it. -->
 <component>
@@ -51,7 +52,7 @@
           <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
           <!-- The chip text carries the tool badge, so the icon stays bare. -->
           <nozzle_icon size="xs" badge_subject="">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </nozzle_icon>
         </activity_chip>
         <activity_chip name="ps_chip_bed"
@@ -61,7 +62,7 @@
           <bind_flag_if cond="ps_chip_bed_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
           <heater_icon src="radiator" glyph_name="bed_icon_glyph" size="xs">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </heater_icon>
         </activity_chip>
         <activity_chip name="ps_chip_chamber"
@@ -71,7 +72,7 @@
           <bind_flag_if cond="ps_chip_chamber_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_temp_card_clicked"/>
           <heater_icon src="fridge_industrial" glyph_name="chamber_icon_glyph" size="xs">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </heater_icon>
         </activity_chip>
         <activity_chip name="ps_chip_part_fan"
@@ -81,7 +82,7 @@
           <bind_flag_if cond="ps_chip_part_fan_shown eq 0 or ps_toolhead_merged eq 1" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_print_status_fans_clicked"/>
           <icon src="fan" size="xs">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </icon>
         </activity_chip>
         <activity_chip name="ps_chip_hotend_fan"
@@ -91,7 +92,7 @@
           <bind_flag_if cond="ps_chip_hotend_fan_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_print_status_fans_clicked"/>
           <icon src="fan" size="xs">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </icon>
         </activity_chip>
         <activity_chip name="ps_chip_aux_fan"
@@ -101,7 +102,7 @@
           <bind_flag_if cond="ps_chip_aux_fan_shown eq 0" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_print_status_fans_clicked"/>
           <icon src="fan" size="xs">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </icon>
         </activity_chip>
         <lv_obj name="ps_chip_light" width="content" height="content" scrollable="false" clickable="true">
@@ -124,7 +125,7 @@
           <event_cb trigger="clicked" callback="on_print_status_tune"/>
           <!-- The pill lays out row_reverse: the speed icon reads before the chip's text. -->
           <icon src="speed" size="xs">
-            <bind_flag_if_eq subject="ps_callout_mode" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="ps_callout_mode eq 1 or ps_callout_mode eq 5" flag="hidden"/>
           </icon>
         </activity_chip>
         <activity_chip name="ps_chip_toolhead"

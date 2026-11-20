@@ -37,10 +37,15 @@ class CalloutPresenter {
         int w_budget = 0;
         int w_full = 0;
         int w_compact = 0;
+        /// w_budget's compact form: the worst case it can show in a compact mode.
+        int w_compact_budget = 0;
         /// w_budget and w_full with the chip's label left off; 0 for a chip without one.
         int w_budget_unlabeled = 0;
         int w_full_unlabeled = 0;
         int icons = 0; ///< pixels its icons take in the chip row; bounds the label
+        /// Pixels beside the label that stay in pinned mode (a heater's status glyph and
+        /// its gap); bounds the compact label as `icons` bounds the full one.
+        int icons_compact = 0;
         /// Heights of a chip taller than one text line, full-size and compact,
         /// measured like the widths; 0 is Config's chip_h / compact_chip_h.
         int h = 0;

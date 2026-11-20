@@ -81,7 +81,8 @@ void set_string(lv_subject_t* s, char* buf, size_t size, const std::string& v) {
 }
 
 bool lined_or_pinned(CalloutMode m) {
-    return m == CalloutMode::BothSides || m == CalloutMode::OneSide || m == CalloutMode::Pinned;
+    return m == CalloutMode::BothSides || m == CalloutMode::OneSide || m == CalloutMode::Pinned ||
+           m == CalloutMode::Staggered;
 }
 
 /// A fan chip names the role its slot fills, whichever fan fills it.
@@ -590,6 +591,8 @@ void PrintStatusTiles::update_now() {
     std::array<int, kPrintStatusChipCount> icons{}, budget_w{}, budget_bare_w{};
     // The worst case of a chip budgeted from its ChipContent; its lines set the chip's height.
     std::array<std::string, kPrintStatusChipCount> budget_text;
+    // The worst case in a compact mode: bare text, as a pinned or staggered chip shows it.
+    std::array<std::string, kPrintStatusChipCount> compact_budget_text;
     int column_w = 0;
     const auto width_of = [&](size_t i, const ChipContent& c) {
         return m.chip_w(icons[i], c.text);
@@ -603,8 +606,10 @@ void PrintStatusTiles::update_now() {
             const ChipContent b = speed_flow_budget_chip();
             budget_w[i] = width_of(i, b);
             budget_text[i] = b.text;
+            compact_budget_text[i] = b.text;
         } else {
             budget_w[i] = m.chip_w(icons[i], worst(chip, true));
+            compact_budget_text[i] = worst(chip, false);
         }
         if (in_budget(chip) && is_fan(chip)) {
             budget_bare_w[i] = m.chip_w(icons[i], worst(chip, false));
@@ -647,9 +652,19 @@ void PrintStatusTiles::update_now() {
             part.w_budget_unlabeled = budget_bare_w[i];
             part.w_full_unlabeled = part.active ? m.chip_w(icons[i], bare[i].text) : 0;
         }
-        // Pinned chips sit on their parts and carry no labels.
+        // Compact chips carry no labels. Their icons hide, except a heater's
+        // status glyph; an icon-only chip keeps its icon.
+        const auto compact_beside = [&](const std::string& text) {
+            return text.empty() ? icons[i] : is_heater(chip) ? m.col_gap + status_glyph : 0;
+        };
         const ChipContent& b = bare[i];
-        part.w_compact = part.active ? compact_callout_chip_w(probe, b.text, icons[i]) : 0;
+        part.icons_compact = compact_beside(b.text);
+        part.w_compact =
+            part.active ? compact_callout_chip_w(probe, b.text, part.icons_compact) : 0;
+        part.w_compact_budget = part.in_budget
+                                    ? compact_callout_chip_w(probe, compact_budget_text[i],
+                                                             compact_beside(compact_budget_text[i]))
+                                    : 0;
         if (const int lines = text_line_count(budget_text[i]); lines > 1) {
             part.h = m.chip_h_for(budget_text[i]);
             part.h_compact = compact_callout_chip_h(
@@ -668,7 +683,8 @@ void PrintStatusTiles::update_now() {
         CalloutPresenter::Chip th;
         th.kind = CalloutKind::Toolhead;
         th.chip = th_obj;
-        th.w_compact = compact_callout_chip_w(probe, toolhead_text, m.col_gap + status_glyph);
+        th.icons_compact = m.col_gap + status_glyph;
+        th.w_compact = compact_callout_chip_w(probe, toolhead_text, th.icons_compact);
         parts.toolhead = th;
     }
 

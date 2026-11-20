@@ -9,8 +9,8 @@
      Pill styling (colors, padding, row_reverse) lives in styles.activity_chip
      so an icon-only chip with no label can borrow the identical look.
      shown_subject is the chip's shown int; its value 2 (a heater off but
-     still hot) greys the text. compact_subject's value 1 sets the text in
-     font_xs.
+     still hot) greys the text. compact_subject is a CalloutMode: Pinned (1)
+     and Staggered (5) set the text in font_callout_compact.
      Optional, left unset by the home screen: tone_subject (ChipTone: 2 Warn
      turns the border and text amber, 3 Dim greys the text) and
      progress_subject (0-100 fills a thin bar along the chip's foot; -1 hides
@@ -37,7 +37,7 @@
   </styles>
   <view extends="lv_obj" width="content" height="content" scrollable="false" clickable="true">
     <style name="styles.activity_chip"/>
-    <bind_style_if_eq name="pinned" subject="$compact_subject" ref_value="1"/>
+    <bind_style_if name="pinned" cond="${compact_subject} eq 1 or ${compact_subject} eq 5"/>
     <bind_style_if_eq name="accent_border" subject="$tone_subject" ref_value="2"/>
     <!-- Before the label in markup, after it on screen: the pill lays out row_reverse. -->
     <!-- Takes no room without a state: an unset subject skips the binding and
@@ -49,7 +49,7 @@
       <bind_style_if_eq name="residual" subject="$shown_subject" ref_value="2"/>
       <bind_style_if_eq name="residual" subject="$tone_subject" ref_value="3"/>
       <bind_style_if_eq name="styles.chip_text_warning" subject="$tone_subject" ref_value="2"/>
-      <bind_style_if_eq name="styles.chip_text_compact" subject="$compact_subject" ref_value="1"/>
+      <bind_style_if name="styles.chip_text_compact" cond="${compact_subject} eq 1 or ${compact_subject} eq 5"/>
     </text_small>
     <lv_bar name="chip_progress"
             width="100%" height="#space_xxs" ignore_layout="true" align="bottom_mid" min_value="0" max_value="100"

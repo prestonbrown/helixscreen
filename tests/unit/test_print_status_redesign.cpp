@@ -425,7 +425,7 @@ TEST_CASE_METHOD(Portrait272, "the smallest tile keeps the unusual chips and dim
 
     // Which expendable chip a tight tile drops first is the engine's rule
     // ([callout_layout] "hotend fan drops first when chips do not fit").
-    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::Pinned));
+    REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::Staggered));
     CHECK(subject_int("ps_chip_part_fan_shown") == 1);
     CHECK(subject_int("ps_chip_speed_flow_shown") == 1);
     if (subject_int("ps_chip_aux_fan_shown") == 1) {

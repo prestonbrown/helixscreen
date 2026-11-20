@@ -64,6 +64,7 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     in.image_w = regions ? regions->src_w : natural_w;
     in.image_h = regions ? regions->src_h : natural_h;
     in.chip_h = config.chip_h;
+    in.compact_chip_h = config.compact_chip_h;
     in.gap = config.gap;
     in.min_line = config.min_line;
     in.leader_min_distance = config.leader_min_distance;
@@ -77,10 +78,10 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
     for (const Chip& c : parts.chips) {
         if (c.in_budget)
             in.budget.push_back({c.kind, c.w_budget, anchor(c.kind), c.budget_expendable,
-                                 c.w_budget_unlabeled, c.h});
+                                 c.w_budget_unlabeled, c.h, c.w_compact_budget, c.h_compact});
         if (c.active)
-            in.active.push_back(
-                {c.kind, c.w_full, anchor(c.kind), c.budget_expendable, c.w_full_unlabeled, c.h});
+            in.active.push_back({c.kind, c.w_full, anchor(c.kind), c.budget_expendable,
+                                 c.w_full_unlabeled, c.h, c.w_compact, c.h_compact});
     }
     out = compute_callout_layout(in);
     if (spdlog::should_log(spdlog::level::trace)) {
@@ -142,7 +143,7 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         for (const Chip& c : parts.chips)
             place_glow(c, *regions, out.image);
     }
-    const bool compact = out.mode == CalloutMode::Pinned;
+    const bool compact = callout_mode_is_compact(out.mode);
     for (const CalloutChipOut& c : out.chips) {
         if (const Chip* part = part_for(parts, c.kind)) {
             place_line(c, *part);
@@ -226,7 +227,8 @@ void CalloutPresenter::place_chip(const CalloutChipOut& c, const Chip& part, boo
                          lv_obj_get_style_pad_right(obj, LV_PART_MAIN) +
                          2 * lv_obj_get_style_border_width(obj, LV_PART_MAIN);
     const int around_text = chrome_w + part.icons + lv_obj_get_style_pad_column(obj, LV_PART_MAIN);
-    const int label_max = std::max(0, c.rect.w - (compact ? chrome_w : around_text));
+    const int label_max =
+        std::max(0, c.rect.w - (compact ? chrome_w + part.icons_compact : around_text));
     if (label && lv_obj_get_style_max_width(label, LV_PART_MAIN) != label_max) {
         // DECLARATIVE_OK: measured callout layout
         lv_obj_set_style_max_width(label, label_max, 0);
