@@ -1279,6 +1279,7 @@
   <translation tag="E-Stop Confirmation" de="Notaus-Bestätigung" en="E-Stop Confirmation" es="Confirmación de Parada de Emergencia" fr="Confirmation arrêt d&apos;urgence" it="Conferma arresto emergenza" ja="緊急停止の確認" pt="Confirmação de Parada de Emergência" ru="Подтверждение аварийной остановки" zh="急停确认"/>
   <translation tag="EDDY CURRENT" de="EDDY CURRENT" en="EDDY CURRENT" es="EDDY CURRENT" fr="EDDY CURRENT" it="EDDY CURRENT" ja="EDDY CURRENT" pt="EDDY CURRENT" ru="EDDY CURRENT" zh="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" de="EEPROM-Fehler an der CFS-Einheit" en="EEPROM error on CFS unit" es="Error de EEPROM en la unidad CFS" fr="Erreur EEPROM sur l&apos;unité CFS" it="Errore EEPROM sull&apos;unità CFS" ja="CFS ユニットの EEPROM エラー" pt="Erro de EEPROM na unidade CFS" ru="Ошибка EEPROM в блоке CFS" zh="CFS 单元 EEPROM 错误"/>
+  <translation tag="ELECTRICITY" de="STROM" en="ELECTRICITY" es="ELECTRICIDAD" fr="ÉLECTRICITÉ" it="ELETTRICITÀ" ja="電気代" pt="ELETRICIDADE" ru="ЭЛЕКТРИЧЕСТВО" zh="电费"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" de="ELEKTRONIK &amp; ZUBEHÖR" en="ELECTRONICS &amp; ACCESSORIES" es="ELECTRÓNICA Y ACCESORIOS" fr="ÉLECTRONIQUE &amp; ACCESSOIRES" it="ELETTRONICA E ACCESSORI" ja="電子機器とアクセサリー" pt="ELETRÔNICA E ACESSÓRIOS" ru="ЭЛЕКТРОНИКА И АКСЕССУАРЫ" zh="电子设备与配件"/>
   <translation tag="EMERGENCY STOP" de="NOTAUS" en="EMERGENCY STOP" es="PARADA DE EMERGENCIA" fr="ARRÊT D&apos;URGENCE" it="ARRESTO EMERGENZA" ja="緊急停止" pt="PARADA DE EMERGÊNCIA" ru="АВАРИЙНАЯ ОСТАНОВКА" zh="紧急停止"/>
   <translation tag="EMPTY" de="LEER" en="EMPTY" es="VACÍO" fr="VIDE" it="VUOTO" ja="空" pt="VAZIO" ru="ПУСТО" zh="空"/>
@@ -1473,6 +1474,7 @@
   <translation tag="FAILED" de="FEHLGESCHLAGEN" en="FAILED" es="FALLIDO" fr="ÉCHOUÉ" it="FALLITO" ja="失敗" pt="FALHOU" ru="ОШИБКА" zh="失败"/>
   <translation tag="FILAMENT" de="FILAMENT" en="FILAMENT" es="FILAMENTO" fr="FILAMENT" it="FILAMENTO" ja="フィラメント" pt="FILAMENTO" ru="ФИЛАМЕНТ" zh="耗材"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" de="FILAMENT &amp; WERKZEUGKOPF" en="FILAMENT &amp; TOOLHEAD" es="FILAMENTO Y CABEZAL" fr="FILAMENT &amp; TÊTE D&apos;OUTIL" it="FILAMENTO E TESTINA" ja="フィラメントとツールヘッド" pt="FILAMENTO E CABEÇOTE" ru="ФИЛАМЕНТ И ГОЛОВКА" zh="耗材与工具头"/>
+  <translation tag="FILAMENT PRICE PER KG" de="FILAMENTPREIS PRO KG" en="FILAMENT PRICE PER KG" es="PRECIO DEL FILAMENTO POR KG" fr="PRIX DU FILAMENT AU KG" it="PREZZO DEL FILAMENTO AL KG" ja="フィラメントのkg単価" pt="PREÇO DO FILAMENTO POR KG" ru="ЦЕНА ФИЛАМЕНТА ЗА КГ" zh="耗材每公斤价格"/>
   <translation tag="FILAMENTS" de="FILAMENTE" en="FILAMENTS" es="FILAMENTOS" fr="FILAMENTS" it="FILAMENTI" ja="フィラメント" pt="FILAMENTOS" ru="ФИЛАМЕНТЫ" zh="耗材"/>
   <translation tag="FILTERS" de="FILTER" en="FILTERS" es="FILTROS" fr="FILTRES" it="FILTRI" ja="フィルター" pt="FILTROS" ru="ФИЛЬТРЫ" zh="筛选"/>
   <translation tag="Factory Reset" de="Werkseinstellungen" en="Factory Reset" es="Restaurar de Fábrica" fr="Réinitialisation d&apos;usine" it="Ripristino di fabbrica" ja="工場出荷時リセット" pt="Restauração de Fábrica" ru="Сброс к заводским настройкам" zh="恢复出厂设置"/>

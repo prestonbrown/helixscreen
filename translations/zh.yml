@@ -1298,6 +1298,7 @@ translations:
   E-Stop Confirmation: 急停确认
   EDDY CURRENT: EDDY CURRENT
   EEPROM error on CFS unit: CFS 单元 EEPROM 错误
+  ELECTRICITY: "电费"
   ELECTRONICS & ACCESSORIES: '电子设备与配件'
   EMERGENCY STOP: 紧急停止
   EMPTY: 空
@@ -1493,6 +1494,7 @@ translations:
   FAILED: 失败
   FILAMENT: 耗材
   FILAMENT & TOOLHEAD: '耗材与工具头'
+  FILAMENT PRICE PER KG: "耗材每公斤价格"
   FILAMENTS: 耗材
   FILTERS: 筛选
   Factory Reset: 恢复出厂设置

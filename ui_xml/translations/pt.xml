@@ -1234,6 +1234,7 @@
   <translation tag="E-Stop Confirmation" pt="Confirmação de Parada de Emergência"/>
   <translation tag="EDDY CURRENT" pt="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" pt="Erro de EEPROM na unidade CFS"/>
+  <translation tag="ELECTRICITY" pt="ELETRICIDADE"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" pt="ELETRÔNICA E ACESSÓRIOS"/>
   <translation tag="EMERGENCY STOP" pt="PARADA DE EMERGÊNCIA"/>
   <translation tag="EMPTY" pt="VAZIO"/>
@@ -1428,6 +1429,7 @@
   <translation tag="FAILED" pt="FALHOU"/>
   <translation tag="FILAMENT" pt="FILAMENTO"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" pt="FILAMENTO E CABEÇOTE"/>
+  <translation tag="FILAMENT PRICE PER KG" pt="PREÇO DO FILAMENTO POR KG"/>
   <translation tag="FILAMENTS" pt="FILAMENTOS"/>
   <translation tag="FILTERS" pt="FILTROS"/>
   <translation tag="Factory Reset" pt="Restauração de Fábrica"/>
