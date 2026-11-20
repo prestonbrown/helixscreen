@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <string>
+
 /**
  * @file u1_stock_screen.h
  * @brief What the Snapmaker U1 platform hook hands the app about SSH and the
@@ -27,5 +29,17 @@ bool root_ssh_down(const char* flag);
 /// before the toast system is up the warning waits with the other boot
 /// warnings.
 void surface_root_ssh_down_from_hook();
+
+/// The restore-stock trigger file's path. Exported by the hook only on stock
+/// firmware; the hook acts on the file at the next HelixScreen start.
+inline constexpr const char* kRestoreTriggerEnv = "HELIX_U1_RESTORE_TRIGGER";
+
+/// True when Settings offers Restore Stock Screen: the hook named a trigger
+/// path (@p trigger_path, the value of HELIX_U1_RESTORE_TRIGGER, may be null).
+bool restore_stock_screen_offered(const char* trigger_path);
+
+/// Create the trigger file at @p path. False when it could not be written, in
+/// which case nothing will restore the stock screen.
+bool write_restore_trigger(const std::string& path);
 
 } // namespace helix::u1

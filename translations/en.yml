@@ -1072,6 +1072,7 @@ translations:
   Could not resolve printer RFCOMM channel: Could not resolve printer RFCOMM channel
   Could not restore the previous IPv4 settings: Could not restore the previous IPv4 settings
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.
+  Could not restore the stock screen: Could not restore the stock screen
   Could not save filament: Could not save filament
   Could not save the drying state: Could not save the drying state
   'Could not save the drying state: nothing was heated': 'Could not save the drying state: nothing was heated'
@@ -3478,15 +3479,19 @@ translations:
   Restart print: Restart print
   Restart the display application: Restart the display application
   Restart the printer or screen: Restart the printer or screen
+  Restart the printer to finish restoring the stock screen: Restart the printer to finish restoring the stock screen
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide
   Restarting HelixScreen...: Restarting HelixScreen...
   Restarting Klipper...: Restarting Klipper...
   Restarting Moonraker...: Restarting Moonraker...
   Restarting printer...: Restarting printer...
   Restarting screen...: Restarting screen...
+  Restarting the printer...: Restarting the printer...
   Restarting with the new version...: Restarting with the new version...
   Restarting...: Restarting...
+  Restore: Restore
   Restore Defaults: Restore Defaults
+  Restore Stock Screen: Restore Stock Screen
   Restore tool: Restore tool
   Restoring position: Restoring position
   Restoring the print settings: Restoring the print settings
@@ -4024,6 +4029,7 @@ translations:
   Switch Printer: Switch Printer
   Switch a power device on or off: Switch a power device on or off
   Switch Sensors: Switch Sensors
+  Switch back to the Snapmaker screen: Switch back to the Snapmaker screen
   Switch between light and dark themes: Switch between light and dark themes
   Switch spools at each tool change: Switch spools at each tool change
   Switch the active tool or extruder: Switch the active tool or extruder
@@ -4317,6 +4323,8 @@ translations:
   The printer reports no lane record, so only clearing the extruder can unload it.: The printer reports no lane record, so only clearing the extruder can unload it.
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: The printer requires an encrypted connection, but the encrypted connection to {}:{} failed
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: The printer swaps between several toolheads. Manage the tools on the filament system screen.
   The printer's firmware chooses where to switch on runout: The printer's firmware chooses where to switch on runout
   The requested position is outside the printer's bounds: The requested position is outside the printer's bounds

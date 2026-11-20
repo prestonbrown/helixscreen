@@ -1074,6 +1074,7 @@ translations:
   Could not resolve printer RFCOMM channel: プリンターの RFCOMM チャンネルを解決できませんでした
   Could not restore the previous IPv4 settings: '以前のIPv4設定を復元できませんでした'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '以前のIPv4設定をまだ復元できていません。最大2分間再試行します。'
+  Could not restore the stock screen: '標準画面に戻せませんでした'
   Could not save filament: フィラメントを保存できませんでした
   Could not save the drying state: 乾燥の状態を保存できませんでした
 
@@ -3498,15 +3499,19 @@ translations:
   Restart print: '印刷を再開始'
   Restart the display application: ディスプレイアプリケーションを再起動
   Restart the printer or screen: プリンターまたは画面を再起動します
+  Restart the printer to finish restoring the stock screen: '標準画面への復元を完了するにはプリンターを再起動してください'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'プリンターを再起動してください。それでもSSHが接続を拒否する場合は、Snapmaker U1のインストールガイドを参照してください'
   Restarting HelixScreen...: HelixScreenを再起動中...
   Restarting Klipper...: Klipper を再起動中...
   Restarting Moonraker...: Moonrakerを再起動中...
   Restarting printer...: プリンターを再起動中...
   Restarting screen...: 画面を再起動中...
+  Restarting the printer...: 'プリンターを再起動しています...'
   Restarting with the new version...: 新しいバージョンで再起動中...
   Restarting...: 再起動中...
+  Restore: '復元'
   Restore Defaults: デフォルトに戻す
+  Restore Stock Screen: '標準画面に戻す'
   Restore tool: 'ツールを元に戻す'
   Restoring position: 位置を復元中
   Restoring the print settings: 印刷設定を復元中
@@ -4049,6 +4054,7 @@ translations:
   Switch Printer: プリンターを切り替え
   Switch a power device on or off: 電源デバイスのオン/オフ切り替え
   Switch Sensors: スイッチセンサー
+  Switch back to the Snapmaker screen: 'Snapmakerの画面に戻します'
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
   Switch spools at each tool change: 'ツール交換ごとにスプールを切り替える'
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
@@ -4347,6 +4353,8 @@ translations:
   The printer reports no lane record, so only clearing the extruder can unload it.: 'プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。'
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'プリンターは暗号化接続を必要としますが、暗号化されたジョブを拒否しました: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。'
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'

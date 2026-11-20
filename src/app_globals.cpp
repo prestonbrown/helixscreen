@@ -40,6 +40,7 @@
 #include "system/child_process.h"
 #include "system/helix_paths.h"
 #include "temperature_controller.h"
+#include "u1_stock_screen.h"
 
 #include <spdlog/spdlog.h>
 
@@ -89,6 +90,7 @@ static helix::Subject g_host_power_supported_subject;
 static helix::Subject g_camera_supported_subject;
 static helix::Subject g_console_supported_subject;
 static helix::Subject g_host_terminal_supported_subject;
+static helix::Subject g_u1_restore_stock_offered_subject;
 static helix::Subject g_platform_tier_subject;
 static helix::Subject g_wizard_active_subject;
 
@@ -284,6 +286,13 @@ void app_globals_init_subjects() {
     // Its Advanced rows bind hidden on 0, whatever the opt-in setting says.
     g_host_terminal_supported_subject.init_int(helix::platform_host_terminal_supported() ? 1 : 0);
     g_subjects.publish("platform_host_terminal_supported", &g_host_terminal_supported_subject);
+
+    // Whether Settings > System offers Restore Stock Screen
+    // (helix::u1::restore_stock_screen_offered(): a stock-firmware Snapmaker U1).
+    g_u1_restore_stock_offered_subject.init_int(
+        helix::u1::restore_stock_screen_offered(std::getenv(helix::u1::kRestoreTriggerEnv)) ? 1
+                                                                                            : 0);
+    g_subjects.publish("u1_restore_stock_offered", &g_u1_restore_stock_offered_subject);
 
     // Hardware tier (helix::PlatformTier as an int: 0 EMBEDDED, 1 BASIC,
     // 2 STANDARD), the same classification that turns animations off. XML

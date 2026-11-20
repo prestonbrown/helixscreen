@@ -1074,6 +1074,7 @@ translations:
   Could not resolve printer RFCOMM channel: 无法解析打印机 RFCOMM 通道
   Could not restore the previous IPv4 settings: '无法恢复之前的 IPv4 设置'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '暂时无法恢复之前的 IPv4 设置。将在最多两分钟内重试。'
+  Could not restore the stock screen: '无法恢复原厂屏幕'
   Could not save filament: 无法保存耗材
   Could not save the drying state: 无法保存烘干状态
 
@@ -3498,15 +3499,19 @@ translations:
   Restart print: '重新开始打印'
   Restart the display application: 重启显示应用程序
   Restart the printer or screen: 重启打印机或屏幕
+  Restart the printer to finish restoring the stock screen: '请重启打印机以完成恢复原厂屏幕'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: '请重启打印机。如果 SSH 仍然拒绝连接，请参阅 Snapmaker U1 安装指南'
   Restarting HelixScreen...: 正在重启 HelixScreen…
   Restarting Klipper...: 正在重启 Klipper...
   Restarting Moonraker...: 正在重启 Moonraker...
   Restarting printer...: 正在重启打印机...
   Restarting screen...: 正在重启屏幕...
+  Restarting the printer...: '正在重启打印机...'
   Restarting with the new version...: 正在以新版本重启...
   Restarting...: 正在重启...
+  Restore: '恢复'
   Restore Defaults: 恢复默认设置
+  Restore Stock Screen: '恢复原厂屏幕'
   Restore tool: '恢复工具'
   Restoring position: 正在恢复位置
   Restoring the print settings: 正在恢复打印设置
@@ -4049,6 +4054,7 @@ translations:
   Switch Printer: 切换打印机
   Switch a power device on or off: 开启或关闭电源设备
   Switch Sensors: 开关传感器
+  Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
   Switch between light and dark themes: 切换浅色和深色主题
   Switch spools at each tool change: '每次换工具时切换料盘'
   Switch the active tool or extruder: 切换当前工具或挤出机
@@ -4347,6 +4353,8 @@ translations:
   The printer reports no lane record, so only clearing the extruder can unload it.: '打印机没有耗材通道记录，所以只能通过清空挤出机来卸载。'
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': '打印机要求加密连接，但拒绝了加密的任务：HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: '打印机要求加密连接，但与 {}:{} 的加密连接失败'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: '打印机在多个工具头之间切换。在耗材系统界面管理工具。'
   The printer's firmware chooses where to switch on runout: 耗材用尽时切换到哪里由打印机固件自行选择
   The requested position is outside the printer's bounds: '请求的位置超出打印机范围'

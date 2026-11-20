@@ -1074,6 +1074,7 @@ translations:
   Could not resolve printer RFCOMM channel: No se pudo resolver el canal RFCOMM de la impresora
   Could not restore the previous IPv4 settings: 'No se pudo restaurar la configuración IPv4 anterior'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Aún no se pudo restaurar la configuración IPv4 anterior. Se reintentará durante hasta dos minutos.'
+  Could not restore the stock screen: 'No se pudo restaurar la pantalla original'
   Could not save filament: No se pudo guardar el filamento
   Could not save the drying state: No se pudo guardar el estado del secado
 
@@ -3498,15 +3499,19 @@ translations:
   Restart print: 'Reiniciar impresión'
   Restart the display application: Reiniciar la aplicación de pantalla
   Restart the printer or screen: Reiniciar la impresora o pantalla
+  Restart the printer to finish restoring the stock screen: 'Reinicie la impresora para terminar de restaurar la pantalla original'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie la impresora. Si SSH sigue rechazando la conexión, consulte la guía de instalación del Snapmaker U1'
   Restarting HelixScreen...: Reiniciando HelixScreen...
   Restarting Klipper...: Reiniciando Klipper...
   Restarting Moonraker...: Reiniciando Moonraker...
   Restarting printer...: Reiniciando impresora...
   Restarting screen...: Reiniciando pantalla...
+  Restarting the printer...: 'Reiniciando la impresora...'
   Restarting with the new version...: Reiniciando con la nueva versión...
   Restarting...: Reiniciando...
+  Restore: 'Restaurar'
   Restore Defaults: Restaurar valores predeterminados
+  Restore Stock Screen: 'Restaurar pantalla original'
   Restore tool: 'Restaurar herramienta'
   Restoring position: Restaurando posición
   Restoring the print settings: Restaurando los ajustes de impresión
@@ -4049,6 +4054,7 @@ translations:
   Switch Printer: Cambiar Impresora
   Switch a power device on or off: Encender o apagar un dispositivo
   Switch Sensors: Sensores de interruptor
+  Switch back to the Snapmaker screen: 'Volver a la pantalla de Snapmaker'
   Switch between light and dark themes: Cambiar entre temas claro y oscuro
   Switch spools at each tool change: 'Cambiar de bobina en cada cambio de herramienta'
   Switch the active tool or extruder: Cambiar la herramienta o extrusor activo
@@ -4347,6 +4353,8 @@ translations:
   The printer reports no lane record, so only clearing the extruder can unload it.: 'La impresora no informa ningún registro de carril, así que solo vaciar el extrusor puede descargar.'
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'La impresora requiere una conexión cifrada, pero rechazó el trabajo cifrado: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'La impresora requiere una conexión cifrada, pero falló la conexión cifrada a {}:{}'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'La impresora se reinicia con la pantalla de Snapmaker y HelixScreen deja de iniciarse. Sus ajustes de HelixScreen se conservan en la impresora; ejecute de nuevo el instalador para volver.'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'La impresora cambia entre varios cabezales. Gestiona las herramientas en la pantalla del sistema de filamento.'
   The printer's firmware chooses where to switch on runout: El firmware de la impresora elige a dónde cambiar al agotarse
   The requested position is outside the printer's bounds: 'La posición solicitada está fuera de los límites de la impresora'
