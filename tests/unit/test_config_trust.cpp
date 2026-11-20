@@ -140,7 +140,7 @@ TEST_CASE("config_trust: non-string URL fields are ignored", "[config-trust][upd
     REQUIRE(urls.dev_url == "https://dev.example.com");
 }
 
-TEST_CASE_METHOD(HelixTestFixture, "UpdateChecker: settings.json r2_url is ignored",
+TEST_CASE_METHOD(HelixTestFixture, "config trust: UpdateChecker ignores a settings.json r2_url",
                  "[config-trust][update]") {
     StateDirGuard guard;
     auto* config = helix::Config::get_instance();

@@ -1007,7 +1007,8 @@ TEST_CASE("a saver started during a print opens in the print's state",
     CHECK(sim.fly_since_s() < 0.0f);
 }
 
-TEST_CASE("a paused print slows the flight to a quarter", "[screensaver][highfly][clock]") {
+TEST_CASE("HighFly: a paused print slows the flight to a quarter",
+          "[screensaver][highfly][clock]") {
     TestFrame frame(100, 60, PixelFormat::RGB565);
     std::minstd_rand rng(3);
     HighFlySim sim;

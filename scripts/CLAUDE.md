@@ -146,6 +146,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_pytest_asyncio_deps.py` | Fail on async pytest tests that would be skipped or fail without pytest-asyncio |
 | `check_modal_chrome_budget.py` | Fail if a modal's chrome does not match the content cap it budgets against |
 | `check_source_rules.py` | One table of C++ shape rules the compiler accepts and no unit test reaches |
+| `check_duplicate_test_names.py` | Fail on two Catch2 TEST_CASEs sharing a name under `tests/`; an `#if`/`#else` pair is one test. Run as `lint_test_case_names_unique` (`qc_test_lint`) |
 | `check_section_returns.py` | Fail on a `return` inside a Catch2 SECTION with a later sibling, which then never runs. Run as `lint_section_returns` (`qc_test_lint`) |
 | `check_cached_widget_pointers.py` | Ratchet on raw `lv_obj_t*` data members |
 | `check_ams_xml_mirror.py` | Fail if AmsState's re-entry mirror and `init_subjects()` publish different XML names |

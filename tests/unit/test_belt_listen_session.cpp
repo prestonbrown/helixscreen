@@ -505,7 +505,7 @@ TEST_CASE("a discontiguous batch is not analysed", "[belt][listen]") {
     CHECK(s.accepted_count() == 0);
 }
 
-TEST_CASE("reset clears everything", "[belt][listen]") {
+TEST_CASE("a listen session's reset clears everything", "[belt][listen]") {
     const auto fx = load_fixture("a_belt_86hz_3.csv");
     auto live = splice_live_window(fx);
 
