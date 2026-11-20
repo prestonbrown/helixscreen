@@ -42,6 +42,9 @@ class LedSettingsOverlayTestAccess {
     static void tap_applies_to(const std::string& id) {
         get_led_settings_overlay().handle_led_chip_clicked(id);
     }
+    static void add_macro() {
+        get_led_settings_overlay().handle_add_macro_device();
+    }
 };
 } // namespace helix::settings
 
@@ -211,4 +214,193 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     CHECK(lv_obj_is_hidden(idle));
 
     ctrl.set_startup_brightness(80);
+}
+
+// ---------------------------------------------------------------------------
+// Macro devices: the card list and its edit form, driven through widget names
+// ---------------------------------------------------------------------------
+
+namespace {
+
+lv_obj_t* named(const char* name) {
+    return lv_obj_find_by_name(lv_screen_active(), name);
+}
+
+void type_into(const char* name, const char* text) {
+    lv_obj_t* ta = named(name);
+    REQUIRE(ta != nullptr);
+    lv_textarea_set_text(ta, text);
+}
+
+void pick(const char* name, uint32_t index) {
+    lv_obj_t* dd = named(name);
+    REQUIRE(dd != nullptr);
+    lv_dropdown_set_selected(dd, index);
+    lv_obj_send_event(dd, LV_EVENT_VALUE_CHANGED, nullptr);
+}
+
+void tap(const char* name) {
+    lv_obj_t* btn = named(name);
+    REQUIRE(btn != nullptr);
+    lv_obj_send_event(btn, LV_EVENT_CLICKED, nullptr);
+}
+
+/// Shown on screen: the widget and every ancestor are unhidden.
+bool shown(const char* name) {
+    lv_obj_t* obj = named(name);
+    for (lv_obj_t* o = obj; o != nullptr; o = lv_obj_get_parent(o)) {
+        if (lv_obj_is_hidden(o))
+            return false;
+    }
+    return obj != nullptr;
+}
+
+bool editing_card(int index) {
+    lv_obj_t* edit = named(("macro_edit_" + std::to_string(index)).c_str());
+    return edit != nullptr && !lv_obj_is_hidden(edit) && named("macro_name_input") != nullptr;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a new on/off macro device is named, saved and closes its form",
+                 "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+
+    helix::settings::LedSettingsOverlayTestAccess::add_macro();
+    settle();
+    REQUIRE(editing_card(0));
+
+    type_into("macro_name_input", "  Lamp ");
+    type_into("macro_on_text", "LAMP_ON");
+    type_into("macro_off_text", "LAMP_OFF");
+    tap("macro_save_0");
+    settle();
+
+    REQUIRE(ctrl.configured_macros().size() == 1);
+    const auto& m = ctrl.configured_macros()[0];
+    CHECK(m.display_name == "Lamp");
+    CHECK(m.type == helix::led::MacroLedType::ON_OFF);
+    CHECK(m.on_macro == "LAMP_ON");
+    CHECK(m.off_macro == "LAMP_OFF");
+    CHECK_FALSE(editing_card(0));
+    CHECK(named("macro_edit_btn_0") != nullptr);
+    CHECK(named("macro_delete_btn_0") != nullptr);
+}
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a macro device's save refuses a blank name and matching on/off",
+                 "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    helix::settings::LedSettingsOverlayTestAccess::add_macro();
+    settle();
+
+    tap("macro_save_0");
+    settle();
+    CHECK(editing_card(0));
+    CHECK(ctrl.configured_macros()[0].display_name.empty());
+
+    type_into("macro_name_input", "Lamp");
+    type_into("macro_on_text", "SAME");
+    type_into("macro_off_text", "SAME");
+    tap("macro_save_0");
+    settle();
+    CHECK(editing_card(0));
+    CHECK(ctrl.configured_macros()[0].display_name.empty());
+}
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a preset macro device adds, keeps and removes preset rows",
+                 "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    helix::settings::LedSettingsOverlayTestAccess::add_macro();
+    settle();
+
+    pick("macro_type_dropdown", 2);
+    settle();
+    REQUIRE(editing_card(0));
+    CHECK_FALSE(shown("macro_on_text"));
+    CHECK(named("preset_text_0_0") == nullptr);
+
+    tap("macro_add_preset_0");
+    settle();
+    tap("macro_add_preset_0");
+    settle();
+    REQUIRE(named("preset_text_0_0") != nullptr);
+    REQUIRE(named("preset_text_0_1") != nullptr);
+
+    tap("preset_remove_0_0");
+    settle();
+    CHECK(named("preset_text_0_0") != nullptr);
+    CHECK(named("preset_text_0_1") == nullptr);
+
+    type_into("macro_name_input", "Scenes");
+    type_into("preset_text_0_0", "SCENE_A");
+    tap("macro_save_0");
+    settle();
+    const auto& m = ctrl.configured_macros()[0];
+    CHECK(m.display_name == "Scenes");
+    CHECK(m.type == helix::led::MacroLedType::PRESET);
+    CHECK(m.presets == std::vector<std::string>{"SCENE_A"});
+    CHECK(m.on_macro.empty());
+}
+
+TEST_CASE_METHOD(
+    LedSettingsSwatchFixture,
+    "LED settings: a saved macro device's edit button toggles its form and delete removes it",
+    "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedMacroInfo m;
+    m.display_name = "Lamp";
+    m.type = helix::led::MacroLedType::TOGGLE;
+    m.toggle_macro = "LAMP_TOGGLE";
+    ctrl.set_configured_macros({m});
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    CHECK_FALSE(editing_card(0));
+
+    tap("macro_edit_btn_0");
+    settle();
+    REQUIRE(editing_card(0));
+    CHECK(std::string(lv_textarea_get_text(named("macro_name_input"))) == "Lamp");
+    CHECK(std::string(lv_textarea_get_text(named("macro_toggle_text"))) == "LAMP_TOGGLE");
+
+    tap("macro_edit_btn_0");
+    settle();
+    CHECK_FALSE(editing_card(0));
+
+    tap("macro_delete_btn_0");
+    settle();
+    CHECK(ctrl.configured_macros().empty());
+    CHECK(named("macro_edit_btn_0") == nullptr);
+}
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: changing a macro device's type keeps what was typed",
+                 "[led][settings][macro_devices]") {
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    helix::settings::LedSettingsOverlayTestAccess::add_macro();
+    settle();
+
+    type_into("macro_name_input", "Lamp");
+    pick("macro_type_dropdown", 1);
+    settle();
+
+    REQUIRE(editing_card(0));
+    CHECK(std::string(lv_textarea_get_text(named("macro_name_input"))) == "Lamp");
+    CHECK(shown("macro_toggle_text"));
+    CHECK_FALSE(shown("macro_on_text"));
 }

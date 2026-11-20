@@ -96,7 +96,10 @@ class LedSettingsOverlay : public OverlayBase {
     void discard_unsaved_macro_entry();
     void populate_macro_devices();
     void populate_macro_devices_impl();
-    void rebuild_macro_edit_controls(lv_obj_t* container, int index);
+    /// Fill the draft subjects the edit form binds from device @p index.
+    void load_macro_draft(int index);
+    void handle_add_macro_preset();
+    void handle_remove_macro_preset(int preset_index);
     void populate_led_chips();
     void populate_led_chips_impl();
     void handle_led_chip_clicked(const std::string& led_name);
@@ -131,6 +134,30 @@ class LedSettingsOverlay : public OverlayBase {
     /// One per kStateRows entry: 1 while its action has a detail panel to show.
     helix::xml::IndexedSubjectPool auto_detail_shown_pool_{
         "led_auto_detail_shown", helix::xml::IndexedSubjectPool::Type::Int};
+    /// The macro device being edited, as led_macro_edit_form.xml binds it. Save
+    /// writes it back to LedController; nothing else does.
+    helix::Subject macro_draft_name_{};
+    char macro_draft_name_buf_[64]{};
+    helix::Subject macro_draft_type_{}; ///< MacroLedType's row in the type dropdown
+    helix::Subject macro_draft_on_sel_{};
+    helix::Subject macro_draft_off_sel_{};
+    helix::Subject macro_draft_toggle_sel_{};
+    helix::Subject macro_draft_on_text_{};
+    char macro_draft_on_text_buf_[64]{};
+    helix::Subject macro_draft_off_text_{};
+    char macro_draft_off_text_buf_[64]{};
+    helix::Subject macro_draft_toggle_text_{};
+    char macro_draft_toggle_text_buf_[64]{};
+    helix::Subject macro_draft_preset_count_{};
+    helix::xml::IndexedSubjectPool macro_draft_preset_sel_pool_{
+        "led_macro_draft_preset_sel", helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool macro_draft_preset_text_pool_{
+        "led_macro_draft_preset_text", helix::xml::IndexedSubjectPool::Type::String};
+    /// Detected LED macros plus "Custom...", one per line: every macro field's options.
+    helix::Subject macro_field_options_{};
+    char macro_field_options_buf_[2048]{};
+    helix::Subject macro_count_{};
+    helix::Subject macro_discovered_count_{};
     std::vector<std::string> action_type_options_; // Maps dropdown index to action type string
     int editing_macro_index_ = -1;                 // -1 = no macro device being edited
 };

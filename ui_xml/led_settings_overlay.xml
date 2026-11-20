@@ -62,7 +62,16 @@
                               icon="code_braces" action_button_text="Add" action_button_icon="plus"
                               action_button_callback="on_add_macro_device" hide_action_button="false"
                               hide_action_button_icon="false"/>
-      <!-- Macro device cards are populated dynamically in C++ -->
+      <setting_info_row name="macro_devices_empty"
+                        label="No macro devices configured" icon="code_braces" value="Tap + to add">
+        <bind_flag_if_not_eq subject="led_macro_count" flag="hidden" ref_value="0"/>
+      </setting_info_row>
+      <text_body name="macro_devices_none_detected"
+                 width="100%" text="No LED macros detected on your printer. Add Klipper macros for LED control first."
+                 long_mode="wrap" style_text_color="#text_subtle" style_pad_left="#space_xl" style_pad_right="#space_xl">
+        <bind_flag_if cond="led_macro_count gt 0 or led_macro_discovered_count gt 0" flag="hidden"/>
+      </text_body>
+      <!-- One setting_macro_card per configured device, created by C++ -->
       <lv_obj name="macro_devices_container"
               width="100%" height="content" flex_flow="column" style_pad_gap="#space_sm" style_bg_opa="0"
               style_border_width="0" style_pad_all="0" scrollable="false"/>
