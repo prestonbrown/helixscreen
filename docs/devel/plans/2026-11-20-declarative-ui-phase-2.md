@@ -87,7 +87,7 @@ data-driven parts stay.
 
 | # | Site | Class |
 |---|------|-------|
-| 1 | `src/ui/settings/ui_settings_led.cpp`: macro device cards and edit form, auto-state rows (`#populate_macro_devices_impl`, `#rebuild_macro_edit_controls`, `#populate_auto_state_rows`, `#rebuild_contextual_controls`) + `ui_led_chip_factory.cpp` | A |
+| 1 | `src/ui/settings/ui_settings_led.cpp`: macro device cards and edit form, auto-state rows (`#populate_macro_devices_impl`, `#rebuild_macro_edit_controls`, `#populate_auto_state_rows`, `#rebuild_contextual_controls`) | A |
 | 2 | `src/ui/wizard/ui_wizard_printer_identify.cpp#populate_printer_type_list`, `#populate_vendor_tiles`, `#update_list_selection` | A |
 | 3 | Three hand-built copies of `picker_option_row`: `src/ui/panel_widgets/print_status_widget.cpp` (the ConfigurePicker and NozzleToolPicker `on_created` bodies), `fan_widget.cpp` fan picker | A |
 | 4 | `src/ui/components/ui_multiselect.cpp#build_row` | A |

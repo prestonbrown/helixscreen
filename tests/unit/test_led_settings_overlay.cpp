@@ -592,3 +592,45 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     NavigationManager::instance().go_back();
     settle();
 }
+
+// Each Applies-to chip stands for one strip: lit while the strip is a target,
+// labelled with its display name, and a tap toggles that strip.
+TEST_CASE_METHOD(LedSettingsSwatchFixture, "LED settings: an Applies to chip toggles its own strip",
+                 "[led][settings]") {
+    auto& ctrl = helix::led::LedController::instance();
+    for (const char* id : {"neopixel a", "neopixel b"}) {
+        helix::led::LedStripInfo s;
+        s.id = id;
+        s.name = id;
+        s.backend = helix::led::LedBackendType::NATIVE;
+        ctrl.native().add_strip(s);
+    }
+    auto& as = helix::led::LedAutoState::instance();
+    as.set_strips({"neopixel a"});
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    auto chip = [](int i) {
+        lv_obj_t* row = named("row_auto_state_strips");
+        REQUIRE(row != nullptr);
+        lv_obj_t* box = lv_obj_find_by_name(row, "chip_container");
+        REQUIRE(box != nullptr);
+        REQUIRE(static_cast<int>(lv_obj_get_child_count(box)) == 2);
+        return lv_obj_get_child(box, i);
+    };
+    CHECK(lv_obj_has_state(chip(0), LV_STATE_CHECKED));
+    CHECK_FALSE(lv_obj_has_state(chip(1), LV_STATE_CHECKED));
+    const std::string label = lv_label_get_text(lv_obj_find_by_name(chip(1), "chip_label"));
+    CHECK(label == helix::led::device_display_name(ctrl.all_selectable_strips()[1]));
+
+    lv_obj_send_event(chip(1), LV_EVENT_CLICKED, nullptr);
+    settle();
+    CHECK(as.strips() == std::vector<std::string>{"neopixel a", "neopixel b"});
+    CHECK(lv_obj_has_state(chip(1), LV_STATE_CHECKED));
+
+    as.set_strips({});
+    as.save_config();
+    NavigationManager::instance().go_back();
+    settle();
+}

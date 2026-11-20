@@ -10,7 +10,6 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
-#include "ui_led_chip_factory.h"
 #include "ui_row_text.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -127,6 +126,14 @@ void LedSettingsOverlay::register_callbacks() {
          }},
         {"on_add_macro_device",
          [](lv_event_t*) { get_led_settings_overlay().handle_add_macro_device(); }},
+        {"led_applies_to_chip_cb",
+         [](lv_event_t* e) {
+             auto& overlay = get_led_settings_overlay();
+             if (auto i = helix::ui::event_user_int(e);
+                 i && *i >= 0 && *i < static_cast<int>(overlay.chip_strip_ids_.size())) {
+                 overlay.handle_led_chip_clicked(overlay.chip_strip_ids_[*i]);
+             }
+         }},
         {"led_auto_action_cb",
          [](lv_event_t* e) {
              if (auto row = helix::ui::event_user_int(e);
@@ -641,14 +648,22 @@ void LedSettingsOverlay::populate_led_chips_impl() {
     const auto targets = helix::led::LedAutoState::instance().targets();
 
     size_t selected_count = 0;
+    chip_strip_ids_.clear();
     for (const auto& strip : led_ctrl.all_selectable_strips()) {
         bool selected = std::find(targets.begin(), targets.end(), strip.id) != targets.end();
         selected_count += selected ? 1 : 0;
-        std::string display_name = helix::led::device_display_name(strip);
-
-        helix::ui::create_led_chip(
-            chip_container, strip.id, display_name, selected,
-            [this](const std::string& led_name) { handle_led_chip_clicked(led_name); });
+        const std::string index = std::to_string(chip_strip_ids_.size());
+        chip_strip_ids_.push_back(strip.id);
+        const char* attrs[] = {"index",    index.c_str(),
+                               "selected", selected ? "true" : "false",
+                               "callback", "led_applies_to_chip_cb",
+                               nullptr};
+        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_container, "toggle_chip", attrs));
+        // Strip names are user text: set after creation, never as a prop.
+        if (chip) {
+            helix::ui::set_row_label_text(chip, "chip_label",
+                                          helix::led::device_display_name(strip).c_str());
+        }
     }
 
     spdlog::debug("[{}] Applies-to chips populated ({} selected)", get_name(), selected_count);

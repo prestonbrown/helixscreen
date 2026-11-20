@@ -556,6 +556,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/thermistor_carousel_page.xml",
     "ui_xml/components/thermistor_picker_row.xml",
     "ui_xml/components/tile_color_grid.xml",
+    "ui_xml/components/toggle_chip.xml",
     "ui_xml/components/tool_switcher_face.xml",
     "ui_xml/components/tool_switcher_segment.xml",
     "ui_xml/components/tool_target_row.xml",

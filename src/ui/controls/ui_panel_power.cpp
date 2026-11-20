@@ -3,12 +3,13 @@
 
 #include "ui_panel_power.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
-#include "ui_led_chip_factory.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
+#include "ui_row_text.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -99,6 +100,14 @@ void PowerPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     static bool callbacks_registered = false;
     if (!callbacks_registered) {
         lv_xml_register_event_cb(nullptr, "on_power_device_toggle", on_power_device_toggle);
+        lv_xml_register_event_cb(nullptr, "on_power_chip_clicked", [](lv_event_t* e) {
+            auto& self = get_global_power_panel();
+            auto index = helix::ui::event_user_int(e);
+            if (index && *index >= 0 &&
+                *index < static_cast<int>(self.discovered_devices_.size())) {
+                self.handle_chip_clicked(self.discovered_devices_[*index]);
+            }
+        });
         callbacks_registered = true;
     }
 
@@ -453,12 +462,20 @@ void PowerPanel::populate_device_chips_impl() {
 
     std::set<std::string> selected_set(selected_devices_.begin(), selected_devices_.end());
 
-    for (const auto& device : discovered_devices_) {
-        bool is_selected = selected_set.count(device) > 0;
-        std::string display_name = helix::get_display_name(device, helix::DeviceType::POWER_DEVICE);
-
-        helix::ui::create_led_chip(chip_container_, device, display_name, is_selected,
-                                   [this](const std::string& name) { handle_chip_clicked(name); });
+    for (size_t i = 0; i < discovered_devices_.size(); ++i) {
+        const auto& device = discovered_devices_[i];
+        const std::string index = std::to_string(i);
+        const char* attrs[] = {"index",    index.c_str(),
+                               "selected", selected_set.count(device) ? "true" : "false",
+                               "callback", "on_power_chip_clicked",
+                               nullptr};
+        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_container_, "toggle_chip", attrs));
+        // Device names are user text: set after creation, never as a prop.
+        if (chip) {
+            helix::ui::set_row_label_text(
+                chip, "chip_label",
+                helix::get_display_name(device, helix::DeviceType::POWER_DEVICE).c_str());
+        }
     }
 
     spdlog::debug("[{}] Populated {} device chips ({} selected)", get_name(),

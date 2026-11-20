@@ -106,6 +106,8 @@ class LedSettingsOverlay : public OverlayBase {
     void populate_led_chips();
     void populate_led_chips_impl();
     void handle_led_chip_clicked(const std::string& led_name);
+    /// The strip each Applies-to chip stands for, by the chip's index.
+    std::vector<std::string> chip_strip_ids_;
 
     // Auto-state mapping editor
     void populate_auto_state_rows();

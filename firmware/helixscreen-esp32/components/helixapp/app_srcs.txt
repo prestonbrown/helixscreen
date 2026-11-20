@@ -669,7 +669,6 @@ src/ui/controls/ui_jog_pad.cpp
 src/ui/components/ui_keyboard_manager.cpp
 src/ui/components/ui_keycap_style.cpp
 src/ui/components/ui_leader_line.cpp
-src/ui/controls/ui_led_chip_factory.cpp
 src/ui/controls/ui_led_control_overlay.cpp
 src/ui/ui_lock_screen.cpp
 src/ui/controls/ui_maintenance_overlay.cpp
