@@ -287,10 +287,11 @@ class AmsOverviewPanel : public PanelBase {
     ObserverGuard current_slot_observer_;   ///< Reactive highlight update when active slot changes
     ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
     ObserverGuard bypass_active_observer_;  ///< Active ring follows bypass engage/disengage
-    ObserverGuard dryer_version_observer_;  ///< The stubs' drying glyph follows other units' dryers
-    ObserverGuard page_count_observer_;     ///< The dots refit when pages come or go
-    bool units_rebuild_pending_ = false; ///< Coalesces rapid slots_version observer notifications
-    bool pages_sync_pending_ = false;    ///< One deferred sync_pages for every subject that fired
+    ObserverGuard always_show_bypass_observer_; ///< Node follows the always-show setting
+    ObserverGuard dryer_version_observer_; ///< The stubs' drying glyph follows other units' dryers
+    ObserverGuard page_count_observer_;    ///< The dots refit when pages come or go
+    bool units_rebuild_pending_ = false;   ///< Coalesces rapid slots_version observer notifications
+    bool pages_sync_pending_ = false;      ///< One deferred sync_pages for every subject that fired
     bool open_ = false;       ///< Pushed and not yet closed; a closed panel's card observers wait
     int units_refreshes_ = 0; ///< refresh_units() runs, for tests
 

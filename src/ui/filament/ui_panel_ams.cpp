@@ -44,6 +44,7 @@
 #include "overlay_base.h"
 #include "printer_detector.h"
 #include "printer_state.h"
+#include "settings_manager.h"
 #include "spoolman_manager.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
@@ -401,6 +402,18 @@ void AmsPanel::init_subjects() {
         AmsState::instance().get_bypass_active_subject(), this,
         [](AmsPanel* self, int /*active*/) { self->update_bypass_spool_from_state(); },
         AmsState::instance().get_subjects_lifetime());
+
+    // On a virtual bypass the setting alone decides whether the node is on the path, and the
+    // Device Operations toggle changes nothing the backend publishes.
+    always_show_bypass_observer_ = observe<int>(
+        SettingsManager::instance().subject_ams_always_show_bypass_spool(), this,
+        [](AmsPanel* self, int /*shown*/) {
+            if (!self->path_canvas_)
+                return;
+            self->update_path_canvas_from_backend();
+            self->update_bypass_spool_from_state();
+        },
+        SettingsManager::instance().get_subjects_lifetime());
 
     // ams_panel.xml hides the line for kinds Hidden and On (hide_when_healthy); the path stands
     // over it, so it showing or hiding lays the unit and its path out again.

@@ -42,6 +42,7 @@
 #include "memory_monitor.h"
 #include "overlay_base.h"
 #include "printer_detector.h"
+#include "settings_manager.h"
 #include "system/crash_handler.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
@@ -146,6 +147,16 @@ void AmsOverviewPanel::init_subjects() {
             AmsState::instance().get_bypass_active_subject(), this,
             [](AmsOverviewPanel* self, int /*active*/) { self->refresh_bypass_display(); },
             AmsState::instance().get_subjects_lifetime());
+
+        // On a virtual bypass the setting alone decides whether the node is on the path, and
+        // the Device Operations toggle changes nothing the backend publishes.
+        always_show_bypass_observer_ = observe<int>(
+            SettingsManager::instance().subject_ams_always_show_bypass_spool(), this,
+            [](AmsOverviewPanel* self, int /*shown*/) {
+                self->on_state_changed("always_show_bypass");
+                self->refresh_bypass_display();
+            },
+            SettingsManager::instance().get_subjects_lifetime());
     });
 }
 
@@ -913,6 +924,7 @@ void AmsOverviewPanel::clear_panel_reference() {
     current_slot_observer_.reset();
     external_spool_observer_.reset();
     bypass_active_observer_.reset();
+    always_show_bypass_observer_.reset();
     dryer_version_observer_.reset();
     page_count_observer_.reset();
 
