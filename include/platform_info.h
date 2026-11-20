@@ -69,6 +69,12 @@ FlashForgeModTree flashforge_mod_tree(const std::string& probe_root = "/");
 /// "none", "ZMOD" or "Forge-X".
 const char* flashforge_mod_tree_name(FlashForgeModTree tree);
 
+/// True when a firmware mod keeps this printer's moonraker.conf in its own git tree,
+/// where an edit marks the tree modified and blocks the mod's own updates; the one
+/// Moonraker file ours to edit is then the mod's user include, user.moonraker.conf
+/// (the installer's find_moonraker_conf answer on a mod host).
+bool firmware_mod_owns_moonraker_conf(const std::string& probe_root = "/");
+
 /// The three FlashForge boards the unified MIPS payload ships on. Answered by
 /// flashforge_machine_id() below.
 enum class FlashForgeMachine {

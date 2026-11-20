@@ -248,6 +248,27 @@ class MoonrakerConfigManager {
 
     static std::string remove_section(const std::string& content, const std::string& section_name);
 
+    /// The prefix a switched-off section carries on each of its lines.
+    static constexpr const char* kSwitchedOffPrefix = "#~ ";
+
+    /// Switch `[section_name]` off: every line from its column-0 header to its last
+    /// option line gets kSwitchedOffPrefix, so Moonraker and the web UIs ignore it while
+    /// the file keeps its exact text. Blank and comment lines after the last option
+    /// belong to what follows and are left as they are, as is the comment block above
+    /// the header. The installer's update_manager_off_awk is the same transform, and
+    /// tests/fixtures/moonraker_stanza pins both. Unchanged when the section is absent.
+    static std::string switch_section_off(const std::string& content,
+                                          const std::string& section_name);
+
+    /// The inverse of switch_section_off(): strip kSwitchedOffPrefix from a switched-off
+    /// `[section_name]` and the "#~" lines that follow its header.
+    static std::string switch_section_on(const std::string& content,
+                                         const std::string& section_name);
+
+    /// True when `content` holds `[section_name]` switched off.
+    static bool has_switched_off_section(const std::string& content,
+                                         const std::string& section_name);
+
     /// True when `moonraker_content` already includes exactly `include_target`.
     ///
     /// The comparison is literal, and deliberately so: Moonraker resolves a relative

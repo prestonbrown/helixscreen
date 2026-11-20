@@ -543,7 +543,7 @@ Over SSH, on a generic Linux install (other printers' paths are in their guides)
 
 ### From Mainsail or Fluidd
 
-The installer adds HelixScreen to Moonraker's update manager wherever it finds your `moonraker.conf` (Raspberry Pi and other generic Linux hosts, and most all-in-one printers; not the Adventurer 5M, and not printers whose firmware mod manages HelixScreen), following the update channel you installed on. Open the update manager (Mainsail: **Machine**; Fluidd: **Settings**), find **HelixScreen**, and click **Update** when a new version is out.
+The installer adds HelixScreen to Moonraker's update manager wherever it finds your `moonraker.conf` (Raspberry Pi and other generic Linux hosts, most all-in-one printers, and the Adventurer 5M on Forge-X; not the Adventurer 5M on Klipper Mod, and not printers where Z-Mod installs HelixScreen itself), listed while you follow the Stable channel. Open the update manager (Mainsail: **Machine**; Fluidd: **Settings**), find **HelixScreen**, and click **Update** when a new version is out.
 
 If you installed by hand, or the installer could not find your `moonraker.conf`, add this section to it yourself, with `path` set to your install folder:
 
@@ -555,7 +555,7 @@ repo: prestonbrown/helixscreen
 path: ~/helixscreen
 ```
 
-Use `channel: beta` to follow betas. Do not add `install_script`, `managed_services` or `persistent_files`: Moonraker ignores the first two for this kind of entry and warns about them, and the third cannot keep your settings because the update replaces the whole install folder. Your settings are safe anyway, in `printer_data/config/helixscreen/`, and HelixScreen restarts by itself after the update.
+Keep `channel: stable`. Mainsail and Fluidd list HelixScreen only on the Stable channel: on Beta or Dev, HelixScreen switches this section off (its lines stay behind `#~ `) and you update from the screen, because Moonraker's beta updates would offer every HelixScreen line's newest release, older versions included. Do not add `install_script`, `managed_services` or `persistent_files`: Moonraker ignores the first two for this kind of entry and warns about them, and the third cannot keep your settings because the update replaces the whole install folder. Your settings are safe anyway, in `printer_data/config/helixscreen/`, and HelixScreen restarts by itself after the update.
 
 Then restart Moonraker:
 

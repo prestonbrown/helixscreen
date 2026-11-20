@@ -216,17 +216,20 @@ class UpdateChecker {
     void on_channel_changed();
 
     /**
-     * @brief Reconcile moonraker.conf's [update_manager helixscreen] with the app's channel
+     * @brief List or unlist HelixScreen in Mainsail and Fluidd to match the app's channel
      *
-     * Mainsail and Fluidd offer whatever that stanza's `channel:` names, so a stale one
-     * offers a beta install a "stable" downgrade. Which side moved is judged against the
-     * channel the two last agreed on (decide_moonraker_channel_sync()): a hand edit of the
-     * stanza is adopted as the app's channel, and an app change rewrites the line, only
-     * when a stanza with a channel line exists, then restarts Moonraker, which reads its
-     * config only at startup. While a job holds the machine the file is still written
-     * but the restart is skipped, so the change lands at Moonraker's next start. Called
-     * on every Moonraker discovery and whenever the effective channel changes. Main
-     * thread only.
+     * Moonraker's beta lane reads the newest release of every line and offers whatever
+     * differs from the installed version, downgrades included, and its stable lane reads
+     * GitHub's "latest", so [update_manager helixscreen] is listed only while the app
+     * follows Stable (#2147). On Stable a stanza the installer switched off
+     * (MoonrakerConfigManager::switch_section_off) is switched back on, and a listed one
+     * is held to `channel: stable`; on Beta or Dev a listed one is switched off. Nothing
+     * is ever created: where the installer wrote no stanza, it judged the update unsafe.
+     * Only a stanza whose `path:` is this install, in a file stanza_file_editable()
+     * allows, is touched. Moonraker reads its config only at startup, so a change
+     * restarts it, except while a job holds the machine, when the file is still written
+     * and the change lands at Moonraker's next start. Called on every Moonraker
+     * discovery and whenever the effective channel changes. Main thread only.
      */
     void sync_moonraker_channel();
 
@@ -494,34 +497,14 @@ class UpdateChecker {
     static const char* channel_name(UpdateChannel channel);
 
     /**
-     * @brief The `channel:` Moonraker's web updater needs to serve @p channel
+     * @brief Whether the channel sync may edit config file @p file
      *
-     * Moonraker knows only GitHub's stable and prerelease tracks; Dev ships
-     * prereleases, so it rides beta (the installer's update_manager_web_channel).
+     * Where a firmware mod owns moonraker.conf (@p mod_host,
+     * firmware_mod_owns_moonraker_conf()), only the mod's user include,
+     * user.moonraker.conf, is ours. Elsewhere any file of the include graph holding the
+     * stanza is editable.
      */
-    static const char* moonraker_channel_name(UpdateChannel channel);
-
-    /// What a moonraker.conf channel sync does with the stanza it read.
-    enum class MoonrakerChannelSync {
-        Write,      ///< Rewrite the stanza to the app's channel
-        Adopt,      ///< The stanza was edited by hand: take its channel into the app
-        RecordOnly, ///< Already agreeing: remember the channel, touch nothing
-        Leave,      ///< A hand edit to a channel the app has no name for
-    };
-
-    /**
-     * @brief Decide which side of a moonraker.conf channel disagreement moved
-     *
-     * @param app         moonraker_channel_name() of the app's effective channel
-     * @param conf        the stanza's `channel:` value, empty when it has none
-     * @param last_synced the channel the two last agreed on, empty when unknown
-     *
-     * Only a stanza that moved away from @p last_synced while the app stayed put counts
-     * as a hand edit; anything else, including no record at all, lets the app win.
-     */
-    static MoonrakerChannelSync decide_moonraker_channel_sync(const std::string& app,
-                                                              const std::string& conf,
-                                                              const std::string& last_synced);
+    static bool stanza_file_editable(const std::string& file, bool mod_host);
 
     /**
      * @brief Resolve the R2 base URL the next check will actually use.
@@ -789,9 +772,6 @@ class UpdateChecker {
     /// sync_moonraker_channel() with this install's directory supplied; the stanza's
     /// `path:` must resolve to it.
     void sync_moonraker_channel_for(const std::string& install_root);
-    /// Take @p conf_channel, a hand edit of the stanza, as the app's update channel the
-    /// way a Settings change does, without writing it back to moonraker.conf.
-    void adopt_moonraker_channel(const std::string& conf_channel);
     /// on_channel_changed() short of the moonraker.conf sync.
     void recheck_for_channel();
 
