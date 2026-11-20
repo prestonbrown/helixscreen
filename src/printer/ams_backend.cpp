@@ -1047,6 +1047,10 @@ bool AmsBackend::sensor_belongs_to_backend(AmsType type, const std::string& bare
     return owns && owns(bare_name, discovery);
 }
 
+std::vector<std::string> AmsBackend::private_lane_record_namespaces() {
+    return {AmsBackendAfc::kOverrideNamespace, AmsBackendHappyHare::kOverrideNamespace};
+}
+
 bool AmsBackend::sensor_name_names_filament_system(std::string_view lower_name) {
     const auto has_any = [lower_name](const auto& keywords) {
         for (const char* keyword : keywords) {

@@ -265,6 +265,8 @@ void AmsState::init_backends_from_hardware(const helix::PrinterDiscovery& hardwa
     const auto& systems = hardware.detected_ams_systems();
     if (systems.empty()) {
         spdlog::debug("[AMS State] No AMS systems detected, skipping");
+        assert_main_thread();
+        reclaim_orphaned_bypass_record();
         return;
     }
 
@@ -716,6 +718,7 @@ void AmsState::sync_from_backend() {
 
     sync_lanes_emptied(backend, info);
 
+    hand_bypass_record_to_holder();
     run_legacy_spool_import();
 
     sync_unit_environment(backend, info);

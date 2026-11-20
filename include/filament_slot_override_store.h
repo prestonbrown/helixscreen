@@ -347,6 +347,13 @@ bool persist_override_external_identity(FilamentSlotOverrideStore* store,
 /// The lane_name of the bypass spool's record.
 inline constexpr const char* kBypassLaneName = "bypass";
 
+/// Whether the raw record @p record (one value of a lane namespace) is the
+/// bypass spool's, not a lane's. Every reader of a lane namespace asks this
+/// before matching a record to a lane: with no filament system AmsState keeps
+/// the bypass record at `lane1`, which is also the name of a real lane on
+/// firmware that names its lanes from 0.
+[[nodiscard]] bool is_bypass_record(const nlohmann::json& record);
+
 /// The record HelixScreen writes for the bypass spool @p spool.
 [[nodiscard]] FilamentSlotOverride external_lane_record(const SlotInfo& spool);
 

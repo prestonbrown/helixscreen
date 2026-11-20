@@ -2339,6 +2339,18 @@ class AmsState {
     /// Whether the bypass record's holder has read it, so its absence is
     /// Moonraker's answer. Main thread.
     [[nodiscard]] bool bypass_record_known() const;
+    /// A filament system now holds the bypass record: once it has read its
+    /// lane records, give it the record AmsState last read from its own store
+    /// when it holds none, and delete AmsState's copy. Runs after every sync.
+    /// Main thread.
+    void hand_bypass_record_to_holder();
+    /// Discovery found no filament system: when AmsState's own store holds no
+    /// bypass record, take the one a departed system left in its private
+    /// namespace. Once per printer connection. Main thread.
+    void reclaim_orphaned_bypass_record();
+    /// Delete the bypass record from AmsState's own store, if a fresh read
+    /// still finds it there. Main thread.
+    void delete_own_bypass_copy();
     /// Write what start_legacy_spool_import() read, each half once its lanes
     /// are read. Runs after every sync and bypass read. Main thread.
     void run_legacy_spool_import();
@@ -2760,6 +2772,12 @@ class AmsState {
     std::optional<helix::ams::FilamentSlotOverride> bypass_record_read_;
     /// AmsState's own bypass store has answered a read since it opened.
     bool bypass_store_read_ = false;
+    /// hand_bypass_record_to_holder() has run for the current holder.
+    bool bypass_handover_done_ = false;
+    /// reclaim_orphaned_bypass_record() has run for this connection.
+    bool bypass_reclaim_done_ = false;
+    /// The private-namespace stores reclaim_orphaned_bypass_record() reads.
+    std::vector<std::unique_ptr<helix::ams::FilamentSlotOverrideStore>> bypass_reclaim_stores_;
 
     /// What start_legacy_spool_import() read, and which halves are written.
     struct LegacyImport {

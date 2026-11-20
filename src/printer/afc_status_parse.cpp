@@ -7,6 +7,7 @@
 #include "afc_defaults.h"
 #include "ams_status_json.h"
 #include "core/text_io.h"
+#include "filament_slot_override_store.h"
 #include "humidity_sensor_types.h"
 #include "json_utils.h"
 
@@ -373,6 +374,12 @@ std::vector<LaneDataRecord> parse_lane_data(const nlohmann::json& lane_data) {
     }
     for (auto it = lane_data.begin(); it != lane_data.end(); ++it) {
         if (!it.value().is_object()) {
+            continue;
+        }
+        // HelixScreen's bypass spool record describes no lane of AFC's, though
+        // its key can match one: AFC names lanes from 0 and the record sits at
+        // `lane1`.
+        if (ams::is_bypass_record(it.value())) {
             continue;
         }
         LaneDataRecord r;

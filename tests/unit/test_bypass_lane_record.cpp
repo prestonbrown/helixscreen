@@ -20,6 +20,7 @@
 #include "core/update_queue.h"
 #include "filament_slot_override_store.h"
 #include "lane_source_store.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "test_helpers/registered_backend.h"
 
@@ -302,6 +303,60 @@ TEST_CASE_METHOD(LVGLTestFixture, "on AFC the bypass record goes in the extras, 
     CHECK(spool->material == "PETG");
     CHECK(spool->spoolman_id == 7);
     CHECK_FALSE(helix::ams::lane_sources(helix::ams::kBypassLaneId).pending.has_value());
+}
+
+// --- A filament system comes or goes while a bypass spool is recorded ------
+
+// AFC keeps its lane records in a private namespace, so the record AmsState
+// kept in lane_data before AFC arrived is out of its sight unless it moves.
+TEST_CASE_METHOD(LVGLTestFixture, "a filament system that arrives takes over the bypass record",
+                 "[bypass][lane][extras][afc][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ASA", "#101010"));
+    OwnBypassStore store(printer);
+    REQUIRE(AmsState::instance().get_external_spool_info().has_value());
+
+    auto owned = std::make_unique<StartedAfc>(&printer.api);
+    StartedAfc* afc = owned.get();
+    AmsState::instance().add_backend(std::move(owned));
+    afc->start_now();
+    AmsState::instance().sync_from_backend();
+    settle();
+
+    const json moved = printer.client.mock_db_get("helix-screen-afc-overrides", "lane3");
+    REQUIRE(moved.is_object());
+    CHECK(moved["lane_name"] == "bypass");
+    CHECK(moved["filament_type"] == "ASA");
+    CHECK(printer.client.mock_db_get("lane_data", "lane1").is_null());
+    const auto spool = AmsState::instance().get_external_spool_info();
+    REQUIRE(spool.has_value());
+    CHECK(spool->material == "ASA");
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    AmsState::instance().clear_backends();
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a filament system that is gone hands its bypass record back to lane_data",
+                 "[bypass][lane][extras][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("helix-screen-afc-overrides", "lane3",
+                               bypass_record(2, "ASA", "#101010"));
+    OwnBypassStore store(printer);
+    REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
+
+    // Discovery finds no filament system on the printer.
+    AmsState::instance().init_backend_from_hardware(PrinterDiscovery{}, &printer.api, nullptr);
+    settle();
+
+    const json back = printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(back.is_object());
+    CHECK(back["lane_name"] == "bypass");
+    CHECK(back["filament_type"] == "ASA");
+    CHECK(printer.client.mock_db_get("helix-screen-afc-overrides", "lane3").is_null());
+    const auto spool = AmsState::instance().get_external_spool_info();
+    REQUIRE(spool.has_value());
+    CHECK(spool->material == "ASA");
 }
 
 // A bypass record written before records named their writer sits at the

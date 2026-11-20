@@ -147,7 +147,7 @@ struct LaneDataRecord {
     std::optional<SlotStatus> status;
 };
 
-/// Every object-valued record, in the payload's key order.
+/// Every object-valued record but the bypass spool's, in the payload's key order.
 [[nodiscard]] std::vector<LaneDataRecord> parse_lane_data(const nlohmann::json& lane_data);
 
 /// The payload of a server.database.get_item JSON-RPC reply, at result.value;

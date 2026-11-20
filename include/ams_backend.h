@@ -3180,6 +3180,16 @@ class AmsBackend : public AmsCapabilityHost {
     static bool sensor_name_names_filament_system(std::string_view lower_name);
 
     /**
+     * @brief The private namespaces a backend keeps its lane records in when its
+     * firmware owns lane_data.
+     *
+     * A backend of that kind keeps the bypass spool's record there too, so once
+     * its filament system is gone the record is left where AmsState, the
+     * keeper on a printer without one, never reads.
+     */
+    [[nodiscard]] static std::vector<std::string> private_lane_record_namespaces();
+
+    /**
      * @brief Every Klipper status object the filament systems in @p hw need pushed.
      *
      * Merges each backend's own `required_status_objects`; each decides whether it

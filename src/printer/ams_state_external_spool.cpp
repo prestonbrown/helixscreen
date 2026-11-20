@@ -144,6 +144,9 @@ void AmsState::restart_bypass_reads() {
     bypass_store_.reset();
     bypass_record_read_.reset();
     bypass_store_read_ = false;
+    bypass_handover_done_ = false;
+    bypass_reclaim_done_ = false;
+    bypass_reclaim_stores_.clear();
     bypass_read_in_flight_ = false;
     bypass_read_again_ = false;
     if (api_ == nullptr) {
@@ -223,6 +226,116 @@ void AmsState::adopt_bypass_records(
     sync_lane_records_ready();
     refresh_external_spool();
     run_legacy_spool_import();
+}
+
+void AmsState::hand_bypass_record_to_holder() {
+    assert_main_thread();
+    AmsBackend* holder = bypass_record_holder();
+    if (holder == nullptr || bypass_handover_done_ || !holder->lane_records_ready()) {
+        return;
+    }
+    bypass_handover_done_ = true;
+    std::optional<helix::ams::FilamentSlotOverride> carried = std::move(bypass_record_read_);
+    bypass_record_read_.reset();
+    if (!carried.has_value()) {
+        return;
+    }
+    // The holder reads lane records of its own, and AmsState's copy is not
+    // among them on a backend whose firmware owns lane_data. A record the
+    // holder already has is newer than the one AmsState read before it came.
+    if (!holder->bypass_record().has_value()) {
+        spdlog::info("{} the filament system holds the bypass record now; moving {} to it",
+                     kBypassTag, carried->material);
+        holder->publish_external_spool_lane(&*carried);
+    }
+    delete_own_bypass_copy();
+}
+
+void AmsState::delete_own_bypass_copy() {
+    assert_main_thread();
+    if (!bypass_store_) {
+        return;
+    }
+    auto token = async_lifetime_.token();
+    helix::ams::FilamentSlotOverrideStore* store = bypass_store_.get();
+    // Read first: the key may name a lane of the firmware's own by now, and only
+    // the bypass record is AmsState's to delete.
+    store->reload_async([token,
+                         store](std::unordered_map<int, helix::ams::LaneDataRecord> records) {
+        token.defer("AmsState::delete_own_bypass_copy", [store, records = std::move(records)]() {
+            AmsState& self = AmsState::instance();
+            if (self.bypass_store_.get() != store) {
+                return;
+            }
+            const auto found = helix::ams::find_bypass_record(records);
+            if (!found.has_value() || found->first != kOwnBypassIndex) {
+                return;
+            }
+            store->adopt_read(records);
+            store->clear_async(kOwnBypassIndex, [](bool ok, const std::string& err) {
+                if (!ok) {
+                    spdlog::warn("{} deleting the moved record failed: {}", kBypassTag, err);
+                }
+            });
+        });
+    });
+}
+
+void AmsState::reclaim_orphaned_bypass_record() {
+    assert_main_thread();
+    if (!bypass_store_ || bypass_reclaim_done_ || registry_.count() > 0) {
+        return;
+    }
+    bypass_reclaim_done_ = true;
+    auto token = async_lifetime_.token();
+    helix::ams::FilamentSlotOverrideStore* own = bypass_store_.get();
+    own->reload_async([token, own](std::unordered_map<int, helix::ams::LaneDataRecord> mine) {
+        token.defer("AmsState::reclaim_orphaned_bypass_record", [own, mine = std::move(mine)]() {
+            AmsState& self = AmsState::instance();
+            if (self.bypass_store_.get() != own || self.registry_.count() > 0 ||
+                helix::ams::find_bypass_record(mine).has_value()) {
+                return;
+            }
+            own->adopt_read(mine);
+            for (const std::string& ns : AmsBackend::private_lane_record_namespaces()) {
+                auto store = std::make_unique<helix::ams::FilamentSlotOverrideStore>(
+                    self.api_, "bypass", helix::ams::LaneKeyStyle::Lane, ns);
+                helix::ams::FilamentSlotOverrideStore* left = store.get();
+                self.bypass_reclaim_stores_.push_back(std::move(store));
+                auto inner = self.async_lifetime_.token();
+                left->reload_async([inner, own, left](
+                                       std::unordered_map<int, helix::ams::LaneDataRecord> found) {
+                    inner.defer(
+                        "AmsState::reclaim_orphaned_bypass_record_found",
+                        [own, left, found = std::move(found)]() {
+                            AmsState& self = AmsState::instance();
+                            const auto record = helix::ams::find_bypass_record(found);
+                            // One reclaim per connection: the first namespace that
+                            // answers with a record wins, and the store has it then.
+                            if (self.bypass_store_.get() != own || self.registry_.count() > 0 ||
+                                !record.has_value() || self.bypass_record_read_.has_value()) {
+                                return;
+                            }
+                            spdlog::info("{} no filament system holds the bypass record; taking {} "
+                                         "back from {}",
+                                         kBypassTag, record->second.material,
+                                         left->namespace_name());
+                            self.bypass_record_read_ = record->second;
+                            helix::ams::save_override_async(own, kOwnBypassIndex, record->second,
+                                                            kBypassTag, "Bypass spool",
+                                                            helix::ams::kBypassLaneId);
+                            left->adopt_read(found);
+                            left->clear_async(record->first, [](bool ok, const std::string& err) {
+                                if (!ok) {
+                                    spdlog::warn("{} deleting the reclaimed record failed: {}",
+                                                 kBypassTag, err);
+                                }
+                            });
+                        });
+                });
+            }
+        });
+    });
 }
 
 void AmsState::refresh_external_spool() {
