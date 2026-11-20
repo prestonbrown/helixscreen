@@ -766,18 +766,6 @@ class AmsBackend : public AmsCapabilityHost {
     [[nodiscard]] virtual bool is_filament_loaded() const = 0;
 
     /**
-     * @brief Whether this backend's unload clears filament at the toolhead
-     *        that no lane claims (toolhead_filament_unaccounted()).
-     *
-     * False unless the backend's unload_filament(-1) really pulls that
-     * filament: some firmware unloads only the lane it has loaded and does
-     * nothing when none is.
-     */
-    [[nodiscard]] virtual bool can_unload_unclaimed_toolhead() const {
-        return false;
-    }
-
-    /**
      * @brief Whether filament sits in the toolhead that this backend cannot
      *        account for (no lane/spool claims it).
      *
@@ -1711,7 +1699,8 @@ class AmsBackend : public AmsCapabilityHost {
      * unload path is unavailable by definition. What matters then is whether
      * the hardware has a lane-free way to heat, cut and retract.
      *
-     * Drives the advice the pre-print warning gives, not an action. Telling a
+     * Drives the advice the pre-print warning gives, and whether the
+     * unclaimed-toolhead prompt offers Unload (unaccounted_toolhead_clear_slot()). Telling a
      * user to pull filament out of a hot toolhead by hand is the right answer
      * on hardware with no cutter and the wrong one on hardware that can do it
      * itself, so the message asks this rather than assuming the worst.
@@ -1719,8 +1708,21 @@ class AmsBackend : public AmsCapabilityHost {
      * Default false: a backend that has not been shown to manage this must not
      * imply the printer will handle it.
      */
-    [[nodiscard]] bool can_clear_unaccounted_toolhead() const {
+    [[nodiscard]] virtual bool can_clear_unaccounted_toolhead() const {
         return traits().can_clear_unaccounted_toolhead;
+    }
+
+    /**
+     * @brief The unload_filament() target that clears filament at the toolhead
+     *        no lane claims, where can_clear_unaccounted_toolhead() says the
+     *        backend can.
+     *
+     * The active head by default: unload_filament(-1) resolves the channel
+     * itself. A backend whose lane-free clear is its bypass unload answers
+     * the bypass slot.
+     */
+    [[nodiscard]] virtual int unaccounted_toolhead_clear_slot() const {
+        return -1;
     }
 
     [[nodiscard]] virtual bool can_unload_from_toolhead(int slot_index) const {

@@ -359,6 +359,10 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         // (FILAMENT_BACKEND_AD5X_IFS.md, "Unload routing").
         t.supports_auto_heat_on_unload = true;
         t.supports_force_eject = true;
+        // A head no lane claims clears through the extruder-only clear
+        // (kClearToolheadSlot), heated cut and retract, after the lane
+        // question unload_lane_question() asks.
+        t.can_clear_unaccounted_toolhead = true;
         // IFS firmware persists color + material type but NOT spoolman_id,
         // so ToolState must handle spool assignment persistence via Moonraker DB.
         // current_error() raises the unattended-runout detector's fault. It is NOT
@@ -483,11 +487,6 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
     /// alone (motion-sensor false negatives, see the block comment above).
     /// nullopt until the switch has ever published a reading.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
-    /// A loaded head with no active port is the unknown-origin case
-    /// do_unload_filament() removes from the head.
-    [[nodiscard]] bool can_unload_unclaimed_toolhead() const override {
-        return true;
-    }
 
     /// Asks for the lane in the toolhead when no record names it, offering the
     /// lanes holding filament plus an extruder-only clear; with no lane holding

@@ -4,6 +4,7 @@
 #include "ui_unclaimed_toolhead_modal.h"
 
 #include "ui_bypass_toggle_controller.h"
+#include "ui_unload_lane_choice.h"
 #include "ui_widget_ref.h"
 
 #include "ams_state.h"
@@ -50,7 +51,7 @@ void UnclaimedToolheadModal::offer() {
 }
 
 bool UnclaimedToolheadModal::offers_unload(const AmsBackend* backend) {
-    return backend != nullptr && backend->can_unload_unclaimed_toolhead();
+    return backend != nullptr && backend->can_clear_unaccounted_toolhead();
 }
 
 void UnclaimedToolheadModal::dismiss() {
@@ -81,15 +82,24 @@ void UnclaimedToolheadModal::on_ok() {
 }
 
 void UnclaimedToolheadModal::on_tertiary() {
-    if (still_unclaimed("Unload")) {
-        if (AmsBackend* backend = AmsState::instance().get_backend();
-            backend != nullptr && offers_unload(backend)) {
-            const bool loaded =
-                read_unload_target_loaded(backend, backend->get_system_info(), kActiveHeadSlot);
-            execute_filament_unload(backend, kActiveHeadSlot, loaded, "[UnclaimedToolhead]");
-        }
-    }
+    // Closed first: the lane question opens its own dialog.
     hide(ModalCloseReason::ButtonPress);
+    if (!still_unclaimed("Unload")) {
+        return;
+    }
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (backend == nullptr || !offers_unload(backend)) {
+        return;
+    }
+    FilamentOpSurface surface;
+    surface.log_tag = "[UnclaimedToolhead]";
+    // The same slotless toolhead unload every other Unload surface runs: a
+    // backend that cannot name the lane asks first.
+    if (ask_lane_then_unload(backend, nullptr, surface)) {
+        return;
+    }
+    execute_filament_unload(backend, backend->unaccounted_toolhead_clear_slot(),
+                            /*target_is_loaded=*/true, surface);
 }
 
 } // namespace helix::ui

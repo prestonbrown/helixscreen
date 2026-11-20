@@ -244,9 +244,6 @@ class AmsBackendMock : public AmsBackend,
     /// nullopt until the "unaccounted" scenario runs; then true — the mock
     /// cannot observe a toolhead, so only the staged scenario answers.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
-    [[nodiscard]] bool can_unload_unclaimed_toolhead() const override {
-        return true;
-    }
 
     // Dryer
     /// Rename a unit, so screens that key on hardware names see a different unit.

@@ -331,7 +331,5 @@ TEST_CASE("unclaimed toolhead: Unload is offered only where the unload clears it
     CHECK_FALSE(helix::ui::UnclaimedToolheadModal::offers_unload(&afc));
     CfsHarness h;
     CHECK(helix::ui::UnclaimedToolheadModal::offers_unload(h.cfs.get()));
-    AmsBackendMock mock;
-    CHECK(helix::ui::UnclaimedToolheadModal::offers_unload(&mock));
     CHECK_FALSE(helix::ui::UnclaimedToolheadModal::offers_unload(nullptr));
 }
