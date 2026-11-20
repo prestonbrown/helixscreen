@@ -3479,8 +3479,9 @@ TEST_CASE("A settings.json still holding /update/moonraker_channel loads as befo
         fs::temp_directory_path() / ("helix-old-mr-channel-" + std::to_string(getpid()));
     fs::remove_all(dir);
     fs::create_directories(dir);
-    const char* prev_dir = std::getenv("HELIX_CONFIG_DIR");
-    const std::string saved_dir = prev_dir ? prev_dir : "";
+    const char* prev_env = std::getenv("HELIX_CONFIG_DIR");
+    const bool had_dir = prev_env != nullptr;
+    const std::string saved_dir = had_dir ? prev_env : "";
     setenv("HELIX_CONFIG_DIR", dir.c_str(), 1);
     const std::string path = (dir / "settings.json").string();
     {
@@ -3499,7 +3500,7 @@ TEST_CASE("A settings.json still holding /update/moonraker_channel loads as befo
         config.clear_path();
     }
 
-    if (prev_dir)
+    if (had_dir)
         setenv("HELIX_CONFIG_DIR", saved_dir.c_str(), 1);
     else
         unsetenv("HELIX_CONFIG_DIR");
