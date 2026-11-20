@@ -129,6 +129,7 @@ translations:
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Chaque buse est chauffée, essuyée puis garée à l'avant pour que vous la brossiez
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Installez les macros d'aide. Elles ajoutent HELIX_MATERIAL_OFFSET et un stockage [save_variables] pour les décalages."
+  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: "1. Installez les macros d'aide. Elles ajoutent la macro de l'étape 2 et un stockage Klipper pour les décalages."
   1. Printer homes all axes (~1 minute): 1. L'imprimante prend l'origine de tous les axes (~1 minute)
   1. Printer homes and probes the bed: 1. L'imprimante fait l'origine et palpe le plateau
   1. Printer will home and probe each screw: 1. L'imprimante fera l'origine et palpera chaque vis
@@ -2842,9 +2843,11 @@ translations:
   Nylon: "Nylon"
   OD: OD
   'OFF': 'OFF'
+  OFFSET PER MATERIAL: "DÉCALAGE PAR MATÉRIAU"
   OK: OK
   'ON': 'ON'
   'ON: {} | OFF: {}': 'MARCHE : {} | ARRÊT : {}'
+  ONE-TIME SETUP: "CONFIGURATION INITIALE"
   OS: OS
   'OS: ': 'OS : '
   Object: 'Objet'
@@ -4252,6 +4255,7 @@ translations:
   The heater was turned off at the heater.: 'Le chauffage a été éteint sur l''appareil lui-même.'
   The heater will cycle on and off several times.: Le chauffage s'allumera et s'éteindra plusieurs fois.
   The helper macros are installed and activate after Klipper restarts.: 'Les macros d''aide sont installées et s''activent après un redémarrage de Klipper.'
+  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: "Les macros d'aide de cette imprimante n'ont pas encore de stockage pour les décalages. Mettez-les à jour, puis redémarrez Klipper."
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Le verrou s'ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock.
   The left RFID reader in this CFS unit may need service: Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention

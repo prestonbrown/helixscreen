@@ -117,6 +117,7 @@ translations:
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Ogni ugello viene riscaldato, pulito e parcheggiato davanti perché tu lo spazzoli
   1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets.: "1. Installa le macro di ausilio. Aggiungono HELIX_MATERIAL_OFFSET e un archivio [save_variables] per gli offset."
+  1. Install the helper macros. They add the macro in step 2 and a Klipper store for the offsets.: "1. Installa le macro di ausilio. Aggiungono la macro del passo 2 e un archivio Klipper per gli offset."
   1. Printer homes all axes (~1 minute): 1. La stampante azzererà tutti gli assi (~1 minuto)
   1. Printer homes and probes the bed: 1. La stampante esegue homing e sonda il piano
   1. Printer will home and probe each screw: 1. La stampante eseguirà homing e sonderà ogni vite
@@ -2830,9 +2831,11 @@ translations:
   Nylon: "Nylon"
   OD: OD
   'OFF': 'OFF'
+  OFFSET PER MATERIAL: "OFFSET PER MATERIALE"
   OK: OK
   'ON': 'ON'
   'ON: {} | OFF: {}': 'ON: {} | OFF: {}'
+  ONE-TIME SETUP: "CONFIGURAZIONE INIZIALE"
   OS: OS
   'OS: ': 'OS: '
   Object: 'Oggetto'
@@ -4240,6 +4243,7 @@ translations:
   The heater was turned off at the heater.: 'Il riscaldatore è stato spento dal riscaldatore stesso.'
   The heater will cycle on and off several times.: Il riscaldatore si accenderà e spegnerà diverse volte.
   The helper macros are installed and activate after Klipper restarts.: 'Le macro di ausilio sono installate e si attivano dopo il riavvio di Klipper.'
+  The helper macros on this printer have no store for the offsets yet. Update them, then restart Klipper.: "Le macro di ausilio di questa stampante non hanno ancora un archivio per gli offset. Aggiornale, poi riavvia Klipper."
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "L'ultima stampa potrebbe essere ancora sul piano. Toglila prima che la testina si muova, poi tocca Liberato."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Il fermo si apre e {} può cadere. Tienilo prima di continuare, poi riponilo nel suo dock.
   The left RFID reader in this CFS unit may need service: Il lettore RFID sinistro di questa unità CFS potrebbe richiedere assistenza

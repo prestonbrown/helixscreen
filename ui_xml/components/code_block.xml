@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A line or lines of config or G-code the user copies by hand, on an inset panel.
+     Usage: <code_block text="[include helix_macros.cfg]"/> or <code_block bind_text="subject"/> -->
+<component>
+  <api>
+    <prop name="text" type="string" default=""/>
+    <prop name="bind_text" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" style_bg_color="#overlay_bg" style_bg_opa="255" style_radius="#border_radius"
+        style_border_width="0" style_pad_all="#space_sm" scrollable="false">
+    <text_small name="code" width="100%" text="$text" bind_text="$bind_text" style_text_color="#text" long_mode="wrap"/>
+  </view>
+</component>
