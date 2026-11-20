@@ -299,3 +299,56 @@ TEST_CASE("a restart during a runout pause recovers the record the runout head p
     }
     config.set<nlohmann::json>(key, nullptr);
 }
+
+TEST_CASE("snapmaker backend reports the firmware's own Auto-Replenish as a busy printer",
+          "[ams][snapmaker][runout_other_head]") {
+    // The sensor's PAUSE, then INNER_AUTO_REPLENISH_FILAMENT finds a match,
+    // rewrites the routing and RESUMEs with PRINT_REPLENISHING (131) held
+    // through the heat and purge, print_stats still paused; then IDLE.
+    HelixTestFixture fixture;
+    helix::test::StartedBackend<AmsBackendSnapmaker> backend;
+    backend.fire_status(printing_on_head0());
+    nlohmann::json paused = frame(cleared_head0());
+    paused["print_stats"] = {{"state", "paused"}};
+    paused["machine_state_manager"] = {{"main_state", 1}, {"action_code", 0}};
+    backend.fire_status(paused);
+    CHECK_FALSE(backend.runout_other_head_facts(0)->printer_busy);
+
+    nlohmann::json replenishing;
+    replenishing["machine_state_manager"] = {{"action_code", 131}};
+    backend.fire_status(replenishing);
+    const auto facts = backend.runout_other_head_facts(0);
+    REQUIRE(facts.has_value());
+    CHECK(facts->printer_busy);
+    CHECK_FALSE(helix::runout_other_head::worth_offering(*facts));
+
+    nlohmann::json idle;
+    idle["machine_state_manager"] = {{"action_code", 0}};
+    backend.fire_status(idle);
+    CHECK_FALSE(backend.runout_other_head_facts(0)->printer_busy);
+
+    // While printing the action codes say nothing about a pause.
+    nlohmann::json printing;
+    printing["print_stats"] = {{"state", "printing"}};
+    printing["machine_state_manager"] = {{"action_code", 134}};
+    backend.fire_status(printing);
+    CHECK_FALSE(backend.runout_other_head_facts(0)->printer_busy);
+}
+
+TEST_CASE("a restore a runout switch left pending survives in the printer's settings",
+          "[ams][snapmaker][runout_other_head][running_records]") {
+    HelixTestFixture fixture;
+    ScopedConfigWriteCounter store;
+    namespace roh = helix::runout_other_head;
+    roh::write_pending_restore({});
+    CHECK(roh::read_pending_restore().empty());
+    roh::write_pending_restore("SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0");
+    helix::Config& config = *helix::Config::get_instance();
+    const nlohmann::json* kept =
+        config.try_get_json(config.df() + "runout_other_head/pending_restore");
+    REQUIRE(kept != nullptr);
+    CHECK(*kept == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0");
+    CHECK(roh::read_pending_restore() == "SET_PRINT_PREFERENCES AUTO_REPLENISH_FILAMENT=0");
+    roh::write_pending_restore({});
+    CHECK(roh::read_pending_restore().empty());
+}

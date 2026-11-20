@@ -1200,6 +1200,13 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// unset until a frame carries it. Under mutex_.
     std::optional<int> main_state_;
 
+    /// machine_state_manager.action_code, the same way: what the firmware is
+    /// doing inside its main state (PRINT_REPLENISHING = 131 while its own
+    /// Auto-Replenish resumes on another head). Under mutex_.
+    std::optional<int> action_code_;
+    /// ActionCode.IDLE (machine_state_manager.py).
+    static constexpr int kActionCodeIdle = 0;
+
     /// The temperatures and spool weight the last tag reading on each channel
     /// wrote onto SlotInfo, which no lane record carries. Unset until a tag is
     /// read, and again once retract_tag_reading_locked() takes them back.

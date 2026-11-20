@@ -382,6 +382,7 @@ void AmsBackendSnapmaker::on_started() {
         // per-print marks survive (apply_print_state_locked).
         print_state_.reset();
         main_state_.reset();
+        action_code_.reset();
         record_restore_sent_.fill(false);
         insert_since_declaration_.fill(false);
     }
@@ -2882,6 +2883,14 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
                 }
             }
         }
+        if (const nlohmann::json* manager =
+                helix::json_util::find_member(status, "machine_state_manager");
+            manager != nullptr) {
+            if (const nlohmann::json* code = helix::json_util::find_member(*manager, "action_code");
+                code != nullptr && code->is_number_integer()) {
+                action_code_ = code->get<int>();
+            }
+        }
         if (const auto main_state = snapmaker::screws_tilt::main_state_from_status(status)) {
             main_state_ = *main_state;
             if (*main_state != snapmaker::nozzle_offset::kMainStateXyzOffsetCalibrate) {
@@ -4347,6 +4356,11 @@ AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
     const auto& kept = pause_records_[static_cast<size_t>(runout_head)];
     facts.original = kept ? kept : task_record_locked(runout_head);
     facts.routing = extruder_map_table_;
+    // RESUME refuses while the action code is not IDLE, and INNER_RESUME holds
+    // PRINT_RESUMING or PRINT_REPLENISHING through its heat, purge and clean,
+    // with the print still paused (fluidd.cfg INNER_RESUME, pause_resume.py
+    // cmd_RESUME). The firmware's own Auto-Replenish runs inside that window.
+    facts.printer_busy = facts.paused && action_code_ && *action_code_ != kActionCodeIdle;
     for (int i = 0; i < kNumTools; ++i) {
         const auto& snap = channel_snapshots_[static_cast<size_t>(i)];
         const auto& ext = extruder_states_[static_cast<size_t>(i)];
