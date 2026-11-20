@@ -205,10 +205,9 @@ TEST_CASE("threshold_mb streams files above it even when RAM would allow a full 
  * into RAM. The opt-out must not reach that path when nothing will render 3D,
  * nor when the parse does not fit the device.
  *
- * Measured on a K2 Plus (488 MB, ENABLE_GLES_3D=no): the detail view opened a
- * 130 MB gcode logging "streaming mode: OFF", helix-screen reached 387 MB RSS
- * and the kernel OOM-killed it. The identical file on the identical device
- * logged "streaming mode: ON" from another screen minutes earlier and rendered.
+ * The full parse has no memory budget of its own, and the preview gate in
+ * front of the load prices the streaming renderer, so this decision is the
+ * only thing between a large file and an OOM kill on a low-RAM board.
  *
  * These run in a test binary that IS compiled with 3D enabled, which is exactly
  * why the decision is a pure function rather than an #ifdef at the call site:
@@ -216,7 +215,7 @@ TEST_CASE("threshold_mb streams files above it even when RAM would allow a full 
  */
 TEST_CASE("gcode_viewer_should_stream: opt-out is ignored when nothing renders 3D",
           "[gcode][streaming]") {
-    // The K2 case: screen opted out, no 3D, file big enough to want streaming.
+    // Screen opted out, no 3D, file big enough to want streaming.
     CHECK(helix::gcode_viewer_should_stream(/*screen_opted_out=*/true, /*renders_3d=*/false,
                                             /*full_parse_fits=*/true,
                                             /*streaming_for_size=*/true));
