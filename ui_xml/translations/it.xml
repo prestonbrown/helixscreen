@@ -2463,7 +2463,7 @@
   <translation tag="No vendors found" it="Nessun fornitore trovato"/>
   <translation tag="No verified bypass command for this CFS firmware" it="Nessun comando bypass verificato per questo firmware CFS"/>
   <translation tag="No video player installed - showing the timelapse library" it="Nessun lettore video installato – viene mostrata la libreria timelapse"/>
-  <translation tag="No video player on this printer"/>
+  <translation tag="No video player on this printer" it="Nessun lettore video su questa stampante"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." it="Nessuna webcam rilevata.&#10;Una webcam è necessaria per il timelapse."/>
   <translation tag="No widgets found" it="Nessun widget trovato"/>
   <translation tag="No width sensor detected" it="Nessun sensore di larghezza rilevato"/>
@@ -3934,7 +3934,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" it="La memoria interna dell&apos;unità è guasta. La scheda madre del CFS va sostituita"/>
   <translation tag="The unload did not start: unload by hand, then start again" it="Lo scarico non è partito: scarica a mano, poi ricomincia"/>
   <translation tag="The unload finishes on its own, but the plate will not move." it="Lo scaricamento termina da solo, ma il piano non si sposterà."/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
+  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." it="Il lettore video non è riuscito ad avviarsi su questa stampante ({}). Scansiona il codice con il telefono per guardare il timelapse."/>
   <translation tag="Theme" it="Tema"/>
   <translation tag="Theme Colors" it="Colori tema"/>
   <translation tag="Theme Preset" it="Preset tema"/>
@@ -3993,7 +3993,7 @@
   <translation tag="This printer has no IFS." it="Questa stampante non ha l&apos;IFS."/>
   <translation tag="This printer has no INDX LOAD_FILAMENT macro" it="Questa stampante non ha la macro INDX LOAD_FILAMENT"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." it="Questa stampante non ha lo scarico automatico. Taglia il filamento sulla testina ed estrailo a mano."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse."/>
+  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." it="Questa stampante non ha un lettore video. Scansiona il codice con il telefono per guardare il timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." it="Questa stampante non ha il comando {}, quindi l&apos;offset Z non può essere salvato."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." it="Questa stampante sembra una {} (affidabilità {}%), ma è configurata come {}. Un tipo errato applica opzioni pre-stampa e preset errati."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" it="Alle macro INDX di questa stampante manca: {}"/>
@@ -4301,8 +4301,8 @@
   <translation tag="Vibration" it="Vibrazione"/>
   <translation tag="Vibration compensation active" it="Compensazione vibrazione attiva"/>
   <translation tag="Video playback speed" it="Velocità riproduzione video"/>
-  <translation tag="Video player failed to start"/>
-  <translation tag="Video player failed to start ({})"/>
+  <translation tag="Video player failed to start" it="Impossibile avviare il lettore video"/>
+  <translation tag="Video player failed to start ({})" it="Impossibile avviare il lettore video ({})"/>
   <translation tag="View" it="Visualizza"/>
   <translation tag="View Changelog" it="Visualizza Modifiche"/>
   <translation tag="View Full History" it="Visualizza cronologia completa"/>
@@ -4351,7 +4351,7 @@
   <translation tag="Warning" it="Avviso"/>
   <translation tag="Warnings &amp; errors" it="Avvisi ed errori"/>
   <translation tag="Watch and control this screen from a browser" it="Visualizza e controlla questo schermo da un browser"/>
-  <translation tag="Watch on Your Phone"/>
+  <translation tag="Watch on Your Phone" it="Guarda sul telefono"/>
   <translation tag="Watch the camera during a print for failed prints" it="Controlla la telecamera durante la stampa per individuare stampe non riuscite"/>
   <translation tag="Watch which motor turns" it="Guarda quale motore gira"/>
   <translation tag="Weak battery" it="Batteria scarica"/>
