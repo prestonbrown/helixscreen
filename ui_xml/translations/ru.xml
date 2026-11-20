@@ -219,6 +219,7 @@
   <translation tag="A new Print Status screen" ru="Новый экран статуса печати"/>
   <translation tag="A newer version of the helper macros is available" ru="Доступна более новая версия вспомогательных макросов"/>
   <translation tag="A picture of your printer" ru="Изображение вашего принтера"/>
+  <translation tag="A piece of filament is already in this head&apos;s feed path."/>
   <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." ru="Измерение pressure advance было прервано. Драйверы X/Y освобождены, ограничения движения и pressure advance сброшены; запаркуйте принтер, прежде чем двигать его."/>
   <translation tag="A print holds the printer." ru="Принтер занят печатью."/>
   <translation tag="A print is already running." ru="Печать уже идёт."/>
@@ -780,6 +781,8 @@
   <translation tag="Check for Updates" ru="Проверить обновления"/>
   <translation tag="Check slot failed" ru="Ошибка проверки слота"/>
   <translation tag="Check slots failed" ru="Ошибка проверки слотов"/>
+  <translation tag="Check that nothing blocks the toolhead or the head&apos;s dock, then load the head again."/>
+  <translation tag="Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand."/>
   <translation tag="Check that only one filament path is active" ru="Убедитесь, что активен только один путь филамента"/>
   <translation tag="Check that the cutter mechanism is properly installed" ru="Проверьте правильность установки режущего механизма"/>
   <translation tag="Check that the printer is powered on and connected to the network" ru="Проверьте, что принтер включён и подключён к сети"/>
@@ -791,7 +794,10 @@
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" ru="Проверьте путь от слота до хаба на запутывание или трение. Если слот подаёт свободно, возможно, неисправен датчик хаба или подающий двигатель"/>
   <translation tag="Check the provided value and try again" ru="Проверьте указанное значение и повторите попытку"/>
   <translation tag="Check the spool and the filament path for a jam, then retry" ru="Проверьте катушку и путь филамента на замятие, затем повторите"/>
+  <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again."/>
+  <translation tag="Check the spool, the feeder and the feed tube to this head, then load the head again."/>
   <translation tag="Check the tension of the motion belts" ru="Проверить натяжение ремней"/>
+  <translation tag="Check this head&apos;s feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn."/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" ru="Проверьте мощность нагревателя (обычно 40–60W для хотэндов)"/>
   <translation tag="Checking" ru="Проверка"/>
   <translation tag="Checking Bed Mesh..." ru="Проверка сетки стола..."/>
@@ -849,6 +855,7 @@
   <translation tag="Clear Console?" ru="Очистить консоль?"/>
   <translation tag="Clear Error" ru="Сбросить ошибку"/>
   <translation tag="Clear Spool" ru="Убрать катушку"/>
+  <translation tag="Clear any filament from around the nozzle and the purge area, then load the head again."/>
   <translation tag="Clear every Endless Spool backup" ru="Очистить все резервы бесконечной катушки"/>
   <translation tag="Clear extruder only" ru="Только очистить экструдер"/>
   <translation tag="Clear failed" ru="Ошибка очистки"/>
@@ -1120,6 +1127,7 @@
   <translation tag="Cut filament" ru="Обрезать филамент"/>
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." ru="Отрежьте вытянутый кончик и вставьте филамент обратно в экструдер до упора, затем нажмите «Экструзия»."/>
   <translation tag="Cut position saved: {}" ru="Позиция реза сохранена: {}"/>
+  <translation tag="Cut the filament end square and push it into this head&apos;s feeder until it grabs, then load the head again."/>
   <translation tag="Cut tip" ru="Обрезка кончика"/>
   <translation tag="Cutter Calibration" ru="Калибровка резака"/>
   <translation tag="Cutter Enabled" ru="Резак включён"/>
@@ -1620,6 +1628,7 @@
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament to nozzle" ru="Подача филамента к соплу"/>
+  <translation tag="Feeding the head by hand did not finish."/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -1649,6 +1658,7 @@
   <translation tag="Filament by Type" ru="Филамент по типу"/>
   <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" ru="Филамент нельзя загрузить ниже минимальной температуры экструзии. Задайте целевую температуру хотэнда (например, 220 °C для PLA, 240 °C для PETG), дождитесь нагрева и повторите"/>
   <translation tag="Filament controls are unavailable while printing." ru="Управление филаментом недоступно во время печати."/>
+  <translation tag="Filament could not be fed to this head."/>
   <translation tag="Filament cutter not detected" ru="Резак филамента не обнаружен"/>
   <translation tag="Filament cutter position error" ru="Ошибка положения резака филамента"/>
   <translation tag="Filament cutter stuck" ru="Резак филамента заклинило"/>
@@ -2052,6 +2062,7 @@
   <translation tag="InputShaper" ru="InputShaper"/>
   <translation tag="Insert filament" ru="Вставить филамент"/>
   <translation tag="Insert filament before resuming" ru="Вставьте филамент перед возобновлением"/>
+  <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again."/>
   <translation tag="Inspecting bed..." ru="Осмотр стола..."/>
   <translation tag="Install" ru="Установить"/>
   <translation tag="Install HelixPrint Plugin" ru="Установить плагин HelixPrint"/>
@@ -2837,6 +2848,7 @@
   <translation tag="Ooze Reduction" ru="Снижение подтекания"/>
   <translation tag="Open" ru="Открыть"/>
   <translation tag="Open Fans" ru="Открыть «Вентиляторы»"/>
+  <translation tag="Open Filament"/>
   <translation tag="Open Source Licenses" ru="Лицензии с открытым кодом"/>
   <translation tag="Open Terminal" ru="Открыть терминал"/>
   <translation tag="Open color and brightness controls" ru="Управление цветом и яркостью"/>
@@ -3250,6 +3262,7 @@
   <translation tag="Push filament into the toolhead by hand, then tap Resume." ru="Вставьте филамент в печатающую головку вручную, затем нажмите «Продолжить»."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ru="Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ru="Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."/>
+  <translation tag="Push the filament into the head until the extruder grabs it, then try again."/>
   <translation tag="QGL" ru="QGL"/>
   <translation tag="QGL failed: {}" ru="Ошибка QGL: {}"/>
   <translation tag="QGL may still be running — response timed out" ru="QGL может ещё выполняться — время ожидания истекло"/>
@@ -4178,10 +4191,22 @@
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ru="Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS"/>
   <translation tag="The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one." ru="Точное место остановки не найдено. Печать продолжится с начала следующего слоя, остаток этого слоя будет пропущен."/>
   <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend" ru="Экструдер не может тянуть равномерно. Проверьте катушку на запутывание или узел, а трубку PTFE на резкий изгиб"/>
+  <translation tag="The feeder could not pull the filament in."/>
+  <translation tag="The feeder motor did not turn while pulling the filament in."/>
+  <translation tag="The feeder motor stalled while pushing the filament to the head."/>
+  <translation tag="The feeder pushed more filament than the path holds, and it never reached the head."/>
+  <translation tag="The feeder turned, but the filament did not move with it."/>
+  <translation tag="The filament could not be pulled out of the head."/>
+  <translation tag="The filament did not reach the head in time."/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." ru="Филамент не дошёл до сопла. CFS не сообщила об ошибке, но датчик печатающей головки по-прежнему не видит филамент. Проверьте, что катушка установлена правильно и путь свободен, затем повторите попытку."/>
+  <translation tag="The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again."/>
   <translation tag="The filament may not have fully retracted — try again or manually pull" ru="Возможно, филамент втянут не полностью. Повторите или вытяните вручную"/>
+  <translation tag="The filament ran out or slipped out of the feeder during the load."/>
+  <translation tag="The filament reached the nozzle, but purging it failed."/>
+  <translation tag="The filament stopped moving on its way to the head."/>
   <translation tag="The filament system needs attention" ru="Системе подачи филамента требуется внимание"/>
   <translation tag="The filament system reported an error" ru="Система филамента сообщила об ошибке"/>
+  <translation tag="The filament took too long to reach the feeder&apos;s sensor."/>
   <translation tag="The filament went into the toolhead past its feeder. Load it by hand." ru="Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ru="Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ru="Разница выросла после ослабления ({0}). Проверьте, что крутили натяжитель: {0}."/>
@@ -4191,6 +4216,7 @@
   <translation tag="The gateway cannot be the subnet&apos;s network or broadcast address." ru="Шлюз не может быть сетевым или широковещательным адресом подсети."/>
   <translation tag="The gateway is not a valid address." ru="Шлюз не является допустимым адресом."/>
   <translation tag="The gateway is not on the same subnet as the IP address." ru="Шлюз находится не в той же подсети, что и IP-адрес."/>
+  <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."/>
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." ru="Подогреваемый стол и корпус могут сушить катушки, лежащие на столе. Запустите цикл из диалога сушки на столе."/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." ru="Нагреватель нельзя изменить, пока принтер ожидает."/>
   <translation tag="The heater did not accept the printer&apos;s credentials." ru="Нагреватель не принял учётные данные принтера."/>
@@ -4248,6 +4274,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." ru="Принтер может автоматически измерить смещение каждого инструмента. Запустите это на экране калибровки смещений инструментов."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." ru="Принтер может сам измерить pressure advance. Запускается на экране «Калибровка PA»."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." ru="Принтер может встать на паузу на выбранном слое, для смены филамента или вставки детали. Слой задается в предпросмотре печати."/>
+  <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed."/>
   <translation tag="The printer could not work out where to resume." ru="Принтер не смог определить, откуда продолжить."/>
   <translation tag="The printer did not change its bed check" ru="Принтер не изменил проверку стола"/>
   <translation tag="The printer did not change its bed check: {}" ru="Принтер не изменил проверку стола: {}"/>
@@ -4333,6 +4360,7 @@
   <translation tag="Theme reset to defaults" ru="Тема сброшена к настройкам по умолчанию"/>
   <translation tag="Theme: " ru="Тема: "/>
   <translation tag="There is no cycle to stop" ru="Нет цикла для остановки"/>
+  <translation tag="There is no filament in this head&apos;s feeder."/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." ru="Для этого теста недостаточно свободной памяти. Анализу Klipper не хватит памяти, и принтер зависнет, пока его не выключат и снова не включат."/>
   <translation tag="These readings aren&apos;t repeatable, so tuning can&apos;t be steered. Check the mechanics first." ru="Эти показания не повторяются, поэтому настройкой нельзя управлять. Сначала проверьте механику."/>
   <translation tag="These tools have a different filament grade loaded:" ru="В этих инструментах загружен филамент другой марки:"/>
@@ -4628,6 +4656,7 @@
   <translation tag="Unload stopped" ru="Выгрузка остановлена"/>
   <translation tag="Unload the CFS filament before enabling bypass" ru="Выгрузите филамент CFS перед включением обхода"/>
   <translation tag="Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand." ru="Выгрузите текущий филамент и продолжайте. Экструдер и верх пути филамента должны быть доступны рукой."/>
+  <translation tag="Unload the head, or pull the leftover filament out of its feed tube, then load the head again."/>
   <translation tag="Unload the toolhead when a print ends" ru="Выгружать печатающую головку по окончании печати"/>
   <translation tag="Unload this unit first" ru="Сначала выгрузите этот узел"/>
   <translation tag="Unload which tool?" ru="Из какого инструмента выгрузить?"/>
@@ -5091,7 +5120,10 @@
   <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ru="{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." ru="{} не переключилась на {}. Печать всё ещё на паузе."/>
+  <translation tag="{} didn&apos;t feed"/>
+  <translation tag="{} didn&apos;t load"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ru="{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию."/>
+  <translation tag="{} didn&apos;t unload"/>
   <translation tag="{} disabled" ru="{} выключено"/>
   <translation tag="{} disconnected" ru="{}: отключено"/>
   <translation tag="{} enabled" ru="{} включено"/>

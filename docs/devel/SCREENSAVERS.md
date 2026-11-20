@@ -531,7 +531,9 @@ A pause that waits on the user wakes the display when its dialog appears: the ru
 (`src/ui/filament/ui_filament_runout_handler.cpp#show_runout_guidance_modal`), a detection's
 pause and the bed check (`src/ui/modals/ui_spaghetti_detection_modal.cpp`) each call
 `DisplayManager::wake_display()` before showing it (the runout handler through the wake its
-owner, `PrintStatusPanel`, gives it).
+owner, `PrintStatusPanel`, gives it). Every fault dialog with recovery actions does the same
+through `request_display_wake()` (`include/display_wake_request.h`), from
+`src/ui/notify/recovery_modal_presenter.cpp#present`: a U1 head's failed load is one.
 
 Each `kScreensavers` row says where its saver shows a print (`PrintDisplay`). SCENE savers
 (the flip clock, the nixie clock, Aqua Surface, High Fly) draw it themselves. For CARD savers `SaverBase`

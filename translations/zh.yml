@@ -199,6 +199,7 @@ translations:
   "A new Print Status screen": "全新的打印状态屏幕"
   A newer version of the helper macros is available: '有更新版本的帮助宏可用'
   A picture of your printer: 打印机的图片
+  A piece of filament is already in this head's feed path.: ''
   ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   : '压力提前测量被中断。X/Y 驱动已释放，运动限制和压力提前已恢复；移动打印机前请先归位。'
   A print holds the printer.: "打印任务正在占用打印机。"
@@ -758,6 +759,9 @@ translations:
   Check slot failed: 检查槽位失败
   Check Slots: 检查槽位
   Check slots failed: 检查槽位失败
+  Check that nothing blocks the toolhead or the head's dock, then load the head again.: ''
+  ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
+  : ''
   Check that only one filament path is active: 请确认只有一条耗材通路处于活动状态
   Check that the cutter mechanism is properly installed: 请检查切刀机构是否正确安装
   Check that the printer is powered on and connected to the network: 请检查打印机是否已开机并连接到网络
@@ -770,7 +774,11 @@ translations:
   : 请检查从槽位到集线器的通路是否缠绕或阻力过大。若槽位送料顺畅，可能是集线器传感器或送料电机故障
   Check the provided value and try again: 请检查所提供的值后重试
   Check the spool and the filament path for a jam, then retry: 请检查料盘和耗材通路是否卡住，然后重试
+  Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: ''
+  Check the spool, the feeder and the feed tube to this head, then load the head again.: ''
   Check the tension of the motion belts: "检查运动皮带的张力"
+  ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
+  : ''
   Check your heater's rating (typically 40-60W for hotends): 检查加热器功率（热端通常为 40-60W）
   Checking: 检查中
   Checking Spoolman server...: 正在检查 Spoolman 服务器...
@@ -828,6 +836,7 @@ translations:
   Clear Console?: 清空控制台？
   Clear Error: 清除错误
   Clear Spool: 移除料盘
+  Clear any filament from around the nozzle and the purge area, then load the head again.: ''
   Clear every Endless Spool backup: 清除所有无限料盘备用设置
   Clear extruder only: '只清空挤出机'
   Clear failed: 清除失败
@@ -1135,6 +1144,7 @@ translations:
   Cut filament: 切断耗材
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "剪掉拉出的尖端，将耗材重新推入挤出机直到推不动为止，然后点击“挤出”。"
   'Cut position saved: {}': '切割位置已保存: {}'
+  Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: ''
   Cut tip: '切断尖端'
   Cutter Enabled: '切刀已启用'
   Cutter and purge chute calibration: 切刀与排料口校准
@@ -1643,6 +1653,7 @@ translations:
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament to nozzle: "正在向喷嘴送料"
+  Feeding the head by hand did not finish.: ''
   Filament: 耗材
   Filament Buffer: '耗材缓冲器'
   Filament Control: 耗材控制
@@ -1671,6 +1682,7 @@ translations:
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : 低于最低挤出温度时无法加载耗材。请设置热端目标温度（例如 PLA 220°C、PETG 240°C），待达到温度后重试
   Filament controls are unavailable while printing.: 打印过程中耗材控制不可用。
+  Filament could not be fed to this head.: ''
   Filament cutter not detected: 未检测到耗材切刀
   Filament cutter position error: 耗材切刀位置错误
   Filament cutter stuck: 耗材切刀卡住
@@ -2081,6 +2093,7 @@ translations:
   InputShaper: InputShaper
   Insert filament: '插入耗材'
   Insert filament before resuming: 恢复前请插入耗材
+  Insert filament into this head's feeder until it grabs, then load the head again.: ''
   Inspecting bed...: 正在检查热床...
   Install: 安装
   Install HelixPrint Plugin: 安装 HelixPrint 插件
@@ -2874,6 +2887,7 @@ translations:
   Ooze Reduction: '减少渗漏'
   Open: 打开
   Open Fans: '打开风扇'
+  Open Filament: ''
   Open Source Licenses: 开源许可证
   Open Terminal: '打开终端'
   Open color and brightness controls: 打开颜色和亮度控制
@@ -3277,6 +3291,7 @@ translations:
   Purging...: 正在清料...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "将清洁耗材推入挤出机直到推不动,然后点击挤出。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "将耗材推入挤出机直到推不动为止。挤出机会自动咬入，或点击“挤出”。"
+  Push the filament into the head until the extruder grabs it, then try again.: ''
   QGL: QGL
   'QGL failed: {}': 'QGL 失败: {}'
   QGL may still be running — response timed out: QGL 可能仍在运行 — 响应超时
@@ -4219,9 +4234,21 @@ translations:
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : 未找到确切的停止点。打印将从下一层开头恢复，并跳过本层剩余部分。
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: 挤出机无法顺畅拉动。请检查料盘是否缠绕或打结，以及 PTFE 管是否严重弯折
+  The feeder could not pull the filament in.: ''
+  The feeder motor did not turn while pulling the filament in.: ''
+  The feeder motor stalled while pushing the filament to the head.: ''
+  The feeder pushed more filament than the path holds, and it never reached the head.: ''
+  The feeder turned, but the filament did not move with it.: ''
+  The filament could not be pulled out of the head.: ''
+  The filament did not reach the head in time.: ''
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : 耗材未到达喷嘴。CFS 未报告错误，但工具头传感器仍未检测到耗材。请检查料盘是否放置到位、路径是否畅通，然后重试。
+  ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
+  : ''
   The filament may not have fully retracted — try again or manually pull: 耗材可能未完全回抽。请重试或手动抽出
+  The filament ran out or slipped out of the feeder during the load.: ''
+  The filament reached the nozzle, but purging it failed.: ''
+  The filament stopped moving on its way to the head.: ''
   The filament system needs attention: '耗材系统需要处理'
   The filament system reported an error: 耗材系统报告错误
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差距没有缩小(移动了 {:.1f} Hz)。请转得更多一些。"
@@ -4232,6 +4259,8 @@ translations:
   The gateway cannot be the subnet's network or broadcast address.: '网关不能是子网的网络地址或广播地址。'
   The gateway is not a valid address.: '网关不是有效地址。'
   The gateway is not on the same subnet as the IP address.: '网关与 IP 地址不在同一子网。'
+  ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
+  : ''
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: '热床和机箱可以烘干放在热床上的料盘。在热床烘干对话框中启动周期。'
   The heater can't be changed while the printer is waiting.: '打印机等待期间无法更改加热器。'
   The heater did not accept the printer's credentials.: '加热器不接受打印机的凭据。'
@@ -4294,6 +4323,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: '打印机可自动测量每个工具的偏移。可在工具偏移校准页面运行。'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: '打印机可以自行测量压力提前量(pressure advance)。在 PA 校准界面运行。'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: '打印机可在选定的层暂停,用于换料或嵌入零件。在打印预览中设置层。'
+  'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': ''
   The printer could not work out where to resume.: 打印机无法确定从哪里恢复。
   The printer did not change its bed check: '打印机未更改热床检查'
   'The printer did not change its bed check: {}': '打印机未更改热床检查：{}'
@@ -4387,6 +4417,7 @@ translations:
   Theme reset to defaults: 主题已重置为默认值
   'Theme: ': '主题: '
   There is no cycle to stop: '没有可停止的周期'
+  There is no filament in this head's feeder.: ''
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "可用内存不足，无法运行此测试。Klipper 的分析会耗尽内存，使打印机卡住，直到断电重启。"
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "这些读数无法重复,因此无法引导调整。请先检查机械部分。"
@@ -4432,6 +4463,7 @@ translations:
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
   This firmware can only switch slots by loading them: '此固件只能通过装载来切换槽位'
+  The filament took too long to reach the feeder's sensor.: ''
   The filament went into the toolhead past its feeder. Load it by hand.: "耗材绕过送料器直接进入了工具头。请手动装入。"
   This toolhead has no automatic feeder. Load the filament by hand.: "此工具头没有自动送料器。请手动装入耗材。"
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
@@ -4706,6 +4738,7 @@ translations:
   Unload macro not configured: 卸载宏未配置
   Unload the CFS filament before enabling bypass: '启用旁通前请先卸载 CFS 耗材'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "请先卸载当前耗材,然后继续。挤出机和耗材路径顶部必须用手能够到。"
+  Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: ''
   Unload the toolhead when a print ends: '打印结束时卸载工具头'
   Unload this unit first: '请先卸载此单元'
   Unload which tool?: '卸载哪个工具？'
@@ -5158,7 +5191,10 @@ translations:
   '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。'
   '{} did not switch to {}. The print is still paused.': '{}未切换到{}。打印仍处于暂停状态。'
+  "{} didn't feed": ''
+  "{} didn't load": ''
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}未装载。恢复前请检查热端是否安装到位，并进行一次测试挤出。'
+  "{} didn't unload": ''
   '{} disabled': '已停用{}'
   '{} disconnected': '{}已断开'
   '{} enabled': '已启用{}'

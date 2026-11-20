@@ -4,6 +4,7 @@
 #include "snapmaker_exceptions.h"
 
 #include "core/text_io.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -32,6 +33,85 @@ constexpr std::array<KnownException, 3> kKnown{{
      "gives wrong results"},
     {531, 0, 16, "That setting cannot be changed while a print is running"},
 }};
+
+// The feeder's codes, read from the firmware's filament_feed.py: each is set at
+// one failure point of a preload (10-15), a load (30-35 reaching the head,
+// 50-51 at the nozzle), an unload (70) or a hand feed (90). A failure the
+// firmware raises without a code of its own keeps its stage's first code: a
+// home, head pick-up or heat-up failing during a load is 30.
+constexpr const char* kLoadTitle = TR_NOOP("{} didn't load");
+constexpr const char* kReloadFix = TR_NOOP("Cut the filament end square and push it into this "
+                                           "head's feeder until it grabs, then load the head "
+                                           "again.");
+constexpr const char* kInsertFix =
+    TR_NOOP("Insert filament into this head's feeder until it grabs, then load the head again.");
+constexpr const char* kPathFix = TR_NOOP("Check the spool for a tangle and the feed tube for a "
+                                         "kink or a loose fitting, then load the head again.");
+
+struct FeedCode {
+    int code;
+    FeedFailure wording;
+};
+
+constexpr std::array<FeedCode, 16> kFeedCodes{{
+    {10, {kLoadTitle, TR_NOOP("The feeder could not pull the filament in."), kReloadFix}},
+    {11,
+     {kLoadTitle, TR_NOOP("The feeder motor did not turn while pulling the filament in."),
+      TR_NOOP("Check this head's feeder for jammed filament, then load the head again. Restart "
+              "the printer if the motor still does not turn.")}},
+    {12,
+     {kLoadTitle, TR_NOOP("The feeder turned, but the filament did not move with it."),
+      kReloadFix}},
+    {13, {kLoadTitle, TR_NOOP("There is no filament in this head's feeder."), kInsertFix}},
+    {14,
+     {kLoadTitle, TR_NOOP("The filament took too long to reach the feeder's sensor."), kPathFix}},
+    {15,
+     {kLoadTitle, TR_NOOP("A piece of filament is already in this head's feed path."),
+      TR_NOOP("Unload the head, or pull the leftover filament out of its feed tube, then load "
+              "the head again.")}},
+    {30,
+     {kLoadTitle,
+      TR_NOOP("The printer could not get the head ready: homing, picking up the head or "
+              "heating the nozzle failed."),
+      TR_NOOP("Check that nothing blocks the toolhead or the head's dock, then load the head "
+              "again.")}},
+    {31,
+     {kLoadTitle, TR_NOOP("The feeder motor stalled while pushing the filament to the head."),
+      kPathFix}},
+    {32, {kLoadTitle, TR_NOOP("The filament stopped moving on its way to the head."), kPathFix}},
+    {33,
+     {kLoadTitle, TR_NOOP("The filament ran out or slipped out of the feeder during the load."),
+      kInsertFix}},
+    {34, {kLoadTitle, TR_NOOP("The filament did not reach the head in time."), kPathFix}},
+    {35,
+     {kLoadTitle,
+      TR_NOOP("The feeder pushed more filament than the path holds, and it never reached the "
+              "head."),
+      TR_NOOP("The filament may have snapped or the feed tube come loose. Clear any broken "
+              "piece and seat the tube at both ends, then load the head again.")}},
+    {50,
+     {kLoadTitle, TR_NOOP("The filament reached the nozzle, but purging it failed."),
+      TR_NOOP("Clear any filament from around the nozzle and the purge area, then load the head "
+              "again.")}},
+    {51,
+     {kLoadTitle,
+      TR_NOOP("The head's extruder never gripped the filament: after several tries, with the "
+              "nozzle cleaned between them, no movement registered at the nozzle."),
+      kReloadFix}},
+    {70,
+     {TR_NOOP("{} didn't unload"), TR_NOOP("The filament could not be pulled out of the head."),
+      TR_NOOP("Check that nothing blocks the toolhead, then unload the head again. If the "
+              "filament is stuck, heat the nozzle and pull it out by hand.")}},
+    {90,
+     {TR_NOOP("{} didn't feed"), TR_NOOP("Feeding the head by hand did not finish."),
+      TR_NOOP("Push the filament into the head until the extruder grabs it, then try again.")}},
+}};
+
+/// A feeder code the table does not know, so the advice covers the whole path.
+constexpr FeedFailure kFeedUnknown{
+    kLoadTitle, TR_NOOP("Filament could not be fed to this head."),
+    TR_NOOP("Check the spool, the feeder and the feed tube to this head, then load the head "
+            "again.")};
 
 /// Is `s[at..at+3]` four digits?
 bool four_digits(const std::string& s, size_t at) {
@@ -105,6 +185,18 @@ std::string_view exception_message(const ExceptionCode& c) {
         }
     }
     return {};
+}
+
+std::optional<FeedFailure> feed_failure(const ExceptionCode& c) {
+    if (c.id != kFeedingModuleId) {
+        return std::nullopt;
+    }
+    for (const auto& row : kFeedCodes) {
+        if (row.code == c.code) {
+            return row.wording;
+        }
+    }
+    return kFeedUnknown;
 }
 
 ExceptionSeverity severity_of(int level) {

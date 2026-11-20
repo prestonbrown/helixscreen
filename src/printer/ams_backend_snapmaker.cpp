@@ -30,6 +30,7 @@
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_exceptions.h"
 #include "snapmaker_nozzle_offset.h"
 #include "snapmaker_resume.h"
 #include "snapmaker_screws_tilt.h"
@@ -201,12 +202,20 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return lane + lv_tr("Load failed");
 }
 
-// The status line for a channel fault, in the current language.
+// The status line for a channel fault, in the current language. A token with no
+// wording of its own on an operation that failed reads as that failure: the
+// coded raise that follows explains the cause, and the token is a firmware word.
 [[nodiscard]] std::string channel_fault_detail(bool from_error_token, const std::string& error,
                                                const std::string& op_state,
                                                helix::ui::LaneNoun noun, int lane_index) {
-    return from_error_token ? friendly_channel_error(error, noun, lane_index)
-                            : friendly_channel_state_fail(op_state, noun, lane_index);
+    if (!from_error_token) {
+        return friendly_channel_state_fail(op_state, noun, lane_index);
+    }
+    std::string text = friendly_channel_error(error, noun, lane_index);
+    if (text == error && snapmaker::classify_channel_state(op_state).is_fail) {
+        return friendly_channel_state_fail(op_state, noun, lane_index);
+    }
+    return text;
 }
 
 using snapmaker::ChannelStateInfo;
@@ -3622,6 +3631,51 @@ void AmsBackendSnapmaker::send_resume_repairs_then(std::vector<std::pair<int, st
         /*caller_surfaces_errors=*/false);
 }
 
+// A head's load, unload or hand feed failing (the feeder module's fault): the
+// head named the way the UI names it, and the cause and fix in place of the
+// firmware's state dump. A print it paused waits on the user, so it blocks with
+// the ways on; idle, it answers the command the user just sent.
+std::optional<helix::ErrorEvent>
+AmsBackendSnapmaker::classify_feed_failure(const std::string& detail,
+                                           const helix::ClassifyContext& ctx) const {
+    const auto code = snapmaker::decode_exception_code(detail);
+    if (!code) {
+        return std::nullopt;
+    }
+    const auto feed = snapmaker::feed_failure(*code);
+    if (!feed) {
+        return std::nullopt;
+    }
+    const bool job_waits = ctx.is_printing || ctx.is_paused;
+    std::vector<helix::RecoveryAction> actions;
+    if (job_waits) {
+        // Loading again is the Filament panel's, which keeps its own guards for
+        // a paused print; Resume refuses until the head reports a finished load.
+        helix::RecoveryAction open_filament{lv_tr("Open Filament"), "",
+                                            "ams_backend_snapmaker::feed_open_filament", "primary"};
+        open_filament.guided_flow = helix::kOpenFilamentFlowId;
+        helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
+                                     "ams_backend_snapmaker::feed_cancel_print", "danger"};
+        cancel.guided_flow = helix::kCancelPrintFlowId;
+        actions = {std::move(open_filament),
+                   std::move(cancel),
+                   {lv_tr("Close"), "", "ams_backend_snapmaker::feed_dismiss"}};
+    }
+    helix::ErrorEvent e = helix::make_ams_fault_event(
+        helix::ErrorSource::SNAPMAKER,
+        fmt::format(fmt::runtime(lv_tr(feed->title)),
+                    AmsErrorHelper::position_label(tool_noun(), code->index)),
+        fmt::format("{}\n\n{}", lv_tr(feed->cause), lv_tr(feed->fix)), std::move(actions));
+    if (!job_waits) {
+        e.severity = helix::ErrorSeverity::WARNING;
+        e.sticky = false;
+    }
+    e.code = snapmaker::format_exception_code(*code);
+    e.raw_detail = detail;
+    e.command_refusal = !job_waits;
+    return e;
+}
+
 // The U1 blocks RESUME whenever a used extruder still reads filament_type
 // "" or "NONE" in print_task_config: INNER_CHECK_AND_RELOAD_FILAMENT_INFO
 // raises `e<N> not edit filament`. Tagless third-party spools land here,
@@ -3636,6 +3690,9 @@ AmsBackendSnapmaker::classify_error(const std::string& raw_line,
                                     const helix::ClassifyContext& ctx) const {
     if (!helix::is_bang_line(raw_line)) {
         return std::nullopt;
+    }
+    if (auto feed = classify_feed_failure(helix::strip_bang_prefix(raw_line), ctx)) {
+        return feed;
     }
 
     // Only meaningful against a job the user is trying to continue. Echoing the

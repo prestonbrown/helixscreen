@@ -471,6 +471,16 @@ recorded as live-verified (#991) is the `AUTO_FEEDING` command itself - it block
 (`src/printer/ams_backend_snapmaker.cpp#prepare_for_resume`, `:722-724`). The full chain - runout pause ->
 runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 
+**A failed load explains itself.** The feeder raises every load, unload and hand-feed failure
+as module 525 with the head as index and the failure point as code (`<klipper>/klippy/extras/filament_feed.py`
+sets `exception_code[ch]`: 10-15 preload, 30-35 reaching the head, 50-51 at the nozzle, 70
+unload, 90 hand feed). `include/snapmaker_exceptions.h#feed_failure` holds the cause and fix
+for each code, with a generic load failure for a code it does not know, and the backend
+(`src/printer/ams_backend_snapmaker.cpp#classify_feed_failure`) titles it with the head
+("Toolhead 1 didn't load"). During a print it is a dialog with Open Filament, Cancel Print
+and Close; idle, a toast with the same words. The feeder's status line meanwhile reads "Feeder N: Load failed"
+rather than the firmware's `channel_error` token.
+
 **Resume waits for a confirmed load.** `FEED_AUTO` answers OK without feeding when the
 port reads empty under `PRINTING=1`, and raises 525 (`extruder[N]: state: ..., error: ...!`)
 when its own test, `channel_state == load_finish` with `channel_error == ok`, fails at the

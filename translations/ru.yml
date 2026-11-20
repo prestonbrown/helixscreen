@@ -247,6 +247,7 @@ translations:
   "A new Print Status screen": "Новый экран статуса печати"
   A newer version of the helper macros is available: 'Доступна более новая версия вспомогательных макросов'
   A picture of your printer: Изображение вашего принтера
+  A piece of filament is already in this head's feed path.: ''
   ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   : 'Измерение pressure advance было прервано. Драйверы X/Y освобождены, ограничения движения и pressure advance сброшены; запаркуйте принтер, прежде чем двигать его.'
   A print holds the printer.: "Принтер занят печатью."
@@ -814,6 +815,9 @@ translations:
   Check slot failed: Ошибка проверки слота
   Check Slots: Проверить
   Check slots failed: Ошибка проверки слотов
+  Check that nothing blocks the toolhead or the head's dock, then load the head again.: ''
+  ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
+  : ''
   Check that only one filament path is active: Убедитесь, что активен только один путь филамента
   Check that the cutter mechanism is properly installed: Проверьте правильность установки режущего механизма
   Check that the printer is powered on and connected to the network: Проверьте, что принтер включён и подключён к сети
@@ -826,7 +830,11 @@ translations:
   : Проверьте путь от слота до хаба на запутывание или трение. Если слот подаёт свободно, возможно, неисправен датчик хаба или подающий двигатель
   Check the provided value and try again: Проверьте указанное значение и повторите попытку
   Check the spool and the filament path for a jam, then retry: Проверьте катушку и путь филамента на замятие, затем повторите
+  Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: ''
+  Check the spool, the feeder and the feed tube to this head, then load the head again.: ''
   Check the tension of the motion belts: "Проверить натяжение ремней"
+  ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
+  : ''
   Check your heater's rating (typically 40-60W for hotends): Проверьте мощность нагревателя (обычно 40–60W для хотэндов)
   Checking: Проверка
   Checking Spoolman server...: Проверка сервера Spoolman...
@@ -884,6 +892,7 @@ translations:
   Clear Console?: Очистить консоль?
   Clear Error: Сбросить ошибку
   Clear Spool: Убрать катушку
+  Clear any filament from around the nozzle and the purge area, then load the head again.: ''
   Clear every Endless Spool backup: Очистить все резервы бесконечной катушки
   Clear extruder only: 'Только очистить экструдер'
   Clear failed: Ошибка очистки
@@ -1195,6 +1204,7 @@ translations:
   Cut filament: Обрезать филамент
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "Отрежьте вытянутый кончик и вставьте филамент обратно в экструдер до упора, затем нажмите «Экструзия»."
   'Cut position saved: {}': 'Позиция реза сохранена: {}'
+  Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: ''
   Cut tip: 'Обрезка кончика'
   Cutter Enabled: 'Резак включён'
   Cutter and purge chute calibration: Калибровка резака и жёлоба продувки
@@ -1703,6 +1713,7 @@ translations:
   Feeder: Фидер
   Feeders: Фидеры
   Feeding filament to nozzle: "Подача филамента к соплу"
+  Feeding the head by hand did not finish.: ''
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
   Filament Control: Управление филаментом
@@ -1731,6 +1742,7 @@ translations:
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : Филамент нельзя загрузить ниже минимальной температуры экструзии. Задайте целевую температуру хотэнда (например, 220 °C для PLA, 240 °C для PETG), дождитесь нагрева и повторите
   Filament controls are unavailable while printing.: Управление филаментом недоступно во время печати.
+  Filament could not be fed to this head.: ''
   Filament cutter not detected: Резак филамента не обнаружен
   Filament cutter position error: Ошибка положения резака филамента
   Filament cutter stuck: Резак филамента заклинило
@@ -2145,6 +2157,7 @@ translations:
   InputShaper: InputShaper
   Insert filament: 'Вставить филамент'
   Insert filament before resuming: Вставьте филамент перед возобновлением
+  Insert filament into this head's feeder until it grabs, then load the head again.: ''
   Inspecting bed...: Осмотр стола...
   Install: Установить
   Install HelixPrint Plugin: Установить плагин HelixPrint
@@ -2938,6 +2951,7 @@ translations:
   Ooze Reduction: 'Снижение подтекания'
   Open: Открыть
   Open Fans: 'Открыть «Вентиляторы»'
+  Open Filament: ''
   Open Source Licenses: Лицензии с открытым кодом
   Open Terminal: 'Открыть терминал'
   Open color and brightness controls: Управление цветом и яркостью
@@ -3357,6 +3371,7 @@ translations:
   Purging...: Продувка...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
+  Push the filament into the head until the extruder grabs it, then try again.: ''
   QGL: QGL
   'QGL failed: {}': 'Ошибка QGL: {}'
   QGL may still be running — response timed out: QGL может ещё выполняться — время ожидания истекло
@@ -4307,9 +4322,21 @@ translations:
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : Точное место остановки не найдено. Печать продолжится с начала следующего слоя, остаток этого слоя будет пропущен.
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: Экструдер не может тянуть равномерно. Проверьте катушку на запутывание или узел, а трубку PTFE на резкий изгиб
+  The feeder could not pull the filament in.: ''
+  The feeder motor did not turn while pulling the filament in.: ''
+  The feeder motor stalled while pushing the filament to the head.: ''
+  The feeder pushed more filament than the path holds, and it never reached the head.: ''
+  The feeder turned, but the filament did not move with it.: ''
+  The filament could not be pulled out of the head.: ''
+  The filament did not reach the head in time.: ''
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : Филамент не дошёл до сопла. CFS не сообщила об ошибке, но датчик печатающей головки по-прежнему не видит филамент. Проверьте, что катушка установлена правильно и путь свободен, затем повторите попытку.
+  ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
+  : ''
   The filament may not have fully retracted — try again or manually pull: Возможно, филамент втянут не полностью. Повторите или вытяните вручную
+  The filament ran out or slipped out of the feeder during the load.: ''
+  The filament reached the nozzle, but purging it failed.: ''
+  The filament stopped moving on its way to the head.: ''
   The filament system needs attention: 'Системе подачи филамента требуется внимание'
   The filament system reported an error: Система филамента сообщила об ошибке
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."
@@ -4320,6 +4347,8 @@ translations:
   The gateway cannot be the subnet's network or broadcast address.: 'Шлюз не может быть сетевым или широковещательным адресом подсети.'
   The gateway is not a valid address.: 'Шлюз не является допустимым адресом.'
   The gateway is not on the same subnet as the IP address.: 'Шлюз находится не в той же подсети, что и IP-адрес.'
+  ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
+  : ''
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'Подогреваемый стол и корпус могут сушить катушки, лежащие на столе. Запустите цикл из диалога сушки на столе.'
   The heater can't be changed while the printer is waiting.: 'Нагреватель нельзя изменить, пока принтер ожидает.'
   The heater did not accept the printer's credentials.: 'Нагреватель не принял учётные данные принтера.'
@@ -4382,6 +4411,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'Принтер может автоматически измерить смещение каждого инструмента. Запустите это на экране калибровки смещений инструментов.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'Принтер может сам измерить pressure advance. Запускается на экране «Калибровка PA».'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'Принтер может встать на паузу на выбранном слое, для смены филамента или вставки детали. Слой задается в предпросмотре печати.'
+  'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': ''
   The printer could not work out where to resume.: Принтер не смог определить, откуда продолжить.
   The printer did not change its bed check: 'Принтер не изменил проверку стола'
   'The printer did not change its bed check: {}': 'Принтер не изменил проверку стола: {}'
@@ -4475,6 +4505,7 @@ translations:
   Theme reset to defaults: Тема сброшена к настройкам по умолчанию
   'Theme: ': 'Тема: '
   There is no cycle to stop: 'Нет цикла для остановки'
+  There is no filament in this head's feeder.: ''
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "Для этого теста недостаточно свободной памяти. Анализу Klipper не хватит памяти, и принтер зависнет, пока его не выключат и снова не включат."
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "Эти показания не повторяются, поэтому настройкой нельзя управлять. Сначала проверьте механику."
@@ -4520,6 +4551,7 @@ translations:
   This file was sliced for {} but {} is loaded.: Файл нарезан для {}, но загружен {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Файл нарезан для {}, но загружен {}. Печать будет медленнее и горячее, чем требуется загруженной катушке.
   This firmware can only switch slots by loading them: 'Эта прошивка может переключать слоты только загрузкой'
+  The filament took too long to reach the feeder's sensor.: ''
   The filament went into the toolhead past its feeder. Load it by hand.: "Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."
   This toolhead has no automatic feeder. Load the filament by hand.: "У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
@@ -4794,6 +4826,7 @@ translations:
   Unload macro not configured: Макрос выгрузки не настроен
   Unload the CFS filament before enabling bypass: 'Выгрузите филамент CFS перед включением обхода'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Выгрузите текущий филамент и продолжайте. Экструдер и верх пути филамента должны быть доступны рукой."
+  Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: ''
   Unload the toolhead when a print ends: 'Выгружать печатающую головку по окончании печати'
   Unload this unit first: 'Сначала выгрузите этот узел'
   Unload which tool?: 'Из какого инструмента выгрузить?'
@@ -5258,7 +5291,10 @@ translations:
   '{} did not arrive; nothing was sent': '{} не прибыл; ничего не отправлено'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}.'
   '{} did not switch to {}. The print is still paused.': '{} не переключилась на {}. Печать всё ещё на паузе.'
+  "{} didn't feed": ''
+  "{} didn't load": ''
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}: филамент не загрузился. Перед продолжением проверьте, что хотэнд установлен правильно, и выполните пробную экструзию.'
+  "{} didn't unload": ''
   '{} disabled': '{} выключено'
   '{} disconnected': '{}: отключено'
   '{} enabled': '{} включено'

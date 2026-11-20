@@ -183,6 +183,7 @@
   <translation tag="A new Print Status screen" ja="新しい印刷ステータス画面"/>
   <translation tag="A newer version of the helper macros is available" ja="ヘルパーマクロの新しいバージョンが利用可能です"/>
   <translation tag="A picture of your printer" ja="プリンターの画像"/>
+  <translation tag="A piece of filament is already in this head&apos;s feed path."/>
   <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." ja="プレッシャーアドバンスの測定が中断されました。X/Yドライバーを解放し、動作制限とプレッシャーアドバンスを元に戻しました。動かす前にプリンターをホーミングしてください。"/>
   <translation tag="A print holds the printer." ja="印刷中のためプリンターを使用できません。"/>
   <translation tag="A print is already running." ja="すでに印刷中です。"/>
@@ -738,6 +739,8 @@
   <translation tag="Check for Updates" ja="更新を確認"/>
   <translation tag="Check slot failed" ja="スロットの確認に失敗しました"/>
   <translation tag="Check slots failed" ja="スロットの確認に失敗しました"/>
+  <translation tag="Check that nothing blocks the toolhead or the head&apos;s dock, then load the head again."/>
+  <translation tag="Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand."/>
   <translation tag="Check that only one filament path is active" ja="フィラメント経路が 1 つだけ有効か確認してください"/>
   <translation tag="Check that the cutter mechanism is properly installed" ja="カッター機構が正しく取り付けられているか確認してください"/>
   <translation tag="Check that the printer is powered on and connected to the network" ja="プリンターの電源が入っていて、ネットワークに接続されているか確認してください"/>
@@ -749,7 +752,10 @@
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" ja="スロットからハブまでの経路に絡まりや抵抗がないか確認してください。スロットが問題なく送り出せる場合は、ハブセンサーまたは送り出しモーターの故障が考えられます"/>
   <translation tag="Check the provided value and try again" ja="入力した値を確認してもう一度お試しください"/>
   <translation tag="Check the spool and the filament path for a jam, then retry" ja="スプールとフィラメント経路の詰まりを確認してから再試行してください"/>
+  <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again."/>
+  <translation tag="Check the spool, the feeder and the feed tube to this head, then load the head again."/>
   <translation tag="Check the tension of the motion belts" ja="駆動ベルトのテンションを確認"/>
+  <translation tag="Check this head&apos;s feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn."/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" ja="ヒーターの定格を確認してください（ホットエンドは通常40〜60W）"/>
   <translation tag="Checking" ja="確認中"/>
   <translation tag="Checking Bed Mesh..." ja="ベッドメッシュを確認中..."/>
@@ -807,6 +813,7 @@
   <translation tag="Clear Console?" ja="コンソールをクリアしますか？"/>
   <translation tag="Clear Error" ja="エラーをクリア"/>
   <translation tag="Clear Spool" ja="スプールを解除"/>
+  <translation tag="Clear any filament from around the nozzle and the purge area, then load the head again."/>
   <translation tag="Clear every Endless Spool backup" ja="エンドレススプールの予備をすべて消去"/>
   <translation tag="Clear extruder only" ja="エクストルーダーだけを空にする"/>
   <translation tag="Clear failed" ja="クリアに失敗しました"/>
@@ -1075,6 +1082,7 @@
   <translation tag="Cut filament" ja="フィラメントを切断"/>
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." ja="引き抜いた先端を切り落とし、フィラメントを止まるまでエクストルーダーに戻してから「押し出し」をタップしてください。"/>
   <translation tag="Cut position saved: {}" ja="切断位置を保存しました: {}"/>
+  <translation tag="Cut the filament end square and push it into this head&apos;s feeder until it grabs, then load the head again."/>
   <translation tag="Cut tip" ja="先端をカット"/>
   <translation tag="Cutter Calibration" ja="カッターのキャリブレーション"/>
   <translation tag="Cutter Enabled" ja="カッター有効"/>
@@ -1575,6 +1583,7 @@
   <translation tag="Feeder" ja="フィーダー"/>
   <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament to nozzle" ja="フィラメントをノズルへ送り出し中"/>
+  <translation tag="Feeding the head by hand did not finish."/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Buffer" ja="フィラメントバッファー"/>
   <translation tag="Filament Control" ja="フィラメント制御"/>
@@ -1604,6 +1613,7 @@
   <translation tag="Filament by Type" ja="種類別フィラメント"/>
   <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" ja="最低押し出し温度を下回るとフィラメントをロードできません。ホットエンドの目標温度を設定し（PLA は 220°C、PETG は 240°C など）、到達を待ってから再試行してください"/>
   <translation tag="Filament controls are unavailable while printing." ja="印刷中はフィラメント制御を利用できません。"/>
+  <translation tag="Filament could not be fed to this head."/>
   <translation tag="Filament cutter not detected" ja="フィラメントカッターが検出されません"/>
   <translation tag="Filament cutter position error" ja="フィラメントカッターの位置エラー"/>
   <translation tag="Filament cutter stuck" ja="フィラメントカッターが動きません"/>
@@ -2004,6 +2014,7 @@
   <translation tag="InputShaper" ja="InputShaper"/>
   <translation tag="Insert filament" ja="フィラメントを差し込む"/>
   <translation tag="Insert filament before resuming" ja="再開前にフィラメントを挿入してください"/>
+  <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again."/>
   <translation tag="Inspecting bed..." ja="ベッドを検査中..."/>
   <translation tag="Install" ja="インストール"/>
   <translation tag="Install HelixPrint Plugin" ja="HelixPrint プラグインをインストール"/>
@@ -2789,6 +2800,7 @@
   <translation tag="Ooze Reduction" ja="にじみ低減"/>
   <translation tag="Open" ja="開く"/>
   <translation tag="Open Fans" ja="ファンを開く"/>
+  <translation tag="Open Filament"/>
   <translation tag="Open Source Licenses" ja="オープンソースライセンス"/>
   <translation tag="Open Terminal" ja="ターミナルを開く"/>
   <translation tag="Open color and brightness controls" ja="色と明るさの調整を開く"/>
@@ -3190,6 +3202,7 @@
   <translation tag="Push filament into the toolhead by hand, then tap Resume." ja="フィラメントを手でツールヘッドに押し込んでから、再開をタップしてください。"/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ja="清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ja="フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"/>
+  <translation tag="Push the filament into the head until the extruder grabs it, then try again."/>
   <translation tag="QGL" ja="QGL"/>
   <translation tag="QGL failed: {}" ja="QGL に失敗しました: {}"/>
   <translation tag="QGL may still be running — response timed out" ja="QGL がまだ実行中の可能性があります — 応答タイムアウト"/>
@@ -4112,10 +4125,22 @@
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ja="カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください"/>
   <translation tag="The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one." ja="正確な停止位置が見つかりませんでした。次のレイヤーの最初から再開し、このレイヤーの残りはスキップします。"/>
   <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend" ja="エクストルーダーがスムーズに引き込めません。スプールの絡まりや結び目、PTFE チューブの急な曲がりを確認してください"/>
+  <translation tag="The feeder could not pull the filament in."/>
+  <translation tag="The feeder motor did not turn while pulling the filament in."/>
+  <translation tag="The feeder motor stalled while pushing the filament to the head."/>
+  <translation tag="The feeder pushed more filament than the path holds, and it never reached the head."/>
+  <translation tag="The feeder turned, but the filament did not move with it."/>
+  <translation tag="The filament could not be pulled out of the head."/>
+  <translation tag="The filament did not reach the head in time."/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." ja="フィラメントがノズルに到達しませんでした。CFSはエラーを報告していませんが、ツールヘッドセンサーはまだフィラメントを検出していません。スプールが正しく取り付けられ、フィラメント経路が塞がれていないことを確認して、再試行してください。"/>
+  <translation tag="The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again."/>
   <translation tag="The filament may not have fully retracted — try again or manually pull" ja="フィラメントが完全に戻っていない可能性があります。再試行するか手で引き抜いてください"/>
+  <translation tag="The filament ran out or slipped out of the feeder during the load."/>
+  <translation tag="The filament reached the nozzle, but purging it failed."/>
+  <translation tag="The filament stopped moving on its way to the head."/>
   <translation tag="The filament system needs attention" ja="フィラメントシステムの対応が必要です"/>
   <translation tag="The filament system reported an error" ja="フィラメントシステムがエラーを報告しました"/>
+  <translation tag="The filament took too long to reach the feeder&apos;s sensor."/>
   <translation tag="The filament went into the toolhead past its feeder. Load it by hand." ja="フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ja="差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." ja="{0}を緩めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"/>
@@ -4125,6 +4150,7 @@
   <translation tag="The gateway cannot be the subnet&apos;s network or broadcast address." ja="ゲートウェイにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。"/>
   <translation tag="The gateway is not a valid address." ja="ゲートウェイが有効なアドレスではありません。"/>
   <translation tag="The gateway is not on the same subnet as the IP address." ja="ゲートウェイがIPアドレスと同じサブネットにありません。"/>
+  <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."/>
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." ja="ヒートベッドとエンクロージャーで、ベッドに置いたスプールを乾燥できます。ベッド乾燥ダイアログからサイクルを開始してください。"/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." ja="プリンターの待機中はヒーターを変更できません。"/>
   <translation tag="The heater did not accept the printer&apos;s credentials." ja="ヒーターがプリンターの認証情報を受け付けませんでした。"/>
@@ -4182,6 +4208,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." ja="プリンターは各ツールのオフセットを自動で測定できます。ツールオフセット校正画面で実行します。"/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." ja="プリンターはプレッシャーアドバンスを自分で測定できます。PAキャリブレーション画面で実行できます。"/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." ja="プリンターは、フィラメント交換やインサート挿入のために、選んだレイヤーで一時停止できます。レイヤーは印刷プレビューで設定します。"/>
+  <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed."/>
   <translation tag="The printer could not work out where to resume." ja="プリンターは再開位置を特定できませんでした。"/>
   <translation tag="The printer did not change its bed check" ja="プリンターはベッドチェックを変更しませんでした"/>
   <translation tag="The printer did not change its bed check: {}" ja="プリンターはベッドチェックを変更しませんでした：{}"/>
@@ -4267,6 +4294,7 @@
   <translation tag="Theme reset to defaults" ja="テーマをデフォルトにリセットしました"/>
   <translation tag="Theme: " ja="テーマ: "/>
   <translation tag="There is no cycle to stop" ja="停止するサイクルがありません"/>
+  <translation tag="There is no filament in this head&apos;s feeder."/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." ja="このテストを実行するための空きメモリが足りません。Klipperの解析でメモリが不足し、電源を入れ直すまでプリンターが停止したままになります。"/>
   <translation tag="These readings aren&apos;t repeatable, so tuning can&apos;t be steered. Check the mechanics first." ja="測定値が再現しないため、調整を導けません。まず機構を確認してください。"/>
   <translation tag="These tools have a different filament grade loaded:" ja="次のツールには異なるフィラメントグレードが装填されています:"/>
@@ -4562,6 +4590,7 @@
   <translation tag="Unload stopped" ja="アンロードを停止しました"/>
   <translation tag="Unload the CFS filament before enabling bypass" ja="バイパスを有効にする前に CFS のフィラメントを取り出してください"/>
   <translation tag="Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand." ja="現在のフィラメントを排出してから続行してください。エクストルーダーとフィラメント経路の上部に手が届く必要があります。"/>
+  <translation tag="Unload the head, or pull the leftover filament out of its feed tube, then load the head again."/>
   <translation tag="Unload the toolhead when a print ends" ja="印刷終了時にツールヘッドからアンロード"/>
   <translation tag="Unload this unit first" ja="先にこのユニットを排出してください"/>
   <translation tag="Unload which tool?" ja="どのツールをアンロードしますか？"/>
@@ -5016,7 +5045,10 @@
   <translation tag="{} did not arrive; nothing was sent" ja="{} が到着しませんでした。何も送信していません"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。"/>
   <translation tag="{} did not switch to {}. The print is still paused." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままです。"/>
+  <translation tag="{} didn&apos;t feed"/>
+  <translation tag="{} didn&apos;t load"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." ja="{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。"/>
+  <translation tag="{} didn&apos;t unload"/>
   <translation tag="{} disabled" ja="{} を無効にしました"/>
   <translation tag="{} disconnected" ja="{}が外れました"/>
   <translation tag="{} enabled" ja="{} を有効にしました"/>

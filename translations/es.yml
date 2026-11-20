@@ -199,6 +199,7 @@ translations:
   "A new Print Status screen": "Una nueva pantalla de Estado de Impresión"
   A newer version of the helper macros is available: 'Hay una versión más reciente de las macros de ayuda disponible'
   A picture of your printer: Una imagen de tu impresora
+  A piece of filament is already in this head's feed path.: ''
   ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   : 'Se interrumpió una calibración de pressure advance. Se liberaron los drivers X/Y y se restablecieron los límites de movimiento y el pressure advance; referencie la impresora antes de moverla.'
   A print holds the printer.: "Una impresión ocupa la impresora."
@@ -758,6 +759,9 @@ translations:
   Check slot failed: Error al comprobar ranura
   Check Slots: Comprobar
   Check slots failed: Error al comprobar ranuras
+  Check that nothing blocks the toolhead or the head's dock, then load the head again.: ''
+  ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
+  : ''
   Check that only one filament path is active: Compruebe que solo haya una ruta de filamento activa
   Check that the cutter mechanism is properly installed: Compruebe que el mecanismo de corte esté correctamente instalado
   Check that the printer is powered on and connected to the network: Compruebe que la impresora esté encendida y conectada a la red
@@ -770,7 +774,11 @@ translations:
   : Revise la ruta de la ranura al concentrador por si hay enredos o rozamiento. Si la ranura alimenta con libertad, puede que el sensor del concentrador o el motor de alimentación hayan fallado
   Check the provided value and try again: Compruebe el valor introducido e inténtelo de nuevo
   Check the spool and the filament path for a jam, then retry: Compruebe la bobina y la ruta del filamento por si hay atascos y reintente
+  Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: ''
+  Check the spool, the feeder and the feed tube to this head, then load the head again.: ''
   Check the tension of the motion belts: "Comprobar la tensión de las correas de movimiento"
+  ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
+  : ''
   Check your heater's rating (typically 40-60W for hotends): Consulte la potencia de su calentador (normalmente 40-60W para hotends)
   Checking: Comprobando
   Checking Spoolman server...: Verificando servidor Spoolman...
@@ -828,6 +836,7 @@ translations:
   Clear Console?: ¿Limpiar Consola?
   Clear Error: Borrar error
   Clear Spool: Quitar bobina
+  Clear any filament from around the nozzle and the purge area, then load the head again.: ''
   Clear every Endless Spool backup: Borrar todas las reservas de la bobina infinita
   Clear extruder only: 'Solo vaciar el extrusor'
   Clear failed: Error al limpiar
@@ -1135,6 +1144,7 @@ translations:
   Cut filament: Cortar filamento
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "Corta la punta extraída y empuja el filamento de nuevo dentro del extrusor hasta que se detenga; luego pulsa Extruir."
   'Cut position saved: {}': 'Posición de corte guardada: {}'
+  Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: ''
   Cut tip: 'Cortar la punta'
   Cutter Enabled: 'Cortador activado'
   Cutter and purge chute calibration: Calibración del cortador y del conducto de purga
@@ -1643,6 +1653,7 @@ translations:
   Feeder: Alimentador
   Feeders: Alimentadores
   Feeding filament to nozzle: "Avanzando filamento a la boquilla"
+  Feeding the head by hand did not finish.: ''
   Filament: Filamento
   Filament Buffer: 'Búfer de filamento'
   Filament Control: Control de filamento
@@ -1671,6 +1682,7 @@ translations:
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : No se puede cargar filamento por debajo de la temperatura mínima de extrusión. Fije una temperatura objetivo del hotend (p. ej. 220 °C para PLA, 240 °C para PETG), espere a que la alcance y vuelva a intentarlo
   Filament controls are unavailable while printing.: Los controles de filamento no están disponibles durante la impresión.
+  Filament could not be fed to this head.: ''
   Filament cutter not detected: No se detecta el cortador de filamento
   Filament cutter position error: Error de posición del cortador de filamento
   Filament cutter stuck: El cortador de filamento está atascado
@@ -2081,6 +2093,7 @@ translations:
   InputShaper: InputShaper
   Insert filament: 'Insertar filamento'
   Insert filament before resuming: Inserte filamento antes de reanudar
+  Insert filament into this head's feeder until it grabs, then load the head again.: ''
   Inspecting bed...: Inspeccionando cama...
   Install: Instalar
   Install HelixPrint Plugin: Instalar Plugin HelixPrint
@@ -2874,6 +2887,7 @@ translations:
   Ooze Reduction: 'Reducción de goteo'
   Open: Abrir
   Open Fans: 'Abrir Ventiladores'
+  Open Filament: ''
   Open Source Licenses: Licencias de código abierto
   Open Terminal: 'Abrir terminal'
   Open color and brightness controls: Abrir controles de color y brillo
@@ -3277,6 +3291,7 @@ translations:
   Purging...: Purgando...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Empuje el filamento de limpieza en el extrusor hasta el tope y pulse Extruir."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Empuja el filamento dentro del extrusor hasta que se detenga. Se sujeta automáticamente, o pulsa Extruir."
+  Push the filament into the head until the extruder grabs it, then try again.: ''
   QGL: QGL
   'QGL failed: {}': 'Error en QGL: {}'
   QGL may still be running — response timed out: QGL puede seguir en curso — tiempo de espera agotado
@@ -4219,9 +4234,21 @@ translations:
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : No se encontró el punto exacto de parada. La impresión se reanuda al inicio de la siguiente capa y omite el resto de esta.
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: El extrusor no puede tirar con suavidad. Revise la bobina por si hay enredos o nudos, y el tubo PTFE por si tiene una curva pronunciada
+  The feeder could not pull the filament in.: ''
+  The feeder motor did not turn while pulling the filament in.: ''
+  The feeder motor stalled while pushing the filament to the head.: ''
+  The feeder pushed more filament than the path holds, and it never reached the head.: ''
+  The feeder turned, but the filament did not move with it.: ''
+  The filament could not be pulled out of the head.: ''
+  The filament did not reach the head in time.: ''
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : El filamento no llegó a la boquilla. El CFS no informó ningún error, pero el sensor del cabezal sigue sin detectar filamento. Compruebe que la bobina esté bien colocada y que el recorrido esté despejado, y vuelva a intentarlo.
+  ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
+  : ''
   The filament may not have fully retracted — try again or manually pull: Puede que el filamento no se haya retraído por completo. Reintente o tire a mano
+  The filament ran out or slipped out of the feeder during the load.: ''
+  The filament reached the nozzle, but purging it failed.: ''
+  The filament stopped moving on its way to the head.: ''
   The filament system needs attention: 'El sistema de filamento requiere atención'
   The filament system reported an error: El sistema de filamento informó un error
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "La diferencia no se cerró (se movió {:.1f} Hz). Prueba un giro mayor."
@@ -4232,6 +4259,8 @@ translations:
   The gateway cannot be the subnet's network or broadcast address.: 'La puerta de enlace no puede ser la dirección de red ni la de difusión de la subred.'
   The gateway is not a valid address.: 'La puerta de enlace no es una dirección válida.'
   The gateway is not on the same subnet as the IP address.: 'La puerta de enlace no está en la misma subred que la dirección IP.'
+  ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
+  : ''
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'La cama caliente y la cámara pueden secar bobinas colocadas sobre la cama. Inicia un ciclo desde el diálogo de secado de la cama.'
   The heater can't be changed while the printer is waiting.: 'No se puede cambiar el calentador mientras la impresora espera.'
   The heater did not accept the printer's credentials.: 'El calentador no aceptó las credenciales de la impresora.'
@@ -4294,6 +4323,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'La impresora puede medir el desfase de cada herramienta automáticamente. Ejecútalo en la pantalla de calibración de desfases.'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'La impresora puede medir el pressure advance por sí sola. Ejecútalo en la pantalla Calibración PA.'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'La impresora puede pausar en una capa elegida, para cambiar de filamento o colocar un inserto. Define la capa desde la vista previa de impresión.'
+  'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': ''
   The printer could not work out where to resume.: La impresora no pudo determinar dónde reanudar.
   The printer did not change its bed check: 'La impresora no cambió su comprobación de cama'
   'The printer did not change its bed check: {}': 'La impresora no cambió su comprobación de cama: {}'
@@ -4387,6 +4417,7 @@ translations:
   Theme reset to defaults: Tema restablecido a valores predeterminados
   'Theme: ': 'Tema: '
   There is no cycle to stop: 'No hay ningún ciclo que detener'
+  There is no filament in this head's feeder.: ''
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "No hay suficiente memoria libre para esta prueba. El análisis de Klipper se quedaría sin memoria y dejaría la impresora bloqueada hasta apagarla y encenderla."
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "Estas lecturas no se repiten, así que el ajuste no se puede guiar. Revisa primero la mecánica."
@@ -4432,6 +4463,7 @@ translations:
   This file was sliced for {} but {} is loaded.: Este archivo fue laminado para {} pero se ha cargado {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada.
   This firmware can only switch slots by loading them: 'Este firmware solo puede cambiar de ranura cargándola'
+  The filament took too long to reach the feeder's sensor.: ''
   The filament went into the toolhead past its feeder. Load it by hand.: "El filamento entró en el cabezal sin pasar por su alimentador. Cárgalo a mano."
   This toolhead has no automatic feeder. Load the filament by hand.: "Este cabezal no tiene alimentador automático. Carga el filamento a mano."
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
@@ -4706,6 +4738,7 @@ translations:
   Unload macro not configured: Macro de descarga no configurado
   Unload the CFS filament before enabling bypass: 'Descargue el filamento del CFS antes de activar el bypass'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Descargue el filamento actual y continúe. El extrusor y la parte superior del recorrido del filamento deben quedar al alcance de la mano."
+  Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: ''
   Unload the toolhead when a print ends: 'Descargar el cabezal al terminar una impresión'
   Unload this unit first: 'Descargue primero esta unidad'
   Unload which tool?: '¿Qué herramienta descargar?'
@@ -5158,7 +5191,10 @@ translations:
   '{} did not arrive; nothing was sent': '{} no llegó; no se envió nada'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}.'
   '{} did not switch to {}. The print is still paused.': '{} no cambió a {}. La impresión sigue en pausa.'
+  "{} didn't feed": ''
+  "{} didn't load": ''
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{} no se cargó. Compruebe que su hotend esté bien asentado y haga una extrusión de prueba antes de reanudar.'
+  "{} didn't unload": ''
   '{} disabled': '{} desactivado'
   '{} disconnected': '{} desconectada'
   '{} enabled': '{} activado'

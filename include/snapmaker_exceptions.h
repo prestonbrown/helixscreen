@@ -54,6 +54,26 @@ enum class ExceptionSeverity { Informational, Pause, Cancel };
 /// falls back to the firmware's own message rather than inventing one.
 [[nodiscard]] std::string_view exception_message(const ExceptionCode& c);
 
+/// The feeder module: every fault it raises is one head's load, unload or hand
+/// feed failing, and its index is that head (0-based, "Toolhead 1" is 0).
+inline constexpr int kFeedingModuleId = 525;
+
+/// What a feeder fault means at the head and what puts it right, as English
+/// source text; the render path translates it. Each sentence stands alone, so
+/// the head is named in the title the caller builds, never inside these.
+struct FeedFailure {
+    /// The title around the head's name: "{} didn't load".
+    const char* title;
+    /// What went wrong, in one sentence.
+    const char* cause;
+    /// What the user does about it.
+    const char* fix;
+};
+
+/// The wording for a feeder fault: its code's row, or a generic load failure
+/// for a code the table does not know. nullopt for a fault from any other module.
+[[nodiscard]] std::optional<FeedFailure> feed_failure(const ExceptionCode& c);
+
 /// What the firmware will do about a fault at this level. An unrecognised level
 /// reads as Cancel: assuming the worst is the safe direction.
 [[nodiscard]] ExceptionSeverity severity_of(int level);

@@ -183,6 +183,7 @@
   <translation tag="A new Print Status screen" es="Una nueva pantalla de Estado de Impresión"/>
   <translation tag="A newer version of the helper macros is available" es="Hay una versión más reciente de las macros de ayuda disponible"/>
   <translation tag="A picture of your printer" es="Una imagen de tu impresora"/>
+  <translation tag="A piece of filament is already in this head&apos;s feed path."/>
   <translation tag="A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it." es="Se interrumpió una calibración de pressure advance. Se liberaron los drivers X/Y y se restablecieron los límites de movimiento y el pressure advance; referencie la impresora antes de moverla."/>
   <translation tag="A print holds the printer." es="Una impresión ocupa la impresora."/>
   <translation tag="A print is already running." es="Ya hay una impresión en curso."/>
@@ -738,6 +739,8 @@
   <translation tag="Check for Updates" es="Buscar actualizaciones"/>
   <translation tag="Check slot failed" es="Error al comprobar ranura"/>
   <translation tag="Check slots failed" es="Error al comprobar ranuras"/>
+  <translation tag="Check that nothing blocks the toolhead or the head&apos;s dock, then load the head again."/>
+  <translation tag="Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand."/>
   <translation tag="Check that only one filament path is active" es="Compruebe que solo haya una ruta de filamento activa"/>
   <translation tag="Check that the cutter mechanism is properly installed" es="Compruebe que el mecanismo de corte esté correctamente instalado"/>
   <translation tag="Check that the printer is powered on and connected to the network" es="Compruebe que la impresora esté encendida y conectada a la red"/>
@@ -749,7 +752,10 @@
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" es="Revise la ruta de la ranura al concentrador por si hay enredos o rozamiento. Si la ranura alimenta con libertad, puede que el sensor del concentrador o el motor de alimentación hayan fallado"/>
   <translation tag="Check the provided value and try again" es="Compruebe el valor introducido e inténtelo de nuevo"/>
   <translation tag="Check the spool and the filament path for a jam, then retry" es="Compruebe la bobina y la ruta del filamento por si hay atascos y reintente"/>
+  <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again."/>
+  <translation tag="Check the spool, the feeder and the feed tube to this head, then load the head again."/>
   <translation tag="Check the tension of the motion belts" es="Comprobar la tensión de las correas de movimiento"/>
+  <translation tag="Check this head&apos;s feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn."/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" es="Consulte la potencia de su calentador (normalmente 40-60W para hotends)"/>
   <translation tag="Checking" es="Comprobando"/>
   <translation tag="Checking Bed Mesh..." es="Comprobando Malla de Cama..."/>
@@ -807,6 +813,7 @@
   <translation tag="Clear Console?" es="¿Limpiar Consola?"/>
   <translation tag="Clear Error" es="Borrar error"/>
   <translation tag="Clear Spool" es="Quitar bobina"/>
+  <translation tag="Clear any filament from around the nozzle and the purge area, then load the head again."/>
   <translation tag="Clear every Endless Spool backup" es="Borrar todas las reservas de la bobina infinita"/>
   <translation tag="Clear extruder only" es="Solo vaciar el extrusor"/>
   <translation tag="Clear failed" es="Error al limpiar"/>
@@ -1075,6 +1082,7 @@
   <translation tag="Cut filament" es="Cortar filamento"/>
   <translation tag="Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude." es="Corta la punta extraída y empuja el filamento de nuevo dentro del extrusor hasta que se detenga; luego pulsa Extruir."/>
   <translation tag="Cut position saved: {}" es="Posición de corte guardada: {}"/>
+  <translation tag="Cut the filament end square and push it into this head&apos;s feeder until it grabs, then load the head again."/>
   <translation tag="Cut tip" es="Cortar la punta"/>
   <translation tag="Cutter Calibration" es="Calibración del cortador"/>
   <translation tag="Cutter Enabled" es="Cortador activado"/>
@@ -1575,6 +1583,7 @@
   <translation tag="Feeder" es="Alimentador"/>
   <translation tag="Feeders" es="Alimentadores"/>
   <translation tag="Feeding filament to nozzle" es="Avanzando filamento a la boquilla"/>
+  <translation tag="Feeding the head by hand did not finish."/>
   <translation tag="Filament" es="Filamento"/>
   <translation tag="Filament Buffer" es="Búfer de filamento"/>
   <translation tag="Filament Control" es="Control de filamento"/>
@@ -1604,6 +1613,7 @@
   <translation tag="Filament by Type" es="Filamento por Tipo"/>
   <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" es="No se puede cargar filamento por debajo de la temperatura mínima de extrusión. Fije una temperatura objetivo del hotend (p. ej. 220 °C para PLA, 240 °C para PETG), espere a que la alcance y vuelva a intentarlo"/>
   <translation tag="Filament controls are unavailable while printing." es="Los controles de filamento no están disponibles durante la impresión."/>
+  <translation tag="Filament could not be fed to this head."/>
   <translation tag="Filament cutter not detected" es="No se detecta el cortador de filamento"/>
   <translation tag="Filament cutter position error" es="Error de posición del cortador de filamento"/>
   <translation tag="Filament cutter stuck" es="El cortador de filamento está atascado"/>
@@ -2004,6 +2014,7 @@
   <translation tag="InputShaper" es="InputShaper"/>
   <translation tag="Insert filament" es="Insertar filamento"/>
   <translation tag="Insert filament before resuming" es="Inserte filamento antes de reanudar"/>
+  <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again."/>
   <translation tag="Inspecting bed..." es="Inspeccionando cama..."/>
   <translation tag="Install" es="Instalar"/>
   <translation tag="Install HelixPrint Plugin" es="Instalar Plugin HelixPrint"/>
@@ -2789,6 +2800,7 @@
   <translation tag="Ooze Reduction" es="Reducción de goteo"/>
   <translation tag="Open" es="Abrir"/>
   <translation tag="Open Fans" es="Abrir Ventiladores"/>
+  <translation tag="Open Filament"/>
   <translation tag="Open Source Licenses" es="Licencias de código abierto"/>
   <translation tag="Open Terminal" es="Abrir terminal"/>
   <translation tag="Open color and brightness controls" es="Abrir controles de color y brillo"/>
@@ -3190,6 +3202,7 @@
   <translation tag="Push filament into the toolhead by hand, then tap Resume." es="Introduzca el filamento a mano en el cabezal y luego toque Reanudar."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." es="Empuje el filamento de limpieza en el extrusor hasta el tope y pulse Extruir."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." es="Empuja el filamento dentro del extrusor hasta que se detenga. Se sujeta automáticamente, o pulsa Extruir."/>
+  <translation tag="Push the filament into the head until the extruder grabs it, then try again."/>
   <translation tag="QGL" es="QGL"/>
   <translation tag="QGL failed: {}" es="Error en QGL: {}"/>
   <translation tag="QGL may still be running — response timed out" es="QGL puede seguir en curso — tiempo de espera agotado"/>
@@ -4112,10 +4125,22 @@
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" es="El cortador está desalineado. Recalíbrelo con CALIBRATE_CUT_POS"/>
   <translation tag="The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one." es="No se encontró el punto exacto de parada. La impresión se reanuda al inicio de la siguiente capa y omite el resto de esta."/>
   <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend" es="El extrusor no puede tirar con suavidad. Revise la bobina por si hay enredos o nudos, y el tubo PTFE por si tiene una curva pronunciada"/>
+  <translation tag="The feeder could not pull the filament in."/>
+  <translation tag="The feeder motor did not turn while pulling the filament in."/>
+  <translation tag="The feeder motor stalled while pushing the filament to the head."/>
+  <translation tag="The feeder pushed more filament than the path holds, and it never reached the head."/>
+  <translation tag="The feeder turned, but the filament did not move with it."/>
+  <translation tag="The filament could not be pulled out of the head."/>
+  <translation tag="The filament did not reach the head in time."/>
   <translation tag="The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again." es="El filamento no llegó a la boquilla. El CFS no informó ningún error, pero el sensor del cabezal sigue sin detectar filamento. Compruebe que la bobina esté bien colocada y que el recorrido esté despejado, y vuelva a intentarlo."/>
+  <translation tag="The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again."/>
   <translation tag="The filament may not have fully retracted — try again or manually pull" es="Puede que el filamento no se haya retraído por completo. Reintente o tire a mano"/>
+  <translation tag="The filament ran out or slipped out of the feeder during the load."/>
+  <translation tag="The filament reached the nozzle, but purging it failed."/>
+  <translation tag="The filament stopped moving on its way to the head."/>
   <translation tag="The filament system needs attention" es="El sistema de filamento requiere atención"/>
   <translation tag="The filament system reported an error" es="El sistema de filamento informó un error"/>
+  <translation tag="The filament took too long to reach the feeder&apos;s sensor."/>
   <translation tag="The filament went into the toolhead past its feeder. Load it by hand." es="El filamento entró en el cabezal sin pasar por su alimentador. Cárgalo a mano."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." es="La diferencia no se cerró (se movió {:.1f} Hz). Prueba un giro mayor."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." es="La diferencia creció tras aflojar {0}. Comprueba que giraste el tensor de {0}."/>
@@ -4125,6 +4150,7 @@
   <translation tag="The gateway cannot be the subnet&apos;s network or broadcast address." es="La puerta de enlace no puede ser la dirección de red ni la de difusión de la subred."/>
   <translation tag="The gateway is not a valid address." es="La puerta de enlace no es una dirección válida."/>
   <translation tag="The gateway is not on the same subnet as the IP address." es="La puerta de enlace no está en la misma subred que la dirección IP."/>
+  <translation tag="The head&apos;s extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."/>
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." es="La cama caliente y la cámara pueden secar bobinas colocadas sobre la cama. Inicia un ciclo desde el diálogo de secado de la cama."/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." es="No se puede cambiar el calentador mientras la impresora espera."/>
   <translation tag="The heater did not accept the printer&apos;s credentials." es="El calentador no aceptó las credenciales de la impresora."/>
@@ -4182,6 +4208,7 @@
   <translation tag="The printer can measure each tool&apos;s offset automatically. Run it on the tool offset calibration screen." es="La impresora puede medir el desfase de cada herramienta automáticamente. Ejecútalo en la pantalla de calibración de desfases."/>
   <translation tag="The printer can measure pressure advance on its own. Run it on the PA calibration screen." es="La impresora puede medir el pressure advance por sí sola. Ejecútalo en la pantalla Calibración PA."/>
   <translation tag="The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview." es="La impresora puede pausar en una capa elegida, para cambiar de filamento o colocar un inserto. Define la capa desde la vista previa de impresión."/>
+  <translation tag="The printer could not get the head ready: homing, picking up the head or heating the nozzle failed."/>
   <translation tag="The printer could not work out where to resume." es="La impresora no pudo determinar dónde reanudar."/>
   <translation tag="The printer did not change its bed check" es="La impresora no cambió su comprobación de cama"/>
   <translation tag="The printer did not change its bed check: {}" es="La impresora no cambió su comprobación de cama: {}"/>
@@ -4267,6 +4294,7 @@
   <translation tag="Theme reset to defaults" es="Tema restablecido a valores predeterminados"/>
   <translation tag="Theme: " es="Tema: "/>
   <translation tag="There is no cycle to stop" es="No hay ningún ciclo que detener"/>
+  <translation tag="There is no filament in this head&apos;s feeder."/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." es="No hay suficiente memoria libre para esta prueba. El análisis de Klipper se quedaría sin memoria y dejaría la impresora bloqueada hasta apagarla y encenderla."/>
   <translation tag="These readings aren&apos;t repeatable, so tuning can&apos;t be steered. Check the mechanics first." es="Estas lecturas no se repiten, así que el ajuste no se puede guiar. Revisa primero la mecánica."/>
   <translation tag="These tools have a different filament grade loaded:" es="Estas herramientas tienen cargado un filamento de grado diferente:"/>
@@ -4562,6 +4590,7 @@
   <translation tag="Unload stopped" es="Descarga detenida"/>
   <translation tag="Unload the CFS filament before enabling bypass" es="Descargue el filamento del CFS antes de activar el bypass"/>
   <translation tag="Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand." es="Descargue el filamento actual y continúe. El extrusor y la parte superior del recorrido del filamento deben quedar al alcance de la mano."/>
+  <translation tag="Unload the head, or pull the leftover filament out of its feed tube, then load the head again."/>
   <translation tag="Unload the toolhead when a print ends" es="Descargar el cabezal al terminar una impresión"/>
   <translation tag="Unload this unit first" es="Descargue primero esta unidad"/>
   <translation tag="Unload which tool?" es="¿Qué herramienta descargar?"/>
@@ -5016,7 +5045,10 @@
   <translation tag="{} did not arrive; nothing was sent" es="{} no llegó; no se envió nada"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." es="{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." es="{} no cambió a {}. La impresión sigue en pausa."/>
+  <translation tag="{} didn&apos;t feed"/>
+  <translation tag="{} didn&apos;t load"/>
   <translation tag="{} didn&apos;t load. Check that its hotend is seated and do a test extrude before resuming." es="{} no se cargó. Compruebe que su hotend esté bien asentado y haga una extrusión de prueba antes de reanudar."/>
+  <translation tag="{} didn&apos;t unload"/>
   <translation tag="{} disabled" es="{} desactivado"/>
   <translation tag="{} disconnected" es="{} desconectada"/>
   <translation tag="{} enabled" es="{} activado"/>

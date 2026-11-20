@@ -396,6 +396,12 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] std::optional<helix::ErrorEvent>
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
 
+    /// A feeder fault (snapmaker::kFeedingModuleId) in @p detail, the line
+    /// without its `!!`, worded from snapmaker::feed_failure; nullopt for any
+    /// other line.
+    [[nodiscard]] std::optional<helix::ErrorEvent>
+    classify_feed_failure(const std::string& detail, const helix::ClassifyContext& ctx) const;
+
     // True when the motion sensor reports runout but the port sensor still
     // reads filament present: the encoder is stale (it never saw the
     // start-of-print purge) but physical filament is in the buffer. No caller:

@@ -199,6 +199,7 @@ translations:
   "A new Print Status screen": "新しい印刷ステータス画面"
   A newer version of the helper macros is available: 'ヘルパーマクロの新しいバージョンが利用可能です'
   A picture of your printer: プリンターの画像
+  A piece of filament is already in this head's feed path.: ''
   ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   : 'プレッシャーアドバンスの測定が中断されました。X/Yドライバーを解放し、動作制限とプレッシャーアドバンスを元に戻しました。動かす前にプリンターをホーミングしてください。'
   A print holds the printer.: "印刷中のためプリンターを使用できません。"
@@ -758,6 +759,9 @@ translations:
   Check slot failed: スロットの確認に失敗しました
   Check Slots: スロット確認
   Check slots failed: スロットの確認に失敗しました
+  Check that nothing blocks the toolhead or the head's dock, then load the head again.: ''
+  ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
+  : ''
   Check that only one filament path is active: フィラメント経路が 1 つだけ有効か確認してください
   Check that the cutter mechanism is properly installed: カッター機構が正しく取り付けられているか確認してください
   Check that the printer is powered on and connected to the network: プリンターの電源が入っていて、ネットワークに接続されているか確認してください
@@ -770,7 +774,11 @@ translations:
   : スロットからハブまでの経路に絡まりや抵抗がないか確認してください。スロットが問題なく送り出せる場合は、ハブセンサーまたは送り出しモーターの故障が考えられます
   Check the provided value and try again: 入力した値を確認してもう一度お試しください
   Check the spool and the filament path for a jam, then retry: スプールとフィラメント経路の詰まりを確認してから再試行してください
+  Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: ''
+  Check the spool, the feeder and the feed tube to this head, then load the head again.: ''
   Check the tension of the motion belts: "駆動ベルトのテンションを確認"
+  ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
+  : ''
   Check your heater's rating (typically 40-60W for hotends): ヒーターの定格を確認してください（ホットエンドは通常40〜60W）
   Checking: 確認中
   Checking Spoolman server...: Spoolman サーバーを確認中...
@@ -828,6 +836,7 @@ translations:
   Clear Console?: コンソールをクリアしますか？
   Clear Error: エラーをクリア
   Clear Spool: スプールを解除
+  Clear any filament from around the nozzle and the purge area, then load the head again.: ''
   Clear every Endless Spool backup: エンドレススプールの予備をすべて消去
   Clear extruder only: 'エクストルーダーだけを空にする'
   Clear failed: クリアに失敗しました
@@ -1135,6 +1144,7 @@ translations:
   Cut filament: フィラメントを切断
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "引き抜いた先端を切り落とし、フィラメントを止まるまでエクストルーダーに戻してから「押し出し」をタップしてください。"
   'Cut position saved: {}': '切断位置を保存しました: {}'
+  Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: ''
   Cut tip: '先端をカット'
   Cutter Enabled: 'カッター有効'
   Cutter and purge chute calibration: カッターとパージシュートのキャリブレーション
@@ -1643,6 +1653,7 @@ translations:
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
+  Feeding the head by hand did not finish.: ''
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -1671,6 +1682,7 @@ translations:
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : 最低押し出し温度を下回るとフィラメントをロードできません。ホットエンドの目標温度を設定し（PLA は 220°C、PETG は 240°C など）、到達を待ってから再試行してください
   Filament controls are unavailable while printing.: 印刷中はフィラメント制御を利用できません。
+  Filament could not be fed to this head.: ''
   Filament cutter not detected: フィラメントカッターが検出されません
   Filament cutter position error: フィラメントカッターの位置エラー
   Filament cutter stuck: フィラメントカッターが動きません
@@ -2081,6 +2093,7 @@ translations:
   InputShaper: InputShaper
   Insert filament: 'フィラメントを差し込む'
   Insert filament before resuming: 再開前にフィラメントを挿入してください
+  Insert filament into this head's feeder until it grabs, then load the head again.: ''
   Inspecting bed...: ベッドを検査中...
   Install: インストール
   Install HelixPrint Plugin: HelixPrint プラグインをインストール
@@ -2874,6 +2887,7 @@ translations:
   Ooze Reduction: 'にじみ低減'
   Open: 開く
   Open Fans: 'ファンを開く'
+  Open Filament: ''
   Open Source Licenses: オープンソースライセンス
   Open Terminal: 'ターミナルを開く'
   Open color and brightness controls: 色と明るさの調整を開く
@@ -3277,6 +3291,7 @@ translations:
   Purging...: パージ中...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
+  Push the filament into the head until the extruder grabs it, then try again.: ''
   QGL: QGL
   'QGL failed: {}': 'QGL に失敗しました: {}'
   QGL may still be running — response timed out: QGL がまだ実行中の可能性があります — 応答タイムアウト
@@ -4219,9 +4234,21 @@ translations:
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : 正確な停止位置が見つかりませんでした。次のレイヤーの最初から再開し、このレイヤーの残りはスキップします。
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: エクストルーダーがスムーズに引き込めません。スプールの絡まりや結び目、PTFE チューブの急な曲がりを確認してください
+  The feeder could not pull the filament in.: ''
+  The feeder motor did not turn while pulling the filament in.: ''
+  The feeder motor stalled while pushing the filament to the head.: ''
+  The feeder pushed more filament than the path holds, and it never reached the head.: ''
+  The feeder turned, but the filament did not move with it.: ''
+  The filament could not be pulled out of the head.: ''
+  The filament did not reach the head in time.: ''
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : フィラメントがノズルに到達しませんでした。CFSはエラーを報告していませんが、ツールヘッドセンサーはまだフィラメントを検出していません。スプールが正しく取り付けられ、フィラメント経路が塞がれていないことを確認して、再試行してください。
+  ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
+  : ''
   The filament may not have fully retracted — try again or manually pull: フィラメントが完全に戻っていない可能性があります。再試行するか手で引き抜いてください
+  The filament ran out or slipped out of the feeder during the load.: ''
+  The filament reached the nozzle, but purging it failed.: ''
+  The filament stopped moving on its way to the head.: ''
   The filament system needs attention: 'フィラメントシステムの対応が必要です'
   The filament system reported an error: フィラメントシステムがエラーを報告しました
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"
@@ -4232,6 +4259,8 @@ translations:
   The gateway cannot be the subnet's network or broadcast address.: 'ゲートウェイにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。'
   The gateway is not a valid address.: 'ゲートウェイが有効なアドレスではありません。'
   The gateway is not on the same subnet as the IP address.: 'ゲートウェイがIPアドレスと同じサブネットにありません。'
+  ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
+  : ''
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'ヒートベッドとエンクロージャーで、ベッドに置いたスプールを乾燥できます。ベッド乾燥ダイアログからサイクルを開始してください。'
   The heater can't be changed while the printer is waiting.: 'プリンターの待機中はヒーターを変更できません。'
   The heater did not accept the printer's credentials.: 'ヒーターがプリンターの認証情報を受け付けませんでした。'
@@ -4294,6 +4323,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'プリンターは各ツールのオフセットを自動で測定できます。ツールオフセット校正画面で実行します。'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'プリンターはプレッシャーアドバンスを自分で測定できます。PAキャリブレーション画面で実行できます。'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'プリンターは、フィラメント交換やインサート挿入のために、選んだレイヤーで一時停止できます。レイヤーは印刷プレビューで設定します。'
+  'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': ''
   The printer could not work out where to resume.: プリンターは再開位置を特定できませんでした。
   The printer did not change its bed check: 'プリンターはベッドチェックを変更しませんでした'
   'The printer did not change its bed check: {}': 'プリンターはベッドチェックを変更しませんでした：{}'
@@ -4387,6 +4417,7 @@ translations:
   Theme reset to defaults: テーマをデフォルトにリセットしました
   'Theme: ': 'テーマ: '
   There is no cycle to stop: '停止するサイクルがありません'
+  There is no filament in this head's feeder.: ''
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "このテストを実行するための空きメモリが足りません。Klipperの解析でメモリが不足し、電源を入れ直すまでプリンターが停止したままになります。"
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "測定値が再現しないため、調整を導けません。まず機構を確認してください。"
@@ -4432,6 +4463,7 @@ translations:
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
   This firmware can only switch slots by loading them: 'このファームウェアはスロットを装填して切り替えることしかできません'
+  The filament took too long to reach the feeder's sensor.: ''
   The filament went into the toolhead past its feeder. Load it by hand.: "フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"
   This toolhead has no automatic feeder. Load the filament by hand.: "このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
@@ -4706,6 +4738,7 @@ translations:
   Unload macro not configured: アンロードマクロが未設定です
   Unload the CFS filament before enabling bypass: 'バイパスを有効にする前に CFS のフィラメントを取り出してください'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "現在のフィラメントを排出してから続行してください。エクストルーダーとフィラメント経路の上部に手が届く必要があります。"
+  Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: ''
   Unload the toolhead when a print ends: '印刷終了時にツールヘッドからアンロード'
   Unload this unit first: '先にこのユニットを排出してください'
   Unload which tool?: 'どのツールをアンロードしますか？'
@@ -5158,7 +5191,10 @@ translations:
   '{} did not arrive; nothing was sent': '{} が到着しませんでした。何も送信していません'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。'
   '{} did not switch to {}. The print is still paused.': '{}は{}に切り替わりませんでした。印刷は一時停止のままです。'
+  "{} didn't feed": ''
+  "{} didn't load": ''
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。'
+  "{} didn't unload": ''
   '{} disabled': '{} を無効にしました'
   '{} disconnected': '{}が外れました'
   '{} enabled': '{} を有効にしました'

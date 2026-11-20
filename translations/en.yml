@@ -197,6 +197,7 @@ translations:
   "A new Print Status screen": "A new Print Status screen"
   A newer version of the helper macros is available: A newer version of the helper macros is available
   A picture of your printer: A picture of your printer
+  A piece of filament is already in this head's feed path.: A piece of filament is already in this head's feed path.
   ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   : A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   A print holds the printer.: A print holds the printer.
@@ -759,6 +760,9 @@ translations:
   Check slot failed: Check slot failed
   Check Slots: Check Slots
   Check slots failed: Check slots failed
+  Check that nothing blocks the toolhead or the head's dock, then load the head again.: Check that nothing blocks the toolhead or the head's dock, then load the head again.
+  ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
+  : Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
   Check that only one filament path is active: Check that only one filament path is active
   Check that the cutter mechanism is properly installed: Check that the cutter mechanism is properly installed
   Check that the printer is powered on and connected to the network: Check that the printer is powered on and connected to the network
@@ -771,7 +775,11 @@ translations:
   : Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   Check the provided value and try again: Check the provided value and try again
   Check the spool and the filament path for a jam, then retry: Check the spool and the filament path for a jam, then retry
+  Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.
+  Check the spool, the feeder and the feed tube to this head, then load the head again.: Check the spool, the feeder and the feed tube to this head, then load the head again.
   Check the tension of the motion belts: Check the tension of the motion belts
+  ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
+  : Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
   Check your heater's rating (typically 40-60W for hotends): Check your heater's rating (typically 40-60W for hotends)
   Checking: Checking
   'Checking Bed Mesh...': 'Checking Bed Mesh...'
@@ -829,6 +837,7 @@ translations:
   Clear Console?: Clear Console?
   Clear Error: Clear Error
   Clear Spool: Clear Spool
+  Clear any filament from around the nozzle and the purge area, then load the head again.: Clear any filament from around the nozzle and the purge area, then load the head again.
   Clear every Endless Spool backup: Clear every Endless Spool backup
   Clear extruder only: Clear extruder only
   Clear failed: Clear failed
@@ -1131,6 +1140,7 @@ translations:
   Cut filament: Cut filament
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.
   'Cut position saved: {}': 'Cut position saved: {}'
+  Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.
   Cut tip: Cut tip
   Cutter Enabled: Cutter Enabled
   Cutter and purge chute calibration: Cutter and purge chute calibration
@@ -1632,6 +1642,7 @@ translations:
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament to nozzle: Feeding filament to nozzle
+  Feeding the head by hand did not finish.: Feeding the head by hand did not finish.
   Filament: Filament
   Filament Buffer: 'Filament Buffer'
   Filament Control: Filament Control
@@ -1660,6 +1671,7 @@ translations:
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   Filament controls are unavailable while printing.: Filament controls are unavailable while printing.
+  Filament could not be fed to this head.: Filament could not be fed to this head.
   Filament cutter not detected: Filament cutter not detected
   Filament cutter position error: Filament cutter position error
   Filament cutter stuck: Filament cutter stuck
@@ -2066,6 +2078,7 @@ translations:
   InputShaper: InputShaper
   Insert filament: Insert filament
   Insert filament before resuming: Insert filament before resuming
+  Insert filament into this head's feeder until it grabs, then load the head again.: Insert filament into this head's feeder until it grabs, then load the head again.
   'Inspecting bed...': 'Inspecting bed...'
   Install: Install
   Install HelixPrint Plugin: Install HelixPrint Plugin
@@ -2856,6 +2869,7 @@ translations:
   Ooze Reduction: Ooze Reduction
   Open: Open
   Open Fans: Open Fans
+  Open Filament: Open Filament
   Open Source Licenses: Open Source Licenses
   Open Terminal: Open Terminal
   Open color and brightness controls: Open color and brightness controls
@@ -3258,6 +3272,7 @@ translations:
   Purging...: Purging...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: Push the cleaning filament into the extruder until it stops, then tap Extrude.
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.
+  Push the filament into the head until the extruder grabs it, then try again.: Push the filament into the head until the extruder grabs it, then try again.
   QGL: QGL
   'QGL failed: {}': 'QGL failed: {}'
   QGL may still be running — response timed out: QGL may still be running — response timed out
@@ -4192,9 +4207,21 @@ translations:
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend
+  The feeder could not pull the filament in.: The feeder could not pull the filament in.
+  The feeder motor did not turn while pulling the filament in.: The feeder motor did not turn while pulling the filament in.
+  The feeder motor stalled while pushing the filament to the head.: The feeder motor stalled while pushing the filament to the head.
+  The feeder pushed more filament than the path holds, and it never reached the head.: The feeder pushed more filament than the path holds, and it never reached the head.
+  The feeder turned, but the filament did not move with it.: The feeder turned, but the filament did not move with it.
+  The filament could not be pulled out of the head.: The filament could not be pulled out of the head.
+  The filament did not reach the head in time.: The filament did not reach the head in time.
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
+  ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
+  : The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
   The filament may not have fully retracted — try again or manually pull: The filament may not have fully retracted — try again or manually pull
+  The filament ran out or slipped out of the feeder during the load.: The filament ran out or slipped out of the feeder during the load.
+  The filament reached the nozzle, but purging it failed.: The filament reached the nozzle, but purging it failed.
+  The filament stopped moving on its way to the head.: The filament stopped moving on its way to the head.
   The filament system needs attention: The filament system needs attention
   The filament system reported an error: The filament system reported an error
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: The gap didn't close (moved {:.1f} Hz). Try a bigger turn.
@@ -4205,6 +4232,8 @@ translations:
   The gateway cannot be the subnet's network or broadcast address.: The gateway cannot be the subnet's network or broadcast address.
   The gateway is not a valid address.: The gateway is not a valid address.
   The gateway is not on the same subnet as the IP address.: The gateway is not on the same subnet as the IP address.
+  ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
+  : "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.
   The heater can't be changed while the printer is waiting.: The heater can't be changed while the printer is waiting.
   The heater did not accept the printer's credentials.: The heater did not accept the printer's credentials.
@@ -4266,6 +4295,7 @@ translations:
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: The printer can measure pressure advance on its own. Run it on the PA calibration screen.
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.
+  'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': 'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.'
   The printer could not work out where to resume.: The printer could not work out where to resume.
   The printer did not change its bed check: The printer did not change its bed check
   'The printer did not change its bed check: {}': 'The printer did not change its bed check: {}'
@@ -4357,6 +4387,7 @@ translations:
   Theme reset to defaults: Theme reset to defaults
   'Theme: ': 'Theme: '
   There is no cycle to stop: There is no cycle to stop
+  There is no filament in this head's feeder.: There is no filament in this head's feeder.
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.
@@ -4403,6 +4434,7 @@ translations:
   This file was sliced for {} but {} is loaded.: This file was sliced for {} but {} is loaded.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.
   This firmware can only switch slots by loading them: This firmware can only switch slots by loading them
+  The filament took too long to reach the feeder's sensor.: The filament took too long to reach the feeder's sensor.
   The filament went into the toolhead past its feeder. Load it by hand.: The filament went into the toolhead past its feeder. Load it by hand.
   This toolhead has no automatic feeder. Load the filament by hand.: This toolhead has no automatic feeder. Load the filament by hand.
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
@@ -4678,6 +4710,7 @@ translations:
   Unload macro not configured: Unload macro not configured
   Unload the CFS filament before enabling bypass: Unload the CFS filament before enabling bypass
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.
+  Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: Unload the head, or pull the leftover filament out of its feed tube, then load the head again.
   Unload the toolhead when a print ends: Unload the toolhead when a print ends
   Unload this unit first: Unload this unit first
   Unload which tool?: Unload which tool?
@@ -5129,7 +5162,10 @@ translations:
   '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.'
   '{} did not switch to {}. The print is still paused.': '{} did not switch to {}. The print is still paused.'
+  "{} didn't feed": "{} didn't feed"
+  "{} didn't load": "{} didn't load"
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": "{} didn't load. Check that its hotend is seated and do a test extrude before resuming."
+  "{} didn't unload": "{} didn't unload"
   '{} disabled': '{} disabled'
   '{} disconnected': '{} disconnected'
   '{} enabled': '{} enabled'
