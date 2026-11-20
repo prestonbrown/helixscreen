@@ -11,6 +11,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_led_chip_factory.h"
+#include "ui_row_text.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -316,6 +317,19 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
     }
     options += lv_tr("Custom...");
     lv_subject_set_string(&macro_field_options_, options.c_str());
+    // A list that shrank under an open form would leave a field's draft naming a
+    // row that is gone while its dropdown shows row 0: point it at "Custom...".
+    const int last_row = static_cast<int>(discovered.size());
+    auto clamp = [last_row](lv_subject_t* sel) {
+        if (lv_subject_get_int(sel) > last_row)
+            lv_subject_set_int(sel, last_row);
+    };
+    clamp(&macro_draft_on_sel_);
+    clamp(&macro_draft_off_sel_);
+    clamp(&macro_draft_toggle_sel_);
+    for (size_t p = 0; p < macro_draft_preset_sel_pool_.size(); ++p) {
+        clamp(macro_draft_preset_sel_pool_.at(p));
+    }
     lv_subject_set_int(&macro_discovered_count_, static_cast<int>(discovered.size()));
     lv_subject_set_int(&macro_count_, static_cast<int>(macros.size()));
 
@@ -324,20 +338,22 @@ void LedSettingsOverlay::populate_macro_devices_impl() {
         const std::string index = std::to_string(i);
         const std::string summary = helix::led::macro_device_note(macro);
         const char* attrs[] = {
-            "index",
-            index.c_str(),
-            "device_name",
-            macro.display_name.empty() ? lv_tr("(unnamed)") : macro.display_name.c_str(),
-            "type_label",
-            macro_type_label(macro.type),
-            "summary",
-            summary.c_str(),
-            "editing",
-            i == editing_macro_index_ ? "1" : "0",
+            "index",      index.c_str(),
+            "type_label", macro_type_label(macro.type),
+            "editing",    i == editing_macro_index_ ? "1" : "0",
             nullptr,
         };
-        if (!lv_xml_create(container, "setting_macro_card", attrs)) {
+        auto* card = static_cast<lv_obj_t*>(lv_xml_create(container, "setting_macro_card", attrs));
+        if (!card) {
             spdlog::error("[{}] Failed to build macro card for device {} from XML", get_name(), i);
+            continue;
+        }
+        // The name and summary are user text: as props a leading '#' would read as a const.
+        helix::ui::set_row_label_text(card, "macro_device_name",
+                                      macro.display_name.empty() ? lv_tr("(unnamed)")
+                                                                 : macro.display_name.c_str());
+        if (i != editing_macro_index_) {
+            helix::ui::set_row_label_text(card, "macro_summary", summary.c_str());
         }
     }
 

@@ -374,6 +374,9 @@
         "bind_selected": {
           "type": "string"
         },
+        "bind_options": {
+          "type": "string"
+        },
         "options_tag": {
           "type": "string"
         }
@@ -3380,6 +3383,7 @@
     "badge_size_tiny",
     "badge_size_xlarge",
     "badge_size_xxlarge",
+    "bar_height",
     "bed_diagram_height",
     "bed_diagram_height_large",
     "bed_diagram_height_medium",
@@ -4346,8 +4350,10 @@
     "section_bg_color",
     "shadow_cast",
     "shadow_intensity",
+    "shadow_offset",
     "shadow_offset_y",
     "shadow_opa",
+    "shadow_width",
     "size_lg",
     "size_lg_micro",
     "size_md",

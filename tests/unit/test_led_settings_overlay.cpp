@@ -497,3 +497,21 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
 
     helix::led::LedAutoState::instance().set_mapping("paused", {});
 }
+
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: a macro device named with a leading # shows its name",
+                 "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedMacroInfo m;
+    m.display_name = "#1 Strip";
+    m.type = helix::led::MacroLedType::TOGGLE;
+    m.toggle_macro = "STRIP_TOGGLE";
+    ctrl.set_configured_macros({m});
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    lv_obj_t* name = named("macro_device_name");
+    REQUIRE(name != nullptr);
+    CHECK(std::string(lv_label_get_text(name)) == "#1 Strip");
+}
