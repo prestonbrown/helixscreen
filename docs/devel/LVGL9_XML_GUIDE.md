@@ -181,13 +181,16 @@ Components are reusable UI pieces defined with the `<component>` tag.
 | `color` | Hex colors | `default="0xff4444"` |
 | `subject` | Subject references | For data binding |
 
-#### Slot Injection into a Component Instance
+#### Slots: filling a component from outside
 
-A component can expose a named widget as a slot for the instantiating screen to
-fill. Nest a `<component_name-slot_name>` tag inside the instantiation; the
-engine splits the tag at the first `-`, requires the prefix to be a registered
-component, and re-parents the tag's children into the widget named `slot_name`
-inside that instance:
+A component declares slots in its `<api>` (`<slot name="body" default="true"/>`,
+`<slot name="footer" target="footer_row"/>`), each naming an object in its view.
+An instance's widget children land in the default slot; `<component-slot>` fills
+a named one; `bind_*`, `event_cb` and `style` children still act on the instance
+root. A host's default content shows until the slot is filled. C++ that fills a
+slot at runtime asks `lv_xml_component_get_slot(instance, "body")` (`nullptr` for
+the default) instead of looking a container up by name. Semantics:
+[`BINDINGS.md` § *Slots*](../../lib/helix-xml/docs/BINDINGS.md#slots--where-an-instances-children-go).
 
 ```xml
 <header_bar title="Motion">
