@@ -934,7 +934,7 @@ file run nightly, on every push to main and at a release, so a landing does not 
 them. `scripts/gate_select.py plan` reads the paths that differ from the merge-base and
 prints one verdict per step above the lanes: `run`, `select` (a narrower run), `full` (a
 safety valve fired) or `skip`. A skipped step's row reads `SKIP` with its reason and counts
-as a pass. `HELIX_GATE_FULL=1` and a `release/*` branch run everything; the release
+as a pass. `HELIX_GATE_FULL=1` and a `release/*` or `release-prep/*` branch run everything; the release
 procedure sets it.
 
 The C++ selection comes from the build's dependency files. After the test build, the sweep
@@ -970,7 +970,7 @@ its C++-reading files for a change to `src/` or `include/`, `esp32` for firmware
 bats runs with `BATS_GATE=1` (`scripts/bats_select.py --gate`): a change confined to the
 app's C++ and XML, the C++ and pytest suites and docs runs a product file only when the
 file names a changed path or drives the built app. A docs-only change builds nothing and
-runs the doc gates alone (`HELIX_QC_ONLY`); a tests-only change runs its tests and the
+runs the quality gates whose `QC_TRIGGER` its paths match, plus the untriggered ones (`HELIX_QC_CHANGED_FROM`); a tests-only change runs its tests and the
 quality sweep.
 
 ### Test Harness

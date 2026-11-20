@@ -747,7 +747,7 @@ teardown() {
 @test "with no history the gate says it has no measured time, and records one" {
     run "$GATE"
     [ "$status" -eq 0 ]
-    contains "no measured land-gate time yet for local sweeps" "$output"
+    contains "no measured land-gate time yet for full gates with local sweeps" "$output"
     read -r _ secs verdict where _ <"$LAND_GATE_HISTORY"
     [[ "$secs" =~ ^[0-9]+$ ]] || fail "seconds not recorded: $secs"
     [ "$verdict" = PASS ]

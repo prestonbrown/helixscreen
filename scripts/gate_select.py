@@ -5,7 +5,7 @@
 make land-gate runs only what a change can reach. The full C++ suite and every
 bats file run nightly (nightly.yml), on every push to main (build.yml), at a
 release (.claude/commands/release.md runs the gate with HELIX_GATE_FULL=1), and
-on a release/* branch, so what a selection leaves out is still run within a
+on a release/* or release-prep/* branch, so what a selection leaves out is still run within a
 day. The change is everything between the base and the working tree:
 committed since the base, staged, unstaged and untracked.
 
@@ -37,7 +37,8 @@ A test translation unit (a tests/unit/**.cpp) is reached when:
 The whole suite runs instead (a "valve") when any of these hold, because a
 dependency file cannot say what such a change reaches:
 
-  - HELIX_GATE_FULL=1, or the branch is release/*;
+  - HELIX_GATE_FULL=1, or the branch is release/* or release-prep/* (the
+    release procedure's own branch);
   - more than MAX_CHANGED paths changed;
   - the build system or a submodule changed: Makefile, mk/, lv_conf.h, patches/,
     lib/, .gitmodules, or a build step whose output the test link compiles
@@ -136,7 +137,7 @@ STAGE_TRIGGERS = {
 # tests/python reads scripts/ and the repo data the scripts process. A change
 # to C++ source alone runs only the files that read C++ source.
 PYTHON_ALL = (
-    'scripts/', 'tests/python/', 'tests/fixtures/', 'config/', 'ui_xml/',
+    'scripts/', 'tests/python/', 'tests/fixtures/', 'config/', 'ui_xml/', '.github/workflows/',
     'translations/', 'assets/', 'firmware/', 'requirements.txt', 'lib/lvgl',
     'docs/images/doc-screenshots.yml',
 )
@@ -153,8 +154,6 @@ STAGES = ('app-build', 'ci-shards', 'slow', 'bats', 'ui', 'plugin', 'python',
           'theme-tokens', 'xml-schema', 'lint-xml', 'lvgl-event-codes', 'esp32',
           'no-mocks', 'quality')
 
-# The quality gates a docs-only change runs.
-DOC_QC_GATES = 'qc_doc_refs qc_doc_anchors qc_doc_images'
 
 
 def git(root, *args, check=True):
@@ -209,7 +208,7 @@ def forced_full(root):
     if os.environ.get('HELIX_GATE_FULL') == '1':
         return 'HELIX_GATE_FULL=1'
     branch = git(root, 'symbolic-ref', '--quiet', '--short', 'HEAD', check=False).strip()
-    if branch.startswith('release/'):
+    if branch.startswith(('release/', 'release-prep/')):
         return f'the branch is {branch}'
     return None
 
@@ -620,7 +619,9 @@ def plan(root, changed):
         elif s == 'bats':
             rows.append((s, 'select', 'tooling files whose paths changed, product files the change reaches', ''))
         elif s == 'python':
-            hit = next((c for c in code if matches(c, PYTHON_ALL)), None)
+            # PYTHON_ALL names a data file under docs/ (the screenshot manifest),
+            # so it matches every changed path but a Markdown page.
+            hit = next((c for c in changed if matches(c, PYTHON_ALL) and not c.endswith('.md')), None)
             if hit:
                 rows.append((s, 'run', f'{hit} changed', ''))
             elif any(c.startswith(('src/', 'include/')) for c in code):
@@ -639,7 +640,7 @@ def plan(root, changed):
                 rows.append((s, 'skip', 'nothing it reads changed', ''))
         elif s == 'quality':
             if mode == 'docs':
-                rows.append((s, 'select', 'docs-only change: the doc gates alone', DOC_QC_GATES))
+                rows.append((s, 'select', 'docs-only change: the gates whose triggers match it', 'triggered'))
             else:
                 rows.append((s, 'run', 'every change', ''))
         elif mode == 'docs':

@@ -168,7 +168,7 @@ change can reach: the C++ cases whose dependency files reach a changed file, in 
 layout, the bats, python and plugin steps whose inputs changed, the `tests/ui` files whose
 screens the change reaches (a new ui test with screens of its own adds a `UI_TRIGGERS` row
 in `scripts/gate_select.py`), and the quality
-sweep; a docs-only change runs the doc gates alone. It prints the plan before it starts,
+sweep; a docs-only change runs only the quality gates its paths wake. It prints the plan before it starts,
 each skipped step's row says why, and `HELIX_GATE_FULL=1` runs everything (the release gate
 does). The whole suites run nightly and on every push to main, which catch what a selection
 misses. The rule and its safety valves: `scripts/gate_select.py`'s header, and

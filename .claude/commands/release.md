@@ -169,7 +169,7 @@ HELIX_GATE_FULL=1 make land-gate
 
 Run it in the release worktree. `HELIX_GATE_FULL=1` turns off the gate's test selection
 (a landing runs only what its change can reach), so a release gate runs every step and
-every test, as it does on a `release/*` branch without it. It is the local mirror of CI: the unit sweep, the sweep
+every test, as it does on a `release/*` or `release-prep/*` branch without it. It is the local mirror of CI: the unit sweep, the sweep
 again in CI's 8-shard layout, the bats suite, CI's `tests/ui` pytest slice (headless) and
 the moonraker plugin tests, and the generated-artefact checks: the theme token table
 (`check-theme-tokens`), the XML linter schema against a regeneration (`check-xml-schema`),

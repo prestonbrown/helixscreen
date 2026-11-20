@@ -64,15 +64,23 @@
 #           dependency files reach it (mk/tests.mk select_cases); bats runs
 #           with BATS_GATE=1; python runs the files that read C++ source;
 #           ui runs its smoke files and the ones the change reaches;
-#           quality runs the doc gates alone for a docs-only change
+#           quality runs the gates a docs-only change's paths wake
 #   full    every C++ case (or bats file): a safety valve fired
 #   skip    nothing the step reads changed. Its row reads SKIP with the
 #           reason and counts as a pass
 #
-# HELIX_GATE_FULL=1 runs everything, and so does a gate on a release/* branch;
+# HELIX_GATE_FULL=1 runs everything, and so does a gate on a release/* or
+# release-prep/* branch;
 # the release procedure sets it. The full suites also run nightly and on every
 # push to main, which catch what a selection leaves out. A step a failed
 # app-build keeps from running reads BLOCKED and fails the gate.
+#
+# Each row keeps the plan it was judged under (<step>.plan beside it). A rerun
+# refuses a step whose new plan is narrower than its row's, or selects other
+# tests, so a selected PASS never replaces a full run's FAIL; a commit whose rows
+# come from a full and a selected gate is never stamped. A selected gate's
+# history row reads PASS(sel) or FAIL(sel), and each narrowed step <STATUS>(sel),
+# so its times stay apart from full gates' in the ETA and in audits.
 #
 # After app-build, ui, plugin, no-mocks and (with a test-host C++ run) quality
 # run side by side. patches/ is applied before any lane starts, so nothing a
@@ -166,12 +174,32 @@ step() {
         *) status=FAIL ;;
     esac
     printf '%s %s %s\n' "$status" $((SECONDS - t0)) "$log" >"$ROWS_DIR/$name"
+    plan_record "$name"
     echo "[$(date +%H:%M:%S)] $name: $status in $((SECONDS - t0))s"
     [ "$status" = PASS ]
 }
 
 # blocked <step> <why>: a step that could not run because one it needs failed.
-blocked() { printf 'BLOCKED - %s\n' "$2" >"$ROWS_DIR/$1"; }
+blocked() { printf 'BLOCKED - %s\n' "$2" >"$ROWS_DIR/$1"; plan_record "$1"; }
+
+# plan_record <step>: beside its row, the plan the row was judged under:
+# "<width> <selection> <gate mode>". width is full (the whole step), select or
+# skip; selection hashes what a select ran on (its argument and the change);
+# the gate mode is full or selected. A rerun may replace a row only under a plan
+# at least as wide, and a commit whose rows came from different gate modes is
+# never stamped.
+plan_record() {
+    local v sel=-
+    case "$(planned "$1")" in
+        skip) v=skip ;;
+        select) v=select
+                sel=$({ planned "$1" 4; cat "$CHANGED_LIST" 2>/dev/null; } | cksum | cut -d' ' -f1) ;;
+        *) v=full ;;
+    esac
+    printf '%s %s %s\n' "$v" "$sel" "$(gate_mode)" >"$ROWS_DIR/$1.plan"
+}
+plan_width() { case "$1" in skip) echo 0 ;; select) echo 1 ;; *) echo 2 ;; esac; }
+gate_mode() { if [ "$(plan_mode)" = full ]; then echo full; else echo selected; fi; }
 
 # planned <step> [field]: the plan's verdict for the step (field 2), its reason
 # (3) or its argument (4). A step the plan does not name runs.
@@ -186,6 +214,7 @@ plan_mode() { awk -F'\t' '$1 == "# mode" { print $2; exit }' "$PLAN" 2>/dev/null
 # unreached <step>: the plan skips it; its row says why and counts as a pass.
 unreached() {
     printf 'SKIP - not reached: %s\n' "$(planned "$1" 3)" >"$ROWS_DIR/$1"
+    plan_record "$1"
     echo "[$(date +%H:%M:%S)] $1: SKIP ($(planned "$1" 3))"
 }
 
@@ -359,7 +388,8 @@ run_step() {
         esp32) step esp32 bash "$SELF" --esp32-check ;;
         no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
         quality)
-            [ "$(planned quality)" != select ] || sel=("HELIX_QC_ONLY=$(planned quality 4)")
+            # A docs-only change: the gates whose triggers its paths match.
+            [ "$(planned quality)" != select ] || sel=("HELIX_QC_CHANGED_FROM=$(cd "$(dirname "$CHANGED_LIST")" && pwd)/$(basename "$CHANGED_LIST")")
             step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 HELIX_QC_SKIP_PYTHON_TESTS=1 "${sel[@]}" "${mk[@]}" quality ;;
         *) echo "✗ unknown step '$1'" >&2; return 2 ;;
     esac
@@ -620,20 +650,54 @@ print_table() {
 # stamp_if_complete: called once every step of judged_sha's results is a PASS;
 # records the commit for pre-push while the tree still holds exactly it.
 stamp_if_complete() {
+    if ! plans_agree "$RESULTS_DIR/$judged_sha"; then
+        land_gate_stamp_remove "$judged_sha"
+        echo "✗ $judged's rows were recorded under different plans (a full and a selected gate), so nothing is stamped"
+        echo "  run the whole gate once on this commit: $(full_prefix)make land-gate"
+        return 1
+    fi
     if still_judged && land_gate_stamp_write "$judged_sha"; then
         echo "  recorded: pushing $judged skips pre-push's quality sweep"
     fi
 }
+
+# plans_agree <results dir>: every step has a plan record, all from one gate mode.
+plans_agree() {
+    local s modes=""
+    for s in $STEPS; do
+        [ -f "$1/$s.plan" ] || return 1
+        modes+="$(cut -d' ' -f3 "$1/$s.plan")"$'\n'
+    done
+    [ "$(printf '%s' "$modes" | sort -u | grep -c .)" -eq 1 ]
+}
+
+# full_prefix: HELIX_GATE_FULL=1 when this run had it, for a command it prints.
+full_prefix() { [ "${HELIX_GATE_FULL:-}" != 1 ] || printf 'HELIX_GATE_FULL=1 '; }
 
 # results_red: judged_sha's results have a step that is not a PASS, so any
 # stamp it holds no longer agrees with them.
 results_red() {
     land_gate_stamp_remove "$judged_sha"
     echo "LAND GATE: FAIL ($judged)"
-    echo "  complete it on this commit by rerunning the steps still to pass: make land-gate STAGES=${unpassed#,}"
+    echo "  complete it on this commit by rerunning the steps still to pass: $(full_prefix)make land-gate STAGES=${unpassed#,}"
 }
 
 if [ -n "$RERUN" ]; then
+    # A rerun replaces rows; a plan narrower than the one a row was judged
+    # under would turn a full run's FAIL into a selected PASS.
+    for s in $RERUN; do
+        rec="$RESULTS_DIR/$judged_sha/$s.plan"
+        if [ -f "$rec" ]; then read -r rw rsel _ <"$rec"; else rw=full rsel=-; fi
+        plan_record "$s"
+        read -r nw nsel _ <"$ROWS_DIR/$s.plan"
+        rm -f "$ROWS_DIR/$s.plan"
+        if [ "$(plan_width "$nw")" -lt "$(plan_width "$rw")" ] ||
+            { [ "$nw" = select ] && [ "$rw" = select ] && [ "$nsel" != "$rsel" ]; }; then
+            echo "✗ --rerun $s: this run's plan ($nw) is narrower than the $rw run that recorded its row" >&2
+            [ "$rw" != full ] || echo "  rerun it as wide: HELIX_GATE_FULL=1 make land-gate STAGES=${RERUN# }" >&2
+            exit 2
+        fi
+    done
     echo "→ rerunning$RERUN on $judged, one after another (logs: $LAND_GATE_LOGDIR)"
     for s in $STEPS; do
         reruns "$s" || continue
@@ -660,17 +724,23 @@ if [ -n "$RERUN" ]; then
         results_red
         exit 1
     fi
+    if ! stamp_if_complete; then
+        echo "LAND GATE: FAIL ($judged)"
+        exit 1
+    fi
     echo "LAND GATE: PASS ($judged)"
-    stamp_if_complete
     exit 0
 fi
 # The expected wall time: the median and the longest of the last ten gates
-# whose C++ sweeps ran in the same place.
+# whose C++ sweeps ran in the same place, full gates for a full one and
+# selected gates (a verdict marked (sel)) for a selected one.
 gate_eta() {
-    local secs
-    secs=$(awk -v w="$SWEEP_WHERE" '$4 == w { print $2 }' "$LAND_GATE_HISTORY" 2>/dev/null | tail -n 10 | sort -n)
+    local secs narrow=0
+    [ "$(gate_mode)" = full ] || narrow=1
+    secs=$(awk -v w="$SWEEP_WHERE" -v sel="$narrow" '$4 == w && (($3 ~ /\(sel\)$/) == sel) { print $2 }' \
+        "$LAND_GATE_HISTORY" 2>/dev/null | tail -n 10 | sort -n)
     if [ -z "$secs" ]; then
-        echo "→ no measured land-gate time yet for $SWEEP_WHERE sweeps; this run will record one"
+        echo "→ no measured land-gate time yet for $(gate_mode) gates with $SWEEP_WHERE sweeps; this run will record one"
         return
     fi
     local n median longest
@@ -734,13 +804,18 @@ for s in $STEPS; do
     else
         status=FAIL secs=-
     fi
+    # A narrowed step's time is not a full step's: the ETA and the audits
+    # read (sel) apart.
+    [ "$(planned "$s")" != select ] || status+="(sel)"
     history_steps+=" $s=$status:$secs"
 done
 history_sha=${judged_sha:--}
 [[ "$judged" != *+dirty ]] || history_sha+="+dirty"
 history_base=$(branch_base 2>/dev/null) || history_base=-
 if mkdir -p "$(dirname "$LAND_GATE_HISTORY")" 2>/dev/null; then
-    echo "$(date +%s) $((SECONDS - gate_t0)) $verdict $SWEEP_WHERE $history_sha $history_base$history_steps" >>"$LAND_GATE_HISTORY"
+    history_verdict=$verdict
+    [ "$(gate_mode)" = full ] || history_verdict+="(sel)"
+    echo "$(date +%s) $((SECONDS - gate_t0)) $history_verdict $SWEEP_WHERE $history_sha $history_base$history_steps" >>"$LAND_GATE_HISTORY"
 fi
 # This run's verdicts replace the commit's results when they name it. Results
 # untouched for 30 days are pruned, as stamps are.

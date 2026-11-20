@@ -30,7 +30,7 @@ export FAKE_MAKE_DEPTH=$((${FAKE_MAKE_DEPTH:-0} + 1))
 t=app; vars=""
 for a in "$@"; do case "$a" in -*) ;; *=*) vars="$vars $a" ;; *) t=$a ;; esac; done
 echo "make $t$vars" >> "$CALLS"
-[ "$t" != quality ] || echo "qc-only: ${HELIX_QC_ONLY:-all}" >> "$CALLS"
+[ "$t" != quality ] || [ -n "${HELIX_QC_CHANGED_FROM:-}" ] || echo "qc-only: all" >> "$CALLS"
 [ "$t" != quality ] || [ -z "${HELIX_QC_CHANGED_FROM:-}" ] || echo "qc-changed: $HELIX_QC_CHANGED_FROM" >> "$CALLS"
 echo "output of $t"
 eval "rc=\${RC_$(echo "$t" | tr - _):-0}"
@@ -70,7 +70,7 @@ row() { # <status> <step>: the table row for step has that status
     done
     row PASS quality
     row PASS bats
-    grep -qx "qc-only: qc_doc_refs qc_doc_anchors qc_doc_images" "$CALLS"
+    grep -q "^qc-changed: " "$CALLS"
     refute_grep "^make app$" "$CALLS"
     refute_grep "unit-sweep" "$CALLS"
     contains "→ plan: docs" "$output"
@@ -641,10 +641,36 @@ gate_clone() {
             'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
     }
     [ "$(hash_with "$list")" != "$(hash_with "")" ] || fail "a partial sweep shares the full sweep's stamp"
+    echo ui_xml/home_panel.xml >"$BATS_TEST_TMPDIR/other"
+    [ "$(hash_with "$list")" != "$(hash_with "$BATS_TEST_TMPDIR/other")" ] || fail "two partial sweeps share a stamp"
 }
 
 @test "plan: python runs for the doc-screenshot manifest and for the workflows its tests read" {
     [[ "$(plan_of python docs/images/doc-screenshots.yml)" == run* ]] || fail "manifest"
     [[ "$(plan_of python .github/workflows/ci-watch.yml)" == run* ]] || fail "workflows"
     [[ "$(plan_of python docs/devel/TESTING.md)" == skip* ]]
+}
+
+@test "a rerun whose selection differs from the one its row ran refuses" {
+    local repo
+    repo=$(gate_clone)
+    export LAND_GATE_LOGDIR="$repo/build/land-gate"
+    change src/a.cpp
+    cd "$repo"
+    RC_unit_sweep=1 run ./scripts/land-gate.sh
+    [ "$status" -ne 0 ]
+    change src/b.cpp
+    run ./scripts/land-gate.sh --rerun ci-shards
+    [ "$status" -ne 0 ] || fail "a different selection replaced the row: $output"
+    contains "narrower than the select run" "$output"
+}
+
+@test "a selected gate's ETA comes from selected gates only" {
+    change src/ui/tour/tour_steps.cpp
+    printf '%s 600 PASS local x y\n' 1 2 3 >"$LAND_GATE_HISTORY"
+    run "$GATE"
+    contains "no measured land-gate time yet for selected gates with local sweeps" "$output"
+    printf '%s 90 PASS(sel) local x y\n' 1 2 3 >"$LAND_GATE_HISTORY"
+    run "$GATE"
+    contains "expect ~2m (median of the last 3)" "$output"
 }
