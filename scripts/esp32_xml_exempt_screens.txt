@@ -23,9 +23,11 @@ components/camera_fullscreen.xml
 components/panel_widget_camera.xml
 components/panel_widget_gcode_console.xml
 components/panel_widget_toolhead.xml
+components/printer_type_row.xml
 components/spaghetti_detection_modal.xml
 components/timelapse_macro_card.xml
 components/upgrade_banner.xml
+components/vendor_tile.xml
 console_panel.xml
 console_settings_overlay.xml
 crash_report_modal.xml
