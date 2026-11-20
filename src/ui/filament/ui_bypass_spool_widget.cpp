@@ -121,15 +121,15 @@ int32_t bypass_spool_box_size(int32_t spool_size) {
     return spool_size + kBoxPad * 2;
 }
 
-BypassSpoolSpot bypass_spool_spot(int32_t lane_spool, int32_t min_spool,
-                                  const BypassSpoolRoom& room,
-                                  const std::function<int32_t(int32_t top)>& unit_right) {
+BypassSpoolSpot
+bypass_spool_spot(int32_t lane_spool, int32_t min_spool, const BypassSpoolRoom& room,
+                  const std::function<int32_t(int32_t top, int32_t bottom)>& unit_right) {
     for (int32_t spool = lane_spool; spool > min_spool; --spool) {
         const int32_t box = bypass_spool_box_size(spool);
         const int32_t label_top = room.box_bottom - box - bypass_spool_label_room();
         if (label_top < room.top)
             continue;
-        const int32_t unit = unit_right(label_top);
+        const int32_t unit = unit_right(label_top, room.box_bottom - 1);
         const int32_t clear_left = unit == INT32_MIN ? INT32_MIN / 2 : unit + room.gap;
         if (room.right - clear_left < box)
             continue;
@@ -169,10 +169,14 @@ BypassSpoolSpot bypass_spool_better(const BypassSpoolSpot& beside, const BypassS
     return below;
 }
 
+int32_t bypass_spool_card_bottom_on(int32_t merge_y) {
+    return merge_y - kTubeDrop;
+}
+
 namespace {
 /// The top of a spool box @p box_size tall standing on the merge line at @p cy.
 int32_t box_top_on(int32_t cy, int32_t box_size) {
-    return cy - kTubeDrop - box_size;
+    return bypass_spool_card_bottom_on(cy) - box_size;
 }
 } // namespace
 

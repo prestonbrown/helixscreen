@@ -124,7 +124,7 @@ struct BypassSpoolSpot {
 struct BypassSpoolRoom {
     int32_t home_cx = 0;    ///< The card's centre where nothing moves it
     int32_t right = 0;      ///< The card's right edge stands no further right
-    int32_t box_bottom = 0; ///< The card's bottom edge, over its merge line
+    int32_t box_bottom = 0; ///< Just under the card (bypass_spool_card_bottom_on())
     int32_t top = 0;        ///< The card's material label rises no higher
     int32_t gap = 0;        ///< Kept between the card and the unit
 };
@@ -132,12 +132,12 @@ struct BypassSpoolRoom {
 /// The bypass spool beside a drawn unit is drawn as large as the unit's own spools
 /// (@p lane_spool), never smaller than @p min_spool, the size it has everywhere else. It grows
 /// only while its card, with its material label above it, fits @p room right of the unit:
-/// @p unit_right(top) is the rightmost x the unit covers from row @p top down to the card's
-/// bottom (INT32_MIN where it covers none). Its centre stays at the room's home unless the card
+/// @p unit_right(top, bottom) is the rightmost x the unit covers in rows @p top to @p bottom
+/// (INT32_MIN where it covers none). Its centre stays at the room's home unless the card
 /// must move right to clear the unit; when no larger card fits, it keeps @p min_spool at home.
 [[nodiscard]] BypassSpoolSpot
 bypass_spool_spot(int32_t lane_spool, int32_t min_spool, const BypassSpoolRoom& room,
-                  const std::function<int32_t(int32_t top)>& unit_right);
+                  const std::function<int32_t(int32_t top, int32_t bottom)>& unit_right);
 
 /// The room right of the hub and below a drawn unit, in one set of coordinates.
 struct BypassSpoolBelowRoom {
@@ -207,6 +207,9 @@ int32_t bypass_spool_bottom_above_merge();
 
 /// The room the material label takes above the spool's card.
 int32_t bypass_spool_label_room();
+
+/// Just under the card of a spool standing on the merge line at @p merge_y: its bottom edge.
+int32_t bypass_spool_card_bottom_on(int32_t merge_y);
 
 /// What the overlay among @p parent's children covers on screen: its spool box, and its material
 /// label where that shows. False where @p parent holds no overlay or its box is hidden.

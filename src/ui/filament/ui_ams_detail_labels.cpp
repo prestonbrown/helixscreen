@@ -1155,11 +1155,13 @@ helix::ui::BypassSpoolSpot bypass_spot_for_unit(lv_obj_t* canvas,
     helix::ui::BypassSpoolRoom beside;
     beside.home_cx = home_x;
     beside.right = right;
-    beside.box_bottom = merge_y - helix::ui::bypass_spool_bottom_above_merge();
+    beside.box_bottom = helix::ui::bypass_spool_card_bottom_on(merge_y);
     beside.gap = gap;
     beside.top = bypass_room_top(canvas);
-    const helix::ui::BypassSpoolSpot by = helix::ui::bypass_spool_spot(
-        lane, token, beside, [&](int32_t top) { return unit.right_in(top, beside.box_bottom); });
+    const helix::ui::BypassSpoolSpot by =
+        helix::ui::bypass_spool_spot(lane, token, beside, [&](int32_t top, int32_t bottom) {
+            return unit.right_in(top, bottom);
+        });
     if (by.spool >= lane)
         return by;
 

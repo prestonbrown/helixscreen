@@ -135,8 +135,17 @@ TEST_CASE("bypass spool beside a drawn unit takes the unit's spool size as far a
     room.box_bottom = 500;
     room.top = 0;
     room.gap = 8;
-    const auto clear = [](int32_t) { return INT32_MIN; };
+    const auto clear = [](int32_t, int32_t) { return INT32_MIN; };
 
+    SECTION("an outline row just above the card's bottom edge pushes it right") {
+        // The unit reaches x=480 in one row only, two above the card's bottom.
+        const int32_t row = room.box_bottom - 2;
+        const auto unit = [row](int32_t top, int32_t bottom) {
+            return top <= row && row <= bottom ? 480 : INT32_MIN;
+        };
+        const auto spot = bypass_spool_spot(120, kMin, room, unit);
+        CHECK(spot.cx - spot.box / 2 >= 480 + room.gap);
+    }
     SECTION("with nothing beside it, it is the unit's spool size at its own spot") {
         const auto spot = bypass_spool_spot(120, kMin, room, clear);
         CHECK(spot.spool == 120);
@@ -149,14 +158,14 @@ TEST_CASE("bypass spool beside a drawn unit takes the unit's spool size as far a
         CHECK(spot.cx == 400);
     }
     SECTION("it moves right to clear the unit, as far as the room's right edge") {
-        const auto unit = [](int32_t) { return 380; };
+        const auto unit = [](int32_t, int32_t) { return 380; };
         const auto spot = bypass_spool_spot(120, kMin, room, unit);
         CHECK(spot.spool == 120);
         CHECK(spot.cx - spot.box / 2 >= 380 + room.gap);
         CHECK(spot.cx + (spot.box - spot.box / 2) <= room.right);
     }
     SECTION("with too little room right of the unit it is the largest card that fits") {
-        const auto unit = [](int32_t) { return 500; };
+        const auto unit = [](int32_t, int32_t) { return 500; };
         const auto spot = bypass_spool_spot(120, kMin, room, unit);
         CHECK(spot.box == room.right - (500 + room.gap));
         CHECK(spot.cx == room.right - (spot.box - spot.box / 2));
@@ -164,7 +173,7 @@ TEST_CASE("bypass spool beside a drawn unit takes the unit's spool size as far a
     SECTION("only the unit's rows from the card's label down count") {
         // The unit reaches far right only above y=300: a card whose label stays below it is
         // free of it, so the spool is as large as keeps the label under y=300.
-        const auto unit = [](int32_t top) { return top < 300 ? 590 : 200; };
+        const auto unit = [](int32_t top, int32_t) { return top < 300 ? 590 : 200; };
         const auto spot = bypass_spool_spot(400, kMin, room, unit);
         CHECK(room.box_bottom - spot.box - bypass_spool_label_room() >= 300);
         CHECK(room.box_bottom - bypass_spool_box_size(spot.spool + 1) - bypass_spool_label_room() <
@@ -177,7 +186,7 @@ TEST_CASE("bypass spool beside a drawn unit takes the unit's spool size as far a
         CHECK(spot.spool > kMin);
     }
     SECTION("when no card larger than the lane size fits, it keeps that size at its own spot") {
-        const auto unit = [](int32_t) { return 590; };
+        const auto unit = [](int32_t, int32_t) { return 590; };
         const auto spot = bypass_spool_spot(120, kMin, room, unit);
         CHECK(spot.spool == kMin);
         CHECK(spot.box == bypass_spool_box_size(kMin));
@@ -253,4 +262,23 @@ TEST_CASE("bypass spool takes the lower spot only when it is larger than the one
         const BypassSpoolSpot big_beside{110, 118, 450, 0, false};
         CHECK_FALSE(bypass_spool_better(big_beside, below, 117).side_entry);
     }
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "bypass spool's card bottom over its merge line is where it stands",
+                 "[ams][bypass][spool_widget]") {
+    BypassSpoolWidgets w = bypass_spool_create(lv_screen_active(), nullptr, nullptr);
+    REQUIRE(w.valid());
+    helix::ui::bypass_spool_set_size(w, helix::ui::ams_slot_spool_size() + 30);
+    helix::ui::bypass_spool_set_position(w, 200, 300);
+    lv_obj_update_layout(w.box);
+    lv_area_t box;
+    lv_obj_get_coords(w.box, &box);
+    CHECK(box.y2 + 1 == helix::ui::bypass_spool_card_bottom_on(300));
+    // The card reaches below its spool by its padding: the spool's bottom is not the card's.
+    lv_area_t spool;
+    lv_obj_get_coords(w.spool_canvas, &spool);
+    CHECK(helix::ui::bypass_spool_card_bottom_on(300) > spool.y2 + 1);
+    CHECK(spool.y2 + 1 == 300 - helix::ui::bypass_spool_bottom_above_merge());
+    helix::ui::bypass_spool_destroy(w);
 }
