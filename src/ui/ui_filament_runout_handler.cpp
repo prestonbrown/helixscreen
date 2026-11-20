@@ -266,6 +266,10 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         // Just hide the modal - no action needed
     });
 
+    // The pause waits on the user; a sleeping screen or a screensaver would hide it.
+    if (wake_) {
+        wake_();
+    }
     if (!runout_modal_.show(lv_screen_active())) {
         spdlog::error("[FilamentRunoutHandler] Failed to create runout guidance modal");
         return;
