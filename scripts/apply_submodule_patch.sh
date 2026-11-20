@@ -51,7 +51,36 @@ note=${4:-}
 # lib/lvgl ...` would then answer with the superproject's repository instead
 # of the submodule's. Scrub them so every question below is answered by the
 # submodule the -C path names (mirrors GIT_NOENV in mk/patches.mk).
+#
+# A packager's copy of the submodule is often not a repository of its own:
+# Buildroot's tarball keeps the .git gitfile but not the .git/modules it
+# points at (git refuses such a directory outright), and a plain copy may sit
+# inside an unrelated repository, where git apply judges paths against that
+# repository's root and skips the patch's files. Either way the patch is
+# judged against the files alone, through an empty repository whose work tree
+# is the submodule.
+submodule_is_own_repo() {
+  local top here
+  top=$(env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+    git -C "$submodule" rev-parse --show-toplevel 2>/dev/null) || return 1
+  here=$(cd "$submodule" && pwd -P) || return 1
+  [ "$(cd "$top" && pwd -P)" = "$here" ]
+}
+
+standalone_git_dir=
+if ! submodule_is_own_repo; then
+  standalone_git_dir=$(mktemp -d "${TMPDIR:-/tmp}/helix-patch-git.XXXXXX") || exit 1
+  trap 'rm -rf "$standalone_git_dir"' EXIT
+  git init -q --bare "$standalone_git_dir" || exit 1
+fi
+
 git_submodule() {
+  if [ -n "$standalone_git_dir" ]; then
+    env -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+      GIT_DIR="$standalone_git_dir" GIT_WORK_TREE="$submodule" \
+      git -C "$submodule" "$@"
+    return
+  fi
   env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
     git -C "$submodule" "$@"
 }

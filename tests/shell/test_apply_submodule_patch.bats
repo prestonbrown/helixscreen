@@ -80,6 +80,36 @@ EOF
     [ "$(git -C "$SUB" diff -- one.txt | grep -c '^+ALPHA$')" -eq 1 ]
 }
 
+# Buildroot's git download keeps each submodule's .git gitfile but not the
+# superproject's .git/modules it points at, and git refuses to run in such a
+# directory at all.
+@test "a submodule whose .git file points nowhere is still patched" {
+    rm -rf "$SUB/.git"
+    printf 'gitdir: ../../.git/modules/fake\n' > "$SUB/.git"
+    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    grep -q '^ALPHA$' "$SUB/one.txt"
+
+    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch already applied' <<<"$output"
+    [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
+}
+
+# A packager's copy with no .git at all can sit inside some other repository
+# (a Buildroot output dir inside the firmware's own checkout). git apply run
+# from a subdirectory of that repository skips every path outside it, so the
+# patch must not be judged by the enclosing repository.
+@test "a plain source tree inside another repository is patched in place" {
+    rm -rf "$SUB/.git"
+    git -C "$ROOT" init -q
+    run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    grep -q '^ALPHA$' "$SUB/one.txt"
+}
+
 @test "a dead patch warns but does not fail an incremental run" {
     run "$HELPER" "$SUB" "$ROOT/patches/dead.patch" "fixture patch"
     [ "$status" -eq 0 ]
