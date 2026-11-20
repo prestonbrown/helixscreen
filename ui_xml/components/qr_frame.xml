@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Holds one QR code, which C++ creates into it at a size measured from the
+       dialog (helix::ui::create_qr_code). Content-sized with no padding or
+       border, so the frame is exactly the code's square. A modal that shows a
+       code declares <slot name="qr" target="qr_frame"/> and places
+       <qr_frame name="qr_frame"/>; C++ reaches it with
+       lv_xml_component_get_slot(dialog, "qr"). -->
+  <view extends="lv_obj" width="content" height="content" style_pad_all="0" style_border_width="0"/>
+</component>
