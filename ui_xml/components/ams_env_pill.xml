@@ -41,18 +41,19 @@
     <lv_obj width="content"
             height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
             style_pad_gap="#space_xxs" scrollable="false" clickable="false" event_bubble="true">
-      <icon src="thermometer" size="xs" variant="secondary" clickable="false" event_bubble="true">
+      <icon src="thermometer" size="sm" variant="secondary" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="$drying_active" flag="hidden" ref_value="0"/>
       </icon>
-      <icon src="heat_wave" size="xs" variant="warning" clickable="false" event_bubble="true" hidden="true">
+      <icon src="heat_wave" size="sm" variant="warning" clickable="false" event_bubble="true" hidden="true">
         <bind_flag_if_eq subject="$drying_active" flag="hidden" ref_value="0"/>
       </icon>
-      <text_xs bind_text="$temp_text" clickable="false" event_bubble="true">
+      <text_small bind_text="$temp_text" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="$drying_active" flag="hidden" ref_value="0"/>
-      </text_xs>
-      <text_xs bind_text="$drying_text" style_text_color="#warning" clickable="false" event_bubble="true" hidden="true">
+      </text_small>
+      <text_small bind_text="$drying_text"
+                  style_text_color="#warning" clickable="false" event_bubble="true" hidden="true">
         <bind_flag_if_eq subject="$drying_active" flag="hidden" ref_value="0"/>
-      </text_xs>
+      </text_small>
     </lv_obj>
 
     <!-- Humidity, color-coded by the material comfort range -->
@@ -60,17 +61,18 @@
             height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
             style_pad_gap="#space_xxs" scrollable="false" clickable="false" event_bubble="true" hidden="true">
       <bind_flag_if_not_eq subject="$humidity_visible" flag="hidden" ref_value="1"/>
-      <humidity_drop name="env_humidity_drop" bind_value="$humidity" size="xs" clickable="false" event_bubble="true"/>
-      <text_xs bind_text="$humidity_text" clickable="false" event_bubble="true" hidden="true">
+      <humidity_drop name="env_humidity_drop" bind_value="$humidity" size="sm" clickable="false" event_bubble="true"/>
+      <text_small bind_text="$humidity_text" clickable="false" event_bubble="true" hidden="true">
         <bind_flag_if_not_eq subject="$humidity_status" flag="hidden" ref_value="0"/>
-      </text_xs>
-      <text_xs bind_text="$humidity_text"
-               style_text_color="#warning" clickable="false" event_bubble="true" hidden="true">
+      </text_small>
+      <text_small bind_text="$humidity_text"
+                  style_text_color="#warning" clickable="false" event_bubble="true" hidden="true">
         <bind_flag_if_not_eq subject="$humidity_status" flag="hidden" ref_value="1"/>
-      </text_xs>
-      <text_xs bind_text="$humidity_text" style_text_color="#danger" clickable="false" event_bubble="true" hidden="true">
+      </text_small>
+      <text_small bind_text="$humidity_text"
+                  style_text_color="#danger" clickable="false" event_bubble="true" hidden="true">
         <bind_flag_if_not_eq subject="$humidity_status" flag="hidden" ref_value="2"/>
-      </text_xs>
+      </text_small>
     </lv_obj>
   </view>
 </component>
