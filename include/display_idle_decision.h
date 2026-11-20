@@ -238,4 +238,35 @@ inline bool host_sleep_needs_wake(bool sleeping_via_host, int resume_seq_at_slee
     return sleeping_via_host && resume_seq_now != resume_seq_at_sleep;
 }
 
+/// What losing the touch pointer asks of the idle state.
+struct PointerLossResponse {
+    /// Wake the display, which powers the panel back on.
+    bool wake = false;
+    /// Sleep without panel power-off for the rest of this session.
+    bool stop_power_off = false;
+};
+
+/**
+ * @brief React to LVGL deleting the touch pointer (prestonbrown/helixscreen#2069). Pure.
+ *
+ * A panel whose touch controller is powered from the panel board drops off the
+ * bus when the panel is powered down, and comes back only when it is powered
+ * on. Touch is then the one wake path that cannot work, so a pointer lost while
+ * asleep under panel power-off wakes the display to let the device return.
+ * Under automatic power-off the panel then sleeps another way for the rest of
+ * the session, or every sleep would end the same way. A power-off the user
+ * chose through /display/panel_power_off stays.
+ *
+ * @param sleeping           The display is asleep
+ * @param mechanism          How the current (or last) sleep cut the panel
+ * @param power_off_explicit /display/panel_power_off is set, not automatic
+ */
+inline PointerLossResponse decide_pointer_loss(bool sleeping, SleepMechanism mechanism,
+                                               bool power_off_explicit) {
+    if (!sleeping || mechanism != SleepMechanism::PanelPowerOff) {
+        return {};
+    }
+    return {true, !power_off_explicit};
+}
+
 } // namespace helix
