@@ -489,6 +489,15 @@ class UpdateChecker {
     UpdateChannel get_channel() const;
 
     /**
+     * @brief The channel followed for stored /update/channel @p stored
+     *
+     * Dev needs beta features (@p beta_features) and is Stable without them; an unknown
+     * value is Stable. The installer's helix_effective_channel applies the same rule,
+     * and tests/fixtures/update_channel_mapping.tsv pins both.
+     */
+    static UpdateChannel effective_channel(int stored, bool beta_features);
+
+    /**
      * @brief Human-readable name for a channel ("stable", "beta", "dev").
      *
      * Single source of truth for the enum→string map so log lines and the debug
@@ -772,6 +781,15 @@ class UpdateChecker {
     /// sync_moonraker_channel() with this install's directory supplied; the stanza's
     /// `path:` must resolve to it.
     void sync_moonraker_channel_for(const std::string& install_root);
+    /// Run sync_moonraker_channel_for(@p install_root) again once no job holds the
+    /// machine. Main thread only; one pending run at a time.
+    void defer_moonraker_sync_until_job_ends(const std::string& install_root);
+    /// Watches the print lifecycle while a sync waits for a job to end.
+    ObserverGuard moonraker_sync_after_job_;
+    /// The install root the last channel sync was for, which a deferred run reuses.
+    std::string moonraker_sync_root_;
+    /// A switched stanza is on disk but a job held Moonraker's restart off.
+    bool moonraker_restart_owed_ = false;
     /// on_channel_changed() short of the moonraker.conf sync.
     void recheck_for_channel();
 

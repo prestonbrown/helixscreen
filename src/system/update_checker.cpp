@@ -39,6 +39,7 @@
 #include "log_redact.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_config_manager.h"
+#include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
@@ -3238,10 +3239,38 @@ bool same_directory(const std::string& a, const std::string& b) {
 
 } // namespace
 
+void UpdateChecker::defer_moonraker_sync_until_job_ends(const std::string& install_root) {
+    moonraker_sync_root_ = install_root;
+    if (moonraker_sync_after_job_)
+        return;
+    spdlog::info("[UpdateChecker] A job holds the machine; HelixScreen's Moonraker update entry "
+                 "is synced when it ends");
+    auto& print = get_printer_state().print_state();
+    moonraker_sync_after_job_ = helix::ui::observe_print_lifecycle(
+        print.get_print_lifecycle_subject(), this,
+        [](UpdateChecker* self, PrintState state) {
+            if (job_holds_machine(state))
+                return;
+            // Not from inside the observer that is being dropped.
+            self->async_lifetime_.token().defer(
+                "UpdateChecker::sync_moonraker_after_job", [self]() {
+                    if (!self->moonraker_sync_after_job_)
+                        return;
+                    self->moonraker_sync_after_job_.reset();
+                    spdlog::info("[UpdateChecker] The job ended; "
+                                 "syncing the Moonraker update "
+                                 "entry");
+                    self->sync_moonraker_channel_for(self->moonraker_sync_root_);
+                });
+        },
+        print.get_static_subjects_lifetime());
+}
+
 void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) {
     IMoonrakerAPI* api = get_moonraker_api();
     if (!api)
         return;
+    moonraker_sync_root_ = install_root;
 
     // The stanza belongs to whichever HelixScreen the installer put on that machine.
     // A remote screen, or a second instance on another channel, would otherwise
@@ -3252,6 +3281,14 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
         !helix::is_moonraker_on_same_host(host)) {
         spdlog::debug("[UpdateChecker] Moonraker is not on this host; leaving its update "
                       "channel alone");
+        return;
+    }
+
+    // Switching the entry needs a Moonraker restart, which drops Klipper's API
+    // clients: nothing is written while a job holds the machine, and the sync
+    // runs again when it ends.
+    if (job_holds_machine(get_printer_state().print_state().get_print_lifecycle())) {
+        defer_moonraker_sync_until_job_ends(install_root);
         return;
     }
 
@@ -3315,16 +3352,20 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
             }
             const std::string held = MoonrakerConfigManager::set_existing_value(
                 live, kHelixStanza, "channel", kStanzaChannel);
-            std::string updated;
+            std::string updated = content; // already switched off on beta or dev
             if (want_listed) {
                 updated = held;
             } else if (listed) {
                 updated = MoonrakerConfigManager::switch_section_off(held, kHelixStanza);
-            } else {
-                return; // already switched off
             }
-            if (updated == content)
+            if (updated == content) {
+                // A restart a job held off is still owed for the file as it stands.
+                tok.defer("UpdateChecker::sync_moonraker_channel_owed", [this, api, gen]() {
+                    if (gen == moonraker_sync_generation_.load() && moonraker_restart_owed_)
+                        restart_moonraker_for_channel(*api, gen);
+                });
                 return;
+            }
             const std::string want = want_listed ? "listed" : "switched off";
             tok.defer("UpdateChecker::sync_moonraker_channel", [this, tok, api, want, gen, file,
                                                                 updated]() {
@@ -3361,14 +3402,14 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
 }
 
 void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t gen) {
-    // Restarting Moonraker drops Klipper's API clients mid-job. The file is already
-    // written, so Moonraker's next start picks the channel up either way. Checked
-    // again after the status round-trip, during which a print can start.
-    auto job_blocks_restart = []() {
+    // Restarting Moonraker drops Klipper's API clients mid-job. Checked again after
+    // the status round-trip, during which a print can start; the restart is then
+    // owed, and the sync that runs when the job ends makes it.
+    auto job_blocks_restart = [this]() {
         if (!job_holds_machine(get_printer_state().print_state().get_print_lifecycle()))
             return false;
-        spdlog::info("[UpdateChecker] Update channel takes effect at Moonraker's next restart "
-                     "(a job holds the machine)");
+        moonraker_restart_owed_ = true;
+        defer_moonraker_sync_until_job_ends(moonraker_sync_root_);
         return true;
     };
     if (job_blocks_restart())
@@ -3393,6 +3434,7 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
                 }
                 // The app's websocket drops with it and reconnects on its own; that
                 // rediscovery syncs again, finds the stanza matching, and stops.
+                moonraker_restart_owed_ = false;
                 EmergencyStopOverlay::instance().suppress_recovery_dialog(
                     recovery_suppression::LONG);
                 api_ptr->restart_moonraker(
@@ -3415,10 +3457,7 @@ void UpdateChecker::restart_moonraker_for_channel(IMoonrakerAPI& api, uint64_t g
         0, /*silent=*/true);
 }
 
-UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
-    auto* config = Config::get_instance();
-    int channel = config->get<int>("/update/channel", 0);
-
+UpdateChecker::UpdateChannel UpdateChecker::effective_channel(int stored, bool beta_features) {
     // /update/channel persists independently of /beta_features. Stable and Beta
     // are both offered on a stock install (settings_updates_overlay.xml), so only
     // Dev is gated here: it fetches from the arbitrary dev_url in the
@@ -3427,19 +3466,24 @@ UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
     // Fall back to Stable, not to the Beta neighbour, since Beta is a choice the
     // user never made. Clamp the EFFECTIVE channel rather than rewriting the
     // stored value, so re-unlocking beta restores the channel the user picked.
-    if (channel == static_cast<int>(UpdateChannel::Dev) && !config->is_beta_features_enabled()) {
-        spdlog::info("[UpdateChecker] Dev channel needs beta features (disabled) — using stable");
-        return UpdateChannel::Stable;
-    }
-
-    switch (channel) {
+    switch (stored) {
     case 1:
         return UpdateChannel::Beta;
     case 2:
-        return UpdateChannel::Dev;
+        return beta_features ? UpdateChannel::Dev : UpdateChannel::Stable;
     default:
         return UpdateChannel::Stable;
     }
+}
+
+UpdateChecker::UpdateChannel UpdateChecker::get_channel() const {
+    auto* config = Config::get_instance();
+    const int channel = config->get<int>("/update/channel", 0);
+    const bool beta_features = config->is_beta_features_enabled();
+    if (channel == static_cast<int>(UpdateChannel::Dev) && !beta_features) {
+        spdlog::info("[UpdateChecker] Dev channel needs beta features (disabled) — using stable");
+    }
+    return effective_channel(channel, beta_features);
 }
 
 const char* UpdateChecker::channel_name(UpdateChannel channel) {
@@ -3607,6 +3651,9 @@ void UpdateChecker::on_connected(helix::IMoonrakerClient& client) {
 
 void UpdateChecker::detach(helix::IMoonrakerClient& client) {
     ++moonraker_sync_generation_;
+    // A sync waiting on this printer's job, or a restart it owed, ends with it.
+    moonraker_sync_after_job_.reset();
+    moonraker_restart_owed_ = false;
     client.unregister_method_callback(kUpdateResponseMethod, kExternalUpdateHandler);
 }
 

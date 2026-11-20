@@ -335,9 +335,13 @@ update_manager_listed() {
 }
 
 # A switched-off stanza: every line of [update_manager helixscreen], from its
-# header to its last option line, behind a "#~ " prefix. Blank and comment
-# lines after that belong to whatever follows and stay as they are, as does
-# the comment block above the header. Moonraker and the web UIs ignore it; it
+# header to its last option line, behind a "#~ " prefix, then the line
+# "#~ # end [update_manager helixscreen]". Blank and comment lines after the
+# last option belong to whatever follows and stay as they are, as does the
+# comment block above the header. Only a block that opens with the exact
+# "#~ [update_manager helixscreen]" header, carries the exact prefix on every
+# line and closes with that end line is switched back on or removed, so a
+# user's own commented-out lines never are. Moonraker and the web UIs ignore it; it
 # keeps the file and the exact text, so the app switches it back on in place
 # when its channel returns to stable (UpdateChecker::sync_moonraker_channel_for,
 # the same transform in C++). tests/fixtures/moonraker_stanza/ pins both sides.
@@ -349,7 +353,11 @@ update_manager_off_awk() {
     function flush(   i, last) {
         last = 0
         for (i = 1; i <= n; i++) if (buf[i] !~ /^[ \t\r]*$/ && buf[i] !~ /^[ \t]*[#;]/) last = i
-        for (i = 1; i <= n; i++) print (i <= last ? "#~ " buf[i] : buf[i])
+        for (i = 1; i <= n; i++) {
+            if (i <= last) print "#~ " buf[i]
+            if (i == last) print "#~ # end [update_manager helixscreen]"
+            if (i > last) print buf[i]
+        }
         n = 0
     }
     in_s && /^\[/ { flush(); in_s = 0 }
@@ -363,15 +371,22 @@ update_manager_off_awk() {
 update_manager_on_awk() {
     # shellcheck disable=SC2016  # awk's own $ fields
     printf '%s' '
-    /^#~ \[update_manager helixscreen\]/ { on = 1 }
-    on && /^#~( |$)/ { sub(/^#~ ?/, ""); print; next }
-    { on = 0; print }'
+    function flush(   i) { for (i = 1; i <= n; i++) print buf[i]; n = 0; in_b = 0 }
+    in_b && $0 == "#~ # end [update_manager helixscreen]" {
+        for (i = 1; i <= n; i++) print substr(buf[i], 4)
+        n = 0; in_b = 0; next
+    }
+    in_b && /^#~ / && !/^#~ \[/ { buf[++n] = $0; next }
+    in_b { flush() }
+    /^#~ \[update_manager helixscreen\][ \t\r]*$/ { in_b = 1; buf[++n] = $0; next }
+    { print }
+    END { flush() }'
 }
 
 # Each file among moonraker.conf @1 and its includes holding a switched-off
 # stanza, mod-owned files left out: the ones the installer may switch back on.
 update_manager_off_stanza_files() {
-    helix_conf_files_matching "$1" "$(running_moonraker_root)" '^#~ \[update_manager helixscreen\]' |
+    helix_conf_files_matching "$1" "$(running_moonraker_root)" '^#~ \[update_manager helixscreen\][[:space:]]*$' |
         while IFS= read -r _umos_file; do
             host_path_is_mod_owned "$_umos_file" || printf '%s\n' "$_umos_file"
         done
@@ -1476,13 +1491,14 @@ _remove_update_manager_section_from() {
     # so it is matched before the comment buffering, and its "#~" lines after.
     local prog='
         skip_off {
-            if ($0 ~ /^#~( |$)/) next
+            if ($0 == "#~ # end [update_manager helixscreen]") { skip_off = 0; next }
+            if ($0 ~ /^#~ /) next
             skip_off = 0
         }
         skip {
             if ($0 ~ /^\[/) { skip = 0 } else { next }
         }
-        /^#~ \[update_manager helixscreen\]/ {
+        /^#~ \[update_manager helixscreen\][ \t\r]*$/ {
             i = n
             while (i >= 1 && buf[i] ~ /^[[:space:]]*#/) i--
             if (i >= 1 && buf[i] ~ /^[[:space:]]*$/) i--
