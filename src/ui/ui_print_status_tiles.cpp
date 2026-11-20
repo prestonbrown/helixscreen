@@ -212,6 +212,8 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         [](PrintStatusTiles* self, const char*) { self->request_update(); },
         tools.get_subjects_lifetime());
     const SubjectLifetime ps = printer_state_.get_subjects_lifetime();
+    print_active_observer_ =
+        observe<int>(printer_state_.print_state().get_print_active_subject(), this, update, ps);
     nozzle_power_observer_ =
         observe<int>(printer_state_.get_heater_power_subject(HeaterType::Nozzle), this, update, ps);
     bed_power_observer_ =
@@ -251,6 +253,7 @@ void PrintStatusTiles::deinit() {
     nozzle_power_observer_.reset();
     bed_power_observer_.reset();
     chamber_power_observer_.reset();
+    print_active_observer_.reset();
     image_observers_.clear();
     subjects_ready_ = false;
 }
@@ -387,9 +390,12 @@ std::array<ChipContent, kPrintStatusChipCount> PrintStatusTiles::decide_chips(bo
         light_chip(subject_int_or_zero(
                        helix::led::LedController::instance().get_led_controllable_subject()) != 0,
                    helix::home_light_buttons_lit());
-    out[index_of(PrintStatusChip::SpeedFlow)] =
-        speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
-                        host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
+    // Speed and flow say nothing while no job runs.
+    if (subject_int_or_zero(printer_state_.print_state().get_print_active_subject()) != 0) {
+        out[index_of(PrintStatusChip::SpeedFlow)] =
+            speed_flow_chip(host_.speed_pct ? host_.speed_pct() : 100,
+                            host_.flow_pct ? host_.flow_pct() : 100, host_.speed_text());
+    }
     return out;
 }
 

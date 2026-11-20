@@ -226,6 +226,7 @@ class PrintStatusTiles {
     ObserverGuard nozzle_power_observer_;
     ObserverGuard bed_power_observer_;
     ObserverGuard chamber_power_observer_;
+    ObserverGuard print_active_observer_; ///< the speed/flow chip shows only while a job runs
 };
 
 } // namespace helix::ui

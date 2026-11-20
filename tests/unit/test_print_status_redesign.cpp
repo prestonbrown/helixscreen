@@ -392,9 +392,14 @@ TEST_CASE_METHOD(Landscape800, "chips lay out again when the printer tile resize
     CHECK(tiles().layout_count() > before);
 }
 
-TEST_CASE_METHOD(Landscape800, "speed 104 sets speed_flow tone Warn", "[print_status]") {
+TEST_CASE_METHOD(Landscape800, "the speed_flow chip shows only during a job, Warn at speed 104",
+                 "[print_status]") {
     set_int(state().motion_state().get_speed_factor_subject(), 100);
     settle();
+    CHECK(subject_int("ps_chip_speed_flow_shown") == 0);
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    settle();
+    REQUIRE(subject_int("ps_chip_speed_flow_shown") == 1);
     REQUIRE(subject_int("ps_chip_speed_flow_tone") == static_cast<int>(ChipTone::Normal));
 
     set_int(state().motion_state().get_speed_factor_subject(), 104);
@@ -421,6 +426,7 @@ void fans_part_spinning_aux_stopped(TileFixture& fx) {
 
 TEST_CASE_METHOD(Portrait272, "the smallest tile keeps the unusual chips and dims a stopped fan",
                  "[print_status]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     fans_part_spinning_aux_stopped(*this);
 
     // Which expendable chip a tight tile drops first is the engine's rule
@@ -743,6 +749,7 @@ TEST_CASE_METHOD(Portrait320, "a narrow strip stacks progress over a full row of
 }
 
 TEST_CASE_METHOD(Landscape800, "a tuned speed turns the speed/flow chip amber", "[print_status]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     set_int(state().motion_state().get_speed_factor_subject(), 104);
     settle();
     REQUIRE(subject_int("ps_chip_speed_flow_tone") == static_cast<int>(ChipTone::Warn));
@@ -825,6 +832,7 @@ void check_chips_inside_and_apart(lv_obj_t* root) {
 
 TEST_CASE_METHOD(Landscape800, "the two-line speed/flow chip lays out at its own height",
                  "[print_status]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     settle();
     lv_obj_update_layout(root_);
     lv_obj_t* speed = lv_obj_find_by_name(root_, "ps_chip_speed_flow");
@@ -984,6 +992,7 @@ TEST_CASE_METHOD(Landscape800, "a fan spinning up mid-print does not change the 
 }
 
 TEST_CASE_METHOD(Landscape800, "a tuned speed does not change the mode", "[print_status]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     size_printer_area(root_, 200, 280);
     three_fans_stopped(*this);
     set_int(state().motion_state().get_speed_factor_subject(), 100);

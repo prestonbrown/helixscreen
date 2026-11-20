@@ -42,6 +42,7 @@ TEST_CASE_METHOD(PrintStatusPanelFixture,
 TEST_CASE_METHOD(PrintStatusPanelFixture,
                  "Print status: speed chip shows the live toolhead speed and volumetric flow",
                  "[print_status][progress_text]") {
+    state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     state().update_from_status({{"motion_report", {{"live_velocity", 187.4}}}});
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(50); // the chip update is coalesced onto a timer
