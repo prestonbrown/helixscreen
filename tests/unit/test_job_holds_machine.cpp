@@ -675,6 +675,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/setting_form_input.xml",
     "ui_xml/setting_form_macro_field.xml",
     "ui_xml/setting_macro_card.xml",
+    "ui_xml/setting_row.xml",
     "ui_xml/setting_section_header.xml",
     "ui_xml/setting_slider_row.xml",
     "ui_xml/setting_state_row.xml",
