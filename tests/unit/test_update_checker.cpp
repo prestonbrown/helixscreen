@@ -3322,6 +3322,8 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
 
     ChannelSyncFixture() {
         api.on_restart = [this] { load_entries(); };
+        // A printer of its own: nothing restarted or logged for an earlier one.
+        UpdateChecker::instance().detach(client);
         get_printer_state().init_subjects(false);
         api.set_http_base_url("http://127.0.0.1:7125");
         set_moonraker_api(&api);
@@ -3786,6 +3788,41 @@ TEST_CASE_METHOD(ChannelSyncFixture,
     drain();
     CHECK(api.xfers_.uploads == 0);
     CHECK(api.restarts == 1);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync never restarts Moonraker for a stanza another copy decides",
+                 "[update_checker][moonraker_channel][2147]") {
+    // Another file Moonraker reads defines the stanza too (a firmware mod's conf, a
+    // second include): switching this one off cannot unlist HelixScreen.
+    const std::string root = "[update_manager helixscreen]\ntype: web\nchannel: beta\n"
+                             "path: /home/pi/helixscreen\n\n[include extra.conf]\n";
+    seed_files({{"moonraker.conf", root}, {"extra.conf", conf("stable")}});
+    client.set_update_manager_entries({{"helixscreen", "beta"}});
+    set_app_channel(1, true);
+
+    for (int round = 0; round < 3; ++round) {
+        start_sync();
+        drain();
+    }
+    CHECK(api.xfers_.get_uploaded_config("extra.conf") == off("stable"));
+    CHECK(api.restarts == 0);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync restarts Moonraker once for a file state a restart did not fix",
+                 "[update_checker][moonraker_channel][2147]") {
+    seed(off("stable"));
+    client.set_update_manager_entries({{"helixscreen", "stable"}});
+    api.on_restart = nullptr; // Moonraker comes back still listing it
+    set_app_channel(1, true);
+
+    for (int round = 0; round < 3; ++round) {
+        start_sync();
+        drain();
+    }
+    CHECK(api.restarts == 1);
+    CHECK(api.xfers_.uploads == 0);
 }
 
 TEST_CASE_METHOD(ChannelSyncFixture,
