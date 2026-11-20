@@ -8,6 +8,7 @@
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
+#include "helix/xml/indexed_subject_pool.h"
 #include "overlay_base.h"
 #include "print_history_data.h"
 #include "print_history_manager.h"
@@ -147,10 +148,20 @@ class HistoryDashboardPanel : public OverlayBase {
     lv_chart_series_t* trend_series_ = nullptr;
 
     helix::ui::WidgetRef filament_chart_container_;
-    // Filament bar rows stored for cleanup/refresh
-    std::vector<helix::ui::WeakWidget> filament_bar_rows_;
+    /// The Filament by Type rows (history_filament_row.xml), one slot per row:
+    /// material, amount, bar colour and width, and whether the row shows.
+    helix::xml::IndexedSubjectPool fil_type_pool_{"history_fil_type",
+                                                  helix::xml::IndexedSubjectPool::Type::String, 32};
+    helix::xml::IndexedSubjectPool fil_amount_pool_{
+        "history_fil_amount", helix::xml::IndexedSubjectPool::Type::String, 32};
+    helix::xml::IndexedSubjectPool fil_color_pool_{"history_fil_color",
+                                                   helix::xml::IndexedSubjectPool::Type::Color};
+    helix::xml::IndexedSubjectPool fil_bar_w_pool_{"history_fil_bar_w",
+                                                   helix::xml::IndexedSubjectPool::Type::Int};
+    helix::xml::IndexedSubjectPool fil_shown_pool_{"history_fil_shown",
+                                                   helix::xml::IndexedSubjectPool::Type::Int};
 
-    /// Drops the chart series, bar rows and connection observer with the tree.
+    /// Drops the chart series and connection observer with the tree.
     void on_ui_destroyed() override;
 
     //

@@ -38,18 +38,13 @@ using helix::ui::find_required;
 
 namespace {
 
-/// Filament-by-type bar row: share of the row width taken by each element.
-///
-/// These must sum to less than 100 so the row cannot overflow its card at any
-/// width — the three inter-element gaps and the right-aligning spacer live in
-/// the remainder. They replaced fixed pixel widths (50px type, 60px amount) that
-/// needed 207px on the 170px card this chart gets at 480x272, which clipped the
-/// amount label (prestonbrown/helixscreen#1204).
-constexpr int kFilamentRowTypePct = 22;
+/// The top materials the chart has room for.
+constexpr size_t kFilamentRowCount = 4;
+/// The bar's largest share of a Filament by Type row. history_filament_row.xml
+/// gives the material 22% and the amount 36%: the three sum under 100%, so the
+/// gaps and the right-aligning spacer fit at any card width (a 170px card at
+/// 480x272 included), and the amount never spills past the edge.
 constexpr int kFilamentRowBarMaxPct = 30;
-constexpr int kFilamentRowAmountPct = 36;
-static_assert(kFilamentRowTypePct + kFilamentRowBarMaxPct + kFilamentRowAmountPct < 100,
-              "filament bar row shares must leave room for gaps and the spacer");
 
 } // namespace
 
@@ -77,6 +72,11 @@ void HistoryDashboardPanel::init_subjects() {
     // Initialize subject for empty state visibility binding
     // 0 = no history (show empty state), 1 = has history (show stats grid)
     UI_MANAGED_SUBJECT_INT(history_has_jobs_subject_, 0, "history_has_jobs", subjects_);
+    // The four Filament by Type rows are static XML bound to these
+    for (auto* pool : {&fil_type_pool_, &fil_amount_pool_, &fil_color_pool_, &fil_bar_w_pool_,
+                       &fil_shown_pool_}) {
+        pool->ensure_size(kFilamentRowCount);
+    }
 
     // Boolean subjects for filter button state binding (L040: two bind_styles pattern)
     // Default to ALL_TIME (only "all" button is active)
@@ -196,7 +196,6 @@ lv_obj_t* HistoryDashboardPanel::create(lv_obj_t* parent) {
 
 void HistoryDashboardPanel::on_ui_destroyed() {
     trend_series_ = nullptr;
-    filament_bar_rows_.clear();
     connection_observer_.reset();
 }
 
@@ -686,11 +685,10 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         return;
     }
 
-    // Clear existing bar rows
-    for (auto& row : filament_bar_rows_) {
-        helix::ui::safe_delete(row);
+    // Rows past the materials this history has stay hidden
+    for (size_t i = 0; i < kFilamentRowCount; ++i) {
+        fil_shown_pool_.set_int(i, 0);
     }
-    filament_bar_rows_.clear();
 
     // Aggregate filament by type
     std::map<std::string, double> filament_by_type;
@@ -726,8 +724,8 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
     helix::sort_small(sorted_types.begin(), sorted_types.end(),
                       [](const auto& a, const auto& b) { return a.second > b.second; });
 
-    if (sorted_types.size() > 4) {
-        sorted_types.resize(4);
+    if (sorted_types.size() > kFilamentRowCount) {
+        sorted_types.resize(kFilamentRowCount);
     }
 
     // Find max for proportional bar widths
@@ -768,93 +766,22 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         return lv_color_hsv_to_rgb(new_hue, sat, val);
     };
 
-    // Get theme color for text labels
-    lv_color_t text = theme_manager_get_color("text");
-
-    // Create labeled bar rows
-    for (const auto& [type, amount] : sorted_types) {
-        // Calculate bar width as percentage of max (leaving room for label and amount)
+    for (size_t row = 0; row < sorted_types.size(); ++row) {
+        const auto& [type, amount] = sorted_types[row];
+        // Bar width as a share of the heaviest material, never invisible
         int bar_pct = static_cast<int>((amount / max_filament) * 100);
         if (bar_pct < 5)
-            bar_pct = 5; // Minimum visible width
-
-        lv_obj_t* row = lv_obj_create(filament_chart_container_);
-        lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
-        lv_obj_set_style_bg_opa(row, LV_OPA_0, 0);
-        lv_obj_set_style_border_width(row, 0, 0);
-        lv_obj_set_style_pad_all(row, 0, 0);
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-        lv_obj_set_style_pad_gap(row, theme_manager_get_spacing("space_xxs"), 0);
-        lv_obj_set_scrollable(row, false);
-        filament_bar_rows_.emplace_back(row);
-
-        // Use readable font size (small but legible)
-        const lv_font_t* font_small = lv_xml_get_font(nullptr, "montserrat_14");
-        if (!font_small) {
-            font_small = lv_xml_get_font(nullptr, "montserrat_12");
-        }
-
-        // Type label.
-        //
-        // Proportional, not a fixed pixel width: fixed widths of 50px (type) +
-        // up to 50% (bar) + 60px (amount) + 12px of gaps need 207px on the
-        // 170px-wide card this chart gets at 480x272, pushing the amount label
-        // past the card edge where it renders clipped ("10" showing as "1(").
-        // Percentages that sum under 100 cannot overflow at any card width; the
-        // three shares below total 88%, leaving the gaps and the spacer room.
-        lv_obj_t* type_label = lv_label_create(row);
-        lv_label_set_text(type_label, type.c_str());
-        lv_obj_set_width(type_label, LV_PCT(kFilamentRowTypePct));
-        lv_obj_set_style_text_color(type_label, text, 0);
-        if (font_small) {
-            lv_obj_set_style_text_font(type_label, font_small, 0);
-        }
-
-        // Get line height from font to match text size
-        int32_t line_height = font_small ? lv_font_get_line_height(font_small) : 16;
-
-        // Colored bar - width proportional to value (max kFilamentRowBarMaxPct
-        // of the row). Using percentage width ensures bars are proportional across
-        // all rows.
+            bar_pct = 5;
         int bar_width_pct = (bar_pct * kFilamentRowBarMaxPct) / 100;
         if (bar_width_pct < 3)
-            bar_width_pct = 3; // Minimum visibility
+            bar_width_pct = 3;
 
-        lv_obj_t* bar = lv_obj_create(row);
-        lv_obj_set_size(bar, LV_PCT(bar_width_pct), line_height);
-        lv_color_t bar_color = get_filament_color(type);
-        lv_obj_set_style_bg_color(bar, bar_color, 0);
-        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
-        lv_obj_set_style_radius(bar, 2, 0);
-        lv_obj_set_style_border_width(bar, 0, 0);
-        lv_obj_set_style_pad_all(bar, 0, 0);
-        lv_obj_set_scrollable(bar, false);
-
-        // Spacer to push amount to right edge (fills remaining space)
-        lv_obj_t* spacer = lv_obj_create(row);
-        lv_obj_set_height(spacer, 1);
-        lv_obj_set_flex_grow(spacer, 1);
-        lv_obj_set_style_bg_opa(spacer, LV_OPA_0, 0);
-        lv_obj_set_style_border_width(spacer, 0, 0);
-        lv_obj_set_style_pad_all(spacer, 0, 0);
-        lv_obj_set_scrollable(spacer, false);
-
-        // Amount label (fixed width, right-aligned text at row's right edge)
-        lv_obj_t* amount_label = lv_label_create(row);
-        std::string amount_str = format_filament(amount);
-        lv_label_set_text(amount_label, amount_str.c_str());
-        lv_obj_set_width(amount_label, LV_PCT(kFilamentRowAmountPct));
-        lv_obj_set_style_text_color(amount_label, text, 0);
-        lv_obj_set_style_text_align(amount_label, LV_TEXT_ALIGN_RIGHT, 0);
-        if (font_small) {
-            lv_obj_set_style_text_font(amount_label, font_small, 0);
-        }
-
-        spdlog::debug("[{}] Filament bar: {} = {} ({}%)", get_name(), type, amount_str, bar_pct);
+        fil_type_pool_.set_string(row, type);
+        fil_amount_pool_.set_string(row, format_filament(amount));
+        fil_color_pool_.set_color(row, lv_color_to_u32(get_filament_color(type)) & 0xFFFFFF);
+        fil_bar_w_pool_.set_int(row, lv_pct(bar_width_pct));
+        fil_shown_pool_.set_int(row, 1);
     }
-
-    spdlog::debug("[{}] Filament chart updated: {} types", get_name(), sorted_types.size());
 }
 
 void HistoryDashboardPanel::update_coverage_note(bool partial) {

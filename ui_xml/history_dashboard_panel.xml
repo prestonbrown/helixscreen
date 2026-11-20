@@ -101,7 +101,11 @@
           <lv_obj name="filament_chart_container"
                   width="100%" height="content" style_min_height="80" style_pad_all="0" flex_flow="column"
                   style_pad_gap="#space_xxs" scrollable="false">
-            <!-- Filament rows will be populated by C++ - each row has label + bar -->
+            <!-- The top four materials, heaviest first -->
+            <history_filament_row index="0"/>
+            <history_filament_row index="1"/>
+            <history_filament_row index="2"/>
+            <history_filament_row index="3"/>
           </lv_obj>
         </ui_card>
       </lv_obj>
