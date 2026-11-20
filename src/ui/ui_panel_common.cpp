@@ -166,9 +166,13 @@ lv_obj_t* create_xml_hidden(lv_obj_t* parent, const char* component, const char*
     return root;
 }
 
-lv_obj_t* create_xml_laid_out(lv_obj_t* parent, const char* component, const char** attrs) {
+lv_obj_t* create_xml_laid_out(lv_obj_t* parent, const char* component, const char** attrs,
+                              const std::function<void(lv_obj_t*)>& fill) {
     lv_obj_t* root = create_xml_hidden(parent, component, attrs);
     if (root) {
+        if (fill) {
+            fill(root);
+        }
         lv_obj_update_layout(root);
         lv_obj_set_hidden(root, false);
     }
