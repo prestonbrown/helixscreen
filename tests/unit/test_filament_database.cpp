@@ -3,6 +3,7 @@
 
 #include "ams_types.h"
 #include "filament_database.h"
+#include "filament_variants.h"
 
 #include <set>
 #include <string_view>
@@ -143,8 +144,29 @@ TEST_CASE("are_materials_compatible - same group PLA variants", "[filament][data
 
 TEST_CASE("are_materials_compatible - same group ABS and ASA", "[filament][database][compat]") {
     CHECK(are_materials_compatible("ABS", "ASA"));
-    CHECK(are_materials_compatible("ABS", "HIPS"));   // HIPS is in ABS_ASA group
     CHECK(are_materials_compatible("PC-ABS", "ASA")); // PC-ABS blend is ABS_ASA group
+}
+
+TEST_CASE("are_materials_compatible - a support material stands in only for itself",
+          "[filament][database][compat]") {
+    // HIPS shares ABS_ASA's group and PVA/BVOH share PLA's (for drying), but a
+    // support interface is never a substitute for the model material.
+    REQUIRE(std::string_view(get_compatibility_group("HIPS")) == "ABS_ASA");
+    REQUIRE(std::string_view(get_compatibility_group("PVA")) == "PLA");
+    CHECK_FALSE(are_materials_compatible("HIPS", "ASA"));
+    CHECK_FALSE(are_materials_compatible("ASA", "HIPS"));
+    CHECK_FALSE(are_materials_compatible("HIPS", "ABS"));
+    CHECK_FALSE(are_materials_compatible("PVA", "PLA"));
+    CHECK_FALSE(are_materials_compatible("PLA", "BVOH"));
+    CHECK_FALSE(are_materials_compatible("PVA", "BVOH"));
+    CHECK(are_materials_compatible("HIPS", "HIPS"));
+    CHECK(are_materials_compatible("hips", "HIPS"));
+    CHECK(are_materials_compatible("PVA", "PVA"));
+    CHECK(are_materials_compatible("ASA", "ABS"));
+    CHECK(are_materials_compatible("HIPS", "FooBar")); // unknown still blocks nothing
+    // The wrapper callers use, on vendor spellings.
+    CHECK_FALSE(filament::materials_compatible("HIPS", "ASA Basic"));
+    CHECK(filament::materials_compatible("HIPS", "HIPS"));
 }
 
 TEST_CASE("are_materials_compatible - different groups incompatible",

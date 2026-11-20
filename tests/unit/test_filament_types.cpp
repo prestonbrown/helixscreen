@@ -133,6 +133,22 @@ TEST_CASE_METHOD(TypesFixture, "a new type may name an existing compat group",
     CHECK(filament::are_materials_compatible("Tough PLA", "PLA"));
 }
 
+TEST_CASE_METHOD(TypesFixture,
+                 "a user type declaring the Support category stands in only for itself",
+                 "[filament][types][compat]") {
+    auto overlay = write("user.json", R"({"types": [
+        {"name": "PolyDissolve", "nozzle_min": 200, "nozzle_max": 220, "bed": 60,
+         "category": "Support", "compat_group": "PLA"},
+        {"name": "hips", "category": "Engineering"}
+    ]})");
+    filament::load_materials_from(kAsset, overlay);
+    CHECK_FALSE(filament::are_materials_compatible("PolyDissolve", "PLA"));
+    CHECK(filament::are_materials_compatible("PolyDissolve", "PolyDissolve"));
+    // The category is the user's to change: a HIPS they file as a model
+    // material groups with ABS and ASA again.
+    CHECK(filament::are_materials_compatible("HIPS", "ASA"));
+}
+
 TEST_CASE_METHOD(TypesFixture, "overlay type entries without a name are skipped",
                  "[filament][types]") {
     auto overlay = write("user.json", R"({"types": [{"bed": 90}, 7, {"name": ""}]})");

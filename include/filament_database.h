@@ -265,21 +265,30 @@ inline const char* get_compatibility_group(std::string_view material) {
 
 /**
  * @brief Check if two materials are compatible for endless spool
+ *
+ * Materials in one compatibility group stand in for each other, except a
+ * material whose category is "Support" (HIPS, PVA, BVOH, or a user type
+ * declaring it): a support interface stands in only for itself, though it
+ * shares a group with a model material for drying.
+ *
  * @param mat1 First material name
  * @param mat2 Second material name
- * @return true if materials are compatible (same group or either unknown)
+ * @return true if materials are compatible (see above, or either unknown)
  */
 inline bool are_materials_compatible(std::string_view mat1, std::string_view mat2) {
-    const char* group1 = get_compatibility_group(mat1);
-    const char* group2 = get_compatibility_group(mat2);
+    const auto m1 = find_material(mat1);
+    const auto m2 = find_material(mat2);
 
     // Unknown materials are compatible with anything
-    if (group1 == nullptr || group2 == nullptr) {
+    if (!m1 || !m2) {
         return true;
     }
 
-    // Same group = compatible
-    return std::string_view(group1) == std::string_view(group2);
+    constexpr std::string_view kSupportCategory = "Support";
+    if (m1->category == kSupportCategory || m2->category == kSupportCategory) {
+        return std::string_view(m1->name) == std::string_view(m2->name);
+    }
+    return std::string_view(m1->compat_group) == std::string_view(m2->compat_group);
 }
 
 /**
@@ -513,8 +522,8 @@ inline constexpr GroupHumidityRange kMaterialHumidityOverrides[] = {
     // tighter band than the PLA group they print alongside and are grouped with.
     {"PVA",            15.0f, 30.0f},
     {"BVOH",           15.0f, 30.0f},
-    // HIPS is styrenic and only mildly hygroscopic; it groups with ABS/ASA for
-    // endless-spool interchange (same chamber/bed regime), not for moisture.
+    // HIPS is styrenic and only mildly hygroscopic; it shares ABS/ASA's group
+    // for drying, and as a support material stands in for no other.
     {"HIPS",           40.0f, 55.0f},
 };
 // clang-format on
