@@ -688,30 +688,23 @@ add_observer(observe<int>(
 // <bind_flag_if_eq subject="tool_count" flag="hidden" ref_value="1"/>
 ```
 
-### Multi-Backend AMS Access
+### AMS Backend Access
 
 ```cpp
 #include "ams_state.h"
 
 auto& ams = AmsState::instance();
 
-// Number of filament system backends
-int count = ams.backend_count();
+// The printer's filament system, or nullptr when it has none
+AmsBackend* backend = ams.get_backend();
 
-// Access specific backend
-AmsBackend* primary = ams.get_backend(0);
-AmsBackend* secondary = ams.get_backend(1);
-
-// Per-backend slot subjects (for UI binding)
-lv_subject_t* color = ams.get_slot_color_subject(/*backend=*/1, /*slot=*/0);
-lv_subject_t* status = ams.get_slot_status_subject(/*backend=*/1, /*slot=*/0);
-
-// Switch active backend (updates all system-level subjects)
-ams.set_active_backend(1);
-
-// Observe backend count changes
-// <bind_flag_if_gt subject="backend_count" flag="hidden" ref_value="1"/>
+// Per-slot subjects; the token'd form hands out the lifetime observers must hold
+lv_subject_t* color = ams.get_slot_color_subject(/*slot=*/0);
+SubjectLifetime lt;
+lv_subject_t* status = ams.get_slot_status_subject(/*slot=*/0, lt);
 ```
+
+A printer has one filament system (FILAMENT_MANAGEMENT.md § "One Filament System per Printer").
 
 **Full docs:** [TOOL_ABSTRACTION.md](TOOL_ABSTRACTION.md), [MULTI_EXTRUDER_TEMPERATURE.md](MULTI_EXTRUDER_TEMPERATURE.md), [FILAMENT_MANAGEMENT.md](FILAMENT_MANAGEMENT.md)
 

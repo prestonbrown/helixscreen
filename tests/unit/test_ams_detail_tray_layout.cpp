@@ -138,7 +138,7 @@ class AmsTrayPanelFixture : public XMLTestFixture {
     /// carry none), and lay the tray out again around the name lines.
     void name_every_lane(int lanes, const char* brand) {
         for (int i = 0; i < lanes; ++i)
-            lv_subject_set_string(AmsState::instance().get_slot_name_subject(0, i), brand);
+            lv_subject_set_string(AmsState::instance().get_slot_name_subject(i), brand);
         panel_->refresh_slots();
         process_lvgl(20);
         lv_obj_update_layout(test_screen());
@@ -1093,7 +1093,7 @@ TEST_CASE_METHOD(AmsTrayPanelFixture, "AMS unit: names never move a drawn unit's
                  "[ams][tray][ui_integration][slot_name]") {
     build("passive");
     auto clear_name = [](int i) {
-        lv_subject_t* s = AmsState::instance().get_slot_name_subject(0, i);
+        lv_subject_t* s = AmsState::instance().get_slot_name_subject(i);
         REQUIRE(s != nullptr);
         lv_subject_set_string(s, "");
     };
@@ -1147,10 +1147,6 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     REQUIRE(arrows != nullptr);
     // With no backup the row has nothing to draw and gives its space back.
     CHECK(lv_obj_is_hidden(arrows));
-    // One backend leaves nothing to select between.
-    lv_obj_t* selector = lv_obj_find_by_name(panel_obj_, "backend_selector_row");
-    REQUIRE(selector != nullptr);
-    CHECK(lv_obj_is_hidden(selector));
 
     REQUIRE(backend->set_endless_spool_backup(kLanes - 2, kLanes - 1).success());
     AmsPanelTestAccess::update_endless_arrows(*panel_);

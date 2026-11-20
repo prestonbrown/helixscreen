@@ -10,7 +10,7 @@
  * 1. slot_card_name() / slot_card_lines(): the pure decision of what the card
  *    reads, with no LVGL.
  * 2. AmsState's per-slot name subject: written wherever the material subject is,
- *    for the primary and secondary backends, bounded on a UTF-8 boundary.
+ *    bounded on a UTF-8 boundary.
  * 3. The ams_slot widget: name_label over material_label, repainting from the
  *    subjects alone.
  */
@@ -251,7 +251,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: the slot name subject follows the
     REQUIRE(helix::test::apply_edit(*mock, 0, info).success());
     ams.sync_from_backend();
     CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0))) == "Polymaker");
-    CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(0, 0))) == "Polymaker");
 
     // A second PLA spool in the same lane: only the brand moves.
     const int version = lv_subject_get_int(ams.get_slots_version_subject());
@@ -276,38 +275,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a slot past the backend's count h
     CHECK(std::string(lv_subject_get_string(ams.get_slot_name_subject(5))).empty());
     CHECK(ams.get_slot_name_subject(AmsState::kMaxSlots) == nullptr);
     CHECK(ams.get_slot_name_subject(-1) == nullptr);
-
-    ams.clear_backends();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "AmsState: a secondary backend publishes its own slot names",
-                 "[ams][slot_name][state][multi_backend]") {
-    auto& ams = AmsState::instance();
-    ams.init_subjects(true);
-    ams.set_backend(std::make_unique<AmsBackendMock>(4));
-    auto owned = std::make_unique<AmsBackendMock>(4);
-    AmsBackendMock* sec_mock = owned.get();
-    const int second = ams.add_backend(std::move(owned));
-    REQUIRE(second == 1);
-
-    SlotInfo info = sec_mock->get_slot_info(1);
-    info.brand = "Prusament";
-    REQUIRE(helix::test::apply_edit(*sec_mock, 1, info).success());
-    ams.sync_backend(second);
-
-    SubjectLifetime lt;
-    lv_subject_t* sec_name = ams.get_slot_name_subject(second, 1, lt);
-    REQUIRE(sec_name != nullptr);
-    CHECK(lt != nullptr);
-    CHECK(std::string(lv_subject_get_string(sec_name)) == "Prusament");
-    CHECK(ams.get_slot_name_subject(second, 4, lt) == nullptr);
-
-    // A single-slot update reaches it too.
-    info = sec_mock->get_slot_info(1);
-    info.brand = "Sunlu";
-    REQUIRE(helix::test::apply_edit(*sec_mock, 1, info).success());
-    ams.update_slot_for_backend(second, 1);
-    CHECK(std::string(lv_subject_get_string(sec_name)) == "Sunlu");
 
     ams.clear_backends();
 }
@@ -508,38 +475,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: swapping two PLA spools repaints 
     CHECK(text_of(material_label(slot)) == "PLA");
 
     lv_obj_delete(slot);
-    ams.clear_backends();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: a secondary backend's slot shows its own name",
-                 "[ams][slot_name][ui][multi_backend]") {
-    ui_ams_slot_register();
-    auto& ams = AmsState::instance();
-    ams.init_subjects(true);
-    ams.set_backend(std::make_unique<AmsBackendMock>(4));
-    const int second = ams.add_backend(std::make_unique<AmsBackendMock>(4));
-    REQUIRE(second == 1);
-
-    seed_slot(0, "Primary Name", "PETG");
-    SubjectLifetime lt;
-    lv_subject_t* sec_name = ams.get_slot_name_subject(second, 0, lt);
-    REQUIRE(sec_name != nullptr);
-    lv_subject_set_string(sec_name, "Secondary Name");
-    lv_subject_set_string(ams.get_slot_material_subject(second, 0, lt), "PLA");
-    lv_subject_set_int(ams.get_slot_lane_state_subject(second, 0, lt),
-                       static_cast<int>(helix::ui::LaneState::Present));
-
-    ams.set_active_backend(second);
-    lv_obj_t* slot = create_ams_slot(test_screen(), 0);
-    REQUIRE(slot != nullptr);
-    CHECK(text_of(name_label(slot)) == "Secondary Name");
-
-    lv_subject_set_string(sec_name, "Secondary Renamed");
-    process_lvgl(50);
-    CHECK(text_of(name_label(slot)) == "Secondary Renamed");
-
-    lv_obj_delete(slot);
-    ams.set_active_backend(0);
     ams.clear_backends();
 }
 

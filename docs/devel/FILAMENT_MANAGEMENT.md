@@ -293,89 +293,47 @@ A new status field means a new optional in the parse struct, an overlay in the o
 
 ---
 
-## Multi-Backend Architecture
+## One Filament System per Printer
 
-Some printers have multiple filament management systems simultaneously (e.g., a tool changer where each toolhead has its own AFC unit). AmsState supports multiple concurrent backends via a `backends_` vector that replaces the former single `backend_` pointer.
+A printer gets exactly one filament backend. `PrinterDiscovery::register_detected_ams_systems()`
+(`src/printer/printer_discovery_parse.cpp#register_detected_ams_systems`) fills
+`detected_ams_systems_` with at most one `DetectedAmsSystem`, picked in this order:
 
-### Backend Storage
+1. A real MMU (`has_mmu_`: AFC, Happy Hare, OpenAMS, ACE, CFS, QIDI Box, AD5X IFS), even on a
+   Snapmaker U1 or a tool changer.
+2. The Snapmaker U1's own system.
+3. Bondtech INDX.
+4. A generic `lane_status` producer.
+5. A tool changer, or several hot ends with no filament system (one slot per tool).
 
-```cpp
-// AmsState private members
-std::vector<std::unique_ptr<AmsBackend>> backends_;       // All backends
-std::vector<BackendSlotSubjects> secondary_slot_subjects_; // Per-backend subjects (index 1+)
-```
+Machines that carry two kinds of hardware are modelled inside one backend, never as two:
 
-- **Primary backend (index 0)** uses the existing flat `slot_colors_[kMaxSlots]` and `slot_statuses_[kMaxSlots]` subject arrays. This preserves backward compatibility with all existing XML bindings and single-backend printers.
-- **Secondary backends (index 1+)** each get a `BackendSlotSubjects` struct with dynamically allocated `lv_subject_t` vectors:
+| Hardware | Backend |
+|---|---|
+| AFC over a tool changer (`AFC_Toolchanger` unit; Reforge on the Creator 5 Pro) | AFC: see [FILAMENT_BACKEND_TOOLCHANGER.md](FILAMENT_BACKEND_TOOLCHANGER.md) |
+| Snapmaker U1 with ACE Pro units (multiACE) | `AmsBackendMultiAce`, the Snapmaker backend with the units upstream ([FILAMENT_BACKEND_MULTIACE.md](FILAMENT_BACKEND_MULTIACE.md), #1426) |
+| Snapmaker U1 with Happy Hare or AFC | The MMU's backend (#779) |
+| OpenAMS beside several extruders or a tool changer | OpenAMS ([FILAMENT_BACKEND_OPENAMS.md](FILAMENT_BACKEND_OPENAMS.md)) |
 
-```cpp
-struct BackendSlotSubjects {
-    std::vector<lv_subject_t> colors;
-    std::vector<lv_subject_t> statuses;
-    std::vector<lv_subject_t> fills;  // int: fill percent 0-100, -1 = unknown
-    std::vector<lv_subject_t> lane_states; // int: helix::ui::LaneState
-    std::vector<lv_subject_t> has_errors;
-    std::vector<lv_subject_t> severities;  // int: SlotError::Severity
-    std::vector<lv_subject_t> materials;   // string: "PLA", "PETG", ... or ""
-    int slot_count = 0;
-    // Lifetime token shared by every subject in this struct: these subjects are
-    // DYNAMIC (destroyed in deinit() on backend rediscovery), so any observer
-    // bound to them MUST hold a copy of this token. deinit() invalidates it.
-    SubjectLifetime lifetime;
-    void init(int count);   // Allocate and init subjects
-    void deinit();          // Deinit subjects, invalidate lifetime
-};
-```
+`tests/unit/test_multi_backend_discovery.cpp` pins the rule.
 
-### Discovery of Multiple Systems
+### What that means for AmsState
 
-`PrinterDiscovery::parse_objects()` collects all detected AMS/filament systems into a `detected_ams_systems_` vector of `DetectedAmsSystem` structs:
+`AmsState` keeps its backends in `AmsBackendRegistry` (`registry_`), and
+`AmsState::init_backends_from_hardware()` creates one per detected system, so in practice
+`backend_count()` is 0 or 1 and backend 0 is the printer's filament system. Its slots publish
+through the flat per-slot subject arrays (`slot_colors_[kMaxSlots]`, `slot_statuses_[]`,
+`slot_fills_[]`, ...) that the XML binds as `ams_slot_<n>_*`. The token'd accessors
+(`get_slot_color_subject(slot, SubjectLifetime&)` and its siblings) return those same subjects
+with `get_subjects_lifetime()`, which dies in `deinit_subjects()`.
 
-```cpp
-struct DetectedAmsSystem {
-    AmsType type = AmsType::NONE;
-    std::string name;  // "Happy Hare", "AFC", "Tool Changer"
-};
-```
+Events still carry the index their backend was registered under: `add_backend()` captures it
+in the event callback, and `on_backend_event()` queues `sync_backend(index)` or
+`update_slot_for_backend(index, slot)`. Both act on backend 0 and ignore any other index, so a
+second registered backend reaches no subject. Code that loops over `backend_count()` (print
+start, the recovery modal, the printer chips, language refresh) stays correct for any count.
 
-A printer with both a tool changer and an AFC unit will have two entries. The `init_backends_from_hardware()` method iterates this list and creates a backend for each detected system.
-
-### Backend Selection
-
-Two new subjects track backend selection:
-
-| Subject | Type | Description |
-|---------|------|-------------|
-| `backend_count_` | int | Number of registered backends |
-| `active_backend_` | int | Index of the currently selected backend |
-
-The AMS panel UI shows a backend selector when `backend_count > 1`, allowing users to switch between systems. API:
-
-- `active_backend_index()` -- returns the currently selected backend index
-- `set_active_backend(int)` -- switches the active backend (bounds-checked)
-
-### Per-Backend Event Routing
-
-When backends are added via `add_backend()`, each backend's event callback captures its backend index at registration time:
-
-```
-Backend 0 emits STATE_CHANGED  -->  on_backend_event(0, "STATE_CHANGED", ...)
-Backend 1 emits SLOT_CHANGED   -->  on_backend_event(1, "SLOT_CHANGED", ...)
-```
-
-The `on_backend_event()` handler routes to `sync_backend(int)` or `update_slot_for_backend(int, int)` which update the correct set of subjects. All subject updates are posted via `ui_queue_update()` for thread safety.
-
-### Per-Backend Subject Access
-
-Two-argument overloads of `get_slot_color_subject()` and `get_slot_status_subject()` route to the correct subject storage:
-
-```cpp
-// Backend 0: flat arrays (backward compat)
-lv_subject_t* get_slot_color_subject(0, slot_index);  // -> slot_colors_[slot_index]
-
-// Backend 1+: per-backend storage
-lv_subject_t* get_slot_color_subject(1, slot_index);  // -> secondary_slot_subjects_[0].colors[slot_index]
-```
+The AMS panel has no backend selector: there is never a second system to pick.
 
 ### Tool-Backend Integration
 
@@ -390,7 +348,7 @@ struct ToolInfo {
 ```
 
 - `backend_index = -1` means the tool uses direct-drive filament (no AMS).
-- `backend_index >= 0` maps the tool to a specific AMS backend. For example, on a dual-toolhead printer where each head has its own AFC unit, T0 might map to backend 0 and T1 to backend 1.
+- `backend_index >= 0` maps the tool to a specific AMS backend; with one filament system per printer that is backend 0.
 - `backend_slot` pins the tool to a specific slot within that backend, or `-1` for dynamic slot selection (e.g., Happy Hare tool-to-gate mapping).
 
 `ToolState` and `AmsState` coordinate through `PrinterDiscovery`: tools are discovered from `tool T*` Klipper objects, and the mapping between tools and AMS backends is established during `init_backends_from_hardware()`.
@@ -1152,7 +1110,6 @@ Key features:
   (`TOOL_ABSTRACTION.md` § "Requesting a Tool Change from the UI"); a tube, spool, the
   mounted head or a head mapped to no tool opens the slot context menu
   (`FILAMENT_PATH_CANVAS.md` § "Cache & Invalidation" has the hit-test)
-- Backend selector (shown when `backend_count > 1`)
 - Unit scoping: can display a subset of slots for a single unit within a multi-unit backend
 
 #### The dry-box unit (`ams_detail_update_tray`)
@@ -1359,9 +1316,7 @@ Key files:
 
 **The one model**: every overview draws chains of `units -> hub -> buffer -> toolhead`. A hub joins the paths of every unit on it (units naming the same non-empty `AmsUnit::hub_id`; a unit with none is a hub of its own). A hub has at most one buffer (the FPS of an OpenAMS lane), and a buffer belongs to exactly one hub. `ams_draw::compute_system_tool_layout()` computes `SystemToolLayout::hub_groups` (each hub's units and toolhead). A hub is a combiner, so the overview draws a hub box only where two or more lines enter one toolhead and one leaves: a unit card stands for the merge of its own lanes, a line that is the only one into its toolhead has no box, and every line into a shared toolhead (any unit, any topology, a shared hub or several hubs of their own) meets in ONE box above it. `syspath::nozzle_feed()` makes that call for the plan and the canvas. With several toolheads the tube router (`include/tube_router.h`) lays every line out: a drop from its card, one diagonal jog at the steepest slope the height allows, and a drop into its nozzle or junction slot, in card order so no two lines cross or come within a haloed tube's width (a PARALLEL unit's lines jog as one ribbon). When the router cannot fit them, each line instead runs across at its own height, the heights chosen to the same rule. Cards scrolled off one side share one line per destination from that edge (the active unit's when it is among them), those lines a tube pitch apart under a "+N units" chip that counts the units past the edge; tapping it (or within a finger's reach of it) scrolls the card row toward them. A box stands only where two or more lines visibly enter it: when the units sharing a hub are all off-screen, their one line runs on to its toolhead with no box, the merge implied off-screen. Overview lines carry no hub-sensor bands; sensor detail stays on the unit pages, and the one-toolhead trunk keeps its own toolhead band. The one-toolhead drawing is the case where every unit feeds the one toolhead. A hub box reads HUB. A hub at a junction may carry its buffer: the box then holds the buffer's mini meter at its right end, the same meter the unit view's hub carries (`include/hub_buffer_meter.h`), its fill colored by the buffer's state; a buffer on a lone line is a box on that line holding only the meter. The meter shows what `ams_detail_buffer_box()` reports for the unit; the one-toolhead drawing shows the system reading the same way. A toolhead badge names the extruder (`E<n>`), or its position when the backend publishes no extruder, never a filament group. Bypass stays system-level in the one-toolhead drawing.
 
-**Current scope**: The overview panel queries `get_backend(0)` and displays all units from that single backend's `AmsSystemInfo`. This covers the common case of a single multi-unit AMS system (e.g., AFC with multiple Box Turtle units).
-
-**Future: multi-backend aggregation.** When multiple backends are active simultaneously (e.g., an AFC system on one toolhead + a Happy Hare on another), the overview panel should iterate all backends via `AmsState::get_backend(i)` for `i` in `0..backend_count` and aggregate their units into the card grid. The per-backend slot subject storage (`secondary_slot_subjects_`) and event routing already support this: the UI aggregation is the remaining integration point.
+**Scope**: The overview panel queries `get_backend(0)` and displays all units from that one backend's `AmsSystemInfo` (e.g., AFC with several Box Turtle units). A printer has one filament system ([One Filament System per Printer](#one-filament-system-per-printer)).
 
 #### Per-unit environment subjects and the `kMaxUnits` cap
 
