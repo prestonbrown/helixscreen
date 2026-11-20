@@ -162,12 +162,21 @@ RailArtRect fit_art(const FilamentPathData& data, const BaseGeometry& g, int32_t
 }
 } // namespace
 
+namespace {
+/// How many tubes' and bands' room a hub's or selector's lanes keep straight below the spool
+/// box's edge before their row: two, under a view scale one, so the unit's drawing keeps the
+/// height. Per-lane paths keep two (box_edge_above()'s default).
+int32_t lane_stub_tubes(const FilamentPathData& data) {
+    return view_unit(data) > 0.0f ? 1 : 2;
+}
+} // namespace
+
 int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
-                       int32_t row) {
+                       int32_t row, int32_t stub_tubes) {
     if (g.lane_entry_y == INT32_MIN)
         return INT32_MIN;
     const int32_t y = g.lane_entry_y + cap;
-    return y <= row - 2 * data.theme.tube_gauge - kBandThickness ? y : INT32_MIN;
+    return y <= row - stub_tubes * data.theme.tube_gauge - kBandThickness ? y : INT32_MIN;
 }
 
 int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g) {
@@ -180,13 +189,15 @@ int32_t lanes_row_y(const FilamentPathData& data, const BaseGeometry& g) {
         drop = std::max(drop, data.lane_band_drop[i]);
     if (drop == 0)
         return prep_y;
-    return std::max(prep_y, g.lane_entry_y + drop + 2 * data.theme.tube_gauge + 2 * kBandThickness);
+    const int32_t stub = lane_stub_tubes(data);
+    return std::max(prep_y,
+                    g.lane_entry_y + drop + stub * (data.theme.tube_gauge + kBandThickness));
 }
 
 int32_t lanes_leave_y(const FilamentPathData& data, const BaseGeometry& g) {
     const int32_t prep_y = lanes_row_y(data, g);
     // The lanes leave the spool box at its front edge, through their prep sensors.
-    const int32_t edge = box_edge_above(data, g, 0, prep_y);
+    const int32_t edge = box_edge_above(data, g, 0, prep_y, lane_stub_tubes(data));
     return edge != INT32_MIN ? edge : prep_y;
 }
 
@@ -259,10 +270,12 @@ RailArtRect through_art_rect(const FilamentPathData& data, const BaseGeometry& g
 }
 
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g) {
-    return linear_hub_nozzle_y(g, data.theme.extruder_scale);
+    return linear_hub_nozzle_y(data, g, data.theme.extruder_scale);
 }
 
-int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale) {
+int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g, int32_t scale) {
+    if (const float unit = view_unit(data); unit > 0.0f)
+        return toolhead_standing_on(g.y_off + g.height - head_foot(unit), scale);
     return toolhead_standing_on(g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio), scale);
 }
 
@@ -289,7 +302,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
     const bool wants_buffer = data.buffer_present && !data.hub_on_toolhead && !data.buffer_in_hub;
     const auto fits = [&](int32_t height) {
         g.height = height;
-        const int32_t nozzle = linear_hub_nozzle_y(g, data.theme.extruder_scale);
+        const int32_t nozzle = linear_hub_nozzle_y(data, g, data.theme.extruder_scale);
         const LinearHubFrame f =
             compute_linear_hub_frame(data, g, toolhead_top_y(nozzle, data.theme.extruder_scale));
         if (f.tool_scale != data.theme.extruder_scale || (wants_buffer && !f.has_buffer))
@@ -318,7 +331,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         for (int i = 0; fan && i < LV_MIN(data.slot_count, FilamentPathData::kMaxSlots); ++i) {
             const pg::MergeLaneOut& lane = f.hub_fan[i];
             const float drop = lane.pts[3].y - lane.pts[0].y;
-            if (fan_lean_drop(std::fabs(lane.pts[3].x - lane.pts[0].x)) > drop + 0.5f)
+            if (fan_lean_drop(std::fabs(lane.pts[3].x - lane.pts[0].x), /*hub=*/true) > drop + 0.5f)
                 return false;
         }
         if (f.output_y + 2 * r > toolhead_top_y(nozzle, data.theme.extruder_scale))
@@ -340,7 +353,7 @@ int32_t linear_hub_required_height(const FilamentPathData& data, BaseGeometry g)
         const auto head_room = [&](int32_t height) {
             BaseGeometry at = g;
             at.height = height;
-            return toolhead_top_y(linear_hub_nozzle_y(at, data.theme.extruder_scale),
+            return toolhead_top_y(linear_hub_nozzle_y(data, at, data.theme.extruder_scale),
                                   data.theme.extruder_scale) -
                    g.y_off;
         };
@@ -422,9 +435,12 @@ int32_t jog_room(const HubFrameCtx& c) {
 
 /// The room the trunk keeps under a hub: with a buffer, a gap, the buffer and an equal gap, each
 /// gap the buffer's least gap plus the band's clear room above the head where the bypass merges
-/// and the toolhead band sit; with none, a gap of a radius and that room.
+/// and the toolhead band sit; with none, only that room, and a radius more where the bypass
+/// merges below the hub (the output sensor stands inside the hub box).
 int32_t room_under_hub(const HubFrameCtx& c, bool buffer) {
-    return buffer ? 2 * (buffer_gap(c) + 2 * c.r) + c.buf_box_h : c.r + 2 * c.r;
+    if (buffer)
+        return 2 * (buffer_gap(c) + 2 * c.r) + c.buf_box_h;
+    return (c.data.show_bypass ? c.r : 0) + 2 * c.r;
 }
 
 /// The lowest a hub's top stands and still leaves its sensor room and a gap above the bypass
@@ -460,7 +476,7 @@ void base_rows(const FilamentPathData& data, const BaseGeometry& g, LinearHubFra
     f.rail = rail_art_rect(data, g);
     f.buffer_in_hub = data.buffer_present && data.buffer_in_hub && !data.hub_on_toolhead;
     f.tool_scale = data.theme.extruder_scale;
-    f.nozzle_y = linear_hub_nozzle_y(g, f.tool_scale);
+    f.nozzle_y = linear_hub_nozzle_y(data, g, f.tool_scale);
 }
 
 /// Under a drawn unit each lane's number stands centered on its band, the band dropped below
@@ -519,7 +535,7 @@ void fit_toolhead_scale(HubFrameCtx& c) {
     };
     while (f.tool_scale > min_scale && c.glyph_top < need()) {
         --f.tool_scale;
-        f.nozzle_y = linear_hub_nozzle_y(c.g, f.tool_scale);
+        f.nozzle_y = linear_hub_nozzle_y(c.data, c.g, f.tool_scale);
         c.glyph_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
     }
 }
@@ -753,7 +769,7 @@ int32_t scaled_fan_hub_top(const HubFrameCtx& c, const pg::MergeLaneIn* fan_in, 
         const float offset = (float)i - (float)(n - 1) / 2.0f;
         const float run = std::fabs((float)f.center_x + step * offset - fan_in[i].slot_x);
         const float start = std::max(fan_in[i].start_y, (float)f.prep_band_y);
-        need = std::max(need, start + fan_drop_needed(run, f.hub_h));
+        need = std::max(need, start + fan_drop_needed(run, f.hub_h, /*hub=*/true));
     }
     return (int32_t)std::ceil(need + (float)f.sensor_r);
 }
@@ -1451,6 +1467,11 @@ void band_segment(const SensorBand& band, int32_t gauge, pg::PathPoint& p0, pg::
     p1 = {band.at.x + nx * h, band.at.y + ny * h};
 }
 
+namespace {
+/// How much of the idle wall an empty sensor on a box keeps over the background.
+constexpr lv_opa_t kBoxSensorInsetMix = LV_OPA_30;
+} // namespace
+
 lv_color_t band_color(const SensorBand& b, const TubePalette& pal) {
     switch (b.state) {
     case BandState::Active:
@@ -1463,6 +1484,10 @@ lv_color_t band_color(const SensorBand& b, const TubePalette& pal) {
     case BandState::Empty:
         break;
     }
+    // The hub's own sensor stands on the box, whose border is the idle grey too: empty, it is a
+    // dark inset there, most of the way to the background.
+    if (b.thickness > 0)
+        return lv_color_mix(pal.idle_wall, pal.bg, kBoxSensorInsetMix);
     return pal.idle_wall;
 }
 
@@ -1490,7 +1515,7 @@ void draw_sensor_band(lv_layer_t* layer, const SensorBand& band, int32_t gauge, 
     lv_draw_line_dsc_t dsc;
     lv_draw_line_dsc_init(&dsc);
     dsc.color = color;
-    dsc.width = kBandThickness;
+    dsc.width = band.thickness > 0 ? band.thickness : kBandThickness;
     dsc.opa = LV_OPA_COVER;
     dsc.p1.x = p0.x;
     dsc.p1.y = p0.y;
@@ -1553,9 +1578,9 @@ SpanStyle unpainted(SpanStyle s) {
 
 namespace {
 
-// The hub's output sensor, on the hub box's bottom edge. With the buffer box given way, that
-// outlet carries its sync sensor instead, banded in the buffer's colour while there is a reading
-// to judge.
+// The hub's output sensor, on the hub box's bottom edge: inside a HUB's box, so the trunk below
+// keeps no room for it; across a selector's outlet. With the buffer box given way, that outlet
+// carries its sync sensor instead, banded in the buffer's colour while there is a reading to judge.
 
 void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame& f,
                          const FilamentPathData& data) {
@@ -1568,8 +1593,15 @@ void add_hub_output_band(PathPlan& plan, const Lane& lane, const LinearHubFrame&
         state = BandState::Sync;
         fill = buffer_box_colors(data, false, fill).border;
     }
-    add_band(plan, BandKind::Trunk, {(float)f.output_x, (float)f.output_y}, {0, 1}, state, fill,
+    const bool in_box = data.topology == static_cast<int>(PathTopology::HUB);
+    // In the box: its bottom row is the box's last (f.output_y), the band's thickness above it.
+    const float y =
+        in_box ? (float)f.output_y - (kHubSensorThickness - 1) / 2.0f : (float)f.output_y;
+    const int before = plan.band_count;
+    add_band(plan, BandKind::Trunk, {(float)f.output_x, y}, {0, 1}, state, fill,
              /*on_box_edge=*/true);
+    if (in_box && plan.band_count > before)
+        plan.bands[plan.band_count - 1].thickness = kHubSensorThickness;
 }
 
 // Hub bottom → inlet, appended to the route that owns the trunk. Ends at the

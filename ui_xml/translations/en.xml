@@ -1610,8 +1610,10 @@
   <translation tag="Filament didn&apos;t fully retract, may need manual removal" en="Filament didn&apos;t fully retract, may need manual removal"/>
   <translation tag="Filament dust packs into the drive gears and costs grip." en="Filament dust packs into the drive gears and costs grip."/>
   <translation tag="Filament feeder" en="Filament feeder"/>
+  <translation tag="Filament in the toolhead" en="Filament in the toolhead"/>
   <translation tag="Filament is clear of the toolhead. Pull it out the rest of the way." en="Filament is clear of the toolhead. Pull it out the rest of the way."/>
   <translation tag="Filament is dragging" en="Filament is dragging"/>
+  <translation tag="Filament is in the toolhead, but no lane is loaded." en="Filament is in the toolhead, but no lane is loaded."/>
   <translation tag="Filament is loaded at the toolhead. Unload it before enabling bypass." en="Filament is loaded at the toolhead. Unload it before enabling bypass."/>
   <translation tag="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats." en="Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats."/>
   <translation tag="Filament is still at the empty head&apos;s feeder" en="Filament is still at the empty head&apos;s feeder"/>
@@ -4407,6 +4409,7 @@
   <translation tag="To make videos, run this on your printer via SSH:" en="To make videos, run this on your printer via SSH:"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." en="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." en="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart."/>
+  <translation tag="To use the lanes, pull the filament out of the toolhead by hand." en="To use the lanes, pull the filament out of the toolhead by hand."/>
   <translation tag="Toggle" en="Toggle"/>
   <translation tag="Toggle (fire-and-forget)" en="Toggle (fire-and-forget)"/>
   <translation tag="Toggle AFC LED strip" en="Toggle AFC LED strip"/>
@@ -4612,6 +4615,7 @@
   <translation tag="Use New Address" en="Use New Address"/>
   <translation tag="Use Scan" en="Use Scan"/>
   <translation tag="Use Unload before Eject" en="Use Unload before Eject"/>
+  <translation tag="Use as bypass" en="Use as bypass"/>
   <translation tag="Use existing" en="Use existing"/>
   <translation tag="Use existing filament?" en="Use existing filament?"/>
   <translation tag="Use first HID scanner found" en="Use first HID scanner found"/>

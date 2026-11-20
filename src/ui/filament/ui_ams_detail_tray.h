@@ -69,6 +69,8 @@ struct TrayState {
     helix::ui::WidgetRef labels_layer;
     // The rest of the unit view the tray was laid out in, to lay it out again in place.
     helix::ui::WidgetRef slot_grid, slot_tray, badge_layer, env_indicator;
+    // How far the environment pill stands raised over its place to clear the bypass spool.
+    int32_t env_pill_lift = 0;
     float label_x[kAmsDetailMaxSlots] = {};
     float tick_end_y[kAmsDetailMaxSlots] = {};
     int32_t label_bottom = 0;

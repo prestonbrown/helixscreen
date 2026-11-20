@@ -1204,6 +1204,8 @@ void AmsOverviewPanel::refresh_page_bypass(bool node) {
         ui_filament_path_canvas_refresh(detail_path_canvas_);
     }
     update_page_bypass_widgets_position();
+    // A hidden overlay leaves no position to update: the pill still drops back.
+    helix::ui::ams_detail_keep_env_pill_clear(detail_path_canvas_);
 }
 
 void AmsOverviewPanel::refresh_system_bypass() {
@@ -1315,6 +1317,7 @@ void AmsOverviewPanel::update_page_bypass_widgets_position() {
     lv_obj_get_content_coords(path_container_, &parent_abs);
     helix::ui::bypass_spool_set_position(page_bypass_widgets_, abs_cx - parent_abs.x1,
                                          abs_cy - parent_abs.y1);
+    helix::ui::ams_detail_keep_env_pill_clear(detail_path_canvas_);
 }
 
 // ============================================================================

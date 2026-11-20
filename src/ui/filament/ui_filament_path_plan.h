@@ -97,16 +97,28 @@ inline constexpr float kFanLegRoom = kScaledFanFillet + 4.0f;
 /// drawn through two fillets reads as a step.
 inline constexpr float kStraightLaneSlack = 2.5f;
 
+/// A hub's fan under a view scale keeps a shorter straight leg: the fillet and a pixel, so the
+/// unit's drawing above keeps the height.
+inline constexpr float kHubFanLegRoom = kScaledFanFillet + 1.0f;
+/// Under a view scale a hub path's head stands this share of a view unit above the canvas
+/// bottom, never under kMinHeadFoot px.
+inline constexpr float kHeadFootUnits = 0.25f;
+inline constexpr int32_t kMinHeadFoot = 2;
+/// The head's foot room at @p view_unit pixels to the unit.
+inline int32_t head_foot(float view_unit) {
+    return std::max<int32_t>(kMinHeadFoot, (int32_t)std::lround(view_unit * kHeadFootUnits));
+}
+
 /// The drop a lane's diagonal needs to run @p run sideways no flatter than kFanMinSlope, its
-/// fillets' straight legs included.
-inline float fan_lean_drop(float run) {
-    return run * kFanMinSlope + 2.0f * kFanLegRoom;
+/// fillets' straight legs included (a @p hub fan's shorter ones).
+inline float fan_lean_drop(float run, bool hub = false) {
+    return run * kFanMinSlope + 2.0f * (hub ? kHubFanLegRoom : kFanLegRoom);
 }
 
 /// The height lanes converging into a hub @p hub_h tall take above it, the farthest running
 /// @p run sideways: its lean, and never under three quarters of the hub.
-inline float fan_drop_needed(float run, int32_t hub_h) {
-    return std::max(0.75f * (float)hub_h, fan_lean_drop(run));
+inline float fan_drop_needed(float run, int32_t hub_h, bool hub = false) {
+    return std::max(0.75f * (float)hub_h, fan_lean_drop(run, hub));
 }
 
 /// The buffer capsule's height beside a hub chip @p hub_h tall: three quarters of it, never
@@ -217,10 +229,10 @@ inline bool unit_art_drawn(helix::PathTopology topology, bool has_carriage) {
                         : topology == PathTopology::HUB || topology == PathTopology::MIXED;
 }
 
-/// The spool box's front edge plus @p cap, when that leaves two tube gauges and a band of tube
-/// above @p row; INT32_MIN when the canvas has no box edge or it stands too low.
+/// The spool box's front edge plus @p cap, when that leaves @p stub_tubes tube gauges and a band
+/// of tube above @p row; INT32_MIN when the canvas has no box edge or it stands too low.
 int32_t box_edge_above(const FilamentPathData& data, const BaseGeometry& g, int32_t cap,
-                       int32_t row);
+                       int32_t row, int32_t stub_tubes = 2);
 
 /// Where the lanes leave the unit: the spool box's front edge when it stands clear above the
 /// lane run, else the prep sensors' row.
@@ -314,9 +326,9 @@ lv_area_t hub_box_drawn_area(const FilamentPathData& data, const BaseGeometry& g
                              const LinearHubFrame& f);
 
 /// The LINEAR/HUB nozzle row: the configured toolhead's glyph stands on
-/// kToolheadGlyphBottomRatio of the canvas height.
+/// kToolheadGlyphBottomRatio of the canvas height; under a view scale head_foot() above its bottom.
 int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g);
-int32_t linear_hub_nozzle_y(const BaseGeometry& g, int32_t scale);
+int32_t linear_hub_nozzle_y(const FilamentPathData& data, const BaseGeometry& g, int32_t scale);
 
 /// The least height @p g (its top where it is) needs for compute_linear_hub_frame() to lay the
 /// path out at full size: a full-size head, and the buffer kept on the trunk when the unit
@@ -449,6 +461,7 @@ struct SensorBand {
     lv_color_t fill;          // the lane's filament color (Loaded)
     bool on_box_edge = false; // straddles a hub/selector edge: painted over the box
     bool dot = false;         // a round dot, ringed dark, instead of a band across the tube
+    int32_t thickness = 0;    // the band's stroke along the tube; 0 for kBandThickness
 };
 
 inline constexpr int kMaxRoutes = FilamentPathData::kMaxSlots + 2; // lanes + trunk + bypass
@@ -580,6 +593,9 @@ void draw_offpage_chips(const RenderCtx& ctx, const LinearHubFrame& f);
 // Clamp band: a short rounded bar across the tube.
 inline constexpr int32_t kBandExtra = 10;    // band length = gauge + kBandExtra
 inline constexpr int32_t kBandThickness = 4; // stroke width, round caps
+/// The hub's output sensor stands inside the hub box's bottom edge, thinner than a band on a
+/// tube so the box's label keeps clear of it on a short box.
+inline constexpr int32_t kHubSensorThickness = 3;
 
 /// Centerline of the band bar: at ± normal * ((gauge + kBandExtra)/2 - kBandThickness/2).
 void band_segment(const SensorBand& band, int32_t gauge, pg::PathPoint& p0, pg::PathPoint& p1);

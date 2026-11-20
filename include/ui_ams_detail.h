@@ -183,6 +183,11 @@ bool ams_detail_error_in_view(const AmsSystemInfo& info, int unit_index);
 /// screen, and true asks the caller to lay the unit out again. False when it fits.
 bool ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid);
 
+/// The unit view's environment pill rises clear of the bypass spool overlay beside @p canvas,
+/// or back to its place when the overlay no longer reaches it. The owner of the overlay calls
+/// it after moving or changing it.
+void ams_detail_keep_env_pill_clear(lv_obj_t* canvas);
+
 /// Slot sizing for the detail view: in a box, spools stand at the tray pitch
 /// (ams_tray_projection.h) instead of spreading across the width.
 AmsSlotLayout ams_detail_slot_layout(int32_t available_width, int slot_count);

@@ -1699,7 +1699,8 @@ class AmsBackend : public AmsCapabilityHost {
      * unload path is unavailable by definition. What matters then is whether
      * the hardware has a lane-free way to heat, cut and retract.
      *
-     * Drives the advice the pre-print warning gives, not an action. Telling a
+     * Drives the advice the pre-print warning gives, and whether the
+     * unclaimed-toolhead prompt offers Unload (unaccounted_toolhead_clear_slot()). Telling a
      * user to pull filament out of a hot toolhead by hand is the right answer
      * on hardware with no cutter and the wrong one on hardware that can do it
      * itself, so the message asks this rather than assuming the worst.
@@ -1707,8 +1708,21 @@ class AmsBackend : public AmsCapabilityHost {
      * Default false: a backend that has not been shown to manage this must not
      * imply the printer will handle it.
      */
-    [[nodiscard]] bool can_clear_unaccounted_toolhead() const {
+    [[nodiscard]] virtual bool can_clear_unaccounted_toolhead() const {
         return traits().can_clear_unaccounted_toolhead;
+    }
+
+    /**
+     * @brief The unload_filament() target that clears filament at the toolhead
+     *        no lane claims, where can_clear_unaccounted_toolhead() says the
+     *        backend can.
+     *
+     * The active head by default: unload_filament(-1) resolves the channel
+     * itself. A backend whose lane-free clear is its bypass unload answers
+     * the bypass slot.
+     */
+    [[nodiscard]] virtual int unaccounted_toolhead_clear_slot() const {
+        return -1;
     }
 
     [[nodiscard]] virtual bool can_unload_from_toolhead(int slot_index) const {
@@ -2104,6 +2118,18 @@ class AmsBackend : public AmsCapabilityHost {
     /// own lane records. AmsState asks the primary backend; with no backend
     /// that answers, AmsState keeps the record in lane_data itself.
     [[nodiscard]] virtual bool holds_bypass_record() const {
+        return false;
+    }
+
+    /// How many reads of its lane records this backend has filed. A caller
+    /// waiting on a write compares two answers to tell a fresh read.
+    [[nodiscard]] virtual uint64_t lane_record_reads() const {
+        return 0;
+    }
+
+    /// Whether this backend keeps its lane records, the bypass record among
+    /// them, outside lane_data, where AmsState's own store does not read.
+    [[nodiscard]] virtual bool lane_records_private() const {
         return false;
     }
 
@@ -3178,6 +3204,16 @@ class AmsBackend : public AmsCapabilityHost {
      * @param lower_name Sensor name, lowercased
      */
     static bool sensor_name_names_filament_system(std::string_view lower_name);
+
+    /**
+     * @brief The private namespaces a backend keeps its lane records in when its
+     * firmware owns lane_data.
+     *
+     * A backend of that kind keeps the bypass spool's record there too, so once
+     * its filament system is gone the record is left where AmsState, the
+     * keeper on a printer without one, never reads.
+     */
+    [[nodiscard]] static std::vector<std::string> private_lane_record_namespaces();
 
     /**
      * @brief Every Klipper status object the filament systems in @p hw need pushed.

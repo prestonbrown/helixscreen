@@ -1,0 +1,210 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Filament at the toolhead that no lane claims, with bypass off: HelixScreen
+// asks once whether it is the bypass spool or should come out.
+
+#include "../lvgl_test_fixture.h"
+#include "../test_helpers/ams_state_test_access.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
+#include "ams_unclaimed_toolhead.h"
+#include "core/update_queue.h"
+#include "notice.h"
+#include "test_helpers/registered_backend.h"
+
+#include "../catch_amalgamated.hpp"
+
+using namespace helix;
+using helix::ams::UnclaimedToolheadPromptGate;
+using helix::ams::UnclaimedToolheadReading;
+using Verdict = helix::ams::UnclaimedToolheadVerdict;
+
+namespace {
+
+UnclaimedToolheadReading unclaimed() {
+    UnclaimedToolheadReading r;
+    r.settled = true;
+    r.filament_unclaimed = true;
+    r.bypass_switchable = true;
+    return r;
+}
+
+} // namespace
+
+TEST_CASE("the unclaimed-toolhead prompt opens once per occurrence", "[ams][unclaimed_toolhead]") {
+    UnclaimedToolheadPromptGate gate;
+
+    SECTION("not before the backend settles, nor during a print") {
+        UnclaimedToolheadReading r = unclaimed();
+        r.settled = false;
+        CHECK(gate.observe(r) == Verdict::None);
+        r = unclaimed();
+        r.printing = true;
+        CHECK(gate.observe(r) == Verdict::None);
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+    }
+
+    SECTION("repeat frames ask nothing more, even after the prompt closes") {
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+        CHECK(gate.observe(unclaimed()) == Verdict::None);
+        gate.prompt_closed();
+        CHECK(gate.observe(unclaimed()) == Verdict::None);
+    }
+
+    SECTION("it re-arms once the state clears") {
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+        gate.prompt_closed();
+        UnclaimedToolheadReading bypass_on = unclaimed();
+        bypass_on.bypass_active = true;
+        CHECK(gate.observe(bypass_on) == Verdict::None);
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+    }
+
+    SECTION("a busy backend neither asks nor counts as cleared") {
+        UnclaimedToolheadReading loading = unclaimed();
+        loading.busy = true;
+        CHECK(gate.observe(loading) == Verdict::None);
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+        gate.prompt_closed();
+        UnclaimedToolheadReading busy_clear = unclaimed();
+        busy_clear.busy = true;
+        busy_clear.filament_unclaimed = false;
+        CHECK(gate.observe(busy_clear) == Verdict::None);
+        CHECK(gate.observe(unclaimed()) == Verdict::None);
+    }
+
+    SECTION("a prompt still open closes when the state clears") {
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+        UnclaimedToolheadReading lane_loaded = unclaimed();
+        lane_loaded.filament_unclaimed = false;
+        CHECK(gate.observe(lane_loaded) == Verdict::Dismiss);
+        CHECK(gate.observe(lane_loaded) == Verdict::None);
+    }
+
+    SECTION("a reset never stacks a second prompt over an open one") {
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+        gate.reset();
+        CHECK(gate.observe(unclaimed()) == Verdict::None);
+        gate.prompt_closed();
+        CHECK(gate.observe(unclaimed()) == Verdict::Open);
+    }
+
+    SECTION("a bypass the hardware sets is never asked about") {
+        UnclaimedToolheadReading sensor = unclaimed();
+        sensor.bypass_switchable = false;
+        CHECK(gate.observe(sensor) == Verdict::None);
+    }
+}
+
+namespace {
+
+class UnclaimedHeadMock : public AmsBackendMock {
+  public:
+    std::optional<bool> toolhead_filament_unaccounted() const override {
+        return unclaimed_;
+    }
+    AmsAction get_current_action() const override {
+        return action_;
+    }
+    bool unclaimed_ = false;
+    AmsAction action_ = AmsAction::IDLE;
+};
+
+int g_prompts = 0;
+int g_dismissals = 0;
+void count_prompt(const UiRequest&) {
+    ++g_prompts;
+}
+void count_dismissal(const UiRequest&) {
+    ++g_dismissals;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState asks about an unclaimed toolhead once per occurrence",
+                 "[ams][unclaimed_toolhead]") {
+    g_prompts = 0;
+    const UiRequestHandler previous =
+        set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, count_prompt);
+    {
+        test::RegisteredBackend<UnclaimedHeadMock> reg;
+        REQUIRE(reg->get_system_info().supports_bypass);
+        REQUIRE_FALSE(reg->is_bypass_active());
+        auto& ams = AmsState::instance();
+
+        reg->unclaimed_ = true;
+        ams.sync_from_backend();
+        CHECK(g_prompts == 0); // the startup grace is still running
+
+        AmsStateTestAccess::end_unclaimed_toolhead_grace(ams);
+        ams.sync_from_backend();
+        CHECK(g_prompts == 1);
+        ams.sync_from_backend();
+        ams.unclaimed_toolhead_prompt_closed();
+        ams.sync_from_backend();
+        CHECK(g_prompts == 1);
+
+        reg->unclaimed_ = false;
+        ams.sync_from_backend();
+        reg->unclaimed_ = true;
+        ams.sync_from_backend();
+        CHECK(g_prompts == 2);
+        ams.unclaimed_toolhead_prompt_closed();
+    }
+    set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState never asks mid-load", "[ams][unclaimed_toolhead]") {
+    g_prompts = 0;
+    const UiRequestHandler previous =
+        set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, count_prompt);
+    {
+        // A load trips the toolhead sensor before the backend names the lane.
+        test::RegisteredBackend<UnclaimedHeadMock> reg;
+        auto& ams = AmsState::instance();
+        AmsStateTestAccess::end_unclaimed_toolhead_grace(ams);
+        reg->unclaimed_ = true;
+        reg->action_ = AmsAction::LOADING;
+        for (int i = 0; i < 3; ++i) {
+            ams.sync_from_backend();
+        }
+        CHECK(g_prompts == 0);
+        ams.unclaimed_toolhead_prompt_closed();
+    }
+    set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "AmsState closes a stale prompt and its actions re-check",
+                 "[ams][unclaimed_toolhead]") {
+    g_prompts = 0;
+    g_dismissals = 0;
+    const UiRequestHandler previous_offer =
+        set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, count_prompt);
+    const UiRequestHandler previous_dismiss =
+        set_ui_request_handler(UiRequestKind::DismissUnclaimedToolheadPrompt, count_dismissal);
+    {
+        test::RegisteredBackend<UnclaimedHeadMock> reg;
+        auto& ams = AmsState::instance();
+        AmsStateTestAccess::end_unclaimed_toolhead_grace(ams);
+        reg->unclaimed_ = true;
+        ams.sync_from_backend();
+        REQUIRE(g_prompts == 1);
+        CHECK(ams.unclaimed_toolhead_now());
+
+        // A lane loads while the prompt is up: it closes, and a tap that
+        // still lands acts on nothing.
+        reg->unclaimed_ = false;
+        ams.sync_from_backend();
+        CHECK(g_dismissals == 1);
+        CHECK_FALSE(ams.unclaimed_toolhead_now());
+
+        // Mid-load the actions refuse too.
+        reg->unclaimed_ = true;
+        reg->action_ = AmsAction::LOADING;
+        CHECK_FALSE(ams.unclaimed_toolhead_now());
+        ams.unclaimed_toolhead_prompt_closed();
+    }
+    set_ui_request_handler(UiRequestKind::OfferUnclaimedToolheadAsBypass, previous_offer);
+    set_ui_request_handler(UiRequestKind::DismissUnclaimedToolheadPrompt, previous_dismiss);
+}

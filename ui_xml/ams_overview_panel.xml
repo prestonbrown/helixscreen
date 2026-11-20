@@ -18,7 +18,9 @@
     <style name="fill_portrait" height="content" flex_grow="0"/>
     <style name="path_landscape" flex_grow="1"/>
     <style name="path_portrait" height="#ams_portrait_path_h" flex_grow="0"/>
-    <style name="detail_path_landscape" flex_grow="1" margin_top="-8"/>
+    <!-- The bottom margin gives the page dots below back the height the tuck takes: the canvas
+         reaches down into it (tucked_container_shortfall). -->
+    <style name="detail_path_landscape" flex_grow="1" margin_top="-8" margin_bottom="8"/>
     <style name="detail_path_portrait" height="#ams_portrait_path_h" flex_grow="0" margin_top="-12"/>
     <!-- The unit view's header names the unit: the logo and the name centred on one
          axis in the header's height. -->

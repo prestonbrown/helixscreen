@@ -357,6 +357,9 @@ bool has_boundary(const pg::FilamentPath& p, float x, float y) {
     return false;
 }
 
+// The hub canvas's output sensor: inside the box, its bottom row on the box's bottom edge (140).
+constexpr float kHubOutputBandY = 140.0f - (kHubSensorThickness - 1) / 2.0f;
+
 const SensorBand* band_at(const PathPlan& plan, float x, float y) {
     for (int i = 0; i < plan.band_count; i++)
         if (near(plan.bands[i].at, x, y, 0.5f))
@@ -538,7 +541,7 @@ TEST_CASE("FilamentPath plan: HUB active route runs unbroken from spool to inlet
 
     REQUIRE(plan.band_count == 11);
     const SensorBand* active[] = {band_at(plan, 150, 40), band_at(plan, 150, load_band_y(*d, 1)),
-                                  band_at(plan, 200, 140), band_at(plan, 200, 232),
+                                  band_at(plan, 200, kHubOutputBandY), band_at(plan, 200, 232),
                                   band_at(plan, 200, 272)};
     for (const SensorBand* b : active) {
         REQUIRE(b != nullptr);
@@ -564,7 +567,7 @@ TEST_CASE("FilamentPath plan: hub-edge bands are painted after the hub box",
         REQUIRE(load != nullptr);
         CHECK_FALSE(load->on_box_edge);
     }
-    const SensorBand* output = band_at(plan, 200, 140);
+    const SensorBand* output = band_at(plan, 200, kHubOutputBandY);
     REQUIRE(output != nullptr);
     CHECK(output->on_box_edge);
 
@@ -958,7 +961,7 @@ TEST_CASE("FilamentPath plan: an idle trunk still shows an OUTPUT error", "[fila
 
     CHECK(plan.active_route == -1);
     REQUIRE(plan.trunk_route >= 0);
-    const SensorBand* out = band_at(plan, 200, 140);
+    const SensorBand* out = band_at(plan, 200, kHubOutputBandY);
     REQUIRE(out != nullptr);
     CHECK(out->state == BandState::Error);
     const Route& t = plan.routes[plan.trunk_route];
@@ -1032,7 +1035,7 @@ TEST_CASE("FilamentPath plan: sensor bands only where the unit reports the senso
     SECTION("no hub sensor: no band on the hub outlet") {
         d->has_hub_sensor = false;
         const PathPlan& plan = plan_for(*d);
-        CHECK(band_at(plan, 200, 140) == nullptr);
+        CHECK(band_at(plan, 200, kHubOutputBandY) == nullptr);
         CHECK(band_at(plan, 200, 272) != nullptr); // the toolhead sensor stays
     }
     SECTION("the load band reads LANE") {
@@ -1056,7 +1059,7 @@ TEST_CASE("FilamentPath plan: filament stuck in the hub with no lane fills the i
         CHECK(t.style[0].filled);
         CHECK(t.style[0].wall == TubeWall::Plain);
         CHECK_FALSE(t.style[t.path.count - 1].filled); // not into the toolhead
-        const SensorBand* out = band_at(plan, 200, 140);
+        const SensorBand* out = band_at(plan, 200, kHubOutputBandY);
         REQUIRE(out != nullptr);
         CHECK(out->state == BandState::Loaded);
         CHECK(band_at(plan, 200, 272)->state == BandState::Empty);
@@ -1064,7 +1067,7 @@ TEST_CASE("FilamentPath plan: filament stuck in the hub with no lane fills the i
     SECTION("nothing read: an empty trunk") {
         const PathPlan& plan = plan_for(*d);
         CHECK_FALSE(plan.routes[plan.trunk_route].style[0].filled);
-        CHECK(band_at(plan, 200, 140)->state == BandState::Empty);
+        CHECK(band_at(plan, 200, kHubOutputBandY)->state == BandState::Empty);
     }
 }
 
@@ -2177,7 +2180,7 @@ TEST_CASE("FilamentPath plan: a hub that feeds no toolhead ends at the hub",
         CHECK(plan.trunk_route == -1);
         CHECK(plan.bypass_route == -1);
         // The hub's own output sensor stays on the box edge; the toolhead's is gone.
-        const SensorBand* out = band_at(plan, 200, 140);
+        const SensorBand* out = band_at(plan, 200, kHubOutputBandY);
         REQUIRE(out != nullptr);
         CHECK(out->on_box_edge);
         CHECK(band_at(plan, 200, 272) == nullptr);
@@ -2191,7 +2194,7 @@ TEST_CASE("FilamentPath plan: a hub that feeds no toolhead ends at the hub",
         CHECK(plan.trunk_route == -1);
         CHECK(plan.bypass_route == -1);
         CHECK(deepest_route_y(plan) <= 140.01f);
-        CHECK(band_at(plan, 200, 140) != nullptr);
+        CHECK(band_at(plan, 200, kHubOutputBandY) != nullptr);
     }
 }
 

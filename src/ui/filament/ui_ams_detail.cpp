@@ -1002,6 +1002,7 @@ void place_env_pill(lv_obj_t* pill, lv_point_t origin, const UnitViewArt* art, b
                     const tray::TrayBox& box, float top, float badge_end) {
     if (!pill || lv_obj_is_hidden(pill))
         return;
+    s_tray.env_pill_lift = 0;
     const int32_t tuck = theme_manager_get_spacing("space_sm");
     if (art) {
         const lv_area_t a = rest_env_pill(pill, LV_SIZE_CONTENT);

@@ -757,6 +757,11 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// any_bypass_active early-out (gate_unaccounted_toolhead_filament,
     /// print_start_checks.cpp) — do not narrow to == -1.
     [[nodiscard]] std::optional<bool> toolhead_filament_unaccounted() const override;
+    /// The lane-free clear is the bypass unload, which Fork routes through its
+    /// own BOX_UNLOAD and an unverified flat module refuses.
+    [[nodiscard]] bool can_clear_unaccounted_toolhead() const override;
+    /// bypass_unload_gcode(), reached through the bypass slot.
+    [[nodiscard]] int unaccounted_toolhead_clear_slot() const override;
 
   protected:
     /// Recovery buttons for a CFS runout. **Caller must hold mutex_** (base

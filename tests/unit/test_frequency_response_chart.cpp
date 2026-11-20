@@ -963,7 +963,7 @@ TEST_CASE_METHOD(FrequencyResponseChartTestFixture, "Complete calibration workfl
     ui_frequency_response_chart_destroy(chart);
 }
 
-TEST_CASE_METHOD(FrequencyResponseChartTestFixture, "Stress tests",
+TEST_CASE_METHOD(FrequencyResponseChartTestFixture, "Frequency response chart stress tests",
                  "[frequency_response_chart][stress]") {
     ui_frequency_response_chart_t* chart = ui_frequency_response_chart_create(screen);
     REQUIRE(chart != nullptr);

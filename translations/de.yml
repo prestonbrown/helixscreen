@@ -1677,8 +1677,10 @@ translations:
   Filament didn't fully retract, may need manual removal: Filament wurde nicht vollständig eingezogen, eventuell von Hand entfernen
   Filament dust packs into the drive gears and costs grip.: "Filamentstaub setzt sich in den Antriebsrädern fest und kostet Griff."
   Filament feeder: Filamentzuführung
+  Filament in the toolhead: "Filament im Werkzeugkopf"
   Filament is clear of the toolhead. Pull it out the rest of the way.: Das Filament ist frei vom Werkzeugkopf. Ziehen Sie es ganz heraus.
   Filament is dragging: Filament läuft schwergängig
+  Filament is in the toolhead, but no lane is loaded.: "Im Werkzeugkopf ist Filament, aber keine Spur ist geladen."
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Filament ist im Werkzeugkopf geladen. Entladen Sie es, bevor Sie den Bypass aktivieren.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: Im Werkzeugkopf ist Filament geladen. Entlade es zuerst, damit es im Extruder nicht weich wird, während das Heizbett heizt.
 
@@ -4553,6 +4555,7 @@ translations:
   : Für die Filament-Zuordnung schreibt HelixScreen die Druckdatei vor dem Drucken um. Das Moonraker dieses Druckers ist zu alt, damit das HelixPrint-Plugin den ursprünglichen Dateinamen danach wiederherstellen kann; der abgeschlossene Auftrag wird daher unter dem umgeschriebenen Namen aufgeführt. Die Filament-Zuordnung selbst funktioniert normal.
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "Für die Filament-Zuordnung schreibt HelixScreen die Druckdatei vor dem Drucken um. Ohne das HelixPrint-Plugin landet die umgeschriebene Kopie in Ihrem Druckverlauf, sodass abgeschlossene Drucke unter Namen wie modified_1730824_benchy.gcode statt unter der gewählten Datei aufgelistet werden.\n\nDie Installation des Plugins dauert einen Moment und erfordert keinen Neustart."
+  To use the lanes, pull the filament out of the toolhead by hand.: "Um die Spuren zu nutzen, zieh das Filament von Hand aus dem Werkzeugkopf."
   Toggle: Umschalten
   Toggle (fire-and-forget): Umschalten (fire-and-forget)
   Toggle AFC LED strip: 'AFC-LED-Streifen umschalten'
@@ -4752,6 +4755,7 @@ translations:
   Use G10/G11 firmware retraction: G10/G11-Firmware-Retraktion verwenden
   Use New Address: 'Neue Adresse verwenden'
   Use Unload before Eject: 'Verwenden Sie Entladen vor Auswerfen'
+  Use as bypass: "Als Bypass nutzen"
   Use existing: "Vorhandenes verwenden"
   Use existing filament?: "Vorhandenes Filament verwenden?"
   Use first HID scanner found: 'Ersten gefundenen HID-Scanner verwenden'

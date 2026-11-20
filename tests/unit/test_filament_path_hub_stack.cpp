@@ -309,9 +309,10 @@ TEST_CASE_METHOD(HubStackFixture,
     // The tube ends at the head's filament inlet.
     CHECK(f.inlet_y == inlet);
     // The buffer keeps its control's height, with a clear gap above and below it; the head
-    // keeps a clear gap above it for the toolhead band.
+    // keeps a clear gap above it for the toolhead band, and a bypass merging under the hub a
+    // radius clear of the box (the hub's own sensor stands inside it).
     CHECK(f.has_buffer == buffer);
-    CHECK(hub_bottom + (buffer ? r + buf_h : 0) + r + 2 * r <= inlet);
+    CHECK(hub_bottom + (buffer ? r + buf_h + r : (bypass ? r : 0)) + 2 * r <= inlet);
     if (buffer) {
         CHECK(f.buffer_y - buf_h / 2 >= hub_bottom + r);
         CHECK(f.buffer_y + buf_h / 2 + r + 2 * r <= head_top);
@@ -582,7 +583,7 @@ TEST_CASE("Under a view scale the lanes converge into a hub as wide as its entri
     for (int i = 0; i < 4; ++i) {
         CAPTURE(i);
         const auto& lane = f.hub_fan[i];
-        const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kFanLegRoom;
+        const float drop = lane.pts[3].y - lane.pts[0].y - 2.0f * kHubFanLegRoom;
         CHECK(kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) <= drop + 0.5f);
     }
     // The tube router lays the lanes leaning one way as a ribbon: their diagonals parallel, at
@@ -601,6 +602,155 @@ TEST_CASE("Under a view scale the lanes converge into a hub as wide as its entri
     }
     CHECK((slope == Catch::Approx(1.0f).margin(0.01) ||
            slope == Catch::Approx(kFanMinSlope).margin(0.01)));
+}
+
+TEST_CASE("Under a view scale a hub path keeps its runs under the unit short at every size",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 17;
+    d.view_cap_h = 13;
+    d.buffer_in_hub = true;
+    d.theme.tube_gauge = 4;
+    d.theme.sensor_radius = 3;
+    for (int i = 0; i < 4; i++)
+        d.lane_band_drop[i] = 2;
+    // 480x272's unit, 800x480's and 1280x720's, and the head's foot room at each.
+    const auto [unit, want_foot] =
+        GENERATE(std::pair{5.45f, 2}, std::pair{9.5f, 2}, std::pair{14.6f, 4});
+    CAPTURE(unit);
+    d.view_unit = unit;
+    // Below the spool box's edge the lanes keep one tube and band straight before their row,
+    // and still leave on the edge.
+    const int32_t row = lanes_row_y(d, g);
+    CHECK(row - g.lane_entry_y == 2 + d.theme.tube_gauge + kBandThickness);
+    CHECK(lanes_leave_y(d, g) == g.lane_entry_y);
+
+    g.height = linear_hub_required_height(d, g);
+    const LinearHubFrame f = compute_linear_hub_frame(d, g);
+    // The least height leans the fan as steeply as its legs allow: a hub fan's short legs.
+    float tightest = 1e9f;
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[i];
+        const float drop = lane.pts[3].y - lane.pts[0].y;
+        const float lean = kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) +
+                           2.0f * (kScaledFanFillet + 1.0f);
+        CHECK(lean <= drop + 0.5f);
+        tightest = std::min(tightest, drop - lean);
+        // Each bend's fillet fits on the straight leg the router keeps beside it: the lane bends
+        // round, with no step where a fillet would run past its leg.
+        if (std::fabs(lane.pts[3].x - lane.pts[0].x) > kStraightLaneSlack) {
+            CHECK(lane.pts[1].y - lane.pts[0].y >= kScaledFanFillet - 0.5f);
+            CHECK(lane.pts[3].y - lane.pts[2].y >= kScaledFanFillet - 0.5f);
+        }
+    }
+    CHECK(tightest <= 2.5f);
+    // The head stands a little off the canvas bottom, more on a larger view.
+    const int32_t foot = toolhead_glyph_bounds(0, f.nozzle_y, f.tool_scale).bottom;
+    CHECK(foot == g.y_off + g.height - want_foot);
+}
+
+TEST_CASE("The hub's output sensor stands on the hub box, and the trunk keeps no room for it",
+          "[filament-path][hub-stack]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 22;
+    d.view_cap_h = 16;
+    d.buffer_in_hub = true;
+    const bool bypass = GENERATE(false, true);
+    const float unit = GENERATE(5.45f, 9.5f);
+    CAPTURE(bypass, unit);
+    d.show_bypass = bypass;
+    d.view_unit = unit;
+    g.height = linear_hub_required_height(d, g);
+    const LinearHubFrame f = compute_linear_hub_frame(d, g);
+    const lv_area_t hub = hub_box_area(d, g, f);
+    static PathPlan plan;
+    plan_linear_hub(f, d, g, plan);
+    // The output sensor's band lies wholly inside the hub box, across its bottom edge's inside.
+    int found = 0;
+    for (int i = 0; i < plan.band_count; ++i) {
+        const SensorBand& b = plan.bands[i];
+        if (!b.on_box_edge || b.at.y < (float)hub.y1 || b.at.x != (float)f.output_x)
+            continue;
+        ++found;
+        CAPTURE(b.at.y, hub.y1, hub.y2);
+        const float half = (b.thickness > 0 ? b.thickness : kBandThickness) / 2.0f;
+        CHECK(b.at.y - half >= (float)hub.y1);
+        CHECK(b.at.y + half <= (float)hub.y2 + 0.5f);
+    }
+    CHECK(found == 1);
+    // Below the hub the trunk keeps only the head's clear room, and a radius more where the
+    // bypass merges under the box.
+    const int32_t r = d.theme.sensor_radius;
+    const int32_t head_top = toolhead_top_y(f.nozzle_y, f.tool_scale);
+    CAPTURE(hub.y2, head_top);
+    CHECK(head_top - f.output_y <= 2 * r + (bypass ? r : 0) + 1);
+}
+
+TEST_CASE("An empty hub output sensor reads as a dark inset on the hub box's edge",
+          "[filament-path][hub-stack]") {
+    const TubePalette pal{lv_color_hex(0x6A7080), lv_color_hex(0x3A8DFF), lv_color_hex(0xE04040),
+                          lv_color_hex(0x1C1C1E), 4};
+    SensorBand on_tube{};
+    on_tube.state = BandState::Empty;
+    SensorBand in_box = on_tube;
+    in_box.thickness = kHubSensorThickness;
+    // On a tube an empty band wears the idle wall; on the box, whose border is that grey too, it
+    // is darker than the wall, toward the background.
+    CHECK(lv_color_to_u32(band_color(on_tube, pal)) == lv_color_to_u32(pal.idle_wall));
+    const lv_color_t inset = band_color(in_box, pal);
+    CHECK(lv_color_luminance(inset) + 30 < lv_color_luminance(pal.idle_wall));
+    // A loaded one keeps its filament's color wherever it stands.
+    in_box.state = BandState::Loaded;
+    in_box.fill = lv_color_hex(0x00FF00);
+    CHECK(lv_color_to_u32(band_color(in_box, pal)) == lv_color_to_u32(in_box.fill));
+}
+
+TEST_CASE("Under a view scale per-lane paths keep their box-edge rule; a selector's head its foot",
+          "[filament-path][hub-stack]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 17;
+    d.view_unit = 9.5f;
+    d.theme.tube_gauge = 4;
+    d.theme.sensor_radius = 3;
+    g.height = 200;
+    const int32_t cap = (d.theme.tube_gauge + 1) / 2;
+    const int32_t one_stub = d.theme.tube_gauge + kBandThickness;
+    const int32_t two_stub = 2 * d.theme.tube_gauge + kBandThickness;
+    SECTION("PARALLEL and MIXED lanes hang from the box edge only with two tubes' room") {
+        const bool mixed = GENERATE(false, true);
+        CAPTURE(mixed);
+        d.topology =
+            static_cast<int>(mixed ? helix::PathTopology::MIXED : helix::PathTopology::PARALLEL);
+        if (mixed)
+            d.slot_is_hub_routed[0] = d.slot_is_hub_routed[1] = true;
+        const auto rows = [&](int32_t entry) {
+            g.lane_entry_y = entry;
+            return mixed ? std::pair{compute_mixed_frame(d, g).entry_y,
+                                     compute_mixed_frame(d, g).sensor_y}
+                         : std::pair{parallel_rows(d, g).entry_y, parallel_rows(d, g).sensor_y};
+        };
+        const int32_t sensor = rows(INT32_MIN).second;
+        // Room for one tube and band, not two: the lanes keep their own entry row.
+        const int32_t short_edge = sensor - cap - one_stub - 1;
+        CHECK(rows(short_edge).first != short_edge + cap);
+        // Room for two: they hang from the edge.
+        const int32_t edge = sensor - cap - two_stub - 1;
+        CHECK(rows(edge).first == edge + cap);
+    }
+    SECTION("a LINEAR selector's head stands its foot off the canvas bottom") {
+        d.topology = static_cast<int>(helix::PathTopology::LINEAR);
+        const int32_t nozzle = linear_hub_nozzle_y(d, g);
+        // 9.5 px to the unit: a quarter unit rounds to 2 px.
+        CHECK(toolhead_glyph_bounds(0, nozzle, d.theme.extruder_scale).bottom ==
+              g.y_off + g.height - 2);
+    }
 }
 
 TEST_CASE("A path no taller canvas would help asks for no height past its own",

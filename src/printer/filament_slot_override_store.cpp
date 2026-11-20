@@ -80,6 +80,15 @@ nlohmann::json weight_or_null(float grams) {
 
 } // namespace
 
+bool is_bypass_record(const nlohmann::json& record) {
+    if (!record.is_object()) {
+        return false;
+    }
+    // helix_external marks the bypass records 1.1 betas wrote.
+    return helix::json_util::safe_string(record, "lane_name") == kBypassLaneName ||
+           helix::json_util::safe_bool(record, "helix_external", false);
+}
+
 nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o,
                                    LaneKeyStyle style) {
     nlohmann::json j;
@@ -202,9 +211,7 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     o.catalog_id = helix::json_util::safe_string(j, "helix_catalog_id");
     o.product_name = helix::json_util::safe_string(j, "helix_product_name");
     o.fingerprint = helix::json_util::safe_string(j, "helix_fingerprint");
-    // helix_external marks the bypass records 1.1 betas wrote.
-    o.external_mirror = helix::json_util::safe_string(j, "lane_name") == kBypassLaneName ||
-                        helix::json_util::safe_bool(j, "helix_external", false);
+    o.external_mirror = is_bypass_record(j);
     if (const auto loaded = helix::json_util::read_field<bool>(j, "loaded"))
         o.loaded = *loaded;
     return std::make_pair(slot_index, o);
@@ -1016,6 +1023,12 @@ SlotInfo external_spool_from_record(const FilamentSlotOverride& record) {
     info.nozzle_temp_max = record.nozzle_temp;
     info.bed_temp = record.bed_temp;
     return info;
+}
+
+bool same_bypass_spool(const FilamentSlotOverride& a, const FilamentSlotOverride& b) {
+    return a.spoolman_id == b.spoolman_id && a.material == b.material &&
+           a.color_set == b.color_set && (!a.color_set || a.color_rgb == b.color_rgb) &&
+           a.brand == b.brand && a.spool_name == b.spool_name;
 }
 
 std::optional<std::pair<int, FilamentSlotOverride>>
