@@ -5604,6 +5604,22 @@ TEST_CASE_METHOD(AfcFourRunningLanes,
     }
 }
 
+// A lane frame arriving on its own while bypass is engaged still finds no lane
+// loaded, but the external spool is at the toolhead: the filament panel's Unload
+// reads exactly these two fields for the bypass target.
+TEST_CASE_METHOD(AfcFourRunningLanes, "AFC bypass survives a lane-only status frame",
+                 "[ams][afc][bypass][bypass-lane-frame]") {
+    helper.set_supports_bypass(true);
+    helper.feed_afc_state({{"bypass_state", true}});
+    REQUIRE(helper.get_system_info().current_slot == -2);
+
+    helper.feed_afc_stepper("lane1", {{"prep", true}, {"load", true}, {"tool_loaded", false}});
+
+    const auto sys = helper.get_system_info();
+    CHECK(sys.current_slot == -2);
+    CHECK(sys.filament_loaded);
+}
+
 // Bypass: the external spool feeds the toolhead with no lane behind it, so
 // slots_.name_of(-2) resolves to "" and AFC unloads whatever is at the head via
 // its own user-configured macro. The backend has always done this correctly —
