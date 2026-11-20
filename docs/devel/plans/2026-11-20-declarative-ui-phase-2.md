@@ -62,6 +62,12 @@ widgets 12%. A parse cache would save at most 15-20%; a hashed attribute dispatc
 obj parser about as much again. Neither closes the gap to hand-written C++, so a list long
 enough to matter on MIPS should stay cached as this one is.
 
+Style attributes now skip lv_obj's attribute chain and the style chain compares
+suffixes, which cut the same creates by 7.5% (71.9M to 66.5M instructions) and
+`apply_styles` by 43%. What is left of the chain cost is widget attributes (`text`,
+`src`) failing lv_obj's ~50 names before their own parser; skipping it needs a
+second name list kept in step with the chain, for about 3% more.
+
 Found while building E1: `lib/` is on `-isystem`, so `-MMD` does not track
 `lib/helix-xml/src/xml/lv_xml_component_private.h`, which `src/xml_registration.cpp`,
 `src/application/xml_hot_reloader.cpp` and `src/remote/remote_control_server.cpp` include.
