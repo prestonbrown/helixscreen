@@ -68,6 +68,9 @@ class LedSettingsOverlay : public OverlayBase {
     }
 
     void on_activate() override;
+    /// Leaving the overlay drops unsaved macro edits: the form closes and a
+    /// device added but never saved is removed.
+    void on_dismissed() override;
 
     bool is_created() const {
         return overlay_root_ != nullptr;

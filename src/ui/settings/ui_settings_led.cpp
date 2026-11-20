@@ -219,6 +219,11 @@ void LedSettingsOverlay::on_activate() {
     populate_macro_devices();
 }
 
+void LedSettingsOverlay::on_dismissed() {
+    discard_unsaved_macro_entry();
+    editing_macro_index_ = -1;
+}
+
 // ============================================================================
 // INTERNAL METHODS
 // ============================================================================

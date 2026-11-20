@@ -546,3 +546,49 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture,
     settle();
     CHECK(std::string(lv_subject_get_string(name)).empty());
 }
+
+// Edits stay a draft until Save. Leaving the overlay drops them: the device
+// reopens as saved, and a device added but never saved is gone.
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: closing the overlay drops unsaved macro edits",
+                 "[led][settings][macro_devices]") {
+    auto& ctrl = helix::led::LedController::instance();
+    helix::led::LedMacroInfo m;
+    m.display_name = "Strip";
+    m.type = helix::led::MacroLedType::TOGGLE;
+    m.toggle_macro = "STRIP_TOGGLE";
+    ctrl.set_configured_macros({m});
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    auto reopen = [&] {
+        NavigationManager::instance().go_back();
+        settle();
+        process_lvgl(1000);
+        settle();
+        REQUIRE(overlay.show(lv_screen_active()));
+        settle();
+    };
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    lv_subject_t* name = lv_xml_get_subject(nullptr, "led_macro_draft_name");
+    REQUIRE(name != nullptr);
+
+    SECTION("an edited name") {
+        helix::settings::LedSettingsOverlayTestAccess::edit_macro(0);
+        settle();
+        lv_subject_set_string(name, "Renamed");
+        reopen();
+        helix::settings::LedSettingsOverlayTestAccess::edit_macro(0);
+        settle();
+        CHECK(std::string(lv_subject_get_string(name)) == "Strip");
+    }
+    SECTION("a device added and never saved") {
+        helix::settings::LedSettingsOverlayTestAccess::add_macro();
+        settle();
+        REQUIRE(ctrl.configured_macros().size() == 2);
+        reopen();
+        CHECK(ctrl.configured_macros().size() == 1);
+    }
+    NavigationManager::instance().go_back();
+    settle();
+}
