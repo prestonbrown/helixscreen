@@ -69,13 +69,16 @@ std::string dotted(const std::vector<std::string>& parts) {
 } // namespace
 
 std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads, int active_tool,
-                                   bool heads_share_heater) {
+                                   bool heads_share_heater, std::string_view active_extruder) {
     std::vector<OtherHead> out;
     // With nothing mounted a lone head is not "another" head either.
     if (heads_share_heater || heads.size() < 2)
         return out;
     for (const PhysicalHead& head : heads) {
-        if (!head.extruder_name || head.holds_tool(active_tool))
+        // The toolhead's extruder is the printing head even while no tool reads as
+        // active (between jobs), and the nozzle chip already shows it.
+        if (!head.extruder_name || head.holds_tool(active_tool) ||
+            *head.extruder_name == active_extruder)
             continue;
         out.push_back({head.representative_tool(active_tool), *head.extruder_name});
     }
@@ -91,26 +94,30 @@ OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view na
     return r;
 }
 
-ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
-                             const std::function<bool(const std::string&)>& fits) {
+ChipContent other_tools_chip(const std::vector<OtherToolReading>& heads,
+                             const std::function<bool(const std::string&)>& fits, bool count_rest) {
     ChipContent c;
+    // Only a head with a target says anything here: one pre-heating for its
+    // tool change, or holding at its standby. Idle heads are no news.
+    std::vector<OtherToolReading> tools;
+    for (const auto& t : heads)
+        if (t.target_deci > 0)
+            tools.push_back(t);
     if (tools.empty())
         return c;
     c.shown = true;
 
     const OtherToolReading* first_climbing = nullptr;
-    bool all_off = true;
     bool any_named = false;
     for (const auto& t : tools) {
-        all_off = all_off && off(t);
         any_named = any_named || !t.number.empty();
         if (!first_climbing && climbing(t))
             first_climbing = &t;
     }
 
-    // The full list, else as many heads as fit, in order, and a count of the
-    // rest. A climbing head always stays, even past the room: a pre-heat is
-    // never hidden. Returns whether the text fits.
+    // The full list, else as many heads as fit, in order, with a count of the
+    // rest where `count_rest` allows one. The first head always stays, even
+    // past the room: a pre-heat is never hidden. Returns whether the text fits.
     const auto ladder = [&](bool by_number) {
         std::vector<std::string> all;
         for (const bool want_climbing : {true, false})
@@ -123,17 +130,14 @@ ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
         const int n = static_cast<int>(all.size());
         for (int k = n - 1; k >= 1; --k) {
             std::vector<std::string> parts(all.begin(), all.begin() + k);
-            parts.push_back(fmt::format("+{}", n - k));
+            if (count_rest)
+                parts.push_back(fmt::format("+{}", n - k));
             c.text = dotted(parts);
             if (fits(c.text))
                 return true;
         }
-        if (first_climbing) {
-            // A lone climbing head, or the first one, with the rest counted.
-            c.text = n > 1 ? dotted({all.front(), fmt::format("+{}", n - 1)}) : all.front();
-        } else {
-            c.text = fmt::format(fmt::runtime(ui::tr_plural("+1 tool", "+{} tools", n)), n);
-        }
+        c.text =
+            count_rest && n > 1 ? dotted({all.front(), fmt::format("+{}", n - 1)}) : all.front();
         return false;
     };
     if (!ladder(false) && any_named)
@@ -146,8 +150,6 @@ ChipContent other_tools_chip(const std::vector<OtherToolReading>& tools,
                                        first_climbing->start_deci);
     } else {
         c.expendable = true;
-        if (all_off)
-            c.tone = ChipTone::Dim;
     }
     return c;
 }

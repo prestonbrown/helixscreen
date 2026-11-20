@@ -38,7 +38,7 @@ TEST_CASE("other tools: no other heads hides the chip", "[print_status_other_too
     CHECK(other_tools_budget_text({}).empty());
 }
 
-TEST_CASE("other tools: with room for every head, the climbing ones lead and set the bar",
+TEST_CASE("other tools: only heads with a target show, the climbing ones lead and set the bar",
           "[print_status_other_tools]") {
     const auto check = [](const std::vector<OtherToolReading>& heads, const char* text,
                           ChipTone tone, int progress_pct) {
@@ -53,16 +53,20 @@ TEST_CASE("other tools: with room for every head, the climbing ones lead and set
         CHECK_FALSE(chip.glow);
     };
     // clang-format off
-    check({tool("1", 1500, 1500), tool("3", 250, 0), tool("4", 250, 0)}, "1 150° · 3 off · 4 off", ChipTone::Normal, -1);
-    check({tool("2", 250, 0), tool("3", 250, 0)}, "2 off · 3 off", ChipTone::Dim, -1);
-    check({tool("2", 1200, 0)}, "2 120°", ChipTone::Normal, -1); // parked but still hot
-    check({tool("1", 1500, 1500), tool("3", 1840, 2200, 300), tool("4", 250, 0)}, "3 184 / 220° · 1 150° · 4 off", ChipTone::Active, 81);
+    check({tool("1", 1500, 1500), tool("3", 250, 0), tool("4", 250, 0)}, "1 150°", ChipTone::Normal, -1);
+    check({tool("1", 1500, 1500), tool("3", 1840, 2200, 300), tool("4", 250, 0)}, "3 184 / 220° · 1 150°", ChipTone::Active, 81);
     // Two climbing heads both lead; the first sets the bar.
-    check({tool("1", 250, 0), tool("2", 1100, 2000, 200), tool("3", 1840, 2200, 300)}, "2 110 / 200° · 3 184 / 220° · 1 off", ChipTone::Active, 50);
+    check({tool("1", 250, 0), tool("2", 1100, 2000, 200), tool("3", 1840, 2200, 300)}, "2 110 / 200° · 3 184 / 220°", ChipTone::Active, 50);
     // A head cooling to its standby shows the target and does not lead.
-    check({tool("1", 250, 0), tool("2", 2000, 1500)}, "1 off · 2 200 / 150°", ChipTone::Normal, -1);
-    check({tool("Left", 1500, 1500), tool("3", 250, 0)}, "Left 150° · 3 off", ChipTone::Normal, -1);
+    check({tool("1", 250, 0), tool("2", 2000, 1500)}, "2 200 / 150°", ChipTone::Normal, -1);
+    check({tool("Left", 1500, 1500), tool("3", 250, 0)}, "Left 150°", ChipTone::Normal, -1);
     // clang-format on
+}
+
+TEST_CASE("other tools: heads with no target leave no chip", "[print_status_other_tools]") {
+    CHECK_FALSE(other_tools_chip({tool("2", 250, 0), tool("3", 250, 0)}, always).shown);
+    // Parked but still hot, its heater off: cooling is no news either.
+    CHECK_FALSE(other_tools_chip({tool("2", 1200, 0)}, always).shown);
 }
 
 TEST_CASE("other tools: too narrow, the heads that fit stay in order and the rest count",
@@ -70,38 +74,26 @@ TEST_CASE("other tools: too narrow, the heads that fit stay in order and the res
     const std::vector<OtherToolReading> t = {tool("1", 1500, 1500), tool("3", 1840, 2200),
                                              tool("4", 250, 0)};
     const std::string full = other_tools_chip(t, always).text;
+    REQUIRE(full == "3 184 / 220° · 1 150°");
     const ChipContent c = other_tools_chip(t, room(full.size() - 1));
-    CHECK(c.text == "3 184 / 220° · 1 150° · +1");
+    CHECK(c.text == "3 184 / 220° · +1");
     CHECK(c.tone == ChipTone::Active);
     CHECK(c.progress_pct >= 0);
-    const std::string one = "3 184 / 220° · +2";
-    CHECK(other_tools_chip(t, room(one.size())).text == one);
     // A room smaller than even that still shows the climbing head: a pre-heat is never hidden.
-    CHECK(other_tools_chip(t, room(3)).text == "3 184 / 220° · +2");
+    CHECK(other_tools_chip(t, room(3)).text == "3 184 / 220° · +1");
     const ChipContent lone = other_tools_chip({tool("2", 1840, 2200)}, room(1));
     CHECK(lone.text == "2 184 / 220°");
     CHECK(lone.tone == ChipTone::Active);
 }
 
-TEST_CASE("other tools: too narrow for two climbing heads keeps as many as fit",
+TEST_CASE("other tools: without a count the heads that fit stay and the rest go unmentioned",
           "[print_status_other_tools]") {
-    const std::vector<OtherToolReading> t = {tool("1", 250, 0), tool("2", 1100, 2000),
+    const std::vector<OtherToolReading> t = {tool("1", 1500, 1500), tool("2", 1100, 2000),
                                              tool("3", 1840, 2200)};
-    const std::string two = "2 110 / 200° · 3 184 / 220° · +1";
-    CHECK(other_tools_chip(t, room(two.size())).text == two);
-    CHECK(other_tools_chip(t, room(two.size() - 1)).text == "2 110 / 200° · +2");
-}
-
-TEST_CASE("other tools: too narrow with none climbing lists what fits, then counts the tools",
-          "[print_status_other_tools]") {
-    const std::vector<OtherToolReading> t = {tool("1", 1500, 1500), tool("3", 250, 0),
-                                             tool("4", 250, 0)};
-    CHECK(other_tools_chip(t, room(std::string("1 150° · 3 off · +1").size())).text ==
-          "1 150° · 3 off · +1");
-    const std::string first = "1 150° · +2";
-    CHECK(other_tools_chip(t, room(first.size())).text == first);
-    CHECK(other_tools_chip(t, room(first.size() - 1)).text == "+3 tools");
-    CHECK(other_tools_chip({tool("2", 250, 0)}, room(1)).text == "+1 tool");
+    const std::string two = "2 110 / 200° · 3 184 / 220°";
+    CHECK(other_tools_chip(t, room(two.size()), false).text == two);
+    CHECK(other_tools_chip(t, room(two.size() - 1), false).text == "2 110 / 200°");
+    CHECK(other_tools_chip(t, room(3), false).text == "2 110 / 200°");
 }
 
 TEST_CASE("other tools: the budget is one climbing head at its widest and the count",
@@ -121,8 +113,8 @@ TEST_CASE("other tools: configured names give way to numbers where they do not f
     OtherToolReading left = tool("Left Extruder Hotend", 1500, 1500);
     left.number = "2";
     const std::vector<OtherToolReading> t = {left, tool("3", 250, 0)};
-    CHECK(other_tools_chip(t, always).text == "Left Extruder Hotend 150° · 3 off");
-    const std::string numbered = "2 150° · 3 off";
+    CHECK(other_tools_chip(t, always).text == "Left Extruder Hotend 150°");
+    const std::string numbered = "2 150°";
     CHECK(other_tools_chip(t, room(numbered.size())).text == numbered);
     // The budget measures the number, so a long name never widens the layout's room.
     CHECK(other_tools_budget_text(t) == "2 999 / 999° · +1");
@@ -180,6 +172,12 @@ TEST_CASE("other heads: each head besides the printing one, once, named by its t
     CHECK(others({t0, t1, tool_on(2, "extruder2")}, 1) == Heads{{0, "extruder"}, {2, "extruder2"}});
     CHECK(others({t0}, -1).empty());
     CHECK(others({t0, t1}, -1) == Heads{{0, "extruder"}, {1, "extruder1"}});
+    // No tool active (between jobs): the toolhead's extruder is still the printing head.
+    const auto idle =
+        other_heads(physical_heads({t0, t1, tool_on(2, "extruder2")}), -1, false, "extruder1");
+    REQUIRE(idle.size() == 2);
+    CHECK(idle[0].extruder == "extruder");
+    CHECK(idle[1].extruder == "extruder2");
     // An AFC/Happy Hare/ERCF unit: four lanes through one nozzle are one head, and a
     // hub of three lanes beside a second head is listed once.
     std::vector<ToolInfo> lanes = {t0, tool_on(1, "extruder"), tool_on(2, "extruder"),

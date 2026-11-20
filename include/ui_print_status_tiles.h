@@ -268,6 +268,7 @@ class PrintStatusTiles {
     ObserverGuard bed_power_observer_;
     ObserverGuard chamber_power_observer_;
     ObserverGuard temp_unit_observer_;
+    ObserverGuard print_active_observer_; ///< the speed/flow chip shows only while a job runs
 
     // Lifetimes before observers: members destroy in reverse, so each guard
     // goes while its lifetime still says whether the subject lives.
