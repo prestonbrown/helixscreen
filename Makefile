@@ -913,6 +913,10 @@ else ifneq ($(CROSS_COMPILE)$(filter x86 x86-fbdev x86-both,$(PLATFORM_TARGET)),
     else ifeq ($(PLATFORM_TARGET),k2)
         # K2 uses musl - fully static, no system library paths needed (same as K1)
         LDFLAGS := $(LIBHV_LIBS) $(FMT_LIBS) $(WPA_CLIENT_LIB) $(LIBNL_LIBS) -ldl -lz -lm -lpthread
+    else ifeq ($(PLATFORM_TARGET),ad5m-br)
+        # A Buildroot toolchain links against its own sysroot; a host -L path is
+        # refused by its compiler wrapper.
+        LDFLAGS := $(LIBHV_LIBS) $(FMT_LIBS) $(WPA_CLIENT_LIB) $(LIBNL_LIBS) -ldl -lz -lm -lpthread
     else
         LDFLAGS := -L/usr/lib/$(TARGET_TRIPLE) $(LIBHV_LIBS) $(FMT_LIBS) $(WPA_CLIENT_LIB) $(LIBNL_LIBS) $(SYSTEMD_LIBS) -ldl -lz -lm -lpthread
         # libusb only available on Pi/x86 targets (ad5m/cc1 use standalone ARM toolchains without it)

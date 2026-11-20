@@ -311,7 +311,13 @@ else ifeq ($(PLATFORM_TARGET),ad5m-br)
     #   - Dynamic OpenSSL (buildroot ships libssl; no static-link needed)
     # All other CPU tuning, size optimizations, and asset gates match `ad5m`.
     # -------------------------------------------------------------------------
-    # CROSS_COMPILE is NOT defaulted here — buildroot passes it via TARGET_CONFIGURE_OPTS.
+    # CROSS_COMPILE is NOT defaulted here. Buildroot's TARGET_CONFIGURE_OPTS hands
+    # over CC/CXX and never CROSS_COMPILE, so a cross CC (…-gcc) supplies the
+    # prefix; without one the build would take the host branch (host include
+    # paths, desktop flags) for an ARM target.
+    ifeq ($(CROSS_COMPILE),)
+        CROSS_COMPILE := $(patsubst %gcc,%,$(filter %-gcc,$(lastword $(CC))))
+    endif
     TARGET_ARCH := armv7-a
     TARGET_TRIPLE := arm-buildroot-linux-gnueabihf
     TARGET_CFLAGS := -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard -mtune=cortex-a7 \

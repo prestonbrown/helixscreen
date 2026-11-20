@@ -439,19 +439,20 @@ ifneq ($(CROSS_COMPILE),)
 	$(Q)if [ -f "$(LIBNL_DIR)/Makefile" ]; then \
 		$(MAKE) -C $(LIBNL_DIR) distclean 2>/dev/null || true; \
 	fi
-	@# Apply patches for GCC 14+ compatibility (implicit function declaration is now an error)
+	@# Apply patches for GCC 14+ compatibility (implicit function declaration is now an error).
+	@# The shared helper also patches a source tree with no .git (a packager's tarball).
 	$(Q)for p in patches/libnl-*.patch; do \
-		[ -f "$$p" ] && git -C $(LIBNL_DIR) apply --check "../../$$p" 2>/dev/null && \
-			git -C $(LIBNL_DIR) apply "../../$$p" && \
-			echo "$(CYAN)→ Applied $$(basename $$p)$(RESET)" || true; \
+		[ -f "$$p" ] || continue; \
+		$(APPLY_PATCH) $(LIBNL_DIR) "$$p" "libnl $$(basename $$p)" || exit 1; \
 	done
 	$(Q)cd $(LIBNL_DIR) && \
 		CC="$(CC)" \
 		AR="$(AR)" \
 		RANLIB="$(RANLIB)" \
 		CFLAGS="$(TARGET_CFLAGS)" \
+		LDFLAGS= \
 		./configure \
-			--host=$(patsubst %-,%,$(CROSS_COMPILE)) \
+			--host=$(patsubst %-,%,$(notdir $(CROSS_COMPILE))) \
 			--prefix=$(LIBNL_PREFIX) \
 			--enable-static \
 			--disable-shared \
