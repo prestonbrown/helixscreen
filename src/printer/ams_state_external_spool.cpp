@@ -137,7 +137,12 @@ void AmsState::write_bypass_record(const helix::ams::FilamentSlotOverride* recor
         if (bypass_handover_carried_.has_value()) {
             bypass_handover_carried_.reset();
             bypass_handover_done_ = true;
-            delete_own_bypass_copy();
+            // AmsState's copy goes once the holder's read shows this write; a
+            // refused or failed write leaves it as the last record there is.
+            bypass_superseded_by_ = record != nullptr
+                                        ? std::optional<helix::ams::FilamentSlotOverride>(*record)
+                                        : std::nullopt;
+            bypass_supersede_pending_ = true;
         }
         holder->publish_external_spool_lane(record);
         return;
@@ -167,6 +172,8 @@ void AmsState::restart_bypass_reads() {
     bypass_store_read_ = false;
     bypass_handover_done_ = false;
     bypass_handover_carried_.reset();
+    bypass_supersede_pending_ = false;
+    bypass_superseded_by_.reset();
     bypass_reclaim_done_ = false;
     bypass_reclaim_taken_ = false;
     ++bypass_connection_generation_;
@@ -262,6 +269,18 @@ void AmsState::adopt_bypass_records(
 void AmsState::hand_bypass_record_to_holder() {
     assert_main_thread();
     AmsBackend* holder = bypass_record_holder();
+    if (holder != nullptr && bypass_supersede_pending_) {
+        const std::optional<helix::ams::FilamentSlotOverride> held = holder->bypass_record();
+        const bool echoed =
+            bypass_superseded_by_.has_value()
+                ? held.has_value() && helix::ams::same_bypass_spool(*held, *bypass_superseded_by_)
+                : !held.has_value();
+        if (echoed) {
+            bypass_supersede_pending_ = false;
+            bypass_superseded_by_.reset();
+            delete_own_bypass_copy();
+        }
+    }
     if (holder == nullptr || bypass_handover_done_ || !holder->lane_records_ready()) {
         return;
     }

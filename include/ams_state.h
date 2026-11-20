@@ -2803,6 +2803,10 @@ class AmsState {
     /// The holder's lane_record_reads() when the carried record was last
     /// published: one more publish per holder read until it shows.
     uint64_t bypass_handover_published_at_ = 0;
+    /// A user write ended a pending move; AmsState's copy goes once the
+    /// holder's read shows bypass_superseded_by_ (nullopt: a clear).
+    bool bypass_supersede_pending_ = false;
+    std::optional<helix::ams::FilamentSlotOverride> bypass_superseded_by_;
     /// reclaim_orphaned_bypass_record() has run for this connection.
     bool bypass_reclaim_done_ = false;
     /// reclaim_orphaned_bypass_record() has copied a record this connection.

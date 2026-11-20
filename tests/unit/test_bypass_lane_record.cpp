@@ -618,9 +618,56 @@ TEST_CASE_METHOD(LVGLTestFixture, "a user edit supersedes a handover still pendi
     CHECK(afc->publishes_ == 2); // no retry of the old record
     CHECK(printer.client.mock_db_get("helix-screen-afc-overrides", "lane3")["filament_type"] ==
           "PETG");
+    // The holder shows the edit, so AmsState's copy goes.
+    CHECK(printer.client.mock_db_get("lane_data", "lane1").is_null());
     const auto spool = AmsState::instance().get_external_spool_info();
     REQUIRE(spool.has_value());
     CHECK(spool->material == "PETG");
+
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    AmsState::instance().clear_backends();
+}
+
+namespace {
+/// An AFC that refuses every bypass write.
+class RefuseAllAfc : public StartedAfc {
+  public:
+    using StartedAfc::StartedAfc;
+    void publish_external_spool_lane(const helix::ams::FilamentSlotOverride*) override {
+        ++publishes_;
+    }
+    int publishes_ = 0;
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a refused user write keeps AmsState's bypass record",
+                 "[bypass][lane][extras][afc][handover]") {
+    MockPrinter printer;
+    printer.client.mock_db_set("lane_data", "lane1", bypass_record(0, "ASA", "#101010"));
+    OwnBypassStore store(printer);
+
+    auto owned = std::make_unique<RefuseAllAfc>(&printer.api);
+    RefuseAllAfc* afc = owned.get();
+    AmsState::instance().add_backend(std::move(owned));
+    afc->start_now();
+    AmsState::instance().sync_from_backend();
+    settle();
+    REQUIRE(afc->publishes_ == 1); // the handover, refused
+
+    // The user's edit supersedes the move and is refused too.
+    AmsState::instance().set_external_spool_info(petg_spool());
+    settle();
+    REQUIRE(afc->publishes_ == 2);
+    for (int i = 0; i < 3; ++i) {
+        afc->refresh_lane_records();
+        settle();
+        AmsState::instance().sync_from_backend();
+        settle();
+    }
+
+    const json kept = printer.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(kept.is_object());
+    CHECK(kept["filament_type"] == "ASA");
 
     helix::ui::UpdateQueue::instance().drain_until_empty();
     AmsState::instance().clear_backends();
