@@ -11,6 +11,7 @@
 #include "ams_state.h"
 #include "core/observer_factory.h"
 #include "core/update_queue.h"
+#include "display_manager.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
@@ -30,7 +31,11 @@ namespace helix::ui {
 // FilamentRunoutHandler Implementation
 // ============================================================================
 
-FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api) : api_(api) {
+FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api)
+    : api_(api), wake_([] {
+          if (auto* dm = DisplayManager::instance())
+              dm->wake_display();
+      }) {
     // A pause's other cause can arrive after the pause did, by which time the
     // guidance may already be up for it.
     helix::non_filament_pause::add_listener(this, [this]() {
@@ -287,6 +292,10 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         // Just hide the modal - no action needed
     });
 
+    // The pause waits on the user; a sleeping screen or a screensaver would hide it.
+    if (wake_) {
+        wake_();
+    }
     if (!runout_modal_.show(lv_screen_active())) {
         spdlog::error("[FilamentRunoutHandler] Failed to create runout guidance modal");
         return;
