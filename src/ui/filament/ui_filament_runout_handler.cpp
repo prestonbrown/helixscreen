@@ -11,7 +11,6 @@
 #include "ams_state.h"
 #include "core/observer_factory.h"
 #include "core/update_queue.h"
-#include "display_manager.h"
 #include "filament_op_dispatch.h"
 #include "filament_op_execute.h"
 #include "filament_sensor_manager.h"
@@ -31,11 +30,7 @@ namespace helix::ui {
 // FilamentRunoutHandler Implementation
 // ============================================================================
 
-FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api)
-    : api_(api), wake_([] {
-          if (auto* dm = DisplayManager::instance())
-              dm->wake_display();
-      }) {
+FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api) : api_(api) {
     // A pause's other cause can arrive after the pause did, by which time the
     // guidance may already be up for it.
     helix::non_filament_pause::add_listener(this, [this]() {

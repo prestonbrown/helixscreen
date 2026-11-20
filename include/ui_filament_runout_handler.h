@@ -108,8 +108,8 @@ class FilamentRunoutHandler {
     void hide_modal();
 
     using WakeFn = std::function<void()>;
-    /// How the display is woken when the guidance appears; DisplayManager::wake_display
-    /// by default.
+    /// Wakes the display when the guidance appears. Its owner supplies it; unset, the
+    /// guidance shows without waking.
     void set_wake(WakeFn wake) {
         wake_ = std::move(wake);
     }
