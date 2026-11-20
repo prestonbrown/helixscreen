@@ -10,6 +10,7 @@
 //   GET  /{channel}/manifest.json                    - Release manifest
 //   GET  /{channel}/helixscreen-*.tar.gz             - Release tarball (by channel)
 //   GET  /releases/{version}/helixscreen-*.tar.gz    - Release tarball (by version)
+//   GET  /releases/{version}/helixscreen-*.zip       - Release zip (by version)
 //   HEAD (same paths) - Metadata without body
 
 /** Valid release channels. */
@@ -17,6 +18,13 @@ const VALID_CHANNELS = new Set(["stable", "beta", "dev"]);
 
 /** Pattern for allowed tarball filenames. */
 const TARBALL_PATTERN = /^helixscreen-[a-zA-Z0-9._-]+\.tar\.gz$/;
+
+/**
+ * Pattern for allowed zip filenames. Releases ship only zips, so an
+ * HTTPS-incapable installer (BusyBox wget on the AD5M) has nothing else to
+ * fetch here. The k1/ad5x zips are real objects in R2, so they need no alias.
+ */
+const ZIP_PATTERN = /^helixscreen-[a-zA-Z0-9._-]+\.zip$/;
 
 /**
  * Retired board keys whose tarballs became the unified MIPS package. A
@@ -160,7 +168,7 @@ function resolvePath(path: string): ResolvedPath | null {
     return null;
   }
 
-  // releases/{version}/{filename} — tarball by version
+  // releases/{version}/{filename} — release archive by version
   // The HTTPS CDN (releases.helixscreen.org) uses this path structure.
   // Mirror it here so BusyBox wget (K1, AD5M) can download via plain HTTP.
   if (parts.length === 3 && parts[0] === "releases") {
@@ -175,6 +183,14 @@ function resolvePath(path: string): ResolvedPath | null {
       return {
         r2Key: `releases/${version}/${rewriteRetiredMipsAlias(filename)}`,
         contentType: "application/gzip",
+        cacheControl: "public, max-age=86400, immutable",
+      };
+    }
+
+    if (ZIP_PATTERN.test(filename)) {
+      return {
+        r2Key: trimmed,
+        contentType: "application/zip",
         cacheControl: "public, max-age=86400, immutable",
       };
     }

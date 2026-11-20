@@ -1185,7 +1185,7 @@ _channel_manifests() {
 
     run download_release "v1.1.0-beta.4" "pi"
     [ "$status" -eq 0 ]
-    contains "sha=dddd" "$output"
+    contains "sha=bbbb" "$output"
     contains "plain-HTTP mirror" "$output"
 }
 
@@ -1377,13 +1377,26 @@ $unwired"
     [ -z "$output" ] || fail "expected empty, got [$output]"
 }
 
-# The plain-HTTP mirror (server/dl-worker) serves release tarballs only; it
-# answers 404 for every .zip, so no candidate may ask it for one.
+# The plain-HTTP mirror (server/dl-worker) serves the release zip and, for
+# releases from before the zip-only ones, the tarball. Asked zip first.
 _record_candidates() {
     R2_CHANNEL=beta
-    _R2_MANIFEST='{"version": "1.1.0-rc.3", "assets": {"ad5m": {"sha256": "cccc"}}}'
+    _R2_MANIFEST='{"version": "1.1.0-rc.3", "assets": {"ad5m": {"zip_sha256": "zzzz", "sha256": "cccc"}}}'
     _R2_MANIFEST_TRANSPORT=http
     _ensure_manifest() { return 0; }
+    _try_download_candidate() {
+        echo "CANDIDATE $1"
+        case "$1" in
+            "${HTTP_BASE_URL}"/*.zip) : > "$2"; return 0 ;;
+        esac
+        return 1
+    }
+}
+
+@test "download_release: asks the plain-HTTP mirror for the zip before the tarball" {
+    _record_candidates
+    check_https_capability() { return 0; }
+    # A mirror without the zip (an older release) still yields the tarball.
     _try_download_candidate() {
         echo "CANDIDATE $1"
         case "$1" in
@@ -1391,19 +1404,15 @@ _record_candidates() {
         esac
         return 1
     }
-}
-
-@test "download_release: never asks the plain-HTTP mirror for a zip" {
-    _record_candidates
-    check_https_capability() { return 0; }
 
     run download_release "v1.1.0-rc.3" "ad5m"
     [ "$status" -eq 0 ]
-    contains "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" "$output"
-    lacks "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m.zip" "$output"
+    [ "$(echo "$output" | grep "^CANDIDATE ${HTTP_BASE_URL}")" = \
+      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m.zip
+CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" ]
 }
 
-@test "download_release: a host without HTTPS asks the plain-HTTP tarball first" {
+@test "download_release: a host without HTTPS asks the plain-HTTP zip first" {
     # BusyBox wget on the AD5M fails every https:// URL ("not an http or ftp
     # url"), so the CDN and GitHub candidates only cost time and log noise.
     _record_candidates
@@ -1412,7 +1421,7 @@ _record_candidates() {
     run download_release "v1.1.0-rc.3" "ad5m"
     [ "$status" -eq 0 ]
     [ "$(echo "$output" | grep '^CANDIDATE ')" = \
-      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" ]
+      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m.zip" ]
     lacks "trying GitHub" "$output"
 }
 
@@ -1432,6 +1441,99 @@ _record_candidates() {
     run download_release "v1.1.0-rc.3" "ad5m"
     [ "$status" -eq 0 ]
     [ "$(echo "$output" | grep '^CANDIDATE ' | head -1)" = \
-      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m-v1.1.0-rc.3.tar.gz" ]
+      "CANDIDATE ${HTTP_BASE_URL}/releases/v1.1.0-rc.3/helixscreen-ad5m.zip" ]
     contains "from CDN" "$output"
+}
+
+# --- Zip-only releases ----------------------------------------------------
+
+@test "_try_download_candidate: accepts an intact zip when unzip rejects -t (BusyBox 1.31 / K1)" {
+    # Releases ship only zips, so a download check that trips over BusyBox's
+    # missing -t leaves a K1 or AD5M with nothing it can install.
+    local bin="$BATS_TEST_TMPDIR/bb131"
+    make_fake_unzip "$bin" busybox131
+    create_valid_zip "$BATS_TEST_TMPDIR/genuine.zip"
+    export FAKE_BODY="$BATS_TEST_TMPDIR/genuine.zip"
+
+    run env PATH="$bin:$PATH" /bin/bash -c '
+        source tests/shell/helpers.bash
+        unset _HELIX_RELEASE_SOURCED _HELIX_COMMON_SOURCED _HELIX_HOST_PROFILE_SOURCED _PY_BIN _PY_PROBED
+        source scripts/lib/installer/common.sh
+        source scripts/lib/installer/host_profile.sh
+        source scripts/lib/installer/release.sh
+        download_file() { cp "$FAKE_BODY" "$2"; }
+        _try_download_candidate "https://cdn.example/x.zip" "$1" https "$(_sha256_file "$FAKE_BODY")"
+    ' _ "$TMP_DIR/dl.zip"
+    [ "$status" -eq 0 ]
+}
+
+@test "_try_download_candidate: rejects a CRC-corrupt zip" {
+    create_crc_corrupt_zip "$BATS_TEST_TMPDIR/crc.zip"
+    download_file() { cp "$BATS_TEST_TMPDIR/crc.zip" "$2"; }
+    run _try_download_candidate "https://cdn.example/x.zip" "$TMP_DIR/dl.zip" https ""
+    [ "$status" -ne 0 ]
+}
+
+@test "download_release: an HTTPS-incapable host gets the zip from the plain-HTTP mirror" {
+    create_valid_zip "$BATS_TEST_TMPDIR/genuine.zip"
+    local sha
+    sha=$(_sha256_file "$BATS_TEST_TMPDIR/genuine.zip")
+    _R2_MANIFEST="{
+        \"version\": \"9.9.9\",
+        \"assets\": {
+            \"ad5m\": {
+                \"url\": \"https://cdn.example/releases/v9.9.9/helixscreen-ad5m.zip\",
+                \"sha256\": \"$sha\",
+                \"zip_url\": \"https://cdn.example/releases/v9.9.9/helixscreen-ad5m.zip\",
+                \"zip_sha256\": \"$sha\"
+            }
+        }
+    }"
+    _R2_MANIFEST_TRANSPORT="http"
+    _ensure_manifest() { return 0; }
+    check_https_capability() { return 1; }
+    download_file() { return 1; }
+    download_file_http() {
+        echo "HTTP GET $1"
+        case "$1" in
+            *.zip) cp "$BATS_TEST_TMPDIR/genuine.zip" "$2" ;;
+            *) return 1 ;;
+        esac
+    }
+
+    run download_release "v9.9.9" "ad5m"
+    [ "$status" -eq 0 ]
+    contains "HTTP GET ${HTTP_BASE_URL}/releases/v9.9.9/helixscreen-ad5m.zip" "$output"
+    contains "via HTTP" "$output"
+    # The zip answered first, so the mirror was never asked for a tarball.
+    lacks ".tar.gz" "$output"
+}
+
+@test "_release_candidates: a zip-only manifest gives the tar.gz candidates no url or hash of the zip" {
+    # The manifest's url/sha256 mirror the zip. Read as a tarball they would
+    # stage the zip under a .tar.gz name and fail gunzip after a full download.
+    _R2_MANIFEST='{"version": "9.9.9", "assets": {"pi": {
+        "url": "https://cdn.example/releases/v9.9.9/helixscreen-pi.zip", "sha256": "zzzz",
+        "zip_url": "https://cdn.example/releases/v9.9.9/helixscreen-pi.zip", "zip_sha256": "zzzz"}}}'
+    _ensure_manifest() { return 0; }
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http
+    local zip_sha tar_sha manifest_ok
+    _release_candidates "v9.9.9" "pi"
+    [ "$zip_sha" = "zzzz" ]
+    [ -z "$tar_sha" ] || fail "tar_sha took the zip's hash: $tar_sha"
+    [ "$tar_r2" = "${R2_BASE_URL}/releases/v9.9.9/helixscreen-pi-v9.9.9.tar.gz" ] || fail "tar_r2: $tar_r2"
+    [ "$tar_http" = "${HTTP_BASE_URL}/releases/v9.9.9/helixscreen-pi-v9.9.9.tar.gz" ] || fail "tar_http: $tar_http"
+    [ "$zip_http" = "${HTTP_BASE_URL}/releases/v9.9.9/helixscreen-pi.zip" ] || fail "zip_http: $zip_http"
+}
+
+@test "_release_candidates: a manifest that lists a tarball still hands it its hash" {
+    _R2_MANIFEST='{"version": "9.9.9", "assets": {"pi": {
+        "url": "https://cdn.example/releases/v9.9.9/helixscreen-pi-v9.9.9.tar.gz", "sha256": "tttt",
+        "zip_url": "https://cdn.example/releases/v9.9.9/helixscreen-pi.zip", "zip_sha256": "zzzz"}}}'
+    _ensure_manifest() { return 0; }
+    local zip_filename tar_filename zip_r2 tar_r2 zip_gh tar_gh zip_http tar_http
+    local zip_sha tar_sha manifest_ok
+    _release_candidates "v9.9.9" "pi"
+    [ "$tar_sha" = "tttt" ]
+    [ "$tar_r2" = "https://cdn.example/releases/v9.9.9/helixscreen-pi-v9.9.9.tar.gz" ]
 }

@@ -265,23 +265,27 @@ TEST_CASE("GitHub release JSON parsing", "[update_checker][json]") {
         REQUIRE(release.download_url == "https://x/" + tarball);
     }
 
-    SECTION("selects this platform's tar.gz over its zip and over other assets") {
-        // A release carries one tarball and one zip per platform alongside
-        // GitHub's own source archives. The tarball wins: devices still on
-        // v0.99.30 or earlier gunzip whatever url the asset list hands them.
+    SECTION("selects this platform's zip over its tar.gz and over other assets") {
+        // A release from before the zip-only ones carries a tarball and a zip
+        // per platform alongside GitHub's own source archives. The zip wins,
+        // listed before or after the tarball.
         const std::string tarball = platform_tarball("2.0.0");
         const std::string zip = "helixscreen-" + helix::platform::current_key() + ".zip";
-        const std::string json_str = R"({
-            "tag_name": "v2.0.0",
-            "body": "Release",
-            "published_at": "2025-02-01T00:00:00Z",
-            "assets": [)" + asset_json("source.zip") +
-                                     "," + asset_json(zip) + "," + asset_json(tarball) + "," +
-                                     asset_json("debug.log") + R"(]
-        })";
+        for (const bool tar_first : {true, false}) {
+            const std::string pair = tar_first ? asset_json(tarball) + "," + asset_json(zip)
+                                               : asset_json(zip) + "," + asset_json(tarball);
+            const std::string json_str = R"({
+                "tag_name": "v2.0.0",
+                "body": "Release",
+                "published_at": "2025-02-01T00:00:00Z",
+                "assets": [)" + asset_json("source.zip") +
+                                         "," + pair + "," + asset_json("debug.log") + R"(]
+            })";
 
-        REQUIRE(helix::parse_github_release(json_str, release, error));
-        REQUIRE(release.download_url == "https://x/" + tarball);
+            UpdateChecker::ReleaseInfo picked;
+            REQUIRE(helix::parse_github_release(json_str, picked, error));
+            CHECK(picked.download_url == "https://x/" + zip);
+        }
     }
 
     SECTION("handles missing optional fields gracefully") {

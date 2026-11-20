@@ -101,16 +101,16 @@ on first use if the unified image is already present.
 ### Release package
 
 The unified binary ships as the `mips` release asset: `make release-mips` builds
-`releases/helixscreen-mips-v<ver>.tar.gz` (+ `.zip`, with k1/ad5x transition aliases), and
+`releases/helixscreen-mips.zip` (with k1/ad5x transition aliases), and
 the release workflow's mips matrix entry publishes it. Same layout as every other platform
-tarball (`bin/`, `ui_xml/`, `assets/`, `config/`, `certs/`, `install.sh`); needs the
+zip (`bin/`, `ui_xml/`, `assets/`, `config/`, `certs/`, `install.sh`); needs the
 prerendered images first (`make venv-setup && make gen-all-images`, as `release.yml` does).
 No preset is baked in: first boot runs the hardware wizard, whose detection applies
 `assets/config/presets/creator5_pro.json` on a Pro and
 `assets/config/presets/creator5.json` on a heater-free Creator 5.
 
 The binary locates its data root relative to itself (`<root>/bin/helix-screen` ->
-`<root>/ui_xml`), so unpack the tarball as a whole (e.g. to `/usr/data/helixscreen/`)
+`<root>/ui_xml`), so unpack the zip as a whole (e.g. into `/usr/data/helixscreen/`)
 and run `bin/helix-screen` from there; a bare binary fails with "Could not find
 HelixScreen data root". `HELIX_DATA_DIR` overrides the lookup.
 

@@ -19,7 +19,7 @@ Usage: verify-dry-run-release.sh --artifact DIR --r2 DIR --base-url URL
   --r2 DIR           A local copy of the R2 dry-run/<run_id>/ prefix
   --base-url URL     The public URL of that prefix (\${R2_PUBLIC_URL}/dry-run/<run_id>/)
   --version VERSION  The version the manifests must carry (no leading v)
-  --platforms LIST   Platforms whose tarball and zip must be present
+  --platforms LIST   Platforms whose zip must be present
   --channels LIST    Channels whose manifest must be present
 EOF
 }
@@ -64,10 +64,14 @@ fi
 RELEASE_DIR="$R2/releases/v$VERSION"
 for p in $PLATFORMS; do
     for dir in "$ARTIFACT" "$RELEASE_DIR"; do
-        # The v anchors the version so pi does not match pi32's tarball.
-        tarballs=("$dir"/helixscreen-"$p"-v[0-9]*.tar.gz)
-        expect_file "${tarballs[0]}" "$p tarball in $dir"
         expect_file "$dir/helixscreen-$p.zip" "$p zip in $dir"
+    done
+done
+
+# Releases ship zips only.
+for dir in "$ARTIFACT" "$RELEASE_DIR"; do
+    for f in "$dir"/*.tar.gz; do
+        [ -e "$f" ] && fail "a release ships no tarball: $f"
     done
 done
 

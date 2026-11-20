@@ -305,6 +305,51 @@ describe("GET /releases/{version}/helixscreen-*.tar.gz", () => {
   });
 });
 
+describe("GET /releases/{version}/helixscreen-*.zip", () => {
+  it("returns the zip with its content type and cache headers", async () => {
+    const env = createEnv();
+    env.RELEASES_BUCKET.seed("releases/v1.1.0/helixscreen-ad5m.zip", "zip-bytes");
+    const res = await worker.fetch(
+      makeRequest("/releases/v1.1.0/helixscreen-ad5m.zip"),
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("zip-bytes");
+    expect(res.headers.get("Content-Type")).toBe("application/zip");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=86400, immutable",
+    );
+  });
+
+  it("returns 404 when the zip does not exist in R2", async () => {
+    const res = await worker.fetch(
+      makeRequest("/releases/v1.1.0/helixscreen-pi.zip"),
+      createEnv(),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("does not serve a zip by channel", async () => {
+    const env = createEnv();
+    env.RELEASES_BUCKET.seed("stable/helixscreen-ad5m.zip", "zip-bytes");
+    const res = await worker.fetch(
+      makeRequest("/stable/helixscreen-ad5m.zip"),
+      env,
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("does not serve a non-helixscreen zip under releases", async () => {
+    const env = createEnv();
+    env.RELEASES_BUCKET.seed("releases/v1.1.0/other.zip", "zip-bytes");
+    const res = await worker.fetch(
+      makeRequest("/releases/v1.1.0/other.zip"),
+      env,
+    );
+    expect(res.status).toBe(404);
+  });
+});
+
 describe("Disallowed paths", () => {
   it("returns 404 for arbitrary paths", async () => {
     const res = await worker.fetch(makeRequest("/some/random/path"), createEnv());

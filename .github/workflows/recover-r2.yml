@@ -7,9 +7,10 @@ name: Recover R2 Publish
 #
 # Pulls the release artifacts straight from the GitHub release — nothing is
 # rebuilt — regenerates the per-channel manifests, and uploads to R2 in the same
-# L091-safe order as release.yml (tarballs -> manifest -> readback-verify -> zips
-# -> install.sh -> symbol maps), with the manifest readback-verify that makes a
-# bad publish fail loudly.
+# L091-safe order as release.yml (archives -> manifest -> readback-verify ->
+# install.sh -> symbol maps), with the manifest readback-verify that makes a
+# bad publish fail loudly. A release from before the zip-only ones also carries
+# tarballs; they go up with the zips.
 #
 # .debug.zst symbols are NOT recovered (CI-only, never uploaded to GitHub); .80
 # crash backtraces will resolve to function names but not source lines.
@@ -188,11 +189,11 @@ jobs:
           done
         }
 
-        # 1. Tarballs the manifest references — must land before the manifest.
-        echo "=== Uploading tarballs to releases/v${RELEASE_VERSION}/ ==="
-        for tarball in release-files/*.tar.gz; do
-          [ -f "$tarball" ] || continue
-          s3cp "$tarball" "s3://${R2_BUCKET}/releases/v${RELEASE_VERSION}/$(basename "$tarball")"
+        # 1. Archives the manifest references: they must land before the manifest.
+        echo "=== Uploading archives to releases/v${RELEASE_VERSION}/ ==="
+        for archive in release-files/*.zip release-files/*.tar.gz; do
+          [ -f "$archive" ] || continue
+          s3cp "$archive" "s3://${R2_BUCKET}/releases/v${RELEASE_VERSION}/$(basename "$archive")"
         done
 
         # 2. Per-channel signature + manifest + readback-verify (the visibility artifact).
@@ -236,12 +237,7 @@ jobs:
           echo "=== ${CHANNEL} manifest and signature uploaded and verified (v${served}) ==="
         done
 
-        # 3. Zips (Moonraker Update Manager) + install.sh AFTER the manifest.
-        echo "=== Uploading zip artifacts to releases/v${RELEASE_VERSION}/ ==="
-        for zip in release-files/*.zip; do
-          [ -f "$zip" ] || continue
-          s3cp "$zip" "s3://${R2_BUCKET}/releases/v${RELEASE_VERSION}/$(basename "$zip")"
-        done
+        # 3. install.sh AFTER the manifest: it is not manifest-referenced.
         if [ -f release-files/install.sh ]; then
           echo "Uploading install.sh..."
           s3cp release-files/install.sh "s3://${R2_BUCKET}/install.sh" \
