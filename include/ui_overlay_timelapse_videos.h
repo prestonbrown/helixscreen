@@ -82,6 +82,7 @@ class TimelapseVideosOverlay : public OverlayBase {
         std::string file_info; // "12.4 MB · Mar 12"
         uint64_t size = 0;
         double modified = 0.0;
+        bool needs_frame = false; ///< no companion preview; a frame is extracted instead
     };
 
     void fetch_frame_info();
@@ -89,7 +90,7 @@ class TimelapseVideosOverlay : public OverlayBase {
     void fetch_video_list();
     TimelapseCardDimensions calculate_card_dimensions();
     void populate_video_grid(const std::vector<FileInfo>& files);
-    void load_thumbnail_for_card(lv_obj_t* card, const VideoEntry& video,
+    void load_thumbnail_for_card(lv_obj_t* card, VideoEntry& video,
                                  const std::set<std::string>& available_files);
     void clear_video_grid();
     /// The live card showing @p filename, or nullptr once the grid has moved on.
@@ -101,7 +102,8 @@ class TimelapseVideosOverlay : public OverlayBase {
     void load_extracted_thumbnail(lv_obj_t* card, const VideoEntry& video);
     struct ExtractJob {
         std::string filename;
-        std::string key; ///< helix::timelapse::extracted_thumbnail_key()
+        std::string key;         ///< helix::timelapse::extracted_thumbnail_key()
+        bool root_known = false; ///< the path came from Moonraker's root, not the default
     };
     void run_next_extraction();
     void finish_extraction(const ExtractJob& job, const std::string& lvbin_path);
@@ -109,6 +111,9 @@ class TimelapseVideosOverlay : public OverlayBase {
     void detect_playback_capability();
     /// Adopt Moonraker's "timelapse" root from a server.files.roots answer.
     void apply_timelapse_root(const std::vector<FileRoot>& roots);
+    /// Moonraker has answered (or failed to answer) where its timelapse root is:
+    /// local paths are final, so frames missed at the default path are retried.
+    void settle_timelapse_root();
     /// Where a same-host player opens `filename`: under the reported root,
     /// or the stock data_path layout until one is reported.
     [[nodiscard]] std::string local_video_path(const std::string& filename) const;
@@ -146,8 +151,12 @@ class TimelapseVideosOverlay : public OverlayBase {
     std::vector<WatchedPlayer> player_watches_;
 
     std::deque<ExtractJob> extract_queue_;
-    bool extract_busy_ = false;            ///< an extraction is running; the next waits for it
-    std::set<std::string> extract_failed_; ///< keys that gave no frame; not retried this run
+    bool extract_busy_ = false;
+    std::set<std::string> extract_pending_; ///< keys queued or running; never queued twice
+    uint64_t extract_seq_ = 0;              ///< numbers each job's temporary frame file
+    bool timelapse_root_known_ = false;     ///< see settle_timelapse_root()            ///< an
+                                            ///< extraction is running; the next waits for it
+    std::set<std::string> extract_failed_;  ///< keys that gave no frame; not retried this run
     helix::ui::LvglTimerGuard player_watch_timer_;
 
     helix::AsyncLifetimeGuard thumb_lifetime_;
