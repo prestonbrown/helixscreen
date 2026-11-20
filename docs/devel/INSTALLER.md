@@ -504,15 +504,15 @@ On a verified mod host a bare install is the payload contract, no flags:
   sets `HELIX_UI_CONFIRMED`, which also suppresses the "You may need to reboot" hedge (`scripts/lib/installer/plan.sh#print_reboot_note`).
 - **Nothing is written to any mod-owned Moonraker conf.** The mod's `moonraker.conf` is
   git-tracked - dirtying it breaks their OTA. The sanctioned include point is
-  `mod_data/user.moonraker.conf`, and even that only gains an `[update_manager helixscreen]`
-  stanza with `--auto-update` (refused while the root is mod-owned: a `type: web` updater
-  replaces the path wholesale, violating the preservation contract).
+  `mod_data/user.moonraker.conf`, which gains an `[update_manager helixscreen]` stanza (`type:
+  web`) whenever a Moonraker update can replace the payload safely; see
+  [Moonraker updates of a payload](#moonraker-updates-of-a-payload).
 - The binary is **linked against the mod chroot's glibc** and runs inside it; host-side
   execution failing is the expected state, warned not errored.
 
 Flags are overrides, named for what they do: `--standalone` (self-managed install beside the
-mod, with a warning that the mod will not start it), `--payload-root PATH` (where), and
-`--auto-update` (the stanza opt-in). The uninstall direction mirrors this: `install.sh
+mod, with a warning that the mod will not start it) and `--payload-root PATH` (where).
+`--auto-update` is accepted and ignored. The uninstall direction mirrors this: `install.sh
 --uninstall` auto-arms; the standalone `uninstall.sh` run bare refuses removal and requires
 its explicit `--mod-payload` - removal must never be the destructive default of a bare
 uninstaller.
@@ -523,6 +523,50 @@ last-component-`helixscreen` name gate that refuses `--payload-root /usr/data` o
 after any successful install that leaves a payload in place, the record in `mod_data` names
 that payload's root; and only terminating removals consume the record - `--clean` continues
 into a fresh install and must not orphan the record the fresh install relies on.
+
+### Moonraker updates of a payload
+
+Moonraker's `type: web` updater removes `path:` and extracts the release zip in its place
+(Config Survival on Updates below), so `scripts/lib/installer/moonraker.sh#payload_updater_blocker`
+arms it for a payload only when all of these hold, and otherwise logs which one failed and
+removes a stanza an earlier install left in the user conf:
+
+- The root is outside the mod's tree. `host_refuse_mod_owned` exempts payload runs, so an
+  operator's in-tree `--payload-root` is refused here.
+- The user config lives outside the root: `config/settings.json` is a link into
+  `printer_data/config/helixscreen` (`setup_config_symlink`). On Forge-X that is
+  `/root/printer_data/config/helixscreen`, the same directory as `/opt/config/helixscreen`.
+- The mod's chroot reaches the root. Moonraker runs in it, so `path:` is the spelling
+  `resolve_chroot_daemon_dir` found (`update_manager_path`), and an adopted legacy root
+  outside the chroot's binds gets no stanza.
+- Moonraker downloads this platform's zip. Forge-X ships a Moonraker with zip_deploy.py,
+  which downloads a release's `assets[0]` whatever release_info.json names (#993).
+  `release.yml` therefore publishes one more copy of the AD5M zip,
+  `helixscreen-ad5m-moonraker.zip`, which sorts before every other asset, and fails the
+  release when GitHub's listing does not start with it
+  (`scripts/release-moonraker-asset.sh`). Only one asset can be first, so a Moonraker
+  without `asset_name` support gets a stanza only on the platform that copy serves
+  (`HELIX_MOONRAKER_FIRST_ASSET_PLATFORM` in `scripts/lib/installer/platform.sh`); the
+  Forge-X AD5X needs a Moonraker that reads `asset_name`. Renaming either existing AD5M asset
+  instead would break the installer's downloads and every partner that links them.
+
+No `managed_services` is written: Forge-X's `[machine]` provider is `simple`, which restarts
+a service by running `<script_path>/<name> restart` from the mod's tree, and its
+`moonraker.asvc` is in that tree too, so Moonraker cannot be given a HelixScreen service
+without editing the mod. HelixScreen restarts itself instead: on Moonraker's
+`notify_update_response` for `helixscreen` with `complete: true`,
+`src/system/update_checker.cpp#handle_external_update_complete` exits and
+`helix-watchdog` starts the extracted binary. A Moonraker update leaves the chroot's
+`/etc/init.d/S90helixscreen` as the installer wrote it; the next installer run refreshes it.
+
+What the update loses: files kept only inside the root, which are all regenerated
+(`logs/`, and in `config/` the telemetry queue and snapshot, event_journal.json,
+`.crash_restart_count`, `settings.json.pre-migration`, `helixscreen.env.new`).
+`restore-user-config.sh` relinks the user files and restores the platform hooks file from the
+`.platform_hook` record in printer_data, the next time it runs.
+
+Uninstall removes the stanza from the user conf (`remove_update_manager_section`, through
+`find_moonraker_conf`'s mod-host answer), leaving the rest of the file as it was.
 
 ### The scope boundary - and why it is safe everywhere else
 
@@ -824,7 +868,10 @@ The installer detects old `type: git_repo` and `type: zip` configurations and au
 
 ### Skipped Platforms
 
-Moonraker update_manager is skipped on AD5M (typically no Mainsail/Fluidd web UI).
+A standalone AD5M install (Klipper Mod, a Forge-X `--standalone` or legacy root) gets no
+update_manager stanza: its updater path, restart and user-config layout are unverified. A
+Forge-X payload install is gated by `payload_updater_blocker` instead
+([Moonraker updates of a payload](#moonraker-updates-of-a-payload)).
 
 ---
 

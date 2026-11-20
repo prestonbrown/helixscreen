@@ -8,7 +8,8 @@
 # the UI service and the OTA, so a bare install replaces the payload root's
 # CONTENTS in place (never mv/rm -rf of the root), preserves config/ and
 # platform/, writes no service files, and leaves every Moonraker conf alone
-# unless --auto-update opted in to a stanza in the mod's user.moonraker.conf.
+# except for a stanza in the mod's user.moonraker.conf, written only when a
+# Moonraker update can replace the payload safely.
 # The flags are overrides: --standalone escapes to a self-managed install,
 # --payload-root overrides where. The old --mod-payload spellings stay
 # accepted as deprecated aliases / a compat no-op.
@@ -21,7 +22,7 @@
 #   4. detect_tmp_dir never auto-stages inside the mod tree
 #   5. the LOG_LEVEL migration is keyed on the host capability, not on
 #      PAYLOAD_ENV_PRESERVED
-#   6. the user.moonraker.conf stanza write is gated on --auto-update
+#   6. the user.moonraker.conf stanza write is gated on payload_updater_blocker
 
 WORKTREE_ROOT="$(cd "$BATS_TEST_DIRNAME/../.." && pwd)"
 
@@ -111,7 +112,6 @@ setup() {
     HOST_LEGACY_INIT_SCRIPT=""
 
     HELIX_MOD_PAYLOAD=""
-    HELIX_MOD_PAYLOAD_UPDATES=""
     MOD_PAYLOAD_ROOT=""
 
     # Keep every state sweep inside the sandbox.
@@ -248,48 +248,138 @@ create_payload_tarball() {
 }
 
 # ============================================================================
-# (b)+(c) Moonraker confs: the mod's stays byte-identical, the user conf gets
-# a stanza only with --mod-payload-updates
+# (b)+(c) Moonraker confs: the mod's stays byte-identical; the user conf gets
+# a stanza when a Moonraker update can replace the payload safely
+# (payload_updater_blocker), and only then
 # ============================================================================
 
-@test "payload install: the mod's git-tracked moonraker.conf stays byte-identical" {
-    mkdir -p "$SANDBOX/usr/data/config/mod_data" "$INSTALL_DIR"
+# A Forge-X payload a Moonraker update may replace: its settings are a link
+# into printer_data, and the mod's chroot reaches the root by the spelling the
+# service uses. Moonraker's own support for asset_name is the caller's call.
+updatable_payload() {
+    mkdir -p "$SANDBOX/usr/data/config/mod_data" "$INSTALL_DIR/config" "$SANDBOX/pd/helixscreen"
+    printf '{}\n' > "$SANDBOX/pd/helixscreen/settings.json"
+    ln -sfn "$SANDBOX/pd/helixscreen/settings.json" "$INSTALL_DIR/config/settings.json"
+    HELIX_CHROOT_DAEMON_DIR="/opt/config/mod_data/helixscreen"
+    mkdir -p "${HOST_MOD_CHROOT}${HELIX_CHROOT_DAEMON_DIR}"
     printf '[server]\n[update_manager forge-x]\ntype: git_repo\n' > "$MOD_ROOT/moonraker.conf"
     cp "$MOD_ROOT/moonraker.conf" "$BATS_TEST_TMPDIR/mod-conf.original"
     printf '[authorization]\n' > "$HOST_MOONRAKER_USER_CONF"
+    cp "$HOST_MOONRAKER_USER_CONF" "$BATS_TEST_TMPDIR/user-conf.original"
     HELIX_MOD_PAYLOAD=1
-
-    configure_moonraker_updates "ad5x"
-
-    cmp -s "$BATS_TEST_TMPDIR/mod-conf.original" "$MOD_ROOT/moonraker.conf" \
-        || fail "the mod's own moonraker.conf was modified"
-    # No stanza anywhere without the opt-in flag.
-    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    restart_moonraker() { echo "RESTART"; }
 }
 
-@test "payload install: --auto-update is refused even at a root outside the mod tree" {
-    # Where the root sits does not make the stanza safe. Moonraker's type:web
-    # updater rmtree()s path: and persistent_files cannot keep a nested config/,
-    # so it destroys config/ - which lives inside the root - whether or not the mod
-    # owns that path. A payload is updated by the mod's OTA and by nothing else.
-    local durable="$SANDBOX/usr/data/helixscreen"
-    mkdir -p "$SANDBOX/usr/data/config/mod_data" "$durable/bin"
-    create_fake_mips_elf "$durable/bin/helix-screen"
-    chmod +x "$durable/bin/helix-screen"
-    printf '[server]\n' > "$MOD_ROOT/moonraker.conf"
-    cp "$MOD_ROOT/moonraker.conf" "$BATS_TEST_TMPDIR/mod-conf.original"
-    printf '[authorization]\n' > "$HOST_MOONRAKER_USER_CONF"
-    HELIX_MOD_PAYLOAD=1
-    HELIX_MOD_PAYLOAD_UPDATES=1
-    INSTALL_DIR="$durable"
+moonraker_reads() {
+    eval "moonraker_asset_name_support() { echo '$1'; }"
+}
 
-    run configure_moonraker_updates "ad5x"
-    [ "$status" -eq 0 ] || fail "the refusal aborted the install: $output"
+@test "payload install: an old Moonraker gets the stanza for the platform whose zip is assets[0]" {
+    updatable_payload
+    moonraker_reads unsupported
 
-    ! grep -q 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF" \
-        || fail "the stanza was armed at a payload root"
+    configure_moonraker_updates "ad5m" > "$BATS_TEST_TMPDIR/out" 2>&1
+
+    grep -q '^\[update_manager helixscreen\]' "$HOST_MOONRAKER_USER_CONF" \
+        || fail "no stanza in the user conf: $(cat "$BATS_TEST_TMPDIR/out")"
+    grep -qx 'type: web' "$HOST_MOONRAKER_USER_CONF"
+    grep -qx 'path: /opt/config/mod_data/helixscreen' "$HOST_MOONRAKER_USER_CONF" \
+        || fail "path: is not the spelling the chroot's Moonraker reaches: $(grep '^path:' "$HOST_MOONRAKER_USER_CONF")"
+    refute_grep '^\[update_manager\]$' "$HOST_MOONRAKER_USER_CONF"
     cmp -s "$BATS_TEST_TMPDIR/mod-conf.original" "$MOD_ROOT/moonraker.conf" \
         || fail "the mod's own moonraker.conf was modified"
+    grep -q RESTART "$BATS_TEST_TMPDIR/out" || fail "Moonraker was not restarted to read the stanza"
+}
+
+@test "payload install: an old Moonraker gets no stanza on a platform whose zip is not assets[0]" {
+    updatable_payload
+    moonraker_reads unsupported
+
+    run configure_moonraker_updates "ad5x"
+    [ "$status" -eq 0 ] || fail "the skip aborted the install: $output"
+
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    [[ "$output" == *"first asset"* ]] || fail "the skip does not say why: $output"
+}
+
+@test "payload install: a Moonraker that reads asset_name gets the stanza on any platform" {
+    updatable_payload
+    moonraker_reads supported
+
+    configure_moonraker_updates "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1
+
+    grep -q '^\[update_manager helixscreen\]' "$HOST_MOONRAKER_USER_CONF" \
+        || fail "no stanza: $(cat "$BATS_TEST_TMPDIR/out")"
+}
+
+@test "payload install: settings inside the root keep the updater off" {
+    updatable_payload
+    moonraker_reads supported
+    rm -f "$INSTALL_DIR/config/settings.json"
+    printf '{}\n' > "$INSTALL_DIR/config/settings.json"
+
+    run configure_moonraker_updates "ad5m"
+
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    [[ "$output" == *"settings live inside"* ]] || fail "the skip does not say why: $output"
+}
+
+@test "payload install: a root the mod's Moonraker cannot reach keeps the updater off" {
+    updatable_payload
+    moonraker_reads supported
+    rm -rf "${HOST_MOD_CHROOT:?}${HELIX_CHROOT_DAEMON_DIR}"
+
+    run configure_moonraker_updates "ad5m"
+
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    [[ "$output" == *"cannot reach"* ]] || fail "the skip does not say why: $output"
+}
+
+@test "payload install: a blocked payload loses the stanza an earlier install wrote" {
+    updatable_payload
+    moonraker_reads unsupported
+    printf '[update_manager helixscreen]\ntype: web\npath: /opt/config/mod_data/helixscreen\n' \
+        >> "$HOST_MOONRAKER_USER_CONF"
+
+    configure_moonraker_updates "ad5x" > "$BATS_TEST_TMPDIR/out" 2>&1
+
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    grep -q '^\[authorization\]' "$HOST_MOONRAKER_USER_CONF" || fail "the rest of the user conf went too"
+    grep -q RESTART "$BATS_TEST_TMPDIR/out" || fail "Moonraker kept the removed stanza loaded"
+}
+
+@test "payload install: uninstall removes exactly the stanza the install wrote" {
+    updatable_payload
+    moonraker_reads unsupported
+    configure_moonraker_updates "ad5m" >/dev/null 2>&1
+    grep -q '^\[update_manager helixscreen\]' "$HOST_MOONRAKER_USER_CONF" || fail "setup: no stanza"
+
+    remove_update_manager_section >/dev/null 2>&1
+
+    cmp -s "$BATS_TEST_TMPDIR/user-conf.original" "$HOST_MOONRAKER_USER_CONF" \
+        || fail "the user conf is not back to what it was: $(cat "$HOST_MOONRAKER_USER_CONF")"
+}
+
+@test "the plan lists the updater only where the install will write it" {
+    updatable_payload
+    moonraker_reads unsupported
+
+    detect_moonraker_integration "ad5m"
+    [ "$MOONRAKER_ADDS" = "update-manager" ] || fail "ad5m: '$MOONRAKER_ADDS'"
+
+    detect_moonraker_integration "ad5x"
+    [ -z "$MOONRAKER_ADDS" ] || fail "ad5x on an old Moonraker: '$MOONRAKER_ADDS'"
+}
+
+@test "a standalone AD5M install writes no stanza" {
+    updatable_payload
+    moonraker_reads supported
+    HELIX_MOD_PAYLOAD=""
+
+    configure_moonraker_updates "ad5m" >/dev/null 2>&1
+
+    cmp -s "$BATS_TEST_TMPDIR/user-conf.original" "$HOST_MOONRAKER_USER_CONF" \
+        || fail "a standalone AD5M install wrote to the user conf"
 }
 
 # ============================================================================
@@ -848,8 +938,8 @@ exit 0"
 # ============================================================================
 # Auto-detect steer (2026-08-31, Preston): a bare install on a mod host IS a
 # payload install. The flags are overrides: --standalone escapes back to a
-# self-managed install, --payload-root overrides where, --auto-update opts
-# into the Moonraker stanza. The old --mod-payload spellings stay accepted.
+# self-managed install, --payload-root overrides where. --auto-update and the
+# old --mod-payload spellings stay accepted.
 # ============================================================================
 
 @test "autodetect: a bare run on a mod host arms the payload contract" {
@@ -1029,9 +1119,10 @@ exit 0"
 }
 
 @test "parse_installer_args: the override flags and their deprecated aliases" {
-    parse_installer_args --standalone --auto-update
+    parse_installer_args --standalone --auto-update > "$BATS_TEST_TMPDIR/parse0.out" 2>&1
     [ "$STANDALONE_INSTALL" = "1" ] || fail "--standalone not captured"
-    [ "$HELIX_MOD_PAYLOAD_UPDATES" = "1" ] || fail "--auto-update not captured"
+    grep -q "no longer needed" "$BATS_TEST_TMPDIR/parse0.out" \
+        || fail "--auto-update is not reported as a no-op"
 
     parse_installer_args --payload-root /usr/data/helixscreen
     [ "$MOD_PAYLOAD_ROOT" = "/usr/data/helixscreen" ] \
@@ -1047,7 +1138,6 @@ exit 0"
     parse_installer_args --mod-payload-root /usr/data/helixscreen --mod-payload-updates \
         > "$BATS_TEST_TMPDIR/parse2.out" 2>&1
     [ "$MOD_PAYLOAD_ROOT" = "/usr/data/helixscreen" ] || fail "--mod-payload-root alias not applied"
-    [ "$HELIX_MOD_PAYLOAD_UPDATES" = "1" ] || fail "--mod-payload-updates alias not applied"
     grep -q "deprecated" "$BATS_TEST_TMPDIR/parse2.out"
 
     # The old opt-in flag is a compat no-op: accepted, never an error.
@@ -1619,7 +1709,7 @@ seed_legacy_install() {
 #
 # The mode block re-records THIS run's root before the clean sweep resolves,
 # so a custom root recorded by the previous install was never swept - the
-# full payload (and its --auto-update stanza) survived a mode whose contract
+# full payload (and its update_manager stanza) survived a mode whose contract
 # is "remove old installation completely".
 
 @test "--clean sweeps the previously recorded custom root, not just the re-recorded default" {
@@ -1648,40 +1738,27 @@ seed_legacy_install() {
     [ ! -d "$custom-repo" ] \
         || fail "the previously recorded root's updater clone survived --clean"
     ! grep -q 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF" \
-        || fail "the custom root's --auto-update stanza survived --clean"
+        || fail "the custom root's update_manager stanza survived --clean"
 }
 
-# --- A4 ruling: --auto-update never arms at a mod-owned payload root ---
+# --- A payload root inside the mod's tree is never armed ---
 #
-# Moonraker's type:web updater REPLACES the whole root on update, which would
-# destroy the config//platform preservation the payload contract exists to
-# provide. Refused loudly with the root named and the durable-root escape
-# pointed at; a payload root OUTSIDE the mod tree (OD1's durable shape) still
-# gets the stanza (the positive control is the reworked test above).
+# A Moonraker update replaces the whole root, and inside the mod's tree only
+# the mod's OTA may do that. host_refuse_mod_owned exempts the payload, so the
+# refusal is payload_updater_blocker's.
 
-@test "--auto-update is refused at an in-tree payload root too" {
-    # The companion to the outside-the-tree case above: the refusal is keyed on
-    # the install being a payload, so an operator-chosen in-tree root is refused
-    # for the same reason and not a location-specific one.
+@test "a payload root inside the mod's tree never gets the stanza" {
+    updatable_payload
+    moonraker_reads supported
     INSTALL_DIR="$MOD_ROOT/.bin/helixscreen"
-    mkdir -p "$INSTALL_DIR/bin" "$SANDBOX/usr/data/config/mod_data"
-    printf '[authorization]\n' > "$HOST_MOONRAKER_USER_CONF"
-    HELIX_MOD_PAYLOAD=1
-    HELIX_MOD_PAYLOAD_UPDATES=1
+    HELIX_CHROOT_DAEMON_DIR=""
+    mkdir -p "$INSTALL_DIR/config" "${HOST_MOD_CHROOT}${INSTALL_DIR}"
 
-    run configure_moonraker_updates "ad5x"
+    run configure_moonraker_updates "ad5m"
     [ "$status" -eq 0 ] || fail "the refusal aborted the install: $output"
 
-    ! grep -q 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF" \
-        || fail "the stanza was armed at a mod-owned root"
-    case "$output" in
-        *"$INSTALL_DIR"*) ;;
-        *) fail "the refusal does not name the payload root";;
-    esac
-    case "$output" in
-        *"payload install"*) ;;
-        *) fail "the refusal does not state that a payload install is the reason";;
-    esac
+    refute_grep 'update_manager helixscreen' "$HOST_MOONRAKER_USER_CONF"
+    [[ "$output" == *"$INSTALL_DIR"* ]] || fail "the refusal does not name the payload root: $output"
 }
 
 # --- The --help copy states the AD5M truth ---
