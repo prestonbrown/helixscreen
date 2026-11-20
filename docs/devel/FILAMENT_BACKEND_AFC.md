@@ -913,7 +913,7 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Bypass Mode | Yes | Hardware sensor (auto-detect on Box Turtle) |
 | Spoolman | Yes | -- |
 | Auto-Heat on Load | Yes | AFC uses `default_material_temps` from config |
-| Dryer | No | AFC's DEV branch drives the ACE Pro dryer (`AFC_ACE_DRY` / `AFC_ACE_DRY_STOP`, AFC #879); HelixScreen sends no dryer commands to AFC yet |
+| Dryer | ACE units only | `AFC_ACE_DRY` (see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
@@ -928,6 +928,62 @@ loaded), and all three home-first prompt sites — the AMS sidebar, the
 filament panel, and `ensure_homed_then()` — skip both the prompt and the
 synthesized G28. Distinct from `filament_ops_self_home()`, which governs
 paused-print refusal.
+
+### AFC DEV unit fields
+
+AFC's DEV branch adds unit types that v1.2.0 lacks. Each field below is read only once the
+firmware publishes its key, so a v1.2.0 install sees no change. The unit-object
+subscription asks for every one of them (`afc::unit_object_fields()`, which
+`AmsBackendAfc::required_status_objects` uses), since Moonraker delivers only subscribed
+fields after the first snapshot.
+
+#### ACE Pro units (`AFC_ACE <name>`, `AFC_ACE2 <name>`)
+
+An ACE Pro run through AFC (AFC_ACE.py, AFC DEV c2103dc) is a unit of type `ACE` or `ACE2`
+whose lanes are `AFC_lane` objects. Its unit object adds the hub's own readings on top of
+the usual `lanes` / `extruders` / `hubs` / `buffers`:
+
+| Field | Meaning | Lands on |
+|-------|---------|----------|
+| `ace_dryer` | Dryer status word. `""`, `stop`, `stopped`, `stopping`, `idle`, `off` and `none` mean no cycle (AFC_ACE.py `_DRYER_IDLE`) | `DryerInfo::active`; its presence makes `DryerInfo::supported` |
+| `ace_dryer_target` | Setpoint, °C | `DryerInfo::target_temp_c` |
+| `ace_dryer_remain` | Time left, in seconds as the firmware states it (`helix::ace::dryer_remaining_minutes`) | `DryerInfo::remaining_min` |
+| `ace_dryer_duration` | Cycle length: minutes on the ACE Pro, seconds on the ACE 2 Pro (`helix::ace::dryer_duration_minutes`) | `DryerInfo::duration_min` |
+| `ace_temp` | The box's temperature | `AmsUnit::environment` and `DryerInfo::current_temp_c` |
+| `ace_humidity` | Relative humidity (the ACE 2 always; the ACE Pro when its status carries it) | `AmsUnit::environment` |
+
+`afc::parse_unit_hardware` (`include/afc_unit_hardware.h`) reads them into
+`afc::AceUnitDelta`, and `AmsBackendAfc::apply_ace_unit` keeps them per unit across deltas
+and reorganizes. `AmsBackendAfc::get_dryer_info(unit)` answers for the ACE units that have
+published `ace_dryer` and reports no dryer for every other unit. Its limits are the ACE
+Pro's (`helix::ace::ace_pro_dryer_info`); AFC also caps `TEMP` at the unit's
+`max_dryer_temperature` (55 °C by default).
+
+| Action | Command |
+|--------|---------|
+| Start | `AFC_ACE_DRY UNIT=<name> TEMP=<°C> DURATION=<minutes>`. `FAN` is left at AFC's default: the ACE Pro firmware ignores it and runs its fan at 7000 rpm. `ROTATE=1` is not offered |
+| Stop | `AFC_ACE_DRY_STOP UNIT=<name>` |
+| Change temp or time | Stop, then start again with what is left (`helix::ace::restart_request`) |
+
+AFC also registers a `temperature_ace` sensor type for `[temperature_sensor]` sections; such
+a sensor is an ordinary Klipper temperature sensor and needs nothing AFC-specific.
+
+#### Spool tags from ACE and CFS units
+
+Two DEV unit types read RFID tags themselves and publish what they read on the unit object:
+
+| Unit | Field | Read as |
+|------|-------|---------|
+| ACE (`AFC_ACE`) | `ace_slots[]`: `index`, `rfid`, `material`, `color` (`[r,g,b]`), `sku`, `uid` | A slot whose `rfid` is `2` (identified) states its material and color, read with the ACE backend's own slot readers (`helix::ace::read_tag_state`, `read_slot_material`, `parse_slot_color`). Any other `rfid` is no reading. The lane is matched to its slot by `AFC_lane.lane`, its 1-based position in the unit (AFC_ACE.py `_build_slot_map`); the unit's lane order stands in until a lane has published it |
+| CFS (`AFC_CFS`, 1e400e2) | `cfs.lanes.<lane>.tag`: `material`, `color` (bare hex), `weight` (g), `spool_id`, or null | Material, color, weight as the spool's total, and a Spoolman spool id above 1. A null tag (the last read found none) clears the lane's reading |
+
+`AmsBackendAfc::tag_reading()` returns that tag, with the TD-1's color standing in where
+the tag states none, so the spool editor's tag view and Reset to tag work as on the native
+ACE and CFS backends. AFC applies a tag itself (`SET_COLOR` / `SET_MATERIAL` /
+`SET_SPOOL_ID`), so nothing here writes one back.
+
+ACE and CFS units under AFC have no unit art on this branch: they draw as the generic AFC
+unit.
 
 ### AFC Version Reporting
 
