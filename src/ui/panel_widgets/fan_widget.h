@@ -72,14 +72,6 @@ class FanWidget : public TiledPanelWidget {
         void on_created(lv_obj_t* menu) override;
 
       private:
-        /// What a row needs to act on a tap: which fan it names, and the picker
-        /// that owns it. Heap-allocated per row, hung off the row's user_data and
-        /// freed by that row's own LV_EVENT_DELETE handler.
-        struct RowPayload {
-            FanPicker* picker;
-            std::string object_name;
-        };
-
         FanWidget& owner_;
     };
 
