@@ -150,6 +150,7 @@ struct UnitRowInfo {
  * (bypass_node_visible_for, the AMS panel's rule), the external spool on it,
  * and whether it is the node feeding the toolhead.
  */
+namespace {
 struct BypassView {
     bool shown = false;
     std::optional<helix::SlotInfo> spool; // the external spool; none = hollow
@@ -168,6 +169,7 @@ struct BypassView {
         return !(*this == o);
     }
 };
+} // namespace
 
 /**
  * @brief User data stored on each ams_mini_status widget
