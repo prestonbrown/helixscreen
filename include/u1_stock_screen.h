@@ -38,6 +38,17 @@ inline constexpr const char* kRestoreTriggerEnv = "HELIX_U1_RESTORE_TRIGGER";
 /// path (@p trigger_path, the value of HELIX_U1_RESTORE_TRIGGER, may be null).
 bool restore_stock_screen_offered(const char* trigger_path);
 
+/// What tapping Restore Stock Screen does.
+enum class RestoreStockVerdict {
+    NotOffered, ///< No trigger path: not a stock-firmware U1
+    JobActive,  ///< A job holds the machine; the restore reboots, so refuse
+    Proceed,
+};
+
+/// Decide a Restore Stock Screen request from the trigger path (may be null)
+/// and power_job_active(). Pure.
+RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_active);
+
 /// Create the trigger file at @p path. False when it could not be written, in
 /// which case nothing will restore the stock screen.
 bool write_restore_trigger(const std::string& path);

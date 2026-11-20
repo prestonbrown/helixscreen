@@ -9,6 +9,7 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
+#include "app_globals.h"
 #include "config.h"
 #include "display_backend.h"
 #include "display_manager.h"
@@ -17,6 +18,7 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "platform_info.h"
+#include "printer_state.h"
 #include "runtime_config.h"
 #include "system_power.h"
 
@@ -441,6 +443,11 @@ ShutdownDialogMode plan_shutdown_dialog(bool configured_host_same, bool api_conn
     }
     return api_connected && this_host_runs_systemd ? ShutdownDialogMode::SingleViaMoonraker
                                                    : ShutdownDialogMode::SingleViaLocalPower;
+}
+
+bool power_job_active() {
+    return lv_subject_get_int(get_printer_state().print_state().get_job_holds_machine_subject()) !=
+           0;
 }
 
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,

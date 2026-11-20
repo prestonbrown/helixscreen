@@ -19,6 +19,8 @@ translations:
   '%zu changes': '%zu件の変更'
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
+  Cannot restore the stock screen while printing: '印刷中は標準画面に戻せません'
+  Could not restart the printer; the stock screen was not restored: 'プリンターを再起動できませんでした。標準画面には戻っていません'
   Could not restore the stock screen: '標準画面に戻せませんでした'
   Restart the printer to finish restoring the stock screen: '標準画面への復元を完了するにはプリンターを再起動してください'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'プリンターを再起動してください。それでもSSHが接続を拒否する場合は、Snapmaker U1のインストールガイドを参照してください'

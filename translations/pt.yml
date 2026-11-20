@@ -20,6 +20,8 @@ translations:
   '%zu changes': '%zu alterações'
   '%zu events queued': '%zu eventos na fila'
   '%zu plugins failed to load': '%zu plugins falharam ao carregar'
+  Cannot restore the stock screen while printing: 'Não é possível restaurar a tela original durante uma impressão'
+  Could not restart the printer; the stock screen was not restored: 'Não foi possível reiniciar a impressora; a tela original não foi restaurada'
   Could not restore the stock screen: 'Não foi possível restaurar a tela original'
   Restart the printer to finish restoring the stock screen: 'Reinicie a impressora para concluir a restauração da tela original'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie a impressora. Se o SSH continuar recusando a conexão, consulte o guia de instalação da Snapmaker U1'
