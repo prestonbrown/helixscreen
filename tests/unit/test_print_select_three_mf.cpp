@@ -308,8 +308,10 @@ TEST_CASE_METHOD(ArchivePanel, "a second size of a .3mf render keeps the card's 
     CHECK(mock().transfers_mock().range_reads() == reads);
 }
 
-TEST_CASE_METHOD(ArchivePanel, "a plate the printer already converted prints from its output",
-                 "[print_select][three_mf][conversions]") {
+TEST_CASE_METHOD(
+    ArchivePanel,
+    "the file panel prints a converted plate from its output and extracts a pending one",
+    "[print_select][three_mf][conversions]") {
     PlantedGcode archive("Set.gcode.3mf", "", fixture_bytes("multi_plate.gcode.3mf"));
     PlantedGcode output("Set_plate2.gcode", "", "; converted\nG28\n");
     struct stat st {};

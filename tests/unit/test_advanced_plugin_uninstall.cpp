@@ -236,9 +236,10 @@ TEST_CASE_METHOD(PluginUninstallFixture,
     CHECK(plugin_installed() == 0);
 }
 
-TEST_CASE_METHOD(PluginUninstallFixture,
-                 "an install that ends while a job holds the machine restarts nothing",
-                 "[advanced][plugin_installer]") {
+TEST_CASE_METHOD(
+    PluginUninstallFixture,
+    "the Advanced panel's install that ends while a job holds the machine restarts nothing",
+    "[advanced][plugin_installer]") {
     get_printer_state().set_helix_plugin_installed(false);
     UpdateQueue::instance().drain();
     helix::test::PluginScriptSandbox scripts(AdvancedPanelTestAccess::plugin_installer(panel));
