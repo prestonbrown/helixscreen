@@ -22,7 +22,7 @@ on how it was instantiated. Those gaps are fixed in helix-xml first, then the si
 |---|---------|------------------|
 | E1 (done) | **Slots.** A component declares `<slot name="body" default="true"/>` in its `<api>`, naming an object in its view. An instance's object-creating children land in the default slot; `<comp-body>` targets a named one; element children (`bind_*`, `event_cb`, `style`) still apply to the instance root. `lv_xml_get_slot(instance, "body")` gives C++ the declared host. An undeclared `<comp-x>` keeps today's find-by-name behavior | C++ that fetches `*_container` and fills it; wrapper markup copied because a component could not take children in the right place |
 | E2 | **Prop operands in `cond`.** `<if cond="$editing eq 1">` and `bind_*_if cond=` resolve `$prop` / `${prop}` against the component's props when the expression is captured, so a cond over props alone is static | Per-instance structure decided in C++ (edit vs summary card, type-specific fields) |
-| E3 | Host-widget slots: a C++ widget (`ui_carousel`) can name the object its XML children go to, through the same mechanism as E1 | Carousel pages only reachable through `ui_carousel_add_item` |
+| E3 (done) | **Host widgets.** A C++ widget's create_cb calls `lv_xml_set_child_host(obj, cb, user_data)`; each object child parsed under it is created on the object `cb` returns, which `ui_carousel` uses to give each XML child a tile as a page. Routed after E1, so a slot whose target is a host widget passes its content on | Carousel pages only reachable through `ui_carousel_add_item` |
 
 Each feature: a `lib/helix-xml/tests/cases/test_*.c` case first, `docs/BINDINGS.md` section,
 then `docs/devel/LVGL9_XML_GUIDE.md` and `.claude/rules/declarative-ui.md` updates.
@@ -42,7 +42,7 @@ then `docs/devel/LVGL9_XML_GUIDE.md` and `.claude/rules/declarative-ui.md` updat
 | S9 | `info_qr_modal`, `screws_tilt_share_modal`, `crash_report_modal` | `qr` | C++ inserts the QR into `qr_container` in each | one QR modal frame |
 | S10 | `ams_device_section_detail.xml` | `actions` | `ui_cfs_device_flows.cpp`, `ui_indx_device_flows.cpp` create into `section_actions_container` | `get_slot` |
 | S11 | home tile chrome (`panel_widget_fan`, `_thermistor`, `_humidity`, `_led`, `_network`, ...) | `icon`, `reading`, `caption` | 17 files repeat `styles.tile_column`/`tile_row` + `bind_tile_rung` | one `tile` component |
-| S12 | `ui_carousel` (C++ widget) | default (pages) | pages only through `ui_carousel_add_item` (temp stack, fan stack, power device widgets) | E3: a C++ widget names the host its XML children go to |
+| S12 (done) | `ui_carousel` (C++ widget) | default (pages) | pages only through `ui_carousel_add_item` (temp stack, fan stack, power device widgets) | E3: power device and temp stack pages are XML children; fan stack stays (a page per discovered fan is a data list) |
 
 Looked at and left: S6 (`setting_group` is a C++ widget that draws dividers between its
 children; folding the header into it saves one line per group for new C++ coupling), S7
@@ -95,7 +95,7 @@ data-driven parts stay.
 | 6 | `src/ui/print/ui_panel_history_dashboard.cpp#update_filament_chart` (bar rows; the trend chart stays) | A |
 | 7 | `src/ui/settings/ui_settings_telemetry_data.cpp` event cards | A |
 | 8 | `src/ui/filament/ui_panel_ams.cpp` backend segment buttons | A |
-| 9 | `src/ui/panel_widgets/temp_stack_widget.cpp#attach_carousel`, `src/ui/panel_widgets/fan_stack_widget.cpp#bind_carousel_fans`, `src/ui/widgets/power_device_widget.cpp#setup_carousel` (after E3) | A/B |
+| 9 (done) | `src/ui/panel_widgets/temp_stack_widget.cpp#attach_carousel` and `src/ui/widgets/power_device_widget.cpp#show_energy_page` declare their pages in XML; `src/ui/panel_widgets/fan_stack_widget.cpp#bind_carousel_fans` stays a data list | A/B |
 | 10 | `ui_busy_overlay.cpp`, `ui_panel_home.cpp` carousel arrows, `ui_filament_mapping_modal.cpp` switch row, `ui_panel_glyphs.cpp` | A, small |
 | 11 | `ui_step_progress.cpp`, `action_prompt_modal.cpp`, `src/ui/tour/tour_overlay.cpp#build_tree`, `src/ui/calibration/ui_panel_screws_tilt.cpp#create_screw_indicator`, `grid_edit_mode.cpp` chrome, `ui_exclude_object_map_view.cpp` badges, `ui_keyboard_manager.cpp` popup | B |
 

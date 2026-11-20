@@ -13,6 +13,7 @@
 #include "sensor_state.h"
 #include "src/ui/panel_widgets/tiled_panel_widget.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -113,22 +114,20 @@ class PowerDeviceWidget : public TiledPanelWidget {
         PowerDeviceWidget& owner_;
     };
 
-    // Sensor/energy page members
+    // The energy meter's page: the carousel's second page, in reach while
+    // sensor_id_ names a meter that exists.
     std::string sensor_id_;
     helix::ui::WidgetRef carousel_;
-    lv_obj_t* energy_page_ = nullptr;
-    lv_obj_t* energy_power_label_ = nullptr;
-    lv_obj_t* energy_voltage_label_ = nullptr;
-    lv_obj_t* energy_current_label_ = nullptr;
-    lv_obj_t* energy_energy_label_ = nullptr;
-    ObserverGuard power_observer_;
-    ObserverGuard voltage_observer_;
-    ObserverGuard current_observer_;
-    ObserverGuard energy_observer_;
-    SubjectLifetime power_lifetime_;
-    SubjectLifetime voltage_lifetime_;
-    SubjectLifetime current_lifetime_;
-    SubjectLifetime energy_lifetime_;
+    /// One meter reading (power, voltage, current, energy): its text, bound by
+    /// the energy page, and the observer of the meter's subject that writes it.
+    struct EnergyReading {
+        helix::Subject text{};
+        char buf[24] = {};
+        ObserverGuard observer;
+        SubjectLifetime lifetime;
+    };
+    static constexpr size_t kEnergyReadingCount = 4;
+    std::array<EnergyReading, kEnergyReadingCount> readings_;
 
     bool is_all_devices() const {
         return device_name_ == "__all__";
@@ -153,11 +152,12 @@ class PowerDeviceWidget : public TiledPanelWidget {
     void select_color(uint32_t rgb);
     void select_sensor(const std::string& sensor_id);
     void save_config();
-    void setup_carousel();
-    void teardown_carousel();
+    /// Bring the energy page into reach for sensor_id_, or keep it out of
+    /// reach when no meter of that id exists.
+    void show_energy_page();
+    void hide_energy_page();
     void attach_sensor_observers();
     void detach_sensor_observers();
-    void update_energy_label(const std::string& key, lv_obj_t* label, int centi_value);
     std::string auto_match_sensor() const;
 
     friend struct PowerDeviceWidgetTestAccess;

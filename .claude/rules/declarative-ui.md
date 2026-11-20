@@ -35,7 +35,8 @@ of `lv_xml_create(parent, "<row component>", props)`, never `lv_obj_create` plus
 row's markup, styles, bindings and `<event_cb user_data="$index">` live in the component, and C++
 passes data. A dropdown's data-driven options bind with `bind_options="string_subject"`. C++ that
 fills a component's container asks `lv_xml_component_get_slot(instance, "slot")` for a declared
-`<slot>` instead of finding it by name.
+`<slot>` instead of finding it by name. A fixed set of carousel pages is written as `<ui_carousel>`
+children; `ui_carousel_add_item` is for a page per data item.
 
 **Structural exceptions - C++ is correct here, permanently:**
 

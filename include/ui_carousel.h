@@ -19,10 +19,15 @@
  *   scrolls the carousel to its page
  *
  * Usage in XML:
- *   <ui_carousel wrap="true" auto_scroll_ms="5000" show_indicators="true">
+ *   <ui_carousel wrap="true" auto_scroll_ms="5000" show_indicators="true" bubble_events="false">
  *     <lv_obj>Page 1 content</lv_obj>
  *     <lv_obj>Page 2 content</lv_obj>
  *   </ui_carousel>
+ *
+ * Each object child is a page in a tile of its own, in document order, as
+ * ui_carousel_add_item would place it. A page built by an <if> or <repeat>
+ * that rebuilds leaves its old tile behind, so reactive pages go through
+ * add_item/remove_item instead. bubble_events is carousel_set_bubble_events.
  */
 
 namespace helix::ui {

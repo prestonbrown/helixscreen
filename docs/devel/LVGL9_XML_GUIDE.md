@@ -192,6 +192,12 @@ slot at runtime asks `lv_xml_component_get_slot(instance, "body")` (`nullptr` fo
 the default) instead of looking a container up by name. Semantics:
 [`BINDINGS.md` § *Slots*](../../lib/helix-xml/docs/BINDINGS.md#slots--where-an-instances-children-go).
 
+A widget written in C++ takes XML children the same way when its create_cb calls
+`lv_xml_set_child_host(obj, cb, user_data)`: `cb` returns the object each child
+goes on. `<ui_carousel>` does this, so a fixed set of pages is written as its
+children, each placed in a tile of its own (`ui_xml/components/panel_widget_temp_carousel.xml`).
+A page per data item still goes through `ui_carousel_add_item`.
+
 ```xml
 <header_bar title="Motion">
     <header_bar-header_content>
