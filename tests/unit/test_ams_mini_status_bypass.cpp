@@ -313,8 +313,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     mock->set_multi_unit_mode(true);
     install_mock(std::move(mock));
 
-    // Six lanes in a two-column home cell: more than fit, so the lanes scroll.
-    lv_obj_t* w = make_strip(test_screen(), 230, 100);
+    // Six lanes in a short two-column home cell: more than fit, so the lanes
+    // scroll, and the row is short enough that a spool reaches its bottom edge.
+    lv_obj_t* w = make_strip(test_screen(), 230, 70);
     // Fill the cell's height, as the home grid's XML host does.
     lv_obj_set_height(w, lv_pct(100));
     lv_obj_update_layout(test_screen());
