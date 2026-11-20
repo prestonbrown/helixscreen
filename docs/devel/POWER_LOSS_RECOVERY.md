@@ -249,7 +249,7 @@ screws hold their gantry. Listed at tier 0, with the `reason` the plugin reports
 |---|---|---|
 | Voron 2.4, PFA Micron | `gantry_drops` | The flying gantry hangs on four belted Z motors: it drops and racks when the power goes, and re-levelling it (`QUAD_GANTRY_LEVEL`) probes over the part |
 | FLSUN V400, Super Racer, Delta, S1, T1 Pro; Doron Velta; Venture Delta | `delta_kinematics` | `G28 X Y` cannot home a delta without Z; the plugin's XY homing check refuses it too |
-| Creality K1, K1C, K1 Max, K1 SE (and CFS variants), K2, K2 Plus (stock, k2-improvements, Jacobean), K2 Pro (stock, k2-improvements), Hi, Ender-3 V3, Ender-3 V3 KE; Snapmaker U1; every QIDI but the Q2 | `firmware_recovery` (`backend: vendor`) | The firmware runs its own recovery, which the Creality, Snapmaker and legacy QIDI backends serve; the plugin saves and offers nothing |
+| Creality K1, K1C, K1 Max, K1 SE (and CFS variants), K2, K2 Plus (stock, k2-improvements, Jacobean), K2 Pro (stock, k2-improvements, Jacobean), Hi, Ender-3 V3, Ender-3 V3 KE; Snapmaker U1; every QIDI but the Q2 | `firmware_recovery` (`backend: vendor`) | The firmware runs its own recovery, which the Creality, Snapmaker and legacy QIDI backends serve; the plugin saves and offers nothing |
 
 Every other printer takes the tier 1 default.
 
