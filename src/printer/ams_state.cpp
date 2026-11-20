@@ -44,6 +44,7 @@
 #include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl.h"
+#include "notice.h"
 #include "print_stop_reason.h"
 #include "printer_discovery.h"
 #include "printer_event_journal.h"
@@ -403,6 +404,11 @@ void AmsState::clear_backends() {
     helix::ams::reset_lane_sources();
     // The bypass record goes with them; the next printer's is read afresh.
     restart_bypass_reads();
+    // A prompt about the departing system's toolhead asks about hardware that
+    // is gone.
+    if (unclaimed_toolhead_gate_.prompt_open()) {
+        helix::publish_ui_request({helix::UiRequestKind::DismissUnclaimedToolheadPrompt});
+    }
     unclaimed_toolhead_gate_.reset();
     unclaimed_toolhead_grace_over_ = false;
     unclaimed_toolhead_grace_timer_.reset();

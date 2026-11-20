@@ -2072,6 +2072,10 @@ class AmsState {
     /// The prompt about filament at the toolhead that no lane claims closed,
     /// by either action or a dismissal. Main thread.
     void unclaimed_toolhead_prompt_closed();
+    /// Whether filament sits at the toolhead unclaimed right now, the backend
+    /// idle and no print running: what the prompt's actions re-check at tap
+    /// time. Main thread.
+    [[nodiscard]] bool unclaimed_toolhead_now();
 
     /**
      * @brief Delete the bypass spool's record
@@ -2360,6 +2364,9 @@ class AmsState {
     /// Ask about filament at the toolhead that no lane claims, once per
     /// occurrence (ams::UnclaimedToolheadPromptGate). Main thread.
     void sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
+    /// What the prompt rule reads of @p backend now.
+    [[nodiscard]] helix::ams::UnclaimedToolheadReading
+    read_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
     /// A new primary backend: no prompt until its startup grace is over.
     void restart_unclaimed_toolhead_grace();
     /// Write what start_legacy_spool_import() read, each half once its lanes

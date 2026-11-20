@@ -69,6 +69,7 @@ enum class UiRequestKind {
                             ///< UiRequest::text its display name
     DismissPrintCompletion, ///< Main thread; a new job makes the last one's result stale
     OfferUnclaimedToolheadAsBypass, ///< Main thread; filament at the toolhead no lane claims
+    DismissUnclaimedToolheadPrompt, ///< Main thread; that filament is accounted for now
     kCount
 };
 

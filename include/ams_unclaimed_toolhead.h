@@ -37,31 +37,42 @@ struct UnclaimedToolheadReading {
     return r.filament_unclaimed && !r.bypass_active && r.bypass_switchable;
 }
 
+/// What a look at the unclaimed state asks of the prompt.
+enum class UnclaimedToolheadVerdict {
+    None,    ///< Leave things as they are
+    Open,    ///< Open the prompt
+    Dismiss, ///< Close the open prompt: what it asks about is gone
+};
+
 /**
  * @brief Asks once per occurrence of the unclaimed state.
  *
  * The prompt opens on the first settled, idle look that finds the state, and
  * not again until a settled, idle look finds it cleared (a lane loads, bypass
- * goes on, the sensor clears). A busy look neither opens nor re-arms it. While
- * the prompt is open no second one opens.
+ * goes on, the sensor clears); that look also closes a prompt still open. A
+ * busy look neither opens, closes nor re-arms it. While the prompt is open no
+ * second one opens, whatever resets the gate.
  */
 class UnclaimedToolheadPromptGate {
   public:
-    /// Whether the prompt opens on this look.
-    [[nodiscard]] bool observe(const UnclaimedToolheadReading& r) {
+    [[nodiscard]] UnclaimedToolheadVerdict observe(const UnclaimedToolheadReading& r) {
         if (!r.settled || r.busy) {
-            return false;
+            return UnclaimedToolheadVerdict::None;
         }
         if (!unclaimed_toolhead_filament(r)) {
             armed_ = true;
-            return false;
+            if (open_) {
+                open_ = false;
+                return UnclaimedToolheadVerdict::Dismiss;
+            }
+            return UnclaimedToolheadVerdict::None;
         }
         if (r.printing || open_ || !armed_) {
-            return false;
+            return UnclaimedToolheadVerdict::None;
         }
         armed_ = false;
         open_ = true;
-        return true;
+        return UnclaimedToolheadVerdict::Open;
     }
 
     /// The prompt closed, by either action or a dismissal.
@@ -69,10 +80,14 @@ class UnclaimedToolheadPromptGate {
         open_ = false;
     }
 
-    /// A different filament system, or none: ask afresh.
+    /// A different filament system, or none: ask afresh. A prompt still open
+    /// stays counted, so the next look cannot stack a second one over it.
     void reset() {
         armed_ = true;
-        open_ = false;
+    }
+
+    [[nodiscard]] bool prompt_open() const {
+        return open_;
     }
 
   private:

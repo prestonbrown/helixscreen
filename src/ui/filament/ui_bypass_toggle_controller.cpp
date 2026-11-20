@@ -4,14 +4,12 @@
 #include "ui_bypass_toggle_controller.h"
 
 #include "ui_error_reporting.h"
-#include "ui_modal.h"
+#include "ui_unclaimed_toolhead_modal.h"
 
 #include "ams_bypass_policy.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
-#include "filament_op_dispatch.h"
-#include "filament_op_execute.h"
 #include "lvgl.h"
 #include "notice.h"
 #include "print_lifecycle_state.h"
@@ -245,40 +243,15 @@ void BypassToggleController::disarm_backend_observer() {
 
 namespace {
 
-/// Filament sits at the toolhead, no lane is loaded and bypass is off
-/// (AmsState::sync_unclaimed_toolhead()). Offer the two ways to account for it.
-void offer_unclaimed_toolhead_as_bypass(const UiRequest&) {
-    // Every way the prompt closes clears AmsState's open-prompt guard.
-    const auto closed = [] { AmsState::instance().unclaimed_toolhead_prompt_closed(); };
-    ConfirmOptions options;
-    options.cancel_text = lv_tr("Unload");
-    options.on_cancel = [closed] {
-        closed();
-        AmsBackend* backend = AmsState::instance().get_backend();
-        if (!backend) {
-            return;
-        }
-        const bool loaded =
-            read_unload_target_loaded(backend, backend->get_system_info(), kActiveHeadSlot);
-        execute_filament_unload(backend, kActiveHeadSlot, loaded, "[UnclaimedToolhead]");
-    };
-    options.on_dismiss = closed;
-    modal_confirm(
-        lv_tr("Filament in the toolhead"),
-        lv_tr("Filament is in the toolhead, but no lane is loaded."), ModalSeverity::Warning,
-        lv_tr("Use as bypass"),
-        [closed] {
-            closed();
-            // No lane is loaded, so no unload has to run first and the
-            // engage completes before the controller goes out of scope.
-            BypassToggleController controller;
-            controller.ensure_engaged_then([] {});
-        },
-        options);
-}
-
-const UiRequestRegistration s_unclaimed_toolhead_registration{
-    UiRequestKind::OfferUnclaimedToolheadAsBypass, offer_unclaimed_toolhead_as_bypass};
+// Here rather than in the modal's own file: this file is linked on every
+// target, and a registration in a file nothing names is dropped by the
+// firmware's archive.
+const UiRequestRegistration s_unclaimed_toolhead_offer{
+    UiRequestKind::OfferUnclaimedToolheadAsBypass,
+    [](const UiRequest&) { UnclaimedToolheadModal::offer(); }};
+const UiRequestRegistration s_unclaimed_toolhead_dismiss{
+    UiRequestKind::DismissUnclaimedToolheadPrompt,
+    [](const UiRequest&) { UnclaimedToolheadModal::dismiss(); }};
 
 } // namespace
 

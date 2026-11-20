@@ -383,8 +383,8 @@ void AmsState::restart_unclaimed_toolhead_grace() {
     unclaimed_toolhead_grace_timer_.reset(timer);
 }
 
-void AmsState::sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info) {
-    assert_main_thread();
+helix::ams::UnclaimedToolheadReading AmsState::read_unclaimed_toolhead(AmsBackend* backend,
+                                                                       const AmsSystemInfo& info) {
     helix::ams::UnclaimedToolheadReading reading;
     reading.settled = unclaimed_toolhead_grace_over_ && backend->lane_records_ready();
     reading.printing = job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
@@ -392,11 +392,34 @@ void AmsState::sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo&
     reading.filament_unclaimed = backend->toolhead_filament_unaccounted().value_or(false);
     reading.bypass_active = backend->is_bypass_active();
     reading.bypass_switchable = info.supports_bypass && !info.has_hardware_bypass_sensor;
-    if (!unclaimed_toolhead_gate_.observe(reading)) {
+    return reading;
+}
+
+void AmsState::sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info) {
+    assert_main_thread();
+    switch (unclaimed_toolhead_gate_.observe(read_unclaimed_toolhead(backend, info))) {
+    case helix::ams::UnclaimedToolheadVerdict::Open:
+        spdlog::info("[AmsState] Filament at the toolhead and no lane loaded, bypass off: asking");
+        helix::publish_ui_request({helix::UiRequestKind::OfferUnclaimedToolheadAsBypass});
+        return;
+    case helix::ams::UnclaimedToolheadVerdict::Dismiss:
+        spdlog::info("[AmsState] The toolhead's filament is accounted for now: closing the prompt");
+        helix::publish_ui_request({helix::UiRequestKind::DismissUnclaimedToolheadPrompt});
+        return;
+    case helix::ams::UnclaimedToolheadVerdict::None:
         return;
     }
-    spdlog::info("[AmsState] Filament at the toolhead and no lane loaded, bypass off: asking");
-    helix::publish_ui_request({helix::UiRequestKind::OfferUnclaimedToolheadAsBypass});
+}
+
+bool AmsState::unclaimed_toolhead_now() {
+    assert_main_thread();
+    AmsBackend* backend = get_backend();
+    if (backend == nullptr) {
+        return false;
+    }
+    const helix::ams::UnclaimedToolheadReading r =
+        read_unclaimed_toolhead(backend, *read_system_info(0));
+    return !r.busy && !r.printing && helix::ams::unclaimed_toolhead_filament(r);
 }
 
 void AmsState::unclaimed_toolhead_prompt_closed() {
