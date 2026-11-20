@@ -113,34 +113,10 @@ echo \"Checking for $T/$F markers\"")
 
 # --- wiring ---
 #
-# The gate has to run from quality-checks.sh, not only from here: that is what
-# the pre-commit hook, the pre-push hook and the Code Quality workflow call.
+# The rule reaches every commit and landing through scripts/design_ratchets.py,
+# which warns with the new site and never fails (tests/shell/test_design_ratchets_gate.bats).
 
-@test "gate is wired into quality-checks.sh" {
-    run grep -q "check_todo_markers.py" scripts/qc/todo_markers.sh
+@test "the design ratchets carry the work-marker rule through this checker" {
+    run grep -q '"check_todo_markers.py", "--list"' scripts/design_ratchets.py
     [ "$status" -eq 0 ]
-}
-
-@test "gate section is registered in the quality-checks section list" {
-    run grep -q 'QC_ALL=.*qc_todo_markers' scripts/quality-checks.sh
-    [ "$status" -eq 0 ]
-}
-
-@test "gate wakes on C++ and shell sources" {
-    run qc_trigger todo_markers
-    [ "$status" -eq 0 ]
-    contains "cpp" "$output"
-    contains "sh" "$output"
-}
-
-@test "adding a marker to the tree turns the wired gate red" {
-    # The mutation the ratchet exists for: one more marker than the baseline.
-    # The wired baseline is read from the qc file; whether the tree sits at it
-    # is qc_todo_markers' verdict, so the files here are fixtures alone.
-    baseline=$(grep -oE 'check_todo_markers.py --max-allowed [0-9]+' scripts/qc/todo_markers.sh | grep -oE '[0-9]+')
-    [ -n "$baseline" ] || fail "no --max-allowed in scripts/qc/todo_markers.sh"
-    local files=() i
-    for i in $(seq 0 "$baseline"); do files+=("$(fixture "extra$i.cpp" "// $T: one more")"); done
-    run python3 "$GATE" --max-allowed "$baseline" "${files[@]}"
-    [ "$status" -eq 1 ]
 }

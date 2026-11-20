@@ -99,7 +99,7 @@ def main(argv: list[str]) -> int:
 
     if len(hits) < max_allowed:
         return ratchet.under_baseline(
-            "Raw lv_obj_t* members", "scripts/qc/decl_ui.sh",
+            "Raw lv_obj_t* members", "the --max-allowed passed",
             [ratchet.lowered("--max-allowed", max_allowed, len(hits))],
             f"✅ raw lv_obj_t* members: {len(hits)} under baseline ({max_allowed}), ratchet it down")
     print(f"✅ raw lv_obj_t* members: {len(hits)} == baseline ({max_allowed})")

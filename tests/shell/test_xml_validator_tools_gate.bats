@@ -3,8 +3,8 @@
 #
 # Meta-tests for the qc_xml_tools gate, scripts/qc/xml_tools.sh.
 #
-# The constraint: qc_xml_const and qc_xml_attr guard on `[ -x build/bin/... ]`
-# and skip when the binary is missing, and no ordinary build produces those
+# The constraint: qc_xml_attr guards on `[ -x build/bin/... ]`
+# and skips when the binary is missing, and no ordinary build produces those
 # binaries — `make` builds only the app. A gate whose tool nothing builds is a
 # pass verdict that examines nothing, so the wiring that produces the tools is
 # pinned here: one serial step, ahead of the parallel gate batch (two makes in
@@ -55,13 +55,9 @@ setup() {
     [ "$status" -eq 0 ] || fail "staged XML did not wake the tool build: $trigger"
 }
 
-# qc_xml_const runs no binary, so it must name where the constants check is
-# enforced, and that test must exist, or the hook points at nothing.
-@test "constants gate names the unit test that enforces it" {
-    run bash -c "sed -n '/^qc_xml_const() {/,/^}/p' scripts/qc/xml_const.sh"
-    [ "$status" -eq 0 ] || fail "qc_xml_const not extractable"
+@test "the tool build names the unit test that checks the constant sets, and it exists" {
+    run bash -c "sed -n '/^# validate-xml-constants/,/^qc_xml_tools() {/p' scripts/qc/xml_tools.sh"
     contains 'ui_xml has no incomplete constant sets' "$output"
-    lacks 'not enforced' "$output"
     run grep -q 'ui_xml has no incomplete constant sets' tests/unit/test_ui_theme_constants.cpp
     [ "$status" -eq 0 ] || fail "the named unit test does not exist"
 }

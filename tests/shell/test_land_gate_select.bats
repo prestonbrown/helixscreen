@@ -32,6 +32,7 @@ for a in "$@"; do case "$a" in -*) ;; *=*) vars="$vars $a" ;; *) t=$a ;; esac; d
 echo "make $t$vars" >> "$CALLS"
 [ "$t" != quality ] || [ -n "${HELIX_QC_CHANGED_FROM:-}" ] || echo "qc-only: all" >> "$CALLS"
 [ "$t" != quality ] || [ -z "${HELIX_QC_CHANGED_FROM:-}" ] || echo "qc-changed: $HELIX_QC_CHANGED_FROM" >> "$CALLS"
+[ "$t" != quality ] || [ -z "${HELIX_QC_GATE_CHANGED:-}" ] || echo "qc-scoped: $HELIX_QC_GATE_CHANGED" >> "$CALLS"
 echo "output of $t"
 eval "rc=\${RC_$(echo "$t" | tr - _):-0}"
 exit "$rc"'
@@ -668,6 +669,50 @@ gate_clone() {
     [ "$(hash_with "$list")" != "$(hash_with "")" ] || fail "a partial sweep shares the full sweep's stamp"
     echo ui_xml/home_panel.xml >"$BATS_TEST_TMPDIR/other"
     [ "$(hash_with "$list")" != "$(hash_with "$BATS_TEST_TMPDIR/other")" ] || fail "two partial sweeps share a stamp"
+}
+
+@test "a code change's quality sweep runs every gate and hands the path-scoped ones the change" {
+    change src/a.cpp
+    run "$GATE"
+    [ "$status" -eq 0 ]
+    grep -q "^qc-only: all$" "$CALLS" || fail "the sweep was narrowed: $(cat "$CALLS")"
+    grep -q "^qc-scoped: .*changed.txt$" "$CALLS" || fail "no change handed over: $(cat "$CALLS")"
+}
+
+@test "a forced-full gate sweeps the path-scoped gates whole" {
+    change src/a.cpp
+    HELIX_GATE_FULL=1 run "$GATE"
+    [ "$status" -eq 0 ]
+    ! grep -q "^qc-scoped:" "$CALLS" || fail "a full gate scoped its gates: $(cat "$CALLS")"
+}
+
+@test "HELIX_QC_GATE_CHANGED runs a path-scoped gate only for its paths, and leaves the rest" {
+    local list="$BATS_TEST_TMPDIR/paths"
+    echo src/a.cpp >"$list"
+    run bash -c 'eval "$(grep "^QC_GATE_PATH_SCOPED=" scripts/quality-checks.sh)"
+        eval "$(sed -n "/^qc_trigger_re() {/,/^}/p; /^qc_wanted() {/,/^}/p" scripts/quality-checks.sh)"
+        QC_TRIGGER_qc_link_parity="^mk/" QC_TRIGGER_qc_shellcheck="\.cpp$" QC_TRIGGER_qc_l081="^mk/"
+        HELIX_QC_GATE_CHANGED="$1" STAGED_ONLY=false
+        qc_wanted qc_link_parity || echo "link_parity skipped"
+        qc_wanted qc_shellcheck && echo "shellcheck runs"
+        qc_wanted qc_l081 && echo "l081 runs"' _ "$list"
+    contains "link_parity skipped" "$output"
+    contains "shellcheck runs" "$output"
+    contains "l081 runs" "$output"
+    hash_with() {
+        HELIX_QC_GATE_CHANGED="$1" bash -c \
+            'eval "$(sed -n "/^qc_state_hash() {/,/^}/p" scripts/quality-checks.sh)"; qc_state_hash'
+    }
+    [ "$(hash_with "$list")" != "$(hash_with "")" ] || fail "a scoped sweep shares the full sweep's stamp"
+}
+
+@test "a path-scoped gate's own script wakes it, so a change to the check is judged on the whole tree" {
+    run bash -c 'for g in link_parity translation_files shellcheck; do
+            . "scripts/qc/$g.sh"; re=$(eval echo "\$QC_TRIGGER_qc_$g")
+            echo "scripts/qc/$g.sh" | grep -qE "$re" || echo "MISSING $g"
+        done; echo done'
+    [ "$status" -eq 0 ]
+    lacks "MISSING" "$output"
 }
 
 @test "plan: python runs for the doc-screenshot manifest and for the workflows its tests read" {

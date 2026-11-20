@@ -1,20 +1,30 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The weekly trend of the bookkeeping ratchets (prestonbrown/helixscreen#2004).
+"""The weekly trend of the count ratchets (prestonbrown/helixscreen#2004).
 
-The test-line budget, TestAccess and friend counts, file size, hardcoded pixels and
-unreferenced callbacks warn instead of blocking a landing, so nothing stops them
-drifting. This prints each one's count at HEAD against the same count DAYS ago and
-against its baseline, where it has one, so drift is seen weekly and not at a gate.
+No count ratchet blocks a landing, so nothing at a gate stops them drifting. This prints
+each one's count at HEAD against the same count DAYS ago and against its baseline, where
+it has one, so drift is seen weekly:
+
+  bookkeeping   C++ test lines, TestAccess references, friend declarations, C++ files
+                over the line cap, hardcoded pixels and unreferenced callbacks. Nothing
+                at commit or at the gate reports them; this is their only reader.
+  design        the architecture ratchets of scripts/design_ratchets.py (namespace,
+                layering, vendor branches, declarative UI, swatches, LVGL 9.6 names,
+                work markers, comment SHAs). A commit and a landing warn on each new
+                site; here every site that appeared in the window is listed with the
+                commit that added it (git blame at HEAD) and the reason given on a
+                `Ratchet: <rule>: <reason>` line: by that commit, else by the
+                first-parent merge that brought it in or another commit of that
+                branch, so drift has an author.
 
 Each count is taken on a commit's tree (git archive into a scratch directory), never on
 the working tree, and every count uses this checkout's checkers, so the two columns
 differ only by what the tree did. The older commit is the last first-parent commit
 before the cutoff.
 
-  check_test_budget.py and check_growth_ratchets.py measure a branch, so their counts
-  here are whole-tree totals: C++ test lines, TestAccess references, friend
-  declarations, and C++ files over check_growth_ratchets.FILE_CAP lines.
+  The bookkeeping counts are whole-tree totals: C++ test lines, TestAccess references,
+  friend declarations, and C++ files over check_growth_ratchets.FILE_CAP lines.
   check_hardcoded_pixels.py's total against the --max-allowed in
   scripts/qc/design_pixels.sh; check_orphan_callbacks.py's findings against
   scripts/orphan_callback_baseline.txt.
@@ -43,10 +53,10 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 from check_growth_ratchets import FILE_CAP  # noqa: E402
-from check_test_budget import FRIEND_RE, TEST_ACCESS_RE  # noqa: E402
 
-TREE_PATHS = ("src", "include", "tests", "ui_xml", "scripts/qc/design_pixels.sh",
-              "scripts/orphan_callback_baseline.txt")
+TEST_ACCESS_RE = re.compile(r"\b\w+TestAccess\b")
+FRIEND_RE = re.compile(r"^\s*friend\s")
+TREE_PATHS = ("src", "include", "tests", "ui_xml", "firmware", "scripts")
 MAX_ALLOWED_RE = re.compile(r"check_hardcoded_pixels\.py --max-allowed (\d+)")
 PIXELS_TOTAL_RE = re.compile(r"^\s*TOTAL\s+(\d+)", re.M)
 
@@ -126,10 +136,89 @@ def counts(tree: Path) -> list[Row]:
     return rows
 
 
-def take(root: Path, rev: str) -> list[Row]:
+@dataclass
+class Growth:
+    rule: str
+    site: object  # design_ratchets.Site
+    commit: str
+    subject: str
+    reason: str
+
+
+def design_sites(tree: Path) -> dict[str, list]:
+    """Every site of every design rule in TREE, by rule; a rule that cannot be listed is left out."""
+    import design_ratchets
+    out = {}
+    for rule in design_ratchets.RULES:
+        try:
+            out[rule.name] = rule.lister(tree, None)
+        except Exception as e:  # noqa: BLE001 - one broken lister must not hide the rest
+            print(f"ratchet_report: {rule.name}: {e}", file=sys.stderr)
+    return out
+
+
+def take(root: Path, rev: str):
     with tempfile.TemporaryDirectory(prefix="ratchet-report-") as d:
         export(root, rev, Path(d))
-        return counts(Path(d))
+        return counts(Path(d)), design_sites(Path(d))
+
+
+def blame(root: Path, path: str, line: int) -> str:
+    out = subprocess.run(["git", "-C", str(root), "blame", "--porcelain", "-L", f"{line},{line}",
+                          "HEAD", "--", path], capture_output=True, text=True)
+    return out.stdout.split(" ", 1)[0] if out.returncode == 0 and out.stdout else ""
+
+
+def carriers(root: Path, sha: str, mainline: list[str]) -> list[str]:
+    """Messages that may state the reason for SHA's line when SHA's own does not: the
+    first-parent merge that brought SHA into HEAD, then every commit of the branch that
+    merge joined. A commit made on the first-parent line has none."""
+    if sha in mainline:
+        return []
+    descendants = set(git(root, "rev-list", "--ancestry-path", f"{sha}..HEAD").split())
+    # mainline runs newest first; the oldest first-parent descendant is the merge.
+    merge = next((c for c in reversed(mainline) if c in descendants), "")
+    if not merge:
+        return []
+    out = [git(root, "show", "-s", "--format=%B", merge)]
+    parents = git(root, "show", "-s", "--format=%P", merge).split()
+    if len(parents) > 1:
+        out += [m for m in git(root, "log", "--format=%B%x00",
+                                f"{parents[0]}..{parents[1]}").split("\0") if m.strip()]
+    return out
+
+
+def growth(root: Path, then_rev: str, now: dict, then: dict) -> list[Growth]:
+    """Sites at HEAD that the older tree lacked, each with the commit that wrote its line."""
+    import design_ratchets
+    from collections import Counter
+    rows = []
+    mainline = git(root, "rev-list", "--first-parent", f"{then_rev}..HEAD").split()
+    for rule, sites in now.items():
+        if rule not in then:
+            continue
+        old = Counter((s.path, s.text) for s in then[rule])
+        for site in sites:
+            key = (site.path, site.text)
+            if old[key]:
+                old[key] -= 1
+                continue
+            sha = blame(root, site.path, site.line)
+            subject = reason = ""
+            if sha and subprocess.run(["git", "-C", str(root), "merge-base", "--is-ancestor",
+                                       sha, then_rev]).returncode != 0:
+                full = sha
+                body = git(root, "show", "-s", "--format=%h%n%s%n%b", sha)
+                sha, subject, rest = (body.split("\n", 2) + ["", ""])[:3]
+                for message in [f"{subject}\n{rest}", *carriers(root, full, mainline)]:
+                    said = design_ratchets.stated_reasons(message).get(rule, [])
+                    if said:
+                        reason = "; ".join(said)
+                        break
+            else:
+                sha = ""
+            rows.append(Growth(rule, site, sha, subject, reason))
+    return rows
 
 
 def trend(now: int, then: int) -> str:
@@ -169,10 +258,13 @@ def main(argv=None) -> int:
                   f"fetch more, or pass --since REV", file=sys.stderr)
             return 2
     try:
-        now, then = take(root, head), take(root, then_rev)
+        (now, design_now), (then, design_then) = take(root, head), take(root, then_rev)
     except (RuntimeError, subprocess.CalledProcessError) as e:
         print(f"ratchet_report: {e}", file=sys.stderr)
         return 2
+    now += [Row(f"design: {r}", len(v)) for r, v in design_now.items() if r in design_then]
+    then += [Row(f"design: {r}", len(v)) for r, v in design_then.items() if r in design_now]
+    grown = growth(root, then_rev, design_now, design_then)
 
     def when(rev):
         return git(root, "show", "-s", "--format=%h %cs", rev).strip()
@@ -187,12 +279,33 @@ def main(argv=None) -> int:
         print("|" + "---|" * len(header))
         for r in table:
             print("| " + " | ".join(r) + " |")
+        print_growth(grown, markdown=True)
         return 0
     widths = [max(len(r[i]) for r in (header, *table)) for i in range(len(header))]
     print(title)
     for r in (header, *table):
         print("  " + "  ".join(c.ljust(w) for c, w in zip(r, widths)).rstrip())
+    print_growth(grown, markdown=False)
     return 0
+
+
+def print_growth(grown: list[Growth], markdown: bool) -> None:
+    """Each new design-ratchet site with the commit that added it and the reason it gave."""
+    title = "New design-ratchet sites in the window"
+    if not grown:
+        print(f"\n{'### ' if markdown else ''}{title}: none")
+        return
+    print(f"\n{'### ' if markdown else ''}{title}: {len(grown)}")
+    if markdown:
+        print("\n| rule | site | commit | stated reason |\n|---|---|---|---|")
+    for g in grown:
+        where = f"{g.site.path}:{g.site.line}"
+        commit = f"{g.commit} {g.subject}".strip() or "(older than the window: moved or reworded)"
+        reason = g.reason or "(no reason stated)"
+        if markdown:
+            print(f"| {g.rule} | `{where}` | {commit.replace('|', '/')} | {reason.replace('|', '/')} |")
+        else:
+            print(f"  {g.rule}  {where}\n      {commit}\n      reason: {reason}")
 
 
 if __name__ == "__main__":

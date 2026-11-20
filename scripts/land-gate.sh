@@ -51,8 +51,8 @@
 #   quality           make quality: the full quality-checks.sh sweep pre-push runs,
 #                     after app-build, since its clang gate reads the build's
 #                     compile commands, and after a local ci-shards, since it
-#                     runs makes of its own in the tree. tests/python is left to
-#                     the python step (HELIX_QC_SKIP_PYTHON_TESTS=1)
+#                     runs makes of its own in the tree. tests/python is the
+#                     python step's
 #
 # A gate runs what the change can reach. scripts/gate_select.py plans each step
 # from the paths that differ from the merge-base (committed, staged, unstaged,
@@ -117,7 +117,7 @@
 # pre-push skips the quality sweep when it pushes exactly that commit. A
 # result set for the commit that is not all PASS removes its stamp.
 #
-# Outside this gate: [.] (the commit hook), the goldens (nightly and
+# Outside this gate: [.] (nightly), the goldens (nightly and
 # local-only), and build.yml's telemetry-worker vitest
 # (server/telemetry-worker: `npm install && npm test`).
 set -uo pipefail
@@ -389,8 +389,15 @@ run_step() {
         no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
         quality)
             # A docs-only change: the gates whose triggers its paths match.
-            [ "$(planned quality)" != select ] || sel=("HELIX_QC_CHANGED_FROM=$(cd "$(dirname "$CHANGED_LIST")" && pwd)/$(basename "$CHANGED_LIST")")
-            step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 HELIX_QC_SKIP_PYTHON_TESTS=1 "${sel[@]}" "${mk[@]}" quality ;;
+            # Any other selected change: the path-scoped gates read only it.
+            local changed_abs
+            changed_abs="$(cd "$(dirname "$CHANGED_LIST")" && pwd)/$(basename "$CHANGED_LIST")"
+            if [ "$(planned quality)" = select ]; then
+                sel=("HELIX_QC_CHANGED_FROM=$changed_abs")
+            else
+                case "$(plan_mode)" in selected | tests) sel=("HELIX_QC_GATE_CHANGED=$changed_abs") ;; esac
+            fi
+            step quality env HELIX_LINK_BOUNDARY_REQUIRED=1 "${sel[@]}" "${mk[@]}" quality ;;
         *) echo "✗ unknown step '$1'" >&2; return 2 ;;
     esac
 }

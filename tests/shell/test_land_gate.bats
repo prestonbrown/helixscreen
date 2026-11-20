@@ -845,10 +845,9 @@ teardown() {
     [ "$(order_of "start quality")" -lt "$(order_of "end test-ui-ci")" ]
 }
 
-@test "the gate's quality sweep leaves tests/python to the python step" {
-    MAKE_QUALITY_HOOK='echo "skip python: ${HELIX_QC_SKIP_PYTHON_TESTS:-no}" >> "$CALLS"' run "$GATE"
+@test "tests/python runs in the gate's python step" {
+    run "$GATE"
     [ "$status" -eq 0 ]
-    grep -qx "skip python: 1" "$CALLS"
     grep -qx "make test-python" "$CALLS"
 }
 

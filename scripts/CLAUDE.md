@@ -106,9 +106,11 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | Script | Purpose |
 |--------|---------|
 | `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
+| `qc_file_cache.py` | Per-file facts the registration and ESP32 gates share, cached by file content under `build/.qc-cache/` |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
-| `ratchet.py` | The shared ratchet verdicts: under the baseline lenient at commit, fails at push (`HELIX_RATCHET_STRICT=1`) except for bookkeeping ratchets; `WARN_EXIT` for their warnings |
-| `ratchet_report.py` | Weekly trend of the bookkeeping ratchets against a week ago and their baselines; `.github/workflows/ratchet-report.yml` |
+| `ratchet.py` | The shared ratchet verdicts: under the baseline passes at every stage; `WARN_EXIT` for a warning |
+| `ratchet_report.py` | Weekly trend of every count ratchet, and each new design-ratchet site with its commit and stated reason; `.github/workflows/ratchet-report.yml` |
+| `design_ratchets.py` | The architecture ratchets (namespace, layering, vendor, declarative UI, swatches, LVGL 9.6, markers, comment SHAs): a warning naming each new site, never a failure |
 | `bats_select.py` | Which `tests/shell/*.bats` files a run needs; `--gate` narrows the product files to what a change reaches |
 | `gate_select.py` | What `land-gate` runs for a change: each step's plan, and the C++ cases the build's `.d` files reach |
 | `run_suite_report.sh` | The shared `--success` Catch2 report the vacuous-test and order-dependence gates read |
@@ -159,9 +161,8 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_hold_ends_press.py` | Fail on a `long_pressed` handler that neither ends its press nor opts out |
 | `check_hand_rolled_swatch.py` | Ratchet on colour swatches drawn by hand instead of the swatch painter |
 | `check_lvgl_subject_api.py` | Fail on a deprecated LVGL subject call or a by-value `lv_subject_t`; `helix::Subject` owns subjects |
-| `check_test_budget.py` | Warns when a branch grows the C++ test suite, TestAccess or friends |
-| `check_growth_ratchets.py` | A branch does not add global access or active-instance pointers; file size past the cap warns |
-| `check_layering.py` | A branch does not add an include that points up the layer stack |
+| `check_growth_ratchets.py` | A branch does not add global access or active-instance pointers |
+| `check_layering.py` | The layer map; `qc_layering` fails a cleared include pair's return |
 | `code_lint.sh` | The tree-wide code lints too small for a script of their own |
 | `check_comment_archaeology.py` | Ratchet on commit SHAs in comments, plus history phrases at commit |
 | `check_feature_gates.py` | Every `HELIX_HAS_*` gate has its one default in `include/helix_features.h` |
@@ -169,7 +170,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `platform_manifest.py` | Answers derived questions about a platform from `platforms.json` |
 | `rename_observers.py` | Rewrites retired observer factory names onto `observe<V>()` |
 | `rename_update_queue_drain.py` | Rewrites `UpdateQueueTestAccess` drains onto the queue's own methods |
-| `lvgl96_rename.py` | Rewrites code off the names LVGL 9.6 deprecates (API map, flag calls); `--check` (gated as `qc_lvgl_deprecated`) fails on any left |
+| `lvgl96_rename.py` | Rewrites code off the names LVGL 9.6 deprecates (API map, flag calls); `--check` (the lvgl-deprecated design ratchet) reports any left |
 | `rename_constants.py` | Renames `UPPER_SNAKE_CASE` C++ constants to `kCamelCase` (plan, then apply) |
 | `check_constant_naming.py` | Fail on a new `UPPER_SNAKE_CASE` constant in added lines |
 | `audit_codebase.sh` | Check for coding standard violations. `--strict` for CI |

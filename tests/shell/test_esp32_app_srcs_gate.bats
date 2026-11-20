@@ -664,6 +664,44 @@ build_inline_fixture() {
     contains "Pwm::update" "$output"
 }
 
+# The source names the class only through a header's `using` alias.
+build_alias_fixture() {
+    printf '#pragma once\nstruct SoundMgr { virtual ~SoundMgr(); virtual int start(); };\nusing Snd = SoundMgr;\n' \
+        > "$ROOT/src/printer/excluded_one.h"
+    printf '#include "excluded_one.h"\nSoundMgr::~SoundMgr() {}\nint SoundMgr::start() { return 1; }\n' \
+        > "$ROOT/src/printer/excluded_one.cpp"
+    printf '#include "excluded_one.h"\n%s\nint caller() { Snd s; return s.start(); }\n%s\n' "$1" "$2" \
+        > "$ROOT/src/printer/compiled.cpp"
+    mkdir -p "$ROOT/obj/printer" "$ROOT/fwroot"
+    c++ -DHELIX_HAS_CAMERA=1 -I"$ROOT/src/printer" -c "$ROOT/src/printer/compiled.cpp" -o "$ROOT/obj/printer/compiled.o"
+    c++ -I"$ROOT/src/printer" -c "$ROOT/src/printer/excluded_one.cpp" -o "$ROOT/obj/printer/excluded_one.o"
+    printf 'target_compile_definitions(${COMPONENT_LIB} PRIVATE\n    HELIX_HAS_CAMERA=0)\n' > "$ROOT/CMakeLists.txt"
+    printf 'max-edges: 0\n' > "$ROOT/link_baseline.txt"
+}
+
+@test "--link passes a class used only through a header alias in a dead branch" {
+    build_alias_fixture '#if HELIX_HAS_CAMERA' '#endif'
+    run_link_gate
+    [ "$status" -eq 0 ] || fail "a dead aliased use was counted live: $output"
+}
+
+@test "--link fails a class used through a header alias the firmware compiles" {
+    build_alias_fixture '' ''
+    run_link_gate
+    [ "$status" -eq 1 ] || fail "a live aliased use passed: $output"
+    contains "SoundMgr" "$output"
+}
+
+@test "--link: a cached run under one define set never answers for another" {
+    export HELIX_QC_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
+    build_alias_fixture '#if HELIX_HAS_CAMERA' '#endif'
+    run_link_gate
+    [ "$status" -eq 0 ] || fail "the dead branch failed: $output"
+    printf 'target_compile_definitions(${COMPONENT_LIB} PRIVATE\n    HELIX_HAS_CAMERA=1)\n' > "$ROOT/CMakeLists.txt"
+    run_link_gate
+    [ "$status" -eq 1 ] || fail "the firmware's own branch was read from the other define set's cache: $output"
+}
+
 # A static member called by its qualified name inside a guarded branch, in a file
 # whose live code also uses the bare member word for something else.
 build_qualified_fixture() {

@@ -287,7 +287,7 @@ def main():
         return 1
     if total < limit:
         return ratchet.under_baseline(
-            'Imperative UI', 'scripts/qc/decl_ui.sh',
+            'Imperative UI', 'the --max-allowed passed',
             [ratchet.lowered('--max-allowed', limit, total)],
             f'✅ Imperative UI: {total} (baseline {limit} — ratchet the baseline down)')
     print(f'✅ Imperative UI: {total} == baseline ({limit})')

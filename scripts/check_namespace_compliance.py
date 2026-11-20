@@ -31,9 +31,9 @@
 #   - any line carrying a `// NAMESPACE_OK: <reason>` comment, or carrying it on
 #     the line above (for multi-line declarations)
 #
-# This is a RATCHET, not a wall. The baseline freezes today's count so the debt can
-# only shrink: a new global declaration fails the build, and moving one into helix::
-# lowers the number. Lower the baseline in scripts/qc/namespace.sh when you do.
+# This is a RATCHET, not a wall: the debt may only shrink. scripts/design_ratchets.py
+# names each new global declaration a change adds and asks for helix:: instead, and
+# scripts/ratchet_report.py tracks the whole-tree count weekly.
 #
 # Usage:
 #   check_namespace_compliance.py                    # fail on any violation
@@ -306,7 +306,7 @@ def main():
         return 1
     if total < limit:
         return ratchet.under_baseline(
-            'Namespace', 'scripts/qc/namespace.sh and BASELINE in tests/shell/test_namespace_gate.bats',
+            'Namespace', 'the --max-allowed passed',
             [ratchet.lowered('--max-allowed', limit, total)],
             f'✅ Namespace: {total} (baseline {limit} — ratchet the baseline down)')
     print(f'✅ Namespace: {total} == baseline ({limit})')

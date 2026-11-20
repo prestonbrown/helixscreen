@@ -9,6 +9,24 @@
 # ====================================================================
 # Shell Script Linting (shellcheck)
 # ====================================================================
+
+# The scripts this gate lints, out of a list of paths. The platform hooks live
+# under assets/config/platform/.
+SHELLCHECK_PATH_RE='(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh|^config/(restore-user-config|refresh-service-units|fix-user-config-owner)\.sh)$'
+# What judges every script at once: this gate and shellcheck's own config. A
+# change to either is answered by the whole set, never by the changed paths.
+SHELLCHECK_SELF_RE='^(scripts/qc/shellcheck\.sh|\.shellcheckrc)$'
+
+# Every script the gate lints, one word each.
+qc_shellcheck_all_files() {
+  find assets/config/platform -name "*.sh" 2>/dev/null || true
+  # Every init script at the top of config/ ships to devices (helixscreen.init,
+  # creality-backend.init); lint all of them, not a hand-kept name list.
+  find config -maxdepth 1 -name '*.init' 2>/dev/null || true
+  git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 2>/dev/null || true
+  printf '%s\n' "$SHELLCHECK_CONFIG_SCRIPTS" | tr ' ' '\n'
+}
+
 qc_shellcheck() {
   local EXIT_CODE=0
 SECTION_START=$(date +%s)
@@ -45,15 +63,13 @@ SHELLCHECK_CONFIG_SCRIPTS="config/restore-user-config.sh config/refresh-service-
 
 SHELL_FILES=""
 if [ "$STAGED_ONLY" = true ]; then
-  SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | \
-    grep -E '(config/platform/.*\.sh|config/.*\.init|^scripts/.*\.sh|^config/(restore-user-config|refresh-service-units|fix-user-config-owner)\.sh)$' || true)
+  SHELL_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "$SHELLCHECK_PATH_RE" || true)
+elif [ -n "${HELIX_QC_GATE_CHANGED:-}" ] && ! grep -qE "$SHELLCHECK_SELF_RE" "$HELIX_QC_GATE_CHANGED" 2>/dev/null; then
+  # make land-gate: each script is linted on its own, so the changed ones answer
+  # for the change; a deleted one drops out as a missing file below.
+  SHELL_FILES=$(grep -E "$SHELLCHECK_PATH_RE" "$HELIX_QC_GATE_CHANGED" 2>/dev/null || true)
 else
-  SHELL_FILES=$(find config/platform -name "*.sh" 2>/dev/null || true)
-  # Every init script at the top of config/ ships to devices (helixscreen.init,
-  # creality-backend.init); lint all of them, not a hand-kept name list.
-  SHELL_FILES="$SHELL_FILES $(find config -maxdepth 1 -name '*.init' 2>/dev/null || true)"
-  SHELL_FILES="$SHELL_FILES $(git ls-files 'scripts/*.sh' 'scripts/**/*.sh' 2>/dev/null || true)"
-  SHELL_FILES="$SHELL_FILES $SHELLCHECK_CONFIG_SCRIPTS"
+  SHELL_FILES=$(qc_shellcheck_all_files)
 fi
 
 if [ -n "$SHELL_FILES" ]; then
@@ -146,4 +162,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_shellcheck='\.(sh|bats)$'
+QC_TRIGGER_qc_shellcheck="$SHELLCHECK_PATH_RE|$SHELLCHECK_SELF_RE"

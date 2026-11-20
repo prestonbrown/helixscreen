@@ -150,31 +150,13 @@ write_and_run() {
     [[ "$output" == *"reserved sentinel"* ]]
 }
 
-# --- 4. the real tree stays clean -------------------------------------------------
+# --- 4. formatting is fixed at commit, never failed at push ----------------------
 
-@test "the ui_xml lint fails on an unparseable or unformatted file and passes a formatted one" {
-    # lint_ui_xml_formatted (scripts/code_lint.sh) is the hard verdict over the
-    # real ui_xml/, run by qc_code_lint at push; here it reads a fixture root.
-    local root="$BATS_TEST_TMPDIR/root"
-    mkdir -p "$root/ui_xml" "$root/scripts"
-    ln -s "$PWD/$FORMATTER" "$root/$FORMATTER"
-    # The whole venv: a lone link to its python loses pyvenv.cfg, and with it lxml.
-    ln -s "$(cd .venv && pwd -P)" "$root/.venv"
-    . scripts/code_lint.sh
-    printf '<component><view><lv_obj name="a"/></view></component>' > "$root/ui_xml/good.xml"
-    cd "$root" || return 1
-    run lint_ui_xml_formatted
-    [ "$status" -eq 1 ]
-    contains "good.xml" "$output"
-
-    "$PY" "$FORMATTER" ui_xml/good.xml >/dev/null
-    run lint_ui_xml_formatted
-    [ "$status" -eq 0 ] || fail "$output"
-
-    printf '<component><view' > ui_xml/broken.xml
-    run lint_ui_xml_formatted
-    [ "$status" -eq 1 ]
-    contains "broken.xml" "$output"
+@test "XML formatting is the commit hook's auto-fix, with no push-time lint to fail later" {
+    run grep -n 'ui_xml_formatted' scripts/code_lint.sh
+    [ "$status" -eq 1 ] || fail "a push lint on XML formatting is back: $output"
+    run grep -Fx 'exec ./scripts/quality-checks.sh --staged-only --auto-fix' .githooks/pre-commit
+    [ "$status" -eq 0 ] || fail "the pre-commit hook no longer auto-fixes"
 }
 
 # --- 5. the pre-commit auto-fix must not sweep held-back work ---------------------

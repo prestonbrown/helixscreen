@@ -63,6 +63,7 @@ import pathlib
 import re
 import sys
 import ratchet  # noqa: E402
+from qc_file_cache import FileCache  # noqa: E402
 
 SRC_DIRS = ("src", "include")
 # The subject macros' own doc comments register "my_count"/"name"/"temperature"
@@ -209,11 +210,62 @@ def source_files(root: pathlib.Path) -> list:
             if p.suffix in (".cpp", ".h", ".hpp", ".cc")]
 
 
-def collect_registrations(root: pathlib.Path, files=None, read=None):
+def file_facts(text: str) -> dict:
+    """What one source says on its own: the accessors it defines and the subjects it
+    registers, with each registration's member, or the accessor it re-publishes
+    through, left for collect_registrations to resolve across files.
+
+    accessors: [[accessor, member]]. registrations: [[name, line, member, call]],
+    member None when the call names none, call the accessor a re-publication
+    calls, else None. macro registrations take the member `<name>_`.
+    """
+    accessors = [[m.group(1), m.group(2)] for m in ACCESSOR_DEF_RE.finditer(text)]
+    regs: list[list] = []
+    lines = text.splitlines()
+    # The macro families wrap freely, so their name literal is often not
+    # on the line the macro starts. Scan the whole text for those.
+    for name, member, start, end in find_managed_macro_calls(text):
+        first = text.count("\n", 0, start)
+        last = text.count("\n", 0, end)
+        if any(ALLOW_RE.search(l) for l in lines[first:last + 2]):
+            continue
+        regs.append([name, first + 1, member, None])
+    for n, line in enumerate(lines, 1):
+        # Prose naming a macro is not a registration, and the macros are
+        # documented with worked examples wherever they are mentioned.
+        if COMMENT_LINE_RE.match(line):
+            continue
+        # The call may wrap; accept the opt-out on any of its lines.
+        if any(ALLOW_RE.search(l) for l in lines[n - 1:n + 2]):
+            continue
+        for m in REGISTER_RE.finditer(line):
+            tail = line[m.end():]
+            # The pointer argument wraps onto the next line only while
+            # the call's paren is still open.
+            if (line.count("(", m.start()) > line.count(")", m.start())
+                    and n < len(lines)):
+                tail += " " + lines[n]
+            mem = MEMBER_RE.search(tail)
+            call = None if mem else ACCESSOR_CALL_RE.search(tail)
+            regs.append([m.group(1), n, mem.group(1) if mem else None,
+                         call.group(1) if call else None])
+        for m in MACRO_REGISTER_RE.finditer(line):
+            regs.append([m.group(1), n, f"{m.group(1)}_", None])
+    return {"accessors": accessors, "registrations": regs}
+
+
+# Every script whose code decides a cached per-file answer below.
+_SALT = [pathlib.Path(__file__)]
+
+
+def collect_registrations(root: pathlib.Path, files=None, read=None,
+                          read_key: str | None = None):
     """Map subject name -> (sites, members, owned).
 
     `files` narrows the scan to a build's own sources and `read` lets a caller
     preprocess each file's text; both default to every file under SRC_DIRS as is.
+    Each file's facts are cached by content (qc_file_cache); a caller passing `read`
+    names what it does with `read_key`, or its files are parsed afresh.
 
     `owned` keys each member by its owner - the stem of the file that
     registers it or defines its accessor - so two classes that both name a
@@ -226,60 +278,35 @@ def collect_registrations(root: pathlib.Path, files=None, read=None):
     # more than one owner is ambiguous and resolves to nothing.
     accessors: dict[str, set[tuple[str, str]]] = {}
     files = source_files(root) if files is None else files
-    read = read or (lambda p: p.read_text(errors="ignore"))
-    texts = {path: read(path) for path in files}
-    for path, text in texts.items():
-        for m in ACCESSOR_DEF_RE.finditer(text):
-            accessors.setdefault(m.group(1), set()).add((path.stem, m.group(2)))
-    for path, text in texts.items():
+    cache = FileCache("subject_registrations", _SALT)
+    facts = {}
+    for path in files:
+        if read is None:
+            facts[path] = cache.get(path, "raw", file_facts, errors="ignore")
+        elif read_key is not None:
+            facts[path] = cache.get(path, read_key,
+                                    lambda _t, p=path: file_facts(read(p)))
+        else:
+            facts[path] = file_facts(read(path))
+    cache.save()
+    for path, fact in facts.items():
+        for accessor, member in fact["accessors"]:
+            accessors.setdefault(accessor, set()).add((path.stem, member))
+    for path, fact in facts.items():
         if str(path.relative_to(root)) in SKIP_FILES:
             continue
-        lines = text.splitlines()
         rel = path.relative_to(root)
-        # The macro families wrap freely, so their name literal is often not
-        # on the line the macro starts. Scan the whole text for those.
-        for name, member, start, end in find_managed_macro_calls(text):
-            first = text.count("\n", 0, start)
-            last = text.count("\n", 0, end)
-            if any(ALLOW_RE.search(l) for l in lines[first:last + 2]):
-                continue
-            found.setdefault(name, []).append(f"{rel}:{first + 1}")
+        for name, line, member, call in fact["registrations"]:
+            found.setdefault(name, []).append(f"{rel}:{line}")
             if member:
                 members.setdefault(name, set()).add(member)
                 owned.setdefault(name, set()).add((path.stem, member))
-        for n, line in enumerate(lines, 1):
-            # Prose naming a macro is not a registration, and the macros are
-            # documented with worked examples wherever they are mentioned.
-            if COMMENT_LINE_RE.match(line):
-                continue
-            # The call may wrap; accept the opt-out on any of its lines.
-            if any(ALLOW_RE.search(l) for l in lines[n - 1:n + 2]):
-                continue
-            for m in REGISTER_RE.finditer(line):
-                name = m.group(1)
-                found.setdefault(name, []).append(f"{rel}:{n}")
-                tail = line[m.end():]
-                # The pointer argument wraps onto the next line only while
-                # the call's paren is still open.
-                if (line.count("(", m.start()) > line.count(")", m.start())
-                        and n < len(lines)):
-                    tail += " " + lines[n]
-                mem = MEMBER_RE.search(tail)
-                if mem:
-                    members.setdefault(name, set()).add(mem.group(1))
-                    owned.setdefault(name, set()).add((path.stem, mem.group(1)))
-                    continue
+            elif call is not None:
                 # Re-published through the owner's accessor: the alias
                 # shares the member, so binding either name reads it.
-                call = ACCESSOR_CALL_RE.search(tail)
-                targets = accessors.get(call.group(1), set()) if call else set()
+                targets = accessors.get(call, set())
                 if len(targets) == 1:
                     owned.setdefault(name, set()).update(targets)
-            for m in MACRO_REGISTER_RE.finditer(line):
-                name = m.group(1)
-                found.setdefault(name, []).append(f"{rel}:{n}")
-                members.setdefault(name, set()).add(f"{name}_")
-                owned.setdefault(name, set()).add((path.stem, f"{name}_"))
     return found, members, owned
 
 

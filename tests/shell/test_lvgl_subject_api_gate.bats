@@ -132,6 +132,36 @@ CPP
     contains "OK:" "$output"
 }
 
+# ------------------------------------------------------- the commit's scope
+
+# A git repo at ROOT holding a committed site in src/old.cpp.
+staged_tree() {
+    git -C "$ROOT" init -q
+    git -C "$ROOT" config user.email t@t
+    git -C "$ROOT" config user.name t
+    printf 'lv_subject_t old_;\n' > "$ROOT/src/old.cpp"
+    git -C "$ROOT" add src/old.cpp
+    git -C "$ROOT" commit -qm base
+}
+
+@test "a commit is judged on its staged files, not the tree's existing sites" {
+    staged_tree
+    printf 'helix::Subject ok_;\n' > "$ROOT/src/x.cpp"
+    git -C "$ROOT" add src/x.cpp
+    run bash -c 'cd "$1" && python3 "$2" --root "$1" --staged-only' _ "$ROOT" "$PWD/$GATE"
+    [ "$status" -eq 0 ] || fail "an unstaged file's site failed the commit: $output"
+}
+
+@test "a site in a staged file fails the commit, read from the index" {
+    staged_tree
+    printf 'lv_subject_t bad_;\n' > "$ROOT/src/x.cpp"
+    git -C "$ROOT" add src/x.cpp
+    printf 'helix::Subject ok_;\n' > "$ROOT/src/x.cpp"
+    run bash -c 'cd "$1" && python3 "$2" --root "$1" --staged-only' _ "$ROOT" "$PWD/$GATE"
+    [ "$status" -eq 1 ] || fail "a staged site passed: $output"
+    contains "src/x.cpp:1: storage" "$output"
+}
+
 @test "the gate runs for sources, tests, firmware and its own files" {
     local re
     re="$(qc_trigger lvgl_subject_api)"

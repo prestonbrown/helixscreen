@@ -35,4 +35,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_translation_files='^translations/|^scripts/translations/yaml_manager\.py$|^scripts/check_translation_files\.py$'
+QC_TRIGGER_qc_translation_files='^translations/|^scripts/translations/yaml_manager\.py$|^scripts/check_translation_files\.py$|^scripts/qc/translation_files\.sh$'

@@ -156,20 +156,18 @@ XML
     run_gate
     [ "$status" -eq 0 ] || fail "two sites at a baseline of two failed: $output"
     printf '3 ui_xml/x.xml:xml-named-swatch\n' > "$ROOT/base.txt"
-    HELIX_RATCHET_STRICT=0 run_gate
-    [ "$status" -eq 0 ] || fail "below baseline failed at commit: $output"
+    run_gate
+    [ "$status" -eq 0 ] || fail "below baseline failed: $output"
     contains "lowered" "$output"
-    HELIX_RATCHET_STRICT=1 run_gate
-    [ "$status" -eq 1 ] || fail "below baseline passed at a push: $output"
-    contains "ui_xml/x.xml:xml-named-swatch: 3 -> 2" "$output"
 }
 
-@test "the gate runs for staged sources, XML and its own files" {
-    local re
-    re="$(qc_trigger hand_rolled_swatch)"
-    [[ "src/ui/ui_x.cpp" =~ $re ]] || fail "a source file does not trigger the gate"
-    [[ "include/ui_x.h" =~ $re ]] || fail "a header does not trigger the gate"
-    [[ "ui_xml/components/x.xml" =~ $re ]] || fail "an XML file does not trigger the gate"
-    [[ "scripts/hand_rolled_swatch_baseline.txt" =~ $re ]] || fail "the baseline does not trigger it"
-    [[ ! "docs/devel/COLOR_SWATCHES.md" =~ $re ]] || fail "a doc triggers the gate"
+@test "the design ratchets carry the swatch rule over C++ and XML" {
+    run python3 - <<'PY'
+import sys; sys.path.insert(0, "scripts")
+import design_ratchets as d
+r = d.RULE_BY_NAME["hand-rolled-swatch"]
+assert r.scope.search("src/ui/ui_x.cpp") and r.scope.search("ui_xml/components/x.xml")
+assert not r.scope.search("docs/devel/COLOR_SWATCHES.md")
+PY
+    [ "$status" -eq 0 ] || fail "$output"
 }

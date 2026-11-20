@@ -35,7 +35,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-    # The branch gates (qc_test_budget, qc_growth_ratchets) measure from the
+    # The branch gates (qc_growth_ratchets, qc_design_ratchets) measure from the
     # fork point and refuse when none resolves, so each event needs one. A pull
     # request's merge commit has the base it was merged onto as its first
     # parent: depth 2 holds it, and the next step names it origin/<base>. A push

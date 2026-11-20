@@ -22,10 +22,10 @@ qc_translation_coverage() {
 # The dry run proves a KEY exists, nothing more: `make translation-sync` writes
 # a brand-new key as an EMPTY placeholder, and an empty value renders as empty
 # text in that locale (lv_translation_get() only falls back on a MISSING key).
-# So the second half runs the same pytests CI's Code Quality job runs,
-# tests/python/test_cpp_translation_coverage.py and test_explicit_tag_coverage.py
-# (XML label_tag/description_tag keys), which fail on empty values - reusing
-# those scans rather than restating the rule here.
+# The empty values are tests/python/test_cpp_translation_coverage.py's and
+# test_explicit_tag_coverage.py's: CI's Code Quality job and the land gate's
+# python step run both, and gate_select.py runs them for any C++, XML or
+# catalog change, so this gate does not run them a second time.
 #
 # --dry-run is load-bearing: a bare `sync` REWRITES all nine catalogs, and a
 # check that edits the tree it is inspecting would stage catalog churn behind
@@ -36,22 +36,9 @@ echo -n "🌐 Checking translation catalog coverage..."
 if [ -x "$VENV_PYTHON" ]; then
   if "$VENV_PYTHON" scripts/translation_sync.py sync --dry-run >/tmp/trans_cov.out 2>&1 \
      && grep -q "All XML strings already in YAML files" /tmp/trans_cov.out; then
-    if "$VENV_PYTHON" -m pytest -q tests/python/test_cpp_translation_coverage.py \
-       tests/python/test_explicit_tag_coverage.py >/tmp/trans_empty.out 2>&1; then
-      section_time $SECTION_START
-      echo ""
-      echo "✅ Every user-facing string has a translated value in every locale"
-    else
-      section_time $SECTION_START
-      echo ""
-      grep -vE "^[[:space:]]*$" /tmp/trans_empty.out | tail -15
-      echo "   Fix: make translation-sync && make translations"
-      echo "   Then translate the empty keys listed above - consult"
-      echo "   translations/GLOSSARY.md and reuse the canonical term rather"
-      echo "   than coining a new one - and stage translations/*.yml alongside"
-      echo "   ui_xml/translations/*.xml."
-      EXIT_CODE=1
-    fi
+    section_time $SECTION_START
+    echo ""
+    echo "✅ Every user-facing string has a catalog key (empty values: the python step)"
   else
     section_time $SECTION_START
     echo ""

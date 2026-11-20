@@ -98,8 +98,13 @@ def count_file(rel: str, text: str) -> tuple[dict[str, int], list[str]]:
 
 
 def scan(root: Path, staged: bool) -> tuple[dict[str, int], list[str]]:
+    """Every site in the tree, or with STAGED only in the staged blobs.
+
+    Any site fails, so a commit's staged files alone answer for the commit: a file it
+    does not stage cannot gain a site through it.
+    """
     texts: dict[str, str] = {}
-    for rel_dir in DIRS:
+    for rel_dir in DIRS if not staged else ():
         base = root / rel_dir
         if not base.is_dir():
             continue
@@ -118,6 +123,8 @@ def scan(root: Path, staged: bool) -> tuple[dict[str, int], list[str]]:
     counts: dict[str, int] = {}
     detail: list[str] = []
     for rel, text in texts.items():
+        if "lv_subject" not in text:  # every shape names it; skip the costly blanking
+            continue
         c, d = count_file(rel, text)
         counts.update(c)
         detail.extend(d)

@@ -18,7 +18,8 @@
 #
 # validate-xml-constants is not built here: it links the whole app, which on
 # a cold CI runner is a full build that cannot finish inside the step's time
-# limit. Its check runs in the unit suite instead (see qc_xml_const).
+# limit. The unit test "ui_xml has no incomplete constant sets" ([ui_theme][validation])
+# checks the constant sets, and qc_xml_linter rejects an undefined #constant.
 qc_xml_tools() {
   local EXIT_CODE=0
   # Same bounded -j the build-verification phase uses (qc_build_jobs).

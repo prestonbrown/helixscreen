@@ -244,7 +244,7 @@ Every `.cpp`, `.c`, `.h` and `.mm` file outside `lib/`, the generated and vendor
 
 ### XML and work-marker checks
 
-XML files are validated by the `lint-xml` workflow and the XML gates under `scripts/qc/` (`xml_attr.sh`, `decl_ui.sh`, `ui_lint.sh`). A `TODO`/`FIXME` comment must cite an owning issue as `// MARKER(#NNNN): <the constraint>` (`scripts/qc/todo_markers.sh`, `scripts/check_todo_markers.py --list`).
+XML files are validated by the `lint-xml` workflow and the XML gates under `scripts/qc/` (`xml_attr.sh`, `decl_ui.sh`, `ui_lint.sh`). A `TODO`/`FIXME` comment must cite an owning issue as `// MARKER(#NNNN): <the constraint>` (the todo-markers design ratchet in `scripts/design_ratchets.py` warns on a new one; `scripts/check_todo_markers.py --list` shows every site).
 
 ## Testing Locally
 

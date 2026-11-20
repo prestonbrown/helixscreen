@@ -1,11 +1,11 @@
 name: Weekly ratchet report
 
-# The bookkeeping ratchets (test-line budget, TestAccess and friend counts, file
-# size, hardcoded pixels, unreferenced callbacks) warn instead of blocking a
-# landing (prestonbrown/helixscreen#2004), so nothing stops them drifting. This
-# prints each count against a week ago and against its baseline into the job
-# summary, so the trend is read weekly. It never fails on a trend; only a count
-# it cannot take fails the job. By hand: scripts/ratchet_report.py.
+# No count ratchet blocks a landing (prestonbrown/helixscreen#2004), so nothing
+# at a gate stops them drifting. This prints each count against a week ago and
+# against its baseline into the job summary, and lists every new design-ratchet
+# site (scripts/design_ratchets.py) with the commit that added it and the reason
+# that commit stated. It never fails on a trend; only a count it cannot take
+# fails the job. By hand: scripts/ratchet_report.py.
 
 on:
   schedule:
@@ -23,16 +23,20 @@ permissions:
 jobs:
   report:
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
       with:
-        # The report reads the commit from a week ago, and no submodule: it
-        # counts src/, include/, tests/ and ui_xml/ only.
+        # The report reads the commit from a week ago, and blames each new
+        # design-ratchet site back to the commit that wrote it.
         fetch-depth: 0
         submodules: false
+
+    # The LVGL 9.6 rule reads the deprecated names from LVGL's own headers.
+    - name: Fetch lib/lvgl
+      run: git submodule update --init --depth 1 lib/lvgl
 
     - name: Setup Python
       uses: actions/setup-python@v6

@@ -29,4 +29,4 @@ echo ""
   return $EXIT_CODE
 }
 
-QC_TRIGGER_qc_link_parity='^Makefile$|^mk/.*\.mk$|^scripts/check_link_parity\.py$'
+QC_TRIGGER_qc_link_parity='^Makefile$|^mk/.*\.mk$|^scripts/check_link_parity\.py$|^scripts/qc/link_parity\.sh$'
