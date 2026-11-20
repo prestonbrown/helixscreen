@@ -19,31 +19,30 @@
                   text="Set this to Spoolman's currency if you use both." long_mode="wrap"
                   style_text_color="#text_muted" style_pad_left="#space_lg"/>
       <setting_section_header title="Filament price per kg" hide_icon="true"/>
-      <print_cost_value_row label="Any other material"
-                            value_subject="print_cost_price_default" callback="on_print_cost_field_clicked"
-                            user_data="default"/>
-      <print_cost_value_row label="PLA"
-                            value_subject="print_cost_price_PLA" callback="on_print_cost_field_clicked" user_data="PLA"/>
-      <print_cost_value_row label="PETG"
-                            value_subject="print_cost_price_PETG" callback="on_print_cost_field_clicked"
-                            user_data="PETG"/>
-      <print_cost_value_row label="ABS"
-                            value_subject="print_cost_price_ABS" callback="on_print_cost_field_clicked" user_data="ABS"/>
-      <print_cost_value_row label="ASA"
-                            value_subject="print_cost_price_ASA" callback="on_print_cost_field_clicked" user_data="ASA"/>
-      <print_cost_value_row label="TPU"
-                            value_subject="print_cost_price_TPU" callback="on_print_cost_field_clicked" user_data="TPU"/>
-      <print_cost_value_row label="PA"
-                            value_subject="print_cost_price_PA" callback="on_print_cost_field_clicked" user_data="PA"/>
-      <print_cost_value_row label="PC"
-                            value_subject="print_cost_price_PC" callback="on_print_cost_field_clicked" user_data="PC"/>
+      <setting_value_row label="Any other material"
+                         value_subject="print_cost_price_default" callback="on_print_cost_field_clicked"
+                         user_data="default"/>
+      <setting_value_row label="PLA"
+                         value_subject="print_cost_price_PLA" callback="on_print_cost_field_clicked" user_data="PLA"/>
+      <setting_value_row label="PETG"
+                         value_subject="print_cost_price_PETG" callback="on_print_cost_field_clicked" user_data="PETG"/>
+      <setting_value_row label="ABS"
+                         value_subject="print_cost_price_ABS" callback="on_print_cost_field_clicked" user_data="ABS"/>
+      <setting_value_row label="ASA"
+                         value_subject="print_cost_price_ASA" callback="on_print_cost_field_clicked" user_data="ASA"/>
+      <setting_value_row label="TPU"
+                         value_subject="print_cost_price_TPU" callback="on_print_cost_field_clicked" user_data="TPU"/>
+      <setting_value_row label="PA"
+                         value_subject="print_cost_price_PA" callback="on_print_cost_field_clicked" user_data="PA"/>
+      <setting_value_row label="PC"
+                         value_subject="print_cost_price_PC" callback="on_print_cost_field_clicked" user_data="PC"/>
       <setting_section_header title="Electricity" hide_icon="true"/>
-      <print_cost_value_row label="Printer power"
-                            description="Average draw while printing, in watts" value_subject="print_cost_watts"
-                            callback="on_print_cost_field_clicked" user_data="watts"/>
-      <print_cost_value_row label="Price per kWh"
-                            description="Electricity is added only when both are set" value_subject="print_cost_kwh"
-                            callback="on_print_cost_field_clicked" user_data="kwh"/>
+      <setting_value_row label="Printer power"
+                         description="Average draw while printing, in watts" value_subject="print_cost_watts"
+                         callback="on_print_cost_field_clicked" user_data="watts"/>
+      <setting_value_row label="Price per kWh"
+                         description="Electricity is added only when both are set" value_subject="print_cost_kwh"
+                         callback="on_print_cost_field_clicked" user_data="kwh"/>
     </lv_obj>
   </view>
 </component>
