@@ -184,9 +184,11 @@ step between them.
 `ActionPromptModal::show_prompt()` stores the data and calls `Modal::show()`; `on_show()` runs
 `populate_content()`, which sets the title through `kModalTitleWidgetName` (the name the
 duplicate-title toast suppression looks up), shows `icon_error` only when `severity == "error"`,
-adds one wrapping label per text line, and builds the buttons. One `ActionPromptModal` instance is
-reused for every prompt; `on_hide()` removes the button event callbacks and frees their
-`ButtonCallbackData`.
+adds one `action_prompt_text_line` per text line, and builds the buttons from the
+`action_prompt_button` and `action_prompt_swatch` components. One `ActionPromptModal` instance is
+reused for every prompt. Every button's click goes to `on_button_cb`, which finds the modal with
+`Modal::from_event` and the button by its `index` in `PromptData::buttons`, and ignores a button
+outside that modal's dialog: a closed prompt's tree outlives its stack entry by a timer pass.
 
 Button layout (`src/ui/notify/action_prompt_modal.cpp#create_buttons`):
 

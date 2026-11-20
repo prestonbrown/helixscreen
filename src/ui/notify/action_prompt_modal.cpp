@@ -667,7 +667,19 @@ void ActionPromptModal::on_button_cb(lv_event_t* e) {
     // click queued behind the close does nothing.
     auto* modal = Modal::from_event<ActionPromptModal>(e);
     const auto index = helix::ui::event_user_int(e);
-    if (!modal || !index || *index < 0 ||
+    // from_event() falls back to the top modal for a widget in no open modal,
+    // which a closed prompt's buttons are until their deferred delete runs; an
+    // index read against the next prompt would send that prompt's command.
+    lv_obj_t* button = lv_event_get_current_target_obj(e);
+    lv_obj_t* dialog = modal ? modal->dialog() : nullptr;
+    bool in_dialog = false;
+    for (lv_obj_t* o = button; o && dialog; o = lv_obj_get_parent(o)) {
+        if (o == dialog) {
+            in_dialog = true;
+            break;
+        }
+    }
+    if (!modal || !in_dialog || !index || *index < 0 ||
         static_cast<size_t>(*index) >= modal->prompt_data_.buttons.size()) {
         spdlog::debug("[ActionPromptModal] Button click with no live prompt behind it");
         return;

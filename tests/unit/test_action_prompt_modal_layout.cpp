@@ -813,3 +813,37 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
 
     modal_.hide();
 }
+
+// A closed prompt's button is alive until its deferred delete runs. An event
+// that reaches it then sends nothing, not the command at the same index of
+// the prompt now on screen.
+TEST_CASE_METHOD(
+    ActionPromptLayoutFixture,
+    "ActionPromptModal: a closed prompt's button never sends the next prompt's command",
+    "[action_prompt][layout][ui_integration]") {
+    std::vector<std::string> sent;
+    helix::PromptData first;
+    first.title = "First";
+    first.buttons = {{"Go", "FIRST_GO", "primary", "", false, -1}};
+    REQUIRE(modal_.show_prompt(test_screen(), first));
+    lv_obj_t* stale = ActionPromptModalTestAccess::buttons(modal_)[0];
+    REQUIRE(stale != nullptr);
+    helix::ui::WeakWidget alive(stale);
+    modal_.hide();
+    // The exit finishes (the stack entry goes) while the tree's delete waits
+    // for the next timer pass.
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(alive.get() == stale);
+
+    helix::ui::ActionPromptModal next;
+    next.set_gcode_callback([&sent](const std::string& g) { sent.push_back(g); });
+    helix::PromptData second;
+    second.title = "Second";
+    second.buttons = {{"Go", "SECOND_GO", "primary", "", false, -1}};
+    REQUIRE(next.show_prompt(test_screen(), second));
+
+    lv_obj_send_event(stale, LV_EVENT_CLICKED, nullptr);
+    CHECK(sent.empty());
+
+    next.hide();
+}
