@@ -133,82 +133,40 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
         return;
     }
 
-    // Use carousel itself as temporary parent (ui_carousel_add_item reparents into tiles)
-    lv_obj_t* page_parent = carousel;
-
-    // Helper to create a carousel page with icon + temp_display
-    auto create_temp_page = [&](const char* icon_src, const char* icon_name,
-                                const char* bind_current, const char* bind_target,
-                                const char* page_name) -> lv_obj_t* {
-        lv_obj_t* page = lv_obj_create(page_parent); // reparented by ui_carousel_add_item
-        lv_obj_set_size(page, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_style_pad_all(page, 0, 0);
-        lv_obj_set_style_bg_opa(page, LV_OPA_TRANSP, 0);
-        lv_obj_set_scrollable(page, false);
-        lv_obj_set_flex_flow(page, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(page, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_gap(page, theme_manager_get_spacing("space_xs"), 0);
-        lv_obj_set_clickable(page, true);
-        lv_obj_set_name(page, page_name);
-
-        // Click callback to open temp overlay
-        lv_obj_add_event_cb(page, temp_carousel_page_cb, LV_EVENT_CLICKED, nullptr);
-
-        // Icon
-        const char* icon_attrs[] = {"src",       icon_src, "size",    "md",   "variant",
-                                    "secondary", "name",   icon_name, nullptr};
-        lv_xml_create(page, "icon", icon_attrs);
-
-        // Temp display (larger, with target shown)
-        const char* td_attrs[] = {"size",        "md",           "show_target",
-                                  "true",        "bind_current", bind_current,
-                                  "bind_target", bind_target,    nullptr};
-        lv_xml_create(page, "temp_display", td_attrs);
-
-        // Make children pass events through to the page (clicks + long-press)
+    // A page per heater, built under the carousel and reparented into its tile
+    // by ui_carousel_add_item. Children pass taps and long-presses to the page.
+    auto add_page = [carousel](const char* name, const char* nozzle, const char* icon,
+                               const char* icon_name, const char* bind_current,
+                               const char* bind_target) -> lv_obj_t* {
+        const char* attrs[] = {"name",        name,        "nozzle",  nozzle,         "icon",
+                               icon,          "icon_name", icon_name, "bind_current", bind_current,
+                               "bind_target", bind_target, nullptr};
+        auto* page = static_cast<lv_obj_t*>(lv_xml_create(carousel, "temp_carousel_page", attrs));
+        if (!page) {
+            spdlog::error("[TempStackWidget] Failed to build carousel page '{}'", name);
+            return nullptr;
+        }
         make_children_passthrough(page);
-
+        ui_carousel_add_item(carousel, page);
         return page;
     };
 
-    // Nozzle page (use nozzle_icon component for the icon instead)
-    lv_obj_t* nozzle_page = lv_obj_create(page_parent);
-    lv_obj_set_size(nozzle_page, LV_PCT(100), LV_PCT(100));
-    lv_obj_set_style_pad_all(nozzle_page, 0, 0);
-    lv_obj_set_style_bg_opa(nozzle_page, LV_OPA_TRANSP, 0);
-    lv_obj_set_scrollable(nozzle_page, false);
-    lv_obj_set_flex_flow(nozzle_page, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(nozzle_page, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_gap(nozzle_page, theme_manager_get_spacing("space_xs"), 0);
-    lv_obj_set_clickable(nozzle_page, true);
-    lv_obj_set_name(nozzle_page, "nozzle");
-    lv_obj_add_event_cb(nozzle_page, temp_carousel_page_cb, LV_EVENT_CLICKED, nullptr);
-
-    const char* nozzle_icon_attrs[] = {
-        "size", "md", "badge_subject", "", "name", "carousel_nozzle_icon", nullptr};
-    lv_xml_create(nozzle_page, "nozzle_icon", nozzle_icon_attrs);
-
-    const char* nozzle_td_attrs[] = {
-        "size",          "md",          "show_target",     "true", "bind_current",
-        "extruder_temp", "bind_target", "extruder_target", nullptr};
-    lv_xml_create(nozzle_page, "temp_display", nozzle_td_attrs);
-    make_children_passthrough(nozzle_page);
-    ui_carousel_add_item(carousel, nozzle_page);
+    lv_obj_t* nozzle_page = add_page("nozzle", "1", "", "", "extruder_temp", "extruder_target");
+    if (!nozzle_page) {
+        return;
+    }
 
     // Bind nozzle heating icon from its own page root. Carousel pages are
     // separate subtrees under widget_obj_ — binding from the page (rather than
     // widget_obj_) keeps this immune to any other same-named icon in the tree.
     nozzle_icon_binder_.bind(nozzle_page, printer_state_, HeaterType::Nozzle);
 
-    // Bed page — glyph named "bed_icon_glyph" so the binder's default lookup
-    // finds it directly (it is a leaf label; there is no wrapper child to dig
-    // into, unlike the old lv_obj_get_child(bed_glyph, 0) attempt).
-    lv_obj_t* bed_page =
-        create_temp_page("radiator", "bed_icon_glyph", "bed_temp", "bed_target", "bed");
-    ui_carousel_add_item(carousel, bed_page);
-    bed_icon_binder_.bind(bed_page, printer_state_, HeaterType::Bed);
+    // The bed glyph is named "bed_icon_glyph" so the binder's default lookup
+    // finds it directly: it is a leaf label with no wrapper child.
+    if (lv_obj_t* bed_page =
+            add_page("bed", "0", "radiator", "bed_icon_glyph", "bed_temp", "bed_target")) {
+        bed_icon_binder_.bind(bed_page, printer_state_, HeaterType::Bed);
+    }
 
     // Chamber page (only if sensor present). Target is the effective target
     // subject (heater target while heating, cooling-fan ceiling while
@@ -216,11 +174,11 @@ void TempStackWidget::attach_carousel(lv_obj_t* widget_obj) {
     // real setpoint.
     lv_subject_t* chamber_gate = lv_xml_get_subject(nullptr, "printer_has_chamber");
     if (chamber_gate && lv_subject_get_int(chamber_gate) != 0) {
-        lv_obj_t* chamber_page =
-            create_temp_page("fridge_industrial", "chamber_icon_glyph", "chamber_temp",
-                             "chamber_effective_target", "chamber");
-        ui_carousel_add_item(carousel, chamber_page);
-        chamber_icon_binder_.bind(chamber_page, printer_state_, HeaterType::Chamber);
+        if (lv_obj_t* chamber_page =
+                add_page("chamber", "0", "fridge_industrial", "chamber_icon_glyph", "chamber_temp",
+                         "chamber_effective_target")) {
+            chamber_icon_binder_.bind(chamber_page, printer_state_, HeaterType::Chamber);
+        }
     }
 
     int page_count = ui_carousel_get_page_count(carousel);

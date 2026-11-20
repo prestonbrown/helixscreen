@@ -548,6 +548,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/spaghetti_detection_modal.xml",
     "ui_xml/components/speed_flow_part.xml",
     "ui_xml/components/storage_consumer_row.xml",
+    "ui_xml/components/temp_carousel_page.xml",
     "ui_xml/components/temp_graph_config_modal.xml",
     "ui_xml/components/temp_graph_series_row.xml",
     "ui_xml/components/temp_series_chip.xml",

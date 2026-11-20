@@ -200,3 +200,31 @@ TEST_CASE_METHOD(LVGLUITestFixture, "TempStackWidget: a row belongs to the tile 
     a.widget().detach_tile();
     CHECK(owner_of(a.child("temp_stack_nozzle_row")) == nullptr);
 }
+
+// Carousel mode builds one page per heater: nozzle and bed always, each a
+// clickable page named for the heater it opens, holding that heater's icon and
+// a temp_display whose children pass taps through to the page.
+TEST_CASE_METHOD(LVGLUITestFixture, "temp_stack carousel pages open their own heater",
+                 "[temp_stack][panel_widget][carousel]") {
+    PanelWidgetHarness<TempStackWidget> h(
+        test_screen(), HarnessConfig{{{"display_mode", "carousel"}}}, state(), nullptr);
+
+    lv_obj_t* nozzle = h.child("nozzle");
+    lv_obj_t* bed = h.child("bed");
+    REQUIRE(nozzle != nullptr);
+    REQUIRE(bed != nullptr);
+    for (lv_obj_t* page : {nozzle, bed}) {
+        CHECK(lv_obj_is_clickable(page));
+        REQUIRE(lv_obj_get_child_count(page) == 2);
+        lv_obj_t* display = lv_obj_get_child(page, 1);
+        CHECK(lv_obj_check_type(display, &lv_obj_class));
+        CHECK_FALSE(lv_obj_is_clickable(display));
+        CHECK(lv_obj_is_event_bubble(display));
+    }
+    CHECK(lv_obj_find_by_name(nozzle, "carousel_nozzle_icon") != nullptr);
+    CHECK(lv_obj_find_by_name(bed, "bed_icon_glyph") != nullptr);
+
+    // A page's temp_display shows the heater's target beside its reading.
+    lv_obj_t* bed_display = lv_obj_get_child(bed, 1);
+    CHECK(lv_obj_get_child_count(bed_display) > 2);
+}

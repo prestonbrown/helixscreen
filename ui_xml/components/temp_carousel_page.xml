@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One page of the temperature carousel: a heater's icon over its reading and
+     target. TempStackWidget names each instance for the heater it opens
+     (nozzle, bed, chamber), which temp_carousel_page_cb reads, and hands it to
+     ui_carousel_add_item. The nozzle page shows the nozzle_icon component; the
+     others a plain icon. -->
+<component>
+  <api>
+    <prop name="nozzle" type="int" default="0"/>
+    <prop name="icon" type="string" default=""/>
+    <prop name="icon_name" type="string" default=""/>
+    <prop name="bind_current" type="string" default=""/>
+    <prop name="bind_target" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0" scrollable="false"
+        flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
+        style_flex_track_place="center" clickable="true">
+    <event_cb trigger="clicked" callback="temp_carousel_page_cb"/>
+    <if cond="${nozzle} eq 1">
+      <nozzle_icon name="carousel_nozzle_icon" size="md" badge_subject=""/>
+      <else/>
+      <icon name="$icon_name" src="$icon" size="md" variant="secondary"/>
+    </if>
+    <temp_display size="md" show_target="true" bind_current="$bind_current" bind_target="$bind_target"/>
+  </view>
+</component>
