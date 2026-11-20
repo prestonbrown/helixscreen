@@ -186,6 +186,35 @@ if [[ "$HTTP_CODE" != "200" ]]; then
     exit 1
 fi
 
+# The commit a bundle's binary was built from, printed only when this clone
+# does not have it, which marks a build from someone's fork (#2131). Read from
+# the bundle's git_hash field, or else from the startup line
+# "HelixScreen <version> (<hash>)" in its log tail or launcher log.
+bundle_fork_hash() {
+    local hash
+    hash=$(python3 -c "
+import json, re, sys
+d = json.load(open(sys.argv[1]))
+h = d.get('git_hash') or ''
+if not h:
+    log = ''
+    for key in ('log_tail', 'launcher_log'):
+        part = d.get(key) or ''
+        if isinstance(part, list):
+            part = '\\n'.join(str(x) for x in part)
+        log += str(part) + '\\n'
+    m = re.search(r'HelixScreen \\S+ \\(([0-9a-f]{7,40})\\)', log)
+    h = m.group(1) if m else ''
+print(h if re.fullmatch(r'[0-9a-f]{7,40}', h) else '')
+" "$1" 2>/dev/null) || return 0
+    [[ -n "$hash" ]] || return 0
+    git -C "$PROJECT_ROOT" cat-file -e "${hash}^{commit}" 2>/dev/null && return 0
+    echo "$hash"
+}
+
+BUNDLE_FORK_HASH="$(bundle_fork_hash "$TMPJSON")"
+export BUNDLE_FORK_HASH
+
 case "$MODE" in
     --raw)
         echo "$BODY"
@@ -213,6 +242,9 @@ lang = d.get('settings', {}).get('language', '?')
 uptime_h = round(s.get('uptime_seconds', 0) / 3600, 1)
 note = d.get('user_note', '')
 summary = f'[{code}] {ts} | v{v} | {model} | {plat} {ram}MB | klippy={state} | lang={lang} | uptime={uptime_h}h'
+fork = os.environ.get('BUNDLE_FORK_HASH', '')
+if fork:
+    summary += f' | FORK BUILD: commit {fork} is not in our repo'
 if note:
     summary += f' | note={note[:80]}'
 print(summary)
@@ -220,7 +252,7 @@ print(summary)
         ;;
     --pretty|*)
         echo "$BODY" | python3 -c "
-import json, sys
+import json, os, sys
 
 d = json.load(sys.stdin)
 p = d.get('printer', {})
@@ -235,6 +267,9 @@ uptime_d = round(uptime_h / 24, 1)
 print(f'=== Debug Bundle: $CODE ===')
 print(f'Timestamp:  {ts}')
 print(f'Version:    {v}')
+fork = os.environ.get('BUNDLE_FORK_HASH', '')
+if fork:
+    print(f'FORK BUILD: commit {fork} is not in our repo (git fetch first if it may be newer than this clone)')
 note = d.get('user_note', '')
 if note:
     print(f'User Note:  {note}')
