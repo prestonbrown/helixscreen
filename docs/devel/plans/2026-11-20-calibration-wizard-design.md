@@ -1,6 +1,6 @@
 # Calibration: guided wizard, per-step screens, one template
 
-Status: design, awaiting approval. Milestone 1.2. Supersedes the narrower framing of
+Status: design; the three open decisions are made (see Decisions), awaiting final approval. Milestone 1.2. Supersedes the narrower framing of
 prestonbrown/helixscreen#2150. Visual design (clickable, all breakpoints):
 [HelixScreen Calibration canvas](https://claude.ai/artifact/MkbUt2u6mXHEeJmbHSjbjx).
 
@@ -265,17 +265,48 @@ run, or on request.
 - Hardware: K2 Plus on Jacobean (strain gauge, MPC migration, cutter, belts), a
   paper-test printer (Voron or CB1 rig), a bed-moves-in-Z printer.
 
-## Open questions
+## Decisions (Preston, 2026-11-20)
 
-1. **Saving.** Klipper keeps pending `SAVE_CONFIG` changes all-or-nothing, and mainline
-   `SAVE_CONFIG` restarts Klipper. Per-step keep/discard therefore needs one of:
-   (a) all-or-nothing on mainline, per-step only on Kalico (`SAVE_CONFIG RESTART=0`
-   after each step); (b) HelixScreen writes kept values itself through its config-edit
-   path and never calls `SAVE_CONFIG` for discarded steps; (c) drop per-step discard
-   and keep "Save all / Discard all". Also: any step that restarts Klipper (MPC
-   migration) loses pending changes, so it runs first or saves first. Recommendation:
-   (b), since the config-edit path exists and it behaves the same on every firmware.
-2. **Tiers per printer.** Database `calibration` block per printer with capability
-   defaults (recommended), or capability defaults only?
-3. **Setup placement.** Calibration as the very last setup page, after Telemetry
-   (recommended, setup is already committed), or where Input Shaper sits now?
+1. **Saving.** HelixScreen keeps each step's result itself (the history store holds the
+   values) and writes the kept ones; discarded ones are never written. On Kalico the
+   run ends with `SAVE_CONFIG RESTART=0` (Kalico's
+   [`cmd_SAVE_CONFIG`](https://github.com/KalicoCrew/kalico/blob/main/klippy/configfile.py)
+   reads `RESTART`, default 1), so a guided run costs no restart there.
+   - Hazard to design around in phase 2: Klipper's pending autosave also holds the
+     discarded steps' values, and any later `SAVE_CONFIG` would write them. A discarded
+     step therefore restores its old value live, and its pending entry must be cleared
+     (a host `RESTART` drops pending changes) before any `SAVE_CONFIG` runs. Verify on
+     both firmwares which steps leave pending entries.
+   - Any step that restarts Klipper (MPC migration) runs before steps that leave
+     pending changes.
+2. **Tiers** come from a `calibration` block per printer in `printer_database.json`,
+   with capability-based defaults for printers without one.
+3. **Setup placement**: calibration is the very last setup page, after Telemetry.
+
+## Separate change: `SAVE_CONFIG RESTART=0` on Kalico everywhere
+
+Not part of this feature; can land on its own. Every printer `SAVE_CONFIG` goes through
+`MoonrakerAdvancedAPI::save_config()` (`src/api/moonraker_advanced_api.cpp`). On Kalico
+(`PrinterDiscovery::is_kalico()`) it sends `SAVE_CONFIG RESTART=0`. The callers that
+wait for Klipper to come back (`src/ui/calibration/save_config_restart.cpp`, the
+`SaveConfigWatch` in `src/ui/calibration/z_offset_utils.cpp`, the bed mesh panel's save)
+get a "saved, no restart" completion on Kalico instead of waiting for a reconnect that
+never comes.
+
+## Heater power data (research, 2026-11-20)
+
+A sourced table for 66 printers is in hand (session scratch, to be reviewed before any
+value lands). What it changes in the design:
+
+- No stock vendor Klipper config sets `heater_power`; every one checked uses PID. The
+  database is the only source the app will have.
+- Coverage: hotend 41 of 66, bed 28 of 66, mixed confidence; vendor sources disagree
+  for a handful (K2 Pro hotend 70 vs 100 W, QIDI Plus4 bed, Neptune 4 Max bed).
+- Several AC beds use one fixed element, so their power depends on mains voltage
+  (Elegoo Centauri Carbon: 1000 W at 220 V, 250 W at 110 V; Sovol Zero likewise). A
+  single bed wattage per printer is wrong for them. Since the bed stays on PID by
+  default, the first version needs only the hotend value; a bed value, when added,
+  carries per-voltage figures.
+- Field shape: `heater_power: {"extruder": {"watts": 60, "source": "<url>",
+  "confidence": "high"}}`. Only high-confidence values pre-fill; anything else shows
+  as a suggestion next to the "check the cartridge label" guidance.
