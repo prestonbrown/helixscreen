@@ -8,6 +8,7 @@
 #include "ams_runout_grace.h"
 #include "ams_step_operation.h"
 #include "ams_types.h"
+#include "ams_unclaimed_toolhead.h"
 #include "async_lifetime_guard.h"
 #include "buffer_reading.h"
 #include "core/observer_guard.h"
@@ -2068,6 +2069,10 @@ class AmsState {
      */
     void set_external_spool_info(const SlotInfo& info);
 
+    /// The prompt about filament at the toolhead that no lane claims closed,
+    /// by either action or a dismissal. Main thread.
+    void unclaimed_toolhead_prompt_closed();
+
     /**
      * @brief Delete the bypass spool's record
      */
@@ -2351,6 +2356,11 @@ class AmsState {
     /// Delete the bypass record from AmsState's own store, if a fresh read
     /// still finds it there. Main thread.
     void delete_own_bypass_copy();
+    /// Ask about filament at the toolhead that no lane claims, once per
+    /// occurrence (ams::UnclaimedToolheadPromptGate). Main thread.
+    void sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info);
+    /// A new primary backend: no prompt until its startup grace is over.
+    void restart_unclaimed_toolhead_grace();
     /// Write what start_legacy_spool_import() read, each half once its lanes
     /// are read. Runs after every sync and bypass read. Main thread.
     void run_legacy_spool_import();
@@ -2778,6 +2788,10 @@ class AmsState {
     bool bypass_reclaim_done_ = false;
     /// The private-namespace stores reclaim_orphaned_bypass_record() reads.
     std::vector<std::unique_ptr<helix::ams::FilamentSlotOverrideStore>> bypass_reclaim_stores_;
+    helix::ams::UnclaimedToolheadPromptGate unclaimed_toolhead_gate_;
+    /// The primary backend's startup frames have had their grace period.
+    bool unclaimed_toolhead_grace_over_ = false;
+    helix::ui::LvglTimerGuard unclaimed_toolhead_grace_timer_;
 
     /// What start_legacy_spool_import() read, and which halves are written.
     struct LegacyImport {

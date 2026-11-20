@@ -1,0 +1,78 @@
+// Copyright (C) 2025-2026 356C LLC
+// SPDX-License-Identifier: GPL-3.0-or-later
+#pragma once
+
+/**
+ * @file ams_unclaimed_toolhead.h
+ * @brief When to ask about filament at the toolhead that no lane claims.
+ *
+ * A filament system can see filament at its toolhead sensor while no lane is
+ * loaded and the bypass is off: a spool fed by hand before the system was
+ * installed, or one left behind when bypass was switched off. Nothing then
+ * accounts for that filament, so HelixScreen asks once whether it is the
+ * bypass spool or should be unloaded.
+ */
+
+namespace helix::ams {
+
+/// One look at the primary filament system, as the prompt rule reads it.
+struct UnclaimedToolheadReading {
+    /// The backend has read its lane records and its startup grace is over.
+    bool settled = false;
+    /// A job holds the machine.
+    bool printing = false;
+    /// AmsBackend::toolhead_filament_unaccounted() answered true.
+    bool filament_unclaimed = false;
+    bool bypass_active = false;
+    /// The bypass is a switch the user flips, not a sensor that sets itself.
+    bool bypass_switchable = false;
+};
+
+/// Filament at the toolhead that bypass could claim and nothing else does.
+[[nodiscard]] constexpr bool unclaimed_toolhead_filament(const UnclaimedToolheadReading& r) {
+    return r.filament_unclaimed && !r.bypass_active && r.bypass_switchable;
+}
+
+/**
+ * @brief Asks once per occurrence of the unclaimed state.
+ *
+ * The prompt opens on the first settled, idle look that finds the state, and
+ * not again until a look finds it cleared (a lane loads, bypass goes on, the
+ * sensor clears). While the prompt is open no second one opens.
+ */
+class UnclaimedToolheadPromptGate {
+  public:
+    /// Whether the prompt opens on this look.
+    [[nodiscard]] bool observe(const UnclaimedToolheadReading& r) {
+        if (!r.settled) {
+            return false;
+        }
+        if (!unclaimed_toolhead_filament(r)) {
+            armed_ = true;
+            return false;
+        }
+        if (r.printing || open_ || !armed_) {
+            return false;
+        }
+        armed_ = false;
+        open_ = true;
+        return true;
+    }
+
+    /// The prompt closed, by either action or a dismissal.
+    void prompt_closed() {
+        open_ = false;
+    }
+
+    /// A different filament system, or none: ask afresh.
+    void reset() {
+        armed_ = true;
+        open_ = false;
+    }
+
+  private:
+    bool armed_ = true;
+    bool open_ = false;
+};
+
+} // namespace helix::ams

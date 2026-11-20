@@ -3040,6 +3040,26 @@ and so does a stale tap mid-transition). The switch's checked state follows the 
 completes asynchronously behind the unload chain shows up when the backend actually gets
 there instead of when the gcode was queued.
 
+### Filament at the toolhead that no lane claims
+
+A filament system can see filament at its toolhead sensor while no lane is loaded
+and bypass is off: a spool fed by hand before the system was installed, or one
+left when bypass was switched off. HelixScreen asks once: "Filament is in the
+toolhead, but no lane is loaded", with **Use as bypass** (the shared
+`BypassToggleController` engage, so the external spool then feeds) and
+**Unload** (the toolhead unload, `execute_filament_unload()` on the active head).
+
+The inputs are generic: `AmsBackend::toolhead_filament_unaccounted()`,
+`is_bypass_active()`, and `supports_bypass && !has_hardware_bypass_sensor` (a
+bypass the hardware sets itself is never asked about).
+`AmsState::sync_unclaimed_toolhead()` feeds them to
+`ams::UnclaimedToolheadPromptGate` (`include/ams_unclaimed_toolhead.h`) after
+every sync, and publishes `UiRequestKind::OfferUnclaimedToolheadAsBypass` when it
+opens. The gate asks once per occurrence, re-arms only after a look finds the
+state cleared, never during a print, and not until the primary backend has read
+its lane records and a 15-second startup grace has passed. Every way the prompt
+closes, the dismissal included, calls `AmsState::unclaimed_toolhead_prompt_closed()`.
+
 ### Bypass visibility and the force override
 
 Two pure predicates decide whether any bypass UI exists. Both had been inlined at four render

@@ -350,6 +350,9 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
 
     lv_subject_set_int(&backend_count_, registry_.count());
     sync_lane_records_ready();
+    if (index == 0) {
+        restart_unclaimed_toolhead_grace();
+    }
     return index;
 }
 
@@ -400,6 +403,9 @@ void AmsState::clear_backends() {
     helix::ams::reset_lane_sources();
     // The bypass record goes with them; the next printer's is read afresh.
     restart_bypass_reads();
+    unclaimed_toolhead_gate_.reset();
+    unclaimed_toolhead_grace_over_ = false;
+    unclaimed_toolhead_grace_timer_.reset();
     refresh_bypass_record();
     // So does a 1.0 import still waiting on the departing backend's lanes: the next
     // discovery starts its own, and this one would finish against the next backend.
@@ -670,6 +676,7 @@ void AmsState::sync_from_backend() {
     sync_lane_records_ready();
     sync_filament_runout(info);
     sync_bypass(backend, info);
+    sync_unclaimed_toolhead(backend, info);
     sync_feeder(backend);
     const bool presented = info.presents_filament_system();
     lv_subject_set_int(&ams_slot_count_, presented ? info.total_slots : 0);

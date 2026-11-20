@@ -10,6 +10,7 @@
 
 #include "ams_state.h"
 #include "ams_state_internal.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_accounting_controller.h"
 #include "filament_slot_override_store.h"
@@ -19,6 +20,9 @@
 #include "lane_resolver.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"
+#include "notice.h"
+#include "print_lifecycle_state.h"
+#include "printer_state.h"
 #include "spoolman_manager.h"
 
 #include <spdlog/spdlog.h>
@@ -36,6 +40,11 @@ constexpr uint32_t kBypassPollPeriodMs = 10'000;
 constexpr int kOwnBypassIndex = 0;
 
 constexpr const char* kBypassTag = "[AmsState bypass]";
+
+/// How long a new filament system's startup frames have before an unclaimed
+/// toolhead counts: a system still preparing its lanes has not said yet which
+/// one, if any, holds the filament.
+constexpr uint32_t kUnclaimedToolheadGraceMs = 15'000;
 } // namespace
 
 AmsBackend* AmsState::bypass_record_holder() const {
@@ -336,6 +345,48 @@ void AmsState::reclaim_orphaned_bypass_record() {
             }
         });
     });
+}
+
+void AmsState::restart_unclaimed_toolhead_grace() {
+    assert_main_thread();
+    unclaimed_toolhead_gate_.reset();
+    unclaimed_toolhead_grace_over_ = false;
+    unclaimed_toolhead_grace_timer_.reset();
+    if (!lv_is_initialized()) {
+        return;
+    }
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t*) {
+            AmsState& self = AmsState::instance();
+            self.unclaimed_toolhead_grace_over_ = true;
+            self.unclaimed_toolhead_grace_timer_.reset();
+            if (AmsBackend* backend = self.get_backend()) {
+                self.sync_unclaimed_toolhead(backend, *self.read_system_info(0));
+            }
+        },
+        kUnclaimedToolheadGraceMs, nullptr);
+    lv_timer_set_repeat_count(timer, 1);
+    unclaimed_toolhead_grace_timer_.reset(timer);
+}
+
+void AmsState::sync_unclaimed_toolhead(AmsBackend* backend, const AmsSystemInfo& info) {
+    assert_main_thread();
+    helix::ams::UnclaimedToolheadReading reading;
+    reading.settled = unclaimed_toolhead_grace_over_ && backend->lane_records_ready();
+    reading.printing = job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+    reading.filament_unclaimed = backend->toolhead_filament_unaccounted().value_or(false);
+    reading.bypass_active = backend->is_bypass_active();
+    reading.bypass_switchable = info.supports_bypass && !info.has_hardware_bypass_sensor;
+    if (!unclaimed_toolhead_gate_.observe(reading)) {
+        return;
+    }
+    spdlog::info("[AmsState] Filament at the toolhead and no lane loaded, bypass off: asking");
+    helix::publish_ui_request({helix::UiRequestKind::OfferUnclaimedToolheadAsBypass});
+}
+
+void AmsState::unclaimed_toolhead_prompt_closed() {
+    assert_main_thread();
+    unclaimed_toolhead_gate_.prompt_closed();
 }
 
 void AmsState::refresh_external_spool() {
