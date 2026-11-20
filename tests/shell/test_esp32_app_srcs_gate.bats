@@ -692,6 +692,16 @@ build_alias_fixture() {
     contains "SoundMgr" "$output"
 }
 
+@test "--link: a cached run under one define set never answers for another" {
+    export HELIX_QC_CACHE_DIR="$BATS_TEST_TMPDIR/cache"
+    build_alias_fixture '#if HELIX_HAS_CAMERA' '#endif'
+    run_link_gate
+    [ "$status" -eq 0 ] || fail "the dead branch failed: $output"
+    printf 'target_compile_definitions(${COMPONENT_LIB} PRIVATE\n    HELIX_HAS_CAMERA=1)\n' > "$ROOT/CMakeLists.txt"
+    run_link_gate
+    [ "$status" -eq 1 ] || fail "the firmware's own branch was read from the other define set's cache: $output"
+}
+
 # A static member called by its qualified name inside a guarded branch, in a file
 # whose live code also uses the bare member word for something else.
 build_qualified_fixture() {
