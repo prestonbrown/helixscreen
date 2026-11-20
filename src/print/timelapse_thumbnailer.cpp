@@ -8,7 +8,9 @@
 #include "hv/hurl.h"
 
 #include <algorithm>
+#include <cerrno>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
@@ -136,6 +138,7 @@ std::optional<PlayerWatch> spawn_watched_player(const std::vector<std::string>& 
         _exit(0);
     }
     close(fds[1]);
+    fcntl(fds[0], F_SETFL, fcntl(fds[0], F_GETFL) | O_NONBLOCK);
     return PlayerWatch{watcher, fds[0]};
 }
 
@@ -144,13 +147,18 @@ PlayerWatchPoll poll_player_watch(PlayerWatch& watch) {
         return {PlayerWatchState::Running, 0};
     }
     int watcher_status = 0;
-    if (waitpid(watch.watcher_pid, &watcher_status, WNOHANG) == 0) {
+    const pid_t reaped = waitpid(watch.watcher_pid, &watcher_status, WNOHANG);
+    if (reaped == 0 || (reaped < 0 && errno == EINTR)) {
         return {PlayerWatchState::Pending, 0};
     }
-    // The watcher has exited, so anything it wrote is already in the pipe.
+    // Reaped, or not ours to reap (ECHILD): settle on whatever the pipe holds
+    // now. The read never waits, since a watcher we could not reap may still
+    // hold the write end open.
     PlayerWatchPoll poll{PlayerWatchState::Running, 0};
+    pollfd pfd{watch.status_fd, POLLIN, 0};
     int status = 0;
-    if (read(watch.status_fd, &status, sizeof(status)) == static_cast<ssize_t>(sizeof(status))) {
+    if (::poll(&pfd, 1, 0) > 0 && (pfd.revents & POLLIN) != 0 &&
+        read(watch.status_fd, &status, sizeof(status)) == static_cast<ssize_t>(sizeof(status))) {
         poll = {PlayerWatchState::Exited, status};
     }
     close(watch.status_fd);
