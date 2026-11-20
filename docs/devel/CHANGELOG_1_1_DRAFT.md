@@ -1177,7 +1177,8 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
 - **Forge-X: installs stay put** - HelixScreen installs outside the folder Forge-X cleans
   (either of its clean actions deleted the install), and an install that replaces an older
   one removes it, which could hold 81MB and put two screens on the display at boot. A
-  Forge-X install refuses `--auto-update`, which would have wiped your preserved settings.
+  Forge-X install on the AD5M appears in Mainsail and Fluidd's update manager, and an
+  update from there keeps your settings (#2147).
 - **QIDI: the stock screen stays off** (#1533) - it is disabled before it is stopped and kept
   off at every boot, so it no longer comes back after a restart. Installing sets aside only
   the screen software that is actually present, and restores only that.

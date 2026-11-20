@@ -193,9 +193,9 @@ usage() {
     echo "                 Without either, a fresh install on a computer with a"
     echo "                 desktop asks (no terminal: desktop), and an existing"
     echo "                 install keeps its flavour"
-    echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
-    echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
-    echo "                 is a real side effect)"
+    echo "  --auto-update  Accepted and ignored: a mod-host install adds the"
+    echo "                 Mainsail/Fluidd update entry to the mod's"
+    echo "                 user.moonraker.conf whenever Moonraker can update it safely"
     echo "  --target-root DIR  Install into a disk image's root filesystem at DIR,"
     echo "                 for image builders: needs --platform pi|pi32 and --local FILE."
     echo "                 Starts nothing and asks no Moonraker; what needs the booted"
@@ -242,7 +242,6 @@ parse_installer_args() {
     package_dir=""
     skip_kiauh_registration=false
     MOD_PAYLOAD_ROOT=""
-    HELIX_MOD_PAYLOAD_UPDATES=""
     STANDALONE_INSTALL=""
     MOD_PAYLOAD_FLAG_GIVEN=""
     # shellcheck disable=SC2034  # consumed by record_install_source (printer_seed.sh)
@@ -346,8 +345,10 @@ parse_installer_args() {
                 shift
                 ;;
             --auto-update)
-                # shellcheck disable=SC2034  # consumed by moonraker.sh (configure_moonraker_updates)
-                HELIX_MOD_PAYLOAD_UPDATES=1
+                # Compat no-op: a payload install writes the stanza by itself
+                # whenever Moonraker can update it safely
+                # (payload_updater_blocker), so there is nothing to opt into.
+                log_info "--auto-update is no longer needed: the updater entry is written whenever it is safe"
                 shift
                 ;;
             --no-mod-payload)
@@ -367,10 +368,8 @@ parse_installer_args() {
                 shift 2
                 ;;
             --mod-payload-updates)
-                # Deprecated alias for --auto-update.
-                log_info "--mod-payload-updates is deprecated; use --auto-update"
-                # shellcheck disable=SC2034  # consumed by moonraker.sh (configure_moonraker_updates)
-                HELIX_MOD_PAYLOAD_UPDATES=1
+                # Deprecated alias for --auto-update, itself a compat no-op.
+                log_info "--mod-payload-updates is deprecated and no longer needed"
                 shift
                 ;;
             --mod-payload)

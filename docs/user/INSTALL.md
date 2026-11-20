@@ -126,7 +126,7 @@ When you run a downloaded copy of the installer, put them straight after it: `sh
 | `--desktop` | x86_64 Linux: installs HelixScreen as a window on this desktop, for your user only, with no root and no service |
 | `--kiosk` | x86_64 Linux: installs HelixScreen as a service that takes over the whole screen |
 | `--skip-kiauh-registration` | Does not register the KIAUH extension, even when KIAUH is installed |
-| `--standalone`, `--payload-root PATH`, `--auto-update` | For printers running the Forge-X or Z-Mod firmware mod, which manage HelixScreen themselves. Your printer's install guide says when you need them |
+| `--standalone`, `--payload-root PATH` | For printers running the Forge-X or Z-Mod firmware mod, which manage HelixScreen themselves. Your printer's install guide says when you need them |
 | `--help` | Lists every option |
 
 Two settings go in front of `sh` instead:
