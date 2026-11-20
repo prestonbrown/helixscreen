@@ -1176,24 +1176,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # The pre-publish guard in "Prepare symbol files for release" predicts the
-    # order; this reads it back from the API that old Moonraker's zip_deploy
-    # takes assets[0] from (helixscreen#993, #2147).
-    - name: Verify assets[0] of the published release
-      if: env.RELEASE_MODE == 'publish'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        set -euo pipefail
-        first_asset=$(gh api "repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}" \
-          --jq '.assets[0].name')
-        if [ "$first_asset" != "helixscreen-ad5m.zip" ]; then
-          echo "::error::Published release lists '$first_asset' as assets[0], not helixscreen-ad5m.zip." \
-               "Old Moonraker zip_deploy would install it; see helixscreen#993 and #2147."
-          exit 1
-        fi
-        echo "assets[0] = $first_asset (ok)"
-
     # The dry-run stand-in for the release above: the same file set less the
     # AAB (only Play consumes it), kept as a workflow artifact for
     # dry-run-verify to compare against R2.
@@ -1279,6 +1261,41 @@ jobs:
             }]
           }" \
           "$DISCORD_WEBHOOK_URL"
+
+  # ============================================================================
+  # Read assets[0] of the published release back from the GitHub API
+  # ============================================================================
+  # The pre-publish guard in "Prepare symbol files for release" predicts the
+  # order; this reads it back from the API that old Moonraker's zip_deploy
+  # takes assets[0] from (helixscreen#993, #2147). It is its own job, and
+  # nothing needs it, because the release is already public by now: a mismatch
+  # must not stop upload-r2 from publishing the manifests the in-app updaters
+  # read. It turns the run red instead.
+  verify-release-assets:
+    name: Verify assets[0] of the published release
+    runs-on: ubuntu-latest
+    needs: [release, plan]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+    - name: Check assets[0] is helixscreen-ad5m.zip
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        first_asset=$(gh api "repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}" \
+          --jq '.assets[0].name')
+        if [ "$first_asset" != "helixscreen-ad5m.zip" ]; then
+          echo "::error::Release ${RELEASE_TAG} is published with '$first_asset' as assets[0]," \
+               "not helixscreen-ad5m.zip. An old Moonraker's zip_deploy installs assets[0]" \
+               "(helixscreen#993, #2147). R2 and install.sh still publish. Remove or rename the" \
+               "asset that sorts first (gh release delete-asset ${RELEASE_TAG} <name>)."
+          exit 1
+        fi
+        echo "assets[0] = $first_asset (ok)"
 
   # ============================================================================
   # Upload release artifacts to R2 for auto-update
