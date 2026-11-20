@@ -603,6 +603,51 @@ TEST_CASE("Under a view scale the lanes converge into a hub as wide as its entri
            slope == Catch::Approx(kFanMinSlope).margin(0.01)));
 }
 
+TEST_CASE("A compact path keeps its runs under the unit short so the unit keeps the height",
+          "[filament-path][hub-stack][art-fit]") {
+    FilamentPathData d;
+    BaseGeometry g;
+    short_hub_canvas(d, g);
+    d.view_hub_h = 17;
+    d.view_cap_h = 13;
+    d.buffer_in_hub = true;
+    d.theme.tube_gauge = 4;
+    d.theme.sensor_radius = 3;
+    for (int i = 0; i < 4; i++)
+        d.lane_band_drop[i] = 2;
+    const float unit = GENERATE(5.45f, 6.5f, 9.0f);
+    CAPTURE(unit);
+    d.view_unit = unit;
+    const bool compact = unit <= kCompactPathUnit;
+    // Below the spool box's edge the lanes keep one tube and band straight before their row
+    // (two on a roomy path), and still leave on the edge.
+    const int32_t stub = compact ? 1 : 2;
+    const int32_t row = lanes_row_y(d, g);
+    CHECK(row - g.lane_entry_y == 2 + stub * (d.theme.tube_gauge + kBandThickness));
+    CHECK(lanes_leave_y(d, g) == g.lane_entry_y);
+
+    g.height = linear_hub_required_height(d, g);
+    const LinearHubFrame f = compute_linear_hub_frame(d, g);
+    // The least height leans the fan as steeply as its legs allow: a compact fan's shorter legs.
+    float tightest = 1e9f;
+    for (int i = 0; i < 4; ++i) {
+        CAPTURE(i);
+        const auto& lane = f.hub_fan[i];
+        const float drop = lane.pts[3].y - lane.pts[0].y;
+        const float lean = kFanMinSlope * std::fabs(lane.pts[3].x - lane.pts[0].x) +
+                           2.0f * (compact ? kCompactFanLegRoom : kFanLegRoom);
+        CHECK(lean <= drop + 0.5f);
+        tightest = std::min(tightest, drop - lean);
+    }
+    CHECK(tightest <= 2.5f);
+    // A compact head stands just off the canvas bottom; a roomy one on its ratio row.
+    const int32_t foot = toolhead_glyph_bounds(0, f.nozzle_y, f.tool_scale).bottom;
+    if (compact)
+        CHECK(foot == g.y_off + g.height - kCompactHeadFoot);
+    else
+        CHECK(foot == g.y_off + (int32_t)(g.height * kToolheadGlyphBottomRatio));
+}
+
 TEST_CASE("A path no taller canvas would help asks for no height past its own",
           "[filament-path][hub-stack][art-fit][buffer]") {
     FilamentPathData d;

@@ -138,6 +138,10 @@ void bypass_spool_set_active(BypassSpoolWidgets& w, bool active);
 /// the spool there and turns along the merge line, between the spool and its label.
 int32_t bypass_spool_bottom_above_merge();
 
+/// The room the overlay placed on the merge line at (`cx`, `cy`) takes above it, in the same
+/// coordinates: the spool box, and the material label's row over it when @p with_label.
+[[nodiscard]] lv_area_t bypass_spool_area(int32_t cx, int32_t cy, bool with_label);
+
 /// Place the overlay on the bypass merge line at (`cx`, `cy`), parent-relative: the spool
 /// box stands above it (bypass_spool_bottom_above_merge()), the material label above the
 /// box, and the "Bypass" label below the line, clear of the tube.

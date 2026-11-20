@@ -9,6 +9,7 @@
 #include "ui_ams_lane_spool.h"
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
+#include "ui_bypass_spool_widget.h"
 #include "ui_endless_spool_arrows.h"
 #include "ui_filament_path_canvas.h"
 #include "ui_humidity_drop.h"
@@ -1613,8 +1614,14 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     lv_obj_get_coords(path, &pc);
     REQUIRE(ui_filament_path_canvas_get_toolhead_box(canvas, &head));
     CAPTURE(cc.y1, cc.y2, pc.y1, pc.y2, head.y1, head.y2);
-    // The canvas ends where its container does, however far it reaches up into the unit.
-    CHECK(std::abs(cc.y2 - pc.y2) <= 1);
+    // The canvas ends at its column's foot, however far it reaches up into the unit: its
+    // container, tucked up under the unit, stands that tuck short of it.
+    lv_obj_t* column = lv_obj_get_parent(path);
+    lv_area_t col;
+    lv_obj_get_coords(column, &col);
+    const int32_t foot = col.y2 - lv_obj_get_style_pad_bottom(column, LV_PART_MAIN);
+    CAPTURE(foot);
+    CHECK(std::abs(cc.y2 - (art ? foot : pc.y2)) <= 1);
     // The head stands near the canvas's bottom.
     CHECK(head.y2 <= cc.y2);
     CHECK(cc.y2 - head.y2 <= lv_area_get_height(&cc) / 10);
@@ -1792,7 +1799,20 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
     // At the drawing's foot, or the view's bottom where the foot stands lower.
     lv_area_t view;
     lv_obj_get_coords(lv_obj_get_parent(pill), &view);
-    CHECK(pa.y2 == std::min(aa.y1 + drawn.y2 + tuck, view.y2));
+    // At the drawing's foot, or the view's bottom where the foot stands lower, risen clear of
+    // the bypass spool where it would stand on it.
+    const int32_t rest = std::min(aa.y1 + drawn.y2 + tuck, view.y2);
+    lv_area_t spool;
+    const int32_t gap = theme_manager_get_spacing("space_xs");
+    int32_t lift = 0;
+    if (ui_filament_path_canvas_get_bypass_spool_area(
+            lv_obj_find_by_name(panel_obj_, "path_canvas"), &spool)) {
+        CAPTURE(spool.x1, spool.y1, spool.x2, spool.y2);
+        lift = helix::ui::ams_detail_layout::env_pill_lift(
+            {pa.x1, pa.y1 + rest - pa.y2, pa.x2, rest}, spool, gap);
+        CHECK((pa.x2 + gap < spool.x1 || pa.y2 + gap <= spool.y1));
+    }
+    CHECK(pa.y2 == rest - lift);
     CHECK(pa.x2 <= view.x2);
 }
 
@@ -1934,4 +1954,40 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
         }
     }
     CHECK(shown > 0);
+}
+
+TEST_CASE("The environment pill rises clear of what stands below it, and only then",
+          "[ams][tray]") {
+    using helix::ui::ams_detail_layout::env_pill_lift;
+    const lv_area_t pill{200, 100, 240, 140};
+    // A spool box under the pill's right half, its top 10 px above the pill's bottom.
+    CHECK(env_pill_lift(pill, {220, 130, 270, 180}, 4) == 14);
+    // Already a gap clear above it, beside it, or wholly above the pill: nothing to do.
+    CHECK(env_pill_lift(pill, {220, 145, 270, 190}, 4) == 0);
+    CHECK(env_pill_lift(pill, {245, 120, 290, 170}, 4) == 0);
+    CHECK(env_pill_lift(pill, {200, 40, 240, 95}, 4) == 0);
+    // Within the gap beside it still counts as under it.
+    CHECK(env_pill_lift(pill, {243, 138, 290, 170}, 4) == 6);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "The bypass spool's room is where the overlay stands",
+                 "[ams][tray]") {
+    lv_obj_t* parent = lv_obj_create(test_screen());
+    lv_obj_set_size(parent, 480, 272);
+    lv_obj_set_style_pad_all(parent, 0, LV_PART_MAIN);
+    helix::ui::BypassSpoolWidgets w = helix::ui::bypass_spool_create(parent, nullptr, nullptr);
+    REQUIRE(w.valid());
+    helix::ui::bypass_spool_set_position(w, 300, 200);
+    lv_obj_update_layout(parent);
+    lv_area_t box, parent_area;
+    lv_obj_get_coords(w.box, &box);
+    lv_obj_get_coords(parent, &parent_area);
+    const lv_area_t room = helix::ui::bypass_spool_area(300, 200, false);
+    CHECK(room.x1 == box.x1 - parent_area.x1);
+    CHECK(room.y1 == box.y1 - parent_area.y1);
+    CHECK(room.x2 == box.x2 - parent_area.x1);
+    CHECK(room.y2 == box.y2 - parent_area.y1);
+    // The material label's row stands above the box.
+    CHECK(helix::ui::bypass_spool_area(300, 200, true).y1 < room.y1);
+    helix::ui::bypass_spool_destroy(w);
 }

@@ -141,6 +141,17 @@ lv_obj_t* view_column(lv_obj_t* from) {
     return nullptr;
 }
 
+/// The height a path container that fills its column (flex grow) stands short of the room the
+/// column gives it: flex sizes a growing item without its margins, so a negative top margin
+/// (the container tucked up under the unit) lifts its bottom by as much. The canvas reaches
+/// down by it; a container below which more follows keeps it as a bottom margin, so what
+/// follows stays clear (ams_overview_panel.xml).
+int32_t tucked_container_shortfall(lv_obj_t* box) {
+    if (lv_obj_get_style_flex_grow(box, LV_PART_MAIN) <= 0)
+        return 0;
+    return std::max<int32_t>(0, -lv_obj_get_style_margin_top(box, LV_PART_MAIN));
+}
+
 /// A column sized to its content (portrait, the sidebar below it) takes this share of the
 /// viewport it scrolls in.
 constexpr float kStackedColumnShare = 0.7f;
@@ -385,6 +396,14 @@ int over_lane_label_rows(const helix::ui::WidgetRef slot_widgets[], int count,
 
 /// How far below where a lane's tube leaves a drawn unit's bottom edge its sensor band stands:
 /// just under the foot, the lane's number standing on the unit's face above it.
+int32_t env_pill_lift(const lv_area_t& pill, const lv_area_t& keep_out, int32_t gap) {
+    const bool beside = pill.x2 + gap < keep_out.x1 || keep_out.x2 + gap < pill.x1;
+    const bool above = keep_out.y2 + gap < pill.y1;
+    if (beside || above)
+        return 0;
+    return std::max<int32_t>(0, pill.y2 - (keep_out.y1 - gap));
+}
+
 int32_t art_lane_band_drop() {
     return std::max<int32_t>(2, theme_manager_get_spacing("space_xs"));
 }
@@ -557,7 +576,7 @@ bool ams_detail_fit_unit_to_path(lv_obj_t* canvas, int32_t reach, const SpoolHei
     const int32_t bottom = cc.y1 + std::max(lv_area_get_height(&cc), need) - 1;
     int32_t limit = on_screen_bottom(canvas);
     if (fills_column)
-        limit = std::min(limit, bc.y2);
+        limit = std::min(limit, bc.y2 + tucked_container_shortfall(box));
     const int32_t overflow = bottom - limit;
     // Under a view scale the unit is sized from the path once the path is set up for this
     // unit's slots: a path still laid out for the slots before them would size it wrongly.
@@ -992,6 +1011,28 @@ void unit_view_lane_changed(void* /*user*/) {
 
 using namespace helix::ui::ams_detail_layout;
 
+namespace {
+/// The environment pill stands against the drawn unit's foot; a unit drawn large brings it
+/// down onto the bypass spool under the path's right side. It rises clear of the spool.
+void keep_env_pill_clear_of_bypass(lv_obj_t* canvas) {
+    lv_obj_t* pill = s_tray.env_indicator;
+    lv_area_t spool;
+    if (!pill || lv_obj_is_hidden(pill) ||
+        !ui_filament_path_canvas_get_bypass_spool_area(canvas, &spool))
+        return;
+    lv_obj_update_layout(pill);
+    lv_area_t a;
+    lv_obj_get_coords(pill, &a);
+    const int32_t lift = env_pill_lift(a, spool, theme_manager_get_spacing("space_xs"));
+    if (lift <= 0)
+        return;
+    // DECLARATIVE_OK: measured layout; the pill clears the bypass spool below it
+    lv_obj_set_style_translate_y(pill, lv_obj_get_style_translate_y(pill, LV_PART_MAIN) - lift,
+                                 LV_PART_MAIN);
+    spdlog::debug("[AmsDetail] Env pill lifted {} px clear of the bypass spool", lift);
+}
+} // namespace
+
 bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid) {
     if (!canvas)
         return false;
@@ -1026,7 +1067,8 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
                      s_tray.container == lv_obj_get_parent(slot_grid);
     lv_point_t edge_a{}, edge_b{};
     // The canvas fills its container's height; under a drawn unit it also reaches up into the
-    // unit, so it is that much taller and still ends at the container's bottom. Each change
+    // unit, so it is that much taller, and down past a tucked container's bottom by the height
+    // the tuck costs it (tucked_container_shortfall()). Each change
     // is made only when it changes something: a resize repaints the canvas.
     const auto fill_container = [canvas](int32_t reach) {
         // DECLARATIVE_OK: measured layout; the canvas reaches up only under a drawn unit
@@ -1035,7 +1077,8 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
                 lv_obj_set_style_flex_grow(canvas, 1, LV_PART_MAIN);
             return;
         }
-        const int32_t h = lv_obj_get_content_height(lv_obj_get_parent(canvas)) + reach;
+        lv_obj_t* box = lv_obj_get_parent(canvas);
+        const int32_t h = lv_obj_get_content_height(box) + reach + tucked_container_shortfall(box);
         if (lv_obj_get_style_flex_grow(canvas, LV_PART_MAIN) != 0)
             lv_obj_set_style_flex_grow(canvas, 0, LV_PART_MAIN);
         if (lv_obj_get_style_height(canvas, LV_PART_MAIN) != h)
@@ -1106,10 +1149,12 @@ bool helix::ui::ams_detail_sync_lane_entry(lv_obj_t* canvas, lv_obj_t* slot_grid
     fill_container(reach);
     lv_obj_update_layout(lv_obj_get_parent(canvas));
     lv_obj_update_layout(s_tray.container);
-    return ams_detail_fit_unit_to_path(
+    const bool refit = ams_detail_fit_unit_to_path(
         canvas, reach,
         natural_spool_layout(s_tray.unit_index, lv_obj_get_content_width(s_tray.container),
                              s_tray.lane_count, canvas));
+    keep_env_pill_clear_of_bypass(canvas);
+    return refit;
 }
 
 namespace {

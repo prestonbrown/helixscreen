@@ -570,6 +570,14 @@ void ui_filament_path_canvas_set_bypass_has_spool(lv_obj_t* obj, bool has_spool)
 bool ui_filament_path_canvas_get_bypass_merge_pos(lv_obj_t* obj, int32_t* cx_out, int32_t* cy_out);
 
 /**
+ * @brief The room the bypass spool overlay anchored at the merge point takes (absolute screen
+ *        coords): its box, and its material label's row when the bypass carries a spool.
+ *
+ * False wherever ui_filament_path_canvas_get_bypass_merge_pos() is.
+ */
+bool ui_filament_path_canvas_get_bypass_spool_area(lv_obj_t* obj, lv_area_t* out);
+
+/**
  * @brief Set the mapped tool index for a slot
  *
  * Overrides the default slot-index-as-tool-number with the actual AFC map value.

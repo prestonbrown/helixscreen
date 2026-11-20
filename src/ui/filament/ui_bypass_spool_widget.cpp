@@ -107,6 +107,20 @@ int32_t bypass_spool_box_size() {
     return ams_slot_spool_size() + kBoxPad * 2;
 }
 
+namespace {
+/// The top of a spool box @p box_size tall standing on the merge line at @p cy.
+int32_t box_top_on(int32_t cy, int32_t box_size) {
+    return cy - kTubeDrop - box_size;
+}
+} // namespace
+
+lv_area_t bypass_spool_area(int32_t cx, int32_t cy, bool with_label) {
+    const int32_t size = bypass_spool_box_size();
+    const int32_t top = box_top_on(cy, size);
+    return {cx - size / 2, with_label ? top - kLabelHeight - kLabelGap : top,
+            cx - size / 2 + size - 1, top + size - 1};
+}
+
 BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click, void* user_data) {
     BypassSpoolWidgets w;
     if (!parent) {
@@ -234,7 +248,7 @@ void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
     }
 
     int32_t box_left = cx - w.box_size / 2;
-    int32_t box_top = cy - kTubeDrop - w.box_size;
+    int32_t box_top = box_top_on(cy, w.box_size);
     lv_obj_set_pos(w.box, box_left, box_top);
 
     if (w.bypass_label) {
