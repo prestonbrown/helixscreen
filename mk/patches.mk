@@ -64,6 +64,8 @@ LVGL_PATCHED_FILES := \
 	include/lvgl/widgets/lv_label.h \
 	src/widgets/label/lv_label.c \
 	src/widgets/label/lv_label_private.h \
+	include/lvgl/font/lv_text.h \
+	src/misc/lv_text.c \
 	src/draw/sw/lv_draw_sw.c \
 	src/image/lv_bin_decoder.c \
 	src/image/lv_lodepng.c \
