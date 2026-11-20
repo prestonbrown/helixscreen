@@ -394,6 +394,7 @@ nlohmann::json AmsBackendAfc::required_status_objects(const std::vector<std::str
                                                     "filament_status_led",
                                                     "hub",
                                                     "initial_weight",
+                                                    "lane",
                                                     "load",
                                                     "loaded_to_hub",
                                                     "map",
