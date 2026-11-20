@@ -10,6 +10,7 @@
 
 #include "ams_tag_reading.h"
 #include "ams_types.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "filament_catalog.h"
@@ -30,8 +31,9 @@
 #include "hv/json.hpp" // JSON_HPP_OK: chained_spool_patch held by value
 
 namespace helix {
+class AmsBackend;
 class IMoonrakerAPI;
-}
+} // namespace helix
 class AmsEditOverlayTestAccess;
 class AmsEditOverlayViewTestAccess;
 
@@ -393,6 +395,13 @@ class AmsEditOverlay : public OverlayBase {
     /// kSaveFailed with save_error_subject_ saying why.
     helix::Subject save_state_subject_{};
     helix::Subject save_error_subject_{}; ///< "ams_edit_save_error"
+    /// The line a waiting save shows ("ams_edit_save_wait_text"): what the
+    /// filament system is doing ahead of it, else "Saving...".
+    helix::Subject save_wait_text_subject_{};
+    char save_wait_text_buf_[160] = {0};
+    /// Follows the filament system's action while a save waits, so the line
+    /// names the operation the save is queued behind.
+    ObserverGuard save_wait_action_observer_;
     /// 1 = the lane and its linked spool disagree ("ams_edit_spool_disagrees")
     helix::Subject spool_disagrees_subject_{};
     helix::Subject spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
@@ -499,6 +508,7 @@ class AmsEditOverlay : public OverlayBase {
     void finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
                              const std::string& reason);
     void set_save_state(int state, const std::string& error = {});
+    void update_save_wait_text();
     /// The commit decision (offline lock, relink, Spoolman save, local) over a
     /// capture; commit_and_close() runs it over the current state.
     void commit_capture(const SaveCapture& cap);
@@ -528,6 +538,11 @@ class AmsEditOverlay : public OverlayBase {
     static constexpr int kSaveIdle = 0;
     static constexpr int kSaveWaiting = 1;
     static constexpr int kSaveFailed = 2;
+    /// What a waiting save is queued behind: the load, unload or other
+    /// filament operation @p info reports, naming the head or lane it works
+    /// on. Empty while the filament system is idle.
+    [[nodiscard]] static std::string save_wait_reason(const AmsBackend& backend,
+                                                      const AmsSystemInfo& info);
     /// The inline line a save that did not stick shows under Save.
     [[nodiscard]] static std::string not_saved_message(helix::ams::PendingOutcome outcome,
                                                        const std::string& reason);

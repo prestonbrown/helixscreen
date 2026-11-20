@@ -23,6 +23,7 @@
 #include "ams_tag_reading.h"
 #include "app_globals.h"
 #include "color_utils.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -483,6 +484,8 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(save_state_subject_, kSaveIdle, "ams_edit_save_state", subjects_);
         UI_MANAGED_SUBJECT_STRING(save_error_subject_, save_error_buf_, "", "ams_edit_save_error",
                                   subjects_);
+        UI_MANAGED_SUBJECT_STRING(save_wait_text_subject_, save_wait_text_buf_, "Saving...",
+                                  "ams_edit_save_wait_text", subjects_);
 
         // Managed-vs-untracked signal: drives the header Spoolman badge, the
         // More section's Spoolman-owned fields and the Add-link's absence.
@@ -555,6 +558,7 @@ void AmsEditOverlay::init_subjects() {
 }
 
 void AmsEditOverlay::deinit_subjects() {
+    save_wait_action_observer_.reset();
     deinit_subjects_base(subjects_);
 }
 
@@ -2481,7 +2485,63 @@ void AmsEditOverlay::set_save_state(int state, const std::string& error) {
     }
     snprintf(save_error_buf_, sizeof(save_error_buf_), "%s", error.c_str());
     lv_subject_set_string(&save_error_subject_, save_error_buf_);
+    if (state == kSaveWaiting) {
+        update_save_wait_text();
+        if (!save_wait_action_observer_) {
+            save_wait_action_observer_ = helix::ui::observe<int>(
+                AmsState::instance().get_ams_action_subject(), this,
+                [](AmsEditOverlay* self, int) { self->update_save_wait_text(); },
+                AmsState::instance().get_subjects_lifetime());
+        }
+    } else {
+        save_wait_action_observer_.reset();
+    }
     lv_subject_set_int(&save_state_subject_, state);
+}
+
+std::string AmsEditOverlay::save_wait_reason(const AmsBackend& backend, const AmsSystemInfo& info) {
+    if (!ams_action_is_busy(info.action)) {
+        return {};
+    }
+    const int slot =
+        info.operation_working_slot >= 0 ? info.operation_working_slot : info.path_active_slot();
+    // Each lane of a parallel system is its own head, and the head is what a
+    // load or unload works on; elsewhere the lane names the operation.
+    std::string where;
+    if (slot >= 0) {
+        where = backend.get_topology() == PathTopology::PARALLEL
+                    ? helix::ui::active_tool_lane_label(backend.tool_noun(), slot)
+                    : helix::ui::backend_lane_label(backend, slot);
+    }
+    const bool loading = info.action == AmsAction::LOADING;
+    const bool unloading = info.action == AmsAction::UNLOADING;
+    if (where.empty()) {
+        return loading     ? lv_tr("Saves when the load finishes.")
+               : unloading ? lv_tr("Saves when the unload finishes.")
+                           : lv_tr("Saves when the filament operation finishes.");
+    }
+    const char* format = loading     ? lv_tr("Saves when the load on {} finishes.")
+                         : unloading ? lv_tr("Saves when the unload on {} finishes.")
+                                     : lv_tr("Saves when the filament operation on {} finishes.");
+    return fmt::format(fmt::runtime(format), where);
+}
+
+void AmsEditOverlay::update_save_wait_text() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    std::string text;
+    if (const AmsBackend* backend = AmsState::instance().get_backend()) {
+        text = save_wait_reason(*backend, backend->get_system_info());
+    }
+    if (text.empty()) {
+        text = lv_tr("Saving...");
+    }
+    if (text == save_wait_text_buf_) {
+        return;
+    }
+    snprintf(save_wait_text_buf_, sizeof(save_wait_text_buf_), "%s", text.c_str());
+    lv_subject_set_string(&save_wait_text_subject_, save_wait_text_buf_);
 }
 
 void AmsEditOverlay::commit_then_await(const SaveCapture& cap, const SlotInfo& committed) {
