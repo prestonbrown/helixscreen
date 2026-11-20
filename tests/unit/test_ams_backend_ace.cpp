@@ -8,6 +8,7 @@
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/update_queue_test_access.h"
+#include "ace_slot_parse.h"
 #include "ams_backend_ace.h"
 #include "ams_bypass_policy.h"
 #include "ams_state.h"
@@ -124,7 +125,7 @@ json make_native_filament_hub_payload() {
              {"status", "drying"},
              {"target_temp", 55},
              {"duration", 240},
-             {"remain_time", 180},
+             {"remain_time", 10800},
          }},
         {"slots", json::array({
                       json{{"index", 0},
@@ -1988,7 +1989,7 @@ TEST_CASE("ACE parses native filament_hub schema (slots, dryer, current_filament
     CHECK(dryer.active == true);
     CHECK(dryer.target_temp_c == Catch::Approx(55.0f));
     CHECK(dryer.duration_min == 240);
-    CHECK(dryer.remaining_min == 180); // native remain_time -> remaining_min
+    CHECK(dryer.remaining_min == 180); // remain_time is seconds
 
     // current_filament "0-1" => local slot 1 loaded.
     CHECK(info.current_slot == 1);
@@ -2406,7 +2407,7 @@ TEST_CASE("ACE object path reads dryer under the dryer_status key", "[ams][ace][
 
     json inst = make_kobra_instance_object();
     inst["dryer_status"] =
-        json{{"status", "run"}, {"target_temp", 55}, {"duration", 240}, {"remain_time", 200}};
+        json{{"status", "run"}, {"target_temp", 55}, {"duration", 240}, {"remain_time", 12000}};
     inst["temp"] = 41;
     AceTestAccess::parse_ace(helper, inst);
 
@@ -4082,4 +4083,15 @@ TEST_CASE("ACE on a driver that stores no edit shows the record over the hub's m
         status_notification("ace", json{{"slots", slot_reading("PLA", "#FF5500")}}));
     CHECK(b.get_slot_info(0).material == "PLA");
     CHECK(b.get_slot_info(0).color_rgb == 0xFF5500u);
+}
+
+TEST_CASE("ACE dryer times: the ACE 2 Pro states both in seconds", "[ace]") {
+    // A 60-minute cycle five seconds in, as the ACE 2 Pro reports it.
+    DryerInfo dryer;
+    helix::ace::apply_dryer_state(
+        nlohmann::json{
+            {"dryer_status", {{"status", "keeping"}, {"duration", 3600}, {"remain_time", 3595}}}},
+        dryer);
+    CHECK(dryer.duration_min == 60);
+    CHECK(dryer.remaining_min == 60);
 }

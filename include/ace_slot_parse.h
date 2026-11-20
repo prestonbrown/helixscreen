@@ -80,6 +80,14 @@ enum class TagRead {
 /// overrides. Absent keys leave @p dryer as it was.
 void apply_dryer_state(const nlohmann::json& data, DryerInfo& dryer);
 
+/// The firmware's dryer `remain_time`, in seconds on both ACE generations, as
+/// whole minutes rounded up (a running cycle never reads as 0 left).
+[[nodiscard]] int dryer_remaining_minutes(int remain_time_s);
+
+/// The firmware's dryer `duration` as minutes. The ACE Pro states minutes
+/// (30-480); the ACE 2 Pro states seconds, which for any cycle exceed 480.
+[[nodiscard]] int dryer_duration_minutes(int duration);
+
 /// The refusal for a drying request outside @p dryer's range, or nullopt when
 /// @p temp_c and @p duration_min are both in range.
 [[nodiscard]] std::optional<AmsError> check_dryer_request(const DryerInfo& dryer, float temp_c,

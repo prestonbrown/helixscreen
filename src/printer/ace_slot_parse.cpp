@@ -163,10 +163,10 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
         out.target_temp_c = (*dryer)["target_temp"].get<float>();
     }
     if (dryer->contains("duration") && (*dryer)["duration"].is_number()) {
-        out.duration_min = (*dryer)["duration"].get<int>();
+        out.duration_min = dryer_duration_minutes((*dryer)["duration"].get<int>());
     }
     if (dryer->contains("remain_time") && (*dryer)["remain_time"].is_number()) {
-        out.remaining_min = (*dryer)["remain_time"].get<int>();
+        out.remaining_min = dryer_remaining_minutes((*dryer)["remain_time"].get<int>());
     }
 
     // REST-bridge spelling: {active, current_temp, remaining_minutes,
@@ -183,6 +183,16 @@ void apply_dryer_state(const json& data, DryerInfo& out) {
     if (dryer->contains("duration_minutes") && (*dryer)["duration_minutes"].is_number_integer()) {
         out.duration_min = (*dryer)["duration_minutes"].get<int>();
     }
+}
+
+int dryer_remaining_minutes(int remain_time_s) {
+    return remain_time_s <= 0 ? 0 : (remain_time_s + 59) / 60;
+}
+
+int dryer_duration_minutes(int duration) {
+    // The longest cycle an ACE Pro accepts, in minutes.
+    constexpr int kAceProMaxDurationMin = 480;
+    return duration > kAceProMaxDurationMin ? (duration + 30) / 60 : duration;
 }
 
 std::optional<AmsError> check_dryer_request(const DryerInfo& dryer, float temp_c,
