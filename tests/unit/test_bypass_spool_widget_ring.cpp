@@ -184,3 +184,73 @@ TEST_CASE("bypass spool beside a drawn unit takes the unit's spool size as far a
         CHECK(spot.cx == 400);
     }
 }
+
+TEST_CASE("bypass spool below a drawn unit stands right of the hub, its tube into its side",
+          "[ams][bypass][spool_widget]") {
+    using helix::ui::bypass_spool_box_size;
+    using helix::ui::bypass_spool_label_room;
+    using helix::ui::bypass_spool_spot_below;
+    using helix::ui::BypassSpoolBelowRoom;
+    constexpr int32_t kMin = 64;
+    BypassSpoolBelowRoom room;
+    room.left = 300;
+    room.right = 520;
+    room.bottom = 460;
+    room.merge_y = 400;
+    room.gap = 8;
+    // The unit ends at y=330 everywhere right of x=300.
+    const auto unit = [](int32_t x) { return x < 430 ? 330 : INT32_MIN; };
+
+    SECTION("it is as large as fits under the unit and its label, over the label below it") {
+        const auto spot = bypass_spool_spot_below(200, kMin, room, unit);
+        REQUIRE(spot.side_entry);
+        CHECK(spot.top >= 330 + room.gap + bypass_spool_label_room());
+        CHECK(spot.top + spot.box <= room.bottom);
+        // One more pixel would not fit between the unit and the bottom.
+        CHECK(bypass_spool_box_size(spot.spool + 1) >
+              room.bottom - (330 + room.gap + bypass_spool_label_room()));
+        CHECK(spot.cx - spot.box / 2 >= room.left);
+        CHECK(spot.cx + (spot.box - spot.box / 2) <= room.right);
+        // The tube runs into the card's side, clear of its corners.
+        CHECK(spot.top < room.merge_y);
+        CHECK(spot.top + spot.box > room.merge_y);
+    }
+    SECTION("a card narrower than the room stands at its right, away from the unit") {
+        room.left = 100;
+        const auto spot = bypass_spool_spot_below(80, kMin, room, [](int32_t) { return 200; });
+        REQUIRE(spot.spool == 80);
+        CHECK(spot.cx + (spot.box - spot.box / 2) == room.right);
+    }
+    SECTION("a merge line it cannot stand across leaves no lower spot") {
+        // The merge line runs just under a unit that spans the whole room.
+        room.merge_y = 340;
+        const auto spot = bypass_spool_spot_below(200, kMin, room, [](int32_t) { return 330; });
+        CHECK_FALSE(spot.side_entry);
+        CHECK(spot.spool == kMin);
+    }
+}
+
+TEST_CASE("bypass spool takes the lower spot only when it is larger than the one beside",
+          "[ams][bypass][spool_widget]") {
+    using helix::ui::bypass_spool_better;
+    using helix::ui::BypassSpoolSpot;
+    const BypassSpoolSpot beside_small{67, 75, 450, 0, false};
+    const BypassSpoolSpot beside_full{117, 125, 450, 0, false};
+    const BypassSpoolSpot below{101, 109, 460, 340, true};
+
+    SECTION("lower spot wins when the beside spot is cramped") {
+        const BypassSpoolSpot spot = bypass_spool_better(beside_small, below, 117);
+        CHECK(spot.side_entry);
+        CHECK(spot.spool == 101);
+    }
+    SECTION("beside spot wins when it reaches the lane size") {
+        const BypassSpoolSpot larger_below{117, 125, 460, 300, true};
+        CHECK_FALSE(bypass_spool_better(beside_full, larger_below, 117).side_entry);
+    }
+    SECTION("beside spot wins a tie and when the lower one is smaller") {
+        const BypassSpoolSpot tie{67, 75, 460, 340, true};
+        CHECK_FALSE(bypass_spool_better(beside_small, tie, 117).side_entry);
+        const BypassSpoolSpot big_beside{110, 118, 450, 0, false};
+        CHECK_FALSE(bypass_spool_better(big_beside, below, 117).side_entry);
+    }
+}

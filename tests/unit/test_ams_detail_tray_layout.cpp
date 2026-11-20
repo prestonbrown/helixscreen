@@ -2101,7 +2101,37 @@ TEST_CASE_METHOD(AmsTrayPanelFixture,
             }
         }
     }
-    // With room beside the unit (the 1024x600 host), it grows.
-    if (size == 2)
+    // It stands clear of the hub, the toolhead and the environment pill, with its "Bypass"
+    // label under it inside the path.
+    lv_obj_t* path = lv_obj_find_by_name(panel_obj_, "path_canvas");
+    const auto overlaps = [](const lv_area_t& a, const lv_area_t& o) {
+        return a.x1 <= o.x2 && o.x1 <= a.x2 && a.y1 <= o.y2 && o.y1 <= a.y2;
+    };
+    lv_area_t hub, head, label;
+    if (ui_filament_path_canvas_get_hub_box(path, &hub))
+        CHECK_FALSE(overlaps(hub, b));
+    if (ui_filament_path_canvas_get_toolhead_box(path, &head))
+        CHECK_FALSE(overlaps(head, b));
+    if (lv_obj_t* pill = lv_obj_find_by_name(panel_obj_, "env_indicator");
+        pill && !lv_obj_is_hidden(pill)) {
+        lv_area_t pa;
+        lv_obj_get_coords(pill, &pa);
+        CAPTURE(pa.x1, pa.y1, pa.x2, pa.y2);
+        CHECK_FALSE(overlaps(pa, b));
+    }
+    lv_obj_t* bypass_label = nullptr;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(lv_obj_get_parent(box)); ++i) {
+        lv_obj_t* child = lv_obj_get_child(lv_obj_get_parent(box), (int32_t)i);
+        if (lv_obj_check_type(child, &lv_label_class) &&
+            std::strcmp(lv_label_get_text(child), "Bypass") == 0)
+            bypass_label = child;
+    }
+    REQUIRE(bypass_label != nullptr);
+    lv_obj_get_coords(bypass_label, &label);
+    CAPTURE(label.y1, label.y2, canvas.y2);
+    CHECK(label.y1 > b.y2);
+    CHECK(label.y2 <= canvas.y2);
+    // With room beside or below the unit (the 800x400 and 1024x500 hosts), it grows.
+    if (size == 1 || size == 2)
         CHECK(card > helix::ui::bypass_spool_box_size());
 }

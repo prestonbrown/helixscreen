@@ -578,8 +578,11 @@ namespace helix::ui {
  * @param obj The filament_path_canvas widget
  * @param cx The spool's centre, px from the canvas's left edge; -1 restores the default spot
  * @param spool_size The spool's edge in px; 0 restores the lane spool size
+ * @param side_entry The spool stands across the merge line, and the tube runs into its card's
+ *        left side instead of dropping from under it
  */
-void filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size);
+void filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size,
+                                   bool side_entry = false);
 
 /// Where the bypass tube would terminate at its default spot, before any
 /// filament_path_set_bypass_spot(): the spot a unit view starts from.

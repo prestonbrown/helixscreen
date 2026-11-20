@@ -683,7 +683,7 @@ void draw_buffer_section(const RenderCtx& ctx, const LinearHubFrame& f) {
 // margin 0 via hub_box_hit.
 void record_bypass_hit(const RenderCtx& ctx, const LinearHubFrame& f) {
     const BaseGeometry& g = ctx.geo;
-    int32_t bypass_x = bypass_spool_x(*ctx.data, g.x_off, g.width);
+    int32_t bypass_x = bypass_feed_x(*ctx.data, g.x_off, g.width);
     ctx.data->hits.bypass = {bypass_x - f.sensor_r * 3, f.bypass_merge_y - f.sensor_r * 4,
                              bypass_x + f.sensor_r * 3, f.bypass_merge_y + f.sensor_r * 4};
     ctx.data->hits.bypass_valid = true;

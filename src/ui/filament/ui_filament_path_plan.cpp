@@ -2127,11 +2127,14 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
 
     if (bypass) {
         const float merge_y = (float)f.bypass_merge_y;
-        const float spool_x = (float)bypass_spool_x(data, g.x_off, g.width);
+        const float spool_x = (float)bypass_feed_x(data, g.x_off, g.width);
         out.bypass_route = out.route_count;
         Route& b = new_route(out);
         // Spool → merge carries the SPOOL tag: no AMS error lands on it.
-        append_bypass_feed(b, spool_x, merge_y, cx, bypass_lane.style(PathSegment::SPOOL));
+        if (data.bypass_side_entry)
+            append_line(b, spool_x, merge_y, cx, merge_y, bypass_lane.style(PathSegment::SPOOL));
+        else
+            append_bypass_feed(b, spool_x, merge_y, cx, bypass_lane.style(PathSegment::SPOOL));
         if (bypass_owns) {
             append_line(b, cx, merge_y, cx, (float)f.toolhead_y,
                         bypass_lane.style(PathSegment::TOOLHEAD));

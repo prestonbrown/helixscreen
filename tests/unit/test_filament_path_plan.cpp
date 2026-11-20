@@ -2361,6 +2361,13 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(d->hits.bypass_valid);
     CHECK(d->hits.bypass.x1 + (d->hits.bypass.x2 - d->hits.bypass.x1) / 2 == mx);
 
+    // Standing across the merge line, the tube runs into its card's left side.
+    helix::ui::filament_path_set_bypass_spot(w, home_x - c.x1 + 10, spool, /*side_entry=*/true);
+    render(*this, w);
+    REQUIRE(d->hits.bypass_valid);
+    CHECK(d->hits.bypass.x1 + (d->hits.bypass.x2 - d->hits.bypass.x1) / 2 ==
+          mx - helix::ui::bypass_spool_box_size(spool) / 2);
+
     // Back at its default, it stands where it did.
     helix::ui::filament_path_set_bypass_spot(w, -1, 0);
     REQUIRE(ui_filament_path_canvas_get_bypass_merge_pos(w, &mx, nullptr));

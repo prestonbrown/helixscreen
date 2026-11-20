@@ -1471,11 +1471,14 @@ bool helix::ui::filament_path_get_bypass_home(lv_obj_t* obj, int32_t* cx_out, in
     return true;
 }
 
-void helix::ui::filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size) {
+void helix::ui::filament_path_set_bypass_spot(lv_obj_t* obj, int32_t cx, int32_t spool_size,
+                                              bool side_entry) {
     auto* data = get_data(obj);
-    if (!data || (data->bypass_spool_cx == cx && data->bypass_spool_size == spool_size))
+    if (!data || (data->bypass_spool_cx == cx && data->bypass_spool_size == spool_size &&
+                  data->bypass_side_entry == side_entry))
         return;
     data->bypass_spool_cx = cx;
     data->bypass_spool_size = spool_size;
+    data->bypass_side_entry = side_entry;
     layered_mark_dirty(obj);
 }

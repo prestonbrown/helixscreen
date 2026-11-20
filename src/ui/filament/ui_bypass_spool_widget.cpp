@@ -98,6 +98,8 @@ constexpr int32_t kLabelHeight = 16;
 // line and the "Bypass" label under it.
 constexpr int32_t kTubeDrop = 10;
 constexpr int32_t kTubeClear = 8;
+// How far inside a card's top and bottom the tube may enter its side.
+constexpr int32_t kSideEntryClear = 12;
 // What bypass_spool_drawn_area() finds the overlay by among its parent's children.
 constexpr const char* kBoxName = "bypass_spool_box";
 constexpr const char* kMaterialLabelName = "bypass_material_label";
@@ -136,6 +138,35 @@ BypassSpoolSpot bypass_spool_spot(int32_t lane_spool, int32_t min_spool,
         return {spool, box, cx};
     }
     return {min_spool, bypass_spool_box_size(min_spool), room.home_cx};
+}
+
+BypassSpoolSpot bypass_spool_spot_below(int32_t lane_spool, int32_t min_spool,
+                                        const BypassSpoolBelowRoom& room,
+                                        const std::function<int32_t(int32_t x)>& unit_bottom) {
+    for (int32_t spool = lane_spool; spool > min_spool; --spool) {
+        const int32_t box = bypass_spool_box_size(spool);
+        const int32_t x1 = room.right - box;
+        if (x1 < room.left)
+            continue;
+        const int32_t unit = unit_bottom(x1 - room.gap);
+        const int32_t lowest_top =
+            unit == INT32_MIN ? INT32_MIN / 2 : unit + room.gap + bypass_spool_label_room();
+        // The tube enters the side clear of the card's rounded corners.
+        const int32_t lo = std::max(lowest_top, room.merge_y - box + kSideEntryClear);
+        const int32_t hi = std::min(room.bottom - box, room.merge_y - kSideEntryClear);
+        if (lo > hi)
+            continue;
+        const int32_t top = std::clamp(room.merge_y - box / 2, lo, hi);
+        return {spool, box, x1 + box / 2, top, true};
+    }
+    return {min_spool, bypass_spool_box_size(min_spool), room.right, 0, false};
+}
+
+BypassSpoolSpot bypass_spool_better(const BypassSpoolSpot& beside, const BypassSpoolSpot& below,
+                                    int32_t lane_spool) {
+    if (beside.spool >= lane_spool || !below.side_entry || below.spool <= beside.spool)
+        return beside;
+    return below;
 }
 
 namespace {
@@ -309,17 +340,14 @@ void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {
     }
 }
 
-void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
+namespace {
+void place_card(BypassSpoolWidgets& w, int32_t cx, int32_t box_top, int32_t label_y) {
     if (!w.valid()) {
         return;
     }
-
-    int32_t box_left = cx - w.box_size / 2;
-    int32_t box_top = box_top_on(cy, w.box_size);
-    lv_obj_set_pos(w.box, box_left, box_top);
-
+    lv_obj_set_pos(w.box, cx - w.box_size / 2, box_top);
     if (w.bypass_label) {
-        lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2, cy + kTubeClear);
+        lv_obj_set_pos(w.bypass_label, cx - w.cached_bypass_label_w / 2, label_y);
     }
     if (w.material_label) {
         // Material text changes — must measure each call.
@@ -327,6 +355,24 @@ void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
         int32_t mat_w = lv_obj_get_width(w.material_label);
         lv_obj_set_pos(w.material_label, cx - mat_w / 2, box_top - kLabelHeight - kLabelGap);
     }
+}
+} // namespace
+
+void bypass_spool_set_position(BypassSpoolWidgets& w, int32_t cx, int32_t cy) {
+    place_card(w, cx, box_top_on(cy, w.box_size), cy + kTubeClear);
+}
+
+void bypass_spool_set_card_position(BypassSpoolWidgets& w, int32_t cx, int32_t top) {
+    place_card(w, cx, top, top + w.box_size + kTubeClear);
+}
+
+int32_t bypass_spool_label_below_room(const BypassSpoolWidgets& w) {
+    int32_t h = kLabelHeight;
+    if (w.bypass_label) {
+        lv_obj_update_layout(w.bypass_label);
+        h = std::max(h, lv_obj_get_height(w.bypass_label));
+    }
+    return kTubeClear + h;
 }
 
 } // namespace helix::ui
