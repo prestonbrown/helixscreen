@@ -6,6 +6,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <thread>
+#include <unistd.h>
 
 #include "../catch_amalgamated.hpp"
 
@@ -133,4 +134,26 @@ TEST_CASE("Player watch: a player still running after the window is left to run"
     REQUIRE(watch);
     PlayerWatchPoll poll = settle(*watch);
     CHECK(poll.state == PlayerWatchState::Running);
+}
+
+TEST_CASE("Player watch: a watcher that is not ours to reap settles without blocking",
+          "[timelapse][videos][playback]") {
+    // waitpid() fails with ECHILD for a pid that is not our child, while the
+    // pipe's write end stays open: a blocking read would hang here.
+    int fds[2];
+    REQUIRE(pipe(fds) == 0);
+    PlayerWatch watch{getpid(), fds[0]};
+    PlayerWatchPoll poll = poll_player_watch(watch);
+    CHECK(poll.state == PlayerWatchState::Running);
+    CHECK(watch.status_fd == -1);
+    close(fds[1]);
+}
+
+TEST_CASE("Player watch: a clean quick exit is reported as a clean exit",
+          "[timelapse][videos][playback]") {
+    auto watch = spawn_watched_player({"true"}, 1000);
+    REQUIRE(watch);
+    PlayerWatchPoll poll = settle(*watch);
+    REQUIRE(poll.state == PlayerWatchState::Exited);
+    CHECK_FALSE(player_exit_failed(poll.wait_status));
 }
