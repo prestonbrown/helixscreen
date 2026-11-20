@@ -3,15 +3,17 @@
 
 /**
  * @file test_runout_motion_stuck_message.cpp
- * @brief On an autofeed backend the runout dialog tells a real runout (the port
- *        sees no filament) from a motion-sensor trip with filament still at the
- *        port.
+ * @brief The runout dialog's conditional rows: on an autofeed backend it tells a
+ *        real runout (the port sees no filament) from a motion-sensor trip with
+ *        filament still at the port, and while paused it can offer another head.
  */
 
 #include "ui_runout_guidance_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "core/static_subject_registry.h"
 #include "helix-xml/src/xml/lv_xml.h"
+#include "printer_state.h"
 
 #include <lvgl/lvgl.h>
 
@@ -57,4 +59,50 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Runout dialog: motion sensor stuck versus a
     modal.set_autofeed_capable(false);
     modal.set_resume_blocked(false);
     lv_obj_delete(dialog);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Runout dialog: Use Another Toolhead shows only when offered while paused",
+                 "[runout][runout_other_head]") {
+    lv_subject_t* print_state = state().print_state().get_print_state_enum_subject();
+    lv_subject_set_int(print_state, static_cast<int>(helix::PrintJobState::PAUSED));
+    RunoutGuidanceModal modal;
+    int chosen = 0;
+    modal.set_on_use_other_head([&chosen]() { ++chosen; });
+    modal.set_other_head_offered(true);
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* dialog = modal.dialog();
+    REQUIRE(dialog != nullptr);
+
+    CHECK_FALSE(hidden(dialog, "other_head_row"));
+    lv_obj_send_event(lv_obj_find_by_name(dialog, "btn_other_head"), LV_EVENT_CLICKED, nullptr);
+    CHECK(chosen == 1);
+    CHECK(modal.is_visible()); // the chooser stacks on the dialog
+
+    modal.set_other_head_offered(false);
+    CHECK(hidden(dialog, "other_head_row"));
+    modal.set_other_head_offered(true);
+    lv_subject_set_int(print_state, static_cast<int>(helix::PrintJobState::PRINTING));
+    CHECK(hidden(dialog, "other_head_row"));
+
+    modal.hide();
+    modal.set_other_head_offered(false);
+    lv_subject_set_int(print_state, static_cast<int>(helix::PrintJobState::STANDBY));
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Runout dialog: its subjects leave the XML registry on deinit and come back "
+                 "clean",
+                 "[runout][runout_other_head]") {
+    { RunoutGuidanceModal first; }
+    REQUIRE(lv_xml_get_subject(nullptr, "runout_other_head_offered") != nullptr);
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one("RunoutGuidanceModal"));
+    for (const char* name : {"runout_autofeed_capable", "runout_resume_blocked",
+                             "runout_is_advisory", "runout_other_head_offered"}) {
+        INFO(name);
+        CHECK(lv_xml_get_subject(nullptr, name) == nullptr);
+    }
+    // A re-init over a subject the deinit left live is a strict anomaly.
+    RunoutGuidanceModal second;
+    CHECK(lv_xml_get_subject(nullptr, "runout_other_head_offered") != nullptr);
 }

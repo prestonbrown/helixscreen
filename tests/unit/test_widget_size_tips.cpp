@@ -19,6 +19,7 @@
  */
 
 #include "ui_fonts.h"
+#include "ui_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/panel_widget_size_harness.h"
@@ -26,6 +27,7 @@
 #include "../ui_test_utils.h"
 #include "display_settings_manager.h"
 #include "featured_tip.h"
+#include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "panel_widget_manager.h"
@@ -229,7 +231,55 @@ TEST_CASE_METHOD(FeaturedTipFixture,
     post("during-fade-in", "These go to eleven.");
     h.widget().on_activate();
     CHECK(tile_shows("These go to eleven.", 1000));
+    // Faded in, it wears the featured face like an instant one does.
+    lv_obj_t* prefix = lv_obj_get_child(h.child("tip_container"), 0);
+    REQUIRE(prefix != label);
+    CHECK(lv_obj_is_hidden(prefix));
 
     h.widget().on_deactivate();
     display.set_animations_enabled(saved_animations);
+}
+
+TEST_CASE_METHOD(FeaturedTipFixture, "tapping a featured line titles its dialog with the source",
+                 "[widget_size][tips][featured_tip]") {
+    PanelWidgetHarness<TipsWidget> h(test_screen());
+    h.resize(2, 1, 446, 108);
+    post("tap-for-source", "Measure twice, slice once.");
+    h.widget().on_activate();
+    REQUIRE(tile_shows("Measure twice, slice once.", 2000));
+
+    lv_obj_send_event(h.child("tip_container"), LV_EVENT_CLICKED, nullptr);
+    UITest::advance_ms(50);
+    lv_obj_t* dialog = Modal::get_top();
+    REQUIRE(dialog != nullptr);
+    lv_obj_t* title = lv_obj_find_by_name(dialog, "dialog_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == "Print Handy");
+    Modal::hide(dialog);
+    h.widget().on_deactivate();
+}
+
+TEST_CASE_METHOD(FeaturedTipFixture,
+                 "a detached tips tile keeps no timer and drops a featured reply in flight",
+                 "[widget_size][tips][featured_tip]") {
+    PanelWidgetHarness<TipsWidget> h(test_screen());
+    // A cancelled timer keeps its node until LVGL reaps it, with no callback.
+    auto timers_on_tile = [&h]() {
+        int n = 0;
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            n += lv_timer_get_user_data(t) == &h.widget() && t->timer_cb != nullptr ? 1 : 0;
+        }
+        return n;
+    };
+    post("in-flight-at-detach", "Nobody is watching this tile.");
+    h.widget().on_activate(); // polls at once; the mock answers on its own thread
+    REQUIRE(timers_on_tile() > 0);
+
+    h.widget().detach_tile();
+    CHECK(timers_on_tile() == 0);
+    UITest::wait_ms(300);
+    CHECK(shown_text() != "Nobody is watching this tile.");
+
+    h.widget().attach_tile(h.root(), test_screen());
+    h.widget().on_deactivate();
 }
