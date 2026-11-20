@@ -335,6 +335,7 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             service_openams_dryers(effective_dt);
         }
         service_purifier(effective_dt);
+        service_update_job(effective_dt);
 
         double ext_temp = extruder_temp_.load();
         double ext_target = extruder_target_.load();
