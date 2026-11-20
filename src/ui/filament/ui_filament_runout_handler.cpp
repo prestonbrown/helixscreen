@@ -9,6 +9,7 @@
 
 #include "ams_backend.h"
 #include "ams_state.h"
+#include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/update_queue.h"
 #include "filament_op_dispatch.h"
@@ -18,6 +19,7 @@
 #include "non_filament_pause.h"
 #include "print_control_buttons.h"
 #include "print_lifecycle_state.h" // For PrintState enum
+#include "printer_state.h"
 #include "runtime_config.h"
 
 #include <spdlog/spdlog.h>
@@ -45,6 +47,7 @@ FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api) : api_(api) {
 
 FilamentRunoutHandler::~FilamentRunoutHandler() {
     helix::non_filament_pause::remove_listener(this);
+    stop_watching_for_runout();
     // lifetime_ destructor calls invalidate() automatically
     spdlog::trace("[FilamentRunoutHandler] Destroyed");
 }
@@ -59,17 +62,55 @@ void FilamentRunoutHandler::on_print_state_changed(::PrintState old_state, ::Pri
     // Check for runout condition when entering Paused state
     if (new_state == ::PrintState::Paused) {
         check_and_show_runout_guidance();
+        if (!runout_modal_shown_for_pause_) {
+            watch_for_runout_while_paused();
+        }
     }
 
     // Reset runout modal flag and hide modal on print resume or end
     if (new_state == ::PrintState::Printing || new_state == ::PrintState::Idle ||
         new_state == ::PrintState::Complete || new_state == ::PrintState::Cancelled ||
         new_state == ::PrintState::Error) {
+        stop_watching_for_runout();
         runout_modal_shown_for_pause_ = false;
         runout_lane_ = -1;
         user_took_manual_action_ = false;
         hide_runout_guidance_modal();
     }
+}
+
+void FilamentRunoutHandler::watch_for_runout_while_paused() {
+    // The pause can land before its runout reads as real: the filament end
+    // moving through the pause retract flaps the toolhead sensor back to
+    // detected, and the firmware's runout cause can arrive frames after the
+    // pause. Each of those re-asks the same question until it is answered.
+    const auto recheck = [](FilamentRunoutHandler* self, int /*unused*/) {
+        if (!self->watching_paused_) {
+            return;
+        }
+        self->check_and_show_runout_guidance();
+        if (self->runout_modal_shown_for_pause_) {
+            self->stop_watching_for_runout();
+        }
+    };
+    watching_paused_ = true;
+    auto& sensors = helix::FilamentSensorManager::instance();
+    if (!runout_signature_observer_) {
+        runout_signature_observer_ = helix::ui::observe<int>(
+            sensors.get_runout_signature_subject(), this, recheck, sensors.subjects_lifetime());
+    }
+    if (!pause_cause_observer_) {
+        auto& print_state = get_printer_state().print_state();
+        pause_cause_observer_ =
+            helix::ui::observe<int>(print_state.get_print_exception_subject(), this, recheck,
+                                    print_state.get_static_subjects_lifetime());
+    }
+}
+
+void FilamentRunoutHandler::stop_watching_for_runout() {
+    watching_paused_ = false;
+    runout_signature_observer_.reset();
+    pause_cause_observer_.reset();
 }
 
 // ============================================================================
