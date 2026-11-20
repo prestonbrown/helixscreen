@@ -6,6 +6,6 @@
      padding is the knob's room. -->
 <component>
   <view extends="lv_obj"
-        width="100%" height="content" style_pad_hor="#space_lg" style_pad_ver="#space_sm" style_bg_opa="0"
+        width="100%" height="content" style_pad_hor="#slider_knob_room" style_pad_ver="#space_sm" style_bg_opa="0"
         style_border_width="0" scrollable="false"/>
 </component>
