@@ -225,7 +225,6 @@ static void spool_visual_set_fill(const SpoolVisual& sv, float fill) {
  */
 struct LaneSpoolData {
     int slot_index = -1;
-    int backend_index = 0;
     float fill_level = 1.0f; ///< Last applied fill (0.0-1.0), from slot_fill.
     bool has_error = false;  ///< From slot_has_error - error glow or dot.
     SlotError::Severity severity = SlotError::Severity::INFO; ///< Error glow/dot color.
@@ -430,7 +429,7 @@ static void apply_color(LaneSpoolData* d, int color_int) {
     // on the slot it names.
     std::string multi;
     helix::ui::SwatchFinish finish = helix::ui::SwatchFinish::Plain;
-    if (AmsBackend* backend = AmsState::instance().get_backend(d->backend_index)) {
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
         const SlotInfo slot = backend->get_slot_info(d->slot_index);
         multi = slot.multi_color_hexes;
         finish = helix::ui::swatch_finish_of(slot);
@@ -479,11 +478,10 @@ static void ams_lane_spool_event_cb(lv_event_t* e) {
 // ============================================================================
 
 /**
- * @brief Setup observers for the widget's current slot and backend.
+ * @brief Setup observers for the widget's current slot.
  *
  * Resolves AmsState's per-slot subjects (lane_state, color, fill, has_error,
- * error_severity) for data->backend_index and observes each with
- * observe<int>.
+ * error_severity) for data->slot_index and observes each with observe<int>.
  */
 static void setup_lane_spool_observers(LaneSpoolData* data) {
     if (data->slot_index < 0) {
@@ -500,19 +498,17 @@ static void setup_lane_spool_observers(LaneSpoolData* data) {
     using helix::ui::observe;
     AmsState& state = AmsState::instance();
 
-    // Backend 0's subjects are static and die with AmsState's subjects; a
-    // secondary backend's are dynamic and die with its lifetime token. Each
-    // accessor below sets the same token, so one member carries it.
-    const int b = data->backend_index;
+    // Each accessor below sets the same token (AmsState's subjects lifetime),
+    // so one member carries it.
     const int slot = data->slot_index;
     data->lifetime.reset();
-    lv_subject_t* lane_state_subject = state.get_slot_lane_state_subject(b, slot, data->lifetime);
-    lv_subject_t* color_subject = state.get_slot_color_subject(b, slot, data->lifetime);
-    lv_subject_t* paint_subject = state.get_slot_paint_subject(b, slot, data->lifetime);
-    lv_subject_t* fill_subject = state.get_slot_fill_subject(b, slot, data->lifetime);
-    lv_subject_t* has_error_subject = state.get_slot_has_error_subject(b, slot, data->lifetime);
-    lv_subject_t* severity_subject = state.get_slot_error_severity_subject(b, slot, data->lifetime);
-    const SubjectLifetime lifetime = b == 0 ? state.get_subjects_lifetime() : data->lifetime;
+    lv_subject_t* lane_state_subject = state.get_slot_lane_state_subject(slot, data->lifetime);
+    lv_subject_t* color_subject = state.get_slot_color_subject(slot, data->lifetime);
+    lv_subject_t* paint_subject = state.get_slot_paint_subject(slot, data->lifetime);
+    lv_subject_t* fill_subject = state.get_slot_fill_subject(slot, data->lifetime);
+    lv_subject_t* has_error_subject = state.get_slot_has_error_subject(slot, data->lifetime);
+    lv_subject_t* severity_subject = state.get_slot_error_severity_subject(slot, data->lifetime);
+    const SubjectLifetime lifetime = data->lifetime;
 
     // Capture the root object (not the data pointer) to avoid use-after-free
     // when a deferred callback runs after widget deletion - the registry
@@ -713,9 +709,9 @@ int32_t ams_slot_spool_size() {
     return token > 0 ? token : theme_manager_get_spacing("space_lg") * 4;
 }
 
-void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index) {
+void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index) {
     auto* data = get_lane_spool_data(spool);
-    if (!data || (slot_index == data->slot_index && backend_index == data->backend_index)) {
+    if (!data || slot_index == data->slot_index) {
         return;
     }
     data->lifetime.reset();
@@ -727,7 +723,6 @@ void ams_lane_spool_set_index(lv_obj_t* spool, int slot_index, int backend_index
     data->severity_observer.reset();
 
     data->slot_index = slot_index;
-    data->backend_index = backend_index;
     setup_lane_spool_observers(data);
 }
 
