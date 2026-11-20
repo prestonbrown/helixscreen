@@ -1359,6 +1359,7 @@ translations:
   E-Stop Confirmation: Подтверждение аварийной остановки
   EDDY CURRENT: EDDY CURRENT
   EEPROM error on CFS unit: Ошибка EEPROM в блоке CFS
+  ELECTRICITY: "ЭЛЕКТРИЧЕСТВО"
   ELECTRONICS & ACCESSORIES: 'ЭЛЕКТРОНИКА И АКСЕССУАРЫ'
   EMERGENCY STOP: АВАРИЙНАЯ ОСТАНОВКА
   EMPTY: ПУСТО
@@ -1554,6 +1555,7 @@ translations:
   FAILED: ОШИБКА
   FILAMENT: ФИЛАМЕНТ
   FILAMENT & TOOLHEAD: 'ФИЛАМЕНТ И ГОЛОВКА'
+  FILAMENT PRICE PER KG: "ЦЕНА ФИЛАМЕНТА ЗА КГ"
   FILAMENTS: ФИЛАМЕНТЫ
   FILTERS: ФИЛЬТРЫ
   Factory Reset: Сброс к заводским настройкам

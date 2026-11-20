@@ -1280,6 +1280,7 @@
   <translation tag="E-Stop Confirmation" ru="Подтверждение аварийной остановки"/>
   <translation tag="EDDY CURRENT" ru="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" ru="Ошибка EEPROM в блоке CFS"/>
+  <translation tag="ELECTRICITY" ru="ЭЛЕКТРИЧЕСТВО"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" ru="ЭЛЕКТРОНИКА И АКСЕССУАРЫ"/>
   <translation tag="EMERGENCY STOP" ru="АВАРИЙНАЯ ОСТАНОВКА"/>
   <translation tag="EMPTY" ru="ПУСТО"/>
@@ -1474,6 +1475,7 @@
   <translation tag="FAILED" ru="ОШИБКА"/>
   <translation tag="FILAMENT" ru="ФИЛАМЕНТ"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ru="ФИЛАМЕНТ И ГОЛОВКА"/>
+  <translation tag="FILAMENT PRICE PER KG" ru="ЦЕНА ФИЛАМЕНТА ЗА КГ"/>
   <translation tag="FILAMENTS" ru="ФИЛАМЕНТЫ"/>
   <translation tag="FILTERS" ru="ФИЛЬТРЫ"/>
   <translation tag="Factory Reset" ru="Сброс к заводским настройкам"/>

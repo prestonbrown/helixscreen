@@ -1235,6 +1235,7 @@
   <translation tag="E-Stop Confirmation" zh="急停确认"/>
   <translation tag="EDDY CURRENT" zh="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" zh="CFS 单元 EEPROM 错误"/>
+  <translation tag="ELECTRICITY" zh="电费"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" zh="电子设备与配件"/>
   <translation tag="EMERGENCY STOP" zh="紧急停止"/>
   <translation tag="EMPTY" zh="空"/>
@@ -1429,6 +1430,7 @@
   <translation tag="FAILED" zh="失败"/>
   <translation tag="FILAMENT" zh="耗材"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" zh="耗材与工具头"/>
+  <translation tag="FILAMENT PRICE PER KG" zh="耗材每公斤价格"/>
   <translation tag="FILAMENTS" zh="耗材"/>
   <translation tag="FILTERS" zh="筛选"/>
   <translation tag="Factory Reset" zh="恢复出厂设置"/>

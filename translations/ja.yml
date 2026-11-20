@@ -1299,6 +1299,7 @@ translations:
   E-Stop Confirmation: 緊急停止の確認
   EDDY CURRENT: EDDY CURRENT
   EEPROM error on CFS unit: CFS ユニットの EEPROM エラー
+  ELECTRICITY: "電気代"
   ELECTRONICS & ACCESSORIES: '電子機器とアクセサリー'
   EMERGENCY STOP: 緊急停止
   EMPTY: 空
@@ -1494,6 +1495,7 @@ translations:
   FAILED: 失敗
   FILAMENT: フィラメント
   FILAMENT & TOOLHEAD: 'フィラメントとツールヘッド'
+  FILAMENT PRICE PER KG: "フィラメントのkg単価"
   FILAMENTS: フィラメント
   FILTERS: フィルター
   Factory Reset: 工場出荷時リセット

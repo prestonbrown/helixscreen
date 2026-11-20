@@ -1235,6 +1235,7 @@
   <translation tag="E-Stop Confirmation" ja="緊急停止の確認"/>
   <translation tag="EDDY CURRENT" ja="EDDY CURRENT"/>
   <translation tag="EEPROM error on CFS unit" ja="CFS ユニットの EEPROM エラー"/>
+  <translation tag="ELECTRICITY" ja="電気代"/>
   <translation tag="ELECTRONICS &amp; ACCESSORIES" ja="電子機器とアクセサリー"/>
   <translation tag="EMERGENCY STOP" ja="緊急停止"/>
   <translation tag="EMPTY" ja="空"/>
@@ -1429,6 +1430,7 @@
   <translation tag="FAILED" ja="失敗"/>
   <translation tag="FILAMENT" ja="フィラメント"/>
   <translation tag="FILAMENT &amp; TOOLHEAD" ja="フィラメントとツールヘッド"/>
+  <translation tag="FILAMENT PRICE PER KG" ja="フィラメントのkg単価"/>
   <translation tag="FILAMENTS" ja="フィラメント"/>
   <translation tag="FILTERS" ja="フィルター"/>
   <translation tag="Factory Reset" ja="工場出荷時リセット"/>
