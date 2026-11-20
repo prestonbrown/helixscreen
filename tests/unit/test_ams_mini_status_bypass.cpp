@@ -257,8 +257,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* cell = UITest::find_by_name(w, "bypass_cell");
     REQUIRE(shown(cell));
     REQUIRE(shown(UITest::find_by_name(w, "bypass_divider")));
+    // Past the lanes' scroller, not in it.
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
-    REQUIRE(lv_obj_get_index(cell) == static_cast<int32_t>(lv_obj_get_child_count(spools)) - 1);
+    REQUIRE(spools != nullptr);
+    CHECK(lv_obj_get_parent(cell) == lv_obj_get_parent(spools));
+    CHECK(lv_obj_get_index(cell) > lv_obj_get_index(spools));
 
     lv_obj_t* material = lv_obj_find_by_name(cell, "bypass_material");
     REQUIRE(material != nullptr);
@@ -297,6 +300,34 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_get_coords(cell, &c);
     lv_obj_get_coords(graphic, &g);
     CHECK(g.x2 <= c.x2);
+
+    lv_obj_delete(lv_obj_get_parent(w));
+    teardown_ams();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_mini bypass: lanes that overflow scroll while the bypass cell stays in view",
+                 "[ams][mini_status][mini-bypass]") {
+    AlwaysShowSetting setting(true);
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_multi_unit_mode(true);
+    install_mock(std::move(mock));
+
+    // Six lanes in a two-column home cell: more than fit, so the lanes scroll.
+    lv_obj_t* w = make_strip(test_screen(), 230, 100);
+    lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
+    REQUIRE(shown(spools));
+    REQUIRE(lv_obj_get_scroll_right(spools) > 0);
+
+    lv_obj_t* cell = UITest::find_by_name(w, "bypass_cell");
+    REQUIRE(shown(cell));
+    lv_area_t box, c, lanes;
+    lv_obj_get_coords(lv_obj_get_parent(w), &box);
+    lv_obj_get_coords(cell, &c);
+    lv_obj_get_coords(spools, &lanes);
+    CHECK(c.x1 >= box.x1);
+    CHECK(c.x2 <= box.x2);
+    CHECK(c.x1 > lanes.x2);
 
     lv_obj_delete(lv_obj_get_parent(w));
     teardown_ams();
