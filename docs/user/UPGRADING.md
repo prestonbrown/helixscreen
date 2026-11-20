@@ -11,7 +11,7 @@ How to update HelixScreen to a newer version, what an update keeps, and what to 
 The easiest ways to update, in order:
 
 1. **In the app:** **Settings > Updates > Check for Updates**, then **Install Update**. See [Updates](guide/settings/updates.md).
-2. **From Mainsail or Fluidd:** HelixScreen appears in the update manager on Raspberry Pi and other generic Linux installs, and on most all-in-one printers that run Mainsail or Fluidd. Click **Update** next to it.
+2. **From Mainsail or Fluidd:** HelixScreen appears in the update manager on Raspberry Pi and other generic Linux installs, and on most all-in-one printers that run Mainsail or Fluidd. Click **Update** next to it. This works on the Stable channel only: on Beta or Dev, Mainsail and Fluidd don't list HelixScreen, and updates come from the screen (see [Updates](guide/settings/updates.md#update-channel)).
 3. **From a terminal:** see the next section.
 
 ![The Updates screen, with the Update Channel and Check for Updates rows marked](../images/user/settings-updates-check.png)

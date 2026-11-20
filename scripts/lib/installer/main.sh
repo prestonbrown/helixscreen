@@ -450,19 +450,14 @@ payload_legacy_adopt_or_warn() {
 
     # A prior adopt recorded its choice; resuming it is not relocation.
     if [ "$(read_payload_root_record 2>/dev/null || true)" = "$legacy" ]; then
-        INSTALL_DIR="$legacy"
-        validate_install_dir "$INSTALL_DIR" || exit 1
+        payload_take_legacy_root "$legacy"
         log_info "Payload root: resuming the adopted root $INSTALL_DIR"
         log_info "(recorded in $(host_payload_root_record); clear that file to re-choose)"
         return 0
     fi
 
     if payload_legacy_prompt_adopt "$legacy"; then
-        INSTALL_DIR="$legacy"
-        # The probe's platform-keyed candidate, not an operator path: the
-        # name gate still applies (a legacy root is a canonical platform
-        # root, so this cannot fail on a real rig).
-        validate_install_dir "$INSTALL_DIR" || exit 1
+        payload_take_legacy_root "$legacy"
         log_info "Adopted the existing install at $INSTALL_DIR as the payload root"
         log_info "(outside the mod's git tree, so a Forge-X OTA cannot remove it)"
         # The service STAYS: it is the ONE boot path this adopted root has,
@@ -489,6 +484,20 @@ payload_legacy_adopt_or_warn() {
     log_warn "  rm -rf $legacy"
     log_warn "Or adopt that root as the payload root:"
     log_warn "  --payload-root $legacy"
+}
+
+# Make legacy root @1 this run's install root. It sits outside the mod's
+# chroot and boots from its host S90, so the in-chroot spelling
+# resolve_chroot_daemon_dir found for the mod's default root names another
+# tree: left set, it would bake that tree into the S90's DAEMON_DIR and the
+# updater stanza's path:. The probe's platform-keyed candidate, not an
+# operator path: the name gate still applies (a legacy root is a canonical
+# platform root, so this cannot fail on a real rig).
+payload_take_legacy_root() {
+    INSTALL_DIR="$1"
+    # shellcheck disable=SC2034  # consumed by service.sh and moonraker.sh
+    HELIX_CHROOT_DAEMON_DIR=""
+    validate_install_dir "$INSTALL_DIR" || exit 1
 }
 
 # Ask the adopt question on the terminal, which tty_confirm reaches under

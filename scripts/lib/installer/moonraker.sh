@@ -316,14 +316,92 @@ update_manager_editable_stanza_files() {
     done
 }
 
-# The channel Moonraker's type:web updater should follow. Moonraker accepts
-# only stable and beta here; the dev channel has no Moonraker lane and rides
-# beta, the closest published feed.
+# The channel the stanza names: always stable. Moonraker's beta lane reads the
+# newest release of every line (releases?per_page=1) and offers whatever
+# differs from the installed version, downgrades included, so a stanza is
+# listed only while the app follows stable (update_manager_listed).
 update_manager_web_channel() {
+    echo "stable"
+}
+
+# True when Mainsail and Fluidd may list HelixScreen: the app follows the
+# stable channel. On beta or dev the stanza is switched off (#2147), and
+# updates come from the screen.
+update_manager_listed() {
     case "${R2_CHANNEL:-stable}" in
-        beta | dev) echo "beta" ;;
-        *) echo "stable" ;;
+        beta | dev) return 1 ;;
+        *) return 0 ;;
     esac
+}
+
+# A switched-off stanza: every line of [update_manager helixscreen], from its
+# header to its last option line, behind a "#~ " prefix, then the line
+# "#~ # end [update_manager helixscreen]". Blank and comment lines after the
+# last option belong to whatever follows and stay as they are, as does the
+# comment block above the header. Only a block that opens with the exact
+# "#~ [update_manager helixscreen]" header, carries the exact prefix on every
+# line and closes with that end line is switched back on or removed, so a
+# user's own commented-out lines never are. Moonraker and the web UIs ignore it; it
+# keeps the file and the exact text, so the app switches it back on in place
+# when its channel returns to stable (UpdateChecker::sync_moonraker_channel_for,
+# the same transform in C++). tests/fixtures/moonraker_stanza/ pins both sides.
+#
+# Print an awk program that switches the stanza off.
+update_manager_off_awk() {
+    # shellcheck disable=SC2016  # awk's own $ fields
+    printf '%s' '
+    function flush(   i, last) {
+        last = 0
+        for (i = 1; i <= n; i++) if (buf[i] !~ /^[ \t\r]*$/ && buf[i] !~ /^[ \t]*[#;]/) last = i
+        for (i = 1; i <= n; i++) {
+            if (i <= last) print "#~ " buf[i]
+            if (i == last) print "#~ # end [update_manager helixscreen]"
+            if (i > last) print buf[i]
+        }
+        n = 0
+    }
+    in_s && /^\[/ { flush(); in_s = 0 }
+    /^\[update_manager helixscreen\][ \t\r]*$/ { in_s = 1 }
+    in_s { buf[++n] = $0; next }
+    { print }
+    END { if (in_s) flush() }'
+}
+
+# Print an awk program that switches a switched-off stanza back on.
+update_manager_on_awk() {
+    # shellcheck disable=SC2016  # awk's own $ fields
+    printf '%s' '
+    function flush(   i) { for (i = 1; i <= n; i++) print buf[i]; n = 0; in_b = 0 }
+    in_b && $0 == "#~ # end [update_manager helixscreen]" {
+        for (i = 1; i <= n; i++) print substr(buf[i], 4)
+        n = 0; in_b = 0; next
+    }
+    in_b && /^#~ / && !/^#~ \[/ { buf[++n] = $0; next }
+    in_b { flush() }
+    /^#~ \[update_manager helixscreen\][ \t\r]*$/ { in_b = 1; buf[++n] = $0; next }
+    { print }
+    END { flush() }'
+}
+
+# Each file among moonraker.conf @1 and its includes holding a switched-off
+# stanza, mod-owned files left out: the ones the installer may switch back on.
+update_manager_off_stanza_files() {
+    helix_conf_files_matching "$1" "$(running_moonraker_root)" '^#~ \[update_manager helixscreen\][[:space:]]*$' |
+        while IFS= read -r _umos_file; do
+            host_path_is_mod_owned "$_umos_file" || printf '%s\n' "$_umos_file"
+        done
+}
+
+# Switch the stanza in conf @1 off (@2 = off) or on (@2 = on).
+# Returns: 1 when the file could not take the edit (left whole)
+switch_update_manager_section() {
+    local conf="$1" prog
+    if [ "$2" = off ]; then prog=$(update_manager_off_awk); else prog=$(update_manager_on_awk); fi
+    if ! helix_rewrite_conf "$conf" "$prog" "$(file_sudo "$conf")"; then
+        log_warn "Could not switch the HelixScreen update entry $2 in $conf"
+        return 1
+    fi
+    log_info "Switched the HelixScreen update entry $2 in $conf"
 }
 
 # The stanza's `path:`: INSTALL_DIR as the running Moonraker spells it. A mod
@@ -338,6 +416,17 @@ update_manager_path() {
     fi
 }
 
+# Whether a Moonraker without asset_name support may be armed on platform @1.
+# Such a Moonraker installs assets[0] of the release it picks itself:
+# releases/latest on the stable channel, the first entry of the release list
+# on beta. That release need not come from the 1.1 line: a release/1.0 tag
+# becomes "latest", and its assets still start with a tarball. Every arm for
+# an old Moonraker goes through this one predicate, so it can be switched off
+# or limited to a channel in one place (#2147).
+old_moonraker_may_arm() {
+    helix_zip_is_first_release_asset "$1"
+}
+
 # Why a payload install must not arm Moonraker's updater, or nothing when it
 # may. A type:web update rmtree()s `path:` and extracts the zip in its place,
 # then HelixScreen restarts itself and restore-user-config.sh puts the user
@@ -350,7 +439,7 @@ update_manager_path() {
 #   - the Moonraker running in the mod's chroot reaches the root (an adopted
 #     legacy root outside the chroot's binds is invisible to it);
 #   - Moonraker downloads this platform's zip: it reads asset_name, or the
-#     platform's zip is the release's assets[0] (helix_zip_is_first_release_asset).
+#     platform's zip is the release's assets[0] (old_moonraker_may_arm).
 # Args: $1 = platform, $2 = moonraker_asset_name_support's answer
 payload_updater_blocker() {
     local platform="$1" support="$2" settings
@@ -367,7 +456,7 @@ payload_updater_blocker() {
         echo "the mod's Moonraker cannot reach $(update_manager_path)"
         return 0
     fi
-    if [ "$support" != "supported" ] && ! helix_zip_is_first_release_asset "$platform"; then
+    if [ "$support" != "supported" ] && ! old_moonraker_may_arm "$platform"; then
         echo "this Moonraker downloads a release's first asset, which is not the ${platform} zip"
         return 0
     fi
@@ -382,6 +471,8 @@ generate_update_manager_config() {
 
 # HelixScreen Update Manager
 # Added by HelixScreen installer - enables one-click updates from Mainsail/Fluidd
+# Listed only on the stable channel: on beta or dev the entry below is
+# switched off (#~) and HelixScreen updates from its own screen.
 # NOTE: type: web is used instead of type: zip as a workaround for
 # mainsail-crew/mainsail#2444 (zip type always shows UP-TO-DATE).
 # A systemd path unit handles service restart after Moonraker extracts the update.
@@ -394,10 +485,10 @@ EOF
 }
 
 # Add update_manager section to moonraker.conf
-# Args: $1 = moonraker.conf path
+# Args: $1 = moonraker.conf path, $2 = "off" to add it switched off
 add_update_manager_section() {
-    local conf="$1"
-    local fs
+    local conf="$1" form="${2:-on}"
+    local fs prog
 
     # The stanza's `path:` hands INSTALL_DIR to Moonraker's NetDeploy, whose
     # update flow rmtree()s the path before extracting. Every writer funnels
@@ -415,6 +506,12 @@ add_update_manager_section() {
     $fs cp "$conf" "${conf}.bak.helixscreen" 2>/dev/null || true
 
     # Append configuration
+    if [ "$form" = off ]; then
+        prog=$(update_manager_off_awk)
+        generate_update_manager_config | awk "$prog" | $fs tee -a "$conf" >/dev/null
+        log_success "Added the update_manager section to $conf, switched off"
+        return 0
+    fi
     generate_update_manager_config | $fs tee -a "$conf" >/dev/null
 
     log_success "Added update_manager section to $conf"
@@ -1060,13 +1157,13 @@ detect_moonraker_integration() {
     support=$(moonraker_asset_name_support)
     if [ "${HELIX_MOD_PAYLOAD:-}" = "1" ]; then
         # The allowlist is the mod's file; only the stanza can be added.
-        if [ -z "$(payload_updater_blocker "$1" "$support")" ] \
+        if update_manager_listed && [ -z "$(payload_updater_blocker "$1" "$support")" ] \
             && [ -z "$(update_manager_stanza_files "$conf")" ]; then
             MOONRAKER_ADDS="update-manager"
         fi
         return 0
     fi
-    if [ -z "$(update_manager_stanza_files "$conf")" ] \
+    if update_manager_listed && [ -z "$(update_manager_stanza_files "$conf")" ] \
         && [ "$support" != "unsupported" ]; then
         MOONRAKER_ADDS="update-manager"
     fi
@@ -1077,12 +1174,45 @@ detect_moonraker_integration() {
     return 0
 }
 
+# configure_moonraker_updates' tail on the beta and dev channels, which
+# Moonraker must not list (update_manager_listed): every live stanza in a file
+# the installer may edit is synced and switched off, and where none exists
+# yet one is added switched off, so the app can switch it on in place when
+# its channel returns to stable. A stanza in the mod's files is only warned
+# about, as on stable.
+# Args: $1 = conf, $2 = editable live stanza files, $3 = switched-off stanza
+#       files, $4 = mod-owned stanza files (all newline-separated lists)
+configure_unlisted_update_manager() {
+    local conf="$1" editable="$2" off="$3" mod_files="$4" file switched=""
+    log_info "Update channel ${R2_CHANNEL:-stable}: Mainsail and Fluidd list HelixScreen only on"
+    log_info "the stable channel; update it from the screen (Settings -> Updates)."
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        sync_update_manager_path "$file"
+        sync_update_manager_channel "$file"
+        cleanup_unsupported_options "$file"
+        switch_update_manager_section "$file" off && switched=yes
+    done <<LIVE_FILES
+$editable
+LIVE_FILES
+    if [ -z "$editable" ] && [ -z "$off" ]; then
+        add_update_manager_section "$conf" off
+    fi
+    warn_mod_conf_stanzas "$mod_files" "$conf"
+    disable_system_updates_on_buildroot "$conf"
+    ensure_moonraker_asvc "$conf"
+    if [ -n "$switched" ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]; then
+        restart_moonraker
+    fi
+}
+
 # Configure Moonraker update_manager
 # Called during installation on platforms with a web UI. On a mod payload the
 # stanza goes into the mod's user.moonraker.conf (find_moonraker_conf's
 # mod-host answer), never into the mod's git-tracked conf.
 configure_moonraker_updates() {
     local platform=$1
+    _UPDATE_MANAGER_SWITCHED_ON=""
 
     # A standalone AD5M install (Klipper Mod, a Forge-X --standalone or legacy
     # root) keeps the skip: its updater path, restart and user-config layout
@@ -1104,7 +1234,8 @@ configure_moonraker_updates() {
             # A stanza an earlier install wrote would arm the same update.
             local block_conf
             block_conf=$(find_moonraker_conf)
-            if [ -n "$block_conf" ] && [ -n "$(update_manager_editable_stanza_files "$block_conf")" ]; then
+            if [ -n "$block_conf" ] && { [ -n "$(update_manager_editable_stanza_files "$block_conf")" ] \
+                || [ -n "$(update_manager_off_stanza_files "$block_conf")" ]; }; then
                 remove_update_manager_section && restart_moonraker
             fi
             return 0
@@ -1187,14 +1318,17 @@ configure_moonraker_updates() {
 
         # The gun may already be loaded from an earlier install that ran before
         # this gate existed -- unload it.
-        local removed_stale=0
-        if [ -n "$editable_files" ]; then
+        # A switched-off one goes as well: on stable it would be switched on.
+        local removed_stale=0 stale_files
+        stale_files=$( { printf '%s\n' "$editable_files"
+                         update_manager_off_stanza_files "${mod_conf:-$conf}"; } | awk 'NF && !seen[$0]++')
+        if [ -n "$stale_files" ]; then
             log_warn "Removing the existing [update_manager helixscreen] section."
             local stale_file
             while IFS= read -r stale_file; do
                 _remove_update_manager_section_from "$stale_file" && removed_stale=1
             done <<STALE_FILES
-$editable_files
+$stale_files
 STALE_FILES
         fi
 
@@ -1221,6 +1355,29 @@ STALE_FILES
         log_warn "Configuring the updater anyway. If Moonraker is older than v0.10.0,"
         log_warn "use HelixScreen's built-in updater (Settings -> Updates) instead of"
         log_warn "the Update button in Mainsail/Fluidd."
+    fi
+
+    # Only the stable channel lists HelixScreen (update_manager_listed). A
+    # switched-off stanza goes back on here when no live one exists, so the
+    # flow below syncs it like any other.
+    local off_files
+    off_files=$(update_manager_off_stanza_files "${mod_conf:-$conf}")
+    if ! update_manager_listed; then
+        configure_unlisted_update_manager "$conf" "$editable_files" "$off_files" "$mod_stanza_files"
+        return 0
+    fi
+    if [ -n "$off_files" ] && [ -z "$editable_files" ]; then
+        local off_file
+        while IFS= read -r off_file; do
+            [ -n "$off_file" ] && switch_update_manager_section "$off_file" on
+        done <<OFF_FILES
+$off_files
+OFF_FILES
+        stanza_files=$(update_manager_stanza_files "${mod_conf:-$conf}")
+        editable_files=$(update_manager_editable_stanza_files "${mod_conf:-$conf}")
+        stanza_conf=$(printf '%s\n' "$editable_files" | sed -n 1p)
+        # A switched-on stanza is new to Moonraker, which reads its config at start.
+        _UPDATE_MANAGER_SWITCHED_ON=yes
     fi
 
     # Migrate old git_repo or zip config to type: web
@@ -1260,7 +1417,8 @@ STANZA_FILES
         disable_system_updates_on_buildroot "$conf"
         # Still ensure asvc is correct even if section already exists
         ensure_moonraker_asvc "$conf"
-        if [ "$_UPDATE_MANAGER_SYNCED" = "yes" ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]; then
+        if [ "$_UPDATE_MANAGER_SYNCED" = "yes" ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ] \
+            || [ "${_UPDATE_MANAGER_SWITCHED_ON:-}" = "yes" ]; then
             restart_moonraker
         fi
         return 0
@@ -1291,7 +1449,7 @@ remove_update_manager_section() {
         [ -n "$stanza_file" ] || continue
         _remove_update_manager_section_from "$stanza_file" || rc=1
     done <<STANZA_FILES
-$(update_manager_editable_stanza_files "$conf")
+$( { update_manager_editable_stanza_files "$conf"; update_manager_off_stanza_files "$conf"; } | awk '!seen[$0]++')
 STANZA_FILES
     return $rc
 }
@@ -1302,7 +1460,8 @@ STANZA_FILES
 _remove_update_manager_section_from() {
     local conf="$1"
 
-    if ! has_update_manager_section "$conf"; then
+    if ! has_update_manager_section "$conf" \
+        && ! grep -q '^#~ \[update_manager helixscreen\]' "$conf" 2>/dev/null; then
         return 0
     fi
 
@@ -1328,9 +1487,25 @@ _remove_update_manager_section_from() {
     # On reaching our section, the trailing run of comment lines plus at most one
     # blank line before it is dropped, which is exactly the generator's output;
     # anything earlier is another line's comment and is printed back.
+    # A switched-off stanza goes the same way: its header is a comment line,
+    # so it is matched before the comment buffering, and its "#~" lines after.
     local prog='
+        skip_off {
+            if ($0 == "#~ # end [update_manager helixscreen]") { skip_off = 0; next }
+            if ($0 ~ /^#~ /) next
+            skip_off = 0
+        }
         skip {
             if ($0 ~ /^\[/) { skip = 0 } else { next }
+        }
+        /^#~ \[update_manager helixscreen\][ \t\r]*$/ {
+            i = n
+            while (i >= 1 && buf[i] ~ /^[[:space:]]*#/) i--
+            if (i >= 1 && buf[i] ~ /^[[:space:]]*$/) i--
+            for (j = 1; j <= i; j++) print buf[j]
+            n = 0
+            skip_off = 1
+            next
         }
         /^[[:space:]]*#/ || /^[[:space:]]*$/ { buf[++n] = $0; next }
         /^\[update_manager helixscreen\]/ {

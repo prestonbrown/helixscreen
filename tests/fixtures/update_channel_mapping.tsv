@@ -1,0 +1,12 @@
+# The channel HelixScreen follows for a stored /update/channel and /beta_features.
+# UpdateChecker::effective_channel (C++) and helix_effective_channel
+# (scripts/lib/installer/release.sh) both answer from this table.
+# stored	beta_features	effective
+0	false	stable
+0	true	stable
+1	false	beta
+1	true	beta
+2	false	stable
+2	true	dev
+3	true	stable
+-1	false	stable

@@ -76,6 +76,10 @@ static std::string rooted(const std::string& probe_root, const char* abs_path) {
     return root + abs_path;
 }
 
+bool firmware_mod_owns_moonraker_conf(const std::string& probe_root) {
+    return flashforge_mod_tree(probe_root) != FlashForgeModTree::None;
+}
+
 const char* flashforge_mod_tree_name(FlashForgeModTree tree) {
     switch (tree) {
     case FlashForgeModTree::Zmod:

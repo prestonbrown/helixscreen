@@ -344,6 +344,38 @@ parse_manifest_version() {
     parse_json_string_field version
 }
 
+# The channel the app follows for stored /update/channel @1 and /beta_features
+# @2 (true|false): Dev needs beta features and is stable without them, and an
+# unknown value is stable. UpdateChecker::effective_channel is the same rule;
+# tests/fixtures/update_channel_mapping.tsv pins both. Prints stable|beta|dev.
+helix_effective_channel() {
+    case "$1" in
+        1) echo beta ;;
+        2) if [ "$2" = true ]; then echo dev; else echo stable; fi ;;
+        *) echo stable ;;
+    esac
+}
+
+# Print true or false, the value of JSON boolean field @1 on stdin, or nothing
+# when the key is absent or not a bare boolean. Same quote-split walk as
+# parse_json_int_field; first match wins.
+parse_json_bool_field() {
+    awk -v key="$1" '
+        {
+            n = split($0, p, "\"")
+            for (i = 1; i < n; i++) {
+                if (p[i] == key && p[i+1] ~ /^[ \t]*:[ \t]*(true|false)/) {
+                    v = p[i+1]
+                    sub(/^[ \t]*:[ \t]*/, "", v)
+                    sub(/[^a-z].*$/, "", v)
+                    print v
+                    exit
+                }
+            }
+        }
+    '
+}
+
 # Extract the value of a JSON integer field from stdin. Args: key
 #
 # Prints the number, or nothing when the key is absent or its value is not a
@@ -404,26 +436,24 @@ parse_newest_release_tag() {
 # 1=beta, 2=dev). config/settings.json is normally a symlink into
 # printer_data/config/helixscreen/; reading through it covers both layouts,
 # and _config_source_dir also reaches an install mid-migration at its old
-# root. An R2_CHANNEL from the environment wins; anything unreadable,
-# absent or out of range maps back to stable.
+# root. An R2_CHANNEL from the environment wins; otherwise the app's own
+# mapping applies (helix_effective_channel: dev needs /beta_features), and
+# anything unreadable, absent or out of range maps back to stable.
 resolve_update_channel() {
     if [ "${_R2_CHANNEL_FROM_ENV:-}" = "yes" ]; then
         log_info "Update channel: ${R2_CHANNEL} (R2_CHANNEL set in environment)"
         return 0
     fi
 
-    local settings num=""
+    local settings num="" beta=""
     settings="$(_config_source_dir)/config/settings.json"
 
     if [ -f "$settings" ]; then
         num=$(parse_json_int_field channel < "$settings" 2>/dev/null) || num=""
+        beta=$(parse_json_bool_field beta_features < "$settings" 2>/dev/null) || beta=""
     fi
 
-    case "$num" in
-        1) R2_CHANNEL=beta ;;
-        2) R2_CHANNEL=dev ;;
-        *) R2_CHANNEL=stable ;;
-    esac
+    R2_CHANNEL=$(helix_effective_channel "$num" "${beta:-false}")
     case "$num" in
         0 | 1 | 2) _R2_CHANNEL_FROM_SETTINGS=yes ;;
     esac
