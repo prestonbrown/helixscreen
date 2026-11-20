@@ -839,6 +839,10 @@ bool unit_art_row_right_edges(lv_obj_t* art, std::vector<int32_t>& out) {
     const lv_draw_buf_t* buf = data_of(art)->flat_buf;
     const int32_t w = buf->header.w;
     const int32_t h = buf->header.h;
+    // An image from before a resize would put its rows in the wrong place.
+    lv_obj_update_layout(art);
+    if (w != lv_obj_get_width(art) || h != lv_obj_get_height(art))
+        return false;
     out.assign(static_cast<size_t>(h), -1);
     for (int32_t y = 0; y < h; ++y) {
         const auto* row = static_cast<const uint8_t*>(lv_draw_buf_goto_xy(buf, 0, y));

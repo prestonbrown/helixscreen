@@ -110,7 +110,7 @@ bool unit_art_drawn_area(lv_obj_t* art, lv_area_t& out);
 
 /// The rightmost x the unit covers in each row of @p art, relative to the widget, read from
 /// its flattened image (its soft shadow does not count): -1 where a row is empty. False while the
-/// drawing is not flattened.
+/// drawing is not flattened at its current size.
 bool unit_art_row_right_edges(lv_obj_t* art, std::vector<int32_t>& out);
 
 /// How one lane of the drawing is marked.
