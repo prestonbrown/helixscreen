@@ -474,6 +474,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/home_action_tile.xml",
     "ui_xml/components/home_next_page_slot.xml",
     "ui_xml/components/home_page_container.xml",
+    "ui_xml/components/icon_picker_cell.xml",
     "ui_xml/components/ipp_print_modal.xml",
     "ui_xml/components/job_queue_row.xml",
     "ui_xml/components/lock_screen.xml",

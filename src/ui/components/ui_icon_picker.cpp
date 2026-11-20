@@ -3,42 +3,55 @@
 
 #include "ui_icon_picker.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
-#include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
 
-#include "theme_manager.h"
-
 #include <string>
+#include <vector>
 
 namespace helix::ui {
 
 namespace {
 
-constexpr int kIconCellSize = 36;
-
-/// What each cell carries: which icon it is and what a tap does.
-struct IconCell {
-    std::string name;
+/// What a grid carries: the icon each cell index names and what a tap does.
+struct IconGrid {
+    std::vector<std::string> names;
     std::function<void(const char*)> on_pick;
 };
 
-IconCell* cell_data(lv_obj_t* cell) {
-    return static_cast<IconCell*>(lv_obj_get_user_data(cell));
+IconGrid* grid_data(lv_obj_t* grid) {
+    return grid ? static_cast<IconGrid*>(lv_obj_get_user_data(grid)) : nullptr;
 }
 
-// DECLARATIVE_OK: the cells are created in C++, so their selection border has no
-// XML layer to bind to.
-void apply_highlight(lv_obj_t* cell, bool selected) {
-    if (selected) {
-        lv_obj_set_style_border_width(cell, 2, 0);
-        lv_obj_set_style_border_color(cell, theme_manager_get_color("primary"), 0);
-        lv_obj_set_style_bg_opa(cell, 20, 0);
-        lv_obj_set_style_bg_color(cell, theme_manager_get_color("primary"), 0);
-    } else {
-        lv_obj_set_style_border_width(cell, 0, 0);
-        lv_obj_set_style_bg_opa(cell, 0, 0);
+void cell_clicked(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[IconPicker] cell_clicked");
+    auto* d = grid_data(lv_obj_get_parent(lv_event_get_current_target_obj(e)));
+    const auto index = event_user_int(e);
+    if (d && d->on_pick && index && *index >= 0 && static_cast<size_t>(*index) < d->names.size()) {
+        d->on_pick(d->names[*index].c_str());
     }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
+/// The grid's lookup record, made on first use. The DELETE hook owns the
+/// allocation through its own user_data. The grid's user_data slot is only the
+/// lookup the click and refresh paths use, and a closing modal nulls every slot
+/// in its tree to stop dispatch.
+IconGrid* ensure_grid_data(lv_obj_t* grid) {
+    if (auto* d = grid_data(grid)) {
+        return d;
+    }
+    auto* d = new IconGrid{};
+    lv_obj_set_user_data(grid, d);
+    lv_obj_add_event_cb(
+        grid,
+        [](lv_event_t* e) {
+            lv_obj_set_user_data(lv_event_get_current_target_obj(e), nullptr);
+            delete static_cast<IconGrid*>(lv_event_get_user_data(e));
+        },
+        LV_EVENT_DELETE, d);
+    return d;
 }
 
 } // namespace
@@ -48,63 +61,31 @@ void populate_icon_grid(lv_obj_t* grid, const char* const* icons, size_t count,
     if (!grid) {
         return;
     }
+    lv_xml_register_event_cb(nullptr, "icon_picker_cell_cb", cell_clicked);
+    IconGrid* d = ensure_grid_data(grid);
+    d->on_pick = std::move(on_pick);
     for (size_t i = 0; i < count; ++i) {
-        lv_obj_t* cell = lv_obj_create(grid);
-        lv_obj_set_size(cell, kIconCellSize, kIconCellSize);
-        lv_obj_set_scrollable(cell, false);
-        lv_obj_set_clickable(cell, true);
-        lv_obj_set_style_bg_opa(cell, 0, 0);
-        lv_obj_set_style_radius(cell, 4, 0);
-        lv_obj_set_style_pad_all(cell, 0, 0);
-        lv_obj_set_style_bg_color(cell, theme_manager_get_color("text_muted"),
-                                  LV_PART_MAIN | LV_STATE_PRESSED);
-        lv_obj_set_style_bg_opa(cell, LV_OPA_20, LV_PART_MAIN | LV_STATE_PRESSED);
-        apply_highlight(cell, selected == icons[i]);
-
-        if (const char* cp = icon::lookup_codepoint(icons[i])) {
-            lv_obj_t* glyph = lv_label_create(cell);
-            lv_label_set_text(glyph, cp);
-            lv_obj_set_style_text_font(glyph, &mdi_icons_24, 0);
-            lv_obj_set_style_text_color(glyph, theme_manager_get_color("text"), 0);
-            lv_obj_center(glyph);
-            lv_obj_set_clickable(glyph, false);
-            lv_obj_set_event_bubble(glyph, true);
+        const std::string index = std::to_string(d->names.size());
+        const char* glyph = icon::lookup_codepoint(icons[i]);
+        const char* attrs[] = {"index",    index.c_str(),
+                               "glyph",    glyph ? glyph : "",
+                               "selected", selected == icons[i] ? "true" : "false",
+                               nullptr};
+        if (lv_xml_create(grid, "icon_picker_cell", attrs)) {
+            d->names.emplace_back(icons[i]);
         }
-
-        // The DELETE hook owns the allocation through its own user_data. The
-        // object's user_data slot is only the lookup the click and refresh paths
-        // use, and a closing modal nulls every slot in its tree to stop dispatch.
-        auto* data = new IconCell{icons[i], on_pick};
-        lv_obj_set_user_data(cell, data);
-        lv_obj_add_event_cb(
-            cell,
-            [](lv_event_t* e) {
-                LVGL_SAFE_EVENT_CB_BEGIN("[IconPicker] cell_clicked");
-                if (auto* d = cell_data(lv_event_get_current_target_obj(e)); d && d->on_pick) {
-                    d->on_pick(d->name.c_str());
-                }
-                LVGL_SAFE_EVENT_CB_END();
-            },
-            LV_EVENT_CLICKED, nullptr);
-        lv_obj_add_event_cb(
-            cell,
-            [](lv_event_t* e) {
-                lv_obj_set_user_data(lv_event_get_current_target_obj(e), nullptr);
-                delete static_cast<IconCell*>(lv_event_get_user_data(e));
-            },
-            LV_EVENT_DELETE, data);
     }
 }
 
 void refresh_icon_grid(lv_obj_t* grid, std::string_view selected) {
-    if (!grid) {
+    const IconGrid* d = grid_data(grid);
+    if (!d) {
         return;
     }
-    for (uint32_t i = 0; i < lv_obj_get_child_count(grid); ++i) {
-        lv_obj_t* cell = lv_obj_get_child(grid, i);
-        if (auto* d = cell_data(cell)) {
-            apply_highlight(cell, d->name == selected);
-        }
+    const uint32_t n = lv_obj_get_child_count(grid);
+    for (uint32_t i = 0; i < n && i < d->names.size(); ++i) {
+        lv_obj_set_state(lv_obj_get_child(grid, static_cast<int32_t>(i)), LV_STATE_CHECKED,
+                         d->names[i] == selected);
     }
 }
 
