@@ -6309,7 +6309,7 @@ std::optional<helix::ams::TagReading> AmsBackendAfc::tag_reading(int slot_index)
     }
     helix::ams::TagReading reading =
         lane_rfid_tag_locked(slots_.name_of(slot_index)).value_or(helix::ams::TagReading{});
-    // The TD-1's colour reading stands in where the tag states none.
+    // The TD-1's color reading stands in where the tag states none.
     if (!reading.color_rgb && slot->has_scan()) {
         reading.color_rgb = *slot->scanned_color_rgb;
     }

@@ -161,7 +161,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "AFC CFS unit: the TD-1 color fills in where t
     CHECK(tag->material == std::optional<std::string>("PLA"));
     CHECK(tag->color_rgb == std::optional<uint32_t>(0xFF8800));
 
-    // A tag that states its colour keeps it over the scan.
+    // A tag that states its color keeps it over the scan.
     afc.feed(frame({{"material", "PLA"}, {"color", "112233"}}));
     tag = afc.tag_reading(0);
     REQUIRE(tag.has_value());
