@@ -4,6 +4,8 @@
 #include "printer_profile_state.h"
 #include "probe_sensor_types.h"
 
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -260,4 +262,25 @@ TEST_CASE("prerequisites are the union of the steps' and time totals add up",
     CHECK(hands_on_minutes(steps) == 8);
     CHECK(prerequisites_for({}) == kPrereqNone);
     CHECK(total_minutes({}) == 0);
+}
+
+TEST_CASE("the Calibration screen lists its tiles in the catalog's run order",
+          "[calibration_catalog]") {
+    std::ifstream f("ui_xml/calibration_hub_overlay.xml");
+    REQUIRE(f.good());
+    std::stringstream buf;
+    buf << f.rdbuf();
+    const std::string xml = buf.str();
+    // Each tile's step id, in document order.
+    std::vector<std::string> tiles;
+    const std::string tag = "<calibration_hub_tile";
+    for (size_t at = xml.find(tag); at != std::string::npos; at = xml.find(tag, at + 1)) {
+        const size_t end = xml.find("/>", at);
+        const size_t step = xml.find(" step=\"", at);
+        REQUIRE(step < end);
+        const size_t open = step + 7;
+        tiles.push_back(xml.substr(open, xml.find('"', open) - open));
+    }
+    const auto& ids = all_step_ids();
+    CHECK(tiles == std::vector<std::string>(ids.begin(), ids.end()));
 }
