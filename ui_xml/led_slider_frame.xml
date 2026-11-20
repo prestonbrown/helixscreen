@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Holds one LED Settings auto-state slider. A slider's knob reaches past its
+     track ends and the controls column clips at its own edges, so this frame's
+     padding is the knob's room. -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xs" style_bg_opa="0"
+        style_border_width="0" scrollable="false"/>
+</component>
