@@ -471,6 +471,16 @@ helix_self_update_asset() {
     esac
 }
 
+# True when platform @1's zip is the first asset of every release, so a
+# Moonraker without asset_name support (zip_deploy.py, before v0.10.0), which
+# downloads assets[0] whatever release_info.json names, still gets the right
+# archive (#993, #2147). GitHub lists assets sorted by name, and releases carry
+# no .tar.gz assets, so helixscreen-ad5m.zip sorts first; the release workflow
+# fails a release where it does not.
+helix_zip_is_first_release_asset() {
+    [ "${1:-}" = "ad5m" ]
+}
+
 # Mod-host (FlashForge AD5X) preflight: refuse to run outside the ZMOD chroot.
 #
 # The FlashForge mods run out of chroots under /usr/data/.mod — ZMOD's overlay

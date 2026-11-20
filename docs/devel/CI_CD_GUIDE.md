@@ -367,18 +367,13 @@ The release workflow (`.github/workflows/release.yml`) uploads build artifacts t
 
 ```
 s3://helixscreen-releases/
-  stable/manifest.json        ← Stable releases (no prerelease suffix)
-  stable/helixscreen-*.zip
-  stable/helixscreen-*.tar.gz  ← Legacy (bridge release only)
+  stable/manifest.json         ← Stable releases (no prerelease suffix)
   beta/manifest.json           ← Beta/RC releases (v1.0.0-beta, v1.0.0-rc.1)
-  beta/helixscreen-*.zip
-  beta/helixscreen-*.tar.gz    ← Legacy (bridge release only)
   dev/manifest.json            ← All releases (bleeding edge)
-  dev/helixscreen-*.zip
-  dev/helixscreen-*.tar.gz     ← Legacy (bridge release only)
+  releases/v<version>/helixscreen-<platform>.zip  ← The release archives every manifest points at
 ```
 
-> **Bridge release:** The manifest now advertises `zip_url`/`zip_sha256` as the **preferred** asset by default, so the `.zip` artifacts are manifest-referenced. The upload step puts both the `.tar.gz` and `.zip` artifacts up **before** the manifest goes live (clients following `zip_url` — or the legacy `url` — never 404 mid-download); `install.sh` and symbol maps upload *after* the manifest. The `.tar.gz` still ships alongside `.zip` during this bridge release — its `url`/`sha256` remain the fallback for pre-v0.99.31 clients, which never read `zip_url` — and will be removed in a following release. Pass `generate-manifest.sh --no-include-zip` to suppress the zip fields.
+> Releases ship one `.zip` per platform and no tarball. The manifest references the zips, so the upload step puts them up **before** the manifest goes live (clients never 404 mid-download); `install.sh` and symbol maps upload *after* the manifest. The release job also refuses to publish unless the alphabetically first asset is `helixscreen-ad5m.zip`: a Moonraker that predates `asset_name` (Forge-X ships one) installs `assets[0]` of the release, whatever it is (helixscreen#993, #2147).
 
 ### Channel Upload Routing
 

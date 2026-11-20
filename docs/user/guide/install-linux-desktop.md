@@ -51,20 +51,20 @@ The installer puts HelixScreen in `~/.local/share/helixscreen` and adds **HelixS
 
 ### Installing from a downloaded package
 
-If you downloaded `helixscreen-x86-desktop-<version>.tar.gz` from the [releases page](https://github.com/prestonbrown/helixscreen/releases), the installer installs that package and downloads nothing. Extract it and run the installer inside it:
+If you downloaded `helixscreen-x86-desktop.zip` from the [releases page](https://github.com/prestonbrown/helixscreen/releases), the installer installs that package and downloads nothing. Extract it and run the installer inside it:
 
 ```bash
-tar -xzf helixscreen-x86-desktop-*.tar.gz
+unzip helixscreen-x86-desktop.zip -d helixscreen
 ./helixscreen/install.sh --desktop
 ```
 
 Or hand the archive to any copy of the installer:
 
 ```bash
-./install.sh --desktop helixscreen-x86-desktop-<version>.tar.gz
+./install.sh --desktop helixscreen-x86-desktop.zip
 ```
 
-The installer copies the package into `~/.local/share/helixscreen`, so you can delete the extracted folder and the archive afterwards. A kiosk package (`helixscreen-x86-<version>.tar.gz`) is refused, with a message saying so.
+The installer copies the package into `~/.local/share/helixscreen`, so you can delete the extracted folder and the archive afterwards. A kiosk package (`helixscreen-x86.zip`) is refused, with a message saying so.
 
 ## First launch
 
@@ -133,10 +133,10 @@ HelixScreen also keeps a backup of its settings in `~/.helixscreen`, and a later
 
 ## Running without installing
 
-You can also run the desktop package from any folder. Download `helixscreen-x86-desktop-<version>.tar.gz` from the [releases page](https://github.com/prestonbrown/helixscreen/releases/latest), then:
+You can also run the desktop package from any folder. Download `helixscreen-x86-desktop.zip` from the [releases page](https://github.com/prestonbrown/helixscreen/releases/latest), then:
 
 ```bash
-tar -xzf helixscreen-x86-desktop-*.tar.gz
+unzip helixscreen-x86-desktop.zip -d helixscreen
 ./helixscreen/bin/helix-screen --moonraker ws://192.168.1.50:7125
 ```
 

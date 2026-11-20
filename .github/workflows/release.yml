@@ -68,7 +68,7 @@ jobs:
 
     # The installer bundles are generated, never committed. Built once here: the
     # release job attaches this install.sh to the GitHub release and upload-r2
-    # publishes the same file as the one-line installer. Each release tarball's
+    # publishes the same file as the one-line installer. Each release zip's
     # copy comes from its own `make release-*`, which the bundlers' determinism
     # (test_uninstall_hardening.bats) keeps byte-identical to this one.
     - name: Build installer bundles
@@ -312,18 +312,15 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: release-${{ matrix.platform }}
-        # The k1/ad5x globs only match in the mips build, whose Makefile
+        # The k1/ad5x paths only match in the mips build, whose Makefile
         # target copies the unified archive under the retired board keys so
         # deployed binaries whose get_platform_key() still reports them keep
         # finding an update asset (self-update survives the rename). On every
         # other platform they match nothing, which is inert: upload-artifact
         # warns only when NO path matches at all.
         path: |
-          releases/helixscreen-${{ matrix.platform }}-*.tar.gz
           releases/helixscreen-${{ matrix.platform }}.zip
-          releases/helixscreen-k1-*.tar.gz
           releases/helixscreen-k1.zip
-          releases/helixscreen-ad5x-*.tar.gz
           releases/helixscreen-ad5x.zip
         retention-days: 7
 
@@ -392,8 +389,8 @@ jobs:
     - name: Unpack x86 release
       run: |
         set -euo pipefail
-        mkdir -p dist/install
-        tar -xzf dist/helixscreen-x86-*.tar.gz -C dist/install
+        mkdir -p dist/install/helixscreen
+        unzip -q dist/helixscreen-x86.zip -d dist/install/helixscreen
         test -x dist/install/helixscreen/bin/helix-screen
 
     - name: Run with the GPU libraries hidden and present
@@ -855,7 +852,6 @@ jobs:
     - name: Prepare release files
       run: |
         mkdir -p release-files
-        find artifacts -name '*.tar.gz' -exec mv {} release-files/ \;
         find artifacts -name '*.zip' -exec mv {} release-files/ \;
         find artifacts -name '*.apk' -exec mv {} release-files/ \;
         find artifacts -name '*.aab' -exec mv {} release-files/ \;
@@ -894,6 +890,8 @@ jobs:
         fi
 
     - name: Prepare symbol files for release
+      env:
+        PLAN_PLATFORMS: ${{ needs.plan.outputs.platforms }}
       run: |
         mkdir -p release-files/symbols
         # Flatten symbol artifacts (same logic as upload-r2 job)
@@ -911,10 +909,8 @@ jobs:
         # `symbols-` sorts after `helixscreen-`, so assets[0] is a real release
         # artifact instead.
         #
-        # This does not by itself make old Moonraker safe (a .tar.gz isn't a zip
-        # either) — the installer's asset_name capability probe is what actually
-        # prevents the wipe. This just stops a debug file being the first thing
-        # anyone's tooling reaches for.
+        # The release ships no tarballs, so assets[0] is helixscreen-ad5m.zip,
+        # a real zip install package: the guard below holds it there.
         #
         # R2 naming is deliberately NOT changed: resolve-backtrace.sh's primary
         # path is `${R2_BASE_URL}/symbols/v<ver>/<platform>.sym.zst` and R2 has no
@@ -944,16 +940,34 @@ jobs:
         echo "Symbol files attached to release ($sym_count symbols-*.sym.zst files):"
         ls -lh release-files/symbols-*.sym.zst 2>/dev/null || echo "  (none)"
 
-        # Guard the alphabetical-ordering property this naming exists to hold.
-        # If a future asset ever sorts before the helixscreen-* artifacts, an old
-        # Moonraker's assets[0] fallback goes back to grabbing the wrong thing.
-        first_asset=$(cd release-files && ls -1 | sort | head -1)
-        case "$first_asset" in
-          helixscreen-*) echo "assets[0] = $first_asset (ok)" ;;
-          *) echo "::error::assets[0] would be '$first_asset', not a helixscreen-* artifact." \
-                  "Moonraker's NetDeploy falls back to assets[0]; see helixscreen#993."
-             exit 1 ;;
+        # assets[0] must be helixscreen-ad5m.zip. A Moonraker that predates
+        # asset_name (Forge-X ships one) has zip_deploy download assets[0] of
+        # the release, whatever it is, and extract it over the install
+        # (helixscreen#993). With assets[0] the AD5M zip, Mainsail/Fluidd can
+        # update HelixScreen on Forge-X (helixscreen#2147). The GitHub API
+        # lists assets sorted by name in C (byte) order, which LC_ALL=C sort
+        # reproduces; "Verify assets[0] of the published release" checks the
+        # real API order after upload. A dry run that builds a subset without
+        # ad5m has no AD5M zip to put first, so it only checks that assets[0]
+        # is a helixscreen-* package.
+        first_asset=$(cd release-files && ls -1 | LC_ALL=C sort | head -1)
+        expected=helixscreen-ad5m.zip
+        case " $PLAN_PLATFORMS " in
+          *" ad5m "*) ;;
+          *) expected="helixscreen-*" ;;
         esac
+        # shellcheck disable=SC2254  # $expected is a pattern on purpose
+        case "$first_asset" in
+          $expected) ok=true ;;
+          *) ok=false ;;
+        esac
+        if [ "$ok" = true ]; then
+          echo "assets[0] = $first_asset (ok)"
+        else
+          echo "::error::assets[0] would be '$first_asset', not $expected." \
+               "Old Moonraker zip_deploy installs assets[0]; see helixscreen#993 and #2147."
+          exit 1
+        fi
 
     - name: Extract version from tag
       id: version
@@ -1014,67 +1028,67 @@ jobs:
         ### Raspberry Pi (Mainsail OS - 64-bit)
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-pi-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-pi-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-pi.zip
+        unzip helixscreen-pi.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### Raspberry Pi (Mainsail OS - 32-bit)
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-pi32-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-pi32-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-pi32.zip
+        unzip helixscreen-pi32.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### Flashforge AD5M
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-ad5m-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-ad5m-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-ad5m.zip
+        unzip helixscreen-ad5m.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### Creality K1 Series / FlashForge AD5X (one binary)
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-mips-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-mips-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-mips.zip
+        unzip helixscreen-mips.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### Creality K2 Series
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-k2-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-k2-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-k2.zip
+        unzip helixscreen-k2.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### x86_64 Debian SBCs
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-x86-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-x86-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-x86.zip
+        unzip helixscreen-x86.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### x86_64 Linux Desktop (runs in a window)
@@ -1082,20 +1096,20 @@ jobs:
         # Install for your user (no sudo), or download and run in place
         curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --desktop
         # ...or:
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-x86-desktop-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-x86-desktop-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-x86-desktop.zip
+        unzip helixscreen-x86-desktop.zip -d helixscreen
         ./helixscreen/bin/helix-screen --moonraker ws://PRINTER_IP:7125
         ```
 
         ### Snapmaker U1
         ```bash
         # Download and extract
-        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-snapmaker-u1-${{ steps.version.outputs.version }}.tar.gz
-        tar -xzf helixscreen-snapmaker-u1-${{ steps.version.outputs.version }}.tar.gz
+        wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/helixscreen-snapmaker-u1.zip
+        unzip helixscreen-snapmaker-u1.zip -d helixscreen
         cd helixscreen
 
         # Run
-        ./helix-screen
+        ./bin/helix-screen
         ```
 
         ### Android (Experimental)
@@ -1119,10 +1133,37 @@ jobs:
             echo "## Checksums"
             echo
             echo '```'
-            (cd release-files && sha256sum *.tar.gz *.zip *.apk *.aab 2>/dev/null) || true
+            (cd release-files && sha256sum *.zip *.apk *.aab 2>/dev/null) || true
             echo '```'
           } >> release-notes.md
         fi
+
+    # GitHub's "latest" release must never move backwards. Moonraker's stable
+    # channel reads releases/latest and offers an update whenever that version
+    # differs from the installed one, downgrades included (helixscreen#2147), and
+    # by default every new non-prerelease becomes latest, so a v1.0.x tag cut
+    # after v1.1.0 would offer every 1.1 install a downgrade. The read uses
+    # GITHUB_TOKEN; drafts are never "latest" either way.
+    - name: Decide whether this release becomes GitHub's latest
+      id: latest
+      if: env.RELEASE_MODE == 'publish'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PRERELEASE: ${{ steps.channel.outputs.prerelease }}
+      run: |
+        set -euo pipefail
+        if current=$(gh api "repos/${{ github.repository }}/releases/latest" --jq '.tag_name' 2>latest.err); then
+          :
+        elif grep -q 'HTTP 404' latest.err; then
+          current=""   # no latest release yet
+        else
+          cat latest.err >&2
+          echo "::error::Cannot read releases/latest; refusing to guess make_latest."
+          exit 1
+        fi
+        make_latest=$(scripts/release-make-latest.sh "$RELEASE_TAG" "$PRERELEASE" "$current")
+        echo "releases/latest is '${current:-<none>}'; ${RELEASE_TAG} make_latest=${make_latest}"
+        echo "make_latest=${make_latest}" >> "$GITHUB_OUTPUT"
 
     - name: Create GitHub Release
       if: env.RELEASE_MODE == 'publish'
@@ -1132,8 +1173,8 @@ jobs:
         body_path: release-notes.md
         draft: false
         prerelease: ${{ steps.channel.outputs.prerelease }}  # from RELEASE_CHANNEL
+        make_latest: ${{ steps.latest.outputs.make_latest }}
         files: |
-          release-files/*.tar.gz
           release-files/*.zip
           release-files/*.apk
           release-files/*.aab
@@ -1152,7 +1193,6 @@ jobs:
       with:
         name: dry-run-release-assets
         path: |
-          release-files/*.tar.gz
           release-files/*.zip
           release-files/*.apk
           release-files/*.sym.zst
@@ -1231,6 +1271,41 @@ jobs:
           "$DISCORD_WEBHOOK_URL"
 
   # ============================================================================
+  # Read assets[0] of the published release back from the GitHub API
+  # ============================================================================
+  # The pre-publish guard in "Prepare symbol files for release" predicts the
+  # order; this reads it back from the API that old Moonraker's zip_deploy
+  # takes assets[0] from (helixscreen#993, #2147). It is its own job, and
+  # nothing needs it, because the release is already public by now: a mismatch
+  # must not stop upload-r2 from publishing the manifests the in-app updaters
+  # read. It turns the run red instead.
+  verify-release-assets:
+    name: Verify assets[0] of the published release
+    runs-on: ubuntu-latest
+    needs: [release, plan]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+    - name: Check assets[0] is helixscreen-ad5m.zip
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        set -euo pipefail
+        first_asset=$(gh api "repos/${{ github.repository }}/releases/tags/${RELEASE_TAG}" \
+          --jq '.assets[0].name')
+        if [ "$first_asset" != "helixscreen-ad5m.zip" ]; then
+          echo "::error::Release ${RELEASE_TAG} is published with '$first_asset' as assets[0]," \
+               "not helixscreen-ad5m.zip. An old Moonraker's zip_deploy installs assets[0]" \
+               "(helixscreen#993, #2147). R2 and install.sh still publish. Remove or rename the" \
+               "asset that sorts first (gh release delete-asset ${RELEASE_TAG} <name>)."
+          exit 1
+        fi
+        echo "assets[0] = $first_asset (ok)"
+
+  # ============================================================================
   # Upload release artifacts to R2 for auto-update
   # ============================================================================
   upload-r2:
@@ -1264,7 +1339,7 @@ jobs:
         # The heavy debug symbols moved to the upload-symbols job (they expand to
         # ~20GB+ uncompressed and exhausted the runner disk here — the v0.99.80
         # ENOSPC). This job now only handles release artifacts (~3GB of
-        # tarballs/zips/APKs), so a light cleanup is plenty of headroom.
+        # zips/APKs), so a light cleanup is plenty of headroom.
         sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
         df -h /
 
@@ -1283,7 +1358,6 @@ jobs:
     - name: Flatten release files
       run: |
         mkdir -p release-files
-        find artifacts -name '*.tar.gz' -exec mv {} release-files/ \;
         find artifacts -name '*.zip' -exec mv {} release-files/ \;
         echo "Release files:"
         ls -lh release-files/
@@ -1501,21 +1575,8 @@ jobs:
           done
         }
 
-        # 1. Upload the .tar.gz artifacts the manifest references. These MUST land
+        # 1. Upload the .zip artifacts the manifest references. These MUST land
         #    before the manifest goes live so clients never 404 mid-download.
-        echo "=== Uploading tarballs to ${R2_PREFIX}releases/v${RELEASE_VERSION}/ ==="
-        for tarball in release-files/*.tar.gz; do
-          [ -f "$tarball" ] || continue
-          filename=$(basename "$tarball")
-          echo "Uploading ${R2_PREFIX}releases/v${RELEASE_VERSION}/${filename}..."
-          s3cp "$tarball" "s3://${R2_BUCKET}/${R2_PREFIX}releases/v${RELEASE_VERSION}/${filename}"
-        done
-
-        # 2. Upload the .zip artifacts, which the manifest now references as the
-        #    preferred asset (zip_url) for v0.99.31+ clients. Like the tarballs,
-        #    these MUST land before the manifest goes live so clients never 404
-        #    following zip_url. (The tarball url/sha256 stay as the legacy fallback
-        #    for pre-v0.99.31 clients, which never read zip_url.)
         echo "=== Uploading zip artifacts to ${R2_PREFIX}releases/v${RELEASE_VERSION}/ ==="
         for zip in release-files/*.zip; do
           [ -f "$zip" ] || continue
@@ -1524,9 +1585,9 @@ jobs:
           s3cp "$zip" "s3://${R2_BUCKET}/${R2_PREFIX}releases/v${RELEASE_VERSION}/${filename}"
         done
 
-        # 3. Upload the per-channel manifests (signed in the step before). This is the artifact
+        # 2. Upload the per-channel manifests (signed in the step before). This is the artifact
         #    that makes a release visible to in-app updaters, so it is published as
-        #    early as possible — right after its referenced tarballs/zips and BEFORE
+        #    early as possible — right after its referenced zips and BEFORE
         #    the install.sh / symbol uploads, whose transient failures must never be
         #    able to suppress release visibility (the v0.99.76 failure mode, .github#952).
         for CHANNEL in $UPLOAD_CHANNELS; do
@@ -1597,7 +1658,7 @@ jobs:
           echo "=== ${CHANNEL} manifest uploaded and verified (v${served}) ==="
         done
 
-        # 4. Upload install.sh AFTER the manifest — it is not manifest-referenced,
+        # 3. Upload install.sh AFTER the manifest — it is not manifest-referenced,
         #    so a transient failure here must never gate release visibility.
         echo "Uploading install.sh..."
         s3cp installer/install.sh "s3://${R2_BUCKET}/${R2_PREFIX}install.sh" \

@@ -19,6 +19,7 @@
 #include "ui_observer_guard.h"
 
 #include "async_lifetime_guard.h"
+#include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
 
@@ -216,17 +217,21 @@ class UpdateChecker {
     void on_channel_changed();
 
     /**
-     * @brief Reconcile moonraker.conf's [update_manager helixscreen] with the app's channel
+     * @brief List or unlist HelixScreen in Mainsail and Fluidd to match the app's channel
      *
-     * Mainsail and Fluidd offer whatever that stanza's `channel:` names, so a stale one
-     * offers a beta install a "stable" downgrade. Which side moved is judged against the
-     * channel the two last agreed on (decide_moonraker_channel_sync()): a hand edit of the
-     * stanza is adopted as the app's channel, and an app change rewrites the line, only
-     * when a stanza with a channel line exists, then restarts Moonraker, which reads its
-     * config only at startup. While a job holds the machine the file is still written
-     * but the restart is skipped, so the change lands at Moonraker's next start. Called
-     * on every Moonraker discovery and whenever the effective channel changes. Main
-     * thread only.
+     * Moonraker's beta lane reads the newest release of every line and offers whatever
+     * differs from the installed version, downgrades included, and its stable lane reads
+     * GitHub's "latest", so [update_manager helixscreen] is listed only while the app
+     * follows Stable (#2147). On Stable a stanza the installer switched off
+     * (MoonrakerConfigManager::switch_section_off) is switched back on, and a listed one
+     * is held to `channel: stable`; on Beta or Dev a listed one is switched off. Nothing
+     * is ever created: where the installer wrote no stanza, it judged the update unsafe.
+     * Only a stanza whose `path:` is this install, in a file stanza_file_editable()
+     * allows, is touched. Moonraker reads its config only at startup, so it is restarted
+     * whenever the entry it has loaded disagrees (moonraker_entry_matches()), even when
+     * the file already matches. While a job holds the machine nothing is written or
+     * restarted, and the sync runs again when the job ends. Called on every Moonraker
+     * discovery and whenever the effective channel changes. Main thread only.
      */
     void sync_moonraker_channel();
 
@@ -486,6 +491,15 @@ class UpdateChecker {
     UpdateChannel get_channel() const;
 
     /**
+     * @brief The channel followed for stored /update/channel @p stored
+     *
+     * Dev needs beta features (@p beta_features) and is Stable without them; an unknown
+     * value is Stable. The installer's helix_effective_channel applies the same rule,
+     * and tests/fixtures/update_channel_mapping.tsv pins both.
+     */
+    static UpdateChannel effective_channel(int stored, bool beta_features);
+
+    /**
      * @brief Human-readable name for a channel ("stable", "beta", "dev").
      *
      * Single source of truth for the enum→string map so log lines and the debug
@@ -494,34 +508,23 @@ class UpdateChecker {
     static const char* channel_name(UpdateChannel channel);
 
     /**
-     * @brief The `channel:` Moonraker's web updater needs to serve @p channel
+     * @brief Whether the channel sync may edit config file @p file
      *
-     * Moonraker knows only GitHub's stable and prerelease tracks; Dev ships
-     * prereleases, so it rides beta (the installer's update_manager_web_channel).
+     * Where a firmware mod owns moonraker.conf (@p mod_host,
+     * firmware_mod_owns_moonraker_conf()), only the mod's user include,
+     * user.moonraker.conf, is ours. Elsewhere any file of the include graph holding the
+     * stanza is editable.
      */
-    static const char* moonraker_channel_name(UpdateChannel channel);
-
-    /// What a moonraker.conf channel sync does with the stanza it read.
-    enum class MoonrakerChannelSync {
-        Write,      ///< Rewrite the stanza to the app's channel
-        Adopt,      ///< The stanza was edited by hand: take its channel into the app
-        RecordOnly, ///< Already agreeing: remember the channel, touch nothing
-        Leave,      ///< A hand edit to a channel the app has no name for
-    };
+    static bool stanza_file_editable(const std::string& file, bool mod_host);
 
     /**
-     * @brief Decide which side of a moonraker.conf channel disagreement moved
+     * @brief Whether Moonraker's loaded update entry already matches the app's channel
      *
-     * @param app         moonraker_channel_name() of the app's effective channel
-     * @param conf        the stanza's `channel:` value, empty when it has none
-     * @param last_synced the channel the two last agreed on, empty when unknown
-     *
-     * Only a stanza that moved away from @p last_synced while the app stayed put counts
-     * as a hand edit; anything else, including no record at all, lets the app win.
+     * @p status_result is machine.update.status's `result`. Matching means a
+     * "helixscreen" entry in its `version_info` exactly when @p want_listed, and that
+     * entry, when listed, following the stable channel (or reporting none).
      */
-    static MoonrakerChannelSync decide_moonraker_channel_sync(const std::string& app,
-                                                              const std::string& conf,
-                                                              const std::string& last_synced);
+    static bool moonraker_entry_matches(const nlohmann::json& status_result, bool want_listed);
 
     /**
      * @brief Resolve the R2 base URL the next check will actually use.
@@ -614,6 +617,39 @@ class UpdateChecker {
      * replacement for the systemd-only helixscreen-update.path watcher.
      */
     static void handle_external_update_complete();
+
+    /**
+     * @brief Whether startup must relink the user config before Config::init reads it
+     *
+     * Moonraker's type:web update replaces the install root, so the config links
+     * into printer_data and the platform hooks file are gone until
+     * config/restore-user-config.sh runs. A service manager that restarts the
+     * service (@p service_restarts, getenv("HELIX_SERVICE_RESTARTS"), set by
+     * helixscreen.service) runs it before every start. Without one, helix-watchdog
+     * starts the extracted binary directly after an update and nothing else runs
+     * it, so the starting process does, whichever version it was updated from
+     * (#2147). Only a deployed layout (is_deployed_layout) has the script to run.
+     */
+    static bool startup_runs_restore(const char* service_restarts, const std::string& install_root);
+
+    /// True when @p install_root is an installed tree: <root>/bin/helix-screen is a
+    /// regular file. A dev build's root is the source checkout, which is not.
+    static bool is_deployed_layout(const std::string& install_root);
+
+    /// Upper bound on the restore before startup goes ahead without it.
+    static constexpr std::chrono::milliseconds kRestoreDeadline{10000};
+
+    /**
+     * @brief Run <install_root>/config/restore-user-config.sh and wait for it
+     *
+     * /bin/sh with a fixed argv, no shell string; the child inherits the
+     * environment. Ended past @p deadline. Every outcome is logged and none is
+     * fatal: startup goes ahead either way.
+     * @return the script's exit code, or -1 when it is missing, could not be
+     *         started, or was ended at the deadline
+     */
+    static int run_restore_user_config(const std::string& install_root,
+                                       std::chrono::milliseconds deadline = kRestoreDeadline);
 
     /**
      * @brief React to a (re)connected Moonraker: finish a self-restart and listen for updates
@@ -750,15 +786,30 @@ class UpdateChecker {
     /// no build for this board.
     void report_fetched_release(ReleaseInfo info, const std::string& current_version);
 
-    /// Last hop of sync_moonraker_channel(): restart Moonraker unless a job holds the
-    /// machine or update_manager is busy. @p gen is the sync's moonraker_sync_generation_.
-    void restart_moonraker_for_channel(helix::IMoonrakerAPI& api, uint64_t gen);
+    /// Last hop of sync_moonraker_channel(): restart Moonraker when the entry it has
+    /// loaded (machine.update.status) does not match @p want_listed, unless a job holds
+    /// the machine (the sync then runs again when it ends) or update_manager is busy.
+    /// @p restart_key names the file state and wish a restart would be for; empty when
+    /// another copy of the stanza decides what Moonraker lists, so no restart can help.
+    /// A mismatch with an empty key, or one a restart for the same key already met, is
+    /// logged once and left, so nothing restarts Moonraker in a loop.
+    /// @p gen is the sync's moonraker_sync_generation_.
+    void restart_moonraker_for_channel(helix::IMoonrakerAPI& api, uint64_t gen, bool want_listed,
+                                       const std::string& restart_key);
+    /// The restart_key of the last Moonraker restart a channel sync made.
+    std::string moonraker_restarted_for_;
+    /// The mismatch last logged as left alone, so it is logged once.
+    std::string moonraker_mismatch_logged_;
     /// sync_moonraker_channel() with this install's directory supplied; the stanza's
     /// `path:` must resolve to it.
     void sync_moonraker_channel_for(const std::string& install_root);
-    /// Take @p conf_channel, a hand edit of the stanza, as the app's update channel the
-    /// way a Settings change does, without writing it back to moonraker.conf.
-    void adopt_moonraker_channel(const std::string& conf_channel);
+    /// Run sync_moonraker_channel_for(@p install_root) again once no job holds the
+    /// machine. Main thread only; one pending run at a time.
+    void defer_moonraker_sync_until_job_ends(const std::string& install_root);
+    /// Watches the print lifecycle while a sync waits for a job to end.
+    ObserverGuard moonraker_sync_after_job_;
+    /// The install root the last channel sync was for, which a deferred run reuses.
+    std::string moonraker_sync_root_;
     /// on_channel_changed() short of the moonraker.conf sync.
     void recheck_for_channel();
 

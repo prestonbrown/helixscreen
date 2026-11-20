@@ -191,9 +191,9 @@ usage() {
     echo "                 Without either, a fresh install on a computer with a"
     echo "                 desktop asks (no terminal: desktop), and an existing"
     echo "                 install keeps its flavour"
-    echo "  --auto-update  Also write the [update_manager helixscreen] stanza"
-    echo "                 into the mod's user.moonraker.conf (opt-in: a stanza"
-    echo "                 is a real side effect)"
+    echo "  --auto-update  Accepted and ignored: a mod-host install adds the"
+    echo "                 Mainsail/Fluidd update entry to the mod's"
+    echo "                 user.moonraker.conf whenever Moonraker can update it safely"
     echo "  --help         Show this help message"
     echo ""
     echo "Examples:"
@@ -202,8 +202,8 @@ usage() {
     echo "  $0 --clean            # Remove old install completely, then install"
     echo "  $0 --clean --yes      # Same, without the interactive confirmation"
     echo "  $0 --version v1.1.0   # Install specific version"
-    echo "  $0 --local /tmp/helixscreen-ad5m.tar.gz  # Install from local file"
-    echo "  $0 --desktop helixscreen-x86-desktop-v1.1.0.tar.gz  # Same, no --local needed"
+    echo "  $0 --local /tmp/helixscreen-ad5m.zip  # Install from local file"
+    echo "  $0 --desktop helixscreen-x86-desktop.zip  # Same, no --local needed"
     echo "  ./helixscreen/install.sh --desktop  # Install the package you extracted"
     echo "  $0 --standalone       # Self-managed install beside the mod (mod hosts)"
     echo "  $0 --desktop          # x86_64: a window on your desktop, for your user"
@@ -225,7 +225,6 @@ parse_installer_args() {
     package_dir=""
     skip_kiauh_registration=false
     MOD_PAYLOAD_ROOT=""
-    HELIX_MOD_PAYLOAD_UPDATES=""
     STANDALONE_INSTALL=""
     MOD_PAYLOAD_FLAG_GIVEN=""
     # shellcheck disable=SC2034  # consumed by desktop.sh (resolve_x86_flavour)
@@ -309,8 +308,10 @@ parse_installer_args() {
                 shift
                 ;;
             --auto-update)
-                # shellcheck disable=SC2034  # consumed by moonraker.sh (configure_moonraker_updates)
-                HELIX_MOD_PAYLOAD_UPDATES=1
+                # Compat no-op: a payload install writes the stanza by itself
+                # whenever Moonraker can update it safely
+                # (payload_updater_blocker), so there is nothing to opt into.
+                log_info "--auto-update is no longer needed: the updater entry is written whenever it is safe"
                 shift
                 ;;
             --no-mod-payload)
@@ -330,10 +331,8 @@ parse_installer_args() {
                 shift 2
                 ;;
             --mod-payload-updates)
-                # Deprecated alias for --auto-update.
-                log_info "--mod-payload-updates is deprecated; use --auto-update"
-                # shellcheck disable=SC2034  # consumed by moonraker.sh (configure_moonraker_updates)
-                HELIX_MOD_PAYLOAD_UPDATES=1
+                # Deprecated alias for --auto-update, itself a compat no-op.
+                log_info "--mod-payload-updates is deprecated and no longer needed"
                 shift
                 ;;
             --mod-payload)
@@ -451,19 +450,14 @@ payload_legacy_adopt_or_warn() {
 
     # A prior adopt recorded its choice; resuming it is not relocation.
     if [ "$(read_payload_root_record 2>/dev/null || true)" = "$legacy" ]; then
-        INSTALL_DIR="$legacy"
-        validate_install_dir "$INSTALL_DIR" || exit 1
+        payload_take_legacy_root "$legacy"
         log_info "Payload root: resuming the adopted root $INSTALL_DIR"
         log_info "(recorded in $(host_payload_root_record); clear that file to re-choose)"
         return 0
     fi
 
     if payload_legacy_prompt_adopt "$legacy"; then
-        INSTALL_DIR="$legacy"
-        # The probe's platform-keyed candidate, not an operator path: the
-        # name gate still applies (a legacy root is a canonical platform
-        # root, so this cannot fail on a real rig).
-        validate_install_dir "$INSTALL_DIR" || exit 1
+        payload_take_legacy_root "$legacy"
         log_info "Adopted the existing install at $INSTALL_DIR as the payload root"
         log_info "(outside the mod's git tree, so a Forge-X OTA cannot remove it)"
         # The service STAYS: it is the ONE boot path this adopted root has,
@@ -490,6 +484,20 @@ payload_legacy_adopt_or_warn() {
     log_warn "  rm -rf $legacy"
     log_warn "Or adopt that root as the payload root:"
     log_warn "  --payload-root $legacy"
+}
+
+# Make legacy root @1 this run's install root. It sits outside the mod's
+# chroot and boots from its host S90, so the in-chroot spelling
+# resolve_chroot_daemon_dir found for the mod's default root names another
+# tree: left set, it would bake that tree into the S90's DAEMON_DIR and the
+# updater stanza's path:. The probe's platform-keyed candidate, not an
+# operator path: the name gate still applies (a legacy root is a canonical
+# platform root, so this cannot fail on a real rig).
+payload_take_legacy_root() {
+    INSTALL_DIR="$1"
+    # shellcheck disable=SC2034  # consumed by service.sh and moonraker.sh
+    HELIX_CHROOT_DAEMON_DIR=""
+    validate_install_dir "$INSTALL_DIR" || exit 1
 }
 
 # Ask the adopt question on the terminal, which tty_confirm reaches under

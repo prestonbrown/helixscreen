@@ -156,15 +156,14 @@ make_fixture() {
     mkdir -p "$ART" "$REL" "$R2/beta" "$R2/dev"
     local p
     for p in pi x86; do
-        echo "$p tarball" > "$ART/helixscreen-$p-v1.1.0-beta.3.tar.gz"
         echo "$p zip" > "$ART/helixscreen-$p.zip"
     done
     echo '#!/bin/sh' > "$ART/install.sh"
-    cp "$ART"/*.tar.gz "$ART"/*.zip "$REL/"
+    cp "$ART"/*.zip "$REL/"
     cp "$ART/install.sh" "$R2/install.sh"
     scripts/generate-manifest.sh --version "$VERSION" --tag "v$VERSION" --notes n \
         --dir "$REL" --base-url "${BASE}releases/v$VERSION" \
-        --zip-exclude "" --output "$R2/beta/manifest.json" >/dev/null
+        --output "$R2/beta/manifest.json" >/dev/null
     cp "$R2/beta/manifest.json" "$R2/dev/manifest.json"
     echo sig > "$R2/beta/manifest.json.minisig"
     echo sig > "$R2/dev/manifest.json.minisig"
@@ -181,6 +180,15 @@ verify() {
     verify
     [ "$status" -eq 0 ] || fail "$output"
     [[ "$output" == *"beta -> releases/v$VERSION/helixscreen-x86.zip"* ]] || fail "$output"
+}
+
+@test "verifier fails when the release carries a tarball" {
+    command -v jq >/dev/null || skip "jq not installed"
+    make_fixture
+    echo "pi tarball" > "$ART/helixscreen-pi-v$VERSION.tar.gz"
+    verify
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"a release ships no tarball: $ART/helixscreen-pi-v$VERSION.tar.gz"* ]] || fail "$output"
 }
 
 @test "verifier fails when install.sh differs" {
