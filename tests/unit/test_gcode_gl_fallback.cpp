@@ -87,7 +87,8 @@ TEST_CASE("gl_renderer_is_denylisted rejects null and empty", "[gcode][gl_fallba
 }
 
 TEST_CASE("gl_renderer_is_denylisted allows known-good GPUs", "[gcode][gl_fallback]") {
-    // Software rasterizer and desktop GPUs render the 3D preview fine.
+    // Desktop GPUs draw fine; software rasterizers are gl_renderer_is_software()'s
+    // question, not this list's.
     REQUIRE_FALSE(gl_renderer_is_denylisted("llvmpipe (LLVM 15.0.0, 128 bits)"));
     REQUIRE_FALSE(gl_renderer_is_denylisted("Mesa Intel(R) UHD Graphics (ADL GT2)"));
     REQUIRE_FALSE(gl_renderer_is_denylisted("Apple M1"));
@@ -101,4 +102,44 @@ TEST_CASE("gl_renderer_is_denylisted does not match bare Mali without Panfrost",
     // any GPU the denylist misses: it promotes to a persistent block after one
     // real hard-fault, so we don't have to predict every bad string here.
     REQUIRE_FALSE(gl_renderer_is_denylisted("Mali-G52"));
+}
+
+TEST_CASE("gl_renderer_is_software recognizes Mesa software rasterizers", "[gcode][gl_fallback]") {
+    using helix::gcode::gl_renderer_is_software;
+
+    SECTION("Mesa software rasterizers") {
+        REQUIRE(gl_renderer_is_software("llvmpipe (LLVM 11.0.1, 128 bits)"));
+        REQUIRE(gl_renderer_is_software("softpipe"));
+        REQUIRE(gl_renderer_is_software("swrast"));
+        REQUIRE(gl_renderer_is_software("kms_swrast"));
+        REQUIRE(gl_renderer_is_software("Google SwiftShader"));
+    }
+
+    SECTION("case-insensitive") {
+        REQUIRE(gl_renderer_is_software("LLVMpipe"));
+        REQUIRE(gl_renderer_is_software("KMS_SWRAST"));
+    }
+
+    SECTION("real GPUs are accepted") {
+        REQUIRE_FALSE(gl_renderer_is_software("V3D 7.1.7"));
+        REQUIRE_FALSE(gl_renderer_is_software("VC4 V3D 2.1"));
+        REQUIRE_FALSE(gl_renderer_is_software("Mali-G31 (Panfrost)"));
+        REQUIRE_FALSE(gl_renderer_is_software("AMD Radeon Graphics (radeonsi)"));
+        REQUIRE_FALSE(gl_renderer_is_software("PowerVR Rogue GE8300"));
+    }
+
+    SECTION("absent renderer string is not a software claim") {
+        REQUIRE_FALSE(gl_renderer_is_software(nullptr));
+        REQUIRE_FALSE(gl_renderer_is_software(""));
+    }
+}
+
+TEST_CASE("Software refusal and the 3D draw denylist are independent", "[gcode][gl_fallback]") {
+    using helix::gcode::gl_renderer_is_software;
+
+    REQUIRE(gl_renderer_is_denylisted("Mali-G31 (Panfrost)"));
+    REQUIRE_FALSE(gl_renderer_is_software("Mali-G31 (Panfrost)"));
+
+    REQUIRE_FALSE(gl_renderer_is_denylisted("llvmpipe (LLVM 15.0.6, 128 bits)"));
+    REQUIRE(gl_renderer_is_software("llvmpipe (LLVM 15.0.6, 128 bits)"));
 }

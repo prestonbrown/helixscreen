@@ -386,9 +386,10 @@ class GCodeViewerState {
     /// Budget system forced 2D for current file (reset on each new load)
     bool budget_forced_2d_{false};
 
-    /// GPU 3D path persistently blocked after a driver crash-loop (issues
-    /// #966 / #1084 / #1085). Read once at construction from
-    /// /display/gpu_3d_blocked; when set, is_using_2d_mode() always returns 2D.
+    /// GPU 3D path blocked: persistently after a driver crash-loop (issues
+    /// #966 / #1084 / #1085, read at construction from /display/gpu_3d_blocked),
+    /// or for the session when GL is a software rasterizer
+    /// (apply_software_gl_fallback). When set, is_using_2d_mode() returns 2D.
     bool gpu_3d_blocked_{false};
 
     /// Disable streaming mode (detail panel uses full-load + budget instead)
@@ -483,6 +484,50 @@ static bool has_gcode_data(const gcode_viewer_state_t* st) {
 }
 
 #ifdef ENABLE_3D_RENDERER
+namespace {
+/// Every viewer draws through the same GPU, so whether GL is a software
+/// rasterizer is asked once per process and reused by each later viewer.
+struct SoftwareGlVerdict {
+    bool checked = false;
+    bool block_3d = false;
+};
+SoftwareGlVerdict g_software_gl;
+} // namespace
+
+/// Refuse the 3D path for the session when GL is a software rasterizer.
+/// Called on the main thread before any 3D geometry is built: on llvmpipe the
+/// full mesh draws at seconds per frame on the UI thread, so the first preview
+/// must already be 2D. Policy: decide_software_gl_fallback().
+static void apply_software_gl_fallback(gcode_viewer_state_t* st) {
+    if (!st->renderer_ || st->is_using_2d_mode()) {
+        return;
+    }
+    if (!g_software_gl.checked) {
+        const std::string& name = st->renderer_->gl_renderer_name();
+        const auto d =
+            helix::gcode_viewer::decide_software_gl_fallback(name.c_str(), st->render_mode_);
+        g_software_gl.checked = true;
+        g_software_gl.block_3d = d.block_3d;
+        switch (d.reason) {
+        case helix::gcode_viewer::SoftwareGlReason::SoftwareAuto:
+            spdlog::info("[GCode Viewer] 3D preview uses 2D layers: GL renderer '{}' is software",
+                         name);
+            break;
+        case helix::gcode_viewer::SoftwareGlReason::SoftwareOverrides3D:
+            spdlog::info("[GCode Viewer] 3D preview uses 2D layers: GL renderer '{}' is software "
+                         "(overrides the 3D View selection)",
+                         name);
+            break;
+        case helix::gcode_viewer::SoftwareGlReason::Hardware:
+        case helix::gcode_viewer::SoftwareGlReason::NotRequested:
+            break;
+        }
+    }
+    if (g_software_gl.block_3d) {
+        st->gpu_3d_blocked_ = true;
+    }
+}
+
 /// Build a 3D RibbonGeometry from a parsed gcode file using the memory budget
 /// system. Returns nullptr if the budget tier forces 2D or the build exceeds
 /// the budget. Shared between the initial async-load path and the on-demand
@@ -1845,6 +1890,11 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
                                     LV_PART_MAIN);
     }
 
+#ifdef ENABLE_3D_RENDERER
+    // Before the worker reads is_using_2d_mode() to decide on a geometry build.
+    apply_software_gl_fallback(st);
+#endif
+
     // Launch worker thread via RAII-managed start_build()
     // Automatically cancels any existing build and joins the thread
     st->start_build([st, obj, path = std::string(file_path), gen]() {
@@ -2265,6 +2315,10 @@ void ui_gcode_viewer_set_render_mode(lv_obj_t* obj, GcodeViewerRenderMode mode) 
         return;
 
     st->render_mode_ = mode;
+#ifdef ENABLE_3D_RENDERER
+    // Before the 2D renderer setup below and any on-demand 3D build.
+    apply_software_gl_fallback(st);
+#endif
 
     const char* mode_names[] = {"AUTO", "3D", "2D_LAYER"};
     spdlog::debug("[GCode Viewer] Render mode set to {}", mode_names[static_cast<int>(mode)]);

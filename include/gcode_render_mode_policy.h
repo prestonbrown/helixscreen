@@ -5,6 +5,8 @@
 
 #include "ui_gcode_viewer.h"
 
+#include "gcode_gl_fallback.h"
+
 #include <cstring>
 
 namespace helix::gcode_viewer {
@@ -126,6 +128,47 @@ inline PreviewModeDecision decide_preview_mode(int cmdline_mode, bool env_mode_s
     }
     return PreviewModeDecision{static_cast<GcodeViewerRenderMode>(settings_mode),
                                PreviewModeSource::Settings, true};
+}
+
+/// Why the 3D preview was or was not refused for the GL renderer in use.
+enum class SoftwareGlReason {
+    Hardware,            ///< A GPU (or an unknown renderer): 3D stays available
+    NotRequested,        ///< The viewer is already in 2D; nothing to refuse
+    SoftwareAuto,        ///< Software rasterizer under Auto: 3D refused
+    SoftwareOverrides3D, ///< Software rasterizer with 3D explicitly selected: refused anyway
+};
+
+/// Outcome of the software-renderer check.
+struct SoftwareGlDecision {
+    bool block_3d; ///< true: the viewer uses the 2D layer renderer for the session
+    SoftwareGlReason reason;
+};
+
+/**
+ * @brief Decide whether the 3D preview is refused because GL is software.
+ *
+ * Pure function. A software rasterizer (llvmpipe and friends) draws the full
+ * 3D mesh on the UI thread at seconds per frame, which leaves the touchscreen
+ * unresponsive for as long as the preview is open. An explicit 3D selection
+ * (settings, command line or HELIX_GCODE_MODE) is refused as well: no choice of
+ * file or view makes that renderer usable, and a frozen screen cannot be used
+ * to change the setting back.
+ *
+ * @param gl_renderer  glGetString(GL_RENDERER), or nullptr if unknown.
+ * @param requested    The viewer's render mode at the time of the check.
+ */
+inline SoftwareGlDecision decide_software_gl_fallback(const char* gl_renderer,
+                                                      GcodeViewerRenderMode requested) {
+    if (requested == GcodeViewerRenderMode::Layer2D) {
+        return SoftwareGlDecision{false, SoftwareGlReason::NotRequested};
+    }
+    if (!helix::gcode::gl_renderer_is_software(gl_renderer)) {
+        return SoftwareGlDecision{false, SoftwareGlReason::Hardware};
+    }
+    if (requested == GcodeViewerRenderMode::Render3D) {
+        return SoftwareGlDecision{true, SoftwareGlReason::SoftwareOverrides3D};
+    }
+    return SoftwareGlDecision{true, SoftwareGlReason::SoftwareAuto};
 }
 
 } // namespace helix::gcode_viewer

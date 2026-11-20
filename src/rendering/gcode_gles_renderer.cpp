@@ -1105,6 +1105,28 @@ void GCodeGLESRenderer::free_vbos(std::vector<LayerVBO>& vbos) {
 // Main Render Entry Point
 // ============================================================
 
+const std::string& GCodeGLESRenderer::gl_renderer_name() {
+    if (gl_renderer_queried_)
+        return gl_renderer_name_;
+    gl_renderer_queried_ = true;
+
+    if (!init_gl())
+        return gl_renderer_name_;
+
+#if LV_USE_SDL
+    SdlGlContextGuard guard(sdl_gl_window_, sdl_gl_context_);
+#else
+    EglContextGuard guard(egl_display_, egl_surface_, egl_context_);
+#endif
+    if (!guard.ok())
+        return gl_renderer_name_;
+
+    const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+    if (renderer)
+        gl_renderer_name_ = renderer;
+    return gl_renderer_name_;
+}
+
 void GCodeGLESRenderer::render(lv_layer_t* layer, const ParsedGCodeFile& gcode,
                                const GCodeCamera& camera, const lv_area_t* widget_coords) {
     // Initialize GL on first render

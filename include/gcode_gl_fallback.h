@@ -37,6 +37,26 @@ inline bool gl_draw_error_is_fatal(unsigned int gl_error) {
     return gl_error == GL_ERR_OUT_OF_MEMORY || gl_error == GL_ERR_INVALID_OPERATION;
 }
 
+/// Case-insensitive substring match of a GL_RENDERER string against a list.
+/// A null or empty renderer matches nothing.
+inline bool gl_renderer_matches(const char* renderer, const char* const* needles, size_t count) {
+    if (renderer == nullptr || renderer[0] == '\0') {
+        return false;
+    }
+
+    std::string lowered(renderer);
+    for (char& c : lowered) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    for (size_t i = 0; i < count; ++i) {
+        if (lowered.find(needles[i]) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /// Decide, BEFORE the first GPU draw, whether a GPU is known to hard-fault in
 /// the 3D gcode preview and must be excluded from the GLES path entirely.
 ///
@@ -61,23 +81,33 @@ inline bool gl_draw_error_is_fatal(unsigned int gl_error) {
 /// @param renderer  the value returned by glGetString(GL_RENDERER) (may be null)
 /// @return true if the renderer matches a known-bad substring (case-insensitive)
 inline bool gl_renderer_is_denylisted(const char* renderer) {
-    if (renderer == nullptr || renderer[0] == '\0') {
-        return false;
-    }
+    static const char* const kDenylist[] = {"panfrost"};
+    return gl_renderer_matches(renderer, kDenylist, sizeof(kDenylist) / sizeof(kDenylist[0]));
+}
 
-    static const char* const DENYLIST[] = {"panfrost"};
-
-    std::string lowered(renderer);
-    for (char& c : lowered) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-
-    for (const char* needle : DENYLIST) {
-        if (lowered.find(needle) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
+/// Decide whether a GL_RENDERER string names a software rasterizer rather than
+/// a GPU.
+///
+/// Mesa answers with one of these when it cannot reach the hardware: a stale
+/// or mismatched userspace, a missing kernel driver, a render node the process
+/// cannot open. The context creates successfully and every GL call works, so
+/// nothing fails; the drawing simply happens on the CPU, and a full 3D G-code
+/// mesh drawn that way takes seconds per frame.
+///
+/// This asks a different question from gl_renderer_is_denylisted() above.
+/// That one names hardware whose driver faults during 3D draws; this one names
+/// the absence of hardware.
+///
+/// Pure function (no GL state, no side effects) so the decision is unit-testable
+/// without a live GL context.
+///
+/// @param renderer  the value returned by glGetString(GL_RENDERER) (may be null)
+/// @return true if the renderer is a software rasterizer (case-insensitive)
+inline bool gl_renderer_is_software(const char* renderer) {
+    // "swrast" also covers Mesa's "kms_swrast", which is the one that appears
+    // on an SBC whose GPU kernel driver is missing but whose KMS node works.
+    static const char* const kSoftware[] = {"llvmpipe", "softpipe", "swrast", "swiftshader"};
+    return gl_renderer_matches(renderer, kSoftware, sizeof(kSoftware) / sizeof(kSoftware[0]));
 }
 
 } // namespace gcode

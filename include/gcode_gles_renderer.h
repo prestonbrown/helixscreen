@@ -172,6 +172,11 @@ class GCodeGLESRenderer {
         return gl_render_failed_;
     }
 
+    /// GL_RENDERER for this renderer's context, creating the context if it does
+    /// not exist yet. Empty when GL is unavailable. Main thread only; the first
+    /// call decides and later calls return the same answer.
+    const std::string& gl_renderer_name();
+
     // ====== Color / Material ======
 
     void set_filament_color(const std::string& hex_color);
@@ -400,6 +405,8 @@ class GCodeGLESRenderer {
     bool gl_initialized_ = false;
     bool gl_init_failed_ = false;   // Prevents repeated init attempts
     bool gl_render_failed_ = false; // Set on a fatal GL draw error; sticky for the session
+    bool gl_renderer_queried_ = false;
+    std::string gl_renderer_name_;
 
     // ====== GPU crash fallback (issues #966 / #1084 / #1085) ======
     bool gpu_checked_ = false;       // GL_RENDERER denylist evaluated once per session
