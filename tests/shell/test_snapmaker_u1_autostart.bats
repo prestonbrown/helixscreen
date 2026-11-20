@@ -432,24 +432,40 @@ EOF
 
 # --- /oem/.debug overlay-persistence flag removal ---------------------------
 # The installer creates /oem/.debug (autostart step 1) so S01aoverlayfs does NOT
-# wipe /oem/overlay/* on boot, persisting our overlay changes. Leaving it behind
-# is an uninstall-incompleteness bug: it's a firmware debug-mode flag not present
-# on a clean stock U1. The uninstall block must drop it as its final step so the
-# next boot reverts the overlay-upper back to pristine squashfs-lower stock.
+# wipe /oem/overlay/* on boot, persisting our overlay changes. The uninstall
+# block drops it as its final step so the next boot reverts the overlay-upper
+# back to pristine squashfs-lower stock, but only when our installer created it:
+# other mods (multiACE) create the same flag and keep files in the overlay.
 
-@test "uninstall u1: removes leftover /oem/.debug overlay-persistence flag" {
-    # Post-install state: the flag the installer touched is present.
-    touch "$MOCK_ROOT/oem/.debug"
+@test "uninstall u1: removes the /oem/.debug flag our installer created" {
+    run run_autostart
+    [ "$status" -eq 0 ]
     [ -f "$MOCK_ROOT/oem/.debug" ]
 
     extract_u1_restore
     run u1_restore
     [ "$status" -eq 0 ]
 
-    # The uninstall dropped the flag — stock overlay-wipe-on-boot is restored.
+    # The uninstall dropped the flag and its marker: stock overlay-wipe-on-boot
+    # is restored.
     [ ! -e "$MOCK_ROOT/oem/.debug" ]
+    [ ! -e "$MOCK_ROOT/oem/.debug.helixscreen" ]
     # /oem itself must survive — we only remove the flag file, nothing else.
     [ -d "$MOCK_ROOT/oem" ]
+}
+
+@test "uninstall u1: keeps an /oem/.debug flag another mod created" {
+    # multiACE (or the user) created the flag before HelixScreen was installed.
+    touch "$MOCK_ROOT/oem/.debug"
+    run run_autostart
+    [ "$status" -eq 0 ]
+    [ ! -e "$MOCK_ROOT/oem/.debug.helixscreen" ]
+
+    extract_u1_restore
+    run u1_restore
+    [ "$status" -eq 0 ]
+
+    [ -f "$MOCK_ROOT/oem/.debug" ]
 }
 
 @test "uninstall u1: no /oem/.debug present is a no-op (no error)" {
