@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "ui_observer_guard.h"
+
 #include "async_lifetime_guard.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
@@ -220,6 +222,15 @@ class UpdateChecker {
     lv_subject_t* status_subject();
     lv_subject_t* version_text_subject();
     lv_subject_t* new_version_subject();
+
+    /// Death signal for the subjects this singleton owns.
+    ///
+    /// shutdown() frees every observer node on them without bumping the
+    /// ObserverGuard invalidation epoch, so outside observers must pass this to
+    /// observe_*(), or their guards call lv_observer_remove() on a freed node.
+    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
+        return subjects_lifetime_;
+    }
 
     // Download and install
     void start_download();
@@ -811,6 +822,10 @@ class UpdateChecker {
 
     SubjectManager subjects_;
     bool subjects_initialized_{false};
+    /// See get_subjects_lifetime(). Created with the object and REPLACED (never
+    /// nulled) by shutdown(): an empty token reads as "dead" and would suppress
+    /// removal for live observers.
+    SubjectLifetime subjects_lifetime_ = std::make_shared<bool>(true);
 
     /// Expires the status/progress callbacks queued from the check and download
     /// worker threads. Declared after `subjects_` so reverse-order member

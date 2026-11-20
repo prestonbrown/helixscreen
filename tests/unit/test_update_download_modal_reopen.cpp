@@ -117,3 +117,46 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Update download dialog returns to show a la
     overlay.hide_update_download_modal();
     settle();
 }
+
+namespace {
+
+int g_status_sentinel_fires = 0;
+
+void status_sentinel_cb(lv_observer_t* /*observer*/, lv_subject_t* /*subject*/) {
+    ++g_status_sentinel_fires;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "About overlay outlives an UpdateChecker shutdown without touching freed "
+                 "observers",
+                 "[update_checker][download][lifetime][2145]") {
+    // Application::shutdown() stops UpdateChecker, which deinits its subjects
+    // and frees every observer node on them, before StaticPanelRegistry
+    // destroys the settings overlays. The overlay's download_status guard has
+    // to know its node is already gone, or its reset() unlinks freed memory.
+    auto& checker = UpdateChecker::instance();
+    checker.init();
+    lv_subject_t* status = checker.download_status_subject();
+
+    {
+        helix::settings::AboutSettingsOverlay overlay;
+        overlay.show_update_download_modal();
+        settle();
+        overlay.hide_update_download_modal();
+        process_lvgl(400);
+        settle();
+
+        checker.shutdown();
+        checker.init();
+
+        g_status_sentinel_fires = 0;
+        lv_subject_add_observer(status, status_sentinel_cb, nullptr);
+        g_status_sentinel_fires = 0;
+    } // ~AboutSettingsOverlay resets the guard
+
+    checker.report_download_status(DownloadStatus::Downloading, 10, "Downloading...");
+    settle();
+    CHECK(g_status_sentinel_fires == 1);
+}

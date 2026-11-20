@@ -858,6 +858,17 @@ void UpdateChecker::shutdown() {
         // Expire any worker-thread callback still queued on the UpdateQueue
         // before the subjects it writes are torn down (#1165, #1146).
         async_lifetime_.invalidate();
+
+        // Death signal BEFORE the subjects go away: deinit frees every
+        // observer node on them, so outside ObserverGuards must learn they are
+        // gone or their next reset() calls lv_observer_remove() on freed
+        // memory. Replaced, not cleared: an empty token reads as "dead" and
+        // would suppress removal for observers registered after this teardown.
+        if (subjects_lifetime_) {
+            *subjects_lifetime_ = false;
+        }
+        subjects_lifetime_ = std::make_shared<bool>(true);
+
         subjects_.deinit_all();
         subjects_initialized_ = false;
     }

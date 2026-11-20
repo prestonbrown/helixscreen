@@ -401,9 +401,11 @@ void AboutSettingsOverlay::show_update_download_modal(bool start_immediately) {
     }
 
     if (!download_status_observer_) {
+        auto& checker = UpdateChecker::instance();
         download_status_observer_ = helix::ui::observe_int_sync<AboutSettingsOverlay>(
-            UpdateChecker::instance().download_status_subject(), this,
-            [](AboutSettingsOverlay* self, int status) { self->on_download_status(status); });
+            checker.download_status_subject(), this,
+            [](AboutSettingsOverlay* self, int status) { self->on_download_status(status); },
+            checker.get_subjects_lifetime());
     }
     download_modal_closed_by_user_ = false;
 
