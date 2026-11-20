@@ -47,6 +47,12 @@ then `docs/devel/LVGL9_XML_GUIDE.md` and `.claude/rules/declarative-ui.md` updat
 Not slots: a widget's own internal list (`option_list`, `fan_list`, `sensor_list`, ...), filled
 by its own controller.
 
+Found tonight, for Preston: `lv_xml_to_opa()` is `atoi`, so `opa="cover"` reads as 0 and
+renders transparent. Seven sites write it (`setting_macro_card.xml`, `debug_bundle_modal.xml`,
+`bed_drying_modal.xml`, `chamber_dryer_modal.xml`, `crash_report_modal.xml` and two more;
+`grep -rn 'opa="cover"' ui_xml`). Accepting the keyword would make all seven opaque, a visible
+change, so it waits for a decision.
+
 Found while building E1: `lib/` is on `-isystem`, so `-MMD` does not track
 `lib/helix-xml/src/xml/lv_xml_component_private.h`, which `src/xml_registration.cpp`,
 `src/application/xml_hot_reloader.cpp` and `src/remote/remote_control_server.cpp` include.

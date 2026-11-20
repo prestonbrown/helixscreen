@@ -440,6 +440,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/capability_chip.xml",
     "ui_xml/components/chamber_fault_banner.xml",
     "ui_xml/components/chamber_stall_modal.xml",
+    "ui_xml/components/check_option_row.xml",
     "ui_xml/components/clog_detection_config_modal.xml",
     "ui_xml/components/color_swatch.xml",
     "ui_xml/components/color_swatch_grid.xml",
