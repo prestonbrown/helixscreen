@@ -178,6 +178,39 @@ TEST_CASE("run_restore_user_config runs the root's script and is bounded",
         CHECK(std::chrono::steady_clock::now() - start < std::chrono::seconds(5));
     }
 
+    SECTION("a timeout also ends what the script started") {
+        const fs::path pidfile = root / "child.pid";
+        {
+            std::ofstream out(script);
+            out << "sleep 30 &\necho $! > '" << pidfile.string() << "'\nwait\n";
+        }
+        CHECK(UpdateChecker::run_restore_user_config(root.string(),
+                                                     std::chrono::milliseconds(300)) == -1);
+        std::ifstream in(pidfile);
+        pid_t child = 0;
+        in >> child;
+        REQUIRE(child > 0);
+        // Killed means gone, or a zombie waiting for whichever ancestor reaps
+        // orphans here (init, or a subreaper above the test runner).
+        const auto dead = [child] {
+            if (kill(child, 0) != 0 && errno == ESRCH)
+                return true;
+            std::ifstream stat("/proc/" + std::to_string(child) + "/stat");
+            std::string pid_field, comm, state;
+            stat >> pid_field >> comm >> state;
+            return state == "Z";
+        };
+        bool gone = false;
+        for (int i = 0; i < 100 && !gone; ++i) {
+            gone = dead();
+            if (!gone)
+                std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+        if (!gone)
+            kill(child, SIGKILL);
+        CHECK(gone);
+    }
+
     fs::remove_all(root);
 }
 
