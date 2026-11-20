@@ -1849,7 +1849,7 @@
           "field": "printer_objects",
           "pattern": "^extended_zone_transform$",
           "confidence": 0,
-          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
+          "reason": "Exclude Jacobean's K2 firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
@@ -2138,7 +2138,7 @@
       "id": "creality_k2_plus_jacobean",
       "variant_of": "creality_k2_plus",
       "variant_label": "Jacobean firmware",
-      "_comment": "Jacobean's K2 Plus firmware (github.com/Jacob10383/k2-plus-custom-firmware): a replacement Linux system running Jacob10383's Kalico fork with its own CFS, motor, probe and power-loss modules, not a mod of Creality's firmware. Its configs ship in that Kalico fork's config/k2. No preset: its fans (fan, heater_fan heatbreak_fan, fan_generic aux_fans, temperature_fan chamber_exhaust_fans), its missing chamber_temp sensor, load_ai and filament_rack, and its BOX_LOAD/BOX_UNLOAD macros all differ from the stock k2 preset. No probe_type: its probe is Cartographer or its own prtouch module, never prtouch_v3, and both type themselves from their objects. No pre_print_options: it has no PRINT_PREPARED or LOAD_AI_RUN",
+      "_comment": "Jacobean's K2 Plus firmware (github.com/Jacob10383/k2-plus-custom-firmware): a replacement Linux system running Jacob10383's Kalico fork with its own CFS, motor, probe and power-loss modules, not a mod of Creality's firmware. Its configs ship in that Kalico fork's config/k2. No preset: its fans (fan, heater_fan heatbreak_fan, fan_generic aux_fans, temperature_fan chamber_exhaust_fans), its missing chamber_temp sensor, load_ai and filament_rack, and its BOX_LOAD/BOX_UNLOAD macros all differ from the stock k2 preset. No probe_type: its probe is Cartographer or its own prtouch module, never prtouch_v3, and both type themselves from their objects. No pre_print_options: it has no PRINT_PREPARED or LOAD_AI_RUN. No hostname heuristic: one rootfs serves the K2 Plus and the K2 Pro and names every host K2Plus, so the hostname names no model; the travel window and creality_k2_pro_jacobean's are all that separate the two (#2148)",
       "enclosed": true,
       "name": "Creality K2 Plus (Jacobean firmware)",
       "manufacturer": "Creality",
@@ -2221,11 +2221,15 @@
           "reason": "Active chamber heater"
         },
         {
-          "type": "hostname_match",
-          "field": "hostname",
-          "pattern": "k2plus",
-          "confidence": 90,
-          "reason": "The firmware's rootfs ships hostname K2Plus"
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 345,
+          "max_x": 365,
+          "min_y": 345,
+          "max_y": 365,
+          "confidence": 55,
+          "reason": "Stepper travel ~357mm (K2 Plus); separates this entry from its K2 Pro sibling (#2148). Measures travel, not a declared bed: the firmware declares no product_param bed. Its K2 Plus config travels -4 to 352.5 in X and -6.2 to 352 in Y, as two real units report; a Cartographer spacer moves Y's minimum to -0.4",
+          "separator": true
         }
       ]
     },
@@ -2296,7 +2300,7 @@
           "field": "printer_objects",
           "pattern": "^extended_zone_transform$",
           "confidence": 0,
-          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
+          "reason": "Exclude Jacobean's K2 firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
@@ -2582,6 +2586,105 @@
       ]
     },
     {
+      "id": "creality_k2_pro_jacobean",
+      "variant_of": "creality_k2_pro",
+      "variant_label": "Jacobean firmware",
+      "_comment": "Jacobean's firmware on a K2 Pro (github.com/Jacob10383/k2-plus-custom-firmware; configs in Jacob10383's Kalico fork, config/k2-pro). The same replacement system as creality_k2_plus_jacobean, with the same heuristics apart from its stepper travel window, which is what tells the two apart (#2148). No preset, probe_type, pre_print_options or hostname heuristic, for the reasons creality_k2_plus_jacobean gives",
+      "enclosed": true,
+      "name": "Creality K2 Pro (Jacobean firmware)",
+      "manufacturer": "Creality",
+      "toolhead_style": "creality_k2",
+      "image": "creality-k2-pro.png",
+      "image_variants": [
+        {
+          "when": {
+            "filament_system": "cfs"
+          },
+          "image": "creality-k2-pro-cfs.png"
+        }
+      ],
+      "print_start_profile": "k2_jacobean",
+      "_error_heaters_comment": "The firmware's on_error_gcode turns the heaters off itself when a print errors.",
+      "firmware_owns_error_heaters": true,
+      "plr": {
+        "tier": 0,
+        "backend": "vendor",
+        "reason": "firmware_recovery",
+        "note": "The firmware runs its own power-loss recovery, which the app drives; the plugin saves and offers nothing."
+      },
+      "heuristics": [
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 99,
+          "reason": "[extended_zone_transform] is the firmware's own extra (its box.cfg) routing moves into the K2's rear purge zone; neither Creality's firmware nor k2-improvements has it - definitive"
+        },
+        {
+          "type": "object_required",
+          "field": "printer_objects",
+          "pattern": "^extended_zone_transform$",
+          "confidence": 0,
+          "reason": "A K2 Pro without it runs Creality's firmware, stock or modded, and belongs to those entries"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^power_loss_recovery$",
+          "confidence": 80,
+          "reason": "The firmware's own power-loss recovery module (printer.cfg)"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^danger_options$",
+          "confidence": 50,
+          "reason": "[danger_options] is Kalico's own section, which the firmware's printer.cfg sets. Every Kalico install can carry it, so it supports the identification and never makes one",
+          "corroborating": true
+        },
+        {
+          "type": "kinematics_match",
+          "field": "kinematics",
+          "pattern": "corexy",
+          "confidence": 40,
+          "reason": "CoreXY kinematics"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "^box$",
+          "confidence": 45,
+          "reason": "The firmware's own CFS module keeps Creality's box object name",
+          "corroborating": true
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "motor_control",
+          "confidence": 75,
+          "reason": "The firmware's own closed-loop motor module keeps Creality's motor_control object name"
+        },
+        {
+          "type": "object_exists",
+          "field": "printer_objects",
+          "pattern": "heater_generic chamber_heater",
+          "confidence": 70,
+          "reason": "Active chamber heater"
+        },
+        {
+          "type": "build_volume_range",
+          "field": "bed_mesh",
+          "min_x": 295,
+          "max_x": 315,
+          "min_y": 295,
+          "max_y": 315,
+          "confidence": 55,
+          "reason": "Stepper travel ~307mm (K2 Pro); separates this entry from its K2 Plus sibling (#2148). Measures travel, not a declared bed: the firmware declares no product_param bed. Its K2 Pro config travels -4 to 302 in X and -6.5 to 302 in Y; no real unit has been captured",
+          "separator": true
+        }
+      ]
+    },
+    {
       "id": "creality_k2",
       "enclosed": true,
       "name": "Creality K2",
@@ -2652,7 +2755,7 @@
           "field": "printer_objects",
           "pattern": "^extended_zone_transform$",
           "confidence": 0,
-          "reason": "Exclude Jacobean's K2 Plus firmware (separate entry), a replacement for Creality's firmware"
+          "reason": "Exclude Jacobean's K2 firmware (separate entry), a replacement for Creality's firmware"
         },
         {
           "type": "kinematics_match",
