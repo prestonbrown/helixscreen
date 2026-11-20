@@ -2694,14 +2694,23 @@ int UpdateChecker::run_restore_user_config(const std::string& install_root,
         return -1;
     }
     if (pid == 0) {
+        // Its own process group, so a timeout ends whatever the script started
+        // too (cp, find, sync), not just the shell.
+        setpgid(0, 0);
         execv(argv[0], argv);
         ::_exit(127);
     }
+    setpgid(pid, pid); // both sides: whichever runs first wins the race
 
     constexpr auto kTermGrace = std::chrono::milliseconds(500);
     constexpr auto kPollInterval = std::chrono::milliseconds(20);
     const ChildWaitResult wait =
         terminate_and_reap(pid, start + deadline, kTermGrace, kPollInterval);
+    if (wait.outcome == ChildWaitOutcome::TimedOut) {
+        // The shell is reaped; the group id stays reserved while any member
+        // lives, so this reaches only what the script left running.
+        kill(-pid, SIGKILL);
+    }
     const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                 std::chrono::steady_clock::now() - start)
                                 .count();
