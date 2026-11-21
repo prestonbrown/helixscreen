@@ -14,7 +14,7 @@
         <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="0"/>
         <text_body width="100%"
                    text="This will collect system info, logs, settings, and printer data to help diagnose issues. No passwords or sensitive data will be included."
-                   long_mode="wrap" style_text_align="center"/>
+                   long_mode="wrap" style_text_align="left"/>
         <!-- Toggle for klipper/moonraker logs -->
         <lv_obj width="100%"
                 height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"

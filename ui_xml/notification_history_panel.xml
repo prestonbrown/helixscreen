@@ -7,10 +7,21 @@
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
         style_bg_color="#screen_bg" style_border_width="0" style_pad_all="0" flex_flow="column">
     <!-- Header Bar (uses improved header_bar component) -->
-    <header_bar name="overlay_header"
-                title="Notifications" action_button_text="Clear All" action_button_height="#button_height"
-                hide_action_button="false" action_button_2_text="Printer Events" action_button_2_icon="script_text"
-                action_button_2_callback="on_open_printer_events" hide_action_button_2="false"/>
+    <header_bar name="overlay_header" title="Notifications">
+      <header_bar-actions>
+        <ui_button name="btn_printer_events"
+                   height="#button_height" text="Printer Events" translation_tag="Printer Events" icon="script_text"
+                   style_bg_color="#secondary" style_min_width="#header_slot2_min_width">
+          <style name="styles.header_action"/>
+          <event_cb trigger="clicked" callback="on_open_printer_events"/>
+        </ui_button>
+        <ui_button name="btn_clear_all" height="#button_height" text="Clear All" translation_tag="Clear All">
+          <style name="styles.header_action"/>
+          <bind_flag_if_eq subject="notification_has_entries" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_notification_history_clear"/>
+        </ui_button>
+      </header_bar-actions>
+    </header_bar>
     <!-- Content Area (scrollable, hidden when no entries) -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_gap="#space_sm" flex_flow="column"

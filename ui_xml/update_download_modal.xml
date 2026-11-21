@@ -6,140 +6,137 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="update_download_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
+        extends="dialog_frame" title="Software Update" title_tag="Software Update" icon="update">
+    <!-- Each state is a centered status: an icon or spinner over its heading and detail. -->
+    <dialog_frame-body style_flex_cross_place="center">
 
-    <!-- CONFIRMING state (1) -->
-    <lv_obj name="confirm_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="1"/>
-      <icon src="download" size="lg" variant="primary"/>
-      <text_heading text="Update Available"/>
-      <text_muted name="confirm_version"
-                  width="100%" bind_text="download_text" long_mode="wrap" style_text_align="center"/>
-    </lv_obj>
-
-    <!-- DOWNLOADING state (2) -->
-    <lv_obj name="downloading_container"
-            width="100%" height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="2"/>
-      <text_heading text="Downloading..."/>
-      <progress_bar name="download_bar" width="90%" bind_value="download_progress"/>
-      <text_muted name="download_progress_text" width="100%" bind_text="download_text" style_text_align="center"/>
-    </lv_obj>
-
-    <!-- VERIFYING state (3) -->
-    <lv_obj name="verifying_container"
-            width="100%" height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="3"/>
-      <spinner size="lg"/>
-      <text_heading text="Verifying..."/>
-      <text_muted width="100%" bind_text="download_text" style_text_align="center"/>
-    </lv_obj>
-
-    <!-- INSTALLING state (4) -->
-    <lv_obj name="installing_container"
-            width="100%" height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="4"/>
-      <spinner size="lg"/>
-      <text_muted name="install_encouragement"
-                  width="100%" bind_text="download_text" style_text_align="center" style_opa="180"/>
-      <text_heading text="Installing..."/>
-      <text_muted width="100%" text="Do not power off your printer." style_text_align="center"/>
-    </lv_obj>
-
-    <!-- COMPLETE state (5) -->
-    <lv_obj name="complete_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="5"/>
-      <icon src="check_circle" size="lg" variant="success"/>
-      <text_heading text="Update installed!"/>
-      <text_muted width="100%" bind_text="download_text" long_mode="wrap" style_text_align="center"/>
-    </lv_obj>
-
-    <!-- ERROR state (6) -->
-    <lv_obj name="error_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="6"/>
-      <icon src="alert_circle" size="lg" variant="danger"/>
-      <text_heading text="Update Failed"/>
-      <text_muted width="100%" bind_text="download_text" long_mode="wrap" style_text_align="center"/>
-    </lv_obj>
-
-    <!-- RESTARTING state (7) — static frame shown just before _exit(0) -->
-    <lv_obj name="restarting_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md" hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="7"/>
-      <icon src="refresh" size="lg" variant="primary"/>
-      <text_heading text="Hang on, we'll be right back!"/>
-      <text_muted width="100%" text="Restarting with the new version..." style_text_align="center"/>
-    </lv_obj>
-
-    <!-- CONFIRMING buttons: Cancel | Install -->
-    <lv_obj name="confirm_buttons"
-            width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" style_border_width="0"
-            hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="1"/>
-      <divider_horizontal/>
-      <lv_obj width="100%"
-              height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
-        <ui_button name="btn_cancel_confirm" text="Cancel" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_update_download_cancel"/>
-        </ui_button>
-        <divider_vertical/>
-        <ui_button name="btn_install" text="Install" variant="success" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_update_download_start"/>
-        </ui_button>
+      <!-- CONFIRMING state (1) -->
+      <lv_obj name="confirm_container"
+              width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+              style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="1"/>
+        <icon src="download" size="lg" variant="primary"/>
+        <text_heading text="Update Available"/>
+        <text_muted name="confirm_version"
+                    width="100%" bind_text="download_text" long_mode="wrap" style_text_align="center"/>
       </lv_obj>
-    </lv_obj>
 
-    <!-- DOWNLOADING buttons: Cancel -->
-    <lv_obj name="downloading_buttons"
-            width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" style_border_width="0"
-            hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="2"/>
-      <divider_horizontal/>
-      <lv_obj width="100%"
-              height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
-        <ui_button name="btn_cancel_download" text="Cancel" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_update_download_cancel"/>
-        </ui_button>
+      <!-- DOWNLOADING state (2) -->
+      <lv_obj name="downloading_container"
+              width="100%" height="content" style_min_height="160" style_pad_all="0" flex_flow="column"
+              style_flex_cross_place="center" style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="2"/>
+        <text_heading text="Downloading..."/>
+        <progress_bar name="download_bar" width="90%" bind_value="download_progress"/>
+        <text_muted name="download_progress_text" width="100%" bind_text="download_text" style_text_align="center"/>
       </lv_obj>
-    </lv_obj>
 
-    <!-- COMPLETE state: transitions to Restarting after 2s, then _exit(0) after 1s more -->
-
-    <!-- ERROR buttons: Close | Retry -->
-    <lv_obj name="error_buttons"
-            width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0" style_border_width="0"
-            hidden="true">
-      <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="6"/>
-      <divider_horizontal/>
-      <lv_obj width="100%"
-              height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
-        <ui_button name="btn_close_error" text="Close" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_update_download_dismiss"/>
-        </ui_button>
-        <divider_vertical/>
-        <ui_button name="btn_retry" text="Retry" variant="warning" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_update_download_start"/>
-        </ui_button>
+      <!-- VERIFYING state (3) -->
+      <lv_obj name="verifying_container"
+              width="100%" height="content" style_min_height="160" style_pad_all="0" flex_flow="column"
+              style_flex_cross_place="center" style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="3"/>
+        <spinner size="lg"/>
+        <text_heading text="Verifying..."/>
+        <text_muted width="100%" bind_text="download_text" style_text_align="center"/>
       </lv_obj>
-    </lv_obj>
+
+      <!-- INSTALLING state (4) -->
+      <lv_obj name="installing_container"
+              width="100%" height="content" style_min_height="160" style_pad_all="0" flex_flow="column"
+              style_flex_cross_place="center" style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="4"/>
+        <spinner size="lg"/>
+        <text_muted name="install_encouragement"
+                    width="100%" bind_text="download_text" style_text_align="center" style_opa="180"/>
+        <text_heading text="Installing..."/>
+        <text_muted width="100%" text="Do not power off your printer." style_text_align="center"/>
+      </lv_obj>
+
+      <!-- COMPLETE state (5) -->
+      <lv_obj name="complete_container"
+              width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+              style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="5"/>
+        <icon src="check_circle" size="lg" variant="success"/>
+        <text_heading text="Update installed!"/>
+        <text_muted width="100%" bind_text="download_text" long_mode="wrap" style_text_align="center"/>
+      </lv_obj>
+
+      <!-- ERROR state (6) -->
+      <lv_obj name="error_container"
+              width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+              style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="6"/>
+        <icon src="alert_circle" size="lg" variant="danger"/>
+        <text_heading text="Update Failed"/>
+        <text_muted width="100%" bind_text="download_text" long_mode="wrap" style_text_align="center"/>
+      </lv_obj>
+
+      <!-- RESTARTING state (7) — static frame shown just before _exit(0) -->
+      <lv_obj name="restarting_container"
+              width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+              style_pad_gap="#space_md" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="7"/>
+        <icon src="refresh" size="lg" variant="primary"/>
+        <text_heading text="Hang on, we'll be right back!"/>
+        <text_muted width="100%" text="Restarting with the new version..." style_text_align="center"/>
+      </lv_obj>
+    </dialog_frame-body>
+
+    <dialog_frame-footer>
+      <!-- CONFIRMING buttons: Cancel | Install -->
+      <lv_obj name="confirm_buttons"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0"
+              style_border_width="0" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="1"/>
+        <divider_horizontal/>
+        <lv_obj width="100%"
+                height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
+          <ui_button name="btn_cancel_confirm" text="Cancel" flex_grow="1">
+            <event_cb trigger="clicked" callback="on_update_download_cancel"/>
+          </ui_button>
+          <divider_vertical/>
+          <ui_button name="btn_install" text="Install" variant="success" flex_grow="1">
+            <event_cb trigger="clicked" callback="on_update_download_start"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- DOWNLOADING buttons: Cancel -->
+      <lv_obj name="downloading_buttons"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0"
+              style_border_width="0" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="2"/>
+        <divider_horizontal/>
+        <lv_obj width="100%"
+                height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
+          <ui_button name="btn_cancel_download" text="Cancel" flex_grow="1">
+            <event_cb trigger="clicked" callback="on_update_download_cancel"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- COMPLETE state: transitions to Restarting after 2s, then _exit(0) after 1s more -->
+
+      <!-- ERROR buttons: Close | Retry -->
+      <lv_obj name="error_buttons"
+              width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="0"
+              style_border_width="0" hidden="true">
+        <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="6"/>
+        <divider_horizontal/>
+        <lv_obj width="100%"
+                height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
+          <ui_button name="btn_close_error" text="Close" flex_grow="1">
+            <event_cb trigger="clicked" callback="on_update_download_dismiss"/>
+          </ui_button>
+          <divider_vertical/>
+          <ui_button name="btn_retry" text="Retry" variant="warning" flex_grow="1">
+            <event_cb trigger="clicked" callback="on_update_download_start"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+    </dialog_frame-footer>
 
   </view>
 </component>

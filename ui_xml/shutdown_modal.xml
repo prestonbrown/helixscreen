@@ -10,140 +10,134 @@
        shutdown_status_unknown: 1 while the printer's job state is not known.
        Both owned by the ShutdownModal C++ class, registered into component scope. -->
   <view name="shutdown_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Header -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_sm" style_pad_top="#space_lg"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <icon name="header_icon" src="power" size="md" variant="warning"/>
-      <text_heading text="Shutdown / Reboot" style_text_align="left" flex_grow="1"/>
-      <ui_button name="btn_close" width="40" height="40" variant="ghost" icon="close" focusable="false">
-        <event_cb trigger="clicked" callback="on_modal_cancel_clicked"/>
-      </ui_button>
-    </lv_obj>
+        extends="dialog_frame" title="Shutdown / Reboot" title_tag="Shutdown / Reboot" icon="power"
+        icon_variant="warning" hide_close="false" close_callback="on_modal_cancel_clicked">
+    <!-- Each view below carries its own padding, so the body adds none. -->
+    <dialog_frame-body style_pad_left="0" style_pad_right="0" style_pad_bottom="0" style_pad_gap="0">
+      <!-- Confirm message — single scope -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" style_pad_left="#space_lg" style_pad_right="#space_lg"
+              style_pad_top="0" style_pad_bottom="#space_lg">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="0"/>
+        <text_body width="100%"
+                   text="Are you sure? This will power off or restart this device." style_text_align="left"
+                   long_mode="wrap"/>
+      </lv_obj>
 
-    <!-- Confirm message — single scope -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="0" style_pad_bottom="#space_lg">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="0"/>
-      <text_body width="100%"
-                 text="Are you sure? This will power off or restart this device." style_text_align="left"
-                 long_mode="wrap"/>
-    </lv_obj>
+      <!-- Confirm message — dual scope -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" style_pad_left="#space_lg" style_pad_right="#space_lg"
+              style_pad_top="0" style_pad_bottom="#space_lg">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="1"/>
+        <text_body width="100%" text="Choose what to power off or restart." style_text_align="left" long_mode="wrap"/>
+      </lv_obj>
 
-    <!-- Confirm message — dual scope -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="0" style_pad_bottom="#space_lg">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="1"/>
-      <text_body width="100%" text="Choose what to power off or restart." style_text_align="left" long_mode="wrap"/>
-    </lv_obj>
+      <!-- Warning in either confirm view while the printer's job state is not known -->
+      <lv_obj width="100%" height="content" style_pad_all="0">
+        <bind_flag_if_gt subject="shutdown_view_state" flag="hidden" ref_value="1"/>
+        <text_body name="status_unknown_note"
+                   width="100%" text="The printer's status isn't known yet, so a print may be running."
+                   style_text_align="left" style_text_color="#warning" long_mode="wrap" hidden="true"
+                   style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg">
+          <bind_flag_if_not_eq subject="shutdown_status_unknown" flag="hidden" ref_value="1"/>
+        </text_body>
+      </lv_obj>
 
-    <!-- Warning in either confirm view while the printer's job state is not known -->
-    <lv_obj width="100%" height="content" style_pad_all="0">
-      <bind_flag_if_gt subject="shutdown_view_state" flag="hidden" ref_value="1"/>
-      <text_body name="status_unknown_note"
-                 width="100%" text="The printer's status isn't known yet, so a print may be running."
-                 style_text_align="left" style_text_color="#warning" long_mode="wrap" hidden="true"
-                 style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg">
-        <bind_flag_if_not_eq subject="shutdown_status_unknown" flag="hidden" ref_value="1"/>
-      </text_body>
-    </lv_obj>
+      <!-- Progress: screen shutting down -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
+              style_pad_gap="#space_sm">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="2"/>
+        <spinner size="lg"/>
+        <text_muted text="Shutting down screen..." style_text_align="center"/>
+      </lv_obj>
 
-    <!-- Progress: screen shutting down -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
-            style_pad_gap="#space_sm">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="2"/>
-      <spinner size="lg"/>
-      <text_muted text="Shutting down screen..." style_text_align="center"/>
-    </lv_obj>
+      <!-- Progress: screen rebooting -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
+              style_pad_gap="#space_sm">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="3"/>
+        <spinner size="lg"/>
+        <text_muted text="Restarting screen..." style_text_align="center"/>
+      </lv_obj>
 
-    <!-- Progress: screen rebooting -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
-            style_pad_gap="#space_sm">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="3"/>
-      <spinner size="lg"/>
-      <text_muted text="Restarting screen..." style_text_align="center"/>
-    </lv_obj>
+      <!-- Progress: printer shutting down -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
+              style_pad_gap="#space_sm">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="4"/>
+        <spinner size="lg"/>
+        <text_muted text="Shutting down printer..." style_text_align="center"/>
+      </lv_obj>
 
-    <!-- Progress: printer shutting down -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
-            style_pad_gap="#space_sm">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="4"/>
-      <spinner size="lg"/>
-      <text_muted text="Shutting down printer..." style_text_align="center"/>
-    </lv_obj>
+      <!-- Progress: printer rebooting -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
+              style_pad_gap="#space_sm">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="5"/>
+        <spinner size="lg"/>
+        <text_muted text="Restarting printer..." style_text_align="center"/>
+      </lv_obj>
 
-    <!-- Progress: printer rebooting -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
-            style_pad_gap="#space_sm">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="5"/>
-      <spinner size="lg"/>
-      <text_muted text="Restarting printer..." style_text_align="center"/>
-    </lv_obj>
+      <!-- Progress: both shutting down -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
+              style_pad_gap="#space_sm">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="6"/>
+        <spinner size="lg"/>
+        <text_muted text="Shutting down..." style_text_align="center"/>
+      </lv_obj>
 
-    <!-- Progress: both shutting down -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
-            style_pad_gap="#space_sm">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="6"/>
-      <spinner size="lg"/>
-      <text_muted text="Shutting down..." style_text_align="center"/>
-    </lv_obj>
+      <!-- Progress: both rebooting -->
+      <lv_obj width="100%"
+              height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
+              style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
+              style_pad_gap="#space_sm">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="7"/>
+        <spinner size="lg"/>
+        <text_muted text="Restarting..." style_text_align="center"/>
+      </lv_obj>
+    </dialog_frame-body>
 
-    <!-- Progress: both rebooting -->
-    <lv_obj width="100%"
-            height="content" style_min_height="80" hidden="true" flex_flow="column" style_flex_main_place="center"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="#space_lg"
-            style_pad_gap="#space_sm">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="7"/>
-      <spinner size="lg"/>
-      <text_muted text="Restarting..." style_text_align="center"/>
-    </lv_obj>
+    <dialog_frame-footer>
+      <!-- Single-scope buttons: Reboot + Shutdown (single row; same host, both go via Moonraker) -->
+      <lv_obj width="100%"
+              height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+              style_pad_bottom="#space_lg">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="0"/>
+        <modal_button_row secondary_icon="restart"
+                          secondary_variant="primary" secondary_text="Reboot"
+                          secondary_callback="on_reboot_printer_clicked" primary_icon="power" primary_text="Shutdown"
+                          primary_callback="on_shutdown_printer_clicked" primary_variant="danger"/>
+      </lv_obj>
 
-    <!-- Single-scope buttons: Reboot + Shutdown (single row; same host, both go via Moonraker) -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_lg">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="0"/>
-      <modal_button_row secondary_icon="restart"
-                        secondary_variant="primary" secondary_text="Reboot"
-                        secondary_callback="on_reboot_printer_clicked" primary_icon="power" primary_text="Shutdown"
-                        primary_callback="on_shutdown_printer_clicked" primary_variant="danger"/>
-    </lv_obj>
-
-    <!-- Dual-scope buttons: two split buttons (Restart, Shutdown), each with a
+      <!-- Dual-scope buttons: two split buttons (Restart, Shutdown), each with a
          Both/Printer/Screen dropdown. ShutdownModal::on_show applies the default
          scope passed to set_dual_callbacks (plan_shutdown_dialog picks Screen);
          selected="2" here only matches it at parse time. The dropdown widens the
          scope to the printer when the user means it. -->
-    <lv_obj width="100%"
-            height="content" flex_flow="row" style_pad_gap="#space_sm" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_lg">
-      <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="1"/>
+      <lv_obj width="100%"
+              height="content" flex_flow="row" style_pad_gap="#space_sm" style_pad_left="#space_lg"
+              style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_lg">
+        <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="1"/>
 
-      <ui_split_button name="split_restart"
-                       variant="primary" icon="restart" flex_grow="1" text_format="Restart %s"
-                       options="Both&#10;Printer&#10;Screen" options_tag="Both&#10;Printer&#10;Screen" selected="2">
-        <event_cb trigger="clicked" callback="on_restart_split_clicked"/>
-      </ui_split_button>
+        <ui_split_button name="split_restart"
+                         variant="primary" icon="restart" flex_grow="1" text_format="Restart %s"
+                         options="Both&#10;Printer&#10;Screen" options_tag="Both&#10;Printer&#10;Screen" selected="2">
+          <event_cb trigger="clicked" callback="on_restart_split_clicked"/>
+        </ui_split_button>
 
-      <ui_split_button name="split_shutdown"
-                       variant="danger" icon="power" flex_grow="1" text_format="Shutdown %s"
-                       options="Both&#10;Printer&#10;Screen" options_tag="Both&#10;Printer&#10;Screen" selected="2">
-        <event_cb trigger="clicked" callback="on_shutdown_split_clicked"/>
-      </ui_split_button>
-    </lv_obj>
+        <ui_split_button name="split_shutdown"
+                         variant="danger" icon="power" flex_grow="1" text_format="Shutdown %s"
+                         options="Both&#10;Printer&#10;Screen" options_tag="Both&#10;Printer&#10;Screen" selected="2">
+          <event_cb trigger="clicked" callback="on_shutdown_split_clicked"/>
+        </ui_split_button>
+      </lv_obj>
+    </dialog_frame-footer>
   </view>
 </component>

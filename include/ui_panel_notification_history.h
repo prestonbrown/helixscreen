@@ -100,6 +100,9 @@ class NotificationHistoryPanel : public PanelBase {
     /// A tap on row @p index: runs that entry's action, if it has one.
     void handle_item_clicked(size_t index);
 
+    /// The header's Clear All: empties the history and the list.
+    void handle_clear_clicked();
+
     /// The row component's severity index (0 info, 1 success, 2 warning, 3 error).
     static int severity_index(ToastSeverity severity);
 
@@ -155,12 +158,6 @@ class NotificationHistoryPanel : public PanelBase {
      */
     static std::string format_timestamp(uint64_t timestamp_ms);
 
-    //
-    // === Button Handlers ===
-    //
-
-    void handle_clear_clicked();
-
     /**
      * @brief Handle a history revision change observed from NotificationManager
      *
@@ -171,12 +168,6 @@ class NotificationHistoryPanel : public PanelBase {
      * read before the user ever sees them.
      */
     void handle_history_version_change(int32_t version);
-
-    //
-    // === Static Trampolines ===
-    //
-
-    static void on_clear_clicked(lv_event_t* e);
 
     // Action dispatch
     void dispatch_action(const char* action);
