@@ -160,7 +160,7 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
         break;
     case PrintJobState::ERROR:
         icon_src = "alert";
-        icon_variant = "error";
+        icon_variant = "danger";
         title = "Print Failed";
         break;
     default:

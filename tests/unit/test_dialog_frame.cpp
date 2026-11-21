@@ -13,9 +13,12 @@
 
 #include "ui_icon_codepoints.h"
 #include "ui_modal.h"
+#include "ui_print_completion_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
+#include "notice.h"
+#include "printer_state.h"
 #include "theme_manager.h"
 
 #include <cstring>
@@ -220,4 +223,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_confirm shows its title, message and 
     process_lvgl(50);
     CHECK(visible_glyphs(err, "alert_octagon") == 1);
     CHECK(visible_glyphs(err, "alert") == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a failed print's completion dialog draws its icon in danger",
+                 "[dialog_frame][print_completion]") {
+    helix::init_print_completion_subjects();
+    helix::publish_ui_request({.kind = helix::UiRequestKind::ShowPrintCompletion,
+                               .code = static_cast<int>(helix::PrintJobState::ERROR),
+                               .text = "benchy.gcode"});
+    lv_obj_t* dlg = ModalStack::instance().top_dialog();
+    REQUIRE(dlg != nullptr);
+    lv_obj_t* icon = lv_obj_find_by_name(dlg, "dialog_icon");
+    REQUIRE(icon != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(icon, LV_PART_MAIN),
+                      theme_manager_get_color("danger")));
+    helix::publish_ui_request({.kind = helix::UiRequestKind::DismissPrintCompletion});
 }
