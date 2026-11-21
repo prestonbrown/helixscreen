@@ -3,6 +3,9 @@
 
 #include "subject_debug_registry.h"
 
+#include "helix/xml/scoped_subject_registry.h"
+#include "subject_managed_panel.h"
+
 #include <spdlog/spdlog.h>
 
 #include <atomic>
@@ -151,3 +154,20 @@ void SubjectDebugRegistry::clear() {
     subjects_.clear();
     name_to_subject_.clear();
 }
+
+namespace helix {
+
+void publish_subject(lv_subject_t* subject, const char* name, lv_subject_type_t type,
+                     const char* file, int line) {
+    helix::xml::register_subject_in_current_scope(name, subject);
+    SubjectDebugRegistry::instance().register_subject(subject, name, type, file, line);
+}
+
+void publish_managed_subject(SubjectManager& manager, lv_subject_t* subject, const char* xml_name,
+                             lv_subject_type_t type, const char* file, int line) {
+    helix::xml::register_subject_in_current_scope(xml_name, subject);
+    manager.register_subject(subject, xml_name);
+    SubjectDebugRegistry::instance().register_subject(subject, xml_name, type, file, line);
+}
+
+} // namespace helix

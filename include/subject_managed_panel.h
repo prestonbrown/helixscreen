@@ -347,6 +347,20 @@ class SubjectManager {
     SubjectLifetime subjects_lifetime_ = std::make_shared<bool>(true);
 };
 
+namespace helix {
+
+/**
+ * @brief Publish @p subject under @p xml_name in the current XML scope, register
+ *        it with @p manager and record it in SubjectDebugRegistry
+ *
+ * The body of every UI_MANAGED_SUBJECT_* site, out of line: inlined, the two
+ * std::string temporaries the registry takes cost each site ~100 bytes.
+ */
+void publish_managed_subject(SubjectManager& manager, lv_subject_t* subject, const char* xml_name,
+                             lv_subject_type_t type, const char* file, int line);
+
+} // namespace helix
+
 /**
  * @brief Helper macro to init, register with XML system, AND register with SubjectManager
  *
@@ -360,10 +374,8 @@ class SubjectManager {
 #define UI_MANAGED_SUBJECT_INT(subject, initial_value, xml_name, manager)                          \
     do {                                                                                           \
         lv_subject_init_int(&(subject), (initial_value));                                          \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        SubjectDebugRegistry::instance().register_subject(                                         \
-            &(subject), (xml_name), LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);                      \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name), LV_SUBJECT_TYPE_INT,   \
+                                         __FILE__, __LINE__);                                      \
     } while (0)
 
 /**
@@ -380,10 +392,8 @@ class SubjectManager {
 #define UI_MANAGED_SUBJECT_STRING(subject, buffer, initial_value, xml_name, manager)               \
     do {                                                                                           \
         lv_subject_init_string(&(subject), (buffer), nullptr, sizeof(buffer), (initial_value));    \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        SubjectDebugRegistry::instance().register_subject(                                         \
-            &(subject), (xml_name), LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);                   \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name),                        \
+                                         LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);              \
     } while (0)
 
 /**
@@ -403,10 +413,8 @@ class SubjectManager {
     do {                                                                                           \
         snprintf((buffer), (size), "%s", (initial_value));                                         \
         lv_subject_init_string(&(subject), (buffer), nullptr, (size), (buffer));                   \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        SubjectDebugRegistry::instance().register_subject(                                         \
-            &(subject), (xml_name), LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);                   \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name),                        \
+                                         LV_SUBJECT_TYPE_STRING, __FILE__, __LINE__);              \
     } while (0)
 
 /**
@@ -422,10 +430,8 @@ class SubjectManager {
 #define UI_MANAGED_SUBJECT_POINTER(subject, initial_value, xml_name, manager)                      \
     do {                                                                                           \
         lv_subject_init_pointer(&(subject), (initial_value));                                      \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        SubjectDebugRegistry::instance().register_subject(                                         \
-            &(subject), (xml_name), LV_SUBJECT_TYPE_POINTER, __FILE__, __LINE__);                  \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name),                        \
+                                         LV_SUBJECT_TYPE_POINTER, __FILE__, __LINE__);             \
     } while (0)
 
 /**
@@ -441,8 +447,6 @@ class SubjectManager {
 #define UI_MANAGED_SUBJECT_COLOR(subject, initial_value, xml_name, manager)                        \
     do {                                                                                           \
         lv_subject_init_color(&(subject), (initial_value));                                        \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        SubjectDebugRegistry::instance().register_subject(                                         \
-            &(subject), (xml_name), LV_SUBJECT_TYPE_COLOR, __FILE__, __LINE__);                    \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name), LV_SUBJECT_TYPE_COLOR, \
+                                         __FILE__, __LINE__);                                      \
     } while (0)
