@@ -935,13 +935,29 @@ void AmsEditOverlay::populate_picker() {
     if (!api_) {
         api_ = get_moonraker_api();
     }
-    if (!has_spoolman || !api_) {
+    if (!api_) {
+        spools_from_spoolman_ = false;
+        render_spool_list("");
+        return;
+    }
+    if (!has_spoolman) {
         // Without Spoolman the list is what this printer's lanes have held.
         spools_from_spoolman_ = false;
-        for (const auto& entry : lane_spool_history::load()) {
-            cached_spools_.push_back(lane_spool_history::as_spool(entry));
-        }
-        render_spool_list("");
+        lv_subject_set_int(&picker_state_subject_, 0);
+        auto token = lifetime_.token();
+        lane_spool_history::load(
+            *api_, [this, token](std::vector<lane_spool_history::Entry> entries) {
+                token.defer("AmsEditOverlay::lane_history", [this, entries]() {
+                    if (!overlay_root_ || !subjects_initialized_ || spools_from_spoolman_) {
+                        return;
+                    }
+                    cached_spools_.clear();
+                    for (const auto& entry : entries) {
+                        cached_spools_.push_back(lane_spool_history::as_spool(entry));
+                    }
+                    render_spool_list("");
+                });
+            });
         return;
     }
 
@@ -1173,7 +1189,6 @@ void AmsEditOverlay::handle_row_use(size_t row) {
         working_info_.total_weight_g = static_cast<float>(spool.initial_weight_g);
         working_info_.remaining_weight_g = static_cast<float>(spool.initial_weight_g);
         spool_assign::apply_new_spool_default_weight(working_info_);
-        lane_spool_history::record(working_info_);
     }
     commit_and_close();
 }
@@ -1254,42 +1269,55 @@ void AmsEditOverlay::handle_assign_local() {
     if (working_info_.spoolman_id > 0) {
         working_info_.clear_spoolman_link();
     }
-    lane_spool_history::record(working_info_);
     commit_and_close();
 }
 
 void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo& after,
                                          bool created) {
-    struct Undo {
+    struct Payload {
         int slot_index = -1;
         SlotInfo before;
         SlotInfo after;
+        SpoolInfo label; ///< the spool Print Label prints
     };
-    // One undo at a time: a newer assign replaces the older one's payload.
-    static Undo s_undo;
-    s_undo = {slot_index_, before, after};
+    // One toast's worth at a time: a newer save replaces the older payload.
+    static Payload s_payload;
+    s_payload = {slot_index_, before, after, {}};
 
     const std::string lane =
         slot_index_ == -2 ? std::string(lv_tr("External Filament"))
                           : helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_);
     const std::string name =
         helix::compose_filament_label(after.brand, after.spool_name, after.material, " ");
-    std::string message = lane + ": " + name;
+    const std::string message = lane + ": " + name;
+    std::string detail;
     if (created && after.spoolman_id > 0) {
-        message +=
-            " · " + fmt::format(fmt::runtime(lv_tr("Added to Spoolman as #{}")), after.spoolman_id);
+        detail = fmt::format(fmt::runtime(lv_tr("Added to Spoolman as #{}")), after.spoolman_id);
     }
+
+    // Print Label, where a label printer is set up and the spool is Spoolman's
+    // (a new one already printed its label; this is the reprint).
+    ToastAction print_label;
+#if HELIX_HAS_LABEL_PRINTER
+    if (after.spoolman_id > 0 && helix::LabelPrinterSettingsManager::instance().is_configured()) {
+        s_payload.label = label_spool();
+        print_label = ToastAction{
+            lv_tr("Print Label"),
+            [](void* user_data) { print_label_for(static_cast<Payload*>(user_data)->label); },
+            &s_payload};
+    }
+#endif
     ToastManager::instance().show_with_action(
         ToastSeverity::SUCCESS, message.c_str(), lv_tr("Undo"),
         [](void* user_data) {
-            const auto* undo = static_cast<Undo*>(user_data);
+            const auto* undo = static_cast<Payload*>(user_data);
             if (undo->slot_index == -1) {
                 return;
             }
             spdlog::info("[AmsEditOverlay] Undo assign on slot {}", undo->slot_index);
             AmsState::instance().commit_slot_edit(undo->slot_index, undo->after, undo->before);
         },
-        &s_undo, 6000);
+        &s_payload, 6000, nullptr, print_label, detail.empty() ? nullptr : detail.c_str());
 }
 
 void AmsEditOverlay::fetch_recents() {
@@ -2200,14 +2228,10 @@ void AmsEditOverlay::handle_scan_qr() {
 
 #if HELIX_HAS_LABEL_PRINTER
 void AmsEditOverlay::handle_print_label() {
-    auto& settings = helix::LabelPrinterSettingsManager::instance();
+    print_label_for(label_spool());
+}
 
-    if (!settings.is_configured()) {
-        ToastManager::instance().show(ToastSeverity::INFO,
-                                      lv_tr("Set up your label printer in Settings"), 3000);
-        return;
-    }
-
+SpoolInfo AmsEditOverlay::label_spool() const {
     SpoolInfo spool_info;
     bool found = false;
     for (const auto& spool : cached_spools_) {
@@ -2225,6 +2249,16 @@ void AmsEditOverlay::handle_print_label() {
         spool_info.filament_name = working_info_.spool_name;
         spool_info.remaining_weight_g = working_info_.remaining_weight_g;
         spool_info.initial_weight_g = working_info_.total_weight_g;
+    }
+    return spool_info;
+}
+
+void AmsEditOverlay::print_label_for(const SpoolInfo& spool_info) {
+    auto& settings = helix::LabelPrinterSettingsManager::instance();
+    if (!settings.is_configured()) {
+        ToastManager::instance().show(ToastSeverity::INFO,
+                                      lv_tr("Set up your label printer in Settings"), 3000);
+        return;
     }
 
     auto print_cb = [](bool success, const std::string& error) {
@@ -2850,6 +2884,11 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
         // The callback already has the edit: close without firing it again.
         completion_fired_ = true;
         helix::nav::go_back();
+        // Every saved assignment joins the printer's lane history, the list
+        // Assign Spool offers without Spoolman.
+        if (api_) {
+            lane_spool_history::record(*api_, working_info_);
+        }
         show_assigned_toast(original_info_, working_info_, created_spool_id_ > 0);
         return;
     }
@@ -3072,6 +3111,13 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     if (result.created_new_spool) {
                         created_spool_id_ = committed.spoolman_id;
                     }
+#if HELIX_HAS_LABEL_PRINTER
+                    // A spool new to Spoolman gets its label printed at once.
+                    if (result.created_new_spool &&
+                        helix::LabelPrinterSettingsManager::instance().is_configured()) {
+                        handle_print_label();
+                    }
+#endif
                 } else if (result.created_new_spool) {
                     ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Added to Spoolman"),
                                                   2500);

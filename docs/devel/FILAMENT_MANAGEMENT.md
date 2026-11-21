@@ -1471,8 +1471,10 @@ right column.
 **Assign Spool.** Left: the describe form (below). Right: the user's spools.
 With Spoolman they are its spools in recency order, searchable by name, brand,
 color or `#ID`; without it they are the filaments this printer's lanes have held
-(`include/lane_spool_history.h`, per printer in Config, most recent first,
-recorded on every local assign). Each row (`ui_xml/spool_assign_row.xml`)
+(`include/lane_spool_history.h`: the printer's own Moonraker database, namespace
+`helix-screen`, key `lane_spool_history`, most recent first, deduped, at most 12,
+recorded on every saved assignment), so the list follows the printer across
+screen reinstalls and other clients. Each row (`ui_xml/spool_assign_row.xml`)
 draws the spool with its filament ring at the remaining weight, the name,
 `#id · N g left · when`, and **Use**, which links the lane (or, from the lane
 history, describes it) and closes. Once the form says anything the list narrows
@@ -1498,9 +1500,12 @@ temps`, **Save** (dirty-gated; "Saves to Spoolman spool #id" under it on a
 linked lane) and **Clear Lane**.
 
 **After a save** the editor closes on the lane's echo with a toast naming the
-lane and the spool ("Added to Spoolman as #id" when the save created it) and
-**Undo**, which commits the lane's prior slot back through
-`AmsState::commit_slot_edit()`.
+lane and the spool, "Added to Spoolman as #id" under it when the save created
+the spool. Its buttons are **Undo**, which commits the lane's prior slot back
+through `AmsState::commit_slot_edit()`, and, on a Spoolman spool with a label
+printer set up, **Print Label** (the toast's optional second action,
+`ToastAction`). A spool the save created has its label printed at once, so the
+toast's button is the reprint.
 
 **The lane's own settings** sit full width under both columns (`lane_section`),
 so the two rows share a line and are in view on open in landscape: **Assigned

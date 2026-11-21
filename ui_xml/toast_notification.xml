@@ -19,6 +19,8 @@
          default, so every existing caller renders exactly as before. -->
     <prop name="detail" type="string" default=""/>
     <prop name="hide_detail" type="string" default="true"/>
+    <prop name="action2_text" type="string" default=""/>
+    <prop name="hide_action2" type="string" default="true"/>
   </api>
   <!-- Toast card - floating appearance with shadow. Width comes from the parent
        stack container (sized in C++ based on screen width); height tight to
@@ -44,6 +46,10 @@
       <text_small name="toast_detail"
                   width="100%" text="$detail" long_mode="wrap" style_text_color="#text_muted" hidden="$hide_detail"/>
     </lv_obj>
+    <!-- The optional second action, before the main one. -->
+    <ui_button name="toast_action2_btn"
+               width="content" height="#button_height_sm" text="$action2_text" variant="secondary" style_min_width="72"
+               hidden="$hide_action2"/>
     <ui_button name="toast_action_btn"
                width="content" height="#button_height_sm" text="$action_text" variant="success" style_min_width="72"
                hidden="$hide_action"/>

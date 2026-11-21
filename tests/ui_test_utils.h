@@ -195,6 +195,12 @@ void set_test_toast_hook(std::function<void(ToastSeverity, const std::string&, u
 bool fire_last_toast_action();
 
 /**
+ * @brief Press the second button of the most recent toast, as fire_last_toast_action()
+ *        presses its action button. False when that toast had no second button.
+ */
+bool fire_last_toast_second_action();
+
+/**
  * @brief True when the most recent action toast was dismissed through
  *        ToastManager::hide(action_callback, user_data) with its own pair.
  *

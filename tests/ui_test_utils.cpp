@@ -553,6 +553,8 @@ std::function<void(ToastSeverity, const std::string&, uint32_t)> g_test_toast_ho
 // The last action toast shown, which a fire consumes.
 toast_action_callback_t g_last_toast_action = nullptr;
 void* g_last_toast_action_data = nullptr;
+toast_action_callback_t g_last_toast_action2 = nullptr;
+void* g_last_toast_action2_data = nullptr;
 // The last action toast shown and the last pair hide(action) was given, for
 // last_action_toast_dismissed(). A fire leaves these alone.
 toast_action_callback_t g_shown_toast_action = nullptr;
@@ -602,6 +604,8 @@ void route_toast(const ToastManager::Event& e) {
         g_dismissed_toast_action_data = e.action_user_data;
         return;
     }
+    g_last_toast_action2 = e.action2_cb;
+    g_last_toast_action2_data = e.action2_user_data;
     if (e.action_cb) {
         g_last_toast_action = e.action_cb;
         g_last_toast_action_data = e.action_user_data;
@@ -670,6 +674,7 @@ void clear_test_hooks() {
 void set_test_toast_hook(std::function<void(ToastSeverity, const std::string&, uint32_t)> hook) {
     g_test_toast_hook = std::move(hook);
     g_last_toast_action = nullptr;
+    g_last_toast_action2 = nullptr;
     g_shown_toast_action = nullptr;
     g_dismissed_toast_action = nullptr;
 }
@@ -677,6 +682,16 @@ void set_test_toast_hook(std::function<void(ToastSeverity, const std::string&, u
 bool last_action_toast_dismissed() {
     return g_shown_toast_action && g_dismissed_toast_action == g_shown_toast_action &&
            g_dismissed_toast_action_data == g_shown_toast_action_data;
+}
+
+bool fire_last_toast_second_action() {
+    toast_action_callback_t action = g_last_toast_action2;
+    g_last_toast_action2 = nullptr;
+    if (!action) {
+        return false;
+    }
+    action(g_last_toast_action2_data);
+    return true;
 }
 
 bool fire_last_toast_action() {

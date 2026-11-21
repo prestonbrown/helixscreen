@@ -4,8 +4,10 @@
 #include "lane_spool_history.h"
 
 #include "color_utils.h"
-#include "config.h"
+#include "i_moonraker_api.h"
 #include "text_io.h"
+
+#include <spdlog/spdlog.h>
 
 #include "hv/json.hpp"
 
@@ -13,17 +15,11 @@ namespace helix::lane_spool_history {
 
 namespace {
 
-constexpr const char* kPathKey = "lane_spool_history";
-
 bool same_filament(const Entry& a, const Entry& b) {
     return helix::text_io::equals_ignore_case(a.material, b.material) &&
            helix::text_io::equals_ignore_case(a.brand, b.brand) &&
            helix::text_io::equals_ignore_case(a.product_name, b.product_name) &&
            a.color_rgb == b.color_rgb;
-}
-
-std::string history_path(const Config& cfg) {
-    return cfg.df() + kPathKey;
 }
 
 } // namespace
@@ -69,17 +65,12 @@ SpoolInfo as_spool(const Entry& entry) {
     return s;
 }
 
-std::vector<Entry> load() {
+std::vector<Entry> from_json(const nlohmann::json& value) {
     std::vector<Entry> out;
-    Config* cfg = Config::get_instance();
-    if (!cfg) {
+    if (!value.is_array()) {
         return out;
     }
-    const nlohmann::json* node = cfg->try_get_json(history_path(*cfg));
-    if (!node || !node->is_array()) {
-        return out;
-    }
-    for (const auto& item : *node) {
+    for (const auto& item : value) {
         if (!item.is_object()) {
             continue;
         }
@@ -104,18 +95,16 @@ std::vector<Entry> load() {
             e.total_weight_g = total->get<float>();
         }
         out.push_back(std::move(e));
+        if (out.size() >= kMaxEntries) {
+            break;
+        }
     }
     return out;
 }
 
-void record(const SlotInfo& slot) {
-    const std::optional<Entry> entry = entry_from_slot(slot);
-    Config* cfg = Config::get_instance();
-    if (!entry || !cfg) {
-        return;
-    }
+nlohmann::json to_json(const std::vector<Entry>& entries) {
     nlohmann::json list = nlohmann::json::array();
-    for (const auto& e : with_recent(load(), *entry)) {
+    for (const auto& e : entries) {
         list.push_back({{"material", e.material},
                         {"brand", e.brand},
                         {"product", e.product_name},
@@ -123,8 +112,30 @@ void record(const SlotInfo& slot) {
                         {"color", e.color_rgb},
                         {"total_g", e.total_weight_g}});
     }
-    cfg->set(history_path(*cfg), list);
-    cfg->save();
+    return list;
+}
+
+void load(IMoonrakerAPI& api, std::function<void(std::vector<Entry>)> on_loaded) {
+    auto done = std::make_shared<std::function<void(std::vector<Entry>)>>(std::move(on_loaded));
+    api.database_get_item(
+        kDbNamespace, kDbKey, [done](const nlohmann::json& value) { (*done)(from_json(value)); },
+        // A key nothing has written yet answers not-found: an empty history.
+        [done](const MoonrakerError&) { (*done)({}); });
+}
+
+void record(IMoonrakerAPI& api, const SlotInfo& slot) {
+    const std::optional<Entry> entry = entry_from_slot(slot);
+    if (!entry) {
+        return;
+    }
+    IMoonrakerAPI* target = &api;
+    load(api, [target, entry = *entry](std::vector<Entry> list) {
+        target->database_post_item(
+            kDbNamespace, kDbKey, to_json(with_recent(std::move(list), entry)), nullptr,
+            [](const MoonrakerError& err) {
+                spdlog::warn("[LaneSpoolHistory] Not recorded: {}", err.message);
+            });
+    });
 }
 
 } // namespace helix::lane_spool_history

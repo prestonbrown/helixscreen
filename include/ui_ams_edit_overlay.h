@@ -665,6 +665,9 @@ class AmsEditOverlay : public OverlayBase {
     void report_save_problem(bool live, const char* message);
 #if HELIX_HAS_LABEL_PRINTER
     void handle_print_label();
+    /// The spool record a label for the lane's spool prints.
+    [[nodiscard]] SpoolInfo label_spool() const;
+    static void print_label_for(const SpoolInfo& spool_info);
 #endif
     void handle_scan_qr();
 };

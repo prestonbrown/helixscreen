@@ -8,9 +8,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "hv/json.hpp"
 
 /**
  * @file lane_spool_history.h
@@ -18,10 +21,19 @@
  *
  * Without Spoolman there is no spool list to pick from, so Assign Spool lists
  * the filaments previously assigned to this printer's lanes, most recent
- * first. Persisted per printer in Config.
+ * first. Kept in the printer's own Moonraker database (namespace
+ * kDbNamespace, key kDbKey), so it follows the printer across screen
+ * reinstalls and other clients.
  */
 
+namespace helix {
+class IMoonrakerAPI;
+}
+
 namespace helix::lane_spool_history {
+
+inline constexpr const char* kDbNamespace = "helix-screen";
+inline constexpr const char* kDbKey = "lane_spool_history";
 
 struct Entry {
     std::string material;
@@ -46,10 +58,17 @@ inline constexpr size_t kMaxEntries = 12;
 /// The entry as a spool row: no Spoolman id, its color as hex.
 [[nodiscard]] SpoolInfo as_spool(const Entry& entry);
 
-/// This printer's history, most recent first.
-std::vector<Entry> load();
+/// The history a stored value holds: entries without a material, and
+/// anything that is not an entry, are skipped.
+[[nodiscard]] std::vector<Entry> from_json(const nlohmann::json& value);
+[[nodiscard]] nlohmann::json to_json(const std::vector<Entry>& entries);
 
-/// Record what @p slot now holds.
-void record(const SlotInfo& slot);
+/// Read this printer's history, most recent first. @p on_loaded runs once, on
+/// the reply's thread, with an empty list when nothing is stored or the read
+/// fails.
+void load(IMoonrakerAPI& api, std::function<void(std::vector<Entry>)> on_loaded);
+
+/// Record what @p slot now holds at the front of the history.
+void record(IMoonrakerAPI& api, const SlotInfo& slot);
 
 } // namespace helix::lane_spool_history

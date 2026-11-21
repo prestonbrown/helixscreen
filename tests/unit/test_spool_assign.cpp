@@ -222,3 +222,31 @@ TEST_CASE("lane history records only a lane holding a material", "[spool-assign]
     CHECK(entry->brand.empty());
     CHECK(entry->color_rgb == 0x7F7F7F);
 }
+
+TEST_CASE("lane history round-trips through its stored form, capped", "[spool-assign]") {
+    using helix::lane_spool_history::Entry;
+    std::vector<Entry> list = {{"PETG", "eSUN", "PETG+", "esun-petg", 0x1E4FD8, 1000},
+                               {"PLA", "", "", "", 0xFFFFFF, 750}};
+    const auto back =
+        helix::lane_spool_history::from_json(helix::lane_spool_history::to_json(list));
+    REQUIRE(back.size() == 2);
+    CHECK(back[0].brand == "eSUN");
+    CHECK(back[0].product_name == "PETG+");
+    CHECK(back[0].color_rgb == 0x1E4FD8);
+    CHECK(back[1].total_weight_g == 750);
+
+    // Junk and material-less entries are skipped; nothing stored reads empty.
+    nlohmann::json stored =
+        nlohmann::json::array({"junk", {{"brand", "x"}}, {{"material", "ABS"}}});
+    const auto parsed = helix::lane_spool_history::from_json(stored);
+    REQUIRE(parsed.size() == 1);
+    CHECK(parsed[0].material == "ABS");
+    CHECK(helix::lane_spool_history::from_json(nlohmann::json()).empty());
+
+    nlohmann::json many = nlohmann::json::array();
+    for (int i = 0; i < 20; ++i) {
+        many.push_back({{"material", "PLA"}, {"brand", std::to_string(i)}});
+    }
+    CHECK(helix::lane_spool_history::from_json(many).size() ==
+          helix::lane_spool_history::kMaxEntries);
+}

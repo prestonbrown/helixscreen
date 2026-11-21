@@ -5115,12 +5115,6 @@ TEST_CASE("a save that is not confirmed names the reason, or a generic one",
 // ============================================================================
 
 namespace {
-/// Forget this printer's lane history, which lives in the process-wide Config.
-void clear_lane_history() {
-    Config* cfg = Config::get_instance();
-    cfg->set(cfg->df() + "lane_spool_history", nlohmann::json::array());
-}
-
 struct AssignCapture {
     bool fired = false;
     AmsEditOverlay::EditResult result;
@@ -5136,7 +5130,6 @@ struct AssignCapture {
 TEST_CASE_METHOD(LVGLUITestFixture, "a new spool is assigned at the size its chip says",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
-    clear_lane_history();
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     AssignCapture done;
@@ -5170,13 +5163,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a new spool is assigned at the size its chi
     CHECK(done.result.slot_info.material == "PETG");
     CHECK(done.result.slot_info.remaining_weight_g == want_remaining);
     CHECK(done.result.slot_info.total_weight_g == want_total);
-    clear_lane_history();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a common spool tile fills the form",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
-    clear_lane_history();
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr));
@@ -5196,44 +5187,50 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a common spool tile fills the form",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "without Spoolman an assigned filament is listed for the next empty lane",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
-    clear_lane_history();
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
+    const auto commit = [this](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); };
 
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr));
+    // A pick-a-spool session on lane 1: nothing in the history yet.
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, backend->get_slot_info(0), &api, commit,
+                                  /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
     REQUIRE(access.listed_ids().empty());
     REQUIRE(access.pick_dropdown("dropdown_material", "ASA"));
     access.call_apply_color(0x7F7F7F);
     access.call_assign_local();
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    UpdateQueue::instance().drain();
+    REQUIRE(backend->get_slot_info(0).material == "ASA");
 
+    // The next session lists it, read back from the printer's database.
     AssignCapture done;
-    REQUIRE(overlay.show_for_slot(test_screen(), 1, SlotInfo{}, nullptr, done.callback()));
+    REQUIRE(overlay.show_for_slot(test_screen(), 1, backend->get_slot_info(1), &api,
+                                  done.callback(), /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    UpdateQueue::instance().drain();
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
     REQUIRE(lv_obj_get_child_count(list) == 1);
-    CHECK(std::string(lv_label_get_text(
-              lv_obj_find_by_name(lv_obj_get_child(list, 0), "row_name"))) == "ASA");
+    lv_obj_t* row = lv_obj_get_child(list, 0);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "row_name"))) == "ASA");
 
     // Use describes the lane with it, linked to nothing.
-    lv_obj_send_event(lv_obj_find_by_name(lv_obj_get_child(list, 0), "row_use"), LV_EVENT_CLICKED,
-                      nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(row, "row_use"), LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(done.fired);
     CHECK(done.result.slot_info.material == "ASA");
     CHECK(done.result.slot_info.color_rgb == 0x7F7F7F);
     CHECK(done.result.slot_info.spoolman_id == 0);
-    clear_lane_history();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "Edit Spool's - and + step what is left, within the spool",
@@ -5262,7 +5259,6 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                  "an assign closes with a toast whose Undo puts the lane back",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
-    clear_lane_history();
     std::vector<std::string> toasts;
     helix::ui::set_test_toast_hook(
         [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
@@ -5291,14 +5287,12 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(backend->get_slot_info(0).spoolman_id == before.spoolman_id);
     CHECK(backend->get_slot_info(0).material == before.material);
     helix::ui::set_test_toast_hook(nullptr);
-    clear_lane_history();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "a color pick on an empty lane describes a spool of the shown material",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
-    clear_lane_history();
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
     AssignCapture done;
@@ -5328,5 +5322,4 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(done.fired);
     CHECK(done.result.slot_info.material == "PLA");
     CHECK(done.result.slot_info.color_rgb == 0xFFFFFF);
-    clear_lane_history();
 }
