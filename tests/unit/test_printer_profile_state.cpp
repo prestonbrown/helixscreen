@@ -357,7 +357,7 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
     };
 
-    const auto values = tune_hint_label_values("ui_xml/print_tune_panel.xml");
+    const auto values = tune_hint_label_values("ui_xml/components/tune_z_offset.xml");
     CHECK(values == expected);
 
     // On the U1 the tool-change label is the only one left visible.
@@ -445,6 +445,36 @@ TEST_CASE("PrinterProfileState re-resolves the strategy when the Z endstop readi
           static_cast<int>(ZOffsetTuneHint::SAVE_ON_CONTROLS));
 
     profile.deinit_subjects();
+}
+
+TEST_CASE("PrinterProfileState: the database names what holds Z0 on switch-homed probe printers",
+          "[printer_state][profile][zoffset_strategy]") {
+    using S = ZOffsetCalibrationStrategy;
+    LVGLTestFixture fixture;
+
+    const auto resolve = [](const std::string& type, bool z_endstop, bool persisted) {
+        PrinterProfileState profile;
+        profile.init_subjects(false);
+        profile.set_z_homing(z_endstop, "corexy");
+        profile.set_external_persistence(persisted);
+        profile.set_printer_type(type, true, false, false);
+        const S strategy = profile.z_offset_calibration_strategy();
+        profile.deinit_subjects();
+        return strategy;
+    };
+
+    // The AD5M homes Z on a Z-max switch (position_endstop 220), and its
+    // absolute bed mesh puts Z0 on the nozzle probe: a position_endstop
+    // change is cancelled by the next BED_MESH_CALIBRATE.
+    CHECK(resolve("FlashForge Adventurer 5M", true, false) == S::PROBE_CALIBRATE);
+    CHECK(resolve("FlashForge Adventurer 5M Pro", true, false) == S::PROBE_CALIBRATE);
+    // ZMOD's SET_GCODE_OFFSET store still owns the offset there.
+    CHECK(resolve("FlashForge Adventurer 5M", true, true) == S::FIRMWARE_MANAGED);
+    // COSMOS homes Z on its PG8 switch with a zero-referenced mesh, and its own
+    // CALIBRATE_Z_OFFSET saves with Z_OFFSET_APPLY_ENDSTOP.
+    CHECK(resolve("Elegoo Centauri Carbon", true, false) == S::ENDSTOP);
+    // Simple AF K1C: the load cell is the Z endstop, no position_endstop.
+    CHECK(resolve("Creality K1C", false, false) == S::PROBE_CALIBRATE);
 }
 
 TEST_CASE("PrinterProfileState: a probe-less delta's offset is temporary, not auto-saved",

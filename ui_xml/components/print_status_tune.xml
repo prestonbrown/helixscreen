@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Print Status's inline Tune section: the Print Tuning overlay's speed and
+     flow, pressure advance and Z-offset baby stepping on a card, where the
+     layout has room to show them beside the print instead of behind the Tune
+     button. PrintTuneOverlay::prepare_inline() makes its subjects and
+     callbacks live without the overlay; activate_inline() re-syncs them each
+     time Print Status shows. -->
+<component>
+  <api>
+    <!-- "true" leaves out the nozzle-over-bed picture -->
+    <prop name="indicator_hidden" type="string" default="false"/>
+    <!-- The narrow ultrawide column passes "ui_is_portrait ge 0" (always):
+         Flow stacks under Speed there, as it does in portrait. -->
+    <prop name="stack_cond" type="string" default="ui_is_portrait eq 1"/>
+    <!-- The stacked section passes "ui_is_portrait ge 0": without the help
+         lines it fits under the strip on a tall screen. -->
+    <prop name="help_hidden_cond" type="string" default="ui_is_portrait eq 1 and ui_breakpoint le 0"/>
+  </api>
+  <view extends="lv_obj"
+        style_pad_all="#space_sm" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="0"
+        style_radius="#border_radius" flex_flow="column" style_pad_gap="#space_xs" scrollable="true">
+    <!-- Pressure advance and reset wrap under the title where a larger
+         tier's buttons leave the column too narrow for one row. -->
+    <lv_obj width="100%"
+            height="content" flex_flow="row_wrap" style_flex_cross_place="center" style_pad_all="0"
+            style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <icon src="tune" size="sm" variant="primary"/>
+      <text_small text="Tune" text_transform="uppercase" style_translate_y="2" style_text_color="#text"/>
+      <lv_obj height="1" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
+      <tune_pa_row name="ps_tune_pa_row" coarse_hidden_cond="ui_is_portrait ge 0"/>
+      <ui_button name="ps_tune_reset"
+                 width="content" height="#button_height_sm" style_pad_hor="#space_xs" icon="refresh"
+                 style_text_font="#font_small">
+        <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
+      </ui_button>
+    </lv_obj>
+    <tune_speed_flow gap="#space_sm" stack_cond="$stack_cond"/>
+    <!-- The direction buttons in a row: beside the steps in landscape (the
+         ultrawide column), side by side above them in portrait. -->
+    <tune_z_offset indicator_hidden="$indicator_hidden"
+                   help_hidden_cond="$help_hidden_cond" portrait_dir_flow="row" portrait_dir_btn_w="49%"
+                   squish_hint_hidden="true" dir_flow="row" dir_w="content" dir_btn_w="#tune_pa_btn_w"
+                   dir_btn_h="#button_height_sm"/>
+  </view>
+</component>

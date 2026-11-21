@@ -40,14 +40,29 @@ class PrintStatusLayoutFitter {
         // strip's height in px.
         lv_subject_t* lane_tray = nullptr;
         lv_subject_t* lane_tray_h = nullptr;
-        /// The stacked printer tile's height beside a lane tray strip, in px;
-        /// lv_pct(100) otherwise, where its flex share sets it.
+        /// The stacked printer tile's height in px while a lane tray strip or
+        /// the inline Tune section takes room from the job tile; lv_pct(100)
+        /// otherwise, where its flex share sets it.
         lv_subject_t* printer_tile_h = nullptr;
+        lv_subject_t* tune_w = nullptr;
+        lv_subject_t* tune_h = nullptr;
+        /// Read, not published: 1 while a print runs, the only time the
+        /// inline Tune section shows and takes room.
+        lv_subject_t* print_controls_enabled = nullptr;
+        /// 1 while the layout could show the inline Tune section: the XML
+        /// builds it only then (an ultrawide Tune column, or stacked tiles
+        /// during a print, where it is measured before it is shown).
+        lv_subject_t* tune_build = nullptr;
     };
 
     struct Host {
         std::function<lv_obj_t*()> root;
         std::function<bool()> subjects_ready;
+        /// Runs before `tune_build` turns 1: the section's subjects and
+        /// callbacks must exist before its XML is built.
+        std::function<void()> prepare_tune;
+        /// Runs after `tune_build` changed and the section was built or torn down.
+        std::function<void(bool built)> tune_build_changed;
     };
 
     PrintStatusLayoutFitter(std::string log_tag, Subjects subjects, Host host);
@@ -72,6 +87,9 @@ class PrintStatusLayoutFitter {
     [[nodiscard]] static int32_t strip_stacked_height(lv_obj_t* progress = nullptr);
 
   private:
+    /// Publish `tune_build`, preparing the section's owner first.
+    void publish_tune_build(bool build);
+
     std::string log_tag_;
     Subjects subjects_;
     Host host_;

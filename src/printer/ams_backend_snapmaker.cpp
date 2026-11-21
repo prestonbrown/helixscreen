@@ -3675,6 +3675,7 @@ AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
     }
     e->title = worded->summary;
     e->detail = worded->detail;
+    e->runout_lane = snapmaker::runout_head(*code);
     if (code->id != snapmaker::kFeedingModuleId) {
         return e;
     }

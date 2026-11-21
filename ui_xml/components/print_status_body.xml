@@ -9,8 +9,9 @@
      The job tile is the preview card while printing; during pre-print the
      start-sequence checklist covers it. Stacked tiles with a lane tray
      (ps_lane_tray 2) give it the height the fitter decides (ps_lane_tray_h)
-     under the strip: the printer tile then stands at ps_printer_tile_h and
-     the job tile takes the rest. -->
+     under the strip, and the inline Tune section (ps_tune_h) below it: the
+     printer tile then stands at ps_printer_tile_h and the job tile takes the
+     rest. -->
 <component>
   <styles>
     <style name="tiles_side" layout="flex" flex_flow="row"/>
@@ -40,7 +41,7 @@
       <print_status_printer_tile name="ps_printer_tile" width="100%">
         <bind_style_prop prop="height" subject="ps_printer_tile_h"/>
         <bind_style_if_eq name="printer_side" subject="ps_arrangement" ref_value="0"/>
-        <bind_style_if name="printer_stacked" cond="ps_arrangement eq 1 and ps_lane_tray ne 2"/>
+        <bind_style_if name="printer_stacked" cond="ps_arrangement eq 1 and ps_lane_tray ne 2 and ps_tune_h eq 0"/>
       </print_status_printer_tile>
     </lv_obj>
     <print_status_strip name="ps_strip"/>
@@ -48,5 +49,20 @@
       <bind_style_prop prop="height" subject="ps_lane_tray_h"/>
       <bind_flag_if_not_eq subject="ps_lane_tray" flag="hidden" ref_value="2"/>
     </print_status_lane_tray>
+    <!-- A tall stacked screen shows the Tune section under the strip, at its
+         content height, when the fitter finds the tiles room above it
+         (ps_tune_h; 0 hides it). The section is built only on stacked tiles
+         during a print (ps_tune_build), and measured hidden before it shows;
+         side by side never builds it. Its own container: a rebuilt <if> body
+         lands last. -->
+    <lv_obj name="ps_tune_slot"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            hidden="true">
+      <bind_flag_if cond="ps_tune_h eq 0 or ps_tune_build eq 0" flag="hidden"/>
+      <if cond="ps_tune_build eq 1">
+        <print_status_tune name="ps_tune"
+                           width="100%" height="content" indicator_hidden="true" help_hidden_cond="ui_is_portrait ge 0"/>
+      </if>
+    </lv_obj>
   </view>
 </component>

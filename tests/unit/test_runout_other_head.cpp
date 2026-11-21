@@ -515,3 +515,23 @@ TEST_CASE("runout other head: U1 refuses outside a runout pause on the runout he
     CHECK(build_plan(AmsType::SNAPMAKER, f, 0).refusal == PlanRefusal::HeadNotEligible);
     CHECK(build_plan(AmsType::SNAPMAKER, f, 7).refusal == PlanRefusal::HeadNotEligible);
 }
+
+TEST_CASE("runout other head: the runout head stays in charge only while the printer waits on it",
+          "[runout_other_head]") {
+    auto f = paused_runout_on_head0();
+    f.routing = {0, 1, 2, 3};
+    CHECK(runout_head_in_charge(f));
+
+    // The window the U1 log showed: its own switch rerouted to head 3 and holds
+    // PRINT_REPLENISHING while it heats and purges.
+    f.printer_busy = true;
+    CHECK_FALSE(runout_head_in_charge(f));
+
+    f = paused_runout_on_head0();
+    f.routing = {3, 1, 2, 3};
+    CHECK_FALSE(runout_head_in_charge(f));
+
+    f = paused_runout_on_head0();
+    f.active_head = 3;
+    CHECK_FALSE(runout_head_in_charge(f));
+}

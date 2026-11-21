@@ -140,8 +140,8 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping
     REQUIRE(row != nullptr);
     lv_obj_t* slider = lv_obj_find_by_name(row, "slider");
     REQUIRE(slider != nullptr);
-    // Save is the header's action button.
-    lv_obj_t* save = lv_obj_find_by_name(root, "action_button");
+    // Save is the header's action.
+    lv_obj_t* save = lv_obj_find_by_name(root, "btn_theme_save");
     REQUIRE(save != nullptr);
     lv_obj_t* title = lv_obj_find_by_name(root, "header_title");
     REQUIRE(title != nullptr);
@@ -184,8 +184,8 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping
 namespace {
 /// Save As New is behind the header's more button.
 void open_save_as(ThemeEditorOverlay& editor) {
-    lv_obj_send_event(lv_obj_find_by_name(editor.get_root(), "action_icon_button"),
-                      LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(lv_obj_find_by_name(editor.get_root(), "btn_theme_more"), LV_EVENT_CLICKED,
+                      nullptr);
     lv_obj_t* item = lv_obj_find_by_name(lv_screen_active(), "btn_theme_save_as");
     REQUIRE(item != nullptr);
     lv_obj_send_event(item, LV_EVENT_CLICKED, nullptr);

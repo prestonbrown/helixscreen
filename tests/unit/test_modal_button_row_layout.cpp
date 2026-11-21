@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // modal_button_row's buttons hold their content inside their own box at every
-// screen size: the row fixes their height at button_height, which at 480x272
-// leaves no room for the theme's vertical button padding.
+// screen size: the row fixes their height at modal_button_height, which leaves
+// no room for the theme's vertical button padding. At 480x272 that height stays
+// a comfortable touch target rather than dropping to button_height.
 
 #include "ui_breakpoint.h"
 
@@ -14,7 +15,8 @@
 
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE_METHOD(LVGLUITestFixture, "modal_button_row: no button's content overflows its box",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "modal_button_row: buttons are touch-sized and hold their content",
                  "[modal_button_row][ui_integration][2024]") {
     struct Size {
         int32_t w, h;
@@ -41,6 +43,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "modal_button_row: no button's content overf
         REQUIRE(btn != nullptr);
         REQUIRE_FALSE(lv_obj_is_hidden(btn));
         CAPTURE(lv_obj_get_height(btn), lv_obj_get_content_height(btn));
+        CHECK(lv_obj_get_height(btn) == theme_manager_get_spacing("modal_button_height"));
+        CHECK(lv_obj_get_height(btn) >= 40);
         CHECK(lv_obj_get_scroll_top(btn) <= 0);
         CHECK(lv_obj_get_scroll_bottom(btn) <= 0);
         lv_area_t box;

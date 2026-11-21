@@ -12,6 +12,7 @@
 #include <spdlog/spdlog.h>
 
 #include <functional>
+#include <string>
 
 /**
  * @file ui_runout_guidance_modal.h
@@ -114,8 +115,39 @@ class RunoutGuidanceModal : public Modal {
      * @param blocked true to disable Resume, false to enable it
      */
     void set_resume_blocked(bool blocked) {
-        lv_subject_set_int(&resume_blocked_subject_, blocked ? 1 : 0);
+        port_blocks_resume_ = blocked;
+        publish_resume_blocked();
     }
+
+    /**
+     * @brief Show what the printer is doing instead of the runout guidance,
+     *        with every action disabled; an empty @p message ends it.
+     *
+     * For a pause the printer is busy in (switching to another toolhead,
+     * heating, purging): nothing may be pressed until it finishes or fails,
+     * except Cancel Print when @p cancel_allowed. Resume stays disabled
+     * whatever set_resume_blocked() says, and comes back as that last said
+     * once the message is empty. Unchanged values notify nothing. Main thread
+     * only.
+     */
+    void set_switch_progress(const std::string& message, bool cancel_allowed = false) {
+        const bool in_progress = !message.empty();
+        if (in_progress && message != lv_subject_get_string(&switch_message_subject_)) {
+            lv_subject_set_string(&switch_message_subject_, message.c_str());
+        }
+        switch_in_progress_ = in_progress;
+        set_int_if_changed(&switch_in_progress_subject_, in_progress ? 1 : 0);
+        set_int_if_changed(&cancel_blocked_subject_, in_progress && !cancel_allowed ? 1 : 0);
+        publish_resume_blocked();
+    }
+
+    [[nodiscard]] static bool switch_in_progress() {
+        return switch_in_progress_;
+    }
+
+    /// set_switch_progress()'s message for a switch to @p target_name, in the
+    /// current language. Main thread only.
+    [[nodiscard]] static std::string switching_text(const std::string& target_name);
 
     /**
      * @brief Offer "Use Another Toolhead" (#2137): continue the paused print on
@@ -152,6 +184,17 @@ class RunoutGuidanceModal : public Modal {
     /// The subject set_other_head_offered() drives; same storage rules.
     static lv_subject_t* other_head_offered_subject() {
         return &other_head_offered_subject_;
+    }
+
+    /// The subjects set_switch_progress() drives; same storage rules.
+    static lv_subject_t* switch_in_progress_subject() {
+        return &switch_in_progress_subject_;
+    }
+    static lv_subject_t* switch_message_subject() {
+        return &switch_message_subject_;
+    }
+    static lv_subject_t* cancel_blocked_subject() {
+        return &cancel_blocked_subject_;
     }
 
     /**
@@ -210,6 +253,11 @@ class RunoutGuidanceModal : public Modal {
         on_ok_dismiss_ = std::move(cb);
     }
 
+    /// Runs whenever the dialog closes, whatever closed it.
+    void set_on_hidden(Callback cb) {
+        on_hidden_ = std::move(cb);
+    }
+
     /// @name Which handlers are currently installed
     ///
     /// Every on_*() below null-checks its callback and then hide()s (or stays
@@ -238,9 +286,20 @@ class RunoutGuidanceModal : public Modal {
     /// @}
 
   protected:
-    // ESC closes without resuming or aborting: those take a button.
+    // ESC closes without resuming or aborting: those take a button. While the
+    // printer is busy inside the pause neither ESC nor the backdrop closes it:
+    // what the printer is doing stays on screen until it ends.
     void on_escape() override {
+        if (switch_in_progress_) {
+            return;
+        }
         hide(ModalCloseReason::EscKey);
+    }
+    void on_backdrop_tap() override {
+        if (switch_in_progress_) {
+            return;
+        }
+        hide(ModalCloseReason::BackdropTap);
     }
     /**
      * @brief Called after modal is created and visible
@@ -248,6 +307,12 @@ class RunoutGuidanceModal : public Modal {
      * Wires up all 6 buttons to their respective handlers.
      */
     void on_show() override;
+
+    void on_hide() override {
+        if (on_hidden_) {
+            on_hidden_();
+        }
+    }
 
     /**
      * @brief Called when user clicks Load Filament button
@@ -347,6 +412,7 @@ class RunoutGuidanceModal : public Modal {
     Callback on_cancel_print_;
     Callback on_ok_dismiss_;
     Callback on_use_other_head_;
+    Callback on_hidden_;
 
     static void other_head_button_cb(lv_event_t* e) {
         auto* self = static_cast<RunoutGuidanceModal*>(lv_event_get_user_data(e));
@@ -375,7 +441,30 @@ class RunoutGuidanceModal : public Modal {
     // 1 = offer "Use Another Toolhead" (#2137). Default 0: never offered unless
     // the show site says the filament system can do it.
     static inline helix::Subject other_head_offered_subject_{};
+    // 1 while set_switch_progress() holds a message: the guidance and every
+    // button give way to it.
+    static inline helix::Subject switch_in_progress_subject_{};
+    static inline helix::Subject switch_message_subject_{};
+    // 1 while Cancel Print is disabled too: a switch HelixScreen sent, which
+    // ends on its own; the printer's own work leaves it enabled.
+    static inline helix::Subject cancel_blocked_subject_{};
+    static inline char switch_message_buf_[192] = {};
+    // What set_resume_blocked() last said, and whether a switch is shown;
+    // runout_resume_blocked carries either.
+    static inline bool port_blocks_resume_ = false;
+    static inline bool switch_in_progress_ = false;
     static inline bool subjects_initialized_ = false;
+
+    static void set_int_if_changed(lv_subject_t* subject, int value) {
+        if (lv_subject_get_int(subject) != value) {
+            lv_subject_set_int(subject, value);
+        }
+    }
+
+    static void publish_resume_blocked() {
+        set_int_if_changed(&resume_blocked_subject_,
+                           port_blocks_resume_ || switch_in_progress_ ? 1 : 0);
+    }
 
     static void init_subjects() {
         if (subjects_initialized_)
@@ -386,11 +475,19 @@ class RunoutGuidanceModal : public Modal {
         resume_blocked_subject_.init_int(0);
         advisory_subject_.init_int(0);
         other_head_offered_subject_.init_int(0);
+        switch_in_progress_subject_.init_int(0);
+        cancel_blocked_subject_.init_int(0);
+        switch_message_subject_.init_string(switch_message_buf_, "");
+        port_blocks_resume_ = false;
+        switch_in_progress_ = false;
 
         lv_xml_register_subject(nullptr, "runout_autofeed_capable", &autofeed_capable_subject_);
         lv_xml_register_subject(nullptr, "runout_resume_blocked", &resume_blocked_subject_);
         lv_xml_register_subject(nullptr, "runout_is_advisory", &advisory_subject_);
         lv_xml_register_subject(nullptr, "runout_other_head_offered", &other_head_offered_subject_);
+        lv_xml_register_subject(nullptr, "runout_switch_in_progress", &switch_in_progress_subject_);
+        lv_xml_register_subject(nullptr, "runout_switch_message", &switch_message_subject_);
+        lv_xml_register_subject(nullptr, "runout_cancel_blocked", &cancel_blocked_subject_);
 
         StaticSubjectRegistry::instance().register_deinit("RunoutGuidanceModal", []() {
             if (!subjects_initialized_)
@@ -399,10 +496,16 @@ class RunoutGuidanceModal : public Modal {
             lv_xml_unregister_subject(nullptr, "runout_resume_blocked");
             lv_xml_unregister_subject(nullptr, "runout_is_advisory");
             lv_xml_unregister_subject(nullptr, "runout_other_head_offered");
+            lv_xml_unregister_subject(nullptr, "runout_switch_in_progress");
+            lv_xml_unregister_subject(nullptr, "runout_switch_message");
+            lv_xml_unregister_subject(nullptr, "runout_cancel_blocked");
             autofeed_capable_subject_.reset();
             resume_blocked_subject_.reset();
             advisory_subject_.reset();
             other_head_offered_subject_.reset();
+            switch_in_progress_subject_.reset();
+            switch_message_subject_.reset();
+            cancel_blocked_subject_.reset();
             subjects_initialized_ = false;
         });
     }

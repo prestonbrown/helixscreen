@@ -40,6 +40,8 @@
 #include "detection_manager.h"
 #include "filament_sensor_manager.h"
 #include "filament_sensor_types.h"
+#include "helix-xml/src/xml/lv_xml.h"
+#include "misc/lv_timer_private.h"
 #include "runtime_config.h"
 #include "test_helpers/backend_harness.h"
 #include "test_helpers/registered_backend.h"
@@ -646,4 +648,352 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     ps.update_from_status(print_stats({{"state", "standby"}}));
     settle();
     dm.reset_for_test();
+}
+
+namespace {
+
+/// The U1 of run 5 (#2137): printing Generic ASA on head 0, with head 3 holding
+/// the same filament through its feeder, until head 0 runs out.
+struct U1RunoutOnHead0 {
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> u1;
+    std::vector<std::string> heads;
+
+    U1RunoutOnHead0() {
+        const nlohmann::json orange = {
+            {"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FF8000"}}};
+        const nlohmann::json white = {
+            {"nums", 1}, {"alpha", 255}, {"mode", 0}, {"colors", {"FFFFFF"}}};
+        const auto feed = [](bool detected) {
+            return nlohmann::json{{"channel_state", detected ? "load_finish" : "unload_finish"},
+                                  {"filament_detected", detected},
+                                  {"module_exist", true},
+                                  {"disable_auto", false}};
+        };
+        u1->fire_status(nlohmann::json{
+            {"print_task_config",
+             {{"auto_replenish_filament", true},
+              {"filament_vendor", {"Generic", "Generic", "NONE", "Generic"}},
+              {"filament_type", {"ASA", "PLA", "NONE", "ASA"}},
+              {"filament_sub_type", {"Basic", "Basic", "NONE", "Basic"}},
+              {"filament_exist", {true, true, false, true}},
+              {"filament_color_multi", {orange, white, white, orange}},
+              {"extruder_map_table", {0, 1, 2, 3}}}},
+            {"print_stats", {{"state", "printing"}}},
+            {"machine_state_manager", {{"action_code", 0}}},
+            {"toolhead", {{"extruder", "extruder"}}},
+            {"extruder", {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}}},
+            {"extruder3", {{"nozzle_diameter", 0.4}, {"nozzle_volume_type", "standard"}}},
+            {"filament_feed left", {{"extruder0", feed(true)}, {"extruder1", feed(true)}}},
+            {"filament_feed right", {{"extruder2", feed(false)}, {"extruder3", feed(true)}}}});
+
+        auto& fsm = FilamentSensorManager::instance();
+        for (int h = 0; h < 4; ++h) {
+            heads.push_back("filament_motion_sensor e" + std::to_string(h) + "_filament");
+        }
+        discover_filament_sensors(fsm, heads);
+        for (int h = 0; h < 4; ++h) {
+            fsm.set_role(heads[h], static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+            set_head(h, true);
+        }
+    }
+
+    void set_head(int head, bool detected) {
+        const auto frame =
+            nlohmann::json{{heads[head], {{"filament_detected", detected}, {"enabled", true}}}};
+        u1->fire_status(frame);
+        FilamentSensorManager::instance().update_from_status(frame);
+    }
+
+    /// Head 0 runs dry: its feeder and its sensor read empty, the firmware
+    /// clears its record and pauses.
+    void run_out_head0() {
+        set_head(0, false);
+        u1->fire_status(nlohmann::json{
+            {"filament_feed left",
+             {{"extruder0", {{"channel_state", "unload_finish"}, {"filament_detected", false}}}}},
+            {"print_task_config",
+             {{"filament_vendor", {"NONE"}},
+              {"filament_type", {"NONE"}},
+              {"filament_sub_type", {"NONE"}},
+              {"filament_exist", {false}}}},
+            {"print_stats", {{"state", "paused"}}}});
+    }
+
+    /// What the U1 reported the moment its switch began: the routing and the
+    /// toolhead on head 3, PRINT_REPLENISHING held while it heats and purges.
+    void firmware_switches_to_head3() {
+        u1->fire_status(
+            nlohmann::json{{"print_task_config", {{"extruder_map_table", {3, 1, 2, 3}}}},
+                           {"toolhead", {{"extruder", "extruder3"}}},
+                           {"machine_state_manager", {{"action_code", 131}}}});
+    }
+
+    void firmware_idle() {
+        u1->fire_status(nlohmann::json{{"machine_state_manager", {{"action_code", 0}}}});
+    }
+
+    void print_resumes() {
+        u1->fire_status(nlohmann::json{{"print_stats", {{"state", "printing"}}}});
+    }
+};
+
+int subject_int(const char* name) {
+    lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+    REQUIRE(s != nullptr);
+    return lv_subject_get_int(s);
+}
+
+bool widget_hidden(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return lv_obj_is_hidden(obj);
+}
+
+bool widget_disabled(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return lv_obj_has_state(obj, LV_STATE_DISABLED);
+}
+
+lv_obj_t* guidance_dialog() {
+    return ModalStack::instance().dialog_for_component("runout_guidance_modal");
+}
+
+lv_obj_t* chooser_dialog() {
+    return ModalStack::instance().dialog_for_component("runout_other_head_modal");
+}
+
+/// One second on the printer: the test clock runs no periodic timer, so run
+/// each one-second timer (the guidance's printer re-check, the chooser's
+/// switch watch) once, as lv_timer_handler() does when it comes due.
+void one_second_passes() {
+    lv_tick_inc(1000);
+    std::vector<lv_timer_t*> due;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (t->period == 1000 && t->repeat_count < 0 && t->timer_cb != nullptr) {
+            due.push_back(t);
+        }
+    }
+    for (lv_timer_t* t : due) {
+        bool alive = false;
+        for (lv_timer_t* l = lv_timer_get_next(nullptr); l != nullptr; l = lv_timer_get_next(l)) {
+            alive = alive || l == t;
+        }
+        // A timer an earlier one cancelled keeps its node with no callback.
+        if (alive && t->timer_cb != nullptr) {
+            t->timer_cb(t);
+        }
+    }
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+/// The global API for the length of one case: the chooser sends through it.
+class GlobalApi {
+  public:
+    explicit GlobalApi(helix::IMoonrakerAPI* api) : previous_(get_moonraker_api()) {
+        set_moonraker_api(api);
+    }
+    ~GlobalApi() {
+        set_moonraker_api(previous_);
+    }
+    GlobalApi(const GlobalApi&) = delete;
+    GlobalApi& operator=(const GlobalApi&) = delete;
+
+  private:
+    helix::IMoonrakerAPI* previous_;
+};
+
+} // namespace
+
+// Run 5, 21:57-21:58: the firmware rerouted to head 3 and held PRINT_REPLENISHING
+// while the guidance was up. The dialog re-read the port of the NEW active head
+// and turned into "Motion sensor stuck ... Resume to feed it." with Resume live.
+TEST_CASE_METHOD(RunoutGuidanceFixture,
+                 "the guidance stays on the runout head while the firmware switches away from it",
+                 "[runout_guidance][pause_recheck][runout_switch]") {
+    LiveSensorSubjects live_sensors;
+    U1RunoutOnHead0 rig;
+    auto& ps = get_printer_state();
+    ps.update_from_status(
+        print_stats({{"state", "printing"}, {"exception", nlohmann::json::object()}}));
+    rig.run_out_head0();
+    ps.update_from_status(print_stats({{"state", "paused"}, {"exception", u1_runout_cause(0)}}));
+    settle();
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    REQUIRE(handler->is_modal_visible());
+    lv_obj_t* dialog = guidance_dialog();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(subject_int("runout_autofeed_capable") == 1);
+    REQUIRE(subject_int("runout_resume_blocked") == 1); // head 0's port is empty
+    CHECK(FilamentSensorManager::instance().runout_explained(0));
+
+    rig.firmware_switches_to_head3();
+    settle();
+    one_second_passes();
+    settle();
+    // Busy inside the pause: it says so, and only Cancel Print can be pressed.
+    CHECK(subject_int("runout_switch_in_progress") == 1);
+    CHECK(subject_int("runout_resume_blocked") == 1);
+    CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
+    CHECK_FALSE(widget_hidden(dialog, "switch_progress_row"));
+    CHECK_FALSE(widget_disabled(dialog, "btn_cancel_print"));
+    CHECK(widget_disabled(dialog, "btn_resume"));
+
+    // A busy state that outlasts any switch gives the guidance back.
+    for (int s = 0; s < 181; ++s) {
+        one_second_passes();
+    }
+    CHECK(subject_int("runout_switch_in_progress") == 0);
+    CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
+
+    // Done, still paused, on head 3: the guidance about head 0 gives way to
+    // Resume on head 3 once that holds past the settle time, never to what
+    // head 3's port reads.
+    rig.firmware_idle();
+    settle();
+    one_second_passes();
+    settle();
+    CHECK(handler->is_modal_visible());
+    CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
+    for (int s = 0; s < 5; ++s) {
+        one_second_passes();
+    }
+    settle();
+    CHECK_FALSE(handler->is_modal_visible());
+    CHECK_FALSE(FilamentSensorManager::instance().runout_explained(0));
+    lv_obj_t* stranded = ModalStack::instance().top_dialog();
+    REQUIRE(stranded != nullptr);
+    CHECK(stranded != dialog);
+    CHECK(subject_int("runout_switch_in_progress") == 0);
+    CHECK(subject_int("runout_resume_blocked") == 0);
+
+    ModalStack::instance().clear();
+    settle();
+    ps.update_from_status(print_stats({{"state", "standby"}}));
+    settle();
+}
+
+TEST_CASE_METHOD(RunoutGuidanceFixture,
+                 "a confirmed switch disables the runout dialog until the print moves on",
+                 "[runout_guidance][runout_other_head][runout_switch]") {
+    LiveSensorSubjects live_sensors;
+    GlobalApi global_api(api());
+    U1RunoutOnHead0 rig;
+    auto& ps = get_printer_state();
+    ps.update_from_status(
+        print_stats({{"state", "printing"}, {"exception", nlohmann::json::object()}}));
+    rig.run_out_head0();
+    ps.update_from_status(print_stats({{"state", "paused"}, {"exception", u1_runout_cause(0)}}));
+    settle();
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    lv_obj_t* dialog = guidance_dialog();
+    REQUIRE(dialog != nullptr);
+    REQUIRE(subject_int("runout_other_head_offered") == 1);
+
+    lv_obj_send_event(lv_obj_find_by_name(dialog, "btn_other_head"), LV_EVENT_CLICKED, nullptr);
+    settle();
+    lv_obj_t* chooser = chooser_dialog();
+    REQUIRE(chooser != nullptr);
+    REQUIRE(subject_int("runout_other_head_row_state_3") == 1);
+
+    // A tap holds every row until the confirmation is answered.
+    lv_obj_send_event(lv_obj_find_by_name(chooser, "runout_other_head_row_3"), LV_EVENT_CLICKED,
+                      nullptr);
+    settle();
+    lv_obj_t* confirm = ModalStack::instance().top_dialog();
+    REQUIRE(confirm != nullptr);
+    REQUIRE(confirm != chooser);
+    CHECK(subject_int("runout_other_head_confirming") == 1);
+    CHECK(widget_disabled(chooser, "runout_other_head_row_3"));
+    CHECK(widget_disabled(chooser, "runout_other_head_row_1"));
+
+    SECTION("Cancel frees the rows") {
+        lv_obj_send_event(lv_obj_find_by_name(confirm, "btn_secondary"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        CHECK(subject_int("runout_other_head_confirming") == 0);
+        CHECK_FALSE(widget_disabled(chooser, "runout_other_head_row_3"));
+        CHECK(subject_int("runout_switch_in_progress") == 0);
+    }
+
+    SECTION("Continue shows the switch until the print resumes on the new head") {
+        lv_obj_send_event(lv_obj_find_by_name(confirm, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        CHECK(subject_int("runout_other_head_confirming") == 0);
+        REQUIRE(handler->is_modal_visible());
+        CHECK(subject_int("runout_switch_in_progress") == 1);
+        const std::string switching =
+            lv_subject_get_string(RunoutGuidanceModal::switch_message_subject());
+        CHECK(switching.find("Switching to Toolhead 4") == 0);
+        CHECK(subject_int("runout_resume_blocked") == 1);
+        CHECK(widget_disabled(dialog, "btn_resume"));
+        CHECK(widget_disabled(dialog, "btn_cancel_print"));
+        CHECK(widget_hidden(dialog, "other_head_row"));
+
+        // The firmware takes it from here: reroute, heat, purge.
+        rig.firmware_switches_to_head3();
+        settle();
+        one_second_passes();
+        settle();
+        CHECK(handler->is_modal_visible());
+        CHECK(subject_int("runout_switch_in_progress") == 1);
+        CHECK(lv_subject_get_string(RunoutGuidanceModal::switch_message_subject()) == switching);
+        CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
+
+        rig.firmware_idle();
+        rig.print_resumes();
+        settle();
+        one_second_passes();
+        settle();
+        CHECK_FALSE(handler->is_modal_visible());
+        CHECK(subject_int("runout_switch_in_progress") == 0);
+    }
+
+    SECTION("a dialog closed mid-switch leaves nothing behind") {
+        lv_obj_send_event(lv_obj_find_by_name(confirm, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        REQUIRE(subject_int("runout_switch_in_progress") == 1);
+        // Neither ESC nor the backdrop closes it while the switch runs.
+        lv_obj_t* backdrop = lv_obj_get_parent(dialog);
+        lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
+        uint32_t esc = LV_KEY_ESC;
+        lv_obj_send_event(backdrop, LV_EVENT_KEY, &esc);
+        settle();
+        REQUIRE(handler->is_modal_visible());
+
+        // Closed from outside (the shared stack sweeping it), the state behind
+        // it goes too: the subjects every runout dialog reads, and the re-check.
+        Modal::hide(dialog);
+        settle();
+        REQUIRE_FALSE(handler->is_modal_visible());
+        CHECK(subject_int("runout_switch_in_progress") == 0);
+        CHECK(subject_int("runout_resume_blocked") == 0);
+        CHECK_FALSE(FilamentSensorManager::instance().runout_explained(0));
+        rig.firmware_switches_to_head3();
+        settle();
+        one_second_passes();
+        settle();
+        CHECK(subject_int("runout_switch_in_progress") == 0);
+        CHECK(subject_int("runout_resume_blocked") == 0);
+    }
+
+    SECTION("a switch the printer never makes gives the guidance back") {
+        lv_obj_send_event(lv_obj_find_by_name(confirm, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        REQUIRE(subject_int("runout_switch_in_progress") == 1);
+        // The reply settles, then the watch calls it: the routing never moved.
+        for (int s = 0; s < 200 && RunoutGuidanceModal::switch_in_progress(); ++s) {
+            settle();
+            one_second_passes();
+        }
+        CHECK_FALSE(RunoutGuidanceModal::switch_in_progress());
+        CHECK(handler->is_modal_visible());
+        CHECK(subject_int("runout_resume_blocked") == 1); // head 0's port, still empty
+        CHECK_FALSE(widget_disabled(dialog, "btn_cancel_print"));
+    }
+
+    handler->hide_modal();
+    ModalStack::instance().clear();
+    settle();
+    ps.update_from_status(print_stats({{"state", "standby"}}));
+    settle();
 }

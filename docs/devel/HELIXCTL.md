@@ -835,6 +835,8 @@ reads the resolved value, so it shows which one is really in effect.
 `demo` covers screens that only appear on a real printer event or configured
 state, constructed with representative sample data and the real lifecycle:
 `preflight-check`, `preflight-material`, `color-mismatch`, `runout-modal`,
+`runout-switching` (the runout dialog while the printer switches to another toolhead, every
+action disabled; pause the mock print first for the paused button row),
 `runout-other-head` (the chooser for finishing a runout-paused print on another toolhead;
 U1 mock with `HELIX_MOCK_U1_EMPTY_PORTS=0`, so the runout head cannot refeed), `lock-screen`,
 `print-status`, `print-tune`, `ams`, `camera`, `ams-error-toast`,

@@ -42,6 +42,8 @@ struct Subjects {
     helix::Subject message;
     char message_buf[256] = {};
     helix::Subject any_eligible;
+    /// 1 while a pick's confirmation is up: every row is disabled.
+    helix::Subject confirming;
     std::array<helix::Subject, kRows> state;
     std::array<helix::Subject, kRows> title;
     std::array<helix::Subject, kRows> note;
@@ -101,6 +103,22 @@ void send_quiet(const std::string& gcode, const char* what) {
     }
 }
 
+/// The print moved to @p target_name but stayed paused: say so, and offer
+/// @p resume, which resumes it there.
+void show_stranded_dialog(const std::string& target_name, const std::string& resume) {
+    const std::string text = fmt::format(
+        fmt::runtime(lv_tr("The print moved to {} but did not resume. Check {}, then press "
+                           "Resume.")),
+        target_name, target_name);
+    modal_confirm(lv_tr("Print Did Not Resume"), text.c_str(), ModalSeverity::Warning,
+                  lv_tr("Resume"), [resume]() {
+                      spdlog::info("[RunoutOtherHead] resuming on the new head: {}", resume);
+                      if (IMoonrakerAPI* api = get_moonraker_api()) {
+                          api->execute_gcode(resume, nullptr, nullptr, 0);
+                      }
+                  });
+}
+
 /// What a sent switch needs once it ends.
 struct SwitchJob {
     roh::RunoutFacts before;
@@ -109,9 +127,7 @@ struct SwitchJob {
     roh::ContinuePlan plan;
     std::string runout_name;
     std::string target_name;
-    /// Runs once the routing moved off the runout head, whether or not the
-    /// print resumed: what still describes the runout head is out of date.
-    std::function<void()> on_moved;
+    RunoutOtherHeadModal::SwitchHooks hooks;
 };
 
 /// Watches one sent switch until the printer shows it or it is clearly not
@@ -127,7 +143,10 @@ class SwitchWatch {
     void start(SwitchJob job) {
         // A watch still running is ended without its outcome; its pending
         // restore stays in the store and the next settle applies it.
-        stop();
+        if (in_flight()) {
+            stop();
+            not_moved();
+        }
         ++generation_;
         job_ = std::move(job);
         reply_ = roh::SendReply::None;
@@ -162,6 +181,7 @@ class SwitchWatch {
         if (!now) {
             // The filament system went away; the pending restore waits in the store.
             stop();
+            not_moved();
             return;
         }
         const roh::SwitchStep step =
@@ -206,26 +226,17 @@ class SwitchWatch {
             if (labelled) {
                 send_quiet(job_.plan.clear_label_gcode, "clearing the borrowed label");
             }
-            if (job_.on_moved) {
-                job_.on_moved();
+            if (job_.hooks.on_moved) {
+                job_.hooks.on_moved();
             }
+        } else {
+            not_moved();
         }
         RunoutOtherHeadModal::settle_pending_restore();
     }
 
     void show_stranded() {
-        const std::string text = fmt::format(
-            fmt::runtime(lv_tr("The print moved to {} but did not resume. Check {}, then press "
-                               "Resume.")),
-            job_.target_name, job_.target_name);
-        const std::string resume = job_.plan.resume_gcode;
-        modal_confirm(lv_tr("Print Did Not Resume"), text.c_str(), ModalSeverity::Warning,
-                      lv_tr("Resume"), [resume]() {
-                          spdlog::info("[RunoutOtherHead] resuming on the new head: {}", resume);
-                          if (IMoonrakerAPI* api = get_moonraker_api()) {
-                              api->execute_gcode(resume, nullptr, nullptr, 0);
-                          }
-                      });
+        show_stranded_dialog(job_.target_name, job_.plan.resume_gcode);
     }
 
     void fail(const roh::RunoutFacts& now, bool labelled) {
@@ -248,6 +259,12 @@ class SwitchWatch {
     void stop() {
         lv_timer_cancel_safe(timer_);
         timer_ = nullptr;
+    }
+
+    void not_moved() {
+        if (job_.hooks.on_not_moved) {
+            job_.hooks.on_not_moved();
+        }
     }
 
     lv_timer_t* timer_ = nullptr;
@@ -318,8 +335,8 @@ std::string variant_note(const roh::FilamentRecord& now, const roh::FilamentReco
 
 RunoutOtherHeadModal* RunoutOtherHeadModal::shown_ = nullptr;
 
-RunoutOtherHeadModal::RunoutOtherHeadModal(int runout_head, std::function<void()> on_moved)
-    : runout_head_(runout_head), on_moved_(std::move(on_moved)) {
+RunoutOtherHeadModal::RunoutOtherHeadModal(int runout_head, SwitchHooks hooks)
+    : runout_head_(runout_head), hooks_(std::move(hooks)) {
     init_subjects();
 }
 
@@ -336,6 +353,7 @@ void RunoutOtherHeadModal::init_subjects() {
     }
     UI_MANAGED_SUBJECT_STRING(s.message, s.message_buf, "", "runout_other_head_message", s.manager);
     UI_MANAGED_SUBJECT_INT(s.any_eligible, 0, "runout_other_head_any_eligible", s.manager);
+    UI_MANAGED_SUBJECT_INT(s.confirming, 0, "runout_other_head_confirming", s.manager);
     for (int i = 0; i < kRows; ++i) {
         const auto idx = static_cast<size_t>(i);
         const std::string n = std::to_string(i);
@@ -369,13 +387,27 @@ bool RunoutOtherHeadModal::available(int runout_head) {
     return facts && roh::worth_offering(*facts);
 }
 
-bool RunoutOtherHeadModal::show_owned(int runout_head, std::function<void()> on_moved) {
+bool RunoutOtherHeadModal::show_owned(int runout_head, SwitchHooks hooks) {
     if (!available(runout_head)) {
         return false;
     }
-    return Modal::show_owned(
-        std::make_unique<RunoutOtherHeadModal>(runout_head, std::move(on_moved)),
-        lv_screen_active());
+    return Modal::show_owned(std::make_unique<RunoutOtherHeadModal>(runout_head, std::move(hooks)),
+                             lv_screen_active());
+}
+
+bool RunoutOtherHeadModal::show_stranded(int onto) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const std::string resume =
+        backend != nullptr ? roh::resume_on_gcode(backend->get_type(), onto) : std::string{};
+    if (resume.empty()) {
+        return false;
+    }
+    show_stranded_dialog(active_tool_name_label(tool_label(onto), onto), resume);
+    return true;
+}
+
+void RunoutOtherHeadModal::set_confirming(bool confirming) {
+    lv_subject_set_int(&subjects().confirming, confirming ? 1 : 0);
 }
 
 void RunoutOtherHeadModal::settle_pending_restore() {
@@ -407,6 +439,7 @@ void RunoutOtherHeadModal::settle_pending_restore() {
 void RunoutOtherHeadModal::on_show() {
     shown_ = this;
     wire_ok_button("btn_primary");
+    set_confirming(false);
     publish();
 }
 
@@ -518,6 +551,10 @@ void RunoutOtherHeadModal::pick(int row) {
     const bool warn = verdict.color_differs || verdict.variant_differs;
     ConfirmOptions options;
     options.owner_token = lifetime_.token();
+    // Every row waits on this answer; one that is not Continue frees them.
+    options.on_cancel = [] { set_confirming(false); };
+    options.on_dismiss = [] { set_confirming(false); };
+    set_confirming(true);
     modal_confirm(
         lv_tr("Continue on Another Toolhead"), message.c_str(),
         warn ? ModalSeverity::Warning : ModalSeverity::Info, lv_tr("Continue"),
@@ -525,6 +562,7 @@ void RunoutOtherHeadModal::pick(int row) {
 }
 
 void RunoutOtherHeadModal::start(int head) {
+    set_confirming(false);
     // Re-plan at the moment of sending: the pause or the heads may have moved
     // while the confirmation was up.
     const auto facts = user_facts_for(runout_head_);
@@ -553,6 +591,8 @@ void RunoutOtherHeadModal::start(int head) {
     if (!plan.restore_gcode.empty()) {
         roh::write_pending_restore(plan.restore_gcode);
     }
+    const std::string target_name =
+        active_tool_name_label(tool_label(plan.continues_on), plan.continues_on);
     SwitchWatch& watch = SwitchWatch::watch();
     watch.start(SwitchJob{
         .before = *facts,
@@ -560,9 +600,12 @@ void RunoutOtherHeadModal::start(int head) {
         .target = plan.continues_on,
         .plan = plan,
         .runout_name = active_tool_name_label(tool_label(runout_head_), runout_head_),
-        .target_name = active_tool_name_label(tool_label(plan.continues_on), plan.continues_on),
-        .on_moved = on_moved_,
+        .target_name = target_name,
+        .hooks = hooks_,
     });
+    if (hooks_.on_sent) {
+        hooks_.on_sent(target_name);
+    }
     const uint64_t generation = watch.generation();
     const auto reply = [generation](roh::SendReply r) {
         queue_update("RunoutOtherHead::reply",

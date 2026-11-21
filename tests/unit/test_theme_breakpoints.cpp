@@ -82,9 +82,9 @@ TEST_CASE("responsive_pick + breakpoint_for reproduce the public suffix ladder",
 // print_tune z-offset tokens (ui_xml/print_tune_tokens.xml)
 // ============================================================================
 //
-// These three size the z-offset row of ui_xml/print_tune_panel.xml in both
-// orientations. Flat literals at every tier leave the four z-step buttons 0px
-// wide at 272x480: present, bound, and impossible to tap.
+// These three size the z-offset row of ui_xml/components/tune_z_offset.xml in
+// both orientations. Flat literals at every tier leave the four z-step buttons
+// 0px wide at 272x480: present, bound, and impossible to tap.
 //
 // The failure mode being pinned is silent in both directions:
 //   - Drop one of the required _small/_medium/_large tiers and

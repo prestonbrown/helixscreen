@@ -4327,6 +4327,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: ヒーター制御をMPCに切り替えます。Klipperが再起動します。
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: MPCに切り替えると、このヒーターの制御方法が変わり、その後キャリブレーションが行われます。温度に達した状態で数分かかります。
   Switching to MPC requires a config change and Klipper restart.: MPCへの切り替えには設定変更とKlipperの再起動が必要です。
+  Switching to {}. The printer heats and purges it, then resumes the print.: "{} に切り替え中です。プリンターが加熱とパージを行い、印刷を再開します。"
   Sync: '同期'
   Switching to {}: '{}に切り替えています'
   Sync Feedback: "同期フィードバック"
@@ -4660,6 +4661,7 @@ translations:
   : 'この値はKlipperが再起動するまで使われます。保持するには、printer.cfgのこのツールのエクストルーダーセクションにpressure_advanceとして追加してください。'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。'
+  The printer is working on the paused print. Wait for it to finish.: "プリンターが一時停止中の印刷を処理しています。完了するまでお待ちください。"
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？
   The printer kept printing after the cancel.: 'キャンセル後もプリンターは印刷を続けています。'
   The printer lost power during a print. It can resume where it left off.: 印刷中にプリンターの電源が失われました。中断した箇所から再開できます。

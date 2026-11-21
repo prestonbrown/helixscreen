@@ -30,6 +30,10 @@
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
                icon="tune" text="Tune" icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <!-- Hidden where the layout found room for the Tune section inline: the
+           ultrawide Tune column (ps_uw_tune_w) or the stacked section
+           (ps_tune_h). -->
+      <bind_flag_if cond="ps_uw_tune_w gt 0 or ps_tune_h gt 0" flag="hidden"/>
       <event_cb trigger="clicked" callback="on_print_status_tune"/>
       <bind_state_if_eq subject="print_controls_enabled" state="disabled" ref_value="0"/>
     </ui_button>

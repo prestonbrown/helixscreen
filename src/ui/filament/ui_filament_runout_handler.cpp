@@ -20,13 +20,29 @@
 #include "print_control_buttons.h"
 #include "print_lifecycle_state.h" // For PrintState enum
 #include "printer_state.h"
+#include "runout_other_head.h"
 #include "runtime_config.h"
+#include "translation_loader.h"
 
 #include <spdlog/spdlog.h>
 
 #include <lvgl.h>
 
 namespace helix::ui {
+
+namespace {
+
+/// What the active filament system reports about a runout on @p runout_head;
+/// nullopt where it reports nothing.
+std::optional<helix::runout_other_head::RunoutFacts> printer_facts(int runout_head) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (backend == nullptr || runout_head < 0) {
+        return std::nullopt;
+    }
+    return backend->runout_other_head_facts(runout_head);
+}
+
+} // namespace
 
 // ============================================================================
 // FilamentRunoutHandler Implementation
@@ -47,6 +63,9 @@ FilamentRunoutHandler::FilamentRunoutHandler(IMoonrakerAPI* api) : api_(api) {
 
 FilamentRunoutHandler::~FilamentRunoutHandler() {
     helix::non_filament_pause::remove_listener(this);
+    if (runout_modal_.is_visible()) {
+        helix::FilamentSensorManager::instance().set_runout_explained(std::nullopt);
+    }
     stop_watching_for_runout();
     // lifetime_ destructor calls invalidate() automatically
     spdlog::trace("[FilamentRunoutHandler] Destroyed");
@@ -173,6 +192,7 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
     // Fresh modal: re-arm the sensor-driven auto-close. Any in-dialog
     // Load/Unload/Purge will set this true to suppress auto-close.
     user_took_manual_action_ = false;
+    end_guidance();
     // Re-arm the auto-close latch (#991): the observer must observe a confirmed
     // runout (value==1) on THIS modal before a clear (value==0) can auto-close,
     // so the observer's initial read / startup-grace transient cannot close it.
@@ -211,14 +231,7 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
             // AmsState frees the subject in deinit_subjects(); hold its lifetime.
             port_present_observer_ = helix::ui::observe<int>(
                 AmsState::instance().get_active_tool_port_present_subject(), this,
-                [](FilamentRunoutHandler* self, int port_present) {
-                    // Only gate while still on an auto-feed runout modal.
-                    if (!self->autofeed_context_)
-                        return;
-                    if (!self->runout_modal_.is_visible())
-                        return;
-                    self->runout_modal_.set_resume_blocked(port_present == 0);
-                },
+                [](FilamentRunoutHandler* self, int /*port_present*/) { self->sync_resume_gate(); },
                 AmsState::instance().get_subjects_lifetime());
         } else {
             runout_modal_.set_resume_blocked(false);
@@ -314,14 +327,14 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
             runout_head = backend->head_for_slot(runout_lane_).value_or(runout_head);
         }
         other_head_runout_head_ = runout_head;
-        refresh_other_head_offer();
+        refresh_from_printer();
         // The offer follows the printer while the dialog is up: a spool at the
         // empty head's feeder, the firmware's own switch starting, the routing
         // moving. The facts come from the backend's frames, not one subject.
         other_head_offer_timer_.reset(lv_timer_create(
             [](lv_timer_t* t) {
                 static_cast<FilamentRunoutHandler*>(lv_timer_get_user_data(t))
-                    ->refresh_other_head_offer();
+                    ->refresh_from_printer();
             },
             1000, this));
         runout_modal_.set_on_use_other_head([this, token, runout_head]() {
@@ -330,15 +343,43 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
             spdlog::info("[FilamentRunoutHandler] User chose another toolhead after a runout "
                          "on head {}",
                          runout_head);
+            RunoutOtherHeadModal::SwitchHooks hooks;
+            // From the send until the outcome, the dialog says the printer is
+            // switching and takes no action.
+            hooks.on_sent = [this, token](const std::string& target_name) {
+                if (token.expired()) // L081_OK: main thread, from the chooser's tap
+                    return;
+                switch_sent_ = true;
+                switch_target_name_ = target_name;
+                refresh_from_printer();
+            };
             // Once the print moves off the runout head, this dialog's advice
             // about that head is out of date, resumed or not.
-            helix::ui::RunoutOtherHeadModal::show_owned(runout_head, [this, token]() {
+            hooks.on_moved = [this, token]() {
                 if (token.expired())
                     return;
                 hide_runout_guidance_modal();
-            });
+            };
+            // Still paused on the runout head: its guidance holds again.
+            hooks.on_not_moved = [this, token]() {
+                if (token.expired()) // L081_OK: main thread, from SwitchWatch's LVGL timer
+                    return;
+                switch_sent_ = false;
+                switch_target_name_.clear();
+                refresh_from_printer();
+            };
+            helix::ui::RunoutOtherHeadModal::show_owned(runout_head, std::move(hooks));
         });
     }
+
+    // Whatever closes the dialog (a button, ESC, the backdrop, Resume), the
+    // state behind it goes with it: the subjects it drives are shared with
+    // every other runout dialog.
+    runout_modal_.set_on_hidden([this, token]() {
+        if (token.expired())
+            return;
+        end_guidance();
+    });
 
     runout_modal_.set_on_ok_dismiss([token]() {
         if (token.expired())
@@ -355,6 +396,9 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         spdlog::error("[FilamentRunoutHandler] Failed to create runout guidance modal");
         return;
     }
+    // This dialog is the account of the runout: a toast saying the same would
+    // cover it.
+    helix::FilamentSensorManager::instance().set_runout_explained(runout_lane_);
 
     // Auto-close when the runout resolves EXTERNALLY. get_any_runout_subject() is
     // int: 1=runout, 0=clear. observe<int> fires its INITIAL read the moment
@@ -385,6 +429,8 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
                 return; // never saw a confirmed runout
             if (self->user_took_manual_action_)
                 return; // user is managing it in-dialog
+            if (self->switch_sent_)
+                return; // the switch's outcome closes it
             if (!self->runout_modal_.is_visible())
                 return;
             spdlog::info(
@@ -467,21 +513,102 @@ void FilamentRunoutHandler::hide_modal() {
     hide_runout_guidance_modal();
 }
 
-void FilamentRunoutHandler::refresh_other_head_offer() {
+void FilamentRunoutHandler::refresh_from_printer() {
     const int head = other_head_runout_head_;
-    runout_modal_.set_other_head_offered(head >= 0 &&
+    const auto facts = printer_facts(head);
+    if (!switch_sent_ && facts && runout_modal_.is_visible() && take_stranded(*facts)) {
+        return;
+    }
+    const bool busy = facts && facts->printer_busy;
+    if (busy && !busy_since_) {
+        busy_since_ = lv_tick_get();
+        spdlog::info("[FilamentRunoutHandler] The printer is working inside the pause");
+    } else if (!busy && busy_since_) {
+        spdlog::info("[FilamentRunoutHandler] The printer stopped working inside the pause "
+                     "after {} ms",
+                     lv_tick_elaps(*busy_since_));
+        busy_since_.reset();
+    }
+    // A busy state past the time a switch gets is not coming back on its own:
+    // the guidance comes back, with Resume still frozen on the runout head.
+    const bool busy_shown =
+        busy && lv_tick_elaps(*busy_since_) < helix::runout_other_head::kSwitchGiveUpMs;
+    if (switch_sent_) {
+        runout_modal_.set_switch_progress(RunoutGuidanceModal::switching_text(switch_target_name_));
+    } else if (busy_shown) {
+        // The firmware's own resume or Auto-Replenish: RESUME is refused
+        // until it ends. Cancel Print stays live; the printer queues it.
+        runout_modal_.set_switch_progress(
+            lv_tr("The printer is working on the paused print. Wait for it to finish."),
+            /*cancel_allowed=*/true);
+    } else {
+        runout_modal_.set_switch_progress({});
+    }
+    runout_modal_.set_other_head_offered(!switch_sent_ && head >= 0 &&
                                          helix::ui::RunoutOtherHeadModal::available(head));
+    sync_resume_gate();
+}
+
+bool FilamentRunoutHandler::take_stranded(const helix::runout_other_head::RunoutFacts& facts) {
+    const int onto = helix::runout_other_head::stranded_on(facts);
+    if (onto < 0) {
+        stranded_since_.reset();
+        return false;
+    }
+    // The firmware writes the routing before it marks itself busy: only a
+    // state that holds past that window is a switch that stopped.
+    if (!stranded_since_) {
+        stranded_since_ = lv_tick_get();
+    }
+    if (lv_tick_elaps(*stranded_since_) < helix::runout_other_head::kSwitchSettleMs) {
+        return false;
+    }
+    spdlog::warn("[FilamentRunoutHandler] The printer moved head {} to head {} but the print is "
+                 "still paused",
+                 facts.runout_head, onto);
+    // The guidance is about the empty head; the print now waits on another.
+    hide_runout_guidance_modal();
+    helix::ui::RunoutOtherHeadModal::show_stranded(onto);
+    return true;
+}
+
+bool FilamentRunoutHandler::guidance_current() const {
+    if (switch_sent_) {
+        return false;
+    }
+    const auto facts = printer_facts(other_head_runout_head_);
+    return !facts || helix::runout_other_head::runout_head_in_charge(*facts);
+}
+
+void FilamentRunoutHandler::sync_resume_gate() {
+    // The port reading is the active tool's. Once the printer moved off the
+    // runout head, or is busy inside the pause, it describes another head or a
+    // moment in between, and the dialog keeps what it said about the runout head.
+    if (!autofeed_context_ || !runout_modal_.is_visible() || !guidance_current()) {
+        return;
+    }
+    runout_modal_.set_resume_blocked(
+        lv_subject_get_int(AmsState::instance().get_active_tool_port_present_subject()) == 0);
 }
 
 void FilamentRunoutHandler::hide_runout_guidance_modal() {
-    if (!runout_modal_.is_visible()) {
-        return;
+    if (runout_modal_.is_visible()) {
+        spdlog::debug("[FilamentRunoutHandler] Hiding runout guidance modal");
+        // Its on_hidden hook runs end_guidance().
+        runout_modal_.hide();
     }
+    end_guidance();
+}
 
-    spdlog::debug("[FilamentRunoutHandler] Hiding runout guidance modal");
-    runout_modal_.hide();
+void FilamentRunoutHandler::end_guidance() {
+    helix::FilamentSensorManager::instance().set_runout_explained(std::nullopt);
     other_head_offer_timer_.reset();
+    stranded_since_.reset();
+    busy_since_.reset();
     other_head_runout_head_ = -1;
+    switch_sent_ = false;
+    switch_target_name_.clear();
+    runout_modal_.set_switch_progress({});
     // Stop observing the runout-cleared subject so it doesn't linger across pauses.
     runout_cleared_observer_.reset();
     // Stop gating Resume; clear the block so a future non-auto-feed modal starts

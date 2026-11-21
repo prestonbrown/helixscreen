@@ -31,12 +31,22 @@
   </styles>
   <view name="theme_editor_overlay"
         extends="overlay_panel" title="Edit Theme Colors" title_subject="theme_editor_title" bg_color="#screen_bg"
-        back_button_callback="on_theme_back_clicked" hide_action_button="false" action_button_text="Save"
-        action_button_callback="on_theme_save_clicked" action_button_disabled_cond="theme_editor_dirty eq 0"
-        action_icon="dots_vertical" action_icon_callback="on_theme_more_clicked" hide_action_icon="false">
+        back_button_callback="on_theme_back_clicked">
     <!-- The picker's Grid | Sliders switch. The selected role bar is the
          readout (name, hex and color), so the picker shows none. Save is the
          header's action; Reset and Save As New are behind the more button. -->
+    <overlay_panel-actions>
+      <ui_button name="btn_theme_more"
+                 width="#button_height_sm" height="#button_height_sm" icon="dots_vertical" icon_size="sm">
+        <style name="styles.header_icon_button"/>
+        <event_cb trigger="clicked" callback="on_theme_more_clicked"/>
+      </ui_button>
+      <ui_button name="btn_theme_save" height="#button_height_sm" text="Save">
+        <style name="styles.header_action"/>
+        <bind_state_if_eq subject="theme_editor_dirty" state="disabled" ref_value="0"/>
+        <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
+      </ui_button>
+    </overlay_panel-actions>
     <header_bar-header_content style_pad_gap="#space_sm">
       <color_picker_tabs/>
     </header_bar-header_content>
