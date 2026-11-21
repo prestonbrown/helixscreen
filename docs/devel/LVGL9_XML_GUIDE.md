@@ -124,7 +124,7 @@ theme_manager_register_responsive_fonts(display);    // Sets #font_body, etc.
 //    ui_xml/components/<name>.xml. No list, no ordering between components.
 ```
 
-Only `styles.xml` registers eagerly (its theme-token consts resolve at registration), plus `color_picker` and `ams_edit_overlay`, whose scopes C++ fills with responsive consts. A name with no XML file makes `lv_xml_create()` return NULL and log an error.
+Only `styles.xml` registers eagerly (its theme-token consts resolve at registration). A name with no XML file makes `lv_xml_create()` return NULL and log an error.
 
 ---
 

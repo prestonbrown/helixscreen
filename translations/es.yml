@@ -311,6 +311,7 @@ translations:
   All Devices: Todos los Dispositivos
   All Healthy: 'Todo en orden'
   All axes homed: Todos los ejes en origen
+  All colors: Todos los colores
   All configured hardware detected: 'Todo el hardware configurado detectado'
   All fields are required: Todos los campos son obligatorios
   All healthy: Todo en orden
@@ -857,6 +858,7 @@ translations:
   Coarse: Grueso
   Coarse Inner: Grueso interior
   Coarse Outer: Grueso exterior
+  Coaxial: Coaxial
   Code: Código
   Coil Temperature: Temperatura de Bobina
   Collect logs and system info for support: Recopilar registros e info del sistema
@@ -866,6 +868,7 @@ translations:
   Color: Color
   Color Mismatch: Color No Coincide
   Color Sensors: Sensores de color
+  Colors: Colores
   Command Failed: 'El comando falló'
   Command failed: El comando falló
   Common spools to start from: 'Bobinas comunes para empezar'
@@ -1790,7 +1793,9 @@ translations:
   Good Enough: "Suficiente"
   Good match: "Buena coincidencia"
   Got it: Entendido
+  Gradient: Degradado
   Gray: Gris
+  Grid: Cuadrícula
   Grip filament: Agarrar filamento
   Grip the filament: Agarrar el filamento
   Guide the toolhead to the chute's extrude position: Guíe el cabezal hasta la posición de extrusión del conducto
@@ -1912,6 +1917,7 @@ translations:
   Helper Macros: 'Macros de ayuda'
   Helper macros already installed: 'Las macros de ayuda ya están instaladas'
   Helper macros are up to date: 'Las macros de ayuda están actualizadas'
+  Hex: Hex
   Hide Firmware Noise: Ocultar Ruido del Firmware
   Hide Temperature Reports: Ocultar Reportes de Temperatura
   Hide the on-screen keyboard while a USB keyboard is attached: Ocultar el teclado en pantalla mientras haya un teclado USB conectado
@@ -1982,6 +1988,7 @@ translations:
   Hub: Hub
   Hub & Cutter: 'Hub y cortador'
   Hub Bowden Length: 'Longitud del bowden del hub'
+  Hue: Tono
   Humidity: Humedad
   Humidity inside the enclosure: Humedad dentro de la cámara
   Humidity Sensors: Sensores de humedad
@@ -3328,6 +3335,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: Recalibre o vea resultados
     detallados en cualquier momento en Ajustes.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Se recibieron datos demasiado grandes de la impresora ({} bytes). Puede indicar un error de comunicación.
+  Recent: Recientes
   Recent Prints: Impresiones recientes
   Recent Spools: 'Bobinas recientes'
   Recently Printed: Impresas recientemente
@@ -3586,6 +3594,7 @@ translations:
   Sample Dialog: Diálogo de Ejemplo
   Samples: Muestras
   Samples Tolerance: Tolerancia de Muestras
+  Saturation: Saturación
   Save: Guardar
   Save & Restart: Guardar y Reiniciar
   Save As New: Guardar Como Nuevo
@@ -3847,6 +3856,7 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Laminado para una boquilla de {:g} mm en T{}; la impresora tiene {:g} mm.'
   Sliced for {}, not {}.: 'Laminado para {}, no para {}.'
   Slicer: Laminador
+  Sliders: Controles
   Slot: Ranura
   Slot 1: Ranura 1
   Slot Blocked: 'Ranura bloqueada'
@@ -4449,6 +4459,7 @@ translations:
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar.'
   This system does not support bypass mode: 'Este sistema no es compatible con el modo bypass'
+  This theme: Este tema
   This tool probes each bed screw and tells you how much to adjust.: Esta herramienta
     sondea cada tornillo de cama y le indica cuánto ajustar.
   'This update asks for new permissions:': 'Esta actualización pide nuevos permisos:'

@@ -352,6 +352,7 @@ translations:
   All Devices: Все устройства
   All Healthy: 'Всё в порядке'
   All axes homed: Все оси запаркованы
+  All colors: Все цвета
   All configured hardware detected: 'Всё настроенное оборудование обнаружено'
   All fields are required: Все поля обязательны для заполнения
   All healthy: Всё в порядке
@@ -900,6 +901,7 @@ translations:
   Coarse: Грубо
   Coarse Inner: Грубо (внутренний)
   Coarse Outer: Грубо (внешний)
+  Coaxial: Коаксиальный
   Code: Код
   Coil Temperature: Температура катушки
   Collect logs and system info for support: Собрать логи и информацию о системе для
@@ -909,6 +911,7 @@ translations:
   Color: Цвет
   Color Mismatch: Несоответствие цвета
   Color Sensors: Датчики цвета
+  Colors: Цвета
   Command Failed: 'Ошибка команды'
   Command failed: Ошибка команды
   Common spools to start from: 'Популярные катушки для начала'
@@ -1832,7 +1835,9 @@ translations:
   Good Enough: "Достаточно"
   Good match: "Хорошее совпадение"
   Got it: Понятно
+  Gradient: Градиент
   Gray: Серый
+  Grid: Сетка
   Grip filament: Зажать филамент
   Grip the filament: Зажать филамент
   Guide the toolhead to the chute's extrude position: Подведите печатающую головку к позиции экструзии жёлоба
@@ -1953,6 +1958,7 @@ translations:
   Helper Macros: 'Вспомогательные макросы'
   Helper macros already installed: 'Вспомогательные макросы уже установлены'
   Helper macros are up to date: 'Вспомогательные макросы актуальны'
+  Hex: Hex
   Hide Firmware Noise: Скрыть служебные сообщения прошивки
   Hide Temperature Reports: Скрыть отчёты о температуре
   Hide the on-screen keyboard while a USB keyboard is attached: Скрывать экранную клавиатуру, пока подключена USB-клавиатура
@@ -2022,6 +2028,7 @@ translations:
   Hub: Хаб
   Hub & Cutter: 'Хаб и резак'
   Hub Bowden Length: 'Длина боудена хаба'
+  Hue: Оттенок
   Humidity: Влажность
   Humidity inside the enclosure: Влажность внутри камеры
   Humidity Sensors: Датчики влажности
@@ -3379,6 +3386,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: Перекалибруйте или просмотрите
     подробные результаты в любое время в Настройках.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: От принтера получены слишком большие данные ({} байт). Возможна ошибка связи.
+  Recent: Недавние
   Recent Prints: Недавние печати
   Recent Spools: 'Недавние катушки'
   Recently Printed: Недавно напечатано
@@ -3635,6 +3643,7 @@ translations:
   Sample Dialog: Пример диалога
   Samples: Образцы
   Samples Tolerance: Допуск образцов
+  Saturation: Насыщенность
   Save: Сохранить
   Save & Restart: Сохранить и перезапустить
   Save As New: Сохранить как новый
@@ -3895,6 +3904,7 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Нарезано для сопла {:g} мм на T{}; у принтера {:g} мм.'
   Sliced for {}, not {}.: 'Нарезано для {}, а не для {}.'
   Slicer: Слайсер
+  Sliders: Ползунки
   Slot: Слот
   Slot 1: Слот 1
   Slot Blocked: 'Слот заблокирован'
@@ -4495,6 +4505,7 @@ translations:
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
+  This theme: Эта тема
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент
     проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'

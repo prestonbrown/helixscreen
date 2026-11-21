@@ -4,8 +4,8 @@
 <!-- Spool editor overlay: Assign Spool and Edit Spool. One overlay, internal
      views selected by the ams_edit_view int subject: 0 = the editor (the
      describe form and, by ams_edit_mode, the spools list or the spool being
-     edited), 2 = custom color (presets + HSV). Subjects are written from
-     AmsEditOverlay. -->
+     edited). Colors open the color page (ColorPickerPage) over it. Subjects
+     are written from AmsEditOverlay. -->
 <component>
   <consts>
     <!-- Spool-picker list max height: caps the scroll viewport so the picker
@@ -131,17 +131,37 @@
     <px name="edit_spool_size_small" value="72"/>
     <px name="edit_spool_size_medium" value="88"/>
     <px name="edit_spool_size_large" value="120"/>
+    <!-- A multi-color spool's mode dropdown and the bar of its colors. -->
+    <px name="ams_edit_mode_dd_w_micro" value="104"/>
+    <px name="ams_edit_mode_dd_w_tiny" value="110"/>
+    <px name="ams_edit_mode_dd_w_small" value="130"/>
+    <px name="ams_edit_mode_dd_w_medium" value="150"/>
+    <px name="ams_edit_mode_dd_w_large" value="170"/>
+    <px name="ams_edit_preview_h_micro" value="18"/>
+    <px name="ams_edit_preview_h_tiny" value="20"/>
+    <px name="ams_edit_preview_h_small" value="22"/>
+    <px name="ams_edit_preview_h_medium" value="24"/>
+    <px name="ams_edit_preview_h_large" value="28"/>
+    <!-- The color row's bottom padding while a multi-color spool's dots show
+         at 480x272: the Colors line above it then fits without a page scroll,
+         and a dot's target is still 42px tall. -->
+    <px name="ams_edit_color_row_pad_tight_micro" value="7"/>
+    <px name="ams_edit_color_row_pad_tight_tiny" value="9"/>
+    <px name="ams_edit_color_row_pad_tight_small" value="8"/>
+    <px name="ams_edit_color_row_pad_tight_medium" value="6"/>
+    <px name="ams_edit_color_row_pad_tight_large" value="6"/>
   </consts>
   <styles>
-    <!-- The colour view's presets pane: content-wide beside the picker, the
-         view's full width alone. Both are bound styles, since an inline width
-         would outrank either. -->
-    <style name="color_pane_fit" width="content"/>
-    <style name="color_pane_fill" width="100%"/>
     <!-- Spool size chips: outlined, primary-tinted while chosen. -->
     <style name="size_chip"
            min_width="#assign_tile_h" pad_ver="0" pad_hor="#space_sm" radius="#border_radius" border_width="1"
            border_color="#border" bg_opa="0"/>
+    <!-- The color row pads by its swatches' reach so the outer ones are
+         hit-testable; bound, since an inline padding would outrank either. -->
+    <style name="color_row_pad" pad_all="#swatch_grid_gap_half"/>
+    <style name="color_row_tight"
+           pad_top="#swatch_grid_gap_half" pad_left="#swatch_grid_gap_half" pad_right="#swatch_grid_gap_half"
+           pad_bottom="#ams_edit_color_row_pad_tight"/>
     <style name="size_chip_on" border_width="2" border_color="#primary" bg_color="#primary" bg_opa="40"/>
   </styles>
   <!-- Two jobs on one screen, picked by ams_edit_mode: 0 = Assign Spool (the
@@ -320,29 +340,73 @@
               </lv_obj>
             </lv_obj>
 
-            <!-- At the short landscape class the swatches speak for themselves. -->
+            <!-- The color: its name (one color) or its mode and a bar of its
+                 colors (several). At the short landscape class a single
+                 color's swatches speak for themselves. -->
             <lv_obj name="color_label_row"
                     width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                     style_flex_cross_place="center" scrollable="false">
-              <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
+              <bind_flag_if cond="(ui_breakpoint eq 0 and ui_is_portrait eq 0) or ams_edit_multi eq 1" flag="hidden"/>
               <text_small text="Color" style_text_color="#text_muted"/>
+              <text_small name="color_name" bind_text="ams_edit_color_name" flex_grow="1" long_mode="dots"/>
               <tag_badge subject="ams_edit_tag_color"/>
             </lv_obj>
-            <!-- One row of presets across the column, the last tile the
-                 rainbow Custom swatch that opens the color picker. The count
-                 is measured in C++ (size_color_grids), which also keeps the
-                 custom swatch last after the repeat rebuilds. -->
-            <lv_obj name="color_grid"
-                    width="100%" height="content" style_pad_all="#swatch_grid_gap_half" flex_flow="row_wrap"
-                    style_pad_gap="#swatch_grid_gap" scrollable="false">
-              <repeat count="ams_edit_color_row_count">
-                <color_swatch index="${i}"
-                              color_subject="general_swatch_color_${i}" selected_subject="ams_edit_color_selected"
-                              callback="ams_edit_quick_swatch_cb" size="#swatch_grid_size" hit="#swatch_grid_gap_half"
-                              reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring"/>
-              </repeat>
-              <custom_color_swatch name="btn_custom_color"
-                                   selected_subject="ams_edit_color_selected" callback="ams_edit_custom_color_cb"/>
+            <!-- A multi-color spool: how its colors run. Gradient blends them
+                   along the bar; Coaxial shows them as bands. -->
+            <lv_obj name="colors_line"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                    style_flex_cross_place="center" scrollable="false" hidden="true">
+              <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="0"/>
+              <lv_dropdown name="dropdown_color_mode"
+                           width="#ams_edit_mode_dd_w" height="#button_height_sm" style_radius="#border_radius"
+                           options="Gradient&#10;Coaxial" options_tag="Gradient&#10;Coaxial"
+                           bind_value="ams_edit_color_mode">
+                <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>
+              </lv_dropdown>
+              <swatch_paint name="color_preview_bar"
+                            height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
+                            bind_colors="ams_edit_color_current_multi" blend="on">
+                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="1"/>
+              </swatch_paint>
+              <swatch_paint name="color_preview_bands"
+                            height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
+                            bind_colors="ams_edit_color_current_multi">
+                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="0"/>
+              </swatch_paint>
+            </lv_obj>
+            <!-- One color: its dot ("+" beside it where the lane can store
+                 several), the newest filament recents, and the rainbow tile that
+                 opens the color page. Several: the spool's dots, "+" and which
+                 one is being edited, then the recents and the rainbow tile on a
+                 row of their own; at 480x272 the dots and recents share one
+                 row without the tile (the selected dot opens the page), so the
+                 page never scrolls. The recents' count is measured in C++
+                 (size_color_row). -->
+            <lv_obj name="color_row"
+                    width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#swatch_grid_gap"
+                    style_flex_cross_place="center" scrollable="false">
+              <bind_style_if name="color_row_pad" cond="ams_edit_multi eq 0 or ui_breakpoint gt 0"/>
+              <bind_style_if name="color_row_tight" cond="ams_edit_multi eq 1 and ui_breakpoint eq 0"/>
+              <ams_edit_color_dots name="color_dots"/>
+              <text_small name="color_seg_label"
+                          flex_grow="1" bind_text="ams_edit_seg_label" long_mode="dots" style_text_color="#text_muted">
+                <bind_flag_if cond="ams_edit_multi eq 0 or ui_breakpoint eq 0" flag="hidden"/>
+              </text_small>
+              <lv_obj name="color_recents"
+                      width="content" height="content" style_pad_all="0" flex_flow="row"
+                      style_pad_gap="#swatch_grid_gap" style_flex_cross_place="center" scrollable="false"
+                      clickable="false">
+                <bind_flag_if cond="ams_edit_multi eq 1 and ui_breakpoint ge 1" flag="flex_in_new_track"/>
+                <repeat count="ams_edit_recent_count">
+                  <color_swatch index="${i}"
+                                color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
+                                size="#swatch_grid_size" hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach"
+                                ring="styles.grid_swatch_ring"/>
+                </repeat>
+              </lv_obj>
+              <custom_color_swatch name="btn_all_colors" icon="palette" callback="ams_edit_color_page_cb">
+                <bind_flag_if cond="ams_edit_multi eq 1 and ui_breakpoint eq 0" flag="hidden"/>
+              </custom_color_swatch>
             </lv_obj>
 
             <!-- Spool size (Assign only; Edit sets what is left on the right).
@@ -570,18 +634,18 @@
               <lv_obj width="100%"
                       height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xxs"
                       style_pad_row="#space_xxs" scrollable="false">
-                <common_spool_tile tile_name="common_spool_0" label="PLA" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_3" label="PETG" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_6" label="ABS" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_9" label="ASA" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_1" label="PLA" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_4" label="PETG" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_7" label="ABS" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_10" label="ASA" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_2" label="PLA" color_subject="general_swatch_color_2"/>
-                <common_spool_tile tile_name="common_spool_5" label="PETG" color_subject="general_swatch_color_2"/>
-                <common_spool_tile tile_name="common_spool_8" label="ABS" color_subject="general_swatch_color_2"/>
-                <common_spool_tile tile_name="common_spool_11" label="ASA" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_0" label="PLA" color_subject="ams_edit_common_color_0"/>
+                <common_spool_tile tile_name="common_spool_3" label="PETG" color_subject="ams_edit_common_color_0"/>
+                <common_spool_tile tile_name="common_spool_6" label="ABS" color_subject="ams_edit_common_color_0"/>
+                <common_spool_tile tile_name="common_spool_9" label="ASA" color_subject="ams_edit_common_color_0"/>
+                <common_spool_tile tile_name="common_spool_1" label="PLA" color_subject="ams_edit_common_color_1"/>
+                <common_spool_tile tile_name="common_spool_4" label="PETG" color_subject="ams_edit_common_color_1"/>
+                <common_spool_tile tile_name="common_spool_7" label="ABS" color_subject="ams_edit_common_color_1"/>
+                <common_spool_tile tile_name="common_spool_10" label="ASA" color_subject="ams_edit_common_color_1"/>
+                <common_spool_tile tile_name="common_spool_2" label="PLA" color_subject="ams_edit_common_color_2"/>
+                <common_spool_tile tile_name="common_spool_5" label="PETG" color_subject="ams_edit_common_color_2"/>
+                <common_spool_tile tile_name="common_spool_8" label="ABS" color_subject="ams_edit_common_color_2"/>
+                <common_spool_tile tile_name="common_spool_11" label="ASA" color_subject="ams_edit_common_color_2"/>
               </lv_obj>
             </lv_obj>
 
@@ -750,68 +814,6 @@
             <bind_flag_if cond="ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 1" flag="hidden"/>
           </text_small>
           <ams_endless_status name="endless_status"/>
-        </lv_obj>
-      </lv_obj>
-
-      <!-- ============================================================ -->
-      <!-- COLOR VIEW (ams_edit_view=2): preset grid and custom HSV.    -->
-      <!-- A preset tap applies immediately; HSV/hex + Select applies a -->
-      <!-- custom color. Returns to the editor view (its sole entry).   -->
-      <!-- ============================================================ -->
-      <!-- Where both panes fit the content area (ams_edit_color_fits, measured
-           by update_color_fit) they show together, side by side or wrapped onto
-           two rows. Where they do not, one pane fills the view at a time
-           (ams_edit_color_pane): the presets lead with the rainbow custom swatch,
-           which swaps in the picker, and the picker's Presets button swaps back. -->
-      <lv_obj name="color_view"
-              width="100%" height="content" style_min_height="100%" flex_flow="row_wrap" style_pad_all="#space_lg"
-              style_pad_gap="#space_xl" style_flex_main_place="center" style_flex_cross_place="center"
-              style_flex_track_place="center" scrollable="false" hidden="true">
-        <bind_flag_if_not_eq subject="ams_edit_view" flag="hidden" ref_value="2"/>
-
-        <!-- Preset swatches: tap applies + returns -->
-        <lv_obj name="color_presets"
-                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
-          <bind_flag_if cond="ams_edit_color_fits eq 0 and ams_edit_color_pane eq 1" flag="hidden"/>
-          <bind_style name="color_pane_fit" subject="ams_edit_color_fits" ref_value="1"/>
-          <bind_style name="color_pane_fill" subject="ams_edit_color_fits" ref_value="0"/>
-          <text_small text="Presets"/>
-          <!-- Last child: the reactive <if> rebuilds at the end of the list. -->
-          <if cond="ams_edit_color_fits eq 1">
-            <color_swatch_grid swatch_callback="ams_edit_color_swatch_cb"/>
-            <else/>
-            <color_swatch_grid width="100%"
-                               swatch_callback="ams_edit_color_swatch_cb" lead_hidden="false"
-                               lead_callback="ams_edit_color_show_picker_cb"/>
-          </if>
-        </lv_obj>
-
-        <!-- Custom hue: HSV + hex + Select -->
-        <lv_obj name="color_custom"
-                width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xl"
-                style_flex_cross_place="center" scrollable="false">
-          <bind_flag_if cond="ams_edit_color_fits eq 0 and ams_edit_color_pane eq 0" flag="hidden"/>
-          <ui_hsv_picker name="ams_color_hsv" sv_size="#sv_size" hue_height="#hue_height" gap="#space_sm"/>
-          <lv_obj width="content"
-                  height="content" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
-                  style_flex_cross_place="start" style_pad_gap="#space_sm" scrollable="false">
-            <!-- A colour area, not a swatch: a rounded rect. -->
-            <swatch_paint name="ams_color_preview"
-                          width="#color_preview_size" height="#color_preview_size_small" style_radius="#border_radius"
-                          color="#card_bg"/>
-            <text_input name="ams_color_hex_input"
-                        width="100" height="content" max_length="9" text="#808080" placeholder_text="#hex_placeholder"
-                        style_outline_width="0" scrollable="false">
-              <event_cb trigger="value_changed" callback="ams_edit_color_hex_changed_cb"/>
-            </text_input>
-            <ui_button name="btn_color_apply" width="100" height="#button_height_sm" text="Select" variant="primary">
-              <event_cb trigger="clicked" callback="ams_edit_color_apply_cb"/>
-            </ui_button>
-            <ui_button name="btn_color_presets" width="100" height="#button_height_sm" text="Presets" variant="ghost">
-              <bind_flag_if_eq subject="ams_edit_color_fits" flag="hidden" ref_value="1"/>
-              <event_cb trigger="clicked" callback="ams_edit_color_show_presets_cb"/>
-            </ui_button>
-          </lv_obj>
         </lv_obj>
       </lv_obj>
 

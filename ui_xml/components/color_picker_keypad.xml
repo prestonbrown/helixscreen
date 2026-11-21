@@ -1,0 +1,88 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker's hex keypad. It covers the picker body while
+     color_picker_keypad_open is 1: a preview, the digits typed so far,
+     backspace, Cancel and OK (enabled at six digits), then 16 keys 0-9 A-F in
+     two rows of eight. ui_color_picker_view.cpp drives it through HexKeypad. -->
+<!-- i18n: skip-file - the keys are hex digits; Cancel and OK are extracted elsewhere -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="100%" floating="true" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="255"
+        style_bg_color="#card_bg" style_border_width="0" flex_flow="column" scrollable="false" clickable="true"
+        hidden="true">
+    <bind_flag_if_eq subject="color_picker_keypad_open" flag="hidden" ref_value="0"/>
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0"
+            flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
+      <color_dot name="cp_keypad_preview" size="#cp_keypad_preview" color_subject="color_picker_keypad_preview"/>
+      <text_heading name="cp_keypad_digits" flex_grow="1" bind_text="color_picker_keypad_text"/>
+      <ui_button name="cp_key_backspace" height="#button_height_sm" icon="backspace" variant="secondary">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="back"/>
+      </ui_button>
+      <ui_button name="cp_keypad_cancel" height="#button_height_sm" text="Cancel" variant="secondary">
+        <event_cb trigger="clicked" callback="color_picker_keypad_cancel_cb"/>
+      </ui_button>
+      <ui_button name="cp_keypad_ok" height="#button_height_sm" text="OK" variant="primary">
+        <bind_state_if_lt subject="color_picker_keypad_len" state="disabled" ref_value="6"/>
+        <event_cb trigger="clicked" callback="color_picker_keypad_ok_cb"/>
+      </ui_button>
+    </lv_obj>
+    <lv_obj width="100%"
+            flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0"
+            flex_flow="row" scrollable="false" clickable="false">
+      <ui_button name="cp_key_0" height="100%" text="0" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="0"/>
+      </ui_button>
+      <ui_button name="cp_key_1" height="100%" text="1" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="1"/>
+      </ui_button>
+      <ui_button name="cp_key_2" height="100%" text="2" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="2"/>
+      </ui_button>
+      <ui_button name="cp_key_3" height="100%" text="3" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="3"/>
+      </ui_button>
+      <ui_button name="cp_key_4" height="100%" text="4" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="4"/>
+      </ui_button>
+      <ui_button name="cp_key_5" height="100%" text="5" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="5"/>
+      </ui_button>
+      <ui_button name="cp_key_6" height="100%" text="6" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="6"/>
+      </ui_button>
+      <ui_button name="cp_key_7" height="100%" text="7" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="7"/>
+      </ui_button>
+    </lv_obj>
+    <lv_obj width="100%"
+            flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0"
+            flex_flow="row" scrollable="false" clickable="false">
+      <ui_button name="cp_key_8" height="100%" text="8" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="8"/>
+      </ui_button>
+      <ui_button name="cp_key_9" height="100%" text="9" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="9"/>
+      </ui_button>
+      <ui_button name="cp_key_A" height="100%" text="A" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="A"/>
+      </ui_button>
+      <ui_button name="cp_key_B" height="100%" text="B" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="B"/>
+      </ui_button>
+      <ui_button name="cp_key_C" height="100%" text="C" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="C"/>
+      </ui_button>
+      <ui_button name="cp_key_D" height="100%" text="D" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="D"/>
+      </ui_button>
+      <ui_button name="cp_key_E" height="100%" text="E" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="E"/>
+      </ui_button>
+      <ui_button name="cp_key_F" height="100%" text="F" variant="secondary" flex_grow="1">
+        <event_cb trigger="clicked" callback="color_picker_key_cb" user_data="F"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

@@ -29,6 +29,9 @@ struct ResolvedLane {
     std::optional<bool> tool_docked;
 
     std::optional<uint32_t> color_rgb;
+    /// A multi-color filament's colors and how they run; empty states one color.
+    std::optional<std::string> multi_color_hexes;
+    std::optional<std::string> color_mode;
     std::optional<std::string> color_name;
     std::optional<std::string> material;
     std::optional<std::string> brand;

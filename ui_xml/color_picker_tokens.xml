@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Color picker tokens. theme_manager scans ui_xml/*.xml for suffixed <px> ladders
+  and registers the base names globally, so the picker components under
+  ui_xml/components/ resolve these. Sizes follow the prototype: 480x272 (micro)
+  and 800x480 (medium) are the reference points.
+-->
+<component>
+  <consts>
+    <!-- The picker body: slider track height, stepper width, row label and value columns, strip chip, and the slider knob narrowed from the track height. -->
+    <px name="cpv_track_micro" value="29"/>
+    <px name="cpv_track_tiny" value="34"/>
+    <px name="cpv_track_small" value="38"/>
+    <px name="cpv_track_medium" value="46"/>
+    <px name="cpv_track_large" value="52"/>
+    <px name="cpv_step_w_micro" value="40"/>
+    <px name="cpv_step_w_tiny" value="44"/>
+    <px name="cpv_step_w_small" value="48"/>
+    <px name="cpv_step_w_medium" value="56"/>
+    <px name="cpv_step_w_large" value="60"/>
+    <px name="cpv_label_w_micro" value="60"/>
+    <px name="cpv_label_w_tiny" value="80"/>
+    <px name="cpv_label_w_small" value="84"/>
+    <px name="cpv_label_w_medium" value="110"/>
+    <px name="cpv_label_w_large" value="120"/>
+    <px name="cpv_value_w_micro" value="34"/>
+    <px name="cpv_value_w_tiny" value="44"/>
+    <px name="cpv_value_w_small" value="48"/>
+    <px name="cpv_value_w_medium" value="56"/>
+    <px name="cpv_value_w_large" value="60"/>
+    <px name="cpv_chip_micro" value="40"/>
+    <px name="cpv_chip_tiny" value="44"/>
+    <px name="cpv_chip_small" value="48"/>
+    <px name="cpv_chip_medium" value="60"/>
+    <px name="cpv_chip_large" value="64"/>
+    <px name="cpv_chip_compact_micro" value="28"/>
+    <px name="cpv_chip_compact_tiny" value="28"/>
+    <px name="cpv_chip_compact_small" value="30"/>
+    <px name="cpv_chip_compact_medium" value="32"/>
+    <px name="cpv_chip_compact_large" value="32"/>
+    <px name="cpv_knob_pad_hor_micro" value="-8"/>
+    <px name="cpv_knob_pad_hor_tiny" value="-10"/>
+    <px name="cpv_knob_pad_hor_small" value="-11"/>
+    <px name="cpv_knob_pad_hor_medium" value="-13"/>
+    <px name="cpv_knob_pad_hor_large" value="-15"/>
+    <!-- The readout swatch. -->
+    <px name="cp_readout_swatch_micro" value="26"/>
+    <px name="cp_readout_swatch_tiny" value="28"/>
+    <px name="cp_readout_swatch_small" value="30"/>
+    <px name="cp_readout_swatch_medium" value="36"/>
+    <px name="cp_readout_swatch_large" value="40"/>
+    <!-- The hex keypad preview. -->
+    <px name="cp_keypad_preview_micro" value="32"/>
+    <px name="cp_keypad_preview_tiny" value="34"/>
+    <px name="cp_keypad_preview_small" value="36"/>
+    <px name="cp_keypad_preview_medium" value="44"/>
+    <px name="cp_keypad_preview_large" value="48"/>
+    <!-- The theme editor role bar height (a column from small up, a row at 480x272). -->
+    <px name="theme_role_bar_h_micro" value="34"/>
+    <px name="theme_role_bar_h_tiny" value="40"/>
+    <px name="theme_role_bar_h_small" value="44"/>
+    <px name="theme_role_bar_h_medium" value="44"/>
+    <px name="theme_role_bar_h_large" value="48"/>
+    <!-- The x badge on a strip chip in removal mode. -->
+    <px name="cp_chip_x_size_micro" value="18"/>
+    <px name="cp_chip_x_size_tiny" value="20"/>
+    <px name="cp_chip_x_size_small" value="22"/>
+    <px name="cp_chip_x_size_medium" value="26"/>
+    <px name="cp_chip_x_size_large" value="28"/>
+  </consts>
+</component>

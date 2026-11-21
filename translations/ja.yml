@@ -300,6 +300,7 @@ translations:
   All Devices: すべてのデバイス
   All Healthy: 'すべて正常'
   All axes homed: すべての軸がホーミング済み
+  All colors: すべての色
   All configured hardware detected: '設定済みのハードウェアをすべて検出'
   All fields are required: すべての項目が必須です
   All healthy: すべて正常
@@ -802,6 +803,7 @@ translations:
   Coarse: 粗動
   Coarse Inner: 粗動・内側
   Coarse Outer: 粗動・外側
+  Coaxial: 同軸
   Code: コード
   Coil Temperature: コイル温度
   Collect logs and system info for support: サポート用にログとシステム情報を収集
@@ -810,6 +812,7 @@ translations:
   Color: 色
   Color Mismatch: 色の不一致
   Color Sensors: カラーセンサー
+  Colors: 色
   Command Failed: 'コマンドに失敗しました'
   Command failed: コマンドに失敗しました
   Common spools to start from: 'よく使うスプールから始める'
@@ -1702,7 +1705,9 @@ translations:
   Good Enough: "これで十分"
   Good match: "良好な一致"
   Got it: 了解
+  Gradient: グラデーション
   Gray: グレー
+  Grid: グリッド
   Grip filament: フィラメントを把持
   Grip the filament: フィラメントを把持
   Guide the toolhead to the chute's extrude position: ツールヘッドをシュートの押出し位置へ誘導します
@@ -1818,6 +1823,7 @@ translations:
   Helper Macros: 'ヘルパーマクロ'
   Helper macros already installed: 'ヘルパーマクロはすでにインストールされています'
   Helper macros are up to date: 'ヘルパーマクロは最新です'
+  Hex: 16進
   Hide Firmware Noise: ファームウェアノイズを非表示
   Hide Temperature Reports: 温度レポートを非表示
   Hide the on-screen keyboard while a USB keyboard is attached: USBキーボード接続中は画面キーボードを非表示にする
@@ -1885,6 +1891,7 @@ translations:
   Hub: ハブ
   Hub & Cutter: 'ハブとカッター'
   Hub Bowden Length: 'ハブのボーデン長'
+  Hue: 色相
   Humidity: 湿度
   Humidity inside the enclosure: チャンバー内の湿度
   Humidity Sensors: 湿度センサー
@@ -3173,6 +3180,7 @@ translations:
   Recalibrate input shaping?: 'インプットシェーピングを再キャリブレーションしますか？'
   Recalibrate or view detailed results anytime in Settings.: 設定からいつでも再キャリブレーションや詳細結果の確認ができます。
   Received oversized data from printer ({} bytes). This may indicate a communication error.: プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。
+  Recent: 最近
   Recent Prints: 最近の印刷
   Recent Spools: '最近のスプール'
   Recently Printed: 最近印刷されたもの
@@ -3417,6 +3425,7 @@ translations:
   Sample Dialog: サンプルダイアログ
   Samples: サンプル数
   Samples Tolerance: サンプル許容値
+  Saturation: 彩度
   Save: 保存
   Save & Restart: 保存して再起動
   Save As New: 新規として保存
@@ -3657,6 +3666,7 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: '{:g} mmノズル（T{}）用にスライスされています。プリンターは{:g} mmです。'
   Sliced for {}, not {}.: '{}用にスライスされています。{}用ではありません。'
   Slicer: スライサー
+  Sliders: スライダー
   Slot: スロット
   Slot 1: スロット1
   Slot Blocked: 'スロットがブロックされています'
@@ -4222,6 +4232,7 @@ translations:
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'
   This system does not support bypass mode: 'このシステムはバイパスモードに対応していません'
+  This theme: このテーマ
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
   'This update asks for new permissions:': 'この更新は新しい権限を要求します：'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'この待機は温度に達するまで終わりません。キャンセルには緊急停止とファームウェアの再起動が必要です。'

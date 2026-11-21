@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One row of a 6-column color picker grid: 6 touching cells, cell index
+     row * 6 + i. A component of its own because <repeat> does not nest. -->
+<component>
+  <api>
+    <prop name="row" type="string" default="0"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+        flex_flow="row" scrollable="false" clickable="false">
+    <repeat count="6">
+      <color_picker_cell index="${row * 6 + i}"/>
+    </repeat>
+  </view>
+</component>

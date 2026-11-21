@@ -179,6 +179,28 @@ void fill_split(lv_layer_t* layer, const lv_area_t& area, int32_t radius,
     lv_draw_rect(layer, &dsc, &area);
 }
 
+// A gradient filament: the colors evenly spaced left to right, blending
+// between neighbors. Past LV_GRADIENT_MAX_STOPS the later colors are dropped.
+void fill_blend(lv_layer_t* layer, const lv_area_t& area, int32_t radius,
+                const std::vector<lv_color_t>& colors, lv_opa_t opa) {
+    const size_t n = std::min<size_t>(colors.size(), LV_GRADIENT_MAX_STOPS);
+    lv_color_t stop_colors[LV_GRADIENT_MAX_STOPS];
+    uint8_t stop_fracs[LV_GRADIENT_MAX_STOPS];
+    for (size_t k = 0; k < n; ++k) {
+        stop_colors[k] = colors[k];
+        stop_fracs[k] = static_cast<uint8_t>(k * 255 / (n - 1));
+    }
+    lv_draw_rect_dsc_t dsc;
+    lv_draw_rect_dsc_init(&dsc);
+    dsc.radius = radius;
+    dsc.bg_opa = opa;
+    dsc.border_width = 0;
+    dsc.bg_color = colors[0];
+    lv_grad_init_stops(&dsc.bg_grad, stop_colors, nullptr, stop_fracs, static_cast<int>(n));
+    lv_grad_horizontal_init(&dsc.bg_grad);
+    lv_draw_rect(layer, &dsc, &area);
+}
+
 int32_t short_side(const lv_area_t& a) {
     return std::min(lv_area_get_width(&a), lv_area_get_height(&a));
 }
@@ -399,6 +421,7 @@ struct ObjectPaint {
     bool style_color = false;       ///< a colour style was given, so bg_color is meant
     SwatchFinish finish = SwatchFinish::Plain;
     bool edge = true;
+    bool blend = false;
     std::unique_ptr<SwatchCache> cache = std::make_unique<SwatchCache>();
 };
 
@@ -434,6 +457,7 @@ void draw_object_paint(lv_event_t* e) {
     paint.radius = lv_obj_get_style_radius(obj, LV_PART_MAIN);
     paint.finish = it->second.finish;
     paint.edge = it->second.edge;
+    paint.blend = it->second.blend;
     paint.opa = lv_obj_get_style_opa_recursive(obj, LV_PART_MAIN);
     paint.cache = it->second.cache.get();
     paint.backdrop = backdrop_of(obj);
@@ -594,6 +618,8 @@ void swatch_paint_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
             bind_string_subject(state, obj, value, finish_observer_cb, "bind_finish");
         } else if (std::strcmp(name, "edge") == 0) {
             p.edge = std::strcmp(value, "off") != 0 && std::strcmp(value, "false") != 0;
+        } else if (std::strcmp(name, "blend") == 0) {
+            p.blend = std::strcmp(value, "on") == 0 || std::strcmp(value, "true") == 0;
         }
     }
 }
@@ -932,6 +958,8 @@ void draw_swatch(lv_layer_t* layer, const lv_area_t& area, const SwatchPaint& pa
         lv_draw_rect(layer, &dsc, &area);
     } else if (colors.size() < 2) {
         fill_shape(layer, area, paint.radius, colors[0], paint.opa);
+    } else if (paint.blend) {
+        fill_blend(layer, area, paint.radius, colors, paint.opa);
     } else if (paint.cache) {
         fill_split(layer, area, paint.radius, colors,
                    paint.cache->thresholds(area, paint.radius, colors.size()), paint.opa);

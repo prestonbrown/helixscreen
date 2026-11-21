@@ -5,9 +5,8 @@
 // anything else, replace a source whole, and keep lanes apart. A lane colour
 // string reads as a value, a clear or nothing.
 
-#include "ui_color_picker.h"
-
 #include "ams_types.h"
+#include "color_utils.h"
 #include "helix_test_fixture.h"
 #include "lane_source_store.h"
 #include "lane_translation.h"

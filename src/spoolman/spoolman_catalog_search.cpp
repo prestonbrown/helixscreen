@@ -4,6 +4,7 @@
 #include "spoolman_catalog_search.h"
 
 #include "color_utils.h"
+#include "filament_color_mode.h"
 #include "filament_mapper.h"
 #include "filament_variants.h"
 #include "moonraker_error.h"
@@ -93,16 +94,52 @@ std::string normalize_color_hex(const std::string& hex) {
     return s;
 }
 
+std::string normalize_color_list(const std::string& csv) {
+    std::string out;
+    size_t count = 0;
+    size_t start = 0;
+    while (start <= csv.size()) {
+        const size_t comma = csv.find(',', start);
+        const std::string hex = normalize_color_hex(std::string(text_io::trim(
+            csv.substr(start, comma == std::string::npos ? std::string::npos : comma - start))));
+        if (!hex.empty()) {
+            out += (out.empty() ? "" : ",") + hex.substr(0, 6);
+            ++count;
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return count >= 2 ? out : std::string{};
+}
+
 const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& filaments,
                                            const std::string& material, const std::string& name,
-                                           const std::string& color_hex) {
+                                           const std::string& color_hex,
+                                           const std::string& multi_color_hexes,
+                                           const std::string& direction) {
+    const std::string wanted_name = normalized_name(name);
+    const std::string wanted_list = normalize_color_list(multi_color_hexes);
+    if (!wanted_list.empty()) {
+        const std::string wanted_dir = helix::color_mode::to_spoolman_direction(direction);
+        for (const auto& f : filaments) {
+            if (f.material == material &&
+                normalize_color_list(f.multi_color_hexes) == wanted_list &&
+                helix::color_mode::to_spoolman_direction(f.multi_color_direction) == wanted_dir &&
+                normalized_name(f.filament_name) == wanted_name) {
+                return &f;
+            }
+        }
+        return nullptr;
+    }
     const std::string needle = normalize_color_hex(color_hex);
     if (needle.empty()) {
         return nullptr;
     }
-    const std::string wanted_name = normalized_name(name);
     for (const auto& f : filaments) {
         if (f.material == material && normalize_color_hex(f.color_hex) == needle &&
+            normalize_color_list(f.multi_color_hexes).empty() &&
             normalized_name(f.filament_name) == wanted_name) {
             return &f;
         }

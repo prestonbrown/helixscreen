@@ -801,9 +801,9 @@ content-sized parent, which has no free space to distribute.
 #### `get_const` — what value the renderer actually resolved
 
 ```bash
-helix-screen ctl get_const color_swatch_grid grid_width   # scoped lookup
+helix-screen ctl get_const color_picker_view cpv_track    # scoped lookup
 helix-screen ctl get_const space_md                       # globals
-helix-screen ctl get_const @color_swatch_grid             # dump every const in a scope
+helix-screen ctl get_const @color_picker_view             # dump every const in a scope
 ```
 
 A scoped lookup falls back to `globals` when the name is not in the component's

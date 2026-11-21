@@ -288,6 +288,7 @@
   <translation tag="All Devices" en="All Devices"/>
   <translation tag="All Healthy" en="All Healthy"/>
   <translation tag="All axes homed" en="All axes homed"/>
+  <translation tag="All colors" en="All colors"/>
   <translation tag="All configured hardware detected" en="All configured hardware detected"/>
   <translation tag="All fields are required" en="All fields are required"/>
   <translation tag="All healthy" en="All healthy"/>
@@ -777,6 +778,7 @@
   <translation tag="Coarse" en="Coarse"/>
   <translation tag="Coarse Inner" en="Coarse Inner"/>
   <translation tag="Coarse Outer" en="Coarse Outer"/>
+  <translation tag="Coaxial" en="Coaxial"/>
   <translation tag="Code" en="Code"/>
   <translation tag="Coil Temperature" en="Coil Temperature"/>
   <translation tag="Collect logs and system info for support" en="Collect logs and system info for support"/>
@@ -785,6 +787,7 @@
   <translation tag="Color" en="Color"/>
   <translation tag="Color Mismatch" en="Color Mismatch"/>
   <translation tag="Color Sensors" en="Color Sensors"/>
+  <translation tag="Colors" en="Colors"/>
   <translation tag="Command Failed" en="Command Failed"/>
   <translation tag="Command failed" en="Command failed"/>
   <translation tag="Common spools to start from" en="Common spools to start from"/>
@@ -1629,7 +1632,9 @@
   <translation tag="Good Enough" en="Good Enough"/>
   <translation tag="Good match" en="Good match"/>
   <translation tag="Got it" en="Got it"/>
+  <translation tag="Gradient" en="Gradient"/>
   <translation tag="Gray" en="Gray"/>
+  <translation tag="Grid" en="Grid"/>
   <translation tag="Grip filament" en="Grip filament"/>
   <translation tag="Grip the filament" en="Grip the filament"/>
   <translation tag="Guide the toolhead to the chute&apos;s extrude position" en="Guide the toolhead to the chute&apos;s extrude position"/>
@@ -1738,6 +1743,7 @@
   <translation tag="Helper macros already installed" en="Helper macros already installed"/>
   <translation tag="Helper macros are up to date" en="Helper macros are up to date"/>
   <translation tag="Here&apos;s a quick look at what changed since your last version." en="Here&apos;s a quick look at what changed since your last version."/>
+  <translation tag="Hex" en="Hex"/>
   <translation tag="Hide Firmware Noise" en="Hide Firmware Noise"/>
   <translation tag="Hide Temperature Reports" en="Hide Temperature Reports"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" en="Hide the on-screen keyboard while a USB keyboard is attached"/>
@@ -1802,6 +1808,7 @@
   <translation tag="Hub" en="Hub"/>
   <translation tag="Hub &amp; Cutter" en="Hub &amp; Cutter"/>
   <translation tag="Hub Bowden Length" en="Hub Bowden Length"/>
+  <translation tag="Hue" en="Hue"/>
   <translation tag="Humidity" en="Humidity"/>
   <translation tag="Humidity Sensors" en="Humidity Sensors"/>
   <translation tag="Humidity inside the enclosure" en="Humidity inside the enclosure"/>
@@ -3058,6 +3065,7 @@
   <translation tag="Recalibrate input shaping?" en="Recalibrate input shaping?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." en="Recalibrate or view detailed results anytime in Settings."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>
+  <translation tag="Recent" en="Recent"/>
   <translation tag="Recent Prints" en="Recent Prints"/>
   <translation tag="Recent Spools" en="Recent Spools"/>
   <translation tag="Recently Printed" en="Recently Printed"/>
@@ -3300,6 +3308,7 @@
   <translation tag="Sample Dialog" en="Sample Dialog"/>
   <translation tag="Samples" en="Samples"/>
   <translation tag="Samples Tolerance" en="Samples Tolerance"/>
+  <translation tag="Saturation" en="Saturation"/>
   <translation tag="Save" en="Save"/>
   <translation tag="Save &amp; Restart" en="Save &amp; Restart"/>
   <translation tag="Save As New" en="Save As New"/>
@@ -3535,6 +3544,7 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." en="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm."/>
   <translation tag="Sliced for {}, not {}." en="Sliced for {}, not {}."/>
   <translation tag="Slicer" en="Slicer"/>
+  <translation tag="Sliders" en="Sliders"/>
   <translation tag="Slot" en="Slot"/>
   <translation tag="Slot 1" en="Slot 1"/>
   <translation tag="Slot Blocked" en="Slot Blocked"/>
@@ -4050,6 +4060,7 @@
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." en="This spool ran out, so the CFS cannot pull the leftover filament back."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." en="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again."/>
   <translation tag="This system does not support bypass mode" en="This system does not support bypass mode"/>
+  <translation tag="This theme" en="This theme"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." en="This tool probes each bed screw and tells you how much to adjust."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." en="This toolhead has no automatic feeder. Load the filament by hand."/>
   <translation tag="This update asks for new permissions:" en="This update asks for new permissions:"/>

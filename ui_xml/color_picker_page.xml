@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker as an overlay page (helix::ui::ColorPickerPage): back, the
+     readout and the Grid | Sliders switch in the header, the picker body under
+     it (color_picker_view, attached into cpp_body by C++). The page edits its
+     host's draft live; Back returns, and the host's own Save commits. -->
+<component>
+  <styles>
+    <!-- A slot tag takes no attributes: the header strip grows by this style. -->
+    <style name="cpp_header_grow" flex_grow="20" pad_gap="#space_md"/>
+  </styles>
+  <view name="color_picker_page" extends="overlay_panel" title="" title_transform="none">
+    <!-- The readout takes the header: the back region keeps only its arrow. -->
+    <header_bar-header_content>
+      <style name="cpp_header_grow"/>
+      <color_picker_readout name="cpp_readout" flex_grow="1"/>
+      <color_picker_tabs/>
+    </header_bar-header_content>
+    <lv_obj name="overlay_content"
+            width="100%" flex_grow="1" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
+            style_pad_bottom="#space_sm" flex_flow="column" scrollable="false">
+      <lv_obj name="cpp_body"
+              width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+              clickable="false"/>
+    </lv_obj>
+  </view>
+</component>

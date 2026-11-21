@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One chip of the color picker's strip: a color_swatch reading
+     color_picker_chip_<index>, ringed when it is the current color
+     (color_picker_chip_selected). A long press puts the strip in removal mode
+     (color_picker_strip_editing): every chip shows a small x, and a tap removes it. -->
+<component>
+  <api>
+    <prop name="index" type="string" default="0"/>
+    <prop name="size" type="string" default="#led_swatch_size"/>
+  </api>
+  <view extends="color_swatch"
+        index="$index" color_subject="color_picker_chip_${index}" selected_subject="color_picker_chip_selected"
+        callback="color_picker_chip_cb" size="$size" hit="0" reach="#led_ring_reach" ring="styles.led_swatch_ring">
+    <event_cb trigger="long_pressed" callback="color_picker_chip_hold_cb" user_data="$index"/>
+    <lv_obj name="chip_remove_badge"
+            width="#cp_chip_x_size" height="#cp_chip_x_size" align="top_right" style_radius="9999" style_bg_opa="255"
+            style_bg_color="#text" style_border_width="0" style_pad_all="0" clickable="false" event_bubble="true"
+            scrollable="false" hidden="true">
+      <bind_flag_if_eq subject="color_picker_strip_editing" flag="hidden" ref_value="0"/>
+      <icon src="close" size="xs" align="center" style_text_color="#screen_bg" clickable="false" event_bubble="true"/>
+    </lv_obj>
+  </view>
+</component>

@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker's Grid | Sliders switch, bound to color_picker_tab
+     (0 Grid, 1 Sliders). A host with a header puts it there; otherwise the
+     picker shows it above its body. -->
+<component>
+  <view extends="button_group">
+    <button_group_item name="cp_tab_grid" text="Grid" variant="secondary" style_border_width="0">
+      <bind_style_if_eq name="styles.choice_selected" subject="color_picker_tab" ref_value="0"/>
+      <bind_style_if_eq name="styles.choice_idle" subject="color_picker_tab" ref_value="1"/>
+      <event_cb trigger="clicked" callback="color_picker_tab_cb" user_data="0"/>
+    </button_group_item>
+    <button_group_item name="cp_tab_sliders" text="Sliders" variant="secondary">
+      <bind_style_if_eq name="styles.choice_selected" subject="color_picker_tab" ref_value="1"/>
+      <bind_style_if_eq name="styles.choice_idle" subject="color_picker_tab" ref_value="0"/>
+      <event_cb trigger="clicked" callback="color_picker_tab_cb" user_data="1"/>
+    </button_group_item>
+  </view>
+</component>

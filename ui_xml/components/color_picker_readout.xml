@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker's current color: a swatch, the color's name (or the role a
+     host edits) and its hex value. A host puts it in its header, or the picker
+     shows it above its body when it has no header (tabs_in_body). Bound to
+     color_picker_current, color_picker_name and color_picker_hex
+     (ui_color_picker_view.cpp). -->
+<component>
+  <view extends="lv_obj"
+        width="content" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+        style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
+    <color_dot name="readout_swatch" size="#cp_readout_swatch" color_subject="color_picker_current"/>
+    <lv_obj width="content"
+            height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+            flex_flow="column" scrollable="false" clickable="false">
+      <text_body name="readout_name" bind_text="color_picker_name" long_mode="dots"/>
+      <text_small name="readout_hex" bind_text="color_picker_hex" style_text_color="#text_muted"/>
+    </lv_obj>
+  </view>
+</component>

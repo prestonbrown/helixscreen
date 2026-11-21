@@ -2691,8 +2691,10 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
         kept = std::move(reading);
     }
 
-    // No lane record carries a multi-colour, so the tag's is laid onto the slot
-    // here, except while an edit's colour is on its way to the head.
+    // The firmware mirror's lane record names no list, so the tag's is laid
+    // onto the slot here (a user's own multi-color edit, which the record
+    // does state, lands over it), except while an edit's colour is on its
+    // way to the head.
     if (const auto pending = helix::ams::lane_sources(lane_id(slot_index)).pending;
         pending.has_value() && pending->color_rgb.has_value()) {
         return;
@@ -2702,6 +2704,7 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
         slot.multi_color_hexes = now;
     } else if (!previous_multi.empty() && slot.multi_color_hexes == previous_multi) {
         slot.multi_color_hexes.clear();
+        slot.color_mode.clear();
     }
 }
 
@@ -2784,6 +2787,7 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     if (const auto& kept = tag_readings_[i]; kept && !kept->multi_color_hexes.empty() &&
                                              slot.multi_color_hexes == kept->multi_color_hexes) {
         slot.multi_color_hexes.clear();
+        slot.color_mode.clear();
     }
     tag_readings_[i].reset();
     if (cache->product_name.has_value()) {

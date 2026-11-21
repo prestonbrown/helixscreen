@@ -1,8 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_color_picker.h"
-
+#include "color_picker_model.h"
 #include "color_utils.h"
 #include "lane_translation.h"
 #include "moonraker_api_mock.h"
@@ -282,8 +281,8 @@ TEST_CASE("SpoolmanSlotSaver save on an unlinked slot with no colour is incomple
 TEST_CASE("a picked grey is a colour the save accepts, never the no-colour marker",
           "[spoolman][slot-saver]") {
     for (auto palette :
-         {helix::ui::ColorPicker::Palette::General, helix::ui::ColorPicker::Palette::Theme}) {
-        for (uint32_t swatch : helix::ui::swatch_palette(palette)) {
+         {helix::ColorPalette::Filament, helix::ColorPalette::Led, helix::ColorPalette::Theme}) {
+        for (uint32_t swatch : helix::color_palette(palette)) {
             CHECK(helix::ams::is_declarable_color(swatch));
         }
     }

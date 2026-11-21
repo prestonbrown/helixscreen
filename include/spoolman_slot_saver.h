@@ -93,10 +93,15 @@ struct SaveResult {
  * into the name, the way SpoolmanDB files its own records ("PLA+ White").
  */
 struct NewFilament {
-    std::string material;       ///< filament::slicer_material() of the slot's type
-    std::string precise_type;   ///< The slot's own type ("ABS+"), for the density lookup
-    std::string name;           ///< "ABS+ Deep Gray", or the slot's own spool name
-    std::string color_hex;      ///< "4A4A4A", no '#'
+    std::string material;     ///< filament::slicer_material() of the slot's type
+    std::string precise_type; ///< The slot's own type ("ABS+"), for the density lookup
+    std::string name;         ///< "ABS+ Deep Gray", or the slot's own spool name
+    std::string color_hex;    ///< "4A4A4A", no '#'
+    /// A multi-color filament's colors, "D4AF37,C0C0C0" (Spoolman's spelling),
+    /// and its multi_color_direction ("longitudinal" or "coaxial"). Empty for one
+    /// color. A multi-color filament is filed with these and no color_hex.
+    std::string multi_color_hexes;
+    std::string multi_color_direction;
     int extruder_temp = 0;      ///< settings_extruder_temp; 0 = omitted
     int bed_temp = 0;           ///< settings_bed_temp; 0 = omitted
     int linked_filament_id = 0; ///< The record the spool points at now; never offered
@@ -220,6 +225,7 @@ class SpoolmanSlotSaver {
             }
             committed.color_name.clear();
             committed.multi_color_hexes.clear();
+            committed.color_mode.clear();
             if (!f.material.empty()) {
                 committed.material = f.material;
             }

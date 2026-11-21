@@ -273,6 +273,23 @@ TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: two colours split along the diag
     CHECK(c.px(1, 1).blue == 255);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: blend runs the colours left to right", "[swatch]") {
+    SwatchCanvas c(test_screen());
+    helix::ui::SwatchPaint p;
+    p.colors = {lv_color_hex(0xFF0000), lv_color_hex(0x00FF00)};
+    p.blend = true;
+    p.radius = 0;
+    p.edge = false;
+    c.paint(p);
+    CHECK(c.px(1, 20).red > 230);
+    CHECK(c.px(38, 20).green > 230);
+    // The middle is a mix, not either band, and a column is one colour.
+    const lv_color32_t mid = c.px(20, 20);
+    CHECK(mid.red > 80);
+    CHECK(mid.green > 80);
+    CHECK(c.px(20, 2).red == c.px(20, 37).red);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: silk lays a highlight, matte mutes the colour",
                  "[swatch]") {
     SwatchCanvas c(test_screen());

@@ -19,7 +19,7 @@
 
 // Forward declarations
 namespace helix::ui {
-class ColorPicker;
+class ColorPickerModal;
 }
 
 /**
@@ -349,7 +349,7 @@ class SpoolWizardOverlay : public OverlayBase {
     double new_filament_density_ = 0;
     double new_filament_weight_ = 0;
     double new_filament_spool_weight_ = 0;
-    std::unique_ptr<helix::ui::ColorPicker> color_picker_;
+    std::unique_ptr<helix::ui::ColorPickerModal> color_picker_;
 
     // ========== Spool details state ==========
     double spool_remaining_weight_ = 0;

@@ -299,6 +299,7 @@ translations:
   All Devices: 所有设备
   All Healthy: '一切正常'
   All axes homed: 所有轴已归位
+  All colors: 所有颜色
   All configured hardware detected: '已检测到所有已配置的硬件'
   All fields are required: 所有字段均为必填项
   All healthy: 一切正常
@@ -800,6 +801,7 @@ translations:
   Coarse: 粗调
   Coarse Inner: 粗调内圈
   Coarse Outer: 粗调外圈
+  Coaxial: 同轴
   Code: 代码
   Coil Temperature: 线圈温度
   Collect logs and system info for support: 收集日志和系统信息以供支持
@@ -808,6 +810,7 @@ translations:
   Color: 颜色
   Color Mismatch: 颜色不匹配
   Color Sensors: 颜色传感器
+  Colors: 颜色
   Command Failed: '命令失败'
   Command failed: 命令失败
   Common spools to start from: '从常用料盘开始'
@@ -1698,7 +1701,9 @@ translations:
   Good Enough: "足够了"
   Good match: "匹配良好"
   Got it: 知道了
+  Gradient: 渐变
   Gray: 灰色
+  Grid: 网格
   Grip filament: 夹持耗材
   Grip the filament: 夹持耗材
   Guide the toolhead to the chute's extrude position: 引导工具头到排料口的挤出位置
@@ -1814,6 +1819,7 @@ translations:
   Helper Macros: '帮助宏'
   Helper macros already installed: '帮助宏已安装'
   Helper macros are up to date: '帮助宏已是最新版本'
+  Hex: 十六进制
   Hide Firmware Noise: 隐藏固件噪声
   Hide Temperature Reports: 隐藏温度报告
   Hide the on-screen keyboard while a USB keyboard is attached: 连接 USB 键盘时隐藏屏幕键盘
@@ -1880,6 +1886,7 @@ translations:
   Hub: 集线器
   Hub & Cutter: '集线器与切刀'
   Hub Bowden Length: '集线器波顿管长度'
+  Hue: 色相
   Humidity: 湿度
   Humidity inside the enclosure: 腔体内的湿度
   Humidity Sensors: 湿度传感器
@@ -3164,6 +3171,7 @@ translations:
   Recalibrate input shaping?: '重新校准输入整形？'
   Recalibrate or view detailed results anytime in Settings.: 可随时在设置中重新校准或查看详细结果。
   Received oversized data from printer ({} bytes). This may indicate a communication error.: 从打印机收到的数据过大（{} 字节）。这可能表示通信错误。
+  Recent: 最近
   Recent Prints: 最近打印
   Recent Spools: '最近的料盘'
   Recently Printed: 最近打印过的
@@ -3408,6 +3416,7 @@ translations:
   Sample Dialog: 示例对话框
   Samples: 采样次数
   Samples Tolerance: 采样容差
+  Saturation: 饱和度
   Save: 保存
   Save & Restart: 保存并重启
   Save As New: 另存为新配置
@@ -3648,6 +3657,7 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: '按 {:g} mm 喷嘴（T{}）切片；打印机为 {:g} mm。'
   Sliced for {}, not {}.: '为 {} 切片，而不是 {}。'
   Slicer: 切片软件
+  Sliders: 滑块
   Slot: 槽位
   Slot 1: 槽位 1
   Slot Blocked: '槽位被阻塞'
@@ -4213,6 +4223,7 @@ translations:
   This spool ran out, so the CFS cannot pull the leftover filament back.: '此料盘已用完，CFS 无法将剩余耗材抽回。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
   This system does not support bypass mode: '此系统不支持旁通模式'
+  This theme: 此主题
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
   'This update asks for new permissions:': '此更新请求新的权限：'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': '此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。'

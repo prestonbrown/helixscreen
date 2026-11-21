@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "ui_color_picker.h"
 #include "ui_filament_catalog_picker.h"
 #include "ui_modal.h"
 #include "ui_search_debounce.h"
@@ -21,6 +20,7 @@
 #include "static_panel_registry.h"
 #include "subject_managed_panel.h"
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
@@ -44,7 +44,8 @@ namespace helix::ui {
  * @brief NavigationManager overlay for editing AMS filament slot properties
  *
  * Single overlay hosting internal views selected by the ams_edit_view int
- * subject: 0=editor (the entry view), 2=color. The editor does two jobs,
+ * subject: 0=editor (the entry view); colors open the color page
+ * (ColorPickerPage) over it. The editor does two jobs,
  * picked by the ams_edit_mode subject (helix::spool_assign::screen_for_lane):
  *
  * - Assign Spool (kModeAssign, a lane with no spool): the describe form on the
@@ -93,12 +94,9 @@ class AmsEditOverlay : public OverlayBase {
 
     // View states for the ams_edit_view subject
     static constexpr int kViewEditor = 0;
-    static constexpr int kViewColor = 2;
     // The editor's job, the ams_edit_mode subject.
     static constexpr int kModeAssign = 0;
     static constexpr int kModeEdit = 1;
-    /// ams_edit_color_selected value that rings the grid's custom swatch.
-    static constexpr int kCustomColorIndex = -2;
 
     /**
      * @brief The identity selection the editor is staging
@@ -137,7 +135,7 @@ class AmsEditOverlay : public OverlayBase {
     [[nodiscard]] const char* get_name() const override {
         return "AMS Slot Editor";
     }
-    /// The tree (dropdown form, preset swatches, picker, colour view) is large
+    /// The tree (dropdown form, color row, spools list) is large
     /// and only needed while a spool is being edited.
     bool destroy_on_close() const override {
         return true;
@@ -185,26 +183,27 @@ class AmsEditOverlay : public OverlayBase {
     static std::string selected_type(const SpoolEditSelection& sel,
                                      const printer::FilamentCatalog& catalog);
 
-    /// Presets a colour grid shows: whole rows of @p tile at @p gap across
-    /// @p grid_width, @p rows of them, less the custom swatch's tile, capped at
-    /// the palette.
-    static int grid_preset_count(int grid_width, int tile, int gap, int rows, int palette_size);
-
     /// Whether @p info carries a colour someone chose: not the unset grey,
     /// and not the bare black some firmware reports for an empty slot.
     static bool slot_has_colour(const SlotInfo& info);
 
-    /// The ams_edit_color_selected value for @p rgb: the index of the first of
-    /// @p visible_presets palette entries it matches, kCustomColorIndex for a
-    /// set colour none of them holds, -1 when no colour is set.
-    static int color_ring_index(uint32_t rgb, bool colour_set, int visible_presets,
-                                const std::vector<uint32_t>& palette);
+    /// The most colors a multi-color spool shows as dots, and takes from "+".
+    /// A longer list keeps its later colors; they are not shown as dots.
+    static constexpr size_t kMaxColors = 4;
 
-    /// Whether the colour view shows its presets and its custom picker at once
-    /// in an @p avail_w x @p avail_h content box: side by side, or stacked, with
-    /// @p gap between them. False means one pane at a time.
-    static bool color_panes_fit(int avail_w, int avail_h, int presets_w, int presets_h,
-                                int custom_w, int custom_h, int gap);
+    /// "#RRGGBB" entries of a comma-separated color list, unparseable ones dropped.
+    static std::vector<uint32_t> split_color_list(const std::string& csv);
+    /// The list back as "#RRGGBB,#RRGGBB".
+    static std::string join_color_list(const std::vector<uint32_t>& colors);
+
+    /// The filament recents the color row offers beside @p current: the
+    /// newest first, @p current left out, at most @p room of them.
+    static std::vector<uint32_t> color_row_recents(const std::vector<uint32_t>& recents,
+                                                   uint32_t current, size_t room);
+
+    /// Recent chips that fit in a @p row_width row of @p chip tiles @p gap
+    /// apart beside @p fixed_tiles other tiles, at most @p cap.
+    static size_t recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap);
 
   private:
     // === State ===
@@ -300,7 +299,7 @@ class AmsEditOverlay : public OverlayBase {
     /// Apply a fetched record, unless the slot no longer names that spool. A
     /// selection or field the user already changed is kept.
     void apply_linked_spool(int spool_id, const SpoolInfo& spool);
-    /// The editor view after the picker or colour view: entered on first use,
+    /// The editor view after the spools list: entered on first use,
     /// otherwise shown with the staged edits intact.
     void return_to_editor();
     /// After a QR scan put a different spool under the editor.
@@ -312,20 +311,62 @@ class AmsEditOverlay : public OverlayBase {
     /// do_spoolman_save's success path.
     bool logistics_pending_ = false;
 
-    // === Colour view (kViewColor): presets + custom HSV ===
-    uint32_t custom_color_ = 0x808080;
-    void open_color_view();
-    void populate_color_view();
+    // === Color row and color page ===
+    /// The color the editor shows: the pending pick, else the slot's.
+    uint32_t pending_color() const;
+    /// Push the color page (ColorPickerPage) editing the draft color live.
+    void open_color_page();
+    /// Stage @p rgb as the draft color (a recent chip, a page pick).
     void apply_color(uint32_t rgb);
-    void handle_color_swatch(lv_obj_t* swatch);
-    void handle_custom_color_changed(uint32_t rgb);
-    void handle_color_hex_changed();
-    void handle_color_apply();
-    /// Publish whether the colour view's two panes fit together
-    /// (ams_edit_color_fits). Measuring shows both panes, which rebuilds the
-    /// preset grid, so it measures only room it has not measured before.
-    void update_color_fit();
-    void show_color_pane(int pane);
+    void handle_recent_color(int index);
+    /// Publish the color line and row: name, current swatch, recents.
+    void update_color_row();
+    std::vector<uint32_t> color_row_;
+    /// The color row's content width, chip and gap, as size_color_row()
+    /// last measured them; 0 until it has.
+    int row_width_ = 0;
+    int row_chip_ = 0;
+    int row_gap_ = 0;
+    /// Measure the color row and publish its recents.
+    void size_color_row();
+    /// Recent chips the row has room for beside what the draft shows.
+    size_t recent_room() const;
+
+    // === Multi-color draft ===
+    // The draft's colors: the pending pick alone, or two or more. A
+    // multi-color edit lives in draft_multi_/draft_mode_ while multi_set_, and
+    // reaches working_info_ only on Save, like a single pick.
+    std::vector<uint32_t> draft_colors() const;
+    bool draft_is_multi() const {
+        return draft_colors().size() >= 2;
+    }
+    /// The draft mode, "gradient" or "coaxial", for a multi-color draft.
+    std::string draft_mode() const;
+    /// Whether this lane can store several colors (AmsBackend::stores_multi_color,
+    /// or a lane linked to a Spoolman spool).
+    bool multi_color_capable() const;
+    /// A multi-color draft the lane can store: its colors show as dots to edit.
+    /// Elsewhere a multi-color spool shows read-only and a pick replaces it.
+    bool multi_color_editable() const {
+        return draft_is_multi() && multi_color_capable();
+    }
+    /// How many of the draft's colors show as dots: at most kMaxColors.
+    int shown_colors() const {
+        return static_cast<int>(std::min(draft_colors().size(), kMaxColors));
+    }
+    /// Put @p picked in the draft, each through helix::ams::picked_color():
+    /// two or more stay a list, one becomes the single pending color.
+    void set_draft_colors(const std::vector<uint32_t>& picked);
+    void handle_seg_tap(int index);
+    void handle_seg_hold(int index);
+    void add_color();
+    void handle_color_mode(int mode_index);
+    /// Back to the slot's own colors: no pick, no multi-color edit.
+    void reset_color_draft();
+    bool multi_set_ = false;
+    std::string draft_multi_;
+    std::string draft_mode_;
+    int selected_seg_ = 0;
 
     // === Identity dropdowns ===
     /// One option's label and the value picking it stages.
@@ -391,17 +432,23 @@ class AmsEditOverlay : public OverlayBase {
     /// The spools list: 0=loading, 1=fetch error (retry), 2=content, 3=nothing
     /// matches, 4=no spools at all ("edit_picker_state").
     lv_subject_t picker_state_subject_{};
-    lv_subject_t save_disabled_subject_{};   ///< 1=Save disabled ("ams_edit_save_disabled")
-    lv_subject_t is_managed_subject_{};      ///< 1=linked Spoolman spool ("ams_edit_is_managed")
-    lv_subject_t scan_enabled_subject_{};    ///< 1=QR button may show ("ams_edit_scan_enabled")
-    lv_subject_t product_hidden_subject_{};  ///< 1 while Generic selected
-    lv_subject_t color_selected_subject_{};  ///< ringed preset index (-1 none)
-    lv_subject_t color_row_count_subject_{}; ///< presets the grid shows (size_color_grids)
-    lv_subject_t color_fits_subject_{};      ///< 1=presets and picker shown together
-    lv_subject_t color_pane_subject_{};      ///< one-pane form: 0=presets, 1=picker
-    int color_fit_room_w_ = -1;              ///< room update_color_fit last measured
-    int color_fit_room_h_ = -1;
-    bool color_fit_ = true;                    ///< that room's verdict
+    lv_subject_t save_disabled_subject_{};  ///< 1=Save disabled ("ams_edit_save_disabled")
+    lv_subject_t is_managed_subject_{};     ///< 1=linked Spoolman spool ("ams_edit_is_managed")
+    lv_subject_t scan_enabled_subject_{};   ///< 1=QR button may show ("ams_edit_scan_enabled")
+    lv_subject_t product_hidden_subject_{}; ///< 1 while Generic selected
+    lv_subject_t color_current_subject_{};  ///< the color row's current swatch
+    lv_subject_t color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
+    lv_subject_t color_name_subject_{};          ///< the color line's name
+    lv_subject_t recent_count_subject_{};        ///< recent chips shown in the row
+    lv_subject_t multi_subject_{};               ///< 1 while the draft's colors show as dots
+    lv_subject_t multi_capable_subject_{};       ///< 1 where the lane can store several
+    lv_subject_t seg_count_subject_{};           ///< color dots shown
+    lv_subject_t seg_selected_subject_{};        ///< the ringed dot
+    lv_subject_t seg_label_subject_{};           ///< "Color 2: Gold" in multi mode
+    lv_subject_t color_mode_subject_{};          ///< dropdown: 0 gradient, 1 coaxial
+    char seg_label_buf_[64]{};
+    char color_name_buf_[64]{};
+    char color_current_multi_buf_[128]{};
     lv_subject_t tag_badge_visible_subject_{}; ///< any shown field is the tag's
     lv_subject_t tag_material_subject_{};
     lv_subject_t tag_brand_subject_{};
@@ -443,6 +490,9 @@ class AmsEditOverlay : public OverlayBase {
         bool selection_moved = false;
         uint32_t details_color = 0;
         bool details_color_set = false;
+        bool multi_set = false;
+        std::string draft_multi;
+        std::string draft_mode;
     };
     std::optional<FormSnapshot> note_action_form_;
     char save_error_buf_[192] = {0};
@@ -525,15 +575,10 @@ class AmsEditOverlay : public OverlayBase {
     /// Apply the editor view's non-XML content (dropdown options, colour ring,
     /// summary, logistics fields) from state this object already holds.
     void populate_editor_view();
-    /// Set both colour grids' preset counts from their measured width.
-    void size_color_grids();
-    /// Presets the showing colour grid displays.
-    int visible_preset_count();
     void stage_selection_into_working();
     /// Copy a colour picked in the editor into working_info_, dropping any
     /// stored colour name.
     void stage_pending_color_into_working();
-    void handle_quick_swatch(lv_obj_t* swatch);
     void handle_picker_search(const char* text);
     void fetch_recents();
     void refresh_tag_state();
@@ -560,6 +605,7 @@ class AmsEditOverlay : public OverlayBase {
         int chained_spool_id = 0;
         bool more_saved = false; ///< a More PATCH ran ahead of this commit and landed
         bool stay_open = false;  ///< commit the slot but keep the editor (unsaved More edits)
+        std::vector<uint32_t> picked_colors; ///< the colors this save commits, if any were picked
     };
     SaveCapture capture_save() const;
     /// Saves still running per slot, editor open or not. show_for_slot()
@@ -571,6 +617,8 @@ class AmsEditOverlay : public OverlayBase {
     void end_slot_save(int slot_index);
     /// The editor that began @p cap is still showing it.
     bool save_is_live(const SaveCapture& cap) const;
+    /// A committed save's picked colors join the filament recents, first leading.
+    static void remember_saved_colors(const SaveCapture& cap);
     /// Close that editor with @p committed, or hand it to @p cap's callback.
     void deliver_commit(const SaveCapture& cap, const SlotInfo& committed);
     /// Hand @p committed to the live editor's callback, then wait for the lane

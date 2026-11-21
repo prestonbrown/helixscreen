@@ -1543,31 +1543,42 @@ Re-picking the selected option is a no-op.
 **Layout.** Two columns, the form at `#assign_left_w` and the right column at
 least `#assign_right_min_w`, wrapping under the form where they do not fit
 (portrait). The Material/Type/Brand/Product grid is 2x2, three cells under
-Generic. The color row is one row of presets measured by `size_color_grids()`
-from the grid's width, with `custom_color_swatch` as its last tile (the repeat
-rebuilds at the end of the row, so `size_color_grids()` moves the custom tile
-back after it); it runs again from `on_activate()`, because the push sets the
-overlay's final width after the editor was built. The grid sizes from the
-shared `swatch_grid_*` tokens and is padded by `swatch_grid_gap_half`, so every
-swatch has a 7 mm target (`COLOR_SWATCHES.md` § "Preset grids and touch
-targets"). A tap stages the color; the custom tile opens the color view. The
-ring follows `color_ring_index()`. Every non-swatch control reaches 44px, the
-size chips, the - / + row and the quiet text actions through `ext_click_area`
-with gaps of twice the reach. At the short landscape class the Remaining label
-drops so the lane rows stay in view.
+Generic. Every non-swatch control reaches 44px, the size chips, the - / + row
+and the quiet text actions through `ext_click_area` with gaps of twice the
+reach. At the short landscape class the Remaining label drops so the lane rows
+stay in view.
 
-**The colour view** (`ams_edit_view` 2) holds the 30-swatch `color_swatch_grid`
-and the HSV picker (hex field, Select). `update_color_fit()` measures both panes
-with both shown against the overlay's content area, and `color_panes_fit()`
-(pure) says whether they fit side by side or stacked without scrolling
-(`ams_edit_color_fits`). Where they do (800x480 and larger) both show and the
-picker never covers a swatch. Where they do not (480x320, 480x272, 320x480)
-one pane fills the view at a time (`ams_edit_color_pane`): the presets lead
-with the grid's own custom tile (`lead_hidden="false"`), which swaps in the
-picker, and the picker's Presets button swaps back. Both panes are fixed-size,
-so the verdict is cached per room (`color_fit_room_w_`/`_h_`) and the subject
-moves only when it changes: each flip rebuilds the grid. A preset tap applies
-the colour and returns to the editor; Select applies the picker's.
+**Color.** The Color line names the color (`ams_edit_color_name`). The color
+row under it holds the color as a dot (a "+" beside it where the lane can
+store several colors), the newest filament recents other than it, and the
+rainbow tile, all on the shared `swatch_grid_*` tokens so every swatch has a
+7 mm target (`COLOR_SWATCHES.md` § "Touch targets"). The row wraps, so
+`size_color_row()` counts the recents from its measured width; it runs again
+from `on_activate()`, because the push sets the overlay's final width after
+the editor was built. A recent chip stages its color in the editor's draft at
+once. Tapping the dot or the rainbow tile pushes the color page
+(`ColorPickerPage`, `COLOR_SWATCHES.md` § "The color picker"), which edits the
+same draft live: Back keeps it and only Save commits it, adding it to the
+filament recents once the lane holds the save. Edit Spool's spool drawing
+shows the draft.
+
+**Multi-color.** A multi-color spool shows its colors as two to four dots, a
+"+" while there is room, where the lane can store several colors
+(`AmsBackend::stores_multi_color()`: HelixScreen's own lane record holds them;
+AFC's and Happy Hare's narrowed records do not), or the lane is linked to a
+Spoolman spool, whose filament holds them. The Color line becomes a Colors line:
+Gradient or Coaxial and a bar of the colors (blended for Gradient, banded for
+Coaxial). The dots and "Color N: name" take the row's first line and the
+recents and rainbow tile the next. Tapping a dot selects it, and the recents
+and the color page then edit that one; tapping the selected dot opens the page;
+a long press removes a dot, and one left makes the spool single-color. A list
+longer than four keeps its later colors; only the first four show as dots.
+Where the lane cannot store several colors, a multi-color spool shows one dot,
+the spool drawing shows its colors, and a pick replaces them. Save writes
+`SlotInfo::multi_color_hexes` and `color_mode` (the lane record's `colors` and
+`color_mode`, docs/specs/filament_slots.md §3), and on a linked spool files a
+Spoolman filament with `multi_color_hexes` and `multi_color_direction`
+(`longitudinal` for Gradient).
 
 **Temperatures, tags.** The temperature line follows the selection live: a
 picked product's range, else the material database's range once the selection
@@ -3714,7 +3725,7 @@ Key patterns:
 | `ui_xml/create_filament_modal.xml` | New filament modal form |
 | `ui_xml/wizard_vendor_row.xml` | Selectable vendor row (lv_button with checked style) |
 | `ui_xml/wizard_filament_row.xml` | Selectable filament row (lv_button with checked style) |
-| `src/ui/ui_color_picker.cpp` | Color picker modal (used by filament creation) |
+| `src/ui/ui_color_picker_modal.cpp` | Color picker modal (used by filament creation) |
 
 The original spool-wizard visual test plan (2026-02-15) is no longer in-tree; treat the wizard steps above as the reference.
 

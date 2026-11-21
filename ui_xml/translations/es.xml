@@ -288,6 +288,7 @@
   <translation tag="All Devices" es="Todos los Dispositivos"/>
   <translation tag="All Healthy" es="Todo en orden"/>
   <translation tag="All axes homed" es="Todos los ejes en origen"/>
+  <translation tag="All colors" es="Todos los colores"/>
   <translation tag="All configured hardware detected" es="Todo el hardware configurado detectado"/>
   <translation tag="All fields are required" es="Todos los campos son obligatorios"/>
   <translation tag="All healthy" es="Todo en orden"/>
@@ -777,6 +778,7 @@
   <translation tag="Coarse" es="Grueso"/>
   <translation tag="Coarse Inner" es="Grueso interior"/>
   <translation tag="Coarse Outer" es="Grueso exterior"/>
+  <translation tag="Coaxial" es="Coaxial"/>
   <translation tag="Code" es="Código"/>
   <translation tag="Coil Temperature" es="Temperatura de Bobina"/>
   <translation tag="Collect logs and system info for support" es="Recopilar registros e info del sistema para soporte"/>
@@ -785,6 +787,7 @@
   <translation tag="Color" es="Color"/>
   <translation tag="Color Mismatch" es="Color No Coincide"/>
   <translation tag="Color Sensors" es="Sensores de color"/>
+  <translation tag="Colors" es="Colores"/>
   <translation tag="Command Failed" es="El comando falló"/>
   <translation tag="Command failed" es="El comando falló"/>
   <translation tag="Common spools to start from" es="Bobinas comunes para empezar"/>
@@ -1629,7 +1632,9 @@
   <translation tag="Good Enough" es="Suficiente"/>
   <translation tag="Good match" es="Buena coincidencia"/>
   <translation tag="Got it" es="Entendido"/>
+  <translation tag="Gradient" es="Degradado"/>
   <translation tag="Gray" es="Gris"/>
+  <translation tag="Grid" es="Cuadrícula"/>
   <translation tag="Grip filament" es="Agarrar filamento"/>
   <translation tag="Grip the filament" es="Agarrar el filamento"/>
   <translation tag="Guide the toolhead to the chute&apos;s extrude position" es="Guíe el cabezal hasta la posición de extrusión del conducto"/>
@@ -1738,6 +1743,7 @@
   <translation tag="Helper macros already installed" es="Las macros de ayuda ya están instaladas"/>
   <translation tag="Helper macros are up to date" es="Las macros de ayuda están actualizadas"/>
   <translation tag="Here&apos;s a quick look at what changed since your last version." es="Un vistazo rápido a lo que ha cambiado desde tu última versión."/>
+  <translation tag="Hex" es="Hex"/>
   <translation tag="Hide Firmware Noise" es="Ocultar Ruido del Firmware"/>
   <translation tag="Hide Temperature Reports" es="Ocultar Reportes de Temperatura"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" es="Ocultar el teclado en pantalla mientras haya un teclado USB conectado"/>
@@ -1802,6 +1808,7 @@
   <translation tag="Hub" es="Hub"/>
   <translation tag="Hub &amp; Cutter" es="Hub y cortador"/>
   <translation tag="Hub Bowden Length" es="Longitud del bowden del hub"/>
+  <translation tag="Hue" es="Tono"/>
   <translation tag="Humidity" es="Humedad"/>
   <translation tag="Humidity Sensors" es="Sensores de humedad"/>
   <translation tag="Humidity inside the enclosure" es="Humedad dentro de la cámara"/>
@@ -3058,6 +3065,7 @@
   <translation tag="Recalibrate input shaping?" es="¿Recalibrar el moldeado de entrada?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." es="Recalibre o vea resultados detallados en cualquier momento en Ajustes."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." es="Se recibieron datos demasiado grandes de la impresora ({} bytes). Puede indicar un error de comunicación."/>
+  <translation tag="Recent" es="Recientes"/>
   <translation tag="Recent Prints" es="Impresiones recientes"/>
   <translation tag="Recent Spools" es="Bobinas recientes"/>
   <translation tag="Recently Printed" es="Impresas recientemente"/>
@@ -3300,6 +3308,7 @@
   <translation tag="Sample Dialog" es="Diálogo de Ejemplo"/>
   <translation tag="Samples" es="Muestras"/>
   <translation tag="Samples Tolerance" es="Tolerancia de Muestras"/>
+  <translation tag="Saturation" es="Saturación"/>
   <translation tag="Save" es="Guardar"/>
   <translation tag="Save &amp; Restart" es="Guardar y Reiniciar"/>
   <translation tag="Save As New" es="Guardar Como Nuevo"/>
@@ -3535,6 +3544,7 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." es="Laminado para una boquilla de {:g} mm en T{}; la impresora tiene {:g} mm."/>
   <translation tag="Sliced for {}, not {}." es="Laminado para {}, no para {}."/>
   <translation tag="Slicer" es="Laminador"/>
+  <translation tag="Sliders" es="Controles"/>
   <translation tag="Slot" es="Ranura"/>
   <translation tag="Slot 1" es="Ranura 1"/>
   <translation tag="Slot Blocked" es="Ranura bloqueada"/>
@@ -4050,6 +4060,7 @@
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." es="Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." es="Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar."/>
   <translation tag="This system does not support bypass mode" es="Este sistema no es compatible con el modo bypass"/>
+  <translation tag="This theme" es="Este tema"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." es="Esta herramienta sondea cada tornillo de cama y le indica cuánto ajustar."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." es="Este cabezal no tiene alimentador automático. Carga el filamento a mano."/>
   <translation tag="This update asks for new permissions:" es="Esta actualización pide nuevos permisos:"/>

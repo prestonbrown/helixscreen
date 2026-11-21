@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One cell of the color picker's grid (color_picker_grid_row). Cells touch, so a
+     missed tap lands on a near-identical shade; they are rectangles painted by the
+     swatch painter with no contrast edge (a neighbour, not a surface, sits beside
+     each). The selected cell carries a double ring, white inside black, which
+     reads on light and dark cells alike. Colors come from color_picker_cell_<i>,
+     the selection from color_picker_cell_selected (ui_color_picker_view.cpp). -->
+<component>
+  <api>
+    <prop name="index" type="string" default="0"/>
+  </api>
+  <consts>
+    <color name="cell_ring_outer" value="#000000"/>
+    <color name="cell_ring_inner" value="#FFFFFF"/>
+    <px name="cell_ring_w" value="2"/>
+  </consts>
+  <styles>
+    <style name="cell_selected" border_width="#cell_ring_w" border_color="#cell_ring_outer" border_opa="255"/>
+  </styles>
+  <view extends="swatch_paint"
+        height="100%" flex_grow="1" edge="off" bind_color="color_picker_cell_${index}" style_radius="0"
+        style_pad_all="#cell_ring_w" clickable="true" scrollable="false">
+    <bind_style_if_eq name="cell_selected" subject="color_picker_cell_selected" ref_value="$index"/>
+    <lv_obj name="cell_ring_inner"
+            width="100%" height="100%" style_bg_opa="0" style_border_width="#cell_ring_w"
+            style_border_color="#cell_ring_inner" style_radius="0" clickable="false" event_bubble="true"
+            scrollable="false" hidden="true">
+      <bind_flag_if_not_eq subject="color_picker_cell_selected" flag="hidden" ref_value="$index"/>
+    </lv_obj>
+    <event_cb trigger="clicked" callback="color_picker_cell_cb" user_data="$index"/>
+  </view>
+</component>

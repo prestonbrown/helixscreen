@@ -1161,9 +1161,13 @@ struct SlotInfo {
     std::string color_name;                    ///< Named color (e.g., "Red", "Blue")
     uint32_t color_rgb = kAmsDefaultSlotColor; ///< RGB color for UI (0xRRGGBB)
     std::string multi_color_hexes;             ///< Comma-separated hex codes for multi-color
-                                               ///< (e.g., "#D4AF37,#C0C0C0,#B87333")
-    std::string material;                      ///< Material type (e.g., "PLA", "PETG", "ABS")
-    std::string brand;                         ///< Brand name (e.g., "Polymaker", "eSUN")
+                                               ///< (e.g., "#D4AF37,#C0C0C0,#B87333"); the lane
+                                               ///< record's `colors`. Empty for one color
+    /// How the multi-color list runs: "gradient" or "coaxial"
+    /// (filament_color_mode.h); empty while the slot is one color.
+    std::string color_mode;
+    std::string material; ///< Material type (e.g., "PLA", "PETG", "ABS")
+    std::string brand;    ///< Brand name (e.g., "Polymaker", "eSUN")
 
     // Catalog product identity — WHICH branded product, not just its material.
     //
@@ -1353,9 +1357,9 @@ struct SlotInfo {
      */
     bool assign_filament_fields(const SlotInfo& other) {
         auto fields = [](auto& s) {
-            return std::tuple_cat(
-                identity_fields(s),
-                std::tie(s.multi_color_hexes, s.nozzle_temp_min, s.nozzle_temp_max, s.bed_temp));
+            return std::tuple_cat(identity_fields(s),
+                                  std::tie(s.multi_color_hexes, s.color_mode, s.nozzle_temp_min,
+                                           s.nozzle_temp_max, s.bed_temp));
         };
         const bool changed = fields(*this) != fields(other);
         fields(*this) = fields(other);

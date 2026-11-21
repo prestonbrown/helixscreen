@@ -66,6 +66,7 @@ types every supported Orca release carries.
 | `lane_name` | the outer key (`laneN` or `T<n>`, below); `"bypass"` on the bypass spool's record |
 | `loaded` | bool, or `null` |
 | `color` | `"#RRGGBB"`, or `null` when `color_set` is false (pure black is a colour) |
+| `colors`, `color_mode` | a multi-color filament's list (`FilamentSlotOverride::multi_color_hexes`, two or more `#RRGGBB`) and `"gradient"` or `"coaxial"`; `null` and `"solid"` for one color, both `null` with no color (`include/filament_color_mode.h`) |
 | `material`, `filament_type` | the Orca match string and the precise type |
 | `vendor_name`, `name` | brand and product name |
 | `spool_id`, `spoolman_filament_id`, `filament_id` | numbers or `null`; `filament_id` is the linked spool's Orca id, else one the catalog records for the picked product |

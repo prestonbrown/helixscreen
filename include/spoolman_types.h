@@ -5,6 +5,7 @@
 
 #include "ams_types.h"
 #include "color_utils.h"
+#include "filament_color_mode.h"
 #include "filament_display_name.h"
 #include "lane_observation.h"
 
@@ -86,16 +87,17 @@ struct FilamentInfo {
     /// Spoolman has no colour-name field, only `color_hex`. Anything needing a
     /// human colour label derives it from the hex (`helix::describe_color`).
     std::string filament_name;
-    std::string color_hex;         ///< Hex color code (e.g., "#1A1A2E")
-    std::string multi_color_hexes; ///< Comma-separated colours of a multi-colour filament
-    float density = 0;             ///< Material density (g/cm³)
-    float diameter = 1.75f;        ///< Filament diameter in mm
-    float weight = 0;              ///< Net weight per spool (g)
-    float spool_weight = 0;        ///< Empty spool weight (g)
-    int nozzle_temp_min = 0;       ///< Minimum nozzle temperature
-    int nozzle_temp_max = 0;       ///< Maximum nozzle temperature
-    int bed_temp_min = 0;          ///< Minimum bed temperature
-    int bed_temp_max = 0;          ///< Maximum bed temperature
+    std::string color_hex;             ///< Hex color code (e.g., "#1A1A2E")
+    std::string multi_color_hexes;     ///< Comma-separated colours of a multi-colour filament
+    std::string multi_color_direction; ///< "longitudinal" or "coaxial", empty for one color
+    float density = 0;                 ///< Material density (g/cm³)
+    float diameter = 1.75f;            ///< Filament diameter in mm
+    float weight = 0;                  ///< Net weight per spool (g)
+    float spool_weight = 0;            ///< Empty spool weight (g)
+    int nozzle_temp_min = 0;           ///< Minimum nozzle temperature
+    int nozzle_temp_max = 0;           ///< Maximum nozzle temperature
+    int bed_temp_min = 0;              ///< Minimum bed temperature
+    int bed_temp_max = 0;              ///< Maximum bed temperature
 
     /**
      * @brief Get display name combining vendor, filament name, and material
@@ -129,6 +131,8 @@ struct SpoolInfo {
     std::string color_hex;         ///< Hex color code (e.g., "#1A1A2E")
     std::string multi_color_hexes; ///< Comma-separated hex codes for multi-color filaments
                                    ///< (e.g., "#D4AF37,#C0C0C0,#B87333" for gold/silver/copper)
+    /// Spoolman's multi_color_direction: "longitudinal" or "coaxial", empty for one color.
+    std::string multi_color_direction;
     double remaining_weight_g = 0; ///< Remaining filament weight in grams
     double remaining_length_m = 0; ///< Remaining filament length in meters
     double spool_weight_g = 0;     ///< Empty spool weight in grams
@@ -393,6 +397,24 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
             stated.color_rgb = rgb;
         }
     }
+    // A linked spool states its colors always: a list for a multi-color
+    // filament (whose first color is its color when Spoolman keeps no
+    // color_hex for it), empty for one color, so a list the user removes in
+    // Spoolman leaves the lane.
+    if (spool.id > 0) {
+        stated.multi_color_hexes = spool.multi_color_hexes;
+        stated.color_mode = spool.multi_color_hexes.empty()
+                                ? std::string{}
+                                : helix::color_mode::normalize(spool.multi_color_direction);
+        if (!stated.color_rgb && !spool.multi_color_hexes.empty()) {
+            const std::string first =
+                spool.multi_color_hexes.substr(0, spool.multi_color_hexes.find(','));
+            uint32_t rgb = 0;
+            if (helix::parse_hex_color(first.c_str(), rgb)) {
+                stated.color_rgb = rgb;
+            }
+        }
+    }
     return stated;
 }
 
@@ -424,7 +446,8 @@ inline void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
     info.material = stated.material.value_or(std::string{});
     info.brand = stated.brand.value_or(std::string{});
     info.spool_name = stated.spool_name.value_or(std::string{});
-    info.multi_color_hexes = spool.multi_color_hexes;
+    info.multi_color_hexes = stated.multi_color_hexes.value_or(spool.multi_color_hexes);
+    info.color_mode = stated.color_mode.value_or(std::string{});
     info.remaining_weight_g = static_cast<float>(spool.remaining_weight_g);
     info.total_weight_g = static_cast<float>(spool.initial_weight_g);
     info.nozzle_temp_min = spool.nozzle_temp_min;

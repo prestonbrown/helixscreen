@@ -173,7 +173,10 @@ class SwatchCache {
 };
 
 struct SwatchPaint {
-    std::vector<lv_color_t> colors;          ///< 1..N; N >= 2 draws the diagonal split
+    std::vector<lv_color_t> colors; ///< 1..N; N >= 2 draws the diagonal split
+    /// N >= 2 colors blend left to right (a gradient filament) instead of
+    /// meeting in hard bands.
+    bool blend = false;
     const lv_grad_dsc_t* gradient = nullptr; ///< fills the shape instead of colors
     int32_t radius = LV_RADIUS_CIRCLE;
     bool edge = true; ///< apply the contrast edge rule
@@ -258,7 +261,8 @@ lv_color_t swatch_color_of(lv_obj_t* obj);
 /// Register the <swatch_paint> XML widget. Attributes, all optional and
 /// ignored when empty: color, bind_color (color subject), colors and
 /// bind_colors (CSV / string subject), finish and bind_finish (finish name /
-/// string subject holding a filament name), edge ("off" disables the edge).
+/// string subject holding a filament name), edge ("off" disables the edge),
+/// blend ("on" blends several colors left to right instead of banding them).
 void register_swatch_paint_widget();
 
 /// Drop all retained swatch paint state. Normally unnecessary (state is

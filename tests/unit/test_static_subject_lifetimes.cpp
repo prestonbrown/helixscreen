@@ -15,7 +15,7 @@
 #include "ui_ams_lane_spool.h"
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
-#include "ui_color_picker.h"
+#include "ui_color_picker_view.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -61,10 +61,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     // The fixture runs helix::register_xml_components(), which registers both.
     CHECK(survives_switch("XmlSubjects"));
 
-    helix::ui::ensure_swatch_grid_subjects();
-    CHECK(survives_switch("SwatchGridSubjects"));
-    // Not run either: the colour grid's selection subject still resolves by name.
-    CHECK(lv_xml_get_subject(nullptr, "color_picker_selected_swatch") != nullptr);
+    helix::ui::ensure_color_picker_view_subjects();
+    CHECK(survives_switch("ColorPickerView"));
+    // Not run either: the picker's grid selection still resolves by name.
+    CHECK(lv_xml_get_subject(nullptr, "color_picker_cell_selected") != nullptr);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "AMS sidebar gating subjects outlive a printer switch",

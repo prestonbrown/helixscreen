@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker's filament (10 x 6) grid: 6 rows of 10 touching cells filling its
+     host, corners rounded by clipping. Colors: color_palette() in
+     color_picker_model.h, published by ui_color_picker_view.cpp. -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+        style_radius="#border_radius" style_clip_corner="true" flex_flow="column" scrollable="false" clickable="false">
+    <repeat count="6">
+      <color_picker_grid_row10 row="$i"/>
+    </repeat>
+  </view>
+</component>

@@ -2618,6 +2618,14 @@ class AmsBackend {
         return false;
     }
 
+    /// Whether an edit can give a lane several colors here: this backend keeps
+    /// a lane's multi-color list and its mode (SlotInfo::multi_color_hexes,
+    /// color_mode) in a record of its own. Where it cannot, a lane linked to a
+    /// Spoolman spool still can, through the spool's filament.
+    [[nodiscard]] virtual bool stores_multi_color() const {
+        return false;
+    }
+
     /// Whether this backend keeps the printer's bypass spool record among its
     /// own lane records. AmsState asks the primary backend; with no backend
     /// that answers, AmsState keeps the record in lane_data itself.

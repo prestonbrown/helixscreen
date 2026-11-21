@@ -56,10 +56,19 @@ std::vector<uint32_t> ColorRecents::list(Kind kind) {
 }
 
 void ColorRecents::remember(Kind kind, uint32_t rgb) {
-    rgb &= 0xFFFFFF;
+    remember_all(kind, {rgb});
+}
+
+void ColorRecents::remember_all(Kind kind, const std::vector<uint32_t>& picked) {
+    if (picked.empty()) {
+        return;
+    }
     auto colors = list(kind);
-    colors.erase(std::remove(colors.begin(), colors.end(), rgb), colors.end());
-    colors.insert(colors.begin(), rgb);
+    for (auto it = picked.rbegin(); it != picked.rend(); ++it) {
+        const uint32_t rgb = *it & 0xFFFFFF;
+        colors.erase(std::remove(colors.begin(), colors.end(), rgb), colors.end());
+        colors.insert(colors.begin(), rgb);
+    }
     if (colors.size() > kCap) {
         colors.resize(kCap);
     }

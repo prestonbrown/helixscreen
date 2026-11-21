@@ -8,11 +8,10 @@
 #include "ui_ams_lane_settings.h"
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
-#include "ui_color_picker.h"
+#include "ui_color_picker_page.h"
 #include "ui_component_keypad.h"
 #include "ui_error_reporting.h"
 #include "ui_filament_catalog_picker.h"
-#include "ui_hsv_picker.h"
 #include "ui_nav.h"
 #include "ui_swatch.h"
 #include "ui_update_queue.h"
@@ -22,12 +21,15 @@
 #include "ams_state.h"
 #include "ams_tag_reading.h"
 #include "app_globals.h"
+#include "color_recents.h"
 #include "color_utils.h"
 #include "display_numbering.h"
+#include "filament_color_mode.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_variants.h"
 #include "format_utils.h"
+#include "helix/xml/indexed_subject_pool.h"
 #include "label_printer_settings.h"
 #include "lane_spool_history.h"
 #include "lane_translation.h"
@@ -65,6 +67,20 @@
 #include <set>
 
 namespace helix::ui {
+
+namespace {
+/// The color row's recent chips, ams_edit_recent_<i>.
+helix::xml::IndexedSubjectPool s_recent_colors{"ams_edit_recent",
+                                               helix::xml::IndexedSubjectPool::Type::Color};
+/// The color dots, ams_edit_seg_<i>.
+helix::xml::IndexedSubjectPool s_seg_colors{"ams_edit_seg",
+                                            helix::xml::IndexedSubjectPool::Type::Color};
+/// The common spool tiles' colors, ams_edit_common_color_<i>: black, white, gray.
+helix::xml::IndexedSubjectPool s_common_colors{"ams_edit_common_color",
+                                               helix::xml::IndexedSubjectPool::Type::Color};
+/// The most recent chips the color row shows.
+constexpr size_t kMaxRowRecents = 6;
+} // namespace
 
 namespace {
 
@@ -201,9 +217,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
     identity_reset_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
-    custom_color_ = working_info_.color_rgb;
+    reset_color_draft();
     tag_.reset();
     linked_fetch_pending_ = false;
     recents_pending_ = false;
@@ -409,8 +423,7 @@ void AmsEditOverlay::load_swapped_spool() {
     reseed_details_for_spool();
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     if (!editor_entered_) {
         enter_editor();
         return;
@@ -449,18 +462,6 @@ lv_obj_t* AmsEditOverlay::create(lv_obj_t* parent) {
         lv_label_bind_text(badge_text, &spoolman_id_subject_, nullptr);
     }
 
-    // Bind the summary colour dot's painter to the pending colour: the dot is
-    // a color_dot, painted imperatively from update_summary().
-    lv_obj_t* hsv = helix::ui::find_required(overlay_root_, "ams_color_hsv", get_name());
-    if (hsv) {
-        ui_hsv_picker_set_callback(
-            hsv,
-            [](uint32_t rgb, void* /*user_data*/) {
-                get_ams_edit_overlay().handle_custom_color_changed(rgb);
-            },
-            nullptr);
-    }
-
     spdlog::info("[AmsEditOverlay] Overlay created");
     return overlay_root_;
 }
@@ -476,8 +477,9 @@ void AmsEditOverlay::on_activate() {
     OverlayBase::on_activate();
     update_ui();
     // The push sets the overlay's final width after the editor was built, so
-    // the colour rows are counted again against the width they show at.
-    size_color_grids();
+    // the color row is measured again at the width it shows at; back from the
+    // color page, its recents may have changed too.
+    size_color_row();
     // A cover (keypad, scanner) dropped any open-time fetch still in flight;
     // re-arm the ones that never landed.
     if (editor_entered_) {
@@ -532,7 +534,7 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(saves_to_subject_, saves_to_buf_, "", "ams_edit_saves_to",
                                   subjects_);
 
-        // View state (kViewEditor..kViewColor) - registered globally
+        // View state (kViewEditor) - registered globally
         UI_MANAGED_SUBJECT_INT(view_mode_subject_, 0, "ams_edit_view", subjects_);
 
         // The spools list's state (picker_state_subject_) - registered globally
@@ -559,12 +561,32 @@ void AmsEditOverlay::init_subjects() {
 
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
-        UI_MANAGED_SUBJECT_INT(color_selected_subject_, -1, "ams_edit_color_selected", subjects_);
-        UI_MANAGED_SUBJECT_INT(color_row_count_subject_, 7, "ams_edit_color_row_count", subjects_);
-        // Colour view: both panes at once where they fit (update_color_fit),
-        // else one at a time, switched by the custom swatch and Presets.
-        UI_MANAGED_SUBJECT_INT(color_fits_subject_, 1, "ams_edit_color_fits", subjects_);
-        UI_MANAGED_SUBJECT_INT(color_pane_subject_, 0, "ams_edit_color_pane", subjects_);
+        // The color line and row (update_color_row).
+        UI_MANAGED_SUBJECT_COLOR(color_current_subject_, lv_color_hex(kAmsDefaultSlotColor),
+                                 "ams_edit_color_current", subjects_);
+        UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
+                                  "ams_edit_color_current_multi", subjects_);
+        UI_MANAGED_SUBJECT_STRING(color_name_subject_, color_name_buf_, "", "ams_edit_color_name",
+                                  subjects_);
+        s_recent_colors.ensure_size(kMaxRowRecents);
+        UI_MANAGED_SUBJECT_INT(recent_count_subject_, 0, "ams_edit_recent_count", subjects_);
+        // The color dots (ams_edit_color_dots.xml).
+        s_seg_colors.ensure_size(kMaxColors);
+        UI_MANAGED_SUBJECT_INT(multi_subject_, 0, "ams_edit_multi", subjects_);
+        UI_MANAGED_SUBJECT_INT(multi_capable_subject_, 0, "ams_edit_multi_capable", subjects_);
+        UI_MANAGED_SUBJECT_INT(seg_count_subject_, 1, "ams_edit_seg_count", subjects_);
+        UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
+        UI_MANAGED_SUBJECT_STRING(seg_label_subject_, seg_label_buf_, "", "ams_edit_seg_label",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_INT(color_mode_subject_, 0, "ams_edit_color_mode", subjects_);
+        // The common spool tiles' swatches.
+        s_common_colors.ensure_size(3);
+        {
+            size_t i = 0;
+            for (uint32_t rgb : {0x1A1A1Au, 0xFFFFFFu, 0x7F7F7Fu}) {
+                s_common_colors.set_color(i++, rgb);
+            }
+        }
 
         // Temperatures, remaining weight, badges, disclosure.
         UI_MANAGED_SUBJECT_INT(tag_badge_visible_subject_, 0, "ams_edit_tag_badge_visible",
@@ -614,6 +636,13 @@ void AmsEditOverlay::init_subjects() {
 }
 
 void AmsEditOverlay::deinit_subjects() {
+    // The pools are file-wide; only the instance that registered them gives
+    // them back, so a second editor object (a test's) leaves the live one alone.
+    if (subjects_initialized_) {
+        s_recent_colors.reclaim();
+        s_seg_colors.reclaim();
+        s_common_colors.reclaim();
+    }
     deinit_subjects_base(subjects_);
 }
 
@@ -912,8 +941,7 @@ void AmsEditOverlay::begin_fresh_assign() {
     working_info_ = fresh;
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     reseed_details_for_spool();
     apply_size_chip(0, spool_assign::kDefaultSpoolGrams, spool_assign::kDefaultSpoolGrams);
 }
@@ -928,8 +956,7 @@ bool AmsEditOverlay::back_to_edit_spool() {
     working_info_ = original_info_;
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     reseed_details_for_spool();
     set_mode(kModeEdit);
     update_ui();
@@ -1275,6 +1302,7 @@ void AmsEditOverlay::handle_row_use(size_t row) {
             working_info_.color_rgb = *rgb;
             working_info_.color_name.clear();
             working_info_.multi_color_hexes.clear();
+            working_info_.color_mode.clear();
         }
         apply_material_defaults(spool.material);
         // The catalog product it named brings its own temperatures back.
@@ -1306,8 +1334,7 @@ void AmsEditOverlay::handle_common_spool(size_t index) {
     picked.brand = "Generic";
     sel_ = picked;
     selection_moved_ = true;
-    details_color_ = pick.rgb;
-    details_color_set_ = true;
+    set_draft_colors({pick.rgb});
     rebuild_option_lists();
     update_summary();
     update_temp_display();
@@ -1550,6 +1577,7 @@ SlotInfo AmsEditOverlay::shown_slot() const {
     if (details_color_set_) {
         shown.color_rgb = details_color_;
         shown.multi_color_hexes.clear();
+        shown.color_mode.clear();
     }
     shown.nozzle_temp_min = shown_nozzle_min_;
     shown.nozzle_temp_max = shown_nozzle_max_;
@@ -1626,65 +1654,67 @@ bool AmsEditOverlay::slot_has_colour(const SlotInfo& info) {
     return info.color_rgb != 0 || !info.color_name.empty() || !info.material.empty();
 }
 
-int AmsEditOverlay::color_ring_index(uint32_t rgb, bool colour_set, int visible_presets,
-                                     const std::vector<uint32_t>& palette) {
-    if (!colour_set) {
-        return -1;
-    }
-    const int shown = std::min(visible_presets, static_cast<int>(palette.size()));
-    for (int i = 0; i < shown; ++i) {
-        if (palette[static_cast<size_t>(i)] == rgb) {
-            return i;
+std::vector<uint32_t> AmsEditOverlay::color_row_recents(const std::vector<uint32_t>& recents,
+                                                        uint32_t current, size_t room) {
+    std::vector<uint32_t> out;
+    for (uint32_t c : recents) {
+        if (out.size() == room) {
+            break;
+        }
+        if (c != current) {
+            out.push_back(c);
         }
     }
-    return kCustomColorIndex;
+    return out;
 }
 
-int AmsEditOverlay::visible_preset_count() {
-    return lv_subject_get_int(&color_row_count_subject_);
-}
-
-int AmsEditOverlay::grid_preset_count(int grid_width, int tile, int gap, int rows,
-                                      int palette_size) {
-    if (tile <= 0 || rows <= 0) {
+size_t AmsEditOverlay::recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap) {
+    if (chip <= 0 || row_width < chip) {
         return 0;
     }
-    // The custom-colour swatch takes the first tile.
-    const int per_row = std::max(1, (grid_width + gap) / (tile + gap));
-    return std::clamp(per_row * rows - 1, 0, palette_size);
+    // n tiles take n chips and n - 1 gaps.
+    const int per_row = (row_width + gap) / (chip + gap);
+    return std::min(cap, static_cast<size_t>(std::max(0, per_row - fixed_tiles)));
 }
 
-void AmsEditOverlay::size_color_grids() {
-    // The grid is subject-counted (a literal <repeat> inside <if> is refused
-    // by the engine), sized here from its measured width: one whole row, the
-    // Custom swatch its last tile (Custom opens the rest).
-    if (!overlay_root_) {
-        return;
+void AmsEditOverlay::size_color_row() {
+    // The row wraps, so its recents are counted from its measured width.
+    if (overlay_root_) {
+        lv_obj_update_layout(overlay_root_);
+        lv_obj_t* row = find_widget("color_row");
+        lv_obj_t* tile = find_widget("btn_all_colors");
+        const int width = row ? lv_obj_get_content_width(row) : 0;
+        // A hidden row or tile measures 0 wide; it keeps what it measured before.
+        if (row && tile && width > 0 && lv_obj_get_width(tile) > 0) {
+            row_width_ = width;
+            row_gap_ = lv_obj_get_style_pad_column(row, LV_PART_MAIN);
+            row_chip_ = lv_obj_get_width(tile);
+        }
     }
-    lv_obj_update_layout(overlay_root_);
-    lv_obj_t* grid = find_widget("color_grid");
-    lv_obj_t* custom = find_widget("btn_custom_color");
-    if (!grid || !custom) {
-        return;
+    update_color_row();
+}
+
+size_t AmsEditOverlay::recent_room() const {
+    if (row_width_ <= 0) {
+        return 4; // not measured yet: a phone-width row's worth
     }
-    const int palette = static_cast<int>(swatch_palette(ColorPicker::Palette::General).size());
-    const int count =
-        grid_preset_count(lv_obj_get_content_width(grid), lv_obj_get_width(custom),
-                          lv_obj_get_style_pad_column(grid, LV_PART_MAIN), 1, palette);
-    // A hidden grid measures 0 wide; it keeps the count it has.
-    if (lv_obj_get_content_width(grid) > 0 &&
-        lv_subject_get_int(&color_row_count_subject_) != count) {
-        lv_subject_set_int(&color_row_count_subject_, count);
-    }
-    // The repeat rebuilds its swatches at the end of the grid; Custom closes it.
-    lv_obj_move_to_index(custom, -1);
+    // The recents and the rainbow tile share the dot's row (and its "+"), or
+    // take a row of their own once several dots fill the first. At the micro
+    // class several dots keep one row and the tile goes (the selected dot
+    // opens the page); the XML's flex_in_new_track and hidden flag match.
+    lv_subject_t* bp = theme_manager_get_breakpoint_subject();
+    const bool micro = !bp || lv_subject_get_int(bp) <= static_cast<int>(UiBreakpoint::Micro);
+    const bool editable = multi_color_editable();
+    const int dots = editable ? shown_colors() : 1;
+    const int plus = multi_color_capable() && dots < static_cast<int>(kMaxColors) ? 1 : 0;
+    const int fixed = !editable ? dots + plus + 1 : micro ? dots + plus : 1;
+    return recents_room(row_width_, fixed, row_chip_, row_gap_, kMaxRowRecents);
 }
 
 void AmsEditOverlay::populate_editor_view() {
     if (!catalog_) {
         catalog_ = printer::FilamentCatalog::load_full();
     }
-    size_color_grids();
     rebuild_option_lists();
     update_summary();
     update_temp_display();
@@ -1698,10 +1728,6 @@ void AmsEditOverlay::repopulate() {
     // not survive is the content each view populates on entry.
     const int view = lv_subject_get_int(&view_mode_subject_);
     switch (view) {
-    case kViewColor:
-        populate_color_view();
-        update_color_fit();
-        break;
     case kViewEditor:
     default:
         populate_editor_view();
@@ -1721,15 +1747,7 @@ void AmsEditOverlay::repopulate() {
 void AmsEditOverlay::update_summary() {
     update_spool_disagreement();
 
-    // Ring the visible preset the pending colour matches. A real colour no
-    // visible preset holds rings the custom swatch (index -2); no colour, or
-    // a multi-colour split, rings nothing.
-    const uint32_t pending = details_color_set_ ? details_color_ : working_info_.color_rgb;
-    const bool colour_set = details_color_set_ || (working_info_.multi_color_hexes.empty() &&
-                                                   slot_has_colour(working_info_));
-    lv_subject_set_int(&color_selected_subject_,
-                       color_ring_index(pending, colour_set, visible_preset_count(),
-                                        swatch_palette(ColorPicker::Palette::General)));
+    update_color_row();
 
     // Edit Spool: the remaining weight and the spool it is left on.
     if (working_info_.remaining_weight_g >= 0) {
@@ -1739,11 +1757,12 @@ void AmsEditOverlay::update_summary() {
     }
     lv_subject_copy_string(&weight_text_subject_, weight_buf_);
     if (lv_obj_t* spool = find_widget("edit_spool")) {
+        // The spool shows the draft: every color of a multi-color one.
         SlotInfo drawn = working_info_;
-        if (details_color_set_) {
-            drawn.color_rgb = details_color_;
-            drawn.multi_color_hexes.clear();
-        }
+        const std::vector<uint32_t> colors = draft_colors();
+        drawn.color_rgb = colors.front();
+        drawn.multi_color_hexes = colors.size() >= 2 ? join_color_list(colors) : std::string();
+        drawn.color_mode = colors.size() >= 2 ? draft_mode() : std::string();
         spool_canvas_set_filament(spool, drawn);
         const float total = working_info_.total_weight_g;
         ui_spool_canvas_set_fill_level(
@@ -1919,7 +1938,7 @@ void AmsEditOverlay::update_ui() {
 }
 
 bool AmsEditOverlay::selection_dirty() const {
-    return selection_moved_ || details_color_set_;
+    return selection_moved_ || details_color_set_ || multi_set_;
 }
 
 bool AmsEditOverlay::is_dirty() const {
@@ -2090,93 +2109,245 @@ bool AmsEditOverlay::commit_lane_settings() {
 // Colour staging (shared by the grid, the HSV view and Reset to tag)
 // ============================================================================
 
-void AmsEditOverlay::open_color_view() {
-    // Seed custom sub-state from the pending colour. Black seeds as-is — it is
-    // a real colour (#1608).
-    custom_color_ = details_color_;
-    lv_subject_set_int(&color_pane_subject_, 0);
-    populate_color_view();
-    set_view(kViewColor);
-    update_color_fit();
+uint32_t AmsEditOverlay::pending_color() const {
+    return details_color_set_ ? details_color_ : working_info_.color_rgb;
 }
 
-bool AmsEditOverlay::color_panes_fit(int avail_w, int avail_h, int presets_w, int presets_h,
-                                     int custom_w, int custom_h, int gap) {
-    const bool side_by_side =
-        presets_w + gap + custom_w <= avail_w && std::max(presets_h, custom_h) <= avail_h;
-    const bool stacked =
-        std::max(presets_w, custom_w) <= avail_w && presets_h + gap + custom_h <= avail_h;
-    return side_by_side || stacked;
+std::vector<uint32_t> AmsEditOverlay::split_color_list(const std::string& csv) {
+    std::vector<uint32_t> out;
+    size_t start = 0;
+    while (start <= csv.size()) {
+        const size_t comma = csv.find(',', start);
+        const std::string item =
+            csv.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+        if (const auto rgb = helix::parse_hex_color(item)) {
+            out.push_back(*rgb);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return out;
 }
 
-void AmsEditOverlay::update_color_fit() {
-    lv_obj_t* view = find_widget("color_view");
-    lv_obj_t* presets = find_widget("color_presets");
-    lv_obj_t* custom = find_widget("color_custom");
-    if (!view || !presets || !custom) {
+std::string AmsEditOverlay::join_color_list(const std::vector<uint32_t>& colors) {
+    std::string out;
+    for (uint32_t c : colors) {
+        out += (out.empty() ? "" : ",") + helix::color_to_hex_string(c);
+    }
+    return out;
+}
+
+std::vector<uint32_t> AmsEditOverlay::draft_colors() const {
+    const std::string& csv = multi_set_           ? draft_multi_
+                             : details_color_set_ ? std::string()
+                                                  : working_info_.multi_color_hexes;
+    std::vector<uint32_t> list = split_color_list(csv);
+    if (list.size() >= 2) {
+        return list;
+    }
+    return {pending_color()};
+}
+
+std::string AmsEditOverlay::draft_mode() const {
+    const std::string mode =
+        helix::color_mode::normalize(multi_set_ ? draft_mode_ : working_info_.color_mode);
+    return mode.empty() ? std::string(helix::color_mode::kGradient) : mode;
+}
+
+bool AmsEditOverlay::multi_color_capable() const {
+    if (const AmsBackend* backend = AmsState::instance().get_backend();
+        backend && backend->stores_multi_color()) {
+        return true;
+    }
+    auto* spoolman = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    return working_info_.spoolman_id > 0 && spoolman && lv_subject_get_int(spoolman) == 1;
+}
+
+void AmsEditOverlay::reset_color_draft() {
+    details_color_ = working_info_.color_rgb;
+    details_color_set_ = false;
+    multi_set_ = false;
+    draft_multi_.clear();
+    draft_mode_.clear();
+    selected_seg_ = 0;
+}
+
+void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& picked) {
+    if (picked.empty()) {
         return;
     }
-    lv_obj_update_layout(overlay_root_);
-    lv_obj_t* area = lv_obj_get_parent(view);
-    const int avail_h = lv_obj_get_content_height(area) -
-                        lv_obj_get_style_pad_top(view, LV_PART_MAIN) -
-                        lv_obj_get_style_pad_bottom(view, LV_PART_MAIN);
-    const int avail_w = lv_obj_get_content_width(view);
-    // Both panes have fixed sizes, so the verdict follows the room alone. Each
-    // flip of ams_edit_color_fits rebuilds the preset grid's ~60 swatches, so
-    // the subject moves only when the verdict changes.
-    if (avail_w != color_fit_room_w_ || avail_h != color_fit_room_h_) {
-        // Measured with both panes built and shown: the decision is whether
-        // that form fits the overlay's content area without scrolling.
-        if (lv_subject_get_int(&color_fits_subject_) != 1) {
-            lv_subject_set_int(&color_fits_subject_, 1);
-            lv_obj_update_layout(overlay_root_);
-        }
-        const int gap = lv_obj_get_style_pad_column(view, LV_PART_MAIN);
-        color_fit_ =
-            color_panes_fit(avail_w, avail_h, lv_obj_get_width(presets), lv_obj_get_height(presets),
-                            lv_obj_get_width(custom), lv_obj_get_height(custom), gap);
-        color_fit_room_w_ = avail_w;
-        color_fit_room_h_ = avail_h;
-        spdlog::debug("[AmsEditOverlay] Colour panes {}x{} + {}x{} gap {} in {}x{}: {}",
-                      lv_obj_get_width(presets), lv_obj_get_height(presets),
-                      lv_obj_get_width(custom), lv_obj_get_height(custom), gap, avail_w, avail_h,
-                      color_fit_ ? "together" : "one at a time");
+    // Every color goes through the same mapping as a single pick, so no entry
+    // is the no-color marker.
+    std::vector<uint32_t> colors = picked;
+    for (uint32_t& c : colors) {
+        c = helix::ams::picked_color(c);
     }
-    const int fits = color_fit_ ? 1 : 0;
-    if (lv_subject_get_int(&color_fits_subject_) != fits) {
-        lv_subject_set_int(&color_fits_subject_, fits);
+    const std::string mode = draft_mode();
+    multi_set_ = true;
+    details_color_ = colors.front();
+    details_color_set_ = true;
+    if (colors.size() >= 2) {
+        draft_multi_ = join_color_list(colors);
+        draft_mode_ = mode;
+    } else {
+        draft_multi_.clear();
+        draft_mode_.clear();
     }
-}
-
-void AmsEditOverlay::show_color_pane(int pane) {
-    lv_subject_set_int(&color_pane_subject_, pane);
-}
-
-void AmsEditOverlay::populate_color_view() {
-    lv_obj_t* hsv = helix::ui::find_required(overlay_root_, "ams_color_hsv", get_name());
-    if (hsv) {
-        ui_hsv_picker_set_color_rgb(hsv, custom_color_);
-    }
-    lv_obj_t* preview = helix::ui::find_required(overlay_root_, "ams_color_preview", get_name());
-    if (preview) {
-        helix::ui::apply_swatch_color(preview, custom_color_, {});
-    }
-    lv_obj_t* hex_input =
-        helix::ui::find_required(overlay_root_, "ams_color_hex_input", get_name());
-    if (hex_input) {
-        char buf[10];
-        snprintf(buf, sizeof(buf), "#%06X", custom_color_);
-        lv_textarea_set_text(hex_input, buf);
-    }
+    selected_seg_ = std::clamp(selected_seg_, 0, shown_colors() - 1);
+    update_summary();
+    update_sync_button_state();
 }
 
 void AmsEditOverlay::apply_color(uint32_t rgb) {
+    std::vector<uint32_t> colors = draft_colors();
+    if (colors.size() >= 2) {
+        if (!multi_color_capable()) {
+            // The lane keeps one color: a pick replaces the spool's colors.
+            set_draft_colors({rgb});
+            return;
+        }
+        selected_seg_ = std::clamp(selected_seg_, 0, shown_colors() - 1);
+        colors[static_cast<size_t>(selected_seg_)] = rgb;
+        set_draft_colors(colors);
+        return;
+    }
     details_color_ = helix::ams::picked_color(rgb);
     details_color_set_ = true;
-    set_view(kViewEditor);
     update_summary();
     update_sync_button_state();
+}
+
+void AmsEditOverlay::handle_seg_tap(int index) {
+    if (index < 0 || index >= (multi_color_editable() ? shown_colors() : 1)) {
+        return;
+    }
+    if (index == selected_seg_) {
+        open_color_page();
+        return;
+    }
+    selected_seg_ = index;
+    update_color_row();
+}
+
+void AmsEditOverlay::handle_seg_hold(int index) {
+    std::vector<uint32_t> colors = draft_colors();
+    if (!multi_color_editable() || index < 0 || index >= shown_colors()) {
+        return;
+    }
+    colors.erase(colors.begin() + index);
+    if (selected_seg_ >= index && selected_seg_ > 0) {
+        --selected_seg_;
+    }
+    set_draft_colors(colors);
+}
+
+void AmsEditOverlay::add_color() {
+    std::vector<uint32_t> colors = draft_colors();
+    if (!multi_color_capable() || colors.size() >= kMaxColors) {
+        return;
+    }
+    // The newest recent the spool does not already show, else white.
+    uint32_t next = 0xFFFFFF;
+    for (uint32_t c : helix::ColorRecents::list(helix::ColorRecents::Kind::Filament)) {
+        if (std::find(colors.begin(), colors.end(), c) == colors.end()) {
+            next = c;
+            break;
+        }
+    }
+    colors.push_back(next);
+    selected_seg_ = static_cast<int>(colors.size()) - 1;
+    set_draft_colors(colors);
+    open_color_page();
+}
+
+void AmsEditOverlay::handle_color_mode(int mode_index) {
+    const std::vector<uint32_t> colors = draft_colors();
+    if (!multi_color_editable()) {
+        return;
+    }
+    draft_mode_ =
+        std::string(mode_index == 1 ? helix::color_mode::kCoaxial : helix::color_mode::kGradient);
+    multi_set_ = true;
+    set_draft_colors(colors);
+}
+
+void AmsEditOverlay::handle_recent_color(int index) {
+    if (index < 0 || static_cast<size_t>(index) >= color_row_.size()) {
+        return;
+    }
+    apply_color(color_row_[static_cast<size_t>(index)]);
+}
+
+void AmsEditOverlay::open_color_page() {
+    if (save_in_flight_ || !overlay_root_) {
+        return;
+    }
+    helix::ui::ColorPickerConfig cfg;
+    cfg.palette = helix::ColorPalette::Filament;
+    cfg.strip = helix::ui::ColorStrip::FilamentRecents;
+    const std::vector<uint32_t> colors = draft_colors();
+    const uint32_t editing = colors[static_cast<size_t>(
+        std::clamp(selected_seg_, 0, (multi_color_editable() ? shown_colors() : 1) - 1))];
+    // One draft: the page edits the editor's pending color (the selected one
+    // of several) live, Back keeps it, and only Save commits it.
+    helix::ui::get_color_picker_page().open(
+        lv_obj_get_parent(overlay_root_), editing, cfg,
+        [](uint32_t rgb) { get_ams_edit_overlay().apply_color(rgb); },
+        [] { get_ams_edit_overlay().update_color_row(); });
+}
+
+void AmsEditOverlay::update_color_row() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const std::vector<uint32_t> colors = draft_colors();
+    const bool capable = multi_color_capable();
+    // A list the lane cannot store shows read-only (the summary dot's split)
+    // behind one dot, like a single color, and a pick replaces it.
+    const bool multi = colors.size() >= 2;
+    const bool editable = multi && capable;
+    const int dots = editable ? shown_colors() : 1;
+    selected_seg_ = std::clamp(selected_seg_, 0, dots - 1);
+    const uint32_t current = colors[static_cast<size_t>(selected_seg_)];
+    lv_subject_set_color(&color_current_subject_, lv_color_hex(current));
+    const std::string list = multi ? join_color_list(colors) : std::string();
+    lv_subject_copy_string(&color_current_multi_subject_, list.c_str());
+    const bool color_set = details_color_set_ || slot_has_colour(working_info_);
+    const std::string name = !color_set ? std::string(lv_tr("None"))
+                             : details_color_set_
+                                 ? helix::get_color_name_from_hex(details_color_)
+                                 : helix::ams::slot_color_name(working_info_.color_rgb);
+    lv_subject_copy_string(&color_name_subject_, name.c_str());
+
+    s_seg_colors.ensure_size(kMaxColors);
+    for (size_t i = 0; i < static_cast<size_t>(dots); ++i) {
+        s_seg_colors.set_color(i, colors[i]);
+    }
+    const auto set_int = [](lv_subject_t& subject, int value) {
+        if (lv_subject_get_int(&subject) != value) {
+            lv_subject_set_int(&subject, value);
+        }
+    };
+    set_int(seg_count_subject_, dots);
+    set_int(seg_selected_subject_, selected_seg_);
+    set_int(multi_subject_, editable ? 1 : 0);
+    set_int(multi_capable_subject_, capable ? 1 : 0);
+    set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
+    const std::string label = editable ? fmt::format("{} {}: {}", lv_tr("Color"), selected_seg_ + 1,
+                                                     helix::get_color_name_from_hex(current))
+                                       : std::string();
+    lv_subject_copy_string(&seg_label_subject_, label.c_str());
+
+    // As many recents as size_color_row() measured room for.
+    color_row_ = color_row_recents(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament),
+                                   current, recent_room());
+    s_recent_colors.ensure_size(kMaxRowRecents);
+    for (size_t i = 0; i < color_row_.size(); ++i) {
+        s_recent_colors.set_color(i, color_row_[i]);
+    }
+    set_int(recent_count_subject_, static_cast<int>(color_row_.size()));
 }
 
 void AmsEditOverlay::handle_picker_search(const char* text) {
@@ -2184,16 +2355,6 @@ void AmsEditOverlay::handle_picker_search(const char* text) {
         return;
     }
     render_spool_list(text ? text : "");
-}
-
-void AmsEditOverlay::handle_quick_swatch(lv_obj_t* swatch) {
-    if (!swatch) {
-        return;
-    }
-    details_color_ = lv_color_to_u32(helix::ui::swatch_color_of(swatch)) & 0xFFFFFF;
-    details_color_set_ = true;
-    update_summary();
-    update_sync_button_state();
 }
 
 void AmsEditOverlay::handle_reset_to_tag() {
@@ -2210,62 +2371,12 @@ void AmsEditOverlay::handle_reset_to_tag() {
     identity_reset_ = true;
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     rebuild_option_lists();
     update_summary();
     update_temp_display();
     refresh_tag_state();
     update_sync_button_state();
-}
-
-void AmsEditOverlay::handle_custom_color_changed(uint32_t rgb) {
-    custom_color_ = rgb;
-    lv_obj_t* preview = helix::ui::find_required(overlay_root_, "ams_color_preview", get_name());
-    if (preview) {
-        helix::ui::apply_swatch_color(preview, rgb, {});
-    }
-    lv_obj_t* hex_input =
-        helix::ui::find_required(overlay_root_, "ams_color_hex_input", get_name());
-    if (hex_input) {
-        char buf[10];
-        snprintf(buf, sizeof(buf), "#%06X", rgb);
-        lv_textarea_set_text(hex_input, buf);
-    }
-}
-
-void AmsEditOverlay::handle_color_swatch(lv_obj_t* swatch) {
-    if (!swatch) {
-        return;
-    }
-    const uint32_t rgb = lv_color_to_u32(helix::ui::swatch_color_of(swatch)) & 0xFFFFFF;
-    apply_color(rgb); // preset tap applies immediately and returns
-}
-
-void AmsEditOverlay::handle_color_hex_changed() {
-    lv_obj_t* hex_input =
-        helix::ui::find_required(overlay_root_, "ams_color_hex_input", get_name());
-    if (!hex_input) {
-        return;
-    }
-    const char* text = lv_textarea_get_text(hex_input);
-    uint32_t rgb = 0;
-    if (text && helix::parse_hex_color(text, rgb)) {
-        custom_color_ = rgb;
-        lv_obj_t* hsv = helix::ui::find_required(overlay_root_, "ams_color_hsv", get_name());
-        if (hsv) {
-            ui_hsv_picker_set_color_rgb(hsv, rgb);
-        }
-        lv_obj_t* preview =
-            helix::ui::find_required(overlay_root_, "ams_color_preview", get_name());
-        if (preview) {
-            helix::ui::apply_swatch_color(preview, rgb, {});
-        }
-    }
-}
-
-void AmsEditOverlay::handle_color_apply() {
-    apply_color(custom_color_);
 }
 
 // ============================================================================
@@ -2561,11 +2672,11 @@ void AmsEditOverlay::handle_reapply_linked_spool() {
         working_info_.color_rgb = rgb;
         working_info_.color_name.clear();
         working_info_.multi_color_hexes.clear();
+        working_info_.color_mode.clear();
     }
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     handle_save();
 }
 
@@ -2588,7 +2699,6 @@ void AmsEditOverlay::handle_back() {
         return; // the save's completion closes the editor
     }
     switch (view) {
-    case kViewColor:
         return_to_editor();
         break;
     case kViewEditor:
@@ -2684,7 +2794,8 @@ AmsEditOverlay::SpoolmanView AmsEditOverlay::spoolman_view() const {
 
 void AmsEditOverlay::remember_form_for_note_action() {
     note_action_form_ =
-        FormSnapshot{working_info_, sel_, selection_moved_, details_color_, details_color_set_};
+        FormSnapshot{working_info_,      sel_,       selection_moved_, details_color_,
+                     details_color_set_, multi_set_, draft_multi_,     draft_mode_};
 }
 
 void AmsEditOverlay::restore_form_after_note_action() {
@@ -2696,6 +2807,9 @@ void AmsEditOverlay::restore_form_after_note_action() {
     selection_moved_ = note_action_form_->selection_moved;
     details_color_ = note_action_form_->details_color;
     details_color_set_ = note_action_form_->details_color_set;
+    multi_set_ = note_action_form_->multi_set;
+    draft_multi_ = note_action_form_->draft_multi;
+    draft_mode_ = note_action_form_->draft_mode;
     note_action_form_.reset();
     if (editor_entered_) {
         rebuild_option_lists();
@@ -2744,6 +2858,19 @@ bool AmsEditOverlay::needs_identity_confirmation(const SlotInfo& original, const
 }
 
 void AmsEditOverlay::stage_pending_color_into_working() {
+    if (multi_set_) {
+        std::vector<uint32_t> list = split_color_list(draft_multi_);
+        if (list.size() >= 2) {
+            for (uint32_t& c : list) {
+                c = helix::ams::picked_color(c);
+            }
+            working_info_.color_rgb = list.front();
+            working_info_.color_name.clear();
+            working_info_.multi_color_hexes = join_color_list(list);
+            working_info_.color_mode = draft_mode();
+            return;
+        }
+    }
     if (!details_color_set_)
         return;
     working_info_.color_rgb = details_color_;
@@ -2751,6 +2878,7 @@ void AmsEditOverlay::stage_pending_color_into_working() {
     // and every label that wants words computes them from the hex.
     working_info_.color_name.clear();
     working_info_.multi_color_hexes.clear();
+    working_info_.color_mode.clear();
 }
 
 void AmsEditOverlay::handle_add_to_spoolman() {
@@ -2777,10 +2905,6 @@ void AmsEditOverlay::handle_save() {
     // The editor stays open while an async Spoolman save runs; a second Save
     // from the prompt or the header would start a second find-or-create.
     if (save_in_flight_) {
-        return;
-    }
-    if (lv_subject_get_int(&view_mode_subject_) == kViewColor) {
-        apply_color(custom_color_); // Select on the colour view stages + returns
         return;
     }
 
@@ -2930,6 +3054,9 @@ AmsEditOverlay::SaveCapture AmsEditOverlay::capture_save() const {
     cap.spoolman_target = spoolman.target;
     cap.saving = working_info_;
     cap.owed = completion_callback_;
+    if (details_color_set_ || multi_set_) {
+        cap.picked_colors = draft_colors();
+    }
     cap.chained_spool_id = detail_working_.id;
     // The More fields ride the Update arm when the identity prompt owns this
     // save, so a combined material+Notes Save loses nothing. They are all
@@ -2946,8 +3073,13 @@ bool AmsEditOverlay::save_is_live(const SaveCapture& cap) const {
     return cap.session == session_ && !completion_fired_;
 }
 
+void AmsEditOverlay::remember_saved_colors(const SaveCapture& cap) {
+    helix::ColorRecents::remember_all(helix::ColorRecents::Kind::Filament, cap.picked_colors);
+}
+
 void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& committed) {
     if (cap.stay_open && save_is_live(cap)) {
+        remember_saved_colors(cap);
         // Commit the slot and keep the editor, holding the edits that could
         // not be saved.
         if (cap.owed) {
@@ -2961,8 +3093,7 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         working_info_ = committed;
         sel_ = selection_from_slot(working_info_);
         selection_moved_ = false;
-        details_color_ = working_info_.color_rgb;
-        details_color_set_ = false;
+        reset_color_draft();
         update_summary();
         report_save_problem(true, lv_tr("Saved. Spoolman is offline, so price, location, lot "
                                         "and notes stay here unsaved."));
@@ -2977,6 +3108,7 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         spdlog::info("[AmsEditOverlay] Save for slot {} finished after the editor closed; "
                      "committing it",
                      cap.slot_index);
+        remember_saved_colors(cap);
         EditResult late;
         late.saved = true;
         late.slot_index = cap.slot_index;
@@ -3052,6 +3184,7 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
     }
     save_in_flight_ = false;
     if (outcome == helix::ams::PendingOutcome::Echoed) {
+        remember_saved_colors(cap);
         set_save_state(kSaveIdle);
         // The callback already has the edit: close without firing it again.
         completion_fired_ = true;
@@ -3487,11 +3620,34 @@ void AmsEditOverlay::register_callbacks() {
                  static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row)));
              get_ams_edit_overlay().handle_row_use(index);
          }},
-        {"ams_edit_quick_swatch_cb",
+        {"ams_edit_recent_cb",
          [](lv_event_t* e) {
-             get_ams_edit_overlay().handle_quick_swatch(lv_event_get_target_obj(e));
+             if (const auto i = helix::ui::event_user_int(e)) {
+                 get_ams_edit_overlay().handle_recent_color(*i);
+             }
          }},
-        {"ams_edit_custom_color_cb", [](lv_event_t*) { get_ams_edit_overlay().open_color_view(); }},
+        {"ams_edit_color_page_cb", [](lv_event_t*) { get_ams_edit_overlay().open_color_page(); }},
+        {"ams_edit_seg_cb",
+         [](lv_event_t* e) {
+             if (const auto i = helix::ui::event_user_int(e)) {
+                 get_ams_edit_overlay().handle_seg_tap(*i);
+             }
+         }},
+        {"ams_edit_seg_hold_cb",
+         [](lv_event_t* e) {
+             const auto i = helix::ui::event_user_int(e);
+             auto& editor = get_ams_edit_overlay();
+             if (i && editor.draft_is_multi()) {
+                 editor.handle_seg_hold(*i);
+                 helix::ui::end_press(e);
+             }
+         }},
+        {"ams_edit_add_color_cb", [](lv_event_t*) { get_ams_edit_overlay().add_color(); }},
+        {"ams_edit_color_mode_cb",
+         [](lv_event_t* e) {
+             get_ams_edit_overlay().handle_color_mode(
+                 static_cast<int>(lv_dropdown_get_selected(lv_event_get_target_obj(e))));
+         }},
         {"ams_edit_reset_tag_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_reset_to_tag(); }},
         {"ams_edit_clear_spool_cb",
@@ -3500,18 +3656,6 @@ void AmsEditOverlay::register_callbacks() {
          [](lv_event_t*) { get_ams_edit_overlay().handle_reapply_linked_spool(); }},
         {"ams_edit_unlink_spool_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_unlink_disagreeing_spool(); }},
-        {"ams_edit_color_swatch_cb",
-         [](lv_event_t* e) {
-             get_ams_edit_overlay().handle_color_swatch(lv_event_get_target_obj(e));
-         }},
-        {"ams_edit_color_apply_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().handle_color_apply(); }},
-        {"ams_edit_color_show_picker_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().show_color_pane(1); }},
-        {"ams_edit_color_show_presets_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().show_color_pane(0); }},
-        {"ams_edit_color_hex_changed_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().handle_color_hex_changed(); }},
         {"ams_edit_detail_field_changed_cb",
          [](lv_event_t*) {
              auto& editor = get_ams_edit_overlay();

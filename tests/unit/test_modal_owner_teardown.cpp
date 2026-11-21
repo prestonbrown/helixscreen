@@ -79,7 +79,7 @@ class StackOwnedModal : public Modal {
 
 /// Calls the static overload on its own dialog from on_hide(), standing in for
 /// a hook that reaches back into modal teardown — e.g. AmsLoadingErrorModal and
-/// ColorPicker both invoke a caller-supplied dismiss callback from on_hide().
+/// ColorPickerModal both invoke a caller-supplied dismiss callback from on_hide().
 /// The owner must already be cleared by then or this recurses forever.
 class ReentrantModal : public Modal {
   public:

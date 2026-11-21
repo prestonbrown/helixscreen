@@ -62,6 +62,7 @@ json filament_json(const FilamentInfo& f) {
               {"settings_extruder_temp", one_temp(f.nozzle_temp_min, f.nozzle_temp_max)},
               {"settings_bed_temp", one_temp(f.bed_temp_min, f.bed_temp_max)},
               {"multi_color_hexes", or_null(f.multi_color_hexes)},
+              {"multi_color_direction", or_null(f.multi_color_direction)},
               {"external_id", nullptr},
               {"extra", json::object()}};
     if (f.vendor_id > 0 || !f.vendor_name.empty()) {
@@ -378,6 +379,7 @@ json MockSpoolmanServer::spool_json(const SpoolInfo& s) const {
         {"spool_weight", or_null(s.spool_weight_g)},
         {"color_hex", or_null(s.color_hex)},
         {"multi_color_hexes", or_null(s.multi_color_hexes)},
+        {"multi_color_direction", or_null(s.multi_color_direction)},
         {"settings_extruder_temp", s.nozzle_temp_recommended > 0
                                        ? json(s.nozzle_temp_recommended)
                                        : one_temp(s.nozzle_temp_min, s.nozzle_temp_max)},
@@ -654,6 +656,7 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
         filament.filament_name = body.value("name", "");
         filament.color_hex = body.value("color_hex", "");
         filament.multi_color_hexes = body.value("multi_color_hexes", "");
+        filament.multi_color_direction = body.value("multi_color_direction", "");
         filament.diameter = body.value("diameter", 1.75f);
         filament.weight = body.value("weight", 0.0f);
         filament.spool_weight = body.value("spool_weight", 0.0f);
@@ -721,8 +724,15 @@ bool MockSpoolmanServer::proxy(const json& params, json& result, MoonrakerError&
             result = {{"id", *id}};
             for (auto& f : filaments_) {
                 if (f.id == *id) {
-                    if (body.contains("color_hex") && body["color_hex"].is_string()) {
-                        f.color_hex = body["color_hex"].get<std::string>();
+                    // A present-but-null field clears it, as Spoolman does.
+                    for (auto [key, field] :
+                         {std::pair{"color_hex", &f.color_hex},
+                          std::pair{"multi_color_hexes", &f.multi_color_hexes},
+                          std::pair{"multi_color_direction", &f.multi_color_direction}}) {
+                        if (body.contains(key)) {
+                            *field = body[key].is_string() ? body[key].get<std::string>()
+                                                           : std::string{};
+                        }
                     }
                     if (body.contains("settings_extruder_temp")) {
                         f.nozzle_temp_min = f.nozzle_temp_max =

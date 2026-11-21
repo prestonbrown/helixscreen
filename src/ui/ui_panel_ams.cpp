@@ -143,7 +143,6 @@ void ensure_ams_widgets_registered() {
         helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_environment_overlay.xml").c_str());
-    // NOTE: color_picker.xml is registered at startup in xml_registration.cpp
 
     s_ams_widgets_registered = true;
     spdlog::debug("[AMS Panel] Widget and XML registration complete");
@@ -387,7 +386,6 @@ void AmsPanel::init_subjects() {
 
     // UI module subjects are now encapsulated in their respective classes:
     // - helix::ui::AmsEditOverlay
-    // - helix::ui::AmsColorPicker
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized via AmsState + observers registered", get_name());

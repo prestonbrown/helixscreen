@@ -13,7 +13,6 @@
 
 #include "ams_state.h"
 
-#include "ui_color_picker.h"
 #include "ui_error_reporting.h"
 #include "ui_update_queue.h"
 
@@ -25,6 +24,7 @@
 #include "ams_state_internal.h"
 #include "ams_tool_topology.h"
 #include "app_globals.h"
+#include "color_utils.h"
 #include "connection_state.h"
 #include "data_root_resolver.h"
 #include "display_numbering.h"

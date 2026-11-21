@@ -799,8 +799,8 @@ TEST_CASE_METHOD(HotReloadFixture, "components with C++-injected constants are n
                  "[hot-reload]") {
     // Marked the way a panel marks the component it extends from C++, so the
     // case does not depend on another test having built that panel first.
-    helix::keep_xml_component_registered("color_picker");
-    create_xml("color_picker.xml", "<component><view/></component>");
+    helix::keep_xml_component_registered("kept_probe");
+    create_xml("kept_probe.xml", "<component><view/></component>");
 
     std::vector<std::string> reloaded;
     helix::XmlHotReloader hr;
@@ -808,7 +808,7 @@ TEST_CASE_METHOD(HotReloadFixture, "components with C++-injected constants are n
         [&](const std::string& name, const std::string&) { reloaded.push_back(name); });
     hr.start({temp_dir_.string()}, 10000);
 
-    overwrite_xml(temp_dir_ / "color_picker.xml", "<component><view/><!--edited--></component>");
+    overwrite_xml(temp_dir_ / "kept_probe.xml", "<component><view/><!--edited--></component>");
     hr.scan_and_reload();
     REQUIRE(reloaded.empty());
 

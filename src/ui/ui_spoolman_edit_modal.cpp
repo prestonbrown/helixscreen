@@ -9,6 +9,7 @@
 #include "ui_toast_manager.h"
 #include "ui_update_queue.h"
 
+#include "color_recents.h"
 #include "label_printer_settings.h"
 #if HELIX_HAS_LABEL_PRINTER
 #include "ipp_print_modal.h"
@@ -459,6 +460,12 @@ void SpoolEditModal::handle_save() {
     auto on_all_saved = [this, token, spool_id]() {
         spdlog::info("[SpoolEditModal] All changes saved for spool {}", spool_id);
         token.defer("SpoolEditModal::on_all_saved", [this]() {
+            // A saved color change commits the color: it joins the filament recents.
+            if (working_spool_.color_hex != original_spool_.color_hex) {
+                if (const auto rgb = helix::parse_hex_color(working_spool_.color_hex)) {
+                    helix::ColorRecents::remember(helix::ColorRecents::Kind::Filament, *rgb);
+                }
+            }
             ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Spool saved"), 2000);
             if (completion_callback_) {
                 completion_callback_(true);
@@ -509,6 +516,10 @@ void SpoolEditModal::handle_color_clicked() {
         char hex_buf[8];
         snprintf(hex_buf, sizeof(hex_buf), "%06X", color_rgb);
         working_spool_.color_hex = std::string("#") + hex_buf;
+        // One picked color replaces a multi-color filament's list, so the
+        // save sends color_hex and clears the list.
+        working_spool_.multi_color_hexes.clear();
+        working_spool_.multi_color_direction.clear();
         // color_hex is the only colour Spoolman stores, and the only one
         // build_spool_patches() PATCHes. The picker's colour word is a display
         // string; it must not land in filament_name, which is the user's own

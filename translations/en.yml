@@ -307,6 +307,7 @@ translations:
   All Devices: All Devices
   All Healthy: All Healthy
   All axes homed: All axes homed
+  All colors: All colors
   All configured hardware detected: All configured hardware detected
   All fields are required: All fields are required
   All healthy: All healthy
@@ -836,6 +837,7 @@ translations:
   Coarse: Coarse
   Coarse Inner: Coarse Inner
   Coarse Outer: Coarse Outer
+  Coaxial: Coaxial
   Code: Code
   Coil Temperature: Coil Temperature
   Collect logs and system info for support: Collect logs and system info for support
@@ -844,6 +846,7 @@ translations:
   Color: Color
   Color Mismatch: Color Mismatch
   Color Sensors: Color Sensors
+  Colors: Colors
   Command Failed: Command Failed
   Command failed: Command failed
   Common spools to start from: Common spools to start from
@@ -1744,7 +1747,9 @@ translations:
   Good Enough: Good Enough
   Good match: Good match
   Got it: Got it
+  Gradient: Gradient
   Gray: Gray
+  Grid: Grid
   Grip filament: Grip filament
   Grip the filament: Grip the filament
   Guide the toolhead to the chute's extrude position: Guide the toolhead to the chute's extrude position
@@ -1864,6 +1869,7 @@ translations:
   Helper Macros: Helper Macros
   Helper macros already installed: Helper macros already installed
   Helper macros are up to date: Helper macros are up to date
+  Hex: Hex
   Hide Firmware Noise: Hide Firmware Noise
   Hide Temperature Reports: Hide Temperature Reports
   Hide the on-screen keyboard while a USB keyboard is attached: Hide the on-screen keyboard while a USB keyboard is attached
@@ -1933,6 +1939,7 @@ translations:
   Hub: Hub
   Hub & Cutter: Hub & Cutter
   Hub Bowden Length: Hub Bowden Length
+  Hue: Hue
   Humidity: Humidity
   Humidity inside the enclosure: Humidity inside the enclosure
   Humidity Sensors: Humidity Sensors
@@ -3259,6 +3266,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: Recalibrate or view detailed
     results anytime in Settings.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Received oversized data from printer ({} bytes). This may indicate a communication error.
+  Recent: Recent
   Recent Prints: Recent Prints
   Recent Spools: Recent Spools
   Recently Printed: Recently Printed
@@ -3512,6 +3520,7 @@ translations:
   Sample Dialog: Sample Dialog
   Samples: Samples
   Samples Tolerance: Samples Tolerance
+  Saturation: Saturation
   Save: Save
   Save & Restart: Save & Restart
   Save As New: Save As New
@@ -3769,6 +3778,7 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.
   Sliced for {}, not {}.: Sliced for {}, not {}.
   Slicer: Slicer
+  Sliders: Sliders
   Slot: Slot
   Slot 1: Slot 1
   Slot Blocked: Slot Blocked
@@ -4350,6 +4360,7 @@ translations:
   This spool ran out, so the CFS cannot pull the leftover filament back.: This spool ran out, so the CFS cannot pull the leftover filament back.
   This spool's details haven't loaded from Spoolman yet. Try Save again.: This spool's details haven't loaded from Spoolman yet. Try Save again.
   This system does not support bypass mode: This system does not support bypass mode
+  This theme: This theme
   This tool probes each bed screw and tells you how much to adjust.: This tool probes
     each bed screw and tells you how much to adjust.
   'This update asks for new permissions:': 'This update asks for new permissions:'
