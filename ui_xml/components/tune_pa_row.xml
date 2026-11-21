@@ -8,6 +8,11 @@
        own report, so a step that Klipper refused never shows as applied. The
        Tuner button appears only while a pressure-advance test print runs, as
        the way back to the full-screen tuner. -->
+  <api>
+    <!-- When the coarse steps give way. Print Status's inline section always
+         hides them ("ui_is_portrait ge 0"): its header row is a narrow column's. -->
+    <prop name="coarse_hidden_cond" type="string" default="ui_is_portrait eq 1 or ui_breakpoint le 1"/>
+  </api>
   <view name="tune_pa_row"
         width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
         style_flex_cross_place="center" scrollable="false">
@@ -20,7 +25,7 @@
     <!-- Coarse steps give way in portrait and on the smallest panels, where the
          row shares its width with the reset button. -->
     <ui_button name="btn_pa_minus_5" width="#tune_pa_btn_w" height="#button_height_sm" text="-.005">
-      <bind_flag_if cond="ui_is_portrait eq 1 or ui_breakpoint le 1" flag="hidden"/>
+      <bind_flag_if cond="$coarse_hidden_cond" flag="hidden"/>
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="-5"/>
     </ui_button>
     <ui_button name="btn_pa_minus_1" width="#tune_pa_btn_w" height="#button_height_sm" text="-.001">
@@ -30,7 +35,7 @@
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="1"/>
     </ui_button>
     <ui_button name="btn_pa_plus_5" width="#tune_pa_btn_w" height="#button_height_sm" text="+.005">
-      <bind_flag_if cond="ui_is_portrait eq 1 or ui_breakpoint le 1" flag="hidden"/>
+      <bind_flag_if cond="$coarse_hidden_cond" flag="hidden"/>
       <event_cb trigger="clicked" callback="on_tune_pa_adjust" user_data="5"/>
     </ui_button>
   </view>

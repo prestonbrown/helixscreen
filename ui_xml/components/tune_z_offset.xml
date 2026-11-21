@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Z-offset baby stepping: the offset, the nozzle-over-bed indicator, the
+       step amounts and the closer / farther buttons, and the hint that says
+       whether the change persists. PrintTuneOverlay owns the subjects and
+       callbacks; the Print Tuning overlay and Print Status's inline Tune
+       section both instantiate it. -->
+  <api>
+    <prop name="btn_h" type="string" default="#button_height_sm"/>
+    <!-- "true" drops the nozzle-over-bed picture where the section is narrow -->
+    <prop name="indicator_hidden" type="string" default="false"/>
+    <!-- The landscape direction buttons: a column of tall buttons beside the
+         steps, or, for a short narrow column, a row of two ("row", "content",
+         "#tune_pa_btn_w", "#button_height_sm"). -->
+    <prop name="dir_flow" type="string" default="column"/>
+    <prop name="dir_w" type="string" default="#z_tune_dir_col_w"/>
+    <prop name="dir_btn_w" type="string" default="100%"/>
+    <prop name="dir_btn_h" type="string" default="#button_height"/>
+    <!-- "true" leaves out the closer / farther hint, where the height is short -->
+    <prop name="squish_hint_hidden" type="string" default="false"/>
+  </api>
+  <view name="z_offset_section"
+        extends="lv_obj" width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+        flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+    <!-- Header Row -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" scrollable="false" flex_flow="row" style_flex_main_place="space_between"
+            style_flex_cross_place="center" style_pad_column="#space_sm">
+      <text_body text="Z-Offset" flex_grow="1"/>
+      <!-- The offset in the printer config and what a save turns it into:
+           context for the adjustment, which stays the big number. -->
+      <text_small name="z_offset_saved_line" bind_text="tune_z_offset_saved_text" style_text_color="#text_muted">
+        <bind_flag_if_eq subject="tune_z_offset_saved_visible" flag="hidden" ref_value="0"/>
+      </text_small>
+      <text_heading name="z_offset_display" bind_text="tune_z_offset_display"/>
+    </lv_obj>
+    <!-- The step amounts, direction buttons, help line and target selector.
+         A dedicated container, because the <if> rebuilds when the
+         orientation flips and a rebuilt body lands after its siblings. -->
+    <lv_obj name="z_controls"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+            style_pad_gap="#space_xs" scrollable="false">
+      <if cond="ui_is_portrait eq 1">
+        <!-- Portrait: four step buttons beside a fixed-width indicator would be
+           ~14px each at 272x480, so the indicator shares its row with the
+           direction buttons only, and the steps get a full-width row below.
+           The direction buttons are the step buttons' height: here the pair
+           sets the row's height, and they stay wide, so the touch target
+           does not shrink. -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+          <z_offset_indicator name="z_offset_indicator"
+                              width="#z_tune_indicator_w" height="#z_tune_indicator_h"
+                              bind_microns="tune_z_offset_microns" hidden="$indicator_hidden"/>
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+            <ui_button name="btn_z_farther" width="100%" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
+              <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
+            </ui_button>
+            <ui_button name="btn_z_closer" width="100%" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
+              <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
+            </ui_button>
+          </lv_obj>
+        </lv_obj>
+        <tune_z_steps width="100%" btn_h="$btn_h"/>
+        <!-- Hidden on a tool changer, where the target selector below takes this
+           slot, and on the smallest portrait panel, where the controls above
+           already fill the height. -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                hidden="$squish_hint_hidden">
+          <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
+            <bind_flag_if cond="per_tool_z_supported eq 1 or ui_breakpoint le 0" flag="hidden"/>
+          </text_small>
+        </lv_obj>
+        <tune_z_target_row btn_h="$btn_h"/>
+        <else/>
+        <!-- Indicator (left) + controls (right) side by side -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+          <z_offset_indicator name="z_offset_indicator"
+                              width="#z_tune_indicator_w" height="#z_tune_indicator_h"
+                              bind_microns="tune_z_offset_microns" hidden="$indicator_hidden"/>
+          <!-- Controls column: amount buttons row with direction buttons stacked on the right -->
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                    style_flex_cross_place="center" scrollable="false">
+              <tune_z_steps flex_grow="1" btn_h="$btn_h"/>
+              <!-- Direction buttons, stacked unless dir_flow puts them in a row -->
+              <lv_obj width="$dir_w"
+                      height="content" style_pad_all="0" flex_flow="$dir_flow" style_pad_gap="#space_xxs"
+                      scrollable="false">
+                <ui_button name="btn_z_farther"
+                           width="$dir_btn_w" height="$dir_btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
+                  <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
+                </ui_button>
+                <ui_button name="btn_z_closer"
+                           width="$dir_btn_w" height="$dir_btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
+                  <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
+                </ui_button>
+              </lv_obj>
+            </lv_obj>
+            <!-- Help text. Wraps rather than setting the row's minimum width:
+               an unwrapped label here is what pushes the whole z-offset row
+               past the screen edge once the string is longer than the box,
+               which English fits on one line but translations need not.
+
+               Hidden on a tool changer, where the target selector below takes
+               this slot. The swap is what keeps the section the same height:
+               the controls column has ~28px of slack under the indicator at
+               800x480 and ~23px at 480x272, enough for the taller selector
+               only because the label goes away. -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                    hidden="$squish_hint_hidden">
+              <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
+                <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
+              </text_small>
+            </lv_obj>
+            <tune_z_target_row btn_h="$btn_h"/>
+          </lv_obj>
+        </lv_obj>
+      </if>
+    </lv_obj>
+    <!-- The help lines give way on the smallest portrait panel, where the
+         controls above them already fill the height. -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+            scrollable="false">
+      <bind_flag_if cond="ui_is_portrait eq 1 and ui_breakpoint le 0" flag="hidden"/>
+      <!-- One of five, picked by z_offset_tune_hint (ZOffsetTuneHint in
+           include/printer_profile_state.h). -->
+      <text_small name="z_offset_help_text_manual"
+                  width="100%" long_mode="wrap"
+                  text="Temporary adjustment for this print, unless saved on Controls panel" hidden="true">
+        <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="0"/>
+      </text_small>
+      <text_small name="z_offset_help_text_auto"
+                  width="100%" long_mode="wrap" text="Z-offset is auto-saved by firmware" hidden="true">
+        <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="1"/>
+      </text_small>
+      <text_small name="z_offset_help_text_temporary"
+                  width="100%" long_mode="wrap" text="Temporary adjustment for this print" hidden="true">
+        <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="2"/>
+      </text_small>
+      <text_small name="z_offset_help_text_tool_change"
+                  width="100%" long_mode="wrap" text="Temporary for this print; a tool change resets it" hidden="true">
+        <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="3"/>
+      </text_small>
+      <text_small name="z_offset_help_text_per_head"
+                  width="100%" long_mode="wrap" text="Saved for the mounted head; other heads keep their own"
+                  hidden="true">
+        <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="4"/>
+      </text_small>
+    </lv_obj>
+  </view>
+</component>

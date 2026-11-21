@@ -4,6 +4,11 @@
 <!--
   Print-tune feature tokens.
 
+  Own file rather than <consts> inside a component: components/tune_z_offset.xml
+  references them from both the Print Tuning overlay and Print Status's inline
+  Tune section, so parking them in one consumer would be the backward-coupling
+  ams_tokens.xml warns about.
+
   Both tokens are HORIZONTAL, so they resolve from the cramped axis with no
   entry in VERTICAL_AXIS_TOKENS — see docs/devel/UI_CONTRIBUTOR_GUIDE.md
   § "Adding New Tokens". In portrait the cramped axis IS the width, which is
