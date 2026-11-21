@@ -99,15 +99,15 @@ std::optional<std::string> u1_firmware_package_root(const std::string& running_e
             continue;
         struct stat link_st {};
         const bool is_link = ::lstat(path.c_str(), &link_st) == 0 && S_ISLNK(link_st.st_mode);
-        if (!is_link) {
-            real_dir = path;
+        if (is_link) {
+            via_link = path;
             break;
         }
-        if (!via_link)
-            via_link = path;
+        if (!real_dir)
+            real_dir = path;
     }
     ::closedir(dir);
-    return real_dir ? real_dir : via_link;
+    return via_link ? via_link : real_dir;
 }
 
 std::string resolve_install_root(const std::string& exe_path, const std::string& probe_root) {

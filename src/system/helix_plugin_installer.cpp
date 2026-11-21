@@ -561,7 +561,11 @@ std::string HelixPluginInstaller::install_script_path_for(const std::string& exe
 
                 // No exec-bit check: the script runs via /bin/sh, and a release
                 // unpacked by Moonraker's zip extractor carries no unix modes.
-                return canonical_path.string();
+                // A candidate already in normal form is returned as named: install.sh
+                // links the plugin by the path it runs from, and a firmware package's
+                // `latest` link in that path outlives the version dir an upgrade deletes.
+                // One with "." or ".." elements is returned resolved.
+                return p.lexically_normal() == p ? candidate : canonical_path.string();
             }
         } catch (const std::filesystem::filesystem_error& e) {
             spdlog::warn("[PluginInstaller] Failed to resolve {}: {}", candidate, e.what());

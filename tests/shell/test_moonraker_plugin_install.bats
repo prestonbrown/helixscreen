@@ -130,6 +130,26 @@ setup_creality_k1_layout() {
     grep -q '^\[helix_print\]' "$root/usr/data/printer_data/config/moonraker.conf"
 }
 
+@test "a plugin installed through a package's latest link stays linked through latest" {
+    # PAXX's extended-pkg replaces the version dir on every upgrade and re-points
+    # latest at the new one; a link through latest survives that (#2136).
+    local root="$BATS_TEST_TMPDIR/k1"
+    setup_creality_k1_layout "$root"
+    local apps="$root/oem/apps/helixscreen"
+    local repo="$BATS_TEST_DIRNAME/../.."
+    mkdir -p "$apps/helixscreen-1.0.5/moonraker-plugin"
+    cp "$repo"/moonraker-plugin/*.sh "$repo"/moonraker-plugin/*.py \
+        "$apps/helixscreen-1.0.5/moonraker-plugin/"
+    ln -s helixscreen-1.0.5 "$apps/latest"
+
+    run env HOME="$root/home" HELIX_PROC_ROOT="$root/proc" \
+        sh "$apps/latest/moonraker-plugin/install.sh" --auto
+    [ "$status" -eq 0 ] || fail "install failed: $output"
+    local link="$root/usr/data/moonraker/moonraker/moonraker/components/helix_print.py"
+    [ "$(readlink "$link")" = "$apps/latest/moonraker-plugin/helix_print.py" ] \
+        || fail "link names $(readlink "$link"), not the path through latest"
+}
+
 @test "auto uninstall finds a Creality K1 Moonraker from its running process" {
     local root="$BATS_TEST_TMPDIR/k1"
     setup_creality_k1_layout "$root"

@@ -248,10 +248,10 @@ TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs fro
 
     SECTION("a PAXX package launched through its bind mount over /usr/bin/gui") {
         const auto gui = tree.make_paxx_bind_mount("helixscreen-1.0.5");
+        // Not canonicalized: install.sh links the plugin by the path it is run
+        // from, and the path through latest survives a package upgrade.
         CHECK(HelixPluginInstaller::install_script_path_for(gui.string(), tree.root) ==
-              std::filesystem::canonical(
-                  tree.root + "/oem/apps/helixscreen/helixscreen-1.0.5/moonraker-plugin/install.sh")
-                  .string());
+              tree.root + "/oem/apps/helixscreen/latest/moonraker-plugin/install.sh");
     }
 
     SECTION("our own install, launched by its path") {

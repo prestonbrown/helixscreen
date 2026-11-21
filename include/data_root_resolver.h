@@ -23,9 +23,11 @@ std::string resolve_data_root_from_exe(const std::string& exe_path);
 /// The version directory of PAXX's HelixScreen package (under /oem/apps/helixscreen)
 /// that @p running_exe runs from: the subdirectory whose `bin/helix-screen` is the same
 /// file (device and inode) as @p running_exe, so a launch through the lmd hook's bind
-/// mount over /usr/bin/gui still names it. A real directory wins over a link to one
-/// (`latest`). nullopt when there is no package dir or @p running_exe is not one of its
-/// binaries. Paths probe under @p probe_root and come back with it prefixed.
+/// mount over /usr/bin/gui still names it. A link to it (`latest`) wins over the
+/// directory itself: the firmware re-points the link at each package version it
+/// installs, so a path through it outlives the version directory an upgrade deletes.
+/// nullopt when there is no package dir or @p running_exe is not one of its binaries. Paths probe
+/// under @p probe_root and come back with it prefixed.
 std::optional<std::string>
 u1_firmware_package_root(const std::string& running_exe = "/proc/self/exe",
                          const std::string& probe_root = "/");
