@@ -2,6 +2,7 @@
 
 #include "ui_filament_mapping_modal.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_fonts.h"
 #include "ui_row_text.h"
 #include "ui_swatch.h"
@@ -68,6 +69,7 @@ void init_note_subjects() {
 FilamentMappingModal::FilamentMappingModal() {
     init_note_subjects();
     lv_xml_register_event_cb(nullptr, "filament_mapping_row_cb", row_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "filament_mapping_auto_toggle_cb", auto_toggle_cb);
 }
 
 // ============================================================================
@@ -116,9 +118,9 @@ void FilamentMappingModal::on_show() {
     // published by rebuild_rows(), which every change to the picks goes through.
     lv_subject_set_string(&note_subjects().text, start_macro_note_.c_str());
 
-    tool_list_ = find_widget("mapping_tool_list");
+    tool_list_ = find_widget("mapping_tool_rows");
     if (!tool_list_) {
-        spdlog::warn("[FilamentMappingModal] Could not find mapping_tool_list widget");
+        spdlog::warn("[FilamentMappingModal] Could not find mapping_tool_rows widget");
         return;
     }
 
@@ -175,13 +177,9 @@ void FilamentMappingModal::rebuild_rows() {
     slot_picker_.hide();
 
     helix::ui::safe_clean_children(tool_list_);
-    toggle_switch_ = nullptr;
 
     trigger_widgets_.clear();
     trigger_widgets_.resize(mappings_.size(), nullptr);
-
-    // Toggle row first, then tool rows
-    create_toggle_row();
 
     for (size_t i = 0; i < mappings_.size(); ++i) {
         create_tool_row(static_cast<int>(i));
@@ -351,45 +349,12 @@ void FilamentMappingModal::on_slot_selected(int tool_index,
 // Toggle: keep current assignments
 // ============================================================================
 
-void FilamentMappingModal::create_toggle_row() {
-    if (!tool_list_) {
+void FilamentMappingModal::auto_toggle_cb(lv_event_t* e) {
+    auto* self = Modal::from_event<FilamentMappingModal>(e);
+    if (!self) {
         return;
     }
-
-    int32_t row_pad_v = theme_manager_get_spacing("space_sm");
-
-    // Row container
-    lv_obj_t* row = lv_obj_create(tool_list_);
-    lv_obj_remove_style_all(row);
-    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_flex_main_place(row, LV_FLEX_ALIGN_SPACE_BETWEEN, 0);
-    lv_obj_set_style_flex_cross_place(row, LV_FLEX_ALIGN_CENTER, 0);
-    lv_obj_set_style_pad_ver(row, row_pad_v, 0);
-    lv_obj_set_style_pad_hor(row, 0, 0);
-    lv_obj_set_scrollable(row, false);
-
-    // Label
-    lv_obj_t* label = lv_label_create(row);
-    lv_label_set_text(label, lv_tr("Map to closest colors with matching material"));
-    lv_obj_set_flex_grow(label, 1);
-    lv_obj_set_style_text_font(label, theme_manager_get_font("font_body"), 0);
-    lv_obj_set_style_text_color(label, theme_manager_get_color("text"), 0);
-
-    // Switch
-    toggle_switch_ = lv_switch_create(row);
-    if (auto_color_map_) {
-        lv_obj_add_state(toggle_switch_, LV_STATE_CHECKED);
-    }
-
-    lv_obj_add_event_cb(
-        toggle_switch_,
-        [](lv_event_t* e) {
-            auto* self = static_cast<FilamentMappingModal*>(lv_event_get_user_data(e));
-            bool checked = lv_obj_has_state(self->toggle_switch_, LV_STATE_CHECKED);
-            self->on_toggle_changed(checked);
-        },
-        LV_EVENT_VALUE_CHANGED, this);
+    self->on_toggle_changed(helix::ui::event_checked(e));
 }
 
 void FilamentMappingModal::on_toggle_changed(bool auto_color) {

@@ -12,108 +12,109 @@
        scrolls, so it never needs more). The active section flex_grows to fill;
        the macro list scrolls within it. -->
   <view name="favorite_macro_config_modal"
-        extends="ui_dialog" width="90%" height="85%" style_max_width="600" style_max_height="520" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
-
-    <!-- Header: title + close. Responsive padding handled by modal_header. -->
-    <modal_header title="Customize Macro Button"
-                  hide_icon="true" hide_close="false" close_callback="fav_macro_config_close_cb"/>
-    <divider_horizontal/>
-
-    <!-- Tab bar -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-            style_pad_bottom="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-      <ui_button name="tab_macro"
-                 height="#button_height_sm" text="Macro" flex_grow="1" variant="ghost" focusable="false"
-                 click_focusable="false">
-        <style name="tab_active" selector="checked"/>
-        <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="0"/>
-        <event_cb trigger="clicked" callback="fav_macro_config_tab_macro_cb"/>
-      </ui_button>
-      <ui_button name="tab_appearance"
-                 height="#button_height_sm" text="Appearance" flex_grow="1" variant="ghost" focusable="false"
-                 click_focusable="false">
-        <style name="tab_active" selector="checked"/>
-        <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="1"/>
-        <event_cb trigger="clicked" callback="fav_macro_config_tab_appearance_cb"/>
-      </ui_button>
-      <ui_button name="tab_options"
-                 height="#button_height_sm" text="Options" flex_grow="1" variant="ghost" focusable="false"
-                 click_focusable="false">
-        <style name="tab_active" selector="checked"/>
-        <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="2"/>
-        <event_cb trigger="clicked" callback="fav_macro_config_tab_options_cb"/>
-      </ui_button>
-    </lv_obj>
-
-    <!-- Section: Macro (tab 0). flex_grow fills the card's vertical space; the
-         inner list scrolls. Hidden sections are excluded from flex layout, so
-         the visible section always fills. -->
-    <lv_obj name="section_macro"
-            width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_xs"
-            scrollable="false" hidden="true">
-      <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="0"/>
-      <lv_obj name="macro_list"
-              width="100%" flex_grow="1" flex_flow="column" style_pad_all="#space_xs" style_pad_gap="0"
-              scrollable="true"/>
-    </lv_obj>
-
-    <!-- Section: Appearance (tab 1) — Icon and Color side-by-side so the color
-         options are visible without scrolling, especially at Micro/Tiny where a
-         stacked layout pushed Color below the fold. -->
-    <lv_obj name="section_appearance"
-            width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="row" style_pad_gap="#space_md"
-            scrollable="true" hidden="true">
-      <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="1"/>
-      <!-- Icon column (wider — 25 icons) -->
-      <lv_obj width="1"
-              height="content" flex_grow="3" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
-              scrollable="false">
-        <text_small text="Icon"/>
-        <lv_obj name="icon_grid"
-                width="100%" height="content" flex_flow="row_wrap" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                scrollable="false"/>
+        extends="dialog_frame" width="90%" height="85%" style_max_width="600" style_max_height="520"
+        title="Customize Macro Button" icon="script_text" hide_close="false" close_callback="fav_macro_config_close_cb">
+    <!-- The body fills the card; the tab bar and each section carry their own
+         padding, and the active section's list or grid is what scrolls. -->
+    <dialog_frame-body flex_grow="1"
+                       style_max_height="100%" style_pad_left="0" style_pad_right="0" style_pad_bottom="0"
+                       style_pad_gap="0" scrollable="false">
+      <!-- Tab bar -->
+      <lv_obj width="100%"
+              height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
+              style_pad_bottom="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+        <ui_button name="tab_macro"
+                   height="#button_height_sm" text="Macro" flex_grow="1" variant="ghost" focusable="false"
+                   click_focusable="false">
+          <style name="tab_active" selector="checked"/>
+          <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="0"/>
+          <event_cb trigger="clicked" callback="fav_macro_config_tab_macro_cb"/>
+        </ui_button>
+        <ui_button name="tab_appearance"
+                   height="#button_height_sm" text="Appearance" flex_grow="1" variant="ghost" focusable="false"
+                   click_focusable="false">
+          <style name="tab_active" selector="checked"/>
+          <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="1"/>
+          <event_cb trigger="clicked" callback="fav_macro_config_tab_appearance_cb"/>
+        </ui_button>
+        <ui_button name="tab_options"
+                   height="#button_height_sm" text="Options" flex_grow="1" variant="ghost" focusable="false"
+                   click_focusable="false">
+          <style name="tab_active" selector="checked"/>
+          <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="2"/>
+          <event_cb trigger="clicked" callback="fav_macro_config_tab_options_cb"/>
+        </ui_button>
       </lv_obj>
-      <!-- Color column -->
-      <lv_obj width="1"
-              height="content" flex_grow="2" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
-              scrollable="false">
-        <text_small text="Color"/>
-        <tile_color_grid name="color_grid" swatch_callback="fav_macro_config_color_cb"/>
-      </lv_obj>
-    </lv_obj>
 
-    <!-- Section: Options (tab 2). The consequence line below is bound to the
-         same subject as the toggle, so turning confirmation off reveals what
-         that costs without a line of C++ driving it. -->
-    <lv_obj name="section_options"
-            width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm"
-            scrollable="true" hidden="true">
-      <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="2"/>
-      <setting_toggle_row name="row_require_confirm"
-                          label="Require Confirmation?" icon="script_text"
-                          description="Prompt before running this macro" subject="fav_macro_require_confirm"
-                          callback="fav_macro_config_confirm_cb"/>
-      <!-- Saved parameter defaults. Only macros with a declared parameter list
-           have defaults to edit (the subject is recomputed per macro). The
-           visibility bind lives on a plain wrapper: a hidden flex child drops
-           out of layout, so the wrapper costs nothing when the row is absent. -->
-      <lv_obj name="default_params_wrap"
-              width="100%" height="content" style_pad_all="0" style_border_width="0" style_bg_opa="0" scrollable="false">
-        <bind_flag_if_eq subject="fav_macro_has_param_defaults" flag="hidden" ref_value="0"/>
-        <setting_action_row name="row_default_params"
-                            label="Default Parameters" icon="tune"
-                            description="Saved values, and whether to ask before running"
-                            callback="fav_macro_config_defaults_cb"/>
+      <!-- Section: Macro (tab 0). flex_grow fills the card's vertical space; the
+           inner list scrolls. Hidden sections are excluded from flex layout, so
+           the visible section always fills. -->
+      <lv_obj name="section_macro"
+              width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_xs"
+              scrollable="false" hidden="true">
+        <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="0"/>
+        <lv_obj name="macro_list"
+                width="100%" flex_grow="1" flex_flow="column" style_pad_all="#space_xs" style_pad_gap="0"
+                scrollable="true"/>
       </lv_obj>
-      <!-- Visible only while confirmation is off. Dangerous macros are named
-           explicitly because the per-widget opt-out deliberately does not
-           reach them. -->
-      <info_note name="run_immediately_hint"
-                 icon="flash" icon_variant="warning" text="One tap runs this macro. Dangerous macros still ask.">
-        <bind_flag_if_eq subject="fav_macro_require_confirm" flag="hidden" ref_value="1"/>
-      </info_note>
-    </lv_obj>
+
+      <!-- Section: Appearance (tab 1) — Icon and Color side-by-side so the color
+           options are visible without scrolling, especially at Micro/Tiny where a
+           stacked layout pushed Color below the fold. -->
+      <lv_obj name="section_appearance"
+              width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="row" style_pad_gap="#space_md"
+              scrollable="true" hidden="true">
+        <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="1"/>
+        <!-- Icon column (wider — 25 icons) -->
+        <lv_obj width="1"
+                height="content" flex_grow="3" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
+                scrollable="false">
+          <text_small text="Icon"/>
+          <lv_obj name="icon_grid"
+                  width="100%" height="content" flex_flow="row_wrap" style_pad_all="#space_xs" style_pad_gap="#space_xs"
+                  scrollable="false"/>
+        </lv_obj>
+        <!-- Color column -->
+        <lv_obj width="1"
+                height="content" flex_grow="2" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
+                scrollable="false">
+          <text_small text="Color"/>
+          <tile_color_grid name="color_grid" swatch_callback="fav_macro_config_color_cb"/>
+        </lv_obj>
+      </lv_obj>
+
+      <!-- Section: Options (tab 2). The consequence line below is bound to the
+           same subject as the toggle, so turning confirmation off reveals what
+           that costs without a line of C++ driving it. -->
+      <lv_obj name="section_options"
+              width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="true" hidden="true">
+        <bind_flag_if_not_eq subject="fav_macro_config_tab" flag="hidden" ref_value="2"/>
+        <setting_toggle_row name="row_require_confirm"
+                            label="Require Confirmation?" icon="script_text"
+                            description="Prompt before running this macro" subject="fav_macro_require_confirm"
+                            callback="fav_macro_config_confirm_cb"/>
+        <!-- Saved parameter defaults. Only macros with a declared parameter list
+             have defaults to edit (the subject is recomputed per macro). The
+             visibility bind lives on a plain wrapper: a hidden flex child drops
+             out of layout, so the wrapper costs nothing when the row is absent. -->
+        <lv_obj name="default_params_wrap"
+                width="100%" height="content" style_pad_all="0" style_border_width="0" style_bg_opa="0"
+                scrollable="false">
+          <bind_flag_if_eq subject="fav_macro_has_param_defaults" flag="hidden" ref_value="0"/>
+          <setting_action_row name="row_default_params"
+                              label="Default Parameters" icon="tune"
+                              description="Saved values, and whether to ask before running"
+                              callback="fav_macro_config_defaults_cb"/>
+        </lv_obj>
+        <!-- Visible only while confirmation is off. Dangerous macros are named
+             explicitly because the per-widget opt-out deliberately does not
+             reach them. -->
+        <info_note name="run_immediately_hint"
+                   icon="flash" icon_variant="warning" text="One tap runs this macro. Dangerous macros still ask.">
+          <bind_flag_if_eq subject="fav_macro_require_confirm" flag="hidden" ref_value="1"/>
+        </info_note>
+      </lv_obj>
+    </dialog_frame-body>
   </view>
 </component>

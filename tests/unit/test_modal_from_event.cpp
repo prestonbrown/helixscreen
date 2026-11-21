@@ -254,8 +254,8 @@ TEST_CASE_METHOD(FromEventFixture,
     auto text = [&](helix::ui::SpoolEditModal& m, const char* name) {
         return std::string(lv_label_get_text(named(m.dialog(), name)));
     };
-    CHECK(text(a, "header_title").find("#7") != std::string::npos);
-    CHECK(text(b, "header_title").find("#9") != std::string::npos);
+    CHECK(text(a, "dialog_title").find("#7") != std::string::npos);
+    CHECK(text(b, "dialog_title").find("#9") != std::string::npos);
     CHECK(text(a, "material_label") == "PETG");
     CHECK(text(a, "vendor_label") == "eSUN");
     CHECK(text(b, "vendor_label") == "Unknown");

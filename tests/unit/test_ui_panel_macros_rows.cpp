@@ -237,7 +237,7 @@ TEST_CASE_METHOD(MacrosRowsFixture, "Macros edit mode toggles a row and Save hid
     CHECK_FALSE(checked(row_named("LOAD_FILAMENT")));
     CHECK(checked(row_named("PRINT_START")));
 
-    lv_obj_t* save = lv_obj_find_by_name(root, "action_button");
+    lv_obj_t* save = lv_obj_find_by_name(root, "btn_save");
     REQUIRE(save != nullptr);
     lv_obj_send_event(save, LV_EVENT_CLICKED, nullptr);
     settle();

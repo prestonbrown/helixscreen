@@ -4,6 +4,8 @@
     <prop name="tool_name" type="string" default="Tool 1"/>
     <prop name="tool_short" type="string" default="T0"/>
     <prop name="tool_number" type="string" default="1"/>
+    <!-- The row's position in NozzleTempsWidget's rows: its tap's event user_data. -->
+    <prop name="index" type="int" default="0"/>
   </api>
   <styles>
     <style name="nozzle_compact_font" text_font="#font_xs"/>
@@ -12,7 +14,8 @@
   </styles>
   <view name="nozzle_row_root"
         extends="lv_obj" height="content" flex_flow="column" style_pad_all="0" style_pad_row="0" style_pad_column="0"
-        style_bg_opa="0" style_border_width="0" scrollable="false">
+        style_bg_opa="0" style_border_width="0" scrollable="false" clickable="true">
+    <event_cb trigger="clicked" callback="nozzle_temps_row_clicked_cb" user_data="$index"/>
     <!-- The row's width and every label's visibility/font bind off the layout
          subjects NozzleTempsWidget::on_size_changed publishes, so a row built
          by a late rebuild reads the same verdict its siblings already show.

@@ -11,19 +11,9 @@
     <prop name="secondary_text_subject" type="string" default=""/>
   </api>
   <view name="filament_product_edit_modal"
-        extends="ui_dialog" width="85%" height="content" style_min_width="380" style_max_width="560" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
-    <!-- Header: title (Add / Edit, from title_subject) + close (X). -->
-    <modal_header title="Edit Filament"
-                  title_subject="$title_subject" hide_icon="true" hide_close="false"
-                  close_callback="filament_product_close_cb"/>
-    <divider_horizontal/>
-
-    <!-- Form -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_md"
-            style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-
+        extends="dialog_frame" width="85%" style_min_width="380" style_max_width="560" title="Edit Filament"
+        title_subject="$title_subject" icon="filament" hide_close="false" close_callback="filament_product_close_cb">
+    <dialog_frame-body style_pad_gap="#space_sm">
       <!-- Row: Brand | Name -->
       <lv_obj width="100%"
               height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
@@ -84,12 +74,14 @@
           <text_input name="field_density" width="100%" keyboard_hint="numeric" placeholder="1.24" max_length="6"/>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </dialog_frame-body>
 
     <!-- Actions: secondary = Delete / Restore Defaults (hidden in Add mode), primary = Save -->
-    <modal_button_row secondary_text="Delete"
-                      secondary_subject="$secondary_text_subject" secondary_show_subject="$show_secondary_subject"
-                      secondary_variant="primary" secondary_callback="filament_product_secondary_cb" primary_text="Save"
-                      primary_callback="filament_product_save_cb"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Delete"
+                        secondary_subject="$secondary_text_subject" secondary_show_subject="$show_secondary_subject"
+                        secondary_variant="primary" secondary_callback="filament_product_secondary_cb"
+                        primary_text="Save" primary_callback="filament_product_save_cb"/>
+    </dialog_frame-footer>
   </view>
 </component>

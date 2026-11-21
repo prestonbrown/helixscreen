@@ -222,30 +222,3 @@ void ui_overlay_panel_setup_standard(lv_obj_t* panel, lv_obj_t* parent_screen,
 
     spdlog::debug("[PanelCommon] Overlay panel setup complete");
 }
-
-lv_obj_t* ui_overlay_panel_wire_action_button(lv_obj_t* panel, lv_event_cb_t callback,
-                                              const char* header_name, void* user_data) {
-    if (!panel || !callback || !header_name) {
-        spdlog::warn("[PanelCommon] Invalid parameters for overlay action button wiring");
-        return nullptr;
-    }
-
-    lv_obj_t* header = lv_obj_find_by_name(panel, header_name);
-    if (!header) {
-        spdlog::warn("[PanelCommon] Header '{}' not found in overlay panel", header_name);
-        return nullptr;
-    }
-
-    lv_obj_t* action_btn = lv_obj_find_by_name(header, "action_button");
-    if (!action_btn) {
-        spdlog::warn("[PanelCommon] Action button not found in header '{}'", header_name);
-        return nullptr;
-    }
-
-    // Wire to provided callback with user_data
-    // Note: visibility is controlled by XML hide_action_button prop
-    lv_obj_add_event_cb(action_btn, callback, LV_EVENT_CLICKED, user_data);
-    spdlog::debug("[PanelCommon] Action button wired in header '{}'", header_name);
-
-    return action_btn;
-}

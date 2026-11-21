@@ -32,9 +32,9 @@ then `docs/devel/LVGL9_XML_GUIDE.md` and `.claude/rules/declarative-ui.md` updat
 | # | Component | Slots | Today | Change |
 |---|-----------|-------|-------|--------|
 | S1 (done) | `ui_xml/overlay_panel.xml` | default `overlay_content` | 77 `extends="overlay_panel"` views and 16 hand-rolled overlays each write their own `<lv_obj name="overlay_content" ...>` (93 copies); `src/ui/overlay_base.cpp` and 14 more sites find it by name | overlay_panel owns the column; every view drops its wrapper; `OverlayBase` asks `lv_xml_component_get_slot()`. One commit: adding the slot re-parents every existing wrapper |
-| S2 | new modal frame around `ui_dialog` (fold `modal_dialog.xml`) | `header`, default `body`, `footer` (default content `modal_button_row`) | 47 dialogs rebuild header + scrolling body + button row; 8 copy `modal_dialog`'s `content_container`; C++ finds `content_container` in `action_prompt_modal.cpp`, `ui_print_select_detail_view.cpp` | one frame component; dialogs supply body and buttons |
+| S2 (frame done; 62 dialogs to convert) | `ui_xml/components/dialog_frame.xml` around `ui_dialog`; `modal_dialog.xml` extends it | default `body` (`dialog_body`), `footer` (`dialog_footer`), `header_extra` | 47 dialogs rebuild header + scrolling body + button row; 8 copy `modal_dialog`'s `content_container`; C++ finds `content_container` in `action_prompt_modal.cpp`, `ui_print_select_detail_view.cpp` | one frame component; dialogs supply body and buttons. Exemplars: `modal_dialog`, `bed_mesh_rename_modal`, `debug_bundle_modal`. Guide and batches below |
 | S3 (toggle, dropdown, text done) | one `setting_row` base for `setting_toggle_row`, `setting_dropdown_row`, `setting_slider_row`, `setting_action_row`, `setting_text_row` | `control`, optional `extra` | 5 near-duplicates (74-107 lines each) repeat icon, label, description and info button | each row becomes a thin `extends="setting_row"`; its control lands at the row's end, so no slot is needed. `setting_action_row` extends `lv_button` and `setting_slider_row` is a column: both stay separate |
-| S4 | `ui_xml/header_bar.xml` | `header_content` (declared), new `actions` | 2 slot users; ~30 `action_button_*` props re-forwarded through `overlay_panel` | screens put their own header buttons in `actions`; the prop sprawl goes |
+| S4 (slot done; 14 screens to convert) | `ui_xml/header_bar.xml` | `header_content` (declared), `actions` (host `header_actions`, exposed by `overlay_panel`) | 2 slot users; ~30 `action_button_*` props re-forwarded through `overlay_panel` | screens put their own header buttons in `actions`, styled `styles.header_action`; the prop sprawl goes once every screen is converted. Exemplars: `macro_panel`, `printer_manager_overlay`. Guide and batches below |
 | S5 | `components/full_page_frame.xml`, `wizard_container.xml` | `body`, `content` | C++ `FullPageHost::body()` (`src/ui/panel_widgets/full_page_host.cpp`) and the wizard step mount (`src/ui/wizard/ui_wizard.cpp`) find the container by name | first C++ users of `lv_xml_component_get_slot()` |
 | S6 | `setting_group` + `setting_group_header` | `header` (title/icon props), default body | 58 group+header pairs in 19 files | the header becomes props on the group |
 | S7 | `components/context_menu_card.xml` | `subheader` | 3 menus hide the divider and redraw it to fit content above it | content goes in `subheader` |
@@ -79,6 +79,152 @@ Found while building E1: `lib/` is on `-isystem`, so `-MMD` does not track
 `src/application/xml_hot_reloader.cpp` and `src/remote/remote_control_server.cpp` include.
 A layout change there leaves their objects stale. The scope struct now only grows at its end;
 the dependency gap itself is a follow-up.
+
+## S2/S4 migration guide
+
+### One dialog
+
+A dialog extends `dialog_frame` instead of `ui_dialog`. The frame owns the card
+(`width` prop, default 70%; `style_max_height="85%"`; column; no gap), the header
+(`modal_header`: icon, then the title, left-aligned), a body column padded `#space_lg`
+on the sides and bottom with a `#space_md` gap and capped at `#dialog_content_max`
+(it scrolls past that), and a footer for the button rows.
+
+| Prop | Meaning |
+|---|---|
+| `title`, `title_tag` | The title and its translation key |
+| `title_subject` | A string subject that retitles it live (no default: unset binds nothing) |
+| `icon`, `icon_variant` | An icon name before the title (empty = none); `primary`, `warning`, `danger`, `success`, `accent`... |
+| `width` | Card width, default `70%` |
+| `hide_close`, `close_callback` | An X after the title |
+
+Widgets in the view land in the body. `<dialog_frame-footer>` takes the
+`<modal_button_row>`(s); `<dialog_frame-header_extra>` takes widgets between the
+title and the X. Restyle the body on its slot tag:
+`<dialog_frame-body style_flex_cross_place="center" style_pad_gap="#space_sm">`.
+
+Before (`ui_xml/bed_mesh_rename_modal.xml`):
+
+```xml
+<view name="bed_mesh_rename_modal"
+      extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
+      style_pad_gap="0">
+  <lv_obj name="rename_form_container"
+          width="100%" height="content" style_min_height="180" style_pad_left="#space_lg" style_pad_right="#space_lg"
+          style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
+          style_pad_gap="#space_md">
+    <text_heading width="100%" text="Rename Mesh Profile" style_text_align="center"/>
+    ...form widgets...
+  </lv_obj>
+  <modal_button_row primary_text="Rename" secondary_text="Cancel" primary_callback="on_bed_mesh_rename_confirm"
+                    secondary_callback="on_bed_mesh_rename_cancel"/>
+</view>
+```
+
+After:
+
+```xml
+<view name="bed_mesh_rename_modal"
+      extends="dialog_frame" title="Rename Mesh Profile" title_tag="Rename Mesh Profile">
+  <dialog_frame-body style_flex_cross_place="center">
+    ...form widgets...
+  </dialog_frame-body>
+  <dialog_frame-footer>
+    <modal_button_row primary_text="Rename" secondary_text="Cancel" primary_callback="on_bed_mesh_rename_confirm"
+                      secondary_callback="on_bed_mesh_rename_cancel"/>
+  </dialog_frame-footer>
+</view>
+```
+
+Steps, per dialog:
+
+1. Write down its C++ lookups first (`grep -rn '"<widget name>"' src tests`). Names
+   inside the body and footer keep working; the frame names its own parts
+   `dialog_title`, `dialog_icon`, `dialog_header`, `dialog_body`, `dialog_footer`.
+2. The title row (an `icon` + `text_heading`, a `modal_header`, or a centered heading
+   at the top of the body) becomes `title`/`title_tag`/`icon`/`icon_variant`. A centered
+   title becomes left-aligned; nothing else should move. A `modal_header` with
+   `hide_close="false"` maps to `hide_close`/`close_callback`.
+3. The content container's children move into the view (or a `<dialog_frame-body>` tag
+   carrying the attributes that differ from the frame's). A container C++ fills by
+   name (`content_container`) is reached with `lv_xml_component_get_slot(dialog, nullptr)`.
+4. Button rows go in `<dialog_frame-footer>`, with their bindings unchanged.
+5. A `text_heading` C++ reads as the modal title must stay `dialog_title`
+   (`kModalTitleWidgetName`); the frame's title already is.
+6. Screenshot before and after at 800x480 and 480x272 from fresh launches; the title
+   moves to the left of the header, the rest should match.
+
+Leave a dialog on `ui_dialog` and say why when it is not a titled card: a full-screen
+picker (`color_picker`), a dialog whose header is its content (QR modals, owned by
+the S9 work), or one with a measured layout. Severity icons that C++ or a subject toggles
+(`icon_info`/`icon_warning`/`icon_error` in `runout_guidance_modal`,
+`exclude_object_modal`, `action_prompt_modal`, `recovery_fault_modal`) become the
+`icon`/`icon_variant` props, which the caller sets from the severity when it creates the
+dialog, as `helix::ui::ModalDialogAttrs` does for `modal_dialog`. A test that finds an
+`icon_*` by name checks the shown glyph instead (`visible_glyphs()` in
+`tests/unit/test_dialog_frame.cpp`).
+
+### One header
+
+Before (`ui_xml/macro_panel.xml`):
+
+```xml
+<view name="macro_panel"
+      extends="overlay_panel" title="Macros" hide_action_button="false" action_button_text="Save"
+      action_button_callback="on_macros_edit_save" action_button_hidden_subject="macros_edit_save_hidden"
+      back_button_callback="on_macros_back_clicked">
+```
+
+After:
+
+```xml
+<view name="macro_panel" extends="overlay_panel" title="Macros" back_button_callback="on_macros_back_clicked">
+  <overlay_panel-actions>
+    <ui_button name="btn_save" height="content" text="Save" translation_tag="Save">
+      <style name="styles.header_action"/>
+      <bind_flag_if_eq subject="macros_edit_save_hidden" flag="hidden" ref_value="1"/>
+      <event_cb trigger="clicked" callback="on_macros_edit_save"/>
+    </ui_button>
+  </overlay_panel-actions>
+```
+
+Prop to markup:
+
+| Prop | Markup on the button in `actions` |
+|---|---|
+| `hide_action_button="false"` + `action_button_text`/`_text_tag` | `<ui_button height="content" text=".." translation_tag="..">` + `<style name="styles.header_action"/>` |
+| `action_button_icon`, `_icon_size` | `icon="..." icon_size="..."` |
+| `action_button_bg_color`, `_radius`, `_width`, `_height` | `style_bg_color`, `style_radius`, `width`, `height` on the button (keep `height="content"` unless a size was passed) |
+| `action_button_callback` | `<event_cb trigger="clicked" callback="..."/>` |
+| `action_button_hidden_subject` | `<bind_flag_if_eq subject="..." flag="hidden" ref_value="1"/>` |
+| `action_button_disabled_subject` / `_disabled_cond` | `<bind_state_if_eq subject=".." state="disabled" ref_value="1"/>` / `<bind_state_if cond=".." state="disabled"/>` |
+| `action_button_2_*` | a button BEFORE the primary one, `style_bg_color="#secondary"`, `style_min_width="#header_slot2_min_width"`, `label_hidden_cond` as is |
+| `action_icon*` | a round button first: `width="#button_height_sm" height="#button_height_sm" style_max_height="#header_button_height"`, `<style name="styles.header_icon_button"/>` |
+| `*_hidden_cond` | `<bind_flag_if cond=".." flag="hidden"/>` |
+
+Order inside `actions` is left to right: icon button, secondary, primary. A screen using
+`<header_bar>` directly (not `extends="overlay_panel"`) writes `<header_bar-actions>`.
+
+**Name the buttons.** header_bar has no built-in action buttons, so each slot button
+carries its own name (`btn_save`, `btn_clear_all`, ...) and every lookup (C++, tests, ctl
+recipes in `scripts/screenshot-recipes.sh` and `tests/ui/`) uses it.
+
+Before/after screenshots of a header must be pixel-identical.
+
+### Batches
+
+Paths are under `ui_xml/`; `components/` is noted. Each batch takes about a quarter of
+the dialog lines and three or four headers.
+
+| Batch | Dialogs | Headers |
+|---|---|---|
+| 1 | abort_progress_modal, action_prompt_modal (C++ `content_container`), ams_loading_error_modal, ams_recover_state_modal, batch_filament_modal, components/bed_check_modal, bed_drying_modal, bed_mesh_calibrate_modal, bed_mesh_save_config_modal, belt_names_modal, belt_tension_auto_modal, components/buffer_status_modal, components/camera_config_modal, chamber_dryer_modal, components/chamber_stall_modal, change_host_modal, components/clog_detection_config_modal | ams_edit_overlay, input_shaper_panel, numeric_keypad_panel, theme_preview_overlay |
+| 2 | color_picker, crash_report_modal (S9), create_filament_modal, create_vendor_modal, estop_confirmation_dialog, exclude_object_modal, fan_rename_modal, favorite_macro_config_modal, components/filament_catalog_picker, filament_mapping_modal, filament_product_edit_modal, guided_load_modal, hidden_network_modal | bed_mesh_panel, led_settings_overlay, panel_belt_tension (a direct `<header_bar>`), widget_catalog_overlay |
+| 3 | info_qr_modal (S9), components/ipp_print_modal, ipv4_keep_modal, job_queue_modal, klipper_recovery_dialog, layer_pause_modal, macro_param_modal, network_test_modal, plugin_install_modal, components/preflight_check_modal, print_cancel_confirm_modal, print_completion_modal, probe_accuracy_modal, probe_config_edit_modal, recovery_fault_modal, restart_prompt_dialog, runout_guidance_modal | calibration_pid_panel, motion_panel, print_status_panel |
+| 4 | runout_other_head_modal, screws_tilt_share_modal (S9), shutdown_modal, components/spaghetti_detection_modal, spoolman_edit_modal, stepper_resonance_cal_modal, telemetry_info_modal, components/temp_graph_config_modal, text_entry_modal, theme_save_as_modal, toolhead_preset_config_modal, components/unclaimed_toolhead_modal, update_download_modal, update_notify_modal, wifi_password_modal | history_dashboard_panel, notification_history_panel (C++ wiring), spoolman_panel |
+
+(S9) marks the three QR dialogs the QR-frame work also touches: settle with that session
+before editing them.
 
 ## Conversion order (worst first)
 

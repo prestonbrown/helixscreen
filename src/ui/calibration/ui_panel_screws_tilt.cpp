@@ -4,7 +4,6 @@
 #include "ui_panel_screws_tilt.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_fonts.h"
 #include "ui_nav.h"
 #include "ui_screws_tilt_share_modal.h"
 #include "ui_utils.h"
@@ -34,6 +33,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <string>
 
 #include "hv/json.hpp"
 
@@ -595,58 +595,40 @@ void ScrewsTiltPanel::create_screw_indicator(size_t index, const ScrewTiltResult
         return;
     }
 
-    // Circular screw indicators - size based on icon
-    constexpr int kIndicatorSize = 52; // Square for circle
-
-    // Create circular indicator
-    lv_obj_t* indicator = lv_obj_create(bed_diagram_container_);
-    lv_obj_remove_style_all(indicator);
-    lv_obj_set_size(indicator, kIndicatorSize, kIndicatorSize);
-    lv_obj_set_style_radius(indicator, LV_RADIUS_CIRCLE, 0); // Fully round
-    lv_obj_set_style_border_width(indicator, is_worst ? 3 : 2, 0);
-    lv_obj_set_style_border_color(indicator, theme_manager_get_color("text"), 0);
-
-    // Color based on adjustment severity (worst screw gets highlighted)
-    lv_color_t bg_color = get_adjustment_color(screw, in_spec, is_worst);
-    lv_obj_set_style_bg_color(indicator, bg_color, 0);
-    lv_obj_set_style_bg_opa(indicator, LV_OPA_COVER, 0); // Must be AFTER bg_color
-
-    spdlog::debug("[ScrewsTilt] Indicator {} ({}): color=0x{:06X}, is_worst={}", index,
-                  screw.screw_name, (bg_color.red << 16) | (bg_color.green << 8) | bg_color.blue,
-                  is_worst);
-
-    // The severity fill is an accent, so the glyph starts from the palette text colour
+    const lv_color_t fill = get_adjustment_color(screw, in_spec, is_worst);
+    // The severity fill is an accent, so the glyph starts from the palette text color
     // and shifts toward its pole as 4:1 needs
-    lv_obj_t* label = lv_label_create(indicator);
-    lv_obj_set_style_text_color(
-        label, theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg_color),
-        0);
-    lv_obj_center(label);
+    const lv_color_t glyph_color =
+        theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), fill);
+    const std::string fill_hex = fmt::format("0x{:06x}", lv_color_to_u32(fill) & 0xFFFFFF);
+    const std::string glyph_hex = fmt::format("0x{:06x}", lv_color_to_u32(glyph_color) & 0xFFFFFF);
 
-    if (screw_is_settled(screw, in_spec)) {
-        // Nothing for the user to turn here: the reference screw, or one already
-        // inside the level window. Static checkmark, no rotation animation.
-        // NOT `in_spec` alone - the reference is measured against the spread's
-        // midpoint and lands out of spec on a one-sided tilt, which drew it as a
-        // spinning "loosen" arrow inside its own green circle.
-        lv_obj_set_style_text_font(label, &mdi_icons_32, 0);
-        // check icon (F012C)
-        lv_label_set_text(label, "\xF3\xB0\x84\xAC");
-    } else {
-        // Adjustment needed - show animated rotation icon
-        bool is_clockwise = screw.adjustment.find("CW") == 0 && screw.adjustment.find("CCW") != 0;
+    // Nothing for the user to turn on a settled screw: the reference screw, or one
+    // already inside the level window. NOT `in_spec` alone - the reference is
+    // measured against the spread's midpoint and lands out of spec on a one-sided
+    // tilt, where it would draw as a spinning "loosen" arrow inside a green circle.
+    const bool settled = screw_is_settled(screw, in_spec);
+    // Klipper's CW/CCW, which does not say tighten or loosen
+    const bool is_clockwise = screw.adjustment.find("CW") == 0 && screw.adjustment.find("CCW") != 0;
+    const char* glyph =
+        settled ? "#icon_check" : (is_clockwise ? "#icon_rotate_right" : "#icon_rotate_left");
 
-        lv_obj_set_style_text_font(label, &mdi_icons_32, 0);
-        // rotate-right (F0467) = clockwise, rotate-left (F0465) = counterclockwise,
-        // straight from Klipper's CW/CCW, which does not say tighten or loosen
-        const char* dir_icon = is_clockwise ? "\xF3\xB0\x91\xA7" : "\xF3\xB0\x91\xA5";
-        lv_label_set_text(label, dir_icon);
+    const char* attrs[] = {
+        "fill",         fill_hex.c_str(),     "glyph_color", glyph_hex.c_str(), "glyph", glyph,
+        "border_width", is_worst ? "3" : "2", nullptr};
+    auto* indicator =
+        static_cast<lv_obj_t*>(lv_xml_create(bed_diagram_container_, "screw_indicator", attrs));
+    if (!indicator) {
+        spdlog::warn("[ScrewsTilt] screw_indicator create failed for {}", screw.screw_name);
+        return;
+    }
 
-        // Set transform pivot to center for rotation
-        lv_obj_set_style_transform_pivot_x(label, LV_PCT(50), 0);
-        lv_obj_set_style_transform_pivot_y(label, LV_PCT(50), 0);
+    spdlog::debug("[ScrewsTilt] Indicator {} ({}): color={}, is_worst={}", index, screw.screw_name,
+                  fill_hex, is_worst);
 
-        // Animate rotation continuously with linear easing for smooth motion
+    lv_obj_t* label = lv_obj_find_by_name(indicator, "screw_glyph");
+    if (!settled && label) {
+        // Spin the arrow continuously with linear easing, in its own direction
         lv_anim_t anim;
         lv_anim_init(&anim);
         lv_anim_set_var(&anim, label);
@@ -665,8 +647,6 @@ void ScrewsTiltPanel::create_screw_indicator(size_t index, const ScrewTiltResult
     }
 
     screw_indicators_.emplace_back(indicator);
-
-    (void)index;
 }
 
 /**

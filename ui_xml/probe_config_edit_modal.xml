@@ -3,41 +3,30 @@
 <!-- Modal for editing a single probe config value (numeric) -->
 <component>
   <view name="probe_config_edit_modal"
-        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="420" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
+        extends="dialog_frame" style_min_width="320" style_max_width="420" title_subject="probe_config_edit_title"
+        icon="tune" hide_close="false" close_callback="on_probe_config_cancel">
+    <!-- Description of what this field does -->
+    <text_small bind_text="probe_config_edit_desc" style_text_color="#text_muted"/>
 
-    <!-- Header (bound title). -->
-    <modal_header title_subject="probe_config_edit_title"
-                  hide_icon="true" hide_close="false" close_callback="on_probe_config_cancel"/>
-
-    <divider_horizontal/>
-
-    <!-- Content -->
+    <!-- Current value display -->
     <lv_obj width="100%"
-            height="content" style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_md" scrollable="false">
-
-      <!-- Description of what this field does -->
-      <text_small bind_text="probe_config_edit_desc" style_text_color="#text_muted"/>
-
-      <!-- Current value display -->
-      <lv_obj width="100%"
-              height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-              style_pad_gap="#space_md" scrollable="false">
-        <text_body text="Current:" style_text_color="#text_muted"/>
-        <text_body bind_text="probe_config_edit_current" style_text_color="#primary"/>
-      </lv_obj>
-
-      <!-- Input field -->
-      <text_input name="probe_config_input"
-                  width="100%" keyboard_hint="numeric" bind_text="probe_config_edit_value" max_length="12"/>
-
-      <!-- Warning about firmware restart -->
-      <text_small text="Saves to Klipper config and restarts firmware." style_text_color="#warning"/>
+            height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_md"
+            scrollable="false">
+      <text_body text="Current:" style_text_color="#text_muted"/>
+      <text_body bind_text="probe_config_edit_current" style_text_color="#primary"/>
     </lv_obj>
 
-    <!-- Action buttons -->
-    <modal_button_row secondary_text="Cancel"
-                      secondary_callback="on_probe_config_cancel" primary_text="Save"
-                      primary_callback="on_probe_config_save"/>
+    <!-- Input field -->
+    <text_input name="probe_config_input"
+                width="100%" keyboard_hint="numeric" bind_text="probe_config_edit_value" max_length="12"/>
+
+    <!-- Warning about firmware restart -->
+    <text_small text="Saves to Klipper config and restarts firmware." style_text_color="#warning"/>
+
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel"
+                        secondary_callback="on_probe_config_cancel" primary_text="Save"
+                        primary_callback="on_probe_config_save"/>
+    </dialog_frame-footer>
   </view>
 </component>

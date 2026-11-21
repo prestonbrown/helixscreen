@@ -7,51 +7,34 @@
   <api>
     <slot name="qr" target="qr_frame"/>
   </api>
+  <!-- The body is capped by #dialog_content_max and scrolls: a real crash
+       report carries a resolved backtrace, so its details do reach the cap. -->
   <view name="crash_report_modal"
-        extends="ui_dialog" width="85%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <!-- Capped by the responsive ladder, not a flat 350: this root extends
-         ui_dialog directly and so has no max_height of its own, exactly the
-         shape that put debug_bundle_modal at y=-103 on a 480x272 panel. A real
-         crash report carries a resolved backtrace, so the content DOES reach
-         the cap here - the mock's short text is what made the sweep look
-         harmless. 140 at MICRO scrolls; 350 rendered off-screen did not. -->
-    <lv_obj name="content_container"
-            width="100%" height="content" style_max_height="#dialog_content_max" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column"
-            style_flex_cross_place="center" style_pad_gap="#space_md">
-      <!-- Title with warning icon -->
-      <lv_obj width="100%"
-              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm"
-              style_flex_main_place="center" style_flex_cross_place="center">
-        <lv_label text="󰀦" style_text_font="mdi_icons_24" style_text_color="#warning"/>
-        <text_heading text="HelixScreen Crashed"/>
-      </lv_obj>
-      <!-- Details + QR row -->
-      <lv_obj width="100%"
-              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
-              style_flex_cross_place="center">
-        <!-- Left: crash details + status -->
-        <lv_obj height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md">
-          <!-- Crash details -->
-          <lv_obj width="100%"
-                  height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xs"
-                  style_bg_opa="cover" style_bg_color="#card_bg" style_radius="#border_radius">
-            <text_body width="100%" bind_text="crash_report_details" long_mode="wrap"/>
-          </lv_obj>
-          <!-- Status message -->
-          <text_body name="status_text" width="100%" bind_text="crash_report_status" long_mode="wrap"/>
+        extends="dialog_frame" width="85%" title="HelixScreen Crashed" icon="alert" icon_variant="warning">
+    <!-- Details + QR row -->
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_flex_cross_place="center">
+      <!-- Left: crash details + status -->
+      <lv_obj height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md">
+        <!-- Crash details -->
+        <lv_obj width="100%"
+                height="content" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_xs"
+                style_bg_opa="cover" style_bg_color="#card_bg" style_radius="#border_radius">
+          <text_body width="100%" bind_text="crash_report_details" long_mode="wrap"/>
         </lv_obj>
-        <!-- Right: QR code (hidden initially) -->
-        <ui_card name="qr_card" width="content" height="content" style_pad_all="#space_xs">
-          <bind_flag_if_eq subject="crash_report_show_qr" flag="hidden" ref_value="0"/>
-          <qr_frame name="qr_frame"/>
-        </ui_card>
+        <!-- Status message -->
+        <text_body name="status_text" width="100%" bind_text="crash_report_status" long_mode="wrap"/>
       </lv_obj>
+      <!-- Right: QR code (hidden initially) -->
+      <ui_card name="qr_card" width="content" height="content" style_pad_all="#space_xs">
+        <bind_flag_if_eq subject="crash_report_show_qr" flag="hidden" ref_value="0"/>
+        <qr_frame name="qr_frame"/>
+      </ui_card>
     </lv_obj>
-    <modal_button_row secondary_name="modal_cancel_btn"
-                      secondary_text="Dismiss" secondary_callback="on_crash_report_dismiss"
-                      primary_name="modal_send_btn" primary_text="Send Report" primary_callback="on_crash_report_send"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_name="modal_cancel_btn"
+                        secondary_text="Dismiss" secondary_callback="on_crash_report_dismiss"
+                        primary_name="modal_send_btn" primary_text="Send Report" primary_callback="on_crash_report_send"/>
+    </dialog_frame-footer>
   </view>
 </component>

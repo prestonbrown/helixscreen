@@ -121,6 +121,11 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
         return &welcome_text_;
     }
 
+    /// The chosen row's language index, -1 before a choice; lights that row.
+    lv_subject_t* get_language_choice_subject() {
+        return &language_choice_;
+    }
+
     /**
      * @brief Check if a language has been selected
      */
@@ -150,6 +155,7 @@ class WizardLanguageChooserStep : public helix::wizard::Step {
     SubjectManager subjects_;
 
     helix::Subject welcome_text_{};
+    helix::Subject language_choice_{};
 
     // String buffer for welcome text subject
     char welcome_buffer_[64] = "Welcome!";

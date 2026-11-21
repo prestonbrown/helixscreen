@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- "Loading..." pill centered on the top layer while a panel or overlay
+       builds on a tier without full style effects. The label names no font:
+       it takes the base font the theme sets on the top layer. -->
+  <view name="loading_scrim"
+        extends="lv_obj" width="content" height="content" align="center" style_bg_color="0x000000" style_bg_opa="204"
+        style_border_width="0" style_radius="32767" style_pad_left="24" style_pad_right="24" style_pad_top="12"
+        style_pad_bottom="12" scrollable="false">
+    <lv_label name="loading_scrim_label" text="Loading..." style_text_color="0xFFFFFF"/>
+  </view>
+</component>

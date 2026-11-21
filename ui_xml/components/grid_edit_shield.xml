@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Home-grid edit mode's event shield: a transparent full-page layer above
+       the tiles. Clickable, so it is the hit target for every touch and no tile
+       underneath acts while editing; its events bubble to the grid handlers.
+       GridEditMode creates one per session and draws the snap lattice on it. -->
+  <view extends="lv_obj"
+        width="100%" height="100%" floating="true" clickable="true" event_bubble="true" scrollable="false"
+        style_bg_opa="0" style_border_width="0" style_pad_all="0"/>
+</component>

@@ -85,7 +85,7 @@ class PrePrintOptionsRenderer {
      */
     using OnToggleCallback = std::function<void(const std::string& id, int new_state)>;
 
-    PrePrintOptionsRenderer() = default;
+    PrePrintOptionsRenderer();
     ~PrePrintOptionsRenderer();
 
     PrePrintOptionsRenderer(const PrePrintOptionsRenderer&) = delete;
@@ -197,6 +197,8 @@ class PrePrintOptionsRenderer {
     void make_row(lv_obj_t* container, const PrePrintOption& opt,
                   const VisibilitySubjectLookup& visibility_lookup);
 
+    /// The tiles' XML value_changed callback: finds the live renderer that owns
+    /// the tile and records its new state.
     static void on_toggle_value_changed(lv_event_t* e);
 
     std::vector<OptionRow> rows_;

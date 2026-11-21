@@ -402,7 +402,6 @@ class AmsOverviewPanel : public PanelBase {
     std::unique_ptr<helix::ui::AmsOperationSidebar> sidebar_;
 
     // === Event Handling ===
-    static void on_unit_card_clicked(lv_event_t* e);
     static void on_detail_slot_clicked(lv_event_t* e);
 };
 

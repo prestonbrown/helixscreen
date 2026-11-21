@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One object on the exclude-object map: a tap target over the object's
+       bounding box, with the object's numbered disc at its center (the same
+       number and color as its side-list row and its badge on the render).
+       ExcludeObjectMapView sets position and size from the bed coordinates and
+       sets the states:
+         checked  the object printing now
+         user_1   excluded (or picked before the print starts): faded, danger outline
+         user_2   the canvas draws the object's outline, so the box draws none
+       The tap resolves to its object through `index`, the defined index. -->
+  <styles>
+    <style name="rect_base" bg_opa="0" border_width="2" border_opa="255" radius="3" pad_all="0"/>
+    <style name="rect_current" border_color="#primary" bg_color="#primary" bg_opa="20%"/>
+    <style name="rect_excluded" border_color="#danger" bg_opa="0" opa="30%"/>
+    <style name="rect_outlined" border_width="0" bg_opa="0"/>
+  </styles>
+  <api>
+    <prop name="index" type="int" default="0"/>
+    <prop name="number" type="string" default=""/>
+    <prop name="color" type="string" default="#primary"/>
+    <prop name="text_color" type="string" default="#text"/>
+    <prop name="diameter" type="int" default="24"/>
+  </api>
+  <view extends="lv_obj" style_border_color="$color" scrollable="false" clickable="true">
+    <!-- LVGL ranks state styles by state bit, so user_2 outranks user_1 outranks
+         checked: excluded beats current, and outlined drops the box regardless. -->
+    <style name="rect_base"/>
+    <style name="rect_current" selector="checked"/>
+    <style name="rect_excluded" selector="user_1"/>
+    <style name="rect_outlined" selector="user_2"/>
+    <!-- SWATCH_OK: an object number badge matching draw_object_badge, not a color swatch -->
+    <lv_obj name="badge_disc"
+            width="$diameter" height="$diameter" align="center" style_radius="9999" style_bg_color="$color"
+            style_bg_opa="255" style_border_width="0" style_pad_all="0" scrollable="false" clickable="false"
+            event_bubble="true">
+      <lv_label name="badge_number"
+                text="$number" align="center" style_text_color="$text_color" style_text_font="#font_small"
+                clickable="false" event_bubble="true"/>
+    </lv_obj>
+    <event_cb trigger="clicked" callback="on_exclude_map_object" user_data="$index"/>
+  </view>
+</component>

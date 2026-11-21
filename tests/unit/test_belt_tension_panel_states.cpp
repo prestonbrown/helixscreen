@@ -3953,7 +3953,7 @@ TEST_CASE("the names dialog sets the layout and closes with the panel", "[belt][
     // The body keeps its height after a choice: the layout buttons and the
     // Identify rows stay on screen under the heading.
     lv_obj_update_layout(screen);
-    lv_obj_t* body = lv_obj_find_by_name(screen, "belt_names_content");
+    lv_obj_t* body = lv_obj_find_by_name(screen, "dialog_body");
     REQUIRE(body != nullptr);
     CHECK(lv_obj_get_height(body) > 3 * lv_obj_get_height(lower_a));
     for (const char* name : {"btn_identify_a", "btn_identify_b", "btn_layout_0", "btn_layout_4"}) {

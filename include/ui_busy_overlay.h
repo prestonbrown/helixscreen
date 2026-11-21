@@ -46,7 +46,7 @@ class BusyOverlay {
      * @brief Update progress display
      *
      * Formats as "Operation... XX%" (e.g., "Downloading... 45%")
-     * Only updates if overlay is visible or pending.
+     * Sets the text the overlay shows, or shows once its grace period ends.
      *
      * @note NOT thread-safe! Must be called from the main LVGL thread.
      *       When calling from HTTP/background threads, use helix::ui::queue_update():

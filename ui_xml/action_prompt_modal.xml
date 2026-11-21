@@ -5,47 +5,26 @@
 <!-- Buttons are created dynamically in C++ based on PromptData -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <!-- MODAL_CHROME_OK: no token ladder can budget this card. Text, the AFC diagram and the
-     button rows share one scroll area, prompt_scroll, which ActionPromptModal::fit_rows()
-     caps at the 85% card cap less the measured header and footer, so the footer stays
-     on the card however many buttons a macro sends. Measured card/cap with the footer
-     flush at the card bottom (`ctl geom`), per demo:
-       action-prompt-afc-cal (six units, two-button footer): 480x272 203/231 (3-column
-         grid, no scroll), 480x320 224/272, 640x400 302/340, 800x480 408/408 (2-column
-         grid, scrolls 3px), 1024x600 510/510 (scrolls 41px)
-       action-prompt-worst (AFC diagram, three text lines, three buttons, footer):
-         480x272 227/231, 480x320 248/272, 640x400 297/340, 800x480 396/408,
-         1024x600 483/510
-       action-prompt-many 193/231 at 480x272; action-prompt-hex scrolls 18px at 640x400;
-       action-prompt-zmod fills the 480x272 card to 229 of 231 with a widened card. -->
+     button rows share one scroll area, the frame's dialog_body, which
+     ActionPromptModal::fit_rows() caps at the 85% card cap less the measured header and
+     footer, so the footer stays on the card however many buttons a macro sends.
+     The severity icon comes from ActionPromptModal as the icon / icon_variant props. -->
 <component>
-  <!-- Dialog card (backdrop created programmatically) -->
+  <api>
+    <prop name="icon" type="string" default="info"/>
+    <prop name="icon_variant" type="string" default="primary"/>
+  </api>
+  <!-- Dialog card (backdrop created programmatically). The printer's title text
+       may start with '#', so it rides a subject. -->
   <view name="action_prompt_modal"
-        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="480"
-        style_max_height="85%" align="center" flex_flow="column" style_flex_main_place="start" style_pad_gap="0"
-        scrollable="false">
-    <!-- Header with title -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
-            style_pad_gap="#space_sm" scrollable="false">
-      <!-- ERROR icon: only for severity="error" -->
-      <icon name="icon_error" src="alert_octagon" size="md" variant="danger">
-        <bind_flag_if_eq subject="action_prompt_error" flag="hidden" ref_value="0"/>
-      </icon>
-      <!-- The printer's title text, which may start with '#', so it rides a subject -->
-      <text_heading name="dialog_title" bind_text="action_prompt_title" flex_grow="1"/>
-    </lv_obj>
-    <!-- Horizontal divider below title -->
-    <divider_horizontal/>
-    <!-- Text, the AFC diagram and the button rows scroll together; the footer
-         below stays on the card. ActionPromptModal caps this area's height at
-         what the card has left once a prompt is built. -->
-    <lv_obj name="prompt_scroll"
-            width="100%" height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
-            flex_flow="column" scrollable="true" scroll_dir="ver" scroll_snap_y="none">
+        extends="dialog_frame" title_subject="action_prompt_title" icon="$icon" icon_variant="$icon_variant"
+        style_min_width="320" style_max_width="480">
+    <!-- Text, the AFC diagram and the button rows scroll together in the body;
+         the footer below stays on the card. -->
+    <dialog_frame-body style_pad_left="0" style_pad_right="0" style_pad_bottom="0" style_pad_gap="0" scroll_dir="ver">
       <lv_obj name="content_container"
               width="100%" height="content" style_min_height="40" style_pad_left="#space_lg" style_pad_right="#space_lg"
-              style_pad_top="#space_md" style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xs"
+              style_pad_top="#space_xs" style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xs"
               scrollable="false">
         <bind_flag_if_eq subject="action_prompt_has_text" flag="hidden" ref_value="0"/>
         <!-- Text lines will be added dynamically -->
@@ -67,16 +46,19 @@
         <bind_flag_if_eq subject="action_prompt_has_buttons" flag="hidden" ref_value="0"/>
         <!-- Rows are added dynamically based on PromptData.buttons -->
       </lv_obj>
-    </lv_obj>
-    <!-- Horizontal divider above footer -->
-    <divider_horizontal name="footer_divider">
-      <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
-    </divider_horizontal>
-    <!-- Footer button container (modal-style: full width, no gaps, dividers between) -->
-    <lv_obj name="footer_container"
-            width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row" scrollable="false">
-      <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
-      <!-- Footer buttons will be added dynamically -->
-    </lv_obj>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+      <!-- Horizontal divider above footer -->
+      <divider_horizontal name="footer_divider">
+        <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
+      </divider_horizontal>
+      <!-- Footer button container (modal-style: full width, no gaps, dividers between) -->
+      <lv_obj name="footer_container"
+              width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row"
+              scrollable="false">
+        <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
+        <!-- Footer buttons will be added dynamically -->
+      </lv_obj>
+    </dialog_frame-footer>
   </view>
 </component>

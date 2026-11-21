@@ -75,9 +75,7 @@
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_pad_all="0"
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
     <!-- Header Bar with the settings cog. The E-stop is on the navbar. -->
-    <header_bar name="overlay_header"
-                title="Motion" hide_action_icon="false" action_icon="cog" action_icon_hidden_cond="ui_breakpoint lt 2"
-                action_icon_callback="on_motion_header_settings_clicked">
+    <header_bar name="overlay_header" title="Motion">
       <!-- Header coordinates: one line, bold tinted axis letter + tabular
            mono value, no unit suffix. Each letter+value pair is one tap
            target (opens that axis' keypad); the swap chip at the end
@@ -189,6 +187,17 @@
           </lv_obj>
         </lv_obj>
       </header_bar-header_content>
+      <!-- The cog exists from the SMALL tier up. The slot host hides with it,
+           so an empty host adds no flex gap beside the coordinates. -->
+      <header_bar-actions>
+        <bind_flag_if cond="ui_breakpoint lt 2" flag="hidden"/>
+        <ui_button name="btn_motion_settings"
+                   width="#button_height_sm" height="#button_height_sm" style_max_height="#header_button_height"
+                   icon="cog" icon_size="sm">
+          <style name="styles.header_icon_button"/>
+          <event_cb trigger="clicked" callback="on_motion_header_settings_clicked"/>
+        </ui_button>
+      </header_bar-actions>
     </header_bar>
     <if cond="ui_is_portrait eq 1">
       <!-- PORTRAIT: header too narrow for coordinates, so a slim full-width

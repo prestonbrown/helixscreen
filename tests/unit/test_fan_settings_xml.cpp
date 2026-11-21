@@ -10,8 +10,10 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "config.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "printer_state.h"
 
 #include <array>
@@ -78,6 +80,58 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan settings rows show each fan's speed", "
     CHECK(ScopedImageMissCounter::count() == 0);
 
     fans.update_fan_speed("fan", 0.0);
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+}
+
+// Each row names its own fan, and a tap renames that fan: the row's index
+// picks its fan out of both lists.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan settings: a tapped row renames its own fan",
+                 "[fans][settings]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+
+    auto& fans = get_printer_state().fan_state();
+    fans.init_fans({"fan", "fan_generic aux"});
+
+    auto& overlay = helix::settings::get_fan_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+
+    lv_obj_t* list = lv_obj_find_by_name(lv_screen_active(), "controllable_fans_list");
+    REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 2);
+    lv_obj_t* row = lv_obj_get_child(list, 1);
+    lv_obj_t* object = lv_obj_find_by_name(row, "object_label");
+    lv_obj_t* name = lv_obj_find_by_name(row, "name_label");
+    REQUIRE((object && name));
+    const std::string row_object = lv_label_get_text(object);
+    const std::string row_name = lv_label_get_text(name);
+    CHECK((row_object == "fan" || row_object == "fan_generic aux"));
+    CHECK_FALSE(row_name.empty());
+
+    lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_subject_t* old_name = lv_xml_get_subject(nullptr, "fan_rename_old_name");
+    REQUIRE(old_name != nullptr);
+    CHECK(std::string(lv_subject_get_string(old_name)) == row_name);
+    lv_obj_t* input = lv_obj_find_by_name(lv_screen_active(), "fan_rename_new_name_input");
+    REQUIRE(input != nullptr);
+    CHECK(std::string(lv_textarea_get_text(input)) == row_name);
+
+    // The rename lands on the tapped row's fan.
+    auto* config = helix::Config::get_instance();
+    const std::string key = config->df() + "fans/names/" + row_object;
+    const std::string original = config->get<std::string>(key, "");
+    lv_textarea_set_text(input, "Renamed");
+    overlay.confirm_rename();
+    CHECK(config->get<std::string>(key, "") == "Renamed");
+    config->set<std::string>(key, original);
     StaticPanelRegistry::instance().destroy_all();
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(20);

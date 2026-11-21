@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- A lane-number disc on a spool's bottom-right corner: neutral, or the
+       success accent while the lane is actively loaded (LV_STATE_CHECKED).
+       The size is measured from the spool it sits on. The owner sets the
+       number in lane_badge_label after creation and, through
+       ams_draw::set_lane_badge_active(), the label's text color, which is
+       computed for contrast against the fill. The label stays the only child. -->
+  <api>
+    <prop name="size" type="string" default="16"/>
+    <prop name="active" type="boolean" default="false"/>
+  </api>
+  <styles>
+    <style name="lane_badge_idle" bg_color="#ams_badge_bg"/>
+    <style name="lane_badge_active" bg_color="#success"/>
+  </styles>
+  <view extends="lv_obj"
+        width="$size" height="$size" align="bottom_right" x="-2" y="-2" style_radius="32767" style_bg_opa="255"
+        style_border_width="1" style_border_color="#card_bg" style_pad_all="0" scrollable="false" event_bubble="true"
+        checked="$active">
+    <!-- Idle first, active after: the later style wins while it is checked. -->
+    <style name="lane_badge_idle"/>
+    <style name="lane_badge_active" selector="checked"/>
+    <text_xs name="lane_badge_label" text="" align="center" event_bubble="true"/>
+  </view>
+</component>

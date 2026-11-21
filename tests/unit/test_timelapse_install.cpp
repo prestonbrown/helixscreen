@@ -211,8 +211,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a screensaver wake resumes the install wiza
 // Layout: the remote route's action is on screen
 // ============================================================================
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "the SSH step's Check Again sits on screen and the header button stays hidden",
+TEST_CASE_METHOD(LVGLUITestFixture, "the SSH step's Check Again sits on screen",
                  "[timelapse][layout][ui_integration]") {
     REQUIRE_FALSE(get_printer_state().has_webcam());
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
@@ -231,16 +230,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     lv_obj_t* footer = lv_obj_find_by_name(root, "install_footer");
     lv_obj_t* button = lv_obj_find_by_name(root, "install_action_button");
-    lv_obj_t* header = lv_obj_find_by_name(root, "overlay_header");
     REQUIRE(footer != nullptr);
     REQUIRE(button != nullptr);
-    REQUIRE(header != nullptr);
-    lv_obj_t* header_action = lv_obj_find_by_name(header, "action_button");
-    REQUIRE(header_action != nullptr);
 
     CHECK_FALSE(lv_obj_is_hidden(footer));
     CHECK(lv_obj_is_visible(button));
-    CHECK(lv_obj_is_hidden(header_action));
 
     // The SSH card fills the scroll area; the button must still be inside the screen.
     lv_area_t a;

@@ -519,16 +519,6 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
     }
 }
 
-lv_obj_t* ams_lane_bar_create_unbound(lv_obj_t* parent, int32_t bar_width, int32_t bar_height) {
-    const std::string w = std::to_string(bar_width);
-    const std::string h = std::to_string(bar_height);
-    const char* attrs[] = {"bar_width", w.c_str(), "bar_height", h.c_str(), nullptr};
-    auto* bar = static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_lane_bar", attrs));
-    if (!bar)
-        spdlog::error("[AmsLaneBar] unbound bar creation failed");
-    return bar;
-}
-
 void ams_lane_bar_paint_unbound(lv_obj_t* bar, bool has_spool, uint32_t color_rgb, bool active) {
     LaneBarData* d = get_lane_bar_data(bar);
     if (!d || d->slot_index >= 0 || !d->bar_bg || !d->bar_fill)

@@ -861,7 +861,7 @@ TEST_CASE_METHOD(BatchModalFixture, "The head picker names the op it opened for"
     SECTION("Load") {
         REQUIRE(helix::ui::BatchFilamentModal::show_owned(helix::ui::HeadPickOp::Load, {}));
         lv_obj_t* dialog = picker_dialog();
-        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(dialog, "batch_title"))) ==
+        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(dialog, "dialog_title"))) ==
               lv_tr("Load into which tool?"));
         CHECK(button_caption(dialog, "btn_primary") == lv_tr("Load"));
         for (int head = 0; head < 4; ++head) {
@@ -872,7 +872,7 @@ TEST_CASE_METHOD(BatchModalFixture, "The head picker names the op it opened for"
     SECTION("Unload") {
         REQUIRE(helix::ui::BatchFilamentModal::show_owned(helix::ui::HeadPickOp::Unload, {}));
         lv_obj_t* dialog = picker_dialog();
-        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(dialog, "batch_title"))) ==
+        CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(dialog, "dialog_title"))) ==
               lv_tr("Unload which tool?"));
         CHECK(button_caption(dialog, "btn_primary") == lv_tr("Unload"));
         close_picker(dialog);

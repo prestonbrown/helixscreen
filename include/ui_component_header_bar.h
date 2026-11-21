@@ -19,9 +19,3 @@ void ui_component_header_bar_init();
  * @param screen The parent screen for measuring height
  */
 void ui_component_header_bar_setup(lv_obj_t* header, lv_obj_t* screen);
-
-// There is deliberately no C++ show/hide/set-text API for the action button.
-// The button's visibility and label belong to the header_bar props
-// (hide_action_button, action_button_hidden_subject, action_button_text) so a
-// header that configures no action button can never end up displaying an empty
-// one.

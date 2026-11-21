@@ -3284,7 +3284,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
     process_lvgl(10);
 
     // Header Save, through its XML-registered callback.
-    lv_obj_t* save = access.widget("action_button");
+    lv_obj_t* save = access.widget("btn_save");
     REQUIRE(save != nullptr);
     REQUIRE(access.save_disabled() == 0);
     lv_obj_send_event(save, LV_EVENT_CLICKED, nullptr);

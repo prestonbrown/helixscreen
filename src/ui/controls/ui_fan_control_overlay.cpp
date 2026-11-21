@@ -40,12 +40,12 @@ using namespace helix;
 
 namespace {
 
-struct FanRenameData {
-    std::string object_name;
-    std::string display_name;
-    lv_point_t press_start_point{};
-    bool press_point_valid = false;
+/// Where the press on a fan card began. One finger drives one press at a time.
+struct RenamePress {
+    lv_point_t start{};
+    bool valid = false;
 };
+RenamePress s_rename_press;
 
 /// True when the active press landed on (or bubbled up from) a drag surface
 /// (is_drag_surface_hit()): the fan speed dial. Its events bubble to the card
@@ -64,63 +64,18 @@ bool press_consumed_by_value_widget(lv_event_t* e) {
 /// press began. LVGL fires LONG_PRESSED on hold duration alone, so a press that
 /// slid across the card is a drag, not a rename gesture. Mirrors
 /// HomePanel::finger_drifted_since_press.
-bool finger_drifted_since_press(const FanRenameData* data) {
-    if (!data->press_point_valid)
+bool finger_drifted_since_press() {
+    if (!s_rename_press.valid)
         return false;
     lv_indev_t* indev = lv_indev_active();
     if (!indev)
         return false;
     lv_point_t now;
     lv_indev_get_point(indev, &now);
-    const int dx = now.x - data->press_start_point.x;
-    const int dy = now.y - data->press_start_point.y;
+    const int dx = now.x - s_rename_press.start.x;
+    const int dy = now.y - s_rename_press.start.y;
     const int limit = lv_dpx(app_constants::input::kEditModeMoveCancelDpx);
     return (dx * dx + dy * dy) > (limit * limit);
-}
-
-void on_fan_pressed(lv_event_t* e) {
-    auto* data = static_cast<FanRenameData*>(lv_event_get_user_data(e));
-    if (!data)
-        return;
-    lv_indev_t* indev = lv_indev_active();
-    if (indev) {
-        lv_indev_get_point(indev, &data->press_start_point);
-        data->press_point_valid = true;
-    } else {
-        data->press_point_valid = false;
-    }
-}
-
-void on_fan_long_pressed(lv_event_t* e) {
-    auto* data = static_cast<FanRenameData*>(lv_event_get_user_data(e));
-    if (!data)
-        return;
-    // Renaming requires a deliberate, stationary hold. A hold that landed on the
-    // speed dial, or one that drifted from its press point, is the user adjusting
-    // fan speed — surfacing the rename modal there is the accidental trigger we
-    // are guarding against.
-    if (press_consumed_by_value_widget(e) || finger_drifted_since_press(data)) {
-        spdlog::trace("[FanControlOverlay] long-press on '{}' ignored (dial drag / drift)",
-                      data->object_name);
-        return;
-    }
-    spdlog::debug("[FanControlOverlay] Long press on '{}'", data->object_name);
-    helix::ui::end_press(e);
-    helix::settings::get_fan_settings_overlay().handle_fan_rename(data->object_name,
-                                                                  data->display_name);
-}
-
-void on_fan_rename_data_delete(lv_event_t* e) {
-    delete static_cast<FanRenameData*>(lv_event_get_user_data(e));
-}
-
-void attach_long_press_rename(lv_obj_t* widget, const std::string& object_name,
-                              const std::string& display_name) {
-    auto* data = new FanRenameData{object_name, display_name};
-    lv_obj_set_clickable(widget, true);
-    lv_obj_add_event_cb(widget, on_fan_pressed, LV_EVENT_PRESSED, data);
-    lv_obj_add_event_cb(widget, on_fan_long_pressed, LV_EVENT_LONG_PRESSED, data);
-    lv_obj_add_event_cb(widget, on_fan_rename_data_delete, LV_EVENT_DELETE, data);
 }
 
 /// A chamber air mode button: user_data names the mode (chamber_air::mode_id).
@@ -177,6 +132,42 @@ FanControlOverlay::~FanControlOverlay() {
 // ============================================================================
 // OVERLAYBASE IMPLEMENTATION
 // ============================================================================
+
+void FanControlOverlay::on_fan_rename_hold(lv_event_t* e) {
+    if (lv_event_get_code(e) == LV_EVENT_PRESSED) {
+        lv_indev_t* indev = lv_indev_active();
+        s_rename_press.valid = indev != nullptr;
+        if (indev)
+            lv_indev_get_point(indev, &s_rename_press.start);
+        return;
+    }
+    auto* self = helix::lazy_global_if_exists<FanControlOverlay>();
+    const auto index = helix::ui::event_user_int(e);
+    if (!self || !index || *index < 0 ||
+        static_cast<size_t>(*index) >= self->rename_targets_.size())
+        return;
+    // Copied: the rename can rebuild the cards and this list with them.
+    const RenameTarget target = self->rename_targets_[static_cast<size_t>(*index)];
+    // Renaming requires a deliberate, stationary hold. A hold that landed on the
+    // speed dial, or one that drifted from its press point, is the user adjusting
+    // fan speed — surfacing the rename modal there is the accidental trigger we
+    // are guarding against.
+    if (press_consumed_by_value_widget(e) || finger_drifted_since_press()) {
+        spdlog::trace("[FanControlOverlay] long-press on '{}' ignored (dial drag / drift)",
+                      target.object_name);
+        return;
+    }
+    spdlog::debug("[FanControlOverlay] Long press on '{}'", target.object_name);
+    helix::ui::end_press(e);
+    helix::settings::get_fan_settings_overlay().handle_fan_rename(target.object_name,
+                                                                  target.display_name);
+}
+
+std::string FanControlOverlay::add_rename_target(const std::string& object_name,
+                                                 const std::string& display_name) {
+    rename_targets_.push_back({object_name, display_name});
+    return std::to_string(rename_targets_.size() - 1);
+}
 
 lv_obj_t* FanControlOverlay::create(lv_obj_t* parent) {
     register_xml_callbacks({{"on_chamber_air_mode_clicked", on_chamber_air_mode_clicked}});
@@ -303,6 +294,7 @@ void FanControlOverlay::release_fan_widgets() {
     }
     animated_fan_dials_.clear();
     auto_fan_cards_.clear();
+    rename_targets_.clear();
 }
 
 void FanControlOverlay::on_ui_destroyed() {
@@ -353,6 +345,7 @@ void FanControlOverlay::populate_fans() {
         helix::ui::fan_spin_stop(card.fan_icon);
     }
     auto_fan_cards_.clear();
+    rename_targets_.clear();
 
     // Now safe to destroy the LVGL widget tree. safe_clean_children reparents each
     // child to lv_layer_top() + schedules lv_obj_delete_async — escaping the
@@ -387,8 +380,11 @@ void FanControlOverlay::populate_fans() {
             AnimatedFanDial afd;
             afd.object_name = fan.object_name;
             afd.owned_role = role;
+            // Long-press to rename, on the card root only: a hold on the arc
+            // or its handle controls speed.
+            const std::string rename_index = add_rename_target(fan.object_name, fan.display_name);
             afd.dial = std::make_unique<FanDial>(fans_container_, fan.display_name, fan.object_name,
-                                                 fan.speed_percent);
+                                                 fan.speed_percent, false, rename_index);
             afd.dial->set_rpm(fan.rpm);
 
             // Set callback for user-initiated speed changes (dial interaction)
@@ -404,11 +400,6 @@ void FanControlOverlay::populate_fans() {
                         send_fan_speed(fan_id, speed_percent);
                     });
             }
-
-            // Long-press to rename — registered on card root only.
-            // The arc is excluded so long-press on the arc/handle controls speed,
-            // not rename.
-            attach_long_press_rename(afd.dial->get_root(), fan.object_name, fan.display_name);
 
             animated_fan_dials_.push_back(std::move(afd));
 
@@ -462,9 +453,11 @@ void FanControlOverlay::populate_fans() {
             speed->manager.register_subject(&speed->rpm);
             set_auto_fan_speed_text(*speed, fan.speed_percent, fan.rpm);
 
+            // Long-press to rename
+            const std::string rename_index = add_rename_target(fan.object_name, fan.display_name);
             const char* attrs[] = {"fan_name",    fan.display_name.c_str(), "speed_percent",
                                    speed_num_str, "speed_subject",          speed->name.c_str(),
-                                   nullptr};
+                                   "hold_index",  rename_index.c_str(),     nullptr};
 
             lv_obj_t* card =
                 static_cast<lv_obj_t*>(lv_xml_create(fans_container_, "fan_status_card", attrs));
@@ -490,9 +483,6 @@ void FanControlOverlay::populate_fans() {
 
                 // Attach auto-resize for dynamic arc scaling
                 helix::ui::fan_arc_attach_auto_resize(card);
-
-                // Long-press to rename
-                attach_long_press_rename(card, fan.object_name, fan.display_name);
 
                 AutoFanCard afc;
                 afc.object_name = fan.object_name;

@@ -5,33 +5,22 @@
      guided_load_view: 0 = push filament in, 1 = working, 2 = is filament coming out,
      3 = heating the nozzle (a manual load heats first). -->
 <component>
-  <view name="guided_load_modal"
-        extends="ui_dialog" width="85%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <lv_obj name="content_container"
-            width="100%" height="content" style_max_height="#dialog_content_max" scrollable="true"
-            style_pad_all="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
-      <lv_obj width="100%"
-              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm"
-              style_flex_main_place="center" style_flex_cross_place="center">
-        <icon src="filament" size="md" variant="primary"/>
-        <text_heading text="Load Filament"/>
-      </lv_obj>
-
+  <view name="guided_load_modal" extends="dialog_frame" width="85%" title="Load Filament" icon="filament">
+    <dialog_frame-body style_flex_cross_place="center">
       <!-- View 3: heating the nozzle before the hand push -->
       <lv_obj name="heating_container"
               width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md"
               style_flex_cross_place="center">
         <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="3"/>
         <text_body width="100%"
-                   long_mode="wrap" style_text_align="center"
+                   long_mode="wrap" style_text_align="left"
                    text="Heating the nozzle. Have the filament ready to push in."/>
         <text_heading name="heat_text" style_text_align="center" bind_text="guided_load_heat_text"/>
       </lv_obj>
 
       <!-- View 0: waiting for the hand push -->
       <text_body name="push_text"
-                 width="100%" long_mode="wrap" style_text_align="center"
+                 width="100%" long_mode="wrap" style_text_align="left"
                  text="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.">
         <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="0"/>
       </text_body>
@@ -47,36 +36,37 @@
 
       <!-- View 2: did new filament reach the nozzle -->
       <text_body name="confirm_text"
-                 width="100%" long_mode="wrap" style_text_align="center"
-                 text="Is new filament coming out of the nozzle?">
+                 width="100%" long_mode="wrap" style_text_align="left" text="Is new filament coming out of the nozzle?">
         <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="2"/>
       </text_body>
-    </lv_obj>
+    </dialog_frame-body>
 
-    <modal_button_row name="push_buttons"
-                      secondary_name="btn_cancel_push" secondary_text="Cancel"
-                      secondary_callback="on_guided_load_cancel" primary_name="btn_extrude" primary_text="Extrude"
-                      primary_callback="on_guided_load_extrude" primary_moves_machine="true">
-      <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="0"/>
-    </modal_button_row>
+    <dialog_frame-footer>
+      <modal_button_row name="push_buttons"
+                        secondary_name="btn_cancel_push" secondary_text="Cancel"
+                        secondary_callback="on_guided_load_cancel" primary_name="btn_extrude" primary_text="Extrude"
+                        primary_callback="on_guided_load_extrude" primary_moves_machine="true">
+        <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="0"/>
+      </modal_button_row>
 
-    <modal_button_row name="working_buttons"
-                      hide_secondary="true" primary_name="btn_cancel_working" primary_text="Cancel"
-                      primary_variant="secondary" primary_callback="on_guided_load_cancel">
-      <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="1"/>
-    </modal_button_row>
+      <modal_button_row name="working_buttons"
+                        hide_secondary="true" primary_name="btn_cancel_working" primary_text="Cancel"
+                        primary_variant="secondary" primary_callback="on_guided_load_cancel">
+        <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="1"/>
+      </modal_button_row>
 
-    <modal_button_row name="heating_buttons"
-                      hide_secondary="true" primary_name="btn_cancel_heating" primary_text="Cancel"
-                      primary_variant="secondary" primary_callback="on_guided_load_cancel">
-      <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="3"/>
-    </modal_button_row>
+      <modal_button_row name="heating_buttons"
+                        hide_secondary="true" primary_name="btn_cancel_heating" primary_text="Cancel"
+                        primary_variant="secondary" primary_callback="on_guided_load_cancel">
+        <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="3"/>
+      </modal_button_row>
 
-    <modal_button_row name="confirm_buttons"
-                      secondary_name="btn_extrude_more" secondary_text="Extrude more"
-                      secondary_callback="on_guided_load_extrude" primary_name="btn_done" primary_text="Done"
-                      primary_callback="on_guided_load_done" primary_moves_machine="true">
-      <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="2"/>
-    </modal_button_row>
+      <modal_button_row name="confirm_buttons"
+                        secondary_name="btn_extrude_more" secondary_text="Extrude more"
+                        secondary_callback="on_guided_load_extrude" primary_name="btn_done" primary_text="Done"
+                        primary_callback="on_guided_load_done" primary_moves_machine="true">
+        <bind_flag_if_not_eq subject="guided_load_view" flag="hidden" ref_value="2"/>
+      </modal_button_row>
+    </dialog_frame-footer>
   </view>
 </component>

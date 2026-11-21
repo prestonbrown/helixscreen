@@ -3,17 +3,14 @@
 
 /**
  * @file test_print_status_header_action_button.cpp
- * @brief The print-status header's action-button contract.
+ * @brief The print-status header's Files button.
  *
- * The header carries exactly one configured action: the icon-only action
- * (folder icon, on_print_status_files) that opens print select during an active
- * print, where starting a print stays blocked by print_select_can_print
- * (prestonbrown/helixscreen#1395). The primary action button stays unconfigured.
- *
- * An unconfigured primary shown during a print is an empty primary-coloured
- * pill, so the tests drive the real panel through every print state and
- * require the primary to stay hidden while the Files button stays visible the
- * whole way.
+ * The header carries one action: the round Files button (folder icon,
+ * on_print_status_files) in its actions slot, which opens print select during
+ * an active print, where starting a print stays blocked by
+ * print_select_can_print (prestonbrown/helixscreen#1395). The tests drive the
+ * real panel through every print state and require the button to stay visible
+ * the whole way.
  */
 
 #include "ui_nav_manager.h"
@@ -66,22 +63,13 @@ struct PrintStatusHeaderFixture : public LVGLUITestFixture {
         UpdateQueue::instance().drain();
     }
 
-    /// The header's action button, or nullptr if the tree did not build.
-    lv_obj_t* action_button() const {
+    /// The Files entry: the round button in the header's actions slot.
+    lv_obj_t* files_button() const {
         if (!root_) {
             return nullptr;
         }
         lv_obj_t* header = lv_obj_find_by_name(root_, "overlay_header");
-        return header ? lv_obj_find_by_name(header, "action_button") : nullptr;
-    }
-
-    /// The header's icon-only action (the Files entry).
-    lv_obj_t* action_icon_button() const {
-        if (!root_) {
-            return nullptr;
-        }
-        lv_obj_t* header = lv_obj_find_by_name(root_, "overlay_header");
-        return header ? lv_obj_find_by_name(header, "action_icon_button") : nullptr;
+        return header ? lv_obj_find_by_name(header, "btn_files") : nullptr;
     }
 
     void set_print_state(PrintJobState s) {
@@ -107,24 +95,17 @@ std::string read_xml(const std::string& path) {
 } // namespace
 
 TEST_CASE_METHOD(PrintStatusHeaderFixture,
-                 "PrintStatusPanel: primary action button stays hidden, Files button visible",
-                 "[print_status][header_bar][1204][1395]") {
+                 "PrintStatusPanel: the Files button stays visible in every print state",
+                 "[print_status][header_bar][1395]") {
     REQUIRE(root_ != nullptr);
 
-    lv_obj_t* action = action_button();
-    REQUIRE(action != nullptr);
-    lv_obj_t* files = action_icon_button();
+    lv_obj_t* files = files_button();
     REQUIRE(files != nullptr);
-
-    // Baseline: header_bar's hide_action_button default, untouched; the Files
-    // entry opts in via hide_action_icon="false".
-    REQUIRE(lv_obj_is_hidden(action));
     CHECK_FALSE(lv_obj_is_hidden(files));
 
-    // The three states the removed code un-hid the button for, plus the ones
-    // around them so a re-added show/hide pair cannot pass by hiding on the way
-    // out. STANDBY twice on purpose: the transition into an active state is
-    // what fired the old show call.
+    // Every active state and the ones around them, entered more than once, so a
+    // show/hide pair keyed on a transition cannot pass by restoring on the way
+    // out.
     const PrintJobState sequence[] = {
         PrintJobState::STANDBY,  PrintJobState::PRINTING,  PrintJobState::PAUSED,
         PrintJobState::PRINTING, PrintJobState::COMPLETE,  PrintJobState::STANDBY,
@@ -134,46 +115,28 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
     for (PrintJobState s : sequence) {
         set_print_state(s);
         CAPTURE(static_cast<int>(s));
-        // An unconfigured button has no text, no icon and no callback. Revealing
-        // it paints an empty #primary pill over the header.
-        CHECK(lv_obj_is_hidden(action));
         // The Files entry is the print-select affordance: it must stay reachable
         // for the whole print, not just the active states.
         CHECK_FALSE(lv_obj_is_hidden(files));
     }
 }
 
-TEST_CASE("print_status_panel.xml passes no action-button props to header_bar",
-          "[print_status][header_bar][1204][1395]") {
-    // Structural companion to the behavioural test above. The PRIMARY slot stays
-    // unconfigured (header_bar defaults: hidden, empty text/icon, no callback) so
-    // the empty-pill regression cannot return; the icon-only action is the Files
-    // entry and must name the folder icon and the navigation callback. One file
-    // serves every layout class: print_status_body carries the arrangement.
-    const std::string files[] = {"ui_xml/print_status_panel.xml"};
+TEST_CASE("print_status_panel.xml puts the Files button in the header's actions slot",
+          "[print_status][header_bar][1395]") {
+    // Structural companion to the behavioural test above: the Files entry is a
+    // button in the actions slot naming the folder icon and the navigation
+    // callback. One file serves every layout class: print_status_body carries
+    // the arrangement.
+    const std::string xml = read_xml("ui_xml/print_status_panel.xml");
 
-    for (const std::string& path : files) {
-        const std::string xml = read_xml(path);
-        CAPTURE(path);
-
-        const auto tag_start = xml.find("<header_bar");
-        REQUIRE(tag_start != std::string::npos);
-        const auto tag_end = xml.find('>', tag_start);
-        REQUIRE(tag_end != std::string::npos);
-        const std::string tag = xml.substr(tag_start, tag_end - tag_start);
-
-        // Primary slot bare: none of its props appear (the `_2` spellings do not
-        // match these searches because a `=` or `_2` follows the prefix).
-        CHECK(tag.find("action_button_icon=") == std::string::npos);
-        CHECK(tag.find("action_button_text=") == std::string::npos);
-        CHECK(tag.find("action_button_callback=") == std::string::npos);
-        CHECK(tag.find("hide_action_button=") == std::string::npos);
-
-        // The icon-only action fully configured as the Files entry.
-        CHECK(tag.find("hide_action_icon=\"false\"") != std::string::npos);
-        CHECK(tag.find("action_icon=\"folder\"") != std::string::npos);
-        CHECK(tag.find("action_icon_callback=\"on_print_status_files\"") != std::string::npos);
-    }
+    const auto actions = xml.find("<header_bar-actions>");
+    REQUIRE(actions != std::string::npos);
+    const auto actions_end = xml.find("</header_bar-actions>", actions);
+    REQUIRE(actions_end != std::string::npos);
+    const std::string slot = xml.substr(actions, actions_end - actions);
+    CHECK(slot.find("name=\"btn_files\"") != std::string::npos);
+    CHECK(slot.find("icon=\"folder\"") != std::string::npos);
+    CHECK(slot.find("callback=\"on_print_status_files\"") != std::string::npos);
 }
 
 TEST_CASE_METHOD(PrintStatusHeaderFixture,
@@ -181,7 +144,7 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
                  "[print_status][header_bar][1395]") {
     REQUIRE(root_ != nullptr);
 
-    lv_obj_t* files = action_icon_button();
+    lv_obj_t* files = files_button();
     REQUIRE(files != nullptr);
 
     // Pin the callback wiring: the XML name resolves, and the handler queues

@@ -110,6 +110,41 @@ EOF
     [ "$status" -eq 0 ]
 }
 
+@test "silent on a frame whose footer slot container follows the scroll area" {
+    # dialog_frame's footer slot holds the dialog's button row.
+    cat > "${FIXTURE}/ui_xml/frame.xml" <<'EOF'
+<component>
+  <api>
+    <slot name="body" target="frame_body" default="true"/>
+    <slot name="footer" target="frame_footer" hide_empty="true"/>
+  </api>
+  <view extends="ui_dialog" height="content" style_max_height="85%">
+    <lv_obj name="frame_body" height="content" style_max_height="#dialog_content_max"/>
+    <lv_obj name="frame_footer" height="content" flex_flow="column"/>
+  </view>
+</component>
+EOF
+    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    [ "$status" -eq 0 ]
+}
+
+@test "flags a block between a frame's scroll area and its footer slot" {
+    cat > "${FIXTURE}/ui_xml/frame_pinned.xml" <<'EOF'
+<component>
+  <api>
+    <slot name="footer" target="frame_footer" hide_empty="true"/>
+  </api>
+  <view extends="ui_dialog" height="content" style_max_height="85%">
+    <lv_obj name="frame_body" height="content" style_max_height="#dialog_content_max"/>
+    <lv_obj name="pinned_graphic" height="content"/>
+    <lv_obj name="frame_footer" height="content" flex_flow="column"/>
+  </view>
+</component>
+EOF
+    run python3 "${GATE}" --repo-root "${FIXTURE}"
+    [ "$status" -eq 1 ]
+}
+
 @test "silent when one pinned block opted into the pinned cap" {
     cat > "${FIXTURE}/ui_xml/pinned_ok.xml" <<'EOF'
 <component>

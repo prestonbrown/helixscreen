@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One lane of the AMS mini strip's wide spool view: [spool wrap][text column].
+       The wrap holds the lane's ams_lane_spool, which renders from the slot's
+       subjects, and its lane badge on top. The text column is material over
+       remaining percent; both labels dim while the lane is ghosted
+       (LV_STATE_USER_1). The strip creates one per lane and updates it in
+       place: sizes, flow and text are measured or per-lane data, set in C++.
+       Taps bubble to the strip root (AMS overlay, grid edit on long press). -->
+  <api>
+    <prop name="slot" type="string" default="0"/>
+    <prop name="spool_size" type="string" default="24"/>
+    <prop name="badge_size" type="string" default="10"/>
+  </api>
+  <styles>
+    <!-- ams_draw::kGhostOpa, the opacity the lane's spool graphic ghosts to. -->
+    <style name="ghosted" text_opa="76"/>
+  </styles>
+  <view name="spool_cell_${slot}"
+        extends="lv_obj" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+        event_bubble="true" style_pad_column="#space_xxs" style_pad_row="#space_xxs" style_flex_main_place="center"
+        style_flex_cross_place="center" style_flex_track_place="center">
+    <lv_obj name="spool_wrap"
+            style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" event_bubble="true">
+      <ams_lane_spool name="lane_spool" slot_index="$slot" spool_size="$spool_size"/>
+      <ams_lane_badge name="spool_badge_${slot}" size="$badge_size"/>
+    </lv_obj>
+    <!-- No gap between the lines: the stacked height budget counts the two
+         label lines and nothing between them. -->
+    <lv_obj name="spool_text_${slot}"
+            style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_row="0" scrollable="false"
+            event_bubble="true" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start"
+            style_flex_track_place="start">
+      <text_small name="spool_material_${slot}"
+                  text="" style_text_color="#text" style_text_align="center" event_bubble="true">
+        <style name="ghosted" selector="user_1"/>
+      </text_small>
+      <text_xs name="spool_pct_${slot}" text="" style_text_align="center" event_bubble="true">
+        <style name="ghosted" selector="user_1"/>
+      </text_xs>
+    </lv_obj>
+  </view>
+</component>

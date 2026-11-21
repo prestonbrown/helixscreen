@@ -5,23 +5,14 @@
 <!-- Used from wizard summary step "Learn more" link -->
 <component>
   <view name="telemetry_info_modal"
-        extends="ui_dialog" width="75%" height="80%" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0" clickable="true" scrollable="false">
-    <!-- Header -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-            scrollable="false">
-      <icon src="chart_line" size="md" variant="primary"/>
-      <text_heading text="What We Collect"/>
-    </lv_obj>
-    <!-- Scrollable markdown content — flex_grow fills space between header and button -->
-    <lv_obj name="content_area"
-            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_md" scrollable="true" scroll_snap_y="none">
+        extends="dialog_frame" width="75%" height="80%" style_max_height="80%" clickable="true" title="What We Collect"
+        icon="chart_line">
+    <!-- The markdown scrolls in the body, which fills the space between header and button -->
+    <dialog_frame-body height="0" flex_grow="1" style_max_height="100%" style_pad_bottom="#space_md">
       <ui_markdown name="info_text" width="100%" bind_text="telemetry_info_text"/>
-    </lv_obj>
-    <!-- Single OK button, always visible at bottom -->
-    <modal_button_row hide_secondary="true" primary_text="Got it"/>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+      <modal_button_row hide_secondary="true" primary_text="Got it"/>
+    </dialog_frame-footer>
   </view>
 </component>

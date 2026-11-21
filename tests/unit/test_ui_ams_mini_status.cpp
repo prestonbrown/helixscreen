@@ -540,3 +540,37 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a sync that reads nothing new rep
     ams.clear_backends();
     ams.deinit_subjects();
 }
+
+// Both create paths build the one ams_mini_status_frame: the same named parts,
+// the same pressed feedback, and their own sizing (the C++ factory is content-tall
+// around fixed-height bars, the XML widget fills its parent).
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: both create paths share the frame",
+                 "[ui][ams_mini]") {
+    ui_ams_mini_status_init();
+    lv_obj_t* host = lv_obj_create(test_screen());
+    lv_obj_set_size(host, 200, 80);
+    lv_obj_t* from_cpp = ui_ams_mini_status_create(host, 40);
+    lv_obj_t* from_xml = static_cast<lv_obj_t*>(lv_xml_create(host, "ams_mini_status", nullptr));
+    REQUIRE(from_cpp != nullptr);
+    REQUIRE(from_xml != nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    for (lv_obj_t* w : {from_cpp, from_xml}) {
+        CHECK(ui_ams_mini_status_is_valid(w));
+        CHECK(lv_obj_is_clickable(w));
+        CHECK(UITest::find_by_name(w, "ams_bars_container") != nullptr);
+        lv_obj_t* overflow = UITest::find_by_name(w, "ams_overflow_label");
+        REQUIRE(overflow != nullptr);
+        CHECK(lv_obj_check_type(overflow, &lv_label_class));
+        CHECK(lv_obj_get_style_opa(w, LV_PART_MAIN) == LV_OPA_COVER);
+        lv_obj_add_state(w, LV_STATE_PRESSED);
+        CHECK(lv_obj_get_style_opa(w, LV_PART_MAIN) == LV_OPA_70);
+        lv_obj_remove_state(w, LV_STATE_PRESSED);
+    }
+    CHECK(lv_obj_get_style_height(from_cpp, LV_PART_MAIN) == LV_SIZE_CONTENT);
+    CHECK(lv_obj_get_style_height(UITest::find_by_name(from_cpp, "ams_bars_container"),
+                                  LV_PART_MAIN) == 40);
+    CHECK(lv_obj_get_style_height(from_xml, LV_PART_MAIN) == lv_pct(100));
+
+    lv_obj_delete(host);
+}
