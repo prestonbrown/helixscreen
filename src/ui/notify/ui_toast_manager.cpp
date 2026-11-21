@@ -259,6 +259,7 @@ void ToastManager::init() {
 
     lv_xml_register_event_cb(nullptr, "toast_close_btn_clicked", close_btn_clicked);
     lv_xml_register_event_cb(nullptr, "toast_action_btn_clicked", action_btn_clicked);
+    lv_xml_register_event_cb(nullptr, "toast_action2_btn_clicked", action2_btn_clicked);
 
     StaticSubjectRegistry::instance().register_deinit(
         "ToastManager", []() { ToastManager::instance().deinit_subjects(); });
@@ -402,35 +403,45 @@ void ToastManager::show_with_detail(ToastSeverity severity, const char* message,
 void ToastManager::show_with_action(ToastSeverity severity, const char* message,
                                     const char* action_text, toast_action_callback_t callback,
                                     void* user_data, uint32_t duration_ms,
-                                    toast_action_callback_t user_closed_callback) {
+                                    toast_action_callback_t user_closed_callback,
+                                    helix::ToastAction second, const char* detail) {
     if (!action_text || !callback) {
         spdlog::warn("[ToastManager] Toast action requires action_text and callback");
         show(severity, message, duration_ms);
         return;
     }
+    const bool has_second = second.text && *second.text && second.callback;
     if (observer_) {
-        observer_(Event{Event::Kind::Show, severity, message ? message : "", "", duration_ms,
-                        callback, user_data, user_closed_callback});
+        observer_(Event{Event::Kind::Show, severity, message ? message : "", detail ? detail : "",
+                        duration_ms, callback, user_data, user_closed_callback,
+                        has_second ? second.callback : nullptr,
+                        has_second ? second.user_data : nullptr});
     }
 
     struct ToastActionParams {
         ToastSeverity severity;
         std::string message;
+        std::string detail;
         std::string action_text;
         toast_action_callback_t action_cb;
         void* user_data;
         uint32_t duration_ms;
         toast_action_callback_t user_closed_cb;
+        std::string action2_text;
+        toast_action_callback_t action2_cb;
+        void* action2_user_data;
     };
 
-    auto params = std::make_unique<ToastActionParams>(
-        ToastActionParams{severity, message ? message : "", action_text, callback, user_data,
-                          duration_ms, user_closed_callback});
+    auto params = std::make_unique<ToastActionParams>(ToastActionParams{
+        severity, message ? message : "", detail ? detail : "", action_text, callback, user_data,
+        duration_ms, user_closed_callback, has_second ? second.text : "",
+        has_second ? second.callback : nullptr, has_second ? second.user_data : nullptr});
 
     helix::ui::queue_update<ToastActionParams>(std::move(params), [](ToastActionParams* p) {
         ToastManager::instance().create_toast_internal(
-            p->severity, p->message.c_str(), nullptr, p->duration_ms, true, p->action_cb,
-            p->user_data, p->action_text.c_str(), p->user_closed_cb);
+            p->severity, p->message.c_str(), p->detail.c_str(), p->duration_ms, true, p->action_cb,
+            p->user_data, p->action_text.c_str(), p->user_closed_cb,
+            helix::ToastAction{p->action2_text.c_str(), p->action2_cb, p->action2_user_data});
     });
 }
 
@@ -494,7 +505,8 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
                                          const char* detail, uint32_t duration_ms, bool with_action,
                                          toast_action_callback_t action_cb, void* action_user_data,
                                          const char* action_text,
-                                         toast_action_callback_t user_closed_cb) {
+                                         toast_action_callback_t user_closed_cb,
+                                         const helix::ToastAction& second) {
     if (!message) {
         spdlog::warn("[ToastManager] Attempted to show toast with null message");
         return;
@@ -551,10 +563,20 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     const bool has_detail = detail && *detail;
     const char* detail_safe = has_detail ? detail : "";
     const char* hide_detail_str = has_detail ? "false" : "true";
+    // Two actions sit on a row under the text, which keeps the toast's width
+    // for a one-line headline; the side button hides.
+    const bool with_second = with_action && second.text && *second.text && second.callback;
+    if (with_second) {
+        hide_action_str = "true";
+    }
+    const char* hide_actions_below_str = with_second ? "false" : "true";
+    const char* message_long_mode = with_second ? "dots" : "wrap";
     // lv_xml_create's attrs are key/value pairs terminated by a null entry.
-    const char* attrs[] = {"icon_glyph",  icon_glyph,       "icon_color",  icon_color,
-                           "action_text", action_text_safe, "hide_action", hide_action_str,
-                           "hide_detail", hide_detail_str,  nullptr};
+    const char* attrs[] = {"icon_glyph",        icon_glyph,           "icon_color",
+                           icon_color,          "action_text",        action_text_safe,
+                           "hide_action",       hide_action_str,      "hide_detail",
+                           hide_detail_str,     "hide_actions_below", hide_actions_below_str,
+                           "message_long_mode", message_long_mode,    nullptr};
 
     // Message, detail and action label can be printer or plugin text: set, never props.
     lv_obj_t* widget = helix::ui::create_xml_laid_out(
@@ -563,6 +585,11 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
             helix::ui::set_row_label_text(toast, "toast_detail", detail_safe);
             if (with_action && action_text) {
                 ui_button_set_text(lv_obj_find_by_name(toast, "toast_action_btn"), action_text);
+            }
+            if (with_second) {
+                ui_button_set_text(lv_obj_find_by_name(toast, "toast_action_below_btn"),
+                                   action_text);
+                ui_button_set_text(lv_obj_find_by_name(toast, "toast_action2_btn"), second.text);
             }
         });
     if (!widget) {
@@ -577,6 +604,8 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     it->action_cb = with_action ? action_cb : nullptr;
     it->user_closed_cb = (with_action && user_closed_cb) ? user_closed_cb : nullptr;
     it->action_user_data = with_action ? action_user_data : nullptr;
+    it->action2_cb = with_second ? second.callback : nullptr;
+    it->action2_user_data = with_second ? second.user_data : nullptr;
     it->severity = severity;
     it->message = message;
 
@@ -618,11 +647,12 @@ void ToastManager::detach_from_input(lv_obj_t* widget) {
     // scroll anywhere else keeps its gesture.
     helix::ui::reset_input_within(widget);
 
-    // A dying toast's action button must not latch a fresh press once teardown
+    // A dying toast's action buttons must not latch a fresh press once teardown
     // has begun (CLICKABLE gates indev hit-testing).
-    if (lv_obj_t* action_btn =
-            helix::ui::find_required(widget, "toast_action_btn", "ToastManager")) {
-        lv_obj_set_clickable(action_btn, false);
+    for (const char* name : {"toast_action_btn", "toast_action_below_btn", "toast_action2_btn"}) {
+        if (lv_obj_t* btn = helix::ui::find_required(widget, name, "ToastManager")) {
+            lv_obj_set_clickable(btn, false);
+        }
     }
 }
 
@@ -736,6 +766,14 @@ void ToastManager::user_close_toast(ToastList::iterator it) {
 }
 
 void ToastManager::action_btn_clicked(lv_event_t* e) {
+    run_action(e, false);
+}
+
+void ToastManager::action2_btn_clicked(lv_event_t* e) {
+    run_action(e, true);
+}
+
+void ToastManager::run_action(lv_event_t* e, bool second) {
     // event_cb is registered via XML, with no user_data: resolve the owning
     // toast from the widget tree, so a click on a toast whose list entry is
     // already gone (deinit_subjects cleared it, e.g. mid printer switch) is a
@@ -747,10 +785,12 @@ void ToastManager::action_btn_clicked(lv_event_t* e) {
 
     // Snapshot callback before dismissing (begin_exit can erase the entry
     // synchronously when animations are disabled).
-    toast_action_callback_t cb = it->action_cb;
-    void* data = it->action_user_data;
+    toast_action_callback_t cb = second ? it->action2_cb : it->action_cb;
+    void* data = second ? it->action2_user_data : it->action_user_data;
     it->action_cb = nullptr;
     it->action_user_data = nullptr;
+    it->action2_cb = nullptr;
+    it->action2_user_data = nullptr;
 
     mgr.begin_exit(it);
 
