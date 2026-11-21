@@ -154,6 +154,7 @@
   <translation tag="60 seconds" en="60 seconds"/>
   <translation tag="90°" en="90°"/>
   <translation tag="90° Clockwise" en="90° Clockwise"/>
+  <translation tag=": the rest prints at the original&apos;s temperature." en=": the rest prints at the original&apos;s temperature."/>
   <translation tag="= Clockwise" en="= Clockwise"/>
   <translation tag="= Counterclockwise" en="= Counterclockwise"/>
   <translation tag="= Loosen" en="= Loosen"/>
@@ -380,6 +381,7 @@
   <translation tag="Anonymous usage statistics" en="Anonymous usage statistics"/>
   <translation tag="Another filament operation is heating the nozzle." en="Another filament operation is heating the nozzle."/>
   <translation tag="Another print is in progress." en="Another print is in progress."/>
+  <translation tag="Another toolhead is active" en="Another toolhead is active"/>
   <translation tag="Any notes..." en="Any notes..."/>
   <translation tag="Any other material" en="Any other material"/>
   <translation tag="App Background" en="App Background"/>
@@ -1227,8 +1229,10 @@
   <translation tag="Different color" en="Different color"/>
   <translation tag="Different filament?" en="Different filament?"/>
   <translation tag="Different material" en="Different material"/>
+  <translation tag="Different material ({} vs {})" en="Different material ({} vs {})"/>
   <translation tag="Different nozzle flow type" en="Different nozzle flow type"/>
   <translation tag="Different nozzle size" en="Different nozzle size"/>
+  <translation tag="Different variant ({} vs {})" en="Different variant ({} vs {})"/>
   <translation tag="Digital Clock" en="Digital Clock"/>
   <translation tag="Direct drive" en="Direct drive"/>
   <translation tag="Direct drive: release the extruder tension and pull the filament out in one firm motion." en="Direct drive: release the extruder tension and pull the filament out in one firm motion."/>
@@ -2167,6 +2171,7 @@
   <translation tag="It starts with your {} macro." en="It starts with your {} macro."/>
   <translation tag="It&apos;s a new spool" en="It&apos;s a new spool"/>
   <translation tag="Its filament is a different color." en="Its filament is a different color."/>
+  <translation tag="Its filament record cannot be copied" en="Its filament record cannot be copied"/>
   <translation tag="Its home tile" en="Its home tile"/>
   <translation tag="Jammed" en="Jammed"/>
   <translation tag="Jammed at the Toolhead" en="Jammed at the Toolhead"/>
@@ -2494,6 +2499,7 @@
   <translation tag="Material Comfort:" en="Material Comfort:"/>
   <translation tag="Material Mismatch" en="Material Mismatch"/>
   <translation tag="Material Temperatures" en="Material Temperatures"/>
+  <translation tag="Material not recognized" en="Material not recognized"/>
   <translation tag="Material presets heat the bed and chamber" en="Material presets heat the bed and chamber"/>
   <translation tag="Max" en="Max"/>
   <translation tag="Max Accel" en="Max Accel"/>
@@ -3156,6 +3162,7 @@
   <translation tag="Print Controls" en="Print Controls"/>
   <translation tag="Print Cost" en="Print Cost"/>
   <translation tag="Print Details" en="Print Details"/>
+  <translation tag="Print Did Not Resume" en="Print Did Not Resume"/>
   <translation tag="Print Failed" en="Print Failed"/>
   <translation tag="Print File" en="Print File"/>
   <translation tag="Print Files" en="Print Files"/>
@@ -4405,14 +4412,17 @@
   <translation tag="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}" en="The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}"/>
   <translation tag="The previous IPv4 settings could not be restored: {}" en="The previous IPv4 settings could not be restored: {}"/>
   <translation tag="The previous settings come back in %d seconds unless you keep these." en="The previous settings come back in %d seconds unless you keep these."/>
+  <translation tag="The print already moved to another toolhead" en="The print already moved to another toolhead"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." en="The print ended before any layer was printed. Nothing was changed."/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." en="The print is canceled and you pick the best band from what has printed so far."/>
+  <translation tag="The print is no longer paused" en="The print is no longer paused"/>
   <translation tag="The print is on its last layer." en="The print is on its last layer."/>
   <translation tag="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes." en="The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes."/>
   <translation tag="The print is still stuck to the bed" en="The print is still stuck to the bed"/>
   <translation tag="The print is waiting for the chamber to reach {}, but the heater is not heating." en="The print is waiting for the chamber to reach {}, but the heater is not heating."/>
   <translation tag="The print is waiting for the chamber, but the heater is not heating." en="The print is waiting for the chamber, but the heater is not heating."/>
   <translation tag="The print may have failed" en="The print may have failed"/>
+  <translation tag="The print moved to {} but did not resume. Check {}, then press Resume." en="The print moved to {} but did not resume. Check {}, then press Resume."/>
   <translation tag="The print settings sent with the file could not be applied." en="The print settings sent with the file could not be applied."/>
   <translation tag="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config." en="The printable size in millimeters (X × Y × Z), from the axis limits in the printer&apos;s Klipper config."/>
   <translation tag="The printer applied this value and keeps it for this tool." en="The printer applied this value and keeps it for this tool."/>
@@ -4443,10 +4453,12 @@
   <translation tag="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear." en="The printer homes if needed, then finds the cutter&apos;s position. Keep the filament path clear."/>
   <translation tag="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked." en="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked."/>
   <translation tag="The printer homes, then probes each screw position." en="The printer homes, then probes each screw position."/>
+  <translation tag="The printer is already resuming the print" en="The printer is already resuming the print"/>
   <translation tag="The printer is busy. Run the check when no print or other motion is in progress." en="The printer is busy. Run the check when no print or other motion is in progress."/>
   <translation tag="The printer is not connected." en="The printer is not connected."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." en="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear."/>
   <translation tag="The printer is not ready." en="The printer is not ready."/>
+  <translation tag="The printer is not reporting its toolheads" en="The printer is not reporting its toolheads"/>
   <translation tag="The printer is shut down." en="The printer is shut down."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." en="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." en="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed."/>
@@ -4457,6 +4469,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." en="The printer lost power while printing {}. The resumed layer may not line up exactly."/>
   <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." en="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear."/>
+  <translation tag="The printer moved the print to {}, not {}." en="The printer moved the print to {}, not {}."/>
   <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
   <translation tag="The printer no longer has a print to resume." en="The printer no longer has a print to resume."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." en="The printer reads the file up to the last saved position. A large file can take a minute."/>
@@ -5295,6 +5308,7 @@
   <translation tag="{} days" en="{} days"/>
   <translation tag="{} detected" en="{} detected"/>
   <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
+  <translation tag="{} did not switch to {}. The print continued without switching." en="{} did not switch to {}. The print continued without switching."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." en="{} did not switch to {}. The print is still paused."/>
   <translation tag="{} didn&apos;t feed" en="{} didn&apos;t feed"/>
