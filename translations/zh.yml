@@ -4259,6 +4259,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: 正在将加热控制切换为 MPC。Klipper 将重启。
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: 切换到 MPC 会改变此加热器的控制方式，随后会进行校准。这需要在工作温度下耗时数分钟。
   Switching to MPC requires a config change and Klipper restart.: 切换到 MPC 需要修改配置并重启 Klipper。
+  Switching to {}. The printer heats and purges it, then resumes the print.: ''
   Sync: '同步'
   Switching to {}: 正在切换到 {}
   Sync Feedback: "同步反馈"
@@ -4590,6 +4591,7 @@ translations:
   : '打印机会使用此值直到 Klipper 重启。如需保留，请将其作为 pressure_advance 添加到 printer.cfg 中此工具的挤出机段。'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : '打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。'
+  The printer is working on the paused print. Wait for it to finish.: ''
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: 打印机未检测到已加载的耗材。请选择下一步操作。
   The printer kept printing after the cancel.: '取消后打印机仍在继续打印。'
   The printer lost power during a print. It can resume where it left off.: 打印机在打印过程中断电。可以从中断处继续。

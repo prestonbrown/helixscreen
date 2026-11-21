@@ -449,6 +449,11 @@ bool worth_offering(const RunoutFacts& facts) {
            !routing_left_runout_head(facts);
 }
 
+bool runout_head_in_charge(const RunoutFacts& facts) {
+    return !facts.printer_busy && facts.active_head == facts.runout_head &&
+           !routing_left_runout_head(facts);
+}
+
 PendingRestoreStep pending_restore_step(bool pending, bool switch_in_flight,
                                         std::optional<bool> auto_switch_enabled) {
     if (!pending || switch_in_flight || !auto_switch_enabled) {

@@ -4271,6 +4271,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: Basculement du chauffage vers MPC. Klipper va redémarrer.
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: Le passage à MPC change la façon dont ce chauffage est contrôlé, puis le calibre. Cela prend plusieurs minutes à température.
   Switching to MPC requires a config change and Klipper restart.: Le passage à MPC nécessite une modification de la config et un redémarrage de Klipper.
+  Switching to {}. The printer heats and purges it, then resumes the print.: ''
   Sync: 'Sync'
   Switching to {}: Passage à {}
   Sync Feedback: "Retour de synchronisation"
@@ -4602,6 +4603,7 @@ translations:
   : 'L''imprimante utilise cette valeur jusqu''au redémarrage de Klipper. Pour la conserver, ajoutez-la comme pressure_advance dans la section de l''extrudeur de cet outil dans printer.cfg.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'L''imprimante attend que la chambre atteigne une température, et seuls un arrêt d''urgence et un redémarrage du firmware mettent fin à cette attente. L''impression s''arrête immédiatement et ne peut pas être reprise.'
+  The printer is working on the paused print. Wait for it to finish.: ''
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: 'L''imprimante ne détecte aucun filament chargé. Que voulez-vous faire ?'
   The printer kept printing after the cancel.: 'L''imprimante a continué d''imprimer après l''annulation.'
   The printer lost power during a print. It can resume where it left off.: 'L''imprimante a été mise hors tension pendant une impression. Elle peut reprendre là où elle s''est arrêtée.'

@@ -28,6 +28,7 @@
 #include "core/timer_guard.h"
 
 #include <functional>
+#include <string>
 
 // Forward declarations
 namespace helix {
@@ -207,8 +208,15 @@ class FilamentRunoutHandler {
     /// guidance is up.
     int other_head_runout_head_{-1};
 
-    /// Re-checks that offer every second while the guidance is up.
+    /// Re-checks the printer every second while the guidance is up.
     LvglTimerGuard other_head_offer_timer_;
+
+    /// A switch to another head was sent from this guidance and has not
+    /// ended: the dialog shows it in progress, every action disabled.
+    bool switch_sent_{false};
+
+    /// The head that switch goes to, as the user reads it.
+    std::string switch_target_name_;
 
     /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
@@ -232,8 +240,19 @@ class FilamentRunoutHandler {
     /// Drop the re-check observers; the pause ended or its guidance showed.
     void stop_watching_for_runout();
 
-    /// Offer "Use Another Toolhead" exactly while the printer's facts allow it.
-    void refresh_other_head_offer();
+    /// Follow the printer while the guidance is up: offer "Use Another
+    /// Toolhead" exactly while its facts allow it, show a switch or the
+    /// firmware's own work in progress, and keep the Resume gate on the
+    /// runout head.
+    void refresh_from_printer();
+
+    /// Whether the dialog's guidance still describes the runout head: no
+    /// switch in flight, and the printer (where its filament system reports
+    /// the facts) idle in the pause on that head with the routing still on it.
+    [[nodiscard]] bool guidance_current() const;
+
+    /// Gate Resume on the runout head's port reading, while guidance_current().
+    void sync_resume_gate();
 
     /**
      * @brief Show the runout guidance modal

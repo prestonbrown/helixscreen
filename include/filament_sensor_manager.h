@@ -252,6 +252,21 @@ class FilamentSensorManager : public sensors::SensorManager {
     [[nodiscard]] std::optional<int> real_runout_lane() const;
 
     /**
+     * @brief Say that a dialog on screen explains the runout of @p lane, or
+     *        that none does (nullopt).
+     *
+     * @p lane is real_runout_lane()'s value, -1 included. While it is set, a
+     * removal toast for a sensor on that lane (any sensor, for -1) and a
+     * firmware runout fault naming it are not shown: they would cover the
+     * dialog that already says what happened. Main thread.
+     */
+    void set_runout_explained(std::optional<int> lane);
+
+    /// Whether a dialog on screen explains a runout on @p lane (a sensor's
+    /// lane index, -1 for a sensor that maps to none).
+    [[nodiscard]] bool runout_explained(int lane) const;
+
+    /**
      * @brief Find required tools whose mapped AMS lane is genuinely empty.
      *
      * Scoped, lane-truth pre-print/in-print emptiness check. For each tool in
@@ -493,6 +508,9 @@ class FilamentSensorManager : public sensors::SensorManager {
         int lane;
         bool stood_down;
     };
+    /// Whether set_runout_explained() covers @p sensor's lane. Caller holds
+    /// the mutex.
+    [[nodiscard]] bool runout_explained_locked(const sensors::SensorEntry& sensor) const;
     /// The runout-monitoring sensors reading empty. Caller holds the mutex.
     [[nodiscard]] std::vector<RunoutCandidate> runout_candidates_locked() const;
     /// Fingerprint of runout_candidates_locked() and the master switch. Caller
@@ -537,6 +555,9 @@ class FilamentSensorManager : public sensors::SensorManager {
     /// report; a sensor the user keeps disabled never gets here. Cleared on
     /// refill and when the job lets go of the machine. Keyed by klipper_name.
     std::set<std::string> observed_runouts_;
+
+    /// set_runout_explained()'s lane; nullopt while no dialog explains one.
+    std::optional<int> runout_explained_lane_;
 
     StateChangeCallback state_change_callback_;
 

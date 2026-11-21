@@ -96,6 +96,8 @@ struct ToastSuppressionTerms {
     /// and the manual-pull prompt on this same edge (ui_manual_pull_prompt.cpp) is a
     /// separate, deliberately-armed INFO.
     bool post_unload_removal = false;
+    /// A runout dialog on screen already explains this sensor's removal.
+    bool runout_explained = false;
 };
 
 /// Why this edge gets no toast, or nullptr when nothing suppresses it.
@@ -117,6 +119,9 @@ struct ToastSuppressionTerms {
     }
     if (terms.post_unload_removal) {
         return "removal after a requested unload";
+    }
+    if (terms.runout_explained) {
+        return "the runout dialog explains it";
     }
     return nullptr;
 }
@@ -1162,6 +1167,8 @@ void FilamentSensorManager::update_from_status(const json& status) {
                 terms.runout_surface_owned = runout_surface_owned_during_job;
                 terms.wizard_active = is_wizard_active();
                 terms.post_unload_removal = !state.filament_detected && post_unload_grace;
+                terms.runout_explained =
+                    !state.filament_detected && runout_explained_locked(sensor);
                 const char* const suppressed_by = suppression_reason(terms);
                 const bool announces = sensor_announces(sensor);
                 if (suppressed_by && announces) {
@@ -1238,7 +1245,11 @@ void FilamentSensorManager::update_from_status(const json& status) {
             auto cfg =
                 std::find_if(entries_locked().begin(), entries_locked().end(),
                              [&](const SensorEntry& s) { return s.klipper_name == it->first; });
-            if (state_it && !state_it->enabled) {
+            if (cfg != entries_locked().end() && runout_explained_locked(*cfg)) {
+                spdlog::info("[FilamentSensorManager] RUNOUT CONFIRMED: {} still clear after "
+                             "{}s - the runout dialog explains it, no toast",
+                             cfg->display_name, kRunoutToastDwell.count());
+            } else if (state_it && !state_it->enabled) {
                 // Stood down mid-dwell: the sensor stopped monitoring, so the
                 // removal it was confirming is no longer ours to announce.
                 spdlog::debug("[FilamentSensorManager] Dropping dwell toast for {} - firmware "
@@ -1458,6 +1469,22 @@ bool FilamentSensorManager::is_in_startup_grace_period() const {
 // ============================================================================
 // Private Helpers
 // ============================================================================
+
+void FilamentSensorManager::set_runout_explained(std::optional<int> lane) {
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    runout_explained_lane_ = lane;
+}
+
+bool FilamentSensorManager::runout_explained(int lane) const {
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    return runout_explained_lane_ &&
+           (*runout_explained_lane_ < 0 || *runout_explained_lane_ == lane);
+}
+
+bool FilamentSensorManager::runout_explained_locked(const SensorEntry& sensor) const {
+    return runout_explained_lane_ && (*runout_explained_lane_ < 0 ||
+                                      *runout_explained_lane_ == lane_index_for_sensor(sensor));
+}
 
 int FilamentSensorManager::lane_index_for_sensor(const SensorEntry& sensor) const {
     if (const auto lane = lanes_.find(sensor.klipper_name);

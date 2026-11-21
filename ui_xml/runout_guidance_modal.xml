@@ -20,6 +20,11 @@
   (never blocks) on non-autofeed / unknown backends. The same subject picks the
   message: port empty is a real runout ("Refill the spool"), port still loaded
   means only the motion sensor tripped ("Motion sensor stuck").
+
+  While `runout_switch_in_progress` is 1 the printer is busy inside the pause
+  (switching to another toolhead, heating, purging): `runout_switch_message`
+  says what it is doing in place of the guidance, and every button is disabled
+  until it finishes or fails.
 -->
 <component>
   <api>
@@ -58,21 +63,32 @@
            Hidden when autofeed-capable (runout_autofeed_capable == 1). -->
       <text_body name="dialog_message"
                  width="100%" text="$message" translation_tag="$message" style_text_align="left" long_mode="wrap">
-        <bind_flag_if_eq subject="runout_autofeed_capable" flag="hidden" ref_value="1"/>
+        <bind_flag_if cond="runout_autofeed_capable eq 1 or runout_switch_in_progress eq 1" flag="hidden"/>
       </text_body>
       <!-- Autofeed, port empty: a real runout. Resume alone reloads, so just
            refill the spool. -->
       <text_body name="dialog_message_autofeed"
                  width="100%" text="Refill the spool, then Resume." style_text_align="left" long_mode="wrap">
-        <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 0" flag="hidden"/>
+        <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 0 or runout_switch_in_progress eq 1"
+                      flag="hidden"/>
       </text_body>
       <!-- Autofeed, port still sees filament: the motion sensor reported the
            runout, and the spool is not empty. -->
       <text_body name="dialog_message_motion_stuck"
                  width="100%" text="Motion sensor stuck: filament is still at the feeder. Resume to feed it."
                  style_text_align="left" long_mode="wrap">
-        <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 1" flag="hidden"/>
+        <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 1 or runout_switch_in_progress eq 1"
+                      flag="hidden"/>
       </text_body>
+      <!-- The printer is busy inside the pause: what it is doing. -->
+      <lv_obj name="switch_progress_row"
+              width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+              style_pad_gap="#space_md" scrollable="false">
+        <bind_flag_if_not_eq subject="runout_switch_in_progress" flag="hidden" ref_value="1"/>
+        <spinner size="sm"/>
+        <text_body name="dialog_message_switching"
+                   flex_grow="1" bind_text="runout_switch_message" style_text_align="left" long_mode="wrap"/>
+      </lv_obj>
     </lv_obj>
     <!-- "Manual" section header. The header was only ever a label for a demoted
          manual row; with the manual row now hidden entirely on autofeed backends
@@ -94,15 +110,22 @@
            print. Paused (2) deliberately keeps them: that is the runout case. -->
       <bind_flag_if cond="runout_autofeed_capable eq 1 or print_state_enum eq 1" flag="hidden"/>
       <!-- Load button (wired programmatically by RunoutGuidanceModal::on_show → wire_ok_button) -->
-      <ui_button name="btn_load_filament" flex_grow="1" icon="arrow_down" text="Load"/>
+      <ui_button name="btn_load_filament" flex_grow="1" icon="arrow_down" text="Load">
+        <bind_state_if_eq subject="runout_switch_in_progress" state="disabled" ref_value="1"/>
+      </ui_button>
       <!-- Unload button (wired programmatically by RunoutGuidanceModal::on_show → wire_quaternary_button) -->
-      <ui_button name="btn_unload_filament" flex_grow="1" icon="arrow_up" text="Unload"/>
+      <ui_button name="btn_unload_filament" flex_grow="1" icon="arrow_up" text="Unload">
+        <bind_state_if_eq subject="runout_switch_in_progress" state="disabled" ref_value="1"/>
+      </ui_button>
       <!-- Purge button (wired programmatically by RunoutGuidanceModal::on_show → wire_quinary_button) -->
-      <ui_button name="btn_purge" flex_grow="1" icon="nozzle" text="Purge"/>
+      <ui_button name="btn_purge" flex_grow="1" icon="nozzle" text="Purge">
+        <bind_state_if_eq subject="runout_switch_in_progress" state="disabled" ref_value="1"/>
+      </ui_button>
     </lv_obj>
     <!-- CLOSE BUTTON ROW (only when NOT paused - hidden when print_state_enum == 2).
          Close is wired programmatically by RunoutGuidanceModal::on_show → wire_senary_button. -->
-    <modal_button_row hide_secondary="true" primary_name="btn_ok" primary_text="Close">
+    <modal_button_row hide_secondary="true"
+                      primary_name="btn_ok" primary_text="Close" primary_disable_subject="runout_switch_in_progress">
       <bind_flag_if_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
     </modal_button_row>
     <!-- Continue on another loaded toolhead (#2137): offered only while paused and
@@ -112,7 +135,8 @@
     <lv_obj name="other_head_row"
             width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
             style_pad_bottom="#space_md" flex_flow="row">
-      <bind_flag_if cond="runout_other_head_offered ne 1 or print_state_enum ne 2" flag="hidden"/>
+      <bind_flag_if cond="runout_other_head_offered ne 1 or print_state_enum ne 2 or runout_switch_in_progress eq 1"
+                    flag="hidden"/>
       <ui_button name="btn_other_head" flex_grow="1" icon="swap_horizontal" text="Use Another Toolhead"/>
     </lv_obj>
     <!-- PAUSED BUTTONS ROW (only when paused - hidden when print_state_enum != 2).
@@ -120,11 +144,14 @@
          wire_tertiary_button, Resume Print → wire_cancel_button.
          Resume is ringed when the backend autofeeds on resume (it is then the
          recovery action), and disabled while runout_resume_blocked is 1 (#991):
-         an auto-feed runout with no filament at the active tool's port. -->
+         an auto-feed runout with no filament at the active tool's port, or the
+         printer busy inside the pause (runout_switch_in_progress), which also
+         disables Cancel Print. -->
     <modal_button_row secondary_name="btn_cancel_print"
                       secondary_variant="danger" secondary_text="Cancel Print" primary_name="btn_resume"
                       primary_text="Resume Print" primary_accent_subject="runout_autofeed_capable"
-                      primary_disable_subject="runout_resume_blocked">
+                      primary_disable_subject="runout_resume_blocked"
+                      secondary_disable_subject="runout_switch_in_progress">
       <bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
     </modal_button_row>
   </view>

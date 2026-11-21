@@ -6,6 +6,7 @@
 #include "runout_other_head.h"
 
 #include <functional>
+#include <string>
 #include <vector>
 
 namespace helix::ui {
@@ -20,9 +21,20 @@ namespace helix::ui {
  */
 class RunoutOtherHeadModal : public Modal {
   public:
-    /// @param on_moved runs once a sent switch moved the print off the runout
-    ///        head, resumed or not (main thread; the caller guards its lifetime)
-    explicit RunoutOtherHeadModal(int runout_head, std::function<void()> on_moved = {});
+    /// What a sent switch reports to whoever offered it. Each runs on the main
+    /// thread at most once per switch; the caller guards its own lifetime.
+    struct SwitchHooks {
+        /// The switch to @p target_name was sent. The printer is busy with it
+        /// until one of the other two runs.
+        std::function<void(const std::string& target_name)> on_sent;
+        /// The routing moved the print off the runout head, resumed or not.
+        std::function<void()> on_moved;
+        /// The switch ended without moving the print, or its watch ended
+        /// without an outcome.
+        std::function<void()> on_not_moved;
+    };
+
+    explicit RunoutOtherHeadModal(int runout_head, SwitchHooks hooks = {});
     ~RunoutOtherHeadModal() override;
 
     const char* get_name() const override {
@@ -38,7 +50,7 @@ class RunoutOtherHeadModal : public Modal {
 
     /// Show the chooser for a runout on @p runout_head, owned by ModalStack.
     /// False when available() is not. Main thread only.
-    static bool show_owned(int runout_head, std::function<void()> on_moved = {});
+    static bool show_owned(int runout_head, SwitchHooks hooks = {});
 
     /// Apply or forget a restore a switch left pending (a setting it turned on
     /// for itself and could not put back: a failed script, a restart, a lost
@@ -60,8 +72,11 @@ class RunoutOtherHeadModal : public Modal {
     void pick(int row);
     void start(int head);
 
+    /// Rows take no tap while a pick's confirmation is up.
+    static void set_confirming(bool confirming);
+
     int runout_head_;
-    std::function<void()> on_moved_;
+    SwitchHooks hooks_;
     std::vector<helix::runout_other_head::HeadVerdict> verdicts_;
     static RunoutOtherHeadModal* shown_;
 };

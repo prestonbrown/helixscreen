@@ -3,6 +3,17 @@
 
 #include "ui_runout_guidance_modal.h"
 
+#include "translation_loader.h"
+
+#include <spdlog/fmt/fmt.h>
+
+std::string RunoutGuidanceModal::switching_text(const std::string& target_name) {
+    return fmt::format(
+        fmt::runtime(lv_tr("Switching to {}. The printer heats and purges it, then resumes the "
+                           "print.")),
+        target_name);
+}
+
 void RunoutGuidanceModal::on_show() {
     // RunoutGuidanceModal has 6 buttons for runout handling:
     // - btn_load_filament → on_ok() (primary action)

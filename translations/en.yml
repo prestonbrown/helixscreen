@@ -4234,6 +4234,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: Switching heater control to MPC. Klipper will restart.
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.
   Switching to MPC requires a config change and Klipper restart.: Switching to MPC requires a config change and Klipper restart.
+  Switching to {}. The printer heats and purges it, then resumes the print.: Switching to {}. The printer heats and purges it, then resumes the print.
   Sync: Sync
   Switching to {}: Switching to {}
   Sync Feedback: Sync Feedback
@@ -4560,6 +4561,7 @@ translations:
   : The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
+  The printer is working on the paused print. Wait for it to finish.: The printer is working on the paused print. Wait for it to finish.
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: The printer isn't detecting that any filament is currently loaded. What would you like to do?
   The printer kept printing after the cancel.: The printer kept printing after the cancel.
   The printer lost power during a print. It can resume where it left off.: The printer lost power during a print. It can resume where it left off.

@@ -4224,6 +4224,7 @@
   <translation tag="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature." ru="Переход на MPC меняет способ управления этим нагревателем, а затем калибрует его. Это занимает несколько минут при рабочей температуре."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." ru="Переход на MPC требует изменения конфига и перезапуска Klipper."/>
   <translation tag="Switching to {}" ru="Переключение на {}"/>
+  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print."/>
   <translation tag="Sync" ru="Синхр."/>
   <translation tag="Sync Feedback" ru="Обратная связь синхронизации"/>
   <translation tag="Sync during printing" ru="Синхронизация во время печати"/>
@@ -4537,6 +4538,7 @@
   <translation tag="The printer is shut down." ru="Принтер выключен."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." ru="Принтер использует это значение до перезапуска Klipper. Чтобы сохранить его, добавьте его как pressure_advance в секцию экструдера этого инструмента в printer.cfg."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ru="Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя."/>
+  <translation tag="The printer is working on the paused print. Wait for it to finish."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ru="Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?"/>
   <translation tag="The printer kept printing after the cancel." ru="Принтер продолжил печать после отмены."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ru="Принтер потерял питание во время печати. Он может продолжить с места остановки."/>

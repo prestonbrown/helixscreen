@@ -4158,6 +4158,7 @@
   <translation tag="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature." de="Der Wechsel zu MPC ändert, wie diese Heizung geregelt wird, und kalibriert sie anschließend. Das dauert mehrere Minuten bei Betriebstemperatur."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." de="Wechsel zu MPC erfordert eine Konfigurationsänderung und Klipper-Neustart."/>
   <translation tag="Switching to {}" de="Wechsel zu {}"/>
+  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print."/>
   <translation tag="Sync" de="Sync"/>
   <translation tag="Sync Feedback" de="Synchronisationsrückmeldung"/>
   <translation tag="Sync during printing" de="Beim Drucken synchronisieren"/>
@@ -4471,6 +4472,7 @@
   <translation tag="The printer is shut down." de="Der Drucker ist heruntergefahren."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." de="Der Drucker nutzt diesen Wert bis zum nächsten Klipper-Neustart. Um ihn zu behalten, tragen Sie ihn als pressure_advance im Extruder-Abschnitt dieses Werkzeugs in printer.cfg ein."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." de="Der Drucker wartet, bis die Kammer eine Temperatur erreicht, und nur ein Notaus mit Firmware-Neustart beendet dieses Warten. Der Druck stoppt sofort und kann nicht fortgesetzt werden."/>
+  <translation tag="The printer is working on the paused print. Wait for it to finish."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" de="Der Drucker erkennt derzeit kein geladenes Filament. Was möchten Sie tun?"/>
   <translation tag="The printer kept printing after the cancel." de="Der Drucker hat nach dem Abbruch weitergedruckt."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." de="Der Drucker hatte während eines Drucks einen Stromausfall. Er kann dort fortsetzen, wo er aufgehört hat."/>

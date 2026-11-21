@@ -92,6 +92,10 @@ struct ErrorEvent {
     /// (rpc_error_correlation::report_unless_explained). Each refusal answers a fresh
     /// command, so it shows again even if the user dismissed an identical one.
     bool command_refusal = false;
+    /// The filament lane (a filament sensor's lane index) whose runout this
+    /// fault reports, or -1 when it reports none. A runout dialog already on
+    /// screen for that lane explains it, so its toast stands down.
+    int runout_lane = -1;
 };
 
 /// Inputs the classifier needs beyond the raw line. Kept as a plain struct

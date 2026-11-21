@@ -12,6 +12,8 @@
     runout_other_head_row_title_<i>  "Toolhead 2 · PLA Matte"
     runout_other_head_row_note_<i>   the refusal reason or the warning
     runout_other_head_row_color_<i>  the head's filament colour
+    runout_other_head_confirming     1 while a tap's confirmation is up: every row
+                                     is disabled until it is answered
   A tap on an eligible row asks for confirmation before anything is sent.
 -->
 <component>
@@ -41,7 +43,8 @@
           <style name="styles.press_wash" selector="pressed"/>
           <style name="runout_other_head_row_off" selector="disabled"/>
           <bind_flag_if_eq subject="runout_other_head_row_state_${i}" flag="hidden" ref_value="0"/>
-          <bind_state_if_eq subject="runout_other_head_row_state_${i}" state="disabled" ref_value="3"/>
+          <bind_state_if cond="runout_other_head_row_state_${i} eq 3 or runout_other_head_confirming eq 1"
+                         state="disabled"/>
           <event_cb trigger="clicked" callback="runout_other_head_pick_cb" user_data="${i}"/>
           <color_swatch index="${i}"
                         color_subject="runout_other_head_row_color_${i}" clickable="false" bubble="true" reach="0"
