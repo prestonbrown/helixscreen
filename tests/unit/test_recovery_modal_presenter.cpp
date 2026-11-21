@@ -588,6 +588,33 @@ TEST_CASE_METHOD(RecoveryPreheatFixture,
     get_printer_state().update_from_status({{"toolhead", {{"homed_axes", ""}}}});
 }
 
+TEST_CASE_METHOD(RecoveryPreheatFixture,
+                 "A requires_paused recovery sends only while the print is still paused",
+                 "[error-center][recovery-presenter][qidi]") {
+    helix::ErrorEvent fault = make_afc_jam();
+    helix::RecoveryAction retry{"Retry", "TRY_MOVE_AGAIN", "qidi::try_move_again", "primary"};
+    retry.requires_paused = true;
+    fault.recovery_actions = {retry, {"OK", "", "t::dismiss", ""}};
+    get_printer_state().update_from_status({{"pause_resume", {{"is_paused", true}}}});
+    presenter().present(fault);
+    process_lvgl(20);
+
+    SECTION("still paused: sent") {
+        TA::tap(presenter(), "TRY_MOVE_AGAIN");
+        process_lvgl(20);
+        CHECK(gcode_count(mock_client_, "TRY_MOVE_AGAIN") == 1);
+    }
+    SECTION("the print was cancelled while the dialog was up: refused") {
+        get_printer_state().update_from_status(
+            {{"pause_resume", {{"is_paused", false}}}, {"print_stats", {{"state", "cancelled"}}}});
+        TA::tap(presenter(), "TRY_MOVE_AGAIN");
+        process_lvgl(20);
+        CHECK(gcode_count(mock_client_, "TRY_MOVE_AGAIN") == 0);
+    }
+    get_printer_state().update_from_status(
+        {{"pause_resume", {{"is_paused", false}}}, {"print_stats", {{"state", "standby"}}}});
+}
+
 TEST_CASE_METHOD(RecoveryPreheatFixture, "ESC closes the fault without running an action",
                  "[error-center][recovery-presenter][1838]") {
     // The secondary slot holds an action that would send at once if ESC ran it.

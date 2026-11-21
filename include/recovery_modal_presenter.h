@@ -77,8 +77,8 @@ class RecoveryModalPresenter {
 
     [[nodiscard]] bool is_visible() const;
 
-    /// True while the dialog shows the fault whose detail is @p detail.
-    [[nodiscard]] bool is_showing(const std::string& detail) const;
+    /// The fault the dialog shows, nullptr when none is on screen.
+    [[nodiscard]] const helix::ErrorEvent* shown_fault() const;
 
   private:
     friend struct ::RecoveryModalPresenterTestAccess;
@@ -128,6 +128,8 @@ class RecoveryModalPresenter {
     std::unique_ptr<helix::ui::RecoveryFaultModal> modal_;
     std::string shown_detail_;
     std::vector<helix::RecoveryAction> active_actions_;
+    /// The whole fault last presented, for shown_fault().
+    helix::ErrorEvent shown_fault_;
 
     // === The user's answer to the fault currently being shown ===
     //

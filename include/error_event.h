@@ -56,6 +56,12 @@ struct RecoveryAction {
     /// on a homed toolhead, and refused on the tap unless homed_axes still reads
     /// "xyz": an M84 or a Klipper error can clear it while the dialog is up.
     bool requires_homed = false;
+    /// The gcode resumes or re-runs a step of a paused print, and anywhere else
+    /// it moves filament and heats on state the print no longer holds.
+    /// Offered only into a paused print, and refused on the tap unless the
+    /// print still reads paused: it can be resumed or cancelled from another
+    /// client while the dialog is up.
+    bool requires_paused = false;
     /// Id of a guided device flow (ui_guided_device_flow.h) the tap opens in place
     /// of sending @ref gcode, which stays empty. The flow owns its own safety
     /// checks, so a flow that heats refuses its start while a print holds the
@@ -70,6 +76,20 @@ struct RecoveryAction {
     /// not name this lane.
     int acts_on_lane = -1;
 };
+
+/// The one rule for an action bound to a lane (RecoveryAction::acts_on_lane):
+/// it stands only under text that names that lane. Drops every such action
+/// whose lane is not @p named_lane, the lane the shown text names (-1 when it
+/// names none).
+inline void keep_lane_actions_named(std::vector<RecoveryAction>& actions, int named_lane) {
+    std::vector<RecoveryAction> kept;
+    for (auto& a : actions) {
+        if (a.acts_on_lane < 0 || a.acts_on_lane == named_lane) {
+            kept.push_back(std::move(a));
+        }
+    }
+    actions = std::move(kept);
+}
 
 /// Guided flows any producer may name in RecoveryAction::guided_flow: the way on
 /// from a fault that is not one gcode. ui_guided_device_flow.cpp registers them.

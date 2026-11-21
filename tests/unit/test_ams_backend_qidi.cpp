@@ -2041,11 +2041,13 @@ TEST_CASE("QIDI Box console fault gets Retry only once retry_step names it",
     CHECK(early->code == "QDE_004_006");
     CHECK_FALSE(offers_try_again(early));
 
+    // retry_step now names this fault on slot 1, but the line names no slot:
+    // the text would not say which slot Retry moves filament on.
     fire_vars(backend, json{{"retry_step", "QDE_004_006_1"}});
     const auto ev = backend.classify_error(line, paused);
     REQUIRE(ev.has_value());
     CHECK(ev->code == "QDE_004_006");
-    CHECK(offers_try_again(ev));
+    CHECK_FALSE(offers_try_again(ev));
 
     // A different code is not the step TRY_MOVE_AGAIN would re-run.
     CHECK_FALSE(offers_try_again(backend.classify_error(
@@ -2059,10 +2061,13 @@ TEST_CASE("QIDI Box console fault gets Retry only once retry_step names it",
         paused);
     REQUIRE(other_slot.has_value());
     CHECK_FALSE(offers_try_again(other_slot));
-    CHECK(offers_try_again(backend.classify_error(
+    const auto named = backend.classify_error(
         "!!Code:QDE_004_001; Message:Slot loading failure, please check the trigger, please "
         "reload 1B.",
-        paused)));
+        paused);
+    REQUIRE(offers_try_again(named));
+    // The tap re-checks the pause: the print can end while the dialog is up.
+    CHECK(named->recovery_actions[0].requires_paused);
 }
 
 // =====================================================================

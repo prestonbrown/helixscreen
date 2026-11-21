@@ -1283,6 +1283,7 @@ void offer_try_again(helix::ErrorEvent& e, int slot) {
     helix::RecoveryAction retry{lv_tr("Retry"), "TRY_MOVE_AGAIN", "qidi::try_move_again",
                                 "primary"};
     retry.acts_on_lane = slot;
+    retry.requires_paused = true;
     e.recovery_actions = {retry, {lv_tr("OK"), "", "qidi::dismiss", ""}};
 }
 
@@ -1339,10 +1340,11 @@ AmsBackendQidi::classify_error(const std::string& raw_line,
     // recovery dialog takes in place.
     // Only into a paused print: retry_step and the slot state persist, so
     // anywhere else Retry would heat and move filament on stale state.
-    const int named = qidi::named_slot(raw_line);
-    if (ctx.is_paused && pending && pending->code == *code &&
-        (named < 0 || named == pending->slot)) {
+    if (ctx.is_paused && pending && pending->code == *code) {
         offer_try_again(*e, pending->slot);
+        // The rule the standing copy follows too: Retry only under text that
+        // names the slot it moves filament on.
+        helix::keep_lane_actions_named(e->recovery_actions, qidi::named_slot(raw_line));
     } else {
         offer_dismiss(*e);
     }
