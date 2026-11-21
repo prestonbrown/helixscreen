@@ -225,3 +225,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE((home_badge && fill_badge));
     CHECK(lv_obj_get_width(fill_badge) == lv_obj_get_width(home_badge));
 }
+
+TEST_CASE("the lane tray leaves the job tile what its content needs", "[print_status_tray]") {
+    const auto plain = decide_print_status_tile_layout(560, 804, 12, 48, 231, false);
+    const auto printing = decide_print_status_tile_layout(560, 804, 12, 48, 231, true);
+    const auto preparing = decide_print_status_tile_layout(560, 804, 12, 48, 231, true, 220);
+    REQUIRE(printing.lane_tray == PrintStatusLaneTray::Strip);
+    REQUIRE(preparing.lane_tray == PrintStatusLaneTray::Strip);
+    CHECK(preparing.job_h >= 220);
+    CHECK(preparing.lane_tray_h < printing.lane_tray_h);
+    CHECK(preparing.printer_h == plain.printer_h);
+    // Content that needs the whole job tile leaves no room for the tray.
+    const auto full = decide_print_status_tile_layout(560, 804, 12, 48, 231, true, plain.job_h);
+    CHECK(full.lane_tray == PrintStatusLaneTray::None);
+    CHECK(full.job_h == plain.job_h);
+}

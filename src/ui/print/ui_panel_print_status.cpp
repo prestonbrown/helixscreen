@@ -756,6 +756,18 @@ void PrintStatusPanel::init_subjects() {
                 },
                 ams.get_subjects_lifetime());
         }
+        // A checklist that gains a step needs a row more of the job tile.
+        if (lv_subject_t* steps = lv_xml_get_subject(nullptr, "ps_step_count")) {
+            auto token = lifetime_.token();
+            lane_tray_steps_observer_ = observe<int>(
+                steps, this,
+                [token](PrintStatusPanel* self, int) {
+                    if (token.expired())
+                        return;
+                    self->layout_fitter_.recompute();
+                },
+                get_subjects_lifetime());
+        }
     }
 
     // Print-scoped runout badge (FIX B): the badge VALUE is AMS lane truth
@@ -961,6 +973,7 @@ void PrintStatusPanel::deinit_subjects() {
     breakpoint_observer_.reset();
     lane_tray_gate_observer_.reset();
     lane_tray_slots_observer_.reset();
+    lane_tray_steps_observer_.reset();
     scoped_runout_observer_.reset();
     scoped_runout_slots_observer_.reset();
     part_speed_lifetime_.reset();
@@ -1694,7 +1707,12 @@ void PrintStatusPanel::apply_gcode_viewer_pause() {
 }
 
 void PrintStatusPanel::set_preparing_visible(bool visible) {
+    const bool changed = (lv_subject_get_int(&preparing_visible_subject_) != 0) != visible;
     lv_subject_set_int(&preparing_visible_subject_, visible ? 1 : 0);
+    // The lane tray leaves the job tile the checklist's height while it shows.
+    if (changed) {
+        layout_fitter_.recompute();
+    }
     // An inactive panel's viewer was paused by on_deactivating() and stays so.
     if (is_active_) {
         apply_gcode_viewer_pause();
