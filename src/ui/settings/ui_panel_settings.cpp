@@ -17,8 +17,6 @@
 #include "ui_settings_connection.h"
 #include "ui_settings_display.h"
 #if !defined(HELIX_PLATFORM_ESP32)
-#include "ui_settings_firmware_update.h"
-
 #include "firmware_update_check.h"
 #endif
 #include "ui_settings_hardware.h"
@@ -412,13 +410,6 @@ void register_settings_panel_callbacks() {
         {"on_touch_input_clicked", nav_row<get_touch_settings_overlay>()},
         {"on_connection_clicked", nav_row<get_connection_settings_overlay>()},
         {"on_updates_clicked", nav_row<get_updates_settings_overlay>()},
-#if !defined(HELIX_PLATFORM_ESP32)
-        {"on_firmware_update_clicked", nav_row<get_firmware_update_overlay>()},
-#else
-        // No firmware update page on the firmware: the row stays hidden
-        // (settings_firmware_update = 0) and this only lets the XML resolve it.
-        {"on_firmware_update_clicked", [](lv_event_t*) {}},
-#endif
 #if HELIX_HAS_PLUGINS
         {"on_plugins_clicked", nav_row<helix::plugin::get_plugins_overlay>()},
 #else

@@ -3558,6 +3558,8 @@ translations:
   Refresh: Atualizar
   Refresh Interval: Intervalo de Atualização
   Refresh RFID: 'Atualizar RFID'
+  Reinstall it afterwards by following {}.: 'Reinstale-o depois seguindo {}.'
+  Reinstall it afterwards.: 'Reinstale-o depois.'
   Relative vibration: Vibração relativa
   Refresh Spoolman: 'Atualizar Spoolman'
   Reheating...: Reaquecendo...
@@ -4806,7 +4808,9 @@ translations:
   This system does not support bypass mode: 'Este sistema não oferece suporte ao modo bypass'
   This tool probes each bed screw and tells you how much to adjust.: Esta ferramenta sonda cada parafuso da mesa e informa quanto ajustar.
   'This update asks for new permissions:': 'Esta atualização pede novas permissões:'
-  This update removes HelixScreen from the printer. Reinstall it afterwards.: 'Esta atualização remove o HelixScreen da impressora. Reinstale-o depois.'
+  This update removes HelixScreen from the printer.: 'Esta atualização remove o HelixScreen da impressora.'
+  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
+  : 'Isto atualiza os pacotes do sistema operacional da impressora. A impressora pode precisar reiniciar depois. Não desligue a impressora até a atualização terminar.'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Esta espera só termina na sua temperatura: cancelar exige uma parada de emergência e uma reinicialização do firmware.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Isso aplicará o Z-offset ao seu endstop e reiniciará o Klipper para salvar a configuração. A impressora será brevemente desconectada.

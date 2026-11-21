@@ -153,6 +153,8 @@ struct Provider {
 
     /// Where to look for new firmware remotely, or nullptr.
     const CheckSource* check;
+    /// The docs page that reinstalls HelixScreen after an update removed it, or nullptr.
+    const char* reinstall_guide;
 };
 
 namespace {
@@ -179,6 +181,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     // Read from a third-party copy of the stock script, never run by us: the apply
     // stays behind unverified_apply_allowed(). The script deletes /oem/.debug before
@@ -200,7 +203,8 @@ const Provider kProviders[] = {
      "/tmp",
      launch_snapmaker_u1,
      parse_snapmaker_u1,
-     nullptr},
+     nullptr,
+     "guide/install-u1/"},
     // /etc/ota_bin/local_ota_update.sh <img>, progress through OTA_CB_APP. No apply
     // path until it has run on a K1.
     {"creality_k1",
@@ -215,6 +219,7 @@ const Provider kProviders[] = {
      true,
      false,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -239,6 +244,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     // The stock firmware installs a model-prefixed .tgz from the stick at power-on.
     {"flashforge_ad5m",
@@ -253,6 +259,7 @@ const Provider kProviders[] = {
      true,
      true,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -276,6 +283,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     {"flashforge_creator5",
      "FlashForge",
@@ -294,6 +302,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     {"flashforge_creator5_pro",
      "FlashForge",
@@ -307,6 +316,7 @@ const Provider kProviders[] = {
      true,
      true,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -331,6 +341,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     // qidiclient installs QIDI's zip (firmware_manifest.json, a SoC .deb through
     // dpkg, board images) from QIDI's CDN or a USB QD_Update/ folder. The
@@ -349,6 +360,7 @@ const Provider kProviders[] = {
      true,
      false,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -397,6 +409,9 @@ Mechanism provider_mechanism(const Provider& p) {
 }
 Readiness provider_readiness(const Provider& p) {
     return p.readiness;
+}
+const char* provider_reinstall_guide(const Provider& p) {
+    return p.reinstall_guide != nullptr ? p.reinstall_guide : "";
 }
 
 bool unverified_apply_allowed() {

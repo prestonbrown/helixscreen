@@ -3638,6 +3638,8 @@ translations:
   Refresh: Обновить
   Refresh Interval: Интервал обновления
   Refresh RFID: 'Обновить RFID'
+  Reinstall it afterwards by following {}.: 'Затем установите его заново по инструкции {}.'
+  Reinstall it afterwards.: 'Затем установите его заново.'
   Relative vibration: Относительная вибрация
   Refresh Spoolman: 'Обновить Spoolman'
   Reheating...: Разогрев...
@@ -4894,7 +4896,9 @@ translations:
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
-  This update removes HelixScreen from the printer. Reinstall it afterwards.: 'Это обновление удаляет HelixScreen с принтера. Установите его заново после обновления.'
+  This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
+  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
+  : 'Будут обновлены пакеты операционной системы принтера. После этого может потребоваться перезагрузка. Не выключайте принтер до завершения обновления.'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Это ожидание заканчивается только по достижении температуры: для отмены нужны аварийная остановка и перезапуск прошивки.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится.

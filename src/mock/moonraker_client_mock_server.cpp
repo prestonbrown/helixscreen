@@ -1080,6 +1080,14 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
            helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         json version_info = json::object();
         for (const auto& [name, e] : self->update_manager_entries()) {
+            if (e.type == "system") {
+                json packages = json::array();
+                for (int i = 0; i < e.package_count; ++i)
+                    packages.push_back("mock-package-" + std::to_string(i + 1));
+                version_info[name] = {{"package_count", e.package_count},
+                                      {"package_list", packages}};
+                continue;
+            }
             json info = {{"channel", e.channel}};
             if (!e.type.empty()) {
                 info["configured_type"] = e.type;
@@ -1215,6 +1223,13 @@ const std::vector<std::string>& mock_update_lines(const std::string& type) {
         "Download Complete",
         "Extracting Release...",
     };
+    static const std::vector<std::string> kSystem = {
+        "Updating Application Cache...",
+        "Upgrading System Packages...",
+        "System Update Complete",
+    };
+    if (type == "system")
+        return kSystem;
     return type == "git_repo" ? kGit : kWeb;
 }
 constexpr double kMockUpdateStepSeconds = 1.5;
@@ -1227,6 +1242,7 @@ void MoonrakerClientMock::seed_update_manager_demo() {
         {"moonraker", {"dev", "git_repo", "v0.9.3-61-g8a1d2f0", "v0.9.3-61-g8a1d2f0", 0}},
         {"mainsail", {"stable", "web", "v2.13.1", "v2.14.0", 0}},
         {"fluidd", {"stable", "web", "v1.34.3", "v1.34.3", 0}},
+        {"system", {"", "system", "", "", 0, 3}},
     };
 }
 
@@ -1267,6 +1283,7 @@ void MoonrakerClientMock::service_update_job(double dt) {
             complete = true;
             entry.version = entry.remote_version;
             entry.commits_behind = 0;
+            entry.package_count = 0;
             done = std::move(job.done);
             update_job_.reset();
             update_manager_busy_ = false;

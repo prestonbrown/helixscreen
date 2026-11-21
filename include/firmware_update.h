@@ -81,6 +81,9 @@ const char* provider_id(const Provider& p);
 const char* provider_owner(const Provider& p);
 Mechanism provider_mechanism(const Provider& p);
 Readiness provider_readiness(const Provider& p);
+/// The docs page ("guide/install-u1/") that reinstalls HelixScreen after this row's
+/// update removed it; "" when the row has none.
+const char* provider_reinstall_guide(const Provider& p);
 
 /// True when HELIX_FWUPDATE_UNVERIFIED_APPLY=1: rows that need device verification
 /// may apply. Off by default; for the people verifying a row on their own printer.

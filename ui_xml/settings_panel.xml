@@ -45,12 +45,6 @@
       <setting_action_row name="row_connection"
                           label="Connection" icon="lan" callback="on_connection_clicked"
                           bind_description="settings_status_connection" description_min_bp="0"/>
-      <setting_action_row name="row_firmware_update"
-                          label="Firmware Update" icon="update" callback="on_firmware_update_clicked"
-                          bind_description="settings_status_firmware_update" description_min_bp="0">
-        <bind_flag_if cond="settings_firmware_update eq 0 or (settings_firmware_update eq 1 and printer_has_update_manager eq 0)"
-                      flag="hidden"/>
-      </setting_action_row>
     </setting_group>
     <setting_group name="group_helixscreen">
       <setting_group_header title="HELIXSCREEN"/>

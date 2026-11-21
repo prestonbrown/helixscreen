@@ -3541,6 +3541,8 @@ translations:
   Refresh RFID: Refresh RFID
   Refresh Spoolman: Refresh Spoolman
   'Reheating...': 'Reheating...'
+  Reinstall it afterwards by following {}.: Reinstall it afterwards by following {}.
+  Reinstall it afterwards.: Reinstall it afterwards.
   Relative vibration: Relative vibration
   Release all stepper motors. Position will be lost.: Release all stepper motors. Position will be lost.
   Release filament: Release filament
@@ -4777,7 +4779,9 @@ translations:
   This system does not support bypass mode: This system does not support bypass mode
   This tool probes each bed screw and tells you how much to adjust.: This tool probes each bed screw and tells you how much to adjust.
   'This update asks for new permissions:': 'This update asks for new permissions:'
-  This update removes HelixScreen from the printer. Reinstall it afterwards.: This update removes HelixScreen from the printer. Reinstall it afterwards.
+  This update removes HelixScreen from the printer.: This update removes HelixScreen from the printer.
+  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
+  : This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.

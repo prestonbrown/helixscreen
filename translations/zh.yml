@@ -3558,6 +3558,8 @@ translations:
   Refresh: 刷新
   Refresh Interval: 刷新间隔
   Refresh RFID: '刷新 RFID'
+  Reinstall it afterwards by following {}.: '更新后请按照 {} 重新安装。'
+  Reinstall it afterwards.: '更新后请重新安装。'
   Relative vibration: 相对振动
   Refresh Spoolman: '刷新 Spoolman'
   Reheating...: 正在重新加热...
@@ -4806,7 +4808,9 @@ translations:
   This system does not support bypass mode: '此系统不支持旁通模式'
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
   'This update asks for new permissions:': '此更新请求新的权限：'
-  This update removes HelixScreen from the printer. Reinstall it afterwards.: '此更新会从打印机上移除 HelixScreen。更新后请重新安装。'
+  This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
+  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
+  : '这将升级打印机的操作系统软件包。之后打印机可能需要重启。更新完成之前请勿关闭打印机。'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': '此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : 这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。

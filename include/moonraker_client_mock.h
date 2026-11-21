@@ -2070,6 +2070,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         std::string version;
         std::string remote_version;
         int commits_behind = 0;
+        int package_count = 0; ///< type "system": OS packages with updates
     };
     /// The update_manager entries machine.update.status reports in `version_info`, each
     /// with only the `channel:` Moonraker loaded for it. Empty by default; replaces
@@ -2080,8 +2081,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         for (const auto& [name, channel] : name_to_channel)
             update_manager_entries_[name] = MockUpdateEntry{channel, "", "", "", 0};
     }
-    /// What a --test run lists: Klipper and Mainsail with updates, Moonraker and
-    /// Fluidd current.
+    /// What a --test run lists: Klipper, Mainsail and the OS packages with updates,
+    /// Moonraker and Fluidd current.
     void seed_update_manager_demo();
     /// A copy of the entries, safe beside the simulation thread finishing an upgrade.
     [[nodiscard]] std::map<std::string, MockUpdateEntry> update_manager_entries() const {

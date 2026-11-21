@@ -143,22 +143,41 @@ the page tails the flasher's log instead.
 
 ## UI flow
 
-- Settings > PRINTER > **Firmware Update** row, visible when `printer_has_update_manager` or
-  `firmware_update_vendor_available` is 1.
+- Settings > System > **Firmware Update** row, visible when `printer_has_update_manager` is 1
+  or this printer's row may apply (`settings_firmware_update`: 0 on the ESP32 build, 1 for
+  update_manager only, 2 with the printer's firmware). Its description shows a version a
+  remote check found.
 - The overlay (`settings_firmware_update_overlay.xml`):
   - **Printer firmware** card (vendor row with an enabled apply): the image files found on USB,
     each with Install; a status line otherwise ("insert a USB stick with the firmware file").
-  - **Software** card (update_manager): one row per entry, name + "installed → available" or
-    "Up to date", an Update button where an update exists, and Refresh in the header.
+  - **Software** card (update_manager): one row per entry, name + "installed · available" or
+    "Up to date", an Update button where an update exists, and Refresh in the header. While
+    any update runs (ours, or update_manager busy) Refresh, Update and Install hide: Moonraker
+    runs one job at a time.
   - **Progress view**: what is updating, a bar when the source reports a percent, the last
     message, "Do not power off the printer", and Done once it completes or fails.
 - Install / Update: `first_blocker()` (toast on refusal) → `modal_confirm` with the confirm
-  points → fresh `print_stats` query → start.
+  points → fresh `print_stats` query → start. The update_manager confirm asks "Update
+  mainsail from v2.13.1 to v2.14.0?".
+
+## Decisions (Preston, 2026-11-20)
+
+1. **A generic Moonraker update_manager page: yes**, as built.
+2. **Vendor rows also get remote checks** (see "Remote checks for new firmware"), sharing
+   UpdateChecker's cadence; never downloading or flashing on their own.
+3. **The row lives in Settings > System**, not under Printer.
+4. **Moonraker's `system` (apt) entry is offered**, behind a stronger confirm: it says the
+   printer's operating system packages are upgraded, a reboot may be needed, and not to
+   turn the printer off.
+5. **Stock U1 flashing will be offered once device-verified**, behind a confirm that says
+   the update removes HelixScreen and points to the U1 install guide
+   (`guide/install-u1/`, the row's `reinstall_guide`) to reinstall it. Until verification
+   `HELIX_FWUPDATE_UNVERIFIED_APPLY=1` stays the gate.
 
 ## Mock
 
 `--test`: the mock Moonraker lists `klipper` (git, behind), `moonraker` (up to date), `mainsail`
-(web, update available), `fluidd` (up to date). `machine.update.upgrade` sets busy, streams
+(web, update available), `fluidd` (up to date) and `system` (3 OS packages). `machine.update.upgrade` sets busy, streams
 `notify_update_response` lines (with a git-style `Receiving objects: NN%`) from the simulation
 loop, then completes and reports the entry as up to date.
 
@@ -183,4 +202,3 @@ loop, then completes and reports the entry as up to date.
 - Does stock U1 HelixScreen run as root (needed by `systemUpgrade.sh`)? Does anything kill it
   when Klipper stops?
 - Is `setsid` on the U1's PATH?
-- Should Moonraker's `system` (apt) entry be offered at all on printers where it is enabled?

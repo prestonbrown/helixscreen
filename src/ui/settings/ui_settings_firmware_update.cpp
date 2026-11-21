@@ -9,6 +9,7 @@
 #include "app_globals.h"
 #include "core/http_executor.h"
 #include "display_format.h"
+#include "helix_version.h"
 #include "i_moonraker_client.h"
 #include "json_utils.h"
 #include "lvgl.h"
@@ -112,8 +113,7 @@ const char* confirm_point_text(ConfirmPoint p) {
     case ConfirmPoint::PrinterReboots:
         return lv_tr("The printer restarts when the update finishes.");
     case ConfirmPoint::RemovesHelixScreen:
-        return lv_tr("This update removes HelixScreen from the printer. Reinstall it "
-                     "afterwards.");
+        return lv_tr("This update removes HelixScreen from the printer.");
     }
     return "";
 }
@@ -370,8 +370,13 @@ void FirmwareUpdateOverlay::request_entry_update(std::size_t index) {
     const ManagedEntry& e = entries_[index];
     std::string message = confirm_question(e);
     message += "\n\n";
-    message += lv_tr("Klipper or Moonraker may restart while it updates. Do not turn the printer "
-                     "off until the update finishes.");
+    // The system entry upgrades the host's OS packages (apt), not a Klipper service.
+    message += e.kind == "system"
+                   ? lv_tr("This upgrades the printer's operating system packages. The printer may "
+                           "need a reboot afterwards. Do not turn the printer off until the update "
+                           "finishes.")
+                   : lv_tr("Klipper or Moonraker may restart while it updates. Do not turn the "
+                           "printer off until the update finishes.");
     confirm_and_start({Job::Kind::Managed, e.name}, std::move(message));
 }
 
@@ -392,6 +397,15 @@ void FirmwareUpdateOverlay::request_image_install(std::size_t index) {
     for (ConfirmPoint p : confirm_points(*provider_)) {
         message += "\n\n";
         message += confirm_point_text(p);
+        if (p == ConfirmPoint::RemovesHelixScreen) {
+            message += " ";
+            const char* guide = provider_reinstall_guide(*provider_);
+            message +=
+                *guide != '\0'
+                    ? fmt::format(fmt::runtime(lv_tr("Reinstall it afterwards by following {}.")),
+                                  helix::docs_url_text(helix::docs_url(guide)))
+                    : std::string(lv_tr("Reinstall it afterwards."));
+        }
     }
     confirm_and_start({Job::Kind::Vendor, images_[index].path}, std::move(message));
 }
