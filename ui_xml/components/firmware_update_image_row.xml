@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One firmware image found on a USB stick, with Install. Binds
+     fwupdate_image_<index>_name. -->
+<component>
+  <api>
+    <prop name="index" type="string" default="0"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+        style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
+        style_pad_top="#space_md" style_pad_bottom="#space_md" style_pad_gap="#space_md" scrollable="false">
+    <icon src="usb" size="sm" variant="secondary"/>
+    <text_body name="name"
+               width="0" flex_grow="1" bind_text="fwupdate_image_${index}_name" long_mode="wrap" translation_tag=""/>
+    <ui_button name="fwupdate_install_${index}"
+               width="content" height="#button_height" style_min_width="64" variant="danger" text="Install"
+               moves_machine="true">
+      <event_cb trigger="clicked" callback="on_fwupdate_image_install" user_data="$index"/>
+    </ui_button>
+  </view>
+</component>

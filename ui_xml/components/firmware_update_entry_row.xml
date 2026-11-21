@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One update_manager entry of the Firmware Update page: its name, what is
+     installed and available, and Update when an update exists. Binds
+     fwupdate_entry_<index>_name / _detail / _can_update. -->
+<component>
+  <api>
+    <prop name="index" type="string" default="0"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+        style_bg_opa="0" style_border_width="0" style_pad_left="#space_lg" style_pad_right="#space_lg"
+        style_pad_top="#space_md" style_pad_bottom="#space_md" style_pad_gap="#space_md" scrollable="false">
+    <icon src="toy_brick_outline" size="sm" variant="secondary"/>
+    <lv_obj width="0"
+            height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xxs"
+            style_bg_opa="0" style_border_width="0" scrollable="false">
+      <text_body name="name" width="100%" bind_text="fwupdate_entry_${index}_name" long_mode="dots" translation_tag=""/>
+      <text_small name="detail"
+                  width="100%" bind_text="fwupdate_entry_${index}_detail" long_mode="wrap"
+                  style_text_color="#text_muted"/>
+    </lv_obj>
+    <ui_button name="fwupdate_update_${index}"
+               width="content" height="#button_height" style_min_width="64" variant="primary" text="Update"
+               moves_machine="true">
+      <bind_flag_if_eq subject="fwupdate_entry_${index}_can_update" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="on_fwupdate_entry_update" user_data="$index"/>
+    </ui_button>
+  </view>
+</component>

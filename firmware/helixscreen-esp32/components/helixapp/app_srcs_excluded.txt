@@ -444,3 +444,7 @@ src/ui/print/ui_timelapse_macro_card.cpp  # scope decision 2026-08-12: unreachab
 src/plugin/plugin_table.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_table.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/calibration_owned_heat.cpp
+src/system/firmware_update.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
+src/system/firmware_update_runner.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
+src/system/update_manager_status.cpp  # read only by update_checker and the Firmware Update page, both off the firmware
+src/ui/settings/ui_settings_firmware_update.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive

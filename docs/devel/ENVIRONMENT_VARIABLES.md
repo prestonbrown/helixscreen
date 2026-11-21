@@ -2341,6 +2341,18 @@ The result is cached in a function-local static on first call, so changing the e
 
 In-app updates are suppressed when *either* this flag is truthy *or* self-update is physically impossible (`self_update_supported()` tests write permission on the install root's parent, since the update renames the root). The whitespace trim exists because `helixscreen.env` values routinely carry a stray trailing space.
 
+### `HELIX_FWUPDATE_UNVERIFIED_APPLY`
+
+Let Settings > Firmware Update install the printer's own firmware on a printer whose update path HelixScreen has read but never run (`Readiness::NeedsDeviceVerification` in `src/system/firmware_update.cpp`). Today that is only stock Snapmaker U1 firmware (`systemUpgrade.sh upgrade all`). For the person verifying that path on their own printer; firmware flashing can brick a printer.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1` enables; anything else, or unset, leaves it off |
+| **Default** | Unset (off) |
+| **File** | `src/system/firmware_update.cpp` (`unverified_apply_allowed()`) |
+
+Moonraker `update_manager` entries on the same page need no flag.
+
 ---
 
 ## Data Paths

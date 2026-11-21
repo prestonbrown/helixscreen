@@ -138,6 +138,7 @@ class SettingsPanel : public PanelBase {
     helix::Subject updates_unavailable_subject_{};
     // 1 once a plugin host exists: unhides the Plugins row (settings_panel.xml)
     helix::Subject plugins_available_subject_{};
+    helix::Subject firmware_update_subject_{};
 
     // Live status line shown under each stateful root row (settings_panel.xml),
     // refreshed by refresh_status_lines().

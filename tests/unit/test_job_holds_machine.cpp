@@ -389,6 +389,9 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/probe_beacon_panel.xml", 2},
     {"ui_xml/temp_graph_overlay.xml", 2},
     {"ui_xml/components/timelapse_macro_card.xml", 1},
+    // Update and Install restart services or flash the printer.
+    {"ui_xml/components/firmware_update_entry_row.xml", 1},
+    {"ui_xml/components/firmware_update_image_row.xml", 1},
     {"ui_xml/components/tool_switcher_feeder_segment.xml", 1},
     {"ui_xml/components/tool_switcher_park_segment.xml", 1},
 };
@@ -695,6 +698,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/settings_appearance_overlay.xml",
     "ui_xml/settings_connection_overlay.xml",
     "ui_xml/settings_display_overlay.xml",
+    "ui_xml/settings_firmware_update_overlay.xml",
     "ui_xml/settings_hardware_overlay.xml",
     "ui_xml/settings_help_overlay.xml",
     "ui_xml/settings_language_time_overlay.xml",

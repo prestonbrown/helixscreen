@@ -394,6 +394,10 @@ bool apply_enabled(const Provider& p, bool unverified_allowed) {
            (p.readiness == Readiness::NeedsDeviceVerification && unverified_allowed);
 }
 
+bool vendor_apply_available(const Provider* p) {
+    return p != nullptr && apply_enabled(*p, unverified_apply_allowed());
+}
+
 ImageVerdict check_image(const Provider& p, const FileEntry& file) {
     if (p.extension == nullptr || !ends_with(file.name, p.extension)) {
         return ImageVerdict::WrongType;

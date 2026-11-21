@@ -86,6 +86,10 @@ Readiness provider_readiness(const Provider& p);
 /// may apply. Off by default; for the people verifying a row on their own printer.
 bool unverified_apply_allowed();
 
+/// Whether @p p (nullptr: no row) may apply here, with the runtime flag as set:
+/// what decides whether the firmware part of the update page is offered at all.
+bool vendor_apply_available(const Provider* p);
+
 /// Whether HelixScreen may start this row's update: the row has an apply plan, and
 /// it is Supported, or it NeedsDeviceVerification and @p unverified_allowed.
 bool apply_enabled(const Provider& p, bool unverified_allowed);

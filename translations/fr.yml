@@ -411,6 +411,7 @@ translations:
   Another filament operation is heating the nozzle.: "Une autre opération de filament chauffe la buse."
   Another print is in progress.: 'Une autre impression est en cours.'
   Another toolhead is active: 'Une autre tête d''outil est active'
+  Another update is already running: 'Une autre mise à jour est déjà en cours'
   Any notes...: Des notes...
   Any other material: "Tout autre matériau"
   App Background: Arrière-plan de l'application
@@ -856,6 +857,7 @@ translations:
   Checking filament...: Vérification du filament...
   Checking for ffmpeg...: 'Recherche de ffmpeg...'
   Checking for plugin...: Recherche du plugin...
+  Checking for updates...: 'Recherche de mises à jour...'
   Checking for webcam...: Recherche d'une webcam...
   Checking plugin: Vérification du plugin
   Checking slots...: Vérification des slots...
@@ -1154,8 +1156,10 @@ translations:
   Could not parse tips database: Impossible d'analyser la base de données de conseils
   Could not reach Spoolman at: Impossible de joindre Spoolman à
   Could not read the current IPv4 settings.: 'Impossible de lire les paramètres IPv4 actuels.'
+  Could not read the free space on the printer: 'Impossible de lire l''espace libre de l''imprimante'
   "Could not read the printer's limits: {}": 'Impossible de lire les limites de l''imprimante : {}'
   Could not read the printer's storage: 'Impossible de lire le stockage de l''imprimante'
+  Could not read the printer's update status: 'Impossible de lire l''état des mises à jour de l''imprimante'
   Could not read the screw adjustments from the printer: Impossible de lire les ajustements des vis du plateau depuis l'imprimante
   Could not remove the job from the queue: Impossible de retirer le travail de la file
   Could not reset the printer image tags: 'Échec de la réinitialisation des repères de l''image'
@@ -1344,6 +1348,8 @@ translations:
   Do not power off your printer.: N'éteignez pas votre imprimante.
   Do not touch the filament yet.: "Ne touchez pas encore le filament."
   Do not touch the printer during calibration: Ne touchez pas l'imprimante pendant la calibration
+  Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'N''éteignez pas l''imprimante avant la fin. Une coupure de courant pendant le flashage peut empêcher l''imprimante de démarrer.'
+  Do not turn the printer off until the update finishes.: 'N''éteignez pas l''imprimante avant la fin de la mise à jour.'
   Dock: Ranger
   Dock every toolhead first: 'Rangez d''abord toutes les têtes d''outil'
   Dock position change too large: 'Changement de position du dock trop important'
@@ -1850,6 +1856,7 @@ translations:
   Fireflies: Lucioles
   Fireworks: Feux d'artifice
   Firmware Restart: Redémarrage firmware
+  Firmware Update: 'Mise à jour du firmware'
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Le firmware ne signale aucun bypass. Activez cette option si vous alimentez l'extrudeur directement en filament
   Firmware restart: Redémarrage firmware
   'Firmware restart failed: {}': 'Échec du redémarrage firmware : {}'
@@ -2202,6 +2209,7 @@ translations:
   Input shaping reduces vibration artifacts (ringing) in your prints.: L'Input Shaping réduit les artefacts de vibration (ondulations) dans vos impressions.
   'Input: ': 'Entrée : '
   InputShaper: InputShaper
+  Insert a USB stick with the {} firmware file in its top folder.: 'Insérez une clé USB contenant le fichier firmware {} dans son dossier racine.'
   Insert filament: 'Insérer le filament'
   Insert filament before resuming: Insérez le filament avant de reprendre
   Insert filament into this head's feeder until it grabs, then load the head again.: 'Insérez le filament dans l''alimentateur de cette tête jusqu''à ce qu''il l''entraîne, puis rechargez la tête.'
@@ -2220,6 +2228,7 @@ translations:
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Installez le plugin timelapse via SSH,\npuis appuyez sur \"Revérifier\"."
   Install timelapse plugin: Installer le plugin timelapse
+  Install {} on this printer?: 'Installer {} sur cette imprimante ?'
   Installation Failed: Installation échouée
   Installation failed: Installation échouée
   Installation failed. Check logs for details.: Installation échouée. Consultez les journaux pour plus de détails.
@@ -2228,8 +2237,11 @@ translations:
   Installation timed out: Installation — délai dépassé
   Installation timed out. The script may be stuck.: Installation — délai dépassé. Le script est peut-être bloqué.
   Installed: 'Installé'
+  Installing firmware is not enabled on this printer: 'L''installation du firmware n''est pas activée sur cette imprimante'
+  Installing printer firmware: 'Installation du firmware de l''imprimante'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'L''installation redémarre Moonraker : elle attend donc que l''impression soit terminée ou annulée.'
   Installing the timelapse plugin...: 'Installation du plugin timelapse...'
+  Installing {} firmware from this screen is not available yet.: 'L''installation du firmware {} depuis cet écran n''est pas encore disponible.'
   Installing...: Installation...
   Intensity: Intensité
   Interactive calibration for all lanes: 'Calibration interactive pour toutes les voies'
@@ -2333,6 +2345,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper n''a pas chargé les macros timelapse, donc aucune image n''est capturée. Ajoutez cette ligne à printer.cfg et redémarrez Klipper :'
   Klipper is halted — restart firmware to continue: Klipper est arrêté — redémarrez le firmware pour continuer
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper redémarre. Les images du timelapse sont capturées à partir de la prochaine impression.'
+  Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes.: 'Klipper ou Moonraker peuvent redémarrer pendant la mise à jour. N''éteignez pas l''imprimante avant la fin de la mise à jour.'
   Klipper ready: Klipper prêt
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper réserve 'default' aux nouvelles calibrations. Choisissez un autre nom."
   Klipper restarting - macros activating: 'Redémarrage de Klipper - activation des macros'
@@ -2728,6 +2741,7 @@ translations:
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   : 'Nommer le ventilateur de pièce permet à MPC de tenir compte de son refroidissement. Klipper redémarre, puis cette chauffe est calibrée. Cela prend plusieurs minutes en température.'
   Needs attention: Attention requise
+  Needs repair from a web interface: 'Doit être réparé depuis une interface web'
   Needs the {} package to switch spools: 'Nécessite le plugin {} pour changer de bobine'
   'Needs {}x{} free: remove or shrink a widget first': 'Nécessite {}x{} de libre : supprimez ou réduisez d''abord un widget'
   Net Weight (g): Poids net (g)
@@ -2905,6 +2919,7 @@ translations:
   Not detected: Non détecté
   Not drying: Pas de séchage
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'Pas assez d''espace libre sur l''imprimante pour ce fichier. Libérez-en dans Paramètres > Système > Stockage.'
+  Not enough free space on the printer to unpack the firmware: 'Espace libre insuffisant sur l''imprimante pour décompresser le firmware'
   Not enough frequency data from the sweeps. Try again.: 'Pas assez de données de fréquence après les balayages. Réessayez.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Pas assez de place pour ce widget. Réorganisez ou supprimez des widgets pour libérer de l'espace.
   Not enough room to put the widget back. It stays removed.: 'Pas assez de place pour remettre le widget. Il reste supprimé.'
@@ -3073,6 +3088,8 @@ translations:
   POWER: ALIMENTATION
   PRINT OPTIONS: OPTIONS D'IMPRESSION
   PRINTER: IMPRIMANTE
+  PRINTER FIRMWARE: 'FIRMWARE DE L''IMPRIMANTE'
+  PRINTER SOFTWARE: 'LOGICIELS DE L''IMPRIMANTE'
   PRINTER VISUALS: 'VISUELS DE L''IMPRIMANTE'
   PRINTERS: IMPRIMANTES
   PRINTING: 'IMPRESSION'
@@ -3683,6 +3700,7 @@ translations:
   Restarting printer...: Redémarrage de l'imprimante...
   Restarting screen...: Redémarrage de l'écran...
   Restarting the printer...: 'Redémarrage de l''imprimante...'
+  Restarting the printer: 'Redémarrage de l''imprimante'
   Restarting with the new version...: Redémarrage avec la nouvelle version...
   Restarting...: Redémarrage...
   Restore: 'Restaurer'
@@ -4195,6 +4213,7 @@ translations:
   Starting nozzle clean...: Démarrage du nettoyage de la buse...
   Starting print...: Démarrage de l'impression...
   Starting the print: Démarrage de l'impression
+  Starting the update: 'Démarrage de la mise à jour'
   Starting {}…: 'Démarrage de {}…'
   Starting...: Démarrage...
   Starts after the current print: Commence après l'impression en cours
@@ -4575,6 +4594,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'L''imprimante n''a pas confirmé le démarrage de l''impression ({}). Elle peut encore démarrer : vérifiez l''imprimante avant de la relancer.'
   The printer did not report its toolhead limits.: 'L''imprimante n''a pas indiqué les limites de sa tête d''outil.'
   The printer did not reset the filter: 'L''imprimante n''a pas réinitialisé le filtre'
+  The printer did not say whether it is printing. Try again.: 'L''imprimante n''a pas indiqué si elle imprime. Réessayez.'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'L''imprimante extrude dans un coin et répète jusqu''à ce que les mesures concordent. Vous ne jugez rien à l''œil.'
   The printer finishes this measurement on its own.: 'L''imprimante termine cette mesure d''elle-même.'
   The printer halted this print and cannot resume it. Restart from the beginning?: L'imprimante a arrêté cette impression et ne peut pas la reprendre. Redémarrer depuis le début ?
@@ -4597,6 +4617,7 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: L'imprimante n'est pas référencée. Continuer référencera tous les axes et déplacera la tête d'outil. Assurez-vous que le plateau est dégagé.
   The printer is not ready.: "L'imprimante n'est pas prête."
   The printer is not reporting its toolheads: 'L''imprimante ne signale pas ses têtes d''outil'
+  The printer is restarting into the new firmware.: 'L''imprimante redémarre sur le nouveau firmware.'
   The printer is shut down.: 'L''imprimante est arrêtée.'
   ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   : 'L''imprimante utilise cette valeur jusqu''au redémarrage de Klipper. Pour la conserver, ajoutez-la comme pressure_advance dans la section de l''extrudeur de cet outil dans printer.cfg.'
@@ -4627,6 +4648,8 @@ translations:
   The printer stopped itself for safety; the firmware gave no specific reason.: 'L''imprimante s''est arrêtée par sécurité ; le firmware n''a donné aucune raison précise.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'L''imprimante redémarre avec l''écran Snapmaker et HelixScreen ne démarre plus. Vos réglages HelixScreen restent sur l''imprimante ; relancez l''installateur pour revenir.'
+  The printer restarts when the update finishes.: 'L''imprimante redémarre à la fin de la mise à jour.'
+  The printer stops and cannot print until the update is done.: 'L''imprimante s''arrête et ne peut pas imprimer tant que la mise à jour n''est pas terminée.'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'L''imprimante change entre plusieurs têtes d''outil. Gérez les outils sur l''écran du système de filament.'
   The printer was stopped: 'L''imprimante a été arrêtée'
   The printer's firmware chooses where to switch on runout: Le firmware de l'imprimante choisit lui-même vers où basculer en fin de filament
@@ -4668,6 +4691,7 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La mémoire interne de l'unité est défaillante. La carte mère du CFS doit être remplacée
   'The unload did not start: unload by hand, then start again': 'Le déchargement n''a pas démarré : déchargez à la main, puis recommencez'
   The unload finishes on its own, but the plate will not move.: 'Le déchargement se termine de lui-même, mais le plateau ne bougera pas.'
+  The update failed: 'La mise à jour a échoué'
   'The {0} motor was not measured: {1}.': 'Le moteur {0} n''a pas été mesuré : {1}.'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Le lecteur vidéo n''a pas pu démarrer sur cette imprimante ({}). Scannez le code avec votre téléphone pour regarder le timelapse.'
   Theme: Thème
@@ -4769,6 +4793,7 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Le Moonraker de cette imprimante exige une connexion. Ajoutez sa clé API dans Paramètres > Connexion.'
   This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'L''accéléromètre de cette imprimante mesure jusqu''à {0:.0f} Hz, les ondulations plus rapides ne sont donc pas affichées.'
   This printer's firmware has its own power-loss recovery.: "Le firmware de cette imprimante a sa propre reprise après coupure de courant."
+  This printer's firmware offers updates by itself when one is available.: 'Le firmware de cette imprimante propose lui-même les mises à jour lorsqu''il y en a une.'
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "Le portique de cette imprimante descend quand le courant est coupé, donc une impression ne peut pas être reprise."
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Le homing override de cette imprimante référence Z en même temps que X et Y, donc une impression ne peut pas être reprise."
   This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "Le homing override de cette imprimante définit la position Z quand il référence X et Y, donc une impression ne peut pas être reprise."
@@ -4793,6 +4818,7 @@ translations:
   This system does not support bypass mode: 'Ce système ne prend pas en charge le mode bypass'
   This tool probes each bed screw and tells you how much to adjust.: Cet outil palpe chaque vis du plateau et vous indique combien ajuster.
   'This update asks for new permissions:': 'Cette mise à jour demande de nouvelles autorisations :'
+  This update removes HelixScreen from the printer. Reinstall it afterwards.: 'Cette mise à jour supprime HelixScreen de l''imprimante. Réinstallez-le ensuite.'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Cette attente ne se termine qu''à sa température : l''annulation nécessite un arrêt d''urgence et un redémarrage du firmware.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Cela appliquera le Z-offset à votre butée et redémarrera Klipper pour enregistrer la configuration. L'imprimante se déconnectera brièvement.
@@ -5028,6 +5054,7 @@ translations:
   Unlock: Déverrouiller
   Unmapped: Non mappé
   Unmount: Démonter
+  Unpacking the firmware: 'Décompression du firmware'
   Unretract Extra: Extra de dérétraction
   Unretract Speed: Vitesse de dérétraction
   Unsupported tape width: Largeur de ruban non prise en charge
@@ -5035,6 +5062,7 @@ translations:
   'Up next: {}': 'À suivre : {}'
   'Up next: {} (+{})': 'À suivre : {} (+{})'
   Up to date: À jour
+  Up to date ({}): 'À jour ({})'
   'Up: %s': 'Temps de fonctionnement : %s'
   Update: Mettre à jour
   Update Available: Mise à jour disponible
@@ -5043,14 +5071,20 @@ translations:
   Update Helper Macros: 'Mettre à jour les macros d''aide'
   Update Helper Macros?: 'Mettre à jour les macros d''aide ?'
   Update Success: Mise à jour réussie
+  Update complete: 'Mise à jour terminée'
   Update from a Terminal: Mettre à jour depuis un terminal
   Update installed!: Mise à jour installée !
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Mettez à jour le plugin HelixPrint vers 1.5.0 pour masquer les anciens appels de PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Mettre aussi à jour le modèle de chauffage INDX ? {} contient maintenant {} : densité {:.2f}, capacité thermique {:.2f}.'
   Update your security PIN: Mettez à jour votre PIN de sécurité sur cette installation.
+  'Update {}: {}': 'Mettre à jour {} : {}'
   Updates: Mises à jour
   Updates & Data: 'Mises à jour et données'
   Updating Configuration...: Mise à jour de la configuration...
+  Updating the main board: 'Mise à jour de la carte mère'
+  Updating the system: 'Mise à jour du système'
+  Updating toolhead {}: 'Mise à jour de la tête d''outil {}'
+  Updating {}: 'Mise à jour de {}'
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Passez à AFC 1.2.0 ou plus récent pour les bobines multicolores. Cette version ajoute aussi les noms de filament, qui nécessitent sinon Spoolman.
   Upload: Téléverser
   Upload Debug Bundle: Téléverser le bundle de débogage
@@ -5316,6 +5350,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "Zone {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] n''a pas de probe_points, la tête n''a donc pas de hauteur sûre pour les tours de mise en place.'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] trouvé {} fois dans les fichiers de configuration chargés par printer.cfg, une seule fois attendue"
+  a newer version: 'une version plus récente'
   already loaded: 'déjà chargé'
   attempt {}: 'essai {}'
   auto: auto
@@ -5495,6 +5530,8 @@ translations:
   '{} filament sensors available': '{} capteurs de filament disponibles'
   '{} filament • {}': '{} de filament • {}'
   '{} firmware': 'Firmware {}'
+  '{} firmware can only be updated from its own screen app.': 'Le firmware {} ne peut être mis à jour que depuis sa propre application d''écran.'
+  '{} firmware updates are managed by its own tools.': 'Les mises à jour du firmware {} sont gérées par ses propres outils.'
   '{} free of {}': '{} libres sur {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h sur {} h'
@@ -5541,6 +5578,7 @@ translations:
   '{} new hardware available': '{} nouveau matériel disponible'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} nouveaux plugins disponibles. Activez-les dans Paramètres > Plugins.'
   '{} nozzle sensor fault': '{} : défaut du capteur de buse'
+  '{} packages to update': '{} paquets à mettre à jour'
   '{} preset': '{} préréglage'
   '{} presets': '{} préréglages'
   '{} prints': '{} impressions'

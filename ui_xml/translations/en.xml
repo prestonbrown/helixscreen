@@ -382,6 +382,7 @@
   <translation tag="Another filament operation is heating the nozzle." en="Another filament operation is heating the nozzle."/>
   <translation tag="Another print is in progress." en="Another print is in progress."/>
   <translation tag="Another toolhead is active" en="Another toolhead is active"/>
+  <translation tag="Another update is already running" en="Another update is already running"/>
   <translation tag="Any notes..." en="Any notes..."/>
   <translation tag="Any other material" en="Any other material"/>
   <translation tag="App Background" en="App Background"/>
@@ -822,6 +823,7 @@
   <translation tag="Checking file…" en="Checking file…"/>
   <translation tag="Checking for ffmpeg..." en="Checking for ffmpeg..."/>
   <translation tag="Checking for plugin..." en="Checking for plugin..."/>
+  <translation tag="Checking for updates..." en="Checking for updates..."/>
   <translation tag="Checking for webcam..." en="Checking for webcam..."/>
   <translation tag="Checking plugin" en="Checking plugin"/>
   <translation tag="Checking slots..." en="Checking slots..."/>
@@ -1079,8 +1081,10 @@
   <translation tag="Could not parse tips database" en="Could not parse tips database"/>
   <translation tag="Could not reach Spoolman at" en="Could not reach Spoolman at"/>
   <translation tag="Could not read the current IPv4 settings." en="Could not read the current IPv4 settings."/>
+  <translation tag="Could not read the free space on the printer" en="Could not read the free space on the printer"/>
   <translation tag="Could not read the printer&apos;s limits: {}" en="Could not read the printer&apos;s limits: {}"/>
   <translation tag="Could not read the printer&apos;s storage" en="Could not read the printer&apos;s storage"/>
+  <translation tag="Could not read the printer&apos;s update status" en="Could not read the printer&apos;s update status"/>
   <translation tag="Could not read the screw adjustments from the printer" en="Could not read the screw adjustments from the printer"/>
   <translation tag="Could not remove the job from the queue" en="Could not remove the job from the queue"/>
   <translation tag="Could not reset the printer image tags" en="Could not reset the printer image tags"/>
@@ -1269,6 +1273,8 @@
   <translation tag="Do not power off your printer." en="Do not power off your printer."/>
   <translation tag="Do not touch the filament yet." en="Do not touch the filament yet."/>
   <translation tag="Do not touch the printer during calibration" en="Do not touch the printer during calibration"/>
+  <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." en="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start."/>
+  <translation tag="Do not turn the printer off until the update finishes." en="Do not turn the printer off until the update finishes."/>
   <translation tag="Dock" en="Dock"/>
   <translation tag="Dock every toolhead first" en="Dock every toolhead first"/>
   <translation tag="Dock position change too large" en="Dock position change too large"/>
@@ -1766,6 +1772,7 @@
   <translation tag="Fireflies" en="Fireflies"/>
   <translation tag="Fireworks" en="Fireworks"/>
   <translation tag="Firmware Restart" en="Firmware Restart"/>
+  <translation tag="Firmware Update" en="Firmware Update"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" en="Firmware reports no bypass. Enable if you feed filament straight to the extruder"/>
   <translation tag="Firmware restart" en="Firmware restart"/>
   <translation tag="Firmware restart failed: {}" en="Firmware restart failed: {}"/>
@@ -2110,6 +2117,7 @@
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." en="Input shaping reduces vibration artifacts (ringing) in your prints."/>
   <translation tag="Input: " en="Input: "/>
   <translation tag="InputShaper" en="InputShaper"/>
+  <translation tag="Insert a USB stick with the {} firmware file in its top folder." en="Insert a USB stick with the {} firmware file in its top folder."/>
   <translation tag="Insert filament" en="Insert filament"/>
   <translation tag="Insert filament before resuming" en="Insert filament before resuming"/>
   <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again." en="Insert filament into this head&apos;s feeder until it grabs, then load the head again."/>
@@ -2127,6 +2135,7 @@
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" en="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:"/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." en="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;."/>
   <translation tag="Install timelapse plugin" en="Install timelapse plugin"/>
+  <translation tag="Install {} on this printer?" en="Install {} on this printer?"/>
   <translation tag="Installation Failed" en="Installation Failed"/>
   <translation tag="Installation failed" en="Installation failed"/>
   <translation tag="Installation failed. Check logs for details." en="Installation failed. Check logs for details."/>
@@ -2135,8 +2144,11 @@
   <translation tag="Installation timed out" en="Installation timed out"/>
   <translation tag="Installation timed out. The script may be stuck." en="Installation timed out. The script may be stuck."/>
   <translation tag="Installed" en="Installed"/>
+  <translation tag="Installing firmware is not enabled on this printer" en="Installing firmware is not enabled on this printer"/>
+  <translation tag="Installing printer firmware" en="Installing printer firmware"/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." en="Installing restarts Moonraker, so it waits until the print is finished or cancelled."/>
   <translation tag="Installing the timelapse plugin..." en="Installing the timelapse plugin..."/>
+  <translation tag="Installing {} firmware from this screen is not available yet." en="Installing {} firmware from this screen is not available yet."/>
   <translation tag="Installing..." en="Installing..."/>
   <translation tag="Intensity" en="Intensity"/>
   <translation tag="Interactive calibration for all lanes" en="Interactive calibration for all lanes"/>
@@ -2237,6 +2249,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" en="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" en="Klipper is halted — restart firmware to continue"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." en="Klipper is restarting. Timelapse frames are captured from the next print."/>
+  <translation tag="Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes." en="Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes."/>
   <translation tag="Klipper ready" en="Klipper ready"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." en="Klipper reserves &apos;default&apos; for new calibrations. Choose another name."/>
   <translation tag="Klipper restarting - macros activating" en="Klipper restarting - macros activating"/>
@@ -2636,6 +2649,7 @@
   <translation tag="Needs a newer Moonraker to hold uploads." en="Needs a newer Moonraker to hold uploads."/>
   <translation tag="Needs attention" en="Needs attention"/>
   <translation tag="Needs file analysis, which isn&apos;t running." en="Needs file analysis, which isn&apos;t running."/>
+  <translation tag="Needs repair from a web interface" en="Needs repair from a web interface"/>
   <translation tag="Needs the {} package to switch spools" en="Needs the {} package to switch spools"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" en="Needs {}x{} free: remove or shrink a widget first"/>
   <translation tag="Net Weight (g)" en="Net Weight (g)"/>
@@ -2813,6 +2827,7 @@
   <translation tag="Not detected" en="Not detected"/>
   <translation tag="Not drying" en="Not drying"/>
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." en="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage."/>
+  <translation tag="Not enough free space on the printer to unpack the firmware" en="Not enough free space on the printer to unpack the firmware"/>
   <translation tag="Not enough frequency data from the sweeps. Try again." en="Not enough frequency data from the sweeps. Try again."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." en="Not enough room for this widget. Rearrange or remove widgets to make space."/>
   <translation tag="Not enough room to put the widget back. It stays removed." en="Not enough room to put the widget back. It stays removed."/>
@@ -2971,6 +2986,8 @@
   <translation tag="POWER" en="POWER"/>
   <translation tag="PRINT OPTIONS" en="PRINT OPTIONS"/>
   <translation tag="PRINTER" en="PRINTER"/>
+  <translation tag="PRINTER FIRMWARE" en="PRINTER FIRMWARE"/>
+  <translation tag="PRINTER SOFTWARE" en="PRINTER SOFTWARE"/>
   <translation tag="PRINTER VISUALS" en="PRINTER VISUALS"/>
   <translation tag="PRINTERS" en="PRINTERS"/>
   <translation tag="PRINTING" en="PRINTING"/>
@@ -3581,6 +3598,7 @@
   <translation tag="Restarting Moonraker..." en="Restarting Moonraker..."/>
   <translation tag="Restarting printer..." en="Restarting printer..."/>
   <translation tag="Restarting screen..." en="Restarting screen..."/>
+  <translation tag="Restarting the printer" en="Restarting the printer"/>
   <translation tag="Restarting the printer..." en="Restarting the printer..."/>
   <translation tag="Restarting with the new version..." en="Restarting with the new version..."/>
   <translation tag="Restarting..." en="Restarting..."/>
@@ -4083,6 +4101,7 @@
   <translation tag="Starting nozzle clean..." en="Starting nozzle clean..."/>
   <translation tag="Starting print..." en="Starting print..."/>
   <translation tag="Starting the print" en="Starting the print"/>
+  <translation tag="Starting the update" en="Starting the update"/>
   <translation tag="Starting {}…" en="Starting {}…"/>
   <translation tag="Starting..." en="Starting..."/>
   <translation tag="Starts after the current print" en="Starts after the current print"/>
@@ -4448,6 +4467,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." en="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again."/>
   <translation tag="The printer did not report its toolhead limits." en="The printer did not report its toolhead limits."/>
   <translation tag="The printer did not reset the filter" en="The printer did not reset the filter"/>
+  <translation tag="The printer did not say whether it is printing. Try again." en="The printer did not say whether it is printing. Try again."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" en="The printer halted this print and cannot resume it. Restart from the beginning?"/>
@@ -4468,6 +4488,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." en="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear."/>
   <translation tag="The printer is not ready." en="The printer is not ready."/>
   <translation tag="The printer is not reporting its toolheads" en="The printer is not reporting its toolheads"/>
+  <translation tag="The printer is restarting into the new firmware." en="The printer is restarting into the new firmware."/>
   <translation tag="The printer is shut down." en="The printer is shut down."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." en="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." en="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed."/>
@@ -4490,10 +4511,12 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." en="The printer reports no lane record, so only clearing the extruder can unload it."/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" en="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" en="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed"/>
+  <translation tag="The printer restarts when the update finishes." en="The printer restarts when the update finishes."/>
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." en="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back."/>
   <translation tag="The printer shut down" en="The printer shut down"/>
   <translation tag="The printer shut down while homing or probing." en="The printer shut down while homing or probing."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." en="The printer stopped itself for safety; the firmware gave no specific reason."/>
+  <translation tag="The printer stops and cannot print until the update is done." en="The printer stops and cannot print until the update is done."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." en="The printer swaps between several toolheads. Manage the tools on the filament system screen."/>
   <translation tag="The printer was stopped" en="The printer was stopped"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" en="The printer&apos;s firmware chooses where to switch on runout"/>
@@ -4534,6 +4557,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
   <translation tag="The unload did not start: unload by hand, then start again" en="The unload did not start: unload by hand, then start again"/>
   <translation tag="The unload finishes on its own, but the plate will not move." en="The unload finishes on its own, but the plate will not move."/>
+  <translation tag="The update failed" en="The update failed"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="Theme" en="Theme"/>
@@ -4614,6 +4638,7 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." en="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection."/>
   <translation tag="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown." en="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." en="This printer&apos;s firmware has its own power-loss recovery."/>
+  <translation tag="This printer&apos;s firmware offers updates by itself when one is available." en="This printer&apos;s firmware offers updates by itself when one is available."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." en="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed."/>
   <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." en="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed."/>
   <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." en="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed."/>
@@ -4636,6 +4661,7 @@
   <translation tag="This tool probes each bed screw and tells you how much to adjust." en="This tool probes each bed screw and tells you how much to adjust."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." en="This toolhead has no automatic feeder. Load the filament by hand."/>
   <translation tag="This update asks for new permissions:" en="This update asks for new permissions:"/>
+  <translation tag="This update removes HelixScreen from the printer. Reinstall it afterwards." en="This update removes HelixScreen from the printer. Reinstall it afterwards."/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." en="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect."/>
@@ -4867,6 +4893,7 @@
   <translation tag="Unlock" en="Unlock"/>
   <translation tag="Unmapped" en="Unmapped"/>
   <translation tag="Unmount" en="Unmount"/>
+  <translation tag="Unpacking the firmware" en="Unpacking the firmware"/>
   <translation tag="Unretract Extra" en="Unretract Extra"/>
   <translation tag="Unretract Speed" en="Unretract Speed"/>
   <translation tag="Unsaved changes" en="Unsaved changes"/>
@@ -4875,6 +4902,7 @@
   <translation tag="Up next: {}" en="Up next: {}"/>
   <translation tag="Up next: {} (+{})" en="Up next: {} (+{})"/>
   <translation tag="Up to date" en="Up to date"/>
+  <translation tag="Up to date ({})" en="Up to date ({})"/>
   <translation tag="Up: %s" en="Up: %s"/>
   <translation tag="Update" en="Update"/>
   <translation tag="Update Available" en="Update Available"/>
@@ -4883,6 +4911,7 @@
   <translation tag="Update Helper Macros" en="Update Helper Macros"/>
   <translation tag="Update Helper Macros?" en="Update Helper Macros?"/>
   <translation tag="Update Success" en="Update Success"/>
+  <translation tag="Update complete" en="Update complete"/>
   <translation tag="Update from a Terminal" en="Update from a Terminal"/>
   <translation tag="Update heater model?" en="Update heater model?"/>
   <translation tag="Update in Spoolman" en="Update in Spoolman"/>
@@ -4890,9 +4919,14 @@
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." en="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." en="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}."/>
   <translation tag="Update your security PIN" en="Update your security PIN"/>
+  <translation tag="Update {}: {}" en="Update {}: {}"/>
   <translation tag="Updates" en="Updates"/>
   <translation tag="Updates &amp; Data" en="Updates &amp; Data"/>
   <translation tag="Updating Configuration..." en="Updating Configuration..."/>
+  <translation tag="Updating the main board" en="Updating the main board"/>
+  <translation tag="Updating the system" en="Updating the system"/>
+  <translation tag="Updating toolhead {}" en="Updating toolhead {}"/>
+  <translation tag="Updating {}" en="Updating {}"/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." en="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman."/>
   <translation tag="Upload" en="Upload"/>
   <translation tag="Upload Debug Bundle" en="Upload Debug Bundle"/>
@@ -5163,6 +5197,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" en="Zone {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." en="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps."/>
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" en="[{}] was found {} times in the config files printer.cfg loads, expected once"/>
+  <translation tag="a newer version" en="a newer version"/>
   <translation tag="already loaded" en="already loaded"/>
   <translation tag="attempt {}" en="attempt {}"/>
   <translation tag="auto" en="auto"/>
@@ -5336,6 +5371,8 @@
   <translation tag="{} filament sensors available" en="{} filament sensors available"/>
   <translation tag="{} filament • {}" en="{} filament • {}"/>
   <translation tag="{} firmware" en="{} firmware"/>
+  <translation tag="{} firmware can only be updated from its own screen app." en="{} firmware can only be updated from its own screen app."/>
+  <translation tag="{} firmware updates are managed by its own tools." en="{} firmware updates are managed by its own tools."/>
   <translation tag="{} free of {}" en="{} free of {}"/>
   <translation tag="{} h" en="{} h"/>
   <translation tag="{} h of {} h" en="{} h of {} h"/>
@@ -5382,6 +5419,7 @@
   <translation tag="{} new hardware available" en="{} new hardware available"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." en="{} new plugins available. Enable them in Settings &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" en="{} nozzle sensor fault"/>
+  <translation tag="{} packages to update" en="{} packages to update"/>
   <translation tag="{} preset" en="{} preset"/>
   <translation tag="{} presets" en="{} presets"/>
   <translation tag="{} prints" en="{} prints"/>

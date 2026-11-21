@@ -382,6 +382,7 @@
   <translation tag="Another filament operation is heating the nozzle." de="Ein anderer Filamentvorgang heizt die Düse."/>
   <translation tag="Another print is in progress." de="Ein anderer Druck läuft."/>
   <translation tag="Another toolhead is active" de="Ein anderer Werkzeugkopf ist aktiv"/>
+  <translation tag="Another update is already running" de="Ein anderes Update läuft bereits"/>
   <translation tag="Any notes..." de="Notizen..."/>
   <translation tag="Any other material" de="Jedes andere Material"/>
   <translation tag="App Background" de="App-Hintergrund"/>
@@ -822,6 +823,7 @@
   <translation tag="Checking file…" de="Prüfe Datei…"/>
   <translation tag="Checking for ffmpeg..." de="Suche nach ffmpeg..."/>
   <translation tag="Checking for plugin..." de="Prüfe Plugin..."/>
+  <translation tag="Checking for updates..." de="Suche nach Updates..."/>
   <translation tag="Checking for webcam..." de="Webcam wird gesucht..."/>
   <translation tag="Checking plugin" de="Plugin wird geprüft"/>
   <translation tag="Checking slots..." de="Prüfe Slots..."/>
@@ -1079,8 +1081,10 @@
   <translation tag="Could not parse tips database" de="Tipps-Datenbank konnte nicht ausgelesen werden"/>
   <translation tag="Could not reach Spoolman at" de="Spoolman nicht erreichbar unter:"/>
   <translation tag="Could not read the current IPv4 settings." de="Die aktuellen IPv4-Einstellungen konnten nicht gelesen werden."/>
+  <translation tag="Could not read the free space on the printer" de="Der freie Speicher des Druckers konnte nicht gelesen werden"/>
   <translation tag="Could not read the printer&apos;s limits: {}" de="Die Grenzwerte des Druckers konnten nicht gelesen werden: {}"/>
   <translation tag="Could not read the printer&apos;s storage" de="Der Speicher des Druckers konnte nicht gelesen werden"/>
+  <translation tag="Could not read the printer&apos;s update status" de="Der Update-Status des Druckers konnte nicht gelesen werden"/>
   <translation tag="Could not read the screw adjustments from the printer" de="Schraubeneinstellungen konnten nicht vom Drucker gelesen werden"/>
   <translation tag="Could not remove the job from the queue" de="Der Auftrag konnte nicht aus der Warteschlange entfernt werden"/>
   <translation tag="Could not reset the printer image tags" de="Bildmarkierungen konnten nicht zurückgesetzt werden"/>
@@ -1269,6 +1273,8 @@
   <translation tag="Do not power off your printer." de="Drucker nicht ausschalten."/>
   <translation tag="Do not touch the filament yet." de="Filament noch nicht berühren."/>
   <translation tag="Do not touch the printer during calibration" de="Drucker während der Kalibrierung nicht berühren"/>
+  <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." de="Schalte den Drucker nicht aus, bis es fertig ist. Ein Stromausfall während des Flashens kann den Drucker unstartbar machen."/>
+  <translation tag="Do not turn the printer off until the update finishes." de="Schalte den Drucker nicht aus, bis das Update abgeschlossen ist."/>
   <translation tag="Dock" de="Andocken"/>
   <translation tag="Dock every toolhead first" de="Zuerst alle Werkzeugköpfe andocken"/>
   <translation tag="Dock position change too large" de="Änderung der Dock-Position zu groß"/>
@@ -1766,6 +1772,7 @@
   <translation tag="Fireflies" de="Glühwürmchen"/>
   <translation tag="Fireworks" de="Feuerwerk"/>
   <translation tag="Firmware Restart" de="Firmware-Neustart"/>
+  <translation tag="Firmware Update" de="Firmware-Update"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" de="Firmware meldet keinen Bypass. Aktivieren Sie dies, wenn Sie das Filament direkt zum Extruder führen"/>
   <translation tag="Firmware restart" de="Firmware-Neustart"/>
   <translation tag="Firmware restart failed: {}" de="Firmware-Neustart fehlgeschlagen: {}"/>
@@ -2110,6 +2117,7 @@
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." de="Input Shaping reduziert Vibrationsartefakte (Klingeln) in Ihren Drucken."/>
   <translation tag="Input: " de="Eingabe: "/>
   <translation tag="InputShaper" de="InputShaper"/>
+  <translation tag="Insert a USB stick with the {} firmware file in its top folder." de="Stecke einen USB-Stick mit der {}-Firmwaredatei im obersten Ordner ein."/>
   <translation tag="Insert filament" de="Filament einführen"/>
   <translation tag="Insert filament before resuming" de="Filament einlegen vor dem Fortsetzen"/>
   <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again." de="Filament in die Zuführung dieses Kopfs einführen, bis es greift, dann den Kopf erneut laden."/>
@@ -2127,6 +2135,7 @@
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" de="Installieren Sie das HelixPrint-Plugin für schnelle G-Code-Modifikationen. Führen Sie diesen Befehl per SSH auf Ihrem Drucker aus:"/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." de="Zeitraffer-Plugin per SSH installieren,&#10;dann auf &quot;Erneut prüfen&quot; tippen."/>
   <translation tag="Install timelapse plugin" de="Zeitraffer-Plugin installieren"/>
+  <translation tag="Install {} on this printer?" de="{} auf diesem Drucker installieren?"/>
   <translation tag="Installation Failed" de="Installation fehlgeschlagen"/>
   <translation tag="Installation failed" de="Installation fehlgeschlagen"/>
   <translation tag="Installation failed. Check logs for details." de="Installation fehlgeschlagen. Details in den Protokollen."/>
@@ -2135,8 +2144,11 @@
   <translation tag="Installation timed out" de="Installation – Zeitüberschreitung"/>
   <translation tag="Installation timed out. The script may be stuck." de="Installation – Zeitüberschreitung. Das Skript hängt möglicherweise."/>
   <translation tag="Installed" de="Installiert"/>
+  <translation tag="Installing firmware is not enabled on this printer" de="Die Firmware-Installation ist auf diesem Drucker nicht aktiviert"/>
+  <translation tag="Installing printer firmware" de="Drucker-Firmware wird installiert"/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." de="Die Installation startet Moonraker neu und wartet daher, bis der Druck beendet oder abgebrochen ist."/>
   <translation tag="Installing the timelapse plugin..." de="Zeitraffer-Plugin wird installiert..."/>
+  <translation tag="Installing {} firmware from this screen is not available yet." de="Die Installation der {}-Firmware über diesen Bildschirm ist noch nicht verfügbar."/>
   <translation tag="Installing..." de="Installiere..."/>
   <translation tag="Intensity" de="Intensität"/>
   <translation tag="Interactive calibration for all lanes" de="Interaktive Kalibrierung für alle Spuren"/>
@@ -2237,6 +2249,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" de="Klipper hat die Zeitraffer-Makros nicht geladen, daher werden keine Bilder aufgenommen. Füge diese Zeile zur printer.cfg hinzu und starte Klipper neu:"/>
   <translation tag="Klipper is halted — restart firmware to continue" de="Klipper ist angehalten — Firmware neu starten, um fortzufahren"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." de="Klipper startet neu. Zeitraffer-Bilder werden ab dem nächsten Druck aufgenommen."/>
+  <translation tag="Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes." de="Klipper oder Moonraker können während des Updates neu starten. Schalte den Drucker nicht aus, bis das Update abgeschlossen ist."/>
   <translation tag="Klipper ready" de="Klipper bereit"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." de="Klipper reserviert &apos;default&apos; für neue Kalibrierungen. Wählen Sie einen anderen Namen."/>
   <translation tag="Klipper restarting - macros activating" de="Klipper startet neu - Makros werden aktiviert"/>
@@ -2636,6 +2649,7 @@
   <translation tag="Needs a newer Moonraker to hold uploads." de="Benötigt ein neueres Moonraker, um Uploads anzuhalten."/>
   <translation tag="Needs attention" de="Erfordert Aufmerksamkeit"/>
   <translation tag="Needs file analysis, which isn&apos;t running." de="Benötigt die Dateianalyse, die nicht läuft."/>
+  <translation tag="Needs repair from a web interface" de="Muss über eine Weboberfläche repariert werden"/>
   <translation tag="Needs the {} package to switch spools" de="Benötigt das Plugin {} für den Spulenwechsel"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" de="Benötigt {}x{} an freiem Platz: zuerst ein Widget entfernen oder verkleinern"/>
   <translation tag="Net Weight (g)" de="Nettogewicht (g)"/>
@@ -2813,6 +2827,7 @@
   <translation tag="Not detected" de="Nicht erkannt"/>
   <translation tag="Not drying" de="Trocknet nicht"/>
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." de="Nicht genug freier Speicher auf dem Drucker für diese Datei. Schaffen Sie Platz unter Einstellungen &gt; System &gt; Speicher."/>
+  <translation tag="Not enough free space on the printer to unpack the firmware" de="Nicht genug freier Speicher auf dem Drucker, um die Firmware zu entpacken"/>
   <translation tag="Not enough frequency data from the sweeps. Try again." de="Nicht genügend Frequenzdaten aus den Messungen. Versuchen Sie es erneut."/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." de="Nicht genug Platz für dieses Widget. Ordnen Sie Widgets neu an oder entfernen Sie welche, um Platz zu schaffen."/>
   <translation tag="Not enough room to put the widget back. It stays removed." de="Nicht genug Platz, um das Widget wiederherzustellen. Es bleibt entfernt."/>
@@ -2971,6 +2986,8 @@
   <translation tag="POWER" de="STROM"/>
   <translation tag="PRINT OPTIONS" de="DRUCKOPTIONEN"/>
   <translation tag="PRINTER" de="DRUCKER"/>
+  <translation tag="PRINTER FIRMWARE" de="DRUCKER-FIRMWARE"/>
+  <translation tag="PRINTER SOFTWARE" de="DRUCKER-SOFTWARE"/>
   <translation tag="PRINTER VISUALS" de="DRUCKERDARSTELLUNG"/>
   <translation tag="PRINTERS" de="DRUCKER"/>
   <translation tag="PRINTING" de="DRUCKEN"/>
@@ -3581,6 +3598,7 @@
   <translation tag="Restarting Moonraker..." de="Moonraker wird neu gestartet..."/>
   <translation tag="Restarting printer..." de="Drucker wird neu gestartet..."/>
   <translation tag="Restarting screen..." de="Bildschirm wird neu gestartet..."/>
+  <translation tag="Restarting the printer" de="Drucker wird neu gestartet"/>
   <translation tag="Restarting the printer..." de="Drucker wird neu gestartet..."/>
   <translation tag="Restarting with the new version..." de="Neustart mit der neuen Version..."/>
   <translation tag="Restarting..." de="Wird neu gestartet..."/>
@@ -4083,6 +4101,7 @@
   <translation tag="Starting nozzle clean..." de="Düsenreinigung starten..."/>
   <translation tag="Starting print..." de="Druck starten..."/>
   <translation tag="Starting the print" de="Druck wird gestartet"/>
+  <translation tag="Starting the update" de="Update wird gestartet"/>
   <translation tag="Starting {}…" de="{} wird gestartet…"/>
   <translation tag="Starting..." de="Starten..."/>
   <translation tag="Starts after the current print" de="Startet nach dem aktuellen Druck"/>
@@ -4448,6 +4467,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." de="Der Drucker hat den Druckstart nicht bestätigt ({}). Er kann trotzdem noch starten: Prüfe den Drucker, bevor du ihn erneut startest."/>
   <translation tag="The printer did not report its toolhead limits." de="Der Drucker hat die Grenzwerte seines Werkzeugkopfs nicht gemeldet."/>
   <translation tag="The printer did not reset the filter" de="Der Drucker hat den Filter nicht zurückgesetzt"/>
+  <translation tag="The printer did not say whether it is printing. Try again." de="Der Drucker hat nicht gemeldet, ob er druckt. Versuche es erneut."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." de="Der Drucker extrudiert in einer Ecke und wiederholt, bis die Messwerte übereinstimmen. Du beurteilst nichts mit dem Auge."/>
   <translation tag="The printer finishes this measurement on its own." de="Der Drucker beendet diese Messung selbst."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" de="Der Drucker hat diesen Druck angehalten und kann ihn nicht fortsetzen. Von vorne neu starten?"/>
@@ -4468,6 +4488,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." de="Der Drucker ist nicht referenziert. Wenn Sie fortfahren, werden alle Achsen referenziert und der Werkzeugkopf bewegt sich. Stellen Sie sicher, dass das Heizbett frei ist."/>
   <translation tag="The printer is not ready." de="Der Drucker ist nicht bereit."/>
   <translation tag="The printer is not reporting its toolheads" de="Der Drucker meldet seine Werkzeugköpfe nicht"/>
+  <translation tag="The printer is restarting into the new firmware." de="Der Drucker startet mit der neuen Firmware neu."/>
   <translation tag="The printer is shut down." de="Der Drucker ist heruntergefahren."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." de="Der Drucker nutzt diesen Wert bis zum nächsten Klipper-Neustart. Um ihn zu behalten, tragen Sie ihn als pressure_advance im Extruder-Abschnitt dieses Werkzeugs in printer.cfg ein."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." de="Der Drucker wartet, bis die Kammer eine Temperatur erreicht, und nur ein Notaus mit Firmware-Neustart beendet dieses Warten. Der Druck stoppt sofort und kann nicht fortgesetzt werden."/>
@@ -4490,10 +4511,12 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." de="Der Drucker meldet keine Spuraufzeichnung, daher kann nur das Leeren des Extruders entladen."/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" de="Der Drucker verlangt eine verschlüsselte Verbindung, hat den verschlüsselten Auftrag aber abgelehnt: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" de="Der Drucker verlangt eine verschlüsselte Verbindung, aber die verschlüsselte Verbindung zu {}:{} ist fehlgeschlagen"/>
+  <translation tag="The printer restarts when the update finishes." de="Der Drucker startet neu, wenn das Update abgeschlossen ist."/>
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." de="Der Drucker startet mit dem Snapmaker-Bildschirm neu, und HelixScreen startet nicht mehr. Ihre HelixScreen-Einstellungen bleiben auf dem Drucker; führen Sie das Installationsprogramm erneut aus, um zurückzukehren."/>
   <translation tag="The printer shut down" de="Der Drucker hat abgeschaltet"/>
   <translation tag="The printer shut down while homing or probing." de="Der Drucker hat beim Referenzieren oder Abtasten abgeschaltet."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." de="Der Drucker hat sich zur Sicherheit selbst gestoppt; die Firmware nannte keinen genauen Grund."/>
+  <translation tag="The printer stops and cannot print until the update is done." de="Der Drucker hält an und kann bis zum Ende des Updates nicht drucken."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." de="Der Drucker wechselt zwischen mehreren Werkzeugköpfen. Verwalte die Werkzeuge im Filamentsystem-Bildschirm."/>
   <translation tag="The printer was stopped" de="Der Drucker wurde gestoppt"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" de="Die Drucker-Firmware wählt selbst, wohin bei Filamentende gewechselt wird"/>
@@ -4534,6 +4557,7 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" de="Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden"/>
   <translation tag="The unload did not start: unload by hand, then start again" de="Das Entladen hat nicht begonnen: Entlade von Hand und starte dann erneut"/>
   <translation tag="The unload finishes on its own, but the plate will not move." de="Das Entladen läuft zu Ende, aber das Heizbett bewegt sich nicht."/>
+  <translation tag="The update failed" de="Das Update ist fehlgeschlagen"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." de="Der Videoplayer konnte auf diesem Drucker nicht starten ({}). Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen."/>
   <translation tag="The {0} motor was not measured: {1}." de="Der {0}-Motor wurde nicht gemessen: {1}."/>
   <translation tag="Theme" de="Thema"/>
@@ -4614,6 +4638,7 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." de="Das Moonraker dieses Druckers verlangt eine Anmeldung. Trage seinen API-Schlüssel unter Einstellungen &gt; Verbindung ein."/>
   <translation tag="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown." de="Der Beschleunigungssensor dieses Druckers misst bis {0:.0f} Hz, daher werden schnellere Welligkeiten nicht angezeigt."/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." de="Die Firmware dieses Druckers hat ihre eigene Wiederherstellung nach Stromausfall."/>
+  <translation tag="This printer&apos;s firmware offers updates by itself when one is available." de="Die Firmware dieses Druckers bietet Updates selbst an, sobald eines verfügbar ist."/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." de="Das Portal dieses Druckers sackt bei einem Stromausfall ab, daher kann ein Druck nicht fortgesetzt werden."/>
   <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." de="Der Homing-Override dieses Druckers referenziert Z zusammen mit X und Y, daher kann ein Druck nicht fortgesetzt werden."/>
   <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." de="Der Homing-Override dieses Druckers führt Befehle aus, die Z bewegen können, daher kann ein Druck nicht fortgesetzt werden."/>
@@ -4636,6 +4661,7 @@
   <translation tag="This tool probes each bed screw and tells you how much to adjust." de="Dieses Werkzeug tastet jede Bettschraube ab und zeigt Ihnen, wie viel Sie einstellen müssen."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." de="Dieser Werkzeugkopf hat keine automatische Zuführung. Lade das Filament von Hand."/>
   <translation tag="This update asks for new permissions:" de="Dieses Update fragt nach neuen Berechtigungen:"/>
+  <translation tag="This update removes HelixScreen from the printer. Reinstall it afterwards." de="Dieses Update entfernt HelixScreen vom Drucker. Installiere es danach erneut."/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." de="Dieses Warten endet erst bei seiner Temperatur: Abbrechen erfordert einen Notaus und einen Firmware-Neustart."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." de="Dies wendet den Z-offset auf Ihren Endschalter an und startet Klipper neu, um die Konfiguration zu speichern. Der Drucker wird kurz getrennt."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." de="Dies wendet den Z-offset auf Ihre Sonde an und startet Klipper neu, um die Konfiguration zu speichern. Der Drucker wird kurz getrennt."/>
@@ -4867,6 +4893,7 @@
   <translation tag="Unlock" de="Entsperren"/>
   <translation tag="Unmapped" de="Nicht zugeordnet"/>
   <translation tag="Unmount" de="Demontieren"/>
+  <translation tag="Unpacking the firmware" de="Firmware wird entpackt"/>
   <translation tag="Unretract Extra" de="Zusätzliches Primen"/>
   <translation tag="Unretract Speed" de="Prime-Geschwindigkeit"/>
   <translation tag="Unsaved changes" de="Ungespeicherte Änderungen"/>
@@ -4875,6 +4902,7 @@
   <translation tag="Up next: {}" de="Als Nächstes: {}"/>
   <translation tag="Up next: {} (+{})" de="Als Nächstes: {} (+{})"/>
   <translation tag="Up to date" de="Aktuell"/>
+  <translation tag="Up to date ({})" de="Aktuell ({})"/>
   <translation tag="Up: %s" de="Betriebszeit: %s"/>
   <translation tag="Update" de="Aktualisieren"/>
   <translation tag="Update Available" de="Update verfügbar"/>
@@ -4883,6 +4911,7 @@
   <translation tag="Update Helper Macros" de="Hilfsmakros aktualisieren"/>
   <translation tag="Update Helper Macros?" de="Hilfsmakros aktualisieren?"/>
   <translation tag="Update Success" de="Update erfolgreich"/>
+  <translation tag="Update complete" de="Update abgeschlossen"/>
   <translation tag="Update from a Terminal" de="Update über ein Terminal"/>
   <translation tag="Update heater model?" de="Heizungsmodell aktualisieren?"/>
   <translation tag="Update in Spoolman" de="In Spoolman aktualisieren"/>
@@ -4890,9 +4919,14 @@
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." de="Aktualisieren Sie das HelixPrint-Plugin auf 1.5.0, um alte PRINT_START-Aufrufe auszublenden."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." de="Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}."/>
   <translation tag="Update your security PIN" de="Sicherheits-PIN aktualisieren nicht verfügbar."/>
+  <translation tag="Update {}: {}" de="{} aktualisieren: {}"/>
   <translation tag="Updates" de="Updates"/>
   <translation tag="Updates &amp; Data" de="Updates &amp; Daten"/>
   <translation tag="Updating Configuration..." de="Konfiguration wird aktualisiert..."/>
+  <translation tag="Updating the main board" de="Hauptplatine wird aktualisiert"/>
+  <translation tag="Updating the system" de="System wird aktualisiert"/>
+  <translation tag="Updating toolhead {}" de="Werkzeugkopf {} wird aktualisiert"/>
+  <translation tag="Updating {}" de="{} wird aktualisiert"/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." de="Aktualisieren Sie auf AFC 1.2.0 oder neuer für mehrfarbige Spulen. Es fügt außerdem Filamentnamen hinzu, die ansonsten Spoolman erfordern."/>
   <translation tag="Upload" de="Hochladen"/>
   <translation tag="Upload Debug Bundle" de="Debug-Paket hochladen"/>
@@ -5163,6 +5197,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" de="Zone {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." de="[resonance_tester] hat keine probe_points, daher hat der Druckkopf keine sichere Höhe für die Setzrunden."/>
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" de="[{}] wurde {}-mal in den von printer.cfg geladenen Konfigurationsdateien gefunden, erwartet einmal"/>
+  <translation tag="a newer version" de="eine neuere Version"/>
   <translation tag="already loaded" de="bereits geladen"/>
   <translation tag="attempt {}" de="Versuch {}"/>
   <translation tag="auto" de="auto"/>
@@ -5336,6 +5371,8 @@
   <translation tag="{} filament sensors available" de="{} Filamentsensoren verfügbar"/>
   <translation tag="{} filament • {}" de="{} Filament • {}"/>
   <translation tag="{} firmware" de="{} Firmware"/>
+  <translation tag="{} firmware can only be updated from its own screen app." de="{}-Firmware kann nur über die eigene Bildschirm-App aktualisiert werden."/>
+  <translation tag="{} firmware updates are managed by its own tools." de="Updates der {}-Firmware werden über deren eigene Werkzeuge verwaltet."/>
   <translation tag="{} free of {}" de="{} frei von {}"/>
   <translation tag="{} h" de="{} Std"/>
   <translation tag="{} h of {} h" de="{} Std von {} Std"/>
@@ -5382,6 +5419,7 @@
   <translation tag="{} new hardware available" de="{} neue Hardware verfügbar"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." de="{} neue Plugins verfügbar. Aktivieren Sie sie unter Einstellungen &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" de="{}: Düsensensorfehler"/>
+  <translation tag="{} packages to update" de="{} Pakete zu aktualisieren"/>
   <translation tag="{} preset" de="{} Voreinstellung"/>
   <translation tag="{} presets" de="{} Voreinstellungen"/>
   <translation tag="{} prints" de="{} Drucke"/>

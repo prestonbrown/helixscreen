@@ -16,6 +16,9 @@
 #include "ui_settings_appearance.h"
 #include "ui_settings_connection.h"
 #include "ui_settings_display.h"
+#if !defined(HELIX_PLATFORM_ESP32)
+#include "ui_settings_firmware_update.h"
+#endif
 #include "ui_settings_hardware.h"
 #include "ui_settings_hardware_health.h"
 #include "ui_settings_help.h"
@@ -134,6 +137,20 @@ void SettingsPanel::init_subjects() {
     // 0 until Application::init_plugins loads at least one plugin, so the row
     // stays hidden until there is something to show
     UI_MANAGED_SUBJECT_INT(plugins_available_subject_, 0, "settings_plugins_available", subjects_);
+
+    // The Firmware Update row: 0 no such page (the firmware build), 1 the page for
+    // update_manager alone, 2 the page that can also apply this printer's own firmware
+#if defined(HELIX_PLATFORM_ESP32)
+    const int firmware_update_page = 0;
+#else
+    const int firmware_update_page =
+        helix::fwupdate::vendor_apply_available(
+            helix::fwupdate::provider_for(helix::fwupdate::current_host_facts()))
+            ? 2
+            : 1;
+#endif
+    UI_MANAGED_SUBJECT_INT(firmware_update_subject_, firmware_update_page,
+                           "settings_firmware_update", subjects_);
 
     // Live status line under each stateful root row; refresh_status_lines()
     // fills these in, first from setup() and then on every return to the root.
@@ -380,6 +397,13 @@ void register_settings_panel_callbacks() {
         {"on_touch_input_clicked", nav_row<get_touch_settings_overlay>()},
         {"on_connection_clicked", nav_row<get_connection_settings_overlay>()},
         {"on_updates_clicked", nav_row<get_updates_settings_overlay>()},
+#if !defined(HELIX_PLATFORM_ESP32)
+        {"on_firmware_update_clicked", nav_row<get_firmware_update_overlay>()},
+#else
+        // No firmware update page on the firmware: the row stays hidden
+        // (settings_firmware_update = 0) and this only lets the XML resolve it.
+        {"on_firmware_update_clicked", [](lv_event_t*) {}},
+#endif
 #if HELIX_HAS_PLUGINS
         {"on_plugins_clicked", nav_row<helix::plugin::get_plugins_overlay>()},
 #else
