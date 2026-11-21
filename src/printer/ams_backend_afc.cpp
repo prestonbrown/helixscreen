@@ -2497,6 +2497,9 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     const ams::LaneId lane = lane_id(slot_index);
     ams::ingest(lane, firmware.cache);
     ams::ingest(lane, firmware.metered);
+    // The meter is AFC's own lane `weight`, which SET_WEIGHT writes, so it is
+    // the echo of an edit's remaining weight even though it ranks as Metered.
+    ams::echo_pending(lane, firmware.metered);
 
     // Presence is the one reading AFC can stop having: prep, load and
     // tool_loaded are real sensors, and a frame naming none of them is not a

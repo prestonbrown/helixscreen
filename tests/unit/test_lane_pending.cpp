@@ -208,6 +208,43 @@ TEST_CASE_METHOD(LaneFixture, "ingest refuses a pending edit and file_pending a 
     CHECK_FALSE(helix::ams::lane_sources(lane).firmware.has_value());
 }
 
+TEST_CASE_METHOD(LaneFixture, "a meter reading answers an edit only when its producer says so",
+                 "[lane][pending][afc-edit-echo]") {
+    Observation weighed(ObservationSource::Pending);
+    weighed.remaining_weight_g = 1000.0F;
+    weighed.material = "PLA";
+    edit(weighed);
+    std::optional<helix::ams::PendingOutcome> heard;
+    helix::ams::await_pending(
+        lane, 0,
+        [&heard](helix::ams::PendingOutcome outcome, const std::string&) { heard = outcome; });
+
+    Observation meter(ObservationSource::Metered);
+    meter.remaining_weight_g = 1000.0F;
+    helix::ams::ingest(lane, meter);
+    REQUIRE(pending().has_value());
+    CHECK(pending()->remaining_weight_g.has_value());
+
+    Observation consumed(ObservationSource::Metered);
+    consumed.remaining_weight_g = 990.0F;
+    helix::ams::echo_pending(lane, consumed);
+    REQUIRE(pending().has_value());
+    CHECK(pending()->remaining_weight_g.has_value());
+
+    helix::ams::echo_pending(lane, meter);
+    REQUIRE(pending().has_value());
+    CHECK_FALSE(pending()->remaining_weight_g.has_value());
+    CHECK(pending()->material == "PLA");
+    CHECK_FALSE(heard.has_value());
+
+    Observation firmware(ObservationSource::Firmware);
+    firmware.material = "PLA";
+    helix::ams::echo_pending(lane, firmware);
+    CHECK_FALSE(pending().has_value());
+    CHECK(heard == helix::ams::PendingOutcome::Echoed);
+    CHECK_FALSE(helix::ams::lane_sources(lane).firmware.has_value());
+}
+
 TEST_CASE_METHOD(LaneFixture, "a clear drops the record, the edit, Spoolman and the meter",
                  "[lane][pending]") {
     for (ObservationSource source :
