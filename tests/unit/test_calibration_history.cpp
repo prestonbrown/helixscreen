@@ -5,6 +5,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "calibration_config_results.h"
 #include "calibration_history_store.h"
@@ -323,9 +324,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     auto& history = CalibrationHistory::instance();
     history.clear();
     auto& hub = helix::ui::get_calibration_hub_overlay();
-    if (!hub.are_subjects_initialized()) {
-        hub.init_subjects();
-    }
+    hub.ensure_subjects();
     drain();
     lv_subject_t* heaters = lv_xml_get_subject(nullptr, "cal_status_heaters");
     REQUIRE(heaters != nullptr);
@@ -356,13 +355,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::PrinterState state;
     state.init_subjects(false);
     DatabaseAPI api(client, state);
+    helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     auto& history = CalibrationHistory::instance();
     history.clear();
     auto& hub = helix::ui::get_calibration_hub_overlay();
-    if (!hub.are_subjects_initialized()) {
-        hub.init_subjects();
-    }
+    hub.ensure_subjects();
     drain();
     lv_subject_t* shown = lv_xml_get_subject(nullptr, "cal_run_banner_shown");
     lv_subject_t* text = lv_xml_get_subject(nullptr, "cal_run_banner_text");
