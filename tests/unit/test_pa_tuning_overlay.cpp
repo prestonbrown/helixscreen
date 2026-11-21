@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_overlay_pa_tuning.h"
+#include "ui_print_tune_overlay.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
@@ -305,4 +306,26 @@ TEST_CASE_METHOD(TunerFixture, "the tower does not start while the nozzle may no
 
     overlay.confirm_and_start_for_test();
     CHECK(overlay.error_for_test() == AmsState::instance().nozzle_heat_blocked_reason());
+}
+
+TEST_CASE_METHOD(TunerFixture, "the Tune row's Tuner button follows the run while Tune shows",
+                 "[pa_tune][pa_tuner][tune_inline]") {
+    // Print Status's inline Tune stays up for the whole print: the button
+    // must come and go with the run, not with the view's activation.
+    get_print_tune_overlay().prepare_inline(&api, get_printer_state(), lv_screen_active());
+    lv_subject_t* active = lv_xml_get_subject(nullptr, "tune_pa_session_active");
+    REQUIRE(active != nullptr);
+    lv_subject_set_int(active, 0);
+
+    start_session();
+    printing(1);
+    REQUIRE(overlay.session_active());
+    CHECK(lv_subject_get_int(active) == 1);
+
+    status({{"print_stats", {{"state", "complete"}}}});
+    REQUIRE(overlay.stage() == PaTuningOverlay::PICK);
+    overlay.select_band_for_test(0);
+    overlay.apply_pick_for_test();
+    REQUIRE_FALSE(overlay.session_active());
+    CHECK(lv_subject_get_int(active) == 0);
 }

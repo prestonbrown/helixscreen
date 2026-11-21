@@ -9,6 +9,7 @@
 #include "ui_nav.h"
 #include "ui_panel_print_select.h"
 #include "ui_print_start_controller.h"
+#include "ui_print_tune_overlay.h"
 #include "ui_toast_manager.h"
 
 #include "ams_state.h"
@@ -258,6 +259,11 @@ void PaTuningOverlay::set_stage(Stage s) {
     stage_ = s;
     if (subjects_initialized_) {
         lv_subject_set_int(&stage_subject_, s);
+    }
+    // The Tune row's Tuner button, inline on Print Status for the whole print.
+    // Never builds the tune overlay: nothing shows the button without one.
+    if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+        tune->set_pa_session_active(session_active());
     }
 }
 

@@ -508,6 +508,12 @@ void PrintTuneOverlay::handle_pa_adjust(int steps) {
                                       *current + steps * helix::tune::kPaTuneStep);
 }
 
+void PrintTuneOverlay::set_pa_session_active(bool active) {
+    if (subjects_initialized_) {
+        lv_subject_set_int(&tune_pa_session_subject_, active ? 1 : 0);
+    }
+}
+
 void PrintTuneOverlay::handle_open_pa_tuner() {
 #if !defined(HELIX_PLATFORM_ESP32)
     auto& tuner = helix::ui::get_global_pa_tuning_overlay();

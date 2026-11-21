@@ -137,6 +137,9 @@ class PrintTuneOverlay : public OverlayBase {
     /// Open the pressure-advance tuner, when a tuning print is running.
     void handle_open_pa_tuner();
 
+    /// Whether a pressure-advance tuning run is going, for the Tuner button.
+    void set_pa_session_active(bool active);
+
     /// Re-render the PA readout from the printer's reported value.
     void update_pa_display();
 
