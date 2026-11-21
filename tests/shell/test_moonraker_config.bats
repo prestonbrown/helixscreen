@@ -2387,3 +2387,23 @@ fixture_for_install() {
     refute_grep 'git_repo' "$conf"
     [ "$(grep -c '^#~ \[update_manager helixscreen\]' "$conf")" -eq 1 ] || fail "not exactly one stanza"
 }
+
+@test "configure_moonraker_updates: Z-Mod AD5X allowlist is the one beside Moonraker's config dir" {
+    create_zmod_layout
+    local asvc="$BATS_TEST_TMPDIR/zmod/root/printer_data/moonraker.asvc"
+    printf 'klipper_mcu\nwebcamd\n' > "$asvc"
+
+    configure_moonraker_updates "ad5x"
+
+    grep -qx 'helixscreen' "$asvc" || fail "helixscreen missing from $asvc: $(cat "$asvc")"
+}
+
+@test "remove_moonraker_asvc on Z-Mod drops helixscreen from the allowlist beside the config dir" {
+    create_zmod_layout
+    local asvc="$BATS_TEST_TMPDIR/zmod/root/printer_data/moonraker.asvc"
+    printf 'klipper_mcu\nhelixscreen\n' > "$asvc"
+
+    remove_moonraker_asvc "$(find_moonraker_conf)"
+
+    ! grep -qx 'helixscreen' "$asvc" || fail "helixscreen still in $asvc"
+}
