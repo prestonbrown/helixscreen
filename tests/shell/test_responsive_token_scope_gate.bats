@@ -125,8 +125,8 @@ run_gate() {
 }
 
 @test "silent on a component-local const with no responsive suffix" {
-    # ui_xml/components/color_swatch_grid.xml and friends do exactly this; those
-    # resolve through the component's own <consts> scope, not auto-discovery.
+    # A component's own <consts> block resolves through that component's scope,
+    # not auto-discovery, so an unsuffixed const there is fine.
     run_gate components swatch_grid '<component>
   <consts>
     <px name="grid_gap" value="6"/>

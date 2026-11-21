@@ -763,6 +763,7 @@ src/ui/ui_text.cpp
 src/ui/ui_tile_rung.cpp
 src/ui/ui_text_input.cpp
 src/ui/ui_theme_editor_overlay.cpp
+src/ui/ui_theme_editor_menu.cpp
 src/ui/ui_toast_manager.cpp
 src/ui/ui_touch_calibration_overlay.cpp
 src/ui/ui_unload_lane_choice.cpp

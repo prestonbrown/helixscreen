@@ -147,7 +147,7 @@ tests/shell/test_required_names_gate.bats	scripts/check_required_names.py src/la
 tests/shell/test_reset_patches.bats	Makefile lib/libhv lib/lua lib/lvgl mk/patches.mk scripts/check_patch_drift.py
 tests/shell/test_resolve_backtrace.bats	scripts/resolve-backtrace.sh
 tests/shell/test_resource_advisor.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/pool-docker.sh scripts/resource-advisor.sh scripts/test-host-run.sh
-tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py src/ui/theme_token_scan.cpp ui_xml/components/color_swatch_grid.xml
+tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py src/ui/theme_token_scan.cpp
 tests/shell/test_runtime_file_lists.bats	android/app/build.gradle config/ mk/cross.mk scripts/lib/installer/platform.sh src/application/android_asset_extractor.cpp
 tests/shell/test_sandbox_gate.bats	Makefile lib/lvgl
 tests/shell/test_screensaver_perf_names.bats	include/screensaver_registry.h scripts/screensaver-perf/
