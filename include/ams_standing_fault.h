@@ -17,8 +17,19 @@ namespace helix {
 /// Why a filament fault stands: why the print paused (@p stop_reason) while it
 /// is @p paused, else the newest recent `!!` line (@p recent_error), else
 /// empty. AmsState holds the first non-empty answer for the life of the fault.
+///
+/// A stop reason that predates a filament operation run during the pause
+/// (@p stop_reason_predates_op) explains no fault after it: that fault is the
+/// operation's. The backend's own text for it (@p backend_has_detail) names
+/// it, so the answer is empty and the backend's text shows; without any, the
+/// `!!` line is the description there is.
 inline std::string standing_fault_cause(bool paused, const std::string& stop_reason,
-                                        const std::string& recent_error) {
+                                        const std::string& recent_error,
+                                        bool stop_reason_predates_op = false,
+                                        bool backend_has_detail = false) {
+    if (paused && stop_reason_predates_op) {
+        return backend_has_detail ? std::string() : recent_error;
+    }
     if (paused && !stop_reason.empty()) {
         return stop_reason;
     }
