@@ -1890,6 +1890,65 @@ TEST_CASE("QIDI Box current_error clears when slot unblocks", "[ams][qidi_box][e
     REQUIRE_FALSE(backend.current_error().has_value());
 }
 
+TEST_CASE("QIDI Box current_error words the fault retry_step names and offers Retry",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    // QDE_004_001 on the Box's second slot: the firmware sets slot1 to -1 and
+    // records the step for TRY_MOVE_AGAIN.
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot0", 1},
+                           {"slot1", -1},
+                           {"retry_step", "QDE_004_001_2"},
+                       });
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->code == "QDE_004_001");
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK(ev->title.find("Slot 2") != std::string::npos);
+    REQUIRE(ev->recovery_actions.size() == 2);
+    CHECK(ev->recovery_actions[0].gcode == "TRY_MOVE_AGAIN");
+    CHECK(ev->recovery_actions[1].gcode.empty());
+}
+
+TEST_CASE("QIDI Box retry_step alone does not raise a fault",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    // Persisted across a restart with every slot healthy: stale, not a fault.
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot0", 1},
+                           {"slot1", 1},
+                           {"retry_step", "QDE_004_006_2"},
+                       });
+    CHECK_FALSE(backend.current_error().has_value());
+}
+
+TEST_CASE("QIDI Box console fault gets Retry only while retry_step names it",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    const std::string line = "// Code:QDE_004_006; Message:Extruder loading failure.";
+    helix::ClassifyContext printing;
+    printing.is_printing = true;
+
+    fire_vars(backend, json{{"enable_box", 1}, {"box_count", 1}, {"retry_step", "None"}});
+    CHECK_FALSE(backend.classify_error(line, printing).has_value());
+
+    fire_vars(backend, json{{"retry_step", "QDE_004_006_1"}});
+    const auto ev = backend.classify_error(line, printing);
+    REQUIRE(ev.has_value());
+    CHECK(ev->code == "QDE_004_006");
+    REQUIRE_FALSE(ev->recovery_actions.empty());
+    CHECK(ev->recovery_actions[0].gcode == "TRY_MOVE_AGAIN");
+
+    // A different code is not the step TRY_MOVE_AGAIN would re-run.
+    CHECK_FALSE(
+        backend.classify_error("// Code:QDE_004_009; Message:Extruder unloading failure.", printing)
+            .has_value());
+}
+
 // =====================================================================
 // AmsAction::ERROR from BLOCKED lane (AmsErrorBridge hook)
 // =====================================================================

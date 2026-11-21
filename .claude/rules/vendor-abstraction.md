@@ -42,7 +42,9 @@ what stock load/unload macros do, guided-load wizards), `plr_backend` (power-los
 `detection_source_table` (detection sources), `kAmsTypeTraits` (`include/ams_types.h`: per-`AmsType`
 names, telemetry slug, expected-hardware entry, buffer rows), `kBackendRows`
 (`src/printer/ams_backend.cpp`: one row per filament backend's construction, status objects and classification), `klipper_error_table` rows (per-code
-severity and recovery), and the `register_builtin_guided_device_flows()` registrar table.
+severity and recovery), `helix::faultcodes` (`src/printer/firmware_fault_codes.cpp`: one row per
+firmware that reports coded faults), `error_wording` row sets (`src/printer/error_wording.cpp`: one
+row set per firmware that adds its own prose errors), and the `register_builtin_guided_device_flows()` registrar table.
 Follow those.
 
 Genuinely unavoidable vendor branch in generic code? Annotate it: `// VENDOR_OK: <reason>`.

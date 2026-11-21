@@ -192,6 +192,7 @@ translations:
   A controller board fell behind: 'Uma placa controladora ficou atrasada'
   A controller board missed a timed update: ''
   A controller board runs firmware that does not match the printer software.: 'Uma placa controladora roda um firmware incompatível com o software da impressora.'
+  A cooling fan stopped while its heater was on, so the firmware turned the heater off.: ''
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Uma impressora delta não consegue fazer home de X e Y sem mover Z, então uma impressão não pode ser retomada."
   A different toolhead than the one asked for is on the carriage.: 'Há no carro um cabeçote diferente do solicitado.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Uma ventoinha que puxa o ar da câmara por um filtro. Controle-a na tela de temperatura da câmara.'
@@ -209,6 +210,7 @@ translations:
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Um mapa de alturas da mesa que o Klipper usa para compensar uma superfície irregular. Veja e calibre na tela Malha da Mesa.'
   A home-origin calibration point failed or stayed unstable.: 'Um ponto da calibração da origem de home falhou ou ficou instável.'
   A left, B right: "A esquerda, B direita"
+  A load was asked for while the toolhead holds filament the Box has no record of.: ''
   A lower, B upper: "A embaixo, B em cima"
   "A macro printed stray template text '{}': check its Jinja tags": "Uma macro imprimiu texto de modelo solto '{}': verifique as tags Jinja"
   A macro that wipes the nozzle. HelixScreen can run it before a print from the pre-print options.: 'Uma macro que limpa o bico. O HelixScreen pode executá-la antes de uma impressão pelas opções de pré-impressão.'
@@ -368,6 +370,7 @@ translations:
   Advanced: Avançado
   Advancing: Avançando
   After: 'Depois'
+  'After a restart, the slot saved as loaded no longer exists: the Box was removed or the number of Boxes changed.': ''
   After an error: Após um erro
   ? 'After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short.'
   : ''
@@ -424,6 +427,7 @@ translations:
   An unexpected internal error stopped the printer from starting.: 'Um erro interno inesperado impediu a impressora de iniciar.'
   An unexpected printer error occurred.: Ocorreu um erro inesperado na impressora.
   An unknown error occurred.: Ocorreu um erro desconhecido.
+  An unload was asked for, but the Box's buffer sensor sees no filament in the path.: ''
   An update is available: Uma atualização está disponível
   Analyzing data...: Analisando dados...
   Analyzing data... {}s: Analisando dados... {}s
@@ -433,6 +437,7 @@ translations:
   Animations: Animações
   Anonymous data to help improve HelixScreen: Dados anônimos para melhorar o HelixScreen
   Anonymous usage statistics: Estatísticas de uso anônimas
+  Another filament is already in the toolhead, so the Box will not feed {}.: ''
   Another filament operation is heating the nozzle.: "Outra operação de filamento está aquecendo o bico."
   Another print is in progress.: 'Outra impressão está em andamento.'
   Another toolhead is active: 'Outro cabeçote está ativo'
@@ -473,6 +478,7 @@ translations:
   Assisted Retract: 'Retração assistida'
   Assisting: Assistindo
   At least {} lines in helixscreen.env were ignored: 'Pelo menos {} linhas do helixscreen.env foram ignoradas'
+  At startup the toolhead holds filament, but the Box could not tell which slot it came from.: ''
   At target: No alvo
   At {}, about {} minutes.: A {}, cerca de {} minutos.
   Authentication failed: Falha na autenticação
@@ -483,6 +489,10 @@ translations:
   Auto loading: "Carregamento automático"
   Auto loading is off for this toolhead. Turn it on under Print Behavior, or load the filament by hand.: "O carregamento automático está desligado para este cabeçote. Ligue-o em Comportamento de Impressão ou carregue o filamento manualmente."
   Auto loading is off; turn it on under Print Behavior: "Carregamento automático desligado; ligue-o em Comportamento de Impressão"
+  'Auto refill could not start: the buffer sensor is empty or there is no next slot.': ''
+  Auto refill failed: ''
+  Auto refill found no other slot with the same vendor, color and type.: ''
+  Auto refill needs the vendor, color and type set for the empty slot, and they are not.: ''
   Auto-Detect: Auto-Detectar
   Auto-Heat on Load: Aquecer Automaticamente ao Carregar
   Auto-Replenish: Reabastecimento automático
@@ -857,6 +867,8 @@ translations:
   Check slot failed: Falha ao verificar slot
   Check Slots: Verificar
   Check slots failed: Falha ao verificar slots
+  Check that fan and its connector. If the printer shut down, restart the firmware.: ''
+  Check that fan for a loose plug, debris or a failed motor.: ''
   Check that motor power is on and its connectors are tight, then restart the firmware.: ''
   Check that nothing blocks the toolhead or the head's dock, then load the head again.: 'Verifique se nada bloqueia o cabeçote ou a doca dele e carregue o cabeçote novamente.'
   ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
@@ -865,11 +877,15 @@ translations:
   Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY.: ''
   Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again.: 'Verifique se a placa está no lugar e nada bloqueia o eixo, limpe a ponta do bico e faça home novamente.'
   Check that the camera's live view works, or turn off timelapse for this print, then resume.: 'Verifique se a visualização ao vivo da câmera funciona, ou desligue o timelapse nesta impressão, e retome.'
+  Check that the cutter cut fully and pull the filament back by hand if needed, then retry.: ''
   Check that the cutter mechanism is properly installed: Verifique se o mecanismo de corte está instalado corretamente
   ? Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
   : ''
   Check that the printer is powered on and connected to the network: Verifique se a impressora está ligada e conectada à rede
+  Check that the toolhead is really empty, then resume.: ''
+  Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Verifique se o tubo PTFE ao longo da esteira está dobrado, e a curva na entrada do sensor do extrusor
+  Check the PTFE tube from the Box to the toolhead and the toolhead entry, and clear any cut tip, then retry.: ''
   Check the RS-485 cable between printer and CFS: Verifique o cabo RS-485 entre a impressora e o CFS
   ? Check the USB or CAN cable and its termination, keep it away from motor wires, check the host's load, then restart the firmware.
   : ''
@@ -986,6 +1002,7 @@ translations:
   : Libere a área acima e abaixo da mesa. Coloque os carretéis sobre a mesa, cubra-os com uma caixa (uma tampa impressa ou a embalagem do filamento) e feche a porta.
 
   Clear the extruder?: 'Esvaziar o extrusor?'
+  Clear the nozzle and the purge chute, load {}, then resume.: ''
   Clear the plate and load {}. The tower prints in the middle of the bed.: Limpe a mesa e carregue {}. A torre é impressa no centro da mesa.
   Cleared: Liberado
   Cleared from settings — system unpair failed, may need OS Bluetooth: Removido das configurações; falha ao desemparelhar no sistema, pode ser necessário o Bluetooth do SO
@@ -1000,6 +1017,8 @@ translations:
   Close: Fechar
   Close feeder: Fechar alimentador
   Close feeder macro: Macro de fechar alimentador
+  ? Close the Box lid, check the Box power and start drying again. If it keeps failing, the heater or its sensor needs checking.
+  : ''
   Closed: Fechada
   Closer: Mais Perto
   Closer = more squish | Farther = less squish: Mais perto = mais compressão | Mais longe = menos compressão
@@ -1180,6 +1199,7 @@ translations:
   'Klipper has not come up. It may not be running on the printer.': 'O Klipper não iniciou. Ele pode não estar em execução na impressora.'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "O básico: o assistente de configuração, a navegação entre telas e os gestos de toque."
+  Load a new spool into {}, or turn on auto refill with a matching spool, then resume.: ''
   Load all stopped: Carregamento de todos interrompido
   "Load and unload": "Carregar e descarregar"
   ? Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion.
@@ -1471,12 +1491,15 @@ translations:
   Drying on the bed: Secando na mesa
 
   Drying progress and humidity for boxes, the chamber, and the bed: Progresso da secagem e umidade das caixas, da câmara e da mesa
+  Drying settings are missing: ''
   Drying started: Secagem iniciada
   Drying stopped: Secagem interrompida
+  Drying was started with no time or no temperature.: ''
   Duplicate: Duplicar
   Duplicate command in the configuration: 'Comando duplicado na configuração'
   Duplicated: Duplicado
   Duration: Duração
+  During auto refill, the old filament would not purge out of the toolhead.: ''
   Dust and old grease on the X and Y rails or rods cause noise, ringing and wear.: "Pó e graxa velha nos trilhos ou varões X e Y causam ruído, ringing e desgaste."
   Dusty board and power supply fans run hot and fail early.: "Ventoinhas da placa e da fonte com pó aquecem e falham cedo."
   E-Stop (M112): Parada de Emergência (M112)
@@ -1818,6 +1841,8 @@ translations:
   Fan available but not assigned to any role: 'Ventoinha disponível, mas sem função atribuída'
   Fan control: 'Controlo de ventoinhas'
   'Fan control failed: {}': 'Falha no controle da ventoinha: {}'
+  Fan {} is not spinning: ''
+  Fan {} stopped: ''
   FanSelect: Selecionar Ventoinha
   Fans: Ventoinhas
   Fans besides the part cooling fan. Control them on the Fans screen.: 'Ventoinhas além da de resfriamento da peça. Controle-as na tela Ventoinhas.'
@@ -1874,8 +1899,11 @@ translations:
   Filament cutter stuck: O cortador de filamento está travado
   Filament deleted: Filamento excluído
   Filament diameter sensors for flow compensation: Sensores de diâmetro de filamento para compensação de fluxo
+  Filament did not reach the toolhead: ''
+  Filament did not unload from the toolhead: ''
   Filament didn't fully retract, may need manual removal: O filamento não recuou totalmente; pode ser necessário removê-lo à mão
   Filament dust packs into the drive gears and costs grip.: "O pó de filamento se acumula nas engrenagens e reduz a tração."
+  Filament fed into {} never reached the Box's feed sensor, or the sensor triggered unreliably.: ''
   Filament feeder: Alimentador de Filamento
   Filament in the toolhead: "Filamento no cabeçote"
   Filament is clear of the toolhead. Pull it out the rest of the way.: O filamento já saiu do cabeçote. Puxe o restante até o fim.
@@ -1890,8 +1918,11 @@ translations:
   : O filamento ainda está no bico após o descarregamento. O corte ou a retração pode não ter sido concluído. Limpe o cabeçote antes de carregar outro carretel.
   Filament is still loaded. Unload it before enabling bypass.: 'Ainda há filamento carregado. Descarregue-o antes de ativar o bypass.'
   Filament is still present after the cut — the blade may be dull or misaligned: Ainda há filamento após o corte. A lâmina pode estar cega ou desalinhada
+  Filament is tangled: ''
   Filament jam detected: Entupimento de filamento detectado
   Filament jammed at the extruder gear: Filamento preso na engrenagem do extrusor
+  ? "Filament left the Box but never reached the toolhead's filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."
+  : ''
   Filament move too long: ''
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'O filamento deve estar carregado no extrusor e a placa montada, sem nada no caminho do cabeçote.'
   Filament never reached the CFS hub sensor: O filamento nunca chegou ao sensor do hub do CFS
@@ -2007,6 +2038,7 @@ translations:
   Found {} at {}.: '{} encontrada em {}.'
   Framerate: Taxa de Quadros
   Free space unknown: 'Espaço livre desconhecido'
+  Free the spool and pull the filament out of {} by hand, then try again.: ''
   Freed {}: '{} liberados'
   Freed {}, but some files could not be deleted: '{} liberados, mas alguns arquivos não puderam ser excluídos'
   From Buffer: Do buffer
@@ -2324,6 +2356,7 @@ translations:
   Insert filament: 'Inserir filamento'
   Insert filament before resuming: Insira filamento antes de retomar
   Insert filament into this head's feeder until it grabs, then load the head again.: 'Insira o filamento no alimentador deste cabeçote até ele prender e carregue o cabeçote novamente.'
+  Insert the filament again and read the tag again.: ''
   Inspecting bed...: Inspecionando a mesa...
   Install: Instalar
   Install HelixPrint Plugin: Instalar Plugin HelixPrint
@@ -2576,6 +2609,7 @@ translations:
   Load Failed: 'Falha ao carregar'
   Load Filament: Carregar Filamento
   Load a filament first before trying to unload: Carregue primeiro filamento antes de tentar descarregar
+  Load a matching spool, or load any slot by hand and resume.: ''
   Load a new spool in this slot, or turn on Auto-Refill to switch to a matching one: Carregue um novo carretel neste slot, ou ative o reabastecimento automático para mudar para um equivalente
   Load and unload filament at the tool by hand: 'Carregue e descarregue o filamento à mão na ferramenta'
   'Load canceled: nozzle target dropped': 'Carregamento cancelado: o alvo do bico caiu'
@@ -2583,8 +2617,10 @@ translations:
   Load complete: 'Carregamento concluído'
   Load failed: Falha ao carregar
   Load filament: 'Carregar filamento'
+  Load filament by hand and resume.: ''
   Load filament first: Carregue filamento primeiro
   Load filament into this head, then resume. If filament is there, check for a break between the spool and the head.: 'Carregue filamento neste cabeçote e retome. Se houver filamento, verifique se ele rompeu entre o carretel e o cabeçote.'
+  Load filament into {}, then resume.: ''
   Load filament to the toolhead, then tap Resume.: 'Carregue filamento até o cabeçote e toque em Retomar.'
   Load into which tool?: 'Carregar em qual ferramenta?'
   Push filament into the toolhead by hand, then tap Resume.: "Empurre o filamento manualmente para o cabeçote e toque em Retomar."
@@ -2595,6 +2631,7 @@ translations:
   Load the required filaments or start anyway?: Carregar os filamentos necessários ou iniciar mesmo assim?
   Load...: Carregar...
   Loaded: Carregado
+  Loaded filament not recognized: ''
   Loading: Carregando
   Loading Bed Mesh...: Carregando malha da mesa...
   Loading Error: Erro de Carregamento
@@ -2978,6 +3015,7 @@ translations:
   No macros available: Nenhuma macro disponível
   No matches in SpoolmanDB: 'Nenhum resultado no SpoolmanDB'
   No matching prints: Nenhuma impressão correspondente
+  No matching slot for auto refill: ''
   No media installed: Nenhuma mídia instalada
   No mesh data: Sem dados de malha
   No mesh loaded: Nenhuma malha carregada
@@ -3607,7 +3645,11 @@ translations:
   Provide {}: 'Forneça {}'
   Pull: "Puxar"
   Pull now: "Puxe agora"
+  Pull the filament out of the toolhead by hand, then load again.: ''
   Pulled: "Puxado"
+  ? "Pulling the filament back from the toolhead never cleared the Box's buffer sensor: the filament was not cut through, its tip swelled, or it tangled."
+  : ''
+  "Pulling the filament back into the Box did not clear the slot's sensor: a tangled spool, or stuck or snapped filament.": ''
   Purge: Purgar
   Purge & Wipe: 'Purgar e limpar'
   Purge Chute Calibration: Calibração da calha de purga
@@ -3628,6 +3670,8 @@ translations:
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Empurre o filamento de limpeza na extrusora até parar e toque em Extrudar."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Empurre o filamento no extrusor até parar. Ele é puxado automaticamente, ou toque em Extrudar."
   Push the filament into the head until the extruder grabs it, then try again.: 'Empurre o filamento no cabeçote até o extrusor prendê-lo e tente novamente.'
+  ? Push the filament into {} until the feeder grabs it, cut its end clean and check that the slot's sensor is not stuck, then try again.
+  : ''
   Put the build plate back on, aligned, then retry.: 'Recoloque a placa, alinhada, e tente novamente.'
   QGL: QGL
   'QGL failed: {}': 'Falha no QGL: {}'
@@ -3690,6 +3734,7 @@ translations:
   Re-syncs Happy Hare's tracked state with the hardware.: Ressincroniza o estado rastreado do Happy Hare com o hardware.
   Re-test: Testar novamente
   Reaches {:g} mm from the center, past this printer's {:g} mm radius.: 'Chega a {:g} mm do centro, além do raio de {:g} mm desta impressora.'
+  Reading a slot's RFID tag moves filament, and the toolhead is still loaded.: ''
   Reading the current settings...: 'Lendo as configurações atuais...'
   Readings don't repeat: "As leituras não se repetem"
   Readings from extra temperature sensors: Leituras de sensores adicionais
@@ -4192,6 +4237,7 @@ translations:
   Set %s to %s: 'Definir %s como %s'
   Set Active: Definir Ativo
   Set PIN: Definir PIN
+  Set a drying temperature and a duration, then start again.: ''
   Set and watch the bed temperature: Ajustar e acompanhar a temperatura da mesa
   Set and watch the chamber temperature: Ajustar e acompanhar a temperatura da câmara
   Set and watch the nozzle temperature: Ajustar e acompanhar a temperatura do bico
@@ -4205,6 +4251,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Defina manualmente o tipo e a cor do filamento deste slot. Se a etiqueta deveria ser legível, reencaixe o carretel com o rótulo voltado para o leitor quando a caixa estiver ociosa
   Set the filament type for this head in the filament panel, then resume.: 'Defina o tipo de filamento deste cabeçote no painel de filamento e retome.'
+  Set the slot's filament information, or load the slot by hand.: ''
   Set this to Spoolman's currency if you use both.: "Defina aqui a moeda do Spoolman se usar ambos."
   Set up: Configurar
   Set up your label printer in Settings: Configure sua impressora de etiquetas em Configurações
@@ -4467,6 +4514,7 @@ translations:
   Storage: 'Armazenamento'
   Storage report: 'Relatório de armazenamento'
   Stow: Guardar
+  Straighten the PTFE tube for that slot and read the tag again.: ''
   'Stretched thin: pull a little colder. Snapped: pull a little warmer. The pull temperature is on the setup step.': "Esticou fino: puxe um pouco mais frio. Partiu: puxe um pouco mais quente. A temperatura de puxada está na etapa de configuração."
   Subnet mask: 'Máscara de sub-rede'
   Subtle: Sutil
@@ -4623,6 +4671,10 @@ translations:
   The ACE state can't be read.: "Não é possível ler o estado do ACE."
   ? 'The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options.'
   : ''
+  The Box dryer is not heating: ''
+  The Box's filament state is wrong: ''
+  "The Box's motion sensor saw no movement while feeding: the spool is tangled or wound over itself.": ''
+  The Box's self-check failed: ''
   The CFS odometer hardware is faulty and needs repair or replacement: O hardware do odômetro do CFS está com defeito e precisa de reparo ou substituição
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'O CFS ficou sem filamento em {}. A impressão continua com o que resta no tubo.'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'O CFS ficou sem filamento. A impressão continua com o que resta no tubo.'
@@ -4635,6 +4687,8 @@ translations:
   The IP address is not a valid address.: 'O endereço IP não é um endereço válido.'
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'O plugin de timelapse do Moonraker está instalado. Defina como ele grava nas configurações de timelapse.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: A folha PEI ainda está na mesa. Retire-a e toque em Próximo.
+  ? 'The QIDI Box dryer could not reach its target: an open lid, a failed heater or a cold room. Only the dryer stopped; the print goes on.'
+  : ''
   The Spoolman spool currently loaded: O carretel do Spoolman em uso
   The Z offset paper test. Stay at the printer.: 'O teste do papel do offset Z. Fique perto da impressora.'
   The accelerometer did not respond as expected, usually from a loose cable.: 'O acelerômetro não respondeu como esperado, geralmente por um cabo solto.'
@@ -4704,6 +4758,7 @@ translations:
   : O ponto exato de parada não foi encontrado. A impressão é retomada no início da próxima camada e pula o restante desta.
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: O extrusor não consegue puxar com suavidade. Verifique se o carretel está embaraçado ou com nós, e se o tubo PTFE tem uma curva acentuada
   'The extruder is pulling but the feeder is not turning: the filament is tangled or stuck between the spool and the head.': 'O extrusor está puxando, mas o alimentador não gira: o filamento está embaraçado ou preso entre o carretel e o cabeçote.'
+  The fan was turned on, but its speed sensor reads 0 RPM.: ''
   The feeder could not pull the filament in.: 'O alimentador não conseguiu puxar o filamento.'
   The feeder motor did not turn while pulling the filament in.: 'O motor do alimentador não girou ao puxar o filamento.'
   The feeder motor stalled while pushing the filament to the head.: 'O motor do alimentador travou ao empurrar o filamento até o cabeçote.'
@@ -4713,6 +4768,7 @@ translations:
   The filament did not reach the head in time.: 'O filamento não chegou ao cabeçote a tempo.'
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : O filamento não chegou ao bico. O CFS não reportou nenhum erro, mas o sensor do cabeçote ainda não detecta filamento. Verifique se o carretel está bem encaixado e se o caminho está livre, e tente novamente.
+  The filament left the slot: ''
   ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
   : 'O filamento pode ter rompido ou o tubo de alimentação se soltado. Remova qualquer pedaço quebrado, encaixe o tubo nas duas pontas e carregue o cabeçote novamente.'
   The filament may not have fully retracted — try again or manually pull: O filamento pode não ter recuado totalmente. Tente novamente ou puxe à mão
@@ -4798,6 +4854,7 @@ translations:
   The nozzle temperature asked for is outside the allowed range.: 'A temperatura do bico pedida está fora da faixa permitida.'
   'The nozzle temperature reading is out of range: its sensor is loose or damaged.': 'A leitura da temperatura do bico está fora da faixa: o sensor está solto ou danificado.'
   The nozzle waited too long; start again.: "O bico esperou demais; comece novamente."
+  The old filament would not purge: ''
   The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'A peça na mesa é alta demais para passar por cima. Remova-a e toque em "Liberado".'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "O pico de {0} saiu da zona. Confira se girou apenas o tensor de {1}. Não sabe qual é qual? Toque no lápis para identificar as correias."
@@ -4915,6 +4972,8 @@ translations:
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Não é possível ler o sensor desta unidade CFS. Verifique a conexão, ou a unidade pode precisar de manutenção
   'The shell could not start: {}': 'Não foi possível iniciar o shell: {}'
   The shell exited. Tap the terminal to start a new one.: 'O shell foi encerrado. Toque no terminal para iniciar um novo.'
+  The slot asked to eject still has its filament loaded in the toolhead.: ''
+  The slot chosen for this tool change has no filament at its inlet.: ''
   The speed of one fan you choose: A velocidade de uma ventoinha escolhida
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'A máscara de sub-rede não é válida. Use um formato como 255.255.255.0 ou 24.'
   The temperature was changed elsewhere.: "A temperatura foi alterada em outro lugar."
@@ -4930,7 +4989,9 @@ translations:
   The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?: O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. Retire-o manualmente antes de imprimir. Iniciar mesmo assim?
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : O cabeçote tem filamento, mas nenhum slot AMS o reporta como carregado. A impressora pode não conseguir carregar um slot até que ele seja esvaziado. Iniciar mesmo assim?
+  The toolhead is already loaded: ''
   The toolhead is not homed, so this would home into the print: 'O cabeçote não fez home, fazer home colidiria com a impressão'
+  The toolhead is not loaded: ''
   The toolhead is unloaded: 'O cabeçote está descarregado'
   'The toolhead may still be at the chute. Move it away before printing.': 'O cabeçote pode ainda estar na calha. Afaste-o antes de imprimir.'
   The toolhead moves. Keep hands clear.: 'O cabeçote se move. Mantenha as mãos afastadas.'
@@ -5304,6 +5365,7 @@ translations:
   Unload Failed: 'Falha ao descarregar'
   Unload Filament: Descarregar Filamento
   'Unload at end': 'Descarregar ao terminar'
+  Unload before reading the tag: ''
   Unload complete. Pull the filament out of {}.: 'Descarregamento concluído. Puxe o filamento para fora: {}.'
   Unload failed: Falha ao descarregar
   Unload filament: 'Descarregar filamento'
@@ -5313,11 +5375,17 @@ translations:
   Unload from toolhead first: 'Descarregue primeiro do cabeçote'
   Unload macro not configured: Macro de descarga não configurado
   Unload the CFS filament before enabling bypass: 'Descarregue o filamento do CFS antes de ativar o bypass'
+  Unload the current filament first, then load {}.: ''
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "Descarregue o filamento atual e continue. A extrusora e o topo do caminho do filamento precisam estar ao alcance da mão."
+  Unload the filament from the toolhead by hand, then reconnect the Box or restart.: ''
   Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: 'Descarregue o cabeçote, ou puxe o filamento restante do tubo de alimentação, e carregue o cabeçote novamente.'
+  Unload the toolhead by hand, then load again.: ''
+  Unload the toolhead first: ''
+  Unload the toolhead first, then eject the slot.: ''
   Unload the toolhead when a print ends: 'Descarregar o cabeçote ao terminar uma impressão'
   Unload this unit first: 'Descarregue primeiro esta unidade'
   Unload which tool?: 'Descarregar qual ferramenta?'
+  Unload, then read the tag again.: ''
   Unload...: Descarregar...
   Unloaded: 'Descarregado'
   Unloading: Descarregando
@@ -5335,6 +5403,7 @@ translations:
   Unretract Speed: Velocidade de Desretração
   Unsupported tape width: Largura de fita não suportada
   'Unsupported tape width: ': 'Largura de fita não suportada: '
+  Untangle or rewind the spool, then resume.: ''
   'Up next: {}': 'A seguir: {}'
   'Up next: {} (+{})': 'A seguir: {} (+{})'
   Up to date: Atualizado
@@ -5501,6 +5570,8 @@ translations:
   Which macro switches the ACE path off for bypass: 'Qual macro desliga o caminho do ACE para o bypass'
   Which macro the Close feeder button sends: Qual macro o botão Fechar alimentador envia
   Which macro the Open feeder button sends: Qual macro o botão Abrir alimentador envia
+  While reading a tag, the filament left the inlet sensor.: ''
+  While reading a tag, the filament stalled before the sensor while still at the inlet, usually from a bent or kinked tube.: ''
   White: Branco
   Why the curves differ: "Por que as curvas diferem"
   Why?: "Por quê?"
@@ -5806,6 +5877,7 @@ translations:
   '{} available': '{} disponível'
   '{} axes homed': 'Eixos {} referenciados'
   '{} axis homed': Eixo {} referenciado
+  "{} can't refill automatically": ''
   '{} cannot be skipped: its name has characters the printer cannot be sent': '{} não pode ser excluído: o nome tem caracteres que não podem ser enviados à impressora'
   '{} cannot be stored on this printer.': "{} não pode ser salvo nesta impressora."
   '{} changed': '{} alterado(s)'
@@ -5813,8 +5885,10 @@ translations:
   '{} complete': '{} concluído'
   '{} configured item not found': '{} item configurado não encontrado'
   '{} configured items not found': '{} itens configurados não encontrados'
+  '{} could not load': ''
   '{} could not load its filament': '{} não conseguiu carregar o filamento'
   '{} could not preload its filament': '{} não conseguiu pré-carregar o filamento'
+  '{} could not unload': ''
   '{} could not unload its filament': '{} não conseguiu descarregar o filamento'
   '{} critical': '{} crítico(s)'
   '{} critical hardware issues': '{} problemas críticos de hardware'
@@ -5845,6 +5919,7 @@ translations:
   '{} h': '{} h'
   '{} h of {} h': '{} h de {} h'
   '{} hand feed did not finish': 'Alimentação manual de {} não terminou'
+  '{} has no filament': ''
   '{} has no filament type set': '{} não tem tipo de filamento definido'
   '{} has no hotend': "{} não tem hotend"
   '{} heater turned off': Aquecedor {} desligado
@@ -5894,7 +5969,9 @@ translations:
   '{} presets': '{} predefinições'
   '{} prints': '{} impressões'
   '{} queued': '{} na fila'
+  '{} ran out': ''
   '{} ran out of filament': '{} ficou sem filamento'
+  '{} ran out of filament during the print, and auto refill is off.': ''
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} ficou sem {}. Escolha um cabeçote carregado para terminar a impressão. Ele mantém as temperaturas fatiadas para o filamento original.'
   '{} ran out, and the printer has not said what it was printing.': '{} esgotou, e a impressora não informou o que estava imprimindo.'
   '{} serial': 'N.º de série de {}'

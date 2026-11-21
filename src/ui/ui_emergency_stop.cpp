@@ -18,6 +18,7 @@
 #include "display_wake_request.h"
 #include "error_wording.h"
 #include "fault_modal_registry.h"
+#include "firmware_fault_codes.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
@@ -898,8 +899,18 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
             ? std::optional<helix::error_wording::Classification>{}
             : helix::error_wording::classify(message, &printer_state_->get_discovery());
     const auto worded = known ? helix::error_wording::word(*known) : std::nullopt;
+    // A firmware that shuts down with a structured code in the reason.
+    const auto coded =
+        message.empty() || !code.empty() || worded
+            ? std::nullopt
+            : helix::faultcodes::classify(printer_state_->get_discovery(), "!! " + message);
     if (message.empty()) {
         message = lv_tr(content.message);
+    } else if (coded && coded->detail != coded->raw_detail) {
+        if (!coded->title.empty()) {
+            lv_subject_set_string(&recovery_title_subject_, coded->title.c_str());
+        }
+        message = coded->detail + "\n\n" + message;
     } else if (worded) {
         // What went wrong and what to do, above Klipper's own text: a support
         // thread still needs the firmware's exact words, and a config error's

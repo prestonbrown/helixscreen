@@ -32,10 +32,16 @@ namespace helix::faultcodes {
 /// Status objects carrying standing faults, for the subscription builder.
 [[nodiscard]] std::vector<std::string> required_status_objects(const PrinterDiscovery& hw);
 
-/// Classify one error line. nullopt when the line carries no code this
-/// firmware owns, so the generic classifier still gets its turn.
-[[nodiscard]] std::optional<ErrorEvent> classify(const PrinterDiscovery& hw,
-                                                 const std::string& line);
+/// Classify one console line. nullopt when the line carries no code this
+/// firmware owns, so the generic classifier still gets its turn. A firmware
+/// that raises faults on `//` info lines has those read too, and claims only
+/// the ones carrying its code; an ordinary comment never classifies.
+[[nodiscard]] std::optional<ErrorEvent>
+classify(const PrinterDiscovery& hw, const std::string& line, const ClassifyContext& ctx = {});
+
+/// True when this firmware's console carries a code-stripped prose copy of
+/// each fault it also reports coded, so an uncoded line is held for its twin.
+[[nodiscard]] bool firmware_sends_prose_twins(const PrinterDiscovery& hw);
 
 /// The faults currently standing, one console-equivalent coded line each
 /// (`!! LLLL-IIII-XXXX-CCCC <firmware message>` in the same format classify

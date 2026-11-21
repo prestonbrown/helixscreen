@@ -105,6 +105,8 @@ VENDOR_OWNERS = (
     r"^(?:src/\w+|include)/fault_path_position\.(?:cpp|h)$",
     r"^(?:src/printer|include)/detection_source_table\.(?:cpp|h)$",
     r"^(?:src/\w+|include)/klipper_error_table\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/firmware_fault_codes\.(?:cpp|h)$",
+    r"^(?:src/printer|include)/error_wording\.(?:cpp|h)$",
     r"^(?:src/printer|include)/printer_detector\.(?:cpp|h)$",
     r"helix_cache_dir(?:_internal)?\.(?:cpp|h)$",
     r"^src/system/(?:log_collector|diagnostics)\.cpp$",

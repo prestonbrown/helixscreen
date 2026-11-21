@@ -247,6 +247,29 @@ Bunny Box sets `mmu_vendor: Other`, so Happy Hare reports nothing that names the
 
 HelixScreen ships a **Q2 Happy Hare preset** (`assets/config/presets/qidi_q2.json`) for exactly this path: a Q2 running Happy Hare (e.g. Bunny Box) auto-detects and loads with the Happy Hare MMU pre-gate sensors and heaters wired up. The Q2 install and WiFi were confirmed working by a community user; HelixScreen owns no QIDI hardware, so the Q2 path is community-validated rather than team-tested (prestonbrown/helixscreen#997).
 
+## Fault codes
+
+QIDI's Klipper extras raise faults as `QD<k>_<module>_<index>` codes (`QDE_004_006`): module 002 is
+fans, 004 the QIDI Box and its filament path, 005 heater checks. The code is the identity; the English
+message beside it is QIDI's to change (`!!Code:` vs `!Code:`, `;Message:` with and without a space,
+one bare `!! QDE_004_010 ...` form). `src/printer/qidi_fault_codes.cpp` words each code with a
+summary, a cause and a fix, filling in the slot label (`1A`..`4D`) or fan the message names, and
+`helix::faultcodes` (`src/printer/firmware_fault_codes.cpp`) is the provider the console router asks.
+
+| Channel | Codes | Notes |
+|---|---|---|
+| `!!Code:...` | 004_001-004, 010, 019-021 | An ordinary console error |
+| `// Code:...` (respond_info) | 004_005-007, 009, 011, 013, 015-018, 022, 023, 002_001, 005_001 | Every Box code that pauses a print arrives here. A `//` line classifies only when it carries a QD code |
+| `Code:...` with no prefix | 002_002 (chamber fan) | Same rule as `//` |
+| Klipper shutdown | 002_002 (hotend fan) | The coded text is `state_message`; the recovery dialog words it |
+| `save_variables.retry_step` | `QDE_004_<idx>_<slot>` | Set beside most Box raises, persisted, cleared only by `TRY_MOVE_AGAIN`. `AmsBackendQidi` offers `TRY_MOVE_AGAIN` as Retry when `retry_step` names the fault, and words its blocked-slot fault from it only while a slot reads blocked |
+
+Pause codes (004_005, 006, 007, 009, 016, 017) block while a print runs or is paused. 002_001, 005_001,
+004_011, 014, 019 and 020 are warnings. 004_008 and 004_025 come from compiled code whose context is
+unknown and keep QIDI's message; 004_012 and 004_024 are not raised anywhere. Detection is the Box
+(`box_stepper slot<N>` or `box_extras`), so QDE_002/005 on a printer without a Box are not yet read.
+QDC_ codes (closed components) have not been seen reaching a Moonraker client.
+
 ## Known Limitations
 
 - **On-device install disables the stock client, and with it the slicer and cloud link** -- On new-firmware QIDIs (field-observed on one Max 4; the Q2 and Plus 4 share the firmware family) the stock `qidi-client` is more than the screen: it supplies the credentials QIDI's Moonraker uses for its MQTT link, and the QIDI Box filament state. While it is disabled, QIDI Studio stops seeing the QIDI Box and will not send prints, QIDI cloud is unavailable, and QIDI Box filament edits do not stick (from Fluidd or HelixScreen alike). The symptom signature in the Moonraker log is `[QDC_400_004_010_001]: MQTT account/password/ip decryption returned EMPTY result`, followed by `MQTT Connection Failed: Not authorized`. The installer warns about this when it disables the stock client. Recovery is `sudo systemctl enable --now qidi-client`, or uninstalling HelixScreen, which restores the unit.

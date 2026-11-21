@@ -599,7 +599,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // Firmware that reports structured fault codes gets asked before the
     // phrase-based classifier: a code is a stable identity, the sentence is not.
     if (!ev)
-        ev = faultcodes::classify(get_printer_state().get_discovery(), line);
+        ev = faultcodes::classify(get_printer_state().get_discovery(), line, ctx);
     if (!ev) {
         ev = error_classify::classify(line, ctx);
         // Nobody claimed the line but the phrase classifier: this is the
@@ -695,7 +695,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // arms too, not just toasts.
     const bool coded_twin_may_follow =
         prose_line && ev->code.empty() &&
-        faultcodes::firmware_reports_fault_codes(get_printer_state().get_discovery());
+        faultcodes::firmware_sends_prose_twins(get_printer_state().get_discovery());
     if (how == PresentAs::TOAST || coded_twin_may_follow) {
         // Claimed here, not when the 150ms timer fires: AmsErrorBridge's
         // deferred re-check runs one UpdateQueue tick after the ERROR edge and
