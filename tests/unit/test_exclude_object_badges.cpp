@@ -214,6 +214,7 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "Map view badge keeps defined numbering when an object has no bbox",
                  "[exclude_badges][exclude_map]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     state().excluded_objects_state().set_defined_objects_with_geometry({
         klipper_object("First", {35, 35}, {20, 20}, {50, 50}),
         bare_object("NoBox"),

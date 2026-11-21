@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_exclude_object_map_view.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_open_instances.h"
 #include "ui_utils.h"
 
 #include "bed_dimensions.h"
 #include "bed_grid.h"
+#include "color_utils.h"
 #include "core/observer_factory.h"
 #include "core/subject.h"
 #include "exclude_map_hatch.h"
@@ -78,6 +80,7 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
     static bool s_callbacks_registered = false;
     if (!s_callbacks_registered) {
         lv_xml_register_event_cb(nullptr, "on_exclude_map_close", on_close_clicked);
+        lv_xml_register_event_cb(nullptr, "on_exclude_map_object", on_object_clicked);
         s_callbacks_registered = true;
     }
 
@@ -115,19 +118,10 @@ void ExcludeObjectMapView::create(lv_obj_t* parent, helix::PrinterExcludedObject
         spdlog::error("[ExcludeObjectMapView] Could not find plate_area");
     }
 
-    // Create transparent overlay container for object rects.
-    // EVENT_BUBBLE ensures clicks on object rects reach the close button. The mini map
-    // has nothing to tap, so it has no container.
+    // The mini map has nothing to tap, so it has no container.
     if (plate_area_ && mode_ == ExcludeMapMode::Interactive) {
-        object_container_ = lv_obj_create(plate_area_);
-        lv_obj_set_size(object_container_, lv_pct(100), lv_pct(100));
-        lv_obj_set_style_bg_opa(object_container_, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(object_container_, 0, 0);
-        lv_obj_set_style_pad_all(object_container_, 0, 0);
-        lv_obj_set_scrollable(object_container_, false);
-        lv_obj_set_clickable(object_container_, false);
-        lv_obj_set_event_bubble(object_container_, true);
-        lv_obj_set_pos(object_container_, 0, 0);
+        object_container_ =
+            helix::ui::find_required(root_, "object_container", "ExcludeObjectMapView");
     }
 
     build_surface();
@@ -410,20 +404,7 @@ void ExcludeObjectMapView::build_object_rects() {
         lv_subject_set_int(&has_objects_, rects_created > 0 ? 1 : 0);
     }
 
-    // Draw polygon outlines on canvas (from parsed GCode or Moonraker data)
-    if (canvas_) {
-        draw_first_layer_outlines();
-
-        // Make bounding box rects invisible — outlines replace them visually
-        // but keep them as tap hit areas
-        for (auto& orect : object_rects_) {
-            if (!orect.rect)
-                continue;
-            lv_obj_set_style_border_opa(orect.rect, LV_OPA_TRANSP, 0);
-            lv_obj_set_style_bg_opa(orect.rect, LV_OPA_TRANSP, 0);
-        }
-    }
-
+    // Draws the outlines on the canvas too.
     update_visual_states();
 }
 
@@ -653,49 +634,30 @@ void ExcludeObjectMapView::draw_bed_reference(lv_layer_t* layer) const {
 
 lv_obj_t* ExcludeObjectMapView::create_object_rect(lv_obj_t* parent, const ObjectBadge& badge,
                                                    const PixelRect& rect) {
-    lv_obj_t* obj = lv_obj_create(parent);
+    // The same disc the 2D/3D render draws (ui_exclude_object_badges.h).
+    const lv_color_t fill = object_badge_color(badge.defined_index);
+    const std::string index = std::to_string(badge.defined_index);
+    const std::string color = helix::color_to_hex_string(lv_color_to_u32(fill));
+    const std::string text_color =
+        helix::color_to_hex_string(lv_color_to_u32(object_badge_text_color(fill)));
+    const std::string diameter = std::to_string(object_badge_diameter());
+    const char* attrs[] = {
+        "index",      index.c_str(),      "number",   badge.number.c_str(), "color", color.c_str(),
+        "text_color", text_color.c_str(), "diameter", diameter.c_str(),     nullptr,
+    };
+    auto* obj = static_cast<lv_obj_t*>(lv_xml_create(parent, "exclude_object_rect", attrs));
+    if (!obj) {
+        spdlog::error("[ExcludeObjectMapView] lv_xml_create(exclude_object_rect) failed");
+        return nullptr;
+    }
+
+    // Placed from bed coordinates through the mapper.
     lv_obj_set_pos(obj, static_cast<int32_t>(rect.x), static_cast<int32_t>(rect.y));
     lv_obj_set_size(obj, static_cast<int32_t>(rect.w), static_cast<int32_t>(rect.h));
 
     char obj_name[32];
     snprintf(obj_name, sizeof(obj_name), "obj_rect_%d", badge.defined_index);
     lv_obj_set_name(obj, obj_name);
-
-    lv_color_t color = object_badge_color(badge.defined_index);
-    lv_obj_set_style_bg_opa(obj, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_color(obj, color, 0);
-    lv_obj_set_style_border_width(obj, 2, 0);
-    lv_obj_set_style_border_opa(obj, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(obj, 3, 0);
-    lv_obj_set_style_pad_all(obj, 0, 0);
-    lv_obj_set_scrollable(obj, false);
-    lv_obj_set_clickable(obj, true);
-
-    // Number badge — the same disc the 2D/3D render draws (ui_exclude_object_badges.h)
-    const int32_t diameter = object_badge_diameter();
-    lv_obj_t* disc = lv_obj_create(obj);
-    lv_obj_set_size(disc, diameter, diameter);
-    lv_obj_align(disc, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(disc, color, 0);
-    lv_obj_set_style_bg_opa(disc, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(disc, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_width(disc, 0, 0);
-    lv_obj_set_style_pad_all(disc, 0, 0);
-    lv_obj_set_scrollable(disc, false);
-    lv_obj_set_clickable(disc, false);
-    lv_obj_set_event_bubble(disc, true);
-
-    lv_obj_t* num_label = lv_label_create(disc);
-    lv_label_set_text(num_label, badge.number.c_str());
-    lv_obj_set_style_text_font(num_label, object_badge_font(), 0);
-    lv_obj_set_style_text_color(num_label, object_badge_text_color(color), 0);
-    lv_obj_align(num_label, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_clickable(num_label, false);
-    lv_obj_set_event_bubble(num_label, true);
-
-    // Clicked callback — uses `this` captured in user_data
-    lv_obj_add_event_cb(obj, on_object_clicked, LV_EVENT_CLICKED, this);
-
     return obj;
 }
 
@@ -709,55 +671,23 @@ void ExcludeObjectMapView::update_visual_states() {
 
     const auto& excluded = state_->get_excluded_objects();
     const auto& current_obj = state_->get_current_object();
-    bool have_canvas_outlines = (canvas_ != nullptr);
+    // With canvas outlines the rects are tap targets and badges only.
+    const bool have_canvas_outlines = (canvas_ != nullptr);
 
-    lv_color_t primary_color = theme_manager_get_color("primary");
-    lv_color_t danger_color = theme_manager_get_color("danger");
-
-    for (int i = 0; i < static_cast<int>(object_rects_.size()); ++i) {
-        const auto& entry = object_rects_[i];
+    // States only: exclude_object_rect.xml owns how each one looks.
+    for (const auto& entry : object_rects_) {
         lv_obj_t* rect = entry.rect;
         if (!rect)
             continue;
 
-        bool is_excluded = excluded.count(entry.name) > 0;
-        bool is_current = (entry.name == current_obj);
-
-        if (have_canvas_outlines) {
-            // Canvas handles visuals — rects are invisible tap targets only
-            lv_obj_set_style_border_width(rect, 0, 0);
-            lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
-            lv_obj_set_style_opa(rect, object_badge_opa(is_excluded), 0);
-            if (is_excluded && tap_mode_ == ExcludeTapMode::ExcludeOnly) {
-                lv_obj_set_clickable(rect, false);
-            } else {
-                lv_obj_set_clickable(rect, true);
-            }
-        } else if (is_excluded) {
-            lv_obj_set_style_border_color(rect, danger_color, 0);
-            lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
-            lv_obj_set_style_opa(rect, object_badge_opa(true), 0);
-            if (tap_mode_ == ExcludeTapMode::ExcludeOnly) {
-                lv_obj_set_clickable(rect, false);
-            } else {
-                lv_obj_set_clickable(rect, true);
-            }
-        } else if (is_current) {
-            lv_obj_set_style_border_color(rect, primary_color, 0);
-            lv_obj_set_style_bg_color(rect, primary_color, 0);
-            lv_obj_set_style_bg_opa(rect, LV_OPA_20, 0);
-            lv_obj_set_style_opa(rect, LV_OPA_COVER, 0);
-            lv_obj_set_clickable(rect, true);
-        } else {
-            lv_color_t color = object_badge_color(entry.defined_index);
-            lv_obj_set_style_border_color(rect, color, 0);
-            lv_obj_set_style_bg_opa(rect, LV_OPA_TRANSP, 0);
-            lv_obj_set_style_opa(rect, LV_OPA_COVER, 0);
-            lv_obj_set_clickable(rect, true);
-        }
+        const bool is_excluded = excluded.count(entry.name) > 0;
+        const bool is_current = !is_excluded && entry.name == current_obj;
+        lv_obj_set_state(rect, LV_STATE_CHECKED, is_current);
+        lv_obj_set_state(rect, LV_STATE_USER_1, is_excluded);
+        lv_obj_set_state(rect, LV_STATE_USER_2, have_canvas_outlines);
+        lv_obj_set_clickable(rect, !(is_excluded && tap_mode_ == ExcludeTapMode::ExcludeOnly));
     }
 
-    // Redraw canvas outlines to reflect excluded/current state
     if (have_canvas_outlines) {
         draw_first_layer_outlines();
     }
@@ -782,12 +712,15 @@ void ExcludeObjectMapView::on_close_clicked(lv_event_t* e) {
 }
 
 void ExcludeObjectMapView::on_object_clicked(lv_event_t* e) {
-    auto* self = static_cast<ExcludeObjectMapView*>(lv_event_get_user_data(e));
+    lv_obj_t* target = lv_event_get_current_target_obj(e);
+    ExcludeObjectMapView* self = open_map_views().owner_of(target);
     if (!self || !self->on_object_tapped_)
         return;
-    lv_obj_t* target = lv_event_get_target_obj(e);
+    const auto index = helix::ui::event_user_int(e);
+    if (!index)
+        return;
     for (const auto& entry : self->object_rects_) {
-        if (entry.rect == target) {
+        if (entry.defined_index == *index) {
             spdlog::info("[ExcludeObjectMapView] Object rect clicked: '{}'", entry.name);
             self->on_object_tapped_(entry.name);
             return;
