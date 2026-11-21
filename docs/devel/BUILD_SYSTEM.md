@@ -543,8 +543,8 @@ cd .worktrees/my-feature
 # Set up existing worktree without creating
 ./scripts/setup-worktree.sh --setup-only feature/i18n
 
-# Skip the initial build
-./scripts/setup-worktree.sh --no-build feature/quick-test
+# Build right after setup (off by default: the first make in the worktree builds)
+./scripts/setup-worktree.sh --build feature/quick-test
 ```
 
 A new branch is cut from the HEAD of **whichever tree you run the script in**,

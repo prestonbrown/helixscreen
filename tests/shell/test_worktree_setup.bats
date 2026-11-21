@@ -154,6 +154,16 @@ build_fixture_repo() {
     rm -rf "$tmp"
 }
 
+@test "setup runs no build unless asked" {
+    tmp="$(mktemp -d)"
+    export CCACHE_CONFIGPATH="$tmp/ccache.conf"
+    build_fixture_repo "$tmp"
+    run bash "$tmp/main/scripts/setup-worktree.sh" --base HEAD feat/nobuild
+    [ "$status" -eq 0 ] || { echo "$output" >&2; return 1; }
+    [[ "$output" != *"Running initial build"* ]] || { echo "$output" >&2; return 1; }
+    rm -rf "$tmp"
+}
+
 @test "installed tool dependencies are linked from the main tree, the telemetry worker's included" {
     tmp="$(cd "$(mktemp -d)" && pwd -P)"
     export CCACHE_CONFIGPATH="$tmp/ccache.conf"
