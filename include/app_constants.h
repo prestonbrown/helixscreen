@@ -68,6 +68,12 @@ constexpr lv_coord_t kBreakpointMediumMax = 1023;
 /**
  * @brief AMS/Filament loading constants
  */
+namespace display {
+/// Seconds of inactivity before the screen sleeps on a fresh config. An hour,
+/// because the default screensaver (the flip clock) covers the idle time before it.
+constexpr int kDefaultSleepSec = 3600;
+} // namespace display
+
 namespace ams {
 /// Default preheat temperature when no material-specific temp is known (°C)
 constexpr int kDefaultLoadPreheatTemp = 220;

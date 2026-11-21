@@ -54,7 +54,7 @@ TEST_CASE("DisplaySettingsManager::dim_row_kind policy", "[display_settings]") {
 TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager default values after init",
                  "[display_settings]") {
     // Reset config to defaults so prior tests' set_*() calls don't pollute
-    Config::get_instance()->set<int>("/display/sleep_sec", 1200);
+    Config::get_instance()->set<int>("/display/sleep_sec", 3600);
     Config::get_instance()->set<int>("/display/dim_sec", 600);
     Config::get_instance()->set<int>("/display/brightness", 80);
     Config::get_instance()->set<bool>("/display/animations_enabled", true);
@@ -73,8 +73,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager default values after i
         REQUIRE(DisplaySettingsManager::instance().get_display_dim_sec() == 600);
     }
 
-    SECTION("display_sleep defaults to 1200 seconds") {
-        REQUIRE(DisplaySettingsManager::instance().get_display_sleep_sec() == 1200);
+    SECTION("display_sleep defaults to an hour") {
+        REQUIRE(DisplaySettingsManager::instance().get_display_sleep_sec() == 3600);
     }
 
     SECTION("brightness defaults to 80") {
@@ -314,9 +314,9 @@ TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager sleep seconds to index
     REQUIRE(DisplaySettingsManager::index_to_sleep_seconds(5) == 1800);
     REQUIRE(DisplaySettingsManager::index_to_sleep_seconds(6) == 3600);
 
-    // Out of range defaults to 1200 (20 minutes)
-    REQUIRE(DisplaySettingsManager::index_to_sleep_seconds(-1) == 1200);
-    REQUIRE(DisplaySettingsManager::index_to_sleep_seconds(99) == 1200);
+    // Out of range falls back to the default, an hour
+    REQUIRE(DisplaySettingsManager::index_to_sleep_seconds(-1) == 3600);
+    REQUIRE(DisplaySettingsManager::index_to_sleep_seconds(99) == 3600);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "DisplaySettingsManager subject values match getters",

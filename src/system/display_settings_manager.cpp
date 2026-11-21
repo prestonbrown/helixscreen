@@ -5,6 +5,7 @@
 
 #include "ui_toast_manager.h"
 
+#include "app_constants.h"
 #include "config.h"
 #include "display_manager.h"
 #include "display_metrics.h"
@@ -66,6 +67,8 @@ static const int kDimOptionsCount = sizeof(kDimOptions) / sizeof(kDimOptions[0])
 
 // Display sleep option values (seconds) - time before screen fully sleeps
 // Index: 0=Never, 1=1min, 2=5min, 3=10min, 4=20min, 5=30min, 6=60min
+using helix::app_constants::display::kDefaultSleepSec;
+
 static const int kSleepOptions[] = {0, 60, 300, 600, 1200, 1800, 3600};
 static const int kSleepOptionsCount = sizeof(kSleepOptions) / sizeof(kSleepOptions[0]);
 
@@ -286,10 +289,9 @@ void DisplaySettingsManager::init_subjects() {
         dm->set_dim_timeout(dim_sec);
     }
 
-    // Display sleep (default: 1200 seconds = 20 minutes)
     // Validate against allowed options to catch corrupt config values
-    int sleep_sec = config->get<int>("/display/sleep_sec", 1200);
-    sleep_sec = validate_timeout_option(sleep_sec, kSleepOptions, 1200, "sleep_sec");
+    int sleep_sec = config->get<int>("/display/sleep_sec", kDefaultSleepSec);
+    sleep_sec = validate_timeout_option(sleep_sec, kSleepOptions, kDefaultSleepSec, "sleep_sec");
 
     UI_MANAGED_SUBJECT_INT(display_sleep_subject_, sleep_sec, "settings_display_sleep", subjects_);
 
@@ -1073,5 +1075,5 @@ int DisplaySettingsManager::index_to_sleep_seconds(int index) {
     if (index >= 0 && index < kSleepOptionsCount) {
         return kSleepOptions[index];
     }
-    return 1200; // Default 20 minutes
+    return kDefaultSleepSec;
 }

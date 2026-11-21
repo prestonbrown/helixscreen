@@ -3,6 +3,7 @@
 
 #include "config_migrations.h"
 
+#include "app_constants.h"
 #include "completion_alert_mode.h"
 #include "config.h"
 #include "config_testing.h"
@@ -1487,6 +1488,23 @@ static void migrate_v33_to_v34(json& config, const std::string& /*config_path*/)
     }
 }
 
+/// The default display sleep is an hour. A config still holding the old
+/// 20-minute default takes the new one; any other choice, Never included, stays.
+static void migrate_v34_to_v35(json& config, const std::string& /*config_path*/) {
+    constexpr int kOldDefaultSleepSec = 1200;
+    if (!config.contains("display") || !config["display"].is_object()) {
+        return;
+    }
+    json& display = config["display"];
+    const auto sleep = display.find("sleep_sec");
+    if (sleep != display.end() && sleep->is_number_integer() &&
+        sleep->get<int>() == kOldDefaultSleepSec) {
+        *sleep = helix::app_constants::display::kDefaultSleepSec;
+        spdlog::info("[Config] Migration v35: display sleep {}s -> {}s", kOldDefaultSleepSec,
+                     helix::app_constants::display::kDefaultSleepSec);
+    }
+}
+
 using MigrationFn = void (*)(json& config, const std::string& config_path);
 
 /// The ladder, oldest first. A row runs when the document's stamp is below
@@ -1503,7 +1521,7 @@ constexpr struct {
     {25, migrate_v24_to_v25}, {26, migrate_v25_to_v26}, {27, migrate_v26_to_v27},
     {28, migrate_v27_to_v28}, {29, migrate_v28_to_v29}, {30, migrate_v29_to_v30},
     {31, migrate_v30_to_v31}, {32, migrate_v31_to_v32}, {33, migrate_v32_to_v33},
-    {34, migrate_v33_to_v34},
+    {34, migrate_v33_to_v34}, {35, migrate_v34_to_v35},
 };
 
 static_assert(kMigrations[std::size(kMigrations) - 1].to_version == kCurrentConfigVersion,
