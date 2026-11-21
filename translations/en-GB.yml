@@ -168,6 +168,7 @@ translations:
   60 seconds: ''
   90°: ''
   90° Clockwise: ''
+  ": the rest prints at the original's temperature.": ''
   = Clockwise: ''
   = Counterclockwise: ''
   = Loosen: ''
@@ -401,6 +402,7 @@ translations:
   Anonymous usage statistics: ''
   Another filament operation is heating the nozzle.: ''
   Another print is in progress.: ''
+  Another toolhead is active: ''
   Any notes...: ''
   Any other material: "Any other material"
   App Background: ''
@@ -1288,8 +1290,10 @@ translations:
   Different color: 'Different colour'
   Different filament?: ''
   Different material: 'Different material'
+  Different material ({} vs {}): ''
   Different nozzle flow type: 'Different nozzle flow type'
   Different nozzle size: 'Different nozzle size'
+  Different variant ({} vs {}): ''
   Digital Clock: ''
   Direct drive: ''
   'Direct drive: release the extruder tension and pull the filament out in one firm motion.': ''
@@ -2236,6 +2240,7 @@ translations:
   It starts with your {} macro.: ''
   It's a new spool: ''
   Its filament is a different color.: 'Its filament is a different colour.'
+  Its filament record cannot be copied: ''
   Its home tile: ''
   Jammed: ''
   Jammed at the Toolhead: ''
@@ -2559,6 +2564,7 @@ translations:
   'Material Comfort:': ''
   Material Mismatch: ''
   Material Temperatures: ''
+  Material not recognized: Material not recognised
   'Material presets heat the bed and chamber': ''
   Max: ''
   Max Accel: ''
@@ -3233,6 +3239,7 @@ translations:
   Print Controls: ''
   Print Cost: "Print Cost"
   Print Details: ''
+  Print Did Not Resume: ''
   Print Failed: ''
   Print File: ''
   Print Files: ''
@@ -4494,8 +4501,10 @@ translations:
   'The previous IPv4 settings could not be restored, and the record of the change could not be updated: {}': ''
   'The previous IPv4 settings could not be restored: {}': ''
   The previous settings come back in %d seconds unless you keep these.: ''
+  The print already moved to another toolhead: ''
   The print ended before any layer was printed. Nothing was changed.: ''
   The print is canceled and you pick the best band from what has printed so far.: The print is cancelled and you pick the best band from what has printed so far.
+  The print is no longer paused: ''
   The print is on its last layer.: ''
   ? The print is paused. Changing tools now moves the toolhead and swaps the filament at the nozzle. Resume the print once the change finishes.
   : ''
@@ -4503,6 +4512,7 @@ translations:
   The print is waiting for the chamber to reach {}, but the heater is not heating.: ''
   The print is waiting for the chamber, but the heater is not heating.: ''
   The print may have failed: ''
+  The print moved to {} but did not resume. Check {}, then press Resume.: ''
   The print settings sent with the file could not be applied.: ''
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: The printable size in millimetres (X × Y × Z), from the axis limits in the printer's Klipper config.
   The printer applied this value and keeps it for this tool.: ''
@@ -4533,10 +4543,12 @@ translations:
   ? The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked.
   : ''
   The printer homes, then probes each screw position.: ''
+  The printer is already resuming the print: ''
   The printer is busy. Run the check when no print or other motion is in progress.: ''
   The printer is not connected.: ''
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: ''
   The printer is not ready.: ''
+  The printer is not reporting its toolheads: ''
   The printer is shut down.: ''
   ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   : ''
@@ -4550,6 +4562,7 @@ translations:
   The printer lost power while printing {}. The resumed layer may not line up exactly.: ''
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : The printer may home and move the toolhead, then the motorised tensioners set the X and Y belts. Keep the bed and gantry clear.
+  The printer moved the print to {}, not {}.: ''
   The printer moves the toolhead and measures its motors.: ''
   The printer no longer has a print to resume.: ''
   The printer reads the file up to the last saved position. A large file can take a minute.: ''
@@ -5415,6 +5428,7 @@ translations:
   '{} days': ''
   '{} detected': ''
   '{} did not arrive; nothing was sent': ''
+  '{} did not switch to {}. The print continued without switching.': ''
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.'
   '{} did not switch to {}. The print is still paused.': '{} did not switch to {}. The print is still paused.'
   "{} didn't feed": ''
