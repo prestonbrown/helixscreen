@@ -1912,6 +1912,27 @@ TEST_CASE("QIDI Box current_error words the fault retry_step names and offers Re
     CHECK(ev->recovery_actions[1].gcode.empty());
 }
 
+TEST_CASE("QIDI Box offers no Retry when retry_step names another slot than the dialog",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    // Slot 2 is blocked, but the step TRY_MOVE_AGAIN would re-run is slot 3's
+    // (a stale step, or a later fault that recorded none): retrying would move
+    // filament on a slot the dialog does not name.
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot1", -1},
+                           {"slot2", 1},
+                           {"retry_step", "QDE_004_001_3"},
+                       });
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->detail.find("Slot 2") != std::string::npos);
+    for (const auto& a : ev->recovery_actions) {
+        CHECK(a.gcode != "TRY_MOVE_AGAIN");
+    }
+}
+
 TEST_CASE("QIDI Box retry_step alone does not raise a fault",
           "[ams][qidi_box][error-center][qidi]") {
     helix::test::StartedBackend<RecordingQidiBackend> backend;
@@ -1926,7 +1947,7 @@ TEST_CASE("QIDI Box retry_step alone does not raise a fault",
     CHECK_FALSE(backend.current_error().has_value());
 }
 
-TEST_CASE("QIDI Box console fault gets Retry only while retry_step names it",
+TEST_CASE("QIDI Box console fault gets Retry only once retry_step names it",
           "[ams][qidi_box][error-center][qidi]") {
     helix::test::StartedBackend<RecordingQidiBackend> backend;
     const std::string line = "// Code:QDE_004_006; Message:Extruder loading failure.";
@@ -1934,7 +1955,14 @@ TEST_CASE("QIDI Box console fault gets Retry only while retry_step names it",
     printing.is_printing = true;
 
     fire_vars(backend, json{{"enable_box", 1}, {"box_count", 1}, {"retry_step", "None"}});
-    CHECK_FALSE(backend.classify_error(line, printing).has_value());
+    // The line usually lands before retry_step does: the Box still owns it,
+    // and offers no Retry yet.
+    const auto early = backend.classify_error(line, printing);
+    REQUIRE(early.has_value());
+    CHECK(early->code == "QDE_004_006");
+    for (const auto& a : early->recovery_actions) {
+        CHECK(a.gcode != "TRY_MOVE_AGAIN");
+    }
 
     fire_vars(backend, json{{"retry_step", "QDE_004_006_1"}});
     const auto ev = backend.classify_error(line, printing);
@@ -1944,9 +1972,12 @@ TEST_CASE("QIDI Box console fault gets Retry only while retry_step names it",
     CHECK(ev->recovery_actions[0].gcode == "TRY_MOVE_AGAIN");
 
     // A different code is not the step TRY_MOVE_AGAIN would re-run.
-    CHECK_FALSE(
-        backend.classify_error("// Code:QDE_004_009; Message:Extruder unloading failure.", printing)
-            .has_value());
+    const auto other = backend.classify_error(
+        "// Code:QDE_004_009; Message:Extruder unloading failure.", printing);
+    REQUIRE(other.has_value());
+    for (const auto& a : other->recovery_actions) {
+        CHECK(a.gcode != "TRY_MOVE_AGAIN");
+    }
 }
 
 // =====================================================================

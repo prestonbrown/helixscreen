@@ -162,15 +162,12 @@ std::string firmware_message(const std::string& text) {
 /// quote.
 std::string subject_of(const std::string& message) {
     static const Regex fan_re("\"fan_name\"\\s*:\\s*\"([^\"]+)\"");
-    static const Regex slot_re("\\b([1-4])([A-D])\\b");
     RegexMatch m;
     if (regex_search(message, m, fan_re)) {
         return m.str(1);
     }
-    if (regex_search(message, m, slot_re)) {
-        const int box = m.str(1)[0] - '1';
-        const int lane = m.str(2)[0] - 'A';
-        return ui::lane_label(ui::LaneNoun::Slot, box * kSlotsPerBox + lane);
+    if (const int slot = named_slot(message); slot >= 0) {
+        return ui::lane_label(ui::LaneNoun::Slot, slot);
     }
     return "?";
 }
@@ -198,6 +195,17 @@ std::optional<FaultCode> decode_fault_code(std::string_view text) {
     c.module = text_io::parse_leading<int>(m.str(2)).value_or(0);
     c.index = text_io::parse_leading<int>(m.str(3)).value_or(0);
     return c;
+}
+
+int named_slot(const std::string& text) {
+    static const Regex slot_re("\\b([1-4])([A-D])\\b");
+    RegexMatch m;
+    if (!regex_search(text, m, slot_re)) {
+        return -1;
+    }
+    const int box = m.str(1)[0] - '1';
+    const int lane = m.str(2)[0] - 'A';
+    return box * kSlotsPerBox + lane;
 }
 
 std::string format_fault_code(const FaultCode& c) {

@@ -45,6 +45,10 @@ struct FaultCode {
 /// none). nullopt for an empty or `None` value.
 [[nodiscard]] std::optional<FaultCode> decode_retry_step(std::string_view retry_step, int* slot);
 
+/// The global slot (0-based) QIDI's slot label in @p text (`2C`: the second
+/// Box's third lane) names, or -1 when it names none.
+[[nodiscard]] int named_slot(const std::string& text);
+
 /// True when QIDI's own TRY_MOVE_AGAIN re-runs the step that raised @p c: the
 /// Box's load and unload faults, which record it in `retry_step`.
 [[nodiscard]] bool try_again_retries(const FaultCode& c);
