@@ -204,14 +204,16 @@ deploy_setup() {
     cd "$(scratch_tree)" || return 1
     # ssh runs the stop half locally against the stubs above; every other
     # remote command is only logged. rsync only logs.
+    # K2_SYSTEMD answers the K2 deploy's "does systemd run HelixScreen" probe.
     mock_command_script "ssh" '
         echo "ssh $*" >> "$CALLS"
         [ "$#" -eq 2 ] && [ "$2" = "sh -s" ] && exec sh -s
+        case "$2" in "[ -d /run/systemd/system ]"*) exit "${K2_SYSTEMD:-1}" ;; esac
         exit 0
     '
     mock_command_script "rsync" 'echo "rsync $*" >> "$CALLS"; exit 0'
-    mkdir -p build/pi/bin build/assets/images/prerendered build/assets/images/printers/prerendered
-    touch build/pi/bin/helix-screen build/pi/bin/helix-splash
+    mkdir -p build/pi/bin build/k2/bin build/assets/images/prerendered build/assets/images/printers/prerendered
+    touch build/pi/bin/helix-screen build/pi/bin/helix-splash build/k2/bin/helix-screen build/k2/bin/helix-splash
     touch build/assets/images/prerendered/splash-logo-medium.bin
     touch build/assets/images/prerendered/benchy_thumbnail_white.bin
     touch build/assets/images/prerendered/splash-3d-dark-small.bin
@@ -219,7 +221,7 @@ deploy_setup() {
 }
 
 deploy_teardown() {
-    rm -rf build/pi build/assets/images/prerendered build/assets/images/printers/prerendered
+    rm -rf build/pi build/k2 build/assets/images/prerendered build/assets/images/printers/prerendered
 }
 
 @test "deploy-pi refuses before any sync when the service cannot be stopped" {
@@ -248,4 +250,44 @@ deploy_teardown() {
     lacks "Refusing to deploy" "$output"
     grep -q "^rsync .*helix-screen" "$CALLS"
     [ "$(unit_state helixscreen)" = inactive ]
+}
+
+@test "deploy-k2-bin refuses before any copy when the service cannot be stopped" {
+    deploy_setup
+    unit_running helixscreen
+
+    run make deploy-k2-bin K2_HOST=fake-k2
+    deploy_teardown
+
+    [ "$status" -ne 0 ]
+    contains "Refusing to deploy" "$output"
+    ! grep -q "bin/helix-screen" "$CALLS"
+    ! grep -q "^killall" "$CALLS"
+}
+
+@test "deploy-k2 on systemd firmware stops and starts the unit, and installs no init script" {
+    deploy_setup
+    SUDO_OK=1
+    unit_running helixscreen
+    export K2_SYSTEMD=0
+
+    run make deploy-k2 K2_HOST=fake-k2
+    deploy_teardown
+
+    [ "$status" -eq 0 ]
+    [ "$(unit_state helixscreen)" = inactive ]
+    contains "leaving its unit as it is" "$output"
+    ! grep -q "S99helixscreen" "$CALLS"
+}
+
+@test "deploy-k2 on stock firmware installs the init script and procd shim" {
+    deploy_setup
+    export K2_SYSTEMD=1
+
+    run make deploy-k2 K2_HOST=fake-k2
+    deploy_teardown
+
+    [ "$status" -eq 0 ]
+    lacks "leaving its unit as it is" "$output"
+    grep -q "S99helixscreen" "$CALLS"
 }

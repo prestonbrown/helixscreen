@@ -61,7 +61,7 @@ K-Touch owners: see also [Install the HelixPrint plugin on your printer](install
 | [Does the file fit this printer?](#does-the-file-fit-this-printer) | **Settings > Safety & Alerts > Hold slicer prints that do not fit** (off) | The screen still checks its own prints; slicer prints are not held |
 | [Start options for prints from other apps](#start-options-for-prints-from-other-apps) | **Settings > Printing > Apply start options to prints from other apps** (off) | Only while HelixScreen is connected |
 | [Faster starts for edited prints](#faster-starts-for-edited-prints) | none | The screen copies the file there and back |
-| [Switch spools at each tool change](#switch-spools-at-each-tool-change) | **Settings > Devices > Spoolman > Switch spools at each tool change** (off) | Only while HelixScreen is connected, fewer printers, no per-print record |
+| [Switch spools at each tool change](#switch-spools-at-each-tool-change) | **Settings > Printing > Spoolman > Switch spools at each tool change** (off) | Only while HelixScreen is connected, fewer printers, no per-print record |
 | [Printer Events](#printer-events) | none | Each screen keeps its own record |
 | [Print photos](#print-photos) | **Settings > Devices > Print photos** (on) | Only while HelixScreen is connected |
 | [Storage](#storage) | **Settings > System > Storage > Automatic cleanup** (off) | Slower report, only timelapse videos can be cleaned, no automatic cleanup |
@@ -207,7 +207,7 @@ charged for filament that came from another. Some printers already do this (AFC,
 with its Spoolman support on, a Snapmaker U1 running the extended firmware's SpoolLink, and
 printers whose tool-change macros set the spool); there this setting changes nothing.
 
-**Setting:** **Settings > Devices > Spoolman**, in the Weight Sync group: **Switch spools at
+**Setting:** **Settings > Printing > Spoolman**, in the Weight Sync group: **Switch spools at
 each tool change**. It is off by default and only shows when Spoolman is connected.
 
 - **With the plugin**, the printer follows the tool or lane that is printing and makes its
@@ -237,7 +237,7 @@ loaded. Unlinking a spool takes it back off as the active spool, if it still is.
 Not yet supported: Creality CFS and Anycubic ACE lane changes. The plugin does not yet know
 which lane is feeding on those.
 
-See also [Settings > Devices > Spoolman](settings/devices.md#switch-spools-at-each-tool-change).
+See also [Settings > Printing > Spoolman](settings/printing.md#switch-spools-at-each-tool-change).
 
 ### Printer Events
 

@@ -29,7 +29,7 @@ Bluetooth printing needs a Bluetooth adapter on the device running HelixScreen (
 
 ### Step 1: Open Label Printer settings
 
-Go to **Settings > Devices > Spoolman > Label Printer**.
+Go to **Settings > Printing > Spoolman > Label Printer**.
 
 ![Label Printer Settings](../../images/user/settings-label-printer.png)
 
@@ -107,7 +107,7 @@ If you have no thermal label printer, HelixScreen can print spool labels onto Av
 
 ### Set it up
 
-1. Go to **Settings > Devices > Spoolman > Label Printer** and set **Type** to **Network**.
+1. Go to **Settings > Printing > Spoolman > Label Printer** and set **Type** to **Network**.
 2. Open the **Printer** dropdown under **Discovered Printers**. Office printers that support driverless printing show **[IPP]** after their name, for example `Office HP LaserJet (192.168.1.40) [IPP]`. Pick one of those. The port is set to 631 for you.
 3. Set **Label Size** to the sheet you loaded:
 

@@ -151,6 +151,9 @@ SpoolmanOverlay& get_spoolman_overlay() {
     static HELIX_PSRAM_BSS SpoolmanOverlay overlay;
     return overlay;
 }
+void open_spoolman_settings(lv_obj_t* parent) {
+    get_spoolman_overlay().show(parent);
+}
 } // namespace ui
 } // namespace helix
 

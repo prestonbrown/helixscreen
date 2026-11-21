@@ -113,6 +113,10 @@ struct ErrorEvent {
     /// one index. A runout dialog already on
     /// screen for that lane explains it, so its toast stands down.
     int runout_lane = -1;
+    /// The fault outlived the job it stopped and means nothing now. The
+    /// classifier that owns the fault claims the line, so no later classifier
+    /// reports it in the firmware's raw words, and nothing presents it.
+    bool leftover = false;
 };
 
 /// Inputs the classifier needs beyond the raw line. Kept as a plain struct
@@ -123,6 +127,10 @@ struct ClassifyContext {
     /// The printer's discovery, for wording rows a firmware adds; nullptr
     /// asks only the rows every printer shares.
     const PrinterDiscovery* hw = nullptr;
+    /// print_stats.state == "paused". Klipper reports it before pause_resume's
+    /// is_paused while a PAUSE is still running, so a fault raised in that gap
+    /// still belongs to a job.
+    bool is_job_paused = false;
 };
 
 /// Which error shape a gcode-response line carries. The two mark different

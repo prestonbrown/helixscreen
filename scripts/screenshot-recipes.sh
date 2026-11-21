@@ -128,8 +128,8 @@ devices-2          navigate settings; click row_devices; wait_idle; scroll overl
 sensors            navigate settings; click row_devices; click row_filament_sensors
 hardware-health    navigate settings; click row_devices; click row_hardware_health
 fan-settings       navigate settings; click row_devices; click row_fan_settings
-barcode-scanner    navigate settings; click row_devices; click row_spoolman_settings; click row_barcode_scanner
-label-printer      navigate settings; click row_devices; click row_spoolman_settings; click row_label_printer
+barcode-scanner    navigate settings; click row_printing; click row_spoolman_settings; click row_barcode_scanner
+label-printer      navigate settings; click row_printing; click row_spoolman_settings; click row_label_printer
 safety             navigate settings; click row_safety
 connection         navigate settings; click row_connection
 network            navigate settings; click row_connection; click row_network

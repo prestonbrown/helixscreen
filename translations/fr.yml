@@ -4909,6 +4909,7 @@ translations:
   : ''
   ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
   : ''
+  "The label didn't print: {}": "L'étiquette ne s'est pas imprimée : {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Le verrou s'ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock.
   The left RFID reader in this CFS unit may need service: Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention

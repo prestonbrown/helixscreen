@@ -8,6 +8,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/toast_log.h"
 #include "ams_backend_mock.h"
 #include "ams_error.h"
 #include "ams_state.h"
@@ -15,6 +16,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/update_queue.h"
+#include "label_outcome_hold.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -111,6 +113,22 @@ class AmsEditOverlayTestAccess {
     }
     static bool may_write_spoolman_now(const SlotInfo& original, const SlotInfo& edited) {
         return AmsEditOverlay::may_write_spoolman_now(original, edited);
+    }
+
+    /// A new spool's label print in flight, as print_new_spool_label leaves it.
+    std::shared_ptr<LabelOutcomeHold> hold_new_spool_label() {
+        overlay_.new_spool_label_ = std::make_shared<LabelOutcomeHold>();
+        return overlay_.new_spool_label_;
+    }
+    bool holds_new_spool_label() const {
+        return overlay_.new_spool_label_ != nullptr;
+    }
+    void call_show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created,
+                                  bool undoable) {
+        overlay_.show_assigned_toast(before, after, created, undoable);
+    }
+    void call_on_dismissed() {
+        overlay_.on_dismissed();
     }
 
   private:
@@ -1010,4 +1028,70 @@ TEST_CASE_METHOD(OverlayCommitFixture,
     client.spoolman_mock().set_active_spool_id(55);
     link_external(0, /*server_first=*/false);
     CHECK(client.spoolman_mock().get_mock_active_spool_id() == 55);
+}
+
+// ============================================================================
+// A spool added to Spoolman prints its label at once; the save's closing toast
+// reports that print, but never waits long on it, and a label whose editor
+// closed without a toast still reports on its own.
+// ============================================================================
+
+namespace {
+SlotInfo new_external_spool() {
+    SlotInfo after;
+    after.slot_index = -2;
+    after.spoolman_id = 153;
+    after.brand = "Generic";
+    after.material = "ASA";
+    return after;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "a label that answers within the grace rides in the one toast",
+                 "[label_outcome][ams_edit_overlay]") {
+    AmsEditOverlayTestAccess access(get_ams_edit_overlay());
+    access.set_slot_index(-2);
+    helix::test::ToastLog toasts;
+    auto hold = access.hold_new_spool_label();
+    access.call_show_assigned_toast(SlotInfo{}, new_external_spool(), true, false);
+    CHECK(toasts.shown.empty());
+
+    hold->settle(true, "");
+    process_lvgl(2000);
+    REQUIRE(toasts.shown.size() == 1);
+    CHECK(toasts.shown[0].message.find("Added to Spoolman as #153") != std::string::npos);
+    CHECK(toasts.shown[0].message.find("Label printed") != std::string::npos);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a slow label printer does not hold back the save's toast",
+                 "[label_outcome][ams_edit_overlay]") {
+    AmsEditOverlayTestAccess access(get_ams_edit_overlay());
+    access.set_slot_index(-2);
+    helix::test::ToastLog toasts;
+    auto hold = access.hold_new_spool_label();
+    access.call_show_assigned_toast(SlotInfo{}, new_external_spool(), true, false);
+
+    process_lvgl(2000);
+    REQUIRE(toasts.shown.size() == 1);
+    CHECK(toasts.shown[0].message.find("Added to Spoolman as #153") != std::string::npos);
+    CHECK(toasts.shown[0].message.find("Label printed") == std::string::npos);
+
+    hold->settle(true, "");
+    REQUIRE(toasts.shown.size() == 2);
+    CHECK(toasts.shown[1].message == "Label printed");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a label whose editor closed without a toast reports on its own",
+                 "[label_outcome][ams_edit_overlay]") {
+    AmsEditOverlayTestAccess access(get_ams_edit_overlay());
+    helix::test::ToastLog toasts;
+    auto hold = access.hold_new_spool_label();
+    access.set_completion_callback([](const auto&) {});
+    access.call_on_dismissed();
+    // Nothing is left for the next editor session to report late.
+    CHECK_FALSE(access.holds_new_spool_label());
+
+    hold->settle(true, "");
+    REQUIRE(toasts.shown.size() == 1);
+    CHECK(toasts.shown[0].message == "Label printed");
 }

@@ -24,6 +24,7 @@
 #include "color_recents.h"
 #include "color_utils.h"
 #include "core/observer_factory.h"
+#include "core/run_after.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -207,6 +208,9 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     if (completion_callback_) {
         fire_completion(false);
     }
+#if HELIX_HAS_LABEL_PRINTER
+    release_new_spool_label();
+#endif
     ++session_;
     slot_index_ = slot_index;
     original_info_ = initial_info;
@@ -469,6 +473,10 @@ lv_obj_t* AmsEditOverlay::create(lv_obj_t* parent) {
 void AmsEditOverlay::on_ui_destroyed() {}
 
 void AmsEditOverlay::on_dismissed() {
+#if HELIX_HAS_LABEL_PRINTER
+    // A save still waiting on its echo closes with no toast to carry the label.
+    release_new_spool_label();
+#endif
     // Idempotent: Save and Back have already fired it on their own paths.
     fire_completion(false);
 }
@@ -1415,107 +1423,155 @@ void AmsEditOverlay::handle_assign_local() {
 
 void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo& after,
                                          bool created, bool undoable) {
-    struct Payload {
-        int slot_index = -1;
-        SlotInfo before;
-        SlotInfo after;
-        SpoolInfo label; ///< the spool Print Label prints
-        /// AmsState::backend_generation() when the save closed: a backend
-        /// change since means the slot index may name another printer's lane.
-        uint64_t backend_generation = 0;
-    };
-    // Each toast gets its own payload: toasts stack, and Undo or Print Label on
-    // an older one must act on its own lane. Payloads outlive their toasts (a
-    // tap's action runs deferred); the oldest go once more are kept than the
-    // toast stack can show.
-    static std::deque<std::unique_ptr<Payload>> s_payloads;
-    constexpr size_t kKeptPayloads = 8;
-    s_payloads.push_back(std::make_unique<Payload>(Payload{slot_index_, before, after, {}}));
-    while (s_payloads.size() > kKeptPayloads) {
-        s_payloads.pop_front();
-    }
-    Payload* payload = s_payloads.back().get();
-    payload->backend_generation = AmsState::instance().backend_generation();
-
-    const std::string lane = editor_lane_label(slot_index_);
+    const int slot = slot_index_;
+    const std::string lane = editor_lane_label(slot);
     const std::string name =
         helix::compose_filament_label(after.brand, after.spool_name, after.material, " ");
     const std::string message = lane + ": " + name;
-    std::string detail;
+    std::string base_detail;
     if (created && after.spoolman_id > 0) {
-        detail = fmt::format(fmt::runtime(lv_tr("Added to Spoolman as #{}")), after.spoolman_id);
+        base_detail =
+            fmt::format(fmt::runtime(lv_tr("Added to Spoolman as #{}")), after.spoolman_id);
     }
-
     // Print Label, where a label printer is set up and the spool is Spoolman's
     // (a new one already printed its label; this is the reprint).
-    helix::ToastAction print_label;
+    bool offer_label = false;
+    SpoolInfo label;
 #if HELIX_HAS_LABEL_PRINTER
     if (after.spoolman_id > 0 && helix::LabelPrinterSettingsManager::instance().is_configured()) {
-        payload->label = label_spool();
-        print_label = helix::ToastAction{
-            lv_tr("Print Label"),
-            [](void* user_data) { print_label_for(static_cast<Payload*>(user_data)->label); },
-            payload};
+        offer_label = true;
+        label = label_spool();
     }
 #endif
-    const char* detail_text = detail.empty() ? nullptr : detail.c_str();
-    // A save that rewrote a Spoolman record cannot be undone from the lane
-    // alone: putting the lane back would leave it contradicting its spool.
-    if (!undoable) {
-        if (print_label.callback) {
-            ToastManager::instance().show_with_action(
-                ToastSeverity::SUCCESS, message.c_str(), print_label.text, print_label.callback,
-                print_label.user_data, 6000, nullptr, {}, detail_text);
-        } else if (detail_text) {
-            ToastManager::instance().show_with_detail(ToastSeverity::SUCCESS, message.c_str(),
-                                                      detail_text, 6000);
-        } else {
-            ToastManager::instance().show(ToastSeverity::SUCCESS, message.c_str(), 6000);
+
+    // Everything the toast says is captured here: a new spool's toast waits for
+    // its label print, and by then this editor may show another slot.
+    auto present = [slot, before, after, undoable, message, base_detail, offer_label,
+                    label](const std::string& label_note) {
+        struct Payload {
+            int slot_index = -1;
+            SlotInfo before;
+            SlotInfo after;
+            SpoolInfo label; ///< the spool Print Label prints
+            /// AmsState::backend_generation() when the save closed: a backend
+            /// change since means the slot index may name another printer's lane.
+            uint64_t backend_generation = 0;
+        };
+        // Each toast gets its own payload: toasts stack, and Undo or Print Label on
+        // an older one must act on its own lane. Payloads outlive their toasts (a
+        // tap's action runs deferred); the oldest go once more are kept than the
+        // toast stack can show.
+        static std::deque<std::unique_ptr<Payload>> s_payloads;
+        constexpr size_t kKeptPayloads = 8;
+        s_payloads.push_back(std::make_unique<Payload>(Payload{slot, before, after, label}));
+        while (s_payloads.size() > kKeptPayloads) {
+            s_payloads.pop_front();
+        }
+        Payload* payload = s_payloads.back().get();
+        payload->backend_generation = AmsState::instance().backend_generation();
+
+        std::string detail = base_detail;
+        if (!label_note.empty()) {
+            detail = detail.empty() ? label_note : detail + "\n" + label_note;
+        }
+
+        helix::ToastAction print_label;
+#if HELIX_HAS_LABEL_PRINTER
+        if (offer_label) {
+            print_label = helix::ToastAction{
+                lv_tr("Print Label"),
+                [](void* user_data) { print_label_for(static_cast<Payload*>(user_data)->label); },
+                payload};
+        }
+#else
+        (void)offer_label;
+#endif
+        const char* detail_text = detail.empty() ? nullptr : detail.c_str();
+        // A save that rewrote a Spoolman record cannot be undone from the lane
+        // alone: putting the lane back would leave it contradicting its spool.
+        if (!undoable) {
+            if (print_label.callback) {
+                ToastManager::instance().show_with_action(
+                    ToastSeverity::SUCCESS, message.c_str(), print_label.text, print_label.callback,
+                    print_label.user_data, 6000, nullptr, {}, detail_text);
+            } else if (detail_text) {
+                ToastManager::instance().show_with_detail(ToastSeverity::SUCCESS, message.c_str(),
+                                                          detail_text, 6000);
+            } else {
+                ToastManager::instance().show(ToastSeverity::SUCCESS, message.c_str(), 6000);
+            }
+            return;
+        }
+        ToastManager::instance().show_with_action(
+            ToastSeverity::SUCCESS, message.c_str(), lv_tr("Undo"),
+            [](void* user_data) {
+                const auto* undo = static_cast<Payload*>(user_data);
+                AmsBackend* backend = AmsState::instance().get_backend();
+                if (undo->slot_index == -1) {
+                    return;
+                }
+                if (undo->slot_index != -2 &&
+                    (!backend ||
+                     AmsState::instance().backend_generation() != undo->backend_generation)) {
+                    ToastManager::instance().show(
+                        ToastSeverity::WARNING,
+                        lv_tr("Not undone: the printer changed since that save."), 4000);
+                    return;
+                }
+                // Undo puts back what was there only while the lane still holds
+                // what this save put in: anything that changed it since wins.
+                const SlotInfo now =
+                    undo->slot_index == -2
+                        ? AmsState::instance().get_external_spool_info().value_or(SlotInfo{})
+                        : backend->get_slot_info(undo->slot_index);
+                if (!spool_assign::undo_still_applies(now, undo->after)) {
+                    ToastManager::instance().show(
+                        ToastSeverity::WARNING,
+                        lv_tr("Not undone: the lane changed since that save."), 4000);
+                    return;
+                }
+                spdlog::info("[AmsEditOverlay] Undo assign on slot {}", undo->slot_index);
+                if (undo->slot_index == -2) {
+                    // The external spool has a commit of its own.
+                    AmsState::instance().commit_external_spool_edit(undo->before);
+                    return;
+                }
+                const AmsError err = AmsState::instance().commit_slot_edit(
+                    undo->slot_index, undo->after, undo->before);
+                if (!err.success() && !err.partially_applied) {
+                    ToastManager::instance().show(
+                        ToastSeverity::WARNING,
+                        fmt::format(fmt::runtime(lv_tr("Not undone: {}")), err.user_msg).c_str(),
+                        4000);
+                }
+            },
+            payload, 6000, nullptr, print_label, detail_text);
+    };
+
+#if HELIX_HAS_LABEL_PRINTER
+    // A spool this save created printed its label at once: the one toast
+    // reports how that went, after the print answers.
+    if (created && new_spool_label_) {
+        auto hold = std::exchange(new_spool_label_, nullptr);
+        hold->when_settled([present](const helix::LabelOutcomeHold::Outcome& outcome) {
+            present(new_spool_label_note(outcome));
+        });
+        // A printer that is slow to answer (a sleeping Bluetooth one takes
+        // ~25 s) must not hold back the save's toast and its Undo: past a short
+        // grace the toast shows alone and the label reports on its own.
+        if (!hold->settled()) {
+            helix::run_after_ms(kNewSpoolLabelGraceMs, [hold, present]() {
+                if (hold->stop_waiting([](const helix::LabelOutcomeHold::Outcome& outcome) {
+                        label_outcome_toasts(outcome.printed, outcome.error);
+                    })) {
+                    present({});
+                }
+            });
         }
         return;
     }
-    ToastManager::instance().show_with_action(
-        ToastSeverity::SUCCESS, message.c_str(), lv_tr("Undo"),
-        [](void* user_data) {
-            const auto* undo = static_cast<Payload*>(user_data);
-            AmsBackend* backend = AmsState::instance().get_backend();
-            if (undo->slot_index == -1) {
-                return;
-            }
-            if (undo->slot_index != -2 && (!backend || AmsState::instance().backend_generation() !=
-                                                           undo->backend_generation)) {
-                ToastManager::instance().show(
-                    ToastSeverity::WARNING,
-                    lv_tr("Not undone: the printer changed since that save."), 4000);
-                return;
-            }
-            // Undo puts back what was there only while the lane still holds
-            // what this save put in: anything that changed it since wins.
-            const SlotInfo now =
-                undo->slot_index == -2
-                    ? AmsState::instance().get_external_spool_info().value_or(SlotInfo{})
-                    : backend->get_slot_info(undo->slot_index);
-            if (!spool_assign::undo_still_applies(now, undo->after)) {
-                ToastManager::instance().show(
-                    ToastSeverity::WARNING, lv_tr("Not undone: the lane changed since that save."),
-                    4000);
-                return;
-            }
-            spdlog::info("[AmsEditOverlay] Undo assign on slot {}", undo->slot_index);
-            if (undo->slot_index == -2) {
-                // The external spool has a commit of its own.
-                AmsState::instance().commit_external_spool_edit(undo->before);
-                return;
-            }
-            const AmsError err =
-                AmsState::instance().commit_slot_edit(undo->slot_index, undo->after, undo->before);
-            if (!err.success() && !err.partially_applied) {
-                ToastManager::instance().show(
-                    ToastSeverity::WARNING,
-                    fmt::format(fmt::runtime(lv_tr("Not undone: {}")), err.user_msg).c_str(), 4000);
-            }
-        },
-        payload, 6000, nullptr, print_label, detail_text);
+#endif
+    present({});
 }
 
 void AmsEditOverlay::fetch_recents() {
@@ -2536,19 +2592,52 @@ void AmsEditOverlay::print_label_for(const SpoolInfo& spool_info) {
         return;
     }
 
-    auto print_cb = [](bool success, const std::string& error) {
-        if (success) {
-            ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Label printed"), 2000);
-        } else {
-            spdlog::error("[AmsEditOverlay] Print failed: {}", error);
-            ToastManager::instance().show(ToastSeverity::ERROR,
-                                          helix::friendly_label_printer_error(error).c_str(), 5000);
-        }
-    };
-
-    if (!helix::maybe_show_ipp_print_modal(spool_info, print_cb)) {
+    if (!helix::maybe_show_ipp_print_modal(spool_info, label_outcome_toasts)) {
         ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Printing label..."), 2000);
-        helix::print_spool_label(spool_info, print_cb);
+        helix::print_spool_label(spool_info, label_outcome_toasts);
+    }
+}
+
+void AmsEditOverlay::label_outcome_toasts(bool success, const std::string& error) {
+    if (success) {
+        ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Label printed"), 2000);
+    } else {
+        spdlog::error("[AmsEditOverlay] Print failed: {}", error);
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      helix::friendly_label_printer_error(error).c_str(), 5000);
+    }
+}
+
+std::string AmsEditOverlay::new_spool_label_note(const helix::LabelOutcomeHold::Outcome& outcome) {
+    if (outcome.printed) {
+        return lv_tr("Label printed");
+    }
+    spdlog::error("[AmsEditOverlay] New spool's label failed: {}", outcome.error);
+    return fmt::format(fmt::runtime(lv_tr("The label didn't print: {}")),
+                       helix::friendly_label_printer_error(outcome.error));
+}
+
+void AmsEditOverlay::print_new_spool_label() {
+    const SpoolInfo spool_info = label_spool();
+    // An IPP printer asks for copies and size first: that dialog is the user's
+    // own print, and it reports its own outcome.
+    if (helix::maybe_show_ipp_print_modal(spool_info, label_outcome_toasts)) {
+        return;
+    }
+    release_new_spool_label();
+    auto hold = std::make_shared<helix::LabelOutcomeHold>();
+    new_spool_label_ = hold;
+    helix::print_spool_label(spool_info, [hold](bool success, const std::string& error) {
+        hold->settle(success, error);
+    });
+}
+
+void AmsEditOverlay::release_new_spool_label() {
+    // No closing toast will carry this print's outcome: it reports on its own.
+    if (auto hold = std::exchange(new_spool_label_, nullptr)) {
+        hold->when_settled([](const helix::LabelOutcomeHold::Outcome& outcome) {
+            label_outcome_toasts(outcome.printed, outcome.error);
+        });
     }
 }
 #endif
@@ -3080,6 +3169,10 @@ void AmsEditOverlay::remember_saved_colors(const SaveCapture& cap) {
 
 void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& committed) {
     if (cap.stay_open && save_is_live(cap)) {
+#if HELIX_HAS_LABEL_PRINTER
+        // The editor stays open: no closing toast will carry the label.
+        release_new_spool_label();
+#endif
         remember_saved_colors(cap);
         // Commit the slot and keep the editor, holding the edits that could
         // not be saved.
@@ -3105,6 +3198,9 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         commit_then_await(cap, committed);
         return;
     }
+#if HELIX_HAS_LABEL_PRINTER
+    release_new_spool_label();
+#endif
     if (cap.owed) {
         spdlog::info("[AmsEditOverlay] Save for slot {} finished after the editor closed; "
                      "committing it",
@@ -3237,6 +3333,9 @@ void AmsEditOverlay::commit_then_await(const SaveCapture& cap, const SlotInfo& c
 void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
                                          const std::string& reason) {
     if (cap.session != session_ || completion_fired_) {
+#if HELIX_HAS_LABEL_PRINTER
+        release_new_spool_label();
+#endif
         return;
     }
     save_in_flight_ = false;
@@ -3269,6 +3368,9 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
     }
     spdlog::warn("[AmsEditOverlay] Save for slot {} did not stick: {}", cap.slot_index,
                  reason.empty() ? "no echo" : reason);
+#if HELIX_HAS_LABEL_PRINTER
+    release_new_spool_label();
+#endif
     // The lane shows what Moonraker holds again; the form keeps the user's
     // values, so Save is live for a retry and Back asks before discarding.
     if (AmsBackend* backend = AmsState::instance().get_backend()) {
@@ -3490,7 +3592,7 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     // A spool new to Spoolman gets its label printed at once.
                     if (result.created_new_spool &&
                         helix::LabelPrinterSettingsManager::instance().is_configured()) {
-                        handle_print_label();
+                        print_new_spool_label();
                     }
 #endif
                 } else if (result.created_new_spool) {

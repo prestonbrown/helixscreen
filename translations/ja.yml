@@ -4897,6 +4897,7 @@ translations:
   : ''
   ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
   : ''
+  "The label didn't print: {}": "ラベルを印刷できませんでした: {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最後のプリントがまだベッドに残っている可能性があります。ツールヘッドが動く前に取り除き、「クリア済み」をタップしてください。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。
   The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります

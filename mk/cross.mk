@@ -1725,6 +1725,27 @@ define require-built
 	@for f in $(3); do test -f $(1)/$$f || { echo "$(RED)Error: $(1)/$$f not found. Run 'make $(2)' first.$(RESET)"; exit 1; }; done
 endef
 
+# Stop every running HelixScreen on the device before anything is synced.
+# $(1) = SSH target. A systemd unit that cannot be stopped (non-root ssh user,
+# sudo wants a password) ends the deploy here: killing a Restart=always unit's
+# process only makes systemd respawn it from a half-synced bin/.
+define deploy-stop-app
+	@ssh $(1) 'sh -s' < scripts/deploy-stop-app-remote.sh; rc=$$?; \
+	if [ $$rc -eq 3 ]; then \
+		echo "$(RED)Refusing to deploy: the helixscreen systemd service on $(1) is running and could not be stopped.$(RESET)"; \
+		echo "$(RED)Syncing now would let systemd restart it from a half-copied install.$(RESET)"; \
+		echo "Fix one of:"; \
+		echo "  - allow passwordless sudo for systemctl for the ssh user on the device, e.g."; \
+		echo "      echo '<user> ALL=(root) NOPASSWD: /usr/bin/systemctl' | sudo tee /etc/sudoers.d/helixscreen-deploy"; \
+		echo "  - or stop it with a TTY so sudo can prompt, then rerun the deploy:"; \
+		echo "      ssh -t $(1) 'sudo systemctl stop helixscreen-update.path helixscreen && sudo systemctl stop helixscreen-update.path'"; \
+		exit 1; \
+	elif [ $$rc -ne 0 ]; then \
+		echo "$(RED)Could not stop HelixScreen on $(1) (ssh exit $$rc) - not syncing$(RESET)"; \
+		exit 1; \
+	fi
+endef
+
 define deploy-common
 	@echo "$(CYAN)Deploying HelixScreen to $(1):$(2)...$(RESET)"
 	@# Generate pre-rendered splash images if missing (all small-display platforms use the same files)
@@ -1744,24 +1765,7 @@ define deploy-common
 		echo "$(DIM)Generating 3D splash images...$(RESET)"; \
 		$(MAKE) gen-splash-3d; \
 	fi
-	@# Stop every running instance before anything is synced. A systemd unit
-	@# that cannot be stopped (non-root ssh user, sudo wants a password) ends
-	@# the deploy here: killing a Restart=always unit's process only makes
-	@# systemd respawn it from a half-synced bin/.
-	@ssh $(1) 'sh -s' < scripts/deploy-stop-app-remote.sh; rc=$$?; \
-	if [ $$rc -eq 3 ]; then \
-		echo "$(RED)Refusing to deploy: the helixscreen systemd service on $(1) is running and could not be stopped.$(RESET)"; \
-		echo "$(RED)Syncing now would let systemd restart it from a half-copied install.$(RESET)"; \
-		echo "Fix one of:"; \
-		echo "  - allow passwordless sudo for systemctl for the ssh user on the device, e.g."; \
-		echo "      echo '<user> ALL=(root) NOPASSWD: /usr/bin/systemctl' | sudo tee /etc/sudoers.d/helixscreen-deploy"; \
-		echo "  - or stop it with a TTY so sudo can prompt, then rerun the deploy:"; \
-		echo "      ssh -t $(1) 'sudo systemctl stop helixscreen-update.path helixscreen && sudo systemctl stop helixscreen-update.path'"; \
-		exit 1; \
-	elif [ $$rc -ne 0 ]; then \
-		echo "$(RED)Could not stop HelixScreen on $(1) (ssh exit $$rc) - not syncing$(RESET)"; \
-		exit 1; \
-	fi
+	$(call deploy-stop-app,$(1))
 	ssh $(1) "mkdir -p $(2)/bin"
 	ssh $(1) "rm -f $(2)/*.xml 2>/dev/null || true"
 	@# Sync binaries and launcher to bin/
@@ -2527,6 +2531,17 @@ K2_USER ?= root
 # fit on.
 K2_DEPLOY_DIR ?= /mnt/UDISK/helixscreen
 
+# True on the device when systemd runs and has a helixscreen unit, as on
+# Jacobean's K2 image; stock K2 firmware is OpenWrt with procd and SysV scripts.
+K2_SYSTEMD_TEST := [ -d /run/systemd/system ] && systemctl cat helixscreen >/dev/null 2>&1
+
+# Start HelixScreen on the K2 the way its firmware does: through the systemd
+# unit where there is one, or by its launcher.
+define k2-start
+	@echo "$(CYAN)Starting helix-screen on $(K2_HOST)...$(RESET)"
+	@ssh $(K2_SSH_TARGET) "if $(K2_SYSTEMD_TEST); then systemctl start helixscreen; else cd $(K2_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 & fi"
+endef
+
 # Build SSH target for K2 (lazy evaluation — only errors when deploy targets actually use it)
 K2_SSH_TARGET = $(if $(K2_HOST),$(K2_USER)@$(K2_HOST),$(error K2_HOST is required. K2 does not resolve via mDNS. Use: make deploy-k2 K2_HOST=192.168.x.x))
 
@@ -2550,7 +2565,8 @@ deploy-k2:
 		$(MAKE) gen-printer-images; \
 	fi
 	@# Stop running processes, remove stale lock, and prepare directory
-	ssh $(K2_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; mkdir -p $(K2_DEPLOY_DIR)/bin $(K2_DEPLOY_DIR)/platform"
+	$(call deploy-stop-app,$(K2_SSH_TARGET))
+	ssh $(K2_SSH_TARGET) "rm -f /tmp/helix-screen.lock; mkdir -p $(K2_DEPLOY_DIR)/bin $(K2_DEPLOY_DIR)/platform"
 	@# Platform hooks stop the stock display-server cleanly via procd.
 	$(call deploy-platform-hooks,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),k2)
 	@# Transfer binaries via cat/ssh
@@ -2596,8 +2612,13 @@ deploy-k2:
 	@# helpers. The ledger entry appended after the carve-out's verify
 	@# mirrors record_disabled_service, so uninstall reverses a dev deploy
 	@# too (prestonbrown/helixscreen#1667).
-	@echo "$(DIM)Installing init script + procd shim + web-server carve-out...$(RESET)"
-	@COPYFILE_DISABLE=1 tar -cf - -C config helixscreen.init helixscreen-k2-procd-shim.sh k2-webserver.init \
+	@# Firmware that boots with systemd (Jacobean's K2 image) starts HelixScreen
+	@# from its own helixscreen.service and has no procd: its unit stays as it is.
+	@if ssh $(K2_SSH_TARGET) "$(K2_SYSTEMD_TEST)"; then \
+		echo "$(DIM)systemd starts HelixScreen here: leaving its unit as it is$(RESET)"; \
+	else \
+	echo "$(DIM)Installing init script + procd shim + web-server carve-out...$(RESET)"; \
+	COPYFILE_DISABLE=1 tar -cf - -C config helixscreen.init helixscreen-k2-procd-shim.sh k2-webserver.init \
 		| ssh $(K2_SSH_TARGET) 'set -e; \
 			cd /tmp && tar -xof - && \
 			cp helixscreen.init /etc/init.d/S99helixscreen && \
@@ -2628,11 +2649,11 @@ deploy-k2:
 				echo "sysv-created:/etc/init.d/helix-k2-webserver" >> $(K2_DEPLOY_DIR)/config/.disabled_services; \
 			/etc/init.d/helix-k2-webserver start || true; \
 			rm -f /tmp/helixscreen.init /tmp/helixscreen-k2-procd-shim.sh /tmp/k2-webserver.init; \
-			echo "Init script + procd shim + web-server carve-out installed (boot symlinks verified)"'
+			echo "Init script + procd shim + web-server carve-out installed (boot symlinks verified)"' || exit 1; \
+	fi
 	@echo "$(GREEN)✓ Deployed to $(K2_HOST):$(K2_DEPLOY_DIR)$(RESET)"
 	$(call sync-device-features,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),build/k2/bin)
-	@echo "$(CYAN)Starting helix-screen on $(K2_HOST)...$(RESET)"
-	ssh $(K2_SSH_TARGET) "cd $(K2_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
+	$(k2-start)
 	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
 	@echo "$(DIM)Logs: ssh $(K2_SSH_TARGET) 'logread -f | grep helix'$(RESET)"
 
@@ -2640,14 +2661,16 @@ deploy-k2:
 # Note: K2 has no rsync (BusyBox) — uses same tar/ssh transfer as deploy-k2
 deploy-k2-fg: deploy-k2
 	@echo "$(CYAN)Restarting helix-screen on $(K2_HOST) (foreground, verbose)...$(RESET)"
-	ssh $(K2_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock"
+	$(call deploy-stop-app,$(K2_SSH_TARGET))
+	ssh $(K2_SSH_TARGET) "rm -f /tmp/helix-screen.lock"
 	ssh -t $(K2_SSH_TARGET) "cd $(K2_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
 
 # Deploy binaries only (fast, for quick iteration)
 deploy-k2-bin:
 	$(call require-built,build/k2/bin,k2-docker,helix-screen)
 	@echo "$(CYAN)Deploying binaries only to $(K2_SSH_TARGET):$(K2_DEPLOY_DIR)/bin...$(RESET)"
-	ssh $(K2_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; mkdir -p $(K2_DEPLOY_DIR)/bin"
+	$(call deploy-stop-app,$(K2_SSH_TARGET))
+	ssh $(K2_SSH_TARGET) "rm -f /tmp/helix-screen.lock; mkdir -p $(K2_DEPLOY_DIR)/bin"
 	cat build/k2/bin/helix-screen | ssh $(K2_SSH_TARGET) "cat > $(K2_DEPLOY_DIR)/bin/helix-screen && chmod +x $(K2_DEPLOY_DIR)/bin/helix-screen"
 	cat build/k2/bin/helix-splash | ssh $(K2_SSH_TARGET) "cat > $(K2_DEPLOY_DIR)/bin/helix-splash && chmod +x $(K2_DEPLOY_DIR)/bin/helix-splash"
 	@if [ -f build/k2/bin/helix-watchdog ]; then \
@@ -2655,9 +2678,7 @@ deploy-k2-bin:
 	fi
 	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
 	$(call sync-device-features,$(K2_SSH_TARGET),$(K2_DEPLOY_DIR),build/k2/bin)
-	@echo "$(CYAN)Restarting helix-screen on $(K2_HOST)...$(RESET)"
-	ssh $(K2_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(K2_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
-	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
+	$(k2-start)
 
 # Convenience: SSH into the K2
 k2-ssh:

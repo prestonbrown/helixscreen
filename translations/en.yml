@@ -4871,6 +4871,7 @@ translations:
   : 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
   ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
   : 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
+  "The label didn't print: {}": "The label didn't print: {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service

@@ -196,7 +196,7 @@ Yes. Turn on **Settings > Connection > Screen Sharing > Share Screen** and the s
 
 ### Does it work with Spoolman?
 
-Yes. Open **Advanced > Spoolman** to browse your spool inventory, and **Settings > Devices > Spoolman** to connect a server and set up weight syncing. You can assign spools to filament slots and track how much filament each print uses. See [Filament Tracking & Spoolman](guide/filament-tracking.md).
+Yes. Open **Advanced > Spoolman** to browse your spool inventory, and **Settings > Printing > Spoolman** to connect a server and set up weight syncing. You can assign spools to filament slots and track how much filament each print uses. See [Filament Tracking & Spoolman](guide/filament-tracking.md).
 
 ### Where are my lanes' spool details stored?
 

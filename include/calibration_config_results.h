@@ -30,7 +30,7 @@ using ConfigResults = std::map<std::string, std::string>;
 [[nodiscard]] std::string format_z_offset(double mm);
 /// One axis's shaper: "MZV 36.7".
 [[nodiscard]] std::string format_shaper_axis(std::string_view type, double freq_hz);
-/// Both axes' shapers: "MZV 36.7 · EI 47.6 Hz"; an empty axis is left out.
+/// Both axes' shapers: "X: MZV 36.7 · Y: EI 47.6"; an empty axis is left out.
 [[nodiscard]] std::string join_shaper_axes(const std::string& x, const std::string& y);
 /// PID gains to three significant figures: "22.1 / 1.08 / 113".
 [[nodiscard]] std::string format_pid(double kp, double ki, double kd);

@@ -18,6 +18,7 @@
  */
 
 #include "ui_modal.h"
+#include "ui_nav_manager.h"
 #include "ui_panel_calibration_zoffset.h"
 
 #include "../lvgl_test_fixture.h"
@@ -34,6 +35,7 @@
 #include "tool_state.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <optional>
 #include <string>
@@ -1024,4 +1026,149 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     panel.before_disconnect();
     CHECK_FALSE(sent_off(client));
     lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+}
+
+// ============================================================================
+// Guided run: open_for_run() stages the result and hands it back on Continue
+// ============================================================================
+
+namespace {
+
+/// The first label under @p root showing @p text, or nullptr.
+lv_obj_t* label_showing(lv_obj_t* root, const char* text) {
+    if (lv_obj_check_type(root, &lv_label_class) && std::string(lv_label_get_text(root)) == text) {
+        return root;
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(root); ++i) {
+        if (lv_obj_t* found =
+                label_showing(lv_obj_get_child(root, static_cast<int32_t>(i)), text)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+class ZOffsetRunFixture : public CalibrationSendFixture {
+  public:
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    MoonrakerAPI api{client, get_printer_state()};
+    ZOffsetCalibrationPanel& panel = get_global_zoffset_cal_panel();
+    std::vector<std::pair<bool, ZOffsetCalibrationStrategy>> done;
+
+    ZOffsetRunFixture() {
+        for (auto& p : panels) {
+            p = lv_obj_create(lv_screen_active());
+        }
+        NavigationManager::instance().set_panels(panels.data());
+        // The panel's notes bind printer subjects by name, as the app registers them.
+        helix::PrinterStateTestAccess::reset(state());
+        state().init_subjects(true);
+        state().set_klippy_state_sync(helix::KlippyState::READY);
+        set_link(true);
+        state().set_hardware(helix::PrinterDiscovery{});
+        helix::SettingsManager::instance().init_subjects();
+        helix::zoffset::deinit_save_available_subject();
+        helix::zoffset::init_save_available_subject(true);
+        use_strategy(ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    }
+
+    ~ZOffsetRunFixture() override {
+        if (panel.get_root()) {
+            NavigationManager::instance().go_back();
+            settle();
+        }
+        panel.set_api(nullptr);
+        helix::SettingsManager::instance().set_z_offset_save_mode(
+            static_cast<int>(helix::zoffset::SaveMode::Auto));
+        helix::zoffset::deinit_save_available_subject();
+    }
+
+    static void set_save_mode(helix::zoffset::SaveMode mode) {
+        helix::SettingsManager::instance().set_z_offset_save_mode(static_cast<int>(mode));
+    }
+
+    void open() {
+        panel.open_for_run(&api, [this](bool accepted, float, ZOffsetCalibrationStrategy s) {
+            done.emplace_back(accepted, s);
+        });
+        settle();
+        REQUIRE(panel.get_root() != nullptr);
+    }
+
+    void settle() {
+        for (int i = 0; i < 5; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(50);
+        }
+    }
+
+    bool hidden(const char* name) const {
+        lv_obj_t* obj = lv_obj_find_by_name(panel.get_root(), name);
+        REQUIRE(obj != nullptr);
+        return lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    bool label_hidden(const char* text) const {
+        lv_obj_t* label = label_showing(panel.get_root(), text);
+        REQUIRE(label != nullptr);
+        return lv_obj_has_flag(label, LV_OBJ_FLAG_HIDDEN);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: the panel shows a run's own saving and finish controls",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    // Saving off: outside a run the note says nothing was saved.
+    set_save_mode(helix::zoffset::SaveMode::Hide);
+    open();
+    lv_subject_t* run_mode = lv_xml_get_subject(nullptr, "zoffset_cal_run_mode");
+    REQUIRE(run_mode != nullptr);
+    CHECK(lv_subject_get_int(run_mode) == 1);
+
+    CHECK(hidden("btn_done"));
+    CHECK_FALSE(hidden("btn_continue"));
+    CHECK_FALSE(hidden("run_saves_note"));
+    CHECK(hidden("not_saved_note"));
+    CHECK(label_hidden("Saving Configuration..."));
+    CHECK(label_hidden("Klipper will restart to apply changes."));
+    CHECK_FALSE(label_hidden("Accepting the Z offset..."));
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: accept stages the result, waits as long as a probe, and "
+                 "Continue hands it back",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    // Saving on: outside a run, a probe's accept would save the config.
+    set_save_mode(helix::zoffset::SaveMode::Show);
+    open();
+    client.defer_next("printer.gcode.script");
+    send_accept_of(panel);
+    settle();
+    REQUIRE(client.last_send_script() == "ACCEPT");
+    CHECK(client.last_send_timeout_ms() >= IAdvancedAPI::kProbingTimeoutMs);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::SAVING);
+
+    // A scan probe's ACCEPT answers after its sweep, past the 30 s a config save gets.
+    process_lvgl(31000);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::SAVING);
+
+    client.fire_deferred("printer.gcode.script");
+    for (int i = 0; i < 20; ++i) {
+        settle();
+    }
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::COMPLETE);
+    CHECK_FALSE(sent_any(client.gcode_script_history(), "SAVE_CONFIG"));
+    CHECK_FALSE(sent_any(client.gcode_script_history(), "Z_OFFSET_APPLY"));
+    REQUIRE(done.empty());
+
+    lv_event_cb_t on_continue = lv_xml_get_event_cb(nullptr, "on_zoffset_continue_clicked");
+    REQUIRE(on_continue != nullptr);
+    on_continue(nullptr);
+    settle();
+    REQUIRE(done.size() == 1);
+    CHECK(done[0].first);
+    CHECK(done[0].second == ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
 }

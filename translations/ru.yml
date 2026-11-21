@@ -4985,6 +4985,7 @@ translations:
   : ''
   ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
   : ''
+  "The label didn't print: {}": "Этикетка не напечатана: {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание

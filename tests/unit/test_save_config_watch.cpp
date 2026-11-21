@@ -5,6 +5,7 @@
 // which replies still speak for the save in flight.
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/gcode_recording_api.h"
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -113,4 +114,33 @@ TEST_CASE_METHOD(WatchFixture,
     REQUIRE(wait_until([&] { return second_saved == 1; }, 2000));
     CHECK(client.gcode_script_history() == std::vector<std::string>{"SAVE_CONFIG RESTART=0"});
     CHECK(first_saved == 0);
+}
+
+TEST_CASE_METHOD(WatchFixture, "an ended save's late answers do not settle the save after it",
+                 "[save_config][save_watch]") {
+    // SAVE_CONFIG acks wait here until the case sends one.
+    helix::test::GcodeRecordingApi recorder{client, state};
+    recorder.hold_acks = true;
+    int second_saved = 0;
+    auto begin_second = [&] {
+        watch.end();
+        watch.begin(&recorder, "", [&] { ++second_saved; }, [](const std::string&) {});
+    };
+    watch.begin(&recorder, "", [] {}, [](const std::string&) {});
+
+    SECTION("the first SAVE_CONFIG's ack") {
+        begin_second();
+        REQUIRE(recorder.held_acks.size() == 2);
+        recorder.held_acks[0]();
+    }
+    SECTION("the first save's Klipper restart, settled a tick later") {
+        get_printer_state().set_klippy_state_sync(KlippyState::STARTUP);
+        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+        // Runs the observer, which queues the settle for the next tick.
+        helix::ui::UpdateQueue::instance().drain();
+        begin_second();
+    }
+    process_lvgl(50);
+    CHECK(second_saved == 0);
+    CHECK(watch.in_flight());
 }

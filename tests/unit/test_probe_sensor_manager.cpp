@@ -678,6 +678,18 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - config-only probe
         REQUIRE(z_offset_subject() == -50);
     }
 
+    // Jacobean's K2 keeps its strain-gauge probe's config in [prtouch], and keeps
+    // that section beside a Cartographer, which is then the probe.
+    SECTION("a prtouch section supplies the probe's z_offset unless another probe is fitted") {
+        const json config = {{"prtouch", {{"z_offset", "-0.125"}}}};
+        discover({"probe", "prtouch"}, config);
+        REQUIRE(mgr().sensor_count() == 1);
+        REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.125f));
+
+        discover({"probe", "cartographer", "prtouch"}, config);
+        CHECK_FALSE(mgr().get_z_offset() == Catch::Approx(-0.125f));
+    }
+
     // Each U1 head has its own coil and offset; the probe status names the active one.
     SECTION("the coil the probe status names supplies the z_offset") {
         discover({"probe", "inductance_coil extruder", "inductance_coil extruder1",

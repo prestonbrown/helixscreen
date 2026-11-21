@@ -1,6 +1,6 @@
 # Label Printer
 
-The thermal label printer used to print filament spool labels. These keys are **per screen** and live in the `label_printer` section. Scanning and picking a printer at **Settings > Devices > Spoolman > Label Printer** fills them in for you, so you rarely edit them by hand. The [Label Printing guide](../guide/label-printing.md) has the full walkthrough.
+The thermal label printer used to print filament spool labels. These keys are **per screen** and live in the `label_printer` section. Scanning and picking a printer at **Settings > Printing > Spoolman > Label Printer** fills them in for you, so you rarely edit them by hand. The [Label Printing guide](../guide/label-printing.md) has the full walkthrough.
 
 [Back to the Configuration Reference](../CONFIGURATION.md)
 

@@ -67,26 +67,37 @@ const json* model_offset(const json& settings, const ModelOffsetRow& row) {
 // The Z probe's offset, from its model for a probe with one. Klipper requires
 // z_offset on most probes, so 0, the value a stock config starts from, counts
 // as untuned. A probe-type section with no offset of its own does not hide
-// the next one.
+// the next one; a fallback probe section counts only when no other probe is
+// configured (hw::is_fallback_probe_section).
 void z_offset(const json& settings, ConfigResults& out) {
-    static const json kNameOnly = json::object();
-    for (const auto& [name, body] : settings.items()) {
-        if (!body.is_object() ||
-            hw::classify_section(name, kNameOnly).kind != hw::ObjectKind::Probe) {
-            continue;
-        }
-        const json* value = nullptr;
-        bool modeled = false;
-        for (const auto& row : kModelOffsetRows) {
-            if (row.probe == name) {
-                modeled = true;
-                value = value ? value : model_offset(settings, row);
+    for (const auto& row : kModelOffsetRows) {
+        if (section_of(settings, row.probe)) {
+            if (const json* value = model_offset(settings, row);
+                value && value->get<double>() != 0.0) {
+                out["z_offset"] = format_z_offset(value->get<double>());
+                return;
             }
         }
-        if (!modeled) {
-            value = number_in(&body, "z_offset");
+    }
+    static const json kNameOnly = json::object();
+    const auto is_probe = [](const std::string& name) {
+        return hw::classify_section(name, kNameOnly).kind == hw::ObjectKind::Probe;
+    };
+    bool other_probe = false;
+    for (const auto& [name, body] : settings.items()) {
+        other_probe = other_probe || (is_probe(name) && !hw::is_fallback_probe_section(name));
+    }
+    for (const auto& [name, body] : settings.items()) {
+        const std::string& section = name; // a lambda cannot capture a structured binding
+        const bool modeled =
+            std::any_of(std::begin(kModelOffsetRows), std::end(kModelOffsetRows),
+                        [&section](const auto& row) { return row.probe == section; });
+        if (!body.is_object() || !is_probe(name) || modeled ||
+            (other_probe && hw::is_fallback_probe_section(name))) {
+            continue;
         }
-        if (value && value->get<double>() != 0.0) {
+        if (const json* value = number_in(&body, "z_offset");
+            value && value->get<double>() != 0.0) {
             out["z_offset"] = format_z_offset(value->get<double>());
             return;
         }
@@ -193,10 +204,15 @@ std::string format_shaper_axis(std::string_view type, double freq_hz) {
 }
 
 std::string join_shaper_axes(const std::string& x, const std::string& y) {
-    if (x.empty() && y.empty()) {
-        return {};
-    }
-    return (x.empty() ? y : y.empty() ? x : fmt::format("{} · {}", x, y)) + " Hz";
+    // Each axis names itself: the two rarely share a shaper or a frequency, and
+    // a printer shaping one axis must still say which. No unit: with one, both
+    // axes do not fit a half-width tile at 800x480.
+    const auto labeled = [](char axis, const std::string& shaper) {
+        return shaper.empty() ? std::string() : fmt::format("{}: {}", axis, shaper);
+    };
+    const std::string lx = labeled('X', x);
+    const std::string ly = labeled('Y', y);
+    return lx.empty() ? ly : ly.empty() ? lx : fmt::format("{} · {}", lx, ly);
 }
 
 std::string format_pid(double kp, double ki, double kd) {

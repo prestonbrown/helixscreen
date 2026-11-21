@@ -179,6 +179,10 @@ TEST_CASE("hw table: probe list", "[hw_object_table]") {
     CHECK(coil.kind == ObjectKind::Probe);
     CHECK(coil.chip == static_cast<uint8_t>(ProbeSensorType::EDDY_CURRENT));
     CHECK(obj("inductance_coil extruder").kind == ObjectKind::Unknown);
+
+    // Jacobean's K2 [prtouch] is the same: config behind the generic probe object.
+    CHECK(classify_section("prtouch", nlohmann::json::object()).kind == ObjectKind::Probe);
+    CHECK(obj("prtouch").kind == ObjectKind::Unknown);
 }
 
 TEST_CASE("hw table: accelerometer sections", "[hw_object_table]") {
