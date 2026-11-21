@@ -51,9 +51,10 @@ enum class SideBandContent {
 /**
  * @brief Whether a host's side band shows @p content
  *
- * Only on the ultrawide layout. Motion needs no hardware. The AMS panel needs a
- * filament system with slots or a printer with several toolheads; without
- * either the band stays empty.
+ * Only on the ultrawide layout. Motion needs no hardware. The AMS panel needs
+ * has_filament_system_or_multi_tool() (include/target_tool.h): a filament
+ * system with slots or a printer with several toolheads; without either the
+ * band stays empty.
  */
 bool side_band_shows(SideBandContent content, bool ultrawide, int ams_slot_count, bool multi_head);
 

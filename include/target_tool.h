@@ -15,6 +15,12 @@ class PrinterState;
 
 namespace helix::ui {
 
+/// Whether the printer has something to show as a lane tray: a filament
+/// system's lanes (@p ams_slot_count > 0) or several heads. Print Status and
+/// the Filament panel show the tray only then; TargetTool publishes it as
+/// `has_filament_system_or_multi_tool`.
+[[nodiscard]] bool has_filament_system_or_multi_tool(int ams_slot_count, bool multi_head);
+
 /**
  * @brief The one target tool every temperature and filament surface aims at.
  *

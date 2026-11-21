@@ -28,7 +28,7 @@ bool side_band_shows(SideBandContent content, bool ultrawide, int ams_slot_count
     case SideBandContent::Motion:
         return true;
     case SideBandContent::Ams:
-        return ams_slot_count > 0 || multi_head;
+        return has_filament_system_or_multi_tool(ams_slot_count, multi_head);
     }
     return false;
 }
