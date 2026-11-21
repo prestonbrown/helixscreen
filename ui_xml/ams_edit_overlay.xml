@@ -292,8 +292,9 @@
 
         <!-- The lane's settings, only where one can change. -->
         <lv_obj name="lane_line"
-                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-                scrollable="false" clickable="true" hidden="true">
+                width="100%" height="content" ext_click_area="#ams_edit_bar_hit" flex_flow="row"
+                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false" clickable="true"
+                hidden="true">
           <style name="nav_row"/>
           <style name="styles.press_wash" selector="pressed"/>
           <bind_flag_if cond="ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))"
@@ -405,7 +406,7 @@
           <bind_flag_if_eq subject="edit_picker_state" flag="hidden" ref_value="2"/>
         </lv_obj>
         <lv_obj name="btn_add_new"
-                width="100%" height="#button_height_sm" style_bg_opa="0" style_border_width="1"
+                width="100%" height="#button_height" style_bg_opa="0" style_border_width="1"
                 style_border_color="#text_muted" style_border_opa="120" style_radius="#border_radius"
                 style_pad_hor="#space_sm" style_pad_ver="0" flex_flow="row" style_flex_main_place="center"
                 style_flex_cross_place="center" style_pad_gap="#space_xs" clickable="true" scrollable="false">
@@ -431,7 +432,9 @@
           <style name="nav_row"/>
           <bind_flag_if_eq subject="ams_edit_reset_tag_visible" flag="hidden" ref_value="0"/>
           <text_small name="tag_bar_text" flex_grow="1" bind_text="ams_edit_tag_text" long_mode="dots"/>
-          <ui_button name="btn_reset_tag" width="content" height="#button_height_sm" text="Use Tag" variant="secondary">
+          <ui_button name="btn_reset_tag"
+                     width="content" height="#button_height_sm" ext_click_area="#ams_edit_bar_hit" text="Use Tag"
+                     variant="secondary">
             <event_cb trigger="clicked" callback="ams_edit_reset_tag_cb"/>
           </ui_button>
         </lv_obj>
@@ -567,8 +570,9 @@
         </lv_checkbox>
         <!-- A linked spool's Spoolman-only details, on a page of their own. -->
         <lv_obj name="more_row"
-                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-                scrollable="false" clickable="true" hidden="true">
+                width="100%" height="content" ext_click_area="#ams_edit_bar_hit" flex_flow="row"
+                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false" clickable="true"
+                hidden="true">
           <style name="nav_row"/>
           <style name="styles.press_wash" selector="pressed"/>
           <bind_flag_if_eq subject="ams_edit_is_managed" flag="hidden" ref_value="0"/>
