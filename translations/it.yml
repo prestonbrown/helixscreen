@@ -5066,6 +5066,7 @@ translations:
   Update complete: 'Aggiornamento completato'
   Update from a Terminal: Aggiorna da un terminale
   Update installed!: Aggiornamento installato!
+  Update printer software and firmware: 'Aggiorna software e firmware della stampante'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Aggiorna il plugin HelixPrint alla 1.5.0 per nascondere le vecchie chiamate di PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Aggiornare anche il modello del riscaldatore INDX? {} ora contiene {}: densità {:.2f}, capacità termica {:.2f}.'
   Update your security PIN: Aggiorna il tuo PIN di sicurezza in questa installazione.

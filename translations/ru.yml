@@ -5154,6 +5154,7 @@ translations:
   Update complete: 'Обновление завершено'
   Update from a Terminal: Обновление через терминал
   Update installed!: Обновление установлено!
+  Update printer software and firmware: 'Обновление программ и прошивки принтера'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
   Update your security PIN: Обновите ваш PIN-код

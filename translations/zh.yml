@@ -5066,6 +5066,7 @@ translations:
   Update complete: '更新完成'
   Update from a Terminal: 通过终端更新
   Update installed!: 更新已安装！
+  Update printer software and firmware: '更新打印机软件和固件'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: '将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。
   Update your security PIN: 更新您的安全 PIN

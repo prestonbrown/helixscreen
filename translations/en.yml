@@ -5041,6 +5041,7 @@ translations:
   Update heater model?: Update heater model?
   Update in Spoolman: Update in Spoolman
   Update installed!: Update installed!
+  Update printer software and firmware: Update printer software and firmware
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.'
   Update your security PIN: Update your security PIN

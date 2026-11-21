@@ -170,8 +170,10 @@ void SettingsPanel::init_subjects() {
                               "settings_status_language_time", subjects_);
     UI_MANAGED_SUBJECT_STRING(settings_status_updates_subject_, settings_status_updates_buf_, "",
                               "settings_status_updates", subjects_);
+    // refresh_status_lines() replaces it with a version a remote check found.
     UI_MANAGED_SUBJECT_STRING(settings_status_firmware_update_subject_,
-                              settings_status_firmware_update_buf_, "",
+                              settings_status_firmware_update_buf_,
+                              lv_tr("Update printer software and firmware"),
                               "settings_status_firmware_update", subjects_);
 
     // Note: BedMeshPanel subjects are initialized in main.cpp during startup
@@ -320,7 +322,7 @@ void SettingsPanel::refresh_status_lines() {
     lv_subject_set_string(
         &settings_status_firmware_update_subject_,
         firmware ? fmt::format(fmt::runtime(lv_tr("{} available")), firmware->version).c_str()
-                 : "");
+                 : lv_tr("Update printer software and firmware"));
 #endif
 }
 
