@@ -557,7 +557,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: both create paths share the frame
 
     for (lv_obj_t* w : {from_cpp, from_xml}) {
         CHECK(ui_ams_mini_status_is_valid(w));
-        CHECK(lv_obj_has_flag(w, LV_OBJ_FLAG_CLICKABLE));
+        CHECK(lv_obj_is_clickable(w));
         CHECK(UITest::find_by_name(w, "ams_bars_container") != nullptr);
         lv_obj_t* overflow = UITest::find_by_name(w, "ams_overflow_label");
         REQUIRE(overflow != nullptr);
