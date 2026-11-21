@@ -65,6 +65,7 @@ static constexpr uint8_t kFlangeRimDrop = 110;
 static constexpr float kVentLipFraction = kFlangeThickness * kLightDrop;
 static constexpr lv_opa_t kVentLipShade = 115; // 45% toward black
 // Face-on, the flange is smoked plastic over the wound filament.
+static constexpr lv_opa_t kFrontSmokeOpa = 140;   // 55% flange over 45% filament
 static constexpr float kFrontMaxFilament = 0.85f; // a full spool stops short of the rim
 
 // Current-spool glow layer, grown from the spool's silhouette. Capable
@@ -778,8 +779,7 @@ static void render_front_pixels(SpoolCanvasData* data) {
             const bool wound = d <= filament_r;
             const lv_color_t behind =
                 wound ? lv_color_make(row[x].red, row[x].green, row[x].blue) : hollow;
-            const lv_color_t solid =
-                wound ? lv_color_mix(flange, behind, data->front_smoke) : flange;
+            const lv_color_t solid = wound ? lv_color_mix(flange, behind, kFrontSmokeOpa) : flange;
             lv_color_t seen = solid;
             const float vent = helix::ui::spool_vent_coverage(face, pxc, py);
             if (vent > 0.0f) {
@@ -1019,8 +1019,7 @@ bool helix::ui::redraw_spool_pixels(SpoolCanvasData* data) {
         filament_hash(*data),
         data->view,
         static_cast<uint8_t>(data->vent_phase % helix::ui::spool_vent_phase_count(
-                                                    helix::ui::spool_vent_detail(data->size))),
-        data->front_smoke};
+                                                    helix::ui::spool_vent_detail(data->size)))};
 
     // Dedup: already rendered this bucketed state, nothing to do.
     if (data->has_rendered && data->last_key == key) {
@@ -1131,13 +1130,6 @@ static void spool_canvas_xml_apply(lv_xml_parser_state_t* state, const char** at
                                                           : helix::ui::SpoolView::Side;
             if (data->view != view) {
                 data->view = view;
-                needs_redraw = true;
-            }
-        } else if (strcmp(name, "smoke") == 0) {
-            // Face-on: 0 shows the filament through the whole flange, 255 hides it.
-            const auto smoke = static_cast<uint8_t>(LV_CLAMP(0, atoi(value), 255));
-            if (data->front_smoke != smoke) {
-                data->front_smoke = smoke;
                 needs_redraw = true;
             }
         } else if (strcmp(name, "size") == 0) {
