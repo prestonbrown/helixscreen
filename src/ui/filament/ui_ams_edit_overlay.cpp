@@ -564,8 +564,6 @@ void AmsEditOverlay::init_subjects() {
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
         // The color line and row (update_color_row).
-        UI_MANAGED_SUBJECT_COLOR(color_current_subject_, lv_color_hex(kAmsDefaultSlotColor),
-                                 "ams_edit_color_current", subjects_);
         UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
                                   "ams_edit_color_current_multi", subjects_);
         UI_MANAGED_SUBJECT_STRING(color_name_subject_, color_name_buf_, "", "ams_edit_color_name",
@@ -2302,14 +2300,13 @@ void AmsEditOverlay::update_color_row() {
     }
     const std::vector<uint32_t> colors = draft_colors();
     const bool capable = multi_color_capable();
-    // A list the lane cannot store shows read-only (the summary dot's split)
+    // A list the lane cannot store shows read-only (the spool drawing's split)
     // behind one dot, like a single color, and a pick replaces it.
     const bool multi = colors.size() >= 2;
     const bool editable = multi && capable;
     const int dots = editable ? shown_colors() : 1;
     selected_seg_ = std::clamp(selected_seg_, 0, dots - 1);
     const uint32_t current = colors[static_cast<size_t>(selected_seg_)];
-    lv_subject_set_color(&color_current_subject_, lv_color_hex(current));
     const std::string list = multi ? join_color_list(colors) : std::string();
     lv_subject_set_string(&color_current_multi_subject_, list.c_str());
     const bool color_set = details_color_set_ || slot_has_colour(working_info_);

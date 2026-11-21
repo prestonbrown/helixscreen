@@ -443,7 +443,6 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject is_managed_subject_{};     ///< 1=linked Spoolman spool ("ams_edit_is_managed")
     helix::Subject scan_enabled_subject_{};   ///< 1=QR button may show ("ams_edit_scan_enabled")
     helix::Subject product_hidden_subject_{}; ///< 1 while Generic selected
-    helix::Subject color_current_subject_{};  ///< the color row's current swatch
     helix::Subject color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     helix::Subject color_name_subject_{};          ///< the color line's name
     helix::Subject recent_count_subject_{};        ///< recent chips shown in the row
