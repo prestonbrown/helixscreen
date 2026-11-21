@@ -17,6 +17,7 @@
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "firmware_fault_codes.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lane_source_store.h"
@@ -31,6 +32,7 @@
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_exceptions.h"
 #include "snapmaker_nozzle_offset.h"
 #include "snapmaker_resume.h"
 #include "snapmaker_screws_tilt.h"
@@ -202,12 +204,20 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return lane + lv_tr("Load failed");
 }
 
-// The status line for a channel fault, in the current language.
+// The status line for a channel fault, in the current language. A token with no
+// wording of its own on an operation that failed reads as that failure: the
+// coded raise that follows explains the cause, and the token is a firmware word.
 [[nodiscard]] std::string channel_fault_detail(bool from_error_token, const std::string& error,
                                                const std::string& op_state,
                                                helix::ui::LaneNoun noun, int lane_index) {
-    return from_error_token ? friendly_channel_error(error, noun, lane_index)
-                            : friendly_channel_state_fail(op_state, noun, lane_index);
+    if (!from_error_token) {
+        return friendly_channel_state_fail(op_state, noun, lane_index);
+    }
+    std::string text = friendly_channel_error(error, noun, lane_index);
+    if (text == error && snapmaker::classify_channel_state(op_state).is_fail) {
+        return friendly_channel_state_fail(op_state, noun, lane_index);
+    }
+    return text;
 }
 
 using snapmaker::ChannelStateInfo;
@@ -3640,6 +3650,52 @@ void AmsBackendSnapmaker::send_resume_repairs_then(std::vector<std::pair<int, st
         /*caller_surfaces_errors=*/false);
 }
 
+// A coded fault the U1 table words (snapmaker::word_fault): the fault-code
+// classifier's event with our summary as its title and the cause and fix as its
+// text. A feeder failure that pauses a print waits on the user, so it blocks
+// with the ways on; idle, it answers the command the user just sent.
+std::optional<helix::ErrorEvent>
+AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
+                                          const helix::ClassifyContext& ctx) const {
+    const auto code = snapmaker::decode_exception_code(raw_line);
+    if (!code) {
+        return std::nullopt;
+    }
+    const auto worded = snapmaker::word_fault(*code);
+    if (!worded) {
+        return std::nullopt;
+    }
+    auto e = helix::faultcodes::classify(get_printer_state().get_discovery(), raw_line);
+    if (!e) {
+        return std::nullopt;
+    }
+    e->title = worded->summary;
+    e->detail = worded->detail;
+    if (code->id != snapmaker::kFeedingModuleId) {
+        return e;
+    }
+    const bool job_waits = ctx.is_printing || ctx.is_paused;
+    e->command_refusal = !job_waits;
+    if (!job_waits ||
+        snapmaker::severity_of(code->level) == snapmaker::ExceptionSeverity::Informational) {
+        return e;
+    }
+    // Loading again is the Filament panel's, which keeps its own guards for a
+    // paused print; Resume refuses until the head reports a finished load.
+    helix::RecoveryAction open_filament{lv_tr("Open Filament"), "",
+                                        "ams_backend_snapmaker::feed_open_filament", "primary"};
+    open_filament.guided_flow = helix::kOpenFilamentFlowId;
+    helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
+                                 "ams_backend_snapmaker::feed_cancel_print", "danger"};
+    cancel.guided_flow = helix::kCancelPrintFlowId;
+    e->recovery_actions = {std::move(open_filament),
+                           std::move(cancel),
+                           {lv_tr("Close"), "", "ams_backend_snapmaker::feed_dismiss"}};
+    e->severity = helix::ErrorSeverity::CRITICAL;
+    e->sticky = true;
+    return e;
+}
+
 // The U1 blocks RESUME whenever a used extruder still reads filament_type
 // "" or "NONE" in print_task_config: INNER_CHECK_AND_RELOAD_FILAMENT_INFO
 // raises `e<N> not edit filament`. Tagless third-party spools land here,
@@ -3654,6 +3710,9 @@ AmsBackendSnapmaker::classify_error(const std::string& raw_line,
                                     const helix::ClassifyContext& ctx) const {
     if (!helix::is_bang_line(raw_line)) {
         return std::nullopt;
+    }
+    if (auto coded = classify_coded_fault(raw_line, ctx)) {
+        return coded;
     }
 
     // Only meaningful against a job the user is trying to continue. Echoing the

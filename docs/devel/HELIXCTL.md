@@ -842,6 +842,8 @@ U1 mock with `HELIX_MOCK_U1_EMPTY_PORTS=0`, so the runout head cannot refeed), `
 `action-prompt-worst`, `action-prompt-many`, `action-prompt-hex`, `action-prompt-zmod`,
 `action-prompt-afc-cal`, `recovery-fault-afc`, `recovery-fault-hh` (the filament fault
 dialog, with AFC's position diagram or all four of Happy Hare's recovery buttons),
+`recovery-fault-u1-load` (a U1 head's failed load during a print, worded from its fault code;
+`HELIX_MOCK_PRINTER=snapmaker_u1`),
 `spaghetti-detection`, `bed-check` (the modal a printer bed check raises when it stops a
 print), `guided-load` and `guided-load-confirm` (the steps a stock load wizard leaves to
 the screen, opened on the hand-push step or on the extrusion question), `manual-load` (the

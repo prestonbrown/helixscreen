@@ -533,7 +533,9 @@ void GcodeErrorRouter::show_deferred(const ErrorEvent& e, PresentAs how,
             return; // nothing was shown; do not count it
         break;
     case PresentAs::TOAST:
-        ui_notification_error(lv_tr("Klipper Error"), short_form.c_str(), /*modal=*/false);
+        // A classifier that named the fault leads with that name.
+        ui_notification_error(e.title.empty() ? lv_tr("Klipper Error") : e.title.c_str(),
+                              short_form.c_str(), /*modal=*/false);
         break;
     case PresentAs::NONE:
         return;

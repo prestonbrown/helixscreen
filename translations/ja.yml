@@ -174,10 +174,18 @@ translations:
   A: A
   ? A 0.2 mm nozzle can't print every filament, including PA, PC, TPU and carbon- or glass-filled types. If this head has one of them loaded, the printer clears its filament info and you'll need to set it again.
   : "0.2 mmノズルでは、PA、PC、TPU、カーボンファイバー・グラスファイバー入りなど、印刷できないフィラメントがあります。このツールヘッドにそのいずれかが装填されている場合、プリンターはフィラメント情報を消去するため、再設定が必要です。"
+  A board could not keep up with its timing and shut down.: ''
+  A board stopped answering while the printer was running.: ''
   A buzzer or speaker for alerts and sounds. Set what plays in the sound settings.: 'アラートやサウンド用のブザーまたはスピーカー。再生内容はサウンド設定で選べます。'
   A camera Moonraker streams. Add the camera widget to the home screen to watch it, and see it during a print.: 'Moonrakerが配信するカメラ。ホーム画面にカメラウィジェットを追加すると、印刷中も映像を確認できます。'
   A cold pull is already running.: "コールドプルはすでに実行中です。"
+  A command is malformed or names a device that does not exist.: ''
+  A command is missing a value, or a value is out of its allowed range.: ''
+  A controller board did not answer: ''
+  A controller board fell behind: ''
+  A controller board runs firmware that does not match the printer software.: ''
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "デルタプリンターはZを動かさずにXとYをホーミングできないため、印刷を再開できません。"
+  A different toolhead than the one asked for is on the carriage.: ''
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'チャンバー内の空気をフィルターに通すファン。チャンバー温度画面で操作できます。'
   A few minutes, nearly all of it heating. You judge nothing by eye.: '数分かかりますが、そのほとんどは加熱です。目視での判断は不要です。'
   A first-layer offset and bed mesh for each material: "素材ごとの1層目オフセットとベッドメッシュ"
@@ -186,8 +194,10 @@ translations:
   A heat soak macro is set up on the printer. HelixScreen detects it but does not run it.: 'プリンターにヒートソークのマクロが設定されています。HelixScreenは検出しますが実行はしません。'
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "加熱ベッドは温度で膨張するため、素材ごとに1層目のオフセットを持てます。印刷開始マクロがそれを適用し、印刷中の保存はその印刷の素材だけを変更します。"
+  A heater did not warm up at the expected rate.: ''
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipperが凹凸を補正するために使うベッドの高さマップ。ベッドメッシュ画面で確認とキャリブレーションができます。'
+  A home-origin calibration point failed or stayed unstable.: ''
   A left, B right: "A左・B右"
   A lower, B upper: "A下・B上"
   "A macro printed stray template text '{}': check its Jinja tags": "マクロが不要なテンプレート文字列 '{}' を出力しました: Jinja タグを確認してください"
@@ -195,13 +205,19 @@ translations:
   ? A material preset sets the bed and chamber along with the nozzle; off, it heats only the nozzle. A preheat macro that handles heating sets whatever heaters it sets
   : 材料プリセットはノズルとともにベッドとチャンバーも設定します。オフにするとノズルのみを加熱します。加熱を行う予熱マクロは、設定するヒーターを自分で決めます
   A motor IO pin couldn't be restored. Power-cycle the printer to recover: モーターのIOピンを復元できませんでした。プリンターの電源を入れ直してください
+  A motor driver reported a fault such as overheating or a short.: ''
   A motor's parameters couldn't be written. Power-cycle the printer to retry: モーターのパラメーターを書き込めませんでした。プリンターの電源を入れ直して再試行してください
+  A move command has an invalid speed or cannot be read.: ''
+  A move was sent before that axis was homed.: ''
+  A move went past the printer's travel limits.: ''
   "A new Print Status screen": "新しい印刷ステータス画面"
   A newer version of the helper macros is available: 'ヘルパーマクロの新しいバージョンが利用可能です'
   A picture of your printer: プリンターの画像
+  A piece of filament is already in this head's feed path.: ''
   ? A pressure advance run was interrupted. The X/Y drivers were released and the motion limits and pressure advance reset; home the printer before moving it.
   : 'プレッシャーアドバンスの測定が中断されました。X/Yドライバーを解放し、動作制限とプレッシャーアドバンスを元に戻しました。動かす前にプリンターをホーミングしてください。'
   A print holds the printer.: "印刷中のためプリンターを使用できません。"
+  A print is already running: ''
   A print is already running.: すでに印刷中です。
   A print is in progress - restart still pending: '印刷中です - 再起動は保留中'
   A print is running on this gate. HelixScreen cleared its own copy; clear it again once the print finishes.: このゲートで印刷中です。HelixScreen 側のコピーはクリアしました。印刷終了後に再度クリアしてください。
@@ -216,12 +232,20 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'ベッドまでの距離を測るセンサー。HelixScreenはZオフセットのキャリブレーションと、プローブ画面でのプローブテストに使います。'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。'
+  A setting or pin in the printer's configuration is invalid.: ''
   A shell on the machine running this screen: 'この画面を動かしているマシンのシェル'
   A spool may be tangled or the drive gear is jammed: スプールが絡まっているか、駆動ギアが詰まっている可能性があります
   A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Spoolmanのスプールに価格がある場合はその価格を使います。それ以外のスプールにはこれらの価格を使います。"
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '複数のフィラメントをツールヘッドに送るシステムで、スロット数を表示します。スロットはフィラメントシステム画面で管理できます。'
+  A temperature reading went outside its valid range.: ''
+  A temperature was set for a toolhead number that does not exist.: ''
+  A toolhead is in an unknown position, so the change did not start.: ''
+  A toolhead is neither in its dock nor on the carriage.: ''
+  A toolhead lost contact during the print: ''
   A toolhead offset calibration is in progress, possibly from another screen. End it now?: 'ツールヘッドオフセットのキャリブレーションが実行中です（別の画面からの可能性があります）。今すぐ終了しますか?'
+  A toolhead reads as docked and picked up at the same time.: ''
+  A toolhead's fan stopped reporting during the print, which points to the pogo pins.: ''
   A top cover was detected. Its fans and air modes are on the Fans screen.: 'トップカバーを検出しました。ファンとエアモードはファン画面にあります。'
   A upper, B lower: "A上・B下"
   ABS: ABS
@@ -266,6 +290,7 @@ translations:
   Acceleration to deceleration limit (mm/s²): 加速から減速の制限値 (mm/s²)
   Accelerometer: 加速度センサー
   Accelerometer communication failed. Try again.: 加速度センサーとの通信に失敗しました。再試行してください。
+  Accelerometer not responding: ''
   Accelerometers: 加速度センサー
   Accept: 承認
   'Accepted Z Position: 0.000': '確定Z位置: 0.000'
@@ -304,6 +329,7 @@ translations:
   'Adds to:': '追加先:'
   Adjust screen brightness level: 画面の明るさを調整します
   Adjust screws, then re-probe.: ネジを調整して、再度プローブしてください。
+  Adjust the dock position again and rerun the check.: ''
   Adjust the other belt: "もう一方を調整"
   Adjust the tensioners until both belts match.: "両方のベルトがそろうようテンショナーを調整します。"
   Adjustments stay active until restart. Save after print completes.: 調整は再起動まで有効です。印刷完了後に保存してください。
@@ -312,6 +338,7 @@ translations:
   Advancing: 前進中
   After an error: エラーの後
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: '{}を接続した後は、印刷品質のためにインプットシェーピングの再キャリブレーションをお勧めします。'
+  After parking, the head does not read as docked.: ''
   After running the commands, tap Check Again below.: コマンド実行後、下の「再確認」をタップしてください。
   Afterwards, Vertical Artifact Check in this menu shows how much it helped.: 'その後、このメニューの垂直アーティファクトチェックで効果を確認できます。'
   Air filter: "エアフィルター"
@@ -328,6 +355,7 @@ translations:
   All healthy: すべて正常
   All lights: すべてのライト
   All time: '全期間'
+  All toolheads must be docked for this step.: ''
   Allow: '許可'
   Allow Home Screen Editing: 'ホーム画面の編集を許可'
   Allow Remote Control: 'リモート操作を許可'
@@ -346,6 +374,8 @@ translations:
   An accelerometer was detected on your printer.: プリンターで加速度センサーが検出されました。
   An app on your network is asking to connect to this printer.: 'ネットワーク上のアプリがこのプリンターへの接続を求めています。'
   An earlier IPv4 change is still being undone. Try again shortly.: '以前のIPv4の変更をまだ元に戻しています。しばらくしてからもう一度お試しください。'
+  An emergency stop or a shutdown request stopped the printer.: ''
+  An endstop or the probe did not trigger as expected while homing.: ''
   An error occurred during calibration.: キャリブレーション中にエラーが発生しました。
   An error occurred during filament loading.: フィラメントの読み込み中にエラーが発生しました。
   An error occurred during probing.: プローブ中にエラーが発生しました。
@@ -354,6 +384,7 @@ translations:
   An error occurred.: 'エラーが発生しました。'
   ? An internal error occurred. The app continues running. Please send a debug bundle from Settings > Help & About if it repeats.
   : 内部エラーが発生しました。アプリは引き続き動作します。問題が繰り返される場合は、設定 > ヘルプと情報 からデバッグバンドルを送信してください。
+  An unexpected internal error stopped the printer from starting.: ''
   An unexpected printer error occurred.: 予期しないプリンターエラーが発生しました。
   An unknown error occurred.: 不明なエラーが発生しました。
   An update is available: 更新があります
@@ -365,6 +396,7 @@ translations:
   Anonymous data to help improve HelixScreen: HelixScreen改善のための匿名データ
   Anonymous usage statistics: 匿名の使用統計
   Another filament operation is heating the nozzle.: "別のフィラメント操作がノズルを加熱しています。"
+  Another print is in progress.: ''
   Any notes...: メモ...
   Any other material: "その他の素材"
   App Background: アプリ背景
@@ -380,6 +412,7 @@ translations:
   Apply start options to prints from other apps: '他のアプリからの印刷にも開始オプションを適用'
   Apply the lubricant your manual names, sparingly.: "マニュアル指定の潤滑剤を少量塗ります。"
   Aqua Surface: '水面'
+  Arc moves not supported: ''
   Archive: アーカイブ
   Archive Spool?: スプールをアーカイブしますか？
   Are you sure you want to cancel this print? All progress will be lost.: この印刷をキャンセルしますか？すべての進行状況が失われます。
@@ -425,6 +458,7 @@ translations:
   Automatic LED Control: 自動LED制御
   Automatic calibration: '自動キャリブレーション'
   Automatic cleanup: '自動クリーンアップ'
+  Automatic filament feeding is still running.: ''
   Automatic storage cleanup: 'ストレージの自動クリーンアップ'
   Aux: 補助
   Aux Fan: 補助ファン
@@ -489,9 +523,12 @@ translations:
   'Bed mesh calibration failed: {}': 'ベッドメッシュのキャリブレーションに失敗しました: {}'
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
+  Bed needs manual leveling: ''
   Bed size unknown: 'ベッドサイズが不明です'
   Bed target set to {}: ベッド目標温度を {} に設定しました
   Bed temp must be %d-%s: ベッド温度は %d〜%s にしてください
+  Bed temperature out of range: ''
+  Bed temperature reading failed: ''
   Bed warming timed out: ベッド加熱がタイムアウトしました
   Bed {}: ベッド {}
   Bed {} / {}: ベッド {} / {}
@@ -523,6 +560,7 @@ translations:
   Bluetooth not initialized: Bluetooth が初期化されていません
   Bluetooth printer forgotten: Bluetooth プリンターの登録を解除しました
   Bluetooth scanner forgotten: Bluetooth スキャナーの登録を解除しました
+  Board firmware does not match: ''
   Body text supports longer guidance while staying readable.: 本文テキストは読みやすさを保ちながら、より長い説明をサポートします。
   Bold: ボールド
   Border Opacity: 境界線の不透明度
@@ -559,6 +597,8 @@ translations:
   Buffer-driven gear speed control: "バッファーによるギア速度制御"
   Build Volume: '造形ボリューム'
   'Build Volume: ': '造形サイズ: '
+  Build plate missing: ''
+  Build plate not seated: ''
   'Building preview: %d%%': 'プレビューを作成中: %d%%'
   Bundle Uploaded: バンドルをアップロードしました
   Busy: 'ビジー状態'
@@ -654,6 +694,7 @@ translations:
   Calibration may still be running — printer connection was interrupted: 'キャリブレーションがまだ実行中の可能性があります — プリンター接続が中断されました'
   Calibration may still be running — response timed out: 'キャリブレーションがまだ実行中の可能性があります — 応答タイムアウト'
   Calibration move may still be running — printer connection was interrupted: 'キャリブレーション移動がまだ実行中の可能性があります — プリンター接続が中断されました'
+  Calibration request not valid: ''
   Calibration saved: 校正を保存しました
   Calibration saved but cannot apply on SDL display: キャリブレーションは保存されましたが SDL ディスプレイには適用できません
   Calibration succeeded, but the frequency chart data couldn't be read.: キャリブレーションは成功しましたが、周波数グラフのデータを読み取れませんでした。
@@ -720,12 +761,14 @@ translations:
   Chamber air: 'チャンバー空気'
   Chamber and dryer humidity monitoring: チャンバーとドライヤーの湿度監視
   Chamber at %s: チャンバー温度：%s
+  Chamber fan not turning: ''
   Chamber heater didn't start: 'チャンバーヒーターが起動しませんでした'
   Chamber heater didn't start. {}: 'チャンバーヒーターが起動しませんでした。{}'
   Chamber heating to %s...: チャンバーを%sに加熱中...
   Chamber light fitted: 'チャンバーライト搭載'
   Chamber target set to {}: チャンバー目標温度を{} に設定
   Chamber temp must be %d-%s: チャンバー温度は %d〜%s にしてください
+  Chamber temperature reading failed: ''
   Chamber too hot: 'チャンバーが高温です'
   Change: 変更
   Change Address: アドレスを変更
@@ -737,6 +780,7 @@ translations:
   Change Tool: ツール交換
   Change Tool While Paused: 一時停止中のツール交換
   Change heater control?: ヒーターの制御を変更しますか？
+  Change it before starting the print.: ''
   ? Change printer settings through Moonraker, including uploading, rewriting and deleting files in the printer's config folder.
   : 'Moonrakerを通じてプリンターの設定を変更します。プリンターの設定フォルダー内のファイルのアップロード、書き換え、削除を含みます。'
   Change the name or the linked spool in Spoolman.: "名前やリンクされたスプールは Spoolman で変更してください。"
@@ -758,19 +802,36 @@ translations:
   Check slot failed: スロットの確認に失敗しました
   Check Slots: スロット確認
   Check slots failed: スロットの確認に失敗しました
+  Check that nothing blocks the toolhead or the head's dock, then load the head again.: ''
+  ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
+  : ''
   Check that only one filament path is active: フィラメント経路が 1 つだけ有効か確認してください
+  Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again.: ''
+  Check that the camera's live view works, or turn off timelapse for this print, then resume.: ''
   Check that the cutter mechanism is properly installed: カッター機構が正しく取り付けられているか確認してください
   Check that the printer is powered on and connected to the network: プリンターの電源が入っていて、ネットワークに接続されているか確認してください
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: ドラッグチェーンに沿った PTFE チューブの折れと、エクストルーダーセンサー入口の曲がりを確認してください
   Check the RS-485 cable between printer and CFS: プリンターと CFS 間の RS-485 ケーブルを確認してください
+  Check the bed temperature in the slicer's profile.: ''
+  Check the belts and rails for debris or looseness, then home again.: ''
   Check the buffer unit on the back of the printer: プリンター背面のバッファーユニットを確認してください
   Check the chips, then save: チップを確認して保存
+  Check the dock for debris or a bent latch, guide the head into its dock, then home and resume.: ''
+  Check the fan for obstructions and its cable, then resume.: ''
   Check the filament path and try again.: フィラメント経路を確認して、もう一度お試しください。
+  Check the nozzle temperature in the slicer's filament profile.: ''
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : スロットからハブまでの経路に絡まりや抵抗がないか確認してください。スロットが問題なく送り出せる場合は、ハブセンサーまたは送り出しモーターの故障が考えられます
+  Check the power cable and outlet. When power is back, resume the print if the printer offers it.: ''
+  Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: ''
   Check the provided value and try again: 入力した値を確認してもう一度お試しください
   Check the spool and the filament path for a jam, then retry: スプールとフィラメント経路の詰まりを確認してから再試行してください
+  Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: ''
+  Check the spool for a tangle or a stuck spool, clear the filament path, then resume.: ''
+  Check the spool, the feeder and the feed tube to this head, then load the head again.: ''
   Check the tension of the motion belts: "駆動ベルトのテンションを確認"
+  ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
+  : ''
   Check your heater's rating (typically 40-60W for hotends): ヒーターの定格を確認してください（ホットエンドは通常40〜60W）
   Checking: 確認中
   Checking Spoolman server...: Spoolman サーバーを確認中...
@@ -816,6 +877,13 @@ translations:
   Clean and lubricate the Z screws and guides: "Zねじとガイドの清掃と注油"
   Clean dust from the mainboard and power supply fans: "メインボードと電源のファンのほこりを清掃"
   Clean nozzle: 'ノズル清掃'
+  Clean the docks and the pogo pins, then reset the maintenance counter.: ''
+  Clean the nozzle and the calibration target, check the belts, then rerun the calibration.: ''
+  Clean the nozzle and the calibration target, then home again. If it repeats, run the home-origin calibration.: ''
+  Clean the nozzle and the plate, check nothing touches the nozzle, then retry.: ''
+  Clean the nozzle tip and the build plate, then run the calibration again.: ''
+  Clean the nozzle, then resume.: ''
+  Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry.: ''
   Clean up: 'クリーンアップ'
   Clean {}: '{}を清掃'
   Cleaning: "清掃"
@@ -828,6 +896,9 @@ translations:
   Clear Console?: コンソールをクリアしますか？
   Clear Error: エラーをクリア
   Clear Spool: スプールを解除
+  Clear and clean the build plate, then resume.: ''
+  Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: ''
+  Clear any filament from around the nozzle and the purge area, then load the head again.: ''
   Clear every Endless Spool backup: エンドレススプールの予備をすべて消去
   Clear extruder only: 'エクストルーダーだけを空にする'
   Clear failed: クリアに失敗しました
@@ -871,6 +942,7 @@ translations:
   Colors for every screen: "すべての画面の配色"
   Command Failed: 'コマンドに失敗しました'
   Command failed: コマンドに失敗しました
+  Command not allowed: ''
   Communication Test: '通信テスト'
   Compact: コンパクト
   Compare belt paths with a resonance sweep: "共振スイープでベルトパスを比較"
@@ -1033,6 +1105,7 @@ translations:
   : "タイルを長押しすると編集モードになります。新しいグリッドでは、ウィジェットの並べ替え、サイズ変更、削除、追加、ページ間のドラッグができます。"
   'Moonraker answered at {}.': "{} でMoonrakerが応答しました。"
   "New in 1.1": "1.1 の新機能"
+  No filament type is set for a toolhead this print uses.: ''
   No filament was inserted in time: '時間内にフィラメントが挿入されませんでした'
   Paste: "貼り付け"
   Print hours between filter changes. Off hides this meter.: 'フィルター交換までの印刷時間。オフにするとこのメーターを非表示にします。'
@@ -1135,6 +1208,7 @@ translations:
   Cut filament: フィラメントを切断
   Cut off the pulled tip and push the filament back into the extruder until it stops, then tap Extrude.: "引き抜いた先端を切り落とし、フィラメントを止まるまでエクストルーダーに戻してから「押し出し」をタップしてください。"
   'Cut position saved: {}': '切断位置を保存しました: {}'
+  Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: ''
   Cut tip: '先端をカット'
   Cutter Enabled: 'カッター有効'
   Cutter and purge chute calibration: カッターとパージシュートのキャリブレーション
@@ -1252,6 +1326,9 @@ translations:
   Do not touch the filament yet.: "まだフィラメントに触れないでください。"
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
   Dock: ドック
+  Dock every toolhead first: ''
+  Dock position change too large: ''
+  Dock position check failed for {}: ''
   Dock sensors cannot tell which tool is mounted: ドックのセンサーでは、どのツールが装着されているか判別できません
   Dock sensors disagree: ドックセンサーが不一致
   Dock tool: ツールを格納
@@ -1290,6 +1367,7 @@ translations:
   Drying started: 乾燥を開始しました
   Drying stopped: 乾燥を停止しました
   Duplicate: 複製
+  Duplicate command in the configuration: ''
   Duplicated: 複製しました
   Duration: 時間
   Dust and old grease on the X and Y rails or rods cause noise, ringing and wear.: "XYレールやロッドのほこりと古いグリスは騒音、リンギング、劣化の原因です。"
@@ -1432,6 +1510,7 @@ translations:
   Every browser needs a new code to control this screen: 'この画面を操作するには、各ブラウザに新しいコードが必要です'
   Every browser that can control this screen will need the new pairing code.: 'この画面を操作できるすべてのブラウザで、新しいペアリングコードが必要になります。'
   Every extruder's temperature at once: 全エクストルーダーの温度を一覧表示
+  Every toolhead reads as docked.: ''
   Every unit keeps its filament gripped: "すべてのユニットがフィラメントを保持したままです"
   Everything else was saved. Change them in Spoolman.: その他はすべて保存されました。変更は Spoolman で行ってください。
   Everything else was saved. Rename the material using letters, digits, spaces, and + - _ . ( ) /: 'その他はすべて保存されました。材料名は英字・数字・スペース・+ - _ . ( ) / で構成される名前に変更してください'
@@ -1491,6 +1570,7 @@ translations:
   Extruder too cold: エクストルーダーが冷えています
   Extruding prime line...: プライムラインを押し出し中...
   Extruding...: "押し出し中..."
+  Extrusion too large for {}: ''
   FAILED: 失敗
   FILAMENT: フィラメント
   FILAMENT & TOOLHEAD: 'フィラメントとツールヘッド'
@@ -1643,6 +1723,7 @@ translations:
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
+  Feeding the head by hand did not finish.: ''
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -1671,6 +1752,7 @@ translations:
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : 最低押し出し温度を下回るとフィラメントをロードできません。ホットエンドの目標温度を設定し（PLA は 220°C、PETG は 240°C など）、到達を待ってから再試行してください
   Filament controls are unavailable while printing.: 印刷中はフィラメント制御を利用できません。
+  Filament could not be fed to this head.: ''
   Filament cutter not detected: フィラメントカッターが検出されません
   Filament cutter position error: フィラメントカッターの位置エラー
   Filament cutter stuck: フィラメントカッターが動きません
@@ -1717,8 +1799,10 @@ translations:
   Filament slot menu: 'フィラメントスロットのメニュー'
   Filament snapped inside CFS: CFS 内でフィラメントが折れました
   Filament stalled between CFS hub and extruder sensor: CFS ハブとエクストルーダーセンサーの間でフィラメントが止まりました
+  Filament still feeding: ''
   Filament stuck in connector during unload: アンロード中にコネクター内でフィラメントが詰まりました
   Filament stuck inside the CFS hub: CFS ハブ内でフィラメントが詰まっています
+  Filament stuck on the nozzle: ''
   Filament tracking & label printing: フィラメント追跡とラベル印刷
   Filament tracking and inventory: フィラメント追跡と在庫管理
   FilamentSensor: フィラメントセンサー
@@ -1727,6 +1811,7 @@ translations:
   File Size: ファイルサイズ
   File Will Stop the Printer: 'ファイルがプリンターを停止します'
   File analysis: 'ファイル解析'
+  File list unavailable: ''
   File not found on printer.: プリンター上にファイルが見つかりません。
   'File not found: {}': 'ファイルが見つかりません: {}'
   Filename: ファイル名
@@ -1754,6 +1839,7 @@ translations:
   Fit how the part fan cools the nozzle: パーツファンによるノズルの冷却を測定
   Fit the heater model with the part fan off: パーツファンをオフにしてヒーターモデルを測定
   Fit the induction heater's safety model: 誘導ヒーターの安全モデルを測定
+  Fix the reason shown for the shutdown, then restart the firmware.: ''
   'Fix: chmod 644 {}, then restart': '修正：chmod 644 {} を実行して再起動してください'
   'Fix: chown {} {}, then restart': '修正：chown {} {} を実行して再起動してください'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
@@ -1768,6 +1854,9 @@ translations:
   Flow: フロー
   Flow Compensation: 'フロー補正'
   Flow Rate: フローレート
+  Flow calibration is not allowed for this filament with a 0.2 mm nozzle.: ''
+  Flow calibration is on for a filament and nozzle pair that does not allow it.: ''
+  Flow calibration not allowed for {}: ''
   Flowguard: フローガード
   Flushing Filament...: フィラメントをフラッシュ中...
   Flying Toasters: フライングトースター
@@ -1878,6 +1967,7 @@ translations:
   Heat the bed to {}: ベッドを {} に加熱
   Heat the chamber too: チャンバーも加熱
   Heat the extruder to at least {} before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {} まで加熱してください
+  Heat the head to the filament's temperature and check that it heats at all.: ''
   Heat the hotend.: "ホットエンドを加熱します。"
   Heat to at least %s for filament operations: フィラメント操作には少なくとも %s まで加熱してください
   Heat {} above {} before resuming: 再開前に{}を{}以上に加熱してください
@@ -1890,6 +1980,7 @@ translations:
   Heater Power: ヒーター出力
   Heater connection lost: ヒーター接続が切断されました
   Heater fault: ヒーター異常
+  Heater not heating as expected: ''
   Heater offline: ヒーター切断
   Heater over-temperature: ヒーター過昇温
   Heater sensor fault: ヒーターセンサー異常
@@ -1964,13 +2055,20 @@ translations:
   Home: ホーム
   Home & Continue: ホーミングして続行
   Home All: "全軸ホーミング"
+  Home X and Y first: ''
   Home all axes to use the map: マップを使うには全軸をホーミングしてください
+  Home all axes, then try again.: ''
   Home and park: "ホームとパーキング"
   Home and sweep the cutter to re-find its position: 原点復帰後にカッターを走査して位置を再検出します
+  Home before probing: ''
   Home failed: ホーミング失敗
   Home layout copied from the printer's screen: "プリンターの画面からホーム画面のレイアウトをコピーしました"
+  Home position calibration failed: ''
   Home printer first?: 先にプリンターをホーミングしますか？
   Home Selector: セレクターをホーミング
+  Home the printer again so a toolhead is picked up, then retry.: ''
+  Home the printer again so it detects the toolheads, then retry.: ''
+  Home the printer so every toolhead is docked, then retry.: ''
   Homing: ホーミング
   Homing AFC system...: AFCシステムをホーミング中...
   Homing Failed: 'ホーミングに失敗しました'
@@ -1983,12 +2081,17 @@ translations:
   Homing and moving the plate...: 'ホーミングしてベッドを移動中...'
   Homing axes...: 軸をホーミング中...
   Homing complete: ホーミング完了
+  Homing failed: ''
   'Homing failed: ': 'ホーミングに失敗: '
   'Homing failed: {}': 'ホーミングに失敗しました: {}'
   Homing first...: ホーミング中...
+  Homing gave inconsistent results.: ''
   Homing is disabled while a print is in progress: 印刷中はホーミングできません
   Homing may still be running — response timed out: ホーミングがまだ実行中の可能性があります — 応答タイムアウト
   Homing selector: 'セレクターをホーミングしています'
+  Homing stopped at {}: ''
+  Homing stopped by a shutdown: ''
+  'Homing stopped: toolhead state': ''
   Homing timed out: ホーミングがタイムアウトしました
   Homing timed out — printer may still be homing: ホーミングがタイムアウトしました — プリンターはまだホーミング中の可能性があります
   Homing, then probing...: "原点復帰してから測定中..."
@@ -2057,6 +2160,7 @@ translations:
   Importing {}...: '{} をインポート中...'
   In Progress: 進行中
   Inactive: 非アクティブ
+  Inch units not supported: ''
   Include Klipper/Moonraker logs: Klipper/Moonrakerのログを含める
   'Incompatible materials: {} cannot use {} as backup': '非対応の素材: {} は {} をバックアップとして使用できません'
   Indexing G-code...: G-codeをインデックス中...
@@ -2081,6 +2185,7 @@ translations:
   InputShaper: InputShaper
   Insert filament: 'フィラメントを差し込む'
   Insert filament before resuming: 再開前にフィラメントを挿入してください
+  Insert filament into this head's feeder until it grabs, then load the head again.: ''
   Inspecting bed...: ベッドを検査中...
   Install: インストール
   Install HelixPrint Plugin: HelixPrint プラグインをインストール
@@ -2116,7 +2221,10 @@ translations:
   Interrupted: 中断
   Invalid Slot: '無効なスロット'
   Invalid Tool: '無効なツール'
+  Invalid command: ''
+  Invalid command value: ''
   Invalid duration: '時間の値が無効です'
+  Invalid move: ''
   Invalid number: 無効な番号
   Invalid parameter: 無効なパラメータ
   Invalid port number: 無効なポート番号
@@ -2272,12 +2380,14 @@ translations:
   LedSelect: LEDを選択
   Left: '左'
   Left belt: "左ベルト"
+  Leftover material found: ''
   Length of filament to purge: 'パージするフィラメントの長さ'
   Length of the cooling tube section: '冷却チューブ区間の長さ'
   'Length:': '長さ:'
   Let a browser tap and drag on this screen: 'ブラウザからこの画面のタップとドラッグを許可'
   Let's take a quick tour so you can find things fast.: 機能をすぐに見つけられるよう、簡単なツアーを始めましょう。
   Level: レベル
+  Level the bed with the manual leveling procedure.: ''
   Leveling Gantry...: ガントリーレベリング中...
   Library: ライブラリ
   Lifting the nozzle clear of the print: ノズルを印刷物から持ち上げています
@@ -2314,12 +2424,14 @@ translations:
   Load failed: 装填に失敗しました
   Load filament: 'フィラメントをロード'
   Load filament first: 先にフィラメントを装填してください
+  Load filament into this head, then resume. If filament is there, check for a break between the spool and the head.: ''
   Load filament to the toolhead, then tap Resume.: 'ツールヘッドまでフィラメントをロードしてから、再開をタップしてください。'
   Load into which tool?: 'どのツールにロードしますか？'
   Push filament into the toolhead by hand, then tap Resume.: "フィラメントを手でツールヘッドに押し込んでから、再開をタップしてください。"
   Load it in the filament panel, then tap Resume.: 'フィラメントパネルでロードしてから、再開をタップしてください。'
   Load or unload filament.: フィラメントを装填または排出します。
   Load Profile: 'プロファイルを読み込む'
+  Load the head again. If it fails again, unload it, cut the filament end square and load it once more.: ''
   Load the required filaments or start anyway?: 必要なフィラメントを装填しますか？それともこのまま開始しますか？
   Load...: 装填...
   Loaded: 装填済み
@@ -2361,6 +2473,7 @@ translations:
   Looking for the active spool...: 使用中のスプールを検索中...
   Lost connection during print — try again: 印刷中に接続が切断されました — もう一度お試しください
   Lost connection to CFS unit: CFS ユニットとの接続が切断されました
+  Lost contact with a controller board: ''
   Lost the connection to the printer.: プリンターとの接続が切れました。
   Lost the printer.: "プリンターとの接続が失われました。"
   'Lot # (optional)': ロット番号（オプション）
@@ -2419,10 +2532,13 @@ translations:
   Maintaining: 維持中
   Maintenance: 'メンテナンス'
   Maintenance Task: "メンテナンス項目"
+  Make a smaller adjustment.: ''
   Make color, material and spool changes in Spoolman.: "色、素材、スプールの変更は Spoolman で行ってください。"
   Make sure every nozzle is clean.: すべてのノズルが清潔であることを確認してください。
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'ツールヘッドにフィラメントがロードされていないことを確認してください: ベッドの加熱中にエクストルーダー内で柔らかくなることがあります。'
 
+  Make sure one toolhead is on the carriage and the rest are docked, then home.: ''
+  Make sure the printer is safe, then restart the firmware.: ''
   MakeID (Bluetooth): MakeID (Bluetooth)
   ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
   : '自分で切り替えないプリンター向けに、各ツールまたはレーンのスプールから Spoolman が使用量を差し引くようにし、印刷ごとに各スプールの使用量を記録します。'
@@ -2530,11 +2646,13 @@ translations:
   'Moonraker: ': 'Moonraker: '
   More options…: 'その他のオプション…'
   More points = more accurate, but takes longer.: ポイント数が多いほど精度が上がりますが、時間がかかります。
+  More than one toolhead reads as picked up at the same time.: ''
   Motion: 動作
   'Motion sensor stuck: filament is still at the feeder. Resume to feed it.': 'モーションセンサーが固着: フィラメントはまだフィーダーにあります。再開すると送り込みます。'
   Motion timed out: 動作がタイムアウトしました
   Motor controller error: モーターコントローラーのエラー
   Motor drive fault: モータードライバーの異常
+  Motor driver fault: ''
   Motor parameter setup failed: モーターパラメーターの設定に失敗しました
   Motor speeds and acceleration: 'モーター速度と加速度'
   Motor sync: モーター同期
@@ -2545,6 +2663,7 @@ translations:
   Motors stay on while a print is active: 印刷中はモーターを停止できません
   'Mounted: {}': '装着中: {}'
   Move: 移動
+  Move before homing: ''
   Move here: ここへ移動
   Move out of range: '移動範囲外です'
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 調整中は紙を前後に動かしてください。紙がわずかに引っかかりながらも滑る状態で止めてください。
@@ -2726,6 +2845,7 @@ translations:
   No tool is mounted: 'ツールが装着されていません'
   No tool mounted: 'ツール未装着'
   No tool on the head: "ツールヘッドにツールがありません"
+  No toolhead on the carriage: ''
   No tools to calibrate: キャリブレートするツールがありません
   'No turn: the gap moved {:.1f} Hz': "回していません: 差は{:.1f} Hz動きました"
   No unit has a filament buffer: "フィラメントバッファーを持つユニットがありません"
@@ -2773,6 +2893,7 @@ translations:
   Not turned: '未回転'
   'Not saved: {}. Try again.': "保存されていません: {}。もう一度お試しください。"
   Not set: 未設定
+  Not while printing: ''
   Not yet available on this display: 'このディスプレイではまだ利用できません'
   Not yet calibrated: 未キャリブレーション
   Notes: メモ
@@ -2875,6 +2996,7 @@ translations:
   Ooze Reduction: 'にじみ低減'
   Open: 開く
   Open Fans: 'ファンを開く'
+  Open Filament: ''
   Open Source Licenses: オープンソースライセンス
   Open Terminal: 'ターミナルを開く'
   Open color and brightness controls: 色と明るさの調整を開く
@@ -2885,6 +3007,7 @@ translations:
   Open motion controls for jogging: ジョグ操作を開く
   Open the .3mf in Print Files to print this plate again.: 'このプレートを再印刷するには、印刷ファイルで .3mf を開いてください。'
   Open the CFS unit and remove the broken filament from the slot: CFS ユニットを開け、スロットから折れたフィラメントを取り除いてください
+  Open the door or lid to let it cool, check the exhaust fan, then resume.: ''
   Open the extruder as your manual shows.: "マニュアルに従ってエクストルーダーを開きます。"
   Open the slot editor when you load a new spool: '新しいスプールを装填したときにスロットエディタを開く'
   OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here: "OpenAMS はこのスプールを Spoolman で管理しており、ここでは素材、色、ブランド、重量のみ変更できます"
@@ -3003,6 +3126,7 @@ translations:
   Pick up which tool?: 'どのツールを装着しますか？'
   Pick up...: '装着...'
   Pick-up step cancelled; nothing was sent: '装着後の操作を取り消しました。何も送信していません'
+  Picking up or parking the head failed while checking its dock position.: ''
   Picking up tool: ツールを取得中
   Pill: ピル
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数 (低いほどスクロールが早く開始)
@@ -3046,18 +3170,28 @@ translations:
   Power: 電源
   Power Devices: 電源デバイス
   Power devices Moonraker can switch. Turn them on and off on the Power screen.: 'Moonrakerが切り替えられる電源デバイス。電源画面でオン/オフできます。'
+  Power off and check the bed cable connection.: ''
+  Power off and check the chamber sensor cable.: ''
   Power off and unplug the printer.: "電源を切り、プラグを抜きます。"
   Power off the printer or screen: プリンターまたは画面の電源をオフにします
   Power off the printer.: "プリンターの電源を切ります。"
+  Power off, let the printer cool, check that nothing blocks the axis, then restart.: ''
+  Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing.: ''
+  Power the printer off and on, and check the toolhead cables and their connectors.: ''
+  Power the printer off and on. Check that every toolhead is seated and its cable is connected.: ''
+  Power was lost: ''
   Power was lost about {} hours ago.: 約{}時間前に停電しました。
   Power was lost about {} minutes ago.: 約{}分前に停電しました。
   'Power was lost during the print; the printer stopped and saved its progress': '印刷中に電源が失われました。プリンターは停止し、進行状況を保存しました'
   Power was lost less than a minute ago.: 1分以内に停電しました。
   Power-loss recovery: 停電からの復帰
   Not set up for this printer model yet.: "このプリンターモデルにはまだ対応していません。"
+  Power-loss recovery not available: ''
   Pre-heat the extruder first: 先にエクストルーダーを予熱してください
   'Pre-print command failed: {}': '印刷前コマンドに失敗しました: {}'
   Pre-print homing...: 印刷前ホーミング中...
+  Precise homing could not find the expected position.: ''
+  Precise homing failed: ''
   Preferences: 好みの設定
   Preheat: '予熱'
   Preheat %s: '予熱 %s'
@@ -3143,6 +3277,8 @@ translations:
   Print ending...: 印刷終了中...
   Print error: 印刷エラー
   Print failed: 印刷失敗
+  Print file could not be opened: ''
+  Print file could not be read: ''
   Print history will show the rewritten name: 印刷履歴には書き換え後の名前が表示されます
   Print issue detected: 印刷の問題を検出しました
   Print jobs waiting to run: 実行待ちの印刷ジョブ
@@ -3151,6 +3287,7 @@ translations:
   'Print preparation failed: {}': '印刷準備に失敗しました: {}'
   Print resumed: 印刷を再開しました
   Print server rejected the job — check printer status: 印刷サーバーがジョブを拒否しました — プリンターの状態を確認してください
+  Print settings not accepted: ''
   Print setup failed: 印刷のセットアップに失敗しました
   'Print setup failed: internal error': '印刷のセットアップに失敗しました: 内部エラー'
   Print status: 印刷ステータス
@@ -3183,6 +3320,7 @@ translations:
   Printer accepted job but isn't printing — check cover, paper, and label type (firmware status=0x{:02X} error=0x{:02X}): プリンターはジョブを受け付けましたが印刷していません — カバー、用紙、ラベルの種類を確認してください (firmware status=0x{:02X} error=0x{:02X})
   'Printer command ''{}'' failed: {}': 'プリンターコマンド ''{}'' が失敗しました: {}'
   Printer command '{}' timed out after {}ms: プリンターコマンド '{}' が {} ms でタイムアウトしました
+  Printer configuration error: ''
   Printer connection unavailable: プリンターとの接続が利用できません
   Printer database format error: プリンターデータベースの形式エラー
   Printer default: プリンター既定
@@ -3228,6 +3366,8 @@ translations:
   Probe Sensors: プローブセンサー
   Probe Speed: プローブ速度
   Probe controls, accuracy test, and settings: プローブコントロール、精度テスト、設定
+  Probe readings disagree: ''
+  Probe triggered too early: ''
   Probing Bed Mesh: ベッドメッシュをプローブ中
   Probing Bed Mesh...: ベッドメッシュをプローブ中...
   Probing Bed Screws...: ベッドネジをプローブ中...
@@ -3236,6 +3376,9 @@ translations:
   Probing Z...: Z軸をプローブ中...
   Checking Bed Mesh...: ベッドメッシュを確認中...
   Probing point {} of {}: 'プローブ点 {} / {}'
+  Probing stopped at {}: ''
+  'Probing stopped: toolhead state': ''
+  Probing was asked for before homing.: ''
   Probing... ({} points): 'プローブ中... ({} 点)'
   Problem found: 問題が見つかりました
   Proceed: 続行
@@ -3278,6 +3421,8 @@ translations:
   Purging...: パージ中...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "清掃用フィラメントを止まるまでエクストルーダーに押し込み、押し出しをタップしてください。"
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "フィラメントを止まるまでエクストルーダーに差し込んでください。自動的につかまれます。または「押し出し」をタップしてください。"
+  Push the filament into the head until the extruder grabs it, then try again.: ''
+  Put the build plate back on, aligned, then retry.: ''
   QGL: QGL
   'QGL failed: {}': 'QGL に失敗しました: {}'
   QGL may still be running — response timed out: QGL がまだ実行中の可能性があります — 応答タイムアウト
@@ -3409,7 +3554,9 @@ translations:
   Remove plugin from printer: プリンターからプラグインを削除
   Remove the PEI Sheet: PEIシートを外す
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'PEIシートをベッドから取り外してから再開してください：シート越しの計測は誤った結果になります'
+  Remove the build plate: ''
   Remove the bypass spool from the toolhead first: '先にバイパススプールをツールヘッドから取り外してください'
+  Remove the debris from the bed, then resume.: ''
   Remove the filter cover.: "フィルターカバーを外します。"
   Remove the leftover filament from the toolhead by hand before loading another spool.: '別のスプールを装填する前に、ツールヘッドに残ったフィラメントを手で取り除いてください。'
   Remove the spools: スプールを取り出す
@@ -3429,6 +3576,7 @@ translations:
   Render Now: 今すぐレンダリング
   Rendering timelapse...: タイムラプスをレンダリング中...
   Repeat: "繰り返す"
+  Repeated probe readings differed more than allowed.: ''
   Replace: "置き換え"
   Replace Profile?: "プロファイルを置き換えますか？"
   Replace a worn nozzle or hotend: "劣化したノズルまたはホットエンドを交換"
@@ -3491,13 +3639,21 @@ translations:
   Restart Moonraker?: "Moonrakerを再起動しますか?"
   Restart Now: 今すぐ再起動
   Restart Required: 再起動が必要です
+  Restart and try again. If it happens again, check the accelerometer cable.: ''
   'Restart failed: not connected': '再起動に失敗: 未接続'
   'Restart failed: {}': '再起動に失敗しました: {}'
   Restart from the beginning to recover: 復旧するには最初からやり直してください
   Restart pending: '再起動保留中'
   Restart print: '印刷を再開始'
   Restart the display application: ディスプレイアプリケーションを再起動
+  Restart the firmware and check that heater's wiring.: ''
+  Restart the firmware and check the bed heater cable.: ''
+  Restart the firmware and check the temperature sensor cables.: ''
+  Restart the firmware. If it happens again, power the printer off and on and check the cables to the toolheads.: ''
+  Restart the firmware. If it happens during prints, avoid heavy extra load such as camera streaming or large uploads.: ''
   Restart the printer or screen: プリンターまたは画面を再起動します
+  Restart the printer, and check that storage has free space.: ''
+  Restart, seat the toolhead again and check that the hotend is fully inserted.: ''
   Restarting HelixScreen...: HelixScreenを再起動中...
   Restarting Klipper...: Klipper を再起動中...
   Restarting Moonraker...: Moonrakerを再起動中...
@@ -3546,6 +3702,7 @@ translations:
   Retraction distance in the cooling tube: '冷却チューブ内での引き戻し距離'
   Retraction distance to clear extruder gears: 'エクストルーダーギアから抜くための引き戻し距離'
   Retry: 再試行
+  Return to the idle screen and try again, or start the print fresh.: ''
   Reverse Multiplier: '逆方向倍率'
   Revert now: '今すぐ元に戻す'
   Review: 確認
@@ -3578,6 +3735,7 @@ translations:
   Run the MMU fans by temperature: "温度に応じて MMU ファンを動かす"
   Run the chamber dryer too: チャンバーのドライヤーも使う
 
+  Run the official firmware update again so every board is updated, then restart.: ''
   Run {}?: '{} を実行しますか？'
   Running loose: '緩み気味'
   Running over: "超過中"
@@ -3709,7 +3867,12 @@ translations:
   Seat: 装着
   Seat a tool by hand: ツールを手で装着
   Seat a tool by hand for the first Z home: 初回のZホーミングのためにツールを手で装着
+  Seat all toolheads again and rerun the offset calibration.: ''
+  ? Seat every toolhead that is not on the carriage fully in its dock, then home and resume. If it happens again, the dock sensors need checking.
+  : ''
+  Seat the PEI plate flat and aligned on the bed, then retry.: ''
   Seat the hot ends, heat {} above {}, then tap Resume.: ホットエンドを正しく取り付け、{}を{}以上に加熱してから再開をタップしてください。
+  Seat the toolhead fully in its dock or on the carriage, home the printer, then resume.: ''
   Seat which tool by hand?: どのツールを手で装着しますか？
   Seating {}...: '{}を装着中...'
   Secondary: セカンダリ
@@ -3798,6 +3961,7 @@ translations:
   Set the clock, theme and units. You can change any of these later in Settings.: "時計、テーマ、単位を設定します。あとから設定でいつでも変更できます。"
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : このスロットのフィラメントの種類と色を手動で設定してください。タグが読み取れるはずの場合は、ボックスが停止しているときにラベルをリーダー側に向けてスプールを入れ直してください
+  Set the filament type for this head in the filament panel, then resume.: ''
   Set this to Spoolman's currency if you use both.: "両方を使う場合は、ここを Spoolman の通貨に合わせてください。"
   Set up: セットアップ
   Set up your label printer in Settings: 設定でラベルプリンターをセットアップしてください
@@ -3865,6 +4029,14 @@ translations:
   Sleep While Printing: 印刷中のスリープ
   Sleep adjusted to match dim timeout: スリープタイムアウトを調整しました
   Sleep {} min: '{}分でスリープ'
+  Slice again with the installed nozzle size, or fit the matching nozzle.: ''
+  Slice again with the installed nozzle type, or set the head's nozzle type on the screen.: ''
+  Slice the file again and send the print again.: ''
+  Slice the file again with the U1 profile and check that the model fits on the plate.: ''
+  Slice the file again with the U1 profile, or fix the macro or command you sent.: ''
+  Slice the file again with the U1 profile.: ''
+  Slice the file again with the right nozzle size and the U1 profile.: ''
+  Slice the file in millimeters.: ''
   Sliced colors: スライスした色
   Sliced for a Different Setup: '別の構成用にスライスされています'
   Sliced for a High Flow nozzle on T{}; the printer has a standard one.: 'High Flowノズル（T{}）用にスライスされています。プリンターは標準ノズルです。'
@@ -3892,6 +4064,7 @@ translations:
   Some filaments don't match the slicer's intent.: 一部のフィラメントがスライサーの意図と一致しません。
   'Some mapped slots are short on filament:': '一部の割り当て済みスロットのフィラメントが不足しています:'
   Some settings will take effect after restart.: 一部の設定は再起動後に有効になります。
+  Something is on the build plate: ''
   Something on the bed?: 'ベッドに何かありますか？'
   Sound: サウンド
   Sound Theme: サウンドテーマ
@@ -3988,6 +4161,7 @@ translations:
   Start options for prints from other apps: '他のアプリからの印刷の開始オプション'
   Start print anyway?: それでも印刷を開始しますか？
   Start the calibration again: キャリブレーションをやり直してください
+  Start the calibration again from the screen.: ''
   Started: 開始
   Starting Print...: 印刷開始中...
   Starting download...: ダウンロードを開始中...
@@ -4097,6 +4271,7 @@ translations:
   Tab: 'Tab'
   Tag Parts: 部位をタグ付け
   Take the PEI sheet off the heated bed, then tap Next. The toolheads probe the bare bed.: PEIシートを加熱ベッドから外し、「次へ」をタップしてください。ツールヘッドはベッド面を直接計測します。
+  Take the build plate off when the printer asks, then continue.: ''
   Takes 3-5 min. Do not interrupt.: 3〜5分かかります。中断しないでください。
   Tangle prevention active: 絡み防止 動作中
   Tangle prevention boosted: 絡み防止 強化中
@@ -4144,6 +4319,8 @@ translations:
   Temperature Unit: 温度単位
   Temperature and humidity sensor not responding: 温湿度センサーが応答しません
   Temperature control optimized for {} at {}.: '{} の温度制御を {} で最適化しました。'
+  Temperature out of range for {}: ''
+  Temperature sensor out of range: ''
   Temperatures: 温度
   Temperatures plotted over time: 温度の時間変化をグラフ表示
   Temperatures saved: 温度を保存しました
@@ -4171,6 +4348,7 @@ translations:
   'Testing rotation: %d° (%d/%d) - %ds remaining': '回転テスト: %d° (%d/%d) - %ds残り'
   Testing, servo, and motor operations: 'テスト・サーボ・モーター操作'
   Thanks! Anonymous usage data helps improve HelixScreen.: ご協力ありがとうございます！匿名の使用データが HelixScreen の改善に役立ちます。
+  That file command cannot run here.: ''
   That print is no longer paused: 'その印刷はもう一時停止中ではありません'
   That reading jumped too far to trust. Re-measure without turning.: "この測定値は大きく跳びすぎて信頼できません。回さずに再測定してください。"
   'That setting cannot be changed while a print is running': '印刷中はこの設定を変更できません'
@@ -4196,26 +4374,43 @@ translations:
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Moonrakerのタイムラプスプラグインがインストールされています。録画方法はタイムラプス設定で決められます。'
   The PEI sheet is still on the bed. Take it off, then tap Next.: PEIシートがまだベッド上にあります。外してから「次へ」をタップしてください。
   The Spoolman spool currently loaded: 現在装填中の Spoolman スプール
+  The accelerometer did not respond as expected, usually from a loose cable.: ''
   The active tool has no nozzle heater.: "アクティブなツールにノズルヒーターがありません。"
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
+  The automatic feeding setting could not be applied.: ''
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "何かが動く前にベッドとノズルを同時に加熱し、印刷物を再び密着させてノズルを印刷物から離します。"
+  The bed check found the plate dirty or occupied.: ''
+  The bed did not heat at the expected rate.: ''
   The bed has cooled. Take the spools off the plate, then confirm.: ベッドが冷えました。スプールをベッドから取り出してから確認してください。
 
+  The bed is not heating: ''
+  The bed is too far out of level for automatic compensation.: ''
   The bed is too small for settling laps.: 'ベッドが小さすぎて、なじませ周回ができません。'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'ベッドヒーター。温度の設定とグラフの確認はベッド温度画面で行えます。'
   The bed is too small for the test tower, or its size is unknown.: ベッドがテストタワーには小さすぎるか、サイズが不明です。
+  The bed temperature asked for is outside the allowed range.: ''
+  'The bed temperature reading is out of range: its sensor is loose or damaged.': ''
   The bed turns off. The spools stay latched on the bed until you confirm they are off.: ベッドをオフにします。取り出したことを確認するまで、スプールはベッド上にあるものとして扱われます。
 
   The bed was reported dirty, so this print cannot resume.: 'ベッドが汚れていると報告されたため、この印刷を再開できません。'
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: バッファーが未接続、固着、または故障している可能性があります。再試行前に確認してください
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: バッファーが 16 秒間動きを検出しませんでした。CFS とエクストルーダーの間の詰まり、またはバッファーの固着を確認してください
+  The build plate should be on the bed but reads as removed.: ''
+  The calibration was asked for with invalid settings.: ''
+  The camera did not confirm that timelapse recording started.: ''
+  The camera saw filament stuck to the nozzle.: ''
+  The camera saw material where it should not be.: ''
+  The camera saw the print come loose or filament extruding into the air.: ''
   ? The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm.
   : 'カメラがベッド上に何かを検出したため、プリンターは印刷前に停止しました。ベッドに何もなければ誤検出です。'
   'The carriage was not put back: check which tool is mounted': 'キャリッジは元に戻されていません：装着されているツールを確認してください'
+  The chamber did not cool down in time.: ''
   The chamber heater can run a filament drying cycle. Start one from the drying dialog.: 'チャンバーヒーターでフィラメントの乾燥サイクルを実行できます。乾燥ダイアログから開始してください。'
   The chamber temperature is too high. This may cause extruder clogging. Continue printing?: 'チャンバー温度が高すぎます。エクストルーダーが詰まる可能性があります。印刷を続行しますか？'
+  'The chamber temperature reading is out of range: its sensor is loose or damaged.': ''
   The chamber wait already ended; nothing was stopped.: 'チャンバーの待機はすでに終了しました。何も停止していません。'
+  The chamber's circulation fan is on but reads no speed.: ''
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。
   'The change was not applied: the current settings could not be saved for a revert.': '変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。'
@@ -4226,11 +4421,32 @@ translations:
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : 正確な停止位置が見つかりませんでした。次のレイヤーの最初から再開し、このレイヤーの残りはスキップします。
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: エクストルーダーがスムーズに引き込めません。スプールの絡まりや結び目、PTFE チューブの急な曲がりを確認してください
+  'The extruder is pulling but the feeder is not turning: the filament is tangled or stuck between the spool and the head.': ''
+  The feeder could not pull the filament in.: ''
+  The feeder motor did not turn while pulling the filament in.: ''
+  The feeder motor stalled while pushing the filament to the head.: ''
+  The feeder pushed more filament than the path holds, and it never reached the head.: ''
+  The feeder turned, but the filament did not move with it.: ''
+  The filament could not be pulled out of the head.: ''
+  The filament did not reach the head in time.: ''
   ? The filament did not reach the nozzle. The CFS reported no error, but the toolhead sensor still sees no filament. Check that the spool is seated and the path is clear, then try again.
   : フィラメントがノズルに到達しませんでした。CFSはエラーを報告していませんが、ツールヘッドセンサーはまだフィラメントを検出していません。スプールが正しく取り付けられ、フィラメント経路が塞がれていないことを確認して、再試行してください。
+  ? The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again.
+  : ''
   The filament may not have fully retracted — try again or manually pull: フィラメントが完全に戻っていない可能性があります。再試行するか手で引き抜いてください
+  The filament ran out or slipped out of the feeder during the load.: ''
+  The filament reached the nozzle, but purging it failed.: ''
+  The filament stopped moving on its way to the head.: ''
   The filament system needs attention: 'フィラメントシステムの対応が必要です'
   The filament system reported an error: フィラメントシステムがエラーを報告しました
+  The file asks for more extrusion than the head allows.: ''
+  The file could not be read part way through the print.: ''
+  The file is missing, renamed or damaged.: ''
+  The file list could not be read from storage.: ''
+  The file uses an arc move the printer does not support.: ''
+  The file uses inches (G20).: ''
+  The file was sliced for a different nozzle size than one the print uses.: ''
+  The file was sliced for a different nozzle type than the one installed.: ''
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差が縮まりませんでした({:.1f} Hz移動)。もっと大きく回してください。"
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "{0}を緩めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "{0}を締めた後に差が広がりました。{0}のテンショナーを回したか確認してください。"
@@ -4239,6 +4455,13 @@ translations:
   The gateway cannot be the subnet's network or broadcast address.: 'ゲートウェイにサブネットのネットワークアドレスまたはブロードキャストアドレスは使用できません。'
   The gateway is not a valid address.: 'ゲートウェイが有効なアドレスではありません。'
   The gateway is not on the same subnet as the IP address.: 'ゲートウェイがIPアドレスと同じサブネットにありません。'
+  The head did not go back into its dock.: ''
+  The head on the carriage does not read as properly picked up, so it was not parked.: ''
+  The head to pick up does not read as docked.: ''
+  ? "The head's extruder never gripped the filament: after several tries, with the nozzle cleaned between them, no movement registered at the nozzle."
+  : ''
+  "The head's filament sensor sees no filament: the spool ran out, or the filament broke before the head.": ''
+  The head's nozzle sensor gives no reading, or one outside its normal range.: ''
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'ヒートベッドとエンクロージャーで、ベッドに置いたスプールを乾燥できます。ベッド乾燥ダイアログからサイクルを開始してください。'
   The heater can't be changed while the printer is waiting.: 'プリンターの待機中はヒーターを変更できません。'
   The heater did not accept the printer's credentials.: 'ヒーターがプリンターの認証情報を受け付けませんでした。'
@@ -4255,27 +4478,36 @@ translations:
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。
   The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります
   'The linked spool says {}.': 'リンクされたスプールの情報: {}'
+  The load failed without a more specific reason.: ''
   The loaded slot is not known yet: "装填済みのスロットはまだ不明です"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。
+  The measured offset between toolheads is outside the allowed range.: ''
   The message your printer's macros show (M117): 'プリンターのマクロが表示するメッセージ (M117)'
   ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
   : ヒーターの安全モデルを測定する間、装着中のノズルが{}まで加熱され再び冷却されます。パーツファンはオフにし、引火しやすい物をヘッドから遠ざけてください。数分かかります。
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: '新しいIPv4設定を保持済みとして記録できなかったため、次回の起動時に元に戻されます。'
+  The new dock position is too far from the current one.: ''
+  The nozzle did not heat up at the expected rate.: ''
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'ノズルは印刷領域から離れた隅で短いテスト移動を数回行い、結果が一致するまで繰り返します。'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "停電以降、ノズルは動いていません。印刷物の上面のすぐ上にあることを確認してから、再開してください。"
   ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
   : パーツファンが各速度を順に試す間、ノズルは{}まで加熱されます。正確に測定するには、印刷時と同じようにダクトを取り付けてください。数分かかります。
+  The nozzle is below the lowest temperature allowed for extruding.: ''
   The nozzle is clear of the print: ノズルは印刷物から離れている
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
   : ノズルは高温です。付属のワイヤーブラシで清掃し、ドッキング位置もきれいに保ってから「次へ」をタップしてください。
   The nozzle is lifted clear of the print and X and Y are homed. Resuming lowers it back to the height it stopped at.: "ノズルは印刷物から持ち上げられ、XとYはホーミング済みです。再開すると、停止した高さまで再び下がります。"
   The nozzle target never arrived.: "ノズルの目標温度が届きませんでした。"
+  The nozzle temperature asked for is outside the allowed range.: ''
+  'The nozzle temperature reading is out of range: its sensor is loose or damaged.': ''
   The nozzle waited too long; start again.: "ノズルの待機時間が長すぎました。やり直してください。"
   The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'ベッド上の造形物が高すぎて越えられません。取り除いてから「クリア済み」をタップしてください。'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "{0}のピークがゾーンから外れました。{1}のテンショナーだけを回したか確認してください。どれがどれか分からない場合は、ペンのアイコンをタップしてベルトを識別してください。"
   The peak of {} moved out of the zone. Widening it.: "{}のピークがゾーン外に出ました。ゾーンを広げます。"
+  The pick-up failed with a toolhead in an unknown position.: ''
+  'The pick-up failed: every toolhead still reads as docked.': ''
   The plate and the spools are still hot. Use gloves.: ベッドとスプールはまだ熱いです。手袋を使ってください。
 
   The plate finishes its current move, but drying will not start.: 'ベッドは現在の移動を完了しますが、乾燥は開始しません。'
@@ -4295,12 +4527,17 @@ translations:
   The print is still stuck to the bed: 印刷物はまだベッドに付いている
   The print is waiting for the chamber to reach {}, but the heater is not heating.: 印刷はチャンバーが{}に達するのを待っていますが、ヒーターが加熱していません。
   The print is waiting for the chamber, but the heater is not heating.: '印刷はチャンバーを待っていますが、ヒーターが加熱していません。'
+  The print may have failed: ''
+  The print settings sent with the file could not be applied.: ''
   The printable size in millimeters (X × Y × Z), from the axis limits in the printer's Klipper config.: '印刷可能なサイズ（mm、X × Y × Z）。プリンターのKlipper設定の軸リミットから取得します。'
   The printer applied this value and keeps it for this tool.: 'プリンターはこの値を適用し、このツールに保存しました。'
   The printer can draw a priming line before a print. HelixScreen offers it in the pre-print options.: 'プリンターは印刷前にプライミングラインを描けます。HelixScreenは印刷前オプションで選べます。'
   The printer can measure each tool's offset automatically. Run it on the tool offset calibration screen.: 'プリンターは各ツールのオフセットを自動で測定できます。ツールオフセット校正画面で実行します。'
   The printer can measure pressure advance on its own. Run it on the PA calibration screen.: 'プリンターはプレッシャーアドバンスを自分で測定できます。PAキャリブレーション画面で実行できます。'
   The printer can pause at a chosen layer, for a filament swap or an insert. Set the layer from the print preview.: 'プリンターは、フィラメント交換やインサート挿入のために、選んだレイヤーで一時停止できます。レイヤーは印刷プレビューで設定します。'
+  The printer could not connect to one of its boards at startup.: ''
+  'The printer could not get the head ready: homing, picking up the head or heating the nozzle failed.': ''
+  The printer could not start: ''
   The printer could not work out where to resume.: プリンターは再開位置を特定できませんでした。
   The printer did not change its bed check: 'プリンターはベッドチェックを変更しませんでした'
   'The printer did not change its bed check: {}': 'プリンターはベッドチェックを変更しませんでした：{}'
@@ -4351,7 +4588,11 @@ translations:
   The printer reports no lane record, so only clearing the extruder can unload it.: 'プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。'
   'The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}': 'プリンターは暗号化接続を必要としますが、暗号化されたジョブを拒否しました: HTTP {} {}'
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました'
+  The printer shut down: ''
+  The printer shut down while homing or probing.: ''
+  The printer stopped itself for safety; the firmware gave no specific reason.: ''
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。'
+  The printer was stopped: ''
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
@@ -4366,6 +4607,7 @@ translations:
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
+  Timelapse did not start: ''
   Timelapse frames start after Klipper restarts.: 'タイムラプスのフレームは Klipper の再起動後に撮影されます。'
   Timelapse or logs folder overlaps a protected one.: "タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。'
@@ -4376,10 +4618,14 @@ translations:
   : ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。取り除くまで、プリンターがスロットの装填を拒否する場合があります。それでも印刷を開始しますか？
   The toolhead is not homed, so this would home into the print: 'ツールヘッドがホーミングされていないため、ホーミングするとノズルが造形物に当たります'
   'The toolhead may still be at the chute. Move it away before printing.': 'ツールヘッドがまだシュートにある可能性があります。印刷前に移動してください。'
+  The toolhead on the carriage is not the one the printer expected.: ''
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : 'ツールヘッドが 20 から 300 mm/s の速度で往復し、その間に加速度センサーが各モーターの揺れの強さを測定します。所要時間は約 {0} 分で、大きな音がします。最も揺れる速度が、外壁で避けるべき速度です。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？
+  The toolhead's pogo pins are not making contact.: ''
+  The toolheads have changed enough times since their last maintenance.: ''
+  The toolheads' docked and picked-up states do not add up.: ''
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
   The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
@@ -4395,6 +4641,7 @@ translations:
   Theme reset to defaults: テーマをデフォルトにリセットしました
   'Theme: ': 'テーマ: '
   There is no cycle to stop: '停止するサイクルがありません'
+  There is no filament in this head's feeder.: ''
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "このテストを実行するための空きメモリが足りません。Klipperの解析でメモリが不足し、電源を入れ直すまでプリンターが停止したままになります。"
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "測定値が再現しないため、調整を導けません。まず機構を確認してください。"
@@ -4404,6 +4651,8 @@ translations:
   'These tools have no matching filament loaded:': 'これらのツールに一致するフィラメントが装填されていません:'
   This .3mf has no sliced plate to print.: 'この .3mf には印刷できるスライス済みプレートがありません。'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'この .3mf はキューに追加する前に G-code に変換する必要があります。ここから印刷してください。'
+  'The probe never touched the plate: the PEI plate is not placed correctly.': ''
+  The probe was already triggered before the move started.: ''
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。'
   Filament Mapping at print start: '印刷開始時のフィラメントマッピング'
@@ -4440,6 +4689,7 @@ translations:
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
   This firmware can only switch slots by loading them: 'このファームウェアはスロットを装填して切り替えることしかできません'
+  The filament took too long to reach the feeder's sensor.: ''
   The filament went into the toolhead past its feeder. Load it by hand.: "フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"
   This toolhead has no automatic feeder. Load the filament by hand.: "このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
@@ -4607,10 +4857,14 @@ translations:
   Toolhead Style: ツールヘッドスタイル
   Toolhead X: ツールヘッド X
   Toolhead Y: ツールヘッド Y
+  Toolhead change stopped at {}: ''
   'Toolhead did not return to park: {}': 'ツールヘッドが待機位置に戻りませんでした: {}'
   Toolhead jam: ツールヘッドの詰まり
   Toolhead lost homing: ツールヘッドのホーミングが解除されました
+  Toolhead maintenance due: ''
+  Toolhead not found: ''
   Toolhead offset calibration: ツールヘッドオフセットのキャリブレーション
+  Toolhead offsets out of range: ''
   Toolhead position and homing, with a plate view and Home All: "ツールヘッドの位置とホーミング。プレート表示と全軸ホーミング付き"
   Toolhead position unknown: ツールヘッドの位置が不明です
   Toolheads: ツールヘッド
@@ -4637,6 +4891,7 @@ translations:
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'
   Try the operation again. If it persists, check for mechanical issues.: もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。
+  Try the setting again, and restart the printer if it keeps failing.: ''
   Try {0} mm/s: '{0} mm/s を試す'
   Try {0} or {1} mm/s: '{0} または {1} mm/s を試す'
   Trying again...: '再試行中...'
@@ -4657,13 +4912,16 @@ translations:
   Turn On: オンにする
   Turn On LEDs: 'LEDを点灯'
   Turn On Toolhead LED: "ツールヘッドLEDを点灯"
+  Turn off arc fitting in the slicer, then slice the file again.: ''
   Turn off bed check: 'ベッドチェックをオフにする'
   Turn off detection: 検出をオフにする
+  Turn off flow calibration for this print, or use a larger nozzle.: ''
   Turn on the lights your light buttons control: ライトボタンが操作するライトを点灯します
   Turn the extruder heater off after a load or unload finishes: 装填または排出の完了後にエクストルーダーヒーターをオフにします
   Turn the nozzle heater off first: 先にノズルヒーターをオフにしてください
   Turn the picture to match how the screen is mounted. Applies after restart.: 画面の取り付け向きに合わせて表示を回転します。再起動後に適用されます。
   Turn the printer's lights on or off: プリンターのライトをオン/オフ
+  Two configuration sections define the same command.: ''
   Type: タイプ
   Type to preview input field...: 入力フィールドをプレビューするには入力してください...
   'Type:': 'タイプ:'
@@ -4683,6 +4941,7 @@ translations:
   Unavailable on this printer: このプリンターでは利用できません
   'Unavailable: {}': '利用不可: {}'
   Undo: 元に戻す
+  Undo recent changes to the printer's configuration, then restart the firmware.: ''
   Uninstall: アンインストール
   Uninstall HelixPrint Plugin: HelixPrint プラグインをアンインストール
   Uninstall HelixPrint Plugin?: HelixPrint プラグインをアンインストールしますか？
@@ -4716,6 +4975,7 @@ translations:
   Unload macro not configured: アンロードマクロが未設定です
   Unload the CFS filament before enabling bypass: 'バイパスを有効にする前に CFS のフィラメントを取り出してください'
   Unload the current filament, then continue. The extruder and the top of its filament path must be reachable by hand.: "現在のフィラメントを排出してから続行してください。エクストルーダーとフィラメント経路の上部に手が届く必要があります。"
+  Unload the head, or pull the leftover filament out of its feed tube, then load the head again.: ''
   Unload the toolhead when a print ends: '印刷終了時にツールヘッドからアンロード'
   Unload this unit first: '先にこのユニットを排出してください'
   Unload which tool?: 'どのツールをアンロードしますか？'
@@ -4758,7 +5018,10 @@ translations:
   Upload: アップロード
   Upload Debug Bundle: デバッグバンドルをアップロード
   Upload Failed: アップロード失敗
+  Upload files from the slicer or app, and remove the command from the file.: ''
   Upload gcode files to get started: 開始するには gcode ファイルをアップロードしてください
+  Upload the file again and start it again.: ''
+  Upload the file again. If it happens again, the storage may be failing.: ''
   Upload unavailable in this build: このビルドではアップロードできません
   Upper belt: "上ベルト"
   Uptime: 稼働時間
@@ -4826,9 +5089,11 @@ translations:
   WPA3: 'WPA3'
   Wait for config to load: '設定の読み込みを待ってください'
   Wait for current operation to complete or use cancel: '現在の操作が完了するまで待つか、キャンセルしてください'
+  Wait for it to finish, or cancel it first.: ''
   Wait for the current filament operation to finish: 現在のフィラメント操作が完了するまでお待ちください
   Wait for the current operation to complete: 現在の操作が完了するまでお待ちください
   Wait for the current operation to complete or cancel it first: 現在の操作が完了するまで待つか、先にキャンセルしてください
+  Wait for the feeding to finish, then start the print.: ''
   Wait for the load or unload to finish: "ロードまたは排出が終わるまでお待ちください"
   Wait for the motor to stop: "モーターが止まるまでお待ちください"
   Wait for the nozzle to stop moving: ノズルが止まるまでお待ちください
@@ -4929,6 +5194,7 @@ translations:
   X Axis: X軸
   X Offset: Xオフセット
   X and Y jog feedrate: X/Y軸のジョグ移動速度
+  X and Y must be homed before precise homing.: ''
   X axis applied, but Y axis failed: X軸は適用されましたが、Y軸は失敗しました
   X axis done, starting Y...: 'X軸が完了しました。Y軸を開始します...'
   X axis limit reached: X軸のリミットに達しました
@@ -4977,6 +5243,8 @@ translations:
   Z Range: Z 範囲
   Z Tilt Adjust...: Zチルト調整中...
   Z axis: "Z軸"
+  Z homed before X and Y: ''
+  Z homing was asked for before X and Y were homed.: ''
   Z is at its limit ({}mm): Z軸は限界に達しています ({}mm)
   Z jog feedrate: Z軸のジョグ移動速度
   Z motor calibration failed: Z モーターの校正に失敗しました
@@ -5153,6 +5421,7 @@ translations:
   '{} Tools': '{} ツール'
   '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
+  '{} auto-feed setting not applied': ''
   '{} available': '{} が利用可能'
   '{} axes homed': '{} 軸がホーミング済み'
   '{} axis homed': '{} 軸がホーミング済み'
@@ -5163,6 +5432,9 @@ translations:
   '{} complete': '{} 完了'
   '{} configured item not found': 設定された項目 {} 個が見つかりません
   '{} configured items not found': 設定された項目 {} 個が見つかりません
+  '{} could not load its filament': ''
+  '{} could not preload its filament': ''
+  '{} could not unload its filament': ''
   '{} critical': '重大 {} 件'
   '{} critical hardware issues': '{} 個の重要なハードウェアの問題'
   '{} d': "{}日"
@@ -5171,18 +5443,24 @@ translations:
   '{} did not arrive; nothing was sent': '{} が到着しませんでした。何も送信していません'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。'
   '{} did not switch to {}. The print is still paused.': '{}は{}に切り替わりませんでした。印刷は一時停止のままです。'
+  "{} didn't feed": ''
+  "{} didn't load": ''
   "{} didn't load. Check that its hotend is seated and do a test extrude before resuming.": '{}がロードされませんでした。再開する前に、ホットエンドが正しく取り付けられているか確認し、テスト押し出しを行ってください。'
+  "{} didn't unload": ''
   '{} disabled': '{} を無効にしました'
   '{} disconnected': '{}が外れました'
   '{} enabled': '{} を有効にしました'
   '{} failed: {}': '{} に失敗しました: {}'
   '{} filament': 'フィラメント {}'
+  '{} filament is tangled': ''
   '{} filament sensors available': '{} 個のフィラメントセンサーが利用可能です'
   '{} filament • {}': 'フィラメント {} • {}'
   '{} firmware': '{} ファームウェア'
   '{} free of {}': '空き {} / {}'
   '{} h': '{} 時間'
   '{} h of {} h': '{} / {} 時間'
+  '{} hand feed did not finish': ''
+  '{} has no filament type set': ''
   '{} has no hotend': "{}にはホットエンドがありません"
   '{} heater turned off': '{} ヒーターをオフにしました'
   '{} holds the same filament, and the printer uses that one.': '{}に同じフィラメントがあり、プリンターはそちらを使用します。'
@@ -5196,11 +5474,13 @@ translations:
   '{} is still printing. The print keeps running after you switch.': '{}は印刷中です。切り替えても印刷は続行されます。'
   '{} is looser': "{}の方が緩い"
   '{} is not available on this device. Printing original file.': 'このデバイスでは {} を利用できません。元のファイルを印刷します。'
+  '{} is not heating': ''
   '{} is not set up on this printer': '{} はこのプリンターで設定されていません'
   '{} left': '残り {}'
   '{} lines in helixscreen.env were ignored': 'helixscreen.env の{}行が無視されました'
   '{} kept crashing the panel; switched back to {}': '{} で画面のクラッシュが繰り返されたため、{} に戻しました'
   '{} is tighter': "{}の方が張っている"
+  '{} is too cold to extrude': ''
   '{} is too large to search for [{}]': "{} は大きすぎて [{}] を検索できません"
   "{} isn't loaded. The print will pause when it needs it.": '{}はロードされていません。必要になった時点で印刷が一時停止します。'
   '{} kept changing while saving': "{} が保存中に変更され続けました"
@@ -5221,10 +5501,12 @@ translations:
   '{} new': '新規 {} 件'
   '{} new hardware available': '{} 個の新しいハードウェアが利用可能です'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 個の新しいプラグインが利用可能です。設定 > プラグインで有効化してください。'
+  '{} nozzle sensor fault': ''
   '{} preset': '{} 個のプリセット'
   '{} presets': '{} 個のプリセット'
   '{} prints': '{} 件'
   '{} queued': '{} 件キュー中'
+  '{} ran out of filament': ''
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{}の{}が切れました。印刷を仕上げる装填済みのツールヘッドを選んでください。元のフィラメント用にスライスされた温度のままです。'
   '{} ran out, and the printer has not said what it was printing.': '{}が切れましたが、プリンターは何を印刷していたかを報告していません。'
   '{} serial': '{} シリアル番号'
@@ -5234,6 +5516,7 @@ translations:
   '{} spool cleared': '{} のスプールをクリアしました'
   '{} started': '{} を開始しました'
   '{} target set to {}°C': '{} 目標温度を {}°C に設定しました'
+  '{} temperature reading failed': ''
   '{} turn': "{}回転"
   '{} turns': "{}回転"
   '{} updated': '{} を更新しました'
@@ -5252,6 +5535,7 @@ translations:
   '{}% left': '残り {}%'
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？'
   'Basic': '標準'
+  Recovery is not possible in the printer's current state.: ''
   'Recycled': 'リサイクル'
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'
   'More': 'その他'
