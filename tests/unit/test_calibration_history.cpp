@@ -449,6 +449,13 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
         s.erase("probe");
         s["prtouch"] = {{"z_offset", -0.125}, {"x_offset", 0.0}};
         CHECK(results_in_config(s).at("z_offset") == "-0.125 mm");
+
+        // Jacobean's Cartographer build keeps the prtouch section; the
+        // Cartographer is the probe, so prtouch's offset never stands in.
+        s["cartographer"] = {{"x_offset", 0.0}};
+        CHECK(results_in_config(s).count("z_offset") == 0);
+        s["cartographer touch_model default"] = {{"z_offset", 0.05}};
+        CHECK(results_in_config(s).at("z_offset") == "0.050 mm");
     }
     SECTION("BTT Eddy keeps z_offset in its probe_eddy_current section") {
         json s = settings;
