@@ -465,18 +465,13 @@ For stable releases (tag without `-`), the `notify-website` job will fire a
 auto-rebuilding helixscreen.org from the new tag's `docs/user/`. No manual
 website deploy needed. Prereleases skip this.
 
-**Stable releases need a manual Google Play upload. Prompt Preston for it, every time.**
-`PLAY_SERVICE_ACCOUNT_JSON` is unset, so `publish-android` uploads nothing and the
-closed-testing track keeps serving the previous version until someone uploads this one.
-When the Release run is green, as its own message (never folded into the push summary):
-1. `gh release download v{NEW_VERSION} -p 'helixscreen-android-v{NEW_VERSION}.aab' -D ~/Downloads`
-2. The release notes text is `android/whatsnew/{NEW_VERSION}.txt` from the release commit.
-3. Tell Preston v{NEW_VERSION} is not on Play yet and walk him through
-   `docs/devel/ANDROID_PLAY_STORE.md` "Uploading a stable release by hand", with the AAB
-   path and the `<en-US>` release notes ready to paste. Browser automation cannot do the
-   upload (the AAB is far over its upload limit).
-Prereleases skip this: betas never go to Play. Delete this block once the service account
-exists and the workflow uploads on its own.
+**Stable releases upload to Google Play on their own.** `publish-android` sends the AAB to
+the production track as a full rollout, pending Google's review. When the Release run is
+green, check that job's log says `Finished uploading to the Play Store` and tell Preston it
+is in review. Only if that job failed: rerun it (`gh run rerun <run> --job <job>`; the AAB
+artifact is kept), and fall back to `docs/devel/ANDROID_PLAY_STORE.md` "Uploading a stable
+release by hand" only when the rerun cannot succeed. Prereleases skip Play: betas never go
+there.
 
 ### If "Keep local":
 Show: "Release commit and tag created locally on release-prep/v{NEW_VERSION}. When ready,
