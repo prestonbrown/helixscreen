@@ -80,6 +80,12 @@ class SideBandGuest {
     }
 };
 
+// On unless a build turns it off: a build that never passes the flag keeps the
+// band rather than silently compiling it out.
+#ifndef HELIX_HAS_SIDE_BAND
+#define HELIX_HAS_SIDE_BAND 1
+#endif
+
 #if HELIX_HAS_SIDE_BAND
 
 /**
