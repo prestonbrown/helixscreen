@@ -94,6 +94,7 @@ class DisplayManagerTestAccess {
     // installs the sleep-aware wrapper on every backend but SDL.
     static void create_input_devices(DisplayManager& dm) {
         dm.m_pointer = dm.m_backend->create_input_pointer();
+        dm.watch_pointer();
         dm.configure_pointer(25, 10);
     }
 

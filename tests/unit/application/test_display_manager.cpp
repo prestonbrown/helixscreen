@@ -15,6 +15,7 @@
 #include "config.h"
 #include "data_root_resolver.h"
 #include "display_manager.h"
+#include "test_helpers/display_manager_test_access.h"
 
 #include <filesystem>
 #include <fstream>
@@ -476,4 +477,55 @@ TEST_CASE("sleep_backlight_off config controls backlight behavior during sleep",
     REQUIRE(config2.get<bool>("/display/sleep_backlight_off", true) == true);
 
     fs::remove_all(tmp_dir);
+}
+
+// ============================================================================
+// Indev Delete Watch (unplug / lv_deinit safety)
+// ============================================================================
+
+namespace {
+
+/// Creates a real (non-mocked) lv_indev_t via lv_indev_create(), so deleting
+/// it fires the same LV_EVENT_DELETE a real evdev/libinput device's own
+/// ENODEV self-delete does.
+class MockPointerBackend : public DisplayBackend {
+  public:
+    lv_display_t* create_display(int, int) override {
+        return nullptr;
+    }
+    lv_indev_t* create_input_pointer() override {
+        lv_indev_t* indev = lv_indev_create();
+        lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+        lv_indev_set_read_cb(indev, [](lv_indev_t*, lv_indev_data_t* data) {
+            data->state = LV_INDEV_STATE_RELEASED;
+        });
+        return indev;
+    }
+    DisplayBackendType type() const override {
+        return DisplayBackendType::SDL;
+    }
+    const char* name() const override {
+        return "MockPointerBackend";
+    }
+    bool is_available() const override {
+        return true;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager clears its own pointer when LVGL deletes the device",
+                 "[application][display][indev]") {
+    DisplayManager mgr;
+    DisplayManagerTestAccess::set_backend(mgr, std::make_unique<MockPointerBackend>());
+
+    DisplayManagerTestAccess::rebuild_input_after_backend_swap(mgr);
+    lv_indev_t* pointer = mgr.pointer_input();
+    REQUIRE(pointer != nullptr);
+
+    // lv_evdev deletes its own device when a read fails, as it does on unplug.
+    lv_indev_delete(pointer);
+
+    CHECK(mgr.pointer_input() == nullptr);
 }
