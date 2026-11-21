@@ -120,10 +120,8 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
         last_ = decide_print_status_ultrawide_layout(w, h, gap, lane_tray);
     } else {
         lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
-        const int32_t printer_floor = host_.printer_floor_h ? host_.printer_floor_h() : 0;
         last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
-                                                strip_stacked_height(progress), lane_tray,
-                                                printer_floor);
+                                                strip_stacked_height(progress), lane_tray);
     }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {

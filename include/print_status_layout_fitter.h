@@ -48,8 +48,6 @@ class PrintStatusLayoutFitter {
     struct Host {
         std::function<lv_obj_t*()> root;
         std::function<bool()> subjects_ready;
-        /// PrintStatusTiles::full_callouts_min_tile_h(); optional, 0 when unknown.
-        std::function<int32_t()> printer_floor_h;
     };
 
     PrintStatusLayoutFitter(std::string log_tag, Subjects subjects, Host host);

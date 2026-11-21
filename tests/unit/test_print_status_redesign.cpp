@@ -1390,10 +1390,14 @@ bool shown(lv_obj_t* obj) {
 struct Portrait600 : TileFixture {
     Portrait600() : TileFixture(600, 1024, true) {}
 };
-/// Short enough that the preview cannot spare the whole tray, so the printer
-/// tile gives the rest down to its full-size floor.
-struct PortraitTrayAtFloor : TileFixture {
-    PortraitTrayAtFloor() : TileFixture(480, 680, true) {}
+struct Portrait480x680Tray : TileFixture {
+    Portrait480x680Tray() : TileFixture(480, 680, true) {}
+};
+struct Portrait480x800Tray : TileFixture {
+    Portrait480x800Tray() : TileFixture(480, 800, true) {}
+};
+struct Portrait480x1280Tray : TileFixture {
+    Portrait480x1280Tray() : TileFixture(480, 1280, true) {}
 };
 struct UltrawideTray : Ultrawide1480 {
     UltrawideTray() : Ultrawide1480(true) {}
@@ -1410,11 +1414,16 @@ TEST_CASE_METHOD(UltrawideTray, "ultrawide shows the lane tray in the readouts' 
     REQUIRE((readouts && tray));
     CHECK(shown(readouts));
     CHECK_FALSE(shown(tray));
+    const int32_t readouts_w = lv_obj_get_width(readouts);
+    const int32_t printer_w = lv_obj_get_width(find("ps_printer_tile"));
 
     gate.set(1);
     lv_obj_update_layout(root_);
     CHECK_FALSE(shown(readouts));
     CHECK(shown(tray));
+    // The tray takes the readouts' width; the printer picture keeps its own.
+    CHECK(lv_obj_get_width(tray) == readouts_w);
+    CHECK(lv_obj_get_width(find("ps_printer_tile")) == printer_w);
     lv_obj_t* content = find("overlay_content");
     const auto cols = helix::decide_print_status_columns(lv_obj_get_content_width(content),
                                                          lv_obj_get_content_height(content),
@@ -1476,44 +1485,47 @@ TEST_CASE_METHOD(Landscape800, "side by side tiles show no lane tray even when g
 }
 
 namespace {
-/// The printer tile's chips draw at full size: not compact, not image only.
-bool full_size_callouts() {
-    const auto mode = static_cast<CalloutMode>(subject_int("ps_callout_mode"));
-    return mode != CalloutMode::ImageOnly && !callout_mode_is_compact(mode);
+/// The printer tile's height and chip mode with the lane tray gated match
+/// what it has without: the tray takes its room from the preview alone.
+void check_printer_tile_kept(TileFixture& f) {
+    ScopedLaneTrayGate gate(0);
+    f.settle();
+    f.settle();
+    const int32_t plain_h = lv_obj_get_height(f.tile_);
+    const int plain_mode = subject_int("ps_callout_mode");
+    REQUIRE(plain_h > 0);
+    gate.set(1);
+    f.settle();
+    f.settle();
+    CAPTURE(plain_h, lv_obj_get_height(f.tile_), subject_int("ps_lane_tray_h"));
+    CHECK(lv_obj_get_height(f.tile_) >= plain_h);
+    CHECK(subject_int("ps_callout_mode") == plain_mode);
 }
 } // namespace
 
-TEST_CASE_METHOD(Portrait600, "the lane tray never pushes the printer tile below full-size chips",
+TEST_CASE_METHOD(Portrait600, "the lane tray leaves the printer tile its height at 600x1024",
                  "[print_status_tray]") {
-    ScopedLaneTrayGate gate(1);
-    settle();
-    settle();
-    const int floor = tiles().full_callouts_min_tile_h();
-    REQUIRE(floor > 0);
+    check_printer_tile_kept(*this);
     REQUIRE(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
     // The tile stands at the height the fitter decided, not a flex share.
     CHECK(lv_obj_get_height(tile_) == subject_int("ps_printer_tile_h"));
-    CHECK(lv_obj_get_height(tile_) >= floor);
-    CHECK(full_size_callouts());
 }
 
-TEST_CASE_METHOD(PortraitTrayAtFloor,
-                 "a short portrait panel keeps full-size chips with a lane tray gated",
+TEST_CASE_METHOD(Portrait480x680Tray, "the lane tray leaves the printer tile its height at 480x680",
                  "[print_status_tray]") {
-    ScopedLaneTrayGate gate(0);
-    settle();
-    settle();
-    REQUIRE(full_size_callouts());
-    gate.set(1);
-    settle();
-    settle();
-    const int floor = tiles().full_callouts_min_tile_h();
-    CAPTURE(floor, lv_obj_get_height(tile_), subject_int("ps_lane_tray_h"),
-            subject_int("ps_callout_mode"));
-    REQUIRE(floor > 0);
-    REQUIRE(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
-    CHECK(lv_obj_get_height(tile_) >= floor);
-    CHECK(full_size_callouts());
+    check_printer_tile_kept(*this);
+}
+
+TEST_CASE_METHOD(Portrait480x800Tray, "the lane tray leaves the printer tile its height at 480x800",
+                 "[print_status_tray]") {
+    check_printer_tile_kept(*this);
+}
+
+TEST_CASE_METHOD(Portrait480x1280Tray,
+                 "the lane tray leaves the printer tile its height at 480x1280",
+                 "[print_status_tray]") {
+    check_printer_tile_kept(*this);
+    CHECK(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
 }
 
 TEST_CASE_METHOD(UltrawideTray, "several heads with no lanes keep the readouts, not an empty tray",

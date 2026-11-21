@@ -232,23 +232,18 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                 },
                 [this]() { return is_active_; }}),
       progress_text_(printer_state, lifecycle_),
-      layout_fitter_(get_name(),
-                     {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
-                      &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
-                      &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
-                      &printer_tile_h_subject_},
-                     {[this]() { return overlay_root_; },
-                      [this]() { return subjects_initialized_; },
-                      [this]() { return tiles_.full_callouts_min_tile_h(); }}),
+      layout_fitter_(
+          get_name(),
+          {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
+           &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
+           &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
+           &printer_tile_h_subject_},
+          {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
       tiles_(printer_state, {[this]() { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
                              [this]() { return lifecycle_.speed_percent(); },
                              [this]() { return lifecycle_.flow_percent(); },
-                             [this]() { return std::string(progress_text_.speed_text()); },
-                             [this]() {
-                                 lifetime_.defer("PrintStatusPanel::callout_floor_relayout",
-                                                 [this]() { layout_fitter_.recompute(); });
-                             }}) {
+                             [this]() { return std::string(progress_text_.speed_text()); }}) {
     preview_.set_api(api);
 #if HELIX_HAS_CAMERA
     // Another view taking the camera over; the card restarts on reactivation.

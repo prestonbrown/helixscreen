@@ -70,17 +70,14 @@ TEST_CASE("ultrawide puts the lane tray in the readouts' column only when gated"
 }
 
 namespace {
-// A printer tile floor below every tile these sizes give it.
-constexpr int32_t kFloor = 150;
-
 // The strip heights and gap measured at each portrait size.
-PrintStatusTileLayout portrait(int32_t w, int32_t h, int32_t strip_h, bool tray,
-                               int32_t printer_floor = kFloor) {
-    return decide_print_status_tile_layout(w, h, 12, 48, strip_h, tray, printer_floor);
+PrintStatusTileLayout portrait(int32_t w, int32_t h, int32_t strip_h, bool tray) {
+    return decide_print_status_tile_layout(w, h, 12, 48, strip_h, tray);
 }
 
 bool stacks_inside(const PrintStatusTileLayout& l, int32_t content_h) {
-    return l.job_h + l.printer_h + 12 + l.strip_h + 12 + l.lane_tray_h + 12 <= content_h;
+    const int32_t tray = l.lane_tray_h > 0 ? l.lane_tray_h + 12 : 0;
+    return l.job_h + l.printer_h + 12 + l.strip_h + 12 + tray <= content_h;
 }
 } // namespace
 
@@ -92,62 +89,41 @@ TEST_CASE("a stacked panel shows the lane tray strip only when gated", "[print_s
     CHECK(plain.lane_tray_h == 0);
     CHECK(tray.lane_tray == PrintStatusLaneTray::Strip);
     CHECK(tray.lane_tray_h > 0);
-    // The tiles give up the tray's height and one gap, and nothing overflows.
-    CHECK(tray.job_h + tray.printer_h + tray.lane_tray_h + 12 == plain.job_h + plain.printer_h);
+    // The job tile alone gives up the tray's height and one gap.
+    CHECK(tray.job_h + tray.lane_tray_h + 12 == plain.job_h);
+    CHECK(tray.printer_h == plain.printer_h);
     CHECK(stacks_inside(tray, 804));
 }
 
-TEST_CASE("the lane tray strip shrinks with the room the tiles can spare", "[print_status_tray]") {
+TEST_CASE("the lane tray strip shrinks with the room the preview can spare",
+          "[print_status_tray]") {
     const auto tall = portrait(448, 1060, 219, true);  // 480x1280
     const auto medium = portrait(560, 804, 231, true); // 600x1024
-    const auto small = portrait(448, 610, 203, true);  // 480x800
-    // Both tall sizes have room past the tray's natural height: it stops
-    // there and the tiles keep the rest.
-    CHECK(tall.lane_tray_h == medium.lane_tray_h);
-    CHECK(tall.job_h > medium.job_h);
-    CHECK(medium.lane_tray_h > small.lane_tray_h);
-    CHECK(small.lane_tray == PrintStatusLaneTray::Strip);
-    CHECK(small.lane_tray_h > 0);
-    for (const auto& [l, h] : {std::pair{tall, 1060}, {medium, 804}, {small, 610}}) {
+    const auto short_ = portrait(448, 700, 203, true);
+    const auto small = portrait(448, 610, 203, true); // 480x800
+    // Past the tray's natural height the tiles keep the rest.
+    CHECK(tall.lane_tray_h > 0);
+    CHECK(tall.lane_tray_h >= medium.lane_tray_h);
+    CHECK(medium.lane_tray_h > short_.lane_tray_h);
+    CHECK(short_.lane_tray == PrintStatusLaneTray::Strip);
+    // 480x800: the preview cannot spare the tray's smallest.
+    CHECK(small.lane_tray == PrintStatusLaneTray::None);
+    for (const auto& [l, h] : {std::pair{tall, 1060}, {medium, 804}, {short_, 700}, {small, 610}}) {
         CHECK(stacks_inside(l, h));
-        // The printer tile never goes below the height its chips need.
-        CHECK(l.printer_h >= kFloor);
     }
 }
 
-TEST_CASE("the lane tray takes its height from the preview before the printer picture",
-          "[print_status_tray]") {
-    // The preview has room for the whole tray: the printer tile keeps its height.
-    const auto tall = portrait(448, 1060, 219, true);
-    const auto tall_plain = portrait(448, 1060, 219, false);
-    REQUIRE(tall.lane_tray == PrintStatusLaneTray::Strip);
-    CHECK(tall.printer_h == tall_plain.printer_h);
-    CHECK(tall.job_h == tall_plain.job_h - tall.lane_tray_h - 12);
-
-    // A picture already at its floor gives nothing: the tray is what the
-    // preview can spare, and the printer tile keeps every pixel.
-    const auto plain = portrait(560, 804, 231, false);
-    const auto at_floor = portrait(560, 804, 231, true, plain.printer_h);
-    REQUIRE(at_floor.lane_tray == PrintStatusLaneTray::Strip);
-    CHECK(at_floor.printer_h == plain.printer_h);
-    CHECK(at_floor.lane_tray_h < portrait(560, 804, 231, true).lane_tray_h);
-
-    // The preview runs out first, then the picture gives down to its floor exactly.
-    const auto small = portrait(448, 610, 203, true);
-    const auto small_plain = portrait(448, 610, 203, false);
-    REQUIRE(small.lane_tray == PrintStatusLaneTray::Strip);
-    CHECK(small.job_h < small_plain.job_h);
-    CHECK(small.printer_h < small_plain.printer_h);
-    CHECK(small.printer_h >= kFloor);
-}
-
-TEST_CASE("an unknown printer floor spares nothing from the picture", "[print_status_tray]") {
-    const auto plain = portrait(560, 804, 231, false, 0);
-    const auto tray = portrait(560, 804, 231, true, 0);
-    REQUIRE(tray.lane_tray == PrintStatusLaneTray::Strip);
-    CHECK(tray.printer_h == plain.printer_h);
-    // 480x800: the preview alone cannot spare the tray's smallest.
-    CHECK(portrait(448, 610, 203, true, 0).lane_tray == PrintStatusLaneTray::None);
+TEST_CASE("the printer tile never gives height to the lane tray", "[print_status_tray]") {
+    for (int32_t w : {448, 560, 688}) {
+        for (int32_t h = 700; h <= 1400; h += 20) {
+            const auto plain = portrait(w, h, 220, false);
+            const auto tray = portrait(w, h, 220, true);
+            REQUIRE(plain.arrangement == PrintStatusArrangement::Stacked);
+            CAPTURE(w, h);
+            CHECK(tray.printer_h == plain.printer_h);
+            CHECK(stacks_inside(tray, h));
+        }
+    }
 }
 
 TEST_CASE("too little room shows no lane tray rather than a cramped one", "[print_status_tray]") {

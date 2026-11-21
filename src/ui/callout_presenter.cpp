@@ -39,53 +39,6 @@ bool CalloutPresenter::place_image(lv_obj_t* img, const CalloutRect* moved) {
     return true;
 }
 
-namespace {
-
-bool same_chip(const CalloutChipIn& a, const CalloutChipIn& b) {
-    const bool same_anchor =
-        a.anchor.has_value() == b.anchor.has_value() &&
-        (!a.anchor || (a.anchor->x == b.anchor->x && a.anchor->y == b.anchor->y));
-    return a.kind == b.kind && a.w == b.w && same_anchor && a.expendable == b.expendable &&
-           a.w_unlabeled == b.w_unlabeled && a.h == b.h && a.w_compact == b.w_compact &&
-           a.h_compact == b.h_compact;
-}
-
-/// Everything the mode decision reads but the area's height and the active chips.
-bool same_mode_inputs(const CalloutLayoutInput& a, const CalloutLayoutInput& b) {
-    return a.area_w == b.area_w && a.single_cell == b.single_cell && a.image_w == b.image_w &&
-           a.image_h == b.image_h && a.tagged == b.tagged && a.chip_h == b.chip_h &&
-           a.compact_chip_h == b.compact_chip_h && a.gap == b.gap && a.min_line == b.min_line &&
-           a.leader_min_distance == b.leader_min_distance &&
-           std::equal(a.budget.begin(), a.budget.end(), b.budget.begin(), b.budget.end(),
-                      same_chip);
-}
-
-/// The shortest full-size area height for `in`'s width and budget.
-int search_full_size_min_area_h(CalloutLayoutInput in, int max_h) {
-    const auto full_at = [&in](int h) {
-        in.area_h = h;
-        const CalloutMode mode = compute_callout_layout(in).mode;
-        return mode != CalloutMode::ImageOnly && !callout_mode_is_compact(mode);
-    };
-    if (!full_at(max_h)) {
-        return max_h;
-    }
-    // A taller area only adds room, so the first full-size height splits the range.
-    int lo = 1;
-    int hi = max_h;
-    while (lo < hi) {
-        const int mid = lo + (hi - lo) / 2;
-        if (full_at(mid)) {
-            hi = mid;
-        } else {
-            lo = mid + 1;
-        }
-    }
-    return lo;
-}
-
-} // namespace
-
 CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* regions,
                                       int natural_w, int natural_h, const Config& config) {
     image_changed_ = false;
@@ -129,10 +82,6 @@ CalloutLayout CalloutPresenter::apply(const Parts& parts, const ImageRegions* re
         if (c.active)
             in.active.push_back({c.kind, c.w_full, anchor(c.kind), c.budget_expendable,
                                  c.w_full_unlabeled, c.h, c.w_compact, c.h_compact});
-    }
-    if (!floor_input_ || !same_mode_inputs(*floor_input_, in)) {
-        floor_input_ = in;
-        full_size_min_area_h_ = search_full_size_min_area_h(in, kFullSizeSearchMaxH);
     }
     out = compute_callout_layout(in);
     if (spdlog::should_log(spdlog::level::trace)) {

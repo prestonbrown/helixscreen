@@ -40,17 +40,18 @@ struct PrintStatusTileLayout {
 
 /// `content_w` x `content_h` is the panel's content box, `gap` the token gap,
 /// `strip_row_h` / `strip_stacked_h` the strip heights the current tier's fonts need.
-/// With `lane_tray`, stacked tiles give the lane tray strip, up to its
-/// natural height, what the preview can spare above the height its checklist
-/// goes compact at, then what the printer tile can spare above
-/// `printer_floor_h`, the shortest tile that draws its chips at full size
-/// (PrintStatusTiles::full_callouts_min_tile_h(); 0 when unknown, which spares
-/// nothing). Too little room for the tray's smallest shows none. Side by side
-/// never shows it.
-[[nodiscard]] PrintStatusTileLayout
-decide_print_status_tile_layout(int32_t content_w, int32_t content_h, int32_t gap,
-                                int32_t strip_row_h, int32_t strip_stacked_h,
-                                bool lane_tray = false, int32_t printer_floor_h = 0);
+/// Carve order: the strip comes off `content_h` first, then the tiles split
+/// the rest (236:196 stacked, halves side by side), then any extra comes out
+/// of the job tile alone. With `lane_tray`, stacked tiles give the lane tray
+/// strip, up to its natural height, what the job tile can spare above the
+/// height its checklist goes compact at. The printer tile keeps the height it
+/// has without the tray: too little room shrinks the tray or shows none,
+/// never the picture. Side by side never shows the tray.
+[[nodiscard]] PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w,
+                                                                    int32_t content_h, int32_t gap,
+                                                                    int32_t strip_row_h,
+                                                                    int32_t strip_stacked_h,
+                                                                    bool lane_tray = false);
 
 /// The ultrawide arrangement of a `content_w` x `content_h` box whose columns sit
 /// `gap` apart: the preview square at the full height, the printer picture at
