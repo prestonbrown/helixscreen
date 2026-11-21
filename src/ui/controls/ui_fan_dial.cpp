@@ -64,7 +64,7 @@ struct FanDial::Subjects {
 };
 
 FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& fan_id,
-                 int initial_speed, bool label_bottom)
+                 int initial_speed, bool label_bottom, const std::string& hold_index)
     : subjects_(std::make_unique<Subjects>()), name_(name), fan_id_(fan_id),
       current_speed_(initial_speed) {
     char initial_value_str[16];
@@ -76,6 +76,7 @@ FanDial::FanDial(lv_obj_t* parent, const std::string& name, const std::string& f
                            "label_bottom",  label_bottom ? "true" : "false",
                            "speed_subject", subjects_->speed_name.c_str(),
                            "on_subject",    subjects_->on_name.c_str(),
+                           "hold_index",    hold_index.c_str(),
                            nullptr};
 
     root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "fan_dial", attrs));

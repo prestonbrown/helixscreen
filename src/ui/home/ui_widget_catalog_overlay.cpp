@@ -2,6 +2,7 @@
 
 #include "ui_widget_catalog_overlay.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_effects.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
@@ -571,13 +572,14 @@ void WidgetCatalogOverlay::populate_category_rows(lv_obj_t* group) {
             continue;
         }
         std::string subtitle = fmt::format(fmt::runtime(lv_tr("{} widgets")), count);
+        const std::string index = std::to_string(i);
 
         const char* attrs[] = {"label", lv_tr(cat.display_name), "label_tag", cat.translation_tag,
                                "icon", cat.icon, "description", subtitle.c_str(),
                                // Already translated and count-dependent — a tag
                                // would re-look-up the formatted string and miss.
                                "description_min_bp", "0", "callback", "on_catalog_category_clicked",
-                               nullptr};
+                               "index", index.c_str(), nullptr};
 
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(group, "setting_action_row", attrs));
         if (!row) {
@@ -585,7 +587,6 @@ void WidgetCatalogOverlay::populate_category_rows(lv_obj_t* group) {
                          cat.display_name);
             continue;
         }
-        lv_obj_set_user_data(row, reinterpret_cast<void*>(i));
     }
 
     // Hardware-gated widgets get their own dive at the bottom rather than
@@ -617,14 +618,42 @@ void WidgetCatalogOverlay::populate_category_rows(lv_obj_t* group) {
 }
 
 void WidgetCatalogOverlay::on_category_row_clicked(lv_event_t* e) {
-    auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    auto index = reinterpret_cast<size_t>(lv_obj_get_user_data(row));
+    const auto index = helix::ui::event_user_int(e);
     const auto& categories = get_widget_categories();
-    if (index >= categories.size()) {
-        spdlog::warn("[WidgetCatalog] Category row index {} out of range", index);
+    if (!index || *index < 0 || static_cast<size_t>(*index) >= categories.size()) {
+        spdlog::warn("[WidgetCatalog] Category row index {} out of range", index.value_or(-1));
         return;
     }
-    show_category(categories[index].id);
+    show_category(categories[static_cast<size_t>(*index)].id);
+}
+
+void WidgetCatalogOverlay::on_widget_row_clicked(lv_event_t* e) {
+    auto* row = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    // A placed, gated or unfit row is dimmed and offers nothing.
+    if (!lv_obj_is_clickable(row)) {
+        return;
+    }
+    const char* name = lv_obj_get_name(row);
+    const PanelWidgetDef* def = name ? find_widget_def(name) : nullptr;
+    if (!def) {
+        spdlog::warn("[WidgetCatalog] Clicked row names no widget def");
+        return;
+    }
+    std::string widget_id(def->id);
+    if (def->multi_instance) {
+        // Clicking a multi-instance widget always mints a new instance.
+        auto& mgr_config = PanelWidgetManager::instance().get_widget_config("home");
+        widget_id = mgr_config.mint_instance_id(def->id);
+        spdlog::info("[WidgetCatalog] Minted multi-instance widget: {}", widget_id);
+    } else {
+        spdlog::info("[WidgetCatalog] Selected widget: {}", widget_id);
+    }
+    // Copy the callback before closing: close resets the state and deletes the row.
+    auto cb = g_catalog_state.on_select;
+    close_catalog();
+    if (cb) {
+        cb(widget_id);
+    }
 }
 
 void WidgetCatalogOverlay::on_unavailable_row_clicked(lv_event_t* /*e*/) {
@@ -684,60 +713,9 @@ lv_obj_t* WidgetCatalogOverlay::create_widget_row(
     if (!row) {
         return nullptr;
     }
-    // Named for the def id so tests and `ctl` can address the row directly.
+    // Named for the def id: on_widget_row_clicked() reads it, and tests and `ctl`
+    // address the row by it.
     lv_obj_set_name(row, def.id);
-
-    // create_row() already stripped CLICKABLE when gated, placed or unfit;
-    // binding a handler anyway would leave a live callback on a dead row.
-    if (hardware_gated || already_placed || no_fit) {
-        return row;
-    }
-
-    if (def.multi_instance) {
-        // Multi-instance widget — clicking always mints a new instance.
-        // The base ID pointer comes from the static def table (stable lifetime)
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* ev) {
-                auto* base_id = static_cast<const char*>(lv_event_get_user_data(ev));
-                if (!base_id)
-                    return;
-                // Mint a new instance ID
-                auto& mgr_config = PanelWidgetManager::instance().get_widget_config("home");
-                std::string new_id = mgr_config.mint_instance_id(base_id);
-                spdlog::info("[WidgetCatalog] Minted multi-instance widget: {}", new_id);
-                auto cb = g_catalog_state.on_select;
-                close_catalog();
-                if (cb) {
-                    cb(new_id);
-                }
-            },
-            LV_EVENT_CLICKED, const_cast<char*>(def.id));
-    } else {
-        // Store widget ID in user data for the click handler.
-        // The ID string comes from the static widget def table, so the pointer is
-        // stable.
-        lv_obj_set_user_data(row, const_cast<char*>(def.id));
-
-        // Widget pool recycling exception: dynamic row click handler
-        lv_obj_add_event_cb(
-            row,
-            [](lv_event_t* ev) {
-                auto* widget_id = static_cast<const char*>(lv_event_get_user_data(ev));
-                if (!widget_id) {
-                    return;
-                }
-                spdlog::info("[WidgetCatalog] Selected widget: {}", widget_id);
-                // Copy callback and ID before closing (close resets state)
-                auto cb = g_catalog_state.on_select;
-                std::string id_copy(widget_id);
-                close_catalog();
-                if (cb) {
-                    cb(id_copy);
-                }
-            },
-            LV_EVENT_CLICKED, const_cast<char*>(def.id));
-    }
     return row;
 }
 
@@ -760,6 +738,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     lv_xml_register_event_cb(nullptr, "on_catalog_copy_layout", on_catalog_copy_layout);
     lv_xml_register_event_cb(nullptr, "on_catalog_category_clicked", on_category_row_clicked);
     lv_xml_register_event_cb(nullptr, "on_catalog_unavailable_clicked", on_unavailable_row_clicked);
+    lv_xml_register_event_cb(nullptr, "on_catalog_widget_clicked", on_widget_row_clicked);
     lv_xml_register_event_cb(nullptr, "on_catalog_search_changed", on_search_changed);
 
     // Search subjects. Registered before the overlay XML is parsed so its

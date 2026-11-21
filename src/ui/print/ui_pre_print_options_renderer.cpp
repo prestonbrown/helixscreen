@@ -18,14 +18,12 @@ namespace helix::ui {
 
 namespace {
 
-/// Per-tile event-callback context. Stored as the user_data of the tile
-/// widget so the dispatcher can recover both the renderer and the option id
-/// at event time. Owned by the tile's `LV_EVENT_DELETE` callback (set up
-/// alongside the value-changed callback) so it never leaks.
-struct ToggleUserData {
-    PrePrintOptionsRenderer* renderer;
-    std::string id;
-};
+/// Every live renderer, so the tile's XML value_changed callback can find the
+/// renderer that owns the tapped tile.
+std::vector<PrePrintOptionsRenderer*>& live_renderers() {
+    static std::vector<PrePrintOptionsRenderer*> renderers;
+    return renderers;
+}
 
 /// Translation tags follow the existing convention of using the English
 /// label as both key and default value (see `translations/en.yml`). For
@@ -77,11 +75,17 @@ std::string humanize_id(const std::string& id) {
 
 } // namespace
 
+PrePrintOptionsRenderer::PrePrintOptionsRenderer() {
+    live_renderers().push_back(this);
+}
+
 PrePrintOptionsRenderer::~PrePrintOptionsRenderer() {
     // clear() walks each row and resets its subject, removing any observer
     // still attached. With the container already deleted (its observers
     // gone), the reset finds an empty list and does nothing more.
     clear();
+    auto& live = live_renderers();
+    live.erase(std::remove(live.begin(), live.end(), this), live.end());
 }
 
 std::string PrePrintOptionsRenderer::label_key_for(const PrePrintOption& opt) {
@@ -161,6 +165,7 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
     safe_clean_children(container);
 
     on_toggle_ = std::move(on_toggle);
+    lv_xml_register_event_cb(nullptr, "on_pre_print_option_toggled", on_toggle_value_changed);
 
     if (option_set.options.empty()) {
         spdlog::debug("[PrePrintOptionsRenderer] Empty option set — container left empty");
@@ -247,11 +252,6 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
     // the row: the checkable object and the container are one widget, so
     // there is no child lookup.
     //
-    // `callback` is deliberately left unset (its XML "" default): callback=""
-    // resolves to the no-op event cb registered for the empty name
-    // (xml_registration.cpp), leaving the real handler to be wired
-    // imperatively via lv_obj_add_event_cb below.
-    //
     // label_tag carries the untranslated i18n key (matching label_for()'s
     // lv_tr() call) so the label can be re-resolved by
     // lv_label_set_translation_tag() on a language change — passing "" here
@@ -261,7 +261,8 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
     std::string text = std::string(lv_tr(label_key.c_str()));
     std::string icon = default_icon_for(opt.id);
     const char* attrs[] = {"label", text.c_str(), "label_tag", label_key.c_str(),
-                           "icon",  icon.c_str(), nullptr};
+                           "icon",  icon.c_str(), "callback",  "on_pre_print_option_toggled",
+                           nullptr};
     lv_obj_t* row_obj = static_cast<lv_obj_t*>(lv_xml_create(container, "option_tile", attrs));
     if (!row_obj) {
         spdlog::error("[PrePrintOptionsRenderer] lv_xml_create('option_tile') returned "
@@ -312,38 +313,25 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
         }
     }
 
-    // Wire up the value-changed callback. ToggleUserData is heap-allocated
-    // and freed in the LV_EVENT_DELETE handler so it lives exactly as long
-    // as the tile widget.
-    auto* user_data = new ToggleUserData{this, opt.id};
-    lv_obj_add_event_cb(row_obj, on_toggle_value_changed, LV_EVENT_VALUE_CHANGED, user_data);
-    lv_obj_add_event_cb(
-        row_obj,
-        [](lv_event_t* e) {
-            // Free the heap-allocated user data when the widget is deleted.
-            // LV_EVENT_DELETE callbacks fire exactly once.
-            auto* data = static_cast<ToggleUserData*>(lv_event_get_user_data(e));
-            delete data;
-        },
-        LV_EVENT_DELETE, user_data);
-
     rows_.push_back(std::move(row));
 }
 
 void PrePrintOptionsRenderer::on_toggle_value_changed(lv_event_t* e) {
-    // user_data lifetime is guaranteed by the LV_EVENT_DELETE handler, which
-    // LVGL fires last among a widget's event callbacks. VALUE_CHANGED can
-    // never fire after `data` is freed because deletion runs first only on
-    // the LV_EVENT_DELETE path, which then frees `data` once.
-    auto* data = static_cast<ToggleUserData*>(lv_event_get_user_data(e));
-    if (!data || !data->renderer) {
+    auto* tile = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+    for (PrePrintOptionsRenderer* renderer : live_renderers()) {
+        auto it = std::find_if(renderer->rows_.begin(), renderer->rows_.end(),
+                               [tile](const OptionRow& r) { return r.row == tile; });
+        if (it == renderer->rows_.end()) {
+            continue;
+        }
+        // Copied: on_toggle_ may repopulate, which drops the row.
+        const std::string id = it->id;
+        const int new_state = lv_obj_has_state(tile, LV_STATE_CHECKED) ? 1 : 0;
+        renderer->set_state(id, new_state);
+        if (renderer->on_toggle_) {
+            renderer->on_toggle_(id, new_state);
+        }
         return;
-    }
-    auto* tile = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    int new_state = lv_obj_has_state(tile, LV_STATE_CHECKED) ? 1 : 0;
-    data->renderer->set_state(data->id, new_state);
-    if (data->renderer->on_toggle_) {
-        data->renderer->on_toggle_(data->id, new_state);
     }
 }
 

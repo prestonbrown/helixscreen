@@ -19,6 +19,7 @@
 #include "../test_helpers/press_wash_probe.h"
 #include "device_display_name.h"
 #include "moonraker_types.h"
+#include "panel_widget_registry.h"
 #include "power_device_state.h"
 #include "power_device_widget.h"
 #include "theme_manager.h"
@@ -107,6 +108,8 @@ namespace {
 class PowerPickerRowsFixture : public LVGLUITestFixture {
   public:
     PowerPickerRowsFixture() {
+        // The picker rows' click callback.
+        init_widget_registrations();
         PowerDeviceState::instance().set_devices({
             PowerDevice{"printer_psu", "gpio", "off", false},
             PowerDevice{"#2_psu", "gpio", "off", false},

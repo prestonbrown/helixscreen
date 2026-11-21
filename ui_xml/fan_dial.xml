@@ -15,12 +15,17 @@
     <!-- Per-instance subjects FanDial publishes: the speed text, and 1 while on -->
     <prop name="speed_subject" type="string" default=""/>
     <prop name="on_subject" type="string" default=""/>
+    <!-- A hold on the card renames this entry of FanControlOverlay's fans;
+         empty for a card that renames nothing. -->
+    <prop name="hold_index" type="string" default=""/>
   </api>
   <view name="fan_dial_root"
         extends="ui_card" width="#fan_card_base_width" height="#fan_card_height" style_min_width="#fan_card_min_width"
         style_max_width="#fan_card_max_width" flex_flow="column" style_flex_main_place="start"
         style_flex_cross_place="center" style_pad_all="#space_sm" style_pad_bottom="#space_xs" style_pad_gap="0"
         scrollable="false">
+    <event_cb trigger="pressed" callback="on_fan_rename_hold" user_data="$hold_index"/>
+    <event_cb trigger="long_pressed" callback="on_fan_rename_hold" user_data="$hold_index"/>
     <!-- Fan name label at top unless label_bottom — non-clickable for event bubble -->
     <text_small name="name_label"
                 width="100%" text="$fan_name" long_mode="clip" style_text_align="center" clickable="false"

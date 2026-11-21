@@ -8,6 +8,8 @@
     <px name="status_line_gap" value="2"/>
   </consts>
   <api>
+    <!-- Unit index the click callback receives as event user_data. -->
+    <prop name="index" type="int" default="0"/>
     <!-- 1 while the unit is an absent placeholder: a box address held for a box
          that is not on the bus. The card shows disabled and says so. -->
     <prop name="absent" type="subject" default="ams_env_ind_off_flag"/>
@@ -32,6 +34,7 @@
         style_border_color="#border" style_border_opa="80" style_min_width="#ams_card_min_width"
         style_max_width="#ams_card_max_width" clickable="true">
     <style name="styles.press_wash" selector="pressed"/>
+    <event_cb trigger="clicked" callback="on_ams_unit_card_clicked" user_data="$index"/>
     <bind_state_if_eq subject="$absent" state="disabled" ref_value="1"/>
     <!-- Offline fades the header, bars and readout, but not the card itself: it stays
          tappable (its detail still shows what it last reported) and the chip keeps full

@@ -2,6 +2,7 @@
 
 #include "nozzle_temps_widget.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_icon.h"
 #include "ui_icon_codepoints.h"
 #include "ui_overlay_temp_graph.h"
@@ -88,6 +89,10 @@ void register_nozzle_temps_widget() {
         return std::make_unique<NozzleTempsWidget>(ps);
     });
     register_widget_subjects("nozzle_temps", nozzle_temps_widget_init_subjects);
+    lv_xml_register_event_cb(nullptr, "nozzle_temps_row_clicked_cb",
+                             NozzleTempsWidget::extruder_row_clicked_cb);
+    lv_xml_register_event_cb(nullptr, "nozzle_temps_bed_clicked_cb",
+                             NozzleTempsWidget::bed_row_clicked_cb);
 }
 
 } // namespace helix
@@ -596,9 +601,11 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     // data; which one shows, the row width and the font are bound off the
     // layout subjects, so the row reads the CURRENT verdict the moment it is
     // created — a late rebuild cannot disagree with its siblings.
+    const std::string index = std::to_string(extruder_rows_.size());
     const char* attrs[] = {
         "tool_name",   row.long_name.c_str(),   "tool_short", row.short_name.c_str(),
-        "tool_number", row.number_name.c_str(), nullptr};
+        "tool_number", row.number_name.c_str(), "index",      index.c_str(),
+        nullptr};
     lv_obj_t* row_obj = static_cast<lv_obj_t*>(lv_xml_create(container, "nozzle_temp_row", attrs));
     if (!row_obj) {
         spdlog::error("[NozzleTempsWidget] lv_xml_create('nozzle_temp_row') returned NULL for '{}'",
@@ -621,34 +628,32 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
         lv_label_set_long_mode(row.temp_label, LV_LABEL_LONG_MODE_CLIP);
     if (row.target_label)
         lv_label_set_long_mode(row.target_label, LV_LABEL_LONG_MODE_CLIP);
-
-    // Tap row → open nozzle temp graph overlay on that row's tool
-    lv_obj_set_clickable(row_obj, true);
-    lv_obj_add_event_cb(
-        row_obj,
-        [](lv_event_t* e) {
-            auto* self = static_cast<NozzleTempsWidget*>(lv_event_get_user_data(e));
-            if (self) {
-                self->handle_extruder_row_clicked(
-                    static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
-            }
-        },
-        LV_EVENT_CLICKED, this);
 }
 
-void NozzleTempsWidget::handle_extruder_row_clicked(lv_obj_t* row_obj) {
+void NozzleTempsWidget::extruder_row_clicked_cb(lv_event_t* e) {
+    auto* self = panel_widget_from_event<NozzleTempsWidget>(e);
+    const auto index = helix::ui::event_user_int(e);
+    if (self && index) {
+        self->handle_extruder_row_clicked(*index);
+    }
+}
+
+void NozzleTempsWidget::bed_row_clicked_cb(lv_event_t* e) {
+    auto* self = panel_widget_from_event<NozzleTempsWidget>(e);
+    if (self && self->parent_screen_) {
+        get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Bed, self->parent_screen_);
+    }
+}
+
+void NozzleTempsWidget::handle_extruder_row_clicked(int index) {
     if (!parent_screen_) {
         return;
     }
     // On a multi-head printer each row is one tool; the graph opens on it.
     std::string extruder;
-    if (ToolState::instance().has_multiple_toolheads()) {
-        for (const auto& row : extruder_rows_) {
-            if (row.row_obj == row_obj) {
-                extruder = row.name;
-                break;
-            }
-        }
+    if (ToolState::instance().has_multiple_toolheads() && index >= 0 &&
+        static_cast<size_t>(index) < extruder_rows_.size()) {
+        extruder = extruder_rows_[static_cast<size_t>(index)].name;
     }
     get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Nozzle, parent_screen_, extruder);
 }
@@ -672,19 +677,6 @@ void NozzleTempsWidget::create_bed_row(lv_obj_t* container) {
         lv_label_set_long_mode(bed_temp_label_, LV_LABEL_LONG_MODE_CLIP);
     if (bed_target_label_)
         lv_label_set_long_mode(bed_target_label_, LV_LABEL_LONG_MODE_CLIP);
-
-    // Tap bed row → open bed temp graph overlay
-    lv_obj_set_clickable(row_obj, true);
-    lv_obj_t* screen = parent_screen_;
-    lv_obj_add_event_cb(
-        row_obj,
-        [](lv_event_t* e) {
-            auto* scr = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
-            if (scr) {
-                get_global_temp_graph_overlay().open(TempGraphOverlay::Mode::Bed, scr);
-            }
-        },
-        LV_EVENT_CLICKED, screen);
 }
 
 void NozzleTempsWidget::update_row_display(lv_obj_t* temp_label, lv_obj_t* target_label,

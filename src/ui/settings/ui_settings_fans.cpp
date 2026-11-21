@@ -12,6 +12,7 @@
 #include "ui_event_safety.h"
 #include "ui_fan_control_overlay.h"
 #include "ui_modal.h"
+#include "ui_row_text.h"
 #include "ui_status_pill.h"
 #include "ui_utils.h"
 
@@ -35,7 +36,20 @@ void FanSettingsOverlay::register_callbacks() {
         {"on_fan_rename_cancel", [](lv_event_t*) { get_fan_settings_overlay().cancel_rename(); }},
         {"on_chamber_air_targets_commit",
          [](lv_event_t*) { get_printer_state().chamber_air().commit_targets(); }},
+        {"on_fan_settings_row_clicked", on_row_clicked},
     });
+}
+
+void FanSettingsOverlay::on_row_clicked(lv_event_t* e) {
+    auto& self = get_fan_settings_overlay();
+    const auto index = helix::ui::event_user_int(e);
+    if (!index || *index < 0 || static_cast<size_t>(*index) >= self.row_objects_.size())
+        return;
+    // Copied: renaming repopulates the rows and this list with them.
+    const std::string object_name = self.row_objects_[static_cast<size_t>(*index)];
+    lv_obj_t* label = find_required(lv_event_get_current_target_obj(e), "name_label", "Fans");
+    const char* current = label ? lv_label_get_text(label) : "";
+    self.handle_fan_rename(object_name, current ? current : "");
 }
 
 lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
@@ -104,43 +118,19 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
 
         // Create row from XML component
         const char* type_label = lv_tr(helix::fan_type_label(fan.type));
+        const std::string index = std::to_string(row_objects_.size());
         const char* attrs[] = {
-            "fan_name",   fan.display_name.c_str(), "fan_type",  type_label,
-            "fan_object", fan.object_name.c_str(),  "fan_speed", speed_buf,
-            nullptr,
+            "fan_type", type_label, "fan_speed", speed_buf, "index", index.c_str(), nullptr,
         };
         auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "fan_settings_row", attrs));
         if (!row) {
             spdlog::warn("[{}] Failed to create row for fan: {}", get_name(), fan.object_name);
             continue;
         }
-
-        // Wire click callback on the entire row for rename
-        {
-            auto* obj_name = new std::string(fan.object_name);
-            lv_obj_set_clickable(row, true);
-            // Touch feedback: dim on press
-            lv_obj_set_style_opa(row, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
-            lv_obj_add_event_cb(
-                row,
-                [](lv_event_t* e) {
-                    LVGL_SAFE_EVENT_CB_BEGIN("[FanSettingsOverlay] row clicked");
-                    auto* name = static_cast<std::string*>(lv_event_get_user_data(e));
-                    if (name) {
-                        lv_obj_t* r = lv_event_get_current_target_obj(e);
-                        lv_obj_t* label = helix::ui::find_required(r, "name_label", "Fans");
-                        const char* current = label ? lv_label_get_text(label) : "";
-                        get_fan_settings_overlay().handle_fan_rename(*name, current ? current : "");
-                    }
-                    LVGL_SAFE_EVENT_CB_END();
-                },
-                LV_EVENT_CLICKED, obj_name);
-
-            lv_obj_add_event_cb(
-                row,
-                [](lv_event_t* e) { delete static_cast<std::string*>(lv_event_get_user_data(e)); },
-                LV_EVENT_DELETE, obj_name);
-        }
+        // Fan names are printer data, and the user renames them here.
+        helix::ui::set_row_label_text(row, "name_label", fan.display_name.c_str());
+        helix::ui::set_row_label_text(row, "object_label", fan.object_name.c_str());
+        row_objects_.push_back(fan.object_name);
 
         ++count;
     }
@@ -187,7 +177,8 @@ void FanSettingsOverlay::populate_fans() {
         lv_obj_set_hidden(no_fans_placeholder_, !fans.empty());
     }
 
-    // Populate row lists
+    // Populate row lists. Rows in both index row_objects_.
+    row_objects_.clear();
     populate_fan_list(controllable_list_, true);
     populate_fan_list(auto_list_, false);
 }

@@ -128,7 +128,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Converted overlays withdraw their subject name
              REQUIRE(step != nullptr);
              step->init_subjects();
          },
-         {"wizard_welcome_text"}},
+         {"wizard_welcome_text", "wizard_language_choice"}},
         {"WizardInputShaper",
          []() {
              WizardInputShaperStep* step = get_wizard_input_shaper_step();
