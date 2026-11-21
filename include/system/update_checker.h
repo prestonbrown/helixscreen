@@ -990,8 +990,8 @@ class UpdateChecker {
  * @brief Parse a GitHub release API response into ReleaseInfo
  *
  * Declared in the header so the asset-selection rule — a platform key must
- * anchor its tarball exactly, so k1 never selects the k1-dynamic asset whose
- * name carries the k1 prefix — is unit-tested against the shipped function
+ * anchor its tarball exactly, so x86 never selects the x86-desktop asset whose
+ * name carries the x86 prefix — is unit-tested against the shipped function
  * rather than a local twin of it.
  *
  * @param json_str GitHub releases API response body

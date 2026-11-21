@@ -14,7 +14,7 @@
 # them that the other does not follow fails here.
 #
 # The matrix pairs every hyphen shape that reaches a filename: platform keys
-# that carry hyphens (android-arm64, snapmaker-u1, k1-dynamic) against versions
+# that carry hyphens (android-arm64, snapmaker-u1, x86-desktop) against versions
 # that carry them (1.1.0-beta.1, 1.1.0-rc.2, and the purely numeric prerelease
 # identifier 1.1.0-2 that tests/fixtures/version_precedence.txt admits).
 
@@ -24,7 +24,7 @@ setup() {
     cd "$BATS_TEST_DIRNAME/../.." || return 1
 }
 
-PLATFORMS=(pi pi32 ad5m ad5x cc1 k1 k1-dynamic k2 x86 x86-desktop snapmaker-u1)
+PLATFORMS=(pi pi32 ad5m ad5x cc1 k1 k2 x86 x86-desktop snapmaker-u1 android-arm64)
 VERSIONS=(0.99.118 1.1.0 1.1.0-beta.1 1.1.0-rc.2 1.1.0-2 1.1.0-11)
 
 # Each helper reads the expression out of the file that owns it. Copying the

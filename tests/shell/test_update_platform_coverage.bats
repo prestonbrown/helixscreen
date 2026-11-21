@@ -159,7 +159,7 @@ _release_matrix_platforms() {
     # Retired platform keys the worker deliberately still accepts. Removing
     # one from here (and from the worker) is a fleet decision -- telemetry
     # showing the key no longer appears in checkins -- not a code cleanup.
-    local retired="ad5x"
+    local retired="k1 ad5x"
 
     local missing=""
     for r in $returns; do
@@ -227,7 +227,8 @@ _release_matrix_platforms() {
 
     # Every platform the matrix builds ships helixscreen-<platform>.zip, so each
     # must self-update to exactly its own artifact. Catches both a missing asset
-    # (k1-dynamic.zip class) and a wrong-but-existing asset (ad5x->k1.zip class).
+    # (helixscreen-<key>.zip never built) and a wrong-but-existing asset
+    # (ad5x->k1.zip class).
     local bad=""
     for p in $matrix; do
         local asset
@@ -259,8 +260,6 @@ _release_matrix_platforms() {
 
     # Non-matrix platforms borrow another platform's artifact. The borrow target
     # must itself be a built asset, or Moonraker hits the #993 fallback.
-    #   k1-dynamic (dev/debug variant) -> unified mips
-    [ "$(helix_self_update_asset k1-dynamic)" = "helixscreen-mips.zip" ]
     # The board spellings collapse onto the unified asset, which the matrix
     # builds; the k1/ad5x zip names exist only as identical-content aliases.
     [ "$(helix_self_update_asset k1)" = "helixscreen-mips.zip" ]

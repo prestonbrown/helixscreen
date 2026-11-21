@@ -1348,7 +1348,7 @@ $unwired"
 }
 
 @test "parse_tarball_version survives a hyphenated platform name" {
-    for plat in snapmaker-u1 android-arm64 android-universal k1-dynamic; do
+    for plat in snapmaker-u1 android-arm64 android-universal x86-desktop; do
         run parse_tarball_version "helixscreen-${plat}-v0.99.118.tar.gz"
         [ "$output" = "v0.99.118" ] || fail "$plat lost its version: [$output]"
     done

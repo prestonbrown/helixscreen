@@ -242,11 +242,13 @@ describe("GET /{channel}/helixscreen-*.tar.gz", () => {
     expect(env.RELEASES_BUCKET._storage.has("stable/helixscreen-k1-v1.1.0.tar.gz")).toBe(false);
   });
 
-  it("does not rewrite k1-dynamic, a different artifact that shares the k1 prefix", async () => {
+  it("does not rewrite a longer key that shares the k1 prefix", async () => {
+    // "k1-decoy" is synthetic: no platform key extends k1, and the rewrite
+    // must stay anchored on the version's 'v' if one ever does.
     const env = createEnv();
     env.RELEASES_BUCKET.seed("stable/helixscreen-mips-v0.99.31.tar.gz", "mips-bytes");
     const res = await worker.fetch(
-      makeRequest("/stable/helixscreen-k1-dynamic-v0.99.31.tar.gz"),
+      makeRequest("/stable/helixscreen-k1-decoy-v0.99.31.tar.gz"),
       env,
     );
     expect(res.status).toBe(404);

@@ -69,12 +69,10 @@ FIX = {
 
 # Whole files that are structurally exempt.
 #   main.cpp defines ::main, which the C++ standard requires at global scope.
-#   include/compat/ shims third-party headers into the spelling the tree expects.
 STRUCTURAL_FILES = {
     'src/main.cpp',
 }
 STRUCTURAL_DIRS = (
-    'include/compat/',
     'src/lvgl-demo/',
 )
 

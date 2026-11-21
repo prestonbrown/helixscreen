@@ -478,7 +478,7 @@ endif
 SCREENSAVER_SRCS := $(wildcard $(SRC_DIR)/ui/screensaver/*.cpp)
 # Targets whose lv_conf.h LV_COLOR_DEPTH is 16. The savers below static_assert 32 bpp, so a
 # 16 bpp target missing here fails to compile rather than shipping them.
-SCREENSAVER_16BPP_TARGETS := ad5m ad5m-br cc1 mips k1 k1-dynamic ad5x k2 snapmaker-u1
+SCREENSAVER_16BPP_TARGETS := ad5m ad5m-br cc1 mips k1 ad5x k2 snapmaker-u1
 # Every saver now draws at both depths, so a 16 bpp build compiles all of them. A saver that
 # cannot would be listed here and marked SAVER_DEPTH_32 in SCREENSAVERS; the two must agree.
 SCREENSAVER_32BPP_ONLY_SRCS :=
@@ -544,7 +544,7 @@ endif
 # Creality K1 series. Probed at runtime, after JzPwm: the player must be
 # executable and /dev/snd must list a playback stream, so a FlashForge board
 # without a card falls through to the M300 gate as before.
-ifneq (,$(filter mips k1 ad5x k1-dynamic,$(PLATFORM_TARGET)))
+ifneq (,$(filter mips k1 ad5x,$(PLATFORM_TARGET)))
     PCM_PIPE_CXXFLAGS := -DHELIX_HAS_PCM_PIPE
 else
     APP_SRCS := $(filter-out $(SRC_DIR)/system/pcm_pipe_sound_backend.cpp,$(APP_SRCS))
@@ -925,15 +925,7 @@ else ifneq ($(CROSS_COMPILE)$(filter x86 x86-fbdev x86-both,$(PLATFORM_TARGET)),
     # Note: libnl must come AFTER wpa_client (static linking order matters)
     # Note: -L path only for targets that link against host libs (Pi, AD5M);
     # the toolchains below each carry their own sysroot
-    ifeq ($(PLATFORM_TARGET),k1-dynamic)
-        # K1 Dynamic: Mixed static/dynamic linking
-        # Project libraries linked statically, system libraries linked dynamically
-        # -lstdc++fs: GCC 7.5 requires separate library for <experimental/filesystem>
-        LDFLAGS := -Wl,-Bstatic \
-            $(LIBHV_LIBS) $(FMT_LIBS) $(WPA_CLIENT_LIB) $(LIBNL_LIBS) -lstdc++fs \
-            -Wl,-Bdynamic \
-            -lstdc++ -lz -lm -lpthread -lrt -ldl -latomic -lgcc_s
-    else ifneq ($(filter mips k1 ad5x,$(PLATFORM_TARGET)),)
+    ifneq ($(filter mips k1 ad5x,$(PLATFORM_TARGET)),)
         # No system library path: these toolchains are self-contained.
         # The unified MIPS build (mips/k1/ad5x) uses the ct-ng musl toolchain
         # and links fully static, so nothing resolves from a host or chroot at runtime.
@@ -955,10 +947,9 @@ else ifneq ($(CROSS_COMPILE)$(filter x86 x86-fbdev x86-both,$(PLATFORM_TARGET)),
         endif
     endif
     ifeq ($(ENABLE_SSL),yes)
-        ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both k1-dynamic,$(PLATFORM_TARGET)))
+        ifneq (,$(filter pi pi-fbdev pi-both pi32 pi32-fbdev pi32-both x86 x86-fbdev x86-both,$(PLATFORM_TARGET)))
             # Static-link OpenSSL to avoid soname mismatch across OS versions
             # Pi: Bullseye has libssl.so.1.1, Bookworm has libssl.so.3
-            # K1-dynamic: K1 firmware may not have OpenSSL shared libs
             LDFLAGS += -Wl,-Bstatic -lssl -lcrypto -Wl,-Bdynamic
         else
             LDFLAGS += -lssl -lcrypto

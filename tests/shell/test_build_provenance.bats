@@ -238,7 +238,7 @@ PY
     # per-target variable written on the docker rule instead of the package rule
     # would give one of them the developer default.
     for t in package-ad5m package-cc1 package-pi package-pi32 package-mips \
-             package-k1 package-ad5x package-k1-dynamic package-k2 \
+             package-k1 package-ad5x package-k2 \
              package-snapmaker-u1 package-x86; do
         run make -n "$t"
         # See the note above on why status is not asserted here.

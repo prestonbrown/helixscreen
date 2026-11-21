@@ -33,14 +33,13 @@ make_platforms() {
         | sort -u
 }
 
-# Make targets that are deliberately not release platforms. k1-dynamic is an
-# alternate toolchain (glibc/dynamic) for hardware the matrix already ships as
-# mips, not a separate product - CI has never built it. Board spellings need
-# no entry here: release-k1/release-ad5x are pure delegation aliases, which
-# release_targets() already excludes. Anything added here needs the same kind
-# of reason, and the guard below checks the target still exists so the
-# exemption cannot outlive its target.
-CI_EXEMPT='k1-dynamic'
+# Make targets that are deliberately not release platforms, as an ERE
+# alternation (a|b). It is empty: every release-* target is a CI platform.
+# Board spellings need no entry here: release-k1/release-ad5x are pure
+# delegation aliases, which release_targets() already excludes. An entry needs
+# a reason in this comment, and the guard below checks the target still exists
+# so the exemption cannot outlive its target.
+CI_EXEMPT=''
 
 @test "release.yml build matrix and mk/cross.mk agree on the platform set" {
     # The previous version of this test looped over five hardcoded names against

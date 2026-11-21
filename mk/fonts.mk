@@ -175,7 +175,7 @@ endif
 #     partition beside the root overlay.
 #   - "all" builds (pi, pi32, x86) link every face already.
 #   - ad5m / ad5m-br scale: the root partition is 91-95% full.
-#   - cc1, k1, k1-dynamic, mips and yocto scale: MIPS or ~110MB boards.
+#   - cc1, k1, mips and yocto scale: MIPS or ~110MB boards.
 #   - ESP32 builds its own font set (firmware/helixscreen-esp32) and is untouched.
 EXTRA_ICON_FONTS :=
 ifeq ($(PLATFORM_TARGET),snapmaker-u1)

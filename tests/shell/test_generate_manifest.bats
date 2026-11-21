@@ -243,30 +243,30 @@ setup() {
     # hyphens included, is the platform.
     local zip_dir="$BATS_TEST_TMPDIR/hyphens"
     mkdir -p "$zip_dir"
-    for plat in snapmaker-u1 k1-dynamic x86-desktop; do
+    for plat in snapmaker-u1 android-arm64 x86-desktop; do
         make_zip "$plat" "$zip_dir/helixscreen-${plat}.zip"
     done
     run_manifest "$zip_dir" "1.1.0-beta.1"
     [ "$status" -eq 0 ] || fail "generate-manifest.sh exited $status: $output"
 
     run jq -r '.assets | keys | join(",")' "$zip_dir/manifest.json"
-    [ "$output" = "k1-dynamic,snapmaker-u1,x86-desktop" ] || fail "platform keys: [$output]"
+    [ "$output" = "android-arm64,snapmaker-u1,x86-desktop" ] || fail "platform keys: [$output]"
 }
 
 @test "a platform key does not take a longer key's zip" {
-    # k1-dynamic shares the helixscreen-k1 prefix: each entry must describe its
-    # own bytes.
+    # x86-desktop shares the helixscreen-x86 prefix: each entry must describe
+    # its own bytes.
     local trap_dir="$BATS_TEST_TMPDIR/prefix"
     mkdir -p "$trap_dir"
-    make_zip k1-bytes "$trap_dir/helixscreen-k1.zip"
-    make_zip dynamic-bytes "$trap_dir/helixscreen-k1-dynamic.zip"
+    make_zip x86-bytes "$trap_dir/helixscreen-x86.zip"
+    make_zip desktop-bytes "$trap_dir/helixscreen-x86-desktop.zip"
     run_manifest "$trap_dir" "1.1.0"
     [ "$status" -eq 0 ] || fail "generate-manifest.sh exited $status: $output"
 
-    run jq -r '.assets.k1.zip_sha256' "$trap_dir/manifest.json"
-    [ "$output" = "$(sha256sum "$trap_dir/helixscreen-k1.zip" | cut -d' ' -f1)" ] || fail "k1 digest"
-    run jq -r '.assets["k1-dynamic"].zip_sha256' "$trap_dir/manifest.json"
-    [ "$output" = "$(sha256sum "$trap_dir/helixscreen-k1-dynamic.zip" | cut -d' ' -f1)" ] || fail "k1-dynamic digest"
+    run jq -r '.assets.x86.zip_sha256' "$trap_dir/manifest.json"
+    [ "$output" = "$(sha256sum "$trap_dir/helixscreen-x86.zip" | cut -d' ' -f1)" ] || fail "x86 digest"
+    run jq -r '.assets["x86-desktop"].zip_sha256' "$trap_dir/manifest.json"
+    [ "$output" = "$(sha256sum "$trap_dir/helixscreen-x86-desktop.zip" | cut -d' ' -f1)" ] || fail "x86-desktop digest"
 }
 
 @test "unified mips aliases: k1/ad5x entries match the mips zip byte-for-byte" {

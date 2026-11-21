@@ -456,9 +456,8 @@ get_download_platform() {
 # m1 -> pi/pi32 by userspace bitness (get_download_platform), and the MIPS board
 # spellings -> the unified mips asset, mapped right here because
 # get_download_platform names fresh-install downloads by board. ONE static
-# binary serves the Creality K1 series and the FlashForge AD5X; k1, ad5x and
-# the k1-dynamic dev/debug variant (not built by the release matrix) all ride
-# helixscreen-mips.zip. release-mips also publishes identical-content
+# binary serves the Creality K1 series and the FlashForge AD5X; k1 and ad5x
+# both ride helixscreen-mips.zip. release-mips also publishes identical-content
 # helixscreen-k1.zip / -ad5x.zip aliases so already-deployed binaries that
 # compute those names still find an update.
 #
@@ -466,8 +465,8 @@ get_download_platform() {
 # Echoes: release asset filename, e.g. helixscreen-pi.zip
 helix_self_update_asset() {
     case "$1" in
-        k1|ad5x|k1-dynamic) echo "helixscreen-mips.zip" ;;
-        *)          echo "helixscreen-$(get_download_platform "$1").zip" ;;
+        k1|ad5x) echo "helixscreen-mips.zip" ;;
+        *)       echo "helixscreen-$(get_download_platform "$1").zip" ;;
     esac
 }
 

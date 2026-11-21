@@ -22,10 +22,6 @@ WATCHDOG_LDFLAGS := $(TARGET_LDFLAGS) -lm -lpthread
 ifeq ($(YOCTO_BUILD),yes)
     WATCHDOG_LDFLAGS := $(LDFLAGS) $(WATCHDOG_LDFLAGS)
 endif
-# GCC 7.5 (K1 dynamic) needs -lstdc++fs for <experimental/filesystem>
-ifeq ($(PLATFORM_TARGET),k1-dynamic)
-    WATCHDOG_LDFLAGS += -lstdc++fs
-endif
 
 # Strip binary for embedded targets (matches main binary behavior)
 ifeq ($(STRIP_BINARY),yes)
