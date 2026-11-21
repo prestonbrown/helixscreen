@@ -828,6 +828,7 @@ src/ui/components/ui_text_edit_menu.cpp
 src/ui/components/ui_text_entry_modal.cpp
 src/ui/components/ui_text_input.cpp
 src/ui/settings/ui_theme_editor_overlay.cpp
+src/ui/settings/ui_theme_editor_menu.cpp
 src/ui/notify/ui_toast_manager.cpp
 src/ui/calibration/ui_touch_calibration_overlay.cpp
 src/ui/filament/ui_unload_lane_choice.cpp
