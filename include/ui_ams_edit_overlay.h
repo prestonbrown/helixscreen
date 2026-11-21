@@ -369,6 +369,11 @@ class AmsEditOverlay : public OverlayBase {
     void handle_seg_tap(int index);
     void handle_seg_hold(int index);
     void add_color();
+    /// The Multi-Color switch on the color page.
+    void handle_multi_switch(bool on);
+    /// Point the open color page at the selected color.
+    void edit_selected_on_color_page();
+    bool color_page_open_ = false;
     void handle_color_mode(int mode_index);
     /// Back to the slot's own colors: no pick, no multi-color edit.
     void reset_color_draft();

@@ -97,7 +97,8 @@
     <px name="edit_spool_size_small" value="120"/>
     <px name="edit_spool_size_medium" value="168"/>
     <px name="edit_spool_size_large" value="210"/>
-    <!-- A multi-color spool's mode dropdown and the bar of its colors. -->
+    <!-- A multi-color spool's mode dropdown (the color page's Multi-Color
+         row, ams_edit_multi_color.xml) and the bar of its colors. -->
     <px name="ams_edit_mode_dd_w_micro" value="104"/>
     <px name="ams_edit_mode_dd_w_tiny" value="110"/>
     <px name="ams_edit_mode_dd_w_small" value="130"/>
@@ -504,18 +505,12 @@
           <lv_obj width="1"
                   height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                   scrollable="false">
-            <!-- A multi-color spool: how its colors run. Gradient blends them
-                 along the bar; Coaxial shows them as bands. -->
+            <!-- A multi-color spool: how its colors run (set on the color
+                 page). Gradient blends them along the bar; Coaxial shows bands. -->
             <lv_obj name="colors_line"
                     width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
                     style_flex_cross_place="center" scrollable="false" hidden="true">
               <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="0"/>
-              <lv_dropdown name="dropdown_color_mode"
-                           width="#ams_edit_mode_dd_w" height="#button_height_sm" style_radius="#border_radius"
-                           options="Gradient&#10;Coaxial" options_tag="Gradient&#10;Coaxial"
-                           bind_value="ams_edit_color_mode">
-                <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>
-              </lv_dropdown>
               <swatch_paint name="color_preview_bar"
                             height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
                             bind_colors="ams_edit_color_current_multi" blend="on">
@@ -535,7 +530,7 @@
                     width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#swatch_grid_gap"
                     style_flex_cross_place="center" scrollable="false">
               <style name="color_row_pad"/>
-              <ams_edit_color_dots name="color_dots"/>
+              <ams_edit_color_dots name="color_dots" hide_add="true"/>
               <repeat count="#ams_edit_swatch_cap">
                 <color_swatch index="${i}"
                               color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"

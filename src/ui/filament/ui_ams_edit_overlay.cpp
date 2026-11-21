@@ -258,6 +258,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     working_info_ = initial_info;
     note_action_form_.reset();
     held_form_.reset();
+    color_page_open_ = false;
     api_ = api;
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
@@ -2089,11 +2090,10 @@ size_t AmsEditOverlay::recent_room() const {
     if (row_width_ <= 0) {
         return 4; // not measured yet: a phone-width row's worth
     }
-    // The dots, their "+", the recents and the rainbow tile share one row.
-    const bool editable = multi_color_editable();
-    const int dots = editable ? shown_colors() : 1;
-    const int plus = multi_color_capable() && dots < static_cast<int>(kMaxColors) ? 1 : 0;
-    const int fixed = dots + plus + 1;
+    // The dots, the recents and the rainbow tile share the lines; "+" lives on
+    // the color page.
+    const int dots = multi_color_editable() ? shown_colors() : 1;
+    const int fixed = dots + 1;
     return recents_room(row_width_, fixed, row_chip_, row_gap_, swatch_cap(), row_rows_);
 }
 
@@ -2600,11 +2600,14 @@ void AmsEditOverlay::handle_seg_tap(int index) {
         return;
     }
     if (index == selected_seg_) {
-        open_color_page();
+        if (!color_page_open_) {
+            open_color_page();
+        }
         return;
     }
     selected_seg_ = index;
     update_color_row();
+    edit_selected_on_color_page();
 }
 
 void AmsEditOverlay::handle_seg_hold(int index) {
@@ -2635,7 +2638,38 @@ void AmsEditOverlay::add_color() {
     colors.push_back(next);
     selected_seg_ = static_cast<int>(colors.size()) - 1;
     set_draft_colors(colors);
-    open_color_page();
+    if (color_page_open_) {
+        edit_selected_on_color_page();
+    } else {
+        open_color_page();
+    }
+}
+
+void AmsEditOverlay::edit_selected_on_color_page() {
+    // The open color page edits whichever color is selected now.
+    if (!color_page_open_) {
+        return;
+    }
+    const std::vector<uint32_t> colors = draft_colors();
+    const auto i = static_cast<size_t>(std::clamp(selected_seg_, 0, shown_colors() - 1));
+    if (i < colors.size()) {
+        helix::ui::get_color_picker_page().view().set_color(colors[i]);
+    }
+}
+
+void AmsEditOverlay::handle_multi_switch(bool on) {
+    // On: a second color to edit. Off: the spool keeps the color being edited.
+    std::vector<uint32_t> colors = draft_colors();
+    if (on && colors.size() < 2) {
+        add_color();
+        return;
+    }
+    if (!on && colors.size() >= 2) {
+        const auto keep = static_cast<size_t>(std::clamp(selected_seg_, 0, shown_colors() - 1));
+        selected_seg_ = 0;
+        set_draft_colors({colors[keep]});
+        edit_selected_on_color_page();
+    }
 }
 
 void AmsEditOverlay::handle_color_mode(int mode_index) {
@@ -2667,11 +2701,18 @@ void AmsEditOverlay::open_color_page() {
     const uint32_t editing = colors[static_cast<size_t>(
         std::clamp(selected_seg_, 0, (multi_color_editable() ? shown_colors() : 1) - 1))];
     // One draft: the page edits the editor's pending color (the selected one
-    // of several) live, Back keeps it, and only Save commits it.
+    // of several) live, Back keeps it, and only Save commits it. A lane that
+    // can store several colors gets the Multi-Color row on the page.
+    color_page_open_ = true;
     helix::ui::get_color_picker_page().open(
         lv_obj_get_parent(overlay_root_), editing, cfg,
         [](uint32_t rgb) { get_ams_edit_overlay().apply_color(rgb); },
-        [] { get_ams_edit_overlay().update_color_row(); });
+        [] {
+            auto& editor = get_ams_edit_overlay();
+            editor.color_page_open_ = false;
+            editor.update_color_row();
+        },
+        multi_color_capable() ? "ams_edit_multi_color" : "");
 }
 
 void AmsEditOverlay::update_color_row() {
@@ -4179,6 +4220,11 @@ void AmsEditOverlay::register_callbacks() {
              }
          }},
         {"ams_edit_add_color_cb", [](lv_event_t*) { get_ams_edit_overlay().add_color(); }},
+        {"ams_edit_multi_switch_cb",
+         [](lv_event_t* e) {
+             get_ams_edit_overlay().handle_multi_switch(
+                 lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
+         }},
         {"ams_edit_color_mode_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_color_mode(

@@ -7,7 +7,9 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
+#include "ui_color_picker_page.h"
 #include "ui_modal.h"
+#include "ui_nav_manager.h"
 
 #include "../test_helpers/ams_edit_overlay_view_access.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -662,4 +664,62 @@ TEST_CASE_METHOD(PagesFixture,
     CHECK(backend->get_slot_info(2).material == "PETG");
     CHECK(access.page() == AmsEditOverlay::kPageSummary);
     close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "Multi-Color lives on the color page the editor opens, and only there",
+                 "[ams_edit_overlay][pages][multi_color]") {
+    open(0, describe_lane(*backend, 0, "PLA"));
+    REQUIRE(access.subject_text("ams_edit_material_line").rfind("PLA", 0) == 0);
+    access.open_page(AmsEditOverlay::kPageFilament);
+    settle();
+    // The Filament strip has no "+": adding colors is the color page's.
+    CHECK_FALSE(access.shown("btn_add_color"));
+
+    access.call_open_color_page();
+    settle();
+    auto& page = helix::ui::get_color_picker_page();
+    REQUIRE(page.view().attached());
+    lv_subject_t* host = lv_xml_get_subject(nullptr, "color_picker_host_controls");
+    REQUIRE(host != nullptr);
+    CHECK(lv_subject_get_int(host) == 1);
+    lv_obj_t* sw = lv_obj_find_by_name(page.get_root(), "multi_color_switch");
+    REQUIRE(sw != nullptr);
+    CHECK_FALSE(lv_obj_has_state(sw, LV_STATE_CHECKED));
+
+    // On: a second color, and the picker edits it.
+    lv_obj_add_state(sw, LV_STATE_CHECKED);
+    lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    std::vector<uint32_t> colors = access.draft_colors();
+    REQUIRE(colors.size() == 2);
+    CHECK(page.view().color() == colors[1]);
+    // Tapping the first dot points the picker at it.
+    lv_obj_t* dots = lv_obj_find_by_name(page.get_root(), "dots");
+    REQUIRE(dots != nullptr);
+    lv_obj_send_event(lv_obj_get_child(dots, 0), LV_EVENT_CLICKED, nullptr);
+    settle();
+    CHECK(page.view().color() == colors[0]);
+    // Off: back to one color, the one being edited.
+    lv_obj_remove_state(sw, LV_STATE_CHECKED);
+    lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    CHECK(access.draft_colors() == std::vector<uint32_t>{colors[0]});
+
+    NavigationManager::instance().go_back();
+    settle();
+    process_lvgl(400);
+    close_editor_overlay();
+
+    // Any other host (LEDs, themes, Spoolman) opens the bare picker.
+    helix::ui::ColorPickerConfig cfg;
+    cfg.palette = helix::ColorPalette::Led;
+    cfg.strip = helix::ui::ColorStrip::LedRecents;
+    page.open(test_screen(), 0xFF0000, cfg, nullptr, nullptr);
+    settle();
+    CHECK(lv_subject_get_int(host) == 0);
+    CHECK(lv_obj_find_by_name(page.get_root(), "multi_color_switch") == nullptr);
+    NavigationManager::instance().go_back();
+    settle();
+    process_lvgl(400);
 }

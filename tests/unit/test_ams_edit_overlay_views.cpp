@@ -5864,7 +5864,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(subject_value("ams_edit_multi_capable") == 0);
     CHECK(subject_value("ams_edit_multi") == 0);
     CHECK(subject_value("ams_edit_seg_count") == 1);
-    CHECK(lv_obj_is_hidden(lv_obj_get_parent(access.widget("dropdown_color_mode"))));
+    CHECK(lv_obj_is_hidden(access.widget("colors_line")));
     access.call_seg_hold(0);
     access.call_color_mode(1);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
