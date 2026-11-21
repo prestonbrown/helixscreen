@@ -21,7 +21,6 @@
 
 // System includes for device access checks
 #include <algorithm>
-#include <climits>
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
@@ -36,27 +35,6 @@
 // Optional LVGL extension in some branches/builds; weak symbol allows probing at runtime.
 extern "C" void lv_linux_fbdev_set_skip_unblank(lv_display_t* disp, bool enabled)
     __attribute__((weak));
-
-namespace {
-
-using helix::is_known_touchscreen_name;
-
-/**
- * @brief Check if an input device has INPUT_PROP_DIRECT set
- *
- * Reads /sys/class/input/eventN/device/properties and tests INPUT_PROP_DIRECT,
- * which marks a device that is touched directly (a touchscreen) rather than one
- * that moves a cursor (a touchpad or pointing stick).
- *
- * @param event_num Event device number
- * @return true if INPUT_PROP_DIRECT is set
- */
-bool has_direct_input_prop(int event_num) {
-    std::string path = "/sys/class/input/event" + std::to_string(event_num) + "/device/properties";
-    return helix::parse_input_prop_direct(helix::input::read_sysfs_line(path));
-}
-
-} // anonymous namespace
 
 DisplayBackendFbdev::DisplayBackendFbdev() = default;
 
@@ -259,20 +237,52 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         return nullptr;
     }
 
-    spdlog::info("[Fbdev Backend] Creating evdev touch input on {}", touch_path);
+    if (!open_touch_device(touch_path, false)) {
+        return nullptr;
+    }
+    open_mouse_device();
+    if (mouse_ != nullptr) {
+        input_delete_watch_.watch(mouse_, &mouse_);
+    }
+    return touch_;
+}
+
+lv_indev_t* DisplayBackendFbdev::reopen_input_pointer() {
+    if (touch_ != nullptr) {
+        return touch_;
+    }
+    // The calibration wrapper went with the deleted device.
+    calibration_wrapper_installed_ = false;
+    const std::string override_path =
+        touch_device_.empty() ? helix::input::touch_device_override().path : touch_device_;
+    const auto touch_path = helix::input::find_touch_reopen_path(override_path);
+    if (!touch_path || !open_touch_device(*touch_path, true)) {
+        return nullptr;
+    }
+    spdlog::info("[Fbdev Backend] Touch device reopened on {}", *touch_path);
+    return touch_;
+}
+
+bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool reopening) {
+    // A reopen retries every second while the device is away; only its success is news.
+    spdlog::log(reopening ? spdlog::level::debug : spdlog::level::info,
+                "[Fbdev Backend] Creating evdev touch input on {}", touch_path);
 
     // LVGL's evdev driver for touch input
     touch_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path.c_str());
 
     if (touch_ == nullptr) {
-        spdlog::error("[Fbdev Backend] Failed to create evdev touch input on {}", touch_path);
-        return nullptr;
+        spdlog::log(reopening ? spdlog::level::debug : spdlog::level::err,
+                    "[Fbdev Backend] Failed to create evdev touch input on {}", touch_path);
+        return false;
     }
+    input_delete_watch_.watch(touch_, &touch_);
+    // Per device: only a transposed guess on this device sets it again below.
+    calibration_context_.reprogram_range = nullptr;
 
     // Determine if touch calibration is needed using unified logic.
     // Reads device name, phys, and capabilities from sysfs.
-    int event_num = -1;
-    sscanf(touch_path.c_str() + touch_path.rfind("event"), "event%d", &event_num);
+    const int event_num = helix::input::event_number_for_device(touch_path);
     std::string dev_name = (event_num >= 0) ? helix::input::get_input_device_name(event_num) : "";
     std::string dev_phys;
     if (event_num >= 0) {
@@ -478,8 +488,12 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
                                       : "kernel/MT-declared ABS range");
     }
 
-    // Load affine calibration from config (saved by calibration wizard)
-    calibration_ = helix::load_touch_calibration();
+    // Load affine calibration from config (saved by calibration wizard). A reopened
+    // device keeps the one already live, which a calibration this session may have
+    // replaced or cleared.
+    if (!reopening) {
+        calibration_ = helix::load_touch_calibration();
+    }
 
     // Post-#943-fix upgrade: a stored affine on a non-resistive panel whose ABS range
     // mismatches the display was computed in the wrong (unscaled) coordinate space —
@@ -488,7 +502,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     // and live ABS range are known.
     if (helix::Config* cfg = helix::Config::get_instance()) {
         bool recheck_pending = cfg->get<bool>("/input/calibration/recheck_pending", false);
-        if (recheck_pending) {
+        if (recheck_pending && !reopening) {
             bool is_resistive = helix::is_resistive_touchscreen_name(dev_name);
             bool abs_mismatch =
                 got_range && helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
@@ -538,9 +552,16 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
 
     // Always install the calibrated read callback — it handles both rotation
     // transform and affine calibration independently. Without this, rotation
-    // transform wouldn't be applied on devices that don't need affine cal.
-    helix::install_calibration_wrapper(touch_, calibration_context_, calibration_, screen_width_,
-                                       screen_height_);
+    // transform wouldn't be applied on devices that don't need affine cal. A reopened
+    // device keeps the calibration live when the old one dropped, a capture's disabled
+    // affine included.
+    if (reopening) {
+        helix::reinstall_calibration_wrapper(touch_, calibration_context_, screen_width_,
+                                             screen_height_);
+    } else {
+        helix::install_calibration_wrapper(touch_, calibration_context_, calibration_,
+                                           screen_width_, screen_height_);
+    }
     calibration_wrapper_installed_ = true;
 
     // Record the pipeline exactly as programmed above, so a debug bundle can put
@@ -601,7 +622,10 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     }
 
     spdlog::info("[Fbdev Backend] Evdev touch input created on {}", touch_path);
+    return true;
+}
 
+void DisplayBackendFbdev::open_mouse_device() {
     // Detect USB HID mouse (in addition to touchscreen)
     const char* mouse_env = std::getenv("HELIX_MOUSE_DEVICE");
     if (mouse_env && mouse_env[0] != '\0') {
@@ -634,8 +658,6 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         lv_indev_set_cursor(mouse_, cursor_obj);
         spdlog::info("[Fbdev Backend] Mouse cursor enabled");
     }
-
-    return touch_;
 }
 
 lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
@@ -665,20 +687,14 @@ lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
 }
 
 std::string DisplayBackendFbdev::auto_detect_touch_device() const {
-    // Priority 1: Environment variable override
-    const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
-    if (env_device != nullptr && strlen(env_device) > 0) {
-        spdlog::info("[Fbdev Backend] Using touch device from HELIX_TOUCH_DEVICE: {}", env_device);
-        return env_device;
+    // Priority 1 and 2: HELIX_TOUCH_DEVICE, then the config file
+    const helix::input::TouchDeviceOverride device_override = helix::input::touch_device_override();
+    if (!device_override.path.empty()) {
+        spdlog::info("[Fbdev Backend] Using touch device from {}: {}", device_override.source,
+                     device_override.path);
+        return device_override.path;
     }
-
-    // Priority 2: Config file override
     helix::Config* cfg = helix::Config::get_instance();
-    auto device_override = cfg->get<std::string>("/input/touch_device", "");
-    if (!device_override.empty()) {
-        spdlog::info("[Fbdev Backend] Using touch device from config: {}", device_override);
-        return device_override;
-    }
 
     // Check for common misconfiguration: touch_device at root or display level
     // instead of under /input/
@@ -693,80 +709,10 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
     }
 
     // Priority 3: Capability-based detection using Linux sysfs
-    // Scan /dev/input/eventN devices and check for touch capabilities
     const char* input_dir = "/dev/input";
-    DIR* dir = opendir(input_dir);
-    if (dir == nullptr) {
-        spdlog::debug("[Fbdev Backend] Cannot open {}", input_dir);
-        return "";
-    }
+    auto touch = helix::input::find_touch_device(input_dir, "/sys/class/input");
 
-    std::string best_device;
-    std::string best_name;
-    int best_score = -1;
-    int best_event_num = INT_MAX;
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // Look for eventN devices
-        if (strncmp(entry->d_name, "event", 5) != 0) {
-            continue;
-        }
-
-        // Extract event number
-        int event_num = -1;
-        if (sscanf(entry->d_name, "event%d", &event_num) != 1 || event_num < 0) {
-            continue;
-        }
-
-        std::string device_path = std::string(input_dir) + "/" + entry->d_name;
-
-        // Check if accessible
-        if (access(device_path.c_str(), R_OK) != 0) {
-            continue;
-        }
-
-        // Get device name from sysfs (do this once, before capability check)
-        std::string name = helix::input::get_input_device_name(event_num);
-
-        // Check for ABS capabilities (single-touch or multitouch)
-        helix::AbsCapabilities dev_abs_caps;
-        if (!helix::input::get_input_touch_capabilities(event_num, &dev_abs_caps)) {
-            spdlog::trace("[Fbdev Backend] {} ({}) - no touch capabilities", device_path, name);
-            continue;
-        }
-
-        // Score this candidate
-        int score = 0;
-
-        bool is_known = is_known_touchscreen_name(name);
-        if (is_known)
-            score += 2;
-
-        bool is_direct = has_direct_input_prop(event_num);
-        if (is_direct)
-            score += 2;
-
-        std::string phys = helix::input::get_input_device_phys(event_num);
-        bool is_usb = helix::is_usb_input_phys(phys);
-        if (is_usb)
-            score += 1;
-
-        spdlog::debug("[Fbdev Backend] {} ({}) score={} [known={} direct={} usb={} phys='{}']",
-                      device_path, name, score, is_known, is_direct, is_usb, phys);
-
-        // Best score wins; ties broken by lowest event number
-        if (score > best_score || (score == best_score && event_num < best_event_num)) {
-            best_device = device_path;
-            best_name = name;
-            best_score = score;
-            best_event_num = event_num;
-        }
-    }
-
-    closedir(dir);
-
-    if (best_device.empty()) {
+    if (!touch) {
         // No device with ABS_X/ABS_Y found. Fall back to first accessible event device
         // so VNC mouse input (uinput) or other pointer sources still work.
         DIR* fallback_dir = opendir(input_dir);
@@ -792,9 +738,8 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
         return "";
     }
 
-    spdlog::info("[Fbdev Backend] Selected touchscreen: {} ({}) [score={}]", best_device, best_name,
-                 best_score);
-    return best_device;
+    spdlog::info("[Fbdev Backend] Selected touchscreen: {} ({})", touch->path, touch->name);
+    return touch->path;
 }
 
 void DisplayBackendFbdev::suppress_console() {

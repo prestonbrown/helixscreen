@@ -3,9 +3,12 @@
 
 #pragma once
 
+#include "ui_timer_guard.h"
+
 #include "backlight_backend.h"
 #include "color_transform.h"
 #include "display_backend.h"
+#include "indev_delete_watch.h"
 #include "remote_screen_manager.h"
 #include "scroll_click_guard.h"
 #include "touch_calibration.h"
@@ -300,6 +303,25 @@ class DisplayManager : public helix::ICalibrationSink {
     static bool host_sleep_needs_wake(bool sleeping_via_host, int resume_seq_at_sleep,
                                       int resume_seq_now) {
         return sleeping_via_host && resume_seq_now != resume_seq_at_sleep;
+    }
+
+    /**
+     * @brief Whether LVGL deleting the touch pointer shows that panel power-off cannot
+     *        work on this panel (prestonbrown/helixscreen#2069). Pure.
+     *
+     * A panel whose touch controller is powered from the panel board drops it off
+     * the bus when the panel is powered down, and it comes back only when the panel
+     * is powered on. Touch is then the one wake path that cannot work. A pointer
+     * lost while asleep under panel power-off therefore wakes the display so the
+     * device can return, and the panel sleeps another way for the rest of the
+     * session, or every sleep would end the same way. That holds even when the user
+     * chose power-off through /display/panel_power_off: on this panel it cannot work.
+     *
+     * @param sleeping  The display is asleep
+     * @param mechanism How the current (or last) sleep cut the panel
+     */
+    static bool pointer_loss_ends_power_off(bool sleeping, SleepMechanism mechanism) {
+        return sleeping && mechanism == SleepMechanism::PanelPowerOff;
     }
 
     /**
@@ -683,6 +705,16 @@ class DisplayManager : public helix::ICalibrationSink {
     lv_indev_t* m_pointer = nullptr;
     lv_indev_t* m_keyboard = nullptr;
     lv_group_t* m_input_group = nullptr;
+    // Clears m_pointer/m_keyboard the moment LVGL deletes the indev underneath
+    // them - lv_evdev on an unplugged panel's ENODEV, or lv_deinit() at
+    // shutdown - so a later swap or read never reaches a freed device through
+    // either member.
+    helix::IndevDeleteWatch m_indev_delete_watch;
+    // Armed while the pointer device is gone, retrying the backend's reopen
+    // every kPointerReopenPeriodMs (#2069). Its callback dereferences this
+    // manager, so it must not outlive it.
+    helix::ui::LvglTimerGuard m_pointer_reopen_timer;
+    static constexpr uint32_t kPointerReopenPeriodMs = 1000;
 
     // Backlight control
     std::unique_ptr<BacklightBackend> m_backlight;
@@ -723,6 +755,11 @@ class DisplayManager : public helix::ICalibrationSink {
     // OFF, idle entry powers the panel off instead of painting a software overlay
     // (#1049). Falls back to the overlay when no backend supports power-off.
     bool m_use_power_off = false;
+    // /display/panel_power_off is set rather than automatic, which the warning for a
+    // touch device lost at power-off names.
+    bool m_power_off_explicit = false;
+    // The next wake ends panel power-off for this session: touch was lost under it.
+    bool m_stop_power_off_on_wake = false;
     bool m_sleep_backlight_off = true; // Whether to power off backlight during sleep
     lv_obj_t* m_sleep_overlay = nullptr;
 
@@ -842,6 +879,28 @@ class DisplayManager : public helix::ICalibrationSink {
     /// a freshly created m_pointer. init() and rebuild_input_after_backend_swap()
     /// both call it, so the two paths set the pointer up identically.
     void configure_pointer(int scroll_throw, int scroll_limit);
+
+    /// Registers m_pointer/m_keyboard with m_indev_delete_watch. init() and
+    /// rebuild_input_after_backend_swap() both call these right after
+    /// creating the device, so the two paths watch it identically.
+    void watch_pointer();
+    void watch_keyboard();
+
+    /// m_indev_delete_watch's callback for m_pointer: starts the reopen retry,
+    /// except while shutting down, when lv_deinit() is deleting every indev.
+    static void on_pointer_deleted(void* ctx, const lv_indev_t* indev);
+    /// LVGL deleted the touch pointer. Under panel power-off that asks for a wake, so the
+    /// panel powers on and a touch controller it powers can return, and the wake ends
+    /// power-off for the session (pointer_loss_ends_power_off()).
+    /// m_power_off_explicit only words the warning.
+    void note_pointer_lost();
+    /// One reopen attempt; on success adopts the device with init()'s pointer
+    /// setup and stops the retry. Named so a test can run it directly.
+    static void pointer_reopen_tick(lv_timer_t* t);
+
+    /// The debug-touch ripple tick. Reads the pointer through instance() on
+    /// every tick, so a device LVGL deleted is never read.
+    static void debug_touch_tick(lv_timer_t* t);
 
     /// The single assignment behind instance(): init() publishes this manager
     /// through it, shutdown() clears it.

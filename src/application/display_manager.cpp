@@ -449,12 +449,14 @@ bool DisplayManager::init(const Config& config) {
 
     // Configure scroll behavior and sleep-aware wrapper
     if (m_pointer) {
+        watch_pointer();
         configure_pointer(config.scroll_throw, config.scroll_limit);
     }
 
     // Create keyboard input device (optional)
     m_keyboard = m_backend->create_input_keyboard();
     if (m_keyboard) {
+        watch_keyboard();
         setup_keyboard_group();
         spdlog::trace("[DisplayManager] Physical keyboard input enabled");
     }
@@ -494,6 +496,7 @@ bool DisplayManager::init(const Config& config) {
     {
         int power_off_override =
             helix::Config::get_instance()->get<int>("/display/panel_power_off", -1);
+        m_power_off_explicit = power_off_override >= 0;
         if (power_off_override >= 0) {
             m_use_power_off = (power_off_override != 0) && backend_can_power_off;
             spdlog::info("[DisplayManager] Display power-off: {} (config override)",
@@ -557,42 +560,7 @@ bool DisplayManager::init(const Config& config) {
     // Timer runs unconditionally; flag is checked inside so the Settings
     // toggle takes effect without a restart.
     if (m_pointer) {
-        lv_timer_create(
-            [](lv_timer_t* t) {
-                if (!RuntimeConfig::debug_touches())
-                    return;
-
-                // Suppress while the touch-calibration UI is active: it draws
-                // its own (correct) ripple, and during point capture affine is
-                // disabled — so lv_indev_get_point() returns RAW coords and this
-                // would draw a Y-inverted ripple, which looks like a calibration
-                // bug but isn't (prestonbrown/helixscreen#943).
-                auto* cal_dm = DisplayManager::instance();
-                if (cal_dm && cal_dm->is_touch_calibration_active())
-                    return;
-
-                auto* indev = static_cast<lv_indev_t*>(lv_timer_get_user_data(t));
-                if (!indev)
-                    return;
-
-                lv_indev_state_t state = lv_indev_get_state(indev);
-                if (state != LV_INDEV_STATE_PRESSED)
-                    return;
-
-                lv_point_t point;
-                lv_indev_get_point(indev, &point);
-
-                static lv_coord_t last_x = -100, last_y = -100;
-                lv_coord_t dx = point.x - last_x;
-                lv_coord_t dy = point.y - last_y;
-                if (dx * dx + dy * dy < 25) // <5px movement
-                    return;
-
-                last_x = point.x;
-                last_y = point.y;
-                helix::ui::create_ripple(lv_layer_top(), point.x, point.y, 10, 40, 300);
-            },
-            30, m_pointer);
+        lv_timer_create(&DisplayManager::debug_touch_tick, 30, nullptr);
     }
 
     spdlog::trace("[DisplayManager] Initialized: {}x{}", m_width, m_height);
@@ -673,12 +641,14 @@ void DisplayManager::shutdown() {
     m_sleep_overlay = nullptr;
     m_use_hardware_blank = false;
     m_use_power_off = false;
+    m_stop_power_off_on_wake = false;
     // Back to the startup truth (#1245): SDL re-asserts FLAG_KEEP_SCREEN_ON the
     // next time it initializes video, so a re-init must not think we still owe
     // Android a release.
     m_last_sleep_mechanism = SleepMechanism::SoftwareOverlay;
     m_keep_screen_on = true;
     m_resume_seq_at_sleep = 0;
+    m_pointer_reopen_timer.reset();
 
     // Release backends
     m_backlight.reset();
@@ -737,6 +707,119 @@ void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
     spdlog::trace("[DisplayManager] Scroll config: throw={}, limit={}", scroll_throw, scroll_limit);
 }
 
+void DisplayManager::watch_pointer() {
+    m_indev_delete_watch.watch(m_pointer, &m_pointer, &DisplayManager::on_pointer_deleted, this);
+}
+
+void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) {
+    auto* dm = static_cast<DisplayManager*>(ctx);
+    if (dm->m_shutting_down || !dm->m_backend) {
+        return;
+    }
+    // Before the retry: a panel that powers its touch controller has to be lit for the
+    // device to come back at all.
+    dm->note_pointer_lost();
+    if (dm->m_pointer_reopen_timer.get()) {
+        return;
+    }
+    if (!dm->m_backend->can_reopen_input_pointer()) {
+        spdlog::warn("[DisplayManager] Pointer device removed; the {} backend cannot reopen it",
+                     dm->m_backend->name());
+        return;
+    }
+    // A USB touch controller that resets drops off the bus and re-enumerates a
+    // few seconds later; lv_evdev has already deleted the device it read.
+    spdlog::warn("[DisplayManager] Pointer device removed; retrying every {} ms until it returns",
+                 kPointerReopenPeriodMs);
+    dm->m_pointer_reopen_timer.reset(
+        lv_timer_create(&DisplayManager::pointer_reopen_tick, kPointerReopenPeriodMs, dm));
+}
+
+void DisplayManager::note_pointer_lost() {
+    if (!pointer_loss_ends_power_off(m_display_sleeping, m_last_sleep_mechanism)) {
+        return;
+    }
+    // The next tick wakes, as for a touch: the panel powers on and the touch device can
+    // come back for the pointer reopen.
+    m_wake_requested = true;
+    if (m_stop_power_off_on_wake) {
+        return;
+    }
+    m_stop_power_off_on_wake = true;
+    if (m_power_off_explicit) {
+        spdlog::warn("[DisplayManager] Touch device lost while the panel was powered off: its "
+                     "touch controller drops when the panel powers off. Waking, and "
+                     "overriding /display/panel_power_off for this session; set it to 0 in "
+                     "settings.json to stop powering the panel off");
+    } else {
+        spdlog::warn("[DisplayManager] Touch device lost while the panel was powered off; "
+                     "waking, and panel power-off is disabled for this session. Set "
+                     "/display/panel_power_off to 0 in settings.json to make it permanent");
+    }
+}
+
+void DisplayManager::pointer_reopen_tick(lv_timer_t* t) {
+    auto* dm = static_cast<DisplayManager*>(lv_timer_get_user_data(t));
+    if (!dm->m_backend || dm->m_pointer) {
+        dm->m_pointer_reopen_timer.reset();
+        return;
+    }
+    lv_indev_t* pointer = dm->m_backend->reopen_input_pointer();
+    if (!pointer) {
+        return;
+    }
+    dm->m_pointer_reopen_timer.reset();
+    dm->m_pointer = pointer;
+    dm->watch_pointer();
+    dm->configure_pointer(dm->m_scroll_throw, dm->m_scroll_limit);
+    spdlog::info("[DisplayManager] Pointer device reopened");
+}
+
+void DisplayManager::watch_keyboard() {
+    m_indev_delete_watch.watch(m_keyboard, &m_keyboard);
+}
+
+void DisplayManager::debug_touch_tick(lv_timer_t* /*t*/) {
+    if (!RuntimeConfig::debug_touches())
+        return;
+
+    auto* dm = DisplayManager::instance();
+    if (!dm)
+        return;
+
+    // Suppress while the touch-calibration UI is active: it draws its own
+    // (correct) ripple, and during point capture affine is disabled — so
+    // lv_indev_get_point() returns RAW coords and this would draw a Y-inverted
+    // ripple, which looks like a calibration bug but isn't
+    // (prestonbrown/helixscreen#943).
+    if (dm->is_touch_calibration_active())
+        return;
+
+    // Read the current pointer through the manager rather than a copy captured
+    // at timer-creation time, so an unplug (which clears m_pointer) is seen here
+    // too instead of reading a freed indev.
+    lv_indev_t* indev = dm->m_pointer;
+    if (!indev)
+        return;
+
+    lv_indev_state_t state = lv_indev_get_state(indev);
+    if (state != LV_INDEV_STATE_PRESSED)
+        return;
+
+    lv_point_t point;
+    lv_indev_get_point(indev, &point);
+
+    static lv_coord_t last_x = -100, last_y = -100;
+    lv_coord_t dx = point.x - last_x;
+    lv_coord_t dy = point.y - last_y;
+    if (dx * dx + dy * dy < 25) // <5px movement
+        return;
+
+    last_x = point.x;
+    last_y = point.y;
+    helix::ui::create_ripple(lv_layer_top(), point.x, point.y, 10, 40, 300);
+}
+
 void DisplayManager::configure_pointer(int scroll_throw, int scroll_limit) {
     configure_scroll(scroll_throw, scroll_limit);
     // Long-press threshold — user-configurable global setting (#1245), default
@@ -780,7 +863,9 @@ void DisplayManager::rebuild_input_after_backend_swap() {
     // point at indevs bound to the gone backend, whose read_cb/user_data now
     // reference freed memory. Delete them and recreate on the current backend,
     // mirroring init()'s input setup so scroll/long-press/sleep-wrapper/keyboard
-    // behavior is preserved.
+    // behavior is preserved. The deletes below are this swap's own, not a device
+    // LVGL lost, so the delete watch lets go of both devices first.
+    m_indev_delete_watch.forget_all();
     if (m_pointer) {
         lv_indev_delete(m_pointer); // NOTE: swap, not shutdown
         m_pointer = nullptr;
@@ -795,11 +880,13 @@ void DisplayManager::rebuild_input_after_backend_swap() {
 
     m_pointer = m_backend->create_input_pointer();
     if (m_pointer) {
+        watch_pointer();
         configure_pointer(m_scroll_throw, m_scroll_limit);
     }
 
     m_keyboard = m_backend->create_input_keyboard();
     if (m_keyboard) {
+        watch_keyboard();
         setup_keyboard_group();
     }
 
@@ -1239,6 +1326,12 @@ void DisplayManager::restore_display_output() {
     } else {
         // Software path: remove the black overlay (no FBIOBLANK to undo).
         destroy_sleep_overlay();
+    }
+
+    // Only after the power-on above: the panel this wake brings back was powered off.
+    if (m_stop_power_off_on_wake) {
+        m_stop_power_off_on_wake = false;
+        m_use_power_off = false;
     }
 }
 

@@ -26,6 +26,21 @@ class DisplayManagerTestAccess {
         dm.m_use_power_off = use_power_off;
     }
 
+    // init() sets this when /display/panel_power_off is present in the config.
+    static void set_power_off_explicit(DisplayManager& dm, bool power_off_explicit) {
+        dm.m_power_off_explicit = power_off_explicit;
+    }
+
+    // Hands the manager a pointer device without a backend creating it.
+    static void set_pointer(DisplayManager& dm, lv_indev_t* pointer) {
+        dm.m_pointer = pointer;
+    }
+
+    // Registers m_pointer with the delete watch init() installs.
+    static void watch_pointer(DisplayManager& dm) {
+        dm.watch_pointer();
+    }
+
     /// The size width()/height() report while no lv_display_t is attached.
     static void set_size(DisplayManager& dm, int width, int height) {
         dm.m_width = width;
@@ -94,7 +109,30 @@ class DisplayManagerTestAccess {
     // installs the sleep-aware wrapper on every backend but SDL.
     static void create_input_devices(DisplayManager& dm) {
         dm.m_pointer = dm.m_backend->create_input_pointer();
+        dm.watch_pointer();
         dm.configure_pointer(25, 10);
+    }
+
+    // Whether a deleted pointer is waiting to be reopened (#2069).
+    static bool pointer_reopen_pending(const DisplayManager& dm) {
+        return dm.m_pointer_reopen_timer.get() != nullptr;
+    }
+
+    // Runs one retry of the pending pointer reopen directly, without going
+    // through lv_timer_handler(), which would also run every other timer.
+    static void run_pointer_reopen_tick(DisplayManager& dm) {
+        DisplayManager::pointer_reopen_tick(dm.m_pointer_reopen_timer.get());
+    }
+
+    // Whether m_pointer reads through the sleep-aware wrapper init() installs.
+    static bool pointer_is_sleep_wrapped(const DisplayManager& dm) {
+        return dm.m_pointer != nullptr &&
+               lv_indev_get_read_cb(dm.m_pointer) == &DisplayManager::sleep_aware_read_cb;
+    }
+
+    // shutdown() sets this before lv_deinit() deletes every remaining indev.
+    static void set_shutting_down(DisplayManager& dm, bool shutting_down) {
+        dm.m_shutting_down = shutting_down;
     }
 
 #ifdef HELIX_ENABLE_SCREENSAVER

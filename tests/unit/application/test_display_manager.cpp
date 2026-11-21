@@ -15,6 +15,8 @@
 #include "config.h"
 #include "data_root_resolver.h"
 #include "display_manager.h"
+#include "lib/lvgl/src/indev/lv_indev_private.h"
+#include "test_helpers/display_manager_test_access.h"
 
 #include <filesystem>
 #include <fstream>
@@ -476,4 +478,165 @@ TEST_CASE("sleep_backlight_off config controls backlight behavior during sleep",
     REQUIRE(config2.get<bool>("/display/sleep_backlight_off", true) == true);
 
     fs::remove_all(tmp_dir);
+}
+
+// ============================================================================
+// Indev Delete Watch (unplug / lv_deinit safety)
+// ============================================================================
+
+namespace {
+
+/// Creates a real (non-mocked) lv_indev_t via lv_indev_create(), so deleting
+/// it fires the same LV_EVENT_DELETE a real evdev/libinput device's own
+/// ENODEV self-delete does.
+class MockPointerBackend : public DisplayBackend {
+  public:
+    lv_display_t* create_display(int, int) override {
+        return nullptr;
+    }
+    lv_indev_t* create_input_pointer() override {
+        lv_indev_t* indev = lv_indev_create();
+        lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+        lv_indev_set_read_cb(indev, [](lv_indev_t*, lv_indev_data_t* data) {
+            data->state = LV_INDEV_STATE_RELEASED;
+        });
+        return indev;
+    }
+    DisplayBackendType type() const override {
+        return DisplayBackendType::SDL;
+    }
+    const char* name() const override {
+        return "MockPointerBackend";
+    }
+    bool is_available() const override {
+        return true;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager clears its own pointer when LVGL deletes the device",
+                 "[application][display][indev]") {
+    DisplayManager mgr;
+    DisplayManagerTestAccess::set_backend(mgr, std::make_unique<MockPointerBackend>());
+
+    DisplayManagerTestAccess::rebuild_input_after_backend_swap(mgr);
+    lv_indev_t* pointer = mgr.pointer_input();
+    REQUIRE(pointer != nullptr);
+
+    // lv_evdev deletes its own device when a read fails, as it does on unplug.
+    lv_indev_delete(pointer);
+
+    CHECK(mgr.pointer_input() == nullptr);
+}
+
+namespace {
+
+/// A DRM backend whose touch panel can come back after LVGL deleted it, as a
+/// USB controller does when it re-enumerates (prestonbrown/helixscreen#2069).
+/// DRM so the manager installs its sleep-aware wrapper, which it skips on SDL.
+class ReopeningPointerBackend : public MockPointerBackend {
+  public:
+    DisplayBackendType type() const override {
+        return DisplayBackendType::DRM;
+    }
+    lv_indev_t* reopen_input_pointer() override {
+        ++reopen_calls;
+        if (!device_present) {
+            return nullptr;
+        }
+        return create_input_pointer();
+    }
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
+
+    bool device_present = false;
+    int reopen_calls = 0;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager reopens the pointer once a deleted device comes back",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    auto backend_owner = std::make_unique<ReopeningPointerBackend>();
+    ReopeningPointerBackend* backend = backend_owner.get();
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend_owner));
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    // lv_evdev deletes its own device when the controller drops off the bus.
+    lv_indev_delete(mgr.pointer_input());
+    REQUIRE(mgr.pointer_input() == nullptr);
+    REQUIRE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    // Still re-enumerating: the retry keeps going.
+    DisplayManagerTestAccess::run_pointer_reopen_tick(mgr);
+    CHECK(backend->reopen_calls == 1);
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    backend->device_present = true;
+    DisplayManagerTestAccess::run_pointer_reopen_tick(mgr);
+    CHECK(backend->reopen_calls == 2);
+    lv_indev_t* reopened = mgr.pointer_input();
+    REQUIRE(reopened != nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+    // The new device gets init()'s pointer setup, sleep-aware wrapper included.
+    CHECK(DisplayManagerTestAccess::pointer_is_sleep_wrapped(mgr));
+    // create_input_devices() set a scroll throw of 25; LVGL's own default is 10.
+    CHECK(reopened->scroll_throw == 25);
+
+    // And it is watched like the first, so a second drop retries again.
+    lv_indev_delete(reopened);
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+}
+
+namespace {
+
+/// A DRM-type backend that keeps the base class's answer: no reopen.
+class NonReopeningDrmBackend : public MockPointerBackend {
+  public:
+    DisplayBackendType type() const override {
+        return DisplayBackendType::DRM;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager arms no pointer retry on a backend that cannot reopen it",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    auto backend = std::make_unique<NonReopeningDrmBackend>();
+    REQUIRE_FALSE(backend->can_reopen_input_pointer());
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend));
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+
+    lv_indev_delete(mgr.pointer_input());
+
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+}
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager does not retry a pointer deleted during shutdown",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    DisplayManagerTestAccess::set_backend(mgr, std::make_unique<ReopeningPointerBackend>());
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() != nullptr);
+
+    // lv_deinit() deletes every indev while the manager shuts down.
+    DisplayManagerTestAccess::set_shutting_down(mgr, true);
+    lv_indev_delete(mgr.pointer_input());
+
+    CHECK(mgr.pointer_input() == nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
 }

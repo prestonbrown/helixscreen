@@ -11,6 +11,7 @@
 #ifdef HELIX_DISPLAY_DRM
 
 #include "display_backend.h"
+#include "indev_delete_watch.h"
 #include "touch_calibration_wrapper.h"
 
 #include <string>
@@ -62,6 +63,10 @@ class DisplayBackendDRM : public DisplayBackend {
 
     // Input device creation
     lv_indev_t* create_input_pointer() override;
+    lv_indev_t* reopen_input_pointer() override;
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
     lv_indev_t* create_input_keyboard() override;
 
     // Display rotation via DRM plane property
@@ -140,11 +145,24 @@ class DisplayBackendDRM : public DisplayBackend {
     /// connected connector. on=true powers on, on=false powers off (#1049).
     bool set_connector_dpms(bool on);
 
+    /// Opens pointer_ on the touch panel. A reopen tries only an explicit
+    /// override or a discovered touch panel, never the blind fallbacks, and logs
+    /// its misses at debug. Returns true when an explicit override decided the
+    /// device, which skips mouse detection.
+    bool open_touch_device(bool reopening);
+    void open_mouse_device();
+
     std::string drm_device_;
     lv_display_t* display_ = nullptr;
     lv_indev_t* pointer_ = nullptr;
     lv_indev_t* mouse_ = nullptr;
     lv_indev_t* keyboard_ = nullptr;
+    /// The node pointer_ was opened on, for the reopen log.
+    std::string pointer_path_;
+    /// Clears pointer_/mouse_ when LVGL deletes the device, as lv_evdev does when a
+    /// USB touch controller drops off the bus, so a reopen and the destructor
+    /// never reach a freed device.
+    helix::IndevDeleteWatch input_delete_watch_;
     int tty_fd_ = -1;        ///< TTY fd for KD_GRAPHICS console suppression
     bool using_egl_ = false; ///< Track if GPU-accelerated path is active
     helix::TouchCalibration calibration_;
