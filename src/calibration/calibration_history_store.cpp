@@ -74,14 +74,15 @@ std::optional<History> history_from_json(const json& j) {
     History out;
     for (const auto& [id, e] : steps->items()) {
         if (!e.is_object()) {
-            return std::nullopt;
+            continue;
         }
         const json* date = json_util::find_member(e, "date");
         const json* summary = json_util::find_member(e, "summary");
         const json* values = json_util::find_member(e, "values");
         if (!date || !date->is_string() || !parse_iso_date(date->get<std::string>()) || !summary ||
             !summary->is_string() || !values || !values->is_object()) {
-            return std::nullopt;
+            spdlog::warn("[CalibrationHistory] Dropping a malformed '{}' entry", id);
+            continue;
         }
         out[id] = HistoryEntry{date->get<std::string>(), summary->get<std::string>(), *values};
     }
@@ -95,7 +96,6 @@ CalibrationHistory& CalibrationHistory::instance() {
 
 void CalibrationHistory::load(IMoonrakerAPI& api) {
     const uint64_t gen = ++generation_;
-    loading_ = true;
     IMoonrakerAPI* apip = &api;
     api.database_get_item(
         kHistoryDbNamespace, kHistoryDbKey,
@@ -104,21 +104,33 @@ void CalibrationHistory::load(IMoonrakerAPI& api) {
                             if (gen != generation_) {
                                 return;
                             }
-                            merge_loaded(*apip, history_from_json(value));
+                            auto loaded = history_from_json(value);
+                            if (!loaded) {
+                                spdlog::warn("[CalibrationHistory] The stored history is not one "
+                                             "this version reads; leaving it as it is");
+                                return;
+                            }
+                            merge_loaded(*apip, std::move(*loaded));
                         }),
         lifetime_.bg_cb("CalibrationHistory::load_none",
                         [this, gen, apip](const MoonrakerError& err) {
                             if (gen != generation_) {
                                 return;
                             }
-                            spdlog::debug("[CalibrationHistory] No saved history: {}", err.message);
-                            merge_loaded(*apip, std::nullopt);
+                            if (!err.is_not_found()) {
+                                spdlog::warn("[CalibrationHistory] Could not read the history, "
+                                             "holding new results until it loads: {}",
+                                             err.message);
+                                return;
+                            }
+                            spdlog::debug("[CalibrationHistory] No saved history yet");
+                            merge_loaded(*apip, History{});
                         }));
 }
 
-void CalibrationHistory::merge_loaded(IMoonrakerAPI& api, std::optional<History> loaded) {
-    loading_ = false;
-    history_ = loaded ? std::move(*loaded) : History{};
+void CalibrationHistory::merge_loaded(IMoonrakerAPI& api, History loaded) {
+    loaded_ = true;
+    history_ = std::move(loaded);
     spdlog::debug("[CalibrationHistory] Loaded {} step result(s)", history_.size());
     if (pending_.empty()) {
         return;
@@ -135,8 +147,9 @@ void CalibrationHistory::record(IMoonrakerAPI& api, const std::string& step_id,
     HistoryEntry e{iso_date(std::time(nullptr)), summary,
                    values.is_object() ? values : json::object()};
     history_[step_id] = e;
-    if (loading_) {
-        // Writing now would replace the stored history with this one entry.
+    if (!loaded_) {
+        // Writing before a load succeeds would replace the stored history
+        // with this one entry.
         pending_[step_id] = std::move(e);
         return;
     }
@@ -152,7 +165,7 @@ void CalibrationHistory::save(IMoonrakerAPI& api) {
 
 void CalibrationHistory::clear() {
     ++generation_;
-    loading_ = false;
+    loaded_ = false;
     history_.clear();
     pending_.clear();
 }

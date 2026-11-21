@@ -51,9 +51,10 @@ class DatabaseAPI : public MoonrakerAPI {
         }
     }
     void answer() {
-        if (missing) {
+        if (missing || failing) {
             MoonrakerError err;
-            err.message = "Key not found";
+            err.code = missing ? 404 : -32603;
+            err.message = missing ? "Key not found" : "Database unavailable";
             pending_error(err);
         } else {
             pending_success(stored);
@@ -61,6 +62,7 @@ class DatabaseAPI : public MoonrakerAPI {
     }
     json stored;
     bool missing = false;
+    bool failing = false;
     bool answer_at_once = true;
     std::string asked;
     std::string posted;
@@ -89,27 +91,34 @@ TEST_CASE("a saved calibration history reads back as it was", "[calibration_hist
     CHECK(history_from_json(history_to_json(History{}))->empty());
 }
 
-TEST_CASE("a damaged or foreign calibration history reads as none", "[calibration_history]") {
-    const auto bad = [](void (*damage)(json&)) {
+TEST_CASE("a foreign calibration history reads as none, a damaged entry as missing",
+          "[calibration_history]") {
+    const auto read = [](void (*damage)(json&)) {
         auto j = history_to_json(sample_history());
         damage(j);
-        return !history_from_json(j).has_value();
+        return history_from_json(j);
     };
-    CHECK(bad([](json& j) { j["version"] = 2; }));
-    CHECK(bad([](json& j) { j.erase("version"); }));
-    CHECK(bad([](json& j) { j["version"] = "1"; }));
-    CHECK(bad([](json& j) { j.erase("steps"); }));
-    CHECK(bad([](json& j) { j["steps"] = json::array(); }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"] = "done"; }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"].erase("date"); }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"]["date"] = 20261120; }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"]["date"] = "yesterday"; }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"].erase("summary"); }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"]["summary"] = 1.2; }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"].erase("values"); }));
-    CHECK(bad([](json& j) { j["steps"]["z_offset"]["values"] = json::array({1}); }));
+    CHECK_FALSE(read([](json& j) { j["version"] = 2; }).has_value());
+    CHECK_FALSE(read([](json& j) { j.erase("version"); }).has_value());
+    CHECK_FALSE(read([](json& j) { j["version"] = "1"; }).has_value());
+    CHECK_FALSE(read([](json& j) { j.erase("steps"); }).has_value());
+    CHECK_FALSE(read([](json& j) { j["steps"] = json::array(); }).has_value());
     CHECK_FALSE(history_from_json(json::array()).has_value());
     CHECK_FALSE(history_from_json(json()).has_value());
+
+    // Only the damaged entry goes; input_shaper survives each.
+    const auto only_shaper = [&](void (*damage)(json&)) {
+        const auto h = read(damage);
+        return h && h->size() == 1 && h->count("input_shaper") == 1;
+    };
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"] = "done"; }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"].erase("date"); }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"]["date"] = 20261120; }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"]["date"] = "yesterday"; }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"].erase("summary"); }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"]["summary"] = 1.2; }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"].erase("values"); }));
+    CHECK(only_shaper([](json& j) { j["steps"]["z_offset"]["values"] = json::array({1}); }));
 }
 
 TEST_CASE("only a real calendar date in YYYY-MM-DD form is a history date",
@@ -163,16 +172,46 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(saved->at("bed_mesh").date == iso_date(std::time(nullptr)));
     CHECK(saved->at("bed_mesh").values["range"].get<double>() == Catch::Approx(0.18));
 
-    api.stored = json{{"version", 1}};
-    history.load(api);
-    drain();
-    CHECK(history.entries().empty());
-
     api.missing = true;
-    history.record(api, "heaters", "MPC", json::object());
+    history.clear();
     history.load(api);
     drain();
     CHECK(history.entries().empty());
+    history.record(api, "heaters", "MPC", json::object());
+    CHECK(history_from_json(api.stored)->size() == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a history that will not load is never overwritten by a new result",
+                 "[calibration_history]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    DatabaseAPI api(client, state);
+    CalibrationHistory history;
+    const json stored = history_to_json(sample_history());
+
+    SECTION("a read error") {
+        api.stored = stored;
+        api.failing = true;
+    }
+    SECTION("a document from a newer version") {
+        api.stored = stored;
+        api.stored["version"] = 2;
+    }
+    history.load(api);
+    drain();
+    history.record(api, "bed_mesh", "0.18 mm range", json::object());
+    CHECK(api.posts == 0);
+    CHECK(history.entry("bed_mesh") != nullptr);
+
+    // The next load that reads it merges the held result in.
+    api.failing = false;
+    api.stored = stored;
+    history.load(api);
+    drain();
+    REQUIRE(api.posts == 1);
+    CHECK(history_from_json(api.stored)->size() == 3);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "a result recorded while the history loads keeps the stored ones",
@@ -249,7 +288,6 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
           "[calibration_history]") {
     const json settings = {
         {"probe", {{"z_offset", -1.25}, {"x_offset", 0.0}}},
-        {"stepper_z", {{"position_endstop", 0.5}}},
         {"extruder", {{"control", "pid"}, {"pid_kp", 22.0}}},
         {"bed_mesh", {{"probe_count", json::array({5, 5})}}},
         {"bed_mesh hot", {{"version", 1}}},
@@ -267,10 +305,15 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
     CHECK(r.at("bed_mesh") == "profile default");
     CHECK(r.at("input_shaper") == "MZV 36.7 · EI 47.6 Hz");
 
-    SECTION("without a probe, Z offset is stepper_z's endstop") {
+    SECTION("a z_offset of 0 is a stock config, not a tune") {
         json s = settings;
-        s.erase("probe");
-        CHECK(results_in_config(s).at("z_offset") == "0.500 mm");
+        s["probe"]["z_offset"] = 0.0;
+        CHECK(results_in_config(s).count("z_offset") == 0);
+    }
+    SECTION("a probe-type section without an offset does not hide the probe") {
+        json s = settings;
+        s["inductance_coil e0"] = {{"x_offset", 0.0}};
+        CHECK(results_in_config(s).at("z_offset") == "-1.250 mm");
     }
     SECTION("BTT Eddy keeps z_offset in its probe_eddy_current section") {
         json s = settings;

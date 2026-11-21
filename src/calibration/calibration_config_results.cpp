@@ -61,19 +61,18 @@ const json* model_offset(const json& settings, const ModelOffsetRow& row) {
                      row.offset_option);
 }
 
-// The probe's z_offset (from its model, for a probe with one), else stepper_z's
-// position_endstop. Klipper allows one Z probe, so the endstop is read only
-// without a probe.
+// The Z probe's offset, from its model for a probe with one. Klipper requires
+// z_offset on most probes, so 0, the value a stock config starts from, counts
+// as untuned. A probe-type section with no offset of its own does not hide
+// the next one.
 void z_offset(const json& settings, ConfigResults& out) {
     static const json kNameOnly = json::object();
-    const json* value = nullptr;
-    bool has_probe = false;
     for (const auto& [name, body] : settings.items()) {
         if (!body.is_object() ||
             hw::classify_section(name, kNameOnly).kind != hw::ObjectKind::Probe) {
             continue;
         }
-        has_probe = true;
+        const json* value = nullptr;
         bool modeled = false;
         for (const auto& row : kModelOffsetRows) {
             if (row.probe == name) {
@@ -84,17 +83,16 @@ void z_offset(const json& settings, ConfigResults& out) {
         if (!modeled) {
             value = number_in(&body, "z_offset");
         }
-        break;
-    }
-    if (!has_probe) {
-        value = number_in(section_of(settings, "stepper_z"), "position_endstop");
-    }
-    if (value) {
-        out["z_offset"] = fmt::format("{:.3f} mm", value->get<double>());
+        if (value && value->get<double>() != 0.0) {
+            out["z_offset"] = fmt::format("{:.3f} mm", value->get<double>());
+            return;
+        }
     }
 }
 
 // The hotend's control, when it is a tuned one: watermark has nothing to tune.
+// Klipper requires control on every heater, so a stock config shows its
+// vendor's values here.
 void heaters(const json& settings, ConfigResults& out) {
     const json* extruder = section_of(settings, "extruder");
     if (!extruder) {

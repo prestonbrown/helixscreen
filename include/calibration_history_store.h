@@ -44,7 +44,8 @@ using History = std::map<std::string, HistoryEntry>;
 [[nodiscard]] std::string iso_date(std::time_t t);
 
 [[nodiscard]] nlohmann::json history_to_json(const History& h);
-/// nullopt for a wrong version or any field of the wrong shape.
+/// nullopt for a wrong version or a document of the wrong shape; a malformed
+/// entry is dropped and the rest kept.
 [[nodiscard]] std::optional<History> history_from_json(const nlohmann::json& j);
 
 /// This printer's calibration history. Main thread only: load() and record()
@@ -53,8 +54,10 @@ class CalibrationHistory {
   public:
     static CalibrationHistory& instance();
 
-    /// Replace the cached history with the database's, or with none. A result
-    /// recorded before the answer arrives is kept and written back with it.
+    /// Replace the cached history with the database's, or with none when the
+    /// database has no entry. A result recorded before a load succeeds is kept
+    /// and written back with it; after a failed or unreadable load it waits for
+    /// the next load() rather than overwriting what is stored.
     void load(IMoonrakerAPI& api);
     /// Cache and store @p step_id's result, dated today.
     void record(IMoonrakerAPI& api, const std::string& step_id, const std::string& summary,
@@ -69,12 +72,13 @@ class CalibrationHistory {
 
   private:
     void save(IMoonrakerAPI& api);
-    void merge_loaded(IMoonrakerAPI& api, std::optional<History> loaded);
+    void merge_loaded(IMoonrakerAPI& api, History loaded);
 
     History history_;
-    /// Recorded since the last load() and not yet merged with its answer.
+    /// Recorded while no load has succeeded, not yet merged with its answer.
     History pending_;
-    bool loading_ = false;
+    /// A load() has answered with the stored history, or that there is none.
+    bool loaded_ = false;
     uint64_t generation_ = 0;
     helix::AsyncLifetimeGuard lifetime_;
 };

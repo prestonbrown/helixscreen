@@ -17,7 +17,8 @@ namespace helix::calibration {
 using ConfigResults = std::map<std::string, std::string>;
 
 /// The results in a configfile.settings object. Section names arrive
-/// lowercased. A step whose config value is only Klipper's default is absent.
+/// lowercased. A step whose value is unset, or at the value a stock config
+/// starts from, is absent; heater tuning a vendor shipped is present.
 [[nodiscard]] ConfigResults results_in_config(const nlohmann::json& settings);
 
 } // namespace helix::calibration
