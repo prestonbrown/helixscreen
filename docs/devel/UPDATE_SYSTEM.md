@@ -99,6 +99,15 @@ exporting the flag, which it does not — their lmd hook (<paxx-firmware>/etc/ho
 `HELIX_REMOTE_SCREEN_FB0`, and nothing else. Every U1 install therefore checked for updates
 and raised the update modal.
 
+The lmd hook launches the package binary through a bind mount over `/usr/bin/gui`, so
+`/proc/self/exe` names a path that leads to no install tree. `helix::u1_firmware_package_root()`
+(`include/data_root_resolver.h`) finds the package by the binary's device and inode and names it
+through `latest` when `latest` is what runs, and `helix::resolve_install_root()` falls back to
+it, so `app_get_install_root()` and the HelixPrint plugin installer find the package tree there.
+The plugin's Moonraker link goes through `latest` and survives a package upgrade. Writes into the
+install root (the release info repair, the stale `.old` cleanup, update downloads) go through
+`app_get_writable_install_root()`, which is empty for a firmware-managed install (#2136).
+
 The falsy arm is the dev-box escape hatch: `HELIX_DISABLE_AUTO_UPDATES=0` turns self-update
 back on where the platform defaults it off, from the CLI or a deploy script, without a
 rebuild. An **empty** value reads as unset rather than falsy, because `helixscreen.env` can
