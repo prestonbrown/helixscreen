@@ -139,8 +139,12 @@ TEST_CASE_METHOD(LoadedCardTapFixture, "a tap on the loaded card opens the loade
     REQUIRE(overlay.is_visible());
     lv_subject_t* view = lv_xml_get_subject(nullptr, "ams_edit_view");
     REQUIRE(view != nullptr);
-    CHECK(lv_subject_get_int(view) == (linked_id ? helix::ui::AmsEditOverlay::kViewEditor
-                                                 : helix::ui::AmsEditOverlay::kViewSpoolPicker));
+    CHECK(lv_subject_get_int(view) == helix::ui::AmsEditOverlay::kViewEditor);
+    // A linked spool opens on Edit Spool; an unlinked lane on Assign Spool, to pick one.
+    lv_subject_t* mode = lv_xml_get_subject(nullptr, "ams_edit_mode");
+    REQUIRE(mode != nullptr);
+    CHECK(lv_subject_get_int(mode) == (linked_id ? helix::ui::AmsEditOverlay::kModeEdit
+                                                 : helix::ui::AmsEditOverlay::kModeAssign));
 
     NavigationManager::instance().go_back();
     settle();
