@@ -120,6 +120,11 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
         tm.clear_queue();
     };
 
+    // The renderer and the top overlay are process-wide; set here so the session
+    // and hang events show every field they can carry, and forgotten at the end.
+    helix::telemetry_context::set_gl_renderer("llvmpipe (LLVM 15.0.6, 128 bits)");
+    helix::telemetry_context::set_top_overlay("print_file_detail");
+
     tm.record_session();
     collect();
     tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
@@ -194,7 +199,8 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     collect();
     tm.record_print_start_context("local", true, 5000000, 3600, "PrusaSlicer", 1, false);
     collect();
-    tm.record_error("moonraker_api", "timeout", "get_printer_objects");
+    // error_encountered's richest shape: a hang adds the screen and renderer.
+    tm.record_main_loop_hang(92000);
     collect();
     fx.write_file(
         "crash.txt",
@@ -216,5 +222,8 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
         "map:00400000-00500000 r-xp 00000000 00:00 0 /opt/helixscreen/bin/helix-screen\n");
     tm.check_previous_crash();
     collect();
+
+    helix::telemetry_context::set_gl_renderer(nullptr);
+    helix::telemetry_context::set_top_overlay("");
     return by_name;
 }

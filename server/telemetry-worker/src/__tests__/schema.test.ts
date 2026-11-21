@@ -102,6 +102,8 @@ describe("POINT_KINDS table", () => {
           "uptime_sec": "double1",
         },
         "error_encountered": {
+          "active_overlay": "blob16",
+          "active_panel": "double9",
           "app_board": "blob13",
           "app_platform": "blob3",
           "app_version": "blob2",
@@ -109,6 +111,8 @@ describe("POINT_KINDS table", () => {
           "code": "blob5",
           "context": "blob6",
           "device_id": "blob1",
+          "gl_renderer": "blob14",
+          "gl_software": "blob15",
           "uptime_sec": "double1",
         },
         "feature_adoption": {
@@ -273,6 +277,10 @@ describe("POINT_KINDS table", () => {
           "device_id": "blob1",
           "display": "blob6",
           "extruder_count": "double3",
+          "gcode_render_mode": "blob17",
+          "gl_renderer": "blob15",
+          "gl_software": "blob16",
+          "gpu_3d_blocked": "blob18",
           "host_mod": "blob14",
           "install_source": "blob13",
           "kinematics": "blob5",

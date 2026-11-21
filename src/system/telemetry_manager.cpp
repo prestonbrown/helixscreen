@@ -17,6 +17,7 @@
 #include "display_manager.h"
 #include "display_settings_manager.h"
 #include "filament_sensor_manager.h"
+#include "gcode_gl_fallback.h"
 #include "helix_thread.h"
 #include "host_identity.h"
 #include "hv/requests.h"
@@ -191,7 +192,103 @@ namespace telemetry_context {
 std::atomic<int> print_state_int{-1};
 std::atomic<int> active_panel_int{-1};
 std::atomic<bool> gcode_renderer_loaded{false};
+
+namespace {
+// Strings cannot be atomics; one lock guards both. Writers hold it for a
+// string copy, so a reader on the monitor thread never waits on a wedged main
+// thread. Never destroyed: NavigationManager publishes from its own teardown,
+// which can run after this file's statics are gone.
+struct ScreenContext {
+    std::mutex mutex;
+    GlRenderer gl_renderer;
+    std::string top_overlay;
+};
+
+ScreenContext& screen_context() {
+    static auto* context = new ScreenContext();
+    return *context;
+}
+} // namespace
+
+void set_gl_renderer(const char* raw_renderer) {
+    GlRenderer recorded{normalize_gl_renderer(raw_renderer),
+                        gcode::gl_renderer_is_software(raw_renderer)};
+    auto& ctx = screen_context();
+    std::lock_guard<std::mutex> lock(ctx.mutex);
+    ctx.gl_renderer = std::move(recorded);
+}
+
+GlRenderer gl_renderer() {
+    auto& ctx = screen_context();
+    std::lock_guard<std::mutex> lock(ctx.mutex);
+    return ctx.gl_renderer;
+}
+
+void set_top_overlay(std::string overlay_id) {
+    auto& ctx = screen_context();
+    std::lock_guard<std::mutex> lock(ctx.mutex);
+    ctx.top_overlay = std::move(overlay_id);
+}
+
+std::string top_overlay() {
+    auto& ctx = screen_context();
+    std::lock_guard<std::mutex> lock(ctx.mutex);
+    return ctx.top_overlay;
+}
 } // namespace telemetry_context
+
+std::string normalize_gl_renderer(const char* renderer) {
+    constexpr size_t kMaxLen = 40;
+    if (renderer == nullptr) {
+        return {};
+    }
+    std::string text(renderer);
+    for (const char* mark : {"(R)", "(TM)"}) {
+        for (auto at = text.find(mark); at != std::string::npos; at = text.find(mark)) {
+            text.erase(at, std::char_traits<char>::length(mark));
+        }
+    }
+    const auto detail = text.find('(');
+    if (detail != std::string::npos) {
+        text.erase(detail);
+    }
+
+    std::string out;
+    for (char c : text) {
+        const bool keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') || c == '.' || c == '+' || c == '_' || c == '-' ||
+                          c == ' ';
+        if (!keep) {
+            continue;
+        }
+        if (c == ' ' && (out.empty() || out.back() == ' ')) {
+            continue;
+        }
+        out.push_back(c);
+    }
+    if (out.size() > kMaxLen) {
+        out.resize(kMaxLen);
+    }
+    while (!out.empty() && out.back() == ' ') {
+        out.pop_back();
+    }
+    return out;
+}
+
+const char* gcode_render_mode_name(int mode) {
+    switch (mode) {
+    case 0:
+        return "auto";
+    case 1:
+        return "3d";
+    case 2:
+        return "2d";
+    case 3:
+        return "thumbnail";
+    default:
+        return "unknown";
+    }
+}
 } // namespace helix
 
 // =============================================================================
@@ -1501,6 +1598,16 @@ nlohmann::json TelemetryManager::build_session_event() const {
     }();
     app["zip_tool"] = zip_tool;
 
+    // The 3D preview's inputs: what the user picked, whether a driver crash
+    // blocked the GPU path, and the renderer once a GL context has existed
+    // (the first G-code preview creates it, often after this event).
+    app["gcode_render_mode"] =
+        helix::gcode_render_mode_name(DisplaySettingsManager::instance().get_gcode_render_mode());
+    if (auto* cfg = Config::get_instance()) {
+        app["gpu_3d_blocked"] = cfg->get<bool>("/display/gpu_3d_blocked", false);
+    }
+    add_gl_renderer(app);
+
     app["install_source"] = helix::install_provenance::read_install_source(config_dir_);
     app["host_mod"] = helix::install_provenance::detect_host_mod();
 
@@ -2241,11 +2348,46 @@ bool TelemetryManager::consume_print_started_in_app() {
 
 void TelemetryManager::record_error(const std::string& category, const std::string& code,
                                     const std::string& context) {
+    if (!admit_error(category)) {
+        return;
+    }
+    spdlog::debug("[TelemetryManager] Recording error: category={}, code={}, context={}", category,
+                  code, context);
+    enqueue_event(build_error_event(category, code, context));
+}
+
+void TelemetryManager::record_main_loop_hang(uint32_t stalled_ms) {
+    if (!admit_error("ui")) {
+        return;
+    }
+    auto event =
+        build_error_event("ui", "main_loop_hang", fmt::format("stalled_{}s", stalled_ms / 1000));
+    event["active_panel"] =
+        helix::telemetry_context::active_panel_int.load(std::memory_order_relaxed);
+    std::string overlay = helix::telemetry_context::top_overlay();
+    if (!overlay.empty()) {
+        event["active_overlay"] = std::move(overlay);
+    }
+    add_gl_renderer(event);
+    spdlog::debug("[TelemetryManager] Recording main loop hang: {}", event["context"].dump());
+    enqueue_event(std::move(event));
+}
+
+void TelemetryManager::add_gl_renderer(nlohmann::json& section) {
+    const auto renderer = helix::telemetry_context::gl_renderer();
+    if (renderer.name.empty()) {
+        return;
+    }
+    section["gl_renderer"] = renderer.name;
+    section["gl_software"] = renderer.software;
+}
+
+bool TelemetryManager::admit_error(const std::string& category) {
     // Check shutdown/initialized BEFORE touching the mutex — background threads
     // (libhv health timer) can call this after shutdown() has run, and locking a
     // destroyed mutex causes SIGBUS on ARM ([884f9172]).
     if (shutting_down_.load() || !initialized_.load() || !enabled_.load()) {
-        return;
+        return false;
     }
 
     // The category keys the rate-limit map and is sent as-is, so it must be a short
@@ -2258,7 +2400,7 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
         });
     if (!category_ok) {
         spdlog::trace("[TelemetryManager] Ignoring error with invalid category");
-        return;
+        return false;
     }
 
     // Rate limit: max 1 event per category per 5 minutes
@@ -2269,7 +2411,7 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
         auto it = error_rate_limit_.find(category);
         if (it != error_rate_limit_.end() && now - it->second < kErrorRateLimitInterval) {
             spdlog::trace("[TelemetryManager] Error event rate-limited: category={}", category);
-            return;
+            return false;
         }
         error_rate_limit_[category] = now;
 
@@ -2285,10 +2427,7 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
         }
     }
 
-    spdlog::debug("[TelemetryManager] Recording error: category={}, code={}, context={}", category,
-                  code, context);
-    auto event = build_error_event(category, code, context);
-    enqueue_event(std::move(event));
+    return true;
 }
 
 nlohmann::json TelemetryManager::build_print_start_context_event(

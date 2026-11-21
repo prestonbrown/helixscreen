@@ -773,7 +773,7 @@ describe("mapEventToDataPoints", () => {
     expect(dp.blobs![2]).toBe("linux-arm");
     expect(dp.blobs![3]).toBe("Voron 2.4");
     expect(dp.blobs![4]).toBe("corexy");
-    expect(dp.blobs).toHaveLength(14);
+    expect(dp.blobs).toHaveLength(18);
     expect(dp.doubles![0]).toBe(1024);
     expect(dp.doubles![1]).toBe(4);
     expect(dp.doubles![2]).toBe(1);
@@ -860,7 +860,7 @@ describe("mapEventToDataPoints", () => {
     };
     const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![9]).toBe("python");
-    expect(dp.blobs).toHaveLength(14);
+    expect(dp.blobs).toHaveLength(18);
   });
 
   it("maps session app.board into blob11", () => {
@@ -872,7 +872,37 @@ describe("mapEventToDataPoints", () => {
     const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs![10]).toBe("creator5-pro");
     expect(dp.blobs![2]).toBe("mips");
-    expect(dp.blobs).toHaveLength(14);
+    expect(dp.blobs).toHaveLength(18);
+  });
+
+  it("maps the session's GL renderer and render mode", () => {
+    const event = {
+      event: "session",
+      device_id: "dev-gl",
+      app: { version: "1.0.11", gl_renderer: "llvmpipe", gl_software: true, gcode_render_mode: "3d", gpu_3d_blocked: false },
+    };
+    const dp = mapEventToDataPoints(event)[0];
+    expect(dp.blobs!.slice(14, 18)).toEqual(["llvmpipe", "1", "3d", "0"]);
+    const old = mapEventToDataPoints({ event: "session", device_id: "dev-old", app: { gcode_render_mode: "fancy" } })[0];
+    expect(old.blobs!.slice(14, 18)).toEqual(["", "", "unknown", ""]);
+  });
+
+  it("maps a main_loop_hang's screen and GL renderer", () => {
+    const event = {
+      event: "error_encountered",
+      device_id: "dev-hang",
+      category: "ui",
+      code: "main_loop_hang",
+      context: "stalled_92s",
+      active_panel: 3,
+      active_overlay: "print_file_detail",
+      gl_renderer: "llvmpipe",
+      gl_software: true,
+      uptime_sec: 400,
+    };
+    const dp = mapEventToDataPoints(event)[0];
+    expect(dp.blobs!.slice(13, 16)).toEqual(["llvmpipe", "1", "print_file_detail"]);
+    expect(dp.doubles![8]).toBe(3);
   });
 
   it("leaves session board empty for clients that do not send it", () => {

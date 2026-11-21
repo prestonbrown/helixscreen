@@ -55,6 +55,10 @@ Recorded once per application launch.
 | `app.display` | string | Display resolution (e.g., `"800x480"`) |
 | `app.install_source` | string | Channel that installed HelixScreen, one word from a fixed list (e.g., `"kiauh"`, `"curl"`, `"unknown"`) |
 | `app.host_mod` | string | Firmware mod on the printer, one word from a fixed list (e.g., `"forge_x"`, `"none"`) |
+| `app.gcode_render_mode` | string | G-code preview setting, one word from a fixed list (`"auto"`, `"3d"`, `"2d"`, `"thumbnail"`) |
+| `app.gpu_3d_blocked` | boolean | Whether the 3D preview is turned off after a graphics driver crash |
+| `app.gl_renderer` | string | Graphics renderer name with driver and version detail removed (e.g., `"V3D 4.2"`), once a 3D preview has been shown |
+| `app.gl_software` | boolean | Whether that renderer draws on the CPU rather than a GPU |
 
 ### 4.2 Print Outcome Events
 
@@ -107,7 +111,7 @@ In addition to the three categories above, HelixScreen records the following dia
 | Feature adoption | 5 minutes after startup | Boolean flags for which built-in features have been used |
 | Connection stability | Every 4 hours and at close | Connect/disconnect counts and total connected time |
 | Print start context | When a print begins | Print source, whether the file has a thumbnail, a bucketed file-size range, and slicer name — never the filename |
-| Error events | When a non-fatal error occurs (rate-limited) | An error category, code, and the operation being attempted |
+| Error events | When a non-fatal error occurs (rate-limited) | An error category, code, and the operation being attempted; for a frozen screen, also which screen was open and the graphics renderer name |
 
 ### 4.5 Klipper Configuration Identifiers
 

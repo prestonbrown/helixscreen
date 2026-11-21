@@ -720,7 +720,7 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 
 | Event | Description | Key Fields |
 |-------|-------------|------------|
-| `session` | App startup | platform, board, version, printer_model, kinematics, display, ram, cpu_cores |
+| `session` | App startup | platform, board, version, printer_model, kinematics, display, ram, cpu_cores, gcode_render_mode, gpu_3d_blocked, gl_renderer + gl_software (once a GL context has existed this process) |
 | `print_outcome` | Print completed/failed | outcome, filament_type, duration, temps, filament_used |
 | `crash` | App crash | signal_name, version, platform, board, uptime, backtrace_depth |
 | `update_failed` | Update attempt failed | reason, version, from_version, platform, http_code |
@@ -733,7 +733,7 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 | `screensaver_usage` | Screensaver delta for one window | boot_id, snapshot_seq, saver_shown_sec.*, saver_starts.*, saver_woke_by_touch.*, saver_stopped_other.*, saver_too_heavy.*, saver_settled_levels.* |
 | `connection_stability` | Connection delta for one window | boot_id, snapshot_seq, session_duration_sec, connect_count, disconnect_count, total_connected_sec, total_disconnected_sec, longest_disconnect_sec, klippy_error_count, klippy_shutdown_count |
 | `print_start_context` | Print metadata at start | source, has_thumbnail, file_size_bucket, slicer, ams_active |
-| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec |
+| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software |
 | `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel |
 | `settings_changes` | Batched setting diffs | changes[]: setting, old_value, new_value |
 | `async_lifetime_skips` | Deferred async work skipped at shutdown | skips[], window stats |

@@ -751,6 +751,11 @@ class NavigationManager {
     // (app_layout_widget_, the panel slots) are WidgetRefs
     // and clear themselves.
     void scrub_deleted_widget(lv_obj_t* widget);
+
+    /// Publish the top overlay's telemetry id (telemetry_context::set_top_overlay),
+    /// "" when only the base panel shows. Called after every panel_stack_ change
+    /// that can move its top.
+    void publish_top_overlay() const;
     // Attach the LV_EVENT_DELETE scrub callback to a widget exactly once.
     void ensure_delete_hook(lv_obj_t* widget);
     static void overlay_delete_event_cb(lv_event_t* e);

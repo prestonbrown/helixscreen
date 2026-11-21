@@ -93,7 +93,42 @@ extern std::atomic<int> print_state_int;
 extern std::atomic<int> active_panel_int;
 /// True while a GCodeViewer holds parser data + renderer geometry.
 extern std::atomic<bool> gcode_renderer_loaded;
+
+/// The GL renderer this process drew with, as telemetry sends it.
+struct GlRenderer {
+    std::string name;      ///< normalize_gl_renderer() of GL_RENDERER; "" = no GL context yet
+    bool software = false; ///< gl_renderer_is_software() of the raw string
+};
+
+/// Record the raw GL_RENDERER string once a GL context is current. Any thread.
+/// Null or empty forgets it.
+void set_gl_renderer(const char* raw_renderer);
+/// The renderer recorded by set_gl_renderer(). Any thread.
+GlRenderer gl_renderer();
+
+/// The telemetry id (overlay_telemetry_id()) of the overlay on top of the
+/// panel stack, "" when only a main panel shows. NavigationManager writes it on
+/// the main thread; the hang reporter reads it from the monitor thread while
+/// the main thread is wedged.
+void set_top_overlay(std::string overlay_id);
+std::string top_overlay();
 } // namespace telemetry_context
+
+/**
+ * @brief A GL_RENDERER string reduced to the GPU or rasterizer name
+ *
+ * Drivers append build detail in parentheses ("llvmpipe (LLVM 15.0.6, 128
+ * bits)", "AMD Radeon RX 6600 (navi23, LLVM 15.0.6, DRM 3.49, 6.1.0-18-amd64)"),
+ * which carries kernel versions and device ids but not the class of renderer.
+ * "(R)" and "(TM)" marks are dropped, then everything from the first "(" on,
+ * every character outside [A-Za-z0-9 .+_-], and runs of spaces; the result is
+ * cut to 40 characters. Null, empty or all-detail yields "".
+ */
+std::string normalize_gl_renderer(const char* renderer);
+
+/// Telemetry token for a gcode_render_mode setting value (0=Auto, 1=3D, 2=2D,
+/// 3=Thumbnail Only): "auto", "3d", "2d", "thumbnail", else "unknown".
+const char* gcode_render_mode_name(int mode);
 
 /**
  * @brief Stable telemetry id for an overlay
@@ -458,6 +493,20 @@ class TelemetryManager {
      */
     void record_error(const std::string& category, const std::string& code,
                       const std::string& context);
+
+    /**
+     * @brief Record that the main loop stalled
+     *
+     * An error_encountered event (category "ui", code "main_loop_hang",
+     * context "stalled_<N>s") carrying what was on screen and the GL renderer:
+     * active_panel, active_overlay (when one is open), gl_renderer and
+     * gl_software (once a GL context has been created). Rate-limited with the
+     * "ui" category. Thread-safe; it is called from the memory monitor thread
+     * while the main thread is wedged, so it reads only telemetry_context.
+     *
+     * @param stalled_ms How long the main loop has not advanced
+     */
+    void record_main_loop_hang(uint32_t stalled_ms);
 
     /**
      * @brief Enqueue a connection_stability delta and start a new window
@@ -1120,6 +1169,14 @@ class TelemetryManager {
      */
     nlohmann::json build_error_event(const std::string& category, const std::string& code,
                                      const std::string& context) const;
+
+    /// Validate @p category ([a-z0-9_]{1,32}) and apply the per-category rate
+    /// limit. True when an error event of that category may be enqueued now.
+    bool admit_error(const std::string& category);
+
+    /// gl_renderer and gl_software into @p section, once a GL context has
+    /// recorded a renderer (telemetry_context::set_gl_renderer()).
+    static void add_gl_renderer(nlohmann::json& section);
 
     /// Bucket a file size in bytes into a human-readable range string
     static std::string bucket_file_size(int64_t bytes);

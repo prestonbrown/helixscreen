@@ -235,6 +235,7 @@ void NavigationManager::clear_overlay_stack() {
     // widget (scrub_deleted_widget).
 
     backdrop_.release_primary();
+    publish_top_overlay();
 
     spdlog::trace("[NavigationManager] Overlay stack cleared (connection gating)");
 }
@@ -579,6 +580,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
         spdlog::trace("[NavigationManager] Showing panel {} (stack depth: {})", (void*)new_panel,
                       panel_stack_.size());
     }
+    publish_top_overlay();
 
     // Opening an overlay never moved active_panel_ — push_overlay() only calls
     // on_deactivate() on the panel underneath. So a navbar tap onto the panel
@@ -794,6 +796,7 @@ void NavigationManager::set_panels(lv_obj_t** panels) {
         spdlog::trace("[NavigationManager] Panel stack initialized with active panel {}",
                       (void*)active_widget);
     }
+    publish_top_overlay();
 
     spdlog::trace("[NavigationManager] Panel widgets registered for show/hide management");
 }
@@ -1039,6 +1042,7 @@ void NavigationManager::scrub_deleted_widget(lv_obj_t* widget) {
     overlay_width_unmanaged_.erase(widget);
     panel_stack_.erase(std::remove(panel_stack_.begin(), panel_stack_.end(), widget),
                        panel_stack_.end());
+    publish_top_overlay();
 
     delete_hooked_.erase(widget);
     // A dead root's queued pushes have nothing left to show. Its own WeakWidget
@@ -1051,6 +1055,22 @@ void NavigationManager::scrub_deleted_widget(lv_obj_t* widget) {
 
     spdlog::trace("[NavigationManager] Scrubbed deleted widget {} from nav bookkeeping",
                   (void*)widget);
+}
+
+void NavigationManager::publish_top_overlay() const {
+    std::string id;
+    if (panel_stack_.size() > 1 && panel_stack_.back()) {
+        lv_obj_t* top = panel_stack_.back();
+        const IPanelLifecycle* lc = nullptr;
+        if (auto it = overlay_instances_.find(top); it != overlay_instances_.end()) {
+            lc = it->second;
+        } else if (auto pit = persistent_overlay_instances_.find(top);
+                   pit != persistent_overlay_instances_.end()) {
+            lc = pit->second;
+        }
+        id = helix::overlay_telemetry_id(lv_obj_get_name(top), lc ? lc->get_name() : nullptr);
+    }
+    helix::telemetry_context::set_top_overlay(std::move(id));
 }
 
 void NavigationManager::overlay_delete_event_cb(lv_event_t* e) {
@@ -1436,6 +1456,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
         lv_obj_set_clickable(overlay_panel, true);
         mgr.ensure_delete_hook(overlay_panel);
         mgr.panel_stack_.push_back(overlay_panel);
+        mgr.publish_top_overlay();
         mgr.overlay_animate_slide_in(overlay_panel);
 
         // Lifecycle: Activate new overlay
@@ -1541,6 +1562,7 @@ void NavigationManager::close_overlay(lv_obj_t* overlay_panel) {
         // Buried: drop it from the stack and retire it without disturbing the
         // overlay that covers it (it is already hidden).
         mgr.panel_stack_.erase(it);
+        mgr.publish_top_overlay();
         mgr.retire_overlay(root);
     });
 }
@@ -1602,6 +1624,7 @@ void NavigationManager::go_back_now() {
             mgr.panel_stack_.pop_back();
             mgr.backdrop_.retire(popped);
         }
+        mgr.publish_top_overlay();
 
         // Determine the previous panel (what will be visible after pop)
         lv_obj_t* previous_panel = mgr.panel_stack_.empty() ? nullptr : mgr.panel_stack_.back();
@@ -1753,6 +1776,7 @@ void NavigationManager::shutdown() {
 
     // Clear panel stack
     panel_stack_.clear();
+    publish_top_overlay();
     pending_pushes_.clear();
     overlay_geometry_.clear();
     overlay_width_unmanaged_.clear();
@@ -1810,6 +1834,7 @@ void NavigationManager::deinit_subjects() {
     delete_hooked_.clear();
     queued_targets_.clear();
     panel_stack_.clear();
+    publish_top_overlay();
     pending_pushes_.clear();
     app_layout_widget_ = nullptr;
     backdrop_.reset();

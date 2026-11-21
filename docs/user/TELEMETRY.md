@@ -46,6 +46,10 @@ Recorded once per application launch. Helps us understand the hardware landscape
 | `app.locale` | Language setting | `"en"` |
 | `app.install_source` | Channel that installed HelixScreen, from a fixed list (`helix-installer`, `kiauh`, `helper-script`, `curl`, `other`, `unknown`) | `"kiauh"` |
 | `app.host_mod` | Firmware mod running on the printer, from a fixed list (`forge_x`, `zmod`, `klipper_mod`, `cosmos`, `paxx`, `simple_af`, `rinkhals`, `none`) | `"none"` |
+| `app.gcode_render_mode` | G-code preview setting, from a fixed list (`auto`, `3d`, `2d`, `thumbnail`) | `"auto"` |
+| `app.gpu_3d_blocked` | Whether the 3D preview is turned off after a graphics driver crash | `false` |
+| `app.gl_renderer` | Graphics renderer name, with driver and version detail removed; only once a 3D preview has been shown | `"V3D 4.2"` |
+| `app.gl_software` | Whether that renderer draws on the CPU instead of a GPU | `false` |
 | `printer.detected_model` | Auto-detected printer model | `"Voron 2.4"` |
 
 ### Print Outcome Events
@@ -228,6 +232,15 @@ Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). H
 | `category` | Error category | `"moonraker_api"` |
 | `code` | Error code | `"timeout"` |
 | `context` | What was being attempted | `"get_printer_objects"` |
+
+When the screen freezes (`ui` / `main_loop_hang`), the event also says what was on screen and which graphics renderer was drawing:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `active_panel` | The main panel shown, as a number | `3` |
+| `active_overlay` | The screen open on top of it, if any, by its internal name | `"print_file_detail"` |
+| `gl_renderer` | Graphics renderer name, as in session events, once one has been used | `"llvmpipe"` |
+| `gl_software` | Whether that renderer draws on the CPU | `true` |
 
 ---
 

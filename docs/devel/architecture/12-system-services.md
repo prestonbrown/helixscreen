@@ -152,7 +152,7 @@ The free space of the gcodes disk is the one reading that costs its own request,
 | Trigger | Consumer | Action |
 |---------|----------|--------|
 | Any threshold breach | TelemetryManager | `record_memory_warning` event |
-| Main loop silent past threshold | TelemetryManager + crash breadcrumb | `record_error("ui", "main_loop_hang", …)`: detection only, by design: the UI thread is wedged, so UpdateQueue would never drain |
+| Main loop silent past threshold | TelemetryManager + crash breadcrumb | `record_main_loop_hang()` (a `ui`/`main_loop_hang` error carrying the active panel, top overlay and GL renderer from `telemetry_context`): detection only, by design: the UI thread is wedged, so UpdateQueue would never drain |
 | `critical` | LVGL image cache | Drop decoded-image cache (re-decode on next draw beats an OOM kill) |
 | `critical` | G-code viewers | Clear all live viewers; each panel's callback flips its mode subject back to thumbnail |
 

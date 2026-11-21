@@ -465,8 +465,7 @@ void Application::init_monitoring_services() {
         // from background threads, and deliberately so here: the UI thread
         // is the thing that is wedged, so anything routed through
         // UpdateQueue would never be delivered.
-        TelemetryManager::instance().record_error("ui", "main_loop_hang",
-                                                  fmt::format("stalled_{}s", stalled_ms / 1000));
+        TelemetryManager::instance().record_main_loop_hang(stalled_ms);
         crash_handler::breadcrumb::note("main_loop", "hang");
     });
 

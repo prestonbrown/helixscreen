@@ -57,6 +57,8 @@ export const MAX_SLOT = 20;
 // for a missing marker.
 const INSTALL_SOURCES = ["helix-installer", "kiauh", "helper-script", "curl", "other", "unknown"];
 const HOST_MODS = ["forge_x", "zmod", "klipper_mod", "cosmos", "paxx", "simple_af", "rinkhals", "none"];
+// Mirrors src/system/telemetry_manager.cpp#gcode_render_mode_name.
+const GCODE_RENDER_MODES = ["auto", "3d", "2d", "thumbnail"];
 
 // ---------- Readers ----------
 
@@ -309,6 +311,12 @@ const KINDS: PointKind[] = [
     blob(11, "app_board", appBoard),
     blob(13, "install_source", allowlisted(nested("app", "install_source"), INSTALL_SOURCES)),
     blob(14, "host_mod", allowlisted(nested("app", "host_mod"), HOST_MODS)),
+    // The 3D G-code preview's inputs, so a software-GL draw stall can be told
+    // from other hangs. gl_renderer is absent until a GL context has existed.
+    blob(15, "gl_renderer", nested("app", "gl_renderer")),
+    blob(16, "gl_software", triState(nested("app", "gl_software"))),
+    blob(17, "gcode_render_mode", allowlisted(nested("app", "gcode_render_mode"), GCODE_RENDER_MODES)),
+    blob(18, "gpu_3d_blocked", triState(nested("app", "gpu_3d_blocked"))),
     dbl(1, "ram_total_mb", nested("host", "ram_total_mb", "ram_total_mb")),
     dbl(2, "cpu_cores", nested("host", "cpu_cores", "cpu_cores")),
     dbl(3, "extruder_count", nested("printer", "extruder_count", "extruder_count")),
@@ -544,7 +552,12 @@ const KINDS: PointKind[] = [
     blob(5, "code"),
     blob(6, "context"),
     blob(13, "app_board", appBoard),
+    // A main_loop_hang names the screen and the GL renderer; other errors leave these empty.
+    blob(14, "gl_renderer"),
+    blob(15, "gl_software", triState(flat("gl_software"))),
+    blob(16, "active_overlay"),
     dbl(1, "uptime_sec"),
+    dbl(9, "active_panel"),
   ]),
 
   kind("performance_snapshot", [
