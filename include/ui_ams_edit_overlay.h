@@ -436,7 +436,6 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t is_managed_subject_{};     ///< 1=linked Spoolman spool ("ams_edit_is_managed")
     lv_subject_t scan_enabled_subject_{};   ///< 1=QR button may show ("ams_edit_scan_enabled")
     lv_subject_t product_hidden_subject_{}; ///< 1 while Generic selected
-    lv_subject_t color_current_subject_{};  ///< the color row's current swatch
     lv_subject_t color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     lv_subject_t color_name_subject_{};          ///< the color line's name
     lv_subject_t recent_count_subject_{};        ///< recent chips shown in the row
