@@ -286,8 +286,6 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
         spdlog::error("[AmsEditOverlay] Failed to push overlay for slot {}", slot_index);
         return false;
     }
-    lv_subject_set_int(&more_open_subject_, 0);
-    lv_subject_set_int(&lane_open_subject_, 0);
     // After show(): the first one initialises the subjects this writes.
     load_lane_settings();
 
@@ -298,7 +296,6 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     const bool edit = !open_on_picker &&
                       spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit;
     lv_subject_set_int(&mode_subject_, edit ? kModeEdit : kModeAssign);
-    lv_subject_set_int(&size_chip_subject_, size_chip_);
     if (!edit && spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit) {
         // Asked to pick a spool for a lane that holds one.
         begin_fresh_assign();
@@ -589,20 +586,7 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(clear_archive_subject_, 0, "ams_edit_clear_archive", subjects_);
         UI_MANAGED_SUBJECT_STRING(clear_title_subject_, clear_title_buf_, "",
                                   "ams_edit_clear_title", subjects_);
-        UI_MANAGED_SUBJECT_STRING(subtitle_subject_, subtitle_buf_, "", "ams_edit_subtitle",
-                                  subjects_);
         UI_MANAGED_SUBJECT_INT(mode_subject_, kModeAssign, "ams_edit_mode", subjects_);
-        UI_MANAGED_SUBJECT_STRING(list_title_subject_, list_title_buf_, "", "ams_edit_list_title",
-                                  subjects_);
-        UI_MANAGED_SUBJECT_INT(common_visible_subject_, 0, "ams_edit_common_visible", subjects_);
-        UI_MANAGED_SUBJECT_INT(bottom_action_subject_,
-                               static_cast<int>(spool_assign::BottomAction::AssignLocal),
-                               "ams_edit_bottom_action", subjects_);
-        UI_MANAGED_SUBJECT_INT(size_chip_subject_, 0, "ams_edit_size_chip", subjects_);
-        UI_MANAGED_SUBJECT_STRING(partial_text_subject_, partial_text_buf_, "",
-                                  "ams_edit_partial_text", subjects_);
-        UI_MANAGED_SUBJECT_STRING(saves_to_subject_, saves_to_buf_, "", "ams_edit_saves_to",
-                                  subjects_);
 
         // View state (kViewEditor) - registered globally
         UI_MANAGED_SUBJECT_INT(view_mode_subject_, 0, "ams_edit_view", subjects_);
@@ -646,8 +630,6 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(multi_capable_subject_, 0, "ams_edit_multi_capable", subjects_);
         UI_MANAGED_SUBJECT_INT(seg_count_subject_, 1, "ams_edit_seg_count", subjects_);
         UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
-        UI_MANAGED_SUBJECT_STRING(seg_label_subject_, seg_label_buf_, "", "ams_edit_seg_label",
-                                  subjects_);
         UI_MANAGED_SUBJECT_INT(color_mode_subject_, 0, "ams_edit_color_mode", subjects_);
         // The common spool tiles' swatches.
         s_common_colors.ensure_size(3);
@@ -671,14 +653,10 @@ void AmsEditOverlay::init_subjects() {
                                   subjects_);
         UI_MANAGED_SUBJECT_STRING(weight_text_subject_, weight_buf_, "", "ams_edit_weight_text",
                                   subjects_);
-        UI_MANAGED_SUBJECT_STRING(weight_hint_subject_, weight_hint_buf_, "",
-                                  "ams_edit_weight_hint", subjects_);
         UI_MANAGED_SUBJECT_INT(reset_tag_visible_subject_, 0, "ams_edit_reset_tag_visible",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(clear_visible_subject_, 0, "ams_edit_clear_visible", subjects_);
-        UI_MANAGED_SUBJECT_INT(more_open_subject_, 0, "ams_edit_more_open", subjects_);
         // The two smallest classes fold the lane's settings behind a disclosure.
-        UI_MANAGED_SUBJECT_INT(lane_open_subject_, 0, "ams_edit_lane_open", subjects_);
 
         // Spoolman spool number for the header badge ("#19").
         UI_MANAGED_SUBJECT_STRING(spoolman_id_subject_, spoolman_id_buf_, "",
@@ -694,8 +672,6 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(tool_refusal_subject_, tool_refusal_buf_, "",
                                   "ams_edit_tool_refusal", subjects_);
         UI_MANAGED_SUBJECT_INT(backup_editable_subject_, 0, "ams_edit_backup_editable", subjects_);
-        UI_MANAGED_SUBJECT_STRING(backup_label_subject_, backup_label_buf_, "",
-                                  "ams_edit_backup_label", subjects_);
 
         // Expose the label-printer readiness flag to XML so
         // btn_detail_print_label can bind its `hidden` flag declaratively and
@@ -1427,8 +1403,6 @@ void AmsEditOverlay::populate_picker() {
                 }
                 picker_pending_ = false;
                 lv_subject_set_int(&picker_state_subject_, 1);
-                lv_subject_set_int(&bottom_action_subject_,
-                                   static_cast<int>(spool_assign::bottom_action(true, 0)));
             });
         });
 }
@@ -1619,21 +1593,6 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         state = 3;
     }
     lv_subject_set_int(&picker_state_subject_, state);
-    lv_subject_set_int(&common_visible_subject_,
-                       spool_assign::show_common_spools(spool_count) ? 1 : 0);
-    lv_subject_set_int(&bottom_action_subject_, static_cast<int>(spool_assign::bottom_action(
-                                                    spools_from_spoolman_, listed_.size())));
-
-    const char* title = nullptr;
-    if (!query.empty()) {
-        title = lv_tr("Matching Spools");
-    } else if (spools_from_spoolman_) {
-        title = lv_tr("Recent Spools");
-    } else {
-        title = lv_tr("Spools Used on This Printer");
-    }
-    snprintf(list_title_buf_, sizeof(list_title_buf_), "%s", title);
-    lv_subject_set_string(&list_title_subject_, list_title_buf_);
 }
 
 bool AmsEditOverlay::commit_lane_settings_for_assign() {
@@ -1723,23 +1682,10 @@ void AmsEditOverlay::handle_common_spool(size_t index) {
     update_sync_button_state();
 }
 
-void AmsEditOverlay::handle_size_chip(int chip) {
-    if (chip == spool_assign::kPartialChip) {
-        handle_weight_tap();
-        return;
-    }
-    if (chip < 0 || chip >= spool_assign::kPartialChip) {
-        return;
-    }
-    const float grams = spool_assign::kSizeChipGrams[chip];
-    apply_size_chip(chip, grams, grams);
-}
-
 void AmsEditOverlay::apply_size_chip(int chip, float remaining_g, float total_g) {
     size_chip_ = chip;
     size_remaining_g_ = remaining_g;
     size_total_g_ = total_g;
-    lv_subject_set_int(&size_chip_subject_, chip);
     update_summary();
 }
 
@@ -2156,14 +2102,6 @@ void AmsEditOverlay::update_summary() {
         ui_spool_canvas_set_fill_level(spool, static_cast<float>(pct) / 100.0f);
     }
 
-    // Assign Spool: the Partial chip names a part-used spool's weight.
-    if (size_chip_ == spool_assign::kPartialChip) {
-        snprintf(partial_text_buf_, sizeof(partial_text_buf_), "%.0f g", size_remaining_g_);
-    } else {
-        snprintf(partial_text_buf_, sizeof(partial_text_buf_), "%s", lv_tr("Partial…"));
-    }
-    lv_subject_set_string(&partial_text_subject_, partial_text_buf_);
-
     update_header_and_panel();
     update_tag_badges();
     update_tag_text();
@@ -2174,55 +2112,7 @@ void AmsEditOverlay::update_header_and_panel() {
     if (!subjects_initialized_) {
         return;
     }
-    const bool edit = lv_subject_get_int(&mode_subject_) == kModeEdit;
     update_page_title();
-
-    // "Lane 3 · Turtle 1", and on Edit Spool the spool: "· PolyTerra PLA · #12".
-    std::string subtitle = editor_lane_label(slot_index_);
-    if (slot_index_ != -2) {
-        if (const AmsBackend* backend = AmsState::instance().get_backend()) {
-            const AmsSystemInfo info = backend->get_system_info();
-            if (const AmsUnit* unit = info.get_unit_for_slot(slot_index_)) {
-                const std::string& unit_name =
-                    unit->display_name.empty() ? unit->name : unit->display_name;
-                if (!unit_name.empty()) {
-                    subtitle += " · " + unit_name;
-                }
-            }
-        }
-    }
-    if (edit) {
-        const std::string name = helix::compose_filament_label(
-            working_info_.brand, working_info_.spool_name, working_info_.material, " ");
-        if (!name.empty()) {
-            subtitle += " · " + name;
-        }
-        if (working_info_.spoolman_id > 0) {
-            subtitle += " · #" + std::to_string(working_info_.spoolman_id);
-        }
-    }
-    snprintf(subtitle_buf_, sizeof(subtitle_buf_), "%s", subtitle.c_str());
-    lv_subject_set_string(&subtitle_subject_, subtitle_buf_);
-
-    // "of 1000 g · Nozzle 200–220 °C" under the remaining weight.
-    std::string hint;
-    if (working_info_.total_weight_g > 0) {
-        hint = fmt::format("{} {:.0f} g", lv_tr("of"), working_info_.total_weight_g);
-    }
-    if (temp_buf_[0] != '\0') {
-        hint += (hint.empty() ? "" : " · ") + std::string(temp_buf_);
-    }
-    snprintf(weight_hint_buf_, sizeof(weight_hint_buf_), "%s", hint.c_str());
-    lv_subject_set_string(&weight_hint_subject_, weight_hint_buf_);
-
-    if (working_info_.spoolman_id > 0) {
-        const std::string saves = fmt::format(fmt::runtime(lv_tr("Saves to Spoolman spool #{}")),
-                                              working_info_.spoolman_id);
-        snprintf(saves_to_buf_, sizeof(saves_to_buf_), "%s", saves.c_str());
-    } else {
-        saves_to_buf_[0] = '\0';
-    }
-    lv_subject_set_string(&saves_to_subject_, saves_to_buf_);
 }
 
 void AmsEditOverlay::update_temp_display() {
@@ -2400,8 +2290,6 @@ void AmsEditOverlay::load_lane_settings() {
         if (backup_row) {
             lane_original_.backup = lane_settings::backup_of(*backend, slot_index_);
             backup_editable = caps.editable();
-            lv_subject_set_string(&backup_label_subject_,
-                                  backup_lane_text(backend->lane_noun()).c_str());
         }
     }
     lane_working_ = lane_original_;
@@ -2731,10 +2619,6 @@ void AmsEditOverlay::update_color_row() {
     set_int(multi_subject_, editable ? 1 : 0);
     set_int(multi_capable_subject_, capable ? 1 : 0);
     set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
-    const std::string label = editable ? fmt::format("{} {}: {}", lv_tr("Color"), selected_seg_ + 1,
-                                                     helix::get_color_name_from_hex(current))
-                                       : std::string();
-    lv_subject_set_string(&seg_label_subject_, label.c_str());
 
     // As many recents as size_color_row() measured room for.
     color_row_ = color_row_recents(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament),
@@ -2778,11 +2662,6 @@ void AmsEditOverlay::handle_reset_to_tag() {
 // ============================================================================
 // More section / weight / logistics
 // ============================================================================
-
-void AmsEditOverlay::handle_more_toggle() {
-    const int open = lv_subject_get_int(&more_open_subject_) ? 0 : 1;
-    lv_subject_set_int(&more_open_subject_, open);
-}
 
 void AmsEditOverlay::handle_weight_tap() {
     if (save_in_flight_) {
@@ -4098,10 +3977,6 @@ void AmsEditOverlay::offer_similar_filament(
 void AmsEditOverlay::register_callbacks() {
     register_xml_callbacks({
         {"ams_edit_back_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_back(); }},
-        {"ams_edit_different_spool_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().handle_different_spool(); }},
-        {"ams_edit_assign_local_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().handle_assign_local(); }},
         {"ams_edit_remaining_minus_cb",
          [](lv_event_t*) {
              get_ams_edit_overlay().handle_remaining_step(-spool_assign::kRemainingStepGrams);
@@ -4109,15 +3984,6 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_remaining_plus_cb",
          [](lv_event_t*) {
              get_ams_edit_overlay().handle_remaining_step(spool_assign::kRemainingStepGrams);
-         }},
-        {"ams_edit_size_chip_cb",
-         [](lv_event_t* e) {
-             // size_chip_<n>
-             const char* name = lv_obj_get_name(lv_event_get_current_target_obj(e));
-             const char* digit = name ? std::strrchr(name, '_') : nullptr;
-             if (digit) {
-                 get_ams_edit_overlay().handle_size_chip(std::atoi(digit + 1));
-             }
          }},
         {"ams_edit_common_spool_cb",
          [](lv_event_t* e) {
@@ -4201,17 +4067,7 @@ void AmsEditOverlay::register_callbacks() {
              editor.update_sync_button_state();
          }},
         {"ams_edit_save_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_save(); }},
-        {"ams_edit_more_toggle_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().handle_more_toggle(); }},
-        {"ams_edit_lane_toggle_cb",
-         [](lv_event_t*) {
-             auto& editor = get_ams_edit_overlay();
-             lv_subject_set_int(&editor.lane_open_subject_,
-                                lv_subject_get_int(&editor.lane_open_subject_) ? 0 : 1);
-         }},
         {"ams_edit_weight_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_weight_tap(); }},
-        {"ams_edit_add_to_spoolman_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().handle_add_to_spoolman(); }},
         {"ams_edit_material_dd_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_option_selected(0, helix::ui::event_selected(e));

@@ -423,20 +423,8 @@ class AmsEditOverlay : public OverlayBase {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    helix::Subject title_subject_{};          ///< "Assign Spool" / "Edit Spool"
-    helix::Subject subtitle_subject_{};       ///< "Lane 3 · Turtle 1" ("ams_edit_subtitle")
-    helix::Subject mode_subject_{};           ///< kMode* ("ams_edit_mode")
-    helix::Subject list_title_subject_{};     ///< "Recent Spools" ("ams_edit_list_title")
-    helix::Subject common_visible_subject_{}; ///< 1 = the common spools grid shows
-    helix::Subject
-        bottom_action_subject_{};        ///< spool_assign::BottomAction ("ams_edit_bottom_action")
-    helix::Subject size_chip_subject_{}; ///< the lit size chip ("ams_edit_size_chip")
-    helix::Subject partial_text_subject_{}; ///< "Partial…" or "400 g" ("ams_edit_partial_text")
-    helix::Subject saves_to_subject_{};     ///< "Saves to Spoolman spool #12" ("ams_edit_saves_to")
-    char subtitle_buf_[128] = {0};
-    char list_title_buf_[48] = {0};
-    char partial_text_buf_[24] = {0};
-    char saves_to_buf_[64] = {0};
+    helix::Subject title_subject_{};     ///< "Assign Spool" / "Edit Spool"
+    helix::Subject mode_subject_{};      ///< kMode* ("ams_edit_mode")
     helix::Subject view_mode_subject_{}; ///< kView* ("ams_edit_view")
     /// The spools list: 0=loading, 1=fetch error (retry), 2=content, 3=nothing
     /// matches, 4=no spools at all ("edit_picker_state").
@@ -452,9 +440,7 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject multi_capable_subject_{};       ///< 1 where the lane can store several
     helix::Subject seg_count_subject_{};           ///< color dots shown
     helix::Subject seg_selected_subject_{};        ///< the ringed dot
-    helix::Subject seg_label_subject_{};           ///< "Color 2: Gold" in multi mode
     helix::Subject color_mode_subject_{};          ///< dropdown: 0 gradient, 1 coaxial
-    char seg_label_buf_[64]{};
     char color_name_buf_[64]{};
     char color_current_multi_buf_[128]{};
     helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's
@@ -469,19 +455,15 @@ class AmsEditOverlay : public OverlayBase {
     int shown_bed_temp_ = 0;
     helix::Subject temp_text_subject_{};
     helix::Subject weight_text_subject_{};
-    helix::Subject weight_hint_subject_{};
     helix::Subject reset_tag_visible_subject_{};
-    helix::Subject clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
-    helix::Subject more_open_subject_{};
-    helix::Subject lane_open_subject_{};    ///< 1 = Lane Settings disclosed ("ams_edit_lane_open")
-    helix::Subject spoolman_id_subject_{};  ///< "#19" for the header badge
-    helix::Subject lane_visible_subject_{}; ///< 1 = the slot is a backend lane
+    helix::Subject clear_visible_subject_{};      ///< 1 = the slot holds a spool to clear
+    helix::Subject spoolman_id_subject_{};        ///< "#19" for the header badge
+    helix::Subject lane_visible_subject_{};       ///< 1 = the slot is a backend lane
     helix::Subject tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
     helix::Subject tool_editable_subject_{};      ///< 0 = tool shown read-only
     helix::Subject tool_refusal_subject_{};       ///< why the tool cannot be changed here
     helix::Subject backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
     helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
-    helix::Subject backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
     helix::Subject page_subject_{};          ///< kPage* ("ams_edit_page")
     helix::Subject product_line_subject_{};  ///< "Polymaker PolyTerra" ("ams_edit_product_line")
@@ -559,9 +541,7 @@ class AmsEditOverlay : public OverlayBase {
     char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
     char weight_buf_[24] = {0};
-    char weight_hint_buf_[128] = {0};
     char spoolman_id_buf_[16] = {0};
-    char backup_label_buf_[64] = {0};
     char tool_refusal_buf_[160] = {0};
 
     // === The spools list (Assign Spool's right column) ===
@@ -616,7 +596,6 @@ class AmsEditOverlay : public OverlayBase {
     void handle_row_use(size_t row);
     /// A common spool tile: fill the form with its material and color.
     void handle_common_spool(size_t index);
-    void handle_size_chip(int chip);
     void apply_size_chip(int chip, float remaining_g, float total_g);
     void handle_remaining_step(float delta_g);
     /// Assign without Spoolman, or without adding the spool to it.
@@ -702,10 +681,9 @@ class AmsEditOverlay : public OverlayBase {
     // === Event Handlers ===
     void handle_back(); ///< Header back: per-view routing
     void handle_save();
-    void prompt_unsaved_changes();  ///< Back with unsaved edits: Save/Discard
-    void handle_weight_tap();       ///< Weight pill → numeric keypad
-    void apply_weight(float grams); ///< Keypad result → remaining weight
-    void handle_more_toggle();
+    void prompt_unsaved_changes();          ///< Back with unsaved edits: Save/Discard
+    void handle_weight_tap();               ///< Weight pill → numeric keypad
+    void apply_weight(float grams);         ///< Keypad result → remaining weight
     void handle_add_to_spoolman();          ///< Add to Spoolman & Assign
     void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
     void handle_clear_spool();              ///< Take the spool off the slot and close
