@@ -242,65 +242,6 @@
         "extra_printer_image_sizes_reason": "Plain K1 and K1 Max are unmeasured. A 480-wide variant would select the 150px tier; keeping it costs ~2.6MB and guarantees no K1 shows the generic printer. Drop it once measured."
       }
     },
-    "k1-dynamic": {
-      "display_name": "Creality K1 series (dynamic link)",
-      "inherits_panel_from": "k1",
-      "panel": {
-        "width": 480,
-        "height": 800,
-        "rotate": 270,
-        "verified": true,
-        "source": "hardware: K1C 192.168.30.182 (same panel as k1) 2026-09-11"
-      },
-      "storage": {
-        "root": "/usr/data/helixscreen",
-        "user_config_dir": "/usr/data/printer_data/config/helixscreen",
-        "state_root": "/usr/data/helixscreen-state",
-        "cache_dir": "/usr/data/helixscreen-state/cache",
-        "log_file": "/usr/data/helixscreen-state/logs/helix.log"
-      },
-      "service": {
-        "init_system": "sysv",
-        "init_system_pinned": false,
-        "init_script": "/etc/init.d/S99helixscreen",
-        "start_order": 99,
-        "needs_procd_shim": false,
-        "previous_ui_script": ""
-      },
-      "klipper": {
-        "home": "/usr/data",
-        "user": "root",
-        "group": "root",
-        "config_dir": null
-      },
-      "moonraker": {
-        "update_manager": true
-      },
-      "sound": {
-        "has_sound": false,
-        "has_tracker": false,
-        "source": "Makefile sound section (SOUND_CXXFLAGS / TRACKER_CXXFLAGS by PLATFORM_TARGET)",
-        "notes": "assets/sounds is MOD/MED tracker music and is unplayable here, so it is pruned from the package."
-      },
-      "package": {
-        "asset_name": "helixscreen-k1.zip",
-        "docker_target": "k1-dynamic-docker",
-        "build_dir": "build/k1-dynamic",
-        "splash_3d_target": "gen-splash-3d-k1",
-        "gen_images_target": "gen-images",
-        "in_release_matrix": false,
-        "detectable": false,
-        "notes": "Build and asset key only. detect_platform never returns k1-dynamic and .github/workflows/release.yml excludes it from the matrix; helix_self_update_asset maps it to helixscreen-k1.zip.",
-        "extra_splash_3d_classes": [
-          "small"
-        ],
-        "extra_splash_3d_reason": "Plain K1 and K1 Max are unmeasured. A 480x400 variant would select `small`; generating it alongside the derived class costs ~1.5MB and guarantees no K1 ships without a splash. Drop it once measured.",
-        "extra_printer_image_sizes": [
-          150
-        ],
-        "extra_printer_image_sizes_reason": "Plain K1 and K1 Max are unmeasured. A 480-wide variant would select the 150px tier; keeping it costs ~2.6MB and guarantees no K1 shows the generic printer. Drop it once measured."
-      }
-    },
     "mips": {
       "display_name": "Unified MIPS (Creality K1 series + FlashForge AD5X)",
       "panel": {
@@ -368,7 +309,7 @@
         "gen_images_target": "gen-images",
         "in_release_matrix": true,
         "detectable": true,
-        "notes": "ONE binary for k1 and ad5x; helix_self_update_asset maps k1/k1-dynamic/ad5x/mips all to this asset. release-mips additionally publishes identical-content helixscreen-k1.zip and helixscreen-ad5x.zip aliases so already-deployed binaries can still find an update by their own computed asset name; drop the aliases once no released binary reports k1 or ad5x."
+        "notes": "ONE binary for k1 and ad5x; helix_self_update_asset maps k1/ad5x/mips all to this asset. release-mips additionally publishes identical-content helixscreen-k1.zip and helixscreen-ad5x.zip aliases so already-deployed binaries can still find an update by their own computed asset name; drop the aliases once no released binary reports k1 or ad5x."
       }
     },
     "ad5x": {

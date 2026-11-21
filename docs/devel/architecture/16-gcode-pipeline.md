@@ -253,7 +253,7 @@ The precedence chain is **cmdline > env > settings**, decided by the pure `decid
 - The print-status settings observer would otherwise fire once at startup with the persisted value and silently overwrite a pin ~16ms after it was applied, so it asks `decide_preview_mode()` and stands down when the command line or `HELIX_GCODE_MODE` wins (`src/ui/print/ui_panel_print_status.cpp#"pinned above settings"`). `on_activate()` re-applies the same ladder through `apply_preview_render_mode()`.
 - `decide_render_mode()` treats an unrecognized env value as **2D, not Auto** - a typo'd override lands on the renderer that works everywhere rather than silently behaving as unset. Only unset reaches Auto.
 
-A non-GLES build (`ad5m`, `ad5x`, `cc1`, `k1-dynamic`, `k2`, `snapmaker-u1`, the `-fbdev` targets) holds no 3D renderer at all: `is_using_2d_mode()` answers 2D unconditionally there, so `--render-3d` or a persisted `gcode_render_mode: 1` carried over from a GLES build still lands on the 2D isometric view. For the fleet without GLES, the 2D view is the G-code view.
+A non-GLES build (`ad5m`, `ad5x`, `cc1`, `k2`, `snapmaker-u1`, the `-fbdev` targets) holds no 3D renderer at all: `is_using_2d_mode()` answers 2D unconditionally there, so `--render-3d` or a persisted `gcode_render_mode: 1` carried over from a GLES build still lands on the 2D isometric view. For the fleet without GLES, the 2D view is the G-code view.
 
 ### How the viewer widget owns its renderers
 

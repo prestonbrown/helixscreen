@@ -31,8 +31,8 @@ const ZIP_PATTERN = /^helixscreen-[a-zA-Z0-9._-]+\.zip$/;
  * deployed binary keeps requesting helixscreen-{k1,ad5x}-v*.tar.gz until the
  * fleet turns over, so those URLs rewrite to the single mips object instead
  * of R2 carrying byte-identical copies under three keys. The version's 'v'
- * anchors the split: helixscreen-k1-dynamic-* is a genuinely different
- * artifact and must NOT be rewritten.
+ * anchors the split: a longer key that starts with k1- or ad5x- names a
+ * different artifact and must NOT be rewritten.
  */
 function rewriteRetiredMipsAlias(filename: string): string {
   const match = /^helixscreen-(k1|ad5x)-(v[0-9][a-zA-Z0-9.+-]*\.tar\.gz)$/.exec(

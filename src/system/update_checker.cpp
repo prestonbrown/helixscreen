@@ -197,7 +197,7 @@ bool select_github_asset(const json& assets, const std::string& platform_key,
             return true;
         }
         // The version's 'v' must sit directly after the platform prefix:
-        // a longer platform key that extends this one (k1-dynamic for k1)
+        // a longer platform key that extends this one (x86-desktop for x86)
         // carries the prefix too and must not be selected for the shorter
         // key. Asset names are helixscreen-<plat>-v<version>.tar.gz.
         const size_t after_prefix = platform_prefix.size();

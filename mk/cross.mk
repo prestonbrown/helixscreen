@@ -504,55 +504,6 @@ else ifneq ($(filter mips k1 ad5x,$(PLATFORM_TARGET)),)
     # ad5x: medium large). Panels differ per board, so both ends ship.
     FONT_TIERS := small medium large
 
-else ifeq ($(PLATFORM_TARGET),k1-dynamic)
-    # -------------------------------------------------------------------------
-    # Creality K1 Series - Dynamic Linking (Ingenic X2000E MIPS32r2)
-    # Specs: 480x800 panel used rotated, so 800x480 landscape (K1/K1C/K1Max and K2
-    # alike), 256MB RAM, glibc 2.29. Panel geometry of record is
-    # assets/config/platforms.json; these lines are a reader's summary of it.
-    # -------------------------------------------------------------------------
-    # DYNAMIC BUILD: Links against K1's native glibc 2.29 system libraries.
-    # Requires custom NaN2008+FP64 toolchain (built via crosstool-NG).
-    # Project-specific libraries (libhv, libnl, wpa) are statically linked.
-    # System libraries (libc, libstdc++, libm, etc.) are dynamically linked.
-    CROSS_COMPILE ?= mipsel-k1-linux-gnu-
-    TARGET_ARCH := mips32r2
-    TARGET_TRIPLE := mipsel-k1-linux-gnu
-    # NaN2008 + FP64 flags are critical for ABI compatibility with K1 firmware
-    # GCC 7.x is also pinned for ABI reasons: this build runs against the
-    # device's libstdc++ 6.0.24 (GCC 7.x). The static mips build has no such
-    # runtime, which is why it can move to a newer compiler.
-    # No LTO: GCC 7.5 static toolchain doesn't ship liblto_plugin.so
-    # -isystem include/compat: Filesystem shim — GCC 7 only has <experimental/filesystem>
-    # -funwind-tables: Emit DWARF unwind info so backtrace() can walk the full
-    # call stack in crash reports. Small code size cost, zero runtime cost.
-    TARGET_CFLAGS := -march=mips32r2 -mtune=mips32r2 -mnan=2008 -mfp64 \
-        -Os -ffunction-sections -fdata-sections -funwind-tables \
-        -fno-omit-frame-pointer \
-        -isystem include/compat \
-        -Wno-error=conversion -Wno-error=sign-conversion \
-        -DHELIX_RELEASE_BUILD -DHELIX_PLATFORM_K1
-    # AMS: CFS stays ON - see the mips block.
-    HELIX_HAS_IFS := 0
-    HELIX_HAS_ACE := 0
-    HELIX_HAS_QIDI := 0
-    HELIX_HAS_SNAPMAKER := 0
-    # Dynamic linking with NaN2008 dynamic linker
-    # NO -static flag! System libs resolved at runtime on the K1.
-    TARGET_LDFLAGS := -Wl,--gc-sections -Wl,-O2 -Wl,--as-needed \
-        -Wl,--dynamic-linker=/lib/ld-linux-mipsn8.so.1
-    ENABLE_SSL := yes
-    DISPLAY_BACKEND := fbdev
-    ENABLE_SDL := no
-    ENABLE_GLES_3D := no
-    # K1 dynamic: same board as k1/mips, so a saver is affordable. A running saver costs no
-    # detectable RSS, and the load gate measures CPU on the board and steps down.
-    ENABLE_SCREENSAVER := yes
-    ENABLE_EVDEV := yes
-    BUILD_SUBDIR := k1-dynamic
-    STRIP_BINARY := yes
-    FONT_TIERS := small medium
-
 else ifeq ($(PLATFORM_TARGET),k2)
     # -------------------------------------------------------------------------
     # Creality K2 Series - Allwinner T113 / sun8iw20p1 (ARM Cortex-A7, dual-core)
@@ -787,7 +738,7 @@ else ifeq ($(PLATFORM_TARGET),native)
     BUILD_SUBDIR :=
 
 else
-    $(error Unknown PLATFORM_TARGET: $(PLATFORM_TARGET). Valid options: native, pi, pi32, x86, x86-desktop, ad5m, ad5m-br, cc1, mips, k1, ad5x, k1-dynamic, k2, snapmaker-u1, yocto)
+    $(error Unknown PLATFORM_TARGET: $(PLATFORM_TARGET). Valid options: native, pi, pi32, x86, x86-desktop, ad5m, ad5m-br, cc1, mips, k1, ad5x, k2, snapmaker-u1, yocto)
 endif
 
 # pi32 compiles against Debian armhf (armv7) headers, whose shared_ptr uses the
@@ -835,13 +786,6 @@ ifneq ($(CROSS_COMPILE),)
     STRIP := $(CROSS_COMPILE)strip
     RANLIB := $(CROSS_COMPILE)gcc-ranlib
     LD := $(CROSS_COMPILE)ld
-
-    # k1-dynamic: GCC 7.5 static toolchain doesn't ship liblto_plugin.so,
-    # so gcc-ar/gcc-ranlib fail. Use plain ar/ranlib (LTO is disabled anyway).
-    ifeq ($(PLATFORM_TARGET),k1-dynamic)
-        AR := $(CROSS_COMPILE)ar
-        RANLIB := $(CROSS_COMPILE)ranlib
-    endif
 
     # Re-apply ccache wrapping: the CC/CXX assignments above clobber the
     # ccache prefix the main Makefile sets (~line 143), so without this
@@ -980,13 +924,6 @@ ifeq ($(PLATFORM_TARGET),k1)
     SUBMODULE_CXXFLAGS := $(subst -O2,-Os,$(SUBMODULE_CXXFLAGS))
 endif
 
-ifeq ($(PLATFORM_TARGET),k1-dynamic)
-    CFLAGS := $(subst -O2,-Os,$(CFLAGS))
-    CXXFLAGS := $(subst -O2,-Os,$(CXXFLAGS))
-    SUBMODULE_CFLAGS := $(subst -O2,-Os,$(SUBMODULE_CFLAGS))
-    SUBMODULE_CXXFLAGS := $(subst -O2,-Os,$(SUBMODULE_CXXFLAGS))
-endif
-
 ifeq ($(PLATFORM_TARGET),snapmaker-u1)
     CFLAGS := $(subst -O2,-Os,$(CFLAGS))
     CXXFLAGS := $(subst -O2,-Os,$(CXXFLAGS))
@@ -1087,7 +1024,7 @@ endif
 # Cross-Compilation Build Targets
 # =============================================================================
 
-.PHONY: pi pi-both pi32 pi32-both ad5m ad5m-br cc1 mips k1 ad5x creator5 k1-dynamic k2 snapmaker-u1 x86 x86-both pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker creator5-docker k1-dynamic-docker k2-docker ustreamer-k2 snapmaker-u1-docker x86-docker x86-fbdev-docker x86-all-docker x86-desktop-docker docker-toolchains docker-toolchain-snapmaker-u1 docker-toolchain-x86 cross-info ensure-docker ensure-buildx maybe-stop-colima
+.PHONY: pi pi-both pi32 pi32-both ad5m ad5m-br cc1 mips k1 ad5x creator5 k2 snapmaker-u1 x86 x86-both pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker creator5-docker k2-docker ustreamer-k2 snapmaker-u1-docker x86-docker x86-fbdev-docker x86-all-docker x86-desktop-docker docker-toolchains docker-toolchain-snapmaker-u1 docker-toolchain-x86 cross-info ensure-docker ensure-buildx maybe-stop-colima
 
 # Persistent ccache for Docker builds — bind-mounts a host directory so the
 # cache survives across container runs (the container is --rm).  Per-platform
@@ -1201,10 +1138,6 @@ mips:
 
 k1: mips
 creator5: mips
-
-k1-dynamic:
-	@echo "$(CYAN)$(BOLD)Cross-compiling for Creality K1 series (MIPS32, dynamic linking)...$(RESET)"
-	$(Q)$(MAKE) PLATFORM_TARGET=k1-dynamic $(SUBMAKE_J) all
 
 k2:
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Creality K2 series (ARM Cortex-A7)...$(RESET)"
@@ -1455,18 +1388,6 @@ k1-docker: mips-docker
 
 creator5-docker: mips-docker
 
-k1-dynamic-docker: ensure-docker
-	@echo "$(CYAN)$(BOLD)Cross-compiling for Creality K1 series (dynamic) via Docker...$(RESET)"
-	@if ! docker image inspect helixscreen/toolchain-k1-dynamic >/dev/null 2>&1; then \
-		echo "$(YELLOW)Docker image not found. Building toolchain first...$(RESET)"; \
-		$(MAKE) docker-toolchain-k1-dynamic; \
-	fi
-	$(call ensure-ccache-dir,k1-dynamic)
-	$(Q)scripts/pool-docker.sh docker run --rm --user $$(id -u):$$(id -g) -v "$(CURDIR)":/src $(DOCKER_HOST_CONTEXT) -w /src $(call docker-ccache-args,k1-dynamic) helixscreen/toolchain-k1-dynamic \
-		make PLATFORM_TARGET=k1-dynamic SKIP_OPTIONAL_DEPS=1 $(DOCKER_REMOTE_CONTROL) $(DOCKER_DIAG_UPLOADS) $(DOCKER_MOCKS) -j$(NPROC_DOCKER_RUN)
-	$(call extract-ca-certs,k1-dynamic)
-	@$(MAKE) --no-print-directory maybe-stop-colima
-
 k2-docker: ensure-docker
 	@echo "$(CYAN)$(BOLD)Cross-compiling for Creality K2 series via Docker...$(RESET)"
 	@if ! docker image inspect helixscreen/toolchain-k2 >/dev/null 2>&1; then \
@@ -1545,7 +1466,7 @@ maybe-stop-colima:
 	fi
 
 # Build Docker toolchain images
-docker-toolchains: docker-toolchain-pi docker-toolchain-pi32 docker-toolchain-ad5m docker-toolchain-cc1 docker-toolchain-k1 docker-toolchain-mips docker-toolchain-k1-dynamic docker-toolchain-k2 docker-toolchain-snapmaker-u1 docker-toolchain-x86
+docker-toolchains: docker-toolchain-pi docker-toolchain-pi32 docker-toolchain-ad5m docker-toolchain-cc1 docker-toolchain-k1 docker-toolchain-mips docker-toolchain-k2 docker-toolchain-snapmaker-u1 docker-toolchain-x86
 	@echo "$(GREEN)$(BOLD)All Docker toolchains built successfully$(RESET)"
 
 docker-toolchain-pi: ensure-buildx
@@ -1571,10 +1492,6 @@ docker-toolchain-k1: ensure-buildx
 docker-toolchain-mips: ensure-buildx
 	@echo "$(CYAN)Building unified MIPS (K1 + AD5X) toolchain Docker image...$(RESET)"
 	$(Q)docker buildx build -t helixscreen/toolchain-mips -f docker/Dockerfile.mips docker/
-
-docker-toolchain-k1-dynamic: ensure-buildx
-	@echo "$(CYAN)Building Creality K1 series (dynamic) toolchain Docker image...$(RESET)"
-	$(Q)docker buildx build -t helixscreen/toolchain-k1-dynamic -f docker/Dockerfile.k1-dynamic docker/
 
 docker-toolchain-k2: ensure-buildx
 	@echo "$(CYAN)Building Creality K2 series toolchain Docker image...$(RESET)"
@@ -1608,7 +1525,6 @@ help-cross:
 	echo "  $${G}cc1-docker$${X}           - Build for Centauri Carbon 1 (armv7-a) via Docker"; \
 	echo "  $${G}k1-docker$${X}            - Build for Creality K1 series (MIPS32, static) via Docker"; \
 	echo "  $${G}creator5-docker$${X}      - Build for FlashForge Creator 5 Pro (MIPS32, static) via Docker"; \
-	echo "  $${G}k1-dynamic-docker$${X}    - Build for Creality K1 series (MIPS32, dynamic) via Docker"; \
 	echo "  $${G}k2-docker$${X}            - Build for Creality K2 series (ARM, static) via Docker"; \
 	echo "  $${G}snapmaker-u1-docker$${X}  - Build for Snapmaker U1 (aarch64, static) via Docker"; \
 	echo "  $${G}x86-docker$${X}           - Build for x86_64 Debian SBCs (DRM+GLES) via Docker"; \
@@ -1618,7 +1534,6 @@ help-cross:
 	echo "  $${G}docker-toolchain-ad5m$${X} - Build AD5M toolchain image only"; \
 	echo "  $${G}docker-toolchain-cc1$${X}  - Build CC1 toolchain image only"; \
 	echo "  $${G}docker-toolchain-k1$${X}  - Build K1 static toolchain image only"; \
-	echo "  $${G}docker-toolchain-k1-dynamic$${X} - Build K1 dynamic toolchain image only"; \
 	echo "  $${G}docker-toolchain-k2$${X}  - Build K2 toolchain image only"; \
 	echo "  $${G}docker-toolchain-snapmaker-u1$${X} - Build Snapmaker U1 toolchain image only"; \
 	echo "  $${G}docker-toolchain-x86$${X}  - Build x86_64 Debian toolchain image only"; \
@@ -1630,7 +1545,6 @@ help-cross:
 	echo "  $${G}cc1$${X}                  - Cross-compile for Centauri Carbon 1"; \
 	echo "  $${G}k1$${X}                   - Cross-compile for Creality K1 series (static)"; \
 	echo "  $${G}creator5$${X}             - Cross-compile for FlashForge Creator 5 Pro (unified mips build)"; \
-	echo "  $${G}k1-dynamic$${X}           - Cross-compile for Creality K1 series (dynamic)"; \
 	echo "  $${G}k2$${X}                   - Cross-compile for Creality K2 series"; \
 	echo "  $${G}snapmaker-u1$${X}         - Cross-compile for Snapmaker U1 (aarch64)"; \
 	echo ""; \
@@ -1666,12 +1580,6 @@ help-cross:
 	echo "  $${G}deploy-k1-bin$${X}        - Deploy binaries only (fast iteration)"; \
 	echo "  $${G}k1-test$${X}              - Full cycle: docker build + deploy + run (fg)"; \
 	echo "  $${G}k1-ssh$${X}               - SSH into the K1"; \
-	echo ""; \
-	echo "$${C}K1 Deployment - Dynamic:$${X}"; \
-	echo "  $${G}deploy-k1-dynamic$${X}    - Deploy and restart in background"; \
-	echo "  $${G}deploy-k1-dynamic-fg$${X} - Deploy and run in foreground (debug)"; \
-	echo "  $${G}deploy-k1-dynamic-bin$${X} - Deploy binaries only (fast iteration)"; \
-	echo "  $${G}k1-dynamic-test$${X}      - Full cycle: docker build + deploy + run (fg)"; \
 	echo ""; \
 	echo "$${C}K2 Deployment (UNTESTED):$${X}"; \
 	echo "  $${G}deploy-k2$${X}            - Deploy and restart in background"; \
@@ -2593,86 +2501,6 @@ k1-ssh:
 k1-test: k1-docker deploy-k1-fg
 
 # =============================================================================
-# K1 Dynamic Deployment Targets
-# =============================================================================
-# Same as K1 static targets but using build/k1-dynamic/ paths
-
-.PHONY: deploy-k1-dynamic deploy-k1-dynamic-fg deploy-k1-dynamic-bin k1-dynamic-test
-
-# Deploy full application to K1 (dynamic build) using tar/ssh
-deploy-k1-dynamic:
-	$(call require-built,build/k1-dynamic/bin,k1-dynamic-docker,helix-screen helix-splash)
-	@echo "$(CYAN)Deploying HelixScreen (dynamic) to $(K1_SSH_TARGET):$(K1_DEPLOY_DIR)...$(RESET)"
-	@# Generate pre-rendered images if missing
-	@if [ ! -f build/assets/images/prerendered/splash-logo-medium.bin ]; then \
-		echo "$(DIM)Generating pre-rendered splash images...$(RESET)"; \
-		$(MAKE) gen-images; \
-	fi
-	@if [ ! -d build/assets/images/printers/prerendered ] || [ -z "$$(ls -A build/assets/images/printers/prerendered/*.bin 2>/dev/null)" ]; then \
-		echo "$(DIM)Generating pre-rendered printer images...$(RESET)"; \
-		$(MAKE) gen-printer-images; \
-	fi
-	@if [ ! -f build/assets/images/prerendered/splash-3d-dark-medium.bin ]; then \
-		echo "$(DIM)Generating 3D splash images for K1...$(RESET)"; \
-		$(MAKE) gen-splash-3d-k1; \
-	fi
-	@# Stop running processes and prepare directory
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; mkdir -p $(K1_DEPLOY_DIR)/bin"
-	@# Transfer binaries via cat/ssh
-	@echo "$(DIM)Transferring binaries...$(RESET)"
-	cat build/k1-dynamic/bin/helix-screen | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-screen && chmod +x $(K1_DEPLOY_DIR)/bin/helix-screen"
-	cat build/k1-dynamic/bin/helix-splash | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-splash && chmod +x $(K1_DEPLOY_DIR)/bin/helix-splash"
-	@if [ -f build/k1-dynamic/bin/helix-watchdog ]; then \
-		cat build/k1-dynamic/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/bin/helix-watchdog"; \
-	fi
-	cat scripts/helix-launcher.sh | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-launcher.sh && chmod +x $(K1_DEPLOY_DIR)/bin/helix-launcher.sh"
-	@# Transfer assets via tar
-	@echo "$(DIM)Transferring assets...$(RESET)"
-	COPYFILE_DISABLE=1 tar -cf - $(DEPLOY_TAR_EXCLUDES) $(DEPLOY_TAR_NO_TRACKER) $(DEPLOY_ASSET_DIRS) | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && tar -xof - && chmod -R go-w ."
-	$(call deploy-platform-hooks,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),k1)
-	@# Transfer pre-rendered images
-	@if [ -d build/assets/images/prerendered ] && ls build/assets/images/prerendered/*.bin >/dev/null 2>&1; then \
-		echo "$(DIM)Transferring pre-rendered images...$(RESET)"; \
-		ssh $(K1_SSH_TARGET) "mkdir -p $(K1_DEPLOY_DIR)/assets/images/prerendered $(K1_DEPLOY_DIR)/assets/images/printers/prerendered"; \
-		COPYFILE_DISABLE=1 tar -cf - -C build/assets/images prerendered | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR)/assets/images && tar -xof - && chmod -R go-w ."; \
-	fi
-	@if [ -d build/assets/images/printers/prerendered ] && ls build/assets/images/printers/prerendered/*.bin >/dev/null 2>&1; then \
-		COPYFILE_DISABLE=1 tar -cf - -C build/assets/images/printers prerendered | ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR)/assets/images/printers && tar -xof - && chmod -R go-w ."; \
-	fi
-	@echo "$(GREEN)✓ Deployed to $(K1_HOST):$(K1_DEPLOY_DIR)$(RESET)"
-	$(call sync-device-features,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin)
-	@echo "$(CYAN)Starting helix-screen on $(K1_HOST)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
-	@echo "$(GREEN)✓ helix-screen started in background$(RESET)"
-	@echo "$(DIM)Logs: ssh $(K1_SSH_TARGET) 'tail -f /var/log/messages | grep helix'$(RESET)"
-
-# Deploy and run in foreground with verbose logging (for interactive debugging)
-deploy-k1-dynamic-fg:
-	$(call require-built,build/k1-dynamic/bin,k1-dynamic-docker,helix-screen helix-splash)
-	$(call deploy-common,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin,k1)
-	@echo "$(CYAN)Starting helix-screen on $(K1_HOST) (foreground, verbose)...$(RESET)"
-	ssh -t $(K1_SSH_TARGET) "cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh --debug"
-
-# Deploy binaries only (fast, for quick iteration)
-deploy-k1-dynamic-bin:
-	$(call require-built,build/k1-dynamic/bin,k1-dynamic-docker,helix-screen)
-	@echo "$(CYAN)Deploying binaries only to $(K1_SSH_TARGET):$(K1_DEPLOY_DIR)/bin...$(RESET)"
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; mkdir -p $(K1_DEPLOY_DIR)/bin"
-	cat build/k1-dynamic/bin/helix-screen | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-screen && chmod +x $(K1_DEPLOY_DIR)/bin/helix-screen"
-	cat build/k1-dynamic/bin/helix-splash | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-splash && chmod +x $(K1_DEPLOY_DIR)/bin/helix-splash"
-	@if [ -f build/k1-dynamic/bin/helix-watchdog ]; then \
-		cat build/k1-dynamic/bin/helix-watchdog | ssh $(K1_SSH_TARGET) "cat > $(K1_DEPLOY_DIR)/bin/helix-watchdog && chmod +x $(K1_DEPLOY_DIR)/bin/helix-watchdog"; \
-	fi
-	@echo "$(GREEN)✓ Binaries deployed$(RESET)"
-	$(call sync-device-features,$(K1_SSH_TARGET),$(K1_DEPLOY_DIR),build/k1-dynamic/bin)
-	@echo "$(CYAN)Restarting helix-screen on $(K1_HOST)...$(RESET)"
-	ssh $(K1_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; killall -9 helix-watchdog helix-screen helix-splash 2>/dev/null || true; rm -f /tmp/helix-screen.lock; cd $(K1_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
-	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
-
-# Full cycle: docker build + deploy + run in foreground
-k1-dynamic-test: k1-dynamic-docker deploy-k1-dynamic-fg
-
-# =============================================================================
 # K2 Deployment Configuration
 # =============================================================================
 #
@@ -2969,7 +2797,7 @@ endef
 # single source of truth shared with the installer's runtime fallback — so the
 # baked value and the fallback can't diverge and send Moonraker after the wrong
 # (or non-zip) asset (prestonbrown/helixscreen#993).
-# Args: $(1) = platform key (pi, pi32, ad5m, ad5x, cc1, k1, k1-dynamic, k2,
+# Args: $(1) = platform key (pi, pi32, ad5m, ad5x, cc1, k1, k2,
 #              snapmaker-u1, x86)
 define write-release-info
 	@asset=$$(. scripts/lib/installer/platform.sh >/dev/null 2>&1 && helix_self_update_asset $(1)); \
@@ -3040,9 +2868,9 @@ $(UNINSTALLER_BUNDLE): scripts/bundle-uninstaller.sh $(INSTALLER_SOURCES)
 	@sh scripts/bundle-uninstaller.sh -o $@ >/dev/null
 
 deploy-pi deploy-pi-fg deploy-pi-asan deploy-pi32 deploy-pi32-fg deploy-pi32-asan \
-deploy-ad5m deploy-ad5m-fg deploy-cc1 deploy-cc1-fg deploy-k1-fg deploy-k1-dynamic-fg: $(INSTALLER_BUNDLES)
+deploy-ad5m deploy-ad5m-fg deploy-cc1 deploy-cc1-fg deploy-k1-fg: $(INSTALLER_BUNDLES)
 
-.PHONY: release-pi release-pi32 release-ad5m release-cc1 release-mips release-k1 release-ad5x release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-x86-desktop release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
+.PHONY: release-pi release-pi32 release-ad5m release-cc1 release-mips release-k1 release-ad5x release-k2 release-snapmaker-u1 release-x86 release-x86-desktop release-all release-clean pi-fbdev-docker pi32-fbdev-docker pi-all-docker pi32-all-docker x86-fbdev-docker x86-all-docker
 
 # Host CA bundle packaged when a platform has no toolchain-extracted one.
 CA_BUNDLE ?= /etc/ssl/certs/ca-certificates.crt
@@ -3054,7 +2882,6 @@ REL_LABEL.pi32 := Pi 32-bit
 REL_LABEL.ad5m := AD5M
 REL_LABEL.cc1 := CC1
 REL_LABEL.mips := unified MIPS (K1 + AD5X)
-REL_LABEL.k1-dynamic := K1 Dynamic
 REL_LABEL.k2 := K2
 REL_LABEL.snapmaker-u1 := Snapmaker U1
 REL_LABEL.x86 := x86
@@ -3193,10 +3020,6 @@ release-mips: $(INSTALLER_BUNDLES) | build/mips/bin/helix-screen build/mips/bin/
 release-k1: release-mips
 release-ad5x: release-mips
 
-# Package K1 Dynamic release
-release-k1-dynamic: $(INSTALLER_BUNDLES) | build/k1-dynamic/bin/helix-screen build/k1-dynamic/bin/helix-splash
-	$(call release-package,k1-dynamic)
-
 # Package K2 release
 release-k2: $(INSTALLER_BUNDLES) | build/k2/bin/helix-screen build/k2/bin/helix-splash
 	$(call release-package,k2)
@@ -3215,7 +3038,7 @@ release-x86-desktop: $(INSTALLER_BUNDLES) | build/x86-desktop/bin/helix-screen
 	$(call release-package,x86-desktop)
 
 # Package all releases
-release-all: release-pi release-pi32 release-ad5m release-cc1 release-mips release-k1-dynamic release-k2 release-snapmaker-u1 release-x86 release-x86-desktop
+release-all: release-pi release-pi32 release-ad5m release-cc1 release-mips release-k2 release-snapmaker-u1 release-x86 release-x86-desktop
 	@echo "$(GREEN)$(BOLD)✓ All releases packaged in $(RELEASE_DIR)/$(RESET)"
 	@ls -lh $(RELEASE_DIR)/*.zip
 
@@ -3227,7 +3050,7 @@ release-clean:
 # Aliases for package-* — trigger the full build + package workflow.
 # The legacy scripts/package.sh wrapper was deleted; these targets are now
 # the single entry point for building release artifacts.
-.PHONY: package-ad5m package-cc1 package-pi package-pi32 package-mips package-k1 package-ad5x package-k1-dynamic package-k2 package-snapmaker-u1 package-x86 package-x86-desktop package-all
+.PHONY: package-ad5m package-cc1 package-pi package-pi32 package-mips package-k1 package-ad5x package-k2 package-snapmaker-u1 package-x86 package-x86-desktop package-all
 
 # THE marker that separates a production build from a developer one. Everything
 # a developer builds gets the helixctl server (see the ENABLE_REMOTE_CONTROL
@@ -3254,12 +3077,11 @@ package-mips: mips-docker gen-images gen-splash-3d-mips gen-printer-images relea
 # release, narrowed only to that board's splash classes.
 package-k1: mips-docker gen-images gen-splash-3d-k1 gen-printer-images release-mips
 package-ad5x: mips-docker gen-images gen-splash-3d-ad5x gen-printer-images release-mips
-package-k1-dynamic: k1-dynamic-docker gen-images gen-splash-3d-k1-dynamic gen-printer-images release-k1-dynamic
 package-k2: k2-docker gen-images gen-splash-3d-k2 gen-printer-images release-k2
 package-snapmaker-u1: snapmaker-u1-docker gen-images gen-splash-3d-snapmaker-u1 gen-printer-images release-snapmaker-u1
 package-x86: x86-all-docker gen-images gen-splash-3d-x86 gen-printer-images release-x86
 package-x86-desktop: x86-desktop-docker gen-images gen-splash-3d-x86-desktop gen-printer-images release-x86-desktop
-package-all: package-ad5m package-cc1 package-pi package-pi32 package-mips package-k1-dynamic package-k2 package-snapmaker-u1 package-x86 package-x86-desktop
+package-all: package-ad5m package-cc1 package-pi package-pi32 package-mips package-k2 package-snapmaker-u1 package-x86 package-x86-desktop
 
 # Convenience alias (verb-target → target-verb)
 .PHONY: ad5m-deploy

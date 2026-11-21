@@ -66,7 +66,7 @@ $(define_body "$name")"
 @test "every sysv device deploy target places platform hooks" {
     # Platforms whose hooks file carries real behaviour. The -fg/-bin variants
     # route through the same recipes and are covered by their base target.
-    for t in deploy-cc1 deploy-k1 deploy-k1-dynamic deploy-k2 deploy-snapmaker-u1; do
+    for t in deploy-cc1 deploy-k1 deploy-k2 deploy-snapmaker-u1; do
         run target_deploys_hooks "$t"
         [ "$status" -eq 0 ] || {
             echo "$t does not deploy platform/hooks.sh"

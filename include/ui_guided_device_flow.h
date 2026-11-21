@@ -24,6 +24,8 @@ struct GuidedDeviceFlow {
     std::function<void(lv_obj_t* actions_container)> attach_status;
     /// Runs the flow when its action's button is clicked. @p label is the action's label.
     std::function<void(const std::string& label)> start;
+    /// Runs a flow that acts on one lane (RecoveryAction::lane), in place of start.
+    std::function<void(int lane)> start_on_lane;
 };
 
 /// Registers @p flow under @p id, replacing any earlier registration.

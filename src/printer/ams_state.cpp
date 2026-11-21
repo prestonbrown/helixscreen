@@ -448,6 +448,7 @@ void AmsState::reset_backend_subjects() {
     // printer's filament system on the next one.
     lv_subject_set_int(&backend_count_, 0);
     fault_cause_.clear();
+    stop_reason_before_op_.reset();
 
     // System, action and current-tool state: the sync path with an empty system.
     sync_system_subjects(AmsSystemInfo{});
@@ -1744,8 +1745,28 @@ void AmsState::set_action_detail(const std::string& detail) {
 }
 // clang-format on
 
+void AmsState::track_pause_operation(bool paused, AmsAction action, const char* stop_reason) {
+    const bool held = ams_action_holds_system(action);
+    if (!paused) {
+        pause_seen_ = false;
+        stop_reason_before_op_.reset();
+    } else if (!pause_seen_) {
+        pause_seen_ = true;
+    } else if (held && !action_held_) {
+        stop_reason_before_op_ = stop_reason;
+    }
+    action_held_ = held;
+}
+
 bool AmsState::update_fault_cause() {
     const auto action = static_cast<AmsAction>(lv_subject_get_int(&ams_action_));
+    auto& print = get_printer_state().print_state();
+    // RAW_PRINT_STATE_OK: the printer's own pause is what a filament fault
+    // stops the print with.
+    const bool paused = print.get_print_job_state() == PrintJobState::PAUSED;
+    const char* stop_reason = lv_subject_get_string(print.get_print_stop_reason_subject());
+    track_pause_operation(paused, action, stop_reason);
+
     const AmsBackend* backend = get_backend();
     const bool fault =
         action == AmsAction::ERROR || (backend && backend->current_error().has_value());
@@ -1754,15 +1775,14 @@ bool AmsState::update_fault_cause() {
         fault_cause_.clear();
         return had;
     }
-    auto& print = get_printer_state().print_state();
-    // RAW_PRINT_STATE_OK: the printer's own pause is what a filament fault
-    // stops the print with.
-    const bool paused = print.get_print_job_state() == PrintJobState::PAUSED;
     // The newest cause wins: a second fault while the first stands names its
-    // own lane, and recovery acts on the lane the cause names.
+    // own lane, and recovery acts on the lane the cause names. A load the user
+    // runs in a runout pause fails on its own lane, which the runout's stop
+    // reason does not name.
+    const bool predates_op = stop_reason_before_op_ && *stop_reason_before_op_ == stop_reason;
     std::string cause =
-        standing_fault_cause(paused, lv_subject_get_string(print.get_print_stop_reason_subject()),
-                             recent_gcode_error(print, wall_now_s()));
+        standing_fault_cause(paused, stop_reason, recent_gcode_error(print, wall_now_s()),
+                             predates_op, !last_operation_detail_.empty());
     if (cause.empty() || cause == fault_cause_) {
         return false;
     }

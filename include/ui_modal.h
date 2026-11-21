@@ -530,6 +530,10 @@ class ModalStack {
     // Check if any modals are visible (not counting those in exit animation)
     bool empty() const;
 
+    /// The backdrops still on screen in their exit animation. A snapshot taken for
+    /// a new modal leaves them out: they are gone a moment later.
+    std::vector<lv_obj_t*> exiting_backdrops() const;
+
     /// Bring every visible (non-exiting) backdrop to the front, bottom to top, so
     /// the stack keeps its order above anything created after it (an overlay).
     void raise_visible_to_foreground();

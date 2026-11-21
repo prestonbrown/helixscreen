@@ -52,6 +52,26 @@ static uint8_t get_modal_backdrop_opacity() {
     return kDefaultModalBackdropOpacity;
 }
 
+/// A modal's backdrop, snapshotting the screen without any modal still fading
+/// out: one closing as this one opens would stay frozen in the image.
+static lv_obj_t* create_modal_backdrop(lv_obj_t* parent) {
+    const std::vector<lv_obj_t*> leaving = ModalStack::instance().exiting_backdrops();
+    std::vector<lv_obj_t*> hidden;
+    for (lv_obj_t* b : leaving) {
+        if (!lv_obj_is_hidden(b)) {
+            lv_obj_set_hidden(b,
+                              true); // DECLARATIVE_OK: excluded from one snapshot, restored below
+            hidden.push_back(b);
+        }
+    }
+    lv_obj_t* backdrop =
+        helix::ui::create_fullscreen_backdrop(parent, get_modal_backdrop_opacity());
+    for (lv_obj_t* b : hidden) {
+        lv_obj_set_hidden(b, false); // DECLARATIVE_OK: restores the flag set above
+    }
+    return backdrop;
+}
+
 // ============================================================================
 // ANIMATION CONSTANTS
 // ============================================================================
@@ -505,6 +525,16 @@ bool ModalStack::mark_exiting(lv_obj_t* backdrop) {
     return false; // Not found
 }
 
+std::vector<lv_obj_t*> ModalStack::exiting_backdrops() const {
+    std::vector<lv_obj_t*> out;
+    for (const auto& entry : stack_) {
+        if (entry.exiting && entry.backdrop) {
+            out.push_back(entry.backdrop.get());
+        }
+    }
+    return out;
+}
+
 bool ModalStack::is_exiting(lv_obj_t* backdrop) const {
     for (const auto& entry : stack_) {
         if (handle_names(entry.backdrop, backdrop)) {
@@ -842,8 +872,7 @@ lv_obj_t* Modal::show(const char* component_name, const char** attrs) {
         return nullptr;
     }
 
-    lv_obj_t* backdrop =
-        helix::ui::create_fullscreen_backdrop(parent, get_modal_backdrop_opacity());
+    lv_obj_t* backdrop = create_modal_backdrop(parent);
     if (!backdrop) {
         spdlog::error("[Modal] Failed to create backdrop");
         return nullptr;
@@ -1252,7 +1281,7 @@ void Modal::wire_senary_button(const char* name) {
 // ============================================================================
 
 bool Modal::create_and_show(lv_obj_t* parent, const char* comp_name, const char** attrs) {
-    backdrop_ = helix::ui::create_fullscreen_backdrop(parent, get_modal_backdrop_opacity());
+    backdrop_ = create_modal_backdrop(parent);
     if (!backdrop_) {
         spdlog::error("[{}] Failed to create backdrop", get_name());
         return false;

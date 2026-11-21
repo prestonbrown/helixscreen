@@ -59,6 +59,8 @@ struct RecoveryAction {
     /// checks, so a flow that heats refuses its start while a print holds the
     /// machine exactly as it does from any other entry.
     std::string guided_flow;
+    /// The lane a lane flow (kLoadLaneFlowId, kUnloadLaneFlowId) acts on; -1 otherwise.
+    int lane = -1;
 };
 
 /// Guided flows any producer may name in RecoveryAction::guided_flow: the way on
@@ -67,6 +69,11 @@ struct RecoveryAction {
 inline constexpr const char* kOpenFilamentFlowId = "open_filament";
 /// Asks to cancel the print, through the same confirmation the Stop button raises.
 inline constexpr const char* kCancelPrintFlowId = "cancel_print";
+/// Loads RecoveryAction::lane again in place, through the filament system's own
+/// load: the same refusals and progress as the Filament panel's Load.
+inline constexpr const char* kLoadLaneFlowId = "load_lane";
+/// Unloads RecoveryAction::lane in place, as the Filament panel's Unload does.
+inline constexpr const char* kUnloadLaneFlowId = "unload_lane";
 
 /// Result of classifying one gcode-response line. Produced by the pure
 /// `error_classify::classify()`; consumed by the router's presenter.

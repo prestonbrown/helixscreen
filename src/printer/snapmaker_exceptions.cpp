@@ -779,6 +779,23 @@ std::string format_exception_code(const ExceptionCode& c) {
     return fmt::format("{:04d}-{:04d}-{:04d}-{:04d}", c.level, c.id, c.index, c.code);
 }
 
+FeedRetry feed_retry(const ExceptionCode& c) {
+    if (c.id != kFeedingModuleId) {
+        return FeedRetry::None;
+    }
+    switch (c.code) {
+    case 0:  // the auto-feed setting
+    case 90: // a hand feed
+        return FeedRetry::None;
+    case 15: // filament already in the feed path: it comes out first
+    case 70:
+        return FeedRetry::Unload;
+    default:
+        // Preload, load and purge codes, and an unknown code, which words as a load failure.
+        return FeedRetry::Load;
+    }
+}
+
 std::optional<ExceptionCode> decode_exception_code(const std::string& text) {
     // Scan for NNNN-NNNN-NNNN-NNNN. Requiring all four groups is what keeps the
     // three-part basic form from decoding as a shifted four-part one.

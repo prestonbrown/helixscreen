@@ -92,7 +92,7 @@ fi
 # carries no version (cross.mk's release-* recipes write
 # `helixscreen-$(platform).zip`), so everything between the prefix and `.zip`
 # is the platform key, hyphens included: there is no version half for a key
-# like snapmaker-u1 or k1-dynamic to be split on.
+# like snapmaker-u1 or x86-desktop to be split on.
 FOUND_ANY=false
 ASSETS_JSON="{}"
 

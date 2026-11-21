@@ -1270,6 +1270,35 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(helix::ui::head_can_load(view.heads[3]));
 }
 
+// A load that fails partway leaves filament fed into the head, sometimes a
+// broken stub only an unload clears; the toolhead switch need not see it.
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker head whose load failed with filament offers Unload",
+                 "[ams][snapmaker][channel_state][unload][parked]") {
+    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+
+    SECTION("load_fail with the lane holding filament") {
+        backend.fire_status(make_feed_status(3, "load_fail", /*filament_detected=*/true,
+                                             /*channel_error=*/"move_extrude"));
+
+        CHECK(backend.slot_filament_parked_in_toolhead(3));
+        CHECK_FALSE(backend.slot_has_filament_at_toolhead(3));
+        CHECK(helix::ui::read_unload_target_loaded(&backend, backend.get_system_info(), 3));
+        const auto view = helix::ui::read_filament_head_view(&backend, get_printer_state());
+        REQUIRE(view.heads.size() == 4);
+        CHECK(helix::ui::head_can_unload(view.heads[3]));
+    }
+    SECTION("load_fail on an empty lane leaves nothing to unload") {
+        backend.fire_status(make_feed_status(3, "load_fail", /*filament_detected=*/false));
+        CHECK_FALSE(backend.slot_filament_parked_in_toolhead(3));
+    }
+    SECTION("a later settled state clears it") {
+        backend.fire_status(make_feed_status(3, "load_fail", true, "move_extrude"));
+        backend.fire_status(make_feed_status(3, "unload_finish", true));
+        CHECK_FALSE(backend.slot_filament_parked_in_toolhead(3));
+    }
+}
+
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker loaded answers do not depend on frame order",
                  "[ams][snapmaker][channel_state][unload][parked]") {
     const LoadAnswers parked{true, SlotStatus::AVAILABLE, false, false, true};

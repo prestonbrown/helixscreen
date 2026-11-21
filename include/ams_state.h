@@ -2597,6 +2597,16 @@ class AmsState {
     /// fault_cause()'s held answer; cleared when the fault does.
     std::string fault_cause_;
 
+    /// The stop reason standing when a filament operation started during the
+    /// current pause; unset outside a pause and until one starts. A fault
+    /// after that operation is its own, not the pause's.
+    std::optional<std::string> stop_reason_before_op_;
+    /// update_fault_cause() has seen the current pause, so an operation
+    /// already running when it began is not one started in it.
+    bool pause_seen_ = false;
+    /// The action held the system at the last update_fault_cause().
+    bool action_held_ = false;
+
     std::string last_narration_label_; ///< live toolchange narration phase label; top priority in
                                        ///< recompute_action_detail; cleared on IDLE
     /// Template id of the last phase apply_narration_phase_id() published or
@@ -2670,6 +2680,8 @@ class AmsState {
 
     /// Take or drop fault_cause_ for the fault standing now; true when it moved.
     bool update_fault_cause();
+    /// Note a filament operation starting during a pause (stop_reason_before_op_).
+    void track_pause_operation(bool paused, AmsAction action, const char* stop_reason);
 
     /// Wire (or rewire) the print_state_observer_. Idempotent.
     void install_print_state_observer();
