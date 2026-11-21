@@ -5,6 +5,7 @@
 // that staged it already applied to the running Klipper. Anything else keeps
 // its old value until a restart, so it restarts.
 
+#include "moonraker_advanced_api.h"
 #include "printer_discovery.h"
 #include "save_config_live.h"
 
@@ -97,4 +98,14 @@ TEST_CASE("save config: a cleared discovery forgets the firmware", "[save_config
     PrinterDiscovery hw = kalico();
     hw.clear();
     CHECK(restart_required(hw, kMesh));
+}
+
+TEST_CASE("save config: on Kalico a reply without the pending items restarts",
+          "[save_config_policy]") {
+    const PrinterDiscovery hw = kalico();
+    const json reply = {
+        {"result", {{"status", {{"configfile", {{"save_config_pending_items", kMesh}}}}}}}};
+    CHECK_FALSE(restart_required(hw, MoonrakerAdvancedAPI::pending_items_from(reply)));
+    const json partial = {{"result", {{"status", {{"configfile", json::object()}}}}}};
+    CHECK(restart_required(hw, MoonrakerAdvancedAPI::pending_items_from(partial)));
 }

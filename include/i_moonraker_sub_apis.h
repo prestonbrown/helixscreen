@@ -455,8 +455,9 @@ class IAdvancedAPI {
                                              ErrorCallback on_error) = 0;
 
     /// configfile.save_config_pending_items: {section: {option: value}}, with
-    /// null for a section staged for removal. An object even when nothing is
-    /// pending.
+    /// null for a section staged for removal; an empty object when nothing is
+    /// pending. A reply without the field gives null, which restart_required()
+    /// reads as "restart".
     virtual void
     get_save_config_pending_items(helix::SharedCallback<void(const nlohmann::json&)> on_items,
                                   ErrorCallback on_error) = 0;

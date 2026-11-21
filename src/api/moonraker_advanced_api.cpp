@@ -2910,6 +2910,12 @@ void MoonrakerAdvancedAPI::save_config_without_restart(SuccessCallback on_succes
     api_.execute_gcode("SAVE_CONFIG RESTART=0", std::move(on_success), std::move(on_error));
 }
 
+json MoonrakerAdvancedAPI::pending_items_from(const json& response) {
+    const json* items = json_util::find_path(response, "result", "status", "configfile",
+                                             "save_config_pending_items");
+    return items && items->is_object() ? *items : json(nullptr);
+}
+
 void MoonrakerAdvancedAPI::get_save_config_pending_items(
     helix::SharedCallback<void(const json&)> on_items, ErrorCallback on_error) {
     json params = {
@@ -2917,10 +2923,8 @@ void MoonrakerAdvancedAPI::get_save_config_pending_items(
     client_.send_jsonrpc(
         "printer.objects.query", params,
         [on_items](const json& response) {
-            const json* items = json_util::find_path(response, "result", "status", "configfile",
-                                                     "save_config_pending_items");
             if (on_items) {
-                on_items(items && items->is_object() ? *items : json::object());
+                on_items(pending_items_from(response));
             }
         },
         [on_error](const MoonrakerError& err) {

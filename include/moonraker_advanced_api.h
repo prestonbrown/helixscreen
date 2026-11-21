@@ -458,6 +458,9 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
     void save_config_without_restart(SuccessCallback on_success, ErrorCallback on_error) override;
     void get_save_config_pending_items(helix::SharedCallback<void(const nlohmann::json&)> on_items,
                                        ErrorCallback on_error) override;
+    /// The pending items in a printer.objects.query reply; null when the reply
+    /// lacks them, never an empty object standing in for "unknown".
+    [[nodiscard]] static nlohmann::json pending_items_from(const nlohmann::json& response);
 
     // ========================================================================
     // Macro Operations
