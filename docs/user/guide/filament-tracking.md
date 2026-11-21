@@ -109,7 +109,7 @@ With Spoolman connected, **Advanced > Spoolman** opens the spool inventory:
 
 - **The list.** Every spool in your Spoolman database, each with a color-coded spool picture, its weight and the percentage left. A warning icon marks any spool under 100 g. The title shows how many spools there are.
 - **Search and filter.** Type in **Search spools...** to find a spool by vendor, material, filament name, location or ID number. When any spool has a storage location, a location dropdown appears beside the search box.
-- **Refresh and add.** The round refresh button in the header reloads the list. **+ Add** creates a spool (below).
+- **Header buttons.** **+** creates a spool (below), the refresh button reloads the list, and the gear opens [Spoolman settings](settings/printing.md#spoolman).
 - **The spool menu.** Tap a spool for **Set Active**, **Edit**, **Print Label** (which asks you to set up a label printer first if you have none), **Duplicate**, **Archive** and **Delete**. Archive asks you to confirm and can be undone from Spoolman's own web page. It is not offered for the active spool.
 - **Set Active** tells Spoolman and HelixScreen that this is the spool feeding the printer. The Home panel's **Active Spool** widget shows it.
 - **Link a spool to a slot.** Tap a slot and choose **Select Spool**, or tap the Spoolman button in the spool editor's header, to pick from Spoolman and fill in that slot's brand, material, color and temperatures. A spool already linked to another slot is grayed out. See [Editing Filament Properties](filament.md#editing-filament-properties).
@@ -117,7 +117,7 @@ With Spoolman connected, **Advanced > Spoolman** opens the spool inventory:
 
 ### Adding a spool
 
-Tap **+ Add** to start **New Spool**, which has three steps:
+Tap **+** to start **New Spool**, which has three steps:
 
 1. **Vendor.** Search your vendors or tap **+ New**. When your Spoolman server offers it, matches from SpoolmanDB (Spoolman's public catalog) are listed under **From SpoolmanDB**.
 2. **Filament.** Choose an existing filament or tap **+ New** to create one with its material, color, temperature ranges and weight.

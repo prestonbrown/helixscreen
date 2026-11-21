@@ -9,8 +9,9 @@
     <!-- Header Bar with back button -->
     <header_bar name="overlay_header" title="Spoolman">
       <header_bar-actions>
-        <ui_button name="btn_add_spool" height="40" text="+ Add" style_min_width="#header_slot2_min_width">
-          <style name="styles.header_action"/>
+        <ui_button name="btn_add_spool"
+                   width="40" height="40" style_max_height="#header_button_height" icon="plus" icon_size="sm">
+          <style name="styles.header_icon_button"/>
           <event_cb trigger="clicked" callback="on_spoolman_add_spool_clicked"/>
         </ui_button>
         <ui_button name="btn_refresh"
