@@ -88,13 +88,18 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Busy overlay show/hide cycles leave the top
                  "[ui_busy_overlay][top_layer]") {
     BusyOverlay::hide();
     process_lvgl(20);
+    // The baseline counts only a top layer with no overlay on it, so an overlay
+    // that is never deleted shows up as a changed count, not as the baseline.
+    REQUIRE(find_on_top_layer("busy_overlay_label") == nullptr);
     const uint32_t before = lv_obj_get_child_count(lv_layer_top());
 
     for (int i = 0; i < 5; ++i) {
         BusyOverlay::show("Cycle", 0);
         REQUIRE(BusyOverlay::is_visible());
+        CHECK(lv_obj_get_child_count(lv_layer_top()) > before);
         BusyOverlay::hide();
         process_lvgl(20);
+        CHECK(lv_obj_get_child_count(lv_layer_top()) == before);
     }
 
     CHECK(lv_obj_get_child_count(lv_layer_top()) == before);
