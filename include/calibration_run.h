@@ -56,6 +56,9 @@ class RunFinisher {
                              std::function<void(const std::string&)> on_failed) = 0;
     /// Keep a saved step's result in the calibration history.
     virtual void record(const StepInfo& step, const StepResult& result) = 0;
+    /// Whether Klipper holds anything for SAVE_CONFIG. An unreadable answer
+    /// counts as pending.
+    virtual void read_pending(std::function<void(bool any_pending)> done) = 0;
 };
 
 enum class StepStatus : uint8_t { Pending, Running, Finished, Failed, Skipped, Aborted, NotRun };
@@ -120,8 +123,15 @@ class CalibrationRun {
     /// There is something a save would write.
     [[nodiscard]] bool can_save() const {
         return (phase_ == RunPhase::Results || phase_ == RunPhase::SaveFailed) &&
-               finished_count() > 0 && !results_lost_;
+               has_pending_result() && !results_lost_;
     }
+    /// Klipper went down (a shutdown or a restart) without the run asking: the
+    /// staged results are gone. Main thread.
+    void klippy_restarted();
+    /// @p e left a result in Klipper's pending config: it finished, or failed
+    /// after staging part of its result, and its result is not one the
+    /// firmware persisted itself.
+    [[nodiscard]] static bool saves(const Entry& e);
     /// Why the last save or discard failed: the save in SaveFailed, the discard
     /// back in Results.
     [[nodiscard]] const std::string& error() const {
@@ -137,6 +147,8 @@ class CalibrationRun {
     void changed();
     /// Discard all: restore entries from @p from on, then restart if needed.
     void restore_from(size_t from, RunFinisher& finisher);
+    void restart_to_discard(RunFinisher& finisher);
+    [[nodiscard]] bool has_pending_result() const;
 
     IMoonrakerAPI& api_;
     std::function<void()> on_change_;

@@ -285,6 +285,7 @@
   <translation tag="Accepted Z Position: 0.000" ja="確定Z位置: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" ja="確定したZ位置: {:.3f}"/>
   <translation tag="Accepted at Z {:.3f} mm" ja="Z {:.3f} mm で確定"/>
+  <translation tag="Accepting the Z offset..." ja="Zオフセットを確定中..."/>
   <translation tag="Accessories" ja="アクセサリー"/>
   <translation tag="Accuracy" ja="精度"/>
   <translation tag="Action Required" ja="対応が必要です"/>
@@ -1658,6 +1659,7 @@
   <translation tag="Failed to upload the extracted G-code: {}" ja="抽出した G-code をアップロードできませんでした: {}"/>
   <translation tag="Failed to upload the rewritten G-code: {}" ja="書き換えたG-codeのアップロードに失敗しました: {}"/>
   <translation tag="Failed: {}" ja="失敗: {}"/>
+  <translation tag="Failed: {}. Saves {}" ja="失敗: {}。保存されるもの: {}"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." ja="薄い線: 補正オフ。明るい線: 補正オン。"/>
   <translation tag="Fair match" ja="まずまずの一致"/>
   <translation tag="Fan" ja="ファン"/>

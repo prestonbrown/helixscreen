@@ -10,10 +10,12 @@
 #include "app_globals.h"
 #include "calibration_catalog_inputs.h"
 #include "calibration_history_store.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "first_run_tour.h"
 #include "i_moonraker_api.h"
+#include "klippy_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "translation_loader.h"
@@ -107,6 +109,11 @@ std::string entry_status_text(const calibration::CalibrationRun::Entry& e) {
     case StepStatus::Finished:
         return e.result.summary;
     case StepStatus::Failed:
+        if (!e.result.summary.empty()) {
+            // What it staged before failing is saved with the rest.
+            return fmt::format(fmt::runtime(lv_tr("Failed: {}. Saves {}")), e.message,
+                               e.result.summary);
+        }
         return fmt::format(fmt::runtime(lv_tr("Failed: {}")), e.message);
     case StepStatus::Skipped:
         return lv_tr("Skipped");
@@ -203,6 +210,7 @@ void CalibrationRunOverlay::init_subjects() {
     // StaticPanelRegistry has destroyed the overlay.
     StaticSubjectRegistry::instance().register_deinit("CalibrationRunOverlay", []() {
         if (auto* self = helix::lazy_global_if_exists<CalibrationRunOverlay>()) {
+            self->klippy_obs_.reset();
             self->run_.reset();
             self->subjects_.deinit_all();
             self->subjects_initialized_ = false;
@@ -511,6 +519,15 @@ void CalibrationRunOverlay::start() {
     finisher_ = std::make_unique<calibration::MoonrakerRunFinisher>(*api);
     run_ = std::make_unique<calibration::CalibrationRun>(*api, std::move(steps),
                                                          [this]() { publish_run(); });
+    // A shutdown or a restart the run did not ask for drops what it staged.
+    klippy_obs_ = observe<int>(
+        get_printer_state().network_state().get_klippy_state_subject(), this,
+        [](CalibrationRunOverlay* self, int state) {
+            if (self->run_ && static_cast<KlippyState>(state) != KlippyState::READY) {
+                self->run_->klippy_restarted();
+            }
+        },
+        get_printer_state().get_subjects_lifetime());
     set_page(RunPage::Running);
     run_->start();
     publish_run();
@@ -559,6 +576,7 @@ void CalibrationRunOverlay::done() {
     if (run_ && run_->phase() == RunPhase::Saved) {
         ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Calibration saved"), 2500);
     }
+    klippy_obs_.reset();
     run_.reset();
     finisher_.reset();
     helix::nav::go_back();

@@ -301,6 +301,7 @@ translations:
   'Accepted Z Position: 0.000': 'Accepted Z Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Accepted Z Position: {:.3f}'
   Accepted at Z {:.3f} mm: Accepted at Z {:.3f} mm
+  Accepting the Z offset...: Accepting the Z offset...
   Accessories: Accessories
   Accuracy: Accuracy
   Action Required: Action Required
@@ -1718,6 +1719,7 @@ translations:
   'Failed to upload the extracted G-code: {}': 'Failed to upload the extracted G-code: {}'
   'Failed to upload the rewritten G-code: {}': 'Failed to upload the rewritten G-code: {}'
   'Failed: {}': 'Failed: {}'
+  'Failed: {}. Saves {}': 'Failed: {}. Saves {}'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Faint lines: compensation off. Bright lines: compensation on.'
   Fair match: Fair match
   Fan: Fan

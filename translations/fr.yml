@@ -313,6 +313,7 @@ translations:
   'Accepted Z Position: 0.000': 'Position Z acceptée : 0.000'
   'Accepted Z Position: {:.3f}': 'Position Z acceptée : {:.3f}'
   Accepted at Z {:.3f} mm: 'Accepté à Z {:.3f} mm'
+  Accepting the Z offset...: 'Acceptation de l''offset Z...'
   Accessories: 'Accessoires'
   Accuracy: Précision
   Action Required: Action requise
@@ -1741,6 +1742,7 @@ translations:
   'Failed to upload the extracted G-code: {}': 'Impossible de téléverser le G-Code extrait : {}'
   'Failed to upload the rewritten G-code: {}': "Échec de l'envoi du G-Code réécrit : {}"
   'Failed: {}': 'Échec : {}'
+  'Failed: {}. Saves {}': 'Échec : {}. Enregistre {}'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Lignes pâles : compensation désactivée. Lignes vives : compensation activée.'
   Fair match: "Correspondance moyenne"
   Fan: Ventilateur

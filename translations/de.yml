@@ -301,6 +301,7 @@ translations:
   'Accepted Z Position: 0.000': 'Akzeptierte Z-Position: 0.000'
   'Accepted Z Position: {:.3f}': 'Akzeptierte Z-Position: {:.3f}'
   Accepted at Z {:.3f} mm: 'Übernommen bei Z {:.3f} mm'
+  Accepting the Z offset...: 'Z-Offset wird übernommen...'
   Accessories: 'Zubehör'
   Accuracy: Genauigkeit
   Action Required: Aktion erforderlich
@@ -1727,6 +1728,7 @@ translations:
   : "moonraker.conf konnte nicht aktualisiert werden.\nDruckerverbindung prüfen."
   'Failed to upload modified G-code: {}': 'Geänderten G-Code hochladen fehlgeschlagen: {}'
   'Failed: {}': 'Fehlgeschlagen: {}'
+  'Failed: {}. Saves {}': 'Fehlgeschlagen: {}. Gespeichert wird {}'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Blasse Linien: Kompensation aus. Helle Linien: Kompensation ein.'
   Fair match: "Mäßige Passung"
   'Failed to upload the extracted G-code: {}': 'Extrahierter G-code konnte nicht hochgeladen werden: {}'

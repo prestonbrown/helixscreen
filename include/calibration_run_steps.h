@@ -34,6 +34,7 @@ class MoonrakerRunFinisher : public RunFinisher {
     void discard_all(std::function<void()> on_done,
                      std::function<void(const std::string&)> on_failed) override;
     void record(const StepInfo& step, const StepResult& result) override;
+    void read_pending(std::function<void(bool any_pending)> done) override;
 
   private:
     IMoonrakerAPI& api_;

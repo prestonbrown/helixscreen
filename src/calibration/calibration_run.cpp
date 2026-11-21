@@ -180,6 +180,8 @@ void CalibrationRun::on_step_done(size_t index, StepOutcome outcome) {
     case StepOutcome::Kind::Failed:
         e.status = StepStatus::Failed;
         e.message = std::move(outcome.message);
+        // What it staged before failing, which a save writes too.
+        e.result = std::move(outcome.result);
         break;
     case StepOutcome::Kind::Skipped:
         e.status = StepStatus::Skipped;
@@ -217,10 +219,7 @@ void CalibrationRun::stop() {
     phase_ = RunPhase::Results;
     running.step->abort();
     if (running.step->abort_restarted_firmware()) {
-        // A result the firmware persisted itself survives the restart.
-        results_lost_ = std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) {
-            return e.status == StepStatus::Finished && !e.step->restores_on_discard();
-        });
+        results_lost_ = has_pending_result();
         if (results_lost_) {
             spdlog::warn("[CalibrationRun] The abort restarted the firmware: {} finished "
                          "result(s) are no longer pending",
@@ -234,6 +233,32 @@ void CalibrationRun::finish_steps() {
     phase_ = RunPhase::Results;
     spdlog::info("[CalibrationRun] All steps ended, {} finished", finished_count());
     changed();
+}
+
+bool CalibrationRun::saves(const Entry& e) {
+    return (e.status == StepStatus::Finished ||
+            (e.status == StepStatus::Failed && !e.result.summary.empty())) &&
+           !e.step->restores_on_discard();
+}
+
+bool CalibrationRun::has_pending_result() const {
+    return std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) { return saves(e); });
+}
+
+void CalibrationRun::klippy_restarted() {
+    // The restarts Save all and Discard all cause are their own; a stop's has
+    // already marked what it lost.
+    if (phase_ == RunPhase::Ready || phase_ == RunPhase::Saving || phase_ == RunPhase::Saved ||
+        phase_ == RunPhase::Discarding || phase_ == RunPhase::Discarded || results_lost_) {
+        return;
+    }
+    // A shutdown or a restart from elsewhere drops everything pending.
+    if (has_pending_result()) {
+        results_lost_ = true;
+        spdlog::warn("[CalibrationRun] Klipper restarted outside the run: the staged results "
+                     "are no longer pending");
+        changed();
+    }
 }
 
 int CalibrationRun::finished_count() const {
@@ -306,18 +331,25 @@ void CalibrationRun::restore_from(size_t from, RunFinisher& finisher) {
         });
         return;
     }
-    // Only a finished step's pending config needs the restart; an aborted one
-    // already restarted, a failed or skipped one staged nothing, and a restored
-    // one never was pending.
-    const bool pending =
-        !results_lost_ && std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) {
-            return e.status == StepStatus::Finished && !e.step->restores_on_discard();
-        });
-    if (!pending) {
-        phase_ = RunPhase::Discarded;
-        changed();
-        return;
-    }
+    // What is pending, not what the steps say: a failed step can have staged
+    // part of its result before it failed.
+    finisher.read_pending([this, alive, &finisher](bool any_pending) {
+        if (alive.expired() ||
+            phase_ != RunPhase::Discarding) { // L081_OK: RunFinisher calls back on the main thread
+            return;
+        }
+        if (!any_pending) {
+            phase_ = RunPhase::Discarded;
+            spdlog::info("[CalibrationRun] Nothing pending: discarded without a restart");
+            changed();
+            return;
+        }
+        restart_to_discard(finisher);
+    });
+}
+
+void CalibrationRun::restart_to_discard(RunFinisher& finisher) {
+    std::weak_ptr<int> alive = alive_;
     finisher.discard_all(
         [this, alive]() {
             if (alive.expired() ||

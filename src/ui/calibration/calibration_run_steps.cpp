@@ -56,6 +56,7 @@ class HeatersStep : public CalibrationStep {
         aborted_ = false;
         heaters_.clear();
         summaries_.clear();
+        command_sent_ = false;
         values_ = nlohmann::json::object();
         heaters_.push_back(
             {ctx.api.printer_state().temperature_state().active_extruder_name(), kRunNozzleTempC});
@@ -66,13 +67,17 @@ class HeatersStep : public CalibrationStep {
         run_current();
     }
 
+    /// Only a running PID_CALIBRATE or MPC_CALIBRATE needs M112; while the
+    /// control type is being asked nothing runs in Klipper.
     void abort() override {
         if (!ctx_ || aborted_) {
             return;
         }
-        aborted_ = true;
         lifetime_.invalidate();
-        stop_with_firmware_restart(ctx_->api, "CalibrationRun.Heaters");
+        if (command_sent_) {
+            aborted_ = true;
+            stop_with_firmware_restart(ctx_->api, "CalibrationRun.Heaters");
+        }
         auto* ctx = ctx_;
         ctx_ = nullptr;
         ctx->done(StepOutcome::aborted());
@@ -114,11 +119,7 @@ class HeatersStep : public CalibrationStep {
         if (index_ >= heaters_.size()) {
             auto* ctx = ctx_;
             ctx_ = nullptr;
-            std::string summary;
-            for (const auto& s : summaries_) {
-                summary += summary.empty() ? s : " · " + s;
-            }
-            ctx->done(StepOutcome::finished({summary, values_}));
+            ctx->done(StepOutcome::finished({joined_summary(), values_}));
             return;
         }
         report(lv_tr("checking"), 0);
@@ -145,6 +146,7 @@ class HeatersStep : public CalibrationStep {
         const Heater h = heaters_[index_];
         spdlog::info("[CalibrationRun] PID_CALIBRATE {} at {}°C", h.name, h.temp_c);
         report("PID", 0);
+        command_sent_ = true;
         ctx_->api.advanced().start_pid_calibrate(
             h.name, h.temp_c,
             lifetime_.bg_cb(
@@ -170,6 +172,7 @@ class HeatersStep : public CalibrationStep {
         const Heater h = heaters_[index_];
         spdlog::info("[CalibrationRun] MPC_CALIBRATE {} at {}°C", h.name, h.temp_c);
         report("MPC", 0);
+        command_sent_ = true;
         ctx_->api.advanced().start_mpc_calibrate(
             h.name, h.temp_c, 0,
             lifetime_.bg_cb("CalibrationRun.Heaters.mpc_done",
@@ -193,6 +196,7 @@ class HeatersStep : public CalibrationStep {
     }
 
     void next() {
+        command_sent_ = false;
         ++index_;
         run_current();
     }
@@ -203,7 +207,21 @@ class HeatersStep : public CalibrationStep {
         }
         auto* ctx = ctx_;
         ctx_ = nullptr;
-        ctx->done(StepOutcome::failed(MoonrakerError::friendly_error_line(why)));
+        const std::string message = MoonrakerError::friendly_error_line(why);
+        if (summaries_.empty()) {
+            ctx->done(StepOutcome::failed(message));
+            return;
+        }
+        // The heaters tuned before this one are staged in Klipper.
+        ctx->done(StepOutcome::failed_after(message, {joined_summary(), values_}));
+    }
+
+    std::string joined_summary() const {
+        std::string summary;
+        for (const auto& s : summaries_) {
+            summary += summary.empty() ? s : " · " + s;
+        }
+        return summary;
     }
 
     StepInfo info_;
@@ -212,6 +230,9 @@ class HeatersStep : public CalibrationStep {
     size_t index_ = 0;
     std::vector<std::string> summaries_;
     nlohmann::json values_ = nlohmann::json::object();
+    /// A calibration command is running in Klipper for the current heater.
+    bool command_sent_ = false;
+    /// The last abort() restarted the firmware.
     bool aborted_ = false;
     helix::AsyncLifetimeGuard lifetime_;
 };
@@ -225,7 +246,7 @@ class BedMeshStep : public CalibrationStep {
     explicit BedMeshStep(StepInfo info) : info_(std::move(info)) {}
     ~BedMeshStep() override {
         if (ctx_) {
-            get_global_bed_mesh_panel().end_run(false);
+            get_global_bed_mesh_panel().end_run(BedMeshPanel::RunEnd::Finished);
         }
     }
     const StepInfo& info() const override {
@@ -257,13 +278,18 @@ class BedMeshStep : public CalibrationStep {
         get_global_bed_mesh_panel().calibrate_for_run(&ctx.api, std::move(hooks));
     }
 
+    /// Only a running BED_MESH_CALIBRATE needs M112; before it is sent the
+    /// panel's preparation is cancelled and the heaters it turned on go off.
     void abort() override {
-        auto* c = take(true);
-        if (!c) {
+        if (!ctx_) {
             return;
         }
-        aborted_ = true;
-        stop_with_firmware_restart(c->api, "CalibrationRun.BedMesh");
+        auto& panel = get_global_bed_mesh_panel();
+        aborted_ = panel.calibration_command_sent();
+        auto* c = take(aborted_ ? BedMeshPanel::RunEnd::Stopped : BedMeshPanel::RunEnd::Cancelled);
+        if (aborted_) {
+            stop_with_firmware_restart(c->api, "CalibrationRun.BedMesh");
+        }
         c->done(StepOutcome::aborted());
     }
 
@@ -272,11 +298,11 @@ class BedMeshStep : public CalibrationStep {
     }
 
   private:
-    StepContext* take(bool aborting = false) {
+    StepContext* take(BedMeshPanel::RunEnd how = BedMeshPanel::RunEnd::Finished) {
         auto* c = ctx_;
         ctx_ = nullptr;
         if (c) {
-            get_global_bed_mesh_panel().end_run(aborting);
+            get_global_bed_mesh_panel().end_run(how);
         }
         return c;
     }
@@ -320,9 +346,21 @@ class InputShaperStep : public CalibrationStep {
                 "CalibrationRun.Shaper.done",
                 [this](const InputShaperCalibrator::CalibrationResults& r) { finish(r); }),
             lifetime_.bg_cb("CalibrationRun.Shaper.error", [this](const std::string& why) {
-                if (auto* c = take()) {
-                    c->done(StepOutcome::failed(why));
+                auto* c = take();
+                if (!c) {
+                    return;
                 }
+                // X's SHAPER_CALIBRATE staged its shaper before Y failed.
+                const auto& done_axes = calibrator_->get_results();
+                if (done_axes.has_x()) {
+                    const auto& x = done_axes.x_result;
+                    c->done(StepOutcome::failed_after(
+                        why,
+                        {join_shaper_axes(format_shaper_axis(x.shaper_type, x.shaper_freq), ""),
+                         {{"x", {{"type", x.shaper_type}, {"freq", x.shaper_freq}}}}}));
+                    return;
+                }
+                c->done(StepOutcome::failed(why));
             }));
     }
 
@@ -331,11 +369,18 @@ class InputShaperStep : public CalibrationStep {
         if (!c) {
             return;
         }
-        aborted_ = true;
         lifetime_.invalidate();
-        helix::ui::begin_expected_klippy_restart("Firmware restarting...", &c->api);
-        if (calibrator_) {
+        const auto state =
+            calibrator_ ? calibrator_->get_state() : InputShaperCalibrator::State::IDLE;
+        aborted_ = state == InputShaperCalibrator::State::TESTING_X ||
+                   state == InputShaperCalibrator::State::TESTING_Y;
+        if (aborted_) {
+            // Only a running SHAPER_CALIBRATE needs M112.
+            helix::ui::begin_expected_klippy_restart("Firmware restarting...", &c->api);
             calibrator_->emergency_abort();
+        } else {
+            // Homing or the noise check: dropping the calibrator ends its chain.
+            calibrator_.reset();
         }
         c->done(StepOutcome::aborted());
     }
@@ -524,6 +569,17 @@ void MoonrakerRunFinisher::discard_all(std::function<void()> on_done,
             spdlog::warn("[CalibrationRun] RESTART failed: {}", err.message);
             on_failed(err.localized_message());
         }));
+}
+
+void MoonrakerRunFinisher::read_pending(std::function<void(bool any_pending)> done) {
+    api_.advanced().get_save_config_pending_items(
+        lifetime_.bg_cb("CalibrationRun.read_pending",
+                        [done](const nlohmann::json& items) {
+                            // Null is a reply without the field: assume something is pending.
+                            done(!items.is_object() || !items.empty());
+                        }),
+        lifetime_.bg_cb("CalibrationRun.read_pending_error",
+                        [done](const MoonrakerError&) { done(true); }));
 }
 
 void MoonrakerRunFinisher::record(const StepInfo& step, const StepResult& result) {

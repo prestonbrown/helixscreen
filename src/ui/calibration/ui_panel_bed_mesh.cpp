@@ -1122,6 +1122,8 @@ void BedMeshPanel::submit_calibration_name(std::string_view typed) {
 }
 
 void BedMeshPanel::begin_calibration(const std::string& name) {
+    calibration_cancelled_ = false;
+    command_sent_ = false;
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::PROBING));
     lv_subject_set_int(&bed_mesh_probe_progress_, 0);
@@ -1147,6 +1149,9 @@ void BedMeshPanel::begin_calibration(const std::string& name) {
 }
 
 void BedMeshPanel::prepare_and_probe() {
+    if (calibration_cancelled_) {
+        return;
+    }
     IMoonrakerAPI* api = api_;
     if (!api) {
         on_calibration_error("API not available");
@@ -1211,6 +1216,9 @@ void BedMeshPanel::prepare_and_probe() {
 }
 
 void BedMeshPanel::start_home_and_probe() {
+    if (calibration_cancelled_) {
+        return;
+    }
     IMoonrakerAPI* api = api_;
     if (!api) {
         on_calibration_error("API not available");
@@ -1241,6 +1249,9 @@ void BedMeshPanel::start_home_and_probe() {
 }
 
 void BedMeshPanel::start_calibration_probing() {
+    if (calibration_cancelled_) {
+        return;
+    }
     IMoonrakerAPI* api = api_;
     if (!api) {
         on_calibration_error("API not available");
@@ -1339,6 +1350,10 @@ BedMeshPanel::plan_calibration_into(const std::string& name) const {
 }
 
 void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, int probe_samples) {
+    if (calibration_cancelled_) {
+        return;
+    }
+    command_sent_ = true;
     // Start calibration with progress tracking. All three callbacks fire on the
     // WebSocket thread; bg_cb defers the body to main and re-checks the lifetime
     // generation atomically before invoking.
@@ -1578,6 +1593,9 @@ void BedMeshPanel::execute_save_config() {
 // ============================================================================
 
 void BedMeshPanel::on_probe_progress(int current, int total) {
+    if (calibration_cancelled_) {
+        return;
+    }
     if (total > 0) {
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 0);
         // Cap at 99% — completion signal handles the final transition.
@@ -1602,6 +1620,9 @@ void BedMeshPanel::on_probe_progress(int current, int total) {
 }
 
 void BedMeshPanel::on_calibration_complete() {
+    if (calibration_cancelled_) {
+        return;
+    }
     cooldown_after_probing();
     // A command reporting success proves nothing was stored where it was asked to
     // store it: judge by what the printer's profiles now hold.
@@ -1667,6 +1688,9 @@ void BedMeshPanel::read_stored_meshes(std::function<void(helix::bed_mesh::Stored
 }
 
 void BedMeshPanel::finish_calibration(const std::string& profile) {
+    if (calibration_cancelled_) {
+        return;
+    }
     spdlog::info("[BedMeshPanel] Calibration complete, mesh stored as '{}'", profile);
     if (in_run_) {
         // The run saves everything at once; nothing here asks or saves.
@@ -1733,6 +1757,9 @@ bool BedMeshPanel::offer_material_mesh() {
 }
 
 void BedMeshPanel::copy_calibrated_mesh(const std::string& from, const std::string& to) {
+    if (calibration_cancelled_) {
+        return;
+    }
     auto fail = [this, to](const std::string& why) {
         spdlog::error("[BedMeshPanel] Could not save the mesh as '{}': {}", to, why);
         report_store_failure(
@@ -1815,6 +1842,9 @@ void BedMeshPanel::save_profile_as(const std::string& name, std::function<void()
 }
 
 void BedMeshPanel::on_calibration_error(const std::string& message) {
+    if (calibration_cancelled_) {
+        return;
+    }
     cooldown_after_probing();
     spdlog::error("[BedMeshPanel] Calibration error: {}", message);
     std::string clean = MoonrakerError::friendly_error_line(message);
@@ -1853,15 +1883,20 @@ void BedMeshPanel::calibrate_for_run(IMoonrakerAPI* api, RunHooks hooks) {
     begin_calibration(helix::bed_mesh::kDefaultProfile);
 }
 
-void BedMeshPanel::end_run(bool aborted) {
+void BedMeshPanel::end_run(RunEnd how) {
     in_run_ = false;
     run_hooks_ = {};
-    if (aborted) {
+    if (how == RunEnd::Finished) {
+        return;
+    }
+    calibration_cancelled_ = true;
+    if (how == RunEnd::Stopped) {
         // The stop turned every heater off; there is nothing left to restore.
         heat_.forget();
-        lv_subject_set_int(&bed_mesh_calibrate_state_,
-                           static_cast<int>(BedMeshCalibrationState::IDLE));
+    } else {
+        cooldown_after_probing();
     }
+    lv_subject_set_int(&bed_mesh_calibrate_state_, static_cast<int>(BedMeshCalibrationState::IDLE));
 }
 
 void BedMeshPanel::handle_emergency_stop() {

@@ -7,6 +7,7 @@
 
 #include "calibration_run.h"
 #include "calibration_run_steps.h"
+#include "core/observer_guard.h"
 #include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -87,6 +88,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::array<std::string, kSteps> before_text_{};
     std::unique_ptr<calibration::CalibrationRun> run_;
     std::unique_ptr<calibration::MoonrakerRunFinisher> finisher_;
+    /// Tells the run when Klipper goes down under it.
+    ObserverGuard klippy_obs_;
     RunPage page_ = RunPage::Pick;
 
     SubjectManager subjects_;

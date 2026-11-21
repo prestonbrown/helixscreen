@@ -118,9 +118,17 @@ class BedMeshPanel : public OverlayBase {
     /// preheat, homing and probing as the panel's own, without the panel's
     /// questions, its toasts or its SAVE_CONFIG prompt. The panel need not be open.
     void calibrate_for_run(helix::IMoonrakerAPI* api, RunHooks hooks);
-    /// The run no longer listens. @p aborted: the run stopped Klipper, which
-    /// turned every heater off.
-    void end_run(bool aborted);
+    /// How a guided run let go of its calibration.
+    enum class RunEnd {
+        Finished,  ///< it reported; nothing more to do
+        Cancelled, ///< stopped before BED_MESH_CALIBRATE was sent: end the preparation, heaters off
+        Stopped,   ///< stopped with M112, which already turned every heater off
+    };
+    void end_run(RunEnd how);
+    /// The calibration's BED_MESH_CALIBRATE has been sent.
+    [[nodiscard]] bool calibration_command_sent() const {
+        return command_sent_;
+    }
 
     // Profile operations (called from XML event callbacks)
     void load_profile(int index);
@@ -321,6 +329,9 @@ class BedMeshPanel : public OverlayBase {
     /// Set while a guided run's calibration is under way.
     RunHooks run_hooks_;
     bool in_run_ = false;
+    bool command_sent_ = false;
+    /// A stopped run's calibration: every later link of its chain does nothing.
+    bool calibration_cancelled_ = false;
     /// The points of the mesh the last calibration stored, for the run's result.
     nlohmann::json calibrated_points_;
     /// A calibration that probed but stored nothing usable: tell the run, or

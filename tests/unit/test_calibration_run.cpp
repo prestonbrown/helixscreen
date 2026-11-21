@@ -127,6 +127,12 @@ class FakeFinisher : public RunFinisher {
     void record(const StepInfo& s, const StepResult& r) override {
         recorded.push_back(std::string(s.id) + "=" + r.summary);
     }
+    void read_pending(std::function<void(bool)> done) override {
+        ++pending_reads;
+        done(pending);
+    }
+    bool pending = true;
+    int pending_reads = 0;
     int saves = 0;
     int discards = 0;
     std::vector<std::string> recorded;
@@ -295,6 +301,7 @@ TEST_CASE_METHOD(RunFixture, "a stop that restarts the firmware loses what finis
     run->save_all(finisher);
     CHECK(finisher.saves == 0);
     // Klipper already dropped them; discarding needs no second restart.
+    finisher.pending = false;
     run->discard_all(finisher);
     CHECK(finisher.discards == 0);
     CHECK(run->phase() == RunPhase::Discarded);
@@ -391,6 +398,7 @@ TEST_CASE_METHOD(RunFixture, "a run whose only result was restored needs no rest
     run->start();
     fakes[0]->finish("Accepted at Z 1.235 mm");
     FakeFinisher finisher;
+    finisher.pending = false; // the firmware persisted it; Klipper holds nothing
     run->discard_all(finisher);
     fakes[0]->restored("Restored to -1.245 mm");
     CHECK(finisher.discards == 0);
@@ -444,4 +452,68 @@ TEST_CASE("the Z offset a calibration staged is read from the pending config",
                                {"probe", {{"z_offset", "-1.2"}}}}) == -1.2);
     CHECK_FALSE(staged_z_offset(json{{"bed_mesh default", {{"version", "1"}}}}).has_value());
     CHECK_FALSE(staged_z_offset(json::object()).has_value());
+}
+
+TEST_CASE_METHOD(RunFixture, "discard all restarts exactly when Klipper holds something",
+                 "[calibration_run]") {
+    make_run(2);
+    run->start();
+    fakes[0]->fail("bed heater fault");
+    fakes[1]->fail("timed out");
+    FakeFinisher finisher;
+    // Nothing finished, but the failed step had staged part of its result.
+    finisher.pending = true;
+    run->discard_all(finisher);
+    CHECK(finisher.pending_reads == 1);
+    CHECK(finisher.discards == 1);
+
+    make_run(1);
+    run->start();
+    fakes.back()->finish("Nozzle PID");
+    FakeFinisher nothing_pending;
+    nothing_pending.pending = false;
+    run->discard_all(nothing_pending);
+    CHECK(nothing_pending.discards == 0);
+    CHECK(run->phase() == RunPhase::Discarded);
+}
+
+TEST_CASE_METHOD(RunFixture, "a failed step's staged part is saved and shown",
+                 "[calibration_run]") {
+    make_run(1);
+    run->start();
+    fakes[0]->ctx_->done(
+        StepOutcome::failed_after("bed heater fault", {"Nozzle 22.1 / 1.08 / 113", {}}));
+    CHECK(run->entries()[0].status == StepStatus::Failed);
+    CHECK(run->entries()[0].result.summary == "Nozzle 22.1 / 1.08 / 113");
+    CHECK(run->can_save());
+    FakeFinisher finisher;
+    run->save_all(finisher);
+    finisher.saved();
+    // Only a finished step goes into the history.
+    CHECK(finisher.recorded.empty());
+}
+
+TEST_CASE_METHOD(RunFixture, "a restart from outside the run loses what it staged",
+                 "[calibration_run]") {
+    make_run(2);
+    run->start();
+    fakes[0]->finish("-1.300 mm");
+    run->klippy_restarted();
+    CHECK(run->results_lost());
+    fakes[1]->fail("Klippy shutdown");
+    CHECK(run->phase() == RunPhase::Results);
+    CHECK_FALSE(run->can_save());
+}
+
+TEST_CASE_METHOD(RunFixture, "the restart Save all causes is the save's own", "[calibration_run]") {
+    make_run(1);
+    run->start();
+    fakes[0]->finish("-1.300 mm");
+    FakeFinisher finisher;
+    run->save_all(finisher);
+    run->klippy_restarted();
+    CHECK_FALSE(run->results_lost());
+    finisher.saved();
+    CHECK(run->phase() == RunPhase::Saved);
+    CHECK(finisher.recorded == std::vector<std::string>{"a=-1.300 mm"});
 }

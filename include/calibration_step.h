@@ -44,6 +44,10 @@ struct StepOutcome {
     static StepOutcome failed(std::string why) {
         return {Kind::Failed, {}, std::move(why)};
     }
+    /// Failed after staging @p partial, which a save writes with the rest.
+    static StepOutcome failed_after(std::string why, StepResult partial) {
+        return {Kind::Failed, std::move(partial), std::move(why)};
+    }
     static StepOutcome skipped() {
         return {Kind::Skipped, {}, {}};
     }

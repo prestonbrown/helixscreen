@@ -301,6 +301,7 @@ translations:
   'Accepted Z Position: 0.000': '已接受 Z 位置: 0.000'
   'Accepted Z Position: {:.3f}': '已确认 Z 位置：{:.3f}'
   Accepted at Z {:.3f} mm: '已在 Z {:.3f} mm 处确认'
+  Accepting the Z offset...: '正在确认 Z 偏移...'
   Accessories: '配件'
   Accuracy: 精度
   Action Required: 需要操作
@@ -1729,6 +1730,7 @@ translations:
   'Failed to upload the extracted G-code: {}': '无法上传提取的 G-code: {}'
   'Failed to upload the rewritten G-code: {}': 上传改写后的 G-code 失败：{}
   'Failed: {}': '失败：{}'
+  'Failed: {}. Saves {}': '失败：{}。将保存 {}'
   'Faint lines: compensation off. Bright lines: compensation on.': '浅色线条：补偿关闭。亮色线条：补偿开启。'
   Fair match: "匹配中等"
   Fan: 风扇

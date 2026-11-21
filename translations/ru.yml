@@ -349,6 +349,7 @@ translations:
   'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
   'Accepted Z Position: {:.3f}': 'Принятая позиция Z: {:.3f}'
   Accepted at Z {:.3f} mm: 'Принято при Z {:.3f} мм'
+  Accepting the Z offset...: 'Принятие смещения Z...'
   Accessories: 'Аксессуары'
   Accuracy: Точность
   Action Required: Требуется действие
@@ -1789,6 +1790,7 @@ translations:
   'Failed to upload the extracted G-code: {}': 'Не удалось загрузить извлечённый G-code: {}'
   'Failed to upload the rewritten G-code: {}': 'Не удалось загрузить переписанный G-code: {}'
   'Failed: {}': 'Ошибка: {}'
+  'Failed: {}. Saves {}': 'Ошибка: {}. Сохранится: {}'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Бледные линии: компенсация выключена. Яркие линии: компенсация включена.'
   Fair match: "Среднее совпадение"
   Fan: Вентилятор

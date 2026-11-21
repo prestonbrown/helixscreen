@@ -285,6 +285,7 @@
   <translation tag="Accepted Z Position: 0.000" zh="已接受 Z 位置: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" zh="已确认 Z 位置：{:.3f}"/>
   <translation tag="Accepted at Z {:.3f} mm" zh="已在 Z {:.3f} mm 处确认"/>
+  <translation tag="Accepting the Z offset..." zh="正在确认 Z 偏移..."/>
   <translation tag="Accessories" zh="配件"/>
   <translation tag="Accuracy" zh="精度"/>
   <translation tag="Action Required" zh="需要操作"/>
@@ -1658,6 +1659,7 @@
   <translation tag="Failed to upload the extracted G-code: {}" zh="无法上传提取的 G-code: {}"/>
   <translation tag="Failed to upload the rewritten G-code: {}" zh="上传改写后的 G-code 失败：{}"/>
   <translation tag="Failed: {}" zh="失败：{}"/>
+  <translation tag="Failed: {}. Saves {}" zh="失败：{}。将保存 {}"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." zh="浅色线条：补偿关闭。亮色线条：补偿开启。"/>
   <translation tag="Fair match" zh="匹配中等"/>
   <translation tag="Fan" zh="风扇"/>

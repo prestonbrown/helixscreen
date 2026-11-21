@@ -285,6 +285,7 @@
   <translation tag="Accepted Z Position: 0.000" es="Posición Z aceptada: 0.000"/>
   <translation tag="Accepted Z Position: {:.3f}" es="Posición Z aceptada: {:.3f}"/>
   <translation tag="Accepted at Z {:.3f} mm" es="Aceptado en Z {:.3f} mm"/>
+  <translation tag="Accepting the Z offset..." es="Aceptando el offset Z..."/>
   <translation tag="Accessories" es="Accesorios"/>
   <translation tag="Accuracy" es="Precisión"/>
   <translation tag="Action Required" es="Acción Requerida"/>
@@ -1658,6 +1659,7 @@
   <translation tag="Failed to upload the extracted G-code: {}" es="No se pudo subir el G-code extraído: {}"/>
   <translation tag="Failed to upload the rewritten G-code: {}" es="Error al subir el G-code reescrito: {}"/>
   <translation tag="Failed: {}" es="Falló: {}"/>
+  <translation tag="Failed: {}. Saves {}" es="Falló: {}. Se guarda {}"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." es="Líneas tenues: compensación desactivada. Líneas brillantes: compensación activada."/>
   <translation tag="Fair match" es="Coincidencia regular"/>
   <translation tag="Fan" es="Ventilador"/>
