@@ -32,6 +32,10 @@ struct SpoolQuery {
     std::optional<uint32_t> color;
 
     [[nodiscard]] bool empty() const;
+    bool operator==(const SpoolQuery& o) const {
+        return material == o.material && brand == o.brand && product == o.product &&
+               color == o.color;
+    }
 };
 
 /// The fields a close match states differently from the form.
@@ -67,10 +71,16 @@ struct RankedSpool {
     SpoolMatch match;
 };
 
+/// The most rows the list builds: each is a drawn spool, and a few hundred
+/// would cost every form tap a long rebuild on a slow board. Search reaches
+/// the rest.
+inline constexpr size_t kMaxListedSpools = 40;
+
 /// The spools the list shows for @p query: every spool for an empty query, else
 /// the exact matches followed by the close ones. Within each group the input
-/// order (recency) is kept.
-std::vector<RankedSpool> rank_spools(const SpoolQuery& query, const std::vector<SpoolInfo>& spools);
+/// order (recency) is kept, and at most @p max rows are returned.
+std::vector<RankedSpool> rank_spools(const SpoolQuery& query, const std::vector<SpoolInfo>& spools,
+                                     size_t max = kMaxListedSpools);
 
 /// "close: PLA+, color", naming the spool's own value for each text field.
 /// Empty when nothing differs. @p color_word is the localized word for colour.
@@ -130,6 +140,10 @@ inline constexpr float kRemainingStepGrams = 10.0f;
 /// @p remaining_g moved by @p delta_g, kept at 0 or more and, when the spool's
 /// total is known, at most that total.
 [[nodiscard]] float step_remaining(float remaining_g, float delta_g, float total_g);
+
+/// Whether Undo of a save that put @p after on a lane still applies to the lane
+/// as it is @p now: the same spool link, material, brand and color.
+[[nodiscard]] bool undo_still_applies(const SlotInfo& now, const SlotInfo& after);
 
 /// A new spool with no weight yet holds a full default spool.
 void apply_new_spool_default_weight(SlotInfo& slot);

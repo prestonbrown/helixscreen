@@ -60,6 +60,7 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <deque>
 #include <map>
 #include <set>
 
@@ -204,6 +205,10 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     cached_spools_.clear();
     cached_searchables_.clear();
     listed_.clear();
+    history_entries_.clear();
+    listed_query_.reset();
+    picker_pending_ = false;
+    edited_spoolman_record_ = false;
     spools_from_spoolman_ = false;
     picker_search_debounce_.cancel();
     size_chip_ = 0;
@@ -468,6 +473,10 @@ void AmsEditOverlay::on_activate() {
         }
         if (!recents_pending_ && !recents_loaded_) {
             fetch_recents();
+        }
+        // Assign Spool's list load died with the cover too.
+        if (picker_pending_ && lv_subject_get_int(&mode_subject_) == kModeAssign) {
+            populate_picker();
         }
     }
 }
@@ -928,6 +937,8 @@ void AmsEditOverlay::populate_picker() {
     cached_spools_.clear();
     cached_searchables_.clear();
     listed_.clear();
+    history_entries_.clear();
+    listed_query_.reset();
 
     if (lv_obj_t* search = find_widget("picker_search")) {
         lv_textarea_set_text(search, "");
@@ -940,9 +951,11 @@ void AmsEditOverlay::populate_picker() {
     }
     if (!api_) {
         spools_from_spoolman_ = false;
+        picker_pending_ = false;
         render_spool_list("");
         return;
     }
+    picker_pending_ = true;
     if (!has_spoolman) {
         // Without Spoolman the list is what this printer's lanes have held.
         spools_from_spoolman_ = false;
@@ -954,10 +967,12 @@ void AmsEditOverlay::populate_picker() {
                     if (!overlay_root_ || !subjects_initialized_ || spools_from_spoolman_) {
                         return;
                     }
+                    picker_pending_ = false;
                     cached_spools_.clear();
                     for (const auto& entry : entries) {
                         cached_spools_.push_back(lane_spool_history::as_spool(entry));
                     }
+                    history_entries_ = entries;
                     render_spool_list("");
                 });
             });
@@ -974,9 +989,11 @@ void AmsEditOverlay::populate_picker() {
                 if (!overlay_root_ || !subjects_initialized_) {
                     return;
                 }
+                picker_pending_ = false;
                 // Spools arrive ordered by most recent activity first
                 // (sort_spools_by_recency() in the API layer).
                 cached_spools_ = spools;
+                history_entries_.clear();
                 cached_searchables_.clear();
                 cached_searchables_.reserve(cached_spools_.size());
                 for (const auto& spool : cached_spools_) {
@@ -991,6 +1008,7 @@ void AmsEditOverlay::populate_picker() {
                 if (!overlay_root_ || !subjects_initialized_) {
                     return;
                 }
+                picker_pending_ = false;
                 lv_subject_set_int(&picker_state_subject_, 1);
                 lv_subject_set_int(&bottom_action_subject_,
                                    static_cast<int>(spool_assign::bottom_action(true, 0)));
@@ -1023,6 +1041,10 @@ spool_assign::SpoolQuery AmsEditOverlay::current_query() const {
     return query;
 }
 
+bool AmsEditOverlay::ListedQuery::operator==(const ListedQuery& o) const {
+    return query == o.query && filter == o.filter && spool_count == o.spool_count;
+}
+
 void AmsEditOverlay::refresh_spool_list() {
     if (!overlay_root_ || lv_subject_get_int(&mode_subject_) != kModeAssign ||
         lv_subject_get_int(&picker_state_subject_) == 0 ||
@@ -1031,6 +1053,11 @@ void AmsEditOverlay::refresh_spool_list() {
     }
     lv_obj_t* search = find_widget("picker_search");
     const char* text = search ? lv_textarea_get_text(search) : nullptr;
+    // Most form taps (a chip, a weight) change nothing the list reads.
+    if (listed_query_ &&
+        *listed_query_ == ListedQuery{current_query(), text ? text : "", cached_spools_.size()}) {
+        return;
+    }
     render_spool_list(text ? text : "");
 }
 
@@ -1045,12 +1072,16 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     helix::ui::safe_clean_children(spool_list);
 
     // The search narrows by text first; the form then ranks what is left.
-    std::vector<SpoolInfo> searched =
-        spools_from_spoolman_ && !filter.empty()
-            ? filter_spools(cached_spools_, filter, cached_searchables_)
-            : cached_spools_;
+    // A search keeps a copy of what it matched; no search reads the cache.
+    std::vector<SpoolInfo> found;
+    const std::vector<SpoolInfo>* searched = &cached_spools_;
+    if (spools_from_spoolman_ && !filter.empty()) {
+        found = filter_spools(cached_spools_, filter, cached_searchables_);
+        searched = &found;
+    }
     const spool_assign::SpoolQuery query = current_query();
-    const auto ranked = spool_assign::rank_spools(query, searched);
+    const auto ranked = spool_assign::rank_spools(query, *searched);
+    listed_query_ = ListedQuery{query, filter, cached_spools_.size()};
     listed_.clear();
     // Rows index cached_spools_. A search keeps Spoolman spools, found again
     // by id; the lane history is never searched, so its indices stand.
@@ -1059,7 +1090,7 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             listed_.push_back(r);
             continue;
         }
-        const int id = searched[r.index].id;
+        const int id = (*searched)[r.index].id;
         for (size_t i = 0; i < cached_spools_.size(); ++i) {
             if (cached_spools_[i].id == id) {
                 listed_.push_back({i, r.match});
@@ -1166,11 +1197,27 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     lv_subject_copy_string(&list_title_subject_, list_title_buf_);
 }
 
+bool AmsEditOverlay::commit_lane_settings_for_assign() {
+    // Assign Spool has no Save of its own: each of its actions writes the
+    // lane's settings first, as Edit Spool's Save does, or they would be lost
+    // when it closes.
+    if (commit_lane_settings()) {
+        return true;
+    }
+    // The refusal has toasted; the field stays staged and the editor open.
+    stay_open_after_failed_save();
+    return false;
+}
+
 void AmsEditOverlay::handle_row_use(size_t row) {
     if (save_in_flight_ || row >= listed_.size()) {
         return;
     }
-    const SpoolInfo spool = cached_spools_[listed_[row].index];
+    if (!commit_lane_settings_for_assign()) {
+        return;
+    }
+    const size_t index = listed_[row].index;
+    const SpoolInfo spool = cached_spools_[index];
     spdlog::info("[AmsEditOverlay] Use spool {} ('{}') for slot {}", spool.id, spool.display_name(),
                  slot_index_);
     if (spool.id > 0) {
@@ -1188,17 +1235,28 @@ void AmsEditOverlay::handle_row_use(size_t row) {
             working_info_.multi_color_hexes.clear();
         }
         apply_material_defaults(spool.material);
+        // The catalog product it named brings its own temperatures back.
+        const std::string catalog_id =
+            index < history_entries_.size() ? history_entries_[index].catalog_id : std::string();
+        if (const auto* ef =
+                (catalog_ && !catalog_id.empty()) ? catalog_->resolve_id(catalog_id) : nullptr) {
+            working_info_.nozzle_temp_min = ef->nozzle_min;
+            working_info_.nozzle_temp_max = ef->nozzle_max;
+            working_info_.nozzle_temp_recommended = ef->nozzle_recommended;
+            working_info_.bed_temp = ef->bed_temp;
+            working_info_.catalog_id = ef->id;
+        }
         working_info_.product_name = spool.filament_name;
-        working_info_.total_weight_g = static_cast<float>(spool.initial_weight_g);
-        working_info_.remaining_weight_g = static_cast<float>(spool.initial_weight_g);
-        spool_assign::apply_new_spool_default_weight(working_info_);
+        // A spool going in is the size the chips say.
+        working_info_.total_weight_g = size_total_g_;
+        working_info_.remaining_weight_g = size_remaining_g_;
     }
     commit_and_close();
 }
 
 void AmsEditOverlay::handle_common_spool(size_t index) {
     const auto& common = spool_assign::common_spools();
-    if (index >= common.size() || !catalog_) {
+    if (save_in_flight_ || index >= common.size() || !catalog_) {
         return;
     }
     const auto& pick = common[index];
@@ -1263,7 +1321,7 @@ void AmsEditOverlay::handle_remaining_step(float delta_g) {
 }
 
 void AmsEditOverlay::handle_assign_local() {
-    if (save_in_flight_) {
+    if (save_in_flight_ || !commit_lane_settings_for_assign()) {
         return;
     }
     stage_assign_form();
@@ -1276,16 +1334,24 @@ void AmsEditOverlay::handle_assign_local() {
 }
 
 void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo& after,
-                                         bool created) {
+                                         bool created, bool undoable) {
     struct Payload {
         int slot_index = -1;
         SlotInfo before;
         SlotInfo after;
         SpoolInfo label; ///< the spool Print Label prints
     };
-    // One toast's worth at a time: a newer save replaces the older payload.
-    static Payload s_payload;
-    s_payload = {slot_index_, before, after, {}};
+    // Each toast gets its own payload: toasts stack, and Undo or Print Label on
+    // an older one must act on its own lane. Payloads outlive their toasts (a
+    // tap's action runs deferred); the oldest go once more are kept than the
+    // toast stack can show.
+    static std::deque<std::unique_ptr<Payload>> s_payloads;
+    constexpr size_t kKeptPayloads = 8;
+    s_payloads.push_back(std::make_unique<Payload>(Payload{slot_index_, before, after, {}}));
+    while (s_payloads.size() > kKeptPayloads) {
+        s_payloads.pop_front();
+    }
+    Payload* payload = s_payloads.back().get();
 
     const std::string lane =
         slot_index_ == -2 ? std::string(lv_tr("External Filament"))
@@ -1303,24 +1369,57 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
     ToastAction print_label;
 #if HELIX_HAS_LABEL_PRINTER
     if (after.spoolman_id > 0 && helix::LabelPrinterSettingsManager::instance().is_configured()) {
-        s_payload.label = label_spool();
+        payload->label = label_spool();
         print_label = ToastAction{
             lv_tr("Print Label"),
             [](void* user_data) { print_label_for(static_cast<Payload*>(user_data)->label); },
-            &s_payload};
+            payload};
     }
 #endif
+    const char* detail_text = detail.empty() ? nullptr : detail.c_str();
+    // A save that rewrote a Spoolman record cannot be undone from the lane
+    // alone: putting the lane back would leave it contradicting its spool.
+    if (!undoable) {
+        if (print_label.callback) {
+            ToastManager::instance().show_with_action(
+                ToastSeverity::SUCCESS, message.c_str(), print_label.text, print_label.callback,
+                print_label.user_data, 6000, nullptr, {}, detail_text);
+        } else if (detail_text) {
+            ToastManager::instance().show_with_detail(ToastSeverity::SUCCESS, message.c_str(),
+                                                      detail_text, 6000);
+        } else {
+            ToastManager::instance().show(ToastSeverity::SUCCESS, message.c_str(), 6000);
+        }
+        return;
+    }
     ToastManager::instance().show_with_action(
         ToastSeverity::SUCCESS, message.c_str(), lv_tr("Undo"),
         [](void* user_data) {
             const auto* undo = static_cast<Payload*>(user_data);
-            if (undo->slot_index == -1) {
+            AmsBackend* backend = AmsState::instance().get_backend();
+            if (undo->slot_index == -1 || (undo->slot_index >= 0 && !backend)) {
+                return;
+            }
+            // Undo puts back what was there only while the lane still holds
+            // what this save put in: anything that changed it since wins.
+            const SlotInfo now =
+                undo->slot_index >= 0 ? backend->get_slot_info(undo->slot_index) : undo->after;
+            if (!spool_assign::undo_still_applies(now, undo->after)) {
+                ToastManager::instance().show(
+                    ToastSeverity::WARNING, lv_tr("Not undone: the lane changed since that save."),
+                    4000);
                 return;
             }
             spdlog::info("[AmsEditOverlay] Undo assign on slot {}", undo->slot_index);
-            AmsState::instance().commit_slot_edit(undo->slot_index, undo->after, undo->before);
+            const AmsError err =
+                AmsState::instance().commit_slot_edit(undo->slot_index, undo->after, undo->before);
+            if (!err.success() && !err.partially_applied) {
+                ToastManager::instance().show(
+                    ToastSeverity::WARNING,
+                    fmt::format(fmt::runtime(lv_tr("Not undone: {}")), err.user_msg).c_str(), 4000);
+            }
         },
-        &s_payload, 6000, nullptr, print_label, detail.empty() ? nullptr : detail.c_str());
+        payload, 6000, nullptr, print_label, detail_text);
 }
 
 void AmsEditOverlay::fetch_recents() {
@@ -2119,28 +2218,29 @@ void AmsEditOverlay::handle_weight_tap() {
     if (save_in_flight_) {
         return; // the keypad would sit on top of the editor the save closes
     }
-    ui_keypad_config_t config = {
-        .initial_value =
-            working_info_.remaining_weight_g > 0 ? working_info_.remaining_weight_g : 0,
-        .min_value = 0,
-        .max_value = 100000,
-        .title_label = lv_tr("Remaining weight"),
-        .unit_label = "g",
-        .allow_decimal = false,
-        .allow_negative = false,
-        .callback =
-            [](float value, void* user_data) {
-                static_cast<AmsEditOverlay*>(user_data)->apply_weight(value);
-            },
-        .user_data = this};
+    const bool assign = lv_subject_get_int(&mode_subject_) == kModeAssign;
+    const float shown = assign ? size_remaining_g_ : working_info_.remaining_weight_g;
+    ui_keypad_config_t config = {.initial_value = shown > 0 ? shown : 0,
+                                 .min_value = 0,
+                                 .max_value = 100000,
+                                 .title_label = lv_tr("Remaining weight"),
+                                 .unit_label = "g",
+                                 .allow_decimal = false,
+                                 .allow_negative = false,
+                                 .callback =
+                                     [](float value, void* user_data) {
+                                         static_cast<AmsEditOverlay*>(user_data)->apply_weight(
+                                             value);
+                                     },
+                                 .user_data = this};
     ui_keypad_show(&config);
 }
 
 void AmsEditOverlay::apply_weight(float grams) {
     if (lv_subject_get_int(&mode_subject_) == kModeAssign) {
-        // Assign Spool's Partial...: a part-used spool of the default size.
-        apply_size_chip(spool_assign::kPartialChip, grams,
-                        std::max(grams, spool_assign::kDefaultSpoolGrams));
+        // Assign Spool's Partial...: what is left of a spool of the size last
+        // chosen (1 kg unless another chip was), never less than what is left.
+        apply_size_chip(spool_assign::kPartialChip, grams, std::max(grams, size_total_g_));
         update_sync_button_state();
         return;
     }
@@ -2601,6 +2701,9 @@ void AmsEditOverlay::handle_add_to_spoolman() {
         report_save_problem(true, missing_filament_message(missing));
         return;
     }
+    if (!commit_lane_settings_for_assign()) {
+        return;
+    }
     do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
 }
 
@@ -2892,7 +2995,8 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
         if (api_) {
             lane_spool_history::record(*api_, working_info_);
         }
-        show_assigned_toast(original_info_, working_info_, created_spool_id_ > 0);
+        show_assigned_toast(original_info_, working_info_, created_spool_id_ > 0,
+                            !edited_spoolman_record_);
         return;
     }
     spdlog::warn("[AmsEditOverlay] Save for slot {} did not stick: {}", cap.slot_index,
@@ -3025,10 +3129,10 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
     begin_slot_save(cap.slot_index);
     saver->save(
         cap.original, cap.spoolman_target, intent,
-        [this, token, cap, saver](const helix::SaveResult& result) {
+        [this, token, cap, saver, intent](const helix::SaveResult& result) {
             // Spoolman callback arrives on a background thread — defer
             // to the UI thread before touching LVGL.
-            token.defer([this, cap, result]() {
+            token.defer([this, cap, result, intent]() {
                 const bool live = save_is_live(cap);
                 if (cap.session == session_) {
                     save_in_flight_ = false;
@@ -3113,6 +3217,9 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     // The closing toast names the spool this save created.
                     if (result.created_new_spool) {
                         created_spool_id_ = committed.spoolman_id;
+                    }
+                    if (intent == helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked) {
+                        edited_spoolman_record_ = true;
                     }
 #if HELIX_HAS_LABEL_PRINTER
                     // A spool new to Spoolman gets its label printed at once.

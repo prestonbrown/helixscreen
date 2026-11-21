@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "lane_spool_history.h"
+#include "moonraker_error.h"
 #include "spool_assign.h"
 
 #include "../catch_amalgamated.hpp"
@@ -249,4 +250,70 @@ TEST_CASE("lane history round-trips through its stored form, capped", "[spool-as
     }
     CHECK(helix::lane_spool_history::from_json(many).size() ==
           helix::lane_spool_history::kMaxEntries);
+}
+
+TEST_CASE("a lane history record writes over only what its read saw", "[spool-assign]") {
+    using helix::lane_spool_history::base_for_record;
+    const nlohmann::json stored =
+        nlohmann::json::array({{{"material", "PLA"}}, {{"material", "ABS"}}});
+    const auto from_stored = base_for_record(&stored, nullptr);
+    REQUIRE(from_stored.has_value());
+    CHECK(from_stored->size() == 2);
+
+    // Nothing stored yet: start a history.
+    MoonrakerError not_found;
+    not_found.type = MoonrakerErrorType::JSON_RPC_ERROR;
+    not_found.code = 404;
+    not_found.message = "Key 'lane_spool_history' in namespace 'helix-screen' not found";
+    const auto fresh = base_for_record(nullptr, &not_found);
+    REQUIRE(fresh.has_value());
+    CHECK(fresh->empty());
+
+    // A read that failed otherwise writes nothing, or it would wipe the history.
+    MoonrakerError timeout;
+    timeout.type = MoonrakerErrorType::TIMEOUT;
+    timeout.message = "Request timed out";
+    CHECK_FALSE(base_for_record(nullptr, &timeout).has_value());
+}
+
+TEST_CASE("Undo applies only while the lane holds what the save put in", "[spool-assign]") {
+    SlotInfo after;
+    after.spoolman_id = 22;
+    after.material = "PETG";
+    after.brand = "eSUN";
+    after.color_rgb = 0x00FF00;
+    CHECK(undo_still_applies(after, after));
+    SlotInfo weighed = after;
+    weighed.remaining_weight_g = 300; // printing used some: still the same spool
+    CHECK(undo_still_applies(weighed, after));
+    SlotInfo relinked = after;
+    relinked.spoolman_id = 23;
+    CHECK_FALSE(undo_still_applies(relinked, after));
+    SlotInfo recolored = after;
+    recolored.color_rgb = 0x123456;
+    CHECK_FALSE(undo_still_applies(recolored, after));
+    SlotInfo rematerialed = after;
+    rematerialed.material = "PLA";
+    CHECK_FALSE(undo_still_applies(rematerialed, after));
+}
+
+TEST_CASE("the spool list builds at most its row cap, best first", "[spool-assign]") {
+    std::vector<SpoolInfo> many;
+    for (int i = 0; i < 100; ++i) {
+        many.push_back(spool(i + 1, "Polymaker", "PLA", "", "#FFFFFF"));
+    }
+    const auto ranked = rank_spools(SpoolQuery{}, many);
+    REQUIRE(ranked.size() == kMaxListedSpools);
+    CHECK(many[ranked.front().index].id == 1);
+    CHECK(rank_spools(SpoolQuery{}, many, 5).size() == 5);
+}
+
+TEST_CASE("a multi-color spool matches by its first color", "[spool-assign]") {
+    SpoolInfo rainbow = spool(9, "Polymaker", "PLA", "Rainbow", "");
+    rainbow.multi_color_hexes = "#FF0000,#00FF00,#0000FF";
+    SpoolQuery q;
+    q.color = 0xFF0000;
+    CHECK(match_spool(q, rainbow).kind == MatchKind::Exact);
+    q.color = 0x0000FF;
+    CHECK(match_spool(q, rainbow).kind == MatchKind::None);
 }

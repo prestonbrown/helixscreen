@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace helix;
 using namespace helix::ui;
@@ -555,6 +556,8 @@ toast_action_callback_t g_last_toast_action = nullptr;
 void* g_last_toast_action_data = nullptr;
 toast_action_callback_t g_last_toast_action2 = nullptr;
 void* g_last_toast_action2_data = nullptr;
+// Every action toast shown since set_test_toast_hook(), oldest first.
+std::vector<std::pair<toast_action_callback_t, void*>> g_shown_toast_actions;
 // The last action toast shown and the last pair hide(action) was given, for
 // last_action_toast_dismissed(). A fire leaves these alone.
 toast_action_callback_t g_shown_toast_action = nullptr;
@@ -607,6 +610,7 @@ void route_toast(const ToastManager::Event& e) {
     g_last_toast_action2 = e.action2_cb;
     g_last_toast_action2_data = e.action2_user_data;
     if (e.action_cb) {
+        g_shown_toast_actions.emplace_back(e.action_cb, e.action_user_data);
         g_last_toast_action = e.action_cb;
         g_last_toast_action_data = e.action_user_data;
         g_shown_toast_action = e.action_cb;
@@ -675,6 +679,7 @@ void set_test_toast_hook(std::function<void(ToastSeverity, const std::string&, u
     g_test_toast_hook = std::move(hook);
     g_last_toast_action = nullptr;
     g_last_toast_action2 = nullptr;
+    g_shown_toast_actions.clear();
     g_shown_toast_action = nullptr;
     g_dismissed_toast_action = nullptr;
 }
@@ -682,6 +687,15 @@ void set_test_toast_hook(std::function<void(ToastSeverity, const std::string&, u
 bool last_action_toast_dismissed() {
     return g_shown_toast_action && g_dismissed_toast_action == g_shown_toast_action &&
            g_dismissed_toast_action_data == g_shown_toast_action_data;
+}
+
+bool fire_toast_action(size_t index) {
+    if (index >= g_shown_toast_actions.size()) {
+        return false;
+    }
+    const auto [action, data] = g_shown_toast_actions[index];
+    action(data);
+    return true;
 }
 
 bool fire_last_toast_second_action() {

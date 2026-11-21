@@ -149,6 +149,9 @@ class AmsEditOverlayViewTestAccess {
     void call_assign_local() {
         overlay_.handle_assign_local();
     }
+    void call_populate_picker() {
+        overlay_.populate_picker();
+    }
     void call_different_spool() {
         overlay_.handle_different_spool();
     }
@@ -5405,4 +5408,185 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         }
         theme_manager_refresh_layout_constants(disp);
     }
+}
+
+// ============================================================================
+// Review fixes: per-toast Undo, lane settings on Assign, list re-arm, Undo
+// guard, history writes, list cost.
+// ============================================================================
+
+namespace {
+/// Use spool @p spool_id on @p slot through a pick-a-spool session, committed
+/// the way the AMS panel commits.
+void use_on_lane(OverlayConsumerCommitFixture& fx, int slot, int spool_id) {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        fx.test_screen(), slot, fx.backend->get_slot_info(slot), nullptr,
+        [&fx](const AmsEditOverlay::EditResult& r) { fx.commit_like_consumer(r); },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    fx.process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(spool_id);
+    UpdateQueue::instance().drain();
+    fx.process_lvgl(10);
+    REQUIRE(fx.backend->get_slot_info(slot).spoolman_id == spool_id);
+}
+} // namespace
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "Undo on an older toast puts back its own lane",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+    const SlotInfo lane0 = backend->get_slot_info(0);
+    const SlotInfo lane1 = backend->get_slot_info(1);
+    REQUIRE(lane0.spoolman_id != 11);
+    REQUIRE(lane1.spoolman_id != 22);
+
+    use_on_lane(*this, 0, 11); // toast 0
+    use_on_lane(*this, 1, 22); // toast 1, stacked over it
+
+    REQUIRE(helix::ui::fire_toast_action(0));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == lane0.spoolman_id);
+    CHECK(backend->get_slot_info(1).spoolman_id == 22);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "Undo leaves a lane that changed since the save",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+    use_on_lane(*this, 0, 22);
+
+    // Something else changes the lane before Undo is tapped.
+    SlotInfo changed = backend->get_slot_info(0);
+    changed.color_rgb = 0x123456;
+    REQUIRE(helix::test::apply_edit(*backend, 0, changed).success());
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == 22);
+    CHECK(backend->get_slot_info(0).color_rgb == 0x123456);
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts.back().find("Not undone") != std::string::npos);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "Assign Spool's Use writes the staged Assigned Tool",
+                 "[ams_edit_overlay][spool-assign][lane_settings]") {
+    set_spoolman_available(false);
+    REQUIRE(helix::ui::lane_settings::show_tool_row(backend));
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 2, backend->get_slot_info(2), nullptr,
+        [this](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    REQUIRE(helix::ui::lane_settings::assigned_tool(*backend, 2) == 2);
+    REQUIRE(access.pick_dropdown("tool_dropdown", "T0"));
+
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(2).spoolman_id == 22);
+    CHECK(backend->get_tool_mapping()[0] == 2);
+}
+
+TEST_CASE_METHOD(EditorFixture, "a cover that drops Assign Spool's list load re-runs it",
+                 "[ams_edit_overlay][spool-assign][session]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    mock_spool(client, 7).material = "PLA";
+    set_spoolman_available(true);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, &api, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    // A load in flight (Different Spool, a retry) covered by the Partial
+    // keypad before it answers: the answer dies with the cover.
+    access.call_populate_picker();
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.picker_state() == 0);
+
+    overlay.on_activate();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    CHECK(access.picker_state() == 2);
+    CHECK_FALSE(access.listed_ids().empty());
+    close_editor_overlay();
+    set_spoolman_available(false);
+}
+
+TEST_CASE_METHOD(EditorFixture, "a form tap that changes nothing the list reads keeps its rows",
+                 "[ams_edit_overlay][spool-assign]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("");
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(lv_obj_get_child_count(list) == 2);
+    lv_obj_t* first = lv_obj_get_child(list, 0);
+
+    access.tap_size_chip(1); // 750 g: the list does not read the size
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(lv_obj_get_child(list, 0) == first);
+
+    access.call_apply_color(0x1A1A2E); // a color it does read: spool 11's
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(access.listed_ids() == std::vector<int>{11});
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "two assigns saved back to back both reach the lane history",
+                 "[ams_edit_overlay][spool-assign][history]") {
+    SlotInfo pla;
+    pla.material = "PLA";
+    pla.color_rgb = 0xFFFFFF;
+    SlotInfo petg;
+    petg.material = "PETG";
+    petg.color_rgb = 0x1A1A1A;
+    // Both recorded before either read answers.
+    helix::lane_spool_history::record(api, pla);
+    helix::lane_spool_history::record(api, petg);
+    for (int i = 0; i < 6; ++i) {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    std::vector<helix::lane_spool_history::Entry> stored;
+    bool loaded = false;
+    helix::lane_spool_history::load(api, [&](std::vector<helix::lane_spool_history::Entry> e) {
+        stored = std::move(e);
+        loaded = true;
+    });
+    for (int i = 0; i < 4 && !loaded; ++i) {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    REQUIRE(loaded);
+    REQUIRE(stored.size() == 2);
+    CHECK(stored[0].material == "PETG");
+    CHECK(stored[1].material == "PLA");
 }

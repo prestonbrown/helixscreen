@@ -26,6 +26,8 @@
  * reinstalls and other clients.
  */
 
+struct MoonrakerError;
+
 namespace helix {
 class IMoonrakerAPI;
 }
@@ -68,7 +70,15 @@ inline constexpr size_t kMaxEntries = 12;
 /// fails.
 void load(IMoonrakerAPI& api, std::function<void(std::vector<Entry>)> on_loaded);
 
-/// Record what @p slot now holds at the front of the history.
+/// The history a record builds on, from what the read of the stored value
+/// answered: the stored list, an empty one when nothing is stored yet
+/// (not-found), and nothing when the read failed otherwise, since writing then
+/// would replace a history the read could not see.
+[[nodiscard]] std::optional<std::vector<Entry>> base_for_record(const nlohmann::json* stored,
+                                                                const MoonrakerError* error);
+
+/// Record what @p slot now holds at the front of the history. Call on the main
+/// thread; records made while one is being written ride the next write.
 void record(IMoonrakerAPI& api, const SlotInfo& slot);
 
 } // namespace helix::lane_spool_history

@@ -75,8 +75,14 @@ FieldMatch match_material(const std::string& wanted, const std::string& have) {
     return filament::materials_compatible(wanted, have) ? FieldMatch::Close : FieldMatch::None;
 }
 
-FieldMatch match_color(uint32_t wanted, const std::string& have_hex) {
-    const std::optional<uint32_t> have = helix::parse_hex_color(have_hex);
+FieldMatch match_color(uint32_t wanted, const SpoolInfo& spool) {
+    // A multi-color spool states its colors in multi_color_hexes alone; the
+    // first is the one it shows first.
+    std::string hex = spool.color_hex;
+    if (hex.empty()) {
+        hex = spool.multi_color_hexes.substr(0, spool.multi_color_hexes.find(','));
+    }
+    const std::optional<uint32_t> have = helix::parse_hex_color(hex);
     if (!have) {
         return FieldMatch::None;
     }
@@ -120,15 +126,15 @@ SpoolMatch match_spool(const SpoolQuery& query, const SpoolInfo& spool) {
         !take(match_text(query.product, spool.filament_name), result.differs.product)) {
         return {};
     }
-    if (query.color && !take(match_color(*query.color, spool.color_hex), result.differs.color)) {
+    if (query.color && !take(match_color(*query.color, spool), result.differs.color)) {
         return {};
     }
     result.kind = close ? MatchKind::Close : MatchKind::Exact;
     return result;
 }
 
-std::vector<RankedSpool> rank_spools(const SpoolQuery& query,
-                                     const std::vector<SpoolInfo>& spools) {
+std::vector<RankedSpool> rank_spools(const SpoolQuery& query, const std::vector<SpoolInfo>& spools,
+                                     size_t max) {
     std::vector<RankedSpool> exact;
     std::vector<RankedSpool> close;
     const bool everything = query.empty();
@@ -145,6 +151,9 @@ std::vector<RankedSpool> rank_spools(const SpoolQuery& query,
         }
     }
     exact.insert(exact.end(), close.begin(), close.end());
+    if (exact.size() > max) {
+        exact.resize(max);
+    }
     return exact;
 }
 
@@ -227,6 +236,11 @@ float step_remaining(float remaining_g, float delta_g, float total_g) {
         next = std::min(next, total_g);
     }
     return next;
+}
+
+bool undo_still_applies(const SlotInfo& now, const SlotInfo& after) {
+    return now.spoolman_id == after.spoolman_id && now.material == after.material &&
+           now.brand == after.brand && now.color_rgb == after.color_rgb;
 }
 
 void apply_new_spool_default_weight(SlotInfo& slot) {

@@ -3,8 +3,10 @@
 
 #include "lane_spool_history.h"
 
+#include "async_lifetime_guard.h"
 #include "color_utils.h"
 #include "i_moonraker_api.h"
+#include "moonraker_error.h"
 #include "text_io.h"
 
 #include <spdlog/spdlog.h>
@@ -123,19 +125,112 @@ void load(IMoonrakerAPI& api, std::function<void(std::vector<Entry>)> on_loaded)
         [done](const MoonrakerError&) { (*done)({}); });
 }
 
+std::optional<std::vector<Entry>> base_for_record(const nlohmann::json* stored,
+                                                  const MoonrakerError* error) {
+    if (stored) {
+        return from_json(*stored);
+    }
+    if (error && error->is_not_found()) {
+        return std::vector<Entry>{};
+    }
+    return std::nullopt;
+}
+
+namespace {
+
+/// Records run one read-modify-write at a time, on the main thread; a record
+/// arriving meanwhile waits and rides the next write, so two lanes saved back
+/// to back both land.
+struct Recorder {
+    bool busy = false;
+    std::optional<LifetimeToken> api_alive; ///< the API the running write uses
+    std::vector<Entry> waiting;
+};
+
+Recorder& recorder() {
+    static Recorder r;
+    return r;
+}
+
+void run_record(IMoonrakerAPI& api);
+
+void finish_write(IMoonrakerAPI& api) {
+    Recorder& r = recorder();
+    if (r.waiting.empty()) {
+        r.busy = false;
+        r.api_alive.reset();
+        return;
+    }
+    run_record(api);
+}
+
+void write_history(IMoonrakerAPI& api, std::vector<Entry> list) {
+    Recorder& r = recorder();
+    for (const auto& entry : r.waiting) {
+        list = with_recent(std::move(list), entry);
+    }
+    r.waiting.clear();
+    const LifetimeToken alive = api.lifetime_token();
+    IMoonrakerAPI* target = &api;
+    api.database_post_item(
+        kDbNamespace, kDbKey, to_json(list),
+        [alive, target]() {
+            alive.defer("LaneSpoolHistory::written", [target]() { finish_write(*target); });
+        },
+        [alive, target](const MoonrakerError& err) {
+            spdlog::warn("[LaneSpoolHistory] Not recorded: {}", err.message);
+            alive.defer("LaneSpoolHistory::write_failed", [target]() { finish_write(*target); });
+        });
+}
+
+void run_record(IMoonrakerAPI& api) {
+    Recorder& r = recorder();
+    r.busy = true;
+    r.api_alive = api.lifetime_token();
+    const LifetimeToken alive = api.lifetime_token();
+    IMoonrakerAPI* target = &api;
+    api.database_get_item(
+        kDbNamespace, kDbKey,
+        [alive, target](const nlohmann::json& value) {
+            alive.defer("LaneSpoolHistory::read", [target, value]() {
+                write_history(*target, *base_for_record(&value, nullptr));
+            });
+        },
+        [alive, target](const MoonrakerError& err) {
+            alive.defer("LaneSpoolHistory::read_failed", [target, err]() {
+                if (auto base = base_for_record(nullptr, &err)) {
+                    write_history(*target, std::move(*base));
+                    return;
+                }
+                // A read that failed says nothing about what is stored: writing
+                // now would replace the whole history with these entries.
+                spdlog::warn("[LaneSpoolHistory] Not recorded, history unreadable: {}",
+                             err.message);
+                Recorder& rec = recorder();
+                rec.waiting.clear();
+                rec.busy = false;
+                rec.api_alive.reset();
+            });
+        });
+}
+
+} // namespace
+
 void record(IMoonrakerAPI& api, const SlotInfo& slot) {
     const std::optional<Entry> entry = entry_from_slot(slot);
     if (!entry) {
         return;
     }
-    IMoonrakerAPI* target = &api;
-    load(api, [target, entry = *entry](std::vector<Entry> list) {
-        target->database_post_item(
-            kDbNamespace, kDbKey, to_json(with_recent(std::move(list), entry)), nullptr,
-            [](const MoonrakerError& err) {
-                spdlog::warn("[LaneSpoolHistory] Not recorded: {}", err.message);
-            });
-    });
+    Recorder& r = recorder();
+    // A write whose API is gone never finishes; the next record starts afresh.
+    if (r.busy && r.api_alive && r.api_alive->expired()) {
+        r.busy = false;
+        r.waiting.clear();
+    }
+    r.waiting.push_back(*entry);
+    if (!r.busy) {
+        run_record(api);
+    }
 }
 
 } // namespace helix::lane_spool_history

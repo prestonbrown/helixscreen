@@ -13,6 +13,7 @@
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_source_store.h"
+#include "lane_spool_history.h"
 #include "overlay_base.h"
 #include "spool_assign.h"
 #include "spoolman_slot_saver.h"
@@ -235,6 +236,22 @@ class AmsEditOverlay : public OverlayBase {
     float size_total_g_ = spool_assign::kDefaultSpoolGrams;
     /// The Spoolman spool this session's save created, for the closing toast.
     int created_spool_id_ = 0;
+    /// This session's save rewrote a linked Spoolman record, so the closing
+    /// toast offers no Undo (the lane alone cannot be put back).
+    bool edited_spoolman_record_ = false;
+    /// Assign Spool's list load is in flight; a cover that drops it re-arms it.
+    bool picker_pending_ = false;
+    /// The lane history behind cached_spools_ (without Spoolman), index for index.
+    std::vector<lane_spool_history::Entry> history_entries_;
+    /// What the rendered list was built from, so a form tap that changes
+    /// nothing the list depends on does not rebuild it.
+    struct ListedQuery {
+        spool_assign::SpoolQuery query;
+        std::string filter;
+        size_t spool_count = 0;
+        bool operator==(const ListedQuery& o) const;
+    };
+    std::optional<ListedQuery> listed_query_;
     IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;
     bool completion_fired_ = false; ///< Guards single-fire completion
@@ -495,7 +512,11 @@ class AmsEditOverlay : public OverlayBase {
     void stage_assign_form();
     /// The toast an assign or edit closes with: "Lane 2: Polymaker PLA" and
     /// Undo, with the Spoolman id when the save created one.
-    void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created);
+    void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created,
+                             bool undoable);
+    /// Write the lane's staged settings before an Assign Spool action; false
+    /// (editor kept open, refusal toasted) when the backend refused one.
+    bool commit_lane_settings_for_assign();
     void enter_editor();
     /// Apply the editor view's non-XML content (dropdown options, colour ring,
     /// summary, logistics fields) from state this object already holds.

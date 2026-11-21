@@ -1473,8 +1473,12 @@ With Spoolman they are its spools in recency order, searchable by name, brand,
 color or `#ID`; without it they are the filaments this printer's lanes have held
 (`include/lane_spool_history.h`: the printer's own Moonraker database, namespace
 `helix-screen`, key `lane_spool_history`, most recent first, deduped, at most 12,
-recorded on every saved assignment), so the list follows the printer across
-screen reinstalls and other clients. Each row (`ui_xml/spool_assign_row.xml`)
+recorded on every saved assignment, one read-modify-write at a time, and never
+over a history whose read failed), so the list follows the printer across
+screen reinstalls and other clients. The list builds at most
+`spool_assign::kMaxListedSpools` rows (search reaches the rest) and is rebuilt
+only when the form, the search or the spools change. Every Assign Spool action
+writes the lane's staged settings first, as Edit Spool's Save does. Each row (`ui_xml/spool_assign_row.xml`)
 draws the spool with its filament ring at the remaining weight, the name,
 `#id · N g left · when`, and **Use**, which links the lane (or, from the lane
 history, describes it) and closes. Once the form says anything the list narrows
@@ -1502,7 +1506,10 @@ linked lane) and **Clear Lane**.
 **After a save** the editor closes on the lane's echo with a toast naming the
 lane and the spool, "Added to Spoolman as #id" under it when the save created
 the spool. Its buttons are **Undo**, which commits the lane's prior slot back
-through `AmsState::commit_slot_edit()`, and, on a Spoolman spool with a label
+through `AmsState::commit_slot_edit()` while the lane still holds what the save
+put in (`spool_assign::undo_still_applies()`; each toast keeps its own lane), and
+is not offered after a save that rewrote a linked Spoolman record, since the
+lane alone cannot be put back; and, on a Spoolman spool with a label
 printer set up, **Print Label** (the toast's optional second action,
 `ToastAction`). A spool the save created has its label printed at once, so the
 toast's button is the reprint.
