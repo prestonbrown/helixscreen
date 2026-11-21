@@ -292,7 +292,8 @@
                 scrollable="false" clickable="true" hidden="true">
           <style name="nav_row"/>
           <style name="styles.press_wash" selector="pressed"/>
-          <bind_flag_if_eq subject="ams_edit_lane_line_visible" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))"
+                        flag="hidden"/>
           <event_cb trigger="clicked" callback="ams_edit_open_lane_cb"/>
           <text_body name="lane_line_text"
                      flex_grow="1" bind_text="ams_edit_lane_line" long_mode="dots" clickable="false" event_bubble="true"/>

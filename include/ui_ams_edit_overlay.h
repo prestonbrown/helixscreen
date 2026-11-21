@@ -486,17 +486,16 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject page_subject_{};          ///< kPage* ("ams_edit_page")
     helix::Subject product_line_subject_{};  ///< "Polymaker PolyTerra" ("ams_edit_product_line")
     helix::Subject material_line_subject_{}; ///< "PLA · Charcoal Black" ("ams_edit_material_line")
-    helix::Subject lane_line_subject_{}; ///< "Tool T0 · Runout → Lane 3" ("ams_edit_lane_line")
-    helix::Subject lane_line_visible_subject_{}; ///< 1 = a lane setting can change here
-    helix::Subject weight_pct_subject_{};        ///< the drag bar, 0..100 of the spool's size
-    helix::Subject empty_title_subject_{};       ///< "Lane 3 is empty" ("ams_edit_empty_title")
-    helix::Subject has_last_subject_{};          ///< 1 = the empty lane records what it last held
-    helix::Subject last_product_subject_{};      ///< what it last held, product line
-    helix::Subject last_material_subject_{};     ///< what it last held, material · color
-    helix::Subject add_to_spoolman_subject_{};   ///< the Add to Spoolman checkbox
-    helix::Subject tag_text_subject_{};          ///< "Tag says PLA · Bambu · Black"
-    helix::Subject clear_archive_subject_{};     ///< the Clear Lane archive checkbox
-    helix::Subject clear_title_subject_{};       ///< "Clear Lane 3?" ("ams_edit_clear_title")
+    helix::Subject lane_line_subject_{};  ///< "Tool T0 · Runout → Lane 3" ("ams_edit_lane_line")
+    helix::Subject weight_pct_subject_{}; ///< the drag bar, 0..100 of the spool's size
+    helix::Subject empty_title_subject_{};     ///< "Lane 3 is empty" ("ams_edit_empty_title")
+    helix::Subject has_last_subject_{};        ///< 1 = the empty lane records what it last held
+    helix::Subject last_product_subject_{};    ///< what it last held, product line
+    helix::Subject last_material_subject_{};   ///< what it last held, material · color
+    helix::Subject add_to_spoolman_subject_{}; ///< the Add to Spoolman checkbox
+    helix::Subject tag_text_subject_{};        ///< "Tag says PLA · Bambu · Black"
+    helix::Subject clear_archive_subject_{};   ///< the Clear Lane archive checkbox
+    helix::Subject clear_title_subject_{};     ///< "Clear Lane 3?" ("ams_edit_clear_title")
     char product_line_buf_[128] = {0};
     char material_line_buf_[128] = {0};
     char lane_line_buf_[128] = {0};
@@ -515,8 +514,8 @@ class AmsEditOverlay : public OverlayBase {
     void handle_weight_slider(int pct);
     void handle_same_filament();
     void show_clear_confirm();
-    void handle_clear_confirm(lv_event_t* e);
-    void handle_clear_cancel(lv_event_t* e);
+    void handle_clear_confirm();
+    void handle_clear_cancel();
     void handle_new_spool();
     void handle_add_new_spool();
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,

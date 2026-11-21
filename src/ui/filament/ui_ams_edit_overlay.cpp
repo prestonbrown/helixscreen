@@ -97,6 +97,18 @@ std::string editor_lane_label(int slot_index) {
     return helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), slot_index);
 }
 
+/// The Clear Lane confirmation. Its buttons are XML callbacks
+/// (ams_edit_clear_confirm_cb / ams_edit_clear_cancel_cb).
+class ClearLaneModal : public Modal {
+  public:
+    const char* get_name() const override {
+        return "Clear Lane";
+    }
+    const char* component_name() const override {
+        return "ams_clear_lane_modal";
+    }
+};
+
 /// A spool's size as people say it: "1 kg", "2.5 kg", "750 g".
 std::string format_spool_size(float grams) {
     if (grams >= 1000.0f) {
@@ -558,8 +570,6 @@ void AmsEditOverlay::init_subjects() {
                                   "ams_edit_material_line", subjects_);
         UI_MANAGED_SUBJECT_STRING(lane_line_subject_, lane_line_buf_, "", "ams_edit_lane_line",
                                   subjects_);
-        UI_MANAGED_SUBJECT_INT(lane_line_visible_subject_, 0, "ams_edit_lane_line_visible",
-                               subjects_);
         UI_MANAGED_SUBJECT_INT(weight_pct_subject_, 100, "ams_edit_weight_pct", subjects_);
         UI_MANAGED_SUBJECT_STRING(empty_title_subject_, empty_title_buf_, "",
                                   "ams_edit_empty_title", subjects_);
@@ -1042,11 +1052,10 @@ void AmsEditOverlay::update_lane_line() {
     if (!subjects_initialized_) {
         return;
     }
-    // "Tool T0 · Runout → Lane 3": shown only where a lane setting can change.
+    // "Tool T0 · Runout → Lane 3". The XML shows it only where a lane
+    // setting can change.
     const bool tool_row = lv_subject_get_int(&tool_row_visible_subject_) == 1;
-    const bool tool_editable = tool_row && lv_subject_get_int(&tool_editable_subject_) == 1;
     const bool backup_row = lv_subject_get_int(&backup_row_visible_subject_) == 1;
-    const bool backup_editable = backup_row && lv_subject_get_int(&backup_editable_subject_) == 1;
     std::string line;
     if (tool_row) {
         line = lane_working_.tool >= 0
@@ -1064,10 +1073,6 @@ void AmsEditOverlay::update_lane_line() {
     }
     snprintf(lane_line_buf_, sizeof(lane_line_buf_), "%s", line.c_str());
     lv_subject_set_string(&lane_line_subject_, lane_line_buf_);
-    lv_subject_set_int(
-        &lane_line_visible_subject_,
-        lv_subject_get_int(&lane_visible_subject_) == 1 && (tool_editable || backup_editable) ? 1
-                                                                                              : 0);
 }
 
 void AmsEditOverlay::update_empty_page() {
@@ -1210,19 +1215,18 @@ void AmsEditOverlay::show_clear_confirm() {
                               original_info_.remaining_weight_g >= 0 &&
                               original_info_.remaining_weight_g < 20.0f;
     lv_subject_set_int(&clear_archive_subject_, nearly_empty ? 1 : 0);
-    if (!helix::ui::ComponentModal::show_owned("ams_clear_lane_modal")) {
+    if (!Modal::show_owned(std::make_unique<ClearLaneModal>(), lv_screen_active())) {
         spdlog::error("[AmsEditOverlay] Failed to show ams_clear_lane_modal");
     }
 }
 
-void AmsEditOverlay::handle_clear_cancel(lv_event_t* e) {
-    if (Modal* modal = Modal::from_event(e)) {
-        modal->hide();
-    }
+void AmsEditOverlay::handle_clear_cancel() {
+    // The button that called this sits in the topmost modal: the confirmation.
+    Modal::hide(Modal::get_top(), ModalCloseReason::ButtonPress);
 }
 
-void AmsEditOverlay::handle_clear_confirm(lv_event_t* e) {
-    handle_clear_cancel(e);
+void AmsEditOverlay::handle_clear_confirm() {
+    handle_clear_cancel();
     handle_clear_spool();
 }
 
@@ -4059,9 +4063,9 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_clear_spool_cb",
          [](lv_event_t*) { get_ams_edit_overlay().show_clear_confirm(); }},
         {"ams_edit_clear_confirm_cb",
-         [](lv_event_t* e) { get_ams_edit_overlay().handle_clear_confirm(e); }},
+         [](lv_event_t*) { get_ams_edit_overlay().handle_clear_confirm(); }},
         {"ams_edit_clear_cancel_cb",
-         [](lv_event_t* e) { get_ams_edit_overlay().handle_clear_cancel(e); }},
+         [](lv_event_t*) { get_ams_edit_overlay().handle_clear_cancel(); }},
         {"ams_edit_new_spool_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_new_spool(); }},
         {"ams_edit_choose_spool_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_new_spool(); }},
