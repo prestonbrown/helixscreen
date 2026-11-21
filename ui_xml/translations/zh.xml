@@ -5288,6 +5288,7 @@
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." zh="[resonance_tester] 没有 probe_points，因此打印头没有进行稳定绕圈的安全高度。"/>
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" zh="在 printer.cfg 加载的配置文件中找到 [{}] {} 次，应只有一次"/>
   <translation tag="a newer version" zh="更新的版本"/>
+  <translation tag="a temporary mesh profile &apos;{}&apos;" zh="临时网格配置 &apos;{}&apos;"/>
   <translation tag="about {} min" zh="约 {} 分钟"/>
   <translation tag="already loaded" zh="已加载"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>

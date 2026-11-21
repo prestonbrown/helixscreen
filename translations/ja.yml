@@ -5429,6 +5429,7 @@ translations:
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] に probe_points がないため、なじませ周回を行う安全な高さがありません。'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] が printer.cfg の読み込む設定ファイルに {} 回見つかりました (1回のみ想定)"
   a newer version: '新しいバージョン'
+  a temporary mesh profile '{}': '一時的なメッシュプロファイル ''{}'''
   about {} min: '約{}分'
   already loaded: '装填済み'
   attempt {}: '試行 {}'

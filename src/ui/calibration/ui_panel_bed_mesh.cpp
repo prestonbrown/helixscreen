@@ -1760,10 +1760,27 @@ void BedMeshPanel::copy_calibrated_mesh(const std::string& from, const std::stri
     if (calibration_cancelled_) {
         return;
     }
-    auto fail = [this, to](const std::string& why) {
+    auto fail = [this, from, to](const std::string& why) {
         spdlog::error("[BedMeshPanel] Could not save the mesh as '{}': {}", to, why);
-        report_store_failure(
-            fmt::format(fmt::runtime(lv_tr("Could not save the mesh as '{}': {}")), to, why));
+        const std::string message =
+            fmt::format(fmt::runtime(lv_tr("Could not save the mesh as '{}': {}")), to, why);
+        IMoonrakerAPI* remove_api = api_;
+        if (!in_run_ || !remove_api) {
+            report_store_failure(message);
+            return;
+        }
+        // The mesh is still pending under the profile it was calibrated into,
+        // which a guided run's Save all would write without a label.
+        spdlog::info("[BedMeshPanel] Guided run: removing the pending profile '{}'", from);
+        remove_api->execute_gcode(
+            helix::bed_mesh::profile_command("REMOVE", from),
+            lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup",
+                            [this, message]() { report_store_failure(message); }),
+            lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup_error", [this, message, from](
+                                                                        const MoonrakerError& err) {
+                spdlog::warn("[BedMeshPanel] Could not remove '{}': {}", from, err.message);
+                report_store_failure(message, from);
+            }));
     };
     IMoonrakerAPI* api = api_;
     if (!api) {
@@ -1854,16 +1871,17 @@ void BedMeshPanel::on_calibration_error(const std::string& message) {
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::ERROR));
     if (in_run_ && run_hooks_.failed) {
-        run_hooks_.failed(clean);
+        run_hooks_.failed(clean, {});
     }
 }
 
-void BedMeshPanel::report_store_failure(const std::string& user_message) {
+void BedMeshPanel::report_store_failure(const std::string& user_message,
+                                        const std::string& staged_profile) {
     if (in_run_) {
         lv_subject_set_int(&bed_mesh_calibrate_state_,
                            static_cast<int>(BedMeshCalibrationState::IDLE));
         if (run_hooks_.failed) {
-            run_hooks_.failed(user_message);
+            run_hooks_.failed(user_message, staged_profile);
         }
         return;
     }

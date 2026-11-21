@@ -112,7 +112,9 @@ class BedMeshPanel : public OverlayBase {
     struct RunHooks {
         /// @p range: the stored mesh's flatness, when its points could be read.
         std::function<void(const std::string& profile, std::optional<double> range)> stored;
-        std::function<void(const std::string& why)> failed;
+        /// @p staged_profile: a profile the calibration left pending that could
+        /// not be removed again, which a save would write; empty when none.
+        std::function<void(const std::string& why, const std::string& staged_profile)> failed;
     };
     /// Calibrate into the default profile for a guided run: the same plan,
     /// preheat, homing and probing as the panel's own, without the panel's
@@ -336,7 +338,8 @@ class BedMeshPanel : public OverlayBase {
     nlohmann::json calibrated_points_;
     /// A calibration that probed but stored nothing usable: tell the run, or
     /// the owner. @p user_message is translated.
-    void report_store_failure(const std::string& user_message);
+    void report_store_failure(const std::string& user_message,
+                              const std::string& staged_profile = {});
 
     /// What begin_calibration() planned: launch_calibration() sends its command,
     /// and on_calibration_complete() finishes where it says the mesh went.

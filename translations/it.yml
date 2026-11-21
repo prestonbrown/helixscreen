@@ -5429,6 +5429,7 @@ translations:
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] non ha probe_points, quindi la testina non ha un''altezza sicura per i giri di assestamento.'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] trovato {} volte nei file di configurazione caricati da printer.cfg, previsto una volta"
   a newer version: 'una versione più recente'
+  a temporary mesh profile '{}': 'un profilo mesh temporaneo ''{}'''
   about {} min: 'circa {} min'
   already loaded: 'già caricato'
   attempt {}: 'tentativo {}'

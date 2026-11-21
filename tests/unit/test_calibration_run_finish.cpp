@@ -5,11 +5,14 @@
 // Klipper is back from the restart that save causes; Discard all is one host
 // RESTART, which drops what the steps staged, and writes nothing.
 
+#include "ui_panel_bed_mesh.h"
+
 #include "../lvgl_test_fixture.h"
 #include "app_globals.h"
 #include "calibration_history_store.h"
 #include "calibration_run.h"
 #include "calibration_run_steps.h"
+#include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
@@ -166,4 +169,64 @@ TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps measure witho
     CHECK(std::none_of(sent_scripts.begin(), sent_scripts.end(), [](const std::string& g) {
         return g.find("SAVE_CONFIG") != std::string::npos;
     }));
+}
+
+namespace {
+bool sent_any(const MoonrakerClientMock& client, const char* word) {
+    const auto& h = client.gcode_script_history();
+    return std::any_of(h.begin(), h.end(),
+                       [word](const std::string& g) { return g.find(word) != std::string::npos; });
+}
+} // namespace
+
+TEST_CASE_METHOD(FinishFixture, "stopping the heaters before their calibration runs sends no M112",
+                 "[calibration_run]") {
+    StepInfo heaters;
+    heaters.kind = StepKind::Heaters;
+    heaters.id = "heaters";
+    heaters.name = "Heaters";
+    std::vector<std::unique_ptr<CalibrationStep>> steps;
+    steps.push_back(make_run_step(heaters));
+    client.clear_gcode_script_history();
+    start(std::move(steps)); // the control-type query is in flight
+    REQUIRE(run->phase() == RunPhase::Running);
+
+    run->stop();
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    process_lvgl(50);
+    CHECK(client.get_klippy_state() == MoonrakerClientMock::KlippyState::READY);
+    CHECK_FALSE(sent_any(client, "PID_CALIBRATE"));
+    CHECK_FALSE(sent_any(client, "MPC_CALIBRATE"));
+    CHECK(run->entries()[0].status == StepStatus::Aborted);
+}
+
+TEST_CASE_METHOD(FinishFixture,
+                 "stopping a bed mesh while it prepares sends no M112 and turns its heat off",
+                 "[calibration_run]") {
+    StepInfo mesh;
+    mesh.kind = StepKind::BedMesh;
+    mesh.id = "bed_mesh";
+    mesh.name = "Bed mesh";
+    std::vector<std::unique_ptr<CalibrationStep>> steps;
+    steps.push_back(make_run_step(mesh));
+    client.clear_gcode_script_history();
+    start(std::move(steps));
+    // One pass: the stored meshes are read and the preheat begins.
+    helix::ui::UpdateQueue::instance().drain();
+    auto& panel = get_global_bed_mesh_panel();
+    REQUIRE(panel.holds_owned_heat());
+    REQUIRE_FALSE(panel.calibration_command_sent());
+
+    // The heaters go off at once only with the printer connected.
+    lv_subject_t* link = get_printer_state().network_state().get_printer_connection_state_subject();
+    const int was = lv_subject_get_int(link);
+    lv_subject_set_int(link, static_cast<int>(ConnectionState::CONNECTED));
+    run->stop();
+    CHECK_FALSE(panel.holds_owned_heat());
+    lv_subject_set_int(link, was);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    process_lvgl(50);
+    CHECK(client.get_klippy_state() == MoonrakerClientMock::KlippyState::READY);
+    CHECK_FALSE(sent_any(client, "BED_MESH_CALIBRATE"));
+    CHECK(run->entries()[0].status == StepStatus::Aborted);
 }

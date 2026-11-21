@@ -5288,6 +5288,7 @@
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." de="[resonance_tester] hat keine probe_points, daher hat der Druckkopf keine sichere Höhe für die Setzrunden."/>
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" de="[{}] wurde {}-mal in den von printer.cfg geladenen Konfigurationsdateien gefunden, erwartet einmal"/>
   <translation tag="a newer version" de="eine neuere Version"/>
+  <translation tag="a temporary mesh profile &apos;{}&apos;" de="ein temporäres Netzprofil &apos;{}&apos;"/>
   <translation tag="about {} min" de="etwa {} Min."/>
   <translation tag="already loaded" de="bereits geladen"/>
   <translation tag="attempt {}" de="Versuch {}"/>

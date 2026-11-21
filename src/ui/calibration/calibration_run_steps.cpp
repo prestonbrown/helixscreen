@@ -270,10 +270,19 @@ class BedMeshStep : public CalibrationStep {
                      std::move(values)}));
             }
         };
-        hooks.failed = [this](const std::string& why) {
-            if (auto* c = take()) {
-                c->done(StepOutcome::failed(why));
+        hooks.failed = [this](const std::string& why, const std::string& staged_profile) {
+            auto* c = take();
+            if (!c) {
+                return;
             }
+            if (staged_profile.empty()) {
+                c->done(StepOutcome::failed(why));
+                return;
+            }
+            c->done(StepOutcome::failed_after(
+                why,
+                {fmt::format(fmt::runtime(lv_tr("a temporary mesh profile '{}'")), staged_profile),
+                 {{"profile", staged_profile}}}));
         };
         get_global_bed_mesh_panel().calibrate_for_run(&ctx.api, std::move(hooks));
     }
