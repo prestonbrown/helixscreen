@@ -656,6 +656,23 @@ bool SettingsManager::hidden_macros_key_exists() const {
     return config->exists(config->df() + "macros/hidden");
 }
 
+std::optional<std::vector<std::string>>
+SettingsManager::get_color_recents(const std::string& kind) const {
+    Config* config = Config::get_instance();
+    const std::string key = "/color_recents/" + kind;
+    if (!config->exists(key)) {
+        return std::nullopt;
+    }
+    return config->get<std::vector<std::string>>(key, std::vector<std::string>{});
+}
+
+void SettingsManager::set_color_recents(const std::string& kind,
+                                        const std::vector<std::string>& hexes) {
+    Config* config = Config::get_instance();
+    config->set<std::vector<std::string>>("/color_recents/" + kind, hexes);
+    config->save();
+}
+
 // ============================================================================
 // Spaghetti Detection Settings
 // ============================================================================
