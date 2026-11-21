@@ -268,5 +268,17 @@ void ams_detail_sync_slot_states(helix::ui::WidgetRef slot_widgets[], int slot_c
 bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
                                  lv_obj_t* path_canvas);
 
+/**
+ * @brief Clear @p slot's spool the way the lane menus' Clear does.
+ *
+ * Refused while the print draws from the lane (with a warning toast) or when
+ * the backend refuses the clear; otherwise the lane's record and Spoolman link
+ * are committed empty. The external spool slot clears through its own store.
+ *
+ * @return true when the lane's record was cleared (fully, or partly with the
+ *         error already shown), false when nothing was cleared
+ */
+bool clear_slot_spool(int slot);
+
 } // namespace ui
 } // namespace helix

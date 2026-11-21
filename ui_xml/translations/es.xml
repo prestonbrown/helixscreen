@@ -309,6 +309,7 @@
   <translation tag="Add part fan to MPC?" es="¿Añadir ventilador de pieza a MPC?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" es="Añadir a las webcams de Mainsail/Fluidd"/>
   <translation tag="Add to Queue" es="Añadir a la cola"/>
+  <translation tag="Add to Spoolman" es="Añadir a Spoolman"/>
   <translation tag="Add to Spoolman &amp; Assign" es="Añadir a Spoolman y asignar"/>
   <translation tag="Add to Spoolman + label" es="Añadir a Spoolman + etiqueta"/>
   <translation tag="Added" es="Agregado"/>
@@ -857,6 +858,7 @@
   <translation tag="Choose Filament" es="Elegir Filamento"/>
   <translation tag="Choose Layer" es="Elegir capa"/>
   <translation tag="Choose Model" es="Elegir Modelo"/>
+  <translation tag="Choose a Different Spool" es="Elegir otra bobina"/>
   <translation tag="Choose a discovered printer" es="Elige una impresora encontrada"/>
   <translation tag="Choose an existing filament, or tap + New to create one." es="Elige un filamento o toca + Nuevo para crear uno."/>
   <translation tag="Choose display language" es="Elija el idioma de visualización"/>
@@ -898,6 +900,7 @@
   <translation tag="Clear Console?" es="¿Limpiar Consola?"/>
   <translation tag="Clear Error" es="Borrar error"/>
   <translation tag="Clear Lane" es="Vaciar carril"/>
+  <translation tag="Clear Lane?" es="¿Vaciar carril?"/>
   <translation tag="Clear Spool" es="Quitar bobina"/>
   <translation tag="Clear and clean the build plate, then resume." es="Despeja y limpia la placa de impresión, y reanuda."/>
   <translation tag="Clear any debris from the carriage and the head&apos;s latch, seat the head again, then home and resume." es="Retira la suciedad del carro y del pestillo del cabezal, vuelve a asentar el cabezal, referencia y reanuda."/>
@@ -908,6 +911,7 @@
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." es="Despeja la zona por encima y por debajo de la cama. Coloca las bobinas sobre la cama, cúbrelas con una caja (una tapa impresa o el embalaje del filamento) y cierra la puerta."/>
   <translation tag="Clear the extruder?" es="¿Vaciar el extrusor?"/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." es="Despeja la cama y carga {}. La torre se imprime en el centro de la cama."/>
+  <translation tag="Clear {}?" es="¿Vaciar {}?"/>
   <translation tag="Cleared" es="Despejado"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" es="Borrado de los ajustes; falló el desemparejamiento del sistema, puede que necesite el Bluetooth del SO"/>
   <translation tag="Clipboard" es="Portapapeles"/>
@@ -1053,6 +1057,7 @@
   <translation tag="Continue on Another Toolhead" es="Continuar en otro cabezal"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." es="¿Continuar la impresión en {}? La impresora le pasa el resto de la impresión, lo calienta y reanuda."/>
   <translation tag="Continue with the remaining steps, or stop the calibration?" es="¿Continuar con los pasos restantes o detener la calibración?"/>
+  <translation tag="Continues from {} on runout" es="Al agotarse continúa desde {}"/>
   <translation tag="Control optional print start features" es="Controlar funciones opcionales de inicio de impresión"/>
   <translation tag="Control power relays and smart outlets" es="Controlar relés y enchufes inteligentes"/>
   <translation tag="Controllable Fans" es="Ventiladores controlables"/>
@@ -1132,6 +1137,7 @@
   <translation tag="Could not turn the heaters off" es="No se pudieron apagar los calentadores"/>
   <translation tag="Could not update filaments" es="No se pudieron actualizar los filamentos"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." es="No se pudo verificar el estado de Spoolman. Moonraker puede estar reiniciándose."/>
+  <translation tag="Couldn&apos;t archive the spool in Spoolman" es="No se pudo archivar la bobina en Spoolman"/>
   <translation tag="Couldn&apos;t assign the tool" es="No se pudo asignar la herramienta"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" es="No se pudo borrar el mapa de gates de la impresora"/>
   <translation tag="Couldn&apos;t load spools — tap to retry" es="No se pudieron cargar las bobinas — toca para reintentar"/>
@@ -1706,6 +1712,9 @@
   <translation tag="Feeders" es="Alimentadores"/>
   <translation tag="Feeding filament to nozzle" es="Avanzando filamento a la boquilla"/>
   <translation tag="Feeding the head by hand did not finish." es="La alimentación manual del cabezal no terminó."/>
+  <translation tag="Feeds Tool" es="Alimenta herramienta"/>
+  <translation tag="Feeds no tool" es="No alimenta ninguna herramienta"/>
+  <translation tag="Feeds {}" es="Alimenta {}"/>
   <translation tag="Filament" es="Filamento"/>
   <translation tag="Filament Buffer" es="Búfer de filamento"/>
   <translation tag="Filament Control" es="Control de filamento"/>
@@ -2347,6 +2356,7 @@
   <translation tag="Last 30 days" es="Últimos 30 días"/>
   <translation tag="Last 7 days" es="Últimos 7 días"/>
   <translation tag="Last done at {} h" es="Última vez a las {} h"/>
+  <translation tag="Last held: {}" es="Última cargada: {}"/>
   <translation tag="Last measured" es="Última medición"/>
   <translation tag="Last print canceled" es="Última impresión cancelada"/>
   <translation tag="Last print failed" es="Última impresión fallida"/>
@@ -2678,6 +2688,7 @@
   <translation tag="Moving over the resume point" es="Moviendo sobre el punto de reanudación"/>
   <translation tag="Moving the plate..." es="Moviendo la cama..."/>
   <translation tag="Moving {} to the front..." es="Moviendo {} al frente..."/>
+  <translation tag="Multi-Color" es="Multicolor"/>
   <translation tag="Multi-Filament" es="Multi-Filamento"/>
   <translation tag="Multi-Filament Overview" es="Vista general multi-filamento"/>
   <translation tag="Multi-Filament System" es="Sistema multi-filamento"/>
@@ -2842,6 +2853,7 @@
   <translation tag="No spools match your search" es="Ninguna bobina coincide con su búsqueda"/>
   <translation tag="No spools match. Add it as a new spool below." es="Ninguna bobina coincide. Añádela como bobina nueva abajo."/>
   <translation tag="No spools placed" es="No coloqué bobinas"/>
+  <translation tag="No spools to show. Add it as a new spool below." es="No hay bobinas. Añádela abajo como bobina nueva."/>
   <translation tag="No tape detected in printer" es="No se detectó cinta en la impresora"/>
   <translation tag="No target printer configured" es="Ninguna impresora de destino configurada"/>
   <translation tag="No temperature sensors detected" es="No se detectaron sensores de temperatura"/>
@@ -3029,6 +3041,7 @@
   <translation tag="Original file location unknown" es="Ubicación del archivo original desconocida"/>
   <translation tag="Oscillating... cycle %d/%d" es="Oscilando... ciclo %d/%d"/>
   <translation tag="Other" es="Otro"/>
+  <translation tag="Other…" es="Otro…"/>
   <translation tag="Outcome" es="Resultado"/>
   <translation tag="Output Device" es="Dispositivo de salida"/>
   <translation tag="Output Mode" es="Modo de Salida"/>
@@ -3107,6 +3120,7 @@
   <translation tag="Paused by a command" es="Pausado por un comando"/>
   <translation tag="Paused by {}: {}" es="Pausado por {}: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." es="Pausa una impresión en una capa elegida, para cambiar filamento o colocar una pieza. Durante la impresión, elige la capa en la tarjeta de vista previa de la pantalla de estado."/>
+  <translation tag="Pauses on runout" es="Pausa al agotarse"/>
   <translation tag="Pausing at layer {}." es="Pausa en la capa {}."/>
   <translation tag="Pausing..." es="Pausando..."/>
   <translation tag="Peak Freq" es="Frec Pico"/>
@@ -3768,6 +3782,7 @@
   <translation tag="Running tight" es="Va tenso"/>
   <translation tag="Running {}..." es="Ejecutando {}..."/>
   <translation tag="Runout" es="Agotamiento"/>
+  <translation tag="Runout Backup" es="Reserva por agotamiento"/>
   <translation tag="Runout Sensor" es="Sensor de Agotamiento"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." es="Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." es="SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar."/>
@@ -3785,6 +3800,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." es="Modo seguro activo. La conexión con la impresora está deshabilitada porque la aplicación seguía fallando al iniciar. Abra Ajustes para solucionar el problema y luego reinicie."/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." es="Modo seguro: la aplicación seguía fallando al iniciar, así que los plugins están desactivados y los diseños de widgets muestran sus valores predeterminados. Reinicie para volver a la normalidad."/>
   <translation tag="Safety &amp; Alerts" es="Seguridad y alertas"/>
+  <translation tag="Same Filament, New Spool" es="Mismo filamento, bobina nueva"/>
   <translation tag="Same filament" es="Mismo filamento"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." es="¿La misma bobina en {}? Toca Borrar si es una nueva."/>
   <translation tag="Sample" es="Muestra"/>
@@ -4126,12 +4142,14 @@
   <translation tag="Spool archived" es="Bobina archivada"/>
   <translation tag="Spool created successfully" es="Bobina creada correctamente"/>
   <translation tag="Spool deleted" es="Bobina eliminada"/>
+  <translation tag="Spool is empty, archive it in Spoolman" es="La bobina está vacía, archivarla en Spoolman"/>
   <translation tag="Spool menu" es="Menú de bobina"/>
   <translation tag="Spool motor" es="Motor de bobina"/>
   <translation tag="Spool saved" es="Bobina guardada"/>
   <translation tag="Spool switching per tool and lane" es="Cambio de bobina por herramienta y carril"/>
   <translation tag="Spool wt (g)" es="Peso bobina (g)"/>
   <translation tag="Spoolman" es="Spoolman"/>
+  <translation tag="Spoolman Details" es="Detalles de Spoolman"/>
   <translation tag="Spoolman Not Available" es="Spoolman no disponible"/>
   <translation tag="Spoolman Server" es="Servidor Spoolman"/>
   <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" es="Spoolman ya tiene &quot;{}&quot; de esta marca en un color parecido. ¿Usarlo para el carril {} o añadir un filamento nuevo?"/>
@@ -4362,6 +4380,7 @@
   <translation tag="Temporary adjustment for this print" es="Ajuste temporal para esta impresión"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" es="Ajuste temporal para esta impresión, a menos que se guarde en el panel de Controles"/>
   <translation tag="Temporary for this print; a tool change resets it" es="Temporal para esta impresión; un cambio de herramienta lo restablece"/>
+  <translation tag="Temps" es="Temperaturas"/>
   <translation tag="Tension Belts" es="Tensar correas"/>
   <translation tag="Tensioner: {}" es="Tensor: {}"/>
   <translation tag="Tensioning belts..." es="Tensando correas..."/>
@@ -4503,6 +4522,8 @@
   <translation tag="The heater was turned off at the heater." es="El calentador se apagó desde el propio calentador."/>
   <translation tag="The heater will cycle on and off several times." es="El calentador se encenderá y apagará varias veces."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." es="Las macros de ayuda están instaladas y se activan tras reiniciar Klipper."/>
+  <translation tag="The lane forgets this spool. The filament itself stays where it is." es="El carril olvida esta bobina. El filamento se queda donde está."/>
+  <translation tag="The lane that takes over when this one runs out" es="El carril que toma el relevo cuando este se agota"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." es="Puede que la última impresión siga en la cama. Retírala antes de que se mueva el cabezal y luego toca Despejado."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." es="El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base."/>
   <translation tag="The left RFID reader in this CFS unit may need service" es="Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio"/>
@@ -4657,6 +4678,7 @@
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." es="El cabezal se mueve de un lado a otro a velocidades de 20 a 300 mm/s mientras el acelerómetro mide cuánto vibra cada motor. Tarda unos {0} minutos y hace ruido. Las velocidades que más vibran son las que debes evitar en tus paredes exteriores."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" es="El sensor del cabezal indica que ya hay filamento cargado. ¿Continuar con la carga de todos modos?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" es="El sensor del cabezal indica que no hay filamento presente. ¿Continuar con la descarga de todos modos?"/>
+  <translation tag="The toolhead this lane loads into" es="El cabezal en el que carga este carril"/>
   <translation tag="The toolhead&apos;s pogo pins are not making contact." es="Los pines pogo del cabezal no hacen contacto."/>
   <translation tag="The toolheads have changed enough times since their last maintenance." es="Los cabezales han cambiado suficientes veces desde su último mantenimiento."/>
   <translation tag="The toolheads&apos; docked and picked-up states do not add up." es="Los estados en base y tomado de los cabezales no cuadran."/>
@@ -4901,6 +4923,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" es="Toca el objetivo (punto %1$d de 3) — toque %2$d de %3$d"/>
   <translation tag="TouchCalibration" es="Calibración táctil"/>
   <translation tag="Trace" es="Traza"/>
+  <translation tag="Track this spool&apos;s weight there" es="Seguir allí el peso de esta bobina"/>
   <translation tag="Trailing" es="Retrasado"/>
   <translation tag="Tried ports {} and {}." es="Se probaron los puertos {} y {}."/>
   <translation tag="Trigger" es="Disparador"/>
@@ -5178,6 +5201,8 @@
   <translation tag="What happens when a print ends" es="Qué ocurre al terminar una impresión"/>
   <translation tag="When a slicer uploads and starts a file that moves past this printer&apos;s travel, heats past its limits or uses a missing tool, keep the file but do not start it." es="Cuando un laminador sube e inicia un archivo que se mueve más allá del recorrido de esta impresora, calienta por encima de sus límites o usa una herramienta que no existe, conservar el archivo pero no iniciarlo."/>
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." es="Cuando está activado, solo se ejecuta el macro. Cuando está desactivado, primero se establecen las temperaturas y luego se ejecuta el macro."/>
+  <translation tag="When this spool runs out, printing continues from {}." es="Cuando esta bobina se agote, la impresión continúa desde {}."/>
+  <translation tag="When this spool runs out, the print pauses." es="Cuando esta bobina se agote, la impresión se pausa."/>
   <translation tag="Where UI sounds play" es="Dónde se reproducen los sonidos de la interfaz"/>
   <translation tag="Whether filament is loaded" es="Si hay filamento cargado"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" es="Si las flechas Z siguen a la cama o al valor Z"/>
@@ -5385,6 +5410,8 @@
   <translation tag="helixscreen.env ignored: {}" es="helixscreen.env ignorado: {}"/>
   <translation tag="idle" es="inactivo"/>
   <translation tag="in unit {} slot {}" es="en la unidad {} ranura {}"/>
+  <translation tag="in {}" es="en {}"/>
+  <translation tag="in {}, feeding the print" es="en {}, alimentando la impresión"/>
   <translation tag="incompatible" es="incompatible"/>
   <translation tag="invalid" es="no válido"/>
   <translation tag="just now" es="justo ahora"/>
@@ -5469,6 +5496,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" es="Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% menos)"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" es="Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% más)"/>
   <translation tag="{:.0f} g left" es="quedan {:.0f} g"/>
+  <translation tag="{:.0f} g of {} · {}%" es="{:.0f} g de {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" es="{:.0f}-{:.0f} Hz · unos {} min"/>
   <translation tag="{:.2f} mm range" es="{:.2f} mm de rango"/>
   <translation tag="{} ({})" es="{} ({})"/>
@@ -5477,6 +5505,7 @@
   <translation tag="{} Issues Detected" es="{} problemas detectados"/>
   <translation tag="{} LED strips available" es="{} tiras LED disponibles"/>
   <translation tag="{} MCUs" es="{} MCU"/>
+  <translation tag="{} Settings" es="Ajustes de {}"/>
   <translation tag="{} Tools" es="{} herramientas"/>
   <translation tag="{} and {}" es="{} y {}"/>
   <translation tag="{} and {} are both mapped here" es="{} y {} están asignados aquí"/>
@@ -5532,6 +5561,7 @@
   <translation tag="{} is blocked — manual intervention required" es="{}: bloqueo — se requiere intervención manual"/>
   <translation tag="{} is due" es="{}: toca hacerlo"/>
   <translation tag="{} is due: {} h reached" es="{} necesita servicio: {} h alcanzadas"/>
+  <translation tag="{} is empty" es="{} está vacío"/>
   <translation tag="{} is feeding the current print. Clear it after the print ends." es="{}: alimenta la impresión actual. Elimina la bobina cuando termine la impresión."/>
   <translation tag="{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout." es="{} está instalado pero su ajuste de bobina infinita está desactivado, así que no se cambiará nada al agotarse."/>
   <translation tag="{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool." es="{} está instalado, pero no se pudo leer su ajuste de bobina infinita - no cuentes con la bobina infinita."/>

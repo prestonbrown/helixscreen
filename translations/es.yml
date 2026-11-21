@@ -874,6 +874,7 @@ translations:
   Checking webcam: Comprobando webcam
   Checking...: Comprobando...
   Checking…: Comprobando…
+  Choose a Different Spool: 'Elegir otra bobina'
   Choose a discovered printer: "Elige una impresora encontrada"
   Choose 12-hour or 24-hour time display: Elija visualización de hora de 12 o 24 horas
   Choose Filament: Elegir Filamento
@@ -920,6 +921,7 @@ translations:
   Clear Console?: ¿Limpiar Consola?
   Clear Error: Borrar error
   Clear Lane: Vaciar carril
+  Clear Lane?: '¿Vaciar carril?'
   Clear Spool: Quitar bobina
   Clear and clean the build plate, then resume.: 'Despeja y limpia la placa de impresión, y reanuda.'
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: 'Retira la suciedad del carro y del pestillo del cabezal, vuelve a asentar el cabezal, referencia y reanuda.'
@@ -933,6 +935,7 @@ translations:
 
   Clear the extruder?: '¿Vaciar el extrusor?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Despeja la cama y carga {}. La torre se imprime en el centro de la cama.
+  Clear {}?: '¿Vaciar {}?'
   Cleared: Despejado
   Cleared from settings — system unpair failed, may need OS Bluetooth: Borrado de los ajustes; falló el desemparejamiento del sistema, puede que necesite el Bluetooth del SO
   Clipboard unavailable - use SSH: Portapapeles no disponible - use SSH
@@ -1080,6 +1083,7 @@ translations:
   Continue on Another Toolhead: 'Continuar en otro cabezal'
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: '¿Continuar la impresión en {}? La impresora le pasa el resto de la impresión, lo calienta y reanuda.'
   Continue with the remaining steps, or stop the calibration?: '¿Continuar con los pasos restantes o detener la calibración?'
+  Continues from {} on runout: 'Al agotarse continúa desde {}'
   Control optional print start features: Controlar funciones opcionales de inicio de impresión
   Control power relays and smart outlets: Controlar relés y enchufes inteligentes
   Controllable Fans: Ventiladores controlables
@@ -1195,6 +1199,7 @@ translations:
   Could not start Bluetooth discovery: No se pudo iniciar el descubrimiento Bluetooth
   Could not update filaments: No se pudieron actualizar los filamentos
   Could not verify Spoolman status. Moonraker may still be restarting.: No se pudo verificar el estado de Spoolman. Moonraker puede estar reiniciándose.
+  Couldn't archive the spool in Spoolman: 'No se pudo archivar la bobina en Spoolman'
   Couldn't assign the tool: No se pudo asignar la herramienta
   Couldn't clear the printer's gate map: No se pudo borrar el mapa de gates de la impresora
   Couldn't load spools — tap to retry: No se pudieron cargar las bobinas — toca para reintentar
@@ -1776,6 +1781,9 @@ translations:
   Feeders: Alimentadores
   Feeding filament to nozzle: "Avanzando filamento a la boquilla"
   Feeding the head by hand did not finish.: 'La alimentación manual del cabezal no terminó.'
+  Feeds Tool: 'Alimenta herramienta'
+  Feeds no tool: 'No alimenta ninguna herramienta'
+  Feeds {}: 'Alimenta {}'
   Filament: Filamento
   Filament Buffer: 'Búfer de filamento'
   Filament Control: Control de filamento
@@ -2431,6 +2439,7 @@ translations:
   Last 30 days: 'Últimos 30 días'
   Last 7 days: 'Últimos 7 días'
   Last done at {} h: "Última vez a las {} h"
+  'Last held: {}': 'Última cargada: {}'
   Last measured: 'Última medición'
   Last print canceled: Última impresión cancelada
   Last print failed: Última impresión fallida
@@ -2758,6 +2767,7 @@ translations:
   Moving the plate...: Moviendo la cama...
 
   Moving {} to the front...: Moviendo {} al frente...
+  Multi-Color: 'Multicolor'
   Multi-Filament: Multi-Filamento
   Multi-Filament Overview: Vista general multi-filamento
   Multi-Filament System: Sistema multi-filamento
@@ -2919,6 +2929,7 @@ translations:
   No spools match. Add it as a new spool below.: Ninguna bobina coincide. Añádela como bobina nueva abajo.
   No spools placed: No coloqué bobinas
 
+  No spools to show. Add it as a new spool below.: 'No hay bobinas. Añádela abajo como bobina nueva.'
   No tape detected in printer: No se detectó cinta en la impresora
   No target printer configured: Ninguna impresora de destino configurada
   No temperature sensors detected: 'No se detectaron sensores de temperatura'
@@ -3118,6 +3129,7 @@ translations:
   Original file location unknown: Ubicación del archivo original desconocida
   Oscillating... cycle %d/%d: Oscilando... ciclo %d/%d
   Other: Otro
+  Other…: 'Otro…'
   Outcome: Resultado
   Output Device: Dispositivo de salida
   Output Mode: Modo de Salida
@@ -3196,6 +3208,7 @@ translations:
   'Paused by {}: {}': 'Pausado por {}: {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Pausa una impresión en una capa elegida, para cambiar filamento o colocar una pieza. Durante la impresión, elige la capa en la tarjeta de vista previa de la pantalla de estado.'
+  Pauses on runout: 'Pausa al agotarse'
   Pausing at layer {}.: 'Pausa en la capa {}.'
   Pausing...: Pausando...
   Peak Freq: Frec Pico
@@ -3857,6 +3870,7 @@ translations:
   Running tight: 'Va tenso'
   Running {}...: Ejecutando {}...
   Runout: 'Agotamiento'
+  Runout Backup: 'Reserva por agotamiento'
   Runout Sensor: Sensor de Agotamiento
   Runs the printer's tool offset calibration for every tool.: Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar.'
@@ -3877,6 +3891,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Modo seguro: la aplicación seguía fallando al iniciar, así que los plugins están desactivados y los diseños de widgets muestran sus valores predeterminados. Reinicie para volver a la normalidad.'
   Safety & Alerts: Seguridad y alertas
+  Same Filament, New Spool: 'Mismo filamento, bobina nueva'
   Same filament: 'Mismo filamento'
   Same spool in {}? Tap Clear if it is a new one.: '¿La misma bobina en {}? Toca Borrar si es una nueva.'
   Sample: Muestra
@@ -4221,12 +4236,14 @@ translations:
   Spool archived: Bobina archivada
   Spool created successfully: Bobina creada correctamente
   Spool deleted: Bobina eliminada
+  Spool is empty, archive it in Spoolman: 'La bobina está vacía, archivarla en Spoolman'
   Spool menu: 'Menú de bobina'
   Spool motor: Motor de bobina
   Spool saved: Bobina guardada
   Spool switching per tool and lane: 'Cambio de bobina por herramienta y carril'
   Spool wt (g): Peso bobina (g)
   Spoolman: Spoolman
+  Spoolman Details: 'Detalles de Spoolman'
   Spoolman Not Available: 'Spoolman no disponible'
   Spoolman Server: Servidor Spoolman
   Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "Spoolman ya tiene \"{}\" de esta marca en un color parecido. ¿Usarlo para el carril {} o añadir un filamento nuevo?"
@@ -4463,6 +4480,7 @@ translations:
   Temporary adjustment for this print: "Ajuste temporal para esta impresión"
   Temporary adjustment for this print, unless saved on Controls panel: Ajuste temporal para esta impresión, a menos que se guarde en el panel de Controles
   Temporary for this print; a tool change resets it: "Temporal para esta impresión; un cambio de herramienta lo restablece"
+  Temps: 'Temperaturas'
   Tension Belts: "Tensar correas"
   'Tensioner: {}': "Tensor: {}"
   Tensioning belts...: "Tensando correas..."
@@ -4612,6 +4630,8 @@ translations:
   The heater was turned off at the heater.: 'El calentador se apagó desde el propio calentador.'
   The heater will cycle on and off several times.: El calentador se encenderá y apagará varias veces.
   The helper macros are installed and activate after Klipper restarts.: 'Las macros de ayuda están instaladas y se activan tras reiniciar Klipper.'
+  The lane forgets this spool. The filament itself stays where it is.: 'El carril olvida esta bobina. El filamento se queda donde está.'
+  The lane that takes over when this one runs out: 'El carril que toma el relevo cuando este se agota'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Puede que la última impresión siga en la cama. Retírala antes de que se mueva el cabezal y luego toca Despejado."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base.
   The left RFID reader in this CFS unit may need service: Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio
@@ -4778,6 +4798,7 @@ translations:
   : 'El cabezal se mueve de un lado a otro a velocidades de 20 a 300 mm/s mientras el acelerómetro mide cuánto vibra cada motor. Tarda unos {0} minutos y hace ruido. Las velocidades que más vibran son las que debes evitar en tus paredes exteriores.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: El sensor del cabezal indica que ya hay filamento cargado. ¿Continuar con la carga de todos modos?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: El sensor del cabezal indica que no hay filamento presente. ¿Continuar con la descarga de todos modos?
+  The toolhead this lane loads into: 'El cabezal en el que carga este carril'
   The toolhead's pogo pins are not making contact.: 'Los pines pogo del cabezal no hacen contacto.'
   The toolheads have changed enough times since their last maintenance.: 'Los cabezales han cambiado suficientes veces desde su último mantenimiento.'
   The toolheads' docked and picked-up states do not add up.: 'Los estados en base y tomado de los cabezales no cuadran.'
@@ -5052,6 +5073,7 @@ translations:
   TouchCalibration: Calibración táctil
   Trace: Traza
   Trigger: Disparador
+  Track this spool's weight there: 'Seguir allí el peso de esta bobina'
   Trailing: Retrasado
   'Tried ports {} and {}.': "Se probaron los puertos {} y {}."
   'Troubleshooting:': 'Solución de problemas:'
@@ -5322,6 +5344,8 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'Cuando un laminador sube e inicia un archivo que se mueve más allá del recorrido de esta impresora, calienta por encima de sus límites o usa una herramienta que no existe, conservar el archivo pero no iniciarlo.'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: Cuando está activado, solo se ejecuta el macro. Cuando está desactivado, primero se establecen las temperaturas y luego se ejecuta el macro.
+  When this spool runs out, printing continues from {}.: 'Cuando esta bobina se agote, la impresión continúa desde {}.'
+  When this spool runs out, the print pauses.: 'Cuando esta bobina se agote, la impresión se pausa.'
   Where UI sounds play: Dónde se reproducen los sonidos de la interfaz
   Whether filament is loaded: Si hay filamento cargado
   Which macro switches the ACE path back on: 'Qué macro vuelve a activar la ruta del ACE'
@@ -5524,6 +5548,8 @@ translations:
   'helixscreen.env ignored: {}': 'helixscreen.env ignorado: {}'
   idle: inactivo
   in unit {} slot {}: 'en la unidad {} ranura {}'
+  in {}: 'en {}'
+  in {}, feeding the print: 'en {}, alimentando la impresión'
   incompatible: incompatible
   invalid: no válido
   just now: justo ahora
@@ -5616,6 +5642,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': 'Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% menos)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% más)'
   '{:.0f} g left': quedan {:.0f} g
+  '{:.0f} g of {} · {}%': '{:.0f} g de {} · {}%'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · unos {} min'
   '{:.2f} mm range': '{:.2f} mm de rango'
   '{} ({})': '{} ({})'
@@ -5624,6 +5651,7 @@ translations:
   '{} Issues Detected': '{} problemas detectados'
   '{} LED strips available': '{} tiras LED disponibles'
   '{} MCUs': '{} MCU'
+  '{} Settings': 'Ajustes de {}'
   '{} Tools': '{} herramientas'
   '{} and {}': '{} y {}'
   '{} and {} are both mapped here': '{} y {} están asignados aquí'
@@ -5678,6 +5706,7 @@ translations:
   '{} is blocked — manual intervention required': '{}: bloqueo — se requiere intervención manual'
   '{} is due': "{}: toca hacerlo"
   '{} is due: {} h reached': '{} necesita servicio: {} h alcanzadas'
+  '{} is empty': '{} está vacío'
   '{} is feeding the current print. Clear it after the print ends.': '{}: alimenta la impresión actual. Elimina la bobina cuando termine la impresión.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} está instalado pero su ajuste de bobina infinita está desactivado, así que no se cambiará nada al agotarse.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} está instalado, pero no se pudo leer su ajuste de bobina infinita - no cuentes con la bobina infinita.'
@@ -5753,6 +5782,7 @@ translations:
   'Basic': 'Básico'
   Recovery is not possible in the printer's current state.: 'La recuperación no es posible en el estado actual de la impresora.'
   'Recycled': 'Reciclado'
+  Add to Spoolman: 'Añadir a Spoolman'
   Add to Spoolman & Assign: Añadir a Spoolman y asignar
   'Add to Spoolman + label': 'Añadir a Spoolman + etiqueta'
   'More': 'Más'

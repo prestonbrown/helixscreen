@@ -20,6 +20,15 @@ namespace helix::sim {
 
 MockFilamentSensorEnvState mock_filament_sensor_env_state(const std::string& short_name) {
     MockFilamentSensorEnvState out;
+    // A U1 head whose spool ran out at its port (HELIX_MOCK_U1_EMPTY_PORTS) has
+    // no filament at its toolhead switch either: a runout empties both.
+    if (const char* ports = std::getenv("HELIX_MOCK_U1_EMPTY_PORTS")) {
+        for (const char* c = ports; *c != '\0'; ++c) {
+            if (*c >= '0' && *c <= '9' && short_name == std::string("e") + *c + "_filament") {
+                out.filament_detected = false;
+            }
+        }
+    }
     const char* env = std::getenv("HELIX_MOCK_FILAMENT_STATE");
     if (!env) {
         return out;

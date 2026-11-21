@@ -8,6 +8,7 @@
 
 #include "color_utils.h"
 #include "format_utils.h"
+#include "spool_remaining_format.h"
 #include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -185,10 +186,10 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
 
     // Update weight
     if (rw.weight_label) {
-        char weight_buf[32];
-        snprintf(weight_buf, sizeof(weight_buf), "%.0fg", spool.remaining_weight_g);
+        // Grams here; the row's percent column beside it carries the percent.
+        const std::string weight = helix::format_spool_grams(spool.remaining_weight_g);
         // DECLARATIVE_OK: a recycled pool row rebound to the spool it now shows
-        lv_label_set_text(rw.weight_label, weight_buf);
+        lv_label_set_text(rw.weight_label, weight.c_str());
     }
 
     // Update percentage

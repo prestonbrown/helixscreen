@@ -1159,7 +1159,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "AmsState: the header's logo-color flag follow
     CHECK(is_color() == 0);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture,
+// The widget's captions are XML components, so the fixture registers them.
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "Bypass spool follows AmsState: hidden with the node, painted with the spool",
                  "[ams][bypass][spool_widget]") {
     class BypassMock : public AmsBackendMock {
