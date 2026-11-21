@@ -451,6 +451,50 @@ TEST_CASE("telemetry_process_name keeps a short plain name", "[memory][proc_stat
     CHECK(telemetry_process_name("/// ") == "unknown");
 }
 
+TEST_CASE("telemetry_process_name names interpreter services from a fixed allowlist",
+          "[memory][proc_stat]") {
+    using namespace std::string_literals;
+    struct Row {
+        const char* comm;
+        std::string cmdline;
+        const char* want;
+    };
+    const Row rows[] = {
+        {"python3",
+         "/home/pi/klippy-env/bin/python\0/home/pi/klipper/klippy/klippy.py\0"
+         "/home/pi/printer_data/config/printer.cfg\0-l\0/tmp/klippy.log\0"s,
+         "klipper"},
+        {"python",
+         "/home/pi/moonraker-env/bin/python\0/home/pi/moonraker/moonraker/moonraker.py\0"
+         "-d\0/home/pi/printer_data\0"s,
+         "moonraker"},
+        {"python3", "python3\0-m\0moonraker\0"s, "moonraker"},
+        {"python3",
+         "/home/pi/moonraker-obico-env/bin/python3\0-m\0moonraker_obico.app\0"
+         "-c\0/home/pi/printer_data/config/moonraker-obico.cfg\0"s,
+         "obico"},
+        {"python3", "/usr/bin/python3\0/home/pi/KlipperScreen/screen.py\0"s, "klipperscreen"},
+        {"bash", "/bin/bash\0/usr/local/bin/crowsnest\0-c\0/home/pi/crowsnest.conf\0"s,
+         "crowsnest"},
+        {"python3", "python3\0-m\0octoapp\0"s, "octoapp"},
+        {"python3.11", "/opt/spoolman/.venv/bin/python\0-m\0uvicorn\0spoolman.main:app\0"s,
+         "spoolman"},
+        // Not on the allowlist: the bare interpreter, never an argument.
+        {"python3", "python3\0/home/pi/secret_project/run.py\0--token\0abc\0"s, "python3"},
+        // argv[0] alone names no service, even a venv named after one.
+        {"python3", "/home/pi/klippy-env/bin/python3\0"s, "python3"},
+        {"node", "node\0/srv/app/server.js\0"s, "node"},
+        {"sh", ""s, "sh"},
+        // Not an interpreter: its comm, whatever the arguments say.
+        {"ustreamer", "/usr/bin/ustreamer\0--host\0moonraker\0"s, "ustreamer"},
+        {"helix-screen", "/opt/helix/helix-screen\0klippy.py\0"s, "helix-screen"},
+    };
+    for (const Row& r : rows) {
+        INFO("comm: " << r.comm);
+        CHECK(telemetry_process_name(r.comm, r.cmdline) == r.want);
+    }
+}
+
 namespace {
 
 /// A fake /proc with one stat file per pid.
@@ -485,6 +529,8 @@ TEST_CASE("top_processes_by_rss lists the largest resident processes, largest fi
     proc.add("104", "crowsnest", 2560);                     // 10 MB
     proc.add("2", "kthreadd", 0);                           // kernel threads hold no RSS
     std::filesystem::create_directories(proc.root / "105"); // exited between readdir and open
+    proc.add("106", "python3", 1280);                       // 5 MB
+    std::ofstream(proc.root / "106" / "cmdline") << std::string("python3\0-m\0moonraker\0", 21);
 
     const auto top = top_processes_by_rss(3, proc.root.c_str(), 4);
     REQUIRE(top.size() == 3);
@@ -496,7 +542,9 @@ TEST_CASE("top_processes_by_rss lists the largest resident processes, largest fi
     CHECK(top[2].rss_mb == 50);
 
     // Fewer processes than asked for: every one with resident memory.
-    CHECK(top_processes_by_rss(10, proc.root.c_str(), 4).size() == 4);
+    const auto all = top_processes_by_rss(10, proc.root.c_str(), 4);
+    REQUIRE(all.size() == 5);
+    CHECK(all[4].name == "moonraker"); // named from its cmdline, not "python3"
     CHECK(top_processes_by_rss(3, "/nonexistent-proc-root", 4).empty());
 }
 

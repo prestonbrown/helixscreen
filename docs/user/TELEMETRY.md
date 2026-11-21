@@ -98,7 +98,7 @@ Recorded when free memory runs low or HelixScreen's own memory grows quickly (at
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `top_processes` | The program's short name as the system reports it (at most 15 characters, letters, digits and `._+-` only; never its arguments or path) and its memory in MB | `[{"name": "python3", "rss_mb": 210}]` |
+| `top_processes` | Each program's name and its memory in MB. The name is the short name the system reports (at most 15 characters, letters, digits and `._+-` only). For a Python, Node or shell program, whose short name is just the interpreter, the name comes from a fixed list instead (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), or stays the interpreter's name when it is none of those. Arguments and paths are never sent | `[{"name": "klipper", "rss_mb": 210}]` |
 
 ### Hardware Profile
 
@@ -261,7 +261,7 @@ When the screen freezes (`ui` / `main_loop_hang`), the event also says what was 
 HelixScreen **never** collects any of the following:
 
 - **Filenames** or file paths (print jobs, G-code files, thumbnails)
-- **Command lines** of other programs (a memory warning names a program by its short name only)
+- **Command lines** of other programs (a memory warning names a program by its short name or a name from a fixed list)
 - **G-code content** (sliced files, macros, custom commands)
 - **IP addresses** (local or public)
 - **MAC addresses** or other network identifiers

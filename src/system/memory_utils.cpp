@@ -15,6 +15,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
@@ -186,7 +187,60 @@ bool parse_proc_stat(const std::string& line, ProcStat& out) {
     return true;
 }
 
-std::string telemetry_process_name(const std::string& comm) {
+namespace {
+
+bool is_interpreter(const std::string& comm) {
+    if (comm.compare(0, 6, "python") == 0) {
+        return true;
+    }
+    for (const char* name : {"node", "bash", "sh", "dash", "ash"}) {
+        if (comm == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Printer-host services an interpreter runs, by a lowercase substring of one
+/// of its arguments. First match wins, so a name that contains another
+/// (moonraker-obico, KlipperScreen) comes before it.
+struct InterpretedService {
+    const char* needle;
+    const char* label;
+};
+constexpr InterpretedService kInterpretedServices[] = {
+    {"obico", "obico"},         {"klipperscreen", "klipperscreen"}, {"klippy", "klipper"},
+    {"moonraker", "moonraker"}, {"crowsnest", "crowsnest"},         {"octoapp", "octoapp"},
+    {"spoolman", "spoolman"},
+};
+
+const char* interpreted_service(std::string_view cmdline) {
+    // Arguments after argv[0]: the interpreter's own path, often a venv
+    // named after whatever it runs, says nothing about this process.
+    const auto first_end = cmdline.find('\0');
+    if (first_end == std::string_view::npos) {
+        return nullptr;
+    }
+    std::string args(cmdline.substr(first_end + 1));
+    for (char& c : args) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    for (const auto& service : kInterpretedServices) {
+        if (args.find(service.needle) != std::string::npos) {
+            return service.label;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+std::string telemetry_process_name(const std::string& comm, std::string_view cmdline) {
+    if (is_interpreter(comm)) {
+        if (const char* label = interpreted_service(cmdline)) {
+            return label;
+        }
+    }
     constexpr size_t kMaxLen = 15;
     std::string out;
     for (char c : comm) {
@@ -219,7 +273,13 @@ std::vector<ProcessRss> top_processes_by_rss(size_t count, const char* proc_root
         if (!line || !parse_proc_stat(*line, st) || st.rss_pages <= 0) {
             continue;
         }
-        all.push_back({telemetry_process_name(st.comm), st.rss_pages * page_size_kb / 1024});
+        // Only an interpreter's arguments are read, and only to pick a fixed label.
+        std::string cmdline;
+        if (is_interpreter(st.comm)) {
+            cmdline = tio::read_file(root + "/" + pid + "/cmdline", 4096).value_or("");
+        }
+        all.push_back(
+            {telemetry_process_name(st.comm, cmdline), st.rss_pages * page_size_kb / 1024});
     }
     closedir(dir);
     std::sort(all.begin(), all.end(),

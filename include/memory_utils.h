@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #if defined(__linux__)
@@ -107,10 +108,16 @@ struct ProcStat {
 /// ')', since a comm may hold either. False when the line is cut short.
 bool parse_proc_stat(const std::string& line, ProcStat& out);
 
-/// A comm reduced to [A-Za-z0-9._+-] and at most 15 characters, so a
-/// process can be named in telemetry without carrying a path or free text;
-/// "unknown" when nothing survives.
-std::string telemetry_process_name(const std::string& comm);
+/// The name telemetry gives a process: never a path or an argument.
+///
+/// An interpreter (python*, node, bash, sh, dash, ash) runs most printer-host
+/// services, so its comm alone names nothing. For those, the arguments in
+/// @p cmdline (NUL-separated, as /proc/<pid>/cmdline holds them; argv[0] is
+/// skipped) are matched against a fixed allowlist of services, and the
+/// service's fixed label is the name ("klipper", "moonraker", "obico", ...).
+/// Anything else is its comm reduced to [A-Za-z0-9._+-] and at most 15
+/// characters; "unknown" when nothing survives.
+std::string telemetry_process_name(const std::string& comm, std::string_view cmdline = {});
 
 struct ProcessRss {
     std::string name; ///< telemetry_process_name() of its comm

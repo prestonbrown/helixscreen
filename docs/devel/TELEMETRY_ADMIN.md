@@ -869,13 +869,13 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
   "pss_kb": 170000,
   "swap_pss_kb": 0,
   "top_processes": [
-    { "name": "python3", "rss_mb": 210 },
+    { "name": "klipper", "rss_mb": 210 },
     { "name": "helix-screen", "rss_mb": 48 },
     { "name": "crowsnest", "rss_mb": 12 }
   ]
 }
 ```
 
-`top_processes` is present at `warning` and `critical` only: each process's comm reduced by `telemetry_process_name()` (15 characters of `[A-Za-z0-9._+-]`, no arguments or paths) and its RSS. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`. Klipper and Moonraker both run as `python3`.
+`top_processes` is present at `warning` and `critical` only: each process named by `telemetry_process_name()` and its RSS. The name is the comm (15 characters of `[A-Za-z0-9._+-]`), except for an interpreter (python*, node, bash, sh, dash, ash): its arguments after argv[0] are matched against the fixed allowlist `telemetry_process_name()` reads (`src/system/memory_utils.cpp#telemetry_process_name`) (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), and an interpreter on none of them keeps its comm. Arguments and paths are never sent. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`.
 
 **Implementation:** `MemoryMonitor` (background thread, 5s sampling) → `WarningCallback` → `TelemetryManager::record_memory_warning()`. Growth tracking uses a circular buffer of 10 RSS samples at 30s intervals (5-minute window).
