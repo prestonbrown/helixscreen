@@ -639,6 +639,19 @@
     <px name="button_height_xlarge" value="80"/>
     <px name="button_height_xxlarge" value="96"/>
 
+    <!-- modal_button_height: a dialog's footer button row (modal_button_row and
+         the hand-built footers shaped like it). A dialog's confirm/cancel pair is
+         the one control the user must hit, so at 480x272 it stands taller than
+         button_height (fit_dialog_to_screen shrinks the content scroll area to
+         make room). Elsewhere it follows button_height. -->
+    <px name="modal_button_height_micro" value="44"/>
+    <px name="modal_button_height_tiny" value="44"/>
+    <px name="modal_button_height_small" value="48"/>
+    <px name="modal_button_height_medium" value="52"/>
+    <px name="modal_button_height_large" value="72"/>
+    <px name="modal_button_height_xlarge" value="80"/>
+    <px name="modal_button_height_xxlarge" value="96"/>
+
     <!-- Chamber preset buttons (temp overlay, landscape column). The tallest
          fixed height that fits the widest strip state - faulted with the
          External marker shown and the fan device-driven - with the column's
@@ -747,7 +760,7 @@
          breakpoint and the card's clamp plus its button-row overhang gave the
          true chrome height, so the cap is (85% cap - chrome) with ~8px spare.
          Measured chrome / headroom per breakpoint:
-           micro  480x272  chrome 102  max 129
+           micro  480x272  chrome 120  max 111 (its 44px modal_button_height row included)
            tiny   480x320  chrome 125  max 147
            small  640x400  chrome 168  max 172
            medium 800x480  chrome 193  max 215
@@ -756,7 +769,7 @@
          An earlier hand-derived ladder was wrong at five of seven breakpoints
          (medium clipped by 33px, large by 72px), which is why these are
          measurements rather than arithmetic. -->
-    <px name="dialog_content_pinned_max_micro" value="121"/>
+    <px name="dialog_content_pinned_max_micro" value="103"/>
     <px name="dialog_content_pinned_max_tiny" value="139"/>
     <px name="dialog_content_pinned_max_small" value="164"/>
     <px name="dialog_content_pinned_max_medium" value="207"/>
@@ -771,14 +784,14 @@
           fall off the clamped card. Values are MEASURED: the card rendered with
           its scroll area pinned at 10px gives chrome = card - scroll, and the
           cap is (85% cap - chrome) with 8px spare:
-            micro   480x272   chrome  70  cap 231
+            micro   480x272   chrome  88  cap 231 (its 44px modal_button_height row included)
             tiny    480x320   chrome  97  cap 272
             small   640x400   chrome 114  cap 340
             medium  800x480   chrome 124  cap 408
             large  1024x600   chrome 150  cap 510
             xlarge 1200x900   chrome 174  cap 765
             xxlarge 1280x1024 chrome 220  cap 870 -->
-    <px name="dialog_content_recovery_max_micro" value="153"/>
+    <px name="dialog_content_recovery_max_micro" value="135"/>
     <px name="dialog_content_recovery_max_tiny" value="167"/>
     <px name="dialog_content_recovery_max_small" value="218"/>
     <px name="dialog_content_recovery_max_medium" value="276"/>

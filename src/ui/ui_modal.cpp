@@ -1339,8 +1339,8 @@ void Modal::backdrop_click_cb(lv_event_t* e) {
     auto* self = static_cast<Modal*>(lv_event_get_user_data(e));
     if (self) {
         // Instance modal
-        spdlog::debug("[{}] Backdrop clicked - closing", self->get_name());
-        self->hide(ModalCloseReason::BackdropTap);
+        spdlog::debug("[{}] Backdrop clicked", self->get_name());
+        self->on_backdrop_tap();
     } else {
         // Static modal - find in stack and close topmost
         auto& stack = ModalStack::instance();

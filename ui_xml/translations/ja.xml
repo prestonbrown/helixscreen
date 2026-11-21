@@ -4217,6 +4217,7 @@
   <translation tag="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature." ja="MPCに切り替えると、このヒーターの制御方法が変わり、その後キャリブレーションが行われます。温度に達した状態で数分かかります。"/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." ja="MPCへの切り替えには設定変更とKlipperの再起動が必要です。"/>
   <translation tag="Switching to {}" ja="{}に切り替えています"/>
+  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print." ja="{} に切り替え中です。プリンターが加熱とパージを行い、印刷を再開します。"/>
   <translation tag="Sync" ja="同期"/>
   <translation tag="Sync Feedback" ja="同期フィードバック"/>
   <translation tag="Sync during printing" ja="印刷中に同期"/>
@@ -4532,6 +4533,7 @@
   <translation tag="The printer is shut down." ja="プリンターはシャットダウンしています。"/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." ja="この値はKlipperが再起動するまで使われます。保持するには、printer.cfgのこのツールのエクストルーダーセクションにpressure_advanceとして追加してください。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ja="プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。"/>
+  <translation tag="The printer is working on the paused print. Wait for it to finish." ja="プリンターが一時停止中の印刷を処理しています。完了するまでお待ちください。"/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" ja="プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？"/>
   <translation tag="The printer kept printing after the cancel." ja="キャンセル後もプリンターは印刷を続けています。"/>
   <translation tag="The printer lost power during a print. It can resume where it left off." ja="印刷中にプリンターの電源が失われました。中断した箇所から再開できます。"/>

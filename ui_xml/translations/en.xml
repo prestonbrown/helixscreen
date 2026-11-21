@@ -4217,6 +4217,7 @@
   <translation tag="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature." en="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." en="Switching to MPC requires a config change and Klipper restart."/>
   <translation tag="Switching to {}" en="Switching to {}"/>
+  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print." en="Switching to {}. The printer heats and purges it, then resumes the print."/>
   <translation tag="Sync" en="Sync"/>
   <translation tag="Sync Feedback" en="Sync Feedback"/>
   <translation tag="Sync during printing" en="Sync during printing"/>
@@ -4532,6 +4533,7 @@
   <translation tag="The printer is shut down." en="The printer is shut down."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." en="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." en="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed."/>
+  <translation tag="The printer is working on the paused print. Wait for it to finish." en="The printer is working on the paused print. Wait for it to finish."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" en="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?"/>
   <translation tag="The printer kept printing after the cancel." en="The printer kept printing after the cancel."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." en="The printer lost power during a print. It can resume where it left off."/>

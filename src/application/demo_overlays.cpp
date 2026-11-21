@@ -36,6 +36,7 @@
 #include "color_utils.h"
 #include "core/data_root_resolver.h"
 #include "demo_prompt_lines.h"
+#include "display_numbering.h"
 #include "filament_macro_profiles.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/ui_led_control_overlay.h"
@@ -205,6 +206,22 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         modal->set_other_head_offered(helix::ui::RunoutOtherHeadModal::available(head));
         modal->set_on_use_other_head(
             [head]() { helix::ui::RunoutOtherHeadModal::show_owned(head); });
+        Modal::show_owned(std::move(modal), screen);
+        return true;
+    }
+
+    if (name == "runout-switching") {
+        // The runout dialog once the user confirmed another toolhead: the
+        // printer heats and purges the new head inside the pause, and nothing
+        // can be pressed until the outcome. Pause the mock print first for the
+        // paused button row.
+        auto modal = std::make_unique<RunoutGuidanceModal>();
+        modal->set_autofeed_capable(true);
+        modal->set_resume_blocked(false);
+        modal->set_advisory(false);
+        modal->set_other_head_offered(false);
+        modal->set_switch_progress(RunoutGuidanceModal::switching_text(
+            helix::ui::active_tool_name_label(helix::ui::tool_label(3), 3)));
         Modal::show_owned(std::move(modal), screen);
         return true;
     }

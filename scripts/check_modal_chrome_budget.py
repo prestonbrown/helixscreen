@@ -114,7 +114,7 @@ def is_button_row(el, footer_targets=frozenset()):
     modal_button_row component, so the tag name alone does not identify it. Two
     hand-rolled shapes exist:
 
-      - fixed height:  <lv_obj height="#button_height" flex_flow="row">
+      - fixed height:  <lv_obj height="#modal_button_height" flex_flow="row"> (or #button_height)
       - wrapping:      <lv_obj name="button_container" flex_flow="row_wrap"
                                height="content">   (action_prompt_modal)
 
@@ -131,7 +131,7 @@ def is_button_row(el, footer_targets=frozenset()):
     widgets = [c for c in el if not c.tag.startswith('bind_')]
     if len(widgets) == 1 and widgets[0].tag in BUTTON_ROW_TAGS:
         return True
-    if el.get('height') == '#button_height':
+    if el.get('height') in ('#modal_button_height', '#button_height'):
         return True
     name = el.get('name') or ''
     flex = el.get('flex_flow') or ''

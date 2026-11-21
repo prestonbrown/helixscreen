@@ -220,6 +220,7 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 
 | Token | Axis | Small | Medium | Large | Purpose |
 |-------|------|-------|--------|-------|---------|
+| `#modal_button_height` | vertical | 48px | 52px | 72px | A dialog's footer button row (`modal_button_row`); micro 44px, so a dialog's confirm stays easy to hit at 480x272 |
 | `#button_height` | vertical | 48px | 52px | 72px | Standard button height (micro 26px) |
 | `#button_height_sm` | vertical | 40px | 40px | 40px | Small buttons (back, icon-only) |
 | `#button_height_lg` | vertical | 64px | 70px | 96px | Large buttons |

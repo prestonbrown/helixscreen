@@ -247,6 +247,21 @@ inline constexpr uint32_t kSwitchGiveUpMs = 180000;
 /// routing has not already moved the print off the runout head.
 [[nodiscard]] bool worth_offering(const RunoutFacts& facts);
 
+/// Whether the runout head is still the one the pause is about: the printer is
+/// not resuming or switching by itself, the toolhead carries the runout head,
+/// and the routing has not moved the print off it. Guidance about the runout
+/// head (a filament reading, Resume) holds only while this does.
+[[nodiscard]] bool runout_head_in_charge(const RunoutFacts& facts);
+
+/// The head a print sits paused on after the routing left the runout head and
+/// the printer stopped working inside the pause: a switch (the firmware's own
+/// or a sent one) that moved the print but did not resume it. -1 otherwise.
+[[nodiscard]] int stranded_on(const RunoutFacts& facts);
+
+/// What resumes a print the routing already moved onto @p head, for filament
+/// system @p type; empty where it has no plan row.
+[[nodiscard]] std::string resume_on_gcode(AmsType type, int head);
+
 /// What to do about a restore a switch left pending (a setting it turned on
 /// for itself), whenever the facts may have moved.
 enum class PendingRestoreStep {

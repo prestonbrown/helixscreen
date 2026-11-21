@@ -419,3 +419,113 @@ TEST_CASE_METHOD(DwellFixture, "Z-Mod idle between changes: a runout past the dw
     tick();
     CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
 }
+
+namespace {
+
+/// A runout dialog on screen for @p lane for the scope's lifetime, as
+/// FilamentRunoutHandler states it while its guidance is up.
+class RunoutExplained {
+  public:
+    explicit RunoutExplained(int lane) {
+        FilamentSensorManager::instance().set_runout_explained(lane);
+    }
+    ~RunoutExplained() {
+        FilamentSensorManager::instance().set_runout_explained(std::nullopt);
+    }
+    RunoutExplained(const RunoutExplained&) = delete;
+    RunoutExplained& operator=(const RunoutExplained&) = delete;
+};
+
+} // namespace
+
+// The U1 run (#2137): the guidance went up at the pause, and the dwell that
+// opened on the same sensor came due 45 s later, drawing its warning over the
+// dialog's title.
+TEST_CASE_METHOD(DwellFixture,
+                 "A removal the runout dialog explains is not announced after the dwell",
+                 "[runout][dwell][sensors][runout_toast]") {
+    printing_with(AmsType::AD5X_IFS);
+
+    ToastCapture toasts;
+    sensor(false);
+    {
+        // The head sensor names no lane, which is what the dialog reports for it.
+        RunoutExplained dialog(-1);
+        age_past_dwell();
+        tick();
+        CHECK(toasts.warnings_containing(kRemovedWarning) == 0);
+        CHECK_FALSE(
+            PostUnloadGraceTestAccess::removal_dwell_pending(FilamentSensorManager::instance()));
+    }
+
+    // Closed, the next removal is news again.
+    sensor(true);
+    sensor(false);
+    age_past_dwell();
+    tick();
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
+}
+
+TEST_CASE_METHOD(DwellFixture, "A removal the runout dialog explains is not announced on the edge",
+                 "[runout][dwell][sensors][runout_toast]") {
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(AmsState::instance().get_backend() == nullptr);
+
+    ToastCapture toasts;
+    {
+        RunoutExplained dialog(-1);
+        sensor(false);
+        CHECK(toasts.warnings_containing(kRemovedWarning) == 0);
+        // A spool going in is still news under the dialog.
+        sensor(true);
+        CHECK(toasts.infos_containing(kInsertedInfo) == 1);
+    }
+    sensor(false);
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
+}
+
+TEST_CASE_METHOD(DwellFixture, "A dialog about another lane leaves a sensor's removal toast alone",
+                 "[runout][dwell][sensors][runout_toast]") {
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    ToastCapture toasts;
+    RunoutExplained dialog(2);
+    CHECK(FilamentSensorManager::instance().runout_explained(2));
+    CHECK_FALSE(FilamentSensorManager::instance().runout_explained(1));
+    sensor(false);
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
+}
+
+// A dialog about a sensor that maps to no lane says nothing about a sensor on
+// a lane: a toolhead sensor in front of a multi-lane unit beside the unit's
+// own lane sensors.
+TEST_CASE_METHOD(DwellFixture,
+                 "A dialog about a lane-less sensor leaves a lane's removal toast alone",
+                 "[runout][dwell][sensors][runout_toast]") {
+    constexpr const char* kLaneSensor = "filament_switch_sensor e2_filament";
+    auto& fsm = FilamentSensorManager::instance();
+    discover_filament_sensors(fsm, {kHeadSensor, kLaneSensor});
+    fsm.set_role(kHeadSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    fsm.set_role(kLaneSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    const auto lane_status = [&](bool detected) {
+        fsm.update_from_status(
+            nlohmann::json{{kLaneSensor, {{"filament_detected", detected}, {"enabled", true}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    sensor(true);
+    lane_status(true);
+    PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    ToastCapture toasts;
+    RunoutExplained dialog(-1);
+    CHECK(fsm.runout_explained(-1));
+    CHECK_FALSE(fsm.runout_explained(2));
+    sensor(false);
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 0);
+    lane_status(false);
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
+}

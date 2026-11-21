@@ -26,8 +26,12 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/timer_guard.h"
+#include "runout_other_head.h"
 
+#include <cstdint>
 #include <functional>
+#include <optional>
+#include <string>
 
 // Forward declarations
 namespace helix {
@@ -207,8 +211,22 @@ class FilamentRunoutHandler {
     /// guidance is up.
     int other_head_runout_head_{-1};
 
-    /// Re-checks that offer every second while the guidance is up.
+    /// Re-checks the printer every second while the guidance is up.
     LvglTimerGuard other_head_offer_timer_;
+
+    /// A switch to another head was sent from this guidance and has not
+    /// ended: the dialog shows it in progress, every action disabled.
+    bool switch_sent_{false};
+
+    /// The head that switch goes to, as the user reads it.
+    std::string switch_target_name_;
+
+    /// When the printer was first seen stranded on another head (routing moved,
+    /// idle, still paused) while the guidance is up.
+    std::optional<uint32_t> stranded_since_;
+
+    /// When the printer was first seen busy inside the pause.
+    std::optional<uint32_t> busy_since_;
 
     /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
@@ -232,8 +250,29 @@ class FilamentRunoutHandler {
     /// Drop the re-check observers; the pause ended or its guidance showed.
     void stop_watching_for_runout();
 
-    /// Offer "Use Another Toolhead" exactly while the printer's facts allow it.
-    void refresh_other_head_offer();
+    /// Follow the printer while the guidance is up: offer "Use Another
+    /// Toolhead" exactly while its facts allow it, show a switch or the
+    /// firmware's own work in progress, and keep the Resume gate on the
+    /// runout head.
+    void refresh_from_printer();
+
+    /// Whether the dialog's guidance still describes the runout head: no
+    /// switch in flight, and the printer (where its filament system reports
+    /// the facts) idle in the pause on that head with the routing still on it.
+    [[nodiscard]] bool guidance_current() const;
+
+    /// Gate Resume on the runout head's port reading, while guidance_current().
+    void sync_resume_gate();
+
+    /// Close the guidance and offer Resume on the head the printer moved the
+    /// print to, once it has sat there idle and paused past the settle time.
+    /// True when it did.
+    bool take_stranded(const helix::runout_other_head::RunoutFacts& facts);
+
+    /// Drop everything the shown guidance holds: the re-check timer, a switch
+    /// in progress, the observers, and the explained runout. Never hides the
+    /// dialog itself; its on_hidden hook calls this.
+    void end_guidance();
 
     /**
      * @brief Show the runout guidance modal

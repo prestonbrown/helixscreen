@@ -22,10 +22,6 @@ int int_member(const json& obj, const char* key) {
     return v != nullptr && v->is_number_integer() ? v->get<int>() : -1;
 }
 
-/// The U1's filament-runout fault; its index is the head whose eN_filament
-/// sensor ran out.
-constexpr int kU1RunoutExceptionId = 523;
-
 /// One firmware that publishes a structured pause cause.
 struct Provider {
     bool (*present)(const PrinterDiscovery& hw);
@@ -41,7 +37,8 @@ constexpr std::array<Provider, 1> kProviders = {{
     // in the descriptor (#991). filament_detect marks the firmware.
     {[](const PrinterDiscovery& hw) { return hw.has_snapmaker(); },
      [](const json& cause) {
-         return int_member(cause, "id") == kU1RunoutExceptionId ? int_member(cause, "index") : -1;
+         return int_member(cause, "id") == snapmaker::kToolheadModuleId ? int_member(cause, "index")
+                                                                        : -1;
      },
      [](const json& cause) {
          const snapmaker::ExceptionCode code{int_member(cause, "level"), int_member(cause, "id"),

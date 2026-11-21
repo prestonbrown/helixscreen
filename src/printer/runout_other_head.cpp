@@ -169,6 +169,11 @@ bool u1_record_writable(const HeadFacts& h) {
     return h.record && u1_label_line(0, *h.record).has_value();
 }
 
+/// The resume step of the firmware's own Auto-Replenish, on @p head.
+std::string u1_resume_on(int head) {
+    return fmt::format("RESUME REPLENISH=1 REPLENISH_EXTRUDER={}", head);
+}
+
 ContinuePlan u1_plan(const RunoutFacts& facts, const std::vector<HeadVerdict>& /*verdicts*/,
                      int chosen) {
     ContinuePlan plan;
@@ -238,7 +243,7 @@ ContinuePlan u1_plan(const RunoutFacts& facts, const std::vector<HeadVerdict>& /
     plan.unlabel_gcode += u1_label_line(facts.runout_head, before).value_or(none_line);
     // What the firmware's Auto-Replenish runs once it has moved the routing:
     // the resume step alone, on the new head.
-    plan.resume_gcode = fmt::format("RESUME REPLENISH=1 REPLENISH_EXTRUDER={}", plan.continues_on);
+    plan.resume_gcode = u1_resume_on(plan.continues_on);
     return plan;
 }
 
@@ -247,13 +252,15 @@ struct Provider {
     ContinuePlan (*plan)(const RunoutFacts&, const std::vector<HeadVerdict>&, int chosen);
     /// Whether the plan can use this head's record; null when every record will do.
     bool (*record_usable)(const HeadFacts&);
+    /// What resumes a print the routing already moved onto a head.
+    std::string (*resume_on)(int head);
 };
 
 // One row per filament system that can move a paused job onto another head.
 // AFC and Happy Hare take a tool remap while paused and are the next rows.
 constexpr Provider kProviders[] = {
     // VENDOR_OK: this capability's provider table, one row per filament system
-    {AmsType::SNAPMAKER, &u1_plan, &u1_record_writable},
+    {AmsType::SNAPMAKER, &u1_plan, &u1_record_writable, &u1_resume_on},
 };
 
 const Provider* find_provider(AmsType type) {
@@ -446,6 +453,24 @@ bool label_written(const RunoutFacts& now, const FilamentRecord& label) {
 bool worth_offering(const RunoutFacts& facts) {
     const HeadFacts* h = find_head(facts, facts.runout_head);
     return h != nullptr && !h->feeder_can_supply && !facts.printer_busy &&
+           !routing_left_runout_head(facts);
+}
+
+int stranded_on(const RunoutFacts& facts) {
+    if (!facts.paused || facts.printer_busy || !routing_left_runout_head(facts) ||
+        facts.active_head < 0 || facts.active_head == facts.runout_head) {
+        return -1;
+    }
+    return facts.active_head;
+}
+
+std::string resume_on_gcode(AmsType type, int head) {
+    const Provider* provider = find_provider(type);
+    return provider != nullptr && head >= 0 ? provider->resume_on(head) : std::string{};
+}
+
+bool runout_head_in_charge(const RunoutFacts& facts) {
+    return !facts.printer_busy && facts.active_head == facts.runout_head &&
            !routing_left_runout_head(facts);
 }
 
