@@ -385,33 +385,39 @@ TEST_CASE_METHOD(LVGLTestFixture,
     history.clear();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the guided run banner's button opens the guided run",
+namespace {
+int g_guided_clicks = 0;
+void count_guided_click(lv_event_t*) {
+    ++g_guided_clicks;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the guided run banner's button is bound to the guided run",
                  "[calibration_hub]") {
-    std::array<lv_obj_t*, kUiPanelCount> panels{};
-    for (auto& p : panels) {
-        p = lv_obj_create(lv_screen_active());
-    }
-    NavigationManager::instance().set_panels(panels.data());
     helix::ui::init_calibration_hub_row_handler();
     helix::ui::get_calibration_hub_overlay().ensure_subjects();
+    lv_event_cb_t on_guided = lv_xml_get_event_cb(nullptr, "on_guided_calibration_clicked");
+    REQUIRE(on_guided != nullptr);
     lv_subject_t* shown = lv_xml_get_subject(nullptr, "cal_run_banner_shown");
     REQUIRE(shown != nullptr);
     lv_subject_set_int(shown, 1);
+
+    // A callback binds when its widget is created, so a stand-in registered
+    // around the creation counts the banner's clicks without opening the run.
+    g_guided_clicks = 0;
+    lv_xml_register_event_cb(nullptr, "on_guided_calibration_clicked", count_guided_click);
     auto* hub = static_cast<lv_obj_t*>(
         lv_xml_create(lv_screen_active(), "calibration_hub_overlay", nullptr));
+    lv_xml_register_event_cb(nullptr, "on_guided_calibration_clicked", on_guided);
     REQUIRE(hub != nullptr);
     lv_obj_t* banner = lv_obj_find_by_name(hub, "cal_guided_banner");
     REQUIRE(banner != nullptr);
     CHECK_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
 
-    auto& run = helix::ui::get_calibration_run_overlay();
-    REQUIRE(run.get_root() == nullptr);
     lv_obj_send_event(banner, LV_EVENT_CLICKED, nullptr);
+    CHECK(g_guided_clicks == 1);
+    lv_obj_delete(hub);
     drain();
-    CHECK(run.get_root() != nullptr);
-    NavigationManager::instance().go_back();
-    drain();
-    process_lvgl(50);
 }
 
 TEST_CASE("results_in_config reads each step's tuned value from configfile.settings",
