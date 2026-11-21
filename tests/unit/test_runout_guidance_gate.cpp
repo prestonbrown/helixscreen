@@ -126,6 +126,21 @@ TEST_CASE_METHOD(RunoutGuidanceFixture, "pausing on a real runout shows the guid
     CHECK(handler->is_modal_visible());
 }
 
+TEST_CASE_METHOD(RunoutGuidanceFixture, "the guidance dialog wakes the display",
+                 "[runout_guidance][gate]") {
+    int wakes = 0;
+    handler->set_wake([&wakes] { ++wakes; });
+
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    CHECK(wakes == 0); // filament present: nothing to show, nothing to wake for
+
+    transition(::PrintState::Paused, ::PrintState::Printing);
+    set_filament_present(false);
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    REQUIRE(handler->is_modal_visible());
+    CHECK(wakes == 1);
+}
+
 TEST_CASE_METHOD(RunoutGuidanceFixture, "pausing with filament present shows nothing",
                  "[runout_guidance][gate]") {
     // A pause for any other reason — M600 outside a runout, a user tap, a
