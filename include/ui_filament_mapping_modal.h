@@ -75,7 +75,7 @@ class FilamentMappingModal : public Modal {
     /// Returns nullptr if the mapping is auto or the slot is not found.
     const helix::AvailableSlot* find_mapped_slot(const helix::ToolMapping& mapping) const;
 
-    void create_toggle_row();
+    static void auto_toggle_cb(lv_event_t* e);
     void on_toggle_changed(bool auto_color);
     void recalculate_mappings();
 
@@ -98,7 +98,6 @@ class FilamentMappingModal : public Modal {
 
     // UI
     lv_obj_t* tool_list_ = nullptr;
-    lv_obj_t* toggle_switch_ = nullptr;
     FilamentSlotPicker slot_picker_;
 
     // Per-row dropdown trigger widgets (indexed by tool_index)
