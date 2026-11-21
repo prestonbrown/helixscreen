@@ -105,14 +105,14 @@ TEST_CASE("Testable overload falls back for unknown available memory on 8GB devi
 }
 
 // ============================================================================
-// A screen's streaming opt-out only counts when 3D exists to fall back on
+// A screen's streaming opt-out only counts when a full-parse 3D render can run
 // ============================================================================
 
 /**
  * PrintSelectDetailView calls ui_gcode_viewer_disable_streaming() so a
- * 3D-preferred screen gets the full-load path. That opt-out was unconditional,
- * and on a build with no 3D renderer it forced the same full-load path with
- * nothing to render into and no budget of its own.
+ * 3D-preferred screen gets the full-load path, which parses the whole file
+ * into RAM. The opt-out must not reach that path when nothing will render 3D,
+ * nor when the parse does not fit the device.
  *
  * Measured on a K2 Plus (488 MB, ENABLE_GLES_3D=no): the detail view opened a
  * 130 MB gcode logging "streaming mode: OFF", helix-screen reached 387 MB RSS
@@ -120,33 +120,48 @@ TEST_CASE("Testable overload falls back for unknown available memory on 8GB devi
  * logged "streaming mode: ON" from another screen minutes earlier and rendered.
  *
  * These run in a test binary that IS compiled with 3D enabled, which is exactly
- * why the decision is a pure function rather than an #ifdef at the call site -
+ * why the decision is a pure function rather than an #ifdef at the call site:
  * an #ifdef would compile the interesting branch out of every test.
  */
-TEST_CASE("gcode_viewer_should_stream: opt-out is ignored without a 3D renderer",
+TEST_CASE("gcode_viewer_should_stream: opt-out is ignored when nothing renders 3D",
           "[gcode][streaming]") {
     // The K2 case: screen opted out, no 3D, file big enough to want streaming.
-    CHECK(helix::gcode_viewer_should_stream(/*screen_opted_out=*/true, /*build_has_3d=*/false,
+    CHECK(helix::gcode_viewer_should_stream(/*screen_opted_out=*/true, /*renders_3d=*/false,
+                                            /*full_parse_fits=*/true,
                                             /*streaming_for_size=*/true));
 }
 
-TEST_CASE("gcode_viewer_should_stream: opt-out is honoured when 3D is available",
+TEST_CASE("gcode_viewer_should_stream: opt-out is honored when 3D renders and the parse fits",
           "[gcode][streaming]") {
-    // The original intent, preserved: a 3D-capable screen still gets full-load.
-    CHECK_FALSE(helix::gcode_viewer_should_stream(true, true, true));
+    // A 3D-capable screen with the RAM for it still gets full-load.
+    CHECK_FALSE(helix::gcode_viewer_should_stream(true, true, true, true));
+}
+
+TEST_CASE("gcode_viewer_should_stream: opt-out streams when the full parse would not fit",
+          "[gcode][streaming]") {
+    // A 3D build on a low-RAM board (pi32): the full parse of a large file
+    // would exhaust memory, so the viewer streams despite the opt-out.
+    CHECK(helix::gcode_viewer_should_stream(/*screen_opted_out=*/true, /*renders_3d=*/true,
+                                            /*full_parse_fits=*/false,
+                                            /*streaming_for_size=*/true));
+}
+
+TEST_CASE("gcode_viewer_should_stream: opt-out never forces streaming on its own",
+          "[gcode][streaming]") {
+    // A file the size rule already full-loads keeps doing so, whatever the
+    // opt-out's own conditions say.
+    CHECK_FALSE(helix::gcode_viewer_should_stream(true, true, false, false));
+    CHECK_FALSE(helix::gcode_viewer_should_stream(true, false, true, false));
+    CHECK_FALSE(helix::gcode_viewer_should_stream(true, false, false, false));
 }
 
 TEST_CASE("gcode_viewer_should_stream: no opt-out defers to the size decision",
           "[gcode][streaming]") {
-    CHECK(helix::gcode_viewer_should_stream(false, true, true));
-    CHECK(helix::gcode_viewer_should_stream(false, false, true));
-    CHECK_FALSE(helix::gcode_viewer_should_stream(false, true, false));
-    CHECK_FALSE(helix::gcode_viewer_should_stream(false, false, false));
-}
-
-TEST_CASE("gcode_viewer_should_stream: a small file still skips streaming without 3D",
-          "[gcode][streaming]") {
-    // The guard must not force streaming on every file - only stop the opt-out
-    // from overriding the size decision when there is no 3D to justify it.
-    CHECK_FALSE(helix::gcode_viewer_should_stream(true, false, false));
+    for (const bool renders_3d : {false, true}) {
+        for (const bool fits : {false, true}) {
+            CAPTURE(renders_3d, fits);
+            CHECK(helix::gcode_viewer_should_stream(false, renders_3d, fits, true));
+            CHECK_FALSE(helix::gcode_viewer_should_stream(false, renders_3d, fits, false));
+        }
+    }
 }
