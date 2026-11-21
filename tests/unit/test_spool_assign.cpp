@@ -178,6 +178,20 @@ TEST_CASE("a new spool with no weight starts as a full 1 kg spool", "[spool-assi
     CHECK(weighed.remaining_weight_g == 300);
 }
 
+TEST_CASE("Assign Spool's size starts from what the lane reads", "[spool-assign]") {
+    const auto check = [](SpoolSize got, int chip, float remaining, float total) {
+        CHECK(got.chip == chip);
+        CHECK(got.remaining_g == Catch::Approx(remaining));
+        CHECK(got.total_g == Catch::Approx(total));
+    };
+    check(size_for_reading(-1, -1), 0, 1000, 1000);              // unknown: a full 1 kg spool
+    check(size_for_reading(750, 750), 1, 750, 750);              // a full 750 g spool
+    check(size_for_reading(640, 1000), kPartialChip, 640, 1000); // part used
+    check(size_for_reading(0, 1000), kPartialChip, 0, 1000);     // metered empty stays empty
+    check(size_for_reading(300, -1), kPartialChip, 300, 1000);   // no total: a 1 kg spool's
+    check(size_for_reading(-1, 250), 2, 250, 250);               // only a total: full
+}
+
 TEST_CASE("lane history keeps the latest filament first, once, and caps its length",
           "[spool-assign]") {
     using helix::lane_spool_history::Entry;

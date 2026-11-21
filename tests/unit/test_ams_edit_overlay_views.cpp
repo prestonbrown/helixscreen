@@ -173,6 +173,12 @@ class AmsEditOverlayViewTestAccess {
         FAIL("spool " << spool_id << " is not listed");
     }
     /// The spool ids the list shows, in order.
+    static constexpr int kSaveIdle = AmsEditOverlay::kSaveIdle;
+    static constexpr int kSaveWaiting = AmsEditOverlay::kSaveWaiting;
+    static constexpr int kSaveFailed = AmsEditOverlay::kSaveFailed;
+    void call_set_save_state(int state, const std::string& error) {
+        overlay_.set_save_state(state, error);
+    }
     std::vector<int> listed_ids() {
         std::vector<int> ids;
         for (const auto& r : overlay_.listed_) {
@@ -1745,6 +1751,86 @@ TEST_CASE_METHOD(EditorFixture, "Use after Different Spool links the lane and cl
     CHECK(captured.slot_info.material == "PETG");
 }
 
+TEST_CASE_METHOD(EditorFixture, "Assign Spool lists the lane's linked spool first, as Current",
+                 "[ams_edit_overlay][picker][preselect][2095]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    // An empty lane pins nothing; a lane linked to spool 33 (last in recency) leads with it.
+    const int linked_id = GENERATE(0, 33);
+    CAPTURE(linked_id);
+    SlotInfo lane;
+    if (linked_id) {
+        lane = tracked_slot();
+        lane.spoolman_id = linked_id;
+    }
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, lane, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    if (linked_id) {
+        REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
+        access.call_different_spool();
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    access.set_cached_spools(three_spools());
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    const auto current_rows = [&] {
+        std::vector<int> rows;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
+            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
+            lv_obj_t* current = lv_obj_find_by_name(row, "row_current");
+            lv_obj_t* use = lv_obj_find_by_name(row, "row_use");
+            REQUIRE(current != nullptr);
+            REQUIRE(use != nullptr);
+            // Current stands in for Use: never both, never neither.
+            CHECK(lv_obj_has_flag(current, LV_OBJ_FLAG_HIDDEN) !=
+                  lv_obj_has_flag(use, LV_OBJ_FLAG_HIDDEN));
+            if (!lv_obj_has_flag(current, LV_OBJ_FLAG_HIDDEN)) {
+                rows.push_back(static_cast<int>(i));
+            }
+        }
+        return rows;
+    };
+
+    access.call_render_spool_list("");
+    process_lvgl(10);
+    CHECK(access.listed_ids() ==
+          (linked_id ? std::vector<int>{33, 11, 22} : std::vector<int>{11, 22, 33}));
+    CHECK(current_rows() == std::vector<int>(linked_id ? 1 : 0, 0));
+
+    // The search still applies to it; filtered out, no row is Current.
+    access.call_render_spool_list("polymaker");
+    process_lvgl(10);
+    CHECK(access.listed_ids() == std::vector<int>{11});
+    CHECK(current_rows().empty());
+
+    // Older than the row budget's most recent spools, it still leads.
+    std::vector<SpoolInfo> many;
+    for (int id = 100; id < 100 + static_cast<int>(spool_assign::kMaxListedSpools) + 5; ++id) {
+        SpoolInfo spool;
+        spool.id = id;
+        spool.vendor = "Generic";
+        spool.material = "PLA";
+        many.push_back(spool);
+    }
+    if (linked_id) {
+        SpoolInfo linked;
+        linked.id = linked_id;
+        linked.material = "ABS";
+        many.push_back(linked);
+    }
+    access.set_cached_spools(many);
+    access.call_render_spool_list("");
+    process_lvgl(10);
+    const auto ids = access.listed_ids();
+    REQUIRE(ids.size() == spool_assign::kMaxListedSpools);
+    CHECK(ids.front() == (linked_id ? linked_id : 100));
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(EditorFixture, "Assign Spool always offers a way to add the spool",
                  "[ams_edit_overlay][picker][setup_entry]") {
     auto& overlay = get_ams_edit_overlay();
@@ -2445,6 +2531,41 @@ TEST_CASE_METHOD(EditorFixture, "weight pill keypad stages remaining grams",
     CHECK(access.working_info().remaining_weight_g == 750);
     CHECK(access.working_info().total_weight_g == 750);
     close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "Assign Spool keeps the weight a lane with no material reads",
+                 "[ams_edit_overlay][weight][spool-assign]") {
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0); // the local commit, no Spoolman save
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    // An AFC lane tracking 640 g of a 1 kg spool, its material not yet named.
+    SlotInfo reading = untracked_slot_without_weights();
+    reading.material.clear();
+    reading.remaining_weight_g = 640.0f;
+    reading.total_weight_g = 1000.0f;
+    bool fired = false;
+    AmsEditOverlay::EditResult result;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, reading, nullptr,
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      fired = true;
+                                      result = r;
+                                  }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_size_chip")) ==
+          spool_assign::kPartialChip);
+
+    REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
+    access.call_assign_local();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(fired);
+    CHECK(result.slot_info.remaining_weight_g == Catch::Approx(640.0f));
+    CHECK(result.slot_info.total_weight_g == Catch::Approx(1000.0f));
 }
 
 TEST_CASE_METHOD(EditorFixture, "Reset to tag restores identity, not just the colour",
@@ -5376,9 +5497,25 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
                 return lv_obj_get_scroll_bottom(content);
             };
 
+            // A save waiting or refused says so in the subtitle's line, so the
+            // page fits in those states too.
+            const auto fits_while_saving = [&] {
+                for (const int state : {AmsEditOverlayViewTestAccess::kSaveWaiting,
+                                        AmsEditOverlayViewTestAccess::kSaveFailed}) {
+                    CAPTURE(state);
+                    access.call_set_save_state(
+                        state, "Not saved: AFC has no Spoolman configured. Try again.");
+                    CHECK(page_scroll() <= 0);
+                    CHECK_FALSE(access.shown("subtitle"));
+                }
+                access.call_set_save_state(AmsEditOverlayViewTestAccess::kSaveIdle, "");
+                CHECK(access.shown("subtitle"));
+            };
+
             show_editor_on_lane(*this, *backend, 1);
             REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
             CHECK(page_scroll() <= 0);
+            fits_while_saving();
 
             // Assign with a full list: the list scrolls inside itself, not the page.
             access.call_different_spool();
@@ -5397,6 +5534,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
             REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
             REQUIRE(access.listed_ids().size() == 12);
             CHECK(page_scroll() <= 0);
+            fits_while_saving();
 
             // A fresh install: the common spools grid instead of the list.
             access.set_cached_spools({});

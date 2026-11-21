@@ -1033,6 +1033,7 @@ translations:
   Creating bed mesh...: 正在创建热床网格...
   Creating spool...: 正在创建料盘…
   'Critical hardware missing: {}': '缺少关键硬件: {}'
+  Current: 当前
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
   Current Mesh: 当前网格

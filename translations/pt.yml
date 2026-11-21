@@ -1103,6 +1103,7 @@ translations:
   Creating bed mesh...: Criando malha da mesa...
   Creating spool...: Criando carretel...
   'Critical hardware missing: {}': 'Hardware crítico ausente: {}'
+  Current: Atual
   Current / Target: Atual / Alvo
   Current Configuration: Configuração Atual
   Current Mesh: Malha Atual

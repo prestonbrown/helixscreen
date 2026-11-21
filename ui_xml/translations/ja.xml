@@ -978,6 +978,7 @@
   <translation tag="Creating bed mesh..." ja="ベッドメッシュを作成中..."/>
   <translation tag="Creating spool..." ja="スプールを作成中..."/>
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
+  <translation tag="Current" ja="現在"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
   <translation tag="Current Configuration" ja="現在の設定"/>
   <translation tag="Current Mesh" ja="現在のメッシュ"/>

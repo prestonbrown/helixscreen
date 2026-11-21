@@ -984,6 +984,7 @@
   <translation tag="Creating bed mesh..." fr="Création du maillage du plateau..."/>
   <translation tag="Creating spool..." fr="Création de la bobine..."/>
   <translation tag="Critical hardware missing: {}" fr="Matériel critique manquant : {}"/>
+  <translation tag="Current" fr="Actuelle"/>
   <translation tag="Current / Target" fr="Actuel / Cible"/>
   <translation tag="Current Configuration" fr="Configuration actuelle"/>
   <translation tag="Current Mesh" fr="Maillage du plateau actuel"/>

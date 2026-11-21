@@ -123,3 +123,17 @@ class SubjectDebugRegistry {
     std::unordered_map<std::string, lv_subject_t*> name_to_subject_; ///< Reverse lookup by name
     mutable std::mutex mutex_;                                       ///< Protects both maps
 };
+
+namespace helix {
+
+/**
+ * @brief Publish @p subject under @p name in the current XML scope and record it
+ *        in SubjectDebugRegistry
+ *
+ * The body of every UI_SUBJECT_INIT_AND_REGISTER_* site, out of line: inlined,
+ * the two std::string temporaries the registry takes cost each site ~100 bytes.
+ */
+void publish_subject(lv_subject_t* subject, const char* name, lv_subject_type_t type,
+                     const char* file, int line);
+
+} // namespace helix

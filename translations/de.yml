@@ -1107,6 +1107,7 @@ translations:
   Creating bed mesh...: Bettnetz erstellen...
   Creating spool...: Spule wird erstellt...
   'Critical hardware missing: {}': 'Kritische Hardware fehlt: {}'
+  Current: Aktuell
   Current / Target: Aktuell / Ziel
   Current Configuration: Aktuelle Konfiguration
   Current Mesh: Aktuelles Netz

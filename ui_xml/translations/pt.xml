@@ -978,6 +978,7 @@
   <translation tag="Creating bed mesh..." pt="Criando malha da mesa..."/>
   <translation tag="Creating spool..." pt="Criando carretel..."/>
   <translation tag="Critical hardware missing: {}" pt="Hardware crítico ausente: {}"/>
+  <translation tag="Current" pt="Atual"/>
   <translation tag="Current / Target" pt="Atual / Alvo"/>
   <translation tag="Current Configuration" pt="Configuração Atual"/>
   <translation tag="Current Mesh" pt="Malha Atual"/>

@@ -1146,6 +1146,7 @@ translations:
   Creating bed mesh...: Создание сетки стола...
   Creating spool...: Создание катушки...
   'Critical hardware missing: {}': 'Отсутствует критическое оборудование: {}'
+  Current: Текущая
   Current / Target: Текущая / Цель
   Current Configuration: Текущая конфигурация
   Current Mesh: Текущая сетка

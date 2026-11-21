@@ -1103,6 +1103,7 @@ translations:
   Creating bed mesh...: Creando malla de cama...
   Creating spool...: Creando bobina...
   'Critical hardware missing: {}': 'Falta hardware crítico: {}'
+  Current: Actual
   Current / Target: Actual / Objetivo
   Current Configuration: Configuración Actual
   Current Mesh: Malla Actual

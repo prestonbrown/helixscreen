@@ -978,6 +978,7 @@
   <translation tag="Creating bed mesh..." zh="正在创建热床网格..."/>
   <translation tag="Creating spool..." zh="正在创建料盘…"/>
   <translation tag="Critical hardware missing: {}" zh="缺少关键硬件: {}"/>
+  <translation tag="Current" zh="当前"/>
   <translation tag="Current / Target" zh="当前 / 目标"/>
   <translation tag="Current Configuration" zh="当前配置"/>
   <translation tag="Current Mesh" zh="当前网格"/>

@@ -4,9 +4,12 @@
 #pragma once
 
 #include <functional>
+#include <memory>
 
 struct _lv_obj_t;
 typedef struct _lv_obj_t lv_obj_t;
+struct _lv_subject_t;
+typedef struct _lv_subject_t lv_subject_t;
 
 class IPanelLifecycle;
 
@@ -103,5 +106,14 @@ bool is_push_pending(lv_obj_t* panel);
 /// stack, or off the stack but still drawn as it slides out. A guard against
 /// opening a panel twice asks this.
 bool is_showing(lv_obj_t* panel);
+
+/// The active main panel, a PanelId int, as NavigationManager publishes it.
+lv_subject_t* active_panel_subject();
+
+/// The lifetime to observe active_panel_subject() with.
+std::shared_ptr<bool> subjects_lifetime();
+
+/// True while an overlay covers the main panel: the push deactivated it.
+bool main_panel_covered();
 
 } // namespace helix::nav
