@@ -61,6 +61,10 @@
   <!-- Jog pad colors are loaded from semantic theme tokens in C++ (ui_jog_pad.cpp) -->
   <!-- Uses shared backdrop from navigation system -->
   <styles>
+    <!-- The jog modes and the home bar share their row 3:2. In an ultrawide side
+         band the row is narrower than the overlay's at the same font size, so the
+         home bar stops at 37% of it and each jog mode label keeps its full width. -->
+    <style name="home_bar_band" max_width="37%"/>
     <!-- Coordinate readouts mute an axis that is not homed: its reported
          position is not trustworthy, and "0.00" must not read as a real 0. -->
     <style name="axis_letter_homed" text_color="#primary"/>
@@ -76,8 +80,8 @@
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
     <!-- Header Bar with the settings cog. The E-stop is on the navbar. -->
     <header_bar name="overlay_header"
-                title="Motion" hide_action_icon="false" action_icon="cog" action_icon_hidden_cond="ui_breakpoint lt 2"
-                action_icon_callback="on_motion_header_settings_clicked">
+                title="Motion" back_hidden_subject="motion_in_side_band" hide_action_icon="false" action_icon="cog"
+                action_icon_hidden_cond="ui_breakpoint lt 2" action_icon_callback="on_motion_header_settings_clicked">
       <!-- Header coordinates: one line, bold tinted axis letter + tabular
            mono value, no unit suffix. Each letter+value pair is one tap
            target (opens that axis' keypad); the swap chip at the end
@@ -506,13 +510,14 @@
               <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
               <motion_jog_modes name="jog_modes"
                                 width="0" flex_grow="3" button_height="#motion_mode_row_h" max_width="100%"
-                                icon_position="left"/>
+                                icon_position="left" icon_hidden_subject="motion_modes_text_only"/>
               <home_axis_bar name="motion_home_bar"
                              width="0" height="#motion_mode_row_h" flex_grow="2" all_callback="on_motion_home_all"
                              x_callback="on_motion_home_x" y_callback="on_motion_home_y" xy_callback="on_motion_home_xy"
                              z_callback="on_motion_home_z" xy_gate="motion_home_bar_xy" all_gate="motion_home_bar_all"
                              all_homed="motion_all_homed" x_homed="motion_x_homed" y_homed="motion_y_homed"
                              xy_homed="motion_xy_homed" z_homed="motion_z_homed">
+                <bind_style_if_eq name="home_bar_band" subject="motion_in_side_band" ref_value="1"/>
                 <event_cb trigger="size_changed" callback="on_motion_home_bar_size_changed"/>
               </home_axis_bar>
             </lv_obj>

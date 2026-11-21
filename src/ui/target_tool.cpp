@@ -33,6 +33,10 @@ void copy_if_changed(lv_subject_t* subject, const std::string& text) {
 
 } // namespace
 
+bool has_filament_system_or_multi_tool(int ams_slot_count, bool multi_head) {
+    return ams_slot_count > 0 || multi_head;
+}
+
 TargetTool& TargetTool::instance() {
     static TargetTool s_instance;
     return s_instance;

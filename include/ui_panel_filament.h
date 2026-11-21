@@ -8,6 +8,7 @@
 #include "ui_heater_config.h"
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
+#include "ui_side_band.h"
 #include "ui_widget_ref.h"
 
 #include "active_material_provider.h"
@@ -182,6 +183,18 @@ class FilamentPanel : public PanelBase {
      * Must be called BEFORE lv_deinit() to avoid dangling observer references.
      */
     void deinit_subjects();
+
+    void on_activate() override;
+
+    /// On ultrawide the AMS panel can fill the side band beside the content.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return side_band_.uses_full_width();
+    }
+
+    /// The ultrawide side band hosting the AMS panel.
+    helix::ui::SideBand& side_band() {
+        return side_band_;
+    }
 
     /**
      * @brief Fail the visibly-running filament operation because Klipper does not
@@ -407,6 +420,9 @@ class FilamentPanel : public PanelBase {
     void handle_target_tool_action();
     /// Drops a pickup's waiting step when the panel leaves the screen.
     void on_deactivating(DeactivateReason reason) override;
+    helix::ui::SideBand side_band_{helix::ui::SideBandContent::Ams,
+                                   helix::ui::make_ams_side_band_guest(), "filament_side_band",
+                                   "ams_in_side_band"};
     /// Whether the target is the tool on the carriage (by tool index).
     [[nodiscard]] bool target_is_mounted() const;
     /// Whether the target is a different head from the one on the carriage.
