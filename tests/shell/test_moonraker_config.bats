@@ -608,6 +608,86 @@ NET_DEPLOY_NO_ASSET='class NetDeploy(AppDeploy):
     [ ! -e "$restarted" ]
 }
 
+# A moonraker.conf whose stanza already matches this install, with the
+# moonraker.asvc beside it holding @1 (printf format). Sets ASVC.
+setup_matching_stanza_with_asvc() {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    awk -v d="$INSTALL_DIR" '/^path:/ { print "path: " d; next } { print }' "$conf" > "$conf.new"
+    mv "$conf.new" "$conf"
+    R2_CHANNEL=stable
+    ASVC="$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    printf "$1" > "$ASVC"
+}
+
+@test "configure_moonraker_updates restarts Moonraker once when only the allowlist changes" {
+    local restarts="$BATS_TEST_TMPDIR/restarts"
+    setup_matching_stanza_with_asvc 'klipper\nmoonraker\n'
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi"
+
+    grep -q '^helixscreen$' "$ASVC"
+    [ "$(wc -l < "$restarts")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates restarts Moonraker once for a stanza and allowlist change together" {
+    local restarts="$BATS_TEST_TMPDIR/restarts"
+    setup_matching_stanza_with_asvc 'klipper\nmoonraker\n'
+    restart_moonraker() { echo restart >> "$restarts"; }
+    R2_CHANNEL=beta
+
+    configure_moonraker_updates "pi"
+
+    [ "$(wc -l < "$restarts")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates leaves Moonraker running when the allowlist already has helixscreen" {
+    local restarts="$BATS_TEST_TMPDIR/restarts"
+    setup_matching_stanza_with_asvc 'klipper\nmoonraker\nhelixscreen\n'
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi"
+
+    [ "$(grep -c '^helixscreen$' "$ASVC")" -eq 1 ]
+    [ ! -e "$restarts" ]
+}
+
+@test "configure_moonraker_updates: unsupported restarts Moonraker once when the allowlist changes" {
+    local conf restarts="$BATS_TEST_TMPDIR/restarts"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "zip_deploy.py" "class ZipDeploy(AppDeploy): pass" >/dev/null
+    fake_non_buildroot_os_release
+    printf "klipper\nmoonraker\n" > "$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi" 2>/dev/null
+
+    [ "$(wc -l < "$restarts")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates: unsupported leaves Moonraker running when the allowlist is current" {
+    local conf restarts="$BATS_TEST_TMPDIR/restarts"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "zip_deploy.py" "class ZipDeploy(AppDeploy): pass" >/dev/null
+    fake_non_buildroot_os_release
+    printf "klipper\nhelixscreen\n" > "$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi" 2>/dev/null
+
+    [ ! -e "$restarts" ]
+}
+
 # moonraker.conf that keeps the web UIs' updater stanzas in an included
 # mainsail.conf, the HelixScreen one among them. Sets INCLUDED_CONF.
 create_moonraker_conf_including_helix() {
@@ -1699,4 +1779,107 @@ CONF
 
     # No persistent_files to remove, so content should be unchanged
     [ "$(cat "$conf")" = "$original_content" ]
+}
+
+# A Z-Mod AD5X layout (see test_moonraker_paths.bats): the mod's conf in its
+# git tree, linked into the config dir, including mod_data/user.moonraker.conf.
+# Sets ZMOD_TREE, ZMOD_LINK, ZMOD_USER_CONF and ZMOD_ASVC.
+create_zmod_layout() {
+    local root="$BATS_TEST_TMPDIR/zmod" conf_dir
+    ZMOD_TREE="$root/usr/data/zmod/zmod"
+    conf_dir="$root/root/printer_data/config"
+    ZMOD_LINK="$conf_dir/moonraker.conf"
+    ZMOD_USER_CONF="$conf_dir/mod_data/user.moonraker.conf"
+    ZMOD_ASVC="$root/root/printer_data/moonraker.asvc"
+    mkdir -p "$ZMOD_TREE/.shell" "$conf_dir/mod_data"
+    : > "$ZMOD_TREE/.shell/zmod.sh"
+    printf '[server]\nport: 7125\n\n[include mod_data/user.moonraker.conf]\n' > "$ZMOD_TREE/moonraker.conf"
+    printf '[authorization]\n' > "$ZMOD_USER_CONF"
+    printf 'klipper_mcu\nwebcamd\n' > "$ZMOD_ASVC"
+    ln -s "$ZMOD_TREE/moonraker.conf" "$ZMOD_LINK"
+    export HELIX_ZMOD_TREE_CANDIDATES="$ZMOD_TREE"
+    KLIPPER_HOME="$root/root"
+    export KLIPPER_HOME
+    MOONRAKER_CONF_PATHS="/nonexistent/moonraker.conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    restart_moonraker() { :; }
+}
+
+# The stanza an earlier installer appended to the mod's own conf.
+append_stanza_to_zmod_conf() {
+    printf '\n[update_manager helixscreen]\ntype: web\nchannel: stable\nrepo: prestonbrown/helixscreen\npath: %s\n' \
+        "$INSTALL_DIR" >> "$ZMOD_TREE/moonraker.conf"
+}
+
+@test "configure_moonraker_updates: Z-Mod AD5X writes the stanza to the user conf only" {
+    create_zmod_layout
+    local before
+    before=$(cat "$ZMOD_TREE/moonraker.conf")
+
+    configure_moonraker_updates "ad5x"
+
+    [ "$(cat "$ZMOD_TREE/moonraker.conf")" = "$before" ]
+    [ ! -e "$ZMOD_TREE/moonraker.conf.bak.helixscreen" ]
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates: Z-Mod AD5X allowlist is the one beside Moonraker's config dir" {
+    create_zmod_layout
+
+    configure_moonraker_updates "ad5x"
+
+    grep -qx 'helixscreen' "$ZMOD_ASVC" || fail "helixscreen missing from $ZMOD_ASVC: $(cat "$ZMOD_ASVC")"
+}
+
+@test "configure_moonraker_updates: Z-Mod upgrade keeps the mod's conf and prints the fix" {
+    create_zmod_layout
+    append_stanza_to_zmod_conf
+    local before
+    before=$(cat "$ZMOD_TREE/moonraker.conf")
+
+    configure_moonraker_updates "ad5x" 2>"$BATS_TEST_TMPDIR/out.log"
+
+    [ "$(cat "$ZMOD_TREE/moonraker.conf")" = "$before" ]
+    # The updater still works once the mod's file is restored.
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+    grep -q 'which the firmware mod owns - leaving it in place' "$BATS_TEST_TMPDIR/out.log"
+    grep -q 'will not update the mod until that file is restored' "$BATS_TEST_TMPDIR/out.log"
+    grep -qF "HelixScreen's updater entry is now in $ZMOD_USER_CONF" "$BATS_TEST_TMPDIR/out.log"
+    grep -qF "git -C $(readlink -f "$ZMOD_TREE") checkout -- moonraker.conf" "$BATS_TEST_TMPDIR/out.log"
+    grep -q 'then restart Moonraker' "$BATS_TEST_TMPDIR/out.log"
+}
+
+@test "configure_moonraker_updates: Z-Mod upgrade re-run adds no second stanza" {
+    create_zmod_layout
+    append_stanza_to_zmod_conf
+
+    configure_moonraker_updates "ad5x" 2>/dev/null
+    configure_moonraker_updates "ad5x" 2>"$BATS_TEST_TMPDIR/out.log"
+
+    [ "$(grep -c '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF")" -eq 1 ]
+    # The mod's file is still dirty, so the fix is still printed.
+    grep -qF "git -C $(readlink -f "$ZMOD_TREE") checkout -- moonraker.conf" "$BATS_TEST_TMPDIR/out.log"
+}
+
+@test "remove_update_manager_section on Z-Mod removes the user conf's stanza and leaves the mod's" {
+    create_zmod_layout
+    append_stanza_to_zmod_conf
+    configure_moonraker_updates "ad5x" 2>/dev/null
+    local before
+    before=$(cat "$ZMOD_TREE/moonraker.conf")
+
+    remove_update_manager_section 2>/dev/null
+
+    [ "$(cat "$ZMOD_TREE/moonraker.conf")" = "$before" ]
+    ! grep -q '^\[update_manager helixscreen\]' "$ZMOD_USER_CONF"
+}
+
+@test "remove_moonraker_asvc on Z-Mod drops helixscreen from the allowlist beside the config dir" {
+    create_zmod_layout
+    printf 'helixscreen\n' >> "$ZMOD_ASVC"
+
+    remove_moonraker_asvc "$(find_moonraker_conf)"
+
+    ! grep -qx 'helixscreen' "$ZMOD_ASVC" || fail "helixscreen still in $ZMOD_ASVC"
+    grep -qx 'webcamd' "$ZMOD_ASVC"
 }

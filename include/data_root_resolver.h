@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 
 namespace helix {
@@ -18,6 +19,34 @@ namespace helix {
  * @return Resolved data root path, or empty string if not found
  */
 std::string resolve_data_root_from_exe(const std::string& exe_path);
+
+/// The version directory of PAXX's HelixScreen package (under /oem/apps/helixscreen)
+/// that @p running_exe runs from: the subdirectory whose `bin/helix-screen` is the same
+/// file (device and inode) as @p running_exe, so a launch through the lmd hook's bind
+/// mount over /usr/bin/gui still names it. A link to it (`latest`) wins over the
+/// directory itself: the firmware re-points the link at each package version it
+/// installs, so a path through it outlives the version directory an upgrade deletes.
+/// nullopt when there is no package dir or @p running_exe is not one of its binaries. Paths probe
+/// under @p probe_root and come back with it prefixed.
+std::optional<std::string>
+u1_firmware_package_root(const std::string& running_exe = "/proc/self/exe",
+                         const std::string& probe_root = "/");
+
+/**
+ * @brief The install tree the running binary belongs to
+ *
+ * resolve_data_root_from_exe(@p exe_path) when the binary's own path leads to one.
+ * Otherwise the PAXX package version directory that @p exe_path is the binary of
+ * (u1_firmware_package_root), when it is a valid data root: PAXX launches the
+ * package binary through a bind mount over /usr/bin/gui, which names no install
+ * tree. Every caller that needs "where is my install" asks this, never
+ * /proc/self/exe's directory.
+ *
+ * @param exe_path Absolute path to the running binary (readlink of /proc/self/exe)
+ * @param probe_root Root the firmware package directory is probed under
+ * @return The install root, or empty when none is found
+ */
+std::string resolve_install_root(const std::string& exe_path, const std::string& probe_root = "/");
 
 /**
  * @brief Check whether a directory is a valid HelixScreen data root

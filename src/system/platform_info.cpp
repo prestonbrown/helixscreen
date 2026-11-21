@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "platform_info.h"
 
+#include "data_root_resolver.h"
+
 #include <spdlog/spdlog.h>
 
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
-#include <dirent.h>
 #include <string>
 #include <sys/stat.h>
 #include <sys/utsname.h>
@@ -44,11 +45,6 @@ std::string rooted(const std::string& probe_root, const char* abs_path) {
     return root + abs_path;
 }
 
-bool same_file(const struct stat& a, const std::string& path) {
-    struct stat b {};
-    return ::stat(path.c_str(), &b) == 0 && a.st_dev == b.st_dev && a.st_ino == b.st_ino;
-}
-
 /// Resolved absolute path of @p path, or empty when it cannot be resolved.
 std::string canonical_or_empty(const std::string& path) {
     char buf[PATH_MAX];
@@ -68,24 +64,8 @@ bool u1_firmware_manages_updates(const std::string& running_exe, const std::stri
 
     // Identity rather than path: the firmware's lmd hook bind-mounts the package
     // binary over /usr/bin/gui.
-    struct stat exe_st {};
-    if (::stat(running_exe.c_str(), &exe_st) == 0) {
-        if (DIR* dir = ::opendir(package_dir.c_str())) {
-            bool match = false;
-            while (const struct dirent* entry = ::readdir(dir)) {
-                const std::string name = entry->d_name;
-                if (name == "." || name == "..")
-                    continue;
-                if (same_file(exe_st, package_dir + "/" + name + "/bin/helix-screen")) {
-                    match = true;
-                    break;
-                }
-            }
-            ::closedir(dir);
-            if (match)
-                return true;
-        }
-    }
+    if (u1_firmware_package_root(running_exe, probe_root))
+        return true;
 
     // Fail toward managed: self-updating a firmware's package is the worse
     // mistake, so an exe that cannot be resolved counts as the firmware's.
@@ -103,6 +83,10 @@ bool platform_defaults_to_external_updates() {
 #else
     return false;
 #endif
+}
+
+std::string writable_install_root(const std::string& install_root) {
+    return platform_defaults_to_external_updates() ? std::string() : install_root;
 }
 
 void set_external_updates_default_override(int override_value) {
