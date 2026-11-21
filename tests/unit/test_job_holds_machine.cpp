@@ -404,6 +404,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/abort_progress_modal.xml",
     "ui_xml/about_settings_overlay.xml",
     "ui_xml/advanced_panel.xml",
+    "ui_xml/ams_clear_lane_modal.xml",
     "ui_xml/ams_context_menu.xml",
     "ui_xml/ams_current_tool.xml",
     "ui_xml/ams_edit_overlay.xml",

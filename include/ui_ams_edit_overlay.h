@@ -46,24 +46,19 @@ namespace helix::ui {
  * @file ui_ams_edit_overlay.h
  * @brief NavigationManager overlay for editing AMS filament slot properties
  *
- * Single overlay hosting internal views selected by the ams_edit_view int
- * subject: 0=editor (the entry view); colors open the color page
- * (ColorPickerPage) over it. The editor does two jobs,
- * picked by the ams_edit_mode subject (helix::spool_assign::screen_for_lane):
+ * One overlay showing one page at a time, picked by the ams_edit_page int
+ * subject (kPage*): the lane summary (a lane holding a spool opens here), the
+ * empty lane, the New Spool list, the Filament screen, the Lane Settings
+ * screen and the Spoolman Details screen. Colors open the color page
+ * (ColorPickerPage) over it. The ams_edit_mode subject says whether the
+ * working spool is the one in the lane (kModeEdit) or one going in
+ * (kModeAssign, helix::spool_assign::screen_for_lane).
  *
- * - Assign Spool (kModeAssign, a lane with no spool): the describe form on the
- *   left, the user's spools on the right (recents, or the ones matching the
- *   form, exact before close), each with Use; at the bottom Add to Spoolman &
- *   Assign (or Assign without Spoolman), and common spools on a fresh install.
- * - Edit Spool (kModeEdit, a lane holding one): the same form, prefilled, and
- *   the spool with its remaining weight, Save and Clear Lane on the right.
- *   Different Spool switches to Assign.
- *
- * The describe form is a cascading dropdown grid: Material family, Type,
- * Brand, Product (each list ends in a browse-the-catalog entry), a color grid
- * ending in Custom, and the spool size chips. Below them sit the lane's own
- * settings, Assigned Tool and the Endless Spool backup, each shown only where
- * the backend supports it, and the collapsed More section of a linked spool.
+ * The Filament screen is a cascading dropdown grid: Material family, Type,
+ * Brand, Product (each list ends in a browse-the-catalog entry), then the
+ * color dots, recents and the color page. Its edits, and the Details
+ * screen's, are held until the summary's Save. Lane Settings shows Feeds
+ * Tool and Runout Backup, each only where the backend supports it.
  * Selection state lives in SpoolEditSelection; Save stages it into the
  * working SlotInfo. Tag-sourced fields show a badge and reset through
  * helix::ams::reset_to_tag.
@@ -97,6 +92,13 @@ class AmsEditOverlay : public OverlayBase {
 
     // View states for the ams_edit_view subject
     static constexpr int kViewEditor = 0;
+    // The page shown, the ams_edit_page subject.
+    static constexpr int kPageSummary = 0;
+    static constexpr int kPageEmpty = 1;
+    static constexpr int kPageList = 2;
+    static constexpr int kPageFilament = 3;
+    static constexpr int kPageLane = 4;
+    static constexpr int kPageDetails = 5;
     // The editor's job, the ams_edit_mode subject.
     static constexpr int kModeAssign = 0;
     static constexpr int kModeEdit = 1;
@@ -481,6 +483,42 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
     helix::Subject backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
+    helix::Subject page_subject_{};          ///< kPage* ("ams_edit_page")
+    helix::Subject product_line_subject_{};  ///< "Polymaker PolyTerra" ("ams_edit_product_line")
+    helix::Subject material_line_subject_{}; ///< "PLA · Charcoal Black" ("ams_edit_material_line")
+    helix::Subject lane_line_subject_{}; ///< "Tool T0 · Runout → Lane 3" ("ams_edit_lane_line")
+    helix::Subject lane_line_visible_subject_{}; ///< 1 = a lane setting can change here
+    helix::Subject weight_pct_subject_{};        ///< the drag bar, 0..100 of the spool's size
+    helix::Subject empty_title_subject_{};       ///< "Lane 3 is empty" ("ams_edit_empty_title")
+    helix::Subject has_last_subject_{};          ///< 1 = the empty lane records what it last held
+    helix::Subject last_product_subject_{};      ///< what it last held, product line
+    helix::Subject last_material_subject_{};     ///< what it last held, material · color
+    helix::Subject add_to_spoolman_subject_{};   ///< the Add to Spoolman checkbox
+    helix::Subject tag_text_subject_{};          ///< "Tag says PLA · Bambu · Black"
+    helix::Subject clear_archive_subject_{};     ///< the Clear Lane archive checkbox
+    helix::Subject clear_title_subject_{};       ///< "Clear Lane 3?" ("ams_edit_clear_title")
+    char product_line_buf_[128] = {0};
+    char material_line_buf_[128] = {0};
+    char lane_line_buf_[128] = {0};
+    char empty_title_buf_[96] = {0};
+    char last_product_buf_[128] = {0};
+    char last_material_buf_[128] = {0};
+    char tag_text_buf_[160] = {0};
+    char clear_title_buf_[96] = {0};
+    /// The page the New Spool list returns to.
+    int list_return_page_ = kPageSummary;
+    void set_page(int page);
+    void update_page_title();
+    void update_lane_line();
+    void update_empty_page();
+    void update_tag_text();
+    void handle_weight_slider(int pct);
+    void handle_same_filament();
+    void show_clear_confirm();
+    void handle_clear_confirm(lv_event_t* e);
+    void handle_clear_cancel(lv_event_t* e);
+    void handle_new_spool();
+    void handle_add_new_spool();
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
     /// kSaveFailed with save_error_subject_ saying why.
