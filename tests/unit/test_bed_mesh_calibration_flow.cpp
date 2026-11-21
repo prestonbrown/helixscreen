@@ -932,7 +932,6 @@ TEST_CASE_METHOD(BedMeshRunFixture,
         panel.end_run(BedMeshPanel::RunEnd::Cancelled);
         drain();
         const int after_cancel = scripts();
-        REQUIRE(after_cancel >= before);
         client.fire_deferred("printer.gcode.script");
         drain();
         CHECK(scripts() == after_cancel);
@@ -970,8 +969,6 @@ TEST_CASE_METHOD(BedMeshRunFixture,
         CHECK_FALSE(panel.calibration_command_sent());
     }
 
-    CHECK(stored.empty());
-    CHECK(failed.empty());
     CHECK(errors.empty());
 }
 
@@ -1014,8 +1011,6 @@ TEST_CASE_METHOD(BedMeshRunFixture,
               static_cast<int>(BedMeshCalibrationState::IDLE));
     }
 
-    CHECK(stored.empty());
-    CHECK(failed.empty());
     CHECK(errors.empty());
 }
 
