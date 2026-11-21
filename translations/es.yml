@@ -4775,6 +4775,7 @@ translations:
   Waiting for the chamber to heat: Esperando a que la cámara se caliente
   Waiting for the filament system to report its state: Esperando que el sistema de filamento informe su estado
   Waiting for the printer: Esperando a la impresora
+  Waiting for the printer's status; try again once it is connected: 'Esperando el estado de la impresora; inténtelo de nuevo cuando esté conectada'
   Waiting to read the printer's configuration from Klipper.: "Esperando para leer la configuración de la impresora desde Klipper."
   Warm: Cálido
   Warm Bed: Calentar cama

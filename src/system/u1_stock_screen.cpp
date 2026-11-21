@@ -34,9 +34,13 @@ bool restore_stock_screen_offered(const char* trigger_path) {
     return trigger_path != nullptr && *trigger_path != '\0';
 }
 
-RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_active) {
+RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_state_known,
+                                         bool job_active) {
     if (!restore_stock_screen_offered(trigger_path)) {
         return RestoreStockVerdict::NotOffered;
+    }
+    if (!job_state_known) {
+        return RestoreStockVerdict::StateUnknown;
     }
     return job_active ? RestoreStockVerdict::JobActive : RestoreStockVerdict::Proceed;
 }
