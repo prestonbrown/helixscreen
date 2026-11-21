@@ -621,3 +621,195 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a printer without the code channel ignores 
     REQUIRE_FALSE(fault_surface_correlation::was_recently_surfaced(kPrefsMessage));
     get_printer_state().set_hardware(PrinterDiscovery{});
 }
+
+// ============================================================================
+// Feed failures: the feeder module's codes carry our cause and fix, never the
+// firmware's state dump, and a print they pause waits on a dialog.
+// ============================================================================
+
+#include "../test_helpers/recovery_modal_presenter_test_access.h"
+#include "../test_helpers/toast_log.h"
+#include "../ui_test_utils.h"
+#include "ams_backend_snapmaker.h"
+#include "ams_state.h"
+#include "display_wake_request.h"
+
+namespace {
+
+/// The console line a U1 printed when head 0's extruder never gripped (live, 11-20).
+constexpr const char* kGripFailLine =
+    "!! 0002-0525-0000-0051 extruder[0]: state: load_extruding, error: move_extrude!raw "
+    "msg:logic error!";
+
+snapmaker::FaultWording feed_row(int code) {
+    auto row = snapmaker::fault_wording({2, snapmaker::kFeedingModuleId, 0, code});
+    REQUIRE(row.has_value());
+    return *row;
+}
+
+ClassifyContext printing_ctx() {
+    ClassifyContext ctx;
+    ctx.is_printing = true;
+    return ctx;
+}
+
+bool has_flow(const ErrorEvent& e, const char* flow) {
+    return std::any_of(e.recovery_actions.begin(), e.recovery_actions.end(),
+                       [flow](const RecoveryAction& a) { return a.guided_flow == flow; });
+}
+
+} // namespace
+
+TEST_CASE("each feeder code reads its own cause and fix", "[snapmaker][feed_failure]") {
+    const auto grip = feed_row(51);
+    CHECK(std::string(grip.cause).find("never gripped") != std::string::npos);
+    CHECK(std::string(grip.fix).find("Cut the filament end square") != std::string::npos);
+    CHECK(std::string(grip.summary) == "{} could not load its filament");
+
+    CHECK(std::string(feed_row(13).cause).find("no filament") != std::string::npos);
+    CHECK(std::string(feed_row(35).fix).find("snapped") != std::string::npos);
+    CHECK(std::string(feed_row(15).cause).find("already in") != std::string::npos);
+    CHECK(std::string(feed_row(70).summary) == "{} could not unload its filament");
+    // Codes sharing a remedy share its words.
+    CHECK(std::string(feed_row(31).fix) == feed_row(32).fix);
+}
+
+TEST_CASE("an unknown feeder code reads as a generic load failure", "[snapmaker][feed_failure]") {
+    const auto unknown = feed_row(77);
+    CHECK(std::string(unknown.cause) == "Filament could not be fed to this head.");
+    CHECK(std::string(unknown.summary) == "{} could not load its filament");
+    // An unknown code of another module keeps the firmware's own text.
+    CHECK_FALSE(snapmaker::fault_wording({2, 530, 0, 51}).has_value());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a feed failure during a print names the head and blocks with its ways on",
+                 "[snapmaker][feed_failure]") {
+    get_printer_state().set_hardware(coded_firmware());
+    const AmsBackendSnapmaker backend(nullptr, nullptr);
+    auto e = backend.classify_error(kGripFailLine, printing_ctx());
+    REQUIRE(e.has_value());
+    CHECK(e->title == "Toolhead 1 could not load its filament");
+    CHECK(e->detail.find("never gripped") != std::string::npos);
+    CHECK(e->detail.find("Cut the filament end square") != std::string::npos);
+    CHECK(e->detail.find("logic error") == std::string::npos);
+    CHECK(e->detail.find("load_extruding") == std::string::npos);
+    CHECK(e->severity == ErrorSeverity::CRITICAL);
+    CHECK(has_flow(*e, kOpenFilamentFlowId));
+    CHECK(has_flow(*e, kCancelPrintFlowId));
+    CHECK(e->code == "0002-0525-0000-0051");
+
+    auto third = backend.classify_error("!! 0002-0525-0002-0013 extruder[2]: state: load_prepare",
+                                        printing_ctx());
+    REQUIRE(third.has_value());
+    CHECK(third->title == "Toolhead 3 could not preload its filament");
+
+    auto unknown =
+        backend.classify_error("!! 0002-0525-0001-0077 extruder[1]: state: x", printing_ctx());
+    REQUIRE(unknown.has_value());
+    CHECK(unknown->detail.find("Filament could not be fed to this head.") == 0);
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a feed failure on an idle machine answers the command as a toast",
+                 "[snapmaker][feed_failure]") {
+    get_printer_state().set_hardware(coded_firmware());
+    const AmsBackendSnapmaker backend(nullptr, nullptr);
+    auto e = backend.classify_error(kGripFailLine, ClassifyContext{});
+    REQUIRE(e.has_value());
+    CHECK(e->severity == ErrorSeverity::WARNING);
+    CHECK(e->recovery_actions.empty());
+    CHECK(e->command_refusal);
+    CHECK(e->detail.find("never gripped") != std::string::npos);
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a runout names the head instead of the sensor",
+                 "[snapmaker][feed_failure]") {
+    // The U1 raised this one live as a raw toast: "0002-0523-0000-0000 e0_filament runout".
+    get_printer_state().set_hardware(coded_firmware());
+    const AmsBackendSnapmaker backend(nullptr, nullptr);
+    auto e = backend.classify_error("!! 0002-0523-0000-0000 e0_filament runout", printing_ctx());
+    REQUIRE(e.has_value());
+    CHECK(e->title == "Toolhead 1 ran out of filament");
+    CHECK(e->detail.find("e0_filament") == std::string::npos);
+    // The runout guidance owns the dialog; this stays a notice.
+    CHECK(e->severity == ErrorSeverity::WARNING);
+    CHECK(e->recovery_actions.empty());
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE("the fault table covers runs of codes and leaves message-only codes alone",
+          "[snapmaker][feed_failure]") {
+    // A run of codes shares a row; every code in the documented map resolves.
+    for (int code : {7, 12, 17, 24, 34}) {
+        CHECK(snapmaker::fault_wording({2, 523, 1, code}).has_value());
+    }
+    CHECK(std::string(snapmaker::fault_wording({2, 523, 0, 20})->summary) ==
+          "Toolhead change stopped at {}");
+    // The codes whose message is the only reason keep the firmware's text.
+    CHECK_FALSE(snapmaker::fault_wording({3, 522, 0, 0}).has_value());
+    CHECK_FALSE(snapmaker::fault_wording({2, 523, 0, 9000}).has_value());
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the live grip failure raises the dialog for head 0, wakes the display, no toast",
+                 "[snapmaker][feed_failure]") {
+    get_printer_state().set_hardware(coded_firmware());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
+    int wakes = 0;
+    set_display_wake_handler([&wakes]() { ++wakes; });
+    std::vector<std::string> alerts;
+    ui::set_test_notification_error_hook([&alerts](const std::string& m) { alerts.push_back(m); });
+    test::ToastLog toasts;
+
+    {
+        helix::ui::RecoveryModalPresenter presenter(nullptr);
+        helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
+        GcodeErrorRouterTestAccess::process_line(router, kGripFailLine);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+
+        CHECK(presenter.is_visible());
+        CHECK(RecoveryModalPresenterTestAccess::shown_detail(presenter).find("never gripped") !=
+              std::string::npos);
+        CHECK(wakes == 1);
+        CHECK(toasts.shown.empty());
+        CHECK(alerts.empty());
+        CHECK(GcodeErrorRouterTestAccess::deferred_shown_count(router) == 0);
+    }
+
+    ui::set_test_notification_error_hook(nullptr);
+    set_display_wake_handler(nullptr);
+    AmsState::instance().set_backend(nullptr);
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the runout toast leads with the head, not Klipper Error",
+                 "[snapmaker][feed_failure]") {
+    get_printer_state().set_hardware(coded_firmware());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "printing"}}}});
+    AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
+    std::vector<std::string> titles;
+    ui::set_test_notification_event_hook(
+        [&titles](const ui::NotificationEvent& e) { titles.push_back(e.title); });
+
+    {
+        helix::ui::RecoveryModalPresenter presenter(nullptr);
+        helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0000-0000 e0_filament runout");
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+    }
+    REQUIRE(titles.size() == 1);
+    CHECK(titles[0] == "Toolhead 1 ran out of filament");
+
+    ui::set_test_notification_event_hook(nullptr);
+    AmsState::instance().set_backend(nullptr);
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}

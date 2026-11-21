@@ -47,6 +47,7 @@ void register_power_device_widget() {
     lv_xml_register_event_cb(nullptr, "power_device_clicked_cb",
                              PowerDeviceWidget::power_device_clicked_cb);
     lv_xml_register_event_cb(nullptr, "power_device_color_cb", PowerDeviceWidget::color_swatch_cb);
+    lv_xml_register_event_cb(nullptr, "power_device_pick_cb", PowerDeviceWidget::picker_row_cb);
     tile_color::register_subjects();
 }
 } // namespace helix
@@ -392,6 +393,14 @@ void PowerDeviceWidget::color_swatch_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
+void PowerDeviceWidget::picker_row_cb(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] picker_row_cb");
+    if (auto* picker = helix::ui::ContextMenu::active_as<DevicePicker>()) {
+        picker->pick(helix::ui::event_user_int(e).value_or(-1));
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void PowerDeviceWidget::power_device_clicked_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] power_device_clicked_cb");
     auto* widget = panel_widget_from_event<PowerDeviceWidget>(e);
@@ -431,9 +440,11 @@ void PowerDeviceWidget::DevicePicker::add_row(lv_obj_t* parent, const char* comp
                                               const char* label_name, const std::string& label,
                                               const std::string& value, bool selected,
                                               PickFn on_pick) {
+    const std::string index = std::to_string(rows_.size());
     const char* attrs[] = {
-        "selected",
-        selected ? "true" : "false",
+        "selected", selected ? "true" : "false",
+        "callback", "power_device_pick_cb",
+        "index",    index.c_str(),
         nullptr,
     };
     lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(parent, component, attrs));
@@ -441,36 +452,16 @@ void PowerDeviceWidget::DevicePicker::add_row(lv_obj_t* parent, const char* comp
         return;
     }
     helix::ui::set_row_label_text(row, label_name, label.c_str());
+    rows_.push_back({value, on_pick});
+}
 
-    lv_obj_set_user_data(row, new RowPayload{this, value, on_pick});
-
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] picker_row_cb");
-            auto* target = lv_event_get_current_target_obj(e);
-            auto* payload = static_cast<RowPayload*>(lv_obj_get_user_data(target));
-            if (!payload)
-                return;
-
-            // Copy out: hide() takes the row - and this payload - with it.
-            RowPayload pick = *payload;
-            pick.picker->hide();
-            pick.on_pick(pick.picker->owner_, pick.value);
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        LV_EVENT_CLICKED, nullptr);
-
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            LVGL_SAFE_EVENT_CB_BEGIN("[PowerDeviceWidget] picker_row_delete_cb");
-            auto* target = lv_event_get_current_target_obj(e);
-            delete static_cast<RowPayload*>(lv_obj_get_user_data(target));
-            lv_obj_set_user_data(target, nullptr);
-            LVGL_SAFE_EVENT_CB_END();
-        },
-        LV_EVENT_DELETE, nullptr);
+void PowerDeviceWidget::DevicePicker::pick(int index) {
+    if (index < 0 || index >= static_cast<int>(rows_.size()))
+        return;
+    // Copied: hide() takes the row with it.
+    const RowPick row = rows_[static_cast<size_t>(index)];
+    hide();
+    row.on_pick(owner_, row.value);
 }
 
 void PowerDeviceWidget::DevicePicker::on_created(lv_obj_t* backdrop) {
@@ -483,6 +474,7 @@ void PowerDeviceWidget::DevicePicker::on_created(lv_obj_t* backdrop) {
     // Cap the list at a share of the screen so a printer with many devices
     // scrolls the list instead of growing the card past the panel.
     lv_obj_set_style_max_height(device_list, screen_height_pct(50), 0);
+    rows_.clear();
 
     auto pick_device = [](PowerDeviceWidget& w, const std::string& v) { w.select_device(v); };
     add_row(device_list, "picker_option_row", "option_label", lv_tr("All Devices"), "__all__",

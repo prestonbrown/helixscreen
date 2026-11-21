@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One bed screw on the Screws Tilt bed diagram: a disc in the screw's
+     severity color holding a check (settled) or a rotate arrow (turn it).
+     ScrewsTiltPanel creates one per probed screw, passing the fill and the
+     contrast-adjusted glyph color it computed, then aligns it to the screw's
+     bed corner and spins the arrow glyph. -->
+<component>
+  <api>
+    <prop name="fill" type="string" default="#danger"/>
+    <prop name="glyph_color" type="string" default="#text"/>
+    <!-- #icon_check, #icon_rotate_right or #icon_rotate_left -->
+    <prop name="glyph" type="string" default="#icon_check"/>
+    <!-- The worst screw draws a heavier ring. -->
+    <prop name="border_width" type="string" default="2"/>
+  </api>
+  <consts>
+    <!-- Sized for the fixed 32px glyph. -->
+    <px name="screw_indicator_size" value="52"/>
+  </consts>
+  <view extends="lv_obj"
+        width="#screw_indicator_size" height="#screw_indicator_size" style_radius="32767" style_pad_all="0"
+        style_border_width="$border_width" style_border_color="#text" style_bg_color="$fill" style_bg_opa="255"
+        style_shadow_width="0" scrollable="false" clickable="false">
+    <lv_label name="screw_glyph"
+              text="$glyph" align="center" style_text_font="mdi_icons_32" style_text_color="$glyph_color"
+              style_transform_pivot_x="50%" style_transform_pivot_y="50%"/>
+  </view>
+</component>

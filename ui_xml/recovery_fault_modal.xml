@@ -22,33 +22,29 @@
     <prop name="hide_quaternary" type="string" default="true"/>
   </api>
   <view name="recovery_fault_modal"
-        extends="ui_dialog" width="80%" height="content" style_max_height="85%" align="center" flex_flow="column"
-        style_flex_main_place="start" style_pad_gap="0" scrollable="false">
-    <modal_header icon_name="icon_error"
-                  icon_src="alert_octagon" icon_variant="danger" title_name="dialog_title" title="$title"/>
-    <!-- Capped so the AFC diagram below and the button row stay on the card
-         while a long fault message scrolls. -->
-    <lv_obj name="content_container"
-            width="100%" height="content" style_max_height="#dialog_content_pinned_max" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_lg" scrollable="true"
-            scroll_snap_y="none">
+        extends="dialog_frame" width="80%" title="$title" icon="alert_octagon" icon_variant="danger">
+    <!-- Capped so the AFC diagram and the button row in the footer stay on the
+         card while a long fault message scrolls. -->
+    <dialog_frame-body style_max_height="#dialog_content_pinned_max">
       <text_body name="dialog_message" width="100%" text="$message" style_text_align="left" long_mode="wrap"/>
-    </lv_obj>
-    <!-- AFC filament position diagram: self-hides unless the message names an AFC
-         lane fault (prestonbrown/helixscreen#1184). The wrapper repeats the binding
-         so its padding collapses with the diagram. -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_lg" style_bg_opa="0" style_border_width="0" scrollable="false">
-      <bind_flag_if_eq subject="fault_path_segment" flag="hidden" ref_value="0"/>
-      <fault_path name="fault_path"/>
-    </lv_obj>
-    <!-- Buttons wired in RecoveryFaultModal::on_show() -->
-    <modal_button_row primary_text="$primary_text"
-                      primary_variant="$primary_variant" secondary_text="$secondary_text"
-                      secondary_variant="$secondary_variant" hide_secondary="$hide_secondary"
-                      tertiary_text="$tertiary_text" tertiary_variant="$tertiary_variant" hide_tertiary="$hide_tertiary"
-                      quaternary_text="$quaternary_text" quaternary_variant="$quaternary_variant"
-                      hide_quaternary="$hide_quaternary"/>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+      <!-- AFC filament position diagram: self-hides unless the message names an AFC
+           lane fault (prestonbrown/helixscreen#1184). The wrapper repeats the binding
+           so its padding collapses with the diagram. -->
+      <lv_obj width="100%"
+              height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+              style_pad_bottom="#space_lg" style_bg_opa="0" style_border_width="0" scrollable="false">
+        <bind_flag_if_eq subject="fault_path_segment" flag="hidden" ref_value="0"/>
+        <fault_path name="fault_path"/>
+      </lv_obj>
+      <!-- Buttons wired in RecoveryFaultModal::on_show() -->
+      <modal_button_row primary_text="$primary_text"
+                        primary_variant="$primary_variant" secondary_text="$secondary_text"
+                        secondary_variant="$secondary_variant" hide_secondary="$hide_secondary"
+                        tertiary_text="$tertiary_text" tertiary_variant="$tertiary_variant"
+                        hide_tertiary="$hide_tertiary" quaternary_text="$quaternary_text"
+                        quaternary_variant="$quaternary_variant" hide_quaternary="$hide_quaternary"/>
+    </dialog_frame-footer>
   </view>
 </component>

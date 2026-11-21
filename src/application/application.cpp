@@ -56,6 +56,7 @@
 #include "printer_recovery_service.h"
 #include "printer_session.h"
 #include "process_guards.h"
+#include "u1_stock_screen.h"
 #ifdef HELIX_HAS_PWM_SOUND
 #include "pwm_sound_backend.h"
 #endif
@@ -522,6 +523,8 @@ int Application::run(int argc, char** argv) {
     // (prestonbrown/helixscreen#1712). No-op when the launcher exported
     // neither handoff variable (dev runs, clean file).
     helix::surface_env_refusal_from_launcher();
+    // Stock-firmware U1: SSH did not come up although Root access is on.
+    helix::u1::surface_root_ssh_down_from_hook();
 
     // Snapshot the marker path for the SIGTERM handler. init_config() has run,
     // so writable_path() now resolves; the handler cannot construct this itself.

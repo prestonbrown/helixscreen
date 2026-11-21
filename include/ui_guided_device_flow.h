@@ -44,6 +44,10 @@ void register_builtin_guided_device_flows();
 // The per-vendor registrars register_builtin_guided_device_flows() runs. Each is
 // idempotent, since a registration replaces an earlier one under the same id.
 
+/// Registers the vendor-neutral flows a fault's recovery actions name
+/// (kOpenFilamentFlowId, kCancelPrintFlowId in error_event.h).
+void register_recovery_flows();
+
 /// Registers the Creality CFS calibration flows (`cfs_purge_chute`, `cfs_cutter`,
 /// `cfs_belt_tension`). Does nothing in a build without CFS support.
 void register_cfs_device_flows();

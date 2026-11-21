@@ -1612,6 +1612,23 @@ bool PrinterDetector::get_screws_tilt_self_prepares(const std::string& printer_n
     return calibration_flag(printer_name, "screws_tilt_self_prepares");
 }
 
+std::vector<std::pair<std::string, std::string>>
+PrinterDetector::get_calibration_step_tiers(const std::string& printer_name) {
+    std::vector<std::pair<std::string, std::string>> out;
+    const json* calibration = printer_member(printer_name, "calibration");
+    const json* steps =
+        calibration ? helix::json_util::find_member(*calibration, "steps") : nullptr;
+    if (steps == nullptr || !steps->is_object()) {
+        return out;
+    }
+    for (const auto& [id, tier] : steps->items()) {
+        if (tier.is_string()) {
+            out.emplace_back(id, tier.get<std::string>());
+        }
+    }
+    return out;
+}
+
 // ============================================================================
 // Pre-print lookups: profile, default phases, heating rates
 // ============================================================================

@@ -671,13 +671,11 @@ class SpoolEditModal : public Modal {
 };
 ```
 
-> **Note:** The AMS slot editor is not a modal: it is `AmsEditOverlay`,
-> a NavigationManager overlay hosting three internal views selected by the
-> `ams_edit_view` subject (`kViewEditor`, `kViewSpoolPicker`, `kViewColor` in
-> `include/ui_ams_edit_overlay.h`): the editor, the Spoolman spool picker and
-> the color view. `SpoolEditModal`,
-> `ColorPicker`, and `FilamentCatalogPickerModal` remain standalone modals for
-> their other consumers (SpoolmanPanel, LED/theme pickers, FilamentPanel
+> **Note:** The AMS slot editor is not a modal: it is `AmsEditOverlay`, a
+> NavigationManager overlay (`include/ui_ams_edit_overlay.h`) whose colors open
+> the color page (`ColorPickerPage`), another overlay. `SpoolEditModal`,
+> `ColorPickerModal` and `FilamentCatalogPickerModal` remain standalone modals
+> for their other consumers (SpoolmanPanel, the LED control, FilamentPanel
 > presets).
 
 ### Modals with Many Buttons (RunoutGuidanceModal)

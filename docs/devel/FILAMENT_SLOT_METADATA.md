@@ -265,9 +265,9 @@ has seen, and nothing is held to send later, so editing waits:
 - The context menu's **Edit Spool** button binds its disabled state to it
   (`ui_xml/ams_context_menu.xml`), and both the menu and the spool editor show an
   inline "Loading lane details…" line while it is 0.
-- The editor's Save is disabled by an `action_button_disabled_cond` in
-  `ui_xml/ams_edit_overlay.xml` over the editor's own dirty gate
-  (`ams_edit_save_disabled`) and the ready subject. It is a view-time `cond`
+- The editor's Save, Add to Spoolman & Assign and Assign are disabled by a
+  `bind_state_if` cond in `ui_xml/ams_edit_overlay.xml` over the ready subject
+  (Save's also over the editor's own dirty gate, `ams_edit_save_disabled`). It is a view-time `cond`
   because both subjects come from `init_subjects()`, after the component
   registers (`docs/devel/LVGL9_XML_GUIDE.md` § "Which phase registers the subject").
 - `AmsState::commit_slot_edit()` (`src/printer/ams_state.cpp#commit_slot_edit`)
@@ -299,7 +299,7 @@ A Pending value is withdrawn by whichever comes first:
 
 | Event | Where |
 |-------|-------|
-| **Echo.** A `Firmware` or `Record` reading states the same value | `ingest()` strips the echoed fields (`strip_echoed_fields()`, `include/lane_source_store.h#strip_echoed_fields`). Weights compare within 0.1 g, colours on their RGB. A cleared Pending field is echoed by a `Record` that leaves the field unset, since a record states "none" as `null`; firmware silent on a field is no echo, because most firmware never holds it |
+| **Echo.** A `Firmware` or `Record` reading states the same value | `ingest()` strips the echoed fields (`strip_echoed_fields()`, `include/lane_source_store.h#strip_echoed_fields`). Weights compare within 0.1 g, colours on their RGB. A cleared Pending field is echoed by a `Record` that leaves the field unset, since a record states "none" as `null`; firmware silent on a field is no echo, because most firmware never holds it. A `Metered` reading answers nothing, except where its producer knows it is the firmware's own word and hands it to `echo_pending()` (`include/lane_source_store.h#echo_pending`): AFC does that with its lane `weight`, which `SET_WEIGHT` writes |
 | **Write failure.** The record write fails, or the firmware refuses the command | `save_override_async()` withdraws the lane's Pending and logs at warn; AFC withdraws on a refused `SET_COLOR` / `SET_MATERIAL`. No toast: the spool editor, which waits on the lane (`await_pending()`), stays open with "Not saved: <reason>. Try again." under Save and keeps the user's values. The store's `set_on_write_failed()` hook repaints the lane |
 | **Refusal.** `apply_user_edit()` fails outright | `commit_user_edit()` withdraws at once and returns the error; a partially applied edit keeps what reached firmware |
 | **Timeout.** Neither echo nor failure within `kPendingWriteTimeout` (30 s) | `expire_pending()`, run by the poll and lazily on read, withdraws it with a warn log; the lane shows what Moonraker holds. No popup |

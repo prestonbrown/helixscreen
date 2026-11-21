@@ -9,16 +9,12 @@
     <prop name="placeholder" type="string" default=""/>
     <prop name="accept_text" type="string" default="OK"/>
   </api>
-  <view name="text_entry_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <lv_obj name="text_entry_form"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <text_heading name="text_entry_title" width="100%" text="$title" style_text_align="center"/>
+  <view name="text_entry_modal" extends="dialog_frame" title="$title" icon="pencil">
+    <dialog_frame-body style_flex_cross_place="center">
       <text_input name="text_entry_input" width="100%" height="#input_height" placeholder_text="$placeholder"/>
-    </lv_obj>
-    <modal_button_row primary_text="$accept_text" secondary_text="Cancel"/>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+      <modal_button_row primary_text="$accept_text" secondary_text="Cancel"/>
+    </dialog_frame-footer>
   </view>
 </component>

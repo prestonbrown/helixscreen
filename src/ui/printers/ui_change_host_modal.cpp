@@ -101,7 +101,10 @@ bool ChangeHostModal::show_modal(lv_obj_t* parent, AddCallback on_add) {
     const std::string api_key = adding ? std::string{} : active_printer_credential().api_key;
     lv_subject_set_string(&api_key_subject_, api_key.c_str());
 
-    bool result = show(parent);
+    // The XML's own title is Change Printer Host; adding retitles it, as a tag the
+    // label translates.
+    static const char* add_attrs[] = {"title", "Add Printer", "title_tag", "Add Printer", nullptr};
+    bool result = show(parent, adding ? add_attrs : nullptr);
     if (result && dialog()) {
         // Reset state
         lv_subject_set_int(&testing_subject_, 0);

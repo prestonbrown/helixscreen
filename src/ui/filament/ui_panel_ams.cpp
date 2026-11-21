@@ -22,6 +22,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_panel_common.h"
+#include "ui_side_band.h"
 #include "ui_spool_canvas.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
@@ -139,7 +140,7 @@ void ensure_ams_widgets_registered() {
         helix::asset_component_uri("ui_xml/ams_context_menu.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_selector_menu.xml").c_str());
-    // NOTE: spoolman_spool_item.xml and ams_edit_overlay.xml are registered
+    // NOTE: ams_edit_overlay.xml is registered
     // globally in xml_registration.cpp (needed by FilamentPanel without AMS lazy init)
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());
@@ -617,6 +618,8 @@ void AmsPanel::on_closed() {
         return;
     }
     open_ = false;
+    // The tree left the navigation stack: a side band waiting for it may take it.
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
     // What only an open panel runs: the sidebar's operation handlers and stall
     // watchdog, the error and context menus, and the path canvas buffer.
     sidebar_.reset();
@@ -1424,6 +1427,8 @@ void destroy_ams_panel_ui() {
                                            panel->clear_panel_reference();
                                        }
                                    }));
+
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
 
     // Note: Widget registrations remain (LVGL doesn't support unregistration)
     // Note: the AmsPanel instance stays for state preservation

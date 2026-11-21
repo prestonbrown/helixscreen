@@ -1,7 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../ui_test_utils.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -466,28 +466,46 @@ TEST_CASE("AmsState::get_logo_path: the QIDI Box set under every spelling", "[am
     CHECK(std::string(helix::AmsState::get_unit_logo(unit, info).path) == std::string(path));
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: shows 1-based number", "[ui][ams][badge]") {
+namespace {
+/// An ams_lane_badge component, as the mini strip's spool cells create one.
+lv_obj_t* create_badge(lv_obj_t* host, int number, bool active) {
+    const char* attrs[] = {"size", "16", nullptr};
+    auto* badge = static_cast<lv_obj_t*>(lv_xml_create(host, "ams_lane_badge", attrs));
+    ams_draw::set_lane_badge_number(badge, number);
+    ams_draw::set_lane_badge_active(badge, active);
+    return badge;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_lane_badge: shows the number it is given",
+                 "[ui][ams][badge]") {
     lv_obj_t* host = lv_obj_create(test_screen());
-    lv_obj_t* badge = ams_draw::create_lane_badge(host, 3, 16);
+    lv_obj_t* badge = create_badge(host, 3, false);
     REQUIRE(badge != nullptr);
+    // The number is the badge's only child.
+    REQUIRE(lv_obj_get_child_count(badge) == 1);
     lv_obj_t* lbl = lv_obj_get_child(badge, 0);
     REQUIRE(lbl != nullptr);
     REQUIRE(std::string(lv_label_get_text(lbl)) == "3");
+    ams_draw::set_lane_badge_number(badge, 12);
+    CHECK(std::string(lv_label_get_text(lbl)) == "12");
     lv_obj_delete(host);
 }
 
 // The pooled-cell update path recolors one badge object in place instead of
 // recreating it; pin both directions of the flip.
-TEST_CASE_METHOD(LVGLTestFixture, "set_lane_badge_active recolors without recreating",
+TEST_CASE_METHOD(LVGLUITestFixture, "set_lane_badge_active recolors without recreating",
                  "[ui][ams][badge]") {
     lv_obj_t* host = lv_obj_create(test_screen());
-    lv_obj_t* badge = ams_draw::create_lane_badge(host, 2, 16, false);
+    lv_obj_t* badge = create_badge(host, 2, false);
     REQUIRE(badge != nullptr);
     lv_obj_t* lbl = lv_obj_get_child(badge, 0);
     REQUIRE(lbl != nullptr);
+    CHECK_FALSE(lv_obj_has_state(badge, LV_STATE_CHECKED));
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(badge, LV_PART_MAIN),
                       theme_manager_get_color("ams_badge_bg")));
     ams_draw::set_lane_badge_active(badge, true);
+    CHECK(lv_obj_has_state(badge, LV_STATE_CHECKED));
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(badge, LV_PART_MAIN),
                       theme_manager_get_color("success")));
     CHECK(lv_color_eq(lv_obj_get_style_text_color(lbl, LV_PART_MAIN),
@@ -496,17 +514,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "set_lane_badge_active recolors without recrea
     ams_draw::set_lane_badge_active(badge, false);
     CHECK(lv_color_eq(lv_obj_get_style_bg_color(badge, LV_PART_MAIN),
                       theme_manager_get_color("ams_badge_bg")));
+    CHECK(lv_obj_get_child(badge, 0) == lbl);
     lv_obj_delete(host);
 }
 
-// The number sits on a success or grey fill; the palette's text colour is not
+// The number sits on a success or grey fill; the palette's text color is not
 // chosen against either, so the label shifts toward its own pole until it
 // reads at 4:1.
-TEST_CASE_METHOD(LVGLTestFixture, "create_lane_badge: number is readable on its fill",
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_lane_badge: number is readable on its fill",
                  "[ui][ams][badge][1648]") {
     lv_obj_t* host = lv_obj_create(test_screen());
     for (bool active : {true, false}) {
-        lv_obj_t* badge = ams_draw::create_lane_badge(host, 1, 16, active);
+        lv_obj_t* badge = create_badge(host, 1, active);
         REQUIRE(badge != nullptr);
         lv_obj_t* lbl = lv_obj_get_child(badge, 0);
         REQUIRE(lbl != nullptr);

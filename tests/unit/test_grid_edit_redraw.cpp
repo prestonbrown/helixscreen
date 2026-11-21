@@ -16,7 +16,9 @@
 #include "../test_helpers/widget_in_tree.h"
 #include "core/lv_obj_private.h"        // scr_layout_inv is private state
 #include "display/lv_display_private.h" // inv_areas / inv_p are private state
+#include "display_settings_manager.h"
 #include "grid_edit_mode.h"
+#include "panel_widget_registry.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -324,6 +326,145 @@ TEST_CASE_METHOD(XMLTestFixture,
     em.select_widget(scene.widget);
     REQUIRE(GridEditModeTestAccess::selection_overlay(em) != nullptr);
     CHECK(screen->scr_layout_inv);
+
+    em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
+}
+
+namespace {
+
+/// Screen coords of @p obj after a layout pass.
+lv_area_t coords_of(lv_obj_t* obj) {
+    lv_obj_update_layout(lv_obj_get_screen(obj));
+    lv_area_t a;
+    lv_obj_get_coords(obj, &a);
+    return a;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "GridEditMode: the selection chrome brackets the tile's corners and edges",
+                 "[grid_edit][grid_edit_redraw][edit-chrome]") {
+    GridEditScene scene(test_screen(), "test_grid_edit_redraw_chrome_shape");
+    GridEditMode em;
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
+    em.select_widget(scene.widget);
+    lv_obj_t* overlay = GridEditModeTestAccess::selection_overlay(em);
+    REQUIRE(overlay != nullptr);
+    CHECK_FALSE(lv_obj_is_clickable(overlay));
+
+    const lv_area_t tile = coords_of(scene.widget);
+    const lv_area_t box = coords_of(overlay);
+    CHECK(box.x1 == tile.x1);
+    CHECK(box.y1 == tile.y1);
+    CHECK(box.x2 == tile.x2);
+    CHECK(box.y2 == tile.y2);
+
+    // Two bars per corner: the top-left's horizontal bar first, the
+    // bottom-right's vertical bar last.
+    lv_obj_t* corners = lv_obj_find_by_name(overlay, "selection_corners");
+    REQUIRE(corners != nullptr);
+    REQUIRE(lv_obj_get_child_count(corners) == 8);
+    const lv_area_t first = coords_of(lv_obj_get_child(corners, 0));
+    CHECK(first.x1 == tile.x1);
+    CHECK(first.y1 == tile.y1);
+    CHECK(lv_area_get_width(&first) > lv_area_get_height(&first));
+    const lv_area_t last = coords_of(lv_obj_get_child(corners, 7));
+    CHECK(last.x2 == tile.x2);
+    CHECK(last.y2 == tile.y2);
+    CHECK(lv_area_get_height(&last) > lv_area_get_width(&last));
+
+    // The temperature tile resizes, so each edge carries a 1px handle on the
+    // tile's outer edge, between the brackets.
+    const PanelWidgetDef* def = find_widget_def("temperature");
+    REQUIRE(def != nullptr);
+    REQUIRE(def->is_scalable());
+    lv_obj_t* right = lv_obj_find_by_name(overlay, "selection_edge_right");
+    lv_obj_t* top = lv_obj_find_by_name(overlay, "selection_edge_top");
+    REQUIRE(right != nullptr);
+    REQUIRE(top != nullptr);
+    REQUIRE_FALSE(lv_obj_is_hidden(right));
+    REQUIRE_FALSE(lv_obj_is_hidden(top));
+    const lv_area_t r = coords_of(right);
+    CHECK(r.x2 == tile.x2);
+    CHECK(lv_area_get_width(&r) == 1);
+    const lv_area_t first_upright = coords_of(lv_obj_get_child(corners, 1));
+    CHECK(r.y1 > first_upright.y2);
+    CHECK(r.y1 - tile.y1 == tile.y2 - r.y2);
+    const lv_area_t t = coords_of(top);
+    CHECK(t.y1 == tile.y1);
+    CHECK(lv_area_get_height(&t) == 1);
+    CHECK(t.x1 - tile.x1 == tile.x2 - t.x2);
+
+    // The pulse animates the brackets only.
+    if (DisplaySettingsManager::instance().get_animations_enabled()) {
+        CHECK(lv_anim_get(corners, nullptr) != nullptr);
+        CHECK(lv_anim_get(right, nullptr) == nullptr);
+    }
+
+    em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: a fixed-size tile's chrome has no edge handles",
+                 "[grid_edit][grid_edit_redraw][edit-chrome]") {
+    // The registry hands out const definitions; this one is pinned to its
+    // default span for the test and restored after it.
+    struct FixedSpan {
+        PanelWidgetDef* def = const_cast<PanelWidgetDef*>(find_widget_def("temperature"));
+        PanelWidgetDef saved = def ? *def : PanelWidgetDef{};
+        ~FixedSpan() {
+            if (def) {
+                *def = saved;
+            }
+        }
+    } fixed;
+    REQUIRE(fixed.def != nullptr);
+    fixed.def->min_colspan = fixed.def->max_colspan = fixed.def->colspan;
+    fixed.def->min_rowspan = fixed.def->max_rowspan = fixed.def->rowspan;
+    REQUIRE_FALSE(fixed.def->is_scalable());
+
+    GridEditScene scene(test_screen(), "test_grid_edit_redraw_chrome_fixed");
+    GridEditMode em;
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
+    em.select_widget(scene.widget);
+    lv_obj_t* overlay = GridEditModeTestAccess::selection_overlay(em);
+    REQUIRE(overlay != nullptr);
+    for (const char* name : {"selection_edge_left", "selection_edge_right", "selection_edge_top",
+                             "selection_edge_bottom"}) {
+        lv_obj_t* edge = lv_obj_find_by_name(overlay, name);
+        REQUIRE(edge != nullptr);
+        CHECK(lv_obj_is_hidden(edge));
+    }
+    lv_obj_t* corners = lv_obj_find_by_name(overlay, "selection_corners");
+    REQUIRE(corners != nullptr);
+    CHECK(lv_obj_get_child_count(corners) == 8);
+
+    em.exit();
+    process_lvgl(50);
+    lv_obj_delete(scene.container);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "GridEditMode: the event shield takes every touch over the page",
+                 "[grid_edit][grid_edit_redraw][edit-chrome]") {
+    GridEditScene scene(test_screen(), "test_grid_edit_redraw_shield");
+    GridEditMode em;
+    em.enter(scene.container, scene.config, static_cast<int>(GridEditScene::kPageIndex));
+    lv_obj_t* shield = GridEditModeTestAccess::shield(em);
+    REQUIRE(shield != nullptr);
+    CHECK(lv_obj_is_clickable(shield));
+    CHECK(lv_obj_is_event_bubble(shield));
+    CHECK(lv_obj_is_floating(shield));
+    CHECK_FALSE(lv_obj_is_scrollable(shield));
+    CHECK(lv_obj_get_style_bg_opa(shield, LV_PART_MAIN) == LV_OPA_TRANSP);
+
+    // A press on the tile lands on the shield, not the tile beneath it.
+    const lv_area_t tile = coords_of(scene.widget);
+    lv_point_t p{(tile.x1 + tile.x2) / 2, (tile.y1 + tile.y2) / 2};
+    CHECK(lv_indev_search_obj(lv_screen_active(), &p) == shield);
 
     em.exit();
     process_lvgl(50);

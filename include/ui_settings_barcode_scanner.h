@@ -45,9 +45,19 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
   private:
     void refresh_current_selection_label();
     void populate_device_list();
-    void add_usb_row(lv_obj_t* container, const std::string& label, const std::string& sublabel,
-                     const std::string& vendor_product);
-    void add_auto_detect_row(lv_obj_t* container);
+    /// What a device row selects. vendor_product is empty for auto-detect,
+    /// bt_mac for a USB row.
+    struct DeviceRow {
+        std::string vendor_product;
+        std::string device_name;
+        std::string bt_mac;
+    };
+    /// One barcode_scanner_device_row; its index into device_rows_ is the
+    /// click callbacks' event user_data.
+    void add_device_row(lv_obj_t* container, const char* icon, const std::string& label,
+                        const std::string& sublabel, bool selected, DeviceRow row);
+    /// The row a row or Forget click came from, or nullptr.
+    [[nodiscard]] const DeviceRow* device_row_from_event(lv_event_t* e) const;
 
     void handle_device_selected(const std::string& vendor_product, const std::string& device_name,
                                 const std::string& bt_mac);
@@ -74,6 +84,7 @@ class BarcodeScannerSettingsOverlay : public OverlayBase {
 
     // Widget references (set in on_activate)
     lv_obj_t* usb_list_ = nullptr;
+    std::vector<DeviceRow> device_rows_; ///< One per row in usb_list_, in order
     lv_obj_t* bt_dropdown_ = nullptr;
     lv_obj_t* btn_bt_pair_ = nullptr;
     lv_obj_t* btn_bt_forget_ = nullptr;

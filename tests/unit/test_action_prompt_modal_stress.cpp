@@ -441,7 +441,7 @@ TEST_CASE_METHOD(ActionPromptStressFixture,
     // ActionPromptModal::create_button are lv_button_t instances added to a
     // dynamic content container — they're nameless, so we find them by type.
     std::function<lv_obj_t*(lv_obj_t*)> find_button = [&](lv_obj_t* node) -> lv_obj_t* {
-        if (!node)
+        if (!node || lv_obj_is_hidden(node))
             return nullptr;
         if (lv_obj_check_type(node, &lv_button_class))
             return node;

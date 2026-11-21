@@ -690,10 +690,12 @@ void MoonrakerClientMock::populate_capabilities() {
     }
 
     // A stock U1's SnapSwap (HELIX_MOCK_AMS=snapmaker): the U1's feed objects,
-    // which real discovery reads as AmsType::SNAPMAKER.
+    // which real discovery reads as AmsType::SNAPMAKER, and its fault-code
+    // channel, which carries no standing faults here.
     if (is_mock_u1_snapswap()) {
-        for (const char* obj : {"filament_detect", "filament_feed left", "filament_feed right",
-                                "print_task_config", "machine_state_manager"}) {
+        for (const char* obj :
+             {"filament_detect", "filament_feed left", "filament_feed right", "print_task_config",
+              "machine_state_manager", "exception_manager"}) {
             if (std::find(mock_objects.begin(), mock_objects.end(), obj) == mock_objects.end()) {
                 mock_objects.push_back(obj);
             }
@@ -857,6 +859,7 @@ void MoonrakerClientMock::populate_capabilities() {
         hw.parse_build_volume(mock_config);
         hw.parse_probe_xy_offset(mock_config);
         hw.parse_z_position_endstop(mock_config);
+        hw.parse_calibration_in_config(mock_config);
         macros_snapshot = hw.macros();
     });
 

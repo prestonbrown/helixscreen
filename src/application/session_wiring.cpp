@@ -11,6 +11,7 @@
 
 #include "abort_manager.h"
 #include "app_globals.h"
+#include "calibration_history_store.h"
 #include "core/data_root_resolver.h"
 #include "core/update_queue.h"
 #include "discovery_steps.h"
@@ -150,10 +151,13 @@ void wire_discovery(IMoonrakerAPI& api, IMoonrakerClient& client, DiscoveryHooks
             if (auto* history = get_print_history_manager()) {
                 history->on_discovery_complete();
             }
-            // The last motor ripple sweep is this printer's: a switch or a
-            // reconnect drops the old one and reads it back from Moonraker.
+            // The last motor ripple sweep and the calibration history are this
+            // printer's: a switch or a reconnect drops them and reads them back
+            // from Moonraker.
             calibration::ripple::RippleResultCache::instance().clear();
             calibration::ripple::RippleResultCache::instance().load(*a);
+            calibration::CalibrationHistory::instance().clear();
+            calibration::CalibrationHistory::instance().load(*a);
             tour::FirstRunTour::instance().on_printer_ready();
             spdlog::info("[Discovery] applied: {} heaters, {} fans, {} sensors, {} initial-status "
                          "keys",

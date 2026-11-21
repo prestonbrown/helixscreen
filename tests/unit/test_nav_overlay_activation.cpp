@@ -890,3 +890,51 @@ TEST_CASE_METHOD(OverlayActivationFixture,
     CHECK(visits.value("recording_overlay", 0) == 1);
     CHECK_FALSE(visits.contains("RecordingOverlay"));
 }
+
+TEST_CASE_METHOD(OverlayActivationFixture,
+                 "The top overlay published for telemetry follows pushes and pops",
+                 "[navigation][overlay][telemetry]") {
+    auto& nav = NavigationManager::instance();
+    lv_obj_set_name(overlay_, "first_overlay");
+
+    open_overlay();
+    CHECK(telemetry_context::top_overlay() == "first_overlay");
+
+    lv_obj_t* second = lv_obj_create(test_screen());
+    lv_obj_set_hidden(second, true);
+    RecordingOverlay second_lifecycle; // unnamed root: the lifecycle name stands in
+    nav.register_overlay_instance(second, &second_lifecycle);
+    nav.push_overlay(second);
+    drain();
+    CHECK(telemetry_context::top_overlay() == "RecordingOverlay");
+
+    nav.go_back();
+    drain();
+    CHECK(telemetry_context::top_overlay() == "first_overlay");
+
+    nav.push_overlay(second);
+    drain();
+    nav.close_overlay(overlay_); // buried under `second`
+    drain();
+    CHECK(telemetry_context::top_overlay() == "RecordingOverlay");
+
+    nav.go_back();
+    drain();
+    CHECK(telemetry_context::top_overlay().empty());
+
+    open_overlay();
+    REQUIRE(telemetry_context::top_overlay() == "first_overlay");
+    NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Home); // clears the stack
+    drain();
+    CHECK(telemetry_context::top_overlay().empty());
+
+    open_overlay();
+    REQUIRE(telemetry_context::top_overlay() == "first_overlay");
+    NavigationManagerTestAccess::clear_overlay_stack(nav); // connection loss
+    drain();
+    CHECK(telemetry_context::top_overlay().empty());
+
+    nav.unregister_overlay_instance(second);
+    drain();
+    lv_obj_delete(second);
+}

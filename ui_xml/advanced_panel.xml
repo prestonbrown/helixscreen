@@ -230,79 +230,11 @@
       <!-- ================================================================== -->
       <setting_group name="group_calibration">
         <setting_group_header title="CALIBRATION" icon="tune" hide_icon="false"/>
-        <!-- Motorized belt tensioning and cutter calibration: printers whose
-             firmware runs them on its own (helix::belt_cutter_cal decides).
-             First in the list, ahead of the resonance-based Belt Tension check. -->
-        <setting_action_row name="row_belt_tension_auto"
-                            label="Auto Belt Tension" icon="vibrate"
-                            description="Let the printer's tensioners set the belts">
-          <bind_flag_if_eq subject="printer_can_tension_belts" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_belt_tension_auto_clicked"/>
-        </setting_action_row>
-        <setting_action_row name="row_cutter_calibration"
-                            label="Cutter Calibration" icon="content_cut"
-                            description="Find the filament cutter's position">
-          <bind_flag_if_eq subject="printer_can_calibrate_cutter" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_cutter_calibration_clicked"/>
-        </setting_action_row>
-        <!-- Bed Leveling (hidden if screws_tilt_adjust not configured) -->
-        <lv_obj name="container_bed_leveling" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="printer_has_screws_tilt" flag="hidden" ref_value="0"/>
-          <setting_action_row name="row_bed_mesh"
-                              label="Bed Leveling" icon="grid_large"
-                              description="Auto-probe or manually check screw heights">
-            <event_cb trigger="clicked" callback="on_screws_tilt_row_clicked"/>
-          </setting_action_row>
-        </lv_obj>
-        <!-- Input Shaping (hidden if no accelerometer) -->
-        <setting_action_row name="row_input_shaping"
-                            label="Input Shaping" icon="inputshaper" description="Reduce ringing and ghosting artifacts">
-          <bind_flag_if_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_input_shaper_row_clicked"/>
-        </setting_action_row>
-        <!-- Pressure Advance (only firmwares that can measure it; helix::pacal decides) -->
-        <setting_action_row name="row_pa_calibration"
-                            label="Pressure Advance" icon="gauge" description="Measure pressure advance automatically">
-          <bind_flag_if_eq subject="printer_has_pa_cal" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_calibration_pa"/>
-        </setting_action_row>
-        <!-- Pressure advance tuned by eye on a live test print: any Klipper extruder -->
-        <setting_action_row name="row_pa_tuning"
-                            label="Pressure Advance Tuning" icon="gauge"
-                            description="Print a test tower and tune K by eye">
-          <event_cb trigger="clicked" callback="on_pa_tuning_clicked"/>
-        </setting_action_row>
-        <!-- Tool Offsets (printers with a tool offset calibration) -->
-        <setting_action_row name="row_tool_offsets"
-                            label="Tool Offsets" icon="axis_arrow"
-                            bind_description="printer_tool_offset_cal_description">
-          <bind_flag_if_eq subject="printer_has_tool_offset_cal" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_tool_offset_row_clicked"/>
-        </setting_action_row>
-        <!-- Vertical Artifact Compensation (firmwares with a stepper resonance
-             calibration; helix::stepper_resonance_cal decides) -->
-        <setting_action_row name="row_stepper_resonance_cal"
-                            label="Vertical Artifact Compensation" icon="sine_wave"
-                            description="Tune the motors to remove fine vertical lines">
-          <bind_flag_if_eq subject="printer_has_stepper_resonance_cal" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_stepper_resonance_cal_clicked"/>
-        </setting_action_row>
-        <!-- Belt Tension (hidden if no accelerometer) -->
-        <setting_action_row name="row_belt_tension"
-                            label="Belt Tension" icon="vibrate" description="Compare belt paths with a resonance sweep">
-          <!-- One binding, both conditions (two flag bindings on a widget
-               fight): an accelerometer, and a kinematics whose two diagonals
-               are the two belt paths (corexy, limited_corexy). -->
-          <bind_flag_if cond="printer_has_accelerometer eq 0 or printer_supports_belt_compare eq 0" flag="hidden"/>
-          <event_cb trigger="clicked" callback="on_belt_tension_row_clicked"/>
-        </setting_action_row>
-        <!-- Vertical Artifact Check (hidden without an accelerometer, a supported
-             kinematics or the steppers' geometry) -->
-        <setting_action_row name="row_motor_ripple"
-                            label="Vertical Artifact Check" icon="vibrate"
-                            description="Find the print speeds that shake the printer">
-          <bind_flag_if_eq subject="printer_supports_ripple_check" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_motor_ripple_row_clicked"/>
+        <!-- Every calibration step this printer has, on one screen
+             (CalibrationHubOverlay; helix::calibration decides which). -->
+        <setting_action_row name="row_calibration"
+                            label="Calibration" icon="tune" description="Calibrate this printer, step by step">
+          <event_cb trigger="clicked" callback="on_calibration_hub_clicked"/>
         </setting_action_row>
         <!-- Probe Management (hidden if no probe) -->
         <setting_action_row name="row_probe"
@@ -310,25 +242,6 @@
                             description="Probe controls, accuracy test, and settings">
           <bind_flag_if_eq subject="printer_has_probe" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_probe_row_clicked"/>
-        </setting_action_row>
-        <!-- Z-Offset Calibration (hidden if no probe) -->
-        <setting_action_row name="row_z_offset"
-                            label="Z-Offset Calibration" icon="z_closer" description="Interactive probe calibration">
-          <!-- One binding, every test (two flag bindings on a widget fight):
-               needs a probe; steps aside where the firmware applies each
-               head's own Z offset at pickup, which the calibration's absolute
-               offset would overwrite on the mounted head; and steps aside for automatic tool offset calibration where
-               the database says that routine covers the reference tool's Z
-               too (see the same bind in controls_panel.xml). -->
-          <bind_flag_if cond="printer_has_probe eq 0 or z_offset_reapplied_per_head eq 1 or (printer_has_tool_offset_cal eq 1 and hide_manual_z_calibration eq 1)"
-                        flag="hidden"/>
-          <event_cb trigger="clicked" callback="on_zoffset_row_clicked"/>
-        </setting_action_row>
-        <!-- PID Tuning -->
-        <setting_action_row name="row_pid_tuning"
-                            label="Heater Calibration" icon="heater"
-                            description="Adjusts individual characteristics of your heaters for optimal control">
-          <event_cb trigger="clicked" callback="on_pid_tuning_clicked"/>
         </setting_action_row>
       </setting_group>
       <!-- ================================================================== -->

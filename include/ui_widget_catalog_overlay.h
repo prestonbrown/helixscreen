@@ -104,6 +104,10 @@ class WidgetCatalogOverlay {
     /// Click dispatch for the "Unavailable on this printer" row.
     static void on_unavailable_row_clicked(lv_event_t* e);
 
+    /// Click dispatch for a widget row: selects its def, or mints an instance
+    /// of a multi-instance def. The row's name is the def id.
+    static void on_widget_row_clicked(lv_event_t* e);
+
     /// Populate the category list with one row per category that has available
     /// widgets, plus the unavailable row when hardware is missing here.
     static void populate_category_rows(lv_obj_t* group);
@@ -114,8 +118,8 @@ class WidgetCatalogOverlay {
     static void populate_rows(lv_obj_t* scroll, const PanelWidgetConfig& config,
                               const std::vector<const PanelWidgetDef*>& defs);
 
-    /// One clickable row for @p def: gate hint, placed badge, size badge, and
-    /// the select / mint-instance click wiring. Returns the row.
+    /// One row for @p def, named for its id: gate hint, placed badge and size
+    /// badge. Returns the row.
     static lv_obj_t* create_widget_row(lv_obj_t* parent, const PanelWidgetDef& def,
                                        const PanelWidgetConfig& config,
                                        const std::unordered_map<std::string, int>& multi_placed);

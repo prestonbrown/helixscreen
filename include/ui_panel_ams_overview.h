@@ -196,6 +196,14 @@ class AmsOverviewPanel : public PanelBase {
     void show_overview();
 
     /**
+     * @brief Leave a unit view for the overview, at once; a no-op on the overview
+     *
+     * What closing the overlay does, and what the ultrawide side band does when
+     * the Filament panel leaves the screen: the next visit starts at the overview.
+     */
+    void return_to_overview();
+
+    /**
      * @brief Check if the unit view (rather than the overview) is on screen
      */
     [[nodiscard]] bool is_in_unit_view() const {
@@ -402,7 +410,6 @@ class AmsOverviewPanel : public PanelBase {
     std::unique_ptr<helix::ui::AmsOperationSidebar> sidebar_;
 
     // === Event Handling ===
-    static void on_unit_card_clicked(lv_event_t* e);
     static void on_detail_slot_clicked(lv_event_t* e);
 };
 
@@ -415,6 +422,18 @@ AmsOverviewPanel& get_global_ams_overview_panel();
  * @brief Destroy the AMS overview panel UI
  */
 void destroy_ams_overview_panel_ui();
+
+namespace helix::ui {
+/// Which AMS view serves a filament system: one view per unit count.
+enum class AmsView {
+    Detail,   ///< A single unit: the AMS panel itself
+    Overview, ///< Several units: the overview, which drills into each
+};
+
+/// The view navigate_to_ams_panel() opens, and the ultrawide side band hosts,
+/// for a system described by @p info.
+AmsView ams_view_for(const AmsSystemInfo& info);
+} // namespace helix::ui
 
 /**
  * @brief Navigate to AMS panel with multi-unit awareness

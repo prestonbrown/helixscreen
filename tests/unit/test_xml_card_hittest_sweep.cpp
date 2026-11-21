@@ -47,7 +47,7 @@ bool register_from(const char* path) {
 
 } // namespace
 
-// ui_overlay_timelapse_videos.cpp:422-423 attaches CLICKED/LONG_PRESSED to the card root.
+// TimelapseVideosOverlay::populate_video_grid() attaches CLICKED/LONG_PRESSED to the card root.
 TEST_CASE_METHOD(XMLTestFixture, "timelapse_video_card: metadata band routes clicks to root",
                  "[xml][hittest][sweep]") {
     REQUIRE(register_component("timelapse_video_card"));
@@ -69,7 +69,7 @@ TEST_CASE_METHOD(XMLTestFixture, "timelapse_video_card: metadata band routes cli
     check_reaches_root(test_screen(), card, clip, "metadata_clip");
 }
 
-// nozzle_temps_widget.cpp:465 attaches CLICKED to the row root.
+// nozzle_temp_row.xml takes the row tap on its root.
 TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_row: value area routes clicks to row root",
                  "[xml][hittest][sweep]") {
     REQUIRE(register_from("A:ui_xml/components/nozzle_temp_row.xml"));
@@ -95,7 +95,7 @@ TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_row: value area routes clicks to r
                        "tool_label_long");
 }
 
-// nozzle_temps_widget.cpp:500 attaches CLICKED to the bed row root.
+// nozzle_temp_bed_row.xml takes the bed row tap on its root.
 TEST_CASE_METHOD(XMLTestFixture, "nozzle_temp_bed_row: value area routes clicks to row root",
                  "[xml][hittest][sweep]") {
     REQUIRE(register_from("A:ui_xml/components/nozzle_temp_bed_row.xml"));

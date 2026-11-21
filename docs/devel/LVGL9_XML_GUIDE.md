@@ -207,23 +207,23 @@ A page per data item still goes through `ui_carousel_add_item`.
 ```
 
 `header_bar` does this with its `header_content` strip (between the title
-region and the action buttons). A slot widget should be `width="content"` and
+region and the actions slot). A slot widget should be `width="content"` and
 not clickable, so an unfilled slot costs its container no layout and steals no
 taps. The slot centres its flex track, so a child shorter than the header sits
 on the title's centre line.
 
-After the title and the slot, `header_bar` lays out its actions left to right:
-`action_icon`, an icon-only round button (`#button_height_sm` square, drawn by
-`styles.header_icon_button`, hidden unless `hide_action_icon="false"`, with
-`action_icon_hidden_cond` for a breakpoint gate); `action_button_2`, the
-labelled secondary; and `action_button`, the primary (Save, Done).
-Every one is capped at `#header_button_height` so it fits inside the bar. A
-screen whose only header action is a glyph (Motion's cog, Print Status's
-folder, Printer Manager's portrait button) uses `action_icon`; a screen with
-several glyph actions (the spool editor's Spoolman and Scan QR) puts its own
-`ui_button`s in `header_content` with `<style name="styles.header_icon_button"/>`,
-so every round header button has one definition. `action_button_height` sizes
-the text buttons only.
+A screen's own header buttons go in the `actions` slot at the bar's right end:
+`<header_bar-actions>`, or `<overlay_panel-actions>` in a view extending
+`overlay_panel`. The slot is hidden while empty and spaces its buttons with the
+bar's own gap. A labelled button (Save, Done, Start) takes
+`<style name="styles.header_action"/>` and `height="content"`; a secondary one
+adds `style_bg_color="#secondary"` and `style_min_width="#header_slot2_min_width"`.
+A glyph (Motion's cog, Print Status's folder, Printer Manager's portrait button)
+is a `#button_height_sm` square with `<style name="styles.header_icon_button"/>`,
+so every round header button has one definition. Both are capped at
+`#header_button_height` so they fit inside the bar. The button's own bindings
+(`bind_state_if cond=...`, `bind_flag_if_eq`, `event_cb`) carry its disabled,
+hidden and click behavior.
 
 ### 2. Subjects (Reactive Data)
 
@@ -1228,7 +1228,7 @@ button outgrows a small panel. Both need the button to carry an icon and a label
 | `stacked_subject="S"` + `stacked_if_eq="N"` | Stacks the button as above while int subject `S` equals `N`, and returns it to the row layout otherwise, following `S` live. The subject spelling of `stacked_if_bp_lte`, for a condition the breakpoint alone does not express: point it at a `<subject_expr>`. An empty `S` installs no binding. From ui_xml/components/ams_sidebar.xml, whose `ams_actions_stacked` stacks the action buttons in landscape and in narrow portrait cells and lays them icon-beside-label in a portrait 2x2 cell. |
 | `label_hidden_if_bp_eq="N"` | Hides the button's label while `ui_breakpoint == N`, collapsing it to icon-only; every other rung shows the label. The `ui_breakpoint` spelling of the pair below. |
 | `label_hidden_subject="S"` + `label_hidden_if_eq="N"` | Hides the label while int subject `S` equals `N`. An empty `S` installs no binding. From ui_xml/components/panel_widget_control_buttons.xml, where the widget folds the breakpoint rule into its own measured subject. |
-| `label_hidden_cond="EXPR"` | Hides the label while the expression is nonzero, e.g. `ui_is_portrait eq 1 and ui_breakpoint lt 4`. Names resolve in the button's own scope, so globals like `ui_breakpoint` work from inside a nested component. The header bar's secondary button forwards it as `action_button_2_label_hidden_cond`. Use one label-hiding form per button: each binding writes the same label flag, so with two the most recent change wins. |
+| `label_hidden_cond="EXPR"` | Hides the label while the expression is nonzero, e.g. `ui_is_portrait eq 1 and ui_breakpoint lt 4`. Names resolve in the button's own scope, so globals like `ui_breakpoint` work from inside a nested component. Use one label-hiding form per button: each binding writes the same label flag, so with two the most recent change wins. |
 
 Give each label one writer: a widget that measures whether its label fits should fold the breakpoint rule into its own subject rather than set both attributes. The same holds for stacking: set `stacked_if_bp_lte` or `stacked_subject`, never both, or the two observers fight over the layout.
 

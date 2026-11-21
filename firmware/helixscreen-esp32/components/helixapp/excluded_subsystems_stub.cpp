@@ -50,6 +50,7 @@
 #include "ui_panel_input_shaper.h"
 #include "ui_panel_motor_ripple.h"
 #include "ui_panel_screws_tilt.h"
+#include "ui_side_band.h"
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_toast_manager.h"
 #include "ui_wizard_appearance.h"
@@ -357,3 +358,55 @@ void ZOffsetCalibrationPanel::before_disconnect() {}
 namespace helix::ui {
 void PACalibrationPanel::before_disconnect() {}
 } // namespace helix::ui
+
+// ===========================================================================
+// The ultrawide side band (HELIX_HAS_SIDE_BAND=0): the K-Touch panel is never
+// ultrawide. Controls, Filament, Motion and the AMS panels keep their calls;
+// here the band never shows, take_open_request() says nothing is hosted so
+// every overlay opens with its own tree, and the hosts' two subjects still
+// register at 0 for the XML that binds them.
+// ===========================================================================
+#if !HELIX_HAS_SIDE_BAND
+namespace helix::ui {
+bool side_band_shows(SideBandContent, bool, bool) {
+    return false;
+}
+std::unique_ptr<SideBandGuest> make_motion_side_band_guest() {
+    return nullptr;
+}
+std::unique_ptr<SideBandGuest> make_ams_side_band_guest() {
+    return nullptr;
+}
+SideBand::SideBand(SideBandContent content, std::unique_ptr<SideBandGuest> guest,
+                   const char* subject_name, const char* hosted_subject_name)
+    : content_(content), guest_(std::move(guest)), subject_name_(subject_name),
+      hosted_subject_name_(hosted_subject_name) {}
+SideBand::~SideBand() = default;
+void SideBand::init_subjects() {
+    if (subjects_initialized_) {
+        return;
+    }
+    UI_MANAGED_SUBJECT_INT(shows_subject_, 0, subject_name_, subjects_);
+    UI_MANAGED_SUBJECT_INT(hosted_subject_, 0, hosted_subject_name_, subjects_);
+    subjects_initialized_ = true;
+}
+void SideBand::deinit_subjects() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    subjects_.deinit_all();
+    subjects_initialized_ = false;
+}
+void SideBand::bind(lv_obj_t*) {}
+void SideBand::on_host_activate() {}
+void SideBand::on_host_deactivate(DeactivateReason) {}
+bool SideBand::uses_full_width() const {
+    return false;
+}
+void SideBand::refresh() {}
+bool SideBand::take_open_request(SideBandContent) {
+    return false;
+}
+void SideBand::notify_released(SideBandContent) {}
+} // namespace helix::ui
+#endif // !HELIX_HAS_SIDE_BAND

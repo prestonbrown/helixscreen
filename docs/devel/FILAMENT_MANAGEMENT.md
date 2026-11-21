@@ -1525,20 +1525,69 @@ what is loaded), and later tools show a `swap_horizontal` icon and are always gr
 `current_remap_block()` returns `NoStrategy` in this mode, so the caret hides and a tap
 does nothing, even on a backend that has a remap strategy but presents no filament system.
 
-### Edit Spool (`ui_ams_edit_overlay`)
+### Assign Spool / Edit Spool (`ui_ams_edit_overlay`)
 
-The lane context menu's **Edit Spool** opens `AmsEditOverlay`
-(`src/ui/filament/ui_ams_edit_overlay.cpp`) straight into its editor view; **Select
-Spool** opens it on the spool picker instead. In the picker the lane's linked spool
-leads the list, checked, so it shows without scrolling; a search still applies to it,
-and the other rows keep Spoolman's recency order. The title is the lane in the
-backend's noun ("Gate 3"). The header carries Save (`action_button`, dirty-gated)
-and, where Spoolman is configured, two round icon buttons left of it on the
-title's centre line: Choose from Spoolman and Scan QR (`ams_edit_scan_enabled`
-also carries the no-camera build gate). They sit in `header_bar`'s
-`header_content` slot, drawn by `styles.header_icon_button` like the header's own
-`action_icon`, in a row padded by their `ext_click_area` reach so each reaches
-the header's height (or 44px) while staying inside its parent's hit box.
+`AmsEditOverlay` (`src/ui/filament/ui_ams_edit_overlay.cpp`) does two jobs in one editor
+view, picked by `ams_edit_mode` from `helix::spool_assign::screen_for_lane()`
+(`include/spool_assign.h`): a lane with no spool (no Spoolman link, no material)
+opens on **Assign Spool**, a lane holding one on **Edit Spool**. The lane menu's
+**Select Spool** (`open_on_picker`) opens Assign Spool whatever the lane holds.
+The title is the job; the subtitle names the lane in the backend's noun and its
+unit ("Lane 3 · Turtle 1"), and on Edit Spool the spool ("· PolyTerra PLA · #12").
+The header carries **Scan Label** and, on Edit Spool, **Different Spool**,
+labeled from the small class up and icon-only below it so the title stays
+readable. They sit in `header_bar`'s `actions` slot; the header has no Save,
+because the actions sit in the right column.
+
+**Assign Spool.** Left: the describe form (below). Right: the user's spools.
+With Spoolman they are its spools in recency order, searchable by name, brand,
+color or `#ID`; without it they are the filaments this printer's lanes have held
+(`include/lane_spool_history.h`: the printer's own Moonraker database, namespace
+`helix-screen`, key `lane_spool_history`, most recent first, deduped, at most 12,
+recorded on every saved assignment, one read-modify-write at a time, and never
+over a history whose read failed), so the list follows the printer across
+screen reinstalls and other clients. The list builds at most
+`spool_assign::kMaxListedSpools` rows (search reaches the rest) and is rebuilt
+only when the form, the search or the spools change. Every Assign Spool action
+writes the lane's staged settings first, as Edit Spool's Save does. Each row (`ui_xml/spool_assign_row.xml`)
+draws the spool with its filament ring at the remaining weight, the name,
+`#id · N g left · when`, and **Use**, which links the lane (or, from the lane
+history, describes it) and closes. Once the form says anything the list narrows
+to `spool_assign::rank_spools()`: exact matches, then close ones tagged
+`close: PLA+` (`close_note()`). Color matches by weighted RGB distance on the
+hex, never the name; material loosely by polymer family, brand and product by
+case and whole extra words ("White" vs "Polar White"). A color pick on an empty
+lane counts the material the dropdown shows. Under the list,
+`spool_assign::bottom_action()` picks the action: an outlined **Not Listed? Add
+New Spool** while spools are listed, a primary **Add to Spoolman & Assign**
+(`LinkIntent::CreateAndRebind`) with a quiet "assign without adding to Spoolman"
+link when nothing is, and **Assign** without Spoolman. Fewer than three spools
+show the common spools grid (PLA/PETG/ABS/ASA in black, white and gray); a tap
+fills the form. The size chips (1 kg default, 750 g, 250 g, Partial... on the
+keypad) are staged onto the lane by an assign (`stage_assign_form()`), and by
+the Save that Back's unsaved-changes prompt offers there, so they are the one
+rule for what a new spool weighs: an unweighed lane with no material opens on
+Assign Spool and goes in as a 1 kg spool unless a chip or a typed weight says
+otherwise.
+**Different Spool** on Edit Spool starts Assign Spool from an empty form, and
+Back there returns to Edit Spool on the lane's own spool.
+
+**Edit Spool.** The same form, prefilled. Right: the spool drawn at its
+remaining weight, Remaining with - / value (keypad) / + in 10 g steps
+(`spool_assign::step_remaining()`, kept within the spool's total), `of 1000 g ·
+temps`, **Save** (dirty-gated; "Saves to Spoolman spool #id" under it on a
+linked lane) and **Clear Lane**.
+
+**After a save** the editor closes on the lane's echo with a toast naming the
+lane and the spool, "Added to Spoolman as #id" under it when the save created
+the spool. Its buttons are **Undo**, which commits the lane's prior slot back
+through `AmsState::commit_slot_edit()` while the lane still holds what the save
+put in (`spool_assign::undo_still_applies()`; each toast keeps its own lane), and
+is not offered after a save that rewrote a linked Spoolman record, since the
+lane alone cannot be put back; and, on a Spoolman spool with a label
+printer set up, **Print Label** (the toast's optional second action,
+`ToastAction`). A spool the save created has its label printed at once, so the
+toast's button is the reprint.
 
 **Materials the firmware accepts.** A backend whose firmware validates the material against
 its own list publishes it through `AmsBackend::get_supported_materials()` (the AD5X IFS
@@ -1551,20 +1600,18 @@ and lists an allowed type no variant carries as its own family. The slot's curre
 material still shows, selected, when it is off the list. A backend with no list offers the
 whole catalog.
 
-**The lane's own settings** sit in one row above More (`lane_section`): **Assigned
-Tool**, shown only where `helix::printer::can_write_mapping_table()` says a mapping
-write lands (`ams_edit_tool_row_visible`), and the Endless Spool backup
+**The lane's own settings** sit full width under both columns (`lane_section`),
+so the two rows share a line and are in view on open in landscape: **Assigned
+Tool**, shown only where `helix::printer::can_write_mapping_table()` says a
+mapping write lands (`ams_edit_tool_row_visible`), and the Endless Spool backup
 (`ams_edit_backup_row_visible`, read-only and disabled per
-`lane_settings::show_backup_row()`), with the `ams_endless_status` line under them.
-They are properties of the lane, not the spool, so they never enter `SlotInfo`: the
-dropdowns stage `LaneSettings`, Save writes the difference through
-`helix::ui::lane_settings` (`set_tool_mapping()`, `set_endless_spool_backup()`)
-before the slot's own commit, and a Save that changed nothing else closes without a
-slot edit. An incompatible backup is refused at the pick, with a toast, and the
-dropdown goes back to what is staged. The colour grid keeps one row of presets
-stacked and two in the short-landscape split column (the rainbow tile opens the
-rest), which keeps the row in view on open at 800x480, 480x320 and 480x272. At
-320x480 the two dropdowns stack and the backup's reaches the fold.
+`lane_settings::show_backup_row()`), with the `ams_endless_status` line under
+them. They are properties of the lane, not the spool, so they never enter
+`SlotInfo`: the dropdowns stage `LaneSettings`, Save writes the difference
+through `helix::ui::lane_settings` (`set_tool_mapping()`,
+`set_endless_spool_backup()`) before the slot's own commit, and a Save that
+changed nothing else closes without a slot edit. An incompatible backup is
+refused at the pick, with a toast, and the dropdown goes back to what is staged.
 
 **Identity is a dropdown cascade**: Material (families, Spoolman recents first,
 else PLA/PETG/ABS/ASA/PA/TPU/PC lead), Variant (the family's catalog variants),
@@ -1579,46 +1626,56 @@ writes nothing; `apply_family_change()` keeps the brand when it makes the new
 material, else Generic, resets the variant to Basic and drops the product.
 Re-picking the selected option is a no-op.
 
-**Layout.** Two layouts of the identity form are always built and one is hidden
-by `bind_flag`: the short landscape class carries the temperature line inside the
-form, the others show it above. The color section follows either: the Color line
-names the color (`ams_edit_color_name`), and one row holds the current color
-(1.25 x a chip, ringed), the newest filament recents other than it (four on the
-480-wide classes, six above; `color_row_recents()`) and an All colors pill. A
-recent chip stages its color in the editor's draft at once. The current color,
-All colors and the summary swatch push the color page (`ColorPickerPage`,
-`COLOR_SWATCHES.md` § "The color picker"), which edits the same draft live: Back
-keeps it and only Save commits it, adding it to the filament recents.
+**Layout.** Two columns, the form at `#assign_left_w` and the right column at
+least `#assign_right_min_w`, wrapping under the form where they do not fit
+(portrait). The Material/Type/Brand/Product grid is 2x2, three cells under
+Generic. Every non-swatch control reaches 44px, the size chips, the - / + row
+and the quiet text actions through `ext_click_area` with gaps of twice the
+reach. At the short landscape class the Remaining label drops so the lane rows
+stay in view.
 
-**Multi-color.** The color is a row of dots: one for a single-color spool, two
-to four for a multi-color one, and a "+" while there is room and the lane can
-store several colors (`AmsBackend::stores_multi_color()`: HelixScreen's own lane
-record holds them; AFC's and Happy Hare's narrowed records do not), or the lane
-is linked to a Spoolman spool, whose filament holds them. A multi-color spool
-shows a Colors line instead of the Color line: Gradient or Coaxial and a bar
-of its colors. Tapping a dot selects it, and the recents, All colors and the
-color page then edit that one; tapping the selected dot opens the page; a long
-press removes a dot, and one left makes the spool single-color. Save writes
+**Color.** The Color line names the color (`ams_edit_color_name`). The color
+row under it holds the color as a dot (a "+" beside it where the lane can
+store several colors), the newest filament recents other than it, and the
+rainbow tile, all on the shared `swatch_grid_*` tokens so every swatch has a
+7 mm target (`COLOR_SWATCHES.md` § "Touch targets"). The row wraps, so
+`size_color_row()` counts the recents from its measured width; it runs again
+from `on_activate()`, because the push sets the overlay's final width after
+the editor was built. A recent chip stages its color in the editor's draft at
+once. Tapping the dot or the rainbow tile pushes the color page
+(`ColorPickerPage`, `COLOR_SWATCHES.md` § "The color picker"), which edits the
+same draft live: Back keeps it and only Save commits it, adding it to the
+filament recents once the lane holds the save. Edit Spool's spool drawing
+shows the draft.
+
+**Multi-color.** A multi-color spool shows its colors as two to four dots, a
+"+" while there is room, where the lane can store several colors
+(`AmsBackend::stores_multi_color()`: HelixScreen's own lane record holds them;
+AFC's and Happy Hare's narrowed records do not), or the lane is linked to a
+Spoolman spool, whose filament holds them. The Color line becomes a Colors line:
+Gradient or Coaxial and a bar of the colors (blended for Gradient, banded for
+Coaxial). The dots and "Color N: name" take the row's first line and the
+recents and rainbow tile the next. Tapping a dot selects it, and the recents
+and the color page then edit that one; tapping the selected dot opens the page;
+a long press removes a dot, and one left makes the spool single-color. A list
+longer than four keeps its later colors; only the first four show as dots.
+Where the lane cannot store several colors, a multi-color spool shows one dot,
+the spool drawing shows its colors, and a pick replaces them. Save writes
 `SlotInfo::multi_color_hexes` and `color_mode` (the lane record's `colors` and
 `color_mode`, docs/specs/filament_slots.md §3), and on a linked spool files a
 Spoolman filament with `multi_color_hexes` and `multi_color_direction`
-(`longitudinal` for Gradient). At 480x272 a multi-color spool's dots take the
-full width below the form.
-Every non-swatch control reaches 44px: Reset to tag, More and the Add link sit
-in one short bar and reach it through `ext_click_area`, as the weight pill does.
-The editor fits without scrolling at 800x480, 480x320, 480x272 and 320x480,
-including the tag-badged worst case; only the opened More section scrolls.
+(`longitudinal` for Gradient).
 
-**Summary, temperatures, tags.** The summary line ("eSUN Silk PETG, Blue") and
-the temperature line follow the selection live: a picked product's range, else
-the material database's range once the selection moved, else the slot's stored
-values. A backend's `tag_reading()` drives a "from tag" badge (`tag_badge`
-component) on the summary and on every row whose shown value is the tag's
+**Temperatures, tags.** The temperature line follows the selection live: a
+picked product's range, else the material database's range once the selection
+moved or on a lane with no material, else the slot's stored values. A backend's
+`tag_reading()` drives a "from tag" badge (`tag_badge` component) on every
+field whose shown value is the tag's
 (`ams::tag_provenance()` over the form's current values), and Reset to tag
 restores every field the tag states through `ams::reset_to_tag()`.
 
-**Spools in use elsewhere.** The picker list disables (state `DISABLED`, not
-clickable) every spool another lane of the primary backend links
+**Spools in use elsewhere.** The spools list disables the Use of every spool
+another lane of the primary backend links
 (`src/ui/filament/ui_ams_edit_overlay.cpp#render_spool_list`), because one physical spool
 cannot feed two places; a tool holds no spool of its own. The external spool
 editor runs with `slot_index_ == -2`, which is no lane, so every lane-linked spool is
@@ -1635,24 +1692,21 @@ and an inline note names the spool's. The note's **Unlink** drops the link and k
 asks the identity question, and a save that does not change the identity never asks either.
 `AmsBackend::commit_user_edit` leaves such a lane's identity as the edit states it.
 
-**Saving.** Save in the header is dirty-gated, a More-field edit included. A
-spool picked in a picker-entry session (`open_on_picker`) commits at once
-(`commit_and_close()`); one picked from the editor's header button returns to
-the editor with the spool applied, to be saved. Back
-with unsaved edits asks Save or Discard; a dismissal keeps the editor open.
+**Saving.** Edit Spool's Save is dirty-gated, a More-field edit included. Use
+on a listed spool commits at once (`commit_and_close()`); a QR scan stages the
+scanned spool on Edit Spool for review. Back with unsaved edits asks Save or
+Discard; a dismissal keeps the editor open.
 On a Spoolman-linked slot an identity change (material, brand or colour) asks
 **Update in Spoolman** (`SpoolmanSlotSaver::LinkIntent::UpdateLinked`:
 find-or-create a filament and repoint the spool, never editing the shared
 filament record) or **Unlink, keep on this slot** (the logistics fields are
-dropped with the link). An untracked slot reaches Spoolman only through **Add to
-Spoolman + label** (`LinkIntent::CreateAndRebind`), which prints the new spool's
-label when a label printer is set up. The More fields (price, location, lot,
-notes) PATCH the spool the slot names, and only once that spool's record has
-landed: a picker relink or QR scan blanks them until the new record arrives,
+dropped with the link). A new spool reaches Spoolman through Assign Spool's
+**Add to Spoolman & Assign** (`LinkIntent::CreateAndRebind`). The More fields
+(price, location, lot, notes) PATCH the spool the slot names, and only once that
+spool's record has landed: a QR scan blanks them until the new record arrives,
 and a late record for a spool the slot no longer names is dropped.
 
-**Lifetime.** `show_for_slot()` resets every per-session field, because a
-picker-entry session reaches the editor without `enter_editor()`. One fetch of
+**Lifetime.** `show_for_slot()` resets every per-session field. One fetch of
 the linked spool feeds identity and More; a cover (keypad, QR scanner) drops it
 with `lifetime_`, and `on_activate()` re-arms it. Save completions are owed to
 Spoolman and the slot, so they run on `object_lifetime_`. Every save runs from

@@ -39,11 +39,6 @@
 #   xml-schema        make check-xml-schema: linter schema snapshot vs a regeneration
 #   lint-xml          make lint-xml: CI's XML Lint job, against the committed snapshot
 #   lvgl-event-codes  make check-lvgl-event-codes: crash worker table vs lv_event_code_t
-#   esp32             esp32_syntax_check.py --require over the branch since its
-#                     merge-base with LAND_GATE_BASE_REF (default origin/main):
-#                     what esp32-build CI would refuse. A host that cannot run it
-#                     (no docker, no espressif/idf image) fails the row rather
-#                     than reading as a pass
 #   no-mocks          check_no_mocks.py over the same range, after app-build: the
 #                     branch's packaged units compiled with mocks off, their objects
 #                     scanned for mock symbols. The release gate's cross build sees the
@@ -118,8 +113,9 @@
 # result set for the commit that is not all PASS removes its stamp.
 #
 # Outside this gate: [.] (nightly), the goldens (nightly and
-# local-only), and build.yml's telemetry-worker vitest
-# (server/telemetry-worker: `npm install && npm test`).
+# local-only), build.yml's telemetry-worker vitest
+# (server/telemetry-worker: `npm install && npm test`), and every ESP32
+# firmware compile: CI's esp32-build job is the ESP32 check.
 set -uo pipefail
 
 MAKE=${MAKE:-make}
@@ -129,7 +125,6 @@ TEST_HOST_RUN=${TEST_HOST_RUN:-$(dirname "$SELF")/test-host-run.sh}
 # does not wait behind whatever else is loading the host.
 export HELIX_TEST_MAX_LOAD=${HELIX_TEST_MAX_LOAD:-0}
 HELIX_CLAIM=${HELIX_CLAIM:-$(dirname "$SELF")/helix-claim}
-ESP32_CHECK=${ESP32_CHECK:-$(dirname "$SELF")/esp32_syntax_check.py}
 NO_MOCKS_CHECK=${NO_MOCKS_CHECK:-$(dirname "$SELF")/check_no_mocks.py}
 GATE_SELECT=${GATE_SELECT:-$(dirname "$SELF")/gate_select.py}
 LAND_GATE_BASE_REF=${LAND_GATE_BASE_REF:-origin/main}
@@ -149,7 +144,7 @@ PLAN="$LAND_GATE_LOGDIR/plan.tsv"
 CHANGED_LIST="$LAND_GATE_LOGDIR/changed.txt"
 RESULTS_DIR="$LAND_GATE_LOGDIR/results"
 
-STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes esp32 no-mocks quality"
+STEPS="app-build ci-shards slow bats ui plugin python theme-tokens xml-schema lint-xml lvgl-event-codes no-mocks quality"
 
 TIMEOUT_BIN=$(command -v timeout || command -v gtimeout || true)
 
@@ -229,13 +224,6 @@ branch_base() {
     git merge-base HEAD "$LAND_GATE_BASE_REF" 2>/dev/null && return 0
     echo "✗ no merge-base between HEAD and $LAND_GATE_BASE_REF: fetch it, or set LAND_GATE_BASE_REF" >&2
     return 1
-}
-
-# The firmware units the branch reaches.
-esp32_check() {
-    local base
-    base=$(branch_base) || return 1
-    "$ESP32_CHECK" --require --base "$base" --head HEAD
 }
 
 # The packaged units the branch reaches.
@@ -385,7 +373,6 @@ run_step() {
         xml-schema) step xml-schema "${mk[@]}" check-xml-schema ;;
         lint-xml) step lint-xml "${mk[@]}" lint-xml ;;
         lvgl-event-codes) step lvgl-event-codes "${mk[@]}" check-lvgl-event-codes ;;
-        esp32) step esp32 bash "$SELF" --esp32-check ;;
         no-mocks) step no-mocks bash "$SELF" --no-mocks-check ;;
         quality)
             # A docs-only change: the gates whose triggers its paths match.
@@ -441,8 +428,7 @@ lane() {
             run_step theme-tokens
             run_step xml-schema
             run_step lint-xml
-            run_step lvgl-event-codes
-            run_step esp32 ;;
+            run_step lvgl-event-codes ;;
         *) echo "✗ unknown lane '$1'" >&2; return 2 ;;
     esac
     return 0
@@ -453,10 +439,6 @@ if [ "${1:-}" = --lane ]; then
     exit $?
 fi
 # A step runs under timeout, which can only start a program, not a function.
-if [ "${1:-}" = --esp32-check ]; then
-    esp32_check
-    exit $?
-fi
 if [ "${1:-}" = --no-mocks-check ]; then
     no_mocks_check
     exit $?

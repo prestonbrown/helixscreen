@@ -108,6 +108,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
 | `qc_file_cache.py` | Per-file facts the registration and ESP32 gates share, cached by file content under `build/.qc-cache/` |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
+| `path_scope.py` | Whether a gate skips a file by directory name, judged on its repo-relative path so a worktree is scanned |
 | `ratchet.py` | The shared ratchet verdicts: under the baseline passes at every stage; `WARN_EXIT` for a warning |
 | `ratchet_report.py` | Weekly trend of every count ratchet, and each new design-ratchet site with its commit and stated reason; `.github/workflows/ratchet-report.yml` |
 | `design_ratchets.py` | The architecture ratchets (namespace, layering, vendor, declarative UI, swatches, LVGL 9.6, markers, comment SHAs): a warning naming each new site, never a failure |
@@ -175,7 +176,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_constant_naming.py` | Fail on a new `UPPER_SNAKE_CASE` constant in added lines |
 | `audit_codebase.sh` | Check for coding standard violations. `--strict` for CI |
 | `check_no_mocks.py` | The land-gate `no-mocks` row: mock code a packaged binary would carry |
-| `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image |
+| `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image; by hand only, CI's `esp32-build` is the gate |
 | `check_toolhead_census.py` | Commit-time version of the machine-moving control census tests |
 | `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale |
 | `scan_double_binds.py` | Inventory of `ui_xml/` widgets with two or more bindings on one state or flag; `--emit-cpp` writes `tests/unit/double_bind_widgets.inc`, `--check` fails when it lags |

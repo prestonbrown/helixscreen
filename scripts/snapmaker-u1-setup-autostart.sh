@@ -63,6 +63,50 @@ if [ ! -f "$INIT_SCRIPT" ]; then
     exit 1
 fi
 
+# Pre-flight: on stock firmware the stock UI is what starts SSH at boot, and
+# step 5 disables it. Only the platform hook's ensure_root_ssh takes that job
+# over, so refuse before changing anything unless the hook's own rule
+# (u1_root_ssh_state) says SSH will come back: Root Access on in the
+# gui_config.json the hook reads, and dropbear running now. Otherwise the next
+# boot leaves no SSH and no stock screen to flash firmware from (#2131).
+# Exit 3 tells the installer this was a refusal, not a write failure.
+GUI_BIN="${SYSROOT}/usr/bin/gui"
+U1_HOOK=""
+for _hook in "$DEPLOY_DIR/assets/config/platform/hooks-snapmaker-u1.sh" \
+             "$DEPLOY_DIR/platform/hooks.sh"; do
+    if [ -f "$_hook" ]; then
+        U1_HOOK="$_hook"
+        break
+    fi
+done
+SSH_STATE=ungated
+if [ -n "$U1_HOOK" ]; then
+    # shellcheck disable=SC1090
+    . "$U1_HOOK"
+    SSH_STATE=$(u1_root_ssh_state)
+elif [ -x "$GUI_BIN" ]; then
+    echo "Error: the Snapmaker U1 platform hook is missing from $DEPLOY_DIR"
+    echo "Nothing was changed; the stock screen stays on. Re-run the installer to fetch a complete package."
+    exit 3
+fi
+if [ -x "$GUI_BIN" ]; then
+    case "$SSH_STATE" in
+        ungated|ok) ;;
+        *)
+            echo "Error: SSH would not survive a reboot with the stock screen switched off."
+            case "$SSH_STATE" in
+                no_config) echo "  The stock screen's settings file is missing: $HELIX_GUI_CONFIG" ;;
+                off)       echo "  Root access is off in the stock screen's settings." ;;
+                down)      echo "  Root access is on, but SSH (dropbear) is not running." ;;
+            esac
+            echo "Nothing was changed; the stock screen stays on."
+            echo "On the printer's own screen, open Settings > Maintenance, turn on Root access,"
+            echo "check that 'ssh root@<printer-ip>' works, then run the installer again."
+            exit 3
+            ;;
+    esac
+fi
+
 # Belt-and-suspenders: the S99screen / S99fb-http delegates only start HelixScreen
 # if helixscreen.init is executable ([ -x ... ]); otherwise they silently fall
 # through to the (disabled) stock UI and nothing comes up at boot. The installer
@@ -72,8 +116,12 @@ chmod +x "$INIT_SCRIPT" 2>/dev/null || true
 
 # Step 1: Create /oem/.debug to prevent overlay wipe on boot
 # Without this, S01aoverlayfs runs: rm -rf /oem/overlay/*
+# /oem/.debug.helixscreen records that we created it, so the uninstaller
+# removes the flag only then. Other mods (multiACE) rely on the same flag, and
+# removing one they created wipes their overlay files at the next boot.
 if [ ! -f "${SYSROOT}/oem/.debug" ]; then
     touch "${SYSROOT}/oem/.debug"
+    echo "created by the HelixScreen installer" > "${SYSROOT}/oem/.debug.helixscreen"
     echo "Created ${SYSROOT}/oem/.debug (overlay persistence enabled)"
 else
     echo "${SYSROOT}/oem/.debug already exists"
@@ -250,8 +298,21 @@ fi
 # is idempotent (pidof guard), so on PAXX — where S99fb-http/S99screen already
 # started HelixScreen earlier in the same sequential boot glob — this second call
 # is a harmless no-op. 1.2/1.3/stock without the binary: [ -f ] guard skips it.
+#
+# The delegate also keeps the stock screen reachable without /userdata: it acts
+# on the restore-stock trigger at boot, and re-enables /usr/bin/gui when no
+# HelixScreen launcher is executable. For the trigger it runs the uninstaller's
+# own restore, copied into the overlay here (/etc/helixscreen/u1_stock_ui.sh)
+# so it survives losing the install directory.
 S99IED_TARGET="${SYSROOT}/etc/init.d/S99input-event-daemon"
 if [ -f "$S99IED_TARGET" ]; then
+    RESTORE_LIB_SRC="$DEPLOY_DIR/scripts/u1_stock_ui.sh"
+    if [ -f "$RESTORE_LIB_SRC" ]; then
+        mkdir -p "${SYSROOT}/etc/helixscreen"
+        cp "$RESTORE_LIB_SRC" "${SYSROOT}/etc/helixscreen/u1_stock_ui.sh"
+    else
+        echo "Warning: $RESTORE_LIB_SRC missing; the boot-time restore trigger can only re-enable /usr/bin/gui"
+    fi
     TMP_IED=$(mktemp)
     # Wrapper body runs ON-DEVICE — absolute device paths, no SYSROOT. Quoted
     # heredoc: nothing is expanded at render time.
@@ -264,15 +325,88 @@ if [ -f "$S99IED_TARGET" ]; then
 # launcher). helixscreen.init `start` is idempotent, so on PAXX — where an
 # earlier launcher already started HelixScreen — the call below is a no-op.
 #
-if [ -x /etc/init.d/S99input-event-daemon.stock ]; then
-    /etc/init.d/S99input-event-daemon.stock "$@"
+# This file lives in the persistent overlay, so it works without
+# /userdata/helixscreen. On stock firmware the stock screen is also what starts
+# SSH and firmware updates, so it is never left disabled with nothing to
+# replace it:
+#   - helixscreen-restore-stock in Moonraker's config folder (created from
+#     Mainsail/Fluidd, or by HelixScreen's Settings) hands the display back:
+#     the overlay copy of the uninstaller's restore runs, and HelixScreen is
+#     not started.
+#   - No usable HelixScreen launcher (install removed or partial, init script
+#     or binary not executable, or the start failed): the stock screen is
+#     switched back on.
+#   - The stock screen already switched on: HelixScreen is not started, so the
+#     two never fight over the display and WiFi.
+# All of it acts at boot only, never on a service restart.
+# The HELIX_U1_* overrides exist for tests; boot runs with none set.
+_root="${HELIX_U1_ROOT:-}"
+_trigger="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
+_log="${HELIX_U1_RESTORE_LOG:-/home/lava/printer_data/logs/helixscreen-restore-stock.log}"
+_lib="$_root/etc/helixscreen/u1_stock_ui.sh"
+
+_note() {
+	echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$_log" 2>/dev/null
+	logger -p user.warn -t helixscreen -- "$*" 2>/dev/null
+	echo "$*"
+}
+
+if [ -x "$_root/etc/init.d/S99input-event-daemon.stock" ]; then
+    "$_root/etc/init.d/S99input-event-daemon.stock" "$@"
 fi
-for helix_init in /userdata/helixscreen/config/helixscreen.init /opt/helixscreen/config/helixscreen.init; do
-    if [ -x "$helix_init" ]; then
-        "$helix_init" "$1"
+
+# A launcher counts only with its binary: helixscreen.init exits 0 without
+# doing anything (platform hook and SSH included) when bin/helix-screen is not
+# executable.
+_helix_init=""
+for _d in /userdata/helixscreen /opt/helixscreen; do
+    if [ -x "$_root$_d/config/helixscreen.init" ] && [ -x "$_root$_d/bin/helix-screen" ]; then
+        _helix_init="$_root$_d/config/helixscreen.init"
         break
     fi
 done
+
+_enable_stock_screen() {
+    if [ -f "$_root/usr/bin/gui" ] && [ ! -x "$_root/usr/bin/gui" ]; then
+        chmod +x "$_root/usr/bin/gui" 2>/dev/null
+        _note "$1: re-enabled the stock screen (/usr/bin/gui)"
+    fi
+}
+
+if [ "$1" = start ]; then
+    if [ -e "$_trigger" ]; then
+        # The trigger goes first, so a restore that fails part-way cannot repeat
+        # on every boot.
+        if rm -f "$_trigger" 2>/dev/null && [ ! -e "$_trigger" ]; then
+            _note "Restore stock screen requested ($_trigger): restoring the stock screen"
+            if [ -f "$_lib" ]; then
+                HELIX_U1_ROOT="$_root"
+                # shellcheck disable=SC1090
+                . "$_lib"
+                u1_restore_stock_ui 2>&1 | while IFS= read -r _l; do _note "  $_l"; done
+            else
+                chmod +x "$_root/usr/bin/gui" 2>/dev/null
+                _note "  restore script missing: only re-enabled /usr/bin/gui"
+            fi
+            [ -n "$_helix_init" ] && "$_helix_init" stop >/dev/null 2>&1
+            _note "Stock screen restored; HelixScreen not started"
+            exit 0
+        fi
+        _note "Restore stock screen requested, but $_trigger cannot be removed: not restoring"
+    fi
+    if [ -z "$_helix_init" ]; then
+        _enable_stock_screen "No usable HelixScreen launcher found"
+        exit 0
+    fi
+    if [ -x "$_root/usr/bin/gui" ]; then
+        _note "The stock screen is switched on: not starting HelixScreen"
+        exit 0
+    fi
+    "$_helix_init" start || _enable_stock_screen "HelixScreen failed to start"
+    exit 0
+fi
+
+[ -n "$_helix_init" ] && "$_helix_init" "$1"
 exit 0
 IEDPATCH
     if cmp -s "$TMP_IED" "$S99IED_TARGET"; then
@@ -299,7 +433,6 @@ fi
 # patch by name. Disabling the binary itself is launcher-independent: no stock
 # script on either firmware can exec it, so the stock UI never grabs the
 # framebuffer / DRM. Reversible — the uninstaller restores the exec bit.
-GUI_BIN="${SYSROOT}/usr/bin/gui"
 if [ -x "$GUI_BIN" ]; then
     if chmod a-x "$GUI_BIN" 2>/dev/null; then
         echo "Disabled stock UI binary ($GUI_BIN) — HelixScreen owns the display"
@@ -315,7 +448,7 @@ fi
 # Stock firmware starts SSH only from the stock UI's Root Access setting. The
 # platform hook (ensure_root_ssh) takes over starting it, but the switch itself
 # lives in the disabled stock UI.
-if grep -q '^[^#]*custom_misc vertype' "${SYSROOT}/etc/init.d/S50dropbear" 2>/dev/null; then
+if [ "$SSH_STATE" != ungated ]; then
     echo "Note: SSH stays available while the stock Root Access setting is on; HelixScreen starts it at boot."
     echo "      To change Root Access, uninstall HelixScreen, switch it in the stock UI, then reinstall."
 fi

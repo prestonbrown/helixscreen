@@ -25,6 +25,28 @@ setup() {
     mkdir -p "$BATS_TEST_TMPDIR/bin"
     export PATH="$BATS_TEST_TMPDIR/bin:$PATH"
     mock_pidof_dropbear ""
+
+    # No waiting for a dropbear the stubs never start.
+    export HELIX_ROOT_SSH_WAIT=0
+    export LOGGER_LOG="$BATS_TEST_TMPDIR/logger.log"
+    cat > "$BATS_TEST_TMPDIR/bin/logger" <<'STUB'
+#!/bin/sh
+echo "$*" >> "$LOGGER_LOG"
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/bin/logger"
+}
+
+# Stub pidof that reports dropbear running once a start left $1 behind.
+mock_pidof_dropbear_after_start() {
+    cat > "$BATS_TEST_TMPDIR/bin/pidof" <<STUB
+#!/bin/sh
+if [ "\$1" = dropbear ] && [ -e "$1" ]; then
+    echo 4242
+    exit 0
+fi
+exit 1
+STUB
+    chmod +x "$BATS_TEST_TMPDIR/bin/pidof"
 }
 
 # Stub pidof: prints PIDS for `pidof dropbear` (empty = not running).
@@ -194,4 +216,164 @@ EOF
     '
     [ "$status" -eq 0 ]
     [ "$(cat "$DROPBEAR_LOG")" = "start --force" ]
+}
+
+# --- A start that leaves no dropbear is reported, not swallowed --------------
+
+@test "u1 root ssh: start --force leaves no dropbear -> syslog error, stderr, app flag" {
+    seed_stock_dropbear
+    seed_gui_config 1
+
+    run bash -c '. "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    [ "$(cat "$DROPBEAR_LOG")" = "start --force" ]
+    contains "flag=1" "$output"
+    contains "ERROR: Root Access is on but SSH (dropbear) did not start" "$output"
+    [ -f "$LOGGER_LOG" ] || fail "nothing sent to syslog"
+    contains "-p user.err -t helixscreen" "$(cat "$LOGGER_LOG")"
+}
+
+@test "u1 root ssh: start --force brings dropbear up -> no error, no app flag" {
+    seed_gui_config 1
+    cat > "$HELIX_DROPBEAR_INIT" <<STUB
+#!/bin/sh
+if [ "\$2" != "--force" ] ; then
+	[ x"\$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
+fi
+touch "$BATS_TEST_TMPDIR/dropbear.up"
+STUB
+    chmod +x "$HELIX_DROPBEAR_INIT"
+    mock_pidof_dropbear_after_start "$BATS_TEST_TMPDIR/dropbear.up"
+
+    run bash -c '. "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    [ -e "$BATS_TEST_TMPDIR/dropbear.up" ]
+    contains "flag=" "$output"
+    lacks "flag=1" "$output"
+    lacks "ERROR" "$output"
+    [ ! -e "$LOGGER_LOG" ]
+}
+
+@test "u1 root ssh: Root Access off -> no error even though dropbear is down" {
+    seed_stock_dropbear
+    seed_gui_config 0
+
+    run bash -c '. "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    lacks "flag=1" "$output"
+    [ ! -e "$LOGGER_LOG" ]
+}
+
+# --- The real stock S50dropbear ---------------------------------------------
+# Verbatim from Snapmaker's official U1 firmware 2.1.2.159 (identical in
+# 2.1.0.157), read out of the upgrade image's rootfs squashfs. The stock UI
+# (/usr/bin/gui) runs `/etc/init.d/S50dropbear start --force` and keeps its
+# Root access switch as open_root in /home/lava/printer_data/config/gui_config.json.
+seed_real_stock_2_1_dropbear() {
+    cat > "$HELIX_DROPBEAR_INIT" <<'REAL_EOF'
+#!/bin/sh
+#
+# Starts dropbear sshd.
+#
+
+if [ "$2" != "--force" ] ; then
+	[ x"$(custom_misc vertype 2>/dev/null)" = x"dbg" ] || exit 0
+fi
+
+# Allow a few customizations from a config file
+test -r /etc/default/dropbear && . /etc/default/dropbear
+
+log()
+{
+	logger -p user.info -t "dropbear[$$]" -- "$1"
+	echo "$1"
+}
+
+start() {
+	DROPBEAR_ARGS="$DROPBEAR_ARGS -R"
+
+	# If /etc/dropbear is a symlink to /var/run/dropbear, and
+	#   - the filesystem is RO (i.e. we can not rm the symlink),
+	#     create the directory pointed to by the symlink.
+	#   - the filesystem is RW (i.e. we can rm the symlink),
+	#     replace the symlink with an actual directory
+	if [ -L /etc/dropbear \
+	     -a "$(readlink /etc/dropbear)" = "/var/run/dropbear" ]
+	then
+		if rm -f /etc/dropbear >/dev/null 2>&1; then
+			mkdir -p /etc/dropbear
+		else
+			log "No persistent location to store SSH host keys. New keys will be"
+			log "generated at each boot. Are you sure this is what you want to do?"
+			mkdir -p "$(readlink /etc/dropbear)"
+		fi
+	fi
+
+	log "Starting dropbear sshd: "
+	umask 077
+
+	start-stop-daemon -S -q -p /var/run/dropbear.pid \
+		--exec /usr/sbin/dropbear -- $DROPBEAR_ARGS
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+stop() {
+	log "Stopping dropbear sshd: "
+	start-stop-daemon -K -q -p /var/run/dropbear.pid
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+}
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+  start)
+  	start
+	;;
+  stop)
+  	stop
+	;;
+  restart|reload)
+  	restart
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
+REAL_EOF
+}
+
+@test "u1 root ssh: the real stock 2.1.x S50dropbear is recognized as gated" {
+    seed_real_stock_2_1_dropbear
+    seed_gui_config 1
+    mock_pidof_dropbear 812
+    run bash -c '. "'"$HOOK"'"; u1_root_ssh_state'
+    [ "$output" = ok ] || fail "state: $output"
+
+    seed_gui_config 0
+    run bash -c '. "'"$HOOK"'"; u1_root_ssh_state'
+    [ "$output" = off ] || fail "state: $output"
+
+    rm -f "$HELIX_GUI_CONFIG"
+    run bash -c '. "'"$HOOK"'"; u1_root_ssh_state'
+    [ "$output" = no_config ] || fail "state: $output"
+}
+
+@test "u1 root ssh: an inherited SSH-down value never stands in for this run's check" {
+    seed_stock_dropbear
+    seed_gui_config 1
+
+    # SSH down now: a stale 0 must not mask it.
+    run bash -c 'export HELIX_U1_ROOT_SSH_DOWN=0; . "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    contains "flag=1" "$output"
+
+    # SSH up now: a stale 1 must not raise a false warning.
+    mock_pidof_dropbear 812
+    run bash -c 'export HELIX_U1_ROOT_SSH_DOWN=1; . "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    contains "flag=" "$output"
+    lacks "flag=1" "$output"
 }

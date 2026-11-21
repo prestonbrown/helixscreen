@@ -39,6 +39,11 @@ class NozzleTempsWidget : public PanelWidget {
         return "nozzle_temps";
     }
 
+    /// A nozzle_temp_row tap; the row's index into extruder_rows_ is event user_data.
+    static void extruder_row_clicked_cb(lv_event_t* e);
+    /// A nozzle_temp_bed_row tap: opens the bed graph.
+    static void bed_row_clicked_cb(lv_event_t* e);
+
   private:
     friend class NozzleTempsTestAccess;
 
@@ -117,7 +122,8 @@ class NozzleTempsWidget : public PanelWidget {
     void on_hooked_root_deleted() override;
 
     void create_extruder_row(lv_obj_t* container, ExtruderRow& row);
-    void handle_extruder_row_clicked(lv_obj_t* row_obj);
+    /// Open the nozzle graph, on extruder row @p index's tool when there are several.
+    void handle_extruder_row_clicked(int index);
     void create_bed_row(lv_obj_t* container);
 
     /// Re-format every row from its cached readings (language or unit switch).

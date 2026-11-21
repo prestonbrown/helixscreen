@@ -4,23 +4,16 @@
 <!-- Change Printer Host Modal - Allows changing Moonraker connection -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
+  <api>
+    <!-- The title: Change Printer Host, or Add Printer when ChangeHostModal adds one. -->
+    <prop name="title" type="string" default="Change Printer Host"/>
+    <prop name="title_tag" type="string" default="Change Printer Host"/>
+  </api>
   <!-- Subjects managed in C++ (init_subjects registers change_host_testing, change_host_validated) -->
   <!-- Dialog card (backdrop created programmatically) -->
-  <view name="change_host_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Form container -->
-    <lv_obj name="form_container"
-            width="100%" height="content" style_min_height="200" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <!-- Title -->
-      <text_heading name="title_change_host" width="100%" text="Change Printer Host" style_text_align="center">
-        <bind_flag_if_eq subject="change_host_adding" flag="hidden" ref_value="1"/>
-      </text_heading>
-      <text_heading name="title_add_printer" width="100%" text="Add Printer" style_text_align="center">
-        <bind_flag_if_eq subject="change_host_adding" flag="hidden" ref_value="0"/>
-      </text_heading>
+  <view name="change_host_modal" extends="dialog_frame" title="$title" title_tag="$title_tag" icon="lan">
+    <!-- Form -->
+    <dialog_frame-body>
       <!-- Printers found on the network (mDNS and the LAN sweep); shown while discovery runs -->
       <lv_obj name="discovery_section"
               width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="column">
@@ -85,10 +78,12 @@
           <text_body name="status_text" width="0" bind_text="change_host_status_text" flex_grow="1" long_mode="wrap"/>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
-    <modal_button_row secondary_name="modal_cancel_btn"
-                      secondary_text="Cancel" secondary_callback="on_change_host_cancel" primary_name="modal_save_btn"
-                      primary_text="Save" primary_callback="on_change_host_save"
-                      primary_disable_subject="change_host_save_locked"/>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+      <modal_button_row secondary_name="modal_cancel_btn"
+                        secondary_text="Cancel" secondary_callback="on_change_host_cancel" primary_name="modal_save_btn"
+                        primary_text="Save" primary_callback="on_change_host_save"
+                        primary_disable_subject="change_host_save_locked"/>
+    </dialog_frame-footer>
   </view>
 </component>

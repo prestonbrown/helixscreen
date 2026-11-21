@@ -4,13 +4,12 @@
 <component>
   <!-- Reusable Header Bar Component - Improved Design v2 -->
   <!-- Used in modal overlays, sub-screens, and detail views -->
-  <!-- Provides consistent back button + centered title + optional action button -->
+  <!-- Provides consistent back button + title + the screen's own header buttons -->
   <!-- Key improvements over v1:
        - Flat 3-element layout (no nested containers) for true centering
        - Symmetric padding (left + right) for visual balance
        - Title uses flex_grow + text_align for perfect centering
        - Uses text_heading/text_body components for theme consistency
-       - XML-controlled action button visibility via hide_action_button prop
   -->
   <consts>
     <!-- Cap for the header's action buttons.
@@ -20,10 +19,9 @@
          header passing #button_height gets a button taller than its own bar;
          style_flex_cross_place centers the overflow and the top half clips off
          the screen.
-         Applied as style_max_height rather than height, because the
-         action_button_height default is `content` and those self-sized buttons
-         are already correct — a cap leaves them alone and clamps only the
-         oversized ones.
+         Applied as style_max_height rather than height, because most header
+         buttons size to their content and are already correct; a cap leaves
+         them alone and clamps only the oversized ones.
          Roughly 80% of the corresponding header_height at each tier. -->
     <px name="header_button_height_micro" value="32"/>
     <px name="header_button_height_tiny" value="26"/>
@@ -32,8 +30,8 @@
     <px name="header_button_height_large" value="48"/>
     <px name="header_button_height_xlarge" value="54"/>
     <px name="header_button_height_xxlarge" value="64"/>
-    <!-- Floor for the labelled second action slot (action_button_2_min_width's
-         default). 72 on the 480x272 tier, where the bar is 40px tall and every
+    <!-- Floor for a labelled secondary header button
+         (style_min_width="#header_slot2_min_width"). 72 on the 480x272 tier, where the bar is 40px tall and every
          slot-2 px comes out of the title; 90 everywhere else. -->
     <px name="header_slot2_min_width_micro" value="72"/>
     <px name="header_slot2_min_width_tiny" value="90"/>
@@ -53,6 +51,10 @@
   <api>
     <!-- Widgets a screen adds to its header: <header_bar-header_content>. -->
     <slot name="header_content"/>
+    <!-- The screen's own header buttons, at the right end: <header_bar-actions>
+         (<overlay_panel-actions> in a view extending overlay_panel). Style each
+         with styles.header_action, or styles.header_icon_button for a round glyph. -->
+    <slot name="actions" target="header_actions" hide_empty="true"/>
     <prop name="title" type="string"/>
     <prop name="title_tag" type="string" default=""/>
     <!-- Optional live title. When a screen's header names something that changes
@@ -84,71 +86,9 @@
     <prop name="title_badge_subject" type="string" default=""/>
     <!-- Back button callback - defaults to standard navigation go_back -->
     <prop name="back_button_callback" type="string" default="on_header_back_clicked"/>
-    <!-- Text-based action button (use action_button_text) -->
-    <prop name="action_button_text" type="string" default=""/>
-    <prop name="action_button_text_tag" type="string" default=""/>
-    <!-- Icon-based action button (use action_button_icon instead of text) -->
-    <prop name="action_button_icon" type="string" default=""/>
-    <!-- Icon size for action_button: sm (default), md, lg. md/lg scale the -->
-    <!-- icon-only e-stop glyph up on micro/small displays. -->
-    <prop name="action_button_icon_size" type="string" default="sm"/>
-    <!-- Hide the icon in action button (for text-only buttons) -->
-    <prop name="hide_action_button_icon" type="string" default="false"/>
-    <!-- Hide the text label in action button (for icon-only circular buttons) -->
-    <prop name="hide_action_button_text" type="string" default="false"/>
-    <prop name="action_button_icon_color" type="string" default="#text"/>
-    <!-- Styling props for custom action buttons (e.g., E-stop) -->
-    <prop name="action_button_bg_color" type="string" default="#primary"/>
-    <prop name="action_button_radius" type="string" default="#border_radius"/>
-    <!-- Button dimensions - use same value for width/height + radius=9999 for circular buttons -->
-    <prop name="action_button_width" type="string" default="content"/>
-    <prop name="action_button_height" type="string" default="content"/>
-    <prop name="action_button_pad" type="string" default="#space_sm"/>
-    <!-- Use hide_action_button="false" to show the action button -->
-    <prop name="hide_action_button" type="string" default="true"/>
-    <prop name="action_button_callback" type="string" default=""/>
-    <!-- Subject name for reactive disabled state binding (empty = no binding) -->
-    <prop name="action_button_disabled_subject" type="string" default=""/>
-    <!-- Expression form of the above, for buttons whose disabled state depends on
-         more than one subject (e.g. "busy OR printer not reachable"). Use EITHER
-         this or action_button_disabled_subject, never both: two bindings on the
-         same LVGL state clobber each other, since each observer asserts both
-         polarities on every fire. Default "0" is a constant (no subjects), so it
-         fires once at bind and never again — which is why the binding below is
-         ordered BEFORE the subject binding, letting the subject form win. -->
-    <prop name="action_button_disabled_cond" type="string" default="0"/>
-    <!-- Optional int subject: 1 hides the action button entirely (per-view Save) -->
-    <prop name="action_button_hidden_subject" type="string" default=""/>
-    <!-- Second action button (appears to LEFT of primary action button) -->
-    <prop name="action_button_2_text" type="string" default=""/>
-    <prop name="action_button_2_text_tag" type="string" default=""/>
-    <prop name="action_button_2_icon" type="string" default=""/>
-    <prop name="action_button_2_icon_size" type="string" default="sm"/>
-    <prop name="action_button_2_bg_color" type="string" default="#secondary"/>
-    <!-- Floor for the labelled slot, per tier (header_slot2_min_width in the
-         consts above); a consumer whose label may hide passes a smaller one. -->
-    <prop name="action_button_2_min_width" type="string" default="#header_slot2_min_width"/>
-    <prop name="action_button_2_callback" type="string" default=""/>
-    <prop name="hide_action_button_2" type="string" default="true"/>
-    <prop name="action_button_2_hidden_subject" type="string" default=""/>
-    <!-- Expression form of the above, for a button hidden by a threshold or
-         compound condition on global subjects (e.g. "ui_breakpoint lt 2").
-         Empty default leaves the flag alone; unlike disabled_cond's "0" a
-         constant here would fire once at bind and un-hide the slot for every
-         consumer that never asked for the button. -->
-    <prop name="action_button_2_hidden_cond" type="string" default=""/>
-    <!-- A condition under which the secondary button drops its label and keeps its icon. -->
-    <prop name="action_button_2_label_hidden_cond" type="string" default=""/>
-    <prop name="action_button_2_disabled_subject" type="string" default=""/>
-    <!-- Icon-only action, left of the secondary button: a round button drawn
-         by styles.header_icon_button. A screen with a labelled second action
-         uses action_button_2; one with only a glyph uses this. -->
-    <prop name="action_icon" type="string" default=""/>
-    <prop name="action_icon_callback" type="string" default=""/>
-    <prop name="hide_action_icon" type="string" default="true"/>
-    <!-- Expression hiding it (e.g. "ui_breakpoint lt 2"); empty leaves the flag
-         alone, as action_button_2_hidden_cond does. -->
-    <prop name="action_icon_hidden_cond" type="string" default=""/>
+    <!-- 1 hides the back arrow and makes the title inert: the view is embedded
+         beside a panel (an ultrawide side band), with nothing to go back to. -->
+    <prop name="back_hidden_subject" type="string" default=""/>
   </api>
   <view extends="lv_obj"
         width="100%" height="#header_height" style_pad_left="0" style_pad_right="#space_lg" style_pad_top="0"
@@ -162,8 +102,11 @@
             style_pad_gap="#space_xs">
       <bind_style_if_eq name="header_title_inset_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="header_title_inset" subject="ui_breakpoint" ref_value="1"/>
+      <bind_flag_if_eq subject="$back_hidden_subject" flag="clickable" ref_value="0"/>
       <event_cb trigger="clicked" callback="$back_button_callback"/>
-      <icon name="back_icon" src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+      <icon name="back_icon" src="back" size="lg" variant="text" clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="$back_hidden_subject" flag="hidden" ref_value="1"/>
+      </icon>
       <!-- bind_text is deliberately FIRST. An unsupplied title_subject resolves to the
            empty name, which is a registered no-op INT subject, and binding to that
            stamps "0" over the title. Applying text/translation_tag afterwards puts the
@@ -201,51 +144,15 @@
             width="content" height="100%" style_pad_all="0" style_pad_left="0" style_pad_right="0" style_bg_opa="0"
             style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_gap="#space_sm"
             style_flex_cross_place="center" style_flex_track_place="center"/>
-    <!-- Icon-only action (left of the secondary button, hidden by default). -->
-    <ui_button name="action_icon_button"
-               width="#button_height_sm" height="#button_height_sm" style_max_height="#header_button_height"
-               hidden="$hide_action_icon" icon="$action_icon" icon_size="sm">
-      <style name="styles.header_icon_button"/>
-      <bind_flag_if cond="$action_icon_hidden_cond" flag="hidden"/>
-      <event_cb trigger="clicked" callback="$action_icon_callback"/>
-    </ui_button>
-    <!-- Secondary action button (left of primary, hidden by default) -->
-    <ui_button name="action_button_2"
-               width="content" height="$action_button_height" style_min_width="$action_button_2_min_width"
-               style_max_height="#header_button_height" style_radius="#border_radius"
-               style_bg_color="$action_button_2_bg_color" hidden="$hide_action_button_2" icon="$action_button_2_icon"
-               icon_size="$action_button_2_icon_size" text="$action_button_2_text"
-               translation_tag="$action_button_2_text_tag" label_hidden_cond="$action_button_2_label_hidden_cond">
-      <bind_state_if_eq subject="$action_button_2_disabled_subject" state="disabled" ref_value="1"/>
-      <!-- Both bindings drive the same hidden flag, so order settles only the
-           value at bind time, where the subject form lands last. After that
-           whichever input changed most recently decides. Supply one form or
-           the other. -->
-      <bind_flag_if cond="$action_button_2_hidden_cond" flag="hidden"/>
-      <bind_flag_if_eq subject="$action_button_2_hidden_subject" flag="hidden" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$action_button_2_callback"/>
-    </ui_button>
-    <!-- Primary action button (hidden by default, pass hide_action_button="false" to show) -->
-    <!-- Supports both text (action_button_text) and icon (action_button_icon) modes -->
-    <!-- For icon-only buttons like E-stop, use circular radius and custom bg_color -->
-    <ui_button name="action_button"
-               width="$action_button_width" height="$action_button_height" style_max_height="#header_button_height"
-               style_radius="$action_button_radius" style_bg_color="$action_button_bg_color"
-               hidden="$hide_action_button" icon="$action_button_icon" icon_size="$action_button_icon_size"
-               text="$action_button_text" translation_tag="$action_button_text_tag">
-      <!-- Expression-driven disabled binding. Must precede the subject binding below;
-           see the action_button_disabled_cond prop comment for why. -->
-      <bind_state_if cond="$action_button_disabled_cond" state="disabled"/>
-      <!-- Reactive disabled state binding (enabled when subject exists and is non-empty) -->
-      <bind_state_if_eq subject="$action_button_disabled_subject" state="disabled" ref_value="1"/>
-      <!-- Reactive hidden binding: 1 hides the action button entirely (per-view Save) -->
-      <bind_flag_if_eq subject="$action_button_hidden_subject" flag="hidden" ref_value="1"/>
-      <event_cb trigger="clicked" callback="$action_button_callback"/>
-    </ui_button>
-    <!-- Unsaved z-offset. Built into the header rather than driven through the
-         action_button props because those slots are already spoken for — 14
-         panels set action_button, 4 set action_button_2 — and this must be able
-         to appear on any of them.
+    <!-- Host of the actions slot: hidden until filled, so an unfilled slot
+         adds no flex gap. It sets no gap of its own: it takes the theme's
+         container gap, the same one that spaces the bar's children, so its
+         buttons sit as far apart as the bar's at every breakpoint. -->
+    <lv_obj name="header_actions"
+            width="content" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            clickable="false" flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center"/>
+    <!-- Unsaved z-offset. Built into the header rather than placed in each
+         screen's actions slot, because it must be able to appear on any of them.
          Global on purpose: an unsaved offset is lost on the next Klipper
          restart no matter which screen you are looking at, so the affordance
          follows you. The Controls panel keeps its own full-width Save button
@@ -257,8 +164,8 @@
          Icon-only: the micro header is 40px tall with 32px buttons and the
          title already flex-grows, so a labelled button here eats the title. -->
     <ui_button name="header_save_z_offset"
-               width="content" height="$action_button_height" style_max_height="#header_button_height"
-               style_bg_color="#success" icon="check" icon_size="sm" hidden="true">
+               width="content" height="content" style_max_height="#header_button_height" style_bg_color="#success"
+               icon="check" icon_size="sm" hidden="true">
       <bind_flag_if_eq subject="z_offset_save_available" flag="hidden" ref_value="0"/>
       <!-- The toolhead guard follows the save a tap would make: the machine-wide
            save restarts Klipper and waits while a job holds the machine; a

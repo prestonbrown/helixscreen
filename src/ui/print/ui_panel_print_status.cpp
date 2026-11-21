@@ -68,6 +68,7 @@
 #include "settings_manager.h"
 #include "system/crash_handler.h"
 #include "system/subject_registry.h"
+#include "target_tool.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "tune_controller.h"
@@ -249,7 +250,8 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
       layout_fitter_(get_name(),
                      {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
                       &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
-                      &uw_actions_w_subject_},
+                      &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
+                      &printer_tile_h_subject_},
                      {[this]() -> lv_obj_t* { return overlay_root_; },
                       [this]() { return subjects_initialized_; }}),
       tiles_(printer_state, {[this]() -> lv_obj_t* { return overlay_root_; },
@@ -641,6 +643,9 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(uw_printer_w_subject_, 0, "ps_uw_printer_w", subjects_);
     UI_MANAGED_SUBJECT_INT(uw_readouts_w_subject_, 0, "ps_uw_readouts_w", subjects_);
     UI_MANAGED_SUBJECT_INT(uw_actions_w_subject_, 0, "ps_uw_actions_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(lane_tray_subject_, 0, "ps_lane_tray", subjects_);
+    UI_MANAGED_SUBJECT_INT(lane_tray_h_subject_, 0, "ps_lane_tray_h", subjects_);
+    UI_MANAGED_SUBJECT_INT(printer_tile_h_subject_, lv_pct(100), "ps_printer_tile_h", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.
@@ -718,6 +723,50 @@ void PrintStatusPanel::init_subjects() {
                     self->relayout();
                 },
                 queue->get_subjects_lifetime());
+        }
+    }
+
+    // The lane tray shows, and takes its room, while the printer has a
+    // filament system or several heads.
+    {
+        lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
+        if (gate) {
+            auto token = lifetime_.token();
+            lane_tray_gate_observer_ = observe<int>(
+                gate, this,
+                [token](PrintStatusPanel* self, int) {
+                    if (token.expired())
+                        return;
+                    self->relayout();
+                },
+                helix::ui::TargetTool::instance().get_subjects_lifetime());
+        }
+        // Whether the tray has lanes to draw follows the filament system's
+        // lanes. Most slot changes leave that alone, and the fitter publishes
+        // only what moved; the tiles follow their own size change.
+        auto& ams = AmsState::instance();
+        if (ams.are_subjects_initialized()) {
+            auto token = lifetime_.token();
+            lane_tray_slots_observer_ = observe<int>(
+                ams.get_slots_version_subject(), this,
+                [token](PrintStatusPanel* self, int) {
+                    if (token.expired())
+                        return;
+                    self->layout_fitter_.recompute();
+                },
+                ams.get_subjects_lifetime());
+        }
+        // A checklist that gains a step needs a row more of the job tile.
+        if (lv_subject_t* steps = lv_xml_get_subject(nullptr, "ps_step_count")) {
+            auto token = lifetime_.token();
+            lane_tray_steps_observer_ = observe<int>(
+                steps, this,
+                [token](PrintStatusPanel* self, int) {
+                    if (token.expired())
+                        return;
+                    self->layout_fitter_.recompute();
+                },
+                get_subjects_lifetime());
         }
     }
 
@@ -922,6 +971,9 @@ void PrintStatusPanel::deinit_subjects() {
     fans_version_observer_.reset();
     primary_fans_version_observer_.reset();
     breakpoint_observer_.reset();
+    lane_tray_gate_observer_.reset();
+    lane_tray_slots_observer_.reset();
+    lane_tray_steps_observer_.reset();
     scoped_runout_observer_.reset();
     scoped_runout_slots_observer_.reset();
     part_speed_lifetime_.reset();
@@ -1655,7 +1707,12 @@ void PrintStatusPanel::apply_gcode_viewer_pause() {
 }
 
 void PrintStatusPanel::set_preparing_visible(bool visible) {
+    const bool changed = (lv_subject_get_int(&preparing_visible_subject_) != 0) != visible;
     lv_subject_set_int(&preparing_visible_subject_, visible ? 1 : 0);
+    // The lane tray leaves the job tile the checklist's height while it shows.
+    if (changed) {
+        layout_fitter_.recompute();
+    }
     // An inactive panel's viewer was paused by on_deactivating() and stays so.
     if (is_active_) {
         apply_gcode_viewer_pause();
@@ -2441,9 +2498,6 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
         animate_print_cancelled();
         spdlog::debug("[{}] Print cancelled at progress: {}%", get_name(), lifecycle_.progress());
     }
-
-    // Nothing here touches the header's action_button: this panel never
-    // configures one, so un-hiding it renders an empty primary-colored pill.
 }
 
 void PrintStatusPanel::on_print_filename_changed(const char* filename) {

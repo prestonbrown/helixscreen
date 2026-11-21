@@ -10,12 +10,14 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "config.h"
 #include "core/notification_api.h"
 #include "core/text_io.h"
 #include "display_numbering.h"
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "firmware_fault_codes.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lane_source_store.h"
@@ -30,6 +32,7 @@
 #include "printer_discovery.h"
 #include "settings_manager.h"
 #include "snapmaker_channel_state.h"
+#include "snapmaker_exceptions.h"
 #include "snapmaker_nozzle_offset.h"
 #include "snapmaker_resume.h"
 #include "snapmaker_screws_tilt.h"
@@ -201,12 +204,20 @@ constexpr std::string_view kSoftCompatGroup = "TPU";
     return lane + lv_tr("Load failed");
 }
 
-// The status line for a channel fault, in the current language.
+// The status line for a channel fault, in the current language. A token with no
+// wording of its own on an operation that failed reads as that failure: the
+// coded raise that follows explains the cause, and the token is a firmware word.
 [[nodiscard]] std::string channel_fault_detail(bool from_error_token, const std::string& error,
                                                const std::string& op_state,
                                                helix::ui::LaneNoun noun, int lane_index) {
-    return from_error_token ? friendly_channel_error(error, noun, lane_index)
-                            : friendly_channel_state_fail(op_state, noun, lane_index);
+    if (!from_error_token) {
+        return friendly_channel_state_fail(op_state, noun, lane_index);
+    }
+    std::string text = friendly_channel_error(error, noun, lane_index);
+    if (text == error && snapmaker::classify_channel_state(op_state).is_fail) {
+        return friendly_channel_state_fail(op_state, noun, lane_index);
+    }
+    return text;
 }
 
 using snapmaker::ChannelStateInfo;
@@ -381,6 +392,7 @@ void AmsBackendSnapmaker::on_started() {
         // per-print marks survive (apply_print_state_locked).
         print_state_.reset();
         main_state_.reset();
+        action_code_.reset();
         record_restore_sent_.fill(false);
         insert_since_declaration_.fill(false);
     }
@@ -2866,6 +2878,10 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
                 print_filename_ = file->get<std::string>();
                 frame_names_file = true;
             }
+            if (const nlohmann::json* total = helix::json_util::find_member(*ps, "total_duration");
+                total && total->is_number()) {
+                print_total_duration_ = total->get<double>();
+            }
             if (const nlohmann::json* state = helix::json_util::find_member(*ps, "state");
                 state && state->is_string()) {
                 const bool was_in_progress = print_in_progress_locked();
@@ -2879,6 +2895,14 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
                 if (nozzle_rows && print_in_progress_locked() != was_in_progress) {
                     fx.changed = true;
                 }
+            }
+        }
+        if (const nlohmann::json* manager =
+                helix::json_util::find_member(status, "machine_state_manager");
+            manager != nullptr) {
+            if (const nlohmann::json* code = helix::json_util::find_member(*manager, "action_code");
+                code != nullptr && code->is_number_integer()) {
+                action_code_ = code->get<int>();
             }
         }
         if (const auto main_state = snapmaker::screws_tilt::main_state_from_status(status)) {
@@ -2901,7 +2925,7 @@ void AmsBackendSnapmaker::handle_status(const nlohmann::json& status) {
         apply_working_slot_locked(fx);
 
         apply_print_task_config_locked(delta, fx);
-        note_pause_records_locked();
+        note_pause_records_locked(fx);
         fx.check_used_heads = used_heads_check_due_locked(frame_names_state, frame_names_file);
         fx.check_used_heads_file = print_filename_;
         fx.check_used_heads_print = print_generation_;
@@ -2958,6 +2982,10 @@ void AmsBackendSnapmaker::dispatch_effects(const FrameEffects& fx) {
 
     if (fx.refeed_settled) {
         finish_refeed_wait();
+    }
+
+    if (fx.persist_running_records) {
+        write_persisted_running_records();
     }
 
     if (fx.check_used_heads) {
@@ -3626,6 +3654,52 @@ void AmsBackendSnapmaker::send_resume_repairs_then(std::vector<std::pair<int, st
         /*caller_surfaces_errors=*/false);
 }
 
+// A coded fault the U1 table words (snapmaker::word_fault): the fault-code
+// classifier's event with our summary as its title and the cause and fix as its
+// text. A feeder failure that pauses a print waits on the user, so it blocks
+// with the ways on; idle, it answers the command the user just sent.
+std::optional<helix::ErrorEvent>
+AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
+                                          const helix::ClassifyContext& ctx) const {
+    const auto code = snapmaker::decode_exception_code(raw_line);
+    if (!code) {
+        return std::nullopt;
+    }
+    const auto worded = snapmaker::word_fault(*code);
+    if (!worded) {
+        return std::nullopt;
+    }
+    auto e = helix::faultcodes::classify(get_printer_state().get_discovery(), raw_line);
+    if (!e) {
+        return std::nullopt;
+    }
+    e->title = worded->summary;
+    e->detail = worded->detail;
+    if (code->id != snapmaker::kFeedingModuleId) {
+        return e;
+    }
+    const bool job_waits = ctx.is_printing || ctx.is_paused;
+    e->command_refusal = !job_waits;
+    if (!job_waits ||
+        snapmaker::severity_of(code->level) == snapmaker::ExceptionSeverity::Informational) {
+        return e;
+    }
+    // Loading again is the Filament panel's, which keeps its own guards for a
+    // paused print; Resume refuses until the head reports a finished load.
+    helix::RecoveryAction open_filament{lv_tr("Open Filament"), "",
+                                        "ams_backend_snapmaker::feed_open_filament", "primary"};
+    open_filament.guided_flow = helix::kOpenFilamentFlowId;
+    helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
+                                 "ams_backend_snapmaker::feed_cancel_print", "danger"};
+    cancel.guided_flow = helix::kCancelPrintFlowId;
+    e->recovery_actions = {std::move(open_filament),
+                           std::move(cancel),
+                           {lv_tr("Close"), "", "ams_backend_snapmaker::feed_dismiss"}};
+    e->severity = helix::ErrorSeverity::CRITICAL;
+    e->sticky = true;
+    return e;
+}
+
 // The U1 blocks RESUME whenever a used extruder still reads filament_type
 // "" or "NONE" in print_task_config: INNER_CHECK_AND_RELOAD_FILAMENT_INFO
 // raises `e<N> not edit filament`. Tagless third-party spools land here,
@@ -3640,6 +3714,9 @@ AmsBackendSnapmaker::classify_error(const std::string& raw_line,
                                     const helix::ClassifyContext& ctx) const {
     if (!helix::is_bang_line(raw_line)) {
         return std::nullopt;
+    }
+    if (auto coded = classify_coded_fault(raw_line, ctx)) {
+        return coded;
     }
 
     // Only meaningful against a job the user is trying to continue. Echoing the
@@ -4153,6 +4230,94 @@ AmsBackendSnapmaker::get_endless_spool_capabilities() const {
             .switchable = true};
 }
 
+// ============================================================================
+// Running filament records, persisted per printer
+// ============================================================================
+
+namespace {
+
+constexpr const char* kRunningRecordsKey = "snapmaker/running_records";
+
+nlohmann::json record_to_json(const helix::runout_other_head::FilamentRecord& r) {
+    return {{"vendor", r.vendor}, {"type", r.type},   {"subtype", r.subtype},
+            {"colors", r.colors}, {"alpha", r.alpha}, {"multi_mode", r.multi_mode}};
+}
+
+std::optional<helix::runout_other_head::FilamentRecord> record_from_json(const nlohmann::json& j) {
+    if (!j.is_object()) {
+        return std::nullopt;
+    }
+    helix::runout_other_head::FilamentRecord r;
+    r.vendor = helix::json_util::safe_string(j, "vendor", "");
+    r.type = helix::json_util::safe_string(j, "type", "");
+    r.subtype = helix::json_util::safe_string(j, "subtype", "");
+    r.alpha = helix::json_util::safe_int(j, "alpha", 0xFF);
+    r.multi_mode = helix::json_util::safe_int(j, "multi_mode", 0);
+    if (const nlohmann::json* colors = helix::json_util::find_member(j, "colors");
+        colors && colors->is_array()) {
+        for (const auto& c : *colors) {
+            if (c.is_string()) {
+                r.colors.push_back(c.get<std::string>());
+            }
+        }
+    }
+    if (r.vendor.empty() || r.type.empty()) {
+        return std::nullopt;
+    }
+    return r;
+}
+
+} // namespace
+
+std::optional<AmsBackendSnapmaker::PersistedRunningRecords>
+AmsBackendSnapmaker::read_persisted_running_records() {
+    const helix::Config* config = helix::Config::get_instance();
+    if (!config) {
+        return std::nullopt;
+    }
+    const nlohmann::json* j = config->try_get_json(config->df() + kRunningRecordsKey);
+    if (!j || !j->is_object()) {
+        return std::nullopt;
+    }
+    PersistedRunningRecords saved;
+    saved.file = helix::json_util::safe_string(*j, "file", "");
+    saved.total_duration = helix::json_util::safe_double(*j, "total_duration", 0.0);
+    if (saved.file.empty()) {
+        return std::nullopt;
+    }
+    if (const nlohmann::json* heads = helix::json_util::find_member(*j, "heads");
+        heads && heads->is_array()) {
+        for (size_t i = 0; i < heads->size() && i < saved.records.size(); ++i) {
+            saved.records[i] = record_from_json((*heads)[i]);
+        }
+    }
+    return saved;
+}
+
+void AmsBackendSnapmaker::store_persisted_running_records(
+    const std::optional<PersistedRunningRecords>& saved) {
+    helix::Config* config = helix::Config::get_instance();
+    if (!config) {
+        return;
+    }
+    const std::string key = config->df() + kRunningRecordsKey;
+    if (!saved) {
+        if (!config->exists(key)) {
+            return;
+        }
+        config->set<nlohmann::json>(key, nullptr);
+    } else {
+        nlohmann::json heads = nlohmann::json::array();
+        for (const auto& r : saved->records) {
+            heads.push_back(r ? record_to_json(*r) : nlohmann::json(nullptr));
+        }
+        config->set<nlohmann::json>(key, {{"file", saved->file},
+                                          {"total_duration", saved->total_duration},
+                                          {"heads", std::move(heads)}});
+    }
+    config->save();
+}
+
 std::optional<helix::runout_other_head::FilamentRecord>
 AmsBackendSnapmaker::task_record_locked(int head) const {
     // The record Auto-Replenish compares: vendor, type, subtype and colour
@@ -4172,18 +4337,45 @@ AmsBackendSnapmaker::task_record_locked(int head) const {
                                                     .multi_mode = multi->mode};
 }
 
-void AmsBackendSnapmaker::note_pause_records_locked() {
+void AmsBackendSnapmaker::note_pause_records_locked(FrameEffects& fx) {
+    if (!persisted_records_read_) {
+        persisted_records_read_ = true;
+        persisted_records_ = read_persisted_running_records();
+    }
     if (!print_in_progress_locked()) {
         running_records_.fill(std::nullopt);
         pause_records_.fill(std::nullopt);
+        // Only a reported state ends the print: a frame before the first
+        // print_stats says nothing about it.
+        if (print_state_ && persisted_records_) {
+            persisted_records_.reset();
+            fx.persist_running_records = true;
+        }
         return;
     }
     const bool paused = *print_state_ == "paused";
+    if (paused && persisted_records_ &&
+        std::none_of(running_records_.begin(), running_records_.end(),
+                     [](const auto& r) { return r.has_value(); })) {
+        // A process that starts into the pause never saw the print run. What an
+        // earlier one saw stands in, if it saw this print.
+        const auto& saved = *persisted_records_;
+        if (!print_filename_.empty() && saved.file == print_filename_ && print_total_duration_ &&
+            *print_total_duration_ >= saved.total_duration) {
+            running_records_ = saved.records;
+            spdlog::info("{} Recovered the running filament records of '{}' from before a restart",
+                         backend_log_tag(), saved.file);
+        }
+    }
+    bool running_changed = false;
     for (int i = 0; i < kNumTools; ++i) {
         const auto idx = static_cast<size_t>(i);
         if (!paused) {
             pause_records_[idx].reset();
             if (auto record = task_record_locked(i)) {
+                if (!(running_records_[idx] == record)) {
+                    running_changed = true;
+                }
                 running_records_[idx] = std::move(record);
             }
             continue;
@@ -4193,6 +4385,23 @@ void AmsBackendSnapmaker::note_pause_records_locked() {
             kept = running_records_[idx] ? running_records_[idx] : task_record_locked(i);
         }
     }
+    if (running_changed && !print_filename_.empty()) {
+        persisted_records_ = PersistedRunningRecords{
+            .file = print_filename_,
+            .total_duration = print_total_duration_.value_or(0.0),
+            .records = running_records_,
+        };
+        fx.persist_running_records = true;
+    }
+}
+
+void AmsBackendSnapmaker::write_persisted_running_records() {
+    std::optional<PersistedRunningRecords> snapshot;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        snapshot = persisted_records_;
+    }
+    store_persisted_running_records(snapshot);
 }
 
 std::optional<helix::runout_other_head::RunoutFacts>
@@ -4210,6 +4419,11 @@ AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
     const auto& kept = pause_records_[static_cast<size_t>(runout_head)];
     facts.original = kept ? kept : task_record_locked(runout_head);
     facts.routing = extruder_map_table_;
+    // RESUME refuses while the action code is not IDLE, and INNER_RESUME holds
+    // PRINT_RESUMING or PRINT_REPLENISHING through its heat, purge and clean,
+    // with the print still paused (fluidd.cfg INNER_RESUME, pause_resume.py
+    // cmd_RESUME). The firmware's own Auto-Replenish runs inside that window.
+    facts.printer_busy = facts.paused && action_code_ && *action_code_ != kActionCodeIdle;
     for (int i = 0; i < kNumTools; ++i) {
         const auto& snap = channel_snapshots_[static_cast<size_t>(i)];
         const auto& ext = extruder_states_[static_cast<size_t>(i)];

@@ -718,8 +718,9 @@ class EditHomeFixture : public LVGLTestFixture {
         lv_obj_update_layout(root_);
     }
 
-    /// A point on page @p index that no named object covers: the middle of the
-    /// page's bottom-right cell.
+    /// A point on page @p index that no tile covers: the middle of the page's
+    /// bottom-right cell. Floating children (edit mode's event shield and
+    /// selection chrome) sit over the whole page by design and are skipped.
     lv_point_t empty_spot(int index) {
         lv_area_t content;
         const helix::CellMetrics m = page_metrics(index, &content);
@@ -731,7 +732,7 @@ class EditHomeFixture : public LVGLTestFixture {
         lv_obj_t* container = page(index);
         for (uint32_t i = 0; i < lv_obj_get_child_count(container); ++i) {
             lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
-            if (!lv_obj_get_name(child)) {
+            if (!lv_obj_get_name(child) || lv_obj_is_floating(child)) {
                 continue;
             }
             const lv_area_t area = area_of(child);

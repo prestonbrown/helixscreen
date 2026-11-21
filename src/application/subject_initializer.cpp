@@ -5,6 +5,7 @@
 
 #include "ui_bed_drying_modal.h"
 #include "ui_belt_cutter_cal.h"
+#include "ui_calibration_hub_overlay.h"
 #include "ui_chamber_air_notices.h"
 #include "ui_component_keypad.h"
 #include "ui_emergency_stop.h"
@@ -41,6 +42,9 @@
 #include "ui_print_completion_modal.h"
 #include "ui_printer_status_icon.h"
 #include "ui_probe_overlay.h"
+#if !defined(HELIX_PLATFORM_ESP32)
+#include "ui_settings_firmware_update.h"
+#endif
 #include "ui_stepper_resonance_cal_modal.h"
 #include "ui_wizard.h"
 
@@ -347,6 +351,7 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     helix::ui::init_stepper_resonance_cal_row_handler();
     helix::ui::init_belt_cutter_cal_row_handlers();
     helix::ui::init_motor_ripple_row_handler();
+    helix::ui::init_calibration_hub_row_handler();
     init_zoffset_event_callbacks();
     init_probe_row_handler();
     helix::ui::init_chamber_air_notices();
@@ -663,6 +668,16 @@ void SubjectInitializer::init_usb_manager(const RuntimeConfig& runtime_config) {
         }
         // Also provide USB manager to printer image overlay
         helix::settings::get_printer_image_overlay().set_usb_manager(m_usb_manager.get());
+#if !defined(HELIX_PLATFORM_ESP32)
+        helix::settings::get_firmware_update_overlay().set_image_roots(
+            [usb = m_usb_manager.get()]() {
+                std::vector<std::string> roots;
+                for (const auto& drive : usb->get_drives()) {
+                    roots.push_back(drive.mount_path);
+                }
+                return roots;
+            });
+#endif
     } else {
         spdlog::info(
             "[SubjectInitializer] USB Manager not started (not available on this platform)");

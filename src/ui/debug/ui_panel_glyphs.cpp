@@ -3,68 +3,22 @@
 
 #include "ui_panel_glyphs.h"
 
-#include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
+#include "ui_row_text.h"
 
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "printer_state.h"
-#include "theme_manager.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <lvgl/lvgl.h>
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <memory>
+#include <string>
 
 using namespace helix;
-
-// MDI icon font (48px for good visibility in debug panel). Non-const: the
-// canonical declaration in ui_fonts.h dropped const so embedded targets can
-// populate the symbol at runtime from a .bin face.
-extern lv_font_t mdi_icons_48;
-
-/**
- * @brief Create a single icon display item
- *
- * @param parent Parent container for the item
- * @param icon Icon mapping from helix::ui::icon::kIconMap
- * @return lv_obj_t* The created item container
- */
-static lv_obj_t* create_icon_item(lv_obj_t* parent, const helix::ui::icon::IconMapping& icon) {
-    // Container for this icon item
-    lv_obj_t* item = lv_obj_create(parent);
-    lv_obj_set_width(item, LV_PCT(100));
-    lv_obj_set_height(item, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(item, theme_manager_get_color("card_bg"), 0);
-    lv_obj_set_style_bg_opa(item, LV_OPA_COVER, 0);
-    lv_obj_set_style_pad_all(item, 8, 0);
-    lv_obj_set_style_radius(item, 8, 0);
-    lv_obj_set_style_border_width(item, 1, 0);
-    lv_obj_set_style_border_color(item, theme_manager_get_color("text_muted"), 0);
-    lv_obj_set_style_border_opa(item, LV_OPA_50, 0);
-
-    // Flex row layout: [Icon] Name
-    lv_obj_set_flex_flow(item, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(item, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_column(item, 16, 0);
-
-    // Icon label - use MDI font with UTF-8 codepoint
-    lv_obj_t* icon_label = lv_label_create(item);
-    lv_label_set_text(icon_label, icon.codepoint);
-    lv_obj_set_style_text_color(icon_label, theme_manager_get_color("text"), 0);
-    lv_obj_set_style_text_font(icon_label, &mdi_icons_48, 0);
-    lv_obj_set_width(icon_label, 56); // Fixed width for alignment
-
-    // Name label
-    lv_obj_t* name_label = lv_label_create(item);
-    lv_label_set_text(name_label, icon.name);
-    lv_obj_set_style_text_color(name_label, theme_manager_get_color("text"), 0);
-    lv_obj_set_style_text_font(name_label, &noto_sans_16, 0);
-    lv_obj_set_flex_grow(name_label, 1);
-
-    return item;
-}
 
 // ============================================================================
 // CONSTRUCTOR
@@ -109,33 +63,22 @@ void GlyphsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 // ============================================================================
 
 void GlyphsPanel::populate_glyphs() {
-    // Update icon count in header
-    lv_obj_t* count_label = helix::ui::find_required(panel_, "glyph_count_label", get_name());
-    if (count_label) {
-        char count_text[32];
-        snprintf(count_text, sizeof(count_text), "%zu icons", helix::ui::icon::kIconMapSize);
-        lv_label_set_text(count_label, count_text);
-    }
-
-    // Find the scrollable content container
-    // It's the second child of the main container (after header)
-    lv_obj_t* main_container = lv_obj_get_child(panel_, 0);
-    if (!main_container) {
-        spdlog::error("[{}] Failed to find main container", get_name());
+    lv_obj_t* glyph_list = lv_xml_component_get_slot(panel_, "glyph_list");
+    if (!glyph_list) {
+        spdlog::error("[{}] glyph_list slot missing", get_name());
         return;
     }
 
-    lv_obj_t* content_area = lv_obj_get_child(main_container, 1); // Second child (index 1)
-    if (!content_area) {
-        spdlog::error("[{}] Failed to find content area", get_name());
-        return;
-    }
-
-    // Add all MDI icon items to the content area
-    spdlog::debug("[{}] Adding {} MDI icon items to content area", get_name(),
-                  helix::ui::icon::kIconMapSize);
+    spdlog::debug("[{}] Adding {} MDI icon items", get_name(), helix::ui::icon::kIconMapSize);
     for (size_t i = 0; i < helix::ui::icon::kIconMapSize; i++) {
-        create_icon_item(content_area, helix::ui::icon::kIconMap[i]);
+        const auto& icon = helix::ui::icon::kIconMap[i];
+        auto* item = static_cast<lv_obj_t*>(lv_xml_create(glyph_list, "glyph_item", nullptr));
+        if (!item) {
+            continue;
+        }
+        // Raw glyph bytes and map names: set after creation, never as props.
+        helix::ui::set_row_label_text(item, "glyph_label", icon.codepoint);
+        helix::ui::set_row_label_text(item, "glyph_name", icon.name);
     }
 
     // Force layout update to ensure scrolling works correctly
@@ -160,8 +103,10 @@ lv_obj_t* ui_panel_glyphs_create(lv_obj_t* parent) {
         panel.init_subjects();
     }
 
+    const std::string count_text = fmt::format("{} icons", helix::ui::icon::kIconMapSize);
+    const char* attrs[] = {"icon_count_text", count_text.c_str(), nullptr};
     lv_obj_t* glyphs_panel =
-        static_cast<lv_obj_t*>(lv_xml_create(parent, panel.get_xml_component_name(), nullptr));
+        static_cast<lv_obj_t*>(lv_xml_create(parent, panel.get_xml_component_name(), attrs));
     if (glyphs_panel) {
         panel.setup(glyphs_panel, nullptr);
     }

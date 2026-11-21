@@ -71,6 +71,12 @@
 #define HELIX_HAS_TOOLHEAD_WIDGET 1
 #endif
 
+// The ultrawide side band: Motion beside Controls, the AMS panel beside Filament
+// (include/ui_side_band.h).
+#ifndef HELIX_HAS_SIDE_BAND
+#define HELIX_HAS_SIDE_BAND 1
+#endif
+
 // The printer image tagger, the editor that places a photo's part callouts.
 #ifndef HELIX_HAS_IMAGE_TAGGER
 #define HELIX_HAS_IMAGE_TAGGER 1

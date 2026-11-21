@@ -5,6 +5,7 @@
 // state: what each chip and checklist subject publishes, and how the callout
 // layout drops, glows and relayouts across a phase switch.
 
+#include "ui_ams_mini_status.h"
 #include "ui_gcode_viewer.h"
 #include "ui_print_status_tiles.h"
 
@@ -12,6 +13,9 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../test_helpers/scoped_portrait_layout.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
+#include "app_globals.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
@@ -24,6 +28,7 @@
 #include "printer_image_manager.h"
 #include "printer_state.h"
 #include "status_dispatch.h"
+#include "target_tool.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 #include "translation_loader.h"
@@ -91,6 +96,19 @@ PrintStatusTiles::Image tagged_image(const std::string& path) {
     return img;
 }
 
+/// A full start sequence: eight steps, the most the checklist lists, the fourth under way.
+std::optional<PreprintChecklistInput> eight_steps() {
+    PreprintChecklistInput in;
+    in.done_in_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
+                        PrintStartPhase::SOAKING};
+    in.current = PrintStartPhase::HEATING_NOZZLE;
+    in.expected_order = {PrintStartPhase::HOMING,   PrintStartPhase::HEATING_BED,
+                         PrintStartPhase::SOAKING,  PrintStartPhase::HEATING_NOZZLE,
+                         PrintStartPhase::QGL,      PrintStartPhase::BED_MESH,
+                         PrintStartPhase::CLEANING, PrintStartPhase::PURGING};
+    return in;
+}
+
 /// Two steps done of five, the third under way.
 std::optional<PreprintChecklistInput> five_steps() {
     PreprintChecklistInput in;
@@ -102,18 +120,36 @@ std::optional<PreprintChecklistInput> five_steps() {
     return in;
 }
 
+/// The lane tray's ams_mini_status, which the app registers with AmsState
+/// standing, a four-lane filament system for it to draw, and the gate
+/// following AmsState as it does in the app. The returned token takes the
+/// filament system away again.
+std::shared_ptr<void> enable_lane_tray_widget() {
+    auto& ams = AmsState::instance();
+    ams.init_subjects();
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->start().success());
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
+    ui_ams_mini_status_init();
+    helix::ui::TargetTool::instance().attach(get_printer_state());
+    return std::shared_ptr<void>(nullptr, [](void*) { AmsState::instance().clear_backends(); });
+}
+
 /// The panel's own XML built at a screen size, with a tagged printer picture.
 class TileFixture : public PrintStatusPanelFixture {
   public:
-    TileFixture(int32_t screen_w, int32_t screen_h)
-        : PrintStatusPanelFixture([screen_w, screen_h]() -> std::shared_ptr<void> {
+    TileFixture(int32_t screen_w, int32_t screen_h, bool lane_tray = false)
+        : PrintStatusPanelFixture([screen_w, screen_h, lane_tray]() -> std::shared_ptr<void> {
               // The chips read the light and tool-badge subjects their owners publish.
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
+              auto filament = lane_tray ? enable_lane_tray_widget() : nullptr;
               // The tile follows the image-changed subject, which exists
               // before any panel, as in the app.
               helix::PrinterImageManager::instance().init_subjects();
-              return std::make_shared<helix::test::ScopedGeometry>(screen_w, screen_h);
+              auto geometry = std::make_shared<helix::test::ScopedGeometry>(screen_w, screen_h);
+              return std::shared_ptr<void>(geometry.get(), [geometry, filament](void*) {});
           }) {
         lv_obj_set_hidden(root_, false);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
@@ -128,8 +164,9 @@ class TileFixture : public PrintStatusPanelFixture {
         return PrintStatusPanelTestAccess::tiles(panel());
     }
 
-    void enter_preparing() {
-        tiles().set_checklist_source(five_steps);
+    void
+    enter_preparing(std::function<std::optional<PreprintChecklistInput>()> source = five_steps) {
+        tiles().set_checklist_source(std::move(source));
         lv_subject_set_int(state().print_state().get_print_start_phase_subject(),
                            static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
         UpdateQueue::instance().drain();
@@ -171,12 +208,15 @@ struct Portrait272 : TileFixture {
 /// The panel built under the ultrawide layout at 1480x320, which picks its ultrawide body.
 class Ultrawide1480 : public PrintStatusPanelFixture {
   public:
-    Ultrawide1480()
-        : PrintStatusPanelFixture([]() -> std::shared_ptr<void> {
+    explicit Ultrawide1480(bool lane_tray = false)
+        : PrintStatusPanelFixture([lane_tray]() -> std::shared_ptr<void> {
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
+              auto filament = lane_tray ? enable_lane_tray_widget() : nullptr;
               helix::PrinterImageManager::instance().init_subjects();
-              return std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
+              auto layout =
+                  std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
+              return std::shared_ptr<void>(layout.get(), [layout, filament](void*) {});
           }) {
         lv_obj_set_hidden(root_, false);
         lv_obj_update_layout(root_);
@@ -1741,4 +1781,232 @@ TEST_CASE_METHOD(Landscape800, "a standard screen keeps the strip and builds no 
     CHECK(lv_obj_find_by_name(root_, "ps_strip") != nullptr);
     CHECK(lv_obj_find_by_name(root_, "ps_uw_info") == nullptr);
     CHECK(lv_obj_find_by_name(root_, "metadata_overlay") != nullptr);
+}
+
+// The lane tray: the readouts' column on ultrawide, a strip under stacked
+// tiles, nothing beside side-by-side tiles. The gate is
+// has_filament_system_or_multi_tool, which TargetTool publishes.
+
+namespace {
+
+/// Sets the lane tray gate for a case and puts it back after.
+class ScopedLaneTrayGate {
+  public:
+    explicit ScopedLaneTrayGate(int value)
+        : gate_(lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool")) {
+        REQUIRE(gate_ != nullptr);
+        original_ = lv_subject_get_int(gate_);
+        set(value);
+    }
+    ~ScopedLaneTrayGate() {
+        lv_subject_set_int(gate_, original_);
+        UpdateQueue::instance().drain();
+    }
+    void set(int value) {
+        lv_subject_set_int(gate_, value);
+        UpdateQueue::instance().drain();
+    }
+
+  private:
+    lv_subject_t* gate_;
+    int original_ = 0;
+};
+
+bool shown(lv_obj_t* obj) {
+    return obj && !lv_obj_is_hidden(obj);
+}
+
+struct Portrait600 : TileFixture {
+    Portrait600() : TileFixture(600, 1024, true) {}
+};
+struct Portrait480x680Tray : TileFixture {
+    Portrait480x680Tray() : TileFixture(480, 680, true) {}
+};
+struct Portrait480x800Tray : TileFixture {
+    Portrait480x800Tray() : TileFixture(480, 800, true) {}
+};
+struct Portrait480x1280Tray : TileFixture {
+    Portrait480x1280Tray() : TileFixture(480, 1280, true) {}
+};
+struct UltrawideTray : Ultrawide1480 {
+    UltrawideTray() : Ultrawide1480(true) {}
+};
+
+} // namespace
+
+TEST_CASE_METHOD(UltrawideTray, "ultrawide shows the lane tray in the readouts' column when gated",
+                 "[print_status_tray][ultrawide]") {
+    ScopedLaneTrayGate gate(0);
+    lv_obj_update_layout(root_);
+    lv_obj_t* readouts = find("ps_uw_readouts");
+    lv_obj_t* tray = find("ps_uw_lane_tray");
+    REQUIRE((readouts && tray));
+    CHECK(shown(readouts));
+    CHECK_FALSE(shown(tray));
+    const int32_t readouts_w = lv_obj_get_width(readouts);
+    const int32_t printer_w = lv_obj_get_width(find("ps_printer_tile"));
+
+    gate.set(1);
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(shown(readouts));
+    CHECK(shown(tray));
+    // The tray takes the readouts' width; the printer picture keeps its own.
+    CHECK(lv_obj_get_width(tray) == readouts_w);
+    CHECK(lv_obj_get_width(find("ps_printer_tile")) == printer_w);
+    lv_obj_t* content = find("overlay_content");
+    const auto cols = helix::decide_print_status_columns(lv_obj_get_content_width(content),
+                                                         lv_obj_get_content_height(content),
+                                                         theme_manager_get_spacing("space_md"));
+    CHECK(lv_obj_get_width(tray) == cols.readouts_w);
+    CHECK(lv_obj_get_height(tray) == lv_obj_get_content_height(content));
+    // The tray widget itself, which opens the filament system's panel on a tap.
+    lv_obj_t* status = lv_obj_find_by_name(tray, "ps_lane_tray_status");
+    REQUIRE(status != nullptr);
+    CHECK(lv_obj_is_clickable(status));
+
+    gate.set(0);
+    lv_obj_update_layout(root_);
+    CHECK(shown(readouts));
+    CHECK_FALSE(shown(tray));
+}
+
+TEST_CASE_METHOD(Portrait600, "stacked tiles give the lane tray a strip under the strip when gated",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(0);
+    settle();
+    settle();
+    lv_obj_t* tray = lv_obj_find_by_name(root_, "ps_lane_tray");
+    lv_obj_t* strip = lv_obj_find_by_name(root_, "ps_strip");
+    lv_obj_t* content = lv_obj_find_by_name(root_, "overlay_content");
+    REQUIRE((tray && strip && content));
+    REQUIRE(subject_int("ps_arrangement") == static_cast<int>(PrintStatusArrangement::Stacked));
+    CHECK_FALSE(shown(tray));
+    const int32_t tiles_h_plain = lv_obj_get_height(lv_obj_find_by_name(root_, "ps_tiles"));
+
+    gate.set(1);
+    settle();
+    settle();
+    CHECK(shown(tray));
+    const int tray_h = subject_int("ps_lane_tray_h");
+    CHECK(tray_h > 0);
+    CHECK(lv_obj_get_height(tray) == tray_h);
+    // Under the strip, inside the content box: nothing scrolls.
+    lv_area_t tray_a, strip_a, content_a;
+    lv_obj_get_coords(tray, &tray_a);
+    lv_obj_get_coords(strip, &strip_a);
+    lv_obj_get_content_coords(content, &content_a);
+    CHECK(tray_a.y1 > strip_a.y2);
+    CHECK(tray_a.y2 <= content_a.y2);
+    CHECK(lv_obj_get_height(lv_obj_find_by_name(root_, "ps_tiles")) < tiles_h_plain);
+
+    gate.set(0);
+    settle();
+    CHECK_FALSE(shown(tray));
+}
+
+TEST_CASE_METHOD(Landscape800, "side by side tiles show no lane tray even when gated",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(1);
+    settle();
+    REQUIRE(subject_int("ps_arrangement") == static_cast<int>(PrintStatusArrangement::SideBySide));
+    CHECK(subject_int("ps_lane_tray") == 0);
+    CHECK_FALSE(shown(lv_obj_find_by_name(root_, "ps_lane_tray")));
+}
+
+namespace {
+/// The printer tile's height and chip mode with the lane tray gated match
+/// what it has without: the tray takes its room from the preview alone.
+void check_printer_tile_kept(TileFixture& f) {
+    ScopedLaneTrayGate gate(0);
+    f.settle();
+    f.settle();
+    const int32_t plain_h = lv_obj_get_height(f.tile_);
+    const int plain_mode = subject_int("ps_callout_mode");
+    REQUIRE(plain_h > 0);
+    gate.set(1);
+    f.settle();
+    f.settle();
+    CAPTURE(plain_h, lv_obj_get_height(f.tile_), subject_int("ps_lane_tray_h"));
+    CHECK(lv_obj_get_height(f.tile_) >= plain_h);
+    CHECK(subject_int("ps_callout_mode") == plain_mode);
+}
+} // namespace
+
+TEST_CASE_METHOD(Portrait600, "the lane tray leaves the printer tile its height at 600x1024",
+                 "[print_status_tray]") {
+    check_printer_tile_kept(*this);
+    REQUIRE(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
+    // The tile stands at the height the fitter decided, not a flex share.
+    CHECK(lv_obj_get_height(tile_) == subject_int("ps_printer_tile_h"));
+}
+
+TEST_CASE_METHOD(Portrait480x680Tray, "the lane tray leaves the printer tile its height at 480x680",
+                 "[print_status_tray]") {
+    check_printer_tile_kept(*this);
+}
+
+TEST_CASE_METHOD(Portrait480x800Tray, "the lane tray leaves the printer tile its height at 480x800",
+                 "[print_status_tray]") {
+    check_printer_tile_kept(*this);
+}
+
+TEST_CASE_METHOD(Portrait480x1280Tray,
+                 "the lane tray leaves the printer tile its height at 480x1280",
+                 "[print_status_tray]") {
+    check_printer_tile_kept(*this);
+    CHECK(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
+}
+
+TEST_CASE_METHOD(UltrawideTray, "several heads with no lanes keep the readouts, not an empty tray",
+                 "[print_status_tray][ultrawide]") {
+    ScopedLaneTrayGate gate(1); // a multi-head printer
+    lv_subject_t* slots = AmsState::instance().get_slot_count_subject();
+    const int original = lv_subject_get_int(slots);
+    lv_subject_set_int(slots, 0);
+    PrintStatusPanelTestAccess::relayout(panel());
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
+    CHECK(subject_int("ps_lane_tray") == 0);
+    CHECK(shown(find("ps_uw_readouts")));
+    CHECK_FALSE(shown(find("ps_uw_lane_tray")));
+
+    lv_subject_set_int(slots, original);
+    PrintStatusPanelTestAccess::relayout(panel());
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(Portrait600, "the lane tray leaves the pre-print checklist every row",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(1);
+    settle();
+    const int printing_tray_h = subject_int("ps_lane_tray_h");
+    REQUIRE(printing_tray_h > 0);
+
+    enter_preparing(eight_steps);
+    settle();
+    settle();
+    REQUIRE(subject_int("ps_checklist_compact") == 0);
+    const int rows = subject_int("ps_step_count");
+    REQUIRE(rows == 8);
+    lv_obj_t* job = lv_obj_find_by_name(root_, "ps_job_tile");
+    REQUIRE(job != nullptr);
+    lv_area_t job_a;
+    lv_obj_get_coords(job, &job_a);
+    for (int i = 0; i < rows; ++i) {
+        lv_obj_t* row = lv_obj_find_by_name(root_, ("ps_step_row_" + std::to_string(i)).c_str());
+        REQUIRE(row != nullptr);
+        REQUIRE(shown(row));
+        lv_area_t row_a;
+        lv_obj_get_coords(row, &row_a);
+        CAPTURE(i, row_a.y2, job_a.y2, subject_int("ps_lane_tray_h"));
+        CHECK(row_a.y2 <= job_a.y2);
+    }
+    const int preparing_tray_h = subject_int("ps_lane_tray_h");
+
+    // Printing frees the checklist's rows for the tray again.
+    leave_preparing();
+    settle();
+    settle();
+    CHECK(subject_int("ps_lane_tray_h") == printing_tray_h);
+    CHECK(preparing_tray_h <= printing_tray_h);
 }

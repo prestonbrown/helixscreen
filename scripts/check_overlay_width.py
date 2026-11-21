@@ -53,6 +53,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from path_scope import in_skipped_dir
 from staged_content import staged_files
 
 SCAN_DIRS = ('ui_xml',)
@@ -116,12 +117,12 @@ def collect_files(args) -> list[tuple[str, str]]:
 
     if args.staged_only:
         return [(p, t) for p, t in staged_files(suffixes=('.xml',))
-                if not any(part in SKIP_PARTS for part in Path(p).parts)]
+                if not in_skipped_dir(p, '.', SKIP_PARTS)]
 
     files = []
     for d in SCAN_DIRS:
         for p in sorted(Path(d).rglob('*.xml')):
-            if any(part in SKIP_PARTS for part in p.parts):
+            if in_skipped_dir(p, '.', SKIP_PARTS):
                 continue
             try:
                 files.append((str(p), p.read_text(encoding='utf-8')))

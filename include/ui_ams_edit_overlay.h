@@ -9,12 +9,15 @@
 
 #include "ams_tag_reading.h"
 #include "ams_types.h"
+#include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_source_store.h"
+#include "lane_spool_history.h"
 #include "overlay_base.h"
+#include "spool_assign.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
 #include "subject_managed_panel.h"
@@ -24,14 +27,16 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
 #include "hv/json.hpp" // JSON_HPP_OK: chained_spool_patch held by value
 
 namespace helix {
+class AmsBackend;
 class IMoonrakerAPI;
-}
+} // namespace helix
 class AmsEditOverlayTestAccess;
 class AmsEditOverlayViewTestAccess;
 
@@ -42,16 +47,23 @@ namespace helix::ui {
  * @brief NavigationManager overlay for editing AMS filament slot properties
  *
  * Single overlay hosting internal views selected by the ams_edit_view int
- * subject: 0=editor (the identity form; the entry view), 1=Spoolman spool picker.
- * Color opens the color page (ColorPickerPage) over it. Header back button routes per-view; header
- * Save action is dirty-gated via the ams_edit_save_disabled subject.
+ * subject: 0=editor (the entry view); colors open the color page
+ * (ColorPickerPage) over it. The editor does two jobs,
+ * picked by the ams_edit_mode subject (helix::spool_assign::screen_for_lane):
  *
- * The editor view is a cascading dropdown form: Material family, Variant,
- * Brand, Product (each list ends in a
- * browse-the-catalog entry), plus a colour
- * grid, a weight pill (numeric keypad) and a collapsed More section. Below
- * them sit the lane's own settings, Assigned Tool and the Endless Spool
- * backup, each shown only where the backend supports it.
+ * - Assign Spool (kModeAssign, a lane with no spool): the describe form on the
+ *   left, the user's spools on the right (recents, or the ones matching the
+ *   form, exact before close), each with Use; at the bottom Add to Spoolman &
+ *   Assign (or Assign without Spoolman), and common spools on a fresh install.
+ * - Edit Spool (kModeEdit, a lane holding one): the same form, prefilled, and
+ *   the spool with its remaining weight, Save and Clear Lane on the right.
+ *   Different Spool switches to Assign.
+ *
+ * The describe form is a cascading dropdown grid: Material family, Type,
+ * Brand, Product (each list ends in a browse-the-catalog entry), a color grid
+ * ending in Custom, and the spool size chips. Below them sit the lane's own
+ * settings, Assigned Tool and the Endless Spool backup, each shown only where
+ * the backend supports it, and the collapsed More section of a linked spool.
  * Selection state lives in SpoolEditSelection; Save stages it into the
  * working SlotInfo. Tag-sourced fields show a badge and reset through
  * helix::ams::reset_to_tag.
@@ -85,7 +97,9 @@ class AmsEditOverlay : public OverlayBase {
 
     // View states for the ams_edit_view subject
     static constexpr int kViewEditor = 0;
-    static constexpr int kViewSpoolPicker = 1;
+    // The editor's job, the ams_edit_mode subject.
+    static constexpr int kModeAssign = 0;
+    static constexpr int kModeEdit = 1;
 
     /**
      * @brief The identity selection the editor is staging
@@ -124,7 +138,7 @@ class AmsEditOverlay : public OverlayBase {
     [[nodiscard]] const char* get_name() const override {
         return "AMS Slot Editor";
     }
-    /// The tree (dropdown form, color row, spool picker) is large
+    /// The tree (dropdown form, color row, spools list) is large
     /// and only needed while a spool is being edited.
     bool destroy_on_close() const override {
         return true;
@@ -146,7 +160,7 @@ class AmsEditOverlay : public OverlayBase {
      * @param initial_info Initial slot info to populate the editor
      * @param api IMoonrakerAPI for Spoolman sync (may be nullptr)
      * @param on_complete Fired exactly once when the editor closes
-     * @param open_on_picker Open directly on the Spoolman picker (#1071)
+     * @param open_on_picker Open on Assign Spool whatever the lane holds (#1071)
      * @return true if the overlay was pushed
      */
     bool show_for_slot(lv_obj_t* parent, int slot_index, const SlotInfo& initial_info,
@@ -190,6 +204,10 @@ class AmsEditOverlay : public OverlayBase {
     static std::vector<uint32_t> color_row_recents(const std::vector<uint32_t>& recents,
                                                    uint32_t current, size_t room);
 
+    /// Recent chips that fit in a @p row_width row of @p chip tiles @p gap
+    /// apart beside @p fixed_tiles other tiles, at most @p cap.
+    static size_t recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap);
+
   private:
     // === State ===
     int slot_index_ = -1;
@@ -214,9 +232,32 @@ class AmsEditOverlay : public OverlayBase {
     /// Spoolman): first-seen order over the recency-sorted spool list.
     std::vector<std::string> recent_families_;
     std::vector<std::string> recent_brands_;
-    /// True while the editor was opened directly on the Spoolman picker: a
-    /// selection there is a one-tap commit.
-    bool opened_on_picker_ = false;
+    /// Assign Spool's spool size: the chip lit (spool_assign size chips) and
+    /// the grams it stands for, staged onto the lane by an assign.
+    int size_chip_ = 0;
+    float size_remaining_g_ = spool_assign::kDefaultSpoolGrams;
+    float size_total_g_ = spool_assign::kDefaultSpoolGrams;
+    /// The Spoolman spool this session's save created, for the closing toast.
+    int created_spool_id_ = 0;
+    /// This session's save rewrote a linked Spoolman record, so the closing
+    /// toast offers no Undo (the lane alone cannot be put back).
+    bool edited_spoolman_record_ = false;
+    /// Assign Spool's list load is in flight; a cover that drops it re-arms it.
+    bool picker_pending_ = false;
+    /// The lane history behind cached_spools_ (without Spoolman), index for index.
+    std::vector<lane_spool_history::Entry> history_entries_;
+    /// What the rendered list was built from, so a form tap that changes
+    /// nothing the list depends on does not rebuild it.
+    struct ListedQuery {
+        spool_assign::SpoolQuery query;
+        std::string filter;
+        size_t spool_count = 0;
+        std::set<int> in_use; ///< spools other lanes link: their rows offer no Use
+        bool operator==(const ListedQuery& o) const;
+    };
+    /// The spools other lanes link, which this lane cannot take.
+    [[nodiscard]] std::set<int> spools_in_other_lanes() const;
+    std::optional<ListedQuery> listed_query_;
     IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;
     bool completion_fired_ = false; ///< Guards single-fire completion
@@ -261,11 +302,13 @@ class AmsEditOverlay : public OverlayBase {
     /// Apply a fetched record, unless the slot no longer names that spool. A
     /// selection or field the user already changed is kept.
     void apply_linked_spool(int spool_id, const SpoolInfo& spool);
-    /// The editor view after the spool picker: entered on first use,
+    /// The editor view after the spools list: entered on first use,
     /// otherwise shown with the staged edits intact.
     void return_to_editor();
-    /// After a relink or a QR scan put a different spool under the editor.
+    /// After a QR scan put a different spool under the editor.
     void load_swapped_spool();
+    /// A scanned spool's record staged onto the lane, for review on Edit Spool.
+    void apply_scanned_spool(const SpoolInfo& spool);
     /// The logistics PATCH rides an Update-in-Spoolman save when the identity
     /// prompt owns this save: set by handle_save, consumed by
     /// do_spoolman_save's success path.
@@ -282,6 +325,15 @@ class AmsEditOverlay : public OverlayBase {
     /// Publish the color line and row: name, current swatch, recents.
     void update_color_row();
     std::vector<uint32_t> color_row_;
+    /// The color row's content width, chip and gap, as size_color_row()
+    /// last measured them; 0 until it has.
+    int row_width_ = 0;
+    int row_chip_ = 0;
+    int row_gap_ = 0;
+    /// Measure the color row and publish its recents.
+    void size_color_row();
+    /// Recent chips the row has room for beside what the draft shows.
+    size_t recent_room() const;
 
     // === Multi-color draft ===
     // The draft's colors: the pending pick alone, or two or more. A
@@ -330,10 +382,9 @@ class AmsEditOverlay : public OverlayBase {
     std::vector<Option> variant_options_;
     std::vector<Option> brand_options_;
     std::vector<Option> product_options_;
-    /// Fill both layouts' dropdown widgets from the option vectors.
+    /// Fill the dropdown widgets from the option vectors.
     void refresh_dropdowns();
-    void fill_dropdown(const char* stacked_name, const char* split_name,
-                       const std::vector<Option>& options_list,
+    void fill_dropdown(const char* name, const std::vector<Option>& options_list,
                        const std::string& selected_payload);
     void rebuild_option_lists();
     /// The materials the active filament system's firmware accepts
@@ -370,12 +421,25 @@ class AmsEditOverlay : public OverlayBase {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    helix::Subject title_subject_{};     ///< "Gate 3" (lane label)
-    helix::Subject view_mode_subject_{}; ///< kView* ("ams_edit_view")
+    helix::Subject title_subject_{};          ///< "Assign Spool" / "Edit Spool"
+    helix::Subject subtitle_subject_{};       ///< "Lane 3 · Turtle 1" ("ams_edit_subtitle")
+    helix::Subject mode_subject_{};           ///< kMode* ("ams_edit_mode")
+    helix::Subject list_title_subject_{};     ///< "Recent Spools" ("ams_edit_list_title")
+    helix::Subject common_visible_subject_{}; ///< 1 = the common spools grid shows
     helix::Subject
-        picker_state_subject_{}; ///< 0=loading, 1=fetch error (retry), 2=content, 3=no match
+        bottom_action_subject_{};        ///< spool_assign::BottomAction ("ams_edit_bottom_action")
+    helix::Subject size_chip_subject_{}; ///< the lit size chip ("ams_edit_size_chip")
+    helix::Subject partial_text_subject_{}; ///< "Partial…" or "400 g" ("ams_edit_partial_text")
+    helix::Subject saves_to_subject_{};     ///< "Saves to Spoolman spool #12" ("ams_edit_saves_to")
+    char subtitle_buf_[128] = {0};
+    char list_title_buf_[48] = {0};
+    char partial_text_buf_[24] = {0};
+    char saves_to_buf_[64] = {0};
+    helix::Subject view_mode_subject_{}; ///< kView* ("ams_edit_view")
+    /// The spools list: 0=loading, 1=fetch error (retry), 2=content, 3=nothing
+    /// matches, 4=no spools at all ("edit_picker_state").
+    helix::Subject picker_state_subject_{};
     helix::Subject save_disabled_subject_{};  ///< 1=Save disabled ("ams_edit_save_disabled")
-    helix::Subject save_hidden_subject_{};    ///< 1=header Save hidden ("ams_edit_save_hidden")
     helix::Subject is_managed_subject_{};     ///< 1=linked Spoolman spool ("ams_edit_is_managed")
     helix::Subject scan_enabled_subject_{};   ///< 1=QR button may show ("ams_edit_scan_enabled")
     helix::Subject product_hidden_subject_{}; ///< 1 while Generic selected
@@ -383,7 +447,7 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     helix::Subject color_name_subject_{};          ///< the color line's name
     helix::Subject recent_count_subject_{};        ///< recent chips shown in the row
-    helix::Subject multi_subject_{};               ///< 1 while the draft has several colors
+    helix::Subject multi_subject_{};               ///< 1 while the draft's colors show as dots
     helix::Subject multi_capable_subject_{};       ///< 1 where the lane can store several
     helix::Subject seg_count_subject_{};           ///< color dots shown
     helix::Subject seg_selected_subject_{};        ///< the ringed dot
@@ -392,7 +456,6 @@ class AmsEditOverlay : public OverlayBase {
     char seg_label_buf_[64]{};
     char color_name_buf_[64]{};
     char color_current_multi_buf_[128]{};
-    helix::Subject summary_text_subject_{};
     helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's
     helix::Subject tag_material_subject_{};
     helix::Subject tag_brand_subject_{};
@@ -407,11 +470,11 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject weight_text_subject_{};
     helix::Subject weight_hint_subject_{};
     helix::Subject reset_tag_visible_subject_{};
-    helix::Subject add_spoolman_visible_subject_{};
     helix::Subject clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
     helix::Subject more_open_subject_{};
-    helix::Subject spoolman_id_subject_{};        ///< "#19" for the header badge
-    helix::Subject lane_visible_subject_{};       ///< 1 = the slot is a backend lane
+    helix::Subject lane_open_subject_{};    ///< 1 = Lane Settings disclosed ("ams_edit_lane_open")
+    helix::Subject spoolman_id_subject_{};  ///< "#19" for the header badge
+    helix::Subject lane_visible_subject_{}; ///< 1 = the slot is a backend lane
     helix::Subject tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
     helix::Subject tool_editable_subject_{};      ///< 0 = tool shown read-only
     helix::Subject tool_refusal_subject_{};       ///< why the tool cannot be changed here
@@ -419,12 +482,18 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
     helix::Subject backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
-    char summary_buf_[96] = {0};
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
     /// kSaveFailed with save_error_subject_ saying why.
     helix::Subject save_state_subject_{};
     helix::Subject save_error_subject_{}; ///< "ams_edit_save_error"
+    /// The line a waiting save shows ("ams_edit_save_wait_text"): what the
+    /// filament system is doing ahead of it, else "Saving...".
+    helix::Subject save_wait_text_subject_{};
+    char save_wait_text_buf_[160] = {0};
+    /// Follows the filament system's action while a save waits, so the line
+    /// names the operation the save is queued behind.
+    ObserverGuard save_wait_action_observer_;
     /// 1 = the lane and its linked spool disagree ("ams_edit_spool_disagrees")
     helix::Subject spool_disagrees_subject_{};
     helix::Subject spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
@@ -443,13 +512,20 @@ class AmsEditOverlay : public OverlayBase {
     char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
     char weight_buf_[24] = {0};
-    char weight_hint_buf_[32] = {0};
+    char weight_hint_buf_[128] = {0};
     char spoolman_id_buf_[16] = {0};
     char backup_label_buf_[64] = {0};
     char tool_refusal_buf_[160] = {0};
 
-    // === Picker state (Spoolman spool selection) ===
+    // === The spools list (Assign Spool's right column) ===
+    /// The user's spools, recency first: Spoolman's, or without it the lane
+    /// history's (spools with no id).
     std::vector<SpoolInfo> cached_spools_;
+    /// What cached_spools_ were read from: false = the lane history.
+    bool spools_from_spoolman_ = false;
+    /// The rows the list shows, into cached_spools_; a row's user_data is
+    /// its position here.
+    std::vector<spool_assign::RankedSpool> listed_;
     /// cached_spools_' searchable text, built once per fetch so a debounced
     /// re-filter does not rebuild+lowercase every spool's string again.
     std::vector<std::string> cached_searchables_;
@@ -462,6 +538,10 @@ class AmsEditOverlay : public OverlayBase {
     void deinit_subjects();
     void update_ui();
     void update_summary();
+    /// Title, subtitle and the Edit panel's lines for the current mode.
+    void update_header_and_panel();
+    /// What the describe form says now, as a spool query.
+    [[nodiscard]] spool_assign::SpoolQuery current_query() const;
     void update_sync_button_state();
     void update_temp_display();
     bool is_dirty() const;
@@ -470,10 +550,41 @@ class AmsEditOverlay : public OverlayBase {
 
     // === View switching ===
     void set_view(int view);
-    void switch_to_picker();
+    void set_mode(int mode);
+    /// Edit Spool's header Different Spool: the same lane, on Assign Spool.
+    void handle_different_spool();
+    /// Start Assign Spool from an empty form, whatever the lane held.
+    void begin_fresh_assign();
+    /// Back on an Assign Spool opened over a lane's spool returns to Edit
+    /// Spool on it. False when there is no such spool to return to.
+    bool back_to_edit_spool();
+    /// Load the user's spools for the list: Spoolman's, else the lane history.
     void populate_picker();
+    /// Rebuild the list from the cached spools, the form and the search text.
     void render_spool_list(const std::string& filter);
-    void handle_spool_selected(int spool_id);
+    /// Re-rank the list after a form change, keeping the search text.
+    void refresh_spool_list();
+    /// Use on the listed row @p row: link (or, from the lane history, describe)
+    /// the lane with that spool and close.
+    void handle_row_use(size_t row);
+    /// A common spool tile: fill the form with its material and color.
+    void handle_common_spool(size_t index);
+    void handle_size_chip(int chip);
+    void apply_size_chip(int chip, float remaining_g, float total_g);
+    void handle_remaining_step(float delta_g);
+    /// Assign without Spoolman, or without adding the spool to it.
+    void handle_assign_local();
+    /// Stage the size chips' grams onto the lane (Assign Spool only).
+    void stage_size_into_working();
+    /// Stage everything Assign Spool's form says onto the lane.
+    void stage_assign_form();
+    /// The toast an assign or edit closes with: "Lane 2: Polymaker PLA" and
+    /// Undo, with the Spoolman id when the save created one.
+    void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created,
+                             bool undoable);
+    /// Write the lane's staged settings before an Assign Spool action; false
+    /// (editor kept open, refusal toasted) when the backend refused one.
+    bool commit_lane_settings_for_assign();
     void enter_editor();
     /// Apply the editor view's non-XML content (dropdown options, colour ring,
     /// summary, logistics fields) from state this object already holds.
@@ -532,6 +643,7 @@ class AmsEditOverlay : public OverlayBase {
     void finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
                              const std::string& reason);
     void set_save_state(int state, const std::string& error = {});
+    void update_save_wait_text();
     /// The commit decision (offline lock, relink, Spoolman save, local) over a
     /// capture; commit_and_close() runs it over the current state.
     void commit_capture(const SaveCapture& cap);
@@ -547,7 +659,7 @@ class AmsEditOverlay : public OverlayBase {
     void handle_weight_tap();       ///< Weight pill → numeric keypad
     void apply_weight(float grams); ///< Keypad result → remaining weight
     void handle_more_toggle();
-    void handle_add_to_spoolman();          ///< Quiet link: create + label
+    void handle_add_to_spoolman();          ///< Add to Spoolman & Assign
     void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
     void handle_clear_spool();              ///< Take the spool off the slot and close
     void handle_reapply_linked_spool();     ///< Write the linked spool's identity to the lane
@@ -561,6 +673,11 @@ class AmsEditOverlay : public OverlayBase {
     static constexpr int kSaveIdle = 0;
     static constexpr int kSaveWaiting = 1;
     static constexpr int kSaveFailed = 2;
+    /// What a waiting save is queued behind: the load, unload or other
+    /// filament operation @p info reports, naming the head or lane it works
+    /// on. Empty while the filament system is idle.
+    [[nodiscard]] static std::string save_wait_reason(const AmsBackend& backend,
+                                                      const AmsSystemInfo& info);
     /// The inline line a save that did not stick shows under Save.
     [[nodiscard]] static std::string not_saved_message(helix::ams::PendingOutcome outcome,
                                                        const std::string& reason);
@@ -642,6 +759,9 @@ class AmsEditOverlay : public OverlayBase {
     void report_save_problem(bool live, const char* message);
 #if HELIX_HAS_LABEL_PRINTER
     void handle_print_label();
+    /// The spool record a label for the lane's spool prints.
+    [[nodiscard]] SpoolInfo label_spool() const;
+    static void print_label_for(const SpoolInfo& spool_info);
 #endif
     void handle_scan_qr();
 };

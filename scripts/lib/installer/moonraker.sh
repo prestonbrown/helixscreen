@@ -932,6 +932,17 @@ EOF
         $SUDO mv "${release_info}.tmp" "$release_info" 2>/dev/null || true
 }
 
+# Print the moonraker.asvc that sits beside the config dir of moonraker.conf
+# @1: the data dir is two levels up from <config dir>/moonraker.conf. For the
+# user conf a mod's own conf includes (one level deeper, in mod_data/), the
+# config dir is the mod's conf's.
+moonraker_asvc_file() {
+    local conf
+    conf=$(mod_conf_including_user_conf "$1")
+    [ -n "$conf" ] || conf="$1"
+    printf '%s/moonraker.asvc\n' "$(dirname "$(dirname "$conf")")"
+}
+
 # Ensure helixscreen is in moonraker.asvc (service allowlist)
 # Moonraker requires services to be listed here before it can manage them.
 #
@@ -949,10 +960,8 @@ EOF
 ensure_moonraker_asvc() {
     local conf="$1"
     _MOONRAKER_ASVC_CHANGED=""
-    # The data dir is two levels up from <config dir>/moonraker.conf
-    local data_dir
-    data_dir="$(dirname "$(dirname "$conf")")"
-    local asvc="${data_dir}/moonraker.asvc"
+    local asvc
+    asvc=$(moonraker_asvc_file "$conf")
 
     if [ ! -f "$asvc" ]; then
         log_info "No moonraker.asvc found at $asvc, skipping"
@@ -984,10 +993,8 @@ ensure_moonraker_asvc() {
 # Args: $1 = moonraker.conf path
 remove_moonraker_asvc() {
     local conf="$1"
-    # The data dir is two levels up from <config dir>/moonraker.conf
-    local data_dir
-    data_dir="$(dirname "$(dirname "$conf")")"
-    local asvc="${data_dir}/moonraker.asvc"
+    local asvc
+    asvc=$(moonraker_asvc_file "$conf")
 
     if [ ! -f "$asvc" ]; then
         return 0
@@ -1228,7 +1235,7 @@ detect_moonraker_integration() {
     if [ -n "$none_yet" ] && [ "$support" != "unsupported" ]; then
         MOONRAKER_ADDS="$adds"
     fi
-    asvc="$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    asvc=$(moonraker_asvc_file "$conf")
     if [ -f "$asvc" ] && ! grep -q '^helixscreen$' "$asvc" 2>/dev/null; then
         MOONRAKER_ADDS="${MOONRAKER_ADDS:+$MOONRAKER_ADDS }allowlist"
     fi

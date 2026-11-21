@@ -73,8 +73,8 @@ browsing.
 small its disc. A swatch's target is the disc plus `hit` on each side, and the gap between
 swatches is at least `2 * hit`, so neighboring targets abut instead of overlapping (LVGL
 gives an overlapped tap to the topmost widget, which makes taps land unpredictably). The
-picker's strip chips and the slot editor's recent chips are 40px at 480x272 and 60px at
-800x480; the grid's cells are about 42 x 28 at 480x272 and touch, which is the point of a
+picker's strip chips are 40px at 480x272 and 60px at 800x480, the slot editor's color
+dots and recent chips use the `swatch_grid_*` ladder below, and the grid's cells are about 42 x 28 at 480x272 and touch, which is the point of a
 contiguous grid.
 
 The shared token ladders (`swatch_grid_*` for rows of small swatches such as the wizard's

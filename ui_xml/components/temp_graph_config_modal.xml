@@ -7,51 +7,46 @@
        Opened from grid edit mode gear icon on the temp graph widget.
        Sensor selection with enable/disable toggles and color swatches. -->
   <view name="temp_graph_config_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-
-    <!-- Header -->
-    <modal_header icon_src="chart_line" icon_variant="accent" title="Configure Graph"/>
-
-    <divider_horizontal/>
-
-    <!-- Scrollable sensor list: the follow toggle, then one row per series. -->
-    <!-- Capped by the responsive ladder rather than a flat 300. This root is
+        extends="dialog_frame" title="Configure Graph" icon="chart_line" icon_variant="accent">
+    <!-- The sensor list scrolls on its own, so the body adds no padding. -->
+    <dialog_frame-body style_pad_left="0" style_pad_right="0" style_pad_bottom="0">
+      <!-- Scrollable sensor list: the follow toggle, then one row per series. -->
+      <!-- Capped by the responsive ladder rather than a flat 300. This root is
          height="content" with no max_height of its own, so this cap is the only
          thing bounding the dialog - and the series rows are per-printer, so a
          machine with many sensors is what reaches it. -->
-    <lv_obj name="sensor_list"
-            width="100%" height="content" style_max_height="#dialog_content_max" flex_flow="column" style_pad_gap="0"
-            style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-            style_pad_bottom="#space_sm" scrollbar_mode="auto">
-      <lv_obj name="follow_row"
-              width="100%" height="content" flex_flow="row" style_flex_main_place="start"
-              style_flex_cross_place="center" style_flex_track_place="center" style_pad_ver="#space_xs"
-              style_pad_gap="#space_md">
-        <lv_obj width="content"
-                height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_bg_opa="0"
-                style_border_width="0" scrollable="false">
-          <text_body text="Follow graph screen" style_text_color="#text"/>
-          <text_body width="100%"
-                     text="Show whatever curves you last had visible on the full graph." long_mode="wrap"
-                     style_text_color="#text_muted"/>
+      <lv_obj name="sensor_list"
+              width="100%" height="content" style_max_height="#dialog_content_max" flex_flow="column" style_pad_gap="0"
+              style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
+              style_pad_bottom="#space_sm" scrollbar_mode="auto">
+        <lv_obj name="follow_row"
+                width="100%" height="content" flex_flow="row" style_flex_main_place="start"
+                style_flex_cross_place="center" style_flex_track_place="center" style_pad_ver="#space_xs"
+                style_pad_gap="#space_md">
+          <lv_obj width="content"
+                  height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <text_body text="Follow graph screen" style_text_color="#text"/>
+            <text_body width="100%"
+                       text="Show whatever curves you last had visible on the full graph." long_mode="wrap"
+                       style_text_color="#text_muted"/>
+          </lv_obj>
+          <!-- SIZE_OK: same 44x24 as the series switches -->
+          <lv_switch name="follow_switch" width="44" height="24">
+            <bind_state_if_eq subject="temp_graph_cfg_follow" state="checked" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="temp_graph_follow_switch_cb"/>
+          </lv_switch>
         </lv_obj>
-        <!-- SIZE_OK: same 44x24 as the series switches -->
-        <lv_switch name="follow_switch" width="44" height="24">
-          <bind_state_if_eq subject="temp_graph_cfg_follow" state="checked" ref_value="1"/>
-          <event_cb trigger="value_changed" callback="temp_graph_follow_switch_cb"/>
-        </lv_switch>
+        <repeat count="temp_graph_cfg_rows">
+          <temp_graph_series_row index="${i}"/>
+        </repeat>
       </lv_obj>
-      <repeat count="temp_graph_cfg_rows">
-        <temp_graph_series_row index="${i}"/>
-      </repeat>
-    </lv_obj>
+    </dialog_frame-body>
 
-    <divider_horizontal/>
-
-    <!-- Buttons -->
-    <modal_button_row secondary_text="Cancel"
-                      secondary_callback="on_modal_cancel_clicked" primary_text="OK"
-                      primary_callback="on_modal_ok_clicked"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel"
+                        secondary_callback="on_modal_cancel_clicked" primary_text="OK"
+                        primary_callback="on_modal_ok_clicked"/>
+    </dialog_frame-footer>
   </view>
 </component>

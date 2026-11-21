@@ -21,6 +21,9 @@
 #include "ui_spool_canvas.h"
 
 #include "../test_fixtures.h"
+#include "translation_loader.h"
+
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -78,4 +81,20 @@ TEST_CASE_METHOD(LVGLTestFixture, "bypass swatch still dedups a repeated colour"
     CHECK(w.color_painted);
 
     helix::ui::bypass_spool_destroy(w);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "the bypass caption reads in the active language",
+                 "[ams][bypass][spool_widget][i18n]") {
+    REQUIRE(register_component("components/bypass_spool_box"));
+    REQUIRE(register_component("components/bypass_spool_label"));
+    helix::ui::ensure_translation_loaded("ru");
+    lv_translation_set_language("ru");
+
+    BypassSpoolWidgets w = bypass_spool_create(lv_screen_active(), nullptr, nullptr);
+    REQUIRE(w.valid());
+    REQUIRE(w.bypass_label != nullptr);
+    CHECK(std::string(lv_label_get_text(w.bypass_label)) == "Обход");
+
+    helix::ui::bypass_spool_destroy(w);
+    lv_translation_set_language(helix::ui::kIdentityLocale);
 }

@@ -196,7 +196,7 @@ class ActionPromptModal : public Modal {
      *
      * The card widens for swatch tiles, grid cells split their row, a wrap-row label
      * wider than its row ends in an ellipsis, swatch tiles
-     * take the height left under the card's cap, and prompt_scroll is capped at
+     * take the height left under the card's cap, and the dialog body is capped at
      * that height so text and buttons scroll while the footer stays on the card.
      */
     void fit_rows(const RowFit& rows);

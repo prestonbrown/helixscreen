@@ -2,6 +2,8 @@
 
 #include "ui/ams_drawing_utils.h"
 
+#include "ui_row_text.h"
+
 #include "ams_backend.h"
 #include "ams_shared_spool_lanes.h"
 #include "ams_state.h"
@@ -803,52 +805,27 @@ ToolBadgeLabels compute_tool_badge_labels(const SystemToolLayout& layout,
     return out;
 }
 
-std::string lane_badge_text(int number) { // NAMESPACE_OK: sits with create_lane_badge in ams_draw
+std::string
+lane_badge_text(int number) { // NAMESPACE_OK: sits with the lane badge helpers in ams_draw
     return number < 0 ? std::string() : std::to_string(number);
 }
 
 void set_lane_badge_number(lv_obj_t* badge, int lane_number) { // NAMESPACE_OK: in ams_draw
-    if (lv_obj_t* lbl = badge ? lv_obj_get_child(badge, 0) : nullptr) {
-        lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
-    }
-}
-
-lv_obj_t* create_lane_badge(lv_obj_t* parent, int lane_number, int32_t size, bool active) {
-    if (!parent)
-        return nullptr;
-    lv_obj_t* badge = lv_obj_create(parent);
-    lv_obj_set_size(badge, size, size);
-    lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(badge, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_style_border_width(badge, 1, LV_PART_MAIN);
-    lv_obj_set_style_border_color(badge, theme_manager_get_color("card_bg"), LV_PART_MAIN);
-    lv_obj_set_style_pad_all(badge, 0, LV_PART_MAIN);
-    lv_obj_align(badge, LV_ALIGN_BOTTOM_RIGHT, -2, -2);
-    lv_obj_set_scrollable(badge, false);
-    lv_obj_set_event_bubble(badge, true);
-    lv_obj_t* lbl = lv_label_create(badge);
-    lv_label_set_text(lbl, lane_badge_text(lane_number).c_str());
-    const lv_font_t* f = theme_manager_get_font("font_xs");
-    if (f)
-        lv_obj_set_style_text_font(lbl, f, LV_PART_MAIN);
-    lv_obj_center(lbl);
-    lv_obj_set_event_bubble(lbl, true);
-    set_lane_badge_active(badge, active);
-    return badge;
+    helix::ui::set_row_label_text(badge, "lane_badge_label", lane_badge_text(lane_number).c_str());
 }
 
 void set_lane_badge_active(lv_obj_t* badge, bool active) {
     if (!badge)
         return;
-    lv_color_t bg =
-        active ? theme_manager_get_color("success") : theme_manager_get_color("ams_badge_bg");
-    lv_obj_set_style_bg_color(badge, bg, LV_PART_MAIN);
-    if (lv_obj_get_child_count(badge) > 0) {
-        // Both fills are accents, so the number starts from the palette text colour and
-        // shifts toward its pole as 4:1 needs
+    lv_obj_set_state(badge, LV_STATE_CHECKED, active);
+    if (lv_obj_t* lbl = lv_obj_find_by_name(badge, "lane_badge_label")) {
+        // Both fills are accents, so the number starts from the palette text color and
+        // shifts toward its pole as 4:1 needs.
+        // DECLARATIVE_OK: the text color is computed for contrast against the state's fill
         lv_obj_set_style_text_color(
-            lv_obj_get_child(badge, 0),
-            theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), bg),
+            lbl,
+            theme_manager_get_contrast_adjusted_text(
+                theme_manager_get_color("text"), lv_obj_get_style_bg_color(badge, LV_PART_MAIN)),
             LV_PART_MAIN);
     }
 }

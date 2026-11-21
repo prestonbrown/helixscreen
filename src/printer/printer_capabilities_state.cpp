@@ -49,6 +49,7 @@ constexpr CapabilityDef kCapabilityDefs[] = {
     {Capability::HasSpeaker, "printer_has_speaker", 0},
     {Capability::HasTimelapse, "printer_has_timelapse", 0},
     {Capability::HasJobQueue, "printer_has_job_queue", 0},
+    {Capability::HasUpdateManager, "printer_has_update_manager", 0},
     {Capability::HasPurgeLine, "printer_has_purge_line", 0},
     {Capability::HasFirmwareRetraction, "printer_has_firmware_retraction", 0},
     {Capability::HasIndividualXyzHoming, "printer_has_individual_xyz_homing", 1},
@@ -422,6 +423,12 @@ void PrinterCapabilitiesState::set_job_queue_available(bool available) {
                       "set: {}",
                       available);
     });
+}
+
+void PrinterCapabilitiesState::set_update_manager_available(bool available) {
+    async_lifetime_.defer(
+        "PrinterCapabilitiesState::set_update_manager_available",
+        [this, available]() { set_capability(Capability::HasUpdateManager, available ? 1 : 0); });
 }
 
 void PrinterCapabilitiesState::set_purge_line(bool has_purge_line) {

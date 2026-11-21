@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Firmware Update: the printer's own firmware from a USB stick, Moonraker's
+     update_manager entries, and the progress of the one update running -->
+<component>
+  <view name="settings_firmware_update_overlay" extends="overlay_panel" title="Firmware Update" bg_color="#screen_bg">
+    <!-- Refresh, hidden while an update runs -->
+    <overlay_panel-actions>
+      <ui_button name="btn_fwupdate_refresh" height="content" text="Refresh">
+        <style name="styles.header_action"/>
+        <bind_flag_if_eq subject="fwupdate_busy" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_fwupdate_refresh"/>
+      </ui_button>
+    </overlay_panel-actions>
+    <!-- Two views share the content area and each scrolls on its own -->
+    <overlay_panel-overlay_content style_pad_all="0" scrollable="false">
+      <!-- LIST VIEW -->
+      <lv_obj name="fwupdate_list"
+              width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
+              style_pad_bottom="#space_lg" scrollable="true" flex_flow="column">
+        <bind_flag_if_not_eq subject="fwupdate_view" flag="hidden" ref_value="0"/>
+        <!-- The printer's own firmware, when this printer's row may apply here -->
+        <setting_group name="group_fwupdate_vendor">
+          <bind_flag_if_eq subject="fwupdate_vendor_shown" flag="hidden" ref_value="0"/>
+          <setting_group_header title="PRINTER FIRMWARE"/>
+          <text_body name="fwupdate_vendor_status"
+                     width="100%" bind_text="fwupdate_vendor_status" long_mode="wrap" style_pad_left="#space_lg"
+                     style_pad_right="#space_lg" style_pad_top="#space_sm" style_pad_bottom="#space_sm">
+            <bind_flag_if_not_eq subject="fwupdate_image_count" flag="hidden" ref_value="0"/>
+          </text_body>
+          <lv_obj name="fwupdate_images"
+                  width="100%" height="content" flex_flow="column" style_pad_all="0" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <repeat count="fwupdate_image_count">
+              <firmware_update_image_row index="${i}"/>
+            </repeat>
+          </lv_obj>
+        </setting_group>
+        <!-- Moonraker update_manager -->
+        <setting_group name="group_fwupdate_software">
+          <bind_flag_if_eq subject="printer_has_update_manager" flag="hidden" ref_value="0"/>
+          <setting_group_header title="PRINTER SOFTWARE"/>
+          <text_body name="fwupdate_loading"
+                     width="100%" text="Checking for updates..." style_pad_left="#space_lg" style_pad_right="#space_lg"
+                     style_pad_top="#space_md" style_pad_bottom="#space_md">
+            <bind_flag_if_not_eq subject="fwupdate_list_state" flag="hidden" ref_value="0"/>
+          </text_body>
+          <text_body name="fwupdate_failed"
+                     width="100%" text="Could not read the printer's update status" long_mode="wrap"
+                     style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
+                     style_pad_bottom="#space_md">
+            <bind_flag_if_not_eq subject="fwupdate_list_state" flag="hidden" ref_value="2"/>
+          </text_body>
+          <lv_obj name="fwupdate_entries"
+                  width="100%" height="content" flex_flow="column" style_pad_all="0" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <bind_flag_if_not_eq subject="fwupdate_list_state" flag="hidden" ref_value="1"/>
+            <repeat count="fwupdate_entry_count">
+              <firmware_update_entry_row index="${i}"/>
+            </repeat>
+          </lv_obj>
+        </setting_group>
+        <!-- Why this printer's own firmware is not offered -->
+        <text_small name="fwupdate_vendor_note"
+                    width="100%" bind_text="fwupdate_vendor_note" long_mode="wrap" style_text_color="#text_muted"
+                    style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md">
+          <bind_flag_if_eq subject="fwupdate_vendor_shown" flag="hidden" ref_value="1"/>
+        </text_small>
+      </lv_obj>
+      <!-- PROGRESS VIEW -->
+      <lv_obj name="fwupdate_progress"
+              width="100%" flex_grow="1" flex_flow="column" style_pad_left="#space_lg" style_pad_right="#space_lg"
+              style_pad_top="#space_lg" style_pad_bottom="#space_lg" style_pad_gap="#space_md"
+              style_flex_main_place="center" style_flex_cross_place="center" scrollable="true">
+        <bind_flag_if_not_eq subject="fwupdate_view" flag="hidden" ref_value="1"/>
+        <text_heading name="fwupdate_run_title"
+                      width="100%" bind_text="fwupdate_run_title" style_text_align="center" long_mode="wrap"/>
+        <!-- The bar when the update reports a percent, the spinner when it does not -->
+        <spinner name="fwupdate_spinner" size="lg">
+          <bind_flag_if cond="fwupdate_run_state ne 0 or fwupdate_run_has_pct eq 1" flag="hidden"/>
+        </spinner>
+        <icon name="fwupdate_done_icon" src="check" size="xl" variant="success">
+          <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="1"/>
+        </icon>
+        <icon name="fwupdate_failed_icon" src="alert_octagon" size="xl" variant="danger">
+          <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="2"/>
+        </icon>
+        <icon name="fwupdate_unknown_icon" src="triangle_exclamation" size="xl" variant="warning">
+          <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="3"/>
+        </icon>
+        <lv_bar name="fwupdate_run_bar"
+                width="100%" height="#meter_track_h" bind_value="fwupdate_run_pct" min_value="0" max_value="100">
+          <bind_flag_if cond="fwupdate_run_has_pct eq 0 or fwupdate_run_state ne 0" flag="hidden"/>
+        </lv_bar>
+        <text_body name="fwupdate_run_message"
+                   width="100%" bind_text="fwupdate_run_message" style_text_align="center" long_mode="wrap"/>
+        <text_body name="fwupdate_keep_power"
+                   width="100%" text="Do not turn the printer off until the update finishes." style_text_align="center"
+                   long_mode="wrap" style_text_color="#warning">
+          <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="0"/>
+        </text_body>
+        <text_small name="fwupdate_no_return"
+                    width="100%" text="The printer is restarting into the new firmware." style_text_align="center"
+                    long_mode="wrap" style_text_color="#text_muted">
+          <bind_flag_if cond="fwupdate_run_no_return eq 0 or fwupdate_run_state ne 0" flag="hidden"/>
+        </text_small>
+        <ui_button name="fwupdate_done" width="content" height="#button_height" variant="primary" text="Done">
+          <bind_flag_if_eq subject="fwupdate_run_state" flag="hidden" ref_value="0"/>
+          <event_cb trigger="clicked" callback="on_fwupdate_done"/>
+        </ui_button>
+      </lv_obj>
+    </overlay_panel-overlay_content>
+  </view>
+</component>

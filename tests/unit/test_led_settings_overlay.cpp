@@ -634,3 +634,31 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture, "LED settings: an Applies to chip tog
     NavigationManager::instance().go_back();
     settle();
 }
+
+// A WLED-preset row names its preset above the slider: the readout follows
+// each slider move, not only the value the row was built with.
+TEST_CASE_METHOD(LedSettingsSwatchFixture,
+                 "LED settings: the WLED preset readout follows the slider", "[led][settings]") {
+    helix::led::LedStateAction action;
+    action.action_type = "wled_preset";
+    action.wled_preset = 3;
+    helix::led::LedAutoState::instance().set_mapping("idle", action);
+
+    auto& overlay = helix::settings::get_led_settings_overlay();
+    REQUIRE(overlay.show(lv_screen_active()));
+    settle();
+    lv_subject_t* readout = lv_xml_get_subject(nullptr, "led_auto_wled_label_0");
+    REQUIRE(readout != nullptr);
+    REQUIRE(std::string(lv_subject_get_string(readout)) == "Preset ID: 3");
+
+    lv_obj_t* slider = named("auto_wled_idle");
+    REQUIRE(slider != nullptr);
+    lv_slider_set_value(slider, 9, LV_ANIM_OFF);
+    lv_obj_send_event(slider, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+
+    const auto* mapping = helix::led::LedAutoState::instance().get_mapping("idle");
+    REQUIRE(mapping != nullptr);
+    CHECK(mapping->wled_preset == 9);
+    CHECK(std::string(lv_subject_get_string(readout)) == "Preset ID: 9");
+}

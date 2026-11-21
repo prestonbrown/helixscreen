@@ -365,3 +365,18 @@ setup_tmp_repo() {
     [ "$status" -eq 0 ]
     [[ "$output" != *"[xml-pad]"* ]]
 }
+
+@test "a whole-tree run from a root under .worktrees/ scans it; a nested .worktrees/ is not" {
+    local root gate bad='<component><view>
+  <lv_obj style_pad_all="12"/>
+</view></component>'
+    gate="$PWD/$GATE"
+    root="$(make_worktree_root)"
+    mkdir -p "$root/ui_xml/.worktrees/other"
+    printf '%s\n' "$bad" > "$root/ui_xml/own_pad.xml"
+    printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/peer_pad.xml"
+    run bash -c 'cd "$1" && python3 "$2" --list' _ "$root" "$gate"
+    [ "$status" -eq 1 ]
+    contains "ui_xml/own_pad.xml" "$output"
+    lacks "peer_pad.xml" "$output"
+}

@@ -577,3 +577,41 @@ TEST_CASE_METHOD(TrackerFixture, "stop reason tracker: a stale announcement expl
     }
     CHECK(reason_visible() == 0);
 }
+
+TEST_CASE("stop reason: a worded pause cause wins over the firmware's text",
+          "[print_completion][stop_reason][feed_failure]") {
+    const std::vector<JournalEntry> raw = {gcode_error("extruder[0]: state: load_extruding", kEnd)};
+    CHECK(decide_print_stop_reason(PrintJobState::PAUSED, "raw message", raw, kEnd, std::nullopt,
+                                   "Toolhead 1 could not load its filament") ==
+          "Toolhead 1 could not load its filament");
+    // Only a pause has a structured cause; an unworded one leaves the text.
+    CHECK(decide_print_stop_reason(PrintJobState::PAUSED, "", raw, kEnd, std::nullopt, "") ==
+          "extruder[0]: state: load_extruding");
+}
+
+TEST_CASE_METHOD(TrackerFixture,
+                 "stop reason tracker: a U1 load failure reads in plain words, paused and canceled",
+                 "[print_completion][stop_reason][feed_failure]") {
+    // The console line the U1 printed alongside the pause, uncoded.
+    constexpr const char* kRaw =
+        "extruder[0]: state: load_extruding, error: move_extrude!raw msg:logic error!";
+    now_ = kEnd - 1;
+    client_.fire_notification("notify_gcode_response", response({std::string("!! ") + kRaw}));
+    settle();
+
+    now_ = kEnd;
+    get_printer_state().update_from_status(
+        json{{"print_stats",
+              {{"state", "paused"},
+               {"exception",
+                {{"id", 525}, {"index", 0}, {"code", 51}, {"level", 2}, {"message", kRaw}}}}}});
+    settle();
+    CHECK(reason() == "Toolhead 1 could not load its filament");
+
+    now_ = kEnd + 120;
+    get_printer_state().update_from_status(
+        json{{"print_stats",
+              {{"state", "cancelled"}, {"message", kRaw}, {"exception", json::object()}}}});
+    settle();
+    CHECK(reason() == "Toolhead 1 could not load its filament");
+}

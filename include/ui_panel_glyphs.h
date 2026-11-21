@@ -49,8 +49,8 @@ class GlyphsPanel : public PanelBase {
     /**
      * @brief Setup the glyphs panel and populate with symbol entries
      *
-     * Updates the symbol count label and creates glyph display items
-     * for all LVGL symbols in the scrollable content area.
+     * Creates a glyph_item row for every MDI icon map entry in the
+     * panel's glyph_list slot.
      *
      * @param panel Root panel object from lv_xml_create()
      * @param parent_screen Parent screen (unused for this panel)
@@ -68,9 +68,8 @@ class GlyphsPanel : public PanelBase {
     /**
      * @brief Populate the content area with glyph display items
      *
-     * Creates a styled row for each LVGL symbol showing the icon
-     * and its constant name. Items are added to the scrollable
-     * content area found within the panel.
+     * Creates a glyph_item for each icon map entry, showing the glyph
+     * and its name, in the panel's glyph_list slot.
      */
     void populate_glyphs();
 };

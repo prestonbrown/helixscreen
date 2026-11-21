@@ -32,6 +32,7 @@ enum class Capability : uint8_t {
     HasSpeaker,             ///< M300 beeper or a local sound backend
     HasTimelapse,           ///< moonraker-timelapse
     HasJobQueue,            ///< Moonraker job_queue component
+    HasUpdateManager,       ///< Moonraker update_manager component
     HasPurgeLine,           ///< purge/priming capability
     HasFirmwareRetraction,  ///< firmware retraction (G10/G11)
     HasIndividualXyzHoming, ///< 0 on deltas: every axis homes together
@@ -209,6 +210,13 @@ class PrinterCapabilitiesState {
      * @param available True if Moonraker lists the job_queue component
      */
     void set_job_queue_available(bool available);
+
+    /**
+     * @brief Set update_manager availability (Moonraker's server.info components list)
+     *
+     * Thread-safe: defers to the main thread.
+     */
+    void set_update_manager_available(bool available);
 
     /**
      * @brief Set has individual XYZ homing (from kinematics detection)

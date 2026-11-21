@@ -1,0 +1,61 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One calibration step on the Calibration screen: its icon, name, status line and a
+     chevron. CalibrationHubOverlay publishes three subjects per step id:
+       cal_shown_<step>   1 when this printer has the step (the calibration catalog)
+       cal_status_<step>  the status line's text
+       cal_tone_<step>    the status line's color: 0 idle, 1 due, 2 done
+     Two to a row in landscape, one in portrait; a dense full-width row on micro screens. -->
+<component>
+  <api>
+    <!-- The step id (calibration_catalog.h), naming its subjects. -->
+    <prop name="step" type="string" default=""/>
+    <prop name="icon" type="string" default="tune"/>
+    <prop name="label" type="string" default=""/>
+    <!-- The callback the step's own screen registers. -->
+    <prop name="callback" type="string" default=""/>
+  </api>
+  <styles>
+    <style name="tile_half"
+           width="48%" height="content" min_width="45%" max_width="49%" flex_grow="1" pad_top="#space_md"
+           pad_bottom="#space_md"/>
+    <style name="tile_full"
+           width="100%" height="content" min_width="100%" flex_grow="1" pad_top="#space_md" pad_bottom="#space_md"/>
+    <style name="tile_micro"
+           width="100%" height="content" min_width="100%" flex_grow="1" pad_top="#space_xs" pad_bottom="#space_xs"/>
+  </styles>
+  <view name="calibration_hub_tile"
+        extends="lv_button" style_bg_color="#card_bg" style_bg_opa="100%" style_border_width="0" style_shadow_width="0"
+        style_radius="#border_radius" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_gap="#space_md"
+        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center">
+    <bind_flag_if_eq subject="cal_shown_${step}" flag="hidden" ref_value="0"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <bind_style_if name="tile_half" cond="ui_is_portrait eq 0 and ui_breakpoint gt 0"/>
+    <bind_style_if name="tile_full" cond="ui_is_portrait eq 1 and ui_breakpoint gt 0"/>
+    <bind_style_if name="tile_micro" cond="ui_breakpoint eq 0"/>
+    <icon name="tile_icon" src="$icon" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
+    <lv_obj width="0"
+            height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
+            scrollable="false" clickable="false" event_bubble="true">
+      <text_body name="tile_name" width="100%" text="$label" long_mode="dots" clickable="false" event_bubble="true"/>
+      <text_small name="tile_status_idle"
+                  width="100%" bind_text="cal_status_${step}" long_mode="dots" style_text_color="#text_muted"
+                  clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="cal_tone_${step}" flag="hidden" ref_value="0"/>
+      </text_small>
+      <text_small name="tile_status_due"
+                  width="100%" bind_text="cal_status_${step}" long_mode="dots" style_text_color="#warning"
+                  clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="cal_tone_${step}" flag="hidden" ref_value="1"/>
+      </text_small>
+      <text_small name="tile_status_done"
+                  width="100%" bind_text="cal_status_${step}" long_mode="dots" style_text_color="#success"
+                  clickable="false" event_bubble="true">
+        <bind_flag_if_not_eq subject="cal_tone_${step}" flag="hidden" ref_value="2"/>
+      </text_small>
+    </lv_obj>
+    <icon name="tile_chevron" src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="$callback"/>
+  </view>
+</component>

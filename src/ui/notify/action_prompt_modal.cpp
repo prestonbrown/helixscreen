@@ -36,7 +36,6 @@ namespace {
 struct PromptSubjects {
     helix::Subject title{};
     char title_buf[512] = {};
-    helix::Subject error{};       ///< 1 for severity "error": shows the red icon
     helix::Subject has_text{};    ///< 0 hides the text area
     helix::Subject has_buttons{}; ///< 0 hides the regular button area
     helix::Subject has_footer{};  ///< 0 hides the footer and its divider
@@ -55,7 +54,6 @@ void init_prompt_subjects() {
         return;
     }
     UI_MANAGED_SUBJECT_STRING(s.title, s.title_buf, "", "action_prompt_title", s.manager);
-    UI_MANAGED_SUBJECT_INT(s.error, 0, "action_prompt_error", s.manager);
     UI_MANAGED_SUBJECT_INT(s.has_text, 0, "action_prompt_has_text", s.manager);
     UI_MANAGED_SUBJECT_INT(s.has_buttons, 0, "action_prompt_has_buttons", s.manager);
     UI_MANAGED_SUBJECT_INT(s.has_footer, 0, "action_prompt_has_footer", s.manager);
@@ -66,6 +64,16 @@ void init_prompt_subjects() {
         subjects.manager.deinit_all();
         subjects.initialized = false;
     });
+}
+
+/**
+ * @brief The dialog's icon props for a prompt severity: an error prompt shows the
+ *        danger octagon, any other the info glyph, as ModalDialogAttrs maps them.
+ */
+const char** severity_attrs(const std::string& severity) {
+    static const char* error_attrs[] = {"icon", "alert_octagon", "icon_variant", "danger", nullptr};
+    static const char* info_attrs[] = {"icon", "info", "icon_variant", "primary", nullptr};
+    return severity == "error" ? error_attrs : info_attrs;
 }
 
 /**
@@ -259,7 +267,7 @@ bool ActionPromptModal::show_prompt(lv_obj_t* parent, const PromptData& data) {
     // Before Modal::show(): the diagram binds its subject when the XML is built.
     publish_fault_path();
 
-    if (!Modal::show(parent)) {
+    if (!Modal::show(parent, severity_attrs(prompt_data_.severity))) {
         fault_path_.release();
         return false;
     }
@@ -273,7 +281,8 @@ bool ActionPromptModal::show_owned_prompt(lv_obj_t* parent, const PromptData& da
     modal->prompt_data_ = data;
     modal->publish_fault_path();
     // A failed show frees the modal, whose hold hands the diagram back.
-    return Modal::show_owned(std::move(modal), parent);
+    const char** attrs = severity_attrs(data.severity);
+    return Modal::show_owned(std::move(modal), parent, attrs);
 }
 
 void ActionPromptModal::publish_fault_path() {
@@ -316,14 +325,13 @@ void ActionPromptModal::populate_content() {
     }
 
     // The title binds to kModalTitleWidgetName, the canonical name ui_notification.cpp's
-    // duplicate-title suppression looks up (#1389). The red error icon shows only for
-    // severity "error"; both are set on every show, since the subjects outlive one.
+    // duplicate-title suppression looks up (#1389). It is set on every show, since the
+    // subject outlives one.
     auto& subjects = prompt_subjects();
     // A title longer than the buffer is cut whole characters short, never mid-character.
     const std::string title(
         text_io::utf8_prefix(prompt_data_.title, sizeof(subjects.title_buf) - 1));
     lv_subject_set_string(&subjects.title, title.c_str());
-    lv_subject_set_int(&subjects.error, prompt_data_.severity == "error" ? 1 : 0);
     lv_subject_set_int(&subjects.has_text, prompt_data_.text_lines.empty() ? 0 : 1);
 
     create_text_lines();
@@ -448,10 +456,13 @@ void ActionPromptModal::size_swatch_discs() {
 // leaves, which only a layout pass knows.
 void ActionPromptModal::fit_rows(const RowFit& rows) {
     lv_obj_t* screen = dialog_ ? lv_obj_get_parent(dialog_) : nullptr;
-    lv_obj_t* scroll = find_widget("prompt_scroll");
+    lv_obj_t* scroll = find_widget("dialog_body");
     if (screen == nullptr || scroll == nullptr) {
         return;
     }
+    // The body's own cap is a token sized for a plain dialog; this card measures its
+    // room instead, so the body is measured at its full height.
+    lv_obj_set_style_max_height(scroll, LV_COORD_MAX, LV_PART_MAIN);
     lv_obj_update_layout(screen);
 
     SwatchGridGeometry g;

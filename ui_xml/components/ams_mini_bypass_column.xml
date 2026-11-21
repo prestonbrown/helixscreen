@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The AMS mini strip's bar-view bypass: a divider and one lane bar bound to
+       no slot, in a column of its own beside the units' bars so a stacked
+       multi-unit strip's bypass spans every unit row. The strip sizes and
+       paints the bar from its measured layout and the external spool. -->
+  <api>
+    <prop name="bar_width" type="string" default="8"/>
+    <prop name="bar_height" type="string" default="24"/>
+  </api>
+  <view name="ams_bypass_column"
+        extends="lv_obj" width="content" height="content" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        scrollable="false" event_bubble="true" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="end" style_flex_track_place="end" style_pad_column="#space_xxs">
+    <ams_mini_bypass_divider/>
+    <ams_lane_bar name="bypass_bar" bar_width="$bar_width" bar_height="$bar_height"/>
+  </view>
+</component>

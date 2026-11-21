@@ -873,8 +873,10 @@ void commit_staged_tool_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& 
                                 helix::SharedCallback<void(const std::string& error)> on_error) {
     const int live_microns =
         ps ? lv_subject_get_int(ps->motion_state().get_gcode_z_offset_subject()) : 0;
-    auto on_restarted = [api, live_microns, saved = std::move(on_saved)]() {
-        if (live_microns != 0) {
+    // The watch calls this itself, so it outlives the call. Only a restart
+    // resets the live offset; a save that keeps Klipper up has nothing to put back.
+    auto on_restarted = [api, live_microns, &save_watch, saved = std::move(on_saved)]() {
+        if (live_microns != 0 && save_watch.restarts_klipper()) {
             const std::string restore = fmt::format("SET_GCODE_OFFSET Z={:.3f}",
                                                     static_cast<double>(live_microns) / 1000.0);
             spdlog::info("[ZOffsetUtils] Restoring the unsaved live offset: {}", restore);

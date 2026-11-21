@@ -6,28 +6,26 @@
 <!-- Buttons are wired programmatically in BedCheckModal::on_show(). -->
 <component>
   <view name="bed_check_modal"
-        extends="ui_dialog" width="80%" height="content" style_max_height="90%" align="center" flex_flow="column"
-        style_flex_main_place="start" style_pad_gap="0">
-    <modal_header icon_src="alert" icon_variant="warning" title="Something on the bed?"/>
-
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
-            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="#space_sm">
+        extends="dialog_frame" width="80%" style_max_height="90%" title="Something on the bed?" icon="alert"
+        icon_variant="warning">
+    <dialog_frame-body style_pad_gap="#space_sm">
       <text_body name="bed_check_text"
                  width="100%" long_mode="wrap"
                  text="The camera thought it saw something on the bed, so the printer stopped before printing. If the bed is clear, it was a false alarm."/>
       <text_muted name="bed_check_hint"
                   width="100%" long_mode="wrap"
                   text="This print can't be resumed. Restart it, or turn off the bed check if it keeps happening."/>
-    </lv_obj>
+    </dialog_frame-body>
 
     <!-- Left to right: Cancel print (btn_quaternary), Turn off bed check (btn_tertiary,
          shown while the check is on), Restart print (btn_primary). Cancel print is not the
          Modal cancel role, which ESC also reaches: dismissing must not cancel a print. -->
-    <modal_button_row hide_quaternary="false"
-                      quaternary_name="btn_quaternary" quaternary_variant="danger" quaternary_text="Cancel print"
-                      hide_tertiary="false" tertiary_name="btn_tertiary" tertiary_variant="secondary"
-                      tertiary_text="Turn off bed check" tertiary_show_subject="detection_bed_check_enabled"
-                      hide_secondary="true" primary_text="Restart print"/>
+    <dialog_frame-footer>
+      <modal_button_row hide_quaternary="false"
+                        quaternary_name="btn_quaternary" quaternary_variant="danger" quaternary_text="Cancel print"
+                        hide_tertiary="false" tertiary_name="btn_tertiary" tertiary_variant="secondary"
+                        tertiary_text="Turn off bed check" tertiary_show_subject="detection_bed_check_enabled"
+                        hide_secondary="true" primary_text="Restart print"/>
+    </dialog_frame-footer>
   </view>
 </component>

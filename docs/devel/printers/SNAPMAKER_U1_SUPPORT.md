@@ -400,6 +400,286 @@ Verified against two real slices: a single-color file with `enable_pressure_adva
 
 K is set through the extruder stepper directly, so no `SET_PRESSURE_ADVANCE` echo reaches the console. HelixScreen drives this from its Pressure Advance screen: its `SNAPMAKER_U1` provider row in `src/printer/pa_calibration.cpp` holds the command and patterns, and `src/printer/pa_calibration.cpp#procedure_for` turns it into a run.
 
+## Error codes
+
+The firmware reports every fault it raises through `exception_manager` as
+`LLLL-IIII-NNNN-CCCC`: level, module id, index, code. HelixScreen decodes that token
+(`include/snapmaker_exceptions.h#decode_exception_code`) wherever it arrives: a console line, a
+raise notification, the standing list in `exception_manager.exceptions`, a `{"coded": ...}`
+envelope, or `print_stats.exception` on the pause it caused.
+
+**One table words them all.** `src/printer/snapmaker_exceptions.cpp` holds a row per code (or per
+run of codes with one meaning) with a short summary, the cause and the fix, following the map
+below. A summary with `{}` names the head the index points at ("Toolhead 1 could not load its
+filament"). The rows feed:
+
+- console lines and raise notifications, through the backend
+  (`src/printer/ams_backend_snapmaker.cpp#classify_coded_fault`): the summary is the dialog's or
+  toast's title, the cause and the fix its text. A feeder failure (525) that pauses a print is a
+  dialog with Open Filament, Cancel Print and Close;
+- the pause's stop reason on the print status tile, through the pause descriptor
+  (`src/printer/pause_descriptor.cpp#read`), which a cancel keeps;
+- the fault-code classifier's fallback (`src/printer/firmware_fault_codes.cpp`), which reads the
+  cause when no filament backend answers.
+
+A code with no row keeps the firmware's own text: 522-0 (every uncoded command error), 523-9000,
+530-9 (the calibration steps raise it with the failing step's own reason, a heater that will not
+heat among them) and 531-23 carry the real reason in their message, and the rest are codes the source never raises.
+Causes marked unverified below have no row's certainty behind them; their wording stays generic.
+
+### Code format and raise paths
+
+A fault is `LLLL-IIII-NNNN-CCCC`: level, module id, index, code, four digits each (`<klipper>/klippy/coded_exception.py`, `CodedException.structured_code`). Level 1 is informational, 2 asks for a pause, 3 asks for a cancel or stop. The id is the module (`<klipper>/klippy/exception_manager.py`, `ExceptionList`). The index is usually the toolhead (0-based, so index 0 is "Toolhead 1" in the UI), but some codes use an MCU, an axis or an endstop index instead; each row says which.
+
+Codes reach `exception_manager.raise_exception_async` (and from there Moonraker's `raise_exception` remote method) three ways:
+
+1. **Keyword form.** `gcmd.error(message, action=..., id=..., index=..., code=..., level=...)`, since `gcode.CommandError` is a `CodedException`. A top-level G-code error goes through `<klipper>/klippy/klippy.py` `raise_coded_exception`. **Any plain `gcmd.error("text")` with no keywords is still reported, as `0003-0522-0000-0000`** (the class defaults: id 522, index 0, code 0, level 3, action cancel).
+2. **JSON in the message text.** `'{"coded": "0003-0522-%04d-0012", "msg": "...", "action": "pause", "oneshot": 0}'`. `raise_coded_exception`, `invoke_shutdown` and `virtual_sdcard.work_handler` parse it with `extract_encoded_message`; the `coded` string overrides id/index/code/level, and `action` overrides the action.
+3. **Direct calls.** `exception_manager.raise_exception_async(id=, index=, code=, level=)` and `printer.raise_structured_code_exception("LLLL-IIII-NNNN-CCCC", msg)` (`<klipper>/klippy/klippy.py`). These only report; whatever module raises them does its own pausing.
+
+**What actually happens to a print** is decided by the `action`, not the level, when the error comes out of a G-code line run from a print file (`virtual_sdcard.work_handler`): `pause` runs `PAUSE ON_ERROR=1` (532-0000-0004 runs plain `PAUSE`), `pause_runout` runs `PAUSE IS_RUNOUT=1`, `none` lets the print continue, and anything else (the default `cancel`) ends the print. That is why a few level-1 codes below still end a print. Shutdown paths (`invoke_shutdown`) halt the printer whatever the level says; the user must restart firmware.
+
+Several formats use `%4d` rather than `%04d`, so the raw message text can carry space-padded fields such as `"0002-0523-   1-0018"`. Python's `int()` accepts that, so the reported integers are correct, but anything that parses the raw `coded` string out of a message must tolerate the spaces.
+
+Grip-state letters used below (from `<klipper>/klippy/extruder.py` `get_extruder_activate_status`): each head reports three sensors, `[parked, picked, grab_valid]`, as T/F. `FFF` = the head is seen nowhere (detached), `FFT` = only the pogo-pin contact is seen (pogo pins not connected), `TTx` = it reads as docked and on the carriage at once (conflicting sensors).
+
+### 522 MOTION / system
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 522-0 | 0 | 3, cancel | Any G-code command failing with a plain error that has no code of its own | A command failed and the firmware gave no specific reason code. Read the message text for the real reason. | Read the message shown with the error; retry the action. If it repeats, restart the printer and send the log to support. | coded_exception.py defaults, applied by klippy.py raise_coded_exception to every uncoded gcmd.error |
+| 522-2 | 0 | 3, firmware shutdown | Printer entered shutdown for a reason with no more specific code (includes "MCU shutdown" for most controller faults, "spontaneous restart", internal errors in ready callbacks) | The printer stopped itself for safety. The message says which board or reason. | Restart firmware from the screen. If it repeats, power-cycle the printer and check the cables to the toolheads. | klippy.py invoke_shutdown (default code) |
+| 522-3 | 0 | 3, printer will not start | Reading the printer configuration at startup | A setting in the printer's configuration file is invalid or missing. | Undo any recent config edits, or restore the default config, then restart firmware. | klippy.py _connect (config_error) |
+| 522-4 | 0 | 3, printer will not start | Setting up pins at startup | The configuration assigns a hardware pin that is invalid or used twice. | Undo recent config edits or restore the default config, then restart firmware. | klippy.py _connect (pins.error) |
+| 522-5 | 0 | 3, printer will not start | Talking to a controller board at startup | A board is running firmware that does not match the printer software (protocol mismatch). | Run the official firmware update again so every board is updated, then restart. | klippy.py _connect (msgproto.error) |
+| 522-6 | MCU: 0 host, 1 main board, 2-5 toolhead boards e0-e3, 100 no toolhead boards found (USB hub OK), 101 USB hub not detected, 255 unknown | 3, printer will not start | Connecting to the controller boards at startup | The printer could not connect to one of its boards. Index 100 means none of the toolhead boards answered; 101 means the internal USB hub was not seen. | Power-cycle the printer. If it repeats, check that every toolhead is seated and its cable is connected; for 101 the internal USB hub or its cable is suspect, contact support. | klippy.py _connect (mcu.error) |
+| 522-7 | 0 | 3, printer will not start | Startup | Unexpected internal error during startup. | Restart firmware; if it repeats, power-cycle and send the log to support. | klippy.py _connect (generic Exception) |
+| 522-8 | MCU: 0 host, 1 main board, 2-5 toolhead boards e0-e3, 100 all toolhead boards lost at once, 255 unknown | 3, firmware shutdown | Running; a board stopped answering | Lost communication with a board. Index 100 means all four toolhead boards dropped at the same time (a shared cable or the USB hub). | Power-cycle the printer. Check the toolhead cable for the named board; for 100 check the shared toolhead harness and hub. | mcu.py MCU.check_active |
+| 522-9 | 0 | 3 | Setting up the accelerometer (input shaping or vibration checks) | The accelerometer did not accept a setting; usually a loose cable or bad sensor. | Restart and retry. If it repeats, check the accelerometer cable and contact support. | extras/sc7a20.py set_reg; extras/lis2dw.py set_reg |
+| 522-10 | 0 | 3 | Starting accelerometer measurements | The accelerometer reported the wrong chip id; usually a loose cable or bad sensor. | Same as 522-9. | extras/sc7a20.py _start_measurements; extras/lis2dw.py _start_measurements |
+| 522-11 | 0 | 3 | Polling a stepper motor driver | A motor driver reported a fault (overheat, short, or reset). The message names the motor. | Power off, let the printer cool, check that nothing blocks that axis, restart. If it repeats, contact support. | extras/tmc.py _query_register |
+| 522-12 | axis: 0 X, 1 Y, 2 Z | 3, cancel | Planning a move | A move was sent before that axis was homed. | Home all axes, then retry. | toolhead.py Move.move_error |
+| 522-13 | axis: 0 X, 1 Y, 2 Z | 3, cancel | Planning a move | A move went outside the printer's travel limits on that axis. The file may be sliced for a different printer or have a bad offset. | Re-slice for the U1 profile and check that the model fits on the plate; re-home and retry. | toolhead.py Move.move_error |
+| 522-14 | 0 | 3, firmware shutdown | A controller reported "ADC out of range" for a sensor the firmware could not identify | A temperature reading went outside its valid range on an unknown sensor. | Restart firmware; check temperature sensor cables. Contact support if it repeats. | extras/error_mcu.py _check_mcu_shutdown |
+| 522-15 | 0 | 3, firmware shutdown | Heater watchdog, for a heater that is neither a nozzle nor the bed | A heater did not warm up at the expected rate. | Restart firmware; check that heater's wiring. Contact support if it repeats. | extras/verify_heater.py heater_fault |
+| 522-16 | MCU: 0 host, 1 main board, 2-5 toolhead boards e0-e3 | 3, firmware shutdown | A board shut down with "Timer too close" | The board fell behind on its timing, usually because the host was overloaded or the connection hiccuped. | Restart firmware. If it repeats during prints, avoid heavy extra load (camera streaming, large uploads) and contact support. | klippy.py invoke_shutdown |
+| 522-17 | power_loss_check: 0. serialhdl: 0 main board, 1-4 toolhead boards e0-e3, 255 unknown (note: a different board numbering from 522-6/8/16) | 3, firmware shutdown (power_loss_check) or report only (serialhdl) | Power-loss detection | Mains power dropped or dipped. | Check the power cable and outlet. After power returns, use power-loss recovery to resume the print if offered. | extras/power_loss_check.py handle_report_power_loss_status; serialhdl.py SerialReader.handle_output |
+| 522-18 | 0 | 3, firmware shutdown | Shutdown requested over the API | Something (an app or the screen) asked the printer to shut down. | Restart firmware. | klippy.py invoke_shutdown (shutdown_codes table) |
+| 522-19 | 0 | 3, firmware shutdown | M112 emergency stop | An emergency stop was issued. | Make sure the printer is safe, then restart firmware. | klippy.py invoke_shutdown (shutdown_codes table) |
+
+### 523 TOOLHEAD
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 523-0 | toolhead | 2, pause (runout pause). Kept active (oneshot 0) until filament is detected again | Printing, or starting flow calibration, or a runout check command | The toolhead's filament sensor sees no filament: the spool ran out or the filament broke before the head. When the print pauses, the firmware first tries auto-replenish from another spool; the code is raised only if that did not happen. | Load filament into that toolhead (or replace the spool), then resume. If filament is present, check for a break between the spool and the head. | extras/filament_switch_sensor.py RunoutHelper._runout_event_handler, cmd_CHECK_FILAMENT_RUNOUT; extras/flow_calibrator.py cmd_FLOW_CALIBRATE (before start, and on abort, where it is not reported to Moonraker: proactive_report=0) |
+| 523-1 | toolhead | 3, cancel | Extruding | The nozzle is below the minimum temperature allowed for extruding. | Heat the toolhead to the filament's temperature, or check that it is heating at all (see 523-3). | kinematics/extruder.py PrinterExtruder.check_move |
+| 523-2 | toolhead | 3, firmware shutdown (toolhead power is cut) | Reading the nozzle temperature | The nozzle temperature reading is out of range: the thermistor is disconnected, shorted or damaged. | Power off, re-seat that toolhead on its dock and carriage, check its connector. If it repeats, the hotend thermistor needs replacement. | extras/error_mcu.py _check_mcu_shutdown |
+| 523-3 | toolhead | 3, firmware shutdown | Heater watchdog | The nozzle did not heat up at the expected rate: heater or thermistor fault, or a loose hotend. | Restart, re-seat the toolhead and check the hotend is fully inserted. If it repeats, check the heater and thermistor. | extras/verify_heater.py heater_fault |
+| 523-4 | toolhead | 3, cancel | Extrude-only move | An extrude or retract move was longer than the firmware allows; usually a bad G-code command or macro. | Re-slice, or check the macro or command you sent. | kinematics/extruder.py PrinterExtruder.check_move |
+| 523-5 | toolhead | 3, cancel | Printing move | The file asks for more extrusion than the firmware allows (too wide or too fast a line for the nozzle). | Re-slice with the correct nozzle size and profile for the U1. | kinematics/extruder.py PrinterExtruder.check_move |
+| 523-6 | always 0 (the head number is in the message text, not the index) | 1, info (but a command error, so a print would end: action defaults to cancel) | Setting a nozzle temperature by toolhead number | A temperature was set for a toolhead number that does not exist. | Re-slice for the U1 profile with the right number of toolheads. | kinematics/extruder.py PrinterExtruder._set_extruder_temp |
+| 523-7 to 523-17 | toolhead being switched to | 2, pause | Toolhead change, before picking: checking which head is on the carriage | More than one toolhead reads as picked up at once. The code says which: 7 heads 1+2, 8 heads 1+3, 9 heads 1+4, 10 heads 2+3, 11 heads 2+4, 12 heads 3+4, 13 heads 1+2+3, 14 heads 1+2+4, 15 heads 1+3+4, 16 heads 2+3+4, 17 all four (UI numbering). Usually a dock or carriage sensor fault. | Make sure every toolhead not on the carriage is fully seated in its dock, then home and resume. If it repeats, the dock or carriage sensors need checking. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER (code = combination + 6) |
+| 523-18 | toolhead being switched to | 2, pause | Toolhead change, before picking | A toolhead is in an unknown position (not docked, not on the carriage) and the firmware will not switch. | Check every toolhead: seat any loose one fully in its dock, then home and resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-19 | toolhead being parked | 2, pause | Toolhead change, before parking the current head | The head on the carriage does not read as properly picked up, so the firmware will not park it. | Check that the current toolhead is firmly attached to the carriage; re-seat it, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-20 | toolhead being parked | 2, pause | Toolhead change, after parking | After parking, the head does not read as docked. | Check that the toolhead sits fully in its dock and nothing blocks the dock. Re-seat it, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-21 | toolhead being picked | 2, pause | Toolhead change, before picking | The head to be picked up does not read as docked. | Check that toolhead is in its dock; re-seat it, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-22 | toolhead being picked | 2, pause | Toolhead change, after picking | A different toolhead than the one requested reads as being on the carriage. | Check which head is on the carriage; dock all heads properly, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-23 | toolhead being picked | 2, pause | Toolhead change, after picking | The pick failed: every toolhead still reads as docked. | Check that the carriage and the head's latch are clear of debris; re-seat the head, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-24 to 523-34 | toolhead being picked | 2, pause | Toolhead change, after picking | More than one head reads as picked up after the pick. Same combinations as 7-17 (24 heads 1+2 ... 34 all four). | As for 523-7. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER (code = combination + 23) |
+| 523-35 | toolhead being picked | 2, pause | Toolhead change, after picking | The pick failed with a toolhead in an unknown position (no more specific code applied). | Check all toolheads are docked or firmly on the carriage, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-36 | toolhead | 3, cancel | Setting a nozzle temperature | The requested nozzle temperature is outside the allowed range. | Check the temperature in the slicer filament profile. | extras/heaters.py Heater.set_temp |
+| 523-37 | 0 | 1, info (kept until reset) | Periodic check while not printing | Toolhead switch count since the last maintenance passed the recommended threshold. | Do the toolhead maintenance Snapmaker recommends (clean docks and pogo pins), then reset the maintenance counter. | kinematics/extruder.py ExtruderSwitchRecorder._on_save_timer |
+| 523-38 | toolhead | 2, pause | Printing or flow calibration: comparing extruder movement with the feeder wheel movement | The filament is tangled or stuck between the spool and the head: the extruder is pulling but the feeder wheels are not turning. | Check the spool for tangles or a stuck spool, clear the filament path, then resume. | extras/filament_entangle_detect.py _check_entangle_event; extras/flow_calibrator.py cmd_FLOW_CALIBRATE (not reported to Moonraker there) |
+| 523-39 | toolhead | 2, pause | Print start or flow calibration, checking the head's filament info | No filament type is set for a toolhead the print uses. | Set the filament type for that toolhead on the screen or in the app, then resume. | extras/print_task_config.py cmd_INNER_CHECK_AND_RELOAD_FILAMENT_INFO; extras/flow_calibrator.py cmd_FLOW_CALIBRATE |
+| 523-40 | the detached toolhead | 2, pause | Toolhead change, before picking | A toolhead reads as detached: not in its dock and not on the carriage (FFF). | Find that toolhead, put it back in its dock fully, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-41 | the affected toolhead | 2, pause | Toolhead change, before picking | A toolhead reads as both docked and picked up at once (sensor conflict). | Re-seat that toolhead; if it repeats, its dock or carriage sensor needs checking. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-42 | toolhead being parked | 2, pause | Toolhead change, after parking | The head did not go back into its dock (still reads as on the carriage, FTx). | Check the dock for debris or a bent latch; guide the head into the dock, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-43 | toolhead being parked | 2, pause | Toolhead change, after parking | The head reads as detached after parking (FFx): it fell off or is not in the dock. | Find the toolhead, seat it in its dock, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-44 | toolhead being parked | 2, pause | Toolhead change, after parking | The head reads as both docked and picked up at once (TTx). | Re-seat the head; if it repeats, check its sensors. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-45 | the affected toolhead | 2, pause | Toolhead change, after picking | That head's pogo pins are not making contact (FFT). | Clean the pogo pins on the head and carriage, re-seat the head, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-46 | the affected toolhead | 2, pause | Toolhead change, after picking | That head reads as detached (FFF). | Find the toolhead, seat it properly, home, resume. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-47 | the affected toolhead | 2, pause | Toolhead change, after picking | That head reads as both docked and picked up (TTx). | Re-seat the head; if it repeats, check its sensors. | kinematics/extruder.py _cmd_SWITCH_EXTRUDER |
+| 523-48 | always 0 (per-head counts are in the message) | 1, info | End of a print: the head fan had read 0 RPM while on, two or more times in total | The firmware lost contact with a toolhead's fan during the print, which it treats as a pogo-pin disconnection. | Clean the pogo pins on the toolheads and carriage, then retry. | kinematics/extruder.py PrinterExtruder._handle_stop_print_job |
+| 523-9000 | toolhead | 2, pause | Flow (pressure advance) calibration | Flow calibration failed for some other reason; the message carries the underlying error. | Read the message, fix that cause (often a probe or homing problem), and retry, or turn off flow calibration for this print. | extras/flow_calibrator.py cmd_FLOW_CALIBRATE |
+| 523-9001 | toolhead | 3, cancel | Flow calibration | Flow calibration is not allowed for this filament with a 0.2 mm nozzle (PA, PC, carbon or glass fiber filled, and other listed types). | Turn off flow calibration for this print, or use a larger nozzle for that filament. | extras/flow_calibrator.py cmd_FLOW_CALIBRATE (rule in filament_parameters.py is_allow_to_print) |
+
+### 524 CAMERA
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 524-0 | 0 | 2, pause | Starting timelapse recording at print start | The camera service did not confirm that timelapse recording started. | Check that the camera works (open its live view), restart the printer if it does not, or turn off timelapse for this print, then resume. | extras/timelapse.py cmd_TIMELAPSE_START |
+
+### 525 FEEDING
+
+Index = toolhead the feeder channel serves (`filament_ch[ch]`). The "inlet sensor" is the feeder's port sensor (`_port[ch]`); the "head sensor" is that toolhead's filament motion sensor (`filament_motion_sensor eN_filament`). Preload failures are informational; load, unload and hand-feed failures come out of `FEED_AUTO` / `FEED_MANUAL` as pause errors. **When a load or unload fails while homing, switching toolheads, moving or heating, the 525 code is not used:** the original error is re-raised (`_is_keep_raw_error_info`), so the user sees that error's own code (528 homing, 523 toolhead switch, 523/526 heater).
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 525-0 | toolhead | 2 reported, but action none (does not pause or cancel) | Turning automatic feeding on or off for a channel | The auto-feed setting could not be applied. | Retry the setting; restart the printer if it keeps failing. | extras/filament_feed.py cmd_FEED_AUTO |
+| 525-10 | toolhead | 1, info | Preloading filament into the feeder | Preload failed for a reason with no specific code. | Pull the filament out, trim the tip straight, and insert it again. | extras/filament_feed.py _do_feed (preload) |
+| 525-11 | toolhead | 1, info | Preloading | The feeder motor is not turning at the expected speed (stalled or blocked). | Check the feeder for jammed filament or debris; reinsert the filament. If it repeats, contact support. | extras/filament_feed.py _do_feed (preload) |
+| 525-12 | toolhead | 1, info | Preloading | The motor turns but the feeder wheels do not: the filament is slipping or not gripped. | Trim the tip straight and push the filament in firmly until it is gripped. | extras/filament_feed.py _do_feed (preload) |
+| 525-13 | toolhead | 1, info | Preloading | The inlet sensor sees no filament (missing at start or pulled out during preload). | Insert the filament fully into the feeder inlet. | extras/filament_feed.py _do_feed (preload) |
+| 525-14 | toolhead | 1, info | Preloading | The filament did not reach its preload position in time. | Check the tube between the feeder and the toolhead for kinks or blockage; reinsert. | extras/filament_feed.py _do_feed (preload) |
+| 525-15 | toolhead | 1, info | Preloading | The toolhead's filament sensor already sees filament, so old filament is still in the path. | Unload the old filament from that toolhead first, then preload. | extras/filament_feed.py _do_feed (preload) |
+| 525-30 | toolhead | 2, pause | Loading filament to the toolhead | Loading failed for a reason with no more specific code. | Retry the load. If it repeats, unload, trim the tip and load again. | extras/filament_feed.py _do_feed (load); raised by cmd_FEED_AUTO |
+| 525-31 | toolhead | 2, pause | Loading, pushing filament toward the toolhead | The feeder motor stopped turning. | Check the feeder and tube for a jam; clear it and retry. | same |
+| 525-32 | toolhead | 2, pause | Loading, pushing filament toward the toolhead | The feeder wheels stopped turning: filament stuck or slipping. | Check for a tangle on the spool or a blocked tube; trim and reload. | same |
+| 525-33 | toolhead | 2, pause | Loading | The inlet sensor lost the filament (it was never there, ran out, or was pulled back). | Insert filament into the feeder inlet, then retry. | same |
+| 525-34 | toolhead | 2, pause | Loading, pushing filament toward the toolhead | The filament did not reach the toolhead's filament sensor in time. | Check the tube between the feeder and the toolhead for kinks or blockage; retry. | same |
+| 525-35 | toolhead | 2, pause | Loading, pushing filament toward the toolhead | The feeder pushed more than the maximum length and the toolhead sensor never saw filament (broken filament, a disconnected tube, or a faulty head sensor). | Check that the tube is connected at both ends and the filament is not broken inside it; retry. | same |
+| 525-50 | toolhead | 2, pause | Loading, after the extruder gripped: purging (flushing) the new filament | The purge step after extruding failed. | Check the purge area and nozzle wiper are clear, clean the nozzle, retry the load. | same (failure in the flushing step; code set before the extrusion step and kept when the flush fails) |
+| 525-51 | toolhead | 2, pause | Loading, trying to get the toolhead extruder to grip the filament | The extruder never gripped the filament: no movement seen on the feeder wheels or nozzle sensor after all retries (or the extrude step itself raised an error). | Cut the filament tip straight, check the nozzle is not clogged and the toolhead is hot, then retry. | same |
+| 525-70 | toolhead | 2, pause | Unloading filament | Unloading failed (state mismatch, unload script error, or bad parameter). | Retry the unload; if the filament is stuck, heat the toolhead and pull it out by hand. | extras/filament_feed.py _do_feed (unload); raised by cmd_FEED_AUTO |
+| 525-90 | toolhead | 2, pause | Hand feeding (manual load) | A manual feed step failed. | Retry the manual load from the start. | extras/filament_feed.py _do_feed (manual feed); raised by cmd_FEED_MANUAL |
+
+### 526 HEATER_BED
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 526-0 | 0 | 3, firmware shutdown | Reading the bed temperature | The bed temperature reading is out of range: bed thermistor disconnected or damaged. | Power off and check the bed cable connection; contact support if it repeats. | extras/error_mcu.py _check_mcu_shutdown |
+| 526-1 | 0 | 3, firmware shutdown | Heater watchdog | The bed did not heat at the expected rate. | Restart; check the bed heater cable. Contact support if it repeats. | extras/verify_heater.py heater_fault |
+| 526-2 | 0 | 3, cancel | Setting the bed temperature | The requested bed temperature is outside the allowed range. | Check the bed temperature in the slicer profile. | extras/heaters.py Heater.set_temp |
+
+### 527 CAVITY
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 527-0 | 0 | 3, firmware shutdown | Reading the chamber (cavity) temperature sensor | The chamber temperature reading is out of range: sensor disconnected or damaged. | Power off, check the chamber sensor cable; contact support if it repeats. | extras/error_mcu.py _check_mcu_shutdown |
+
+### 528 HOMING
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 528-0 | 0 | 2, pause | Homing Z | Z homing was asked for before X and Y were homed. | Home all axes. | extras/homing_xyz_override.py _z_probe_pre_process, cmd_G28_BASE |
+| 528-1 | 0 | 2, pause | Homing Z, checking which toolhead is on the carriage | The toolhead docked/picked state is wrong, so Z homing was stopped. | Make sure exactly one toolhead is on the carriage and the rest are docked, then home. | extras/homing_xyz_override.py _z_probe_pre_process |
+| 528-2 | endstop: 0 X, 1 Y, 2 Z, 3 probe, 255 other | 3, cancel | Homing move | An error happened during the homing move (the message holds the underlying error). | Check that the axis moves freely, then home again. | extras/homing.py HomingMove.homing_move |
+| 528-3 | endstop: 0 X, 1 Y, 2 Z, 3 probe, 255 other | 3, cancel | Waiting for an endstop or the probe | An error happened while waiting for the endstop or probe to trigger. | Home again; if it repeats, restart the printer. | extras/homing.py HomingMove.homing_move |
+| 528-4 | endstop: 0 X, 1 Y, 2 Z, 3 probe, 255 other | 3, cancel | Homing or probing | The endstop or probe never triggered across the full travel. For the probe (index 3), the nozzle never touched or sensed the bed. | Check that the build plate is in place and nothing blocks the axis; clean the nozzle tip; home again. | extras/homing.py HomingMove.homing_move |
+| 528-5 | 0 | 3, cancel | Second homing pass | The endstop was still triggered after backing off. | Check that the axis is not blocked and the endstop is not stuck; home again. | extras/homing.py Homing.home_rails |
+| 528-6 | 0 | 3, cancel | Repeated homing passes | Homing results varied more than allowed between passes. | Check the belts and rails for debris or looseness; home again. | extras/homing.py Homing.home_rails |
+| 528-7 | 0 | 3 | Homing | Homing failed because the printer shut down during it. | Fix the shutdown reason shown with it, restart firmware. | extras/homing.py PrinterHoming.manual_home, cmd_G28 |
+| 528-8 | 0 | 3 | Probing | Probing failed because the printer shut down during it. | Fix the shutdown reason, restart firmware. | extras/homing.py PrinterHoming.probing_move, probing_coil_move |
+| 528-9 | 0 | 3 | Probing | The probe was already triggered before the move started. | Clean the nozzle and the plate, check nothing is touching the nozzle, retry. | extras/homing.py PrinterHoming.probing_move |
+| 528-10 | 0 | 2, pause | Precise XY homing | X and Y must be homed before precise homing. | Home all axes. | extras/homing_precise_corexy.py check_xy_is_homing |
+| 528-11 | 0 | 2, pause (retried automatically first) | Precise XY homing | Precise homing computed a position too far from the expected one. | Home again; check belts and the calibration target for debris. If it repeats, run the home-origin calibration. | extras/homing_precise_corexy.py precise_corexy_coord |
+| 528-12 | 0 | 2, pause | Precise XY homing | The diagonal probing used for precise homing failed. | Clean the nozzle and calibration target, home again. | extras/homing_precise_corexy.py precise_corexy_coord |
+| 528-13 | the detached toolhead | 2, pause | Homing Z | A toolhead reads as detached (FFF). | Seat that toolhead in its dock, then home. | extras/homing_xyz_override.py _z_probe_pre_process |
+| 528-14 | the affected toolhead | 2, pause | Homing Z | A toolhead reads as both docked and picked up (TTx). | Re-seat that toolhead, then home. | extras/homing_xyz_override.py _z_probe_pre_process |
+
+### 529 GCODE
+
+These come from G-code parsing; during a print they end the print unless noted.
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 529-0 | 0 | 3, cancel | Reading a command's parameters | A command is missing a required value. | Re-slice the file, or fix the macro or command you sent. | gcode.py GCodeCommand.get |
+| 529-1 | 0 | 3, cancel | Reading a command's parameters | A command value could not be read as a number. | Same as 529-0. | gcode.py GCodeCommand.get |
+| 529-2 | 0 | 3, cancel | Reading a command's parameters | A value is below its allowed minimum. | Same as 529-0. | gcode.py GCodeCommand.get |
+| 529-3 | 0 | 3, cancel | Reading a command's parameters | A value is above its allowed maximum. | Same as 529-0. | gcode.py GCodeCommand.get |
+| 529-4 | 0 | 3, cancel | Reading a command's parameters | A value must be above a limit and is not. | Same as 529-0. | gcode.py GCodeCommand.get |
+| 529-5 | 0 | 3, cancel | Reading a command's parameters | A value must be below a limit and is not. | Same as 529-0. | gcode.py GCodeCommand.get |
+| 529-6 | 0 | 3, printer will not start | Loading the configuration | Two config sections define the same command. | Remove the duplicate macro from your config, restart firmware. | gcode.py GCodeDispatch.register_command |
+| 529-7 | 0 | 3, printer will not start | Loading the configuration | Two config sections register the same multi-target command in conflicting ways. | Remove the duplicate config section, restart firmware. | gcode.py GCodeDispatch.register_mux_command |
+| 529-8 | 0 | 3, cancel | Parsing a command | A command line is malformed. | Re-slice, or fix the command or macro. | gcode.py GCodeDispatch._get_extended_params |
+| 529-9 | 0 | 1 reported, but a print would still end (action defaults to cancel) | Running a command that targets a named device | The command names a device (sensor, toolhead) that does not exist. | Fix the device name in the command or macro. | gcode.py GCodeDispatch._cmd_mux |
+| 529-10 | 0 | 3, cancel | Arc move (G2/G3) | Arc moves in relative mode are not supported. | Turn off arc fitting in the slicer, or use absolute mode. | extras/gcode_arcs.py ArcSupport._cmd_inner |
+| 529-11 | 0 | 3, cancel | Arc move | Arc moves with a radius (R) are not supported. | Turn off arc fitting in the slicer. | extras/gcode_arcs.py ArcSupport._cmd_inner |
+| 529-12 | 0 | 3, cancel | Arc move | An arc move is missing its center values. | Turn off arc fitting in the slicer, or re-slice. | extras/gcode_arcs.py ArcSupport._cmd_inner |
+| 529-13 | 0 | 3, cancel | Move (G0/G1) | A move has an invalid speed (zero or negative). | Re-slice; check the speed in custom G-code. | extras/gcode_move.py GCodeMove.cmd_G1 |
+| 529-14 | 0 | 3, cancel | Move (G0/G1) | A move command could not be read. | Re-slice; check custom G-code. | extras/gcode_move.py GCodeMove.cmd_G1 |
+| 529-15 | 0 | 3, cancel | G20 | Inch units are not supported. | Slice in millimeters. | extras/gcode_move.py GCodeMove.cmd_G20 |
+
+### 530 PROBE_OR_CALIBRATION
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 530-0 | toolhead | 3, cancel | Checking the nozzle sensor (inductance coil) before probing or offset calibration | The toolhead's nozzle sensor gives no reading at all. | Re-seat the toolhead and clean its pogo pins; restart. If it repeats, the sensor needs service. | extras/probe_inductance_coil.py _probe, cmd_PROBE_XYZ_OFFSET_CALIBRATE |
+| 530-1 | toolhead | 3, cancel | Same as 530-0 | The nozzle sensor reading is outside its normal range. | Clean the nozzle tip and the plate, re-seat the toolhead, retry. | same |
+| 530-2 | 0 | 3, cancel | Probing | Probing was asked for before the printer was homed. | Home all axes, then retry. | extras/probe_inductance_coil.py _probe, cmd_PROBE_XYZ_OFFSET_CALIBRATE |
+| 530-3 | 0 | 3, cancel | XYZ offset calibration | Invalid number of probe points requested (command error). | Start the calibration again from the screen. | extras/probe_inductance_coil.py cmd_PROBE_XYZ_OFFSET_CALIBRATE |
+| 530-4 | 0 | 3, cancel | Probing, checking toolhead state | The toolhead docked/picked state is wrong, so probing stopped. | Make sure one toolhead is on the carriage and the rest are docked, home, retry. | extras/probe_inductance_coil.py _probe |
+| 530-5 | 0 | 3, cancel | Probing | The toolhead on the carriage is not the one the firmware expected. | Home again so the firmware re-detects the toolhead, then retry. | extras/probe_inductance_coil.py _probe |
+| 530-6 | 0 | 3, cancel | Probing | The probe in use does not belong to the active toolhead. | Home again; restart the printer if it repeats. | extras/probe_inductance_coil.py _probe |
+| 530-7 | 0 | 3, cancel | Probing | Unsupported probe axis (command error). | Unverified for users; the source shows only a bad probe-axis parameter. Retry from the screen. | extras/probe_inductance_coil.py _probe |
+| 530-8 | probe axis: 0 X, 1 Y, 2 Z (not a toolhead) | 3, cancel | Probing several times | Repeated probe readings disagreed more than allowed. | Clean the nozzle tip and the plate, make sure the plate sits flat, retry. | extras/probe_inductance_coil.py run_probe |
+| 530-9 | 0 | 3, cancel | XYZ offset calibration steps | A calibration step was run while the printer was not in offset-calibration mode; the offset calibration also reports other step failures (a heater not heating) under this code, so the message is the reason. | Start the offset calibration again from the screen. | extras/probe_inductance_coil.py _verify_calibration_state |
+| 530-10 | 0 | 3, cancel | Plate detection during calibration | The build plate was expected to be on the bed but reads as removed. | Put the build plate back on, aligned, and retry. | extras/probe_inductance_coil.py cmd_DETECT_PLATE |
+| 530-11 | 0 | 3, cancel | Plate detection during calibration | The build plate was expected to be removed but is still on the bed. | Remove the build plate when asked, then continue. | extras/probe_inductance_coil.py cmd_DETECT_PLATE |
+| 530-13 | 0 | 3, cancel | Probing | No toolhead is on the carriage; all are docked. | Home again so a toolhead is picked; retry. | extras/probe_inductance_coil.py _probe |
+| 530-14 | the detached toolhead | 3, cancel | Probing | A toolhead reads as detached (FFF). | Seat that toolhead in its dock, home, retry. | extras/probe_inductance_coil.py _probe |
+| 530-15 | the affected toolhead | 3, cancel | Probing | That toolhead's pogo pins are not making contact (FFT). | Clean the pogo pins on the head and carriage, re-seat, retry. | extras/probe_inductance_coil.py _probe |
+| 530-16 | the affected toolhead | 3, cancel | Probing | A toolhead reads as both docked and picked up (TTx). | Re-seat that toolhead, retry. | extras/probe_inductance_coil.py _probe |
+| 530-17 | 0 | 3, cancel | Bed contact probe | The probe never touched the plate: the PEI plate is not placed correctly. | Seat the PEI plate flat and aligned on the bed, retry. | extras/probe_inductance_coil.py cmd_PROBE_BED_CONTACT |
+| 530-18 | 0 | 3 | Saving toolhead offset calibration results (factory mode only) | The measured offset between toolheads is out of the allowed range. | Re-seat all toolheads and rerun the offset calibration. Contact support if it repeats. | extras/probe_inductance_coil.py cmd_EXTRUDER_OFFSET_ACTION_SAVE_RESULT |
+| 530-19 | 0 | 3, cancel | Park (dock) position calibration | No dock position is configured for that toolhead. | Unverified for users; points to a missing factory calibration. Contact support. | kinematics/extruder.py cmd_ENTER_PARK_POINT_MANUAL_CALIBRATION, cmd_MOVE_TO_PARK_CALIBRATION_POINT, cmd_VERIFY_PARK_POSITION |
+| 530-20 | 0 | 3, cancel | Park position calibration | All toolheads must be docked first. | Dock every toolhead (home the printer), then retry. | kinematics/extruder.py cmd_MOVE_TO_PARK_CALIBRATION_POINT, cmd_VERIFY_PARK_POSITION |
+| 530-21 | toolhead | 3, cancel | Verifying the dock position: test pick | Picking the toolhead failed during dock-position verification. | Adjust the dock position again and rerun the verification. | kinematics/extruder.py cmd_VERIFY_PARK_POSITION |
+| 530-22 | toolhead | 3, cancel | Verifying the dock position: test park | Parking the toolhead failed during verification. | Same as 530-21. | kinematics/extruder.py cmd_VERIFY_PARK_POSITION |
+| 530-23 | 0 | 3, cancel | Changing or verifying a dock position | The new dock position is too far from the current one. | Make a smaller adjustment, or confirm with the force option if you are sure. | kinematics/extruder.py cmd_SET_EXTRUDER_PARK_POSITION, cmd_MOVE_TO_PARK_CALIBRATION_POINT, cmd_VERIFY_PARK_POSITION |
+| 530-24 | 0 | 3, cancel | Home-origin calibration (diagonal probing) | A calibration probe point failed. | Clean the nozzle and calibration target, rerun the calibration. | extras/homing_precise_corexy.py perform_multi_point_diagonal_probing |
+| 530-25 | 0 | 3, cancel | Home-origin calibration | A calibration point landed in the wrong place. | Check belts and rails for debris or looseness, rerun. | same |
+| 530-26 | 0 | 3, cancel | Home-origin calibration | Points stayed unstable after all retries. | Same as 530-25. | same |
+| 530-27 | 0 | 3, cancel (retried first by the advanced homing command) | Precise homing | The home position is unstable. | Rerun the home-origin calibration; check belts. | extras/homing_precise_corexy.py precise_corexy_coord |
+| 530-28 | 0 | 3, cancel (retried first) | Precise homing validation | The validation point does not match. | Same as 530-27. | extras/homing_precise_corexy.py precise_corexy_coord |
+| 530-29 | 0 | 1, info, kept until cleared | After a bed scan | The bed is too far out of level for automatic compensation; manual leveling is needed. | Level the bed with the manual leveling procedure, then clear the warning. | extras/bed_mesh.py check_manual_leveling_needed |
+
+### 531 PRINT_FILE
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 531-0 | 0 | 1, info (action none) | Listing print files | The file list could not be read from storage. | Restart the printer; if it repeats, check the storage for space. | extras/virtual_sdcard.py get_file_list |
+| 531-1 | 0 | 1, info (action none) | Starting, resuming or seeking a file print | A print is already running. | Wait for it to finish, or cancel it first. | extras/virtual_sdcard.py do_resume, cmd_SDCARD_PRINT_FILE, cmd_SDCARD_PRINT_FILE_WITH_PARAMETERS, cmd_M23, cmd_M26 |
+| 531-2 | 0 | 1, info | Writing to the print storage | Writing files this way is not supported. | Upload files from the slicer or app instead. | extras/virtual_sdcard.py cmd_error |
+| 531-3 | 0 | 1, info | Reset file command | That command cannot run from inside a print file. | Remove it from the G-code file. | extras/virtual_sdcard.py cmd_SDCARD_RESET_FILE |
+| 531-4 | 0 | 1, info | Opening a print file | The file could not be opened (missing, renamed, or corrupt). | Re-upload the file and start it again. | extras/virtual_sdcard.py _load_file |
+| 531-5 | 0 | 1, info | Power-loss recovery | Recovery is not allowed in the current state, or restoring the print failed (the message says which). | Return to the idle screen and try recovery again; if it fails, start the print fresh. | extras/virtual_sdcard.py cmd_SDCARD_PRINT_PL_RESTORE, restore_print |
+| 531-6 | 0 | 1, info | Clearing power-loss data | Power-loss data cannot be deleted while printing. | Wait until the print ends. | extras/virtual_sdcard.py cmd_SDCARD_PRINT_PL_CLEAR_ENV |
+| 531-10 | 0 | 3, print stops | Reading the print file during a print | The file could not be read part way through. | Re-upload the file; if it repeats, the storage may be failing, contact support. | extras/virtual_sdcard.py work_handler |
+| 531-14 | 0 | 3, cancel (print does not start) | Checking print settings at start | The file was sliced for a different nozzle size than the one installed on a toolhead it uses. | Re-slice with the installed nozzle size, or fit the matching nozzle. | extras/print_task_config.py cmd_SET_PRINT_TASK_PARAMETERS |
+| 531-15 | 0 | 1, info | Changing the toolhead mapping | Toolhead mapping cannot change during a print. | Change it before starting the print. | extras/print_task_config.py cmd_SET_PRINT_EXTRUDER_MAP |
+| 531-16 | 0 | 1 from preferences / used-toolhead changes; 3 from task parameters | Changing print settings | Those print settings cannot change during a print. | Change them before starting the print. | extras/print_task_config.py cmd_SET_PRINT_PREFERENCES, cmd_SET_PRINT_USED_EXTRUDERS, cmd_SET_PRINT_TASK_PARAMETERS |
+| 531-17 | 0 | 3, cancel (print does not start) | Reading print settings at start | The print settings sent with the file could not be applied (generic). | Re-slice and send the print again. | extras/print_task_config.py cmd_SET_PRINT_TASK_PARAMETERS |
+| 531-18 | 0 | 3, cancel (print does not start) | Checking print settings at start | Flow calibration is turned on for a filament and nozzle pair that does not allow it (0.2 mm nozzle with PA, PC, fiber-filled and similar). | Turn off flow calibration for this print, or use a larger nozzle. | extras/print_task_config.py cmd_SET_PRINT_TASK_PARAMETERS |
+| 531-19 | 0 | 3, cancel (print does not start) | Checking print settings at start | The file was sliced for a different nozzle type (standard or high-flow) than the one installed. | Re-slice with the installed nozzle type, or set the toolhead's nozzle type correctly on the screen. | extras/print_task_config.py cmd_SET_PRINT_TASK_PARAMETERS |
+| 531-21 | 0 | 3, print does not start | Pre-start check | Filament auto-feeding is still in progress. | Wait for feeding to finish, then start the print. | extras/virtual_sdcard.py cmd_SDCARD_PRINT_FILE, cmd_SDCARD_PRINT_FILE_WITH_PARAMETERS |
+| 531-23 | 0 | 3, print does not start | Pre-start check | The pre-print check failed; the message carries the underlying reason. | Read the message and fix that cause, then start again. | same |
+
+### 532 DEFECT_DETECTION
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 532-1 | 0 | 2, pause | Checking the bed before or during a print | Something is on the build plate (dirty or occupied bed). | Clear and clean the build plate, then resume. | extras/defect_detection.py defect_event_handler (via cmd_DEFECT_DETECTION_DETECT_BED) |
+| 532-2 | 0 | 2, pause | Camera monitoring during a print | "Spaghetti": the print has come loose or is extruding into the air. | Check the print. Resume only if it looks fine; otherwise cancel, clean the plate and reprint. | extras/defect_detection.py defect_event_handler |
+| 532-3 | 0 | 2, pause | Camera monitoring during a print | Leftover material detected where it should not be (residue). | Check the bed and print; remove debris, then resume. | extras/defect_detection.py defect_event_handler |
+| 532-4 | 0 | 2, pause (plain PAUSE, not an error pause) | Camera check of the nozzle | Filament is stuck on the nozzle (dirty nozzle). | Clean the nozzle, then resume. | extras/defect_detection.py defect_event_handler (via cmd_DEFECT_DETECTION_DETECT_NOZZLE); special-cased in virtual_sdcard.work_handler |
+
+### 533 PURIFIER
+
+| Code (id-code) | Index means | Level / effect | What the firmware was doing | Cause in plain words for a printer user | Fix for the user | Source (file, function) |
+|---|---|---|---|---|---|---|
+| 533-0 | 0 | 2, pause | Chamber preheat or hot-chamber mode | The chamber's inner circulation fan is switched on but reads 0 RPM (stuck or unplugged). | Check the fan for obstructions and its cable, then resume. | extras/purifier.py _handle_hot_chamber_mode, _handle_preheat_chamber_mode |
+| 533-1 | 0 | 2, pause | Chamber cooling mode | The chamber stayed too hot and did not cool in time. | Open the door or lid to let it cool, check the exhaust fan works, then resume. | extras/purifier.py _trigger_cooling_alarm |
+
+### 2052 SYSTEM (moonraker)
+
+No raise site in this source copy. Moonraker `<moonraker>/moonraker/components/exception_manager.py` declares `MUDOLE_ID_SYSTEM = 2052` and exposes `/server/exception/raise`, `/server/exception/clear` and `/server/exception/query` (not over HTTP), so system codes come from an outside client (the screen app or the MQTT side), not from Klipper or Moonraker code in this copy. Its constants `CODE_MOTION_COMMON = 0`, `CODE_MOTION_DISCONNECTED = 1`, `CODE_MOTION_SHUTDOWN = 2` are used only in commented-out code.
+
+### Open questions in the map
+
+- **2052 SYSTEM:** never raised in this copy; the codes come from an external client through Moonraker's `/server/exception/raise`. The source that sends them is not in this tree.
+- **526 and 527 are raised**, but only from `<klipper>/klippy/error_mcu.py` (ADC out of range), `<klipper>/klippy/verify_heater.py` and `<klipper>/klippy/heaters.py`. 527 has a single code (sensor out of range); nothing raises a chamber over-temperature as 527 (that is 533-1).
+- **Codes that never occur:** 522-1 (the Moonraker "disconnected" constant, commented out), 530-12, 531-7 to 9, 11 to 13, 20, 22, 532-0 (the handler's default; every caller passes events 1 to 4), 523-6 from the switch logic (it would need an impossible multi-pick combination; 523-6 in practice is only "toolhead not configured").
+- **523-6's index is always 0**, even for toolheads 2 to 4 (`_set_extruder_temp` hardcodes it). The head is only in the message text.
+- **522-17 board numbering differs by source:** `<klipper>/klippy/serialhdl.py` uses 0 = main board, 1-4 = e0-e3, while `<klipper>/klippy/mcu.py`/`<klipper>/klippy/klippy.py` (522-6, 8, 16) use 0 = host, 1 = main board, 2-5 = e0-e3. A UI that names the board from the index must branch on the code.
+- **Malformed fallback code:** `<klipper>/klippy/klippy.py` `invoke_shutdown`, when a shutdown message is JSON without a `coded` key, builds `f"{level:04d}-{id:04d}-{code:04d}-{level:04d}"` (level-id-code-level). No caller in this tree sends such JSON, so the path appears unused, but if it fires the reported code is wrong.
+- **Space-padded fields:** `%4d` formats in `<klipper>/klippy/extruder.py` (523-18 to 47, 523-7 to 17), `<klipper>/klippy/homing.py` (528-2 to 4), `<klipper>/klippy/homing_xyz_override.py` (528-13/14), `<klipper>/klippy/probe_inductance_coil.py` (530-0/1, 8, 14 to 16), `<klipper>/klippy/extruder.py` (530-21/22) and `<klipper>/klippy/serialhdl.py` (522-17) put spaces in the raw message string. The reported integers are fine.
+- **Level versus effect:** level 1 codes raised as command errors without `"action": "none"` (523-6, 529-9) still end a running print, because the action defaults to cancel. The 531 informational codes with `"action": "none"` do not.
+- **Feeder errors that hide behind other codes:** a load/unload failure during homing, toolhead switching, moving or heating re-raises the original error instead of a 525 code, so a UI wanting "load failed" wording must also expect 528, 523 and heater codes during a feed.
+- **MCU firmware:** the MCU only sends shutdown reason strings. The host maps "Timer too close" to 522-16 and "ADC out of range" to 523-2 / 526-0 / 527-0 / 522-14; every other MCU shutdown reason ("MCU shutdown" with any other reason, spontaneous restart) becomes 522-2, with the reason only in the message text. `<klipper>/klippy/error_mcu.py` adds help text, not codes.
+- **Uncoded errors:** every plain `gcmd.error("...")` across the codebase (many in filament_feed, extruder, print_task_config) reports as 522-0. Errors raised with `action='pause'` but no code (for example `<klipper>/klippy/extruder.py` "Extruder malfunction after parking ..." with a None state, `cmd_SWITCH_EXTRUDER` retry exhaustion when the message is not JSON) report 522-0 at level 3 yet pause the print.
+- **Unverified meanings:** 530-7 (only a bad parameter is visible), 530-19 (a missing dock position calibration; whether users can ever hit it is unclear), 525-30 (a generic "load failed" with no specific trigger in the source beyond unclassified exceptions such as the drive step), 532-1 bed check details (the source runs probe moves; the camera's part is in the remote analysis service, not here).
+
 ## 480x320 Display Considerations
 
 The U1's 480x320 display uses the TINY layout preset. This is the smallest resolution HelixScreen supports, and several UI panels have known layout issues at this size. Key issues:

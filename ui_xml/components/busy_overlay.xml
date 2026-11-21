@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Spinner over the progress line, centered on the busy backdrop.
+       BusyOverlay creates it inside create_fullscreen_backdrop() on the top
+       layer and owns busy_overlay_text ("Downloading... 45%"). -->
+  <view name="busy_overlay_content"
+        extends="lv_obj" width="content" height="content" align="center" style_bg_opa="0" style_border_width="0"
+        style_pad_all="0" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
+        style_flex_track_place="center" style_pad_row="16" scrollable="false">
+    <spinner name="busy_overlay_spinner" size="lg"/>
+    <lv_label name="busy_overlay_label"
+              bind_text="busy_overlay_text" style_text_font="#font_small" style_text_color="#text"/>
+  </view>
+</component>

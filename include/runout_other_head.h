@@ -80,6 +80,9 @@ struct RunoutFacts {
     /// The firmware's logical tool -> head routing as last reported; empty when
     /// the filament system reports none. A switch rewrites it.
     std::vector<int> routing;
+    /// The firmware is running an action of its own inside the pause (resuming,
+    /// or switching heads by itself) and refuses another until it is done.
+    bool printer_busy = false;
 };
 
 /// Why a head cannot take over the print.
@@ -95,6 +98,19 @@ enum class HeadRefusal {
     /// The head that ran out can still be fed, so the firmware would resume on
     /// it instead (every other head reads this).
     RunoutHeadStillFeeds,
+    /// A material the filament database does not know, on either side: nothing
+    /// says the sliced temperatures suit it.
+    MaterialUnknown,
+    /// The printer is resuming or switching heads by itself (every other head).
+    PrinterBusy,
+    /// The routing already moved the rest of the print off the runout head
+    /// (every other head).
+    AlreadyMoved,
+    /// Another head is active now; the firmware continues only from the head
+    /// that ran out (every other head).
+    RunoutHeadNotActive,
+    /// The filament system cannot copy this head's record onto the empty head.
+    RecordNotWritable,
 };
 
 /// One head's answer.
@@ -103,6 +119,9 @@ struct HeadVerdict {
     HeadRefusal refusal = HeadRefusal::None;
     /// Eligible, but its colour differs from what ran out: warn before using it.
     bool color_differs = false;
+    /// Eligible, but its material type or variant differs from what ran out
+    /// (PLA Silk for PLA Matte): the rest prints at the original's temperature.
+    bool variant_differs = false;
 
     [[nodiscard]] bool eligible() const {
         return refusal == HeadRefusal::None;
@@ -114,6 +133,10 @@ struct HeadVerdict {
 /// filament to compare against.
 [[nodiscard]] std::vector<HeadVerdict> assess(const RunoutFacts& facts);
 
+/// assess() plus what filament system @p type itself cannot do for a head (a
+/// record it cannot write). What the chooser shows and build_plan() checks.
+[[nodiscard]] std::vector<HeadVerdict> assess(AmsType type, const RunoutFacts& facts);
+
 /// Short user-facing reason for @p refusal, untranslated (TR_NOOP); empty for
 /// None. Callers translate with lv_tr().
 [[nodiscard]] const char* refusal_text(HeadRefusal refusal);
@@ -124,6 +147,7 @@ enum class PlanRefusal {
     Unsupported,         ///< this filament system has no way to do it
     NotPaused,           ///< the print is not paused
     RunoutHeadNotActive, ///< the toolhead no longer carries the head that ran out
+    PrinterBusy,         ///< the firmware is resuming or switching by itself
     HeadNotEligible,     ///< assess() refuses the chosen head
     UnsafeRecord,        ///< the chosen head's record cannot be written as G-code
     AutoSwitchUnknown,   ///< the firmware has not said whether its runout switching is on
@@ -146,6 +170,16 @@ struct ContinuePlan {
     /// caller whose send failed or did not switch sends this on its own.
     /// Empty when nothing needs restoring.
     std::string restore_gcode;
+    /// What resets the empty head's record to "no filament" once the print has
+    /// moved off it, so the borrowed label matches no later runout and no next
+    /// print. Sent only while the empty head still carries the label.
+    std::string clear_label_gcode;
+    /// What puts the empty head's record back as it was before the label, for
+    /// a switch that did not happen. Sent only while it still carries the label.
+    std::string unlabel_gcode;
+    /// What resumes the print on continues_on once the routing has moved there,
+    /// for a switch whose own resume failed.
+    std::string resume_gcode;
 
     [[nodiscard]] bool ok() const {
         return refusal == PlanRefusal::None;
@@ -159,12 +193,14 @@ struct ContinuePlan {
 /// when @p type has no row or any precondition fails.
 [[nodiscard]] ContinuePlan build_plan(AmsType type, const RunoutFacts& facts, int chosen_head);
 
-/// Whether the switch happened, comparing the facts read just before sending
-/// with facts read since: the print left the pause, or the firmware rewrote
-/// its routing. A routing never reported before sending proves nothing, so
-/// only the pause ending counts then. A firmware that declines the switch says
-/// nothing, so false past a reasonable wait means it was declined.
-[[nodiscard]] bool switch_happened(const RunoutFacts& before, const RunoutFacts& now);
+/// Whether the routing moved every logical tool of the runout head onto
+/// @p target since @p before. False when no routing was reported before
+/// sending: the first routing frame is no evidence.
+[[nodiscard]] bool moved_to(const RunoutFacts& before, const RunoutFacts& now, int target);
+
+/// The head the routing moved the runout head's tools to since @p before, or
+/// -1 when it did not move them (or moved them apart).
+[[nodiscard]] int moved_onto(const RunoutFacts& before, const RunoutFacts& now);
 
 /// What came back for the sent plan.
 enum class SendReply {
@@ -176,10 +212,11 @@ enum class SendReply {
 
 /// What to do next about a sent switch.
 enum class SwitchStep {
-    Wait,    ///< keep watching
-    Done,    ///< switched, and nothing is left to put back
-    Restore, ///< switched, but the script stopped before its restore line: send it
-    Fail,    ///< not switched: report it and send the restore
+    Wait,     ///< keep watching
+    Done,     ///< moved to the target head and printing again
+    Diverted, ///< moved, but to another head than the target
+    Stranded, ///< moved to the target head, but the print is still paused
+    Fail,     ///< not moved: report it and put back what the plan changed
 };
 
 /// Frames reporting the switch may trail the reply this long.
@@ -188,22 +225,49 @@ inline constexpr uint32_t kSwitchSettleMs = 5000;
 /// than the send's own timeout, so a slow heat and purge is not called failed.
 inline constexpr uint32_t kSwitchGiveUpMs = 180000;
 
-/// The next step for a sent switch. A clean reply does not mean success: the
-/// firmware declines by doing nothing. A switch can also show (the routing
-/// rewritten) and the script still stop after it, when the RESUME inside it
-/// fails, so a plan with something to restore waits for the reply.
-/// @param needs_restore the plan's restore_gcode is not empty
-[[nodiscard]] SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now,
-                                      bool needs_restore, SendReply reply, uint32_t ms_since_reply,
+/// The next step for a sent switch, judged by its target: the routing moved
+/// the runout head's tools onto @p target and the print left the pause. A
+/// clean reply does not mean success (the firmware declines by doing nothing),
+/// and the pause ending alone does not either (the firmware resumes on the
+/// runout head when it refeeds in place). The firmware rewrites the routing
+/// before its resume, and the print stays paused through the heat and purge,
+/// so a moved routing waits for the reply before calling the print stranded.
+/// Without a routing reported before sending, only the pause ending counts.
+[[nodiscard]] SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now, int target,
+                                      SendReply reply, uint32_t ms_since_reply,
                                       uint32_t ms_since_send);
 
 /// Whether the empty head now carries @p label: the record write went through,
 /// whatever became of the switch after it.
 [[nodiscard]] bool label_written(const RunoutFacts& now, const FilamentRecord& label);
 
-/// Whether to offer the switch at all: the runout head is known and its feeder
+/// Whether to offer the switch at all: the runout head is known, its feeder
 /// cannot supply it (otherwise the firmware resumes on it, and Resume is the
-/// answer).
+/// answer), the printer is not resuming or switching by itself, and the
+/// routing has not already moved the print off the runout head.
 [[nodiscard]] bool worth_offering(const RunoutFacts& facts);
+
+/// What to do about a restore a switch left pending (a setting it turned on
+/// for itself), whenever the facts may have moved.
+enum class PendingRestoreStep {
+    Keep,  ///< nothing to do yet: no pending restore, a switch in flight, or the
+           ///< setting not reported
+    Send,  ///< the setting still reads on: send the restore
+    Clear, ///< the setting reads off: the restore is done, forget it
+};
+
+/// @param pending a restore is pending (persisted across restarts)
+/// @param switch_in_flight a sent switch is still being watched; its script
+///        turns the setting off itself
+/// @param auto_switch_enabled the firmware's runout switching as reported
+[[nodiscard]] PendingRestoreStep pending_restore_step(bool pending, bool switch_in_flight,
+                                                      std::optional<bool> auto_switch_enabled);
+
+/// The restore a sent switch left pending, as the active printer's settings
+/// hold it, so a restart or a lost link cannot leave the setting changed.
+/// Empty when none. Main thread.
+[[nodiscard]] std::string read_pending_restore();
+/// Store @p gcode as pending (empty clears it). Main thread.
+void write_pending_restore(const std::string& gcode);
 
 } // namespace helix::runout_other_head

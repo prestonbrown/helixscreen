@@ -137,6 +137,8 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # The Motion panel covers what the Toolhead widget offers; leaving the
     # widget out saves its flash.
     HELIX_HAS_TOOLHEAD_WIDGET=0
+    # The K-Touch panel is never ultrawide, so the side band never shows there.
+    HELIX_HAS_SIDE_BAND=0
     # The K-Touch feature profile (docs/devel/ESP32_PORT.md): the G-code console
     # and the Snake easter egg stay off the 4.3-inch panel.
     HELIX_HAS_CONSOLE=0

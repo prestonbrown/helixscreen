@@ -495,7 +495,10 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         uc.has_art = unit_has_art(info, i);
         const bool as_tile = uc.has_art || any_art;
         // A tile takes the card's name: the tour and ctl recipes find a unit by it.
-        const char* attrs[] = {"absent",
+        const std::string index = std::to_string(i);
+        const char* attrs[] = {"index",
+                               index.c_str(),
+                               "absent",
                                absent.c_str(),
                                as_tile ? "name" : "logo_color",
                                as_tile ? "ams_unit_card" : logo_color.c_str(),
@@ -529,12 +532,6 @@ void AmsOverviewPanel::create_unit_cards(const AmsSystemInfo& info, helix::ui::L
         // Cards share the row's width; tiles are sized by layout_tiles().
         uc.tile = as_tile;
         lv_obj_set_flex_grow(uc.card, as_tile ? 0 : 1);
-
-        // Store unit index for click handler
-        // NOTE: lv_obj_add_event_cb used here (not XML event_cb) because each dynamically
-        // created card needs per-instance user_data (unit index) that XML bindings can't provide.
-        lv_obj_set_user_data(uc.card, reinterpret_cast<void*>(static_cast<intptr_t>(i)));
-        lv_obj_add_event_cb(uc.card, on_unit_card_clicked, LV_EVENT_CLICKED, this);
 
         // Find child widgets declared in XML
         // required-names: ams_unit_tile ams_unit_card

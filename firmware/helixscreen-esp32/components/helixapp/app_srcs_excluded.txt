@@ -322,6 +322,7 @@ src/ui/modals/ui_spaghetti_detection_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/modals/toolhead_preset_config_modal.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/panel_widgets/toolhead_preset_slots.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
 src/ui/panel_widgets/toolhead_widget.cpp  # the Toolhead widget, compiled out (HELIX_HAS_TOOLHEAD_WIDGET=0); the Motion panel stays
+src/ui/ui_side_band.cpp  # the ultrawide side band, compiled out (HELIX_HAS_SIDE_BAND=0); the K-Touch panel is never ultrawide
 src/ui/panel_widgets/gcode_console_widget.cpp  # the home Console widget, compiled out (HELIX_HAS_CONSOLE=0): the K-Touch feature profile
 src/ui/controls/ui_panel_console.cpp  # the G-code console, compiled out (HELIX_HAS_CONSOLE=0): the K-Touch feature profile
 src/ui/controls/console_filter_engine.cpp  # used only by the G-code console (HELIX_HAS_CONSOLE=0)
@@ -444,3 +445,8 @@ src/ui/print/ui_timelapse_macro_card.cpp  # scope decision 2026-08-12: unreachab
 src/plugin/plugin_table.cpp  # not in the v1 Core+AMS cut
 src/plugin/lua_bind_table.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/calibration_owned_heat.cpp
+src/system/firmware_update.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
+src/system/firmware_update_runner.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
+src/system/update_manager_status.cpp  # read only by update_checker and the Firmware Update page, both off the firmware
+src/ui/settings/ui_settings_firmware_update.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
+src/system/firmware_update_check.cpp  # firmware updates run on the printer's host; the K-Touch has no flasher to drive
