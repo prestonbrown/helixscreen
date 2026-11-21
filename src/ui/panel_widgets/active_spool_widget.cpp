@@ -24,6 +24,7 @@
 #include "panel_widget_manager.h"
 #include "panel_widget_registry.h"
 #include "panel_widget_size.h"
+#include "spool_remaining_format.h"
 #include "spoolman_manager.h"
 #include "theme_manager.h"
 
@@ -258,8 +259,8 @@ void ActiveSpoolWidget::update_spool_display() {
 
     std::string weight_str;
     if (has_spool && total_weight > 0) {
-        weight_str = std::to_string(static_cast<int>(remaining_weight)) + "g / " +
-                     std::to_string(static_cast<int>(total_weight)) + "g";
+        weight_str = helix::format_spool_remaining(static_cast<float>(remaining_weight),
+                                                   static_cast<float>(total_weight));
     }
     lv_subject_set_string(&weight_subject_, weight_str.c_str());
     lv_subject_set_int(&has_weight_subject_, weight_str.empty() ? 0 : 1);

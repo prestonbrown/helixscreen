@@ -504,10 +504,10 @@ TEST_CASE("SlotInfo remaining summary carries weight and length", "[ams][ams_sta
     CHECK(s.remaining_summary() == "212m");
     s.total_weight_g = 1000.0f;
     s.remaining_weight_g = 750.0f;
-    CHECK(s.remaining_summary() == "750g \xC2\xB7 212m");
+    CHECK(s.remaining_summary() == "75% \xC2\xB7 212m");
     // A sentinel length is not a measurement.
     s.remaining_length_m = 255.0f;
-    CHECK(s.remaining_summary() == "750g");
+    CHECK(s.remaining_summary() == "75%");
     // Weight needs a known total, the loaded card's rule.
     s.total_weight_g = 0.0f;
     CHECK(s.remaining_summary().empty());

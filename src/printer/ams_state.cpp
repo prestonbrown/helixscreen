@@ -2234,8 +2234,10 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             }
 
             if (ext.total_weight_g > 0.0f && ext.remaining_weight_g >= 0.0f) {
-                char wt[32];
-                snprintf(wt, sizeof(wt), "%.0fg", ext.remaining_weight_g);
+                // The loaded card's line is narrow: the percent alone.
+                const std::string remaining =
+                    helix::format_spool_remaining_short(ext.remaining_weight_g, ext.total_weight_g);
+                const char* wt = remaining.c_str();
                 if (strcmp(lv_subject_get_string(&current_weight_text_), wt) != 0) {
                     lv_subject_set_string(&current_weight_text_, wt);
                 }

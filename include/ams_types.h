@@ -8,6 +8,7 @@
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "klipper_extruder_naming.h"
+#include "spool_remaining_format.h"
 #include "translation_loader.h"
 
 #include <algorithm>
@@ -1422,17 +1423,15 @@ struct SlotInfo {
     }
 
     /**
-     * @brief Everything known about what is left on the spool: weight when a
-     *        total is known, then measured length ("750g · 212m"), "" when
-     *        neither.
+     * @brief Everything known about what is left on the spool, in the narrow
+     *        form: the percent when a total is known, then measured length
+     *        ("75% · 212m"), "" when neither.
      */
     [[nodiscard]] std::string remaining_summary() const {
-        std::string weight;
-        if (total_weight_g > 0.0f && remaining_weight_g >= 0.0f) {
-            char buf[24];
-            snprintf(buf, sizeof(buf), "%.0fg", remaining_weight_g);
-            weight = buf;
-        }
+        const std::string weight =
+            total_weight_g > 0.0f
+                ? helix::format_spool_remaining_short(remaining_weight_g, total_weight_g)
+                : std::string();
         const std::string length = remaining_length_display();
         if (weight.empty() || length.empty()) {
             return weight.empty() ? length : weight;
