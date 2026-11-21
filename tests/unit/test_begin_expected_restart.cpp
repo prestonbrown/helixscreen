@@ -332,7 +332,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
                  "Kalico: a bed-mesh save sends RESTART=0 and arms no restart contract",
                  "[expectedrestart][bedmesh][save_config_policy]") {
     helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
-    api.hardware().set_is_kalico(true);
+    api.hardware().apply_printer_info(json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
     api.execute_gcode("BED_MESH_PROFILE SAVE=kalico", nullptr, nullptr);
     settle();
     client.clear_gcode_script_history();
@@ -356,7 +356,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture,
                  "Kalico: a z-offset save restarts, because the probe reads z_offset at startup",
                  "[expectedrestart][zoffset][save_config_policy]") {
     helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
-    api.hardware().set_is_kalico(true);
+    api.hardware().apply_printer_info(json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
     get_printer_state().init_subjects(false);
     get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
 
@@ -389,7 +389,7 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "Kalico: a rejected no-restart save is 
     // Nothing pending, so the save goes out with RESTART=0. The mock answers
     // as mainline (no HELIX_MOCK_KALICO) and fails the rpc. With no restart
     // coming, that error is the save's real outcome and must not be waited out.
-    api.hardware().set_is_kalico(true);
+    api.hardware().apply_printer_info(json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
     get_printer_state().init_subjects(false);
     get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
 

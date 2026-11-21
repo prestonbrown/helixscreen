@@ -536,6 +536,8 @@ src/ui/panel_widgets/width_sensor_widget.cpp
 src/ui/print/print_control_buttons.cpp
 src/ui/print/print_control_view.cpp
 src/ui/calibration/save_config_restart.cpp
+# SaveConfigWatch asks it whether a save may skip the restart.
+src/printer/save_config_live.cpp
 src/ui/screen_secrets.cpp
 src/ui/effects/scroll_blit.cpp
 src/ui/settings/setting_group.cpp
@@ -1013,6 +1015,8 @@ src/printer/calibration_catalog.cpp
 src/printer/calibration_catalog_inputs.cpp
 src/calibration/calibration_history_store.cpp
 src/ui/calibration/ui_calibration_hub_overlay.cpp
+# Discovery fills the config results the tiles show.
+src/calibration/calibration_config_results.cpp
 
 # ===== mocks (CONFIG_HELIX_MOCK_PRINTER only) =====
 # MOCK: src/mock/moonraker_api_mock.cpp

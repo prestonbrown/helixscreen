@@ -525,7 +525,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Falha na calibração da malha da mesa: {}'
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
   Bed mesh...: Malha da mesa...
-  Bed screws: ''
+  Bed screws: 'Parafusos da mesa'
   Bed needs manual leveling: 'A mesa precisa de nivelamento manual'
   Bed size unknown: 'Tamanho da mesa desconhecido'
   Bed target set to {}: Mesa configurada para {}
@@ -541,7 +541,7 @@ translations:
   Belt Tension: Tensão da correia
   Belt Tension Check: Verificação de tensão da correia
   Belt Tension needs a CoreXY printer. This one is {}.: 'A tensão da correia precisa de uma impressora CoreXY. Esta é {}.'
-  Belt compare: ''
+  Belt compare: 'Comparar correias'
   Belt tension: "Tensão da correia"
   Belt tension and cutter calibration: "Tensão das correias e calibração do cortador"
   Belt tensioning completed: "Tensionamento das correias concluído"
@@ -669,7 +669,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrar input shaping para reduzir artefatos de ringing nas impressões
   Calibrate now: 'Calibrar agora'
   Calibrate part fan: Calibrar ventoinha da peça
-  Calibrate this printer, step by step: ''
+  Calibrate this printer, step by step: 'Calibre esta impressora passo a passo'
   Calibrate tool offsets?: Calibrar os offsets de ferramenta?
   Calibrate your touchscreen for accurate input: Calibrar a tela touch para entrada precisa
   Calibrated: Calibrado
@@ -1224,7 +1224,7 @@ translations:
   Cutter calibration completed: Calibração do cortador concluída
   'Cutter calibration failed: {}': 'Falha na calibração do cortador: {}'
   Cutter jam: Atolamento do cortador
-  Cutter position: ''
+  Cutter position: 'Posição do cortador'
   Cutting: Cortando
   Cutting filament: "Cortando filamento"
   Cutting filament...: Cortando filamento...
@@ -1348,8 +1348,8 @@ translations:
   Don't Save: Não Salvar
   Don't ask again: Não perguntar novamente
   Done: Concluído
-  Done {}: ''
-  Done {} · {}: ''
+  Done {}: 'Concluído {}'
+  Done {} · {}: 'Concluído {} · {}'
   Door: Porta
   Door Open: Porta aberta
   'Door opened during print: {}': 'Porta aberta durante a impressão: {}'
@@ -1998,7 +1998,7 @@ translations:
   Heater over-temperature: Sobretemperatura do aquecedor
   Heater sensor fault: Falha no sensor do aquecedor
   HeaterSelect: Selecionar Aquecedor
-  Heaters: ''
+  Heaters: 'Aquecedores'
   Heaters off: Aquecedores desligados
   Heating: Aquecendo
   Heating (%s below minimum): Aquecendo (%s abaixo do mínimo)
@@ -2173,7 +2173,7 @@ translations:
   Imported {}: '{} importado'
   Importing {}...: 'Importando {}...'
   In Progress: Em Andamento
-  In config · {}: ''
+  In config · {}: 'Na configuração · {}'
   Inactive: Inativo
   Inch units not supported: 'Unidades em polegadas não suportadas'
   Include Klipper/Moonraker logs: Incluir logs do Klipper/Moonraker
@@ -2191,7 +2191,7 @@ translations:
   Input Shaper Calibration: 'Calibração do input shaper'
   Input Shaper Help: Ajuda do Input Shaper
   Input Shaping: Input Shaping
-  Input shaper: ''
+  Input shaper: 'Input Shaper'
   Input shaper calibration sensors: Sensores de calibração do input shaper
   Input shaper calibration...: Calibração do input shaper...
   Input shaper settings applied!: Configurações do input shaper aplicadas!
@@ -2740,9 +2740,9 @@ translations:
   Neutral: Neutro
   Neutralize Tension: "Neutralizar tensão"
   Never: Nunca
-  Never run: ''
-  Never run · optional: ''
-  Never run · required: ''
+  Never run: 'Nunca executado'
+  Never run · optional: 'Nunca executado · opcional'
+  Never run · required: 'Nunca executado · obrigatório'
   Never sleeps: Nunca dorme
   New Spool: Novo carretel
   'New Spool: Step 1 of 3': 'Nova Bobina: Etapa 1 de 3'
@@ -3246,7 +3246,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'O Pressure Advance sobe à medida que a torre cresce. Observe os cantos: toque em - ou + quando quiser e a rampa para, para você julgar seu próprio valor.'
-  Pressure advance tuning: ''
+  Pressure advance tuning: 'Ajuste de Pressure Advance'
   'Pressure:': 'Pressão:'
   Pressed: Pressionado
   Pressure Adv.: 'Pressure Adv.'
@@ -3762,7 +3762,7 @@ translations:
   Run the MMU fans by temperature: "Acionar as ventoinhas do MMU pela temperatura"
   Run the chamber dryer too: Usar também o secador da câmara
 
-  Run when needed: ''
+  Run when needed: 'Executar quando necessário'
   Run the official firmware update again so every board is updated, then restart.: 'Execute a atualização oficial do firmware novamente para atualizar todas as placas e reinicie.'
   Run {}?: Executar {}?
   Running loose: 'Solto'
@@ -4884,7 +4884,7 @@ translations:
   Tool cycle finished: Alternância de ferramentas concluída
   Tool is seated: A ferramenta está encaixada
   Tool may be half seated: "A ferramenta pode estar mal encaixada"
-  Tool offsets: ''
+  Tool offsets: 'Offsets de ferramenta'
   Tool offsets (mm): Offsets de ferramenta (mm)
   Tool offsets saved: Offsets de ferramenta salvos
   Tool swap: Troca de ferramenta
@@ -5104,8 +5104,8 @@ translations:
   Vertical: Vertical
   Vertical Artifact Check: 'Verificação de artefatos verticais'
   Vertical Artifact Compensation: 'Compensação de artefatos verticais'
-  Vertical artifact check: ''
-  Vertical artifact compensation: ''
+  Vertical artifact check: 'Verificação de artefatos verticais'
+  Vertical artifact compensation: 'Compensação de artefatos verticais'
   Vibration: Vibração
   Vibration compensation active: Compensação de vibração ativa
   Video playback speed: Velocidade de reprodução do vídeo
@@ -5291,7 +5291,7 @@ translations:
   Z is at its limit ({}mm): Z está no seu limite ({}mm)
   Z jog feedrate: Velocidade de movimento do eixo Z
   Z motor calibration failed: Falha na calibração do motor Z
-  Z offset: ''
+  Z offset: 'Offset Z'
   Z offset by material: "Z-Offset por material"
   Z probes for bed leveling and mesh generation: Sondas Z para nivelamento da mesa e geração de malha
   Z tilt: Inclinação Z

@@ -433,7 +433,8 @@ TEST_CASE_METHOD(ReforgeSaveFixture,
     }
     SECTION("Kalico: no restart, so nothing is reset and nothing is resent") {
         helix::ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
-        api->hardware().set_is_kalico(true);
+        api->hardware().apply_printer_info(
+            json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
         save();
         REQUIRE(wait_until([&] { return saved; }, 3000));
         CHECK(mock_client.gcode_script_history() ==

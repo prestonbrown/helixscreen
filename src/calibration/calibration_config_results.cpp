@@ -4,7 +4,8 @@
 #include "core/text_io.h"
 #include "hardware_object_table.h"
 
-#include <fmt/format.h>
+#include <spdlog/fmt/fmt.h>
+
 #include <string_view>
 
 #include "hv/json.hpp"

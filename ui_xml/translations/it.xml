@@ -509,7 +509,7 @@
   <translation tag="Bed mesh operation timed out" it="Mesh piano — tempo scaduto"/>
   <translation tag="Bed mesh..." it="Mesh piano..."/>
   <translation tag="Bed needs manual leveling" it="Il piano richiede livellamento manuale"/>
-  <translation tag="Bed screws"/>
+  <translation tag="Bed screws" it="Viti piano"/>
   <translation tag="Bed size unknown" it="Dimensione del piatto sconosciuta"/>
   <translation tag="Bed target set to {}" it="Obiettivo piano impostato a {}"/>
   <translation tag="Bed temp must be %d-%s" it="La temperatura del piano deve essere %d-%s"/>
@@ -524,7 +524,7 @@
   <translation tag="Belt Tension" it="Tensione cinghia"/>
   <translation tag="Belt Tension Check" it="Controllo tensione cinghia"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." it="La tensione cinghia richiede una stampante CoreXY. Questa è {}."/>
-  <translation tag="Belt compare"/>
+  <translation tag="Belt compare" it="Confronto cinghie"/>
   <translation tag="Belt tension" it="Tensione cinghia"/>
   <translation tag="Belt tension and cutter calibration" it="Tensione cinghie e calibrazione taglierina"/>
   <translation tag="Belt tensioning completed" it="Tensionamento cinghie completato"/>
@@ -649,7 +649,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" it="Calibra input shaping per ridurre artefatti di ringing nelle stampe"/>
   <translation tag="Calibrate now" it="Calibra ora"/>
   <translation tag="Calibrate part fan" it="Calibra ventola pezzo"/>
-  <translation tag="Calibrate this printer, step by step"/>
+  <translation tag="Calibrate this printer, step by step" it="Calibra questa stampante passo dopo passo"/>
   <translation tag="Calibrate tool offsets?" it="Calibrare gli offset degli strumenti?"/>
   <translation tag="Calibrate with this tool?" it="Calibrare con questo utensile?"/>
   <translation tag="Calibrate your touchscreen for accurate input" it="Calibra il touchscreen per un input preciso"/>
@@ -1162,7 +1162,7 @@
   <translation tag="Cutter calibration completed" it="Calibrazione taglierina completata"/>
   <translation tag="Cutter calibration failed: {}" it="Calibrazione taglierina non riuscita: {}"/>
   <translation tag="Cutter jam" it="Inceppamento taglierina"/>
-  <translation tag="Cutter position"/>
+  <translation tag="Cutter position" it="Posizione taglierina"/>
   <translation tag="Cutting" it="Taglio"/>
   <translation tag="Cutting filament" it="Taglio filamento"/>
   <translation tag="Cutting filament..." it="Taglio filamento..."/>
@@ -1285,8 +1285,8 @@
   <translation tag="Don&apos;t Save" it="Non salvare"/>
   <translation tag="Don&apos;t ask again" it="Non chiedere più"/>
   <translation tag="Done" it="Fatto"/>
-  <translation tag="Done {}"/>
-  <translation tag="Done {} · {}"/>
+  <translation tag="Done {}" it="Fatto {}"/>
+  <translation tag="Done {} · {}" it="Fatto {} · {}"/>
   <translation tag="Door" it="Porta"/>
   <translation tag="Door Open" it="Porta aperta"/>
   <translation tag="Door opened during print: {}" it="Porta aperta durante la stampa: {}"/>
@@ -1922,7 +1922,7 @@
   <translation tag="Heater over-temperature" it="Sovratemperatura del riscaldatore"/>
   <translation tag="Heater sensor fault" it="Guasto al sensore del riscaldatore"/>
   <translation tag="HeaterSelect" it="Seleziona riscaldatore"/>
-  <translation tag="Heaters"/>
+  <translation tag="Heaters" it="Riscaldatori"/>
   <translation tag="Heaters off" it="Riscaldatori spenti"/>
   <translation tag="Heating" it="Riscaldamento"/>
   <translation tag="Heating (%s below minimum)" it="Riscaldamento (%s sotto il minimo)"/>
@@ -2093,7 +2093,7 @@
   <translation tag="Imported {}" it="Importato {}"/>
   <translation tag="Importing {}..." it="Importazione di {}..."/>
   <translation tag="In Progress" it="In corso"/>
-  <translation tag="In config · {}"/>
+  <translation tag="In config · {}" it="Nella configurazione · {}"/>
   <translation tag="Inactive" it="Inattivo"/>
   <translation tag="Inch units not supported" it="Unità in pollici non supportate"/>
   <translation tag="Include Klipper/Moonraker logs" it="Includi log Klipper/Moonraker"/>
@@ -2111,7 +2111,7 @@
   <translation tag="Input Shaper Calibration" it="Calibrazione input shaper"/>
   <translation tag="Input Shaper Help" it="Guida Input Shaper"/>
   <translation tag="Input Shaping" it="Input Shaping"/>
-  <translation tag="Input shaper"/>
+  <translation tag="Input shaper" it="Input Shaper"/>
   <translation tag="Input shaper calibration sensors" it="Sensori calibrazione input shaper"/>
   <translation tag="Input shaper calibration..." it="Calibrazione input shaper..."/>
   <translation tag="Input shaper settings applied!" it="Impostazioni input shaper applicate!"/>
@@ -2660,9 +2660,9 @@
   <translation tag="Neutral" it="Neutro"/>
   <translation tag="Neutralize Tension" it="Neutralizza tensione"/>
   <translation tag="Never" it="Mai"/>
-  <translation tag="Never run"/>
-  <translation tag="Never run · optional"/>
-  <translation tag="Never run · required"/>
+  <translation tag="Never run" it="Mai eseguito"/>
+  <translation tag="Never run · optional" it="Mai eseguito · facoltativo"/>
+  <translation tag="Never run · required" it="Mai eseguito · obbligatorio"/>
   <translation tag="Never sleeps" it="Non va mai in sospensione"/>
   <translation tag="New Spool" it="Nuova bobina"/>
   <translation tag="New Spool: Step 1 of 3" it="Nuova bobina: Passo 1 di 3"/>
@@ -3156,7 +3156,7 @@
   <translation tag="Pressure Advance Tuning" it="Taratura Pressure Advance"/>
   <translation tag="Pressure advance" it="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." it="Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore."/>
-  <translation tag="Pressure advance tuning"/>
+  <translation tag="Pressure advance tuning" it="Taratura Pressure Advance"/>
   <translation tag="Pressure:" it="Pressione:"/>
   <translation tag="Preview" it="Anteprima"/>
   <translation tag="Preview Sounds" it="Anteprima suoni"/>
@@ -3673,7 +3673,7 @@
   <translation tag="Run the MMU fans by temperature" it="Aziona le ventole MMU in base alla temperatura"/>
   <translation tag="Run the chamber dryer too" it="Usa anche l&apos;essiccatore della camera"/>
   <translation tag="Run the official firmware update again so every board is updated, then restart." it="Esegui di nuovo l&apos;aggiornamento firmware ufficiale in modo che ogni scheda sia aggiornata, poi riavvia."/>
-  <translation tag="Run when needed"/>
+  <translation tag="Run when needed" it="Esegui quando serve"/>
   <translation tag="Run {}?" it="Eseguire {}?"/>
   <translation tag="Running loose" it="Allentato"/>
   <translation tag="Running over" it="Tempo superato"/>
@@ -4733,7 +4733,7 @@
   <translation tag="Tool cycle finished" it="Ciclo degli strumenti completato"/>
   <translation tag="Tool is seated" it="Lo strumento è inserito"/>
   <translation tag="Tool may be half seated" it="Lo strumento potrebbe essere inserito a metà"/>
-  <translation tag="Tool offsets"/>
+  <translation tag="Tool offsets" it="Offset strumenti"/>
   <translation tag="Tool offsets (mm)" it="Offset strumenti (mm)"/>
   <translation tag="Tool offsets saved" it="Offset strumenti salvati"/>
   <translation tag="Tool swap" it="Cambio utensile"/>
@@ -4961,8 +4961,8 @@
   <translation tag="Vertical" it="Verticale"/>
   <translation tag="Vertical Artifact Check" it="Verifica artefatti verticali"/>
   <translation tag="Vertical Artifact Compensation" it="Compensazione artefatti verticali"/>
-  <translation tag="Vertical artifact check"/>
-  <translation tag="Vertical artifact compensation"/>
+  <translation tag="Vertical artifact check" it="Verifica artefatti verticali"/>
+  <translation tag="Vertical artifact compensation" it="Compensazione artefatti verticali"/>
   <translation tag="Vibration" it="Vibrazione"/>
   <translation tag="Vibration compensation active" it="Compensazione vibrazione attiva"/>
   <translation tag="Video playback speed" it="Velocità riproduzione video"/>
@@ -5150,7 +5150,7 @@
   <translation tag="Z is at its limit ({}mm)" it="Z è al suo limite ({}mm)"/>
   <translation tag="Z jog feedrate" it="Velocità di avanzamento del movimento Z"/>
   <translation tag="Z motor calibration failed" it="Calibrazione del motore Z non riuscita"/>
-  <translation tag="Z offset"/>
+  <translation tag="Z offset" it="Offset Z"/>
   <translation tag="Z offset by material" it="Z-Offset per materiale"/>
   <translation tag="Z probes for bed leveling and mesh generation" it="Sonde Z per livellamento piano e generazione mesh"/>
   <translation tag="Z tilt" it="Inclinazione Z"/>

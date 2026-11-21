@@ -470,14 +470,10 @@ class PrinterDiscovery {
 
     /**
      * @brief Set Kalico detection flag
-     * @param detected true if printer.info reports app as "Kalico"
-     *
-     * Sets the capabilities that come with the firmware too, as
-     * apply_printer_info() does.
+     * @param kalico true if printer.info reports app as "Kalico"
      */
-    void set_is_kalico(bool detected) {
-        is_kalico_ = detected;
-        save_config_takes_restart_param_ = detected;
+    void set_is_kalico(bool kalico) {
+        is_kalico_ = kalico;
     }
 
     /// Whether this firmware's SAVE_CONFIG takes RESTART=0 (Kalico): write the

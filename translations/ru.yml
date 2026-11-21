@@ -581,7 +581,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Ошибка калибровки сетки стола: {}'
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
   Bed mesh...: Сетка стола...
-  Bed screws: ''
+  Bed screws: 'Винты стола'
   Bed needs manual leveling: 'Стол требует ручного выравнивания'
   Bed size unknown: 'Размер стола неизвестен'
   Bed target set to {}: Целевая температура стола {}
@@ -597,7 +597,7 @@ translations:
   Belt Tension: Натяжение ремня
   Belt Tension Check: Проверка натяжения ремня
   Belt Tension needs a CoreXY printer. This one is {}.: 'Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}.'
-  Belt compare: ''
+  Belt compare: 'Сравнение ремней'
   Belt tension: "Натяжение ремня"
   Belt tension and cutter calibration: "Натяжение ремней и калибровка резака"
   Belt tensioning completed: "Натяжение ремней завершено"
@@ -725,7 +725,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации вибраций для уменьшения артефактов звона
   Calibrate now: 'Откалибровать'
   Calibrate part fan: Калибровать обдув модели
-  Calibrate this printer, step by step: ''
+  Calibrate this printer, step by step: 'Пошаговая калибровка принтера'
   Calibrate tool offsets?: Калибровать смещения инструментов?
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для точного ввода
   Calibrated: Откалиброван
@@ -1284,7 +1284,7 @@ translations:
   Cutter calibration completed: Калибровка резака завершена
   'Cutter calibration failed: {}': 'Не удалось калибровать резак: {}'
   Cutter jam: Замятие резака
-  Cutter position: ''
+  Cutter position: 'Положение резака'
   Cutting: Резка
   Cutting filament: "Обрезка филамента"
   Cutting filament...: Обрезка филамента...
@@ -1408,8 +1408,8 @@ translations:
   Don't Save: Не сохранять
   Don't ask again: Больше не спрашивать
   Done: Готово
-  Done {}: ''
-  Done {} · {}: ''
+  Done {}: 'Выполнено {}'
+  Done {} · {}: 'Выполнено {} · {}'
   Door: Дверь
   Door Open: Дверь открыта
   'Door opened during print: {}': 'Дверь открыта во время печати: {}'
@@ -2062,7 +2062,7 @@ translations:
   Heater over-temperature: Перегрев нагревателя
   Heater sensor fault: Неисправность датчика нагревателя
   HeaterSelect: Выбрать нагреватель
-  Heaters: ''
+  Heaters: 'Нагреватели'
   Heaters off: Нагреватели выключены
   Heating: Нагрев
   Heating (%s below minimum): Нагрев (%s ниже минимума)
@@ -2237,7 +2237,7 @@ translations:
   Imported {}: Импортировано {}
   Importing {}...: 'Импорт {}...'
   In Progress: В процессе
-  In config · {}: ''
+  In config · {}: 'В конфигурации · {}'
   Inactive: Неактивно
   Inch units not supported: 'Дюймы не поддерживаются'
   Include Klipper/Moonraker logs: Включить логи Klipper/Moonraker
@@ -2255,7 +2255,7 @@ translations:
   Input Shaper Calibration: 'Калибровка Input Shaper''а'
   Input Shaper Help: Справка по Input Shaper
   Input Shaping: Компенсация вибраций
-  Input shaper: ''
+  Input shaper: 'Input Shaper'
   Input shaper calibration sensors: Датчики калибровки Input Shaper'а
   Input shaper calibration...: Калибровка Input Shaper'а...
   Input shaper settings applied!: Настройки компенсатора вибраций применены!
@@ -2804,9 +2804,9 @@ translations:
   Neutral: Нейтральный
   Neutralize Tension: "Выровнять натяжение"
   Never: Никогда
-  Never run: ''
-  Never run · optional: ''
-  Never run · required: ''
+  Never run: 'Ни разу не выполнялось'
+  Never run · optional: 'Ни разу не выполнялось · необязательно'
+  Never run · required: 'Ни разу не выполнялось · обязательно'
   Never sleeps: Никогда не спит
   New Spool: Новая катушка
   'New Spool: Step 1 of 3': 'Новая катушка: Шаг 1 из 3'
@@ -3318,7 +3318,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
-  Pressure advance tuning: ''
+  Pressure advance tuning: 'Настройка Pressure Advance'
   'Pressure:': 'Давление:'
   Pressed: Нажата
   Pressure Adv.: 'Pressure Adv.'
@@ -3842,7 +3842,7 @@ translations:
   Run the MMU fans by temperature: "Включать вентиляторы MMU по температуре"
   Run the chamber dryer too: Включить и сушилку камеры
 
-  Run when needed: ''
+  Run when needed: 'Запускать при необходимости'
   Run the official firmware update again so every board is updated, then restart.: 'Снова запустите официальное обновление прошивки, чтобы обновить все платы, затем перезапустите.'
   Run {}?: Запустить {}?
   Running loose: 'Ослаблен'
@@ -4972,7 +4972,7 @@ translations:
   Tool cycle finished: Перебор инструментов завершён
   Tool is seated: Инструмент установлен
   Tool may be half seated: "Инструмент может быть установлен не полностью"
-  Tool offsets: ''
+  Tool offsets: 'Смещения инструментов'
   Tool offsets (mm): Смещения инструментов (мм)
   Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента
@@ -5192,8 +5192,8 @@ translations:
   Vertical: Вертикально
   Vertical Artifact Check: 'Проверка вертикальных артефактов'
   Vertical Artifact Compensation: 'Компенсация вертикальных артефактов'
-  Vertical artifact check: ''
-  Vertical artifact compensation: ''
+  Vertical artifact check: 'Проверка вертикальных артефактов'
+  Vertical artifact compensation: 'Компенсация вертикальных артефактов'
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
@@ -5379,7 +5379,7 @@ translations:
   Z is at its limit ({}mm): Z на пределе ({}mm)
   Z jog feedrate: Скорость перемещения по оси Z
   Z motor calibration failed: Не удалась калибровка двигателя Z
-  Z offset: ''
+  Z offset: 'Смещение Z'
   Z offset by material: "Z-Offset по материалу"
   Z probes for bed leveling and mesh generation: Z-зонды для выравнивания стола и создания сетки
   Z tilt: Наклон Z

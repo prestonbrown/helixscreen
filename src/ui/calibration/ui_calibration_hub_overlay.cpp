@@ -11,10 +11,10 @@
 #include "locale_formats.h"
 #include "printer_state.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <cstring>
-#include <fmt/format.h>
 
 namespace helix::ui {
 

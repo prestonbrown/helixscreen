@@ -525,7 +525,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Falló la calibración de la malla de cama: {}'
   Bed mesh operation timed out: Malla de cama — tiempo de espera agotado
   Bed mesh...: Malla de cama...
-  Bed screws: ''
+  Bed screws: 'Tornillos de cama'
   Bed needs manual leveling: 'La cama necesita nivelación manual'
   Bed size unknown: 'Tamaño de cama desconocido'
   Bed target set to {}: Cama configurada a {}
@@ -541,7 +541,7 @@ translations:
   Belt Tension: Tensión de correa
   Belt Tension Check: Verificación de tensión de correa
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tensión de correa necesita una impresora CoreXY. Esta es {}.'
-  Belt compare: ''
+  Belt compare: 'Comparar correas'
   Belt tension: "Tensión de correa"
   Belt tension and cutter calibration: "Tensión de correas y calibración del cortador"
   Belt tensioning completed: "Tensado de correas completado"
@@ -669,7 +669,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrar input shaping para reducir artefactos de resonancia en impresiones
   Calibrate now: 'Calibrar ahora'
   Calibrate part fan: Calibrar ventilador de pieza
-  Calibrate this printer, step by step: ''
+  Calibrate this printer, step by step: 'Calibra esta impresora paso a paso'
   Calibrate tool offsets?: ¿Calibrar los offsets de herramienta?
   Calibrate your touchscreen for accurate input: Calibrar la pantalla táctil para una entrada precisa
   Calibrated: Calibrado
@@ -1224,7 +1224,7 @@ translations:
   Cutter calibration completed: Calibración del cortador completada
   'Cutter calibration failed: {}': 'Falló la calibración del cortador: {}'
   Cutter jam: Atasco del cortador
-  Cutter position: ''
+  Cutter position: 'Posición del cortador'
   Cutting: Cortando
   Cutting filament: "Cortando filamento"
   Cutting filament...: Cortando filamento...
@@ -1348,8 +1348,8 @@ translations:
   Don't Save: No Guardar
   Don't ask again: No volver a preguntar
   Done: Listo
-  Done {}: ''
-  Done {} · {}: ''
+  Done {}: 'Hecho {}'
+  Done {} · {}: 'Hecho {} · {}'
   Door: Puerta
   Door Open: Puerta abierta
   'Door opened during print: {}': 'Puerta abierta durante la impresión: {}'
@@ -1998,7 +1998,7 @@ translations:
   Heater over-temperature: Sobrecalentamiento del calentador
   Heater sensor fault: Fallo del sensor del calentador
   HeaterSelect: Seleccionar calentador
-  Heaters: ''
+  Heaters: 'Calentadores'
   Heaters off: Calentadores apagados
   Heating: Calentando
   Heating (%s below minimum): Calentando (%s por debajo del mínimo)
@@ -2173,7 +2173,7 @@ translations:
   Imported {}: '{} importado'
   Importing {}...: 'Importando {}...'
   In Progress: En Progreso
-  In config · {}: ''
+  In config · {}: 'En la configuración · {}'
   Inactive: Inactivo
   Inch units not supported: 'Unidades en pulgadas no compatibles'
   Include Klipper/Moonraker logs: Incluir registros de Klipper/Moonraker
@@ -2191,7 +2191,7 @@ translations:
   Input Shaper Calibration: 'Calibración del moldeador de entrada'
   Input Shaper Help: Ayuda de Input Shaper
   Input Shaping: Moldeado de Entrada
-  Input shaper: ''
+  Input shaper: 'Moldeador de entrada'
   Input shaper calibration sensors: Sensores de calibración de moldeador de entrada
   Input shaper calibration...: Calibración del moldeador de entrada...
   Input shaper settings applied!: ¡Ajustes de moldeador de entrada aplicados!
@@ -2740,9 +2740,9 @@ translations:
   Neutral: Neutro
   Neutralize Tension: "Neutralizar tensión"
   Never: Nunca
-  Never run: ''
-  Never run · optional: ''
-  Never run · required: ''
+  Never run: 'Nunca ejecutado'
+  Never run · optional: 'Nunca ejecutado · opcional'
+  Never run · required: 'Nunca ejecutado · obligatorio'
   Never sleeps: Nunca duerme
   New Spool: Bobina nueva
   'New Spool: Step 1 of 3': 'Nueva Bobina: Paso 1 de 3'
@@ -3246,7 +3246,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance sube a medida que crece la torre. Observa las esquinas: toca - o + cuando quieras y la rampa se detiene para que juzgues tu propio valor.'
-  Pressure advance tuning: ''
+  Pressure advance tuning: 'Ajuste de Pressure Advance'
   'Pressure:': 'Presión:'
   Pressed: Pulsado
   Pressure Adv.: 'Pressure Adv.'
@@ -3762,7 +3762,7 @@ translations:
   Run the MMU fans by temperature: "Accionar los ventiladores del MMU según la temperatura"
   Run the chamber dryer too: Usar también el secador de la cámara
 
-  Run when needed: ''
+  Run when needed: 'Ejecutar cuando sea necesario'
   Run the official firmware update again so every board is updated, then restart.: 'Vuelve a ejecutar la actualización oficial del firmware para que se actualicen todas las placas, y reinicia.'
   Run {}?: ¿Ejecutar {}?
   Running loose: 'Va suelto'
@@ -4884,7 +4884,7 @@ translations:
   Tool cycle finished: Ciclo de herramientas terminado
   Tool is seated: La herramienta está asentada
   Tool may be half seated: "La herramienta puede estar mal asentada"
-  Tool offsets: ''
+  Tool offsets: 'Offsets de herramienta'
   Tool offsets (mm): Offsets de herramienta (mm)
   Tool offsets saved: Offsets de herramienta guardados
   Tool swap: Cambio de herramienta
@@ -5104,8 +5104,8 @@ translations:
   Vertical: Vertical
   Vertical Artifact Check: 'Comprobación de artefactos verticales'
   Vertical Artifact Compensation: 'Compensación de artefactos verticales'
-  Vertical artifact check: ''
-  Vertical artifact compensation: ''
+  Vertical artifact check: 'Comprobación de artefactos verticales'
+  Vertical artifact compensation: 'Compensación de artefactos verticales'
   Vibration: Vibración
   Vibration compensation active: Compensación de vibración activa
   Video playback speed: Velocidad de reproducción de video
@@ -5291,7 +5291,7 @@ translations:
   Z is at its limit ({}mm): Z está en su límite ({}mm)
   Z jog feedrate: Velocidad de avance del movimiento Z
   Z motor calibration failed: Falló la calibración del motor Z
-  Z offset: ''
+  Z offset: 'Offset Z'
   Z offset by material: "Z-Offset por material"
   Z probes for bed leveling and mesh generation: Sondas Z para nivelación de cama y generación de malla
   Z tilt: Inclinación Z
