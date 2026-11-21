@@ -83,6 +83,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::vector<calibration::StepInfo> candidates_;
     std::array<bool, kSteps> picked_{};
     std::array<bool, kPrereqs> ticked_{};
+    /// Each step's value when the run started: the history changes as soon as Save all lands.
+    std::array<std::string, kSteps> before_text_{};
     std::unique_ptr<calibration::CalibrationRun> run_;
     std::unique_ptr<calibration::MoonrakerRunFinisher> finisher_;
     RunPage page_ = RunPage::Pick;
@@ -106,7 +108,7 @@ class CalibrationRunOverlay : public OverlayBase {
     std::array<helix::Subject, kSteps> in_run_{};
     std::array<helix::Subject, kSteps> state_{};
     std::array<helix::Subject, kSteps> detail_{};
-    std::array<helix::Subject, kSteps> before_{};
+    std::array<helix::Subject, kSteps> before_subj_{};
     std::array<helix::Subject, kSteps> after_{};
     char meta_bufs_[kSteps][kShortLen]{};
     char last_bufs_[kSteps][kShortLen]{};

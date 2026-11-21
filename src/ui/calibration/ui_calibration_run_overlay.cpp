@@ -167,7 +167,7 @@ void CalibrationRunOverlay::init_subjects() {
         add_int(in_run_[i], 0, "cal_run_in_run_" + id);
         add_int(state_[i], 0, "cal_run_state_" + id);
         add_string(detail_[i], detail_bufs_[i], kLongLen, "cal_run_detail_" + id);
-        add_string(before_[i], before_bufs_[i], kShortLen, "cal_run_before_" + id);
+        add_string(before_subj_[i], before_bufs_[i], kShortLen, "cal_run_before_" + id);
         add_string(after_[i], after_bufs_[i], kLongLen, "cal_run_after_" + id);
     }
     for (size_t i = 0; i < kPrereqs; ++i) {
@@ -397,7 +397,7 @@ void CalibrationRunOverlay::publish_run() {
                                        : entry_status_text(e);
         set_text(detail_[k], status);
         set_text(after_[k], e.restore_note.empty() ? status : e.restore_note);
-        set_text(before_[k], before_text(e.step->info()));
+        set_text(before_subj_[k], before_text_[k]);
         if (e.status == StepStatus::Pending || e.status == StepStatus::Running) {
             remaining_min += e.step->info().minutes;
         }
@@ -501,6 +501,9 @@ void CalibrationRunOverlay::start() {
     }
     std::vector<std::unique_ptr<calibration::CalibrationStep>> steps;
     for (const auto& info : picked_steps()) {
+        if (const int i = step_index(info.id); i >= 0) {
+            before_text_[static_cast<size_t>(i)] = before_text(info);
+        }
         if (auto step = calibration::make_run_step(info)) {
             steps.push_back(std::move(step));
         }
