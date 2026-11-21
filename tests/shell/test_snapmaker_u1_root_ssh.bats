@@ -360,3 +360,20 @@ REAL_EOF
     run bash -c '. "'"$HOOK"'"; u1_root_ssh_state'
     [ "$output" = no_config ] || fail "state: $output"
 }
+
+@test "u1 root ssh: an inherited SSH-down value never stands in for this run's check" {
+    seed_stock_dropbear
+    seed_gui_config 1
+
+    # SSH down now: a stale 0 must not mask it.
+    run bash -c 'export HELIX_U1_ROOT_SSH_DOWN=0; . "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    contains "flag=1" "$output"
+
+    # SSH up now: a stale 1 must not raise a false warning.
+    mock_pidof_dropbear 812
+    run bash -c 'export HELIX_U1_ROOT_SSH_DOWN=1; . "'"$HOOK"'"; ensure_root_ssh; echo "flag=${HELIX_U1_ROOT_SSH_DOWN:-}"'
+    [ "$status" -eq 0 ]
+    contains "flag=" "$output"
+    lacks "flag=1" "$output"
+}
