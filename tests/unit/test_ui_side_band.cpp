@@ -18,6 +18,8 @@
 #include "ui_side_band.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/side_band_test_host.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "theme_manager.h"
@@ -26,48 +28,26 @@
 
 #include "../catch_amalgamated.hpp"
 
+using helix::test::ScopedUltrawide;
 using helix::ui::side_band_shows;
 using helix::ui::SideBand;
 using helix::ui::SideBandContent;
 using helix::ui::SideBandGuest;
 
 TEST_CASE("side band gate: Motion shows on ultrawide only", "[uw_side_band]") {
-    CHECK(side_band_shows(SideBandContent::Motion, true, 0, false));
-    CHECK(side_band_shows(SideBandContent::Motion, true, 4, true));
-    CHECK_FALSE(side_band_shows(SideBandContent::Motion, false, 0, false));
-    CHECK_FALSE(side_band_shows(SideBandContent::Motion, false, 4, true));
+    CHECK(side_band_shows(SideBandContent::Motion, true, false));
+    CHECK(side_band_shows(SideBandContent::Motion, true, true));
+    CHECK_FALSE(side_band_shows(SideBandContent::Motion, false, false));
+    CHECK_FALSE(side_band_shows(SideBandContent::Motion, false, true));
 }
 
-TEST_CASE("side band gate: AMS needs ultrawide and slots or several heads", "[uw_side_band]") {
-    CHECK(side_band_shows(SideBandContent::Ams, true, 4, false));
-    CHECK(side_band_shows(SideBandContent::Ams, true, 1, false));
-    CHECK(side_band_shows(SideBandContent::Ams, true, 0, true));
-    CHECK(side_band_shows(SideBandContent::Ams, true, 4, true));
-    CHECK_FALSE(side_band_shows(SideBandContent::Ams, true, 0, false));
-    CHECK_FALSE(side_band_shows(SideBandContent::Ams, false, 4, false));
-    CHECK_FALSE(side_band_shows(SideBandContent::Ams, false, 0, true));
+TEST_CASE("side band gate: AMS needs ultrawide and a lane tray", "[uw_side_band]") {
+    CHECK(side_band_shows(SideBandContent::Ams, true, true));
+    CHECK_FALSE(side_band_shows(SideBandContent::Ams, true, false));
+    CHECK_FALSE(side_band_shows(SideBandContent::Ams, false, true));
 }
 
 namespace {
-
-class ScopedUltrawide {
-  public:
-    explicit ScopedUltrawide(int value) : subject_(lv_xml_get_subject(nullptr, "ui_is_ultrawide")) {
-        REQUIRE(subject_ != nullptr);
-        original_ = lv_subject_get_int(subject_);
-        lv_subject_set_int(subject_, value);
-    }
-    ~ScopedUltrawide() {
-        lv_subject_set_int(subject_, original_);
-    }
-    void set(int value) {
-        lv_subject_set_int(subject_, value);
-    }
-
-  private:
-    lv_subject_t* subject_;
-    int original_ = 0;
-};
 
 /// A guest that records what the band asks of it.
 struct FakeGuestLog {
@@ -130,22 +110,6 @@ class FakeGuest : public SideBandGuest {
     FakeLifecycle& view_;
 };
 
-/// A host tree shaped like controls_panel.xml: a row holding side_band_main
-/// and side_band.
-lv_obj_t* make_host(lv_obj_t* parent) {
-    lv_obj_t* root = lv_obj_create(parent);
-    lv_obj_set_size(root, lv_pct(100), lv_pct(100));
-    lv_obj_set_flex_flow(root, LV_FLEX_FLOW_ROW);
-    lv_obj_t* main = lv_obj_create(root);
-    lv_obj_set_name(main, "side_band_main");
-    lv_obj_set_size(main, lv_pct(100), lv_pct(100));
-    lv_obj_t* band = lv_obj_create(root);
-    lv_obj_set_name(band, "side_band");
-    lv_obj_set_height(band, lv_pct(100));
-    lv_obj_set_flex_grow(band, 1);
-    return root;
-}
-
 int subject_value(const char* name) {
     lv_subject_t* s = lv_xml_get_subject(nullptr, name);
     REQUIRE(s != nullptr);
@@ -161,7 +125,7 @@ struct FakeBand {
 
     FakeBand() {
         band.init_subjects();
-        host = make_host(lv_screen_active());
+        host = helix::test::make_side_band_host(lv_screen_active());
         band.bind(host);
     }
     ~FakeBand() {
@@ -379,6 +343,108 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(fx.log.host_left == 1);
 }
 
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "side band: an overlay over the host keeps the guest's place, a panel switch does not",
+    "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    auto& nav = NavigationManager::instance();
+    lv_subject_t* active = nav.get_active_panel_subject();
+    const int active_before = lv_subject_get_int(active);
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.band.hosted() != nullptr);
+
+    // An overlay covers the host and closes again: the place is kept.
+    NavigationManagerTestAccess::set_main_panel_covered(nav, true);
+    fx.band.on_host_deactivate(DeactivateReason::NavigateAway);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.host_left == 0);
+    NavigationManagerTestAccess::set_main_panel_covered(nav, false);
+    fx.band.on_host_activate();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.host_left == 0);
+
+    // Covered, then the user switches main panels from under the overlay.
+    NavigationManagerTestAccess::set_main_panel_covered(nav, true);
+    fx.band.on_host_deactivate(DeactivateReason::NavigateAway);
+    lv_subject_set_int(active, active_before + 1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.host_left == 1);
+    NavigationManagerTestAccess::set_main_panel_covered(nav, false);
+
+    // A plain switch away resets at once.
+    fx.band.on_host_activate();
+    fx.band.on_host_deactivate(DeactivateReason::NavigateAway);
+    CHECK(fx.log.host_left == 2);
+    lv_subject_set_int(active, active_before);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.host_left == 2);
+}
+
+namespace {
+int g_hosted_raises = 0;
+void count_hosted_raise(lv_observer_t*, lv_subject_t* s) {
+    if (lv_subject_get_int(s) == 1) {
+        ++g_hosted_raises;
+    }
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a failed attach never raises the hosted subject",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    FakeBand fx;
+    fx.log.refuse = true;
+    g_hosted_raises = 0;
+    lv_subject_t* hosted = lv_xml_get_subject(nullptr, "test_in_side_band");
+    REQUIRE(hosted != nullptr);
+    lv_observer_t* obs = lv_subject_add_observer(hosted, count_hosted_raise, nullptr);
+    fx.band.on_host_activate();
+    fx.band.refresh();
+    fx.band.refresh();
+    REQUIRE(fx.band.hosted() == nullptr);
+    CHECK(g_hosted_raises == 0);
+    fx.log.refuse = false;
+    fx.band.refresh();
+    CHECK(g_hosted_raises == 1);
+    lv_observer_delete(obs);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: after deinit a theme change touches nothing",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.log.attaches == 1);
+    fx.band.deinit_subjects();
+    lv_subject_t* theme = theme_manager_get_changed_subject();
+    lv_subject_set_int(theme, lv_subject_get_int(theme) + 1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.attaches == 1);
+    CHECK(fx.log.detaches == 0);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a tree a cache pulls out is rebuilt, not kept",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    FakeBand fx;
+    fx.band.on_host_activate();
+    lv_obj_t* first = fx.band.hosted();
+    REQUIRE(first != nullptr);
+
+    // What a cache's DetachSubtree does: out of the band now, freed later.
+    lv_obj_set_parent(first, lv_layer_top());
+    fx.log.root = nullptr;
+    SideBand::notify_released(SideBandContent::Motion);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.attaches == 2);
+    CHECK(fx.band.hosted() != first);
+    CHECK(lv_obj_get_parent(fx.band.hosted()) == fx.band_obj());
+    CHECK(subject_value("test_side_band") == 1);
+    lv_obj_delete(first);
+}
+
 // The real Motion panel: its one tree lives in the band, and the overlay path
 // never builds a second while the host shows it.
 TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel's own tree",
@@ -404,7 +470,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel'
     SideBand band{SideBandContent::Motion, helix::ui::make_motion_side_band_guest(),
                   "test_controls_side_band", "motion_in_side_band"};
     band.init_subjects();
-    lv_obj_t* host = make_host(lv_screen_active());
+    lv_obj_t* host = helix::test::make_side_band_host(lv_screen_active());
     band.bind(host);
     band.on_host_activate();
     helix::ui::UpdateQueue::instance().drain();

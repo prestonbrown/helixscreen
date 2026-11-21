@@ -159,5 +159,13 @@ bool ams_mini_status_shows_lanes(int slot_count, int present_lanes);
  */
 bool ams_mini_status_has_lanes_to_show();
 
+/**
+ * @brief Whether a lane tray shows: the printer has a filament system or several
+ * heads (`has_filament_system_or_multi_tool`, as TargetTool publishes it) and the
+ * tray has lanes to draw (ams_mini_status_has_lanes_to_show()). Print Status's
+ * tray and the Filament panel's ultrawide side band ask this one question.
+ */
+bool has_lane_tray();
+
 } // namespace helix::ui
 #endif
