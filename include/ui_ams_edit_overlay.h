@@ -416,6 +416,8 @@ class AmsEditOverlay : public OverlayBase {
     /// Fill both dropdowns from the staged settings.
     void populate_lane_dropdowns();
     void handle_tool_selected(int index);
+    /// The tool list starts with None (the lane has no tool to unmap).
+    bool tool_none_offered_ = true;
     void handle_backup_selected(int index);
     /// A staged change Save would write. "None" for the tool writes nothing: a
     /// mapping is cleared by mapping that tool elsewhere.
@@ -476,14 +478,22 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject material_line_subject_{}; ///< "PLA · Charcoal Black" ("ams_edit_material_line")
     helix::Subject lane_line_subject_{};  ///< "Tool T0 · Runout → Lane 3" ("ams_edit_lane_line")
     helix::Subject weight_pct_subject_{}; ///< the drag bar, 0..100 of the spool's size
-    helix::Subject empty_title_subject_{};     ///< "Lane 3 is empty" ("ams_edit_empty_title")
-    helix::Subject has_last_subject_{};        ///< 1 = the empty lane records what it last held
-    helix::Subject last_product_subject_{};    ///< what it last held, product line
-    helix::Subject last_material_subject_{};   ///< what it last held, material · color
-    helix::Subject add_to_spoolman_subject_{}; ///< the Add to Spoolman checkbox
-    helix::Subject adding_subject_{};          ///< 1 while the summary holds a new spool going in
-    helix::Subject clear_archive_subject_{};   ///< the Clear Lane archive checkbox
-    helix::Subject clear_title_subject_{};     ///< "Clear Lane 3?" ("ams_edit_clear_title")
+    helix::Subject empty_title_subject_{};       ///< "Lane 3 is empty" ("ams_edit_empty_title")
+    helix::Subject has_last_subject_{};          ///< 1 = the empty lane records what it last held
+    helix::Subject last_product_subject_{};      ///< what it last held, product line
+    helix::Subject last_material_subject_{};     ///< what it last held, material · color
+    helix::Subject add_to_spoolman_subject_{};   ///< the Add to Spoolman checkbox
+    helix::Subject adding_subject_{};            ///< 1 while the summary holds a new spool going in
+    helix::Subject clear_archive_subject_{};     ///< the Clear Lane archive checkbox
+    helix::Subject clear_can_archive_subject_{}; ///< 1 = the archive box may show
+    helix::Subject clear_blocked_subject_{};     ///< 1 = the print draws from this lane
+    helix::Subject clear_hint_subject_{};        ///< why Clear is greyed
+    char clear_hint_buf_[160] = {0};
+    /// The session a Clear confirmation was opened for, while one is open.
+    std::optional<uint32_t> clear_session_;
+    /// The lane holds a Spoolman spool and Spoolman is there to archive it in.
+    [[nodiscard]] bool can_archive_lane_spool() const;
+    helix::Subject clear_title_subject_{}; ///< "Clear Lane 3?" ("ams_edit_clear_title")
     char product_line_buf_[128] = {0};
     char material_line_buf_[128] = {0};
     char lane_line_buf_[128] = {0};
@@ -503,6 +513,12 @@ class AmsEditOverlay : public OverlayBase {
     void update_empty_page();
     void update_tag_reset();
     void handle_weight_slider(int pct);
+    /// What the summary shows as left on the spool, and of what size.
+    struct ShownWeight {
+        float remaining_g = 0;
+        float total_g = 0;
+    };
+    [[nodiscard]] ShownWeight shown_spool_weight() const;
     void handle_same_filament();
     void show_clear_confirm();
     void handle_clear_confirm();
@@ -542,11 +558,20 @@ class AmsEditOverlay : public OverlayBase {
         bool multi_set = false;
         std::string draft_multi;
         std::string draft_mode;
+        int mode = kModeEdit;
+        int adding = 0;
+        int size_chip = 0;
+        float size_remaining_g = 0;
+        float size_total_g = 0;
     };
     std::optional<FormSnapshot> note_action_form_;
+    /// The summary as it stood when New Spool opened the list.
+    std::optional<FormSnapshot> held_form_;
+    [[nodiscard]] FormSnapshot capture_form() const;
+    void restore_form(const FormSnapshot& form);
     char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
-    char weight_buf_[24] = {0};
+    char weight_buf_[48] = {0};
     char spoolman_id_buf_[16] = {0};
     char tool_refusal_buf_[160] = {0};
 
@@ -575,6 +600,8 @@ class AmsEditOverlay : public OverlayBase {
     void update_header_and_panel();
     /// The lane other than this one linked to @p spool_id, or -1.
     [[nodiscard]] int lane_holding_spool(int spool_id) const;
+    /// A running job draws from @p lane, so it keeps its spool.
+    [[nodiscard]] bool lane_feeds_print(int lane) const;
     void update_sync_button_state();
     void update_temp_display();
     bool is_dirty() const;
@@ -692,7 +719,7 @@ class AmsEditOverlay : public OverlayBase {
     void apply_weight(float grams);         ///< Keypad result → remaining weight
     void handle_add_to_spoolman();          ///< Add to Spoolman & Assign
     void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
-    void handle_clear_spool();              ///< Take the spool off the slot and close
+    bool handle_clear_spool();              ///< Take the spool off the slot and close
     void handle_reapply_linked_spool();     ///< Write the linked spool's identity to the lane
     void handle_unlink_disagreeing_spool(); ///< Keep the lane's identity, drop the link
 

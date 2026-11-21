@@ -6,14 +6,17 @@
 // to Spoolman box, Use moving a spool between lanes).
 
 #include "ui_ams_edit_overlay.h"
+#include "ui_ams_lane_settings.h"
 #include "ui_modal.h"
 
 #include "../test_helpers/ams_edit_overlay_view_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/modal_answer.h"
+#include "../test_helpers/print_state_test_drivers.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
+#include "display_numbering.h"
 #include "filament_catalog.h"
 #include "filament_variants.h"
 #include "moonraker_client_mock_spoolman.h"
@@ -91,16 +94,19 @@ TEST_CASE_METHOD(PagesFixture, "each page's Back returns to the page that opened
     back();
     CHECK(access.page() == AmsEditOverlay::kPageSummary);
 
-    // New Spool, and Back to the lane's own spool.
+    // New Spool, and Back to the lane's own spool with the held pick.
     access.click("btn_hdr_new_spool");
     REQUIRE(access.page() == AmsEditOverlay::kPageList);
     back();
     CHECK(access.page() == AmsEditOverlay::kPageSummary);
     CHECK(access.mode() == AmsEditOverlay::kModeEdit);
-    CHECK(access.working_info().material == "PLA");
+    CHECK(access.subject_text("ams_edit_material_line").rfind("PETG", 0) == 0);
 
-    // The summary's Back closes the editor, unsaved.
+    // The summary's Back asks about the held edits; Discard closes unsaved.
     back();
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    helix::test::answer_top_modal("btn_secondary");
+    settle();
     REQUIRE(result.has_value());
     CHECK_FALSE(result->saved);
 }
@@ -170,12 +176,13 @@ TEST_CASE_METHOD(PagesFixture, "Clear Lane asks first and archives the spool onl
     }
     REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
     open(1, lane);
-    if (lane.status == SlotStatus::EMPTY) {
-        // A ran-out lane opens on its empty page; its summary is where Clear is.
-        access.open_page(AmsEditOverlay::kPageSummary);
-    }
     REQUIRE(access.clear_visible() == 1);
-    access.click("btn_clear_spool");
+    // A ran-out lane opens on its empty page, which has its own Clear.
+    const bool ran_out = lane.status == SlotStatus::EMPTY;
+    CHECK(access.page() == (ran_out ? AmsEditOverlay::kPageEmpty : AmsEditOverlay::kPageSummary));
+    const char* clear = ran_out ? "btn_clear_empty" : "btn_clear_spool";
+    REQUIRE(access.shown(clear));
+    access.click(clear);
     settle();
     REQUIRE_FALSE(ModalStack::instance().stack_empty());
     CHECK(helix::test::top_modal_text().find("Clear Gate 2?") != std::string::npos);
@@ -418,5 +425,241 @@ TEST_CASE_METHOD(PagesFixture,
     access.click("btn_reset_tag");
     settle();
     CHECK(access.working_info().color_rgb == 0xFF0000U);
+    close_editor_overlay();
+}
+
+namespace {
+/// The machine runs a job for one case, and is free again after it.
+struct ScopedPrinting {
+    ScopedPrinting() {
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
+    }
+    ~ScopedPrinting() {
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
+    }
+};
+
+/// Spoolman knows spool @p id.
+void seed_spool(MoonrakerClientMock& client, int id) {
+    auto& spools = client.spoolman_mock().get_mock_spools();
+    spools.clear();
+    SpoolInfo record;
+    record.id = id;
+    record.vendor = "eSUN";
+    record.material = "PLA";
+    record.color_hex = "2050C0";
+    spools.push_back(record);
+}
+
+bool archived(MoonrakerClientMock& client, int id) {
+    for (const auto& update : client.spoolman_mock().spool_updates) {
+        if (update.spool_id == id && update.patch.value("archived", false)) {
+            return true;
+        }
+    }
+    return false;
+}
+} // namespace
+
+TEST_CASE_METHOD(
+    PagesFixture,
+    "Clear on the lane the print draws from is greyed, and a stale confirm archives nothing",
+    "[ams_edit_overlay][pages][clear_spool][review]") {
+    set_spoolman_available(true);
+    seed_spool(client, 40);
+    REQUIRE(backend->slot_is_actively_loaded(0));
+    SlotInfo lane = describe_lane(*backend, 0, "PLA");
+    lane.spoolman_id = 40;
+    lane.remaining_weight_g = 15; // all but gone: the archive box opens ticked
+    lane.total_weight_g = 1000;
+    REQUIRE(helix::test::apply_edit(*backend, 0, lane).success());
+
+    SECTION("mid-print: greyed with the reason") {
+        ScopedPrinting printing;
+        open(0, backend->get_slot_info(0));
+        REQUIRE(access.shown("btn_clear_spool"));
+        CHECK(lv_obj_has_state(access.widget("btn_clear_spool"), LV_STATE_DISABLED));
+        CHECK(access.shown("clear_hint"));
+        CHECK(access.subject_text("ams_edit_clear_hint").find("feeding the current print") !=
+              std::string::npos);
+    }
+    SECTION("a confirmation opened before the print started") {
+        open(0, backend->get_slot_info(0));
+        CHECK_FALSE(lv_obj_has_state(access.widget("btn_clear_spool"), LV_STATE_DISABLED));
+        access.click("btn_clear_spool");
+        settle();
+        REQUIRE_FALSE(ModalStack::instance().stack_empty());
+        ScopedPrinting printing;
+        helix::test::answer_top_modal("btn_primary");
+        settle();
+        // Refused: the lane keeps its spool, the editor its summary, Spoolman the spool.
+        CHECK(backend->get_slot_info(0).spoolman_id == 40);
+        CHECK(access.page() == AmsEditOverlay::kPageSummary);
+        CHECK_FALSE(archived(client, 40));
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(
+    PagesFixture,
+    "the archive box follows the lane's own spool and Spoolman, and archives only when seen",
+    "[ams_edit_overlay][pages][clear_spool][review]") {
+    seed_spool(client, 40);
+    SlotInfo lane = describe_lane(*backend, 1, "PLA");
+    lane.spoolman_id = 40;
+    lane.remaining_weight_g = 15;
+    lane.total_weight_g = 1000;
+    REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+    bool spoolman = true;
+    SECTION("Spoolman there: the box shows, ticked") {
+        set_spoolman_available(true);
+    }
+    SECTION("Spoolman gone: no box, and no archive") {
+        spoolman = false;
+        set_spoolman_available(false);
+    }
+    open(1, backend->get_slot_info(1));
+    // The working spool moving off the link does not hide the lane's box.
+    access.set_working_info(SlotInfo{});
+    access.click("btn_clear_spool");
+    settle();
+    lv_obj_t* check =
+        lv_obj_find_by_name(ModalStack::instance().top_dialog(), "clear_archive_check");
+    REQUIRE(check != nullptr);
+    CHECK(lv_obj_is_hidden(check) == !spoolman);
+    CHECK(lv_obj_has_state(check, LV_STATE_CHECKED) == spoolman);
+    helix::test::answer_top_modal("btn_primary");
+    settle();
+    CHECK(backend->get_slot_info(1).spoolman_id == 0);
+    CHECK(archived(client, 40) == spoolman);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "Use never moves a spool off the lane the print draws from",
+                 "[ams_edit_overlay][pages][picker][review]") {
+    REQUIRE(backend->slot_is_actively_loaded(0));
+    SlotInfo lane0 = describe_lane(*backend, 0, "PETG");
+    lane0.spoolman_id = 22;
+    REQUIRE(helix::test::apply_edit(*backend, 0, lane0).success());
+    ScopedPrinting printing;
+    open(1, backend->get_slot_info(1), /*open_on_picker=*/true);
+    SpoolInfo b;
+    b.id = 22;
+    b.vendor = "eSUN";
+    b.material = "PETG";
+    access.set_cached_spools({b});
+    access.call_render_spool_list("");
+    settle();
+    lv_obj_t* row = lv_obj_get_child(access.widget("picker_spool_list"), 0);
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_has_state(lv_obj_find_by_name(row, "row_use"), LV_STATE_DISABLED));
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "row_detail")))
+              .find("feeding the print") != std::string::npos);
+    // Even a tap that gets through leaves both lanes as they were.
+    access.use_spool(22);
+    settle();
+    CHECK(backend->get_slot_info(0).spoolman_id == 22);
+    CHECK(backend->get_slot_info(1).spoolman_id != 22);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "the weight steps, drags and types from the value the summary shows",
+                 "[ams_edit_overlay][pages][weight][review]") {
+    SlotInfo lane = describe_lane(*backend, 1, "PLA");
+    lane.remaining_weight_g = -1; // unknown: shown as a full spool of the default size
+    lane.total_weight_g = -1;
+    REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+    open(1, backend->get_slot_info(1));
+    REQUIRE(access.subject_text("ams_edit_weight_text") == "1000 g of 1 kg · 100%");
+    SECTION("minus steps down from full") {
+        access.click("btn_remaining_minus");
+        CHECK(access.working_info().remaining_weight_g == Catch::Approx(990.0f));
+        CHECK(access.working_info().total_weight_g == Catch::Approx(1000.0f));
+    }
+    SECTION("the drag bar is a share of the default size") {
+        lv_obj_t* bar = access.widget("weight_slider");
+        lv_slider_set_value(bar, 50, LV_ANIM_OFF);
+        lv_obj_send_event(bar, LV_EVENT_VALUE_CHANGED, nullptr);
+        CHECK(access.working_info().remaining_weight_g == Catch::Approx(500.0f));
+        CHECK(access.working_info().total_weight_g == Catch::Approx(1000.0f));
+    }
+    SECTION("a new spool steps from its full 1 kg") {
+        access.click("btn_hdr_new_spool");
+        access.click("btn_add_new");
+        access.call_handle_back();
+        access.click("btn_remaining_minus");
+        CHECK(access.subject_text("ams_edit_weight_text") == "990 g of 1 kg · 99%");
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "New Spool and Back return to the summary with its held edits",
+                 "[ams_edit_overlay][pages][review]") {
+    open(1, describe_lane(*backend, 1, "PLA"));
+    access.click("summary_card");
+    REQUIRE(access.pick_dropdown("dropdown_brand", "Generic"));
+    REQUIRE(access.pick_dropdown("dropdown_material", "PETG"));
+    back();
+    access.call_apply_weight(321);
+    REQUIRE(access.is_dirty());
+    access.click("btn_hdr_new_spool");
+    REQUIRE(access.page() == AmsEditOverlay::kPageList);
+    back();
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    CHECK(access.mode() == AmsEditOverlay::kModeEdit);
+    CHECK(access.sel().family == "PETG");
+    CHECK(access.working_info().remaining_weight_g == Catch::Approx(321.0f));
+    CHECK(access.is_dirty());
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "None is offered as the tool only to a lane that has no tool",
+                 "[ams_edit_overlay][pages][lane_settings][review]") {
+    open(1, describe_lane(*backend, 1, "PLA"));
+    REQUIRE(helix::ui::lane_settings::assigned_tool(*backend, 1) >= 0);
+    access.open_page(AmsEditOverlay::kPageLane);
+    const std::string options = access.dropdown_options("tool_dropdown");
+    CHECK(options.rfind("None", 0) != 0);
+    // The selection still names the lane's own tool.
+    CHECK(access.dropdown_selected("tool_dropdown") ==
+          helix::ui::tool_label(helix::ui::lane_settings::assigned_tool(*backend, 1)));
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "the color row builds the swatch cap the XML names and shows no more",
+                 "[ams_edit_overlay][pages][color][review]") {
+    open(1, describe_lane(*backend, 1, "PLA"));
+    access.open_page(AmsEditOverlay::kPageFilament);
+    settle();
+    const char* cap_text =
+        lv_xml_get_const(lv_xml_component_get_scope("ams_edit_overlay"), "ams_edit_swatch_cap");
+    REQUIRE(cap_text != nullptr);
+    const int cap = std::atoi(cap_text);
+    lv_obj_t* row = access.widget("color_row");
+    REQUIRE(row != nullptr);
+    // The dots, the cap's swatches, the rainbow tile.
+    CHECK(static_cast<int>(lv_obj_get_child_count(row)) == cap + 2);
+    CHECK(static_cast<int>(access.color_row().size()) <= cap);
+    CHECK(access.row_swatches().size() == access.color_row().size());
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "a Clear confirmation left open over another lane's editor does nothing",
+                 "[ams_edit_overlay][pages][clear_spool][review]") {
+    const SlotInfo lane1 = describe_lane(*backend, 1, "PLA");
+    const SlotInfo lane2 = describe_lane(*backend, 2, "PETG");
+    open(1, lane1);
+    access.click("btn_clear_spool");
+    settle();
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    // The editor moves to another lane under the open confirmation.
+    open(2, lane2);
+    helix::test::answer_top_modal("btn_primary");
+    settle();
+    CHECK(backend->get_slot_info(1).material == "PLA");
+    CHECK(backend->get_slot_info(2).material == "PETG");
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
     close_editor_overlay();
 }

@@ -2060,7 +2060,8 @@ TEST_CASE_METHOD(EditorFixture, "weight pill keypad stages remaining grams",
     CHECK(access.is_dirty());
     close_editor_overlay();
 
-    // A weightless slot: the same number is the honest first total.
+    // A weightless slot: the summary showed a full spool of the default size,
+    // and a typed weight is what is left of that.
     SlotInfo bare = untracked_slot();
     bare.remaining_weight_g = -1;
     bare.total_weight_g = -1;
@@ -2070,7 +2071,7 @@ TEST_CASE_METHOD(EditorFixture, "weight pill keypad stages remaining grams",
     access.call_apply_weight(750);
     UpdateQueue::instance().drain();
     CHECK(access.working_info().remaining_weight_g == 750);
-    CHECK(access.working_info().total_weight_g == 750);
+    CHECK(access.working_info().total_weight_g == spool_assign::kDefaultSpoolGrams);
     close_editor_overlay();
 }
 
@@ -5594,7 +5595,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
             // The rainbow tile ends the last line.
             CHECK(targets.back() == access.widget("btn_all_colors"));
             // The swatches fill the page: another line would not fit under them.
-            lv_obj_t* page = lv_obj_get_parent(row);
+            lv_obj_t* page = access.widget("filament_page");
             lv_area_t page_box;
             lv_obj_get_content_coords(page, &page_box);
             lv_obj_t* last = row;
@@ -5608,7 +5609,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
             lv_obj_get_coords(last, &last_box);
             const int line = lv_obj_get_width(access.widget("btn_all_colors")) +
                              lv_obj_get_style_pad_row(row, LV_PART_MAIN);
-            CHECK((page_box.y2 - last_box.y2 < line || access.color_row().size() == 64));
+            const int cap = std::atoi(lv_xml_get_const(
+                lv_xml_component_get_scope("ams_edit_overlay"), "ams_edit_swatch_cap"));
+            CHECK((page_box.y2 - last_box.y2 < line ||
+                   static_cast<int>(access.color_row().size()) == cap));
             close_editor_overlay();
         }
         theme_manager_refresh_layout_constants(disp);

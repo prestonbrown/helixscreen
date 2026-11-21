@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Clear Lane asks first: "Clear Lane 3?". A Spoolman-linked spool adds the
-     archive checkbox, pre-checked when the spool ran out or Spoolman says it
+<!-- Clear Lane asks first: "Clear Lane 3?". The lane's own Spoolman spool, with
+     Spoolman there, adds the archive checkbox, pre-checked when the spool ran out or Spoolman says it
      is all but empty. Subjects and callbacks: ui_ams_edit_overlay.cpp. -->
 <component>
   <view name="ams_clear_lane_modal"
@@ -14,7 +14,7 @@
       <lv_checkbox name="clear_archive_check"
                    text="Spool is empty, archive it in Spoolman" bind_checked="ams_edit_clear_archive"
                    style_margin_top="#space_sm" hidden="true">
-        <bind_flag_if_eq subject="ams_edit_is_managed" flag="hidden" ref_value="0"/>
+        <bind_flag_if_eq subject="ams_edit_clear_can_archive" flag="hidden" ref_value="0"/>
       </lv_checkbox>
     </dialog_frame-body>
     <dialog_frame-footer>

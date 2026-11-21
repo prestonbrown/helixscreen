@@ -108,6 +108,11 @@
     <px name="ams_edit_preview_h_small" value="22"/>
     <px name="ams_edit_preview_h_medium" value="24"/>
     <px name="ams_edit_preview_h_large" value="28"/>
+    <!-- The most color swatches the Filament page builds, AmsEditOverlay's cap
+         too: every color it can offer (12 recents and the 60-color filament
+         palette), which is also about what fits at 800x480 with nothing below
+         the colors (13 across, 6 lines, less the dot and the rainbow tile). -->
+    <int name="ams_edit_swatch_cap" value="72"/>
     <!-- The Filament page's label column, and the label's drop to sit level
          with the first line of swatches beside it. -->
     <px name="ams_edit_label_w_micro" value="64"/>
@@ -321,9 +326,15 @@
                      width="content" height="#button_height" text="Clear Lane" variant="outline"
                      style_border_color="#danger" style_text_color="#danger" hidden="true">
             <bind_flag_if_eq subject="ams_edit_clear_visible" flag="hidden" ref_value="0"/>
+            <bind_state_if_eq subject="ams_edit_clear_blocked" state="disabled" ref_value="1"/>
             <event_cb trigger="clicked" callback="ams_edit_clear_spool_cb"/>
           </ui_button>
-          <lv_obj width="1" height="1" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"/>
+          <!-- Why Clear is greyed: the print draws from this lane. -->
+          <text_small name="clear_hint"
+                      width="1" flex_grow="1" bind_text="ams_edit_clear_hint" long_mode="wrap"
+                      style_text_color="#text_muted">
+            <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="0"/>
+          </text_small>
           <ui_button name="btn_edit_save"
                      width="content" height="#button_height" text="Save" variant="primary"
                      style_min_width="#ams_edit_weight_w">
@@ -354,6 +365,15 @@
         <ui_button name="btn_choose_spool"
                    width="100%" height="#button_height" text="Choose a Different Spool" variant="outline">
           <event_cb trigger="clicked" callback="ams_edit_choose_spool_cb"/>
+        </ui_button>
+        <!-- A lane that ran out still holds its record or Spoolman link:
+             clearing it (and archiving the spool) happens here. -->
+        <ui_button name="btn_clear_empty"
+                   width="100%" height="#button_height" text="Clear Lane" variant="outline" style_border_color="#danger"
+                   style_text_color="#danger" hidden="true">
+          <bind_flag_if_eq subject="ams_edit_clear_visible" flag="hidden" ref_value="0"/>
+          <bind_state_if_eq subject="ams_edit_clear_blocked" state="disabled" ref_value="1"/>
+          <event_cb trigger="clicked" callback="ams_edit_clear_spool_cb"/>
         </ui_button>
       </lv_obj>
 
@@ -516,7 +536,7 @@
                     style_flex_cross_place="center" scrollable="false">
               <style name="color_row_pad"/>
               <ams_edit_color_dots name="color_dots"/>
-              <repeat count="64">
+              <repeat count="#ams_edit_swatch_cap">
                 <color_swatch index="${i}"
                               color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
                               size="#swatch_grid_size" hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach"
