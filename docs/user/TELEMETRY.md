@@ -92,6 +92,14 @@ Recorded periodically (hourly) and at startup. Helps detect memory leaks on diff
 | `rss_kb` | Physical memory used (KB) | `48320` |
 | `vm_size_kb` | Virtual memory mapped (KB) | `142000` |
 
+### Memory Warnings
+
+Recorded when free memory runs low or HelixScreen's own memory grows quickly (at most one per level every 5 minutes). They carry the same memory figures as a snapshot. At the `warning` and `critical` levels they also name the three processes using the most memory, since on a printer that shares its board with Klipper, HelixScreen is often not the one using it:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `top_processes` | The program's short name as the system reports it (at most 15 characters, letters, digits and `._+-` only; never its arguments or path) and its memory in MB | `[{"name": "python3", "rss_mb": 210}]` |
+
 ### Hardware Profile
 
 Recorded once per session. Helps us prioritize feature development and hardware support.
@@ -175,6 +183,7 @@ Recorded every hour, and once more when HelixScreen closes. Measures UI responsi
 | `dropped_frame_count` | Frames slower than 33ms | `42` |
 | `total_frame_count` | Frames sampled in the same window as the dropped count | `1024` |
 | `worst_panel` | Panel with highest frame times | `"temperature"` |
+| `gl_renderer`, `gl_software` | The graphics renderer, as in session events, once a 3D preview has been shown (session events are usually sent before that) | `"V3D 4.2"`, `false` |
 
 No user content is included — just timing data about how smoothly the UI renders.
 
@@ -241,6 +250,9 @@ When the screen freezes (`ui` / `main_loop_hang`), the event also says what was 
 | `active_overlay` | The screen open on top of it, if any, by its internal name | `"print_file_detail"` |
 | `gl_renderer` | Graphics renderer name, as in session events, once one has been used | `"llvmpipe"` |
 | `gl_software` | Whether that renderer draws on the CPU | `true` |
+| `mem_available_mb` | Memory the system had free (MB) | `19` |
+| `pressure_level` | HelixScreen's memory pressure level (`none`, `elevated`, `warning`, `critical`) | `"critical"` |
+| `major_faults` | How many times HelixScreen has had to read memory back from storage since it started; a fast climb means the system is short of memory rather than busy | `81234` |
 
 ---
 
@@ -249,6 +261,7 @@ When the screen freezes (`ui` / `main_loop_hang`), the event also says what was 
 HelixScreen **never** collects any of the following:
 
 - **Filenames** or file paths (print jobs, G-code files, thumbnails)
+- **Command lines** of other programs (a memory warning names a program by its short name only)
 - **G-code content** (sliced files, macros, custom commands)
 - **IP addresses** (local or public)
 - **MAC addresses** or other network identifiers

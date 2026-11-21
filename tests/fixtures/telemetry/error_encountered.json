@@ -12,6 +12,9 @@
   "event": "error_encountered",
   "gl_renderer": "llvmpipe",
   "gl_software": true,
+  "major_faults": 81234,
+  "mem_available_mb": 19,
+  "pressure_level": "critical",
   "schema_version": 3,
   "timestamp": "<timestamp>",
   "uptime_sec": 0

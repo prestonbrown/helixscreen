@@ -898,11 +898,33 @@ describe("mapEventToDataPoints", () => {
       active_overlay: "print_file_detail",
       gl_renderer: "llvmpipe",
       gl_software: true,
+      mem_available_mb: 19,
+      pressure_level: "critical",
+      major_faults: 81234,
       uptime_sec: 400,
     };
     const dp = mapEventToDataPoints(event)[0];
-    expect(dp.blobs!.slice(13, 16)).toEqual(["llvmpipe", "1", "print_file_detail"]);
-    expect(dp.doubles![8]).toBe(3);
+    expect(dp.blobs!.slice(13, 17)).toEqual(["llvmpipe", "1", "print_file_detail", "critical"]);
+    expect(dp.doubles!.slice(8, 11)).toEqual([3, 19, 81234]);
+  });
+
+  it("maps a memory warning's largest processes", () => {
+    const event = {
+      event: "memory_warning",
+      device_id: "dev-mem",
+      level: "critical",
+      top_processes: [
+        { name: "python3", rss_mb: 210 },
+        { name: "helix-screen", rss_mb: 48 },
+        { name: "crowsnest", rss_mb: 12 },
+      ],
+    };
+    const dp = mapEventToDataPoints(event)[0];
+    expect(dp.blobs![12]).toBe("python3:210,helix-screen:48,crowsnest:12");
+    expect(dp.doubles![8]).toBe(210);
+    const quiet = mapEventToDataPoints({ event: "memory_warning", device_id: "dev-mem", level: "elevated" })[0];
+    expect(quiet.blobs![12] ?? "").toBe("");
+    expect(quiet.doubles![8] ?? 0).toBe(0);
   });
 
   it("leaves session board empty for clients that do not send it", () => {

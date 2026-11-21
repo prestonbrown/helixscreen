@@ -2,10 +2,11 @@
 
 /**
  * @file test_telemetry_gl_context.cpp
- * @brief GL renderer, render mode and on-screen context in telemetry
+ * @brief GL renderer, render mode, on-screen and memory context in telemetry
  *
- * What a main_loop_hang and a session event say about the screen and the GL
- * renderer, so a software-GL 3D preview stall can be told from other hangs.
+ * What a main_loop_hang, a memory_warning and a session event say about the
+ * screen, the GL renderer and memory, so a software-GL 3D preview stall, a
+ * page-in stall and a CPU hang can be told apart.
  */
 
 #include "../test_helpers/telemetry_test_fixture.h"
@@ -155,7 +156,11 @@ TEST_CASE_METHOD(TelemetryTestFixture, "A main loop hang names the screen and th
     helix::telemetry_context::active_panel_int.store(3);
     helix::telemetry_context::set_top_overlay("print_file_detail");
     helix::telemetry_context::set_gl_renderer("Mali-G52 (Panfrost)");
-    tm.record_main_loop_hang(92500);
+    helix::HangMemoryContext memory;
+    memory.mem_available_mb = 19;
+    memory.pressure = helix::MemoryPressureLevel::critical;
+    memory.major_faults = 81234;
+    tm.record_main_loop_hang(92500, memory);
 
     auto snapshot = tm.get_queue_snapshot();
     REQUIRE(snapshot.size() == 1);
@@ -170,6 +175,11 @@ TEST_CASE_METHOD(TelemetryTestFixture, "A main loop hang names the screen and th
     REQUIRE(e.contains("gl_renderer"));
     CHECK(e["gl_renderer"] == "Mali-G52");
     CHECK(e["gl_software"] == false);
+    REQUIRE(e.contains("mem_available_mb"));
+    CHECK(e["mem_available_mb"] == 19);
+    CHECK(e["pressure_level"] == "critical");
+    REQUIRE(e.contains("major_faults"));
+    CHECK(e["major_faults"] == 81234);
 }
 
 TEST_CASE_METHOD(TelemetryTestFixture,
@@ -180,9 +190,9 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     tm.set_enabled(true);
 
     helix::telemetry_context::active_panel_int.store(0);
-    tm.record_main_loop_hang(30000);
+    tm.record_main_loop_hang(30000, {});
     // The "ui" category is rate-limited like any other.
-    tm.record_main_loop_hang(60000);
+    tm.record_main_loop_hang(60000, {});
 
     auto snapshot = tm.get_queue_snapshot();
     REQUIRE(snapshot.size() == 1);
@@ -192,4 +202,63 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     CHECK_FALSE(e.contains("active_overlay"));
     CHECK_FALSE(e.contains("gl_renderer"));
     CHECK_FALSE(e.contains("gl_software"));
+    CHECK_FALSE(e.contains("mem_available_mb"));
+    CHECK_FALSE(e.contains("major_faults"));
+    CHECK(e["pressure_level"] == "none");
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "The performance snapshot carries the GL renderer the session event missed",
+                 "[telemetry][gl_renderer][performance]") {
+    ScopedTelemetryScreenContext context;
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    tm.record_frame_time(8000);
+    tm.record_performance_snapshot();
+    helix::telemetry_context::set_gl_renderer("llvmpipe (LLVM 15.0.6, 128 bits)");
+    tm.record_frame_time(8000);
+    tm.record_performance_snapshot();
+
+    auto snapshot = tm.get_queue_snapshot();
+    REQUIRE(snapshot.size() == 2);
+    CHECK_FALSE(snapshot[0].contains("gl_renderer"));
+    REQUIRE(snapshot[1].contains("gl_renderer"));
+    CHECK(snapshot[1]["gl_renderer"] == "llvmpipe");
+    CHECK(snapshot[1]["gl_software"] == true);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "A memory warning at warning or critical names the largest processes",
+                 "[telemetry][memory_warning]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    helix::MemoryWarningEvent warning;
+    warning.reason = "system_low";
+    for (auto level : {helix::MemoryPressureLevel::elevated, helix::MemoryPressureLevel::warning,
+                       helix::MemoryPressureLevel::critical}) {
+        warning.level = level;
+        tm.record_memory_warning(warning);
+    }
+
+    auto snapshot = tm.get_queue_snapshot();
+    REQUIRE(snapshot.size() == 3);
+    CHECK_FALSE(snapshot[0].contains("top_processes"));
+    for (size_t i = 1; i < 3; ++i) {
+        INFO("level: " << snapshot[i]["level"]);
+        // This test process holds resident memory, so there is at least one.
+        REQUIRE(snapshot[i].contains("top_processes"));
+        const auto& top = snapshot[i]["top_processes"];
+        REQUIRE(top.is_array());
+        REQUIRE_FALSE(top.empty());
+        CHECK(top.size() <= 3);
+        for (size_t j = 0; j < top.size(); ++j) {
+            CHECK(top[j]["name"].is_string());
+            CHECK(top[j]["rss_mb"].is_number_integer());
+            if (j > 0) {
+                CHECK(top[j - 1]["rss_mb"].get<int64_t>() >= top[j]["rss_mb"].get<int64_t>());
+            }
+        }
+    }
 }

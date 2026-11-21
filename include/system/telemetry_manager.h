@@ -148,6 +148,15 @@ inline std::string overlay_telemetry_id(const char* root_obj_name, const char* l
     return "unnamed";
 }
 
+/// Memory state when the main loop stalled, gathered on the monitor thread. A
+/// stall on page-ins shows low available memory and a climbing fault count; a
+/// CPU hang shows neither.
+struct HangMemoryContext {
+    std::optional<int64_t> mem_available_mb; ///< system MemAvailable
+    MemoryPressureLevel pressure = MemoryPressureLevel::none;
+    std::optional<uint64_t> major_faults; ///< this process's majflt since start
+};
+
 /// Why an update failed, for an update_failed event. Every field here is
 /// already safe to send: fixed tokens, a known release host or "other", and
 /// text that went through helix::redact::telemetry_text().
@@ -498,15 +507,18 @@ class TelemetryManager {
      * @brief Record that the main loop stalled
      *
      * An error_encountered event (category "ui", code "main_loop_hang",
-     * context "stalled_<N>s") carrying what was on screen and the GL renderer:
-     * active_panel, active_overlay (when one is open), gl_renderer and
-     * gl_software (once a GL context has been created). Rate-limited with the
+     * context "stalled_<N>s") carrying what was on screen, the GL renderer and
+     * the memory state: active_panel, active_overlay (when one is open),
+     * gl_renderer and gl_software (once a GL context has been created),
+     * mem_available_mb, pressure_level and major_faults. Rate-limited with the
      * "ui" category. Thread-safe; it is called from the memory monitor thread
-     * while the main thread is wedged, so it reads only telemetry_context.
+     * while the main thread is wedged, so it reads only telemetry_context and
+     * what the caller passes.
      *
      * @param stalled_ms How long the main loop has not advanced
+     * @param memory     Memory state the caller read at the stall
      */
-    void record_main_loop_hang(uint32_t stalled_ms);
+    void record_main_loop_hang(uint32_t stalled_ms, const helix::HangMemoryContext& memory);
 
     /**
      * @brief Enqueue a connection_stability delta and start a new window
@@ -1063,7 +1075,8 @@ class TelemetryManager {
      * @param warning Memory warning event data from MemoryMonitor
      * @return JSON event with type "memory_warning" and full diagnostics
      */
-    nlohmann::json build_memory_warning_event(const helix::MemoryWarningEvent& warning) const;
+    nlohmann::json build_memory_warning_event(const helix::MemoryWarningEvent& warning,
+                                              const std::vector<helix::ProcessRss>& top) const;
 
     /**
      * @brief Build a hardware profile event JSON object
@@ -1350,6 +1363,8 @@ class TelemetryManager {
     // Protected by mutex_ — accessed from background threads via record_error().
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> error_rate_limit_;
     static constexpr auto kErrorRateLimitInterval = std::chrono::minutes{5};
+    /// Processes a memory_warning at warning or critical names, largest first.
+    static constexpr size_t kTopProcessCount = 3;
 
     // Connection stability tracking
     int connect_count_{0};

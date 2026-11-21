@@ -465,7 +465,14 @@ void Application::init_monitoring_services() {
         // from background threads, and deliberately so here: the UI thread
         // is the thing that is wedged, so anything routed through
         // UpdateQueue would never be delivered.
-        TelemetryManager::instance().record_main_loop_hang(stalled_ms);
+        helix::HangMemoryContext memory;
+        const auto sys = helix::get_system_memory_info();
+        if (sys.total_kb > 0) {
+            memory.mem_available_mb = static_cast<int64_t>(sys.available_mb());
+        }
+        memory.pressure = helix::MemoryMonitor::instance().pressure_level();
+        memory.major_faults = helix::read_self_major_faults();
+        TelemetryManager::instance().record_main_loop_hang(stalled_ms, memory);
         crash_handler::breadcrumb::note("main_loop", "hang");
     });
 

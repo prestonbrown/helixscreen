@@ -421,3 +421,92 @@ TEST_CASE("Heap trim: release_free_heap trims exactly where the libc can", "[mem
 #endif
     CHECK(release_free_heap() == heap_trim_supported());
 }
+
+// ============================================================================
+// Per-process memory for telemetry [memory][proc_stat]
+// ============================================================================
+
+TEST_CASE("parse_proc_stat reads comm, major faults and resident pages", "[memory][proc_stat]") {
+    ProcStat st;
+    // A comm may hold spaces and parentheses; it ends at the LAST ')'.
+    REQUIRE(parse_proc_stat("812 (my (odd) name) S 1 812 812 0 -1 4194560 2000 0 37 0 50 20 0 0 20 "
+                            "0 3 0 1500 123456789 9000 18446744073709551615",
+                            st));
+    CHECK(st.comm == "my (odd) name");
+    CHECK(st.major_faults == 37);
+    CHECK(st.rss_pages == 9000);
+
+    CHECK_FALSE(parse_proc_stat("", st));
+    CHECK_FALSE(parse_proc_stat("812 (truncated) S 1 812", st));
+    CHECK_FALSE(parse_proc_stat(
+        "812 no-parens S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21", st));
+}
+
+TEST_CASE("telemetry_process_name keeps a short plain name", "[memory][proc_stat]") {
+    CHECK(telemetry_process_name("moonraker") == "moonraker");
+    CHECK(telemetry_process_name("python3.11") == "python3.11");
+    CHECK(telemetry_process_name("kworker/0:1H") == "kworker01H");
+    CHECK(telemetry_process_name("a very long process name") == "averylongproces");
+    CHECK(telemetry_process_name("") == "unknown");
+    CHECK(telemetry_process_name("/// ") == "unknown");
+}
+
+namespace {
+
+/// A fake /proc with one stat file per pid.
+struct FakeProc {
+    std::filesystem::path root =
+        std::filesystem::temp_directory_path() / ("helix_fake_proc_" + std::to_string(::getpid()));
+    FakeProc() {
+        std::filesystem::remove_all(root);
+        std::filesystem::create_directories(root / "self");
+        std::filesystem::create_directories(root / "sys");
+    }
+    ~FakeProc() {
+        std::error_code ec;
+        std::filesystem::remove_all(root, ec);
+    }
+    void add(const std::string& pid, const std::string& comm, long rss_pages, long majflt = 0) {
+        std::filesystem::create_directories(root / pid);
+        std::ofstream(root / pid / "stat")
+            << pid << " (" << comm << ") S 1 1 1 0 -1 0 10 0 " << majflt
+            << " 0 5 5 0 0 20 0 1 0 100 1000000 " << rss_pages << " 18446744073709551615\n";
+    }
+};
+
+} // namespace
+
+TEST_CASE("top_processes_by_rss lists the largest resident processes, largest first",
+          "[memory][proc_stat]") {
+    FakeProc proc;
+    proc.add("101", "klippy", 51200);                       // 200 MB at 4 KB pages
+    proc.add("102", "moonraker", 25600);                    // 100 MB
+    proc.add("103", "helix-screen", 12800);                 // 50 MB
+    proc.add("104", "crowsnest", 2560);                     // 10 MB
+    proc.add("2", "kthreadd", 0);                           // kernel threads hold no RSS
+    std::filesystem::create_directories(proc.root / "105"); // exited between readdir and open
+
+    const auto top = top_processes_by_rss(3, proc.root.c_str(), 4);
+    REQUIRE(top.size() == 3);
+    CHECK(top[0].name == "klippy");
+    CHECK(top[0].rss_mb == 200);
+    CHECK(top[1].name == "moonraker");
+    CHECK(top[1].rss_mb == 100);
+    CHECK(top[2].name == "helix-screen");
+    CHECK(top[2].rss_mb == 50);
+
+    // Fewer processes than asked for: every one with resident memory.
+    CHECK(top_processes_by_rss(10, proc.root.c_str(), 4).size() == 4);
+    CHECK(top_processes_by_rss(3, "/nonexistent-proc-root", 4).empty());
+}
+
+TEST_CASE("read_self_major_faults reads the stat file's majflt", "[memory][proc_stat]") {
+    FakeProc proc;
+    proc.add("self", "helix-screen", 100, 4242);
+    CHECK(read_self_major_faults((proc.root / "self" / "stat").c_str()) ==
+          std::optional<uint64_t>(4242));
+    CHECK_FALSE(read_self_major_faults("/nonexistent-proc-root/self/stat").has_value());
+#ifdef __linux__
+    CHECK(read_self_major_faults().has_value());
+#endif
+}

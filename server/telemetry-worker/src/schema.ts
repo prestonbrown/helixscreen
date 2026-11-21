@@ -257,6 +257,20 @@ const crashBacktraceDepth: Reader = reads(
   true,
 );
 
+type ProcessRow = { name?: unknown; rss_mb?: unknown };
+const processRows = (e: EventRecord): ProcessRow[] =>
+  Array.isArray(e.top_processes) ? (e.top_processes as ProcessRow[]) : [];
+
+const topProcesses: Reader = reads(["top_processes[].name", "top_processes[].rss_mb"], (e) => {
+  const rows = processRows(e);
+  return rows.length ? rows.map((p) => `${String(p.name ?? "")}:${Number(p.rss_mb ?? 0)}`).join(",") : undefined;
+});
+
+const topProcessRss: Reader = reads(["top_processes[].rss_mb"], (e) => {
+  const rows = processRows(e);
+  return rows.length ? Number(rows[0].rss_mb ?? 0) : undefined;
+});
+
 // ---------- Column constructors ----------
 
 const column = (type: FieldType, slot: number, field: string, read?: Reader): ColumnDef =>
@@ -401,6 +415,9 @@ const KINDS: PointKind[] = [
     dbl(6, "private_dirty_kb"),
     dbl(7, "pss_kb"),
     dbl(8, "system_total_mb"),
+    // Who holds the memory, at warning and critical: "name:MB" joined by commas, largest first.
+    blob(13, "top_processes", topProcesses),
+    dbl(9, "top_process_rss_mb", topProcessRss),
   ]),
 
   kind("hardware_profile", [
@@ -556,8 +573,11 @@ const KINDS: PointKind[] = [
     blob(14, "gl_renderer"),
     blob(15, "gl_software", triState(flat("gl_software"))),
     blob(16, "active_overlay"),
+    blob(17, "pressure_level"),
     dbl(1, "uptime_sec"),
     dbl(9, "active_panel"),
+    dbl(10, "mem_available_mb"),
+    dbl(11, "major_faults"),
   ]),
 
   kind("performance_snapshot", [
@@ -573,6 +593,9 @@ const KINDS: PointKind[] = [
     dbl(7, "worst_panel_p95_ms"),
     // No current client sends it; kept so stored rows stay readable.
     dbl(8, "task_handler_max_ms"),
+    // The renderer the session event usually misses: it is learned at the first 3D preview.
+    blob(13, "gl_renderer"),
+    blob(14, "gl_software", triState(flat("gl_software"))),
   ]),
 
   kind("feature_adoption", [

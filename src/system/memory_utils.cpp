@@ -14,6 +14,7 @@
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
@@ -25,6 +26,11 @@
 
 #if defined(HELIX_PLATFORM_ESP32)
 #include <esp_heap_caps.h>
+#endif
+
+#ifdef __linux__
+#include <dirent.h>
+#include <unistd.h>
 #endif
 
 #ifdef __APPLE__
@@ -146,6 +152,109 @@ bool read_smaps_rollup(SmapsRollup& rollup) {
 #else
     return false;
 #endif
+}
+
+bool parse_proc_stat(const std::string& line, ProcStat& out) {
+    const auto open = line.find('(');
+    const auto close = line.rfind(')');
+    if (open == std::string::npos || close == std::string::npos || close < open) {
+        return false;
+    }
+    // Fields after comm, from field 3 (state) on: majflt is field 12, rss field 24.
+    constexpr size_t kMajfltIndex = 12 - 3;
+    constexpr size_t kRssIndex = 24 - 3;
+    std::vector<std::string> fields;
+    size_t pos = close + 1;
+    while (fields.size() <= kRssIndex) {
+        pos = line.find_first_not_of(' ', pos);
+        if (pos == std::string::npos) {
+            return false;
+        }
+        const auto end = line.find(' ', pos);
+        fields.push_back(
+            line.substr(pos, end == std::string::npos ? std::string::npos : end - pos));
+        pos = end;
+    }
+    const auto majflt = tio::parse_leading<unsigned long long>(fields[kMajfltIndex]);
+    const auto rss = tio::parse_leading<long long>(fields[kRssIndex]);
+    if (!majflt || !rss) {
+        return false;
+    }
+    out.comm = line.substr(open + 1, close - open - 1);
+    out.major_faults = *majflt;
+    out.rss_pages = *rss;
+    return true;
+}
+
+std::string telemetry_process_name(const std::string& comm) {
+    constexpr size_t kMaxLen = 15;
+    std::string out;
+    for (char c : comm) {
+        const bool keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                          (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '+' || c == '-';
+        if (keep && out.size() < kMaxLen) {
+            out.push_back(c);
+        }
+    }
+    return out.empty() ? "unknown" : out;
+}
+
+std::vector<ProcessRss> top_processes_by_rss(size_t count, const char* proc_root,
+                                             long page_size_kb) {
+    std::vector<ProcessRss> all;
+#ifdef __linux__
+    DIR* dir = opendir(proc_root);
+    if (!dir) {
+        return all;
+    }
+    const std::string root(proc_root);
+    while (dirent* entry = readdir(dir)) {
+        const char* pid = entry->d_name;
+        if (pid[0] < '0' || pid[0] > '9') {
+            continue;
+        }
+        // A process that exits between readdir() and here leaves nothing to read.
+        const auto line = tio::read_file(root + "/" + pid + "/stat");
+        ProcStat st;
+        if (!line || !parse_proc_stat(*line, st) || st.rss_pages <= 0) {
+            continue;
+        }
+        all.push_back({telemetry_process_name(st.comm), st.rss_pages * page_size_kb / 1024});
+    }
+    closedir(dir);
+    std::sort(all.begin(), all.end(),
+              [](const ProcessRss& a, const ProcessRss& b) { return a.rss_mb > b.rss_mb; });
+    if (all.size() > count) {
+        all.resize(count);
+    }
+#else
+    (void)count;
+    (void)proc_root;
+    (void)page_size_kb;
+#endif
+    return all;
+}
+
+std::vector<ProcessRss> top_processes_by_rss(size_t count) {
+#ifdef __linux__
+    return top_processes_by_rss(count, "/proc", sysconf(_SC_PAGESIZE) / 1024);
+#else
+    (void)count;
+    return {};
+#endif
+}
+
+std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
+#ifdef __linux__
+    const auto line = tio::read_file(stat_path);
+    ProcStat st;
+    if (line && parse_proc_stat(*line, st)) {
+        return st.major_faults;
+    }
+#else
+    (void)stat_path;
+#endif
+    return std::nullopt;
 }
 
 MemoryInfo get_system_memory_info() {

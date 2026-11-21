@@ -255,6 +255,9 @@ const std::vector<Pinned>& pinned_values() {
         {"session", "app.gcode_render_mode", "<state>", false},
         {"session", "app.gpu_3d_blocked", false, false},
         {"memory_warning", "gcode_renderer_loaded", false, false},
+        // The processes of the machine running the test.
+        {"memory_warning", "top_processes", json::array({{{"name", "<host>"}, {"rss_mb", 0}}}),
+         true},
         {"hardware_profile", "sensors.filament", 0, false},
         {"hardware_profile", "sensors.load_cell", 0, false},
         {"hardware_profile", "sensors.temperature_extra", 0, false},

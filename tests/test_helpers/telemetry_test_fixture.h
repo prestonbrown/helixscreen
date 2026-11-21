@@ -200,7 +200,11 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     tm.record_print_start_context("local", true, 5000000, 3600, "PrusaSlicer", 1, false);
     collect();
     // error_encountered's richest shape: a hang adds the screen and renderer.
-    tm.record_main_loop_hang(92000);
+    helix::HangMemoryContext hang_memory;
+    hang_memory.mem_available_mb = 19;
+    hang_memory.pressure = helix::MemoryPressureLevel::critical;
+    hang_memory.major_faults = 81234;
+    tm.record_main_loop_hang(92000, hang_memory);
     collect();
     fx.write_file(
         "crash.txt",

@@ -577,8 +577,13 @@ void TelemetryManager::record_memory_warning(const helix::MemoryWarningEvent& wa
 
     spdlog::debug("[TelemetryManager] Recording memory warning (level={})",
                   helix::pressure_level_to_string(warning.level));
-    auto event = build_memory_warning_event(warning);
-    enqueue_event(std::move(event));
+    // At warning and above, name who holds the memory: HelixScreen is often
+    // the victim of another process on a shared board, not the cause.
+    std::vector<helix::ProcessRss> top;
+    if (warning.level >= helix::MemoryPressureLevel::warning) {
+        top = helix::top_processes_by_rss(kTopProcessCount);
+    }
+    enqueue_event(build_memory_warning_event(warning, top));
 }
 
 void TelemetryManager::record_hardware_profile() {
@@ -1919,7 +1924,8 @@ nlohmann::json TelemetryManager::build_memory_snapshot_event(const std::string& 
 }
 
 nlohmann::json
-TelemetryManager::build_memory_warning_event(const helix::MemoryWarningEvent& warning) const {
+TelemetryManager::build_memory_warning_event(const helix::MemoryWarningEvent& warning,
+                                             const std::vector<helix::ProcessRss>& top) const {
     json event;
     stamp_envelope(event);
     event["event"] = "memory_warning";
@@ -1964,6 +1970,14 @@ TelemetryManager::build_memory_warning_event(const helix::MemoryWarningEvent& wa
         helix::telemetry_context::active_panel_int.load(std::memory_order_relaxed);
     event["gcode_renderer_loaded"] =
         helix::telemetry_context::gcode_renderer_loaded.load(std::memory_order_relaxed);
+
+    if (!top.empty()) {
+        json processes = json::array();
+        for (const auto& p : top) {
+            processes.push_back({{"name", p.name}, {"rss_mb", p.rss_mb}});
+        }
+        event["top_processes"] = std::move(processes);
+    }
 
     return event;
 }
@@ -2356,7 +2370,8 @@ void TelemetryManager::record_error(const std::string& category, const std::stri
     enqueue_event(build_error_event(category, code, context));
 }
 
-void TelemetryManager::record_main_loop_hang(uint32_t stalled_ms) {
+void TelemetryManager::record_main_loop_hang(uint32_t stalled_ms,
+                                             const helix::HangMemoryContext& memory) {
     if (!admit_error("ui")) {
         return;
     }
@@ -2369,6 +2384,13 @@ void TelemetryManager::record_main_loop_hang(uint32_t stalled_ms) {
         event["active_overlay"] = std::move(overlay);
     }
     add_gl_renderer(event);
+    if (memory.mem_available_mb) {
+        event["mem_available_mb"] = *memory.mem_available_mb;
+    }
+    event["pressure_level"] = helix::pressure_level_to_string(memory.pressure);
+    if (memory.major_faults) {
+        event["major_faults"] = *memory.major_faults;
+    }
     spdlog::debug("[TelemetryManager] Recording main loop hang: {}", event["context"].dump());
     enqueue_event(std::move(event));
 }
@@ -2651,6 +2673,9 @@ nlohmann::json TelemetryManager::build_performance_snapshot_event() const {
     event["timestamp"] = get_timestamp();
     event["snapshot_seq"] = snapshot_seq_;
     event["is_shutdown"] = is_shutdown_snapshot_;
+    // The session event usually goes out before the first 3D preview creates a
+    // GL context; the hourly snapshot carries the renderer from then on.
+    add_gl_renderer(event);
 
     size_t count = std::min(frame_ring_count_, kFrameRingSize);
     if (count == 0) {

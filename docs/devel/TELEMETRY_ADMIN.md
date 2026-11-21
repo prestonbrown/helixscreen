@@ -726,15 +726,15 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 | `update_failed` | Update attempt failed | reason, version, from_version, platform, http_code |
 | `update_success` | Update completed | version, from_version, platform |
 | `memory_snapshot` | Periodic memory check | trigger, uptime_sec, rss_kb, vm_size_kb, vm_peak_kb, vm_hwm_kb, private_dirty_kb, private_clean_kb, shared_clean_kb, pss_kb, system_total_mb, system_available_mb |
-| `memory_warning` | Memory threshold breach | level, reason, rss_kb, vm_size_kb, vm_hwm_kb, vm_swap_kb, system_total_mb, system_available_mb, growth_5min_kb, private_dirty_kb, pss_kb |
+| `memory_warning` | Memory threshold breach | level, reason, rss_kb, vm_size_kb, vm_hwm_kb, vm_swap_kb, system_total_mb, system_available_mb, growth_5min_kb, private_dirty_kb, pss_kb; top_processes[] (name, rss_mb) at warning and critical |
 | `hardware_profile` | Hardware/feature inventory | printer.*, mcus.*, extruders.*, fans.*, steppers.*, leds.*, sensors.*, probe.*, capabilities.*, ams.*, tools.*, macros.*, printer_objects[] |
 | `settings_snapshot` | User configuration | theme, theme_name, brightness_pct, screensaver_timeout_sec, screen_blank_timeout_sec, screensaver_type, locale, sound_enabled, auto_update_channel, animations_enabled, time_format, home_widgets[], spoolman_configured, theme_changed, multi_printer |
 | `panel_usage` | Navigation delta for one window | boot_id, snapshot_seq, session_duration_sec (window length), panel_time_sec.*, panel_visits.*, widget_interactions.*, overlay_visits.*, overlay_open_count |
 | `screensaver_usage` | Screensaver delta for one window | boot_id, snapshot_seq, saver_shown_sec.*, saver_starts.*, saver_woke_by_touch.*, saver_stopped_other.*, saver_too_heavy.*, saver_settled_levels.* |
 | `connection_stability` | Connection delta for one window | boot_id, snapshot_seq, session_duration_sec, connect_count, disconnect_count, total_connected_sec, total_disconnected_sec, longest_disconnect_sec, klippy_error_count, klippy_shutdown_count |
 | `print_start_context` | Print metadata at start | source, has_thumbnail, file_size_bucket, slicer, ams_active |
-| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software |
-| `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel |
+| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software, mem_available_mb, pressure_level, major_faults |
+| `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel, gl_renderer + gl_software (once a GL context has existed) |
 | `settings_changes` | Batched setting diffs | changes[]: setting, old_value, new_value |
 | `async_lifetime_skips` | Deferred async work skipped at shutdown | skips[], window stats |
 
@@ -867,8 +867,15 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
   "shared_clean_kb": 15000,
   "shared_dirty_kb": 1000,
   "pss_kb": 170000,
-  "swap_pss_kb": 0
+  "swap_pss_kb": 0,
+  "top_processes": [
+    { "name": "python3", "rss_mb": 210 },
+    { "name": "helix-screen", "rss_mb": 48 },
+    { "name": "crowsnest", "rss_mb": 12 }
+  ]
 }
 ```
+
+`top_processes` is present at `warning` and `critical` only: each process's comm reduced by `telemetry_process_name()` (15 characters of `[A-Za-z0-9._+-]`, no arguments or paths) and its RSS. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`. Klipper and Moonraker both run as `python3`.
 
 **Implementation:** `MemoryMonitor` (background thread, 5s sampling) → `WarningCallback` → `TelemetryManager::record_memory_warning()`. Growth tracking uses a circular buffer of 10 RSS samples at 30s intervals (5-minute window).
