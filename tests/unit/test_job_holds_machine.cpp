@@ -432,6 +432,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/chamber_air_target_row.xml",
     "ui_xml/change_host_modal.xml",
     "ui_xml/color_picker_modal.xml",
+    "ui_xml/color_picker_page.xml",
     "ui_xml/common_spool_tile.xml",
     "ui_xml/components/action_prompt_button.xml",
     "ui_xml/components/action_prompt_swatch.xml",
