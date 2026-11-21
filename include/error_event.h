@@ -116,6 +116,10 @@ struct ErrorEvent {
 struct ClassifyContext {
     bool is_paused = false;   ///< print currently paused (pause_resume.is_paused)
     bool is_printing = false; ///< print active (print_stats.state == "printing")
+    /// print_stats.state == "paused". Klipper reports it before pause_resume's
+    /// is_paused while a PAUSE is still running, so a fault raised in that gap
+    /// still belongs to a job.
+    bool is_job_paused = false;
 };
 
 /// Which error shape a gcode-response line carries. The two mark different

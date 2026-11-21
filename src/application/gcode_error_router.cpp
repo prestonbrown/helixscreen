@@ -306,8 +306,9 @@ ClassifyContext GcodeErrorRouter::current_classify_context() {
     // A failure inside a host-side pre-start block is PrintPreparationManager's
     // to report, and claiming a print is running would offer a Resume that has
     // nothing to resume.
-    ctx.is_printing =
-        get_printer_state().print_state().get_print_job_state() == PrintJobState::PRINTING;
+    const PrintJobState job = get_printer_state().print_state().get_print_job_state();
+    ctx.is_printing = job == PrintJobState::PRINTING;
+    ctx.is_job_paused = job == PrintJobState::PAUSED;
     return ctx;
 }
 

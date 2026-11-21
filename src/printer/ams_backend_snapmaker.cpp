@@ -3684,7 +3684,7 @@ AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
     e->title = worded->summary;
     e->detail = worded->detail;
     e->runout_lane = snapmaker::runout_head(*code);
-    const bool job_waits = ctx.is_printing || ctx.is_paused;
+    const bool job_waits = ctx.is_printing || ctx.is_paused || ctx.is_job_paused;
     // The firmware keeps a runout standing after the print it paused ends, and
     // replays it on every reconnect. With no job waiting it is a leftover; a
     // live idle runout is the filament sensor's own "Filament removed" notice.

@@ -884,9 +884,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a runout left standing after the print ende
         CHECK(toasts.shown.empty());
         CHECK_FALSE(presenter.is_visible());
 
-        // The same standing runout while the job waits on it still reports.
+        // The same standing runout while the job waits on it still reports, even
+        // in Klipper's pause gap: print_stats reads paused before pause_resume does.
         get_printer_state().update_from_status(
-            {{"print_stats", {{"state", "paused"}}}, {"pause_resume", {{"is_paused", true}}}});
+            {{"print_stats", {{"state", "paused"}}}, {"pause_resume", {{"is_paused", false}}}});
         GcodeErrorRouterTestAccess::on_connected(router);
         GcodeErrorRouterTestAccess::on_notify_status_update(router,
                                                             notify_frame(standing_frame({runout})));
