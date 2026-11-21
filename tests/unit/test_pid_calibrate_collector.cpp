@@ -158,12 +158,16 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "PID calibrate collector fires progres
 
     mock_client_.dispatch_gcode_response("sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a");
     mock_client_.dispatch_gcode_response("sample:2 pwm:0.48 asymmetry:0.15 tolerance:0.045");
+    // A heater that loses heat faster than it gains it reports a negative asymmetry.
+    mock_client_.dispatch_gcode_response("sample:3 pwm:0.578 asymmetry:-0.1169 tolerance:0.0086");
 
-    REQUIRE(progress_samples_.size() == 2);
+    REQUIRE(progress_samples_.size() == 3);
     REQUIRE(progress_samples_[0] == 1);
     REQUIRE(progress_samples_[1] == 2);
+    REQUIRE(progress_samples_[2] == 3);
     REQUIRE(progress_tolerances_[0] == -1.0f);
     REQUIRE(progress_tolerances_[1] == Catch::Approx(0.045f));
+    REQUIRE(progress_tolerances_[2] == Catch::Approx(0.0086f));
 
     // Complete the collector to avoid dangling callback in mock client destruction
     mock_client_.dispatch_gcode_response(
@@ -396,4 +400,30 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture, "Mock configfile returns bed PID value
     REQUIRE(kp == Catch::Approx(73.517f).margin(0.001f));
     REQUIRE(ki == Catch::Approx(1.132f).margin(0.001f));
     REQUIRE(kd == Catch::Approx(1194.093f).margin(0.001f));
+}
+
+TEST_CASE_METHOD(PIDCalibrateTestFixture,
+                 "PID calibrate asks Kalico for a looser tolerance on the bed only",
+                 "[pid_calibrate]") {
+    auto start = [this](const char* heater, int target) {
+        mock_client_.clear_gcode_script_history();
+        api_->advanced().start_pid_calibrate(
+            heater, target, [](float, float, float) {}, [](const MoonrakerError&) {});
+        REQUIRE_FALSE(mock_client_.gcode_script_history().empty());
+        const std::string sent = mock_client_.gcode_script_history().front();
+        mock_client_.dispatch_gcode_response(
+            "PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
+        return sent;
+    };
+
+    SECTION("mainline Klipper takes no TOLERANCE") {
+        CHECK(start("heater_bed", 60) == "PID_CALIBRATE HEATER=heater_bed TARGET=60");
+    }
+    SECTION("Kalico: the bed settles at 0.05, a hotend at Kalico's own 0.02") {
+        api_->hardware().apply_printer_info(
+            json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
+        CHECK(start("heater_bed", 60) ==
+              "PID_CALIBRATE HEATER=heater_bed TARGET=60 TOLERANCE=0.05");
+        CHECK(start("extruder", 210) == "PID_CALIBRATE HEATER=extruder TARGET=210 TOLERANCE=0.02");
+    }
 }

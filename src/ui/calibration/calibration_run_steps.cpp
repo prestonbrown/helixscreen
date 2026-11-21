@@ -12,6 +12,7 @@
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
 #include "moonraker_error.h"
+#include "pid_calibrate_tolerance.h"
 #include "pid_progress_tracker.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -24,6 +25,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -101,15 +103,34 @@ class HeatersStep : public CalibrationStep {
         return is_bed() ? lv_tr("Bed") : lv_tr("Nozzle");
     }
 
-    void report(const std::string& method, int done_fraction_pct) {
+    void report(const std::string& method, int done_fraction_pct, const std::string& detail = {}) {
         if (!ctx_) {
             return;
         }
         const int share = 100 / static_cast<int>(heaters_.size());
         const int pct = static_cast<int>(index_) * share + done_fraction_pct * share / 100;
-        ctx_->progress({fmt::format(fmt::runtime(lv_tr("{}: {} at {}°C")), label(), method,
-                                    heaters_[index_].temp_c),
-                        std::clamp(pct, 0, 99)});
+        std::string phase = fmt::format(fmt::runtime(lv_tr("{}: {} at {}°C")), label(), method,
+                                        heaters_[index_].temp_c);
+        if (!detail.empty()) {
+            phase += " · " + detail;
+        }
+        ctx_->progress({std::move(phase), std::clamp(pct, 0, 99)});
+    }
+
+    /// A PID cycle's progress. Where the firmware repeats cycles until they
+    /// agree within a tolerance, the bar follows how close they are on a log
+    /// scale (0.70 of 0.05 reads 12%, 0.27 reads 44%); otherwise it counts the
+    /// cycles a fixed-length calibration runs.
+    void report_pid_cycle(int sample, float tolerance, std::optional<double> target) {
+        if (target && tolerance > 0.0f) {
+            const double done = std::log(1.0 / tolerance) / std::log(1.0 / *target);
+            report("PID", std::clamp(static_cast<int>(done * 100), 0, 95),
+                   fmt::format(fmt::runtime(lv_tr("cycle {}, {:.2f} (needs {:.2f})")), sample,
+                               tolerance, *target));
+            return;
+        }
+        report("PID", std::min(95, sample * 100 / PidProgressTracker::kExpectedCycles),
+               fmt::format(fmt::runtime(lv_tr("cycle {}")), sample));
     }
 
     void run_current() {
@@ -160,9 +181,9 @@ class HeatersStep : public CalibrationStep {
             lifetime_.bg_cb("CalibrationRun.Heaters.pid_error",
                             [this](const MoonrakerError& err) { fail(err.message); }),
             lifetime_.bg_cb(
-                "CalibrationRun.Heaters.pid_progress", [this](int sample, float /*tolerance*/) {
-                    report("PID", std::min(95, sample * 100 / PidProgressTracker::kExpectedCycles));
-                }));
+                "CalibrationRun.Heaters.pid_progress",
+                [this, target = helix::pid::calibrate_tolerance(ctx_->api.hardware(), h.name)](
+                    int sample, float tolerance) { report_pid_cycle(sample, tolerance, target); }));
     }
 
     void run_mpc() {

@@ -5344,6 +5344,8 @@
   <translation tag="color differs" en="color differs"/>
   <translation tag="complete" en="complete"/>
   <translation tag="cores" en="cores"/>
+  <translation tag="cycle {}" en="cycle {}"/>
+  <translation tag="cycle {}, {:.2f} (needs {:.2f})" en="cycle {}, {:.2f} (needs {:.2f})"/>
   <translation tag="direct drive" en="direct drive"/>
   <translation tag="disable" en="disable"/>
   <translation tag="disabled" en="disabled"/>

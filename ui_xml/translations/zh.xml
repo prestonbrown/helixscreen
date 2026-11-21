@@ -5344,6 +5344,8 @@
   <translation tag="color differs" zh="颜色不同"/>
   <translation tag="complete" zh="完成"/>
   <translation tag="cores" zh="核心"/>
+  <translation tag="cycle {}" zh="第 {} 轮"/>
+  <translation tag="cycle {}, {:.2f} (needs {:.2f})" zh="第 {} 轮，{:.2f}（目标 {:.2f}）"/>
   <translation tag="direct drive" zh="直驱"/>
   <translation tag="disable" zh="禁用"/>
   <translation tag="disabled" zh="已禁用"/>

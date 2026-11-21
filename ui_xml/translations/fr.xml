@@ -5350,6 +5350,8 @@
   <translation tag="color differs" fr="couleur différente"/>
   <translation tag="complete" fr="terminé"/>
   <translation tag="cores" fr="cœurs"/>
+  <translation tag="cycle {}" fr="cycle {}"/>
+  <translation tag="cycle {}, {:.2f} (needs {:.2f})" fr="cycle {}, {:.2f} (objectif {:.2f})"/>
   <translation tag="direct drive" fr="à entraînement direct"/>
   <translation tag="disable" fr="désactiver"/>
   <translation tag="disabled" fr="désactivé"/>
