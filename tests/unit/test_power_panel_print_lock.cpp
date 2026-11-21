@@ -23,11 +23,14 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/power_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "moonraker_types.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
 
+#include <algorithm>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -186,4 +189,42 @@ TEST_CASE_METHOD(PowerPanelLockFixture,
     CHECK(toggle_disabled(obj));
 
     teardown(panel, obj);
+}
+
+// The chip row above the list picks which devices the main power button drives.
+// A chip's tap reaches the app-wide panel through the XML callback, by index.
+TEST_CASE_METHOD(PowerPanelLockFixture, "Power device chip tap toggles that device's selection",
+                 "[power][print_state]") {
+    PowerPanel& panel = get_global_power_panel();
+    lv_obj_t* obj = build(panel);
+
+    PowerDevice psu;
+    psu.device = "printer";
+    psu.type = "gpio";
+    psu.status = "on";
+    PowerDevice lamp = psu;
+    lamp.device = "lamp";
+    panel.set_selected_devices({"printer", "lamp"});
+    helix::ui::PowerPanelTestAccess::populate_device_list(panel, {psu, lamp});
+    settle();
+
+    lv_obj_t* chips = helix::ui::PowerPanelTestAccess::chip_container(panel);
+    REQUIRE(chips != nullptr);
+    REQUIRE(lv_obj_get_child_count(chips) == 2);
+    lv_obj_t* lamp_chip = lv_obj_get_child(chips, 1);
+    REQUIRE(lv_obj_has_state(lamp_chip, LV_STATE_CHECKED));
+
+    lv_obj_send_event(lamp_chip, LV_EVENT_CLICKED, nullptr);
+    settle();
+
+    const auto& selected = panel.get_selected_devices();
+    CHECK(std::find(selected.begin(), selected.end(), "lamp") == selected.end());
+    CHECK(std::find(selected.begin(), selected.end(), "printer") != selected.end());
+    REQUIRE(lv_obj_get_child_count(chips) == 2);
+    CHECK_FALSE(lv_obj_has_state(lv_obj_get_child(chips, 1), LV_STATE_CHECKED));
+    CHECK(lv_obj_has_state(lv_obj_get_child(chips, 0), LV_STATE_CHECKED));
+
+    panel.set_selected_devices({});
+    teardown(panel, obj);
+    StaticPanelRegistry::instance().destroy_all();
 }
