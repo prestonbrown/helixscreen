@@ -15,6 +15,12 @@ class PrinterState;
 
 namespace helix::ui {
 
+/// Whether the printer has something to show as a lane tray: a filament
+/// system's lanes (@p ams_slot_count > 0) or several heads. Print Status and
+/// the Filament panel show the tray only then; TargetTool publishes it as
+/// `has_filament_system_or_multi_tool`.
+[[nodiscard]] bool has_filament_system_or_multi_tool(int ams_slot_count, bool multi_head);
+
 /**
  * @brief The one target tool every temperature and filament surface aims at.
  *
@@ -30,6 +36,9 @@ namespace helix::ui {
  *  - `target_tool_name` ("Tool 2" or a configured name), `target_tool_number`
  *    ("2", empty with one head) and `target_nozzle_label` ("Nozzle 2"), all
  *    in the display numbering, so a chip, a segment and a row agree;
+ *  - `has_filament_system_or_multi_tool`: has_filament_system_or_multi_tool()
+ *    over AmsState's `ams_slot_count` and the head count, which gates the
+ *    lane tray surfaces;
  *  - `target_nozzle_temp` / `target_nozzle_target` (decidegrees) and
  *    `target_nozzle_status_state` / `target_nozzle_status` (classified as
  *    every heater row is) for the target's own nozzle.
@@ -101,6 +110,7 @@ class TargetTool {
     SubjectManager subjects_;
     helix::Subject tool_subject_{};
     helix::Subject multi_head_subject_{};
+    helix::Subject lane_tray_subject_{};
     helix::Subject name_subject_{};
     char name_buf_[64] = {};
     helix::Subject number_subject_{};
@@ -120,6 +130,7 @@ class TargetTool {
     ObserverGuard tools_version_observer_;
     ObserverGuard extruder_version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard ams_slot_count_observer_;
 };
 
 } // namespace helix::ui

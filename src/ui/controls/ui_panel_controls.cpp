@@ -115,6 +115,7 @@ void ControlsPanel::init_subjects() {
         spdlog::warn("[{}] init_subjects() called twice - ignoring", get_name());
         return;
     }
+    side_band_.init_subjects();
 
     // Initialize dashboard display subjects for card live data
     // Using UI_MANAGED_SUBJECT_* macros for automatic RAII cleanup via SubjectManager
@@ -276,6 +277,7 @@ void ControlsPanel::deinit_subjects() {
     if (!subjects_initialized_) {
         return;
     }
+    side_band_.deinit_subjects();
 
     subjects_.deinit_all();
 
@@ -317,6 +319,8 @@ void ControlsPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
 
     update_more_sensors();
 
+    side_band_.bind(panel_);
+
     spdlog::debug("[{}] Setup complete", get_name());
 }
 
@@ -339,11 +343,14 @@ void ControlsPanel::on_activate() {
     // Re-read the slot config: the user may have changed settings
     quick_actions_.reload();
 
+    side_band_.on_host_activate();
+
     spdlog::trace("[{}] Panel activated", get_name());
 }
 
-void ControlsPanel::on_deactivating(DeactivateReason) {
+void ControlsPanel::on_deactivating(DeactivateReason reason) {
     active_ = false;
+    side_band_.on_host_deactivate(reason);
     spdlog::trace("[{}] Panel deactivated, observer callbacks will skip UI updates", get_name());
 }
 
@@ -691,7 +698,7 @@ void ControlsPanel::handle_save_z_offset() {
 // ============================================================================
 
 void ControlsPanel::handle_quick_actions_clicked() {
-    get_global_motion_panel().show(parent_screen_);
+    helix::open_motion_panel(parent_screen_);
 }
 
 void ControlsPanel::handle_cooling_clicked() {

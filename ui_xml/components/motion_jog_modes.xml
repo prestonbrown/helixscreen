@@ -7,7 +7,9 @@
        (by default a near-square key, jog_mode_h by at most jog_mode_w);
        `icon_position` places the icon and `text_font` sets the label face. The
        subject and callback props default to the Motion panel's own; another
-       owner names its own so its choice stays out of the Motion setting. -->
+       owner names its own so its choice stays out of the Motion setting.
+       `icon_hidden_subject` names a subject that leaves the labels alone at 1:
+       motion_modes_text_only below is the one a narrow landscape row uses. -->
   <api>
     <prop name="icon_position" type="string" default="top"/>
     <prop name="button_height" type="string" default="#jog_mode_h"/>
@@ -20,14 +22,21 @@
     <prop name="coarse_callback" type="string" default="on_jog_mode_coarse"/>
     <prop name="turbo_callback" type="string" default="on_jog_mode_turbo"/>
     <prop name="turbo_hidden" type="string" default="false"/>
+    <prop name="icon_hidden_subject" type="string" default=""/>
   </api>
+  <subjects>
+    <!-- A landscape screen of the tiny or micro breakpoint (480x320, 480x272) gives
+         each mode about 46 px: the label fits, the icon beside it does not. An
+         ultrawide screen of the same height has the width for both. -->
+    <subject_expr name="motion_modes_text_only" expr="ui_breakpoint le 1 and ui_is_ultrawide eq 0"/>
+  </subjects>
   <view name="motion_jog_modes"
         extends="lv_obj" width="100%" height="content" style_pad_all="0" style_border_opa="0" style_bg_opa="0"
         scrollable="false" flex_flow="row" style_flex_main_place="center" style_pad_gap="#space_xs">
     <ui_button name="jog_mode_fine"
                width="0" height="$button_height" flex_grow="1" style_min_width="0" style_max_width="$max_width"
                style_pad_hor="#space_xxs" style_pad_ver="0" text="Fine" icon="tortoise" icon_position="$icon_position"
-               style_text_font="$text_font">
+               style_text_font="$text_font" icon_hidden_subject="$icon_hidden_subject" icon_hidden_if_eq="1">
       <bind_style name="styles.choice_selected" subject="$fine_active" ref_value="1"/>
       <bind_style name="styles.choice_idle" subject="$fine_active" ref_value="0"/>
       <event_cb trigger="clicked" callback="$fine_callback"/>
@@ -35,7 +44,7 @@
     <ui_button name="jog_mode_coarse"
                width="0" height="$button_height" flex_grow="1" style_min_width="0" style_max_width="$max_width"
                style_pad_hor="#space_xxs" style_pad_ver="0" text="Coarse" icon="rabbit" icon_position="$icon_position"
-               style_text_font="$text_font">
+               style_text_font="$text_font" icon_hidden_subject="$icon_hidden_subject" icon_hidden_if_eq="1">
       <bind_style name="styles.choice_selected" subject="$coarse_active" ref_value="1"/>
       <bind_style name="styles.choice_idle" subject="$coarse_active" ref_value="0"/>
       <event_cb trigger="clicked" callback="$coarse_callback"/>
@@ -43,7 +52,8 @@
     <ui_button name="jog_mode_turbo"
                width="0" height="$button_height" hidden="$turbo_hidden" flex_grow="1" style_min_width="0"
                style_max_width="$max_width" style_pad_hor="#space_xxs" style_pad_ver="0" text="Turbo" icon="flash"
-               icon_position="$icon_position" style_text_font="$text_font">
+               icon_position="$icon_position" style_text_font="$text_font" icon_hidden_subject="$icon_hidden_subject"
+               icon_hidden_if_eq="1">
       <bind_style name="styles.choice_selected" subject="$turbo_active" ref_value="1"/>
       <bind_style name="styles.choice_idle" subject="$turbo_active" ref_value="0"/>
       <event_cb trigger="clicked" callback="$turbo_callback"/>

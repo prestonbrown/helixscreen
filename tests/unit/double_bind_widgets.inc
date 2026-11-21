@@ -85,6 +85,6 @@ static const BindGroup kDoubleBindWidgets[] = {
 };
 // clang-format on
 
-// Groups in ui_xml/: 61 drivable, 52 that no test can drive (see the header
-// comment), 113 total. qc_double_binds fails a commit that leaves this file
+// Groups in ui_xml/: 61 drivable, 53 that no test can drive (see the header
+// comment), 114 total. qc_double_binds fails a commit that leaves this file
 // behind ui_xml/.

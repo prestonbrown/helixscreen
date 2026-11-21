@@ -3,6 +3,8 @@
 
 #include "print_status_layout_fitter.h"
 
+#include "ui_ams_mini_status.h"
+
 #include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
 
@@ -70,6 +72,24 @@ bool is_ultrawide() {
     return uw && lv_subject_get_int(uw) == 1;
 }
 
+/// The job tile's pre-print checklist in full (components/print_status_job_checklist.xml):
+/// the file line and a row per step, #space_xxs apart, inside the tile's #space_sm
+/// padding; 0 outside pre-print. Rows not laid out yet are font_small lines.
+int32_t checklist_height(lv_obj_t* root) {
+    lv_subject_t* preparing = lv_xml_get_subject(nullptr, "preparing_visible");
+    if (!preparing || lv_subject_get_int(preparing) == 0) {
+        return 0;
+    }
+    lv_subject_t* steps = lv_xml_get_subject(nullptr, "ps_step_count");
+    const int32_t rows = 1 + (steps ? lv_subject_get_int(steps) : 0);
+    int32_t row_h = lv_font_get_line_height(theme_manager_get_font("font_small"));
+    if (lv_obj_t* row = lv_obj_find_by_name(root, "ps_step_row_0")) {
+        row_h = std::max(row_h, lv_obj_get_height(row));
+    }
+    return rows * row_h + (rows - 1) * theme_manager_get_spacing("space_xxs") +
+           2 * theme_manager_get_spacing("space_sm");
+}
+
 /// The strip is a ui_card: its padding and border on both sides.
 int32_t strip_chrome() {
     return 2 * (theme_manager_get_spacing("space_sm") + theme_manager_get_spacing("border_width"));
@@ -104,12 +124,14 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
         return last_;
     }
     const int32_t gap = theme_manager_get_spacing("space_md");
+    const bool lane_tray = has_lane_tray();
     if (is_ultrawide()) {
-        last_ = decide_print_status_ultrawide_layout(w, h, gap);
+        last_ = decide_print_status_ultrawide_layout(w, h, gap, lane_tray);
     } else {
         lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
         last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
-                                                strip_stacked_height(progress));
+                                                strip_stacked_height(progress), lane_tray,
+                                                checklist_height(root));
     }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {
@@ -123,11 +145,24 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     set(subjects_.printer_w, last_.columns.printer_w);
     set(subjects_.readouts_w, last_.columns.readouts_w);
     set(subjects_.actions_w, last_.columns.actions_w);
-    spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}",
+    set(subjects_.lane_tray, static_cast<int>(last_.lane_tray));
+    set(subjects_.lane_tray_h, last_.lane_tray_h);
+    set(subjects_.printer_tile_h,
+        last_.lane_tray == PrintStatusLaneTray::Strip ? last_.printer_h : lv_pct(100));
+    // The tray picks its spool or bar view from the width it is given.
+    if (lv_obj_t* tray = lv_obj_find_by_name(root, "ps_lane_tray_status");
+        tray && ui_ams_mini_status_is_valid(tray)) {
+        const int32_t tray_w =
+            last_.lane_tray == PrintStatusLaneTray::Column ? last_.columns.readouts_w : w;
+        ui_ams_mini_status_set_width(tray, tray_w - 2 * theme_manager_get_spacing("space_sm"));
+    }
+    spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}, "
+                  "lane tray {} ({}px)",
                   log_tag_, w, h,
                   last_.arrangement == PrintStatusArrangement::Stacked ? "stacked" : "side by side",
                   last_.strip_stacked ? "stacked" : "row", last_.strip_h, last_.job_w, last_.job_h,
-                  last_.printer_w, last_.printer_h, last_.checklist_compact ? "compact" : "list");
+                  last_.printer_w, last_.printer_h, last_.checklist_compact ? "compact" : "list",
+                  static_cast<int>(last_.lane_tray), last_.lane_tray_h);
     return last_;
 }
 

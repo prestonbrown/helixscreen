@@ -54,8 +54,12 @@
                 height="100%" flex_grow="1" style_pad_left="0" style_pad_right="0" style_pad_top="0"
                 style_pad_bottom="0" scrollable="false" clickable="true" style_flex_cross_place="center"
                 style_flex_track_place="center" flex_flow="row" style_pad_gap="#space_xs">
+          <!-- In an ultrawide side band there is nothing to go back to. -->
+          <bind_flag_if_eq subject="ams_in_side_band" flag="clickable" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_header_back_clicked"/>
-          <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+          <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true">
+            <bind_flag_if_eq subject="ams_in_side_band" flag="hidden" ref_value="1"/>
+          </icon>
           <!-- The title is the system: [back] [logo] NAME. width="1"+flex_grow: it takes
                what the chip leaves, and the name ellipsizes inside that. -->
           <lv_obj name="header_backend_suffix"
