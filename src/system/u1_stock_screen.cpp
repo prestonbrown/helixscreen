@@ -8,9 +8,9 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 
 namespace helix::u1 {
 
@@ -45,10 +45,12 @@ RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_stat
 }
 
 bool write_restore_trigger(const std::string& path) {
-    std::ofstream out(path, std::ios::trunc);
-    out << "Restore the stock screen at the next start (written by HelixScreen Settings)\n";
-    out.close();
-    if (!out) {
+    std::FILE* out = std::fopen(path.c_str(), "w");
+    const bool written =
+        out != nullptr &&
+        std::fputs("Restore the stock screen at the next start (written by HelixScreen Settings)\n",
+                   out) >= 0;
+    if ((out != nullptr && std::fclose(out) != 0) || !written) {
         spdlog::error("[U1] Could not write the restore-stock trigger {}", path);
         return false;
     }
