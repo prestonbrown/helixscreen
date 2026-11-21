@@ -1141,6 +1141,7 @@
   <translation tag="Critical hardware missing: {}" ja="重要なハードウェアがありません: {}"/>
   <translation tag="Ctrl" ja="Ctrl"/>
   <translation tag="Currency" ja="通貨"/>
+  <translation tag="Current" ja="現在"/>
   <translation tag="Current / Target" ja="現在 / 目標"/>
   <translation tag="Current Configuration" ja="現在の設定"/>
   <translation tag="Current Mesh" ja="現在のメッシュ"/>

@@ -1204,6 +1204,7 @@ translations:
   'Critical hardware missing: {}': 'Kritische Hardware fehlt: {}'
   Ctrl: 'Strg'
   Currency: "Währung"
+  Current: Aktuell
   Current / Target: Aktuell / Ziel
   Current Configuration: Aktuelle Konfiguration
   Current Mesh: Aktuelles Netz

@@ -1204,6 +1204,7 @@ translations:
   'Critical hardware missing: {}': 'Hardware critico mancante: {}'
   Ctrl: 'Ctrl'
   Currency: "Valuta"
+  Current: Attuale
   Current / Target: Attuale / Target
   Current Configuration: Configurazione attuale
   Current Mesh: Mesh attuale

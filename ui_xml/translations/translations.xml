@@ -1186,6 +1186,7 @@
   <translation tag="Critical hardware missing: {}" de="Kritische Hardware fehlt: {}" en="Critical hardware missing: {}" es="Falta hardware crítico: {}" fr="Matériel critique manquant : {}" it="Hardware critico mancante: {}" ja="重要なハードウェアがありません: {}" pt="Hardware crítico ausente: {}" ru="Отсутствует критическое оборудование: {}" zh="缺少关键硬件: {}"/>
   <translation tag="Ctrl" de="Strg" en="Ctrl" es="Ctrl" fr="Ctrl" it="Ctrl" ja="Ctrl" pt="Ctrl" ru="Ctrl" zh="Ctrl"/>
   <translation tag="Currency" de="Währung" en="Currency" en-GB="Currency" es="Moneda" fr="Devise" it="Valuta" ja="通貨" pt="Moeda" ru="Валюта" zh="货币"/>
+  <translation tag="Current" de="Aktuell" en="Current" es="Actual" fr="Actuelle" it="Attuale" ja="現在" pt="Atual" ru="Текущая" zh="当前"/>
   <translation tag="Current / Target" de="Aktuell / Ziel" en="Current / Target" es="Actual / Objetivo" fr="Actuel / Cible" it="Attuale / Target" ja="現在 / 目標" pt="Atual / Alvo" ru="Текущая / Цель" zh="当前 / 目标"/>
   <translation tag="Current Configuration" de="Aktuelle Konfiguration" en="Current Configuration" es="Configuración Actual" fr="Configuration actuelle" it="Configurazione attuale" ja="現在の設定" pt="Configuração Atual" ru="Текущая конфигурация" zh="当前配置"/>
   <translation tag="Current Mesh" de="Aktuelles Netz" en="Current Mesh" es="Malla Actual" fr="Maillage du plateau actuel" it="Mesh attuale" ja="現在のメッシュ" pt="Malha Atual" ru="Текущая сетка" zh="当前网格"/>

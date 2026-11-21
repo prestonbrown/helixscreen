@@ -1186,6 +1186,7 @@
   <translation tag="Critical hardware missing: {}" ru="Отсутствует критическое оборудование: {}"/>
   <translation tag="Ctrl" ru="Ctrl"/>
   <translation tag="Currency" ru="Валюта"/>
+  <translation tag="Current" ru="Текущая"/>
   <translation tag="Current / Target" ru="Текущая / Цель"/>
   <translation tag="Current Configuration" ru="Текущая конфигурация"/>
   <translation tag="Current Mesh" ru="Текущая сетка"/>

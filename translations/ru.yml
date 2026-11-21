@@ -1264,6 +1264,7 @@ translations:
   'Critical hardware missing: {}': 'Отсутствует критическое оборудование: {}'
   Ctrl: 'Ctrl'
   Currency: "Валюта"
+  Current: Текущая
   Current / Target: Текущая / Цель
   Current Configuration: Текущая конфигурация
   Current Mesh: Текущая сетка

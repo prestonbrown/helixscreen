@@ -1204,6 +1204,7 @@ translations:
   'Critical hardware missing: {}': '缺少关键硬件: {}'
   Ctrl: 'Ctrl'
   Currency: "货币"
+  Current: 当前
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
   Current Mesh: 当前网格

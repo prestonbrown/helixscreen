@@ -1141,6 +1141,7 @@
   <translation tag="Critical hardware missing: {}" zh="缺少关键硬件: {}"/>
   <translation tag="Ctrl" zh="Ctrl"/>
   <translation tag="Currency" zh="货币"/>
+  <translation tag="Current" zh="当前"/>
   <translation tag="Current / Target" zh="当前 / 目标"/>
   <translation tag="Current Configuration" zh="当前配置"/>
   <translation tag="Current Mesh" zh="当前网格"/>

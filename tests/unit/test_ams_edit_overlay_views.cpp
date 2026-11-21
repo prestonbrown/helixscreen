@@ -1792,6 +1792,63 @@ TEST_CASE_METHOD(EditorFixture, "Use after Different Spool links the lane and cl
     CHECK(captured.slot_info.material == "PETG");
 }
 
+TEST_CASE_METHOD(EditorFixture, "Assign Spool lists the lane's linked spool first, as Current",
+                 "[ams_edit_overlay][picker][preselect][2095]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    // An empty lane pins nothing; a lane linked to spool 33 (last in recency) leads with it.
+    const int linked_id = GENERATE(0, 33);
+    CAPTURE(linked_id);
+    SlotInfo lane;
+    if (linked_id) {
+        lane = tracked_slot();
+        lane.spoolman_id = linked_id;
+    }
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, lane, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    if (linked_id) {
+        REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
+        access.call_different_spool();
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    access.set_cached_spools(three_spools());
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    const auto current_rows = [&] {
+        std::vector<int> rows;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
+            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
+            lv_obj_t* current = lv_obj_find_by_name(row, "row_current");
+            lv_obj_t* use = lv_obj_find_by_name(row, "row_use");
+            REQUIRE(current != nullptr);
+            REQUIRE(use != nullptr);
+            // Current stands in for Use: never both, never neither.
+            CHECK(lv_obj_is_hidden(current) != lv_obj_is_hidden(use));
+            if (!lv_obj_is_hidden(current)) {
+                rows.push_back(static_cast<int>(i));
+            }
+        }
+        return rows;
+    };
+
+    access.call_render_spool_list("");
+    process_lvgl(10);
+    CHECK(access.listed_ids() ==
+          (linked_id ? std::vector<int>{33, 11, 22} : std::vector<int>{11, 22, 33}));
+    CHECK(current_rows() == std::vector<int>(linked_id ? 1 : 0, 0));
+
+    // The search still applies to it; filtered out, no row is Current.
+    access.call_render_spool_list("polymaker");
+    process_lvgl(10);
+    CHECK(access.listed_ids() == std::vector<int>{11});
+    CHECK(current_rows().empty());
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(EditorFixture, "Assign Spool always offers a way to add the spool",
                  "[ams_edit_overlay][picker][setup_entry]") {
     auto& overlay = get_ams_edit_overlay();

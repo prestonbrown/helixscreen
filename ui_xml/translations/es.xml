@@ -1141,6 +1141,7 @@
   <translation tag="Critical hardware missing: {}" es="Falta hardware crítico: {}"/>
   <translation tag="Ctrl" es="Ctrl"/>
   <translation tag="Currency" es="Moneda"/>
+  <translation tag="Current" es="Actual"/>
   <translation tag="Current / Target" es="Actual / Objetivo"/>
   <translation tag="Current Configuration" es="Configuración Actual"/>
   <translation tag="Current Mesh" es="Malla Actual"/>

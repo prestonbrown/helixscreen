@@ -12,6 +12,9 @@
     <prop name="hide_close" type="string" default="true"/>
     <!-- "true" for a spool another lane holds: no Use. -->
     <prop name="use_disabled" type="string" default="false"/>
+    <!-- "true" for the spool this lane holds: "Current" stands in for Use. -->
+    <prop name="is_current" type="string" default="false"/>
+    <prop name="hide_current" type="string" default="true"/>
   </api>
   <consts>
     <px name="spool_assign_row_spool_micro" value="28"/>
@@ -34,8 +37,10 @@
                   width="100%" text="" long_mode="dots" style_text_color="#warning" hidden="$hide_close"/>
     </lv_obj>
     <ui_button name="row_use"
-               width="content" height="#button_height_sm" text="Use" variant="primary" disabled="$use_disabled">
+               width="content" height="#button_height_sm" text="Use" variant="primary" disabled="$use_disabled"
+               hidden="$is_current">
       <event_cb trigger="clicked" callback="ams_edit_row_use_cb"/>
     </ui_button>
+    <text_small name="row_current" text="Current" style_text_color="#text_muted" hidden="$hide_current"/>
   </view>
 </component>

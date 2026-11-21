@@ -1204,6 +1204,7 @@ translations:
   'Critical hardware missing: {}': 'Hardware crítico ausente: {}'
   Ctrl: 'Ctrl'
   Currency: "Moeda"
+  Current: Atual
   Current / Target: Atual / Alvo
   Current Configuration: Configuração Atual
   Current Mesh: Malha Atual

@@ -969,9 +969,6 @@ void AmsEditOverlay::populate_picker() {
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     const bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
     if (!api_) {
-        api_ = get_moonraker_api();
-    }
-    if (!api_) {
         spools_from_spoolman_ = false;
         picker_pending_ = false;
         render_spool_list("");
@@ -1138,6 +1135,20 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
     }
 
+    // The spool this lane holds leads the list, marked Current in place of
+    // Use, so Different Spool shows which one is linked (#2095). The search
+    // and the form still apply to it.
+    const int current_id = spools_from_spoolman_ ? original_info_.spoolman_id : 0;
+    if (current_id > 0) {
+        const auto current =
+            std::find_if(listed_.begin(), listed_.end(), [&](const spool_assign::RankedSpool& r) {
+                return cached_spools_[r.index].id == current_id;
+            });
+        if (current != listed_.end()) {
+            std::rotate(listed_.begin(), current, current + 1);
+        }
+    }
+
     const std::set<int> in_use = spools_in_other_lanes();
     listed_query_ = ListedQuery{query, filter, cached_spools_.size(), in_use};
 
@@ -1147,8 +1158,12 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         const SpoolInfo& spool = cached_spools_[listed_[row].index];
         const bool close = listed_[row].match.kind == spool_assign::MatchKind::Close;
         const bool taken = spool.id > 0 && in_use.count(spool.id) > 0;
-        const char* attrs[] = {"hide_close", close ? "false" : "true", "use_disabled",
-                               taken ? "true" : "false", nullptr};
+        const bool is_current = current_id > 0 && spool.id == current_id;
+        const char* attrs[] = {"hide_close",   close ? "false" : "true",
+                               "use_disabled", taken ? "true" : "false",
+                               "is_current",   is_current ? "true" : "false",
+                               "hide_current", is_current ? "false" : "true",
+                               nullptr};
         lv_obj_t* item =
             static_cast<lv_obj_t*>(lv_xml_create(spool_list, "spool_assign_row", attrs));
         if (!item) {
