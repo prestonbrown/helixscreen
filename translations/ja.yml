@@ -1142,6 +1142,7 @@ translations:
 
   Could not open a browser for the update: 更新用のブラウザを開けませんでした
   Could not parse tips database: ヒントデータベースを解析できませんでした
+  Could not prepare a folder for the update log: '更新ログ用のフォルダーを作成できませんでした'
   Could not reach Spoolman at: 'Spoolman に接続できません:'
   Could not read the current IPv4 settings.: '現在のIPv4設定を読み取れませんでした。'
   Could not read the free space on the printer: 'プリンターの空き容量を読み取れませんでした'
@@ -2495,6 +2496,7 @@ translations:
   Lost connection during print — try again: 印刷中に接続が切断されました — もう一度お試しください
   Lost connection to CFS unit: CFS ユニットとの接続が切断されました
   Lost contact with a controller board: '制御ボードとの接続が切れました'
+  Lost contact with the printer. The update may still be running.: 'プリンターとの接続が切れました。更新はまだ実行中の可能性があります。'
   Lost the connection to the printer.: プリンターとの接続が切れました。
   Lost the printer.: "プリンターとの接続が失われました。"
   'Lot # (optional)': ロット番号（オプション）
@@ -4682,8 +4684,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
+  The update ended, but the printer still offers it. Check the printer before using it.: '更新は終了しましたが、プリンターはまだ更新を提示しています。使用する前にプリンターを確認してください。'
   The update failed: '更新に失敗しました'
   'The {0} motor was not measured: {1}.': '{0} モーターは測定されませんでした: {1}。'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': '更新からの応答がなくなりました。結果は不明です。使用する前にプリンターを確認してください。'
+  The update's result is unknown: '更新の結果は不明です'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   Theme: テーマ
   Theme Colors: テーマカラー
@@ -5528,7 +5533,7 @@ translations:
   '{} firmware': '{} ファームウェア'
   '{} firmware can only be updated from its own screen app.': '{} のファームウェアは専用の画面アプリからのみ更新できます。'
   '{} firmware updates are managed by its own tools.': '{} のファームウェア更新は専用のツールで管理されます。'
-  '{} firmware {} is available. Open Settings > Firmware Update to install it.': '{} のファームウェア {} が利用可能です。設定 > ファームウェア更新 からインストールしてください。'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': '{} のファームウェア {} が利用可能です。設定 > システム > ファームウェア更新 からインストールしてください。'
   '{} free of {}': '空き {} / {}'
   '{} h': '{} 時間'
   '{} h of {} h': '{} / {} 時間'

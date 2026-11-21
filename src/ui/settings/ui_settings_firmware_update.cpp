@@ -15,7 +15,6 @@
 #include "lvgl.h"
 #include "moonraker_error.h"
 #include "printer_state.h"
-#include "usb_manager.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -38,7 +37,11 @@ constexpr const char* kResponseHandler = "firmware_update_overlay";
 constexpr uint32_t kUpgradeTimeoutMs = 30u * 60u * 1000u;
 constexpr uint32_t kRefreshTimeoutMs = 3u * 60u * 1000u;
 constexpr uint32_t kVendorPollMs = 500;
-constexpr const char* kVendorLogPath = "/tmp/helixscreen-firmware-update.log";
+/// Polls of machine.update.status after contact was lost mid-update.
+constexpr uint32_t kContactPollMs = 5000;
+/// A flasher that prints nothing for this long is reported as unknown. Generous:
+/// writing the system image prints nothing for minutes.
+constexpr std::chrono::seconds kVendorSilenceLimit{30 * 60};
 
 /// The row index an XML event_cb carries as its user_data string.
 std::optional<std::size_t> event_index(lv_event_t* e) {
@@ -254,6 +257,7 @@ void FirmwareUpdateOverlay::refresh(bool remote) {
     if (!subjects_initialized_ || running_) {
         return;
     }
+    update_provider();
     scan_images();
     IMoonrakerClient* client = get_moonraker_client();
     if (client == nullptr || !get_printer_state().is_update_manager_available()) {
@@ -297,6 +301,14 @@ void FirmwareUpdateOverlay::refresh(bool remote) {
                          kRefreshTimeoutMs, /*silent=*/true);
 }
 
+void FirmwareUpdateOverlay::update_provider() {
+    provider_ = provider_for(current_host_facts());
+    const bool vendor = vendor_apply_available(provider_);
+    lv_subject_set_int(&vendor_shown_, vendor ? 1 : 0);
+    lv_subject_set_string(
+        &vendor_note_, provider_ != nullptr && !vendor ? readiness_note(*provider_).c_str() : "");
+}
+
 void FirmwareUpdateOverlay::show_status(const std::optional<UpdateStatus>& status) {
     if (!subjects_initialized_) {
         return;
@@ -332,13 +344,7 @@ void FirmwareUpdateOverlay::scan_images() {
         lv_subject_set_int(&image_count_, 0);
         return;
     }
-    std::vector<std::string> roots;
-    if (usb_manager_ != nullptr) {
-        for (const auto& drive : usb_manager_->get_drives()) {
-            roots.push_back(drive.mount_path);
-        }
-    }
-    images_ = find_images(*provider_, roots);
+    images_ = find_images(*provider_, image_roots_ ? image_roots_() : std::vector<std::string>{});
     if (images_.size() > kMaxImages) {
         images_.resize(kMaxImages);
     }
@@ -430,17 +436,23 @@ void FirmwareUpdateOverlay::confirm_and_start(Job job, std::string message, bool
 
 void FirmwareUpdateOverlay::check_and_start(Job job) {
     IMoonrakerClient* client = get_moonraker_client();
-    if (client == nullptr || running_) {
-        toast_blocker(running_ ? Blocker::UpdateRunning : Blocker::PrintStateUnknown);
+    if (client == nullptr || running_ || start_pending_) {
+        toast_blocker(running_ || start_pending_ ? Blocker::UpdateRunning
+                                                 : Blocker::PrintStateUnknown);
         return;
     }
+    // One start at a time: a second confirm while this query is out is refused.
+    // The query's answer is the machine's business, not the screen's, so it lands
+    // even when the page was closed meanwhile and always clears the flag.
+    start_pending_ = true;
     // The decision reads print_stats as the printer reports it now, not the
     // last status frame.
     client->send_jsonrpc(
         "printer.objects.query", json{{"objects", {{"print_stats", json::array({"state"})}}}},
-        lifetime_.bg_cb(
+        object_lifetime_.bg_cb(
             "FirmwareUpdate::print_state",
             [this, job](const json& response) {
+                start_pending_ = false;
                 const json* result = helix::json_util::find_member(response, "result");
                 const json* status =
                     result != nullptr ? helix::json_util::find_member(*result, "status") : nullptr;
@@ -452,12 +464,12 @@ void FirmwareUpdateOverlay::check_and_start(Job job) {
                 in.print_stats_state =
                     stats != nullptr ? helix::json_util::safe_string(*stats, "state") : "";
                 in.update_running = running_.has_value() || update_manager_busy_;
+                const Blocker b = first_blocker(in);
+                if (b != Blocker::None) {
+                    toast_blocker(b);
+                    return;
+                }
                 if (job.kind == Job::Kind::Managed) {
-                    const Blocker b = first_blocker(in);
-                    if (b != Blocker::None) {
-                        toast_blocker(b);
-                        return;
-                    }
                     start_managed(job.name);
                     return;
                 }
@@ -468,9 +480,11 @@ void FirmwareUpdateOverlay::check_and_start(Job job) {
                     }
                 }
             }),
-        lifetime_.bg_cb(
-            "FirmwareUpdate::print_state_failed",
-            [this](const MoonrakerError&) { toast_blocker(Blocker::PrintStateUnknown); }),
+        object_lifetime_.bg_cb("FirmwareUpdate::print_state_failed",
+                               [this](const MoonrakerError&) {
+                                   start_pending_ = false;
+                                   toast_blocker(Blocker::PrintStateUnknown);
+                               }),
         0, /*silent=*/true);
 }
 
@@ -484,6 +498,17 @@ void FirmwareUpdateOverlay::set_progress(const std::string& message, std::option
     }
 }
 
+void FirmwareUpdateOverlay::show_running(const std::string& title) {
+    publish_busy();
+    job_failed_ = false;
+    lv_subject_set_string(&run_title_, title.c_str());
+    lv_subject_set_string(&run_message_, lv_tr("Starting the update"));
+    lv_subject_set_int(&run_has_pct_, 0);
+    lv_subject_set_int(&run_no_return_, 0);
+    lv_subject_set_int(&run_state_, kRunRunning);
+    lv_subject_set_int(&view_, kViewProgress);
+}
+
 void FirmwareUpdateOverlay::start_managed(const std::string& name) {
     IMoonrakerClient* client = get_moonraker_client();
     if (client == nullptr) {
@@ -491,15 +516,7 @@ void FirmwareUpdateOverlay::start_managed(const std::string& name) {
         return;
     }
     running_ = Job{Job::Kind::Managed, name};
-    publish_busy();
-    job_failed_ = false;
-    lv_subject_set_string(&run_title_,
-                          fmt::format(fmt::runtime(lv_tr("Updating {}")), name).c_str());
-    lv_subject_set_string(&run_message_, lv_tr("Starting the update"));
-    lv_subject_set_int(&run_has_pct_, 0);
-    lv_subject_set_int(&run_no_return_, 0);
-    lv_subject_set_int(&run_state_, kRunRunning);
-    lv_subject_set_int(&view_, kViewProgress);
+    show_running(fmt::format(fmt::runtime(lv_tr("Updating {}")), name));
     spdlog::info("[{}] Updating update_manager entry {}", get_name(), name);
 
     job_client_ = client;
@@ -512,11 +529,73 @@ void FirmwareUpdateOverlay::start_managed(const std::string& name) {
         }));
     client->send_jsonrpc(
         "machine.update.upgrade", json{{"name", name}},
-        object_lifetime_.bg_cb("FirmwareUpdate::upgraded",
-                               [this](const json&) { finish(!job_failed_, ""); }),
+        object_lifetime_.bg_cb(
+            "FirmwareUpdate::upgraded",
+            [this](const json&) { finish(job_failed_ ? RunEnd::Failed : RunEnd::Done, ""); }),
         object_lifetime_.bg_cb("FirmwareUpdate::upgrade_failed",
-                               [this](const MoonrakerError& err) { finish(false, err.message); }),
+                               [this](const MoonrakerError& err) {
+                                   // A dropped socket or our timeout says nothing about the
+                                   // update itself, which Moonraker keeps running (apt can
+                                   // take longer than any timeout).
+                                   if (err.type == MoonrakerErrorType::CONNECTION_LOST ||
+                                       err.type == MoonrakerErrorType::TIMEOUT) {
+                                       lost_contact();
+                                       return;
+                                   }
+                                   finish(RunEnd::Failed, err.message);
+                               }),
         kUpgradeTimeoutMs, /*silent=*/true);
+}
+
+void FirmwareUpdateOverlay::lost_contact() {
+    if (!running_ || running_->kind != Job::Kind::Managed) {
+        return;
+    }
+    spdlog::warn("[{}] Lost contact during the update of {}; waiting for update_manager",
+                 get_name(), running_->name);
+    lv_subject_set_string(&run_message_, lv_tr("Lost contact with the printer. The update may "
+                                               "still be running."));
+    lv_subject_set_int(&run_has_pct_, 0);
+    contact_timer_.reset(lv_timer_create(
+        [](lv_timer_t* t) {
+            static_cast<FirmwareUpdateOverlay*>(lv_timer_get_user_data(t))
+                ->poll_after_lost_contact();
+        },
+        kContactPollMs, this));
+}
+
+void FirmwareUpdateOverlay::poll_after_lost_contact() {
+    IMoonrakerClient* client = get_moonraker_client();
+    if (!running_ || client == nullptr || contact_query_out_) {
+        return;
+    }
+    contact_query_out_ = true;
+    client->send_jsonrpc(
+        "machine.update.status", json::object(),
+        object_lifetime_.bg_cb(
+            "FirmwareUpdate::status_after_lost_contact",
+            [this](const json& response) {
+                contact_query_out_ = false;
+                const json* result = helix::json_util::find_member(response, "result");
+                const auto status = result != nullptr ? parse_update_status(*result) : std::nullopt;
+                if (!status || !running_) {
+                    return;
+                }
+                switch (managed_outcome_after_lost_contact(*status, running_->name)) {
+                case ManagedOutcome::StillRunning:
+                    return;
+                case ManagedOutcome::Done:
+                    finish(RunEnd::Done, "");
+                    return;
+                case ManagedOutcome::Unknown:
+                    finish(RunEnd::Unknown, lv_tr("The update ended, but the printer still offers "
+                                                  "it. Check the printer before using it."));
+                    return;
+                }
+            }),
+        object_lifetime_.bg_cb("FirmwareUpdate::status_after_lost_contact_failed",
+                               [this](const MoonrakerError&) { contact_query_out_ = false; }),
+        0, /*silent=*/true);
 }
 
 void FirmwareUpdateOverlay::on_update_response(const UpdateResponse& r) {
@@ -528,50 +607,56 @@ void FirmwareUpdateOverlay::on_update_response(const UpdateResponse& r) {
     }
     set_progress(r.message, percent_in_message(r.message));
     if (r.complete) {
-        finish(!job_failed_, r.message);
+        finish(job_failed_ ? RunEnd::Failed : RunEnd::Done, r.message);
     }
 }
 
 void FirmwareUpdateOverlay::start_vendor(const FileEntry& image, ApplyInputs in) {
-    if (provider_ == nullptr) {
+    if (provider_ == nullptr || running_) {
+        return;
+    }
+    // A fresh 0700 directory per run: no fixed name in the shared /tmp for another
+    // user to plant a link at, and no earlier run's log to overwrite.
+    std::error_code ec;
+    const auto run_dir = make_private_run_dir(std::filesystem::temp_directory_path(ec).string());
+    if (!run_dir) {
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      lv_tr("Could not prepare a folder for the update log"));
         return;
     }
     in.required_bytes = image.size;
-    const ApplyPlan plan = apply_plan(*provider_, image.path, kVendorLogPath);
-    std::error_code ec;
-    std::filesystem::remove(plan.log_path, ec);
+    const ApplyPlan plan = apply_plan(*provider_, image.path, *run_dir);
     running_ = Job{Job::Kind::Vendor, image.name};
-    publish_busy();
-    job_failed_ = false;
-    lv_subject_set_string(&run_title_, lv_tr("Installing printer firmware"));
-    lv_subject_set_string(&run_message_, lv_tr("Starting the update"));
-    lv_subject_set_int(&run_has_pct_, 0);
-    lv_subject_set_int(&run_no_return_, 0);
-    lv_subject_set_int(&run_state_, kRunRunning);
-    lv_subject_set_int(&view_, kViewProgress);
+    show_running(lv_tr("Installing printer firmware"));
     vendor_log_ = std::make_unique<LogTail>(plan.log_path);
+    vendor_pid_path_ = plan.pid_path;
+    reached_no_return_ = false;
+    last_vendor_line_.clear();
+    last_vendor_line_at_ = std::chrono::steady_clock::now();
 
     const Provider* provider = provider_;
     const bool unverified = unverified_apply_allowed();
+    const ProcessRunner run = runner_;
     auto tok = object_lifetime_.token();
-    helix::http::HttpExecutor::fast().submit([tok, provider, plan, in, unverified]() {
-        const StartResult started =
-            start_vendor_apply(*provider, plan, in, unverified, helix::run_process);
-        tok.defer("FirmwareUpdate::vendor_started", [tok, started]() {
-            (void)tok;
-            auto& self = get_firmware_update_overlay();
+    helix::http::HttpExecutor::fast().submit([this, tok, provider, plan, in, unverified, run]() {
+        const StartResult started = start_vendor_apply(*provider, plan, in, unverified, run);
+        tok.defer("FirmwareUpdate::vendor_started", [self = this, started]() {
             if (started.outcome == StartOutcome::Started) {
-                self.vendor_timer_.reset(lv_timer_create(
-                    [](lv_timer_t*) { get_firmware_update_overlay().poll_vendor_log(); },
-                    kVendorPollMs, nullptr));
+                self->vendor_timer_.reset(lv_timer_create(
+                    [](lv_timer_t* t) {
+                        static_cast<FirmwareUpdateOverlay*>(lv_timer_get_user_data(t))
+                            ->poll_vendor_log();
+                    },
+                    kVendorPollMs, self));
                 return;
             }
             if (started.outcome == StartOutcome::Blocked) {
-                self.finish(false, blocker_text(started.blocker));
+                self->finish(RunEnd::Failed, blocker_text(started.blocker));
             } else if (started.outcome == StartOutcome::LaunchFailed) {
-                self.finish(false, started.error);
+                self->finish(RunEnd::Failed, started.error);
             } else {
-                self.finish(false, lv_tr("Installing firmware is not enabled on this printer"));
+                self->finish(RunEnd::Failed,
+                             lv_tr("Installing firmware is not enabled on this printer"));
             }
         });
     });
@@ -581,20 +666,44 @@ void FirmwareUpdateOverlay::poll_vendor_log() {
     if (!running_ || !vendor_log_ || provider_ == nullptr) {
         return;
     }
+    const auto now = std::chrono::steady_clock::now();
     for (const std::string& line : vendor_log_->poll()) {
         spdlog::info("[{}] flasher: {}", get_name(), line);
+        last_vendor_line_ = line;
+        last_vendor_line_at_ = now;
         const ProgressEvent ev = parse_progress(*provider_, line);
         if (ev.stage == Stage::None) {
             continue;
         }
         if (ev.stage == Stage::Failed) {
-            finish(false, line);
+            finish(RunEnd::Failed, line);
             return;
         }
         set_progress(stage_text(ev), ev.percent);
         if (ev.point_of_no_return) {
+            reached_no_return_ = true;
             lv_subject_set_int(&run_no_return_, 1);
         }
+    }
+    const auto silent =
+        std::chrono::duration_cast<std::chrono::seconds>(now - last_vendor_line_at_);
+    switch (check_vendor_run(pid_file_process_alive(vendor_pid_path_), reached_no_return_, silent,
+                             kVendorSilenceLimit)) {
+    case VendorRunCheck::Running:
+        return;
+    case VendorRunCheck::Restarting:
+        set_progress(lv_tr("Restarting the printer"), std::nullopt);
+        vendor_timer_.reset();
+        return;
+    case VendorRunCheck::Unknown: {
+        std::string message = lv_tr("The update stopped reporting. Its result is unknown: check "
+                                    "the printer before using it.");
+        if (!last_vendor_line_.empty()) {
+            message += "\n" + last_vendor_line_;
+        }
+        finish(RunEnd::Unknown, message);
+        return;
+    }
     }
 }
 
@@ -605,20 +714,26 @@ void FirmwareUpdateOverlay::unregister_response_handler() {
     job_client_ = nullptr;
 }
 
-void FirmwareUpdateOverlay::finish(bool ok, const std::string& message) {
+void FirmwareUpdateOverlay::finish(RunEnd end, const std::string& message) {
     if (!running_) {
         return;
     }
-    spdlog::info("[{}] {} {}: {}", get_name(), running_->name, ok ? "updated" : "failed", message);
+    spdlog::info("[{}] {} ended ({}): {}", get_name(), running_->name, static_cast<int>(end),
+                 message);
     unregister_response_handler();
     vendor_timer_.reset();
+    contact_timer_.reset();
+    contact_query_out_ = false;
     vendor_log_.reset();
     running_.reset();
     publish_busy();
-    lv_subject_set_string(&run_message_, !message.empty() ? message.c_str()
-                                                          : (ok ? lv_tr("Update complete")
-                                                                : lv_tr("The update failed")));
-    lv_subject_set_int(&run_state_, ok ? kRunDone : kRunFailed);
+    const char* fallback = end == RunEnd::Done     ? lv_tr("Update complete")
+                           : end == RunEnd::Failed ? lv_tr("The update failed")
+                                                   : lv_tr("The update's result is unknown");
+    lv_subject_set_string(&run_message_, !message.empty() ? message.c_str() : fallback);
+    lv_subject_set_int(&run_state_, end == RunEnd::Done     ? kRunDone
+                                    : end == RunEnd::Failed ? kRunFailed
+                                                            : kRunUnknown);
 }
 
 void FirmwareUpdateOverlay::publish_busy() {

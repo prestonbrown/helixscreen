@@ -4,11 +4,14 @@
 #include "firmware_update_runner.h"
 #include "update_manager_status.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <string>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
 
@@ -215,13 +218,15 @@ TEST_CASE("Firmware update: the stock U1 confirm says HelixScreen is removed", "
 // ============================================================================
 
 TEST_CASE("Firmware update: the stock U1 plan launches systemUpgrade.sh detached", "[fwupdate]") {
-    const ApplyPlan plan = apply_plan(u1_stock(), "/media/usb0/U1 1.2.bin", "/tmp/fw.log");
+    const ApplyPlan plan = apply_plan(u1_stock(), "/media/usb0/U1 1.2.bin", "/tmp/run.x");
     CHECK(plan.argv ==
-          std::vector<std::string>{"/bin/sh", "-c",
-                                   "setsid \"$1\" upgrade all \"$2\" </dev/null >\"$3\" 2>&1 &",
-                                   "fwupdate", "/home/lava/bin/systemUpgrade.sh",
-                                   "/media/usb0/U1 1.2.bin", "/tmp/fw.log"});
-    CHECK(plan.log_path == "/tmp/fw.log");
+          std::vector<std::string>{
+              "/bin/sh", "-c",
+              "setsid \"$1\" upgrade all \"$2\" </dev/null >\"$3\" 2>&1 & echo $! >\"$4\"",
+              "fwupdate", "/home/lava/bin/systemUpgrade.sh", "/media/usb0/U1 1.2.bin",
+              "/tmp/run.x/flasher.log", "/tmp/run.x/flasher.pid"});
+    CHECK(plan.log_path == "/tmp/run.x/flasher.log");
+    CHECK(plan.pid_path == "/tmp/run.x/flasher.pid");
     CHECK(plan.lock_path == "/tmp/.system_upgrade.lock");
     CHECK(plan.unpack_dir == "/tmp");
 }
@@ -257,7 +262,9 @@ TEST_CASE("Firmware update: stock U1 script lines map to stages", "[fwupdate]") 
          Stage::Failed, -1, 0, false},
         {"[UPG] upgrade_all: Unpack upgrade file failed. Upgrade abort.", Stage::Failed, -1, 0,
          false},
-        {"The upgrade is in progress.", Stage::Failed, -1, 0, false},
+        // Printed when another run holds the lock: the run that printed it exits,
+        // which the liveness check reports, so the line itself decides nothing.
+        {"The upgrade is in progress.", Stage::None, -1, 0, false},
         {"sh: setsid: not found", Stage::Failed, -1, 0, false},
     };
     for (const Case& c : cases) {
@@ -290,7 +297,7 @@ struct FakeRunner {
 };
 
 ApplyPlan test_plan(const std::filesystem::path& dir) {
-    ApplyPlan plan = apply_plan(u1_stock(), "/media/usb0/U1.bin", (dir / "fw.log").string());
+    ApplyPlan plan = apply_plan(u1_stock(), "/media/usb0/U1.bin", dir.string());
     plan.lock_path = (dir / "lock").string();
     plan.unpack_dir = dir.string();
     return plan;
@@ -492,4 +499,70 @@ TEST_CASE("Update manager: the system entry's confirm warns about the OS, a rebo
 
     // Flashing the printer's own firmware is destructive too.
     CHECK(confirm_is_destructive(confirm_points(u1_stock())));
+}
+
+TEST_CASE("Firmware update: a vanished or silent flasher is unknown, never success or failure",
+          "[fwupdate]") {
+    using std::chrono::seconds;
+    const seconds limit{1800};
+    CHECK(check_vendor_run(true, false, seconds{10}, limit) == VendorRunCheck::Running);
+    CHECK(check_vendor_run(true, true, seconds{10}, limit) == VendorRunCheck::Running);
+    CHECK(check_vendor_run(true, false, seconds{1800}, limit) == VendorRunCheck::Unknown);
+    CHECK(check_vendor_run(false, false, seconds{0}, limit) == VendorRunCheck::Unknown);
+    CHECK(check_vendor_run(false, true, seconds{0}, limit) == VendorRunCheck::Restarting);
+}
+
+TEST_CASE("Firmware update: the pid file says whether the flasher still runs", "[fwupdate]") {
+    const auto dir = fresh_dir("pid");
+    const auto pid_file = (dir / "flasher.pid").string();
+    CHECK_FALSE(pid_file_process_alive(pid_file)); // not written yet
+
+    std::ofstream(pid_file, std::ios::trunc) << ::getpid() << "\n";
+    CHECK(pid_file_process_alive(pid_file));
+
+    const pid_t child = ::fork();
+    if (child == 0) {
+        ::_exit(0);
+    }
+    REQUIRE(child > 0);
+    int status = 0;
+    ::waitpid(child, &status, 0);
+    std::ofstream(pid_file, std::ios::trunc) << child << "\n";
+    CHECK_FALSE(pid_file_process_alive(pid_file));
+
+    std::ofstream(pid_file, std::ios::trunc) << "not a pid\n";
+    CHECK_FALSE(pid_file_process_alive(pid_file));
+    std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("Firmware update: each run gets its own private directory", "[fwupdate]") {
+    const auto parent = fresh_dir("runs");
+    const auto a = make_private_run_dir(parent.string());
+    const auto b = make_private_run_dir(parent.string());
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    CHECK(*a != *b);
+    struct stat st {};
+    REQUIRE(::stat(a->c_str(), &st) == 0);
+    CHECK(S_ISDIR(st.st_mode));
+    CHECK((st.st_mode & 0777) == 0700);
+    CHECK_FALSE(make_private_run_dir((parent / "missing").string()).has_value());
+    std::filesystem::remove_all(parent);
+}
+
+TEST_CASE("Update manager: after lost contact, only update_manager's own status ends the run",
+          "[fwupdate]") {
+    UpdateStatus status;
+    status.busy = true;
+    ManagedEntry klipper;
+    klipper.name = "klipper";
+    klipper.update_available = true;
+    status.entries = {klipper};
+    CHECK(managed_outcome_after_lost_contact(status, "klipper") == ManagedOutcome::StillRunning);
+
+    status.busy = false;
+    CHECK(managed_outcome_after_lost_contact(status, "klipper") == ManagedOutcome::Unknown);
+    status.entries[0].update_available = false;
+    CHECK(managed_outcome_after_lost_contact(status, "klipper") == ManagedOutcome::Done);
+    CHECK(managed_outcome_after_lost_contact(status, "moonraker") == ManagedOutcome::Unknown);
 }

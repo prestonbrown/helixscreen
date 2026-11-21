@@ -1202,6 +1202,7 @@ translations:
 
   Could not open a browser for the update: Не удалось открыть браузер для обновления
   Could not parse tips database: Не удалось разобрать базу данных советов
+  Could not prepare a folder for the update log: 'Не удалось подготовить папку для журнала обновления'
   Could not reach Spoolman at: Не удалось связаться со Spoolman по адресу
   Could not read the current IPv4 settings.: 'Не удалось прочитать текущие настройки IPv4.'
   Could not read the free space on the printer: 'Не удалось прочитать свободное место на принтере'
@@ -2559,6 +2560,7 @@ translations:
   Lost connection during print — try again: Потеряно соединение во время печати — попробуйте снова
   Lost connection to CFS unit: Потеряна связь с блоком CFS
   Lost contact with a controller board: 'Потеряна связь с платой управления'
+  Lost contact with the printer. The update may still be running.: 'Связь с принтером потеряна. Обновление, возможно, ещё выполняется.'
   Lost the connection to the printer.: Связь с принтером потеряна.
   Lost the printer.: "Связь с принтером потеряна."
   'Lot # (optional)': 'Партия # (необязательно)'
@@ -4770,8 +4772,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
+  The update ended, but the printer still offers it. Check the printer before using it.: 'Обновление завершилось, но принтер всё ещё его предлагает. Проверьте принтер перед использованием.'
   The update failed: 'Обновление не удалось'
   'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием.'
+  The update's result is unknown: 'Результат обновления неизвестен'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   Theme: Тема
   Theme Colors: Цвета темы
@@ -5628,7 +5633,7 @@ translations:
   '{} firmware': 'Прошивка {}'
   '{} firmware can only be updated from its own screen app.': 'Прошивку {} можно обновить только из её собственного экранного приложения.'
   '{} firmware updates are managed by its own tools.': 'Обновления прошивки {} управляются её собственными инструментами.'
-  '{} firmware {} is available. Open Settings > Firmware Update to install it.': 'Доступна прошивка {} {}. Откройте Настройки > Обновление прошивки, чтобы установить её.'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': 'Доступна прошивка {} {}. Откройте Настройки > Система > Обновление прошивки, чтобы установить её.'
   '{} free of {}': '{} свободно из {}'
   '{} h': '{} ч'
   '{} h of {} h': '{} ч из {} ч'

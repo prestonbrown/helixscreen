@@ -1142,6 +1142,7 @@ translations:
 
   Could not open a browser for the update: "Impossibile aprire un browser per l'aggiornamento"
   Could not parse tips database: Impossibile analizzare il database dei suggerimenti
+  Could not prepare a folder for the update log: 'Impossibile preparare una cartella per il registro dell''aggiornamento'
   Could not reach Spoolman at: Impossibile raggiungere Spoolman a
   Could not read the current IPv4 settings.: 'Impossibile leggere le impostazioni IPv4 attuali.'
   Could not read the free space on the printer: 'Impossibile leggere lo spazio libero della stampante'
@@ -2495,6 +2496,7 @@ translations:
   Lost connection during print — try again: Connessione persa durante la stampa — riprova
   Lost connection to CFS unit: Connessione persa con l'unità CFS
   Lost contact with a controller board: 'Perso il contatto con una scheda di controllo'
+  Lost contact with the printer. The update may still be running.: 'Connessione con la stampante persa. L''aggiornamento potrebbe essere ancora in corso.'
   Lost the connection to the printer.: Connessione alla stampante persa.
   Lost the printer.: "Stampante persa."
   'Lot # (optional)': 'Lotto # (facoltativo)'
@@ -4682,8 +4684,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La memoria interna dell'unità è guasta. La scheda madre del CFS va sostituita
   'The unload did not start: unload by hand, then start again': 'Lo scarico non è partito: scarica a mano, poi ricomincia'
   The unload finishes on its own, but the plate will not move.: 'Lo scaricamento termina da solo, ma il piano non si sposterà.'
+  The update ended, but the printer still offers it. Check the printer before using it.: 'L''aggiornamento è terminato, ma la stampante lo propone ancora. Controlla la stampante prima di usarla.'
   The update failed: 'L''aggiornamento non è riuscito'
   'The {0} motor was not measured: {1}.': 'Il motore {0} non è stato misurato: {1}.'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': 'L''aggiornamento non dà più notizie. Il risultato è sconosciuto: controlla la stampante prima di usarla.'
+  The update's result is unknown: 'Il risultato dell''aggiornamento è sconosciuto'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Il lettore video non è riuscito ad avviarsi su questa stampante ({}). Scansiona il codice con il telefono per guardare il timelapse.'
   Theme: Tema
   Theme Colors: Colori tema
@@ -5528,7 +5533,7 @@ translations:
   '{} firmware': 'Firmware {}'
   '{} firmware can only be updated from its own screen app.': 'Il firmware {} può essere aggiornato solo dalla propria app dello schermo.'
   '{} firmware updates are managed by its own tools.': 'Gli aggiornamenti del firmware {} sono gestiti dai suoi strumenti.'
-  '{} firmware {} is available. Open Settings > Firmware Update to install it.': 'Il firmware {} {} è disponibile. Apri Impostazioni > Aggiornamento firmware per installarlo.'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': 'Il firmware {} {} è disponibile. Apri Impostazioni > Sistema > Aggiornamento firmware per installarlo.'
   '{} free of {}': '{} liberi su {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h su {} h'

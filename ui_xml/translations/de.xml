@@ -1079,6 +1079,7 @@
   <translation tag="Could not move the plate" de="Heizbett konnte nicht bewegt werden"/>
   <translation tag="Could not open a browser for the update" de="Browser für das Update konnte nicht geöffnet werden"/>
   <translation tag="Could not parse tips database" de="Tipps-Datenbank konnte nicht ausgelesen werden"/>
+  <translation tag="Could not prepare a folder for the update log" de="Der Ordner für das Update-Protokoll konnte nicht angelegt werden"/>
   <translation tag="Could not reach Spoolman at" de="Spoolman nicht erreichbar unter:"/>
   <translation tag="Could not read the current IPv4 settings." de="Die aktuellen IPv4-Einstellungen konnten nicht gelesen werden."/>
   <translation tag="Could not read the free space on the printer" de="Der freie Speicher des Druckers konnte nicht gelesen werden"/>
@@ -2417,6 +2418,7 @@
   <translation tag="Lost connection during print — try again" de="Verbindung während des Drucks verloren — erneut versuchen"/>
   <translation tag="Lost connection to CFS unit" de="Verbindung zur CFS-Einheit verloren"/>
   <translation tag="Lost contact with a controller board" de="Kontakt zu einer Steuerplatine verloren"/>
+  <translation tag="Lost contact with the printer. The update may still be running." de="Verbindung zum Drucker verloren. Das Update läuft möglicherweise noch."/>
   <translation tag="Lost the connection to the printer." de="Verbindung zum Drucker verloren."/>
   <translation tag="Lost the printer." de="Verbindung zum Drucker verloren."/>
   <translation tag="Lot # (optional)" de="Los-Nr. (optional)"/>
@@ -4560,7 +4562,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" de="Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden"/>
   <translation tag="The unload did not start: unload by hand, then start again" de="Das Entladen hat nicht begonnen: Entlade von Hand und starte dann erneut"/>
   <translation tag="The unload finishes on its own, but the plate will not move." de="Das Entladen läuft zu Ende, aber das Heizbett bewegt sich nicht."/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." de="Das Update ist beendet, aber der Drucker bietet es weiterhin an. Prüfe den Drucker, bevor du ihn benutzt."/>
   <translation tag="The update failed" de="Das Update ist fehlgeschlagen"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." de="Das Update meldet sich nicht mehr. Sein Ergebnis ist unbekannt: Prüfe den Drucker, bevor du ihn benutzt."/>
+  <translation tag="The update&apos;s result is unknown" de="Das Ergebnis des Updates ist unbekannt"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." de="Der Videoplayer konnte auf diesem Drucker nicht starten ({}). Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen."/>
   <translation tag="The {0} motor was not measured: {1}." de="Der {0}-Motor wurde nicht gemessen: {1}."/>
   <translation tag="Theme" de="Thema"/>
@@ -4920,6 +4925,7 @@
   <translation tag="Update heater model?" de="Heizungsmodell aktualisieren?"/>
   <translation tag="Update in Spoolman" de="In Spoolman aktualisieren"/>
   <translation tag="Update installed!" de="Update installiert!"/>
+  <translation tag="Update printer software and firmware" de="Drucker-Software und Firmware aktualisieren"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." de="Aktualisieren Sie das HelixPrint-Plugin auf 1.5.0, um alte PRINT_START-Aufrufe auszublenden."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." de="Auch das INDX-Heizungsmodell aktualisieren? {} enthält jetzt {}: Dichte {:.2f}, Wärmekapazität {:.2f}."/>
   <translation tag="Update your security PIN" de="Sicherheits-PIN aktualisieren nicht verfügbar."/>
@@ -5380,7 +5386,7 @@
   <translation tag="{} firmware" de="{} Firmware"/>
   <translation tag="{} firmware can only be updated from its own screen app." de="{}-Firmware kann nur über die eigene Bildschirm-App aktualisiert werden."/>
   <translation tag="{} firmware updates are managed by its own tools." de="Updates der {}-Firmware werden über deren eigene Werkzeuge verwaltet."/>
-  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." de="{}-Firmware {} ist verfügbar. Öffne Einstellungen &gt; Firmware-Update, um sie zu installieren."/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." de="{}-Firmware {} ist verfügbar. Öffne Einstellungen &gt; System &gt; Firmware-Update, um sie zu installieren."/>
   <translation tag="{} free of {}" de="{} frei von {}"/>
   <translation tag="{} h" de="{} Std"/>
   <translation tag="{} h of {} h" de="{} Std von {} Std"/>

@@ -141,6 +141,18 @@ the page tails the flasher's log instead.
    runs us), so it runs under `setsid` with stdin from `/dev/null` and stdout/stderr to a file;
    a pipe back to us would SIGPIPE the script mid-flash if we died.
 
+8. **One start in flight.** A confirmed start waits for its print_stats answer; a second
+   confirm meanwhile is refused, and a vendor start re-checks the blockers when the answer
+   lands.
+9. **No false verdicts.** A vendor run whose flasher vanishes without an end line, or goes
+   silent for 30 minutes, ends as "unknown, check the printer" (`check_vendor_run()`),
+   never as success or failure. A managed update whose Moonraker connection drops or
+   times out shows "lost contact, the update may still be running" and polls
+   `machine.update.status` until update_manager is idle (`managed_outcome_after_lost_contact()`).
+10. **Private run files.** Each vendor run's log and pid file live in a fresh 0700
+    directory (`make_private_run_dir()`), never at a fixed name in the shared /tmp that
+    the root flasher would write through.
+
 ## UI flow
 
 - Settings > System > **Firmware Update** row, visible when `printer_has_update_manager` is 1

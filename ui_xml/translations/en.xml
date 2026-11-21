@@ -1079,6 +1079,7 @@
   <translation tag="Could not move the plate" en="Could not move the plate"/>
   <translation tag="Could not open a browser for the update" en="Could not open a browser for the update"/>
   <translation tag="Could not parse tips database" en="Could not parse tips database"/>
+  <translation tag="Could not prepare a folder for the update log" en="Could not prepare a folder for the update log"/>
   <translation tag="Could not reach Spoolman at" en="Could not reach Spoolman at"/>
   <translation tag="Could not read the current IPv4 settings." en="Could not read the current IPv4 settings."/>
   <translation tag="Could not read the free space on the printer" en="Could not read the free space on the printer"/>
@@ -2417,6 +2418,7 @@
   <translation tag="Lost connection during print — try again" en="Lost connection during print — try again"/>
   <translation tag="Lost connection to CFS unit" en="Lost connection to CFS unit"/>
   <translation tag="Lost contact with a controller board" en="Lost contact with a controller board"/>
+  <translation tag="Lost contact with the printer. The update may still be running." en="Lost contact with the printer. The update may still be running."/>
   <translation tag="Lost the connection to the printer." en="Lost the connection to the printer."/>
   <translation tag="Lost the printer." en="Lost the printer."/>
   <translation tag="Lot # (optional)" en="Lot # (optional)"/>
@@ -4560,7 +4562,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
   <translation tag="The unload did not start: unload by hand, then start again" en="The unload did not start: unload by hand, then start again"/>
   <translation tag="The unload finishes on its own, but the plate will not move." en="The unload finishes on its own, but the plate will not move."/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." en="The update ended, but the printer still offers it. Check the printer before using it."/>
   <translation tag="The update failed" en="The update failed"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." en="The update stopped reporting. Its result is unknown: check the printer before using it."/>
+  <translation tag="The update&apos;s result is unknown" en="The update&apos;s result is unknown"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="Theme" en="Theme"/>
@@ -4920,6 +4925,7 @@
   <translation tag="Update heater model?" en="Update heater model?"/>
   <translation tag="Update in Spoolman" en="Update in Spoolman"/>
   <translation tag="Update installed!" en="Update installed!"/>
+  <translation tag="Update printer software and firmware" en="Update printer software and firmware"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." en="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." en="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}."/>
   <translation tag="Update your security PIN" en="Update your security PIN"/>
@@ -5380,7 +5386,7 @@
   <translation tag="{} firmware" en="{} firmware"/>
   <translation tag="{} firmware can only be updated from its own screen app." en="{} firmware can only be updated from its own screen app."/>
   <translation tag="{} firmware updates are managed by its own tools." en="{} firmware updates are managed by its own tools."/>
-  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." en="{} firmware {} is available. Open Settings &gt; Firmware Update to install it."/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." en="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it."/>
   <translation tag="{} free of {}" en="{} free of {}"/>
   <translation tag="{} h" en="{} h"/>
   <translation tag="{} h of {} h" en="{} h of {} h"/>

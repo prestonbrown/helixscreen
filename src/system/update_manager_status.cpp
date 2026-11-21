@@ -88,6 +88,19 @@ std::vector<ConfirmPoint> confirm_points(const ManagedEntry& e) {
     return {ConfirmPoint::ServicesRestart, ConfirmPoint::StayOnUntilDone};
 }
 
+ManagedOutcome managed_outcome_after_lost_contact(const UpdateStatus& status,
+                                                  const std::string& name) {
+    if (status.busy) {
+        return ManagedOutcome::StillRunning;
+    }
+    for (const ManagedEntry& e : status.entries) {
+        if (e.name == name) {
+            return e.update_available ? ManagedOutcome::Unknown : ManagedOutcome::Done;
+        }
+    }
+    return ManagedOutcome::Unknown;
+}
+
 std::optional<UpdateResponse> parse_update_response(const nlohmann::json& notification) {
     const nlohmann::json* payload = helix::json_util::notification_payload(notification);
     if (payload == nullptr) {

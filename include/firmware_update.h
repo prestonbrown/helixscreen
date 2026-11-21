@@ -157,18 +157,21 @@ std::vector<ConfirmPoint> confirm_points(const Provider& p);
 /// How to run one update.
 struct ApplyPlan {
     /// The launcher: returns at once, leaving the flasher running detached in its own
-    /// session with its output in log_path. Empty when the row has no apply plan.
+    /// session with its output in log_path and its pid in pid_path. Empty when the row
+    /// has no apply plan.
     std::vector<std::string> argv;
     std::string log_path;
+    std::string pid_path;
     /// A file whose presence means the vendor's flasher is already running, or "".
     std::string lock_path;
     /// Where the flasher unpacks the image; free space there is a precondition. "" = none.
     std::string unpack_dir;
 };
 
-/// The plan for flashing @p image_path, logging to @p log_path. argv is empty for a
+/// The plan for flashing @p image_path, with its log and pid file in @p run_dir, a
+/// directory only HelixScreen can write (make_private_run_dir()). argv is empty for a
 /// row without an apply plan.
-ApplyPlan apply_plan(const Provider& p, const std::string& image_path, const std::string& log_path);
+ApplyPlan apply_plan(const Provider& p, const std::string& image_path, const std::string& run_dir);
 
 /// Where an update stands, as one output line of the flasher reports it.
 enum class Stage {

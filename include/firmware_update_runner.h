@@ -8,7 +8,9 @@
 #include "firmware_update.h"
 #include "system/process_runner.h"
 
+#include <chrono>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -32,6 +34,29 @@ struct StartResult {
 /// BLOCKING (runs the launcher, which returns at once): never on the LVGL thread.
 StartResult start_vendor_apply(const Provider& p, const ApplyPlan& plan, ApplyInputs inputs,
                                bool unverified_allowed, const ProcessRunner& run);
+
+/// A new directory under @p parent that only this process's user can enter (mode
+/// 0700), for one run's log and pid file: in a shared /tmp, a fixed name would let
+/// another local user plant a symlink the root-run flasher then writes through.
+/// nullopt when it cannot be created.
+std::optional<std::string> make_private_run_dir(const std::string& parent);
+
+/// Whether the process whose pid @p pid_file holds is still alive. False when the
+/// file is missing, unreadable or holds no pid.
+bool pid_file_process_alive(const std::string& pid_file);
+
+/// Where a running vendor flash stands when its log says nothing conclusive.
+enum class VendorRunCheck {
+    Running,    ///< alive and not silent for too long
+    Restarting, ///< gone after the point of no return: the printer is rebooting
+    Unknown,    ///< gone without an end line, or silent past the limit: check the printer
+};
+
+/// The liveness decision. Never claims success or failure: only an end line in the
+/// log does that.
+VendorRunCheck check_vendor_run(bool process_alive, bool reached_no_return,
+                                std::chrono::seconds silent_for,
+                                std::chrono::seconds silence_limit);
 
 /// Reads the lines a growing log file gains between calls. A partial last line waits
 /// for its newline. A file that shrinks (rotated, truncated) is read from its start.

@@ -1124,6 +1124,7 @@
   <translation tag="Could not move the plate" ru="Не удалось переместить стол"/>
   <translation tag="Could not open a browser for the update" ru="Не удалось открыть браузер для обновления"/>
   <translation tag="Could not parse tips database" ru="Не удалось разобрать базу данных советов"/>
+  <translation tag="Could not prepare a folder for the update log" ru="Не удалось подготовить папку для журнала обновления"/>
   <translation tag="Could not reach Spoolman at" ru="Не удалось связаться со Spoolman по адресу"/>
   <translation tag="Could not read the current IPv4 settings." ru="Не удалось прочитать текущие настройки IPv4."/>
   <translation tag="Could not read the free space on the printer" ru="Не удалось прочитать свободное место на принтере"/>
@@ -2465,6 +2466,7 @@
   <translation tag="Lost connection during print — try again" ru="Потеряно соединение во время печати — попробуйте снова"/>
   <translation tag="Lost connection to CFS unit" ru="Потеряна связь с блоком CFS"/>
   <translation tag="Lost contact with a controller board" ru="Потеряна связь с платой управления"/>
+  <translation tag="Lost contact with the printer. The update may still be running." ru="Связь с принтером потеряна. Обновление, возможно, ещё выполняется."/>
   <translation tag="Lost the connection to the printer." ru="Связь с принтером потеряна."/>
   <translation tag="Lost the printer." ru="Связь с принтером потеряна."/>
   <translation tag="Lot # (optional)" ru="Партия # (необязательно)"/>
@@ -4626,7 +4628,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ru="Встроенная память блока вышла из строя. Требуется замена материнской платы CFS"/>
   <translation tag="The unload did not start: unload by hand, then start again" ru="Выгрузка не началась: выгрузите вручную и начните заново"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ru="Выгрузка завершится сама, но стол не будет перемещаться."/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." ru="Обновление завершилось, но принтер всё ещё его предлагает. Проверьте принтер перед использованием."/>
   <translation tag="The update failed" ru="Обновление не удалось"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." ru="Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием."/>
+  <translation tag="The update&apos;s result is unknown" ru="Результат обновления неизвестен"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ru="Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="The {0} motor was not measured: {1}." ru="Мотор {0} не измерен: {1}."/>
   <translation tag="Theme" ru="Тема"/>
@@ -4986,6 +4991,7 @@
   <translation tag="Update heater model?" ru="Обновить модель нагревателя?"/>
   <translation tag="Update in Spoolman" ru="Обновить в Spoolman"/>
   <translation tag="Update installed!" ru="Обновление установлено!"/>
+  <translation tag="Update printer software and firmware" ru="Обновление программ и прошивки принтера"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ru="Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ru="Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}."/>
   <translation tag="Update your security PIN" ru="Обновите ваш PIN-код"/>
@@ -5455,7 +5461,7 @@
   <translation tag="{} firmware" ru="Прошивка {}"/>
   <translation tag="{} firmware can only be updated from its own screen app." ru="Прошивку {} можно обновить только из её собственного экранного приложения."/>
   <translation tag="{} firmware updates are managed by its own tools." ru="Обновления прошивки {} управляются её собственными инструментами."/>
-  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." ru="Доступна прошивка {} {}. Откройте Настройки &gt; Обновление прошивки, чтобы установить её."/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." ru="Доступна прошивка {} {}. Откройте Настройки &gt; Система &gt; Обновление прошивки, чтобы установить её."/>
   <translation tag="{} free of {}" ru="{} свободно из {}"/>
   <translation tag="{} h" ru="{} ч"/>
   <translation tag="{} h of {} h" ru="{} ч из {} ч"/>

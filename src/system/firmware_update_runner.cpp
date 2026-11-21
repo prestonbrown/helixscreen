@@ -4,9 +4,15 @@
 
 #include <spdlog/spdlog.h>
 
+#include <cerrno>
+#include <csignal>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <sys/types.h>
 #include <system_error>
+#include <unistd.h>
 
 namespace helix::fwupdate {
 
@@ -53,6 +59,38 @@ StartResult start_vendor_apply(const Provider& p, const ApplyPlan& plan, ApplyIn
     }
     result.outcome = StartOutcome::Started;
     return result;
+}
+
+std::optional<std::string> make_private_run_dir(const std::string& parent) {
+    std::string tmpl = parent + "/helixscreen-fwupdate.XXXXXX";
+    // mkdtemp creates the directory with mode 0700, atomically and never through a link.
+    if (::mkdtemp(tmpl.data()) == nullptr) {
+        spdlog::error("[FirmwareUpdate] Cannot create a run directory under {}: {}", parent,
+                      std::strerror(errno));
+        return std::nullopt;
+    }
+    return tmpl;
+}
+
+bool pid_file_process_alive(const std::string& pid_file) {
+    std::ifstream in(pid_file);
+    long pid = 0;
+    if (!(in >> pid) || pid <= 1) {
+        return false;
+    }
+    if (::kill(static_cast<pid_t>(pid), 0) == 0) {
+        return true;
+    }
+    return errno == EPERM;
+}
+
+VendorRunCheck check_vendor_run(bool process_alive, bool reached_no_return,
+                                std::chrono::seconds silent_for,
+                                std::chrono::seconds silence_limit) {
+    if (!process_alive) {
+        return reached_no_return ? VendorRunCheck::Restarting : VendorRunCheck::Unknown;
+    }
+    return silent_for >= silence_limit ? VendorRunCheck::Unknown : VendorRunCheck::Running;
 }
 
 std::vector<std::string> LogTail::poll() {

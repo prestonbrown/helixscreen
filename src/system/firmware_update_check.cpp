@@ -215,7 +215,7 @@ void on_update_check_tick() {
                 ui_notification_info(
                     lv_tr("Firmware Update"),
                     fmt::format(fmt::runtime(lv_tr("{} firmware {} is available. Open Settings > "
-                                                   "Firmware Update to install it.")),
+                                                   "System > Firmware Update to install it.")),
                                 owner, outcome.update->version)
                         .c_str());
             }

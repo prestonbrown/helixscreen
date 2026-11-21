@@ -1079,6 +1079,7 @@
   <translation tag="Could not move the plate" pt="Não foi possível mover a mesa"/>
   <translation tag="Could not open a browser for the update" pt="Não foi possível abrir um navegador para a atualização"/>
   <translation tag="Could not parse tips database" pt="Não foi possível analisar o banco de dados de dicas"/>
+  <translation tag="Could not prepare a folder for the update log" pt="Não foi possível preparar uma pasta para o registro da atualização"/>
   <translation tag="Could not reach Spoolman at" pt="Não foi possível alcançar o Spoolman em"/>
   <translation tag="Could not read the current IPv4 settings." pt="Não foi possível ler as configurações IPv4 atuais."/>
   <translation tag="Could not read the free space on the printer" pt="Não foi possível ler o espaço livre da impressora"/>
@@ -2417,6 +2418,7 @@
   <translation tag="Lost connection during print — try again" pt="Conexão perdida durante a impressão — tente novamente"/>
   <translation tag="Lost connection to CFS unit" pt="Conexão perdida com a unidade CFS"/>
   <translation tag="Lost contact with a controller board" pt="Contato perdido com uma placa controladora"/>
+  <translation tag="Lost contact with the printer. The update may still be running." pt="Conexão com a impressora perdida. A atualização pode ainda estar em andamento."/>
   <translation tag="Lost the connection to the printer." pt="A conexão com a impressora foi perdida."/>
   <translation tag="Lost the printer." pt="Impressora perdida."/>
   <translation tag="Lot # (optional)" pt="Lote # (opcional)"/>
@@ -4560,7 +4562,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" pt="O armazenamento interno da unidade falhou. A placa-mãe do CFS precisa ser substituída"/>
   <translation tag="The unload did not start: unload by hand, then start again" pt="A descarga não começou: descarregue à mão e comece de novo"/>
   <translation tag="The unload finishes on its own, but the plate will not move." pt="A descarga termina sozinha, mas a mesa não vai se mover."/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." pt="A atualização terminou, mas a impressora ainda a oferece. Verifique a impressora antes de usá-la."/>
   <translation tag="The update failed" pt="A atualização falhou"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." pt="A atualização parou de informar. O resultado é desconhecido: verifique a impressora antes de usá-la."/>
+  <translation tag="The update&apos;s result is unknown" pt="O resultado da atualização é desconhecido"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." pt="O reprodutor de vídeo não pôde iniciar nesta impressora ({}). Escaneie o código com seu celular para assistir ao timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." pt="O motor {0} não foi medido: {1}."/>
   <translation tag="Theme" pt="Tema"/>
@@ -4920,6 +4925,7 @@
   <translation tag="Update heater model?" pt="Atualizar o modelo do aquecedor?"/>
   <translation tag="Update in Spoolman" pt="Atualizar no Spoolman"/>
   <translation tag="Update installed!" pt="Atualização instalada!"/>
+  <translation tag="Update printer software and firmware" pt="Atualize o software e o firmware da impressora"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." pt="Atualize o plugin HelixPrint para 1.5.0 para ocultar as chamadas antigas do PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." pt="Atualizar também o modelo do aquecedor INDX? {} agora contém {}: densidade {:.2f}, capacidade térmica {:.2f}."/>
   <translation tag="Update your security PIN" pt="Atualize seu PIN de segurança nesta instalação."/>
@@ -5380,7 +5386,7 @@
   <translation tag="{} firmware" pt="Firmware de {}"/>
   <translation tag="{} firmware can only be updated from its own screen app." pt="O firmware da {} só pode ser atualizado pelo próprio aplicativo de tela."/>
   <translation tag="{} firmware updates are managed by its own tools." pt="As atualizações do firmware da {} são gerenciadas pelas próprias ferramentas."/>
-  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." pt="O firmware {} {} está disponível. Abra Configurações &gt; Atualização de firmware para instalá-lo."/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." pt="O firmware {} {} está disponível. Abra Configurações &gt; Sistema &gt; Atualização de firmware para instalá-lo."/>
   <translation tag="{} free of {}" pt="{} livres de {}"/>
   <translation tag="{} h" pt="{} h"/>
   <translation tag="{} h of {} h" pt="{} h de {} h"/>

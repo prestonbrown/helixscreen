@@ -51,6 +51,16 @@ struct UpdateResponse {
 /// restarts its Klipper or Moonraker service.
 std::vector<ConfirmPoint> confirm_points(const ManagedEntry& e);
 
+/// How a managed update ended, judged from machine.update.status after contact with
+/// Moonraker was lost mid-update.
+enum class ManagedOutcome {
+    StillRunning, ///< update_manager is still busy: keep waiting
+    Done,         ///< not busy, and @p name no longer offers an update
+    Unknown,      ///< not busy, but the entry still offers one or is gone: check the printer
+};
+ManagedOutcome managed_outcome_after_lost_contact(const UpdateStatus& status,
+                                                  const std::string& name);
+
 /// The payload of a notify_update_response notification (the full JSON-RPC message).
 /// nullopt when it is not one.
 std::optional<UpdateResponse> parse_update_response(const nlohmann::json& notification);

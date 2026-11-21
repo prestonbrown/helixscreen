@@ -1079,6 +1079,7 @@
   <translation tag="Could not move the plate" zh="无法移动热床"/>
   <translation tag="Could not open a browser for the update" zh="无法打开浏览器进行更新"/>
   <translation tag="Could not parse tips database" zh="无法解析提示数据库"/>
+  <translation tag="Could not prepare a folder for the update log" zh="无法为更新日志准备文件夹"/>
   <translation tag="Could not reach Spoolman at" zh="无法连接 Spoolman："/>
   <translation tag="Could not read the current IPv4 settings." zh="无法读取当前的 IPv4 设置。"/>
   <translation tag="Could not read the free space on the printer" zh="无法读取打印机的可用空间"/>
@@ -2417,6 +2418,7 @@
   <translation tag="Lost connection during print — try again" zh="打印过程中连接丢失 — 请重试"/>
   <translation tag="Lost connection to CFS unit" zh="与 CFS 单元的连接已断开"/>
   <translation tag="Lost contact with a controller board" zh="与控制板失去连接"/>
+  <translation tag="Lost contact with the printer. The update may still be running." zh="与打印机的连接已断开。更新可能仍在进行。"/>
   <translation tag="Lost the connection to the printer." zh="与打印机的连接已断开。"/>
   <translation tag="Lost the printer." zh="与打印机失去连接。"/>
   <translation tag="Lot # (optional)" zh="批号（可选）"/>
@@ -4560,7 +4562,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
   <translation tag="The unload did not start: unload by hand, then start again" zh="卸载未开始:请手动卸载,然后重新开始"/>
   <translation tag="The unload finishes on its own, but the plate will not move." zh="卸载会自行完成,但热床不会移动。"/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." zh="更新已结束，但打印机仍提示有此更新。使用前请检查打印机。"/>
   <translation tag="The update failed" zh="更新失败"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." zh="更新已停止报告进度。结果未知：使用前请检查打印机。"/>
+  <translation tag="The update&apos;s result is unknown" zh="更新结果未知"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." zh="视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。"/>
   <translation tag="The {0} motor was not measured: {1}." zh="{0} 电机未测量：{1}。"/>
   <translation tag="Theme" zh="主题"/>
@@ -4920,6 +4925,7 @@
   <translation tag="Update heater model?" zh="更新加热器模型？"/>
   <translation tag="Update in Spoolman" zh="在 Spoolman 中更新"/>
   <translation tag="Update installed!" zh="更新已安装！"/>
+  <translation tag="Update printer software and firmware" zh="更新打印机软件和固件"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." zh="将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." zh="同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。"/>
   <translation tag="Update your security PIN" zh="更新您的安全 PIN"/>
@@ -5380,7 +5386,7 @@
   <translation tag="{} firmware" zh="{} 固件"/>
   <translation tag="{} firmware can only be updated from its own screen app." zh="{} 固件只能通过其自带的屏幕应用更新。"/>
   <translation tag="{} firmware updates are managed by its own tools." zh="{} 固件更新由其自带的工具管理。"/>
-  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." zh="{} 固件 {} 已可用。请打开 设置 &gt; 固件更新 进行安装。"/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." zh="{} 固件 {} 已可用。请打开 设置 &gt; 系统 &gt; 固件更新 进行安装。"/>
   <translation tag="{} free of {}" zh="可用 {} / 共 {}"/>
   <translation tag="{} h" zh="{} 小时"/>
   <translation tag="{} h of {} h" zh="{} / {} 小时"/>

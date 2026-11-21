@@ -1142,6 +1142,7 @@ translations:
 
   Could not open a browser for the update: Browser für das Update konnte nicht geöffnet werden
   Could not parse tips database: Tipps-Datenbank konnte nicht ausgelesen werden
+  Could not prepare a folder for the update log: 'Der Ordner für das Update-Protokoll konnte nicht angelegt werden'
   Could not reach Spoolman at: 'Spoolman nicht erreichbar unter:'
   Could not read the current IPv4 settings.: 'Die aktuellen IPv4-Einstellungen konnten nicht gelesen werden.'
   Could not read the free space on the printer: 'Der freie Speicher des Druckers konnte nicht gelesen werden'
@@ -2495,6 +2496,7 @@ translations:
   Lost connection during print — try again: Verbindung während des Drucks verloren — erneut versuchen
   Lost connection to CFS unit: Verbindung zur CFS-Einheit verloren
   Lost contact with a controller board: 'Kontakt zu einer Steuerplatine verloren'
+  Lost contact with the printer. The update may still be running.: 'Verbindung zum Drucker verloren. Das Update läuft möglicherweise noch.'
   Lost the connection to the printer.: Verbindung zum Drucker verloren.
   Lost the printer.: "Verbindung zum Drucker verloren."
   'Lot # (optional)': Los-Nr. (optional)
@@ -4682,8 +4684,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Der interne Speicher der Einheit ist ausgefallen. Die CFS-Hauptplatine muss ersetzt werden
   'The unload did not start: unload by hand, then start again': 'Das Entladen hat nicht begonnen: Entlade von Hand und starte dann erneut'
   The unload finishes on its own, but the plate will not move.: 'Das Entladen läuft zu Ende, aber das Heizbett bewegt sich nicht.'
+  The update ended, but the printer still offers it. Check the printer before using it.: 'Das Update ist beendet, aber der Drucker bietet es weiterhin an. Prüfe den Drucker, bevor du ihn benutzt.'
   The update failed: 'Das Update ist fehlgeschlagen'
   'The {0} motor was not measured: {1}.': 'Der {0}-Motor wurde nicht gemessen: {1}.'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Das Update meldet sich nicht mehr. Sein Ergebnis ist unbekannt: Prüfe den Drucker, bevor du ihn benutzt.'
+  The update's result is unknown: 'Das Ergebnis des Updates ist unbekannt'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Der Videoplayer konnte auf diesem Drucker nicht starten ({}). Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen.'
   Theme: Thema
   Theme Colors: Themenfarben
@@ -5528,7 +5533,7 @@ translations:
   '{} firmware': '{} Firmware'
   '{} firmware can only be updated from its own screen app.': '{}-Firmware kann nur über die eigene Bildschirm-App aktualisiert werden.'
   '{} firmware updates are managed by its own tools.': 'Updates der {}-Firmware werden über deren eigene Werkzeuge verwaltet.'
-  '{} firmware {} is available. Open Settings > Firmware Update to install it.': '{}-Firmware {} ist verfügbar. Öffne Einstellungen > Firmware-Update, um sie zu installieren.'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': '{}-Firmware {} ist verfügbar. Öffne Einstellungen > System > Firmware-Update, um sie zu installieren.'
   '{} free of {}': '{} frei von {}'
   '{} h': '{} Std'
   '{} h of {} h': '{} Std von {} Std'

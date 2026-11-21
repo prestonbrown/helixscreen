@@ -10,9 +10,10 @@
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
 #include "update_manager_status.h"
-#include "usb_manager.h"
 
 #include <array>
+#include <chrono>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -24,7 +25,7 @@ class IMoonrakerClient;
 
 namespace helix::settings {
 
-/// Settings > Printer > Firmware Update: the printer's own firmware image from a USB
+/// Settings > System > Firmware Update: the printer's own firmware image from a USB
 /// stick (when this printer's fwupdate row may apply), and every Moonraker
 /// update_manager entry with Update, plus a progress view for the one running.
 /// Every start goes through a confirm and a fresh print_stats check.
@@ -38,6 +39,8 @@ class FirmwareUpdateOverlay : public OverlayBase {
     static constexpr int kRunRunning = 0;
     static constexpr int kRunDone = 1;
     static constexpr int kRunFailed = 2;
+    /// Ended without a verdict (the flasher vanished or went silent): check the printer
+    static constexpr int kRunUnknown = 3;
     static constexpr std::size_t kMaxEntries = 12;
     static constexpr std::size_t kMaxImages = 3;
 
@@ -57,8 +60,15 @@ class FirmwareUpdateOverlay : public OverlayBase {
     void register_callbacks() override;
     void on_activate() override;
 
-    void set_usb_manager(UsbManager* manager) {
-        usb_manager_ = manager;
+    /// Where removable media are mounted, read at each scan for firmware images.
+    using ImageRoots = std::function<std::vector<std::string>()>;
+    void set_image_roots(ImageRoots roots) {
+        image_roots_ = std::move(roots);
+    }
+    /// What launches a vendor flasher; helix::run_process unless replaced (tests
+    /// hand in a fake, so no test ever runs a flasher).
+    void set_process_runner(ProcessRunner runner) {
+        runner_ = std::move(runner);
     }
 
     /// Re-read update_manager (machine.update.refresh first when @p remote) and the
@@ -78,6 +88,8 @@ class FirmwareUpdateOverlay : public OverlayBase {
         std::string name; ///< update_manager entry, or the image's file name
     };
 
+    /// Which firmware row this printer has, and whether its part of the page shows.
+    void update_provider();
     void show_status(const std::optional<fwupdate::UpdateStatus>& status);
     void scan_images();
     /// @p destructive: the confirm button carries the danger style.
@@ -87,7 +99,12 @@ class FirmwareUpdateOverlay : public OverlayBase {
     void start_managed(const std::string& name);
     void start_vendor(const fwupdate::FileEntry& image, fwupdate::ApplyInputs in);
     void on_update_response(const fwupdate::UpdateResponse& r);
-    void finish(bool ok, const std::string& message);
+    void show_running(const std::string& title);
+    /// Contact with Moonraker dropped mid-update: wait for update_manager to say.
+    void lost_contact();
+    void poll_after_lost_contact();
+    enum class RunEnd { Done, Failed, Unknown };
+    void finish(RunEnd end, const std::string& message);
     void set_progress(const std::string& message, std::optional<int> percent);
     void poll_vendor_log();
     void unregister_response_handler();
@@ -123,19 +140,28 @@ class FirmwareUpdateOverlay : public OverlayBase {
     helix::Subject run_has_pct_{};
     helix::Subject run_no_return_{};
 
-    UsbManager* usb_manager_ = nullptr;
+    ImageRoots image_roots_;
+    ProcessRunner runner_ = helix::run_process;
     const fwupdate::Provider* provider_ = nullptr;
     std::vector<fwupdate::ManagedEntry> entries_;
     std::vector<fwupdate::FileEntry> images_;
     bool update_manager_busy_ = false;
 
     std::optional<Job> running_;
+    /// A confirmed start waiting for its print_stats answer
+    bool start_pending_ = false;
     /// The running update_manager job reported an error line
     bool job_failed_ = false;
     /// The client the running update_manager job's handler is registered on
     IMoonrakerClient* job_client_ = nullptr;
     std::unique_ptr<fwupdate::LogTail> vendor_log_;
+    std::string vendor_pid_path_;
+    bool reached_no_return_ = false;
+    std::string last_vendor_line_;
+    std::chrono::steady_clock::time_point last_vendor_line_at_{};
     helix::ui::LvglTimerGuard vendor_timer_;
+    helix::ui::LvglTimerGuard contact_timer_;
+    bool contact_query_out_ = false;
 };
 
 FirmwareUpdateOverlay& get_firmware_update_overlay();

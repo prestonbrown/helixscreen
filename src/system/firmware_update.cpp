@@ -34,7 +34,6 @@ struct ProgressMark {
 /// names the step that starts there.
 constexpr ProgressMark kSnapmakerU1Marks[] = {
     {"Upgrade abort.", Stage::Failed, -1, 0, false},
-    {"The upgrade is in progress.", Stage::Failed, -1, 0, false},
     {"doesn't exist, please check.", Stage::Failed, -1, 0, false},
     {"setsid: not found", Stage::Failed, -1, 0, false},
     {"upgrade soc finish, prepare to reboot", Stage::Rebooting, 99, 0, true},
@@ -76,13 +75,14 @@ ProgressEvent parse_snapmaker_u1(std::string_view line) {
 /// Starts systemUpgrade.sh in its own session, reading /dev/null and writing only to
 /// the log, then returns. No pipe back to HelixScreen: the script stops services and
 /// reboots, and a write to a pipe whose reader died would kill it mid-flash.
-/// $1 script, $2 image, $3 log.
+/// The flasher's pid goes to a file so the page can tell a run that died from one
+/// still working. $1 script, $2 image, $3 log, $4 pid file.
 constexpr const char* kSnapmakerU1Launcher =
-    "setsid \"$1\" upgrade all \"$2\" </dev/null >\"$3\" 2>&1 &";
+    "setsid \"$1\" upgrade all \"$2\" </dev/null >\"$3\" 2>&1 & echo $! >\"$4\"";
 
 std::vector<std::string> launch_snapmaker_u1(const char* script, const std::string& image,
-                                             const std::string& log) {
-    return {"/bin/sh", "-c", kSnapmakerU1Launcher, "fwupdate", script, image, log};
+                                             const std::string& log, const std::string& pid) {
+    return {"/bin/sh", "-c", kSnapmakerU1Launcher, "fwupdate", script, image, log, pid};
 }
 
 bool is_snapmaker_u1_stock(const HostFacts& h) {
@@ -148,7 +148,7 @@ struct Provider {
     const char* lock_path;
     const char* unpack_dir;
     std::vector<std::string> (*launch)(const char* script, const std::string& image,
-                                       const std::string& log);
+                                       const std::string& log, const std::string& pid);
     ProgressEvent (*parse)(std::string_view line);
 
     /// Where to look for new firmware remotely, or nullptr.
@@ -537,14 +537,14 @@ bool confirm_is_destructive(const std::vector<ConfirmPoint>& points) {
     });
 }
 
-ApplyPlan apply_plan(const Provider& p, const std::string& image_path,
-                     const std::string& log_path) {
+ApplyPlan apply_plan(const Provider& p, const std::string& image_path, const std::string& run_dir) {
     ApplyPlan plan;
-    plan.log_path = log_path;
+    plan.log_path = run_dir + "/flasher.log";
+    plan.pid_path = run_dir + "/flasher.pid";
     if (p.launch == nullptr || p.script == nullptr) {
         return plan;
     }
-    plan.argv = p.launch(p.script, image_path, log_path);
+    plan.argv = p.launch(p.script, image_path, plan.log_path, plan.pid_path);
     plan.lock_path = p.lock_path != nullptr ? p.lock_path : "";
     plan.unpack_dir = p.unpack_dir != nullptr ? p.unpack_dir : "";
     return plan;

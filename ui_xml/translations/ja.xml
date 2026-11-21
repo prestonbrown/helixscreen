@@ -1079,6 +1079,7 @@
   <translation tag="Could not move the plate" ja="ベッドを動かせませんでした"/>
   <translation tag="Could not open a browser for the update" ja="更新用のブラウザを開けませんでした"/>
   <translation tag="Could not parse tips database" ja="ヒントデータベースを解析できませんでした"/>
+  <translation tag="Could not prepare a folder for the update log" ja="更新ログ用のフォルダーを作成できませんでした"/>
   <translation tag="Could not reach Spoolman at" ja="Spoolman に接続できません:"/>
   <translation tag="Could not read the current IPv4 settings." ja="現在のIPv4設定を読み取れませんでした。"/>
   <translation tag="Could not read the free space on the printer" ja="プリンターの空き容量を読み取れませんでした"/>
@@ -2417,6 +2418,7 @@
   <translation tag="Lost connection during print — try again" ja="印刷中に接続が切断されました — もう一度お試しください"/>
   <translation tag="Lost connection to CFS unit" ja="CFS ユニットとの接続が切断されました"/>
   <translation tag="Lost contact with a controller board" ja="制御ボードとの接続が切れました"/>
+  <translation tag="Lost contact with the printer. The update may still be running." ja="プリンターとの接続が切れました。更新はまだ実行中の可能性があります。"/>
   <translation tag="Lost the connection to the printer." ja="プリンターとの接続が切れました。"/>
   <translation tag="Lost the printer." ja="プリンターとの接続が失われました。"/>
   <translation tag="Lot # (optional)" ja="ロット番号（オプション）"/>
@@ -4560,7 +4562,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ja="ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です"/>
   <translation tag="The unload did not start: unload by hand, then start again" ja="排出が始まりませんでした: 手で排出してから、もう一度始めてください"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ja="排出はそのまま完了しますが、ベッドは移動しません。"/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." ja="更新は終了しましたが、プリンターはまだ更新を提示しています。使用する前にプリンターを確認してください。"/>
   <translation tag="The update failed" ja="更新に失敗しました"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." ja="更新からの応答がなくなりました。結果は不明です。使用する前にプリンターを確認してください。"/>
+  <translation tag="The update&apos;s result is unknown" ja="更新の結果は不明です"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ja="このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。"/>
   <translation tag="The {0} motor was not measured: {1}." ja="{0} モーターは測定されませんでした: {1}。"/>
   <translation tag="Theme" ja="テーマ"/>
@@ -4920,6 +4925,7 @@
   <translation tag="Update heater model?" ja="ヒーターモデルを更新しますか？"/>
   <translation tag="Update in Spoolman" ja="Spoolman で更新"/>
   <translation tag="Update installed!" ja="アップデートをインストールしました！"/>
+  <translation tag="Update printer software and firmware" ja="プリンターのソフトウェアとファームウェアを更新"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ja="PRINT_START の古いコマンドを非表示にするには、HelixPrint プラグインを 1.5.0 に更新してください。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ja="INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。"/>
   <translation tag="Update your security PIN" ja="セキュリティ PIN を更新"/>
@@ -5380,7 +5386,7 @@
   <translation tag="{} firmware" ja="{} ファームウェア"/>
   <translation tag="{} firmware can only be updated from its own screen app." ja="{} のファームウェアは専用の画面アプリからのみ更新できます。"/>
   <translation tag="{} firmware updates are managed by its own tools." ja="{} のファームウェア更新は専用のツールで管理されます。"/>
-  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." ja="{} のファームウェア {} が利用可能です。設定 &gt; ファームウェア更新 からインストールしてください。"/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." ja="{} のファームウェア {} が利用可能です。設定 &gt; システム &gt; ファームウェア更新 からインストールしてください。"/>
   <translation tag="{} free of {}" ja="空き {} / {}"/>
   <translation tag="{} h" ja="{} 時間"/>
   <translation tag="{} h of {} h" ja="{} / {} 時間"/>
