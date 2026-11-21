@@ -109,11 +109,18 @@ TEST_CASE("u1 restore: the trigger file is created where the hook looks", "[u1-s
     fs::remove_all(dir);
 }
 
-TEST_CASE("u1 restore: refused while a job holds the machine", "[u1-stock-screen]") {
+TEST_CASE("u1 restore: refused while a job holds the machine or its state is unknown",
+          "[u1-stock-screen]") {
     using helix::u1::RestoreStockVerdict;
     const char* trigger = "/home/lava/printer_data/config/helixscreen-restore-stock";
-    CHECK(helix::u1::decide_restore_stock(trigger, false) == RestoreStockVerdict::Proceed);
-    CHECK(helix::u1::decide_restore_stock(trigger, true) == RestoreStockVerdict::JobActive);
-    CHECK(helix::u1::decide_restore_stock(nullptr, false) == RestoreStockVerdict::NotOffered);
-    CHECK(helix::u1::decide_restore_stock("", true) == RestoreStockVerdict::NotOffered);
+    CHECK(helix::u1::decide_restore_stock(trigger, true, false) == RestoreStockVerdict::Proceed);
+    CHECK(helix::u1::decide_restore_stock(trigger, true, true) == RestoreStockVerdict::JobActive);
+    // Before Moonraker and print_stats arrive the job state reads STANDBY, so
+    // "no job" is not yet known, whatever job_active says.
+    CHECK(helix::u1::decide_restore_stock(trigger, false, false) ==
+          RestoreStockVerdict::StateUnknown);
+    CHECK(helix::u1::decide_restore_stock(trigger, false, true) ==
+          RestoreStockVerdict::StateUnknown);
+    CHECK(helix::u1::decide_restore_stock(nullptr, true, false) == RestoreStockVerdict::NotOffered);
+    CHECK(helix::u1::decide_restore_stock("", false, true) == RestoreStockVerdict::NotOffered);
 }

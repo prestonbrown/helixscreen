@@ -155,9 +155,14 @@ namespace {
 /// The verdict for a Restore Stock Screen request now, with the refusal toast
 /// already shown when it is not Proceed.
 helix::u1::RestoreStockVerdict restore_stock_verdict_now() {
-    const auto verdict = helix::u1::decide_restore_stock(std::getenv(helix::u1::kRestoreTriggerEnv),
-                                                         helix::power_job_active());
-    if (verdict == helix::u1::RestoreStockVerdict::JobActive) {
+    const auto verdict =
+        helix::u1::decide_restore_stock(std::getenv(helix::u1::kRestoreTriggerEnv),
+                                        helix::power_job_state_known(), helix::power_job_active());
+    if (verdict == helix::u1::RestoreStockVerdict::StateUnknown) {
+        ToastManager::instance().show(
+            ToastSeverity::WARNING,
+            lv_tr("Waiting for the printer's status; try again once it is connected"), 4000);
+    } else if (verdict == helix::u1::RestoreStockVerdict::JobActive) {
         ToastManager::instance().show(
             ToastSeverity::WARNING, lv_tr("Cannot restore the stock screen while printing"), 4000);
     } else if (verdict == helix::u1::RestoreStockVerdict::NotOffered) {

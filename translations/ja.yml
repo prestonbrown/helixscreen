@@ -4849,6 +4849,7 @@ translations:
   Waiting for the chamber to heat: チャンバーの加熱を待っています
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
+  Waiting for the printer's status; try again once it is connected: 'プリンターの状態を待っています。接続後にもう一度お試しください'
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"
   Wall Speed Shakes This Printer: '壁の速度でこのプリンターが揺れます'
   Warm: ウォーム

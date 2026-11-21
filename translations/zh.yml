@@ -4849,6 +4849,7 @@ translations:
   Waiting for the chamber to heat: 正在等待腔室加热
   Waiting for the filament system to report its state: 正在等待耗材系统报告状态
   Waiting for the printer: 正在等待打印机
+  Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   Waiting to read the printer's configuration from Klipper.: "正在等待从 Klipper 读取打印机配置。"
   Wall Speed Shakes This Printer: '外墙速度会使此打印机抖动'
   Warm: 暖色

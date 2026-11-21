@@ -40,14 +40,17 @@ bool restore_stock_screen_offered(const char* trigger_path);
 
 /// What tapping Restore Stock Screen does.
 enum class RestoreStockVerdict {
-    NotOffered, ///< No trigger path: not a stock-firmware U1
-    JobActive,  ///< A job holds the machine; the restore reboots, so refuse
+    NotOffered,   ///< No trigger path: not a stock-firmware U1
+    StateUnknown, ///< Whether a job holds the machine is not known yet
+    JobActive,    ///< A job holds the machine; the restore reboots, so refuse
     Proceed,
 };
 
-/// Decide a Restore Stock Screen request from the trigger path (may be null)
-/// and power_job_active(). Pure.
-RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_active);
+/// Decide a Restore Stock Screen request from the trigger path (may be null),
+/// power_job_state_known() and power_job_active(). The restore reboots, so it
+/// fails closed: an unknown job state refuses like an active job. Pure.
+RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_state_known,
+                                         bool job_active);
 
 /// Create the trigger file at @p path. False when it could not be written, in
 /// which case nothing will restore the stock screen.

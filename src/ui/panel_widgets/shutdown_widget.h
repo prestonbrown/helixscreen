@@ -127,6 +127,11 @@ struct PowerDecision {
 /// Main thread.
 bool power_job_active();
 
+/// True when power_job_active() reflects Klipper: Moonraker connected, Klipper
+/// ready, and a print_stats frame applied since start. Before that the job
+/// state reads its STANDBY default, so "no job" is not yet known. Main thread.
+bool power_job_state_known();
+
 /// Decide a power request. Pure.
 ///
 /// A dual-host screen with a target chosen in Settings (@p target) opens its

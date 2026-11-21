@@ -4828,6 +4828,7 @@ translations:
   Waiting for the chamber to heat: ''
   Waiting for the filament system to report its state: ''
   Waiting for the printer: ''
+  Waiting for the printer's status; try again once it is connected: ''
   Waiting to read the printer's configuration from Klipper.: ""
   Wall Speed Shakes This Printer: ''
   Warm: ''

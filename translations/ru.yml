@@ -4937,6 +4937,7 @@ translations:
   Waiting for the chamber to heat: Ожидание нагрева камеры
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
   Waiting for the printer: Ожидание принтера
+  Waiting for the printer's status; try again once it is connected: 'Ожидание состояния принтера; повторите попытку после подключения'
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."
   Wall Speed Shakes This Printer: 'Скорость стенок вызывает тряску принтера'
   Warm: Тёплый

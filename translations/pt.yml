@@ -4849,6 +4849,7 @@ translations:
   Waiting for the chamber to heat: Aguardando a câmara aquecer
   Waiting for the filament system to report its state: Aguardando o sistema de filamento informar seu estado
   Waiting for the printer: Aguardando a impressora
+  Waiting for the printer's status; try again once it is connected: 'Aguardando o status da impressora; tente novamente quando ela estiver conectada'
   Waiting to read the printer's configuration from Klipper.: "Aguardando a leitura da configuração da impressora no Klipper."
   Wall Speed Shakes This Printer: 'A velocidade da parede faz esta impressora vibrar'
   Warm: Quente
