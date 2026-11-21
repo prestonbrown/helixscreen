@@ -483,7 +483,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel'
     CHECK(get_global_motion_panel().is_visible());
 
     // Opening Motion while Controls shows it: nothing new, nothing pushed.
-    open_motion_panel(lv_screen_active());
+    helix::open_motion_panel(lv_screen_active());
     helix::ui::UpdateQueue::instance().drain();
     CHECK(get_global_motion_panel().get_root() == root);
     CHECK_FALSE(helix::nav::is_in_stack(root));
@@ -491,7 +491,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel'
     // From elsewhere: the band gives the tree up, and the overlay's is the only one.
     band.on_host_deactivate(DeactivateReason::NavigateAway);
     CHECK_FALSE(get_global_motion_panel().is_visible());
-    open_motion_panel(lv_screen_active());
+    helix::open_motion_panel(lv_screen_active());
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* overlay_root = get_global_motion_panel().get_root();
     REQUIRE(overlay_root != nullptr);

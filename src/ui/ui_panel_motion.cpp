@@ -722,7 +722,7 @@ void MotionPanel::on_ui_destroyed() {
     helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Motion);
 }
 
-void open_motion_panel(lv_obj_t* parent_screen) {
+void helix::open_motion_panel(lv_obj_t* parent_screen) {
     if (helix::ui::SideBand::take_open_request(helix::ui::SideBandContent::Motion)) {
         return;
     }
