@@ -525,6 +525,7 @@ translations:
   'Bed mesh calibration failed: {}': 'ベッドメッシュのキャリブレーションに失敗しました: {}'
   Bed mesh operation timed out: ベッドメッシュ操作がタイムアウトしました
   Bed mesh...: ベッドメッシュ...
+  Bed screws: 'ベッドネジ'
   Bed needs manual leveling: 'ベッドの手動レベリングが必要です'
   Bed size unknown: 'ベッドサイズが不明です'
   Bed target set to {}: ベッド目標温度を {} に設定しました
@@ -540,6 +541,7 @@ translations:
   Belt Tension: ベルトテンション
   Belt Tension Check: ベルトテンション確認
   Belt Tension needs a CoreXY printer. This one is {}.: 'ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。'
+  Belt compare: 'ベルト比較'
   Belt tension: "ベルトテンション"
   Belt tension and cutter calibration: "ベルトテンションとカッターのキャリブレーション"
   Belt tensioning completed: "ベルトの張り調整が完了しました"
@@ -667,6 +669,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: 入力シェーピングをキャリブレートして印刷のリンギングを軽減します
   Calibrate now: '今すぐキャリブレーション'
   Calibrate part fan: パーツファンを校正
+  Calibrate this printer, step by step: 'このプリンターを順番にキャリブレーション'
   Calibrate tool offsets?: ツールオフセットをキャリブレートしますか？
   Calibrate your touchscreen for accurate input: タッチスクリーンの入力精度をキャリブレートします
   Calibrated: キャリブレーション済み
@@ -1221,6 +1224,7 @@ translations:
   Cutter calibration completed: カッターのキャリブレーションが完了しました
   'Cutter calibration failed: {}': 'カッターのキャリブレーションに失敗しました: {}'
   Cutter jam: カッター詰まり
+  Cutter position: 'カッター位置'
   Cutting: カット中
   Cutting filament: "フィラメントを切断中"
   Cutting filament...: フィラメントを切断中...
@@ -1344,6 +1348,8 @@ translations:
   Don't Save: 保存しない
   Don't ask again: 今後表示しない
   Done: 完了
+  Done {}: '完了 {}'
+  Done {} · {}: '完了 {} · {}'
   Door: ドア
   Door Open: ドアが開いています
   'Door opened during print: {}': '印刷中にドアが開きました: {}'
@@ -1992,6 +1998,7 @@ translations:
   Heater over-temperature: ヒーター過昇温
   Heater sensor fault: ヒーターセンサー異常
   HeaterSelect: ヒーターを選択
+  Heaters: 'ヒーター'
   Heaters off: ヒーターをオフにしました
   Heating: 加熱中
   Heating (%s below minimum): '"加熱中（最低温度より%s低い）"'
@@ -2166,6 +2173,7 @@ translations:
   Imported {}: '{} をインポートしました'
   Importing {}...: '{} をインポート中...'
   In Progress: 進行中
+  In config · {}: '設定済み · {}'
   Inactive: 非アクティブ
   Inch units not supported: 'インチ単位は非対応です'
   Include Klipper/Moonraker logs: Klipper/Moonrakerのログを含める
@@ -2183,6 +2191,7 @@ translations:
   Input Shaper Calibration: 'インプットシェーパーキャリブレーション'
   Input Shaper Help: 入力シェーパーヘルプ
   Input Shaping: インプットシェーピング
+  Input shaper: 'インプットシェーパー'
   Input shaper calibration sensors: インプットシェーパーキャリブレーションセンサー
   Input shaper calibration...: インプットシェーパーキャリブレーション中...
   Input shaper settings applied!: インプットシェーパー設定が適用されました！
@@ -2731,6 +2740,9 @@ translations:
   Neutral: ニュートラル
   Neutralize Tension: "張力を中和"
   Never: なし
+  Never run: '未実行'
+  Never run · optional: '未実行 · 任意'
+  Never run · required: '未実行 · 必須'
   Never sleeps: スリープしない
   New Spool: 新規スプール
   'New Spool: Step 1 of 3': '新しいスプール: ステップ 1 / 3'
@@ -3234,6 +3246,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。'
+  Pressure advance tuning: 'Pressure Advance調整'
   'Pressure:': '圧力:'
   Pressed: 押下
   Pressure Adv.: 'Pressure Adv.'
@@ -3749,6 +3762,7 @@ translations:
   Run the MMU fans by temperature: "温度に応じて MMU ファンを動かす"
   Run the chamber dryer too: チャンバーのドライヤーも使う
 
+  Run when needed: '必要なときに実行'
   Run the official firmware update again so every board is updated, then restart.: 'すべてのボードが更新されるよう公式ファームウェアの更新を再実行してから、再起動してください。'
   Run {}?: '{} を実行しますか？'
   Running loose: '緩み気味'
@@ -4870,6 +4884,7 @@ translations:
   Tool cycle finished: ツールの順次交換が完了しました
   Tool is seated: ツールは装着済み
   Tool may be half seated: "ツールが半分しか装着されていない可能性があります"
+  Tool offsets: 'ツールオフセット'
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
   Tool swap: ツール交換
@@ -5089,6 +5104,8 @@ translations:
   Vertical: 垂直
   Vertical Artifact Check: '垂直アーティファクトチェック'
   Vertical Artifact Compensation: '垂直アーティファクト補正'
+  Vertical artifact check: '垂直アーティファクトチェック'
+  Vertical artifact compensation: '垂直アーティファクト補正'
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
   Video playback speed: 動画再生速度
@@ -5274,6 +5291,7 @@ translations:
   Z is at its limit ({}mm): Z軸は限界に達しています ({}mm)
   Z jog feedrate: Z軸のジョグ移動速度
   Z motor calibration failed: Z モーターの校正に失敗しました
+  Z offset: 'Zオフセット'
   Z offset by material: "素材別 Z-Offset"
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   Z tilt: Zチルト

@@ -60,7 +60,7 @@ Tapping a row (or its Load icon) loads that profile.
 
 Assisted manual bed leveling:
 
-1. Navigate to **Advanced > Bed Leveling**
+1. Navigate to **Advanced > Calibration > Bed Leveling**
 2. Tap **Start Probing**. The printer homes, then probes every bed screw position. It homes before every probe, Re-probe included, because turning a screw moves the bed under a Z position that still reads as homed
 3. Read each screw's instruction, e.g. "Tighten 1/4 turn" or "Loosen 1/8 turn"
 4. Turn the screws, tap **Re-probe**, and repeat until the bed reads level
@@ -93,7 +93,7 @@ The reference screw is labeled **base** (it is the one everything else is measur
 
 Tune vibration compensation for smoother, faster prints:
 
-1. Navigate to **Advanced > Input Shaping**
+1. Navigate to **Advanced > Calibration > Input Shaping**
 2. Review your current shaper configuration displayed at the top
 3. Pre-flight check verifies accelerometer is connected
 4. Select axis to test (X or Y)
@@ -163,7 +163,7 @@ View and control your Z probe from **Advanced > Probe Management**. HelixScreen 
 
 Interactive panel for dialing in your Z-offset when not printing. The [Z Offset guide](z-offset.md) covers every probe type, what Save does, and the gotchas. Works with all probe types — Cartographer, Beacon, BLTouch, eddy current probes, and standard probes.
 
-1. Navigate to **Advanced > Z-Offset Calibration**, or tap **Z-Offset Cal** in the Probe Management overlay
+1. Navigate to **Advanced > Calibration > Z-Offset Calibration**, or tap **Z-Offset Cal** in the Probe Management overlay
 2. Optionally enable **Warm Bed** to heat the bed before calibrating (accounts for thermal expansion)
 3. Tap **Start** — the printer homes and begins the calibration sequence
 4. Use the **+/−** adjustment buttons to lower the nozzle (paper test: adjust until paper drags slightly)
@@ -200,7 +200,7 @@ A tool that has never been calibrated shows `--` on each axis instead of a numbe
 
 ### Running a Calibration
 
-1. Navigate to **Advanced > Tool Offsets** —
+1. Navigate to **Advanced > Calibration > Tool Offsets** —
 
    ![Tool Offsets row in the Advanced panel](../../images/user/advanced-tool-offsets-row.png)
 
@@ -234,7 +234,7 @@ Reforge derives each head's offsets from its measurements, so HelixScreen doesn'
 
 On a Creator 5 Pro running Z-Mod, the printer runs its own tool offset calibration, and the Tool Offsets screen above does not open. Instead:
 
-1. Navigate to **Advanced > Tool Offsets**, or tap **Tool Offsets** on the Controls panel.
+1. Navigate to **Advanced > Calibration > Tool Offsets**, or tap **Tool Offsets** on the Controls panel.
 2. The printer shows its own dialog, **CALIBRATE EXTRUDERS**, asking you to remove the build plate first.
 3. Remove the build plate, then tap **OK** to start, or **Cancel** to back out.
 
@@ -258,7 +258,7 @@ The printer measures with its own built-in accelerometer; you do not need to add
 ### Running It
 
 1. Make sure no print is running.
-2. Navigate to **Advanced > Vertical Artifact Compensation**.
+2. Navigate to **Advanced > Calibration > Vertical Artifact Compensation**.
 3. On a Creator 5 with several heads, choose the **Tool** to run it with, then tap **Start**. Otherwise, confirm the dialog.
 4. If the printer is not homed, it homes first. It then measures its X and Y motors.
 5. When it finishes, the printer saves the result and restarts Klipper. The screen briefly shows the printer reconnecting; this is expected.
@@ -280,7 +280,7 @@ The **Vertical Artifact Check** row appears when the printer has an acceleromete
 ### Running It
 
 1. Make sure no print is running and the bed is clear.
-2. Navigate to **Advanced > Vertical Artifact Check**.
+2. Navigate to **Advanced > Calibration > Vertical Artifact Check**.
 3. Tap **Start**. If the last print may still be on the bed, remove it and tap **Cleared** when asked.
 4. The printer homes if it needs to, lifts the nozzle and runs the toolhead back and forth at speeds from 20 to 300 mm/s, one motor at a time. It is loud, and takes about five minutes. The chart fills in as each speed is measured.
 
@@ -325,7 +325,7 @@ The row appears under **Advanced > Calibration** on a CoreXY printer whose Klipp
 
 ### Running a Check
 
-1. Navigate to **Advanced > Belt Tension**
+1. Navigate to **Advanced > Calibration > Belt Tension**
 2. The panel shows what it found: your kinematics, your accelerometer, and the frequency range the sweep will cover. If a requirement is not met, the reason appears above the Start button
 3. Tap **Start Check**. The printer homes first if it needs to, runs three quick laps to settle the belts, then sweeps each belt path in turn: the toolhead moves back and forth along one diagonal while the accelerometer listens, then the other. Two full sweeps take about 5 minutes at Klipper's default settings - keep clear of the printer while it moves. Each path's curve draws live on the chart while it sweeps, as on the [Input Shaper live chart](#the-live-chart), and Klipper's analysis replaces it when the sweep ends
 4. Both curves appear on one chart, each path in its own color
@@ -480,7 +480,7 @@ Calibrate temperature controllers for stable heating. HelixScreen supports two c
 
 ### PID Calibration
 
-1. Navigate to **Advanced > Heater Calibration**
+1. Navigate to **Advanced > Calibration > Heater Calibration**
 2. Select **Nozzle** or **Bed**
 3. Choose a **material preset** (PLA, PETG, ABS, etc.) or enter a custom target temperature
 4. Optionally set **fan speed** — calibrating with the fan on gives more accurate results for printing conditions
@@ -502,7 +502,7 @@ Calibrate temperature controllers for stable heating. HelixScreen supports two c
 
 If you are running Kalico firmware, a **Method** selector appears with MPC and PID options. HelixScreen detects Kalico on its own, and the selector only appears when it does.
 
-1. Navigate to **Advanced > Heater Calibration**
+1. Navigate to **Advanced > Calibration > Heater Calibration**
 2. Select **MPC** in the Method selector
 3. Select **Nozzle** or **Bed**
 4. Choose a target temperature preset

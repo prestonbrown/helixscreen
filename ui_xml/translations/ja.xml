@@ -509,6 +509,7 @@
   <translation tag="Bed mesh operation timed out" ja="ベッドメッシュ操作がタイムアウトしました"/>
   <translation tag="Bed mesh..." ja="ベッドメッシュ..."/>
   <translation tag="Bed needs manual leveling" ja="ベッドの手動レベリングが必要です"/>
+  <translation tag="Bed screws" ja="ベッドネジ"/>
   <translation tag="Bed size unknown" ja="ベッドサイズが不明です"/>
   <translation tag="Bed target set to {}" ja="ベッド目標温度を {} に設定しました"/>
   <translation tag="Bed temp must be %d-%s" ja="ベッド温度は %d〜%s にしてください"/>
@@ -523,6 +524,7 @@
   <translation tag="Belt Tension" ja="ベルトテンション"/>
   <translation tag="Belt Tension Check" ja="ベルトテンション確認"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ja="ベルトテンションには CoreXY プリンターが必要です。このプリンターは{}です。"/>
+  <translation tag="Belt compare" ja="ベルト比較"/>
   <translation tag="Belt tension" ja="ベルトテンション"/>
   <translation tag="Belt tension and cutter calibration" ja="ベルトテンションとカッターのキャリブレーション"/>
   <translation tag="Belt tensioning completed" ja="ベルトの張り調整が完了しました"/>
@@ -647,6 +649,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ja="入力シェーピングをキャリブレートして印刷のリンギングを軽減します"/>
   <translation tag="Calibrate now" ja="今すぐキャリブレーション"/>
   <translation tag="Calibrate part fan" ja="パーツファンを校正"/>
+  <translation tag="Calibrate this printer, step by step" ja="このプリンターを順番にキャリブレーション"/>
   <translation tag="Calibrate tool offsets?" ja="ツールオフセットをキャリブレートしますか？"/>
   <translation tag="Calibrate with this tool?" ja="このツールで校正しますか？"/>
   <translation tag="Calibrate your touchscreen for accurate input" ja="タッチスクリーンの入力精度をキャリブレートします"/>
@@ -1159,6 +1162,7 @@
   <translation tag="Cutter calibration completed" ja="カッターのキャリブレーションが完了しました"/>
   <translation tag="Cutter calibration failed: {}" ja="カッターのキャリブレーションに失敗しました: {}"/>
   <translation tag="Cutter jam" ja="カッター詰まり"/>
+  <translation tag="Cutter position" ja="カッター位置"/>
   <translation tag="Cutting" ja="カット中"/>
   <translation tag="Cutting filament" ja="フィラメントを切断中"/>
   <translation tag="Cutting filament..." ja="フィラメントを切断中..."/>
@@ -1281,6 +1285,8 @@
   <translation tag="Don&apos;t Save" ja="保存しない"/>
   <translation tag="Don&apos;t ask again" ja="今後表示しない"/>
   <translation tag="Done" ja="完了"/>
+  <translation tag="Done {}" ja="完了 {}"/>
+  <translation tag="Done {} · {}" ja="完了 {} · {}"/>
   <translation tag="Door" ja="ドア"/>
   <translation tag="Door Open" ja="ドアが開いています"/>
   <translation tag="Door opened during print: {}" ja="印刷中にドアが開きました: {}"/>
@@ -1916,6 +1922,7 @@
   <translation tag="Heater over-temperature" ja="ヒーター過昇温"/>
   <translation tag="Heater sensor fault" ja="ヒーターセンサー異常"/>
   <translation tag="HeaterSelect" ja="ヒーターを選択"/>
+  <translation tag="Heaters" ja="ヒーター"/>
   <translation tag="Heaters off" ja="ヒーターをオフにしました"/>
   <translation tag="Heating" ja="加熱中"/>
   <translation tag="Heating (%s below minimum)" ja="&quot;加熱中（最低温度より%s低い）&quot;"/>
@@ -2086,6 +2093,7 @@
   <translation tag="Imported {}" ja="{} をインポートしました"/>
   <translation tag="Importing {}..." ja="{} をインポート中..."/>
   <translation tag="In Progress" ja="進行中"/>
+  <translation tag="In config · {}" ja="設定済み · {}"/>
   <translation tag="Inactive" ja="非アクティブ"/>
   <translation tag="Inch units not supported" ja="インチ単位は非対応です"/>
   <translation tag="Include Klipper/Moonraker logs" ja="Klipper/Moonrakerのログを含める"/>
@@ -2103,6 +2111,7 @@
   <translation tag="Input Shaper Calibration" ja="インプットシェーパーキャリブレーション"/>
   <translation tag="Input Shaper Help" ja="入力シェーパーヘルプ"/>
   <translation tag="Input Shaping" ja="インプットシェーピング"/>
+  <translation tag="Input shaper" ja="インプットシェーパー"/>
   <translation tag="Input shaper calibration sensors" ja="インプットシェーパーキャリブレーションセンサー"/>
   <translation tag="Input shaper calibration..." ja="インプットシェーパーキャリブレーション中..."/>
   <translation tag="Input shaper settings applied!" ja="インプットシェーパー設定が適用されました！"/>
@@ -2651,6 +2660,9 @@
   <translation tag="Neutral" ja="ニュートラル"/>
   <translation tag="Neutralize Tension" ja="張力を中和"/>
   <translation tag="Never" ja="なし"/>
+  <translation tag="Never run" ja="未実行"/>
+  <translation tag="Never run · optional" ja="未実行 · 任意"/>
+  <translation tag="Never run · required" ja="未実行 · 必須"/>
   <translation tag="Never sleeps" ja="スリープしない"/>
   <translation tag="New Spool" ja="新規スプール"/>
   <translation tag="New Spool: Step 1 of 3" ja="新しいスプール: ステップ 1 / 3"/>
@@ -3144,6 +3156,7 @@
   <translation tag="Pressure Advance Tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure advance" ja="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ja="タワーが高くなるにつれてPressure Advanceが上がります。角を見てください: いつでも-か+をタップするとランプが止まり、自分の値を判断できます。"/>
+  <translation tag="Pressure advance tuning" ja="Pressure Advance調整"/>
   <translation tag="Pressure:" ja="圧力:"/>
   <translation tag="Preview" ja="プレビュー"/>
   <translation tag="Preview Sounds" ja="サウンドをプレビュー"/>
@@ -3660,6 +3673,7 @@
   <translation tag="Run the MMU fans by temperature" ja="温度に応じて MMU ファンを動かす"/>
   <translation tag="Run the chamber dryer too" ja="チャンバーのドライヤーも使う"/>
   <translation tag="Run the official firmware update again so every board is updated, then restart." ja="すべてのボードが更新されるよう公式ファームウェアの更新を再実行してから、再起動してください。"/>
+  <translation tag="Run when needed" ja="必要なときに実行"/>
   <translation tag="Run {}?" ja="{} を実行しますか？"/>
   <translation tag="Running loose" ja="緩み気味"/>
   <translation tag="Running over" ja="超過中"/>
@@ -4719,6 +4733,7 @@
   <translation tag="Tool cycle finished" ja="ツールの順次交換が完了しました"/>
   <translation tag="Tool is seated" ja="ツールは装着済み"/>
   <translation tag="Tool may be half seated" ja="ツールが半分しか装着されていない可能性があります"/>
+  <translation tag="Tool offsets" ja="ツールオフセット"/>
   <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>
@@ -4946,6 +4961,8 @@
   <translation tag="Vertical" ja="垂直"/>
   <translation tag="Vertical Artifact Check" ja="垂直アーティファクトチェック"/>
   <translation tag="Vertical Artifact Compensation" ja="垂直アーティファクト補正"/>
+  <translation tag="Vertical artifact check" ja="垂直アーティファクトチェック"/>
+  <translation tag="Vertical artifact compensation" ja="垂直アーティファクト補正"/>
   <translation tag="Vibration" ja="振動"/>
   <translation tag="Vibration compensation active" ja="振動補正が有効です"/>
   <translation tag="Video playback speed" ja="動画再生速度"/>
@@ -5133,6 +5150,7 @@
   <translation tag="Z is at its limit ({}mm)" ja="Z軸は限界に達しています ({}mm)"/>
   <translation tag="Z jog feedrate" ja="Z軸のジョグ移動速度"/>
   <translation tag="Z motor calibration failed" ja="Z モーターの校正に失敗しました"/>
+  <translation tag="Z offset" ja="Zオフセット"/>
   <translation tag="Z offset by material" ja="素材別 Z-Offset"/>
   <translation tag="Z probes for bed leveling and mesh generation" ja="ベッドレベリングとメッシュ生成用 Z プローブ"/>
   <translation tag="Z tilt" ja="Zチルト"/>

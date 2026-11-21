@@ -1655,6 +1655,14 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         trigger_restart(/*is_firmware=*/false);
     }
 
+    // Both only stage the new value; the running Klipper keeps the old one
+    // until a restart.
+    if (has_token(g, "Z_OFFSET_APPLY_PROBE")) {
+        stage_config_change("probe", "z_offset", "0.000");
+    }
+    if (has_token(g, "Z_OFFSET_APPLY_ENDSTOP")) {
+        stage_config_change("stepper_z", "position_endstop", "0.000");
+    }
     if (has_token(g, "PROBE_CALIBRATE") || has_token(g, "Z_ENDSTOP_CALIBRATE")) {
         gcode_probe_calibrate(g);
     }

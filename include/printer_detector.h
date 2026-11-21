@@ -10,6 +10,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 // Forward declarations for auto_detect_and_save()
@@ -500,6 +501,13 @@ class PrinterDetector {
     /// `calibration.screws_tilt_self_prepares`: the shipped screws-tilt sequence
     /// does its own probe preparation. See get_bed_mesh_self_prepares().
     static bool get_screws_tilt_self_prepares(const std::string& printer_name);
+
+    /// `calibration.steps`: the printer's tier per calibration step id, as written
+    /// (`{"cutter": "required"}`). Empty when the entry or the object is absent;
+    /// a non-string value is skipped. helix::calibration::tier_overrides_from()
+    /// reads the tiers.
+    static std::vector<std::pair<std::string, std::string>>
+    get_calibration_step_tiers(const std::string& printer_name);
 
     /**
      * @brief Get print start profile name for a printer

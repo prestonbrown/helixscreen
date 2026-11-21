@@ -525,6 +525,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Bed mesh calibration failed: {}'
   Bed mesh operation timed out: Bed mesh operation timed out
   'Bed mesh...': 'Bed mesh...'
+  Bed screws: Bed screws
   Bed needs manual leveling: Bed needs manual leveling
   Bed size unknown: Bed size unknown
   Bed target set to {}: Bed target set to {}
@@ -540,6 +541,7 @@ translations:
   Belt Tension: Belt Tension
   Belt Tension Check: Belt Tension Check
   Belt Tension needs a CoreXY printer. This one is {}.: Belt Tension needs a CoreXY printer. This one is {}.
+  Belt compare: Belt compare
   Belt tension: Belt tension
   Belt tension and cutter calibration: Belt tension and cutter calibration
   Belt tensioning completed: Belt tensioning completed
@@ -668,6 +670,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrate input shaping to reduce ringing artifacts in prints
   Calibrate now: Calibrate now
   Calibrate part fan: Calibrate part fan
+  Calibrate this printer, step by step: Calibrate this printer, step by step
   Calibrate tool offsets?: Calibrate tool offsets?
   Calibrate your touchscreen for accurate input: Calibrate your touchscreen for accurate input
   Calibrated: Calibrated
@@ -1217,6 +1220,7 @@ translations:
   Cutter calibration completed: Cutter calibration completed
   'Cutter calibration failed: {}': 'Cutter calibration failed: {}'
   Cutter jam: Cutter jam
+  Cutter position: Cutter position
   Cutting: Cutting
   Cutting filament: Cutting filament
   Cutting filament...: Cutting filament...
@@ -1340,6 +1344,8 @@ translations:
   Don't Save: Don't Save
   Don't ask again: Don't ask again
   Done: Done
+  Done {}: Done {}
+  Done {} · {}: Done {} · {}
   Door: Door
   Door Open: Door Open
   'Door opened during print: {}': 'Door opened during print: {}'
@@ -1978,6 +1984,7 @@ translations:
   Heater over-temperature: 'Heater over-temperature'
   Heater sensor fault: 'Heater sensor fault'
   HeaterSelect: HeaterSelect
+  Heaters: Heaters
   Heaters off: Heaters off
   Heating: Heating
   Heating (%s below minimum): Heating (%s below minimum)
@@ -2151,6 +2158,7 @@ translations:
   Imported {}: Imported {}
   Importing {}...: Importing {}...
   In Progress: In Progress
+  In config · {}: In config · {}
   Inactive: Inactive
   Inch units not supported: Inch units not supported
   Include Klipper/Moonraker logs: Include Klipper/Moonraker logs
@@ -2168,6 +2176,7 @@ translations:
   Input Shaper Calibration: Input Shaper Calibration
   Input Shaper Help: Input Shaper Help
   Input Shaping: Input Shaping
+  Input shaper: Input shaper
   Input shaper calibration sensors: Input shaper calibration sensors
   'Input shaper calibration...': 'Input shaper calibration...'
   Input shaper settings applied!: Input shaper settings applied!
@@ -2715,6 +2724,9 @@ translations:
   Neutral: Neutral
   Neutralize Tension: Neutralize Tension
   Never: Never
+  Never run: Never run
+  Never run · optional: Never run · optional
+  Never run · required: Never run · required
   Never sleeps: Never sleeps
   New Spool: New Spool
   'New Spool: Step 1 of 3': 'New Spool: Step 1 of 3'
@@ -3214,6 +3226,7 @@ translations:
   Pressure advance: Pressure advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
+  Pressure advance tuning: Pressure advance tuning
   'Pressure:': 'Pressure:'
   Pressed: Pressed
   Pressure Adv.: Pressure Adv.
@@ -3728,6 +3741,7 @@ translations:
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.
   Run the MMU fans by temperature: Run the MMU fans by temperature
   Run the chamber dryer too: Run the chamber dryer too
+  Run when needed: Run when needed
   Run the official firmware update again so every board is updated, then restart.: Run the official firmware update again so every board is updated, then restart.
   Run {}?: Run {}?
   Running loose: Running loose
@@ -4841,6 +4855,7 @@ translations:
   Tool cycle finished: Tool cycle finished
   Tool is seated: Tool is seated
   Tool may be half seated: Tool may be half seated
+  Tool offsets: Tool offsets
   Tool offsets (mm): Tool offsets (mm)
   Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
@@ -5065,6 +5080,8 @@ translations:
   Vertical: Vertical
   Vertical Artifact Check: Vertical Artifact Check
   Vertical Artifact Compensation: Vertical Artifact Compensation
+  Vertical artifact check: Vertical artifact check
+  Vertical artifact compensation: Vertical artifact compensation
   Vibration: Vibration
   Vibration compensation active: Vibration compensation active
   Video playback speed: Video playback speed
@@ -5250,6 +5267,7 @@ translations:
   Z is at its limit ({}mm): Z is at its limit ({}mm)
   Z jog feedrate: Z jog feedrate
   Z motor calibration failed: Z motor calibration failed
+  Z offset: Z offset
   Z offset by material: Z offset by material
   Z probes for bed leveling and mesh generation: Z probes for bed leveling and mesh generation
   Z tilt: Z tilt

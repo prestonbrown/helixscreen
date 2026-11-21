@@ -38,7 +38,7 @@ HelixScreen picks the right save method for your printer automatically: probe, e
 
 | Place | What you get |
 |-------|--------------|
-| **Advanced > Z-Offset Calibration** | The guided calibration, for setting the offset from scratch. Also reachable as **Z-Offset Cal** in the Probe Management overlay, and as a **Z Calibration** button on the Controls panel. |
+| **Advanced > Calibration > Z-Offset Calibration** | The guided calibration, for setting the offset from scratch. Also reachable as **Z-Offset Cal** in the Probe Management overlay, and as a **Z Calibration** button on the Controls panel. |
 | **Tune** on the print screen | Baby steps during a print. See [Print Tune Overlay](printing.md#print-tune-overlay). |
 | **Z-Offset** row on the **Controls** panel | The current offset, the same baby-step controls, and the **Save Z-Offset** button once you have an unsaved change. |
 | **Z-Offset** home widget | The offset, the baby-step buttons and **Save** on the home screen. See [Z-Offset widget](home-widgets-print.md#z-offset-widget). |
@@ -49,7 +49,7 @@ Next to the offset, the Print Tune overlay can show a line such as "Saved 0.150 
 
 ## Calibrating the Z offset
 
-Use calibration when you first set up a printer, after changing a nozzle, probe or build plate, or whenever the first layer is far off and baby steps are not enough. The panel opens at **Advanced > Z-Offset Calibration**.
+Use calibration when you first set up a printer, after changing a nozzle, probe or build plate, or whenever the first layer is far off and baby steps are not enough. The panel opens at **Advanced > Calibration > Z-Offset Calibration**.
 
 1. Make sure nothing is on the bed and the nozzle is clean. HelixScreen asks **Is the bed clear?** first if your last print may still be on the plate.
 2. Optionally turn on **Warm Bed**. The bed heats to 45 degrees C before calibrating, which accounts for thermal expansion. Leave it off if you only ever print with a cold bed.
