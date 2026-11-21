@@ -9,7 +9,6 @@
 #include "ui_settings_fans.h"
 #include "ui_settings_led.h"
 #include "ui_settings_sensors.h"
-#include "ui_spoolman_overlay.h"
 
 #include "app_globals.h"
 #include "hardware_validator.h"
@@ -59,14 +58,6 @@ void HardwareSettingsOverlay::register_callbacks() {
         {"on_power_devices_clicked",
          [](lv_event_t*) {
              helix::ui::open_power_panel(get_hardware_settings_overlay().parent_screen_);
-         }},
-        {"on_spoolman_settings_clicked",
-         [](lv_event_t*) {
-             auto& overlay = helix::ui::get_spoolman_overlay();
-             if (IMoonrakerAPI* api = get_moonraker_api()) {
-                 overlay.set_api(api);
-             }
-             overlay.show(get_hardware_settings_overlay().parent_screen_);
          }},
     });
 }

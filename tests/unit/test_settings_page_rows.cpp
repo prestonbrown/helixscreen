@@ -104,7 +104,11 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page, 
         {"about_settings_overlay", {"row_version"}, {"row_check_updates"}},
         // Each plugin feature's switch is on the page its PluginFeatureHome opens:
         // Devices, Safety, System > Storage, Spoolman.
-        {"settings_hardware_overlay", {"row_print_photos"}, {"row_printers"}},
+        {"settings_hardware_overlay",
+         {"row_print_photos"},
+         {"row_printers", "row_spoolman_settings"}},
+        // Spoolman sits with the other filament rows on Printing.
+        {"settings_printing_overlay", {"row_spoolman_settings", "row_material_temps"}},
         {"settings_safety_overlay", {"row_fit_check_blocks_autostart"}},
         {"settings_system_overlay",
          {"row_storage"},

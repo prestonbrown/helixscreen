@@ -242,7 +242,8 @@ Connecting a server, the full spool-inventory panel, the new-spool wizard, and h
 - [Temperature Control](temperature.md): Preheat presets work with spool material info
 - [Bluetooth Setup](bluetooth-setup.md): Required for Bluetooth-connected AMS and label printers
 - [Label Printing](label-printing.md): Print physical spool labels with Spoolman data
-- [Settings: Devices](settings/devices.md): AMS, Spoolman, and filament sensor configuration
+- [Settings: Printing](settings/printing.md): AMS and Spoolman configuration
+- [Settings: Devices](settings/devices.md): filament sensor configuration
 
 ---
 

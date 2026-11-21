@@ -1523,4 +1523,12 @@ SpoolmanOverlay& get_spoolman_overlay() {
     return helix::lazy_global<SpoolmanOverlay>("SpoolmanOverlay");
 }
 
+void open_spoolman_settings(lv_obj_t* parent) {
+    auto& overlay = get_spoolman_overlay();
+    if (IMoonrakerAPI* api = get_moonraker_api()) {
+        overlay.set_api(api);
+    }
+    overlay.show(parent);
+}
+
 } // namespace helix::ui

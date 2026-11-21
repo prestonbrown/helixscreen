@@ -71,7 +71,7 @@ Tap a job to open its details:
 - **Started** and **Ended** (date and time, or a dash when the printer did not record one) and **Duration**
 - **Layers**, **Nozzle** and **Bed** temperatures
 - **Filament** used, its **Type** and the **Layer Height**
-- **Spools:** which spool each tool or slot used and how much. This needs the [HelixPrint plugin](helixprint-plugin.md#switch-spools-at-each-tool-change)'s spool switching, and only prints it counted show it (see [Settings > Devices > Spoolman](settings/devices.md#switch-spools-at-each-tool-change))
+- **Spools:** which spool each tool or slot used and how much. This needs the [HelixPrint plugin](helixprint-plugin.md#switch-spools-at-each-tool-change)'s spool switching, and only prints it counted show it (see [Settings > Printing > Spoolman](settings/printing.md#switch-spools-at-each-tool-change))
 - a picture of the print, with camera photos when the print has them: one taken after layer 2 and one when it ended. The picture opens on the end photo, and the **Preview**, **Layer 2** and **End** buttons switch between the slicer thumbnail and the photos. See [Print photos](settings/devices.md#print-photos) for how they are taken. Screens built without the [camera view](camera.md) do not show the photos.
 
 Three buttons act on the job:

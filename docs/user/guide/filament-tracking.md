@@ -74,22 +74,22 @@ HelixScreen talks to Spoolman **through Moonraker**. You give HelixScreen your S
 
 You need a running Spoolman server on your network. Then, on the printer:
 
-1. Open **Settings > Devices > Spoolman**.
+1. Open **Settings > Printing > Spoolman**.
 2. Under **Server Setup**, enter your server's **IP Address / Hostname** and **Port** (the port starts as `7912`).
 3. Tap **Connect**.
 
 HelixScreen checks that the server is reachable and sets up Moonraker for you; you do not edit `moonraker.conf` by hand. Once connected, the page shows **Spoolman Server** with **Change** and **Remove** buttons. **Remove** asks you to confirm, then takes the Spoolman setting out of Moonraker and restarts that service.
 
-Every setting on that page is described in [Settings > Devices > Spoolman](settings/devices.md#spoolman).
+Every setting on that page is described in [Settings > Printing > Spoolman](settings/printing.md#spoolman).
 
 ### Weight sync
 
 With Spoolman connected, HelixScreen does not subtract weight itself for linked spools. Spoolman does, against the **active spool**, as the print runs. HelixScreen reads the new weight back so the screen stays current:
 
-- **Sync with Spoolman**, under **Settings > Devices > Spoolman > Weight Sync**, is on by default. In 1.1 the switch is saved but does not stop the reading: the Home, Filament and Spoolman screens still read weights while they are open, and the switch only affects the reading while the Spoolman settings page itself is open.
+- **Sync with Spoolman**, under **Settings > Printing > Spoolman > Weight Sync**, is on by default. In 1.1 the switch is saved but does not stop the reading: the Home, Filament and Spoolman screens still read weights while they are open, and the switch only affects the reading while the Spoolman settings page itself is open.
 - Weights are also read again whenever a print starts, pauses or completes.
 - **Refresh Interval** offers 30 s, 1 min, 2 min and 5 min. In 1.1 the choice is saved but the screen still checks every 30 seconds whichever you pick.
-- On a printer with several tools or lanes, turn on **Switch spools at each tool change** (same page) so each tool's filament is charged to that tool's spool. See [Switch spools at each tool change](settings/devices.md#switch-spools-at-each-tool-change).
+- On a printer with several tools or lanes, turn on **Switch spools at each tool change** (same page) so each tool's filament is charged to that tool's spool. See [Switch spools at each tool change](settings/printing.md#switch-spools-at-each-tool-change).
 
 HelixScreen writes to Spoolman only when you make a change (linking a spool, editing a spool, creating one, saving a pressure advance value), and when it switches the active spool as described below.
 
@@ -182,7 +182,7 @@ However it is tracked, remaining filament shows in the same places:
 ## See Also
 
 - [Filament Management](filament.md): load and unload, AMS slots, drying and humidity, and the spool editors
-- [Settings > Devices > Spoolman](settings/devices.md#spoolman): every Spoolman setting in one place
+- [Settings > Printing > Spoolman](settings/printing.md#spoolman): every Spoolman setting in one place
 - [Sensors](sensors.md): filament runout and motion sensors
 - [Barcode Scanner](barcode-scanner.md): scan Spoolman QR codes
 - [Label Printing](label-printing.md): print spool labels that link back to Spoolman

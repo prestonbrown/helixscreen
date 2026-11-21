@@ -8,7 +8,7 @@ HelixScreen only acts on Spoolman spool QR codes. Any other barcode you scan is 
 
 ![Barcode Scanner Settings](../../images/user/settings-barcode-scanner.png)
 
-The settings live at **Settings > Devices > Spoolman > Barcode Scanner**. They are not available on the BigTreeTech K-Touch (ESP32) screen.
+The settings live at **Settings > Printing > Spoolman > Barcode Scanner**. They are not available on the BigTreeTech K-Touch (ESP32) screen.
 
 ---
 
@@ -25,7 +25,7 @@ If no scanner is set up, or the one you chose is not plugged in, the screen uses
 Most USB barcode scanners present themselves as a plain keyboard, so no driver is needed.
 
 1. Plug the scanner into any USB port.
-2. Open **Settings > Devices > Spoolman > Barcode Scanner**.
+2. Open **Settings > Printing > Spoolman > Barcode Scanner**.
 3. Under **USB Devices**, tap your scanner to select it (a check mark shows the choice, and **Selected** at the top names it). Tap **Refresh** if it is not listed. **Auto-detect** ("Use first HID scanner found") is the default and picks a keyboard-like device for you, but choosing your scanner by name is more reliable.
 4. Open the scan screen as described above and scan a Spoolman label.
 
@@ -94,7 +94,7 @@ You can tell HelixScreen to ignore a specific device by adding its USB ID to a b
 
 The ID is a `vendor:product` pair such as `002c:261a`. Find it either way:
 
-- **In HelixScreen:** open **Settings > Devices > Spoolman > Barcode Scanner**. Each entry under **USB Devices** shows its ID.
+- **In HelixScreen:** open **Settings > Printing > Spoolman > Barcode Scanner**. Each entry under **USB Devices** shows its ID.
 - **Over SSH:** run `lsusb` and read the pair after `ID`, for example `Bus 001 Device 005: ID 002c:261a ...`.
 
 ### 2. Add it to your settings

@@ -47,6 +47,9 @@
                               label="Multi-Filament System Management" icon="filament"
                               description="Quick actions, calibration, speed" callback="on_ams_settings_clicked"/>
         </lv_obj>
+        <setting_action_row name="row_spoolman_settings"
+                            label="Spoolman" icon="spoolman" description="Filament tracking &amp; label printing"
+                            callback="on_spoolman_settings_clicked"/>
         <setting_action_row name="row_material_temps"
                             label="Material Temperatures" icon="thermometer" description="Customize preset temperatures"
                             callback="on_material_temps_clicked"/>

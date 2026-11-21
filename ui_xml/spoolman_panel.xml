@@ -18,6 +18,11 @@
           <style name="styles.header_icon_button"/>
           <event_cb trigger="clicked" callback="on_spoolman_refresh_clicked"/>
         </ui_button>
+        <ui_button name="btn_spoolman_settings"
+                   width="40" height="40" style_max_height="#header_button_height" icon="cog" icon_size="sm">
+          <style name="styles.header_icon_button"/>
+          <event_cb trigger="clicked" callback="on_spoolman_settings_header_clicked"/>
+        </ui_button>
       </header_bar-actions>
     </header_bar>
     <!-- Search Row -->

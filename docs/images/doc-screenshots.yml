@@ -708,7 +708,7 @@ images:
     kind: app
     steps:
       - navigate settings
-      - click row_devices
+      - click row_printing
       - click row_spoolman_settings
       - wait_idle
     crop: group_weight_sync
@@ -721,7 +721,7 @@ images:
     kind: app
     steps:
       - navigate settings
-      - click row_devices
+      - click row_printing
       - click row_spoolman_settings
       - click row_label_printer
       - wait_idle
