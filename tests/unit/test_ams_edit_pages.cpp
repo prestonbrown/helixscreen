@@ -21,6 +21,7 @@
 #include "display_numbering.h"
 #include "filament_catalog.h"
 #include "filament_variants.h"
+#include "lane_translation.h"
 #include "moonraker_client_mock_spoolman.h"
 
 #include <optional>
@@ -722,4 +723,36 @@ TEST_CASE_METHOD(PagesFixture,
     NavigationManager::instance().go_back();
     settle();
     process_lvgl(400);
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "the card says the material once: not again under a product that names it",
+                 "[ams_edit_overlay][pages][card]") {
+    SlotInfo lane = describe_lane(*backend, 1, "ASA");
+    const std::string color = helix::ams::slot_color_name(lane.color_rgb);
+    lane.spool_name.clear(); // the product line then reads brand and product
+    SECTION("PolyLite ASA: the color alone") {
+        lane.brand = "Polymaker";
+        lane.product_name = "PolyLite ASA";
+        REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+        open(1, backend->get_slot_info(1));
+        CHECK(access.subject_text("ams_edit_product_line") == "Polymaker PolyLite ASA");
+        CHECK(access.subject_text("ams_edit_material_line") == color);
+    }
+    SECTION("a product that does not name it keeps the material") {
+        lane.brand = "Polymaker";
+        lane.product_name = "Basic";
+        REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+        open(1, backend->get_slot_info(1));
+        CHECK(access.subject_text("ams_edit_material_line") == "ASA · " + color);
+    }
+    SECTION("the empty page's last-held lines follow the same rule") {
+        lane.brand = "Polymaker";
+        lane.product_name = "PolyLite ASA";
+        lane.status = SlotStatus::EMPTY;
+        open(1, lane);
+        REQUIRE(access.page() == AmsEditOverlay::kPageEmpty);
+        CHECK(access.subject_text("ams_edit_last_material") == color);
+    }
+    close_editor_overlay();
 }

@@ -210,6 +210,25 @@ bool show_common_spools(size_t spool_count) {
     return spool_count < kFewSpools;
 }
 
+bool product_names_material(const std::string& product, const std::string& material) {
+    if (material.empty() || product.size() < material.size()) {
+        return false;
+    }
+    const auto word_char = [](char c) { return std::isalnum(static_cast<unsigned char>(c)) != 0; };
+    const std::string hay = helix::text_io::to_lower(product);
+    const std::string needle = helix::text_io::to_lower(material);
+    for (size_t at = hay.find(needle); at != std::string::npos; at = hay.find(needle, at + 1)) {
+        const size_t end = at + needle.size();
+        const bool starts_word = at == 0 || !word_char(hay[at - 1]) || !word_char(needle.front());
+        const bool ends_word =
+            end == hay.size() || !word_char(hay[end]) || !word_char(needle.back());
+        if (starts_word && ends_word) {
+            return true;
+        }
+    }
+    return false;
+}
+
 LaneScreen screen_for_lane(const SlotInfo& lane) {
     if (lane.status == SlotStatus::EMPTY) {
         return LaneScreen::Assign;

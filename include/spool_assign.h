@@ -111,6 +111,11 @@ enum class LaneScreen { Assign, Edit };
 /// what it last held.
 [[nodiscard]] LaneScreen screen_for_lane(const SlotInfo& lane);
 
+/// @p product's name already says @p material as a whole word, case
+/// ignored ("Polymaker PolyLite ASA" says "ASA"; "Polymaker Basic" does not
+/// say "PLA"), so a line under it need not repeat the material.
+[[nodiscard]] bool product_names_material(const std::string& product, const std::string& material);
+
 /// The action at the bottom of the spools list.
 enum class BottomAction {
     AddNewSecondary,     ///< "Not Listed? Add New Spool", dashed: the list has spools to Use

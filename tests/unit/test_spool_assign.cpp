@@ -340,3 +340,14 @@ TEST_CASE("a save that changed nothing on the lane leaves nothing to undo", "[sp
     product.product_name = "PLA+ 2.0";
     CHECK(save_changed_lane(lane, product));
 }
+
+TEST_CASE("a product that names its material spares the line under it the repeat",
+          "[spool-assign]") {
+    CHECK(product_names_material("Polymaker PolyLite ASA", "ASA"));
+    CHECK(product_names_material("eSUN petg-cf", "PETG-CF"));
+    CHECK(product_names_material("ASA", "ASA"));
+    // Not a whole word, or not there at all.
+    CHECK_FALSE(product_names_material("Polymaker Basic", "PLA"));
+    CHECK_FALSE(product_names_material("Polymaker PLAtinum", "PLA"));
+    CHECK_FALSE(product_names_material("Polymaker", ""));
+}

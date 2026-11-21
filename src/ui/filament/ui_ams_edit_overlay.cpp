@@ -141,6 +141,18 @@ std::string product_line_of(const SlotInfo& info) {
     return line.empty() ? info.material : line;
 }
 
+/// A card's second line under @p product: "PLA · Charcoal Black", the material
+/// left off when the product line already says it.
+std::string material_color_line(const std::string& product, const std::string& material,
+                                const std::string& color) {
+    std::string line =
+        spool_assign::product_names_material(product, material) ? std::string() : material;
+    if (!color.empty()) {
+        line += (line.empty() ? "" : " · ") + color;
+    }
+    return line;
+}
+
 /// Move every element of @p recents that appears in @p base (case-insensitive)
 /// to the front, keeping both lists' own orders otherwise.
 std::vector<std::string> hoist_recents(const std::vector<std::string>& base,
@@ -1134,10 +1146,9 @@ void AmsEditOverlay::update_empty_page() {
                  : std::string();
     snprintf(last_product_buf_, sizeof(last_product_buf_), "%s", held.c_str());
     lv_subject_set_string(&last_product_subject_, last_product_buf_);
-    std::string material_line = last.material;
-    if (has_last && slot_has_colour(last)) {
-        material_line += " · " + helix::ams::slot_color_name(last.color_rgb);
-    }
+    const std::string material_line = material_color_line(
+        product_line_of(last), last.material,
+        slot_has_colour(last) ? helix::ams::slot_color_name(last.color_rgb) : std::string());
     snprintf(last_material_buf_, sizeof(last_material_buf_), "%s",
              has_last ? material_line.c_str() : "");
     lv_subject_set_string(&last_material_subject_, last_material_buf_);
@@ -2157,14 +2168,12 @@ void AmsEditOverlay::update_summary() {
             shown.material = selected_type(sel_, *catalog_);
             shown.brand = sel_.brand;
         }
-        snprintf(product_line_buf_, sizeof(product_line_buf_), "%s",
-                 product_line_of(shown).c_str());
+        const std::string product = product_line_of(shown);
+        snprintf(product_line_buf_, sizeof(product_line_buf_), "%s", product.c_str());
         lv_subject_set_string(&product_line_subject_, product_line_buf_);
-        std::string material_line = shown.material;
-        const char* color = color_name_buf_;
-        if (color[0] != '\0' && slot_has_colour(shown)) {
-            material_line += (material_line.empty() ? "" : " · ") + std::string(color);
-        }
+        const std::string material_line = material_color_line(
+            product, shown.material,
+            slot_has_colour(shown) ? std::string(color_name_buf_) : std::string());
         snprintf(material_line_buf_, sizeof(material_line_buf_), "%s", material_line.c_str());
         lv_subject_set_string(&material_line_subject_, material_line_buf_);
     }
