@@ -33,7 +33,6 @@
 #include <mutex>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -214,28 +213,6 @@ enum class ZOffsetTuneHint {
 ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
                                            bool external_persistence, bool db_persists,
                                            bool tool_change_resets);
-
-/**
- * @brief Pick the Z-offset calibration strategy for a printer
- *
- * A strategy the printer database names wins. Otherwise Z0 decides: a numeric
- * stepper_z position_endstop means Z homes on a switch, so the endstop holds Z0
- * and only Z_ENDSTOP_CALIBRATE / Z_OFFSET_APPLY_ENDSTOP move it, probe or not.
- * Without one, a probe is the Z endstop (PROBE_CALIBRATE). Klipper registers the
- * endstop commands only when that option is set (klippy/extras/manual_probe.py);
- * a delta has no [stepper_z] and registers only its own Z_OFFSET_APPLY_ENDSTOP,
- * so a delta without a probe gets FIRMWARE_MANAGED, whose commands every
- * kinematics has. No probe and no endstop reading on any other kinematics stays
- * ENDSTOP: Klipper requires position_endstop there, so the reading is late.
- *
- * @param db_strategy the database's `z_offset_calibration_strategy`, "" for none
- * @param z_position_endstop_numeric stepper_z position_endstop is a number
- * @param kinematics `[printer] kinematics`, "" while unknown
- */
-ZOffsetCalibrationStrategy resolve_z_offset_calibration_strategy(std::string_view db_strategy,
-                                                                 bool has_probe,
-                                                                 bool z_position_endstop_numeric,
-                                                                 std::string_view kinematics);
 
 /**
  * @brief Convert PrintJobState enum to display string
@@ -2193,22 +2170,6 @@ class PrinterState {
      */
     int get_configured_z_offset_microns();
 
-    /// The saved Z offset is the probe's z_offset: a probe, and a strategy that
-    /// does not save to stepper_z's position_endstop.
-    bool z_offset_reference_is_probe();
-
-    /**
-     * @brief Record whether stepper_z reports a numeric position_endstop
-     *
-     * set_hardware() takes it from the discovery snapshot; this is the path for
-     * a configfile read that lands after it (the safety-limits fetch), and it
-     * re-resolves the calibration strategy when the answer changes.
-     * Thread-safe: defers to the main thread.
-     */
-    void set_z_position_endstop_known(bool numeric);
-    /// Main-thread body; tests reach it directly.
-    void set_z_position_endstop_known_internal(bool numeric);
-
     /**
      * @brief Set stepper_z position_endstop (for non-probe printers)
      *
@@ -2598,10 +2559,6 @@ class PrinterState {
     /// FIRMWARE_MANAGED regardless of printer type. Set by discovery via
     /// set_z_offset_external_persistence() when zoffset:: matches a provider.
     bool z_offset_external_persistence_ = false;
-
-    /// stepper_z reports a numeric position_endstop: Z homes on a switch, which
-    /// holds Z0 (resolve_z_offset_calibration_strategy()).
-    bool z_position_endstop_numeric_ = false;
 
     /// Last kinematics string (to skip redundant recomputation)
     std::string last_kinematics_;

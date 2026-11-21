@@ -333,17 +333,6 @@ int MoonrakerClientMock::get_total_layers() const {
     return static_cast<int>(print_metadata_.layer_count);
 }
 
-bool MoonrakerClientMock::is_stepper_z_endstop_null() const {
-    // The mock reports a probe unless HELIX_MOCK_PROBE_TYPE=none.
-    const char* probe_env = std::getenv("HELIX_MOCK_PROBE_TYPE");
-    const bool has_probe = !(probe_env && std::string(probe_env) == "none");
-    return stepper_z_endstop_null_.value_or(has_probe);
-}
-
-nlohmann::json MoonrakerClientMock::stepper_z_position_endstop() const {
-    return is_stepper_z_endstop_null() ? nlohmann::json(nullptr) : nlohmann::json(235.0);
-}
-
 bool MoonrakerClientMock::has_chamber_sensor() const {
     // The simulation thread calls this every iteration while discover_printer()
     // is still reassigning discovery_.sensors() on the calling thread — the same
@@ -915,14 +904,12 @@ void MoonrakerClientMock::populate_capabilities() {
     mock_config["stepper_y"] = {{"position_min", mock_internal::MOCK_BED_Y_MIN},
                                 {"position_max", mock_internal::MOCK_BED_Y_MAX}};
     mock_config["stepper_z"] = {{"position_min", 0.0},
-                                {"position_max", mock_internal::MOCK_BED_Z_MAX},
-                                {"position_endstop", stepper_z_position_endstop()}};
+                                {"position_max", mock_internal::MOCK_BED_Z_MAX}};
 
     std::unordered_set<std::string> macros_snapshot;
     discovery_.modify_hardware([&](PrinterDiscovery& hw) {
         hw.parse_config_keys(mock_config);
         hw.parse_build_volume(mock_config);
-        hw.parse_z_position_endstop(mock_config);
         macros_snapshot = hw.macros();
     });
 

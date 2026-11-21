@@ -265,12 +265,15 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     extruder_settings["pid_kd"] = 101.178;
                 }
 
-                // A probe used as the Z endstop reports null; see
+                // Probe-equipped printers (endstop_pin: probe:z_virtual_endstop)
+                // get a JSON null here rather than a number — see
                 // set_stepper_z_endstop_null().
-                json stepper_z_settings = {
-                    {"position_min", 0.0},
-                    {"position_max", MOCK_BED_Z_MAX},
-                    {"position_endstop", self->stepper_z_position_endstop()}};
+                json stepper_z_settings = {{"position_min", 0.0}, {"position_max", MOCK_BED_Z_MAX}};
+                if (self->is_stepper_z_endstop_null()) {
+                    stepper_z_settings["position_endstop"] = nullptr;
+                } else {
+                    stepper_z_settings["position_endstop"] = 235.0;
+                }
 
                 status_obj["configfile"] = {
                     {"settings",
@@ -729,7 +732,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                       {"stepper_z",
                        {{"position_min", 0.0},
                         {"position_max", MOCK_BED_Z_MAX},
-                        {"position_endstop", self->stepper_z_position_endstop()}}},
+                        {"position_endstop", 235.0}}},
                       {"extruder", extruder_settings2},
                       {"resonance_tester",
                        {{"min_freq", self->get_resonance_min_freq()},

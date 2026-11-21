@@ -790,14 +790,6 @@ void PrinterState::set_hardware(helix::PrinterDiscovery hardware) {
     // Delegate capability subject updates to capabilities_state_ component
     capabilities_state_.set_hardware(discovery_, capability_overrides_);
 
-    // The probe, stepper_z's endstop and the kinematics pick the Z-offset
-    // calibration strategy. A type resolved before this snapshot (the saved
-    // type at startup) is re-resolved against it.
-    z_position_endstop_numeric_ = discovery_.z_position_endstop().has_value();
-    if (!printer_type_.empty()) {
-        set_printer_type_internal(printer_type_);
-    }
-
     // Re-synthesize dynamic pre-print options now that hardware capabilities are
     // known. The bed_mesh option's adaptive_active flag (which relabels it to
     // "Adaptive Bed Mesh" and enables the adaptive param) depends on
@@ -1024,12 +1016,8 @@ bool PrinterState::can_start_new_print() const {
     return print_domain_.can_start_new_print();
 }
 
-bool PrinterState::z_offset_reference_is_probe() {
-    return has_probe() && z_offset_calibration_strategy_ != ZOffsetCalibrationStrategy::ENDSTOP;
-}
-
 int PrinterState::get_configured_z_offset_microns() {
-    if (z_offset_reference_is_probe()) {
+    if (has_probe()) {
         // Probe printers: z_offset stored in ProbeSensorManager (already in microns)
         return lv_subject_get_int(
             helix::sensors::ProbeSensorManager::instance().get_probe_z_offset_subject());
@@ -1189,10 +1177,18 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
     // Determine what the z-cal strategy would be for this type so we can
     // skip redundant updates (auto-detect often confirms the saved type).
     auto new_options = PrinterDetector::get_pre_print_option_set(type);
-    const std::string db_strategy = PrinterDetector::get_z_offset_calibration_strategy(type);
-    ZOffsetCalibrationStrategy new_strategy = helix::resolve_z_offset_calibration_strategy(
-        db_strategy, capabilities_state_.has_probe(), z_position_endstop_numeric_,
-        discovery_.kinematics());
+    std::string strategy_str = PrinterDetector::get_z_offset_calibration_strategy(type);
+    ZOffsetCalibrationStrategy new_strategy;
+    if (strategy_str == "firmware_managed") {
+        new_strategy = ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
+    } else if (strategy_str == "endstop") {
+        new_strategy = ZOffsetCalibrationStrategy::ENDSTOP;
+    } else if (strategy_str == "probe_calibrate") {
+        new_strategy = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    } else {
+        new_strategy = capabilities_state_.has_probe() ? ZOffsetCalibrationStrategy::PROBE_CALIBRATE
+                                                       : ZOffsetCalibrationStrategy::ENDSTOP;
+    }
 
     // An installed SET_GCODE_OFFSET wrapper persists the offset itself; the
     // type-derived strategy would fold the gcode offset into the probe and the
@@ -1202,15 +1198,9 @@ void PrinterState::set_printer_type_internal(const std::string& type) {
         new_strategy = ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
     }
 
-    // `z_offset_persists` describes a firmware the database names as managing the
-    // offset; a stock Klipper that only lands on FIRMWARE_MANAGED for want of
-    // endstop commands persists nothing.
-    const bool db_persists = PrinterDetector::z_offset_persists(type) &&
-                             (db_strategy == "firmware_managed" ||
-                              new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
-    const ZOffsetTuneHint new_hint =
-        resolve_z_offset_tune_hint(new_strategy, z_offset_external_persistence_, db_persists,
-                                   PrinterDetector::tool_change_resets_z_offset(type));
+    const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
+        new_strategy, z_offset_external_persistence_, PrinterDetector::z_offset_persists(type),
+        PrinterDetector::tool_change_resets_z_offset(type));
 
     if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_ &&
         new_hint == z_offset_tune_hint_value_) {
@@ -1352,56 +1342,6 @@ ZOffsetTuneHint helix::resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy str
         return ZOffsetTuneHint::AUTO_SAVED;
     }
     return tool_change_resets ? ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE : ZOffsetTuneHint::TEMPORARY;
-}
-
-namespace {
-
-/// Kinematics Klipper builds without a [stepper_z], so stepper_z position_endstop
-/// never exists and manual_probe.py registers no Z_ENDSTOP_CALIBRATE.
-bool kinematics_without_stepper_z(std::string_view kinematics) {
-    return kinematics == "delta" || kinematics == "rotary_delta" || kinematics == "deltesian" ||
-           kinematics == "winch";
-}
-
-} // namespace
-
-ZOffsetCalibrationStrategy
-helix::resolve_z_offset_calibration_strategy(std::string_view db_strategy, bool has_probe,
-                                             bool z_position_endstop_numeric,
-                                             std::string_view kinematics) {
-    if (db_strategy == "firmware_managed") {
-        return ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
-    }
-    if (db_strategy == "endstop") {
-        return ZOffsetCalibrationStrategy::ENDSTOP;
-    }
-    if (db_strategy == "probe_calibrate") {
-        return ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
-    }
-    if (z_position_endstop_numeric) {
-        return ZOffsetCalibrationStrategy::ENDSTOP;
-    }
-    if (has_probe) {
-        return ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
-    }
-    if (kinematics_without_stepper_z(kinematics)) {
-        return ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
-    }
-    return ZOffsetCalibrationStrategy::ENDSTOP;
-}
-
-void PrinterState::set_z_position_endstop_known(bool numeric) {
-    helix::async::call_method(this, &PrinterState::set_z_position_endstop_known_internal, numeric);
-}
-
-void PrinterState::set_z_position_endstop_known_internal(bool numeric) {
-    if (z_position_endstop_numeric_ == numeric) {
-        return;
-    }
-    z_position_endstop_numeric_ = numeric;
-    if (!printer_type_.empty()) {
-        set_printer_type_internal(printer_type_);
-    }
 }
 
 ZOffsetCalibrationStrategy PrinterState::get_z_offset_calibration_strategy() const {
