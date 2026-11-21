@@ -17,6 +17,7 @@
 
 #include "../../include/config.h"
 #include "../../include/helix_plugin_installer.h"
+#include "../test_helpers/install_tree_fixture.h"
 
 #include <filesystem>
 #include <string>
@@ -237,6 +238,28 @@ TEST_CASE("HelixPluginInstaller script path", "[plugin_installer]") {
 
         // Path resolution is a pure query - it must not move the state machine.
         CHECK(installer.get_state() == helix::PluginInstallState::IDLE);
+    }
+}
+
+TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs from",
+          "[plugin_installer][install_root]") {
+    using helix::HelixPluginInstaller;
+    helix::test::InstallTreeFixture tree;
+
+    SECTION("a PAXX package launched through its bind mount over /usr/bin/gui") {
+        const auto gui = tree.make_paxx_bind_mount("helixscreen-1.0.5");
+        CHECK(HelixPluginInstaller::install_script_path_for(gui.string(), tree.root) ==
+              std::filesystem::canonical(
+                  tree.root + "/oem/apps/helixscreen/helixscreen-1.0.5/moonraker-plugin/install.sh")
+                  .string());
+    }
+
+    SECTION("our own install, launched by its path") {
+        const auto ours = tree.make_tree("userdata/helixscreen");
+        CHECK(HelixPluginInstaller::install_script_path_for(ours.string(), tree.root) ==
+              std::filesystem::canonical(tree.root +
+                                         "/userdata/helixscreen/moonraker-plugin/install.sh")
+                  .string());
     }
 }
 

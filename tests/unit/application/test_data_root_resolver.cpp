@@ -12,6 +12,7 @@
  *   - Wrong CWD:    Binary launched from / but data root exists at exe parent
  */
 
+#include "../../test_helpers/install_tree_fixture.h"
 #include "data_root_resolver.h"
 
 #include <cstdlib>
@@ -409,4 +410,39 @@ TEST_CASE_METHOD(DataRootFixture,
     // missing → config_dir/relpath = "config/foo.json"
     std::string p = helix::find_readable("foo.json");
     REQUIRE(p == "config/foo.json");
+}
+
+// ============================================================================
+// resolve_install_root: the install tree, wherever the binary is launched from
+// ============================================================================
+
+TEST_CASE("resolve_install_root finds a PAXX package launched through its bind mount",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    const fs::path gui = tree.make_paxx_bind_mount("helixscreen-1.0.5");
+
+    // /usr/bin/gui strips to /usr, which is no install tree; the package dir is.
+    CHECK(helix::resolve_install_root(gui.string(), tree.root) ==
+          tree.root + "/oem/apps/helixscreen/helixscreen-1.0.5");
+}
+
+TEST_CASE("resolve_install_root keeps an install found from the exe path",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    tree.make_paxx_bind_mount("helixscreen-1.0.5");
+    const fs::path ours = tree.make_tree("userdata/helixscreen");
+
+    CHECK(helix::resolve_install_root(ours.string(), tree.root) ==
+          tree.root + "/userdata/helixscreen");
+}
+
+TEST_CASE("resolve_install_root finds nothing for a binary outside any install tree",
+          "[data_root][install_root]") {
+    helix::test::InstallTreeFixture tree;
+    const fs::path binary = tree.make_tree("elsewhere");
+    const fs::path gui = tree.root + "/usr/bin/gui";
+    fs::create_directories(gui.parent_path());
+    fs::create_hard_link(binary, gui);
+
+    CHECK(helix::resolve_install_root(gui.string(), tree.root).empty());
 }

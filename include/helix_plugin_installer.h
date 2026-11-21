@@ -174,11 +174,23 @@ class HelixPluginInstaller {
     /**
      * @brief Get path to bundled install.sh script
      *
-     * Searches for install.sh relative to the executable.
+     * install_script_path_for() the running executable.
      *
      * @return Path to script, or empty if not found
      */
     [[nodiscard]] std::string get_install_script_path() const;
+
+    /**
+     * @brief Path to the install.sh that executable @p exe would run
+     *
+     * Looks in moonraker-plugin/ under the install root (resolve_install_root,
+     * with firmware packages probed under @p probe_root), then beside the
+     * executable and in the system share dir.
+     *
+     * @return Path to script, or empty if not found
+     */
+    [[nodiscard]] static std::string install_script_path_for(const std::string& exe,
+                                                             const std::string& probe_root = "/");
 
     // === Preference Management ===
 

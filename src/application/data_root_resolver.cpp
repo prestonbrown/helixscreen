@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <dirent.h>
 #include <sys/stat.h>
 
 namespace helix {
@@ -21,6 +22,19 @@ bool path_exists(const std::string& p) {
 std::string& asset_root_storage() {
     static std::string root = ".";
     return root;
+}
+
+/// @p abs_path under @p probe_root ("/" or empty probes the real path).
+std::string rooted(const std::string& probe_root, const char* abs_path) {
+    std::string root = probe_root;
+    while (!root.empty() && root.back() == '/')
+        root.pop_back();
+    return root + abs_path;
+}
+
+bool same_file(const struct stat& a, const std::string& path) {
+    struct stat b {};
+    return ::stat(path.c_str(), &b) == 0 && a.st_dev == b.st_dev && a.st_ino == b.st_ino;
 }
 
 } // namespace
@@ -62,6 +76,49 @@ std::string resolve_data_root_from_exe(const std::string& exe_path) {
         }
     }
 
+    return {};
+}
+
+std::optional<std::string> u1_firmware_package_root(const std::string& running_exe,
+                                                    const std::string& probe_root) {
+    const std::string package_dir = rooted(probe_root, "/oem/apps/helixscreen");
+    struct stat exe_st {};
+    if (::stat(running_exe.c_str(), &exe_st) != 0)
+        return std::nullopt;
+    DIR* dir = ::opendir(package_dir.c_str());
+    if (dir == nullptr)
+        return std::nullopt;
+    std::optional<std::string> via_link;
+    std::optional<std::string> real_dir;
+    while (const struct dirent* entry = ::readdir(dir)) {
+        const std::string name = entry->d_name;
+        if (name == "." || name == "..")
+            continue;
+        const std::string path = package_dir + "/" + name;
+        if (!same_file(exe_st, path + "/bin/helix-screen"))
+            continue;
+        struct stat link_st {};
+        const bool is_link = ::lstat(path.c_str(), &link_st) == 0 && S_ISLNK(link_st.st_mode);
+        if (!is_link) {
+            real_dir = path;
+            break;
+        }
+        if (!via_link)
+            via_link = path;
+    }
+    ::closedir(dir);
+    return real_dir ? real_dir : via_link;
+}
+
+std::string resolve_install_root(const std::string& exe_path, const std::string& probe_root) {
+    std::string root = resolve_data_root_from_exe(exe_path);
+    if (!root.empty() || exe_path.empty()) {
+        return root;
+    }
+    const auto package = u1_firmware_package_root(exe_path, probe_root);
+    if (package && is_valid_data_root(*package)) {
+        return *package;
+    }
     return {};
 }
 

@@ -19,7 +19,9 @@
  */
 
 #include "app_globals.h"
+#include "data_root_resolver.h"
 #include "platform_info.h"
+#include "test_helpers/install_tree_fixture.h"
 #include "test_helpers/unique_temp_dir.h"
 
 #include <cstdlib>
@@ -409,4 +411,32 @@ TEST_CASE("an unidentifiable executable beside a PAXX package is firmware-manage
     // Our own install root stays ours even then.
     const fs::path ours = touch_exe(tmp.path / "userdata/helixscreen/bin/helix-screen");
     CHECK_FALSE(u1_firmware_manages_updates(ours.string(), tmp.path.string()));
+}
+
+TEST_CASE("u1_firmware_package_root names the PAXX version dir its binary runs from",
+          "[update][external][u1][install_root]") {
+    using helix::u1_firmware_package_root;
+    helix::test::InstallTreeFixture tree;
+    const fs::path gui = tree.make_paxx_bind_mount("helixscreen-1.0.5");
+    const std::string version_dir = tree.root + "/oem/apps/helixscreen/helixscreen-1.0.5";
+
+    // Through the bind mount, and by the package paths: always the real version dir,
+    // never `latest`, which the next package upgrade re-points.
+    CHECK(u1_firmware_package_root(gui.string(), tree.root) == version_dir);
+    CHECK(u1_firmware_package_root(tree.root + "/oem/apps/helixscreen/latest/bin/helix-screen",
+                                   tree.root) == version_dir);
+
+    // Our own install beside it is not the package, nor is a binary that is not there.
+    const fs::path ours = tree.make_tree("userdata/helixscreen");
+    CHECK_FALSE(u1_firmware_package_root(ours.string(), tree.root));
+    CHECK_FALSE(u1_firmware_package_root(tree.root + "/missing", tree.root));
+}
+
+TEST_CASE("u1_firmware_package_root finds nothing with no PAXX package dir",
+          "[update][external][u1][install_root]") {
+    using helix::u1_firmware_package_root;
+    helix::test::InstallTreeFixture tree;
+    const fs::path ours = tree.make_tree("userdata/helixscreen");
+
+    CHECK_FALSE(u1_firmware_package_root(ours.string(), tree.root));
 }

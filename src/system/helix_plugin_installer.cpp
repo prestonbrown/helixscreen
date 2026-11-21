@@ -4,6 +4,7 @@
 #include "helix_plugin_installer.h"
 
 #include "config.h"
+#include "data_root_resolver.h"
 #include "host_identity.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -16,9 +17,9 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
-#include <filesystem>
 #include <cstring>
 #include <fcntl.h>
+#include <filesystem>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -332,10 +333,9 @@ HelixPluginInstaller::install_local_sync(bool enable_phase_tracking) {
                  script_path, enable_phase_tracking);
 
     constexpr int INSTALL_TIMEOUT_SECONDS = 60;
-    WaitResult result =
-        run_install_script(script_path, "--auto",
-                           enable_phase_tracking ? "--with-phase-tracking" : nullptr,
-                           INSTALL_TIMEOUT_SECONDS, "Installation");
+    WaitResult result = run_install_script(
+        script_path, "--auto", enable_phase_tracking ? "--with-phase-tracking" : nullptr,
+        INSTALL_TIMEOUT_SECONDS, "Installation");
 
     if (result.spawn_failed) {
         state_.store(PluginInstallState::FAILED);
@@ -390,10 +390,9 @@ void HelixPluginInstaller::install_local(InstallCallback callback, bool enable_p
 
     // NOTE: This is a blocking call. For production UI, consider std::async.
     constexpr int INSTALL_TIMEOUT_SECONDS = 60;
-    WaitResult result =
-        run_install_script(script_path, "--auto",
-                           enable_phase_tracking ? "--with-phase-tracking" : nullptr,
-                           INSTALL_TIMEOUT_SECONDS, "Installation");
+    WaitResult result = run_install_script(
+        script_path, "--auto", enable_phase_tracking ? "--with-phase-tracking" : nullptr,
+        INSTALL_TIMEOUT_SECONDS, "Installation");
 
     if (result.spawn_failed) {
         state_.store(PluginInstallState::FAILED);
@@ -503,17 +502,12 @@ std::string HelixPluginInstaller::get_remote_install_command() const {
 }
 
 std::string HelixPluginInstaller::get_install_script_path() const {
-    // Try to find install.sh relative to the executable
-
-    // Get executable path
-    std::string exe_dir;
-
+    std::string exe;
 #ifdef __APPLE__
     char path[1024];
     uint32_t size = sizeof(path);
     if (_NSGetExecutablePath(path, &size) == 0) {
-        std::filesystem::path exe_path(path);
-        exe_dir = exe_path.parent_path().string();
+        exe = path;
     }
 #else
     // Linux: read /proc/self/exe
@@ -521,22 +515,33 @@ std::string HelixPluginInstaller::get_install_script_path() const {
     ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
     if (len != -1) {
         path[len] = '\0';
-        std::filesystem::path exe_path(path);
-        exe_dir = exe_path.parent_path().string();
+        exe = path;
     }
 #endif
+    return install_script_path_for(exe);
+}
 
-    if (exe_dir.empty()) {
+std::string HelixPluginInstaller::install_script_path_for(const std::string& exe,
+                                                          const std::string& probe_root) {
+    if (exe.empty()) {
         return "";
     }
+    const std::string exe_dir = std::filesystem::path(exe).parent_path().string();
 
-    // Try common locations relative to executable
-    std::vector<std::string> search_paths = {
-        exe_dir + "/moonraker-plugin/install.sh",    // Deployed alongside binary
-        exe_dir + "/../moonraker-plugin/install.sh", // Development build
-        exe_dir + "/../../moonraker-plugin/install.sh",
-        exe_dir + "/../share/helix/moonraker-plugin/install.sh", // Installed
-        "/usr/share/helix/moonraker-plugin/install.sh"};
+    std::vector<std::string> search_paths;
+    const std::string install_root = resolve_install_root(exe, probe_root);
+    if (!install_root.empty()) {
+        search_paths.push_back(install_root + "/moonraker-plugin/install.sh");
+    }
+    // Layouts with no install root of their own: the script beside the binary,
+    // or in a share dir.
+    for (const std::string& candidate :
+         {exe_dir + "/moonraker-plugin/install.sh", exe_dir + "/../moonraker-plugin/install.sh",
+          exe_dir + "/../../moonraker-plugin/install.sh",
+          exe_dir + "/../share/helix/moonraker-plugin/install.sh",
+          std::string("/usr/share/helix/moonraker-plugin/install.sh")}) {
+        search_paths.push_back(candidate);
+    }
 
     for (const auto& candidate : search_paths) {
         try {
