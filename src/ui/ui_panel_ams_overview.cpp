@@ -18,6 +18,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_common.h"
+#include "ui_side_band.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
 #include "ui_update_queue.h"
@@ -2016,6 +2017,9 @@ void open_ams_overview_panel(int units) {
 } // namespace
 
 void helix::ui::open_ams_detail_panel() {
+    if (SideBand::take_open_request(SideBandContent::Ams)) {
+        return; // the Filament panel on screen already shows it
+    }
     drop_hidden_overview_ui();
     const AmsPanel* existing = get_existing_ams_panel();
     open_ams_overlay(existing && existing->get_panel(), []() {
@@ -2032,6 +2036,9 @@ void navigate_to_ams_panel() {
     if (!backend) {
         spdlog::warn("[AMS] navigate_to_ams_panel called with no backend");
         return;
+    }
+    if (helix::ui::SideBand::take_open_request(helix::ui::SideBandContent::Ams)) {
+        return; // the Filament panel on screen already shows it
     }
 
     // Only one of the two panels serves a given unit count; opening one drops the

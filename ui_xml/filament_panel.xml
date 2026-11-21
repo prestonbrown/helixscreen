@@ -60,68 +60,34 @@
        ui_is_portrait is reactive, so a rotation rebuilds this <if> in place -
        FilamentPanel::bind_widgets() re-finds the widgets afterwards (see that
        function for the ordering constraint). -->
+  <!-- The root is a row: the panel's own content in side_band_main, and on
+       ultrawide with a filament system or several heads the AMS panel in the
+       side band beside it (helix::ui::SideBand). -->
   <view name="filament_panel"
-        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="#space_md" scrollable="false"
-        flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_md" style_bg_color="#screen_bg">
+        extends="lv_obj" width="100%" height="100%" style_border_width="0" style_pad_all="0" scrollable="false"
+        flex_flow="row" style_pad_gap="0" style_bg_color="#screen_bg">
     <!-- Disable all controls when printer not connected or klippy not ready -->
     <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
+    <lv_obj name="side_band_main"
+            width="100%" height="100%" style_border_width="0" style_pad_all="#space_md" style_bg_opa="0"
+            scrollable="false" flex_flow="row" style_flex_cross_place="start" style_pad_gap="#space_md">
 
-    <if cond="ui_is_portrait eq 1">
-      <!-- ================================================================== -->
-      <!-- PORTRAIT: single column                                           -->
-      <!-- ================================================================== -->
-      <!-- A 320x480 screen has no height to spare: the cards sit #space_xs apart. -->
-      <lv_obj name="portrait_column"
-              width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
-              style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
-        <filament_temp_card/>
-        <filament_material_group/>
-
-        <!-- Temperature graph: this column's flexible remainder. Height and
-             flex_grow come from apply_left_column_sizing(); whether it shows at
-             all is the filament_graph_spacer subject, which
-             FilamentPanel::fit_portrait_graph() sets when the remainder is too
-             short to read. -->
-        <lv_obj name="temp_graph_card"
-                width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg"
-                style_radius="#border_radius">
-          <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
-          <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
-          <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
-          <!-- Graph container - populated by C++ via TempControlPanel -->
-          <lv_obj name="temp_graph_container"
-                  width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true">
-            <bind_flag_if_eq subject="filament_graph_spacer" flag="hidden" ref_value="1"/>
-          </lv_obj>
-        </lv_obj>
-
-        <!-- Operations at their compact height: the graph above takes the column's slack. -->
-        <filament_operations_group name="filament_operations_group"
-                                   row_height="#filament_portrait_row_h" length_height="#filament_portrait_length_h"/>
-
-        <!-- Multi-filament strip (C++ hides its header row in portrait so it
-             reads as a strip, not a card). With several heads the lane bars
-             sit in the Operations header instead. -->
-        <filament_spool_card>
-          <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
-        </filament_spool_card>
-      </lv_obj>
-      <else/>
-      <!-- ================================================================== -->
-      <!-- LANDSCAPE: two columns                                            -->
-      <!-- ================================================================== -->
-      <lv_obj name="content_row"
-              width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="row"
-              style_flex_cross_place="start" style_pad_gap="#space_md">
-        <lv_obj name="left_column"
-                width="40%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
-                style_flex_main_place="start" style_pad_gap="#space_md">
+      <if cond="ui_is_portrait eq 1">
+        <!-- ================================================================== -->
+        <!-- PORTRAIT: single column                                           -->
+        <!-- ================================================================== -->
+        <!-- A 320x480 screen has no height to spare: the cards sit #space_xs apart. -->
+        <lv_obj name="portrait_column"
+                width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
+                style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_xs">
           <filament_temp_card/>
+          <filament_material_group/>
 
-          <!-- Temperature Graph (combined nozzle + bed). Height and flex_grow
-               are set from C++ (apply_left_column_sizing). The spacer subject
-               stays 0 in landscape; the bindings are the same pair the
-               portrait branch carries. -->
+          <!-- Temperature graph: this column's flexible remainder. Height and
+               flex_grow come from apply_left_column_sizing(); whether it shows at
+               all is the filament_graph_spacer subject, which
+               FilamentPanel::fit_portrait_graph() sets when the remainder is too
+               short to read. -->
           <lv_obj name="temp_graph_card"
                   width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg"
                   style_radius="#border_radius">
@@ -135,23 +101,66 @@
             </lv_obj>
           </lv_obj>
 
-          <filament_spool_card/>
-        </lv_obj>
-        <lv_obj name="right_column"
-                width="0" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
-                style_pad_gap="0">
-          <filament_material_group/>
-          <!-- The column's slack goes between the cards, so Operations sits
-               level with the left column's bottom. The spacer is the gap: with
-               no slack it stays #space_md and the column overflows downward. -->
-          <lv_obj name="right_column_spacer"
-                  width="100%" height="0" flex_grow="1" style_min_height="#space_sm" style_pad_all="0" style_bg_opa="0"
-                  style_border_width="0" scrollable="false" clickable="false"/>
-          <!-- The length row shares portrait's compact height; it only steps down at tiny. -->
+          <!-- Operations at their compact height: the graph above takes the column's slack. -->
           <filament_operations_group name="filament_operations_group"
-                                     row_height="#filament_landscape_row_h" length_height="#filament_portrait_length_h"/>
+                                     row_height="#filament_portrait_row_h" length_height="#filament_portrait_length_h"/>
+
+          <!-- Multi-filament strip (C++ hides its header row in portrait so it
+               reads as a strip, not a card). With several heads the lane bars
+               sit in the Operations header instead. -->
+          <filament_spool_card>
+            <bind_flag_if_eq subject="target_tool_multi_head" flag="hidden" ref_value="1"/>
+          </filament_spool_card>
         </lv_obj>
-      </lv_obj>
-    </if>
+        <else/>
+        <!-- ================================================================== -->
+        <!-- LANDSCAPE: two columns                                            -->
+        <!-- ================================================================== -->
+        <lv_obj name="content_row"
+                width="100%" height="100%" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_cross_place="start" style_pad_gap="#space_md">
+          <lv_obj name="left_column"
+                  width="40%" height="100%" style_pad_all="0" scrollable="false" flex_flow="column"
+                  style_flex_main_place="start" style_pad_gap="#space_md">
+            <filament_temp_card/>
+
+            <!-- Temperature Graph (combined nozzle + bed). Height and flex_grow
+                 are set from C++ (apply_left_column_sizing). The spacer subject
+                 stays 0 in landscape; the bindings are the same pair the
+                 portrait branch carries. -->
+            <lv_obj name="temp_graph_card"
+                    width="100%" height="0" style_pad_all="0" scrollable="false" style_bg_color="#card_bg"
+                    style_radius="#border_radius">
+              <bind_style name="temp_graph_card_shown" subject="filament_graph_spacer" ref_value="0"/>
+              <bind_style name="temp_graph_card_spacer" subject="filament_graph_spacer" ref_value="1"/>
+              <bind_flag_if_eq subject="filament_graph_spacer" flag="clickable" ref_value="0"/>
+              <!-- Graph container - populated by C++ via TempControlPanel -->
+              <lv_obj name="temp_graph_container"
+                      width="100%" height="100%" style_pad_all="0" clickable="false" event_bubble="true">
+                <bind_flag_if_eq subject="filament_graph_spacer" flag="hidden" ref_value="1"/>
+              </lv_obj>
+            </lv_obj>
+
+            <filament_spool_card/>
+          </lv_obj>
+          <lv_obj name="right_column"
+                  width="0" height="100%" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
+                  style_pad_gap="0">
+            <filament_material_group/>
+            <!-- The column's slack goes between the cards, so Operations sits
+                 level with the left column's bottom. The spacer is the gap: with
+                 no slack it stays #space_md and the column overflows downward. -->
+            <lv_obj name="right_column_spacer"
+                    width="100%" height="0" flex_grow="1" style_min_height="#space_sm" style_pad_all="0"
+                    style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"/>
+            <!-- The length row shares portrait's compact height; it only steps down at tiny. -->
+            <filament_operations_group name="filament_operations_group"
+                                       row_height="#filament_landscape_row_h"
+                                       length_height="#filament_portrait_length_h"/>
+          </lv_obj>
+        </lv_obj>
+      </if>
+    </lv_obj>
+    <side_band shown_subject="filament_side_band"/>
   </view>
 </component>

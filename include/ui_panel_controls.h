@@ -7,6 +7,7 @@
 #include "ui_observer_guard.h"
 #include "ui_panel_base.h"
 #include "ui_print_tune_overlay.h"
+#include "ui_side_band.h"
 #include "ui_temperature_utils.h"
 
 #include "async_lifetime_guard.h"
@@ -116,7 +117,21 @@ class ControlsPanel : public PanelBase {
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;
 
+    /// On ultrawide the Motion panel fills the side band beside the content.
+    [[nodiscard]] bool uses_full_content_width() const override {
+        return side_band_.uses_full_width();
+    }
+
+    /// The ultrawide side band hosting the Motion panel.
+    helix::ui::SideBand& side_band() {
+        return side_band_;
+    }
+
   private:
+    helix::ui::SideBand side_band_{helix::ui::SideBandContent::Motion,
+                                   helix::ui::make_motion_side_band_guest(), "controls_side_band",
+                                   "motion_in_side_band"};
+
     // Test-only access to private secondary-fan lifetime/observer internals.
     friend struct helix::ui::ControlsPanelTestAccess;
 

@@ -43,7 +43,7 @@ void MotionWidget::detach() {
 }
 
 void MotionWidget::handle_click() {
-    get_global_motion_panel().show(parent_screen_);
+    open_motion_panel(parent_screen_);
 }
 
 void MotionWidget::clicked_cb(lv_event_t* e) {

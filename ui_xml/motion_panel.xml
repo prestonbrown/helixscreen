@@ -76,8 +76,8 @@
         style_border_width="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
     <!-- Header Bar with the settings cog. The E-stop is on the navbar. -->
     <header_bar name="overlay_header"
-                title="Motion" hide_action_icon="false" action_icon="cog" action_icon_hidden_cond="ui_breakpoint lt 2"
-                action_icon_callback="on_motion_header_settings_clicked">
+                title="Motion" back_hidden_subject="motion_in_side_band" hide_action_icon="false" action_icon="cog"
+                action_icon_hidden_cond="ui_breakpoint lt 2" action_icon_callback="on_motion_header_settings_clicked">
       <!-- Header coordinates: one line, bold tinted axis letter + tabular
            mono value, no unit suffix. Each letter+value pair is one tap
            target (opens that axis' keypad); the swap chip at the end

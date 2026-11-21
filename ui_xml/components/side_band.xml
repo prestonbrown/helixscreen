@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The ultrawide side band: the space a capped panel leaves to its right,
+       where helix::ui::SideBand (include/ui_side_band.h) hosts an overlay's
+       content. It sits beside the host's side_band_main column and shows
+       while the host's gate subject is 1. -->
+  <api>
+    <prop name="shown_subject" type="string" default=""/>
+  </api>
+  <view name="side_band"
+        extends="lv_obj" width="0" height="100%" flex_grow="1" style_pad_top="#space_md" style_pad_bottom="#space_md"
+        style_pad_right="#space_md" style_pad_left="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+        hidden="true">
+    <bind_flag_if_eq subject="$shown_subject" flag="hidden" ref_value="0"/>
+  </view>
+</component>
