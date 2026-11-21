@@ -27,6 +27,7 @@
 #include "filament_op_router.h"
 #include "filament_slot_override_store.h"
 #include "gcode_footer_summary.h"
+#include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl_ui_test_fixture.h"
 #include "moonraker_api.h"
@@ -7011,6 +7012,55 @@ TEST_CASE_METHOD(AfcFourLanes, "AFC can_recover_lane_position requires filament 
 // AFC firmware also structurally cannot hold brand / spool_name /
 // total_weight_g / colour name / filament+vendor ids — verified against a live
 // lane payload and its lane_data record — so those only ever live here.
+
+// A fresh lane given a weight states a total too. AFC holds the remaining
+// weight on its lane's meter and has no command for a total, so the total lands
+// only in HelixScreen's own record: the edit settles once AFC's meter and that
+// record both state what was saved.
+TEST_CASE("AFC edit on a fresh unlinked lane settles once AFC echoes what it holds",
+          "[ams][afc][override][afc-edit-echo]") {
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    MockPrinter printer;
+    helix::test::RegisteredBackend<helix::test::WiredBackend<AmsBackendAfc>> afc_reg(&printer.api);
+    auto& afc = *afc_reg;
+    afc.set_discovered_lanes({"lane1", "lane2"}, {});
+    REQUIRE(afc.start().success());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    afc.fire_status({{"AFC_stepper lane1", {{"status", "Loaded"}, {"weight", 0.0}}}});
+
+    const SlotInfo original = afc.get_slot_info(0);
+    SlotInfo edit = original;
+    edit.material = "PLA";
+    edit.color_rgb = 0xFFFFFF;
+    edit.remaining_weight_g = 1000.0f;
+    edit.total_weight_g = 1000.0f;
+    REQUIRE(afc.commit_user_edit(0, original, edit).success());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    // A weight AFC reports that is not the edit's leaves the edit waiting.
+    afc.fire_status(
+        {{"AFC_stepper lane1", {{"material", "PLA"}, {"color", "#FFFFFF"}, {"weight", 990.0}}}});
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    {
+        const auto waiting = helix::ams::lane_sources(afc_reg.lane(0)).pending;
+        REQUIRE(waiting.has_value());
+        CHECK(waiting->remaining_weight_g.has_value());
+    }
+
+    afc.fire_status(
+        {{"AFC_stepper lane1", {{"material", "PLA"}, {"color", "#FFFFFF"}, {"weight", 1000.0}}}});
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+
+    const auto pending = helix::ams::lane_sources(afc_reg.lane(0)).pending;
+    CHECK_FALSE((pending && pending->remaining_weight_g.has_value()));
+    CHECK_FALSE((pending && pending->total_weight_g.has_value()));
+    CHECK_FALSE(pending.has_value());
+    CHECK(afc.get_slot_info(0).total_weight_g == Catch::Approx(1000.0f));
+    const nlohmann::json record =
+        printer.client.mock_db_get(AmsBackendAfc::kOverrideNamespace, "lane1");
+    REQUIRE(record.contains("total_weight_g"));
+    CHECK(record["total_weight_g"].get<double>() == Catch::Approx(1000.0));
+}
 
 TEST_CASE("AFC override survives an eject that clears firmware fields", "[ams][afc][override]") {
     helix::test::RegisteredBackend<AmsBackendAfcTestHelper> helper_reg;

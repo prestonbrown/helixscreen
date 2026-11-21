@@ -139,6 +139,14 @@ constexpr std::chrono::seconds kPendingWriteTimeout{30};
 /// A lane that is not a lane is warned about and dropped.
 void ingest(LaneId lane, const Observation& obs);
 
+/// Answer a lane's Pending edit with @p reading without filing the reading as
+/// a source: every Pending field @p reading states with the same value is
+/// withdrawn, and an edit left stating nothing ends Echoed. For a reading only
+/// its producer knows is the firmware's own word but which ranks as another
+/// source, such as a firmware's meter filed as Metered. Fields compare as
+/// strip_echoed_fields() compares them.
+void echo_pending(LaneId lane, const Observation& reading);
+
 /// File an edit of ours as Pending while its write is in flight. Amends the
 /// lane's Pending record field by field, so a second edit before the first
 /// echoes keeps both, and restarts the kPendingWriteTimeout window. A field

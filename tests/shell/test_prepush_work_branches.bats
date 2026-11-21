@@ -22,7 +22,7 @@ setup() {
         >"$ROOT/scripts/quality-checks.sh"
     chmod +x "$ROOT/scripts/quality-checks.sh"
     local gate
-    for gate in check_clang_diagnostics esp32_syntax_check check_patch_drift; do
+    for gate in check_clang_diagnostics check_patch_drift; do
         printf 'print("ran: %s")\n' "$gate" >"$ROOT/scripts/$gate.py"
     done
     touch "$ROOT/lib/.keep"

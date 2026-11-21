@@ -3058,7 +3058,7 @@ bool MoonrakerClientMock::simulate_nozzle_offset_calibration(
 
 bool MoonrakerClientMock::save_config_pending() const {
     std::lock_guard<std::mutex> lock(pending_config_mutex_);
-    return !pending_config_items_.empty();
+    return !pending_config_items_.empty() || !pending_removed_sections_.empty();
 }
 
 json MoonrakerClientMock::save_config_pending_items() const {
@@ -3071,6 +3071,9 @@ json MoonrakerClientMock::save_config_pending_items() const {
         }
         items[section] = opts;
     }
+    for (const auto& section : pending_removed_sections_) {
+        items[section] = nullptr;
+    }
     return items;
 }
 
@@ -3078,18 +3081,31 @@ void MoonrakerClientMock::stage_config_change(const std::string& section, const 
                                               const std::string& value) {
     {
         std::lock_guard<std::mutex> lock(pending_config_mutex_);
+        pending_removed_sections_.erase(section);
         pending_config_items_[section][option] = value;
+    }
+    dispatch_configfile_update();
+}
+
+void MoonrakerClientMock::stage_config_removal(const std::string& section) {
+    {
+        std::lock_guard<std::mutex> lock(pending_config_mutex_);
+        pending_config_items_.erase(section);
+        pending_removed_sections_.insert(section);
     }
     dispatch_configfile_update();
 }
 
 void MoonrakerClientMock::commit_pending_config() {
     std::map<std::string, std::map<std::string, std::string>> pending;
+    bool removals = false;
     {
         std::lock_guard<std::mutex> lock(pending_config_mutex_);
         pending.swap(pending_config_items_);
+        removals = !pending_removed_sections_.empty();
+        pending_removed_sections_.clear();
     }
-    if (pending.empty()) {
+    if (pending.empty() && !removals) {
         return;
     }
     for (const auto& [section, options] : pending) {

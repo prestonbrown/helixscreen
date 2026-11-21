@@ -285,15 +285,15 @@ Yes, for the power devices configured in Moonraker. Open **Settings > Devices > 
 <a id="can-i-view-and-run-bed-mesh"></a>
 ### Can I view the bed mesh and run a bed mesh calibration?
 
-Yes. **Controls > Bed Mesh** shows your mesh in 3D and runs a calibration. **Advanced > Bed Leveling** also opens it. See [Calibration & Tuning](guide/calibration.md).
+Yes. **Controls > Bed Mesh** shows your mesh in 3D and runs a calibration. **Advanced > Calibration > Bed Leveling** also opens it. See [Calibration & Tuning](guide/calibration.md).
 
 ### Does it support input shaper?
 
-Yes, if an accelerometer is configured in Klipper. **Advanced > Input Shaping** runs the whole calibration, with frequency response charts, per-axis results, a shaper comparison and a Save Config step. See [Calibration & Tuning](guide/calibration.md).
+Yes, if an accelerometer is configured in Klipper. **Advanced > Calibration > Input Shaping** runs the whole calibration, with frequency response charts, per-axis results, a shaper comparison and a Save Config step. See [Calibration & Tuning](guide/calibration.md).
 
 ### Does it support pressure advance tuning?
 
-Yes. **Advanced > Pressure Advance Tuning** prints a small test tower that raises pressure advance with height. You pick the height band that looked best, and HelixScreen applies the result. See [Calibration & Tuning](guide/calibration.md#pressure-advance-tuning-test-tower).
+Yes. **Advanced > Calibration > Pressure Advance Tuning** prints a small test tower that raises pressure advance with height. You pick the height band that looked best, and HelixScreen applies the result. See [Calibration & Tuning](guide/calibration.md#pressure-advance-tuning-test-tower).
 
 ### Does it support exclude objects?
 

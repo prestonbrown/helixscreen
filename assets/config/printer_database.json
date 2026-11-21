@@ -2168,6 +2168,18 @@
         }
       ],
       "print_start_profile": "k2_jacobean",
+      "_calibration_comment": "calibration.steps: how much each calibration step matters on this printer (required, recommended, optional, on_request), keyed by the step ids in include/calibration_catalog.h. A step the printer lacks never shows, whatever its tier; a step not named here keeps its default tier.",
+      "calibration": {
+        "steps": {
+          "cutter": "required",
+          "heaters": "required",
+          "bed_mesh": "required",
+          "z_offset": "recommended",
+          "belt_tension": "recommended",
+          "input_shaper": "recommended",
+          "pressure_advance": "optional"
+        }
+      },
       "_error_heaters_comment": "The firmware's on_error_gcode turns the heaters off itself when a print errors.",
       "firmware_owns_error_heaters": true,
       "plr": {

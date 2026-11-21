@@ -1144,6 +1144,10 @@ download_step() {
 apply_install() {
     local uis stopping seed_pid
 
+    # Before any service starts, so none inherits helix-screen's OOM score.
+    # Not earlier: everything before confirm_point only reads (--dry-run).
+    reset_inherited_oom_score_adj
+
     if [ "${platform:-}" = "x86-desktop" ]; then
         apply_desktop_install
         return 0
