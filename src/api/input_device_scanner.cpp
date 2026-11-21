@@ -332,8 +332,9 @@ std::optional<ScannedDevice> find_touch_device(const std::string& dev_base,
     }
 
     if (best) {
-        spdlog::info("[InputScanner] Found touchscreen: {} ({}) [score={}]", best->path, best->name,
-                     best_score);
+        // Callers announce the device they open: a reopen scans once a second.
+        spdlog::debug("[InputScanner] Found touchscreen: {} ({}) [score={}]", best->path,
+                      best->name, best_score);
     }
     return best;
 }

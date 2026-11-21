@@ -540,7 +540,7 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
     // multi-touch gesture recognition (pinch-to-zoom)
     char* touch_path = lv_libinput_find_dev(LV_LIBINPUT_CAPABILITY_TOUCH, true);
     if (touch_path) {
-        spdlog::info("[DRM Backend] Found touch device: {}", touch_path);
+        spdlog::log(announce, "[DRM Backend] Found touch device: {}", touch_path);
         pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path);
         if (pointer_ != nullptr) {
             pointer_is_evdev_ = true;
@@ -557,7 +557,8 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
             if (pointer_ != nullptr) {
                 spdlog::info("[DRM Backend] Libinput touch device created on {}", touch_path);
             } else {
-                spdlog::warn("[DRM Backend] Failed to create input device for: {}", touch_path);
+                spdlog::log(reopening ? spdlog::level::debug : spdlog::level::warn,
+                            "[DRM Backend] Failed to create input device for: {}", touch_path);
             }
         }
     }
@@ -567,8 +568,8 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
     auto touch = helix::input::find_touch_device();
     if (touch) {
         touch_path = touch->path.c_str();
-        spdlog::info("[DRM Backend] Found touch device via evdev scan: {} ({})", touch->path,
-                     touch->name);
+        spdlog::log(announce, "[DRM Backend] Found touch device via evdev scan: {} ({})",
+                    touch->path, touch->name);
         pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path);
         if (pointer_ != nullptr) {
             pointer_is_evdev_ = true;
