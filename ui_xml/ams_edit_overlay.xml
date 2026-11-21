@@ -73,13 +73,6 @@
     <px name="ams_edit_bar_hit_large" value="8"/>
     <px name="ams_edit_bar_hit_xlarge" value="8"/>
     <px name="ams_edit_bar_hit_xxlarge" value="8"/>
-    <!-- Gap between the size chips: twice their hit reach (ams_edit_bar_hit),
-         so neighboring targets meet without overlapping. -->
-    <px name="ams_edit_chip_gap_micro" value="26"/>
-    <px name="ams_edit_chip_gap_tiny" value="26"/>
-    <px name="ams_edit_chip_gap_small" value="24"/>
-    <px name="ams_edit_chip_gap_medium" value="16"/>
-    <px name="ams_edit_chip_gap_large" value="16"/>
     <!-- Edit Spool's remaining-weight row: - / value / + at #button_height_sm,
          each reaching 44 tall, spaced so the reaches meet without overlapping. -->
     <px name="ams_edit_step_hit_micro" value="10"/>
@@ -122,12 +115,22 @@
     <px name="assign_state_h_small" value="96"/>
     <px name="assign_state_h_medium" value="120"/>
     <px name="assign_state_h_large" value="140"/>
+    <!-- The spools list's height: what is left of the column at each class
+         once the search and the bottom action are in, so the page never
+         scrolls at 800x480. The list scrolls inside itself. -->
+    <px name="assign_list_max_h_micro" value="96"/>
+    <px name="assign_list_max_h_tiny" value="120"/>
+    <px name="assign_list_max_h_small" value="150"/>
+    <px name="assign_list_max_h_medium" value="176"/>
+    <px name="assign_list_max_h_large" value="260"/>
+    <!-- A common spool tile's height: a full touch target. -->
+    <px name="assign_tile_h" value="44"/>
     <!-- Edit Spool's spool drawing. -->
     <px name="edit_spool_size_micro" value="44"/>
     <px name="edit_spool_size_tiny" value="56"/>
-    <px name="edit_spool_size_small" value="96"/>
-    <px name="edit_spool_size_medium" value="120"/>
-    <px name="edit_spool_size_large" value="150"/>
+    <px name="edit_spool_size_small" value="72"/>
+    <px name="edit_spool_size_medium" value="88"/>
+    <px name="edit_spool_size_large" value="120"/>
   </consts>
   <styles>
     <!-- The colour view's presets pane: content-wide beside the picker, the
@@ -137,8 +140,8 @@
     <style name="color_pane_fill" width="100%"/>
     <!-- Spool size chips: outlined, primary-tinted while chosen. -->
     <style name="size_chip"
-           pad_ver="#space_xs" pad_hor="#space_sm" radius="#border_radius" border_width="1" border_color="#border"
-           bg_opa="0"/>
+           min_width="#assign_tile_h" pad_ver="0" pad_hor="#space_sm" radius="#border_radius" border_width="1"
+           border_color="#border" bg_opa="0"/>
     <style name="size_chip_on" border_width="2" border_color="#primary" bg_color="#primary" bg_opa="40"/>
   </styles>
   <!-- Two jobs on one screen, picked by ams_edit_mode: 0 = Assign Spool (the
@@ -340,12 +343,26 @@
                     width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                     scrollable="false">
               <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
-              <text_small text="Spool Size" style_text_color="#text_muted"/>
+              <!-- The label shares its line with the temperatures. -->
               <lv_obj width="100%"
-                      height="content" style_pad_hor="0" style_pad_ver="#ams_edit_bar_hit" flex_flow="row_wrap"
-                      style_pad_gap="#ams_edit_chip_gap" scrollable="false">
+                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                      style_pad_gap="#space_sm" scrollable="false">
+                <text_small text="Spool Size" style_text_color="#text_muted"/>
+                <lv_obj name="temp_row"
+                        height="content" flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                        style_pad_gap="#space_xs" scrollable="false">
+                  <!-- Edit Spool shows the temperatures under the remaining weight. -->
+                  <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
+                  <text_small name="temp_line" bind_text="ams_edit_temp_text" style_text_color="#text_muted"/>
+                  <tag_badge subject="ams_edit_tag_temps"/>
+                </lv_obj>
+              </lv_obj>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_gap="#space_xs"
+                      scrollable="false">
                 <lv_obj name="size_chip_0"
-                        width="content" height="content" ext_click_area="#ams_edit_bar_hit" clickable="true"
+                        width="content" height="#assign_tile_h" flex_flow="row" style_flex_main_place="center"
+                        style_flex_cross_place="center" style_flex_track_place="center" clickable="true"
                         scrollable="false">
                   <style name="size_chip"/>
                   <style name="size_chip_on" selector="checked"/>
@@ -355,7 +372,8 @@
                   <text_small text="1 kg" clickable="false" event_bubble="true"/>
                 </lv_obj>
                 <lv_obj name="size_chip_1"
-                        width="content" height="content" ext_click_area="#ams_edit_bar_hit" clickable="true"
+                        width="content" height="#assign_tile_h" flex_flow="row" style_flex_main_place="center"
+                        style_flex_cross_place="center" style_flex_track_place="center" clickable="true"
                         scrollable="false">
                   <style name="size_chip"/>
                   <style name="size_chip_on" selector="checked"/>
@@ -365,7 +383,8 @@
                   <text_small text="750 g" clickable="false" event_bubble="true"/>
                 </lv_obj>
                 <lv_obj name="size_chip_2"
-                        width="content" height="content" ext_click_area="#ams_edit_bar_hit" clickable="true"
+                        width="content" height="#assign_tile_h" flex_flow="row" style_flex_main_place="center"
+                        style_flex_cross_place="center" style_flex_track_place="center" clickable="true"
                         scrollable="false">
                   <style name="size_chip"/>
                   <style name="size_chip_on" selector="checked"/>
@@ -375,7 +394,8 @@
                   <text_small text="250 g" clickable="false" event_bubble="true"/>
                 </lv_obj>
                 <lv_obj name="size_chip_3"
-                        width="content" height="content" ext_click_area="#ams_edit_bar_hit" clickable="true"
+                        width="content" height="#assign_tile_h" flex_flow="row" style_flex_main_place="center"
+                        style_flex_cross_place="center" style_flex_track_place="center" clickable="true"
                         scrollable="false">
                   <style name="size_chip"/>
                   <style name="size_chip_on" selector="checked"/>
@@ -385,14 +405,6 @@
                   <text_small bind_text="ams_edit_partial_text" clickable="false" event_bubble="true"/>
                 </lv_obj>
               </lv_obj>
-            </lv_obj>
-            <lv_obj name="temp_row"
-                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                    style_pad_gap="#space_xs" scrollable="false">
-              <!-- Edit Spool shows the temperatures under the remaining weight. -->
-              <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
-              <text_small name="temp_line" bind_text="ams_edit_temp_text" style_text_color="#text_muted"/>
-              <tag_badge subject="ams_edit_tag_temps"/>
             </lv_obj>
 
             <!-- Quiet actions: MORE discloses the four Spoolman-owned
@@ -524,9 +536,10 @@
 
             <!-- Rows of spool_assign_row, built from C++. -->
             <lv_obj name="picker_spool_list"
-                    width="100%" height="content" style_max_height="#spool_list_max_height" style_pad_all="#space_xxs"
+                    width="100%" height="content" style_max_height="#assign_list_max_h" style_pad_all="#space_xxs"
                     style_radius="#border_radius" style_pad_gap="#space_xxs" flex_flow="column"
-                    style_bg_color="#elevated_bg" style_bg_opa="255" scrollable="true" hidden="true">
+                    style_bg_color="#elevated_bg" style_bg_opa="255" scrollable="true" scrollbar_mode="active"
+                    hidden="true">
               <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="2"/>
             </lv_obj>
 
@@ -644,7 +657,8 @@
             <text_small name="saves_to"
                         width="100%" bind_text="ams_edit_saves_to" long_mode="wrap" style_text_align="center"
                         style_text_color="#text_muted" hidden="true">
-              <bind_flag_if_eq subject="ams_edit_is_managed" flag="hidden" ref_value="0"/>
+              <bind_flag_if cond="ams_edit_is_managed eq 0 or (ui_breakpoint eq 0 and ui_is_portrait eq 0)"
+                            flag="hidden"/>
             </text_small>
             <lv_obj name="btn_clear_spool"
                     width="content" height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xxs"

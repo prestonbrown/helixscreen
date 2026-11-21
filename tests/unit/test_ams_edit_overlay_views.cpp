@@ -5323,3 +5323,46 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(done.result.slot_info.material == "PLA");
     CHECK(done.result.slot_info.color_rgb == 0xFFFFFF);
 }
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "Assign Spool and Edit Spool fit 800x480 without a page scroll",
+                 "[ams_edit_overlay][spool-assign][layout]") {
+    lv_display_t* disp = lv_display_get_default();
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    {
+        ScopedResolution res(disp, 800, 480);
+        theme_manager_refresh_layout_constants(disp);
+        const auto page_scroll = [&access] {
+            lv_obj_t* content = access.widget("overlay_content");
+            REQUIRE(content != nullptr);
+            lv_obj_update_layout(content);
+            return lv_obj_get_scroll_bottom(content);
+        };
+
+        show_editor_on_lane(*this, *backend, 1);
+        REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
+        REQUIRE(access.shown("tool_dropdown"));
+        CHECK(page_scroll() <= 0);
+
+        // Assign with a full list: the list scrolls inside itself, not the page.
+        access.call_different_spool();
+        std::vector<SpoolInfo> many;
+        for (int id = 1; id <= 12; ++id) {
+            SpoolInfo spool;
+            spool.id = id;
+            spool.vendor = "Polymaker";
+            spool.material = "PLA";
+            spool.remaining_weight_g = 500;
+            many.push_back(spool);
+        }
+        access.set_cached_spools(many);
+        access.call_render_spool_list("");
+        process_lvgl(10);
+        REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+        REQUIRE(access.listed_ids().size() == 12);
+        CHECK(page_scroll() <= 0);
+        close_editor_overlay();
+    }
+    theme_manager_refresh_layout_constants(disp);
+}
