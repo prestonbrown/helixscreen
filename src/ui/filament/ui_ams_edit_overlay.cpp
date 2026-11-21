@@ -242,6 +242,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     ++session_;
     slot_index_ = slot_index;
     original_info_ = initial_info;
+    last_held_ = initial_info;
     working_info_ = initial_info;
     note_action_form_.reset();
     api_ = api;
@@ -307,6 +308,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
         populate_picker();
     }
     lv_subject_set_int(&add_to_spoolman_subject_, 1);
+    lv_subject_set_int(&adding_subject_, 0);
     update_empty_page();
     // A lane holding a spool opens on its summary, an empty one on the empty
     // page; a request to pick a spool opens the list, which goes back to the
@@ -571,6 +573,8 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(lane_line_subject_, lane_line_buf_, "", "ams_edit_lane_line",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(weight_pct_subject_, 100, "ams_edit_weight_pct", subjects_);
+        UI_MANAGED_SUBJECT_STRING(runout_text_subject_, runout_text_buf_, "",
+                                  "ams_edit_runout_text", subjects_);
         UI_MANAGED_SUBJECT_STRING(empty_title_subject_, empty_title_buf_, "",
                                   "ams_edit_empty_title", subjects_);
         UI_MANAGED_SUBJECT_INT(has_last_subject_, 0, "ams_edit_has_last", subjects_);
@@ -579,6 +583,7 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(last_material_subject_, last_material_buf_, "",
                                   "ams_edit_last_material", subjects_);
         UI_MANAGED_SUBJECT_INT(add_to_spoolman_subject_, 1, "ams_edit_add_to_spoolman", subjects_);
+        UI_MANAGED_SUBJECT_INT(adding_subject_, 0, "ams_edit_adding", subjects_);
         UI_MANAGED_SUBJECT_STRING(tag_text_subject_, tag_text_buf_, "", "ams_edit_tag_text",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(clear_archive_subject_, 0, "ams_edit_clear_archive", subjects_);
@@ -1073,6 +1078,26 @@ void AmsEditOverlay::update_lane_line() {
     }
     snprintf(lane_line_buf_, sizeof(lane_line_buf_), "%s", line.c_str());
     lv_subject_set_string(&lane_line_subject_, lane_line_buf_);
+
+    // What a runout of this lane will do: continue from its backup where the
+    // printer switches spools, else pause.
+    lv_subject_t* endless = lv_xml_get_subject(nullptr, "ams_endless_state");
+    const auto kind =
+        static_cast<printer::EndlessSpoolStatusKind>(endless ? lv_subject_get_int(endless) : 0);
+    const bool switches = kind == printer::EndlessSpoolStatusKind::On ||
+                          kind == printer::EndlessSpoolStatusKind::OnWithoutBackup;
+    std::string runout;
+    if (backup_row && switches && lane_working_.backup >= 0) {
+        const AmsBackend* backend = AmsState::instance().get_backend();
+        const LaneNoun noun = backend ? backend->lane_noun() : active_lane_noun();
+        runout = fmt::format(
+            fmt::runtime(lv_tr("When this spool runs out, printing continues from {}.")),
+            lane_label(noun, lane_working_.backup));
+    } else {
+        runout = lv_tr("When this spool runs out, the print pauses.");
+    }
+    snprintf(runout_text_buf_, sizeof(runout_text_buf_), "%s", runout.c_str());
+    lv_subject_set_string(&runout_text_subject_, runout_text_buf_);
 }
 
 void AmsEditOverlay::update_empty_page() {
@@ -1083,8 +1108,9 @@ void AmsEditOverlay::update_empty_page() {
     const std::string title = fmt::format(fmt::runtime(lv_tr("{} is empty")), lane);
     snprintf(empty_title_buf_, sizeof(empty_title_buf_), "%s", title.c_str());
     lv_subject_set_string(&empty_title_subject_, empty_title_buf_);
-    // An empty lane still carries the filament it last held.
-    const SlotInfo& last = original_info_;
+    // An empty lane still carries the filament it last held; a lane cleared
+    // here remembers the spool that came out.
+    const SlotInfo& last = last_held_;
     const bool has_last = !last.material.empty();
     lv_subject_set_int(&has_last_subject_, has_last ? 1 : 0);
     snprintf(last_product_buf_, sizeof(last_product_buf_), "%s",
@@ -1177,6 +1203,7 @@ void AmsEditOverlay::handle_add_new_spool() {
     // 1 kg Generic spool. Back from it lands on the summary with it held.
     begin_fresh_assign();
     set_mode(kModeAssign);
+    lv_subject_set_int(&adding_subject_, 1);
     rebuild_option_lists();
     update_ui();
     update_sync_button_state();
@@ -1187,19 +1214,31 @@ void AmsEditOverlay::handle_same_filament() {
     if (!subjects_initialized_ || save_in_flight_) {
         return;
     }
-    // A full spool of the filament the lane last held, on the summary.
-    working_info_ = original_info_;
+    // One tap: a full spool of the filament the lane last held, created in
+    // Spoolman where it is set up, and assigned.
+    working_info_ = last_held_;
+    working_info_.status = original_info_.status;
     working_info_.clear_spoolman_link();
+    working_info_.spool_name.clear();
     sel_ = selection_from_slot(working_info_);
-    selection_moved_ = true;
+    selection_moved_ = false;
     reset_color_draft();
     reseed_details_for_spool();
     set_mode(kModeAssign);
     apply_size_chip(0, spool_assign::kDefaultSpoolGrams, spool_assign::kDefaultSpoolGrams);
-    rebuild_option_lists();
-    update_ui();
-    update_sync_button_state();
-    set_page(kPageSummary);
+    save_new_spool(spoolman_set_up());
+}
+
+bool AmsEditOverlay::spoolman_set_up() const {
+    return api_ && get_printer_state().is_spoolman_available();
+}
+
+void AmsEditOverlay::save_new_spool(bool add_to_spoolman) {
+    if (add_to_spoolman) {
+        handle_add_to_spoolman();
+    } else {
+        handle_assign_local();
+    }
 }
 
 void AmsEditOverlay::show_clear_confirm() {
@@ -1210,10 +1249,13 @@ void AmsEditOverlay::show_clear_confirm() {
         fmt::format(fmt::runtime(lv_tr("Clear {}?")), editor_lane_label(slot_index_));
     snprintf(clear_title_buf_, sizeof(clear_title_buf_), "%s", title.c_str());
     lv_subject_set_string(&clear_title_subject_, clear_title_buf_);
-    // Pre-checked when the spool ran out or Spoolman says it is all but gone.
-    const bool nearly_empty = original_info_.spoolman_id > 0 &&
-                              original_info_.remaining_weight_g >= 0 &&
-                              original_info_.remaining_weight_g < 20.0f;
+    // Pre-checked when the spool ran out (the lane reads empty while still
+    // linked) or Spoolman says it is all but gone.
+    const bool nearly_empty =
+        original_info_.spoolman_id > 0 &&
+        (original_info_.status == SlotStatus::EMPTY ||
+         (original_info_.remaining_weight_g >= 0 &&
+          original_info_.remaining_weight_g < spool_assign::kArchiveBelowGrams));
     lv_subject_set_int(&clear_archive_subject_, nearly_empty ? 1 : 0);
     if (!Modal::show_owned(std::make_unique<ClearLaneModal>(), lv_screen_active())) {
         spdlog::error("[AmsEditOverlay] Failed to show ams_clear_lane_modal");
@@ -1227,7 +1269,27 @@ void AmsEditOverlay::handle_clear_cancel() {
 
 void AmsEditOverlay::handle_clear_confirm() {
     handle_clear_cancel();
+    const int archive_id =
+        lv_subject_get_int(&clear_archive_subject_) == 1 && api_ ? original_info_.spoolman_id : 0;
     handle_clear_spool();
+    if (archive_id > 0) {
+        archive_spool(archive_id);
+    }
+}
+
+void AmsEditOverlay::archive_spool(int spool_id) {
+    spdlog::info("[AmsEditOverlay] Archiving Spoolman spool {}", spool_id);
+    nlohmann::json patch;
+    patch["archived"] = true;
+    api_->spoolman().update_spoolman_spool(
+        spool_id, patch, [] {},
+        [spool_id](const MoonrakerError& err) {
+            spdlog::error("[AmsEditOverlay] Archiving spool {} failed: {}", spool_id, err.message);
+            helix::ui::queue_update("AmsEditOverlay::archive_failed", [] {
+                ToastManager::instance().show(
+                    ToastSeverity::WARNING, lv_tr("Couldn't archive the spool in Spoolman"), 3000);
+            });
+        });
 }
 
 void AmsEditOverlay::handle_different_spool() {
@@ -1275,6 +1337,7 @@ bool AmsEditOverlay::back_to_edit_spool() {
     selection_moved_ = false;
     reset_color_draft();
     reseed_details_for_spool();
+    lv_subject_set_int(&adding_subject_, 0);
     set_mode(kModeEdit);
     update_ui();
     rebuild_option_lists();
@@ -1370,31 +1433,6 @@ void AmsEditOverlay::populate_picker() {
         });
 }
 
-spool_assign::SpoolQuery AmsEditOverlay::current_query() const {
-    spool_assign::SpoolQuery query;
-    // An empty lane opened with nothing picked says nothing yet: the dropdowns'
-    // resting values (PLA, Generic) are not a description.
-    if (!selection_moved_ && !details_color_set_ && working_info_.material.empty()) {
-        return query;
-    }
-    // Once the user says anything, the form says all it shows: a color pick
-    // on an empty lane describes a spool of the material the dropdown names.
-    const SlotInfo shown = shown_slot();
-    query.material = shown.material;
-    query.brand = shown.brand;
-    query.product = shown.product_name;
-    if (!selection_moved_ && shown.material.empty() && catalog_) {
-        query.material = selected_type(sel_, *catalog_);
-        query.brand = sel_.brand;
-    }
-    const bool colour_set =
-        details_color_set_ || (shown.multi_color_hexes.empty() && slot_has_colour(shown));
-    if (colour_set) {
-        query.color = shown.color_rgb;
-    }
-    return query;
-}
-
 bool AmsEditOverlay::ListedQuery::operator==(const ListedQuery& o) const {
     return query == o.query && filter == o.filter && spool_count == o.spool_count &&
            in_use == o.in_use;
@@ -1416,6 +1454,19 @@ std::set<int> AmsEditOverlay::spools_in_other_lanes() const {
     return in_use;
 }
 
+int AmsEditOverlay::lane_holding_spool(int spool_id) const {
+    if (const AmsBackend* backend = AmsState::instance().get_backend()) {
+        const AmsSystemInfo info = backend->get_system_info();
+        for (int i = 0; i < info.total_slots; ++i) {
+            const SlotInfo* lane = info.get_slot_global(i);
+            if (lane && i != slot_index_ && lane->spoolman_id == spool_id) {
+                return i;
+            }
+        }
+    }
+    return -1;
+}
+
 void AmsEditOverlay::refresh_spool_list() {
     if (!overlay_root_ || lv_subject_get_int(&mode_subject_) != kModeAssign ||
         lv_subject_get_int(&picker_state_subject_) == 0 ||
@@ -1426,8 +1477,8 @@ void AmsEditOverlay::refresh_spool_list() {
     const char* text = search ? lv_textarea_get_text(search) : nullptr;
     // Most form taps (a chip, a weight) change nothing the list reads.
     if (listed_query_ &&
-        *listed_query_ == ListedQuery{current_query(), text ? text : "", cached_spools_.size(),
-                                      spools_in_other_lanes()}) {
+        *listed_query_ == ListedQuery{spool_assign::SpoolQuery{}, text ? text : "",
+                                      cached_spools_.size(), spools_in_other_lanes()}) {
         return;
     }
     render_spool_list(text ? text : "");
@@ -1451,7 +1502,8 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         found = filter_spools(cached_spools_, filter, cached_searchables_);
         searched = &found;
     }
-    const spool_assign::SpoolQuery query = current_query();
+    // The list runs newest-used first; the search narrows it.
+    const spool_assign::SpoolQuery query;
     // Ranked in full: the lane's own spool is pinned below before the list
     // is cut to its row budget, however far down its recency puts it.
     const auto ranked = spool_assign::rank_spools(query, *searched, searched->size());
@@ -1497,10 +1549,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     for (size_t row = 0; row < listed_.size(); ++row) {
         const SpoolInfo& spool = cached_spools_[listed_[row].index];
         const bool close = listed_[row].match.kind == spool_assign::MatchKind::Close;
-        const bool taken = spool.id > 0 && in_use.count(spool.id) > 0;
+        const int held_by =
+            spool.id > 0 && in_use.count(spool.id) > 0 ? lane_holding_spool(spool.id) : -1;
         const bool is_current = current_id > 0 && spool.id == current_id;
         const char* attrs[] = {"hide_close",   close ? "false" : "true",
-                               "use_disabled", taken ? "true" : "false",
+                               "use_disabled", "false",
                                "is_current",   is_current ? "true" : "false",
                                "hide_current", is_current ? "false" : "true",
                                nullptr};
@@ -1537,6 +1590,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             }
         }
 #endif
+        if (held_by >= 0) {
+            // A spool in another lane says so; Use moves it here.
+            detail += (detail.empty() ? "" : " · ") +
+                      fmt::format(fmt::runtime(lv_tr("in {}")), editor_lane_label(held_by));
+        }
         helix::ui::set_row_label_text(item, "row_detail", detail.c_str());
         if (close) {
             const std::string text = spool_assign::close_note(listed_[row].match.differs, spool,
@@ -1599,6 +1657,18 @@ void AmsEditOverlay::handle_row_use(size_t row) {
     }
     const size_t index = listed_[row].index;
     const SpoolInfo spool = cached_spools_[index];
+    // A spool another lane holds moves: that lane is cleared first.
+    if (const int from = spool.id > 0 ? lane_holding_spool(spool.id) : -1; from >= 0) {
+        AmsBackend* backend = AmsState::instance().get_backend();
+        const std::string refusal = backend ? backend->clear_spool_refusal(from) : std::string();
+        if (!refusal.empty()) {
+            ToastManager::instance().show(ToastSeverity::WARNING, refusal.c_str(), 3000);
+            return;
+        }
+        spdlog::info("[AmsEditOverlay] Moving spool {} from slot {} to slot {}", spool.id, from,
+                     slot_index_);
+        ams_dispatch_backend_action(AmsContextMenu::MenuAction::CLEAR_SPOOL, from, nullptr);
+    }
     spdlog::info("[AmsEditOverlay] Use spool {} ('{}') for slot {}", spool.id, spool.display_name(),
                  slot_index_);
     if (spool.id > 0) {
@@ -2369,8 +2439,7 @@ void AmsEditOverlay::populate_lane_dropdowns() {
 
 void AmsEditOverlay::handle_tool_selected(int index) {
     lane_working_.tool = index - 1;
-    update_lane_line();
-    update_sync_button_state();
+    apply_lane_settings();
 }
 
 void AmsEditOverlay::handle_backup_selected(int index) {
@@ -2385,6 +2454,16 @@ void AmsEditOverlay::handle_backup_selected(int index) {
         return;
     }
     lane_working_.backup = backup;
+    apply_lane_settings();
+}
+
+void AmsEditOverlay::apply_lane_settings() {
+    // Lane settings are not spool data: each change is written as it is made.
+    // A refusal has toasted; the dropdowns go back to what the lane holds.
+    if (!commit_lane_settings()) {
+        lane_working_ = lane_original_;
+        populate_lane_dropdowns();
+    }
     update_lane_line();
     update_sync_button_state();
 }
@@ -2632,7 +2711,7 @@ void AmsEditOverlay::update_color_row() {
     const std::string list = multi ? join_color_list(colors) : std::string();
     lv_subject_set_string(&color_current_multi_subject_, list.c_str());
     const bool color_set = details_color_set_ || slot_has_colour(working_info_);
-    const std::string name = !color_set ? std::string(lv_tr("None"))
+    const std::string name = !color_set ? std::string()
                              : details_color_set_
                                  ? helix::get_color_name_from_hex(details_color_)
                                  : helix::ams::slot_color_name(working_info_.color_rgb);
@@ -2957,7 +3036,27 @@ void AmsEditOverlay::handle_clear_spool() {
     // is left alone. The clear is the commit, so the caller is told nothing saved.
     spdlog::info("[AmsEditOverlay] Clear spool for slot {}", slot_index_);
     ams_dispatch_backend_action(AmsContextMenu::MenuAction::CLEAR_SPOOL, slot_index_, nullptr);
-    close_editor(false);
+    // The lane opens on its empty page, remembering the spool that came out.
+    last_held_ = original_info_;
+    SlotInfo cleared;
+    cleared.slot_index = original_info_.slot_index;
+    cleared.global_index = original_info_.global_index;
+    cleared.status = original_info_.status;
+    cleared.color_rgb = kAmsDefaultSlotColor;
+    cleared.mapped_tool = original_info_.mapped_tool;
+    original_info_ = cleared;
+    working_info_ = cleared;
+    sel_ = selection_from_slot(working_info_);
+    selection_moved_ = false;
+    reset_color_draft();
+    reseed_details_for_spool();
+    set_mode(kModeAssign);
+    lv_subject_set_int(&adding_subject_, 0);
+    list_return_page_ = kPageEmpty;
+    update_ui();
+    update_empty_page();
+    update_sync_button_state();
+    set_page(kPageEmpty);
 }
 
 void AmsEditOverlay::handle_reapply_linked_spool() {
@@ -3044,6 +3143,7 @@ void AmsEditOverlay::handle_back() {
             reset_color_draft();
             update_summary();
             update_sync_button_state();
+            lv_subject_set_int(&adding_subject_, 0);
             set_page(kPageEmpty);
             return;
         }
@@ -3260,6 +3360,13 @@ void AmsEditOverlay::handle_save() {
     }
 
     spdlog::info("[AmsEditOverlay] Saving edits for slot {}", slot_index_);
+
+    // A spool going in (Not Listed? Add New Spool) is filed in Spoolman when
+    // the Add to Spoolman box is ticked, else assigned to the lane alone.
+    if (lv_subject_get_int(&adding_subject_) == 1) {
+        save_new_spool(spoolman_set_up() && lv_subject_get_int(&add_to_spoolman_subject_) == 1);
+        return;
+    }
 
     set_save_state(kSaveIdle);
     read_detail_fields();

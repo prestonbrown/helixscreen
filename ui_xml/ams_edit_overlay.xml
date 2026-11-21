@@ -39,25 +39,26 @@
     <px name="ams_edit_bar_hit_small" value="12"/>
     <px name="ams_edit_bar_hit_medium" value="8"/>
     <px name="ams_edit_bar_hit_large" value="8"/>
-    <!-- The summary's weight row: - / value / + at #button_height_sm, each
-         reaching 44 tall, spaced so the reaches meet without overlapping. -->
-    <px name="ams_edit_step_hit_micro" value="10"/>
-    <px name="ams_edit_step_hit_tiny" value="8"/>
-    <px name="ams_edit_step_hit_small" value="2"/>
-    <px name="ams_edit_step_hit_medium" value="2"/>
-    <px name="ams_edit_step_hit_large" value="2"/>
-    <px name="ams_edit_step_gap_micro" value="20"/>
-    <px name="ams_edit_step_gap_tiny" value="16"/>
-    <px name="ams_edit_step_gap_small" value="4"/>
-    <px name="ams_edit_step_gap_medium" value="4"/>
-    <px name="ams_edit_step_gap_large" value="4"/>
+    <!-- The summary's weight row: - / value / + at #button_height, each
+         reaching 44 tall (only the micro class needs the reach), spaced so the
+         reaches meet without overlapping. -->
+    <px name="ams_edit_step_hit_micro" value="9"/>
+    <px name="ams_edit_step_hit_tiny" value="0"/>
+    <px name="ams_edit_step_hit_small" value="0"/>
+    <px name="ams_edit_step_hit_medium" value="0"/>
+    <px name="ams_edit_step_hit_large" value="0"/>
+    <px name="ams_edit_step_gap_micro" value="18"/>
+    <px name="ams_edit_step_gap_tiny" value="12"/>
+    <px name="ams_edit_step_gap_small" value="12"/>
+    <px name="ams_edit_step_gap_medium" value="16"/>
+    <px name="ams_edit_step_gap_large" value="20"/>
     <!-- The weight pill's least width, so - and + do not move as the value
          changes from "50 g of 1 kg" to "1000 g of 1 kg". -->
     <px name="ams_edit_weight_w_micro" value="150"/>
-    <px name="ams_edit_weight_w_tiny" value="160"/>
-    <px name="ams_edit_weight_w_small" value="180"/>
-    <px name="ams_edit_weight_w_medium" value="220"/>
-    <px name="ams_edit_weight_w_large" value="260"/>
+    <px name="ams_edit_weight_w_tiny" value="180"/>
+    <px name="ams_edit_weight_w_small" value="200"/>
+    <px name="ams_edit_weight_w_medium" value="260"/>
+    <px name="ams_edit_weight_w_large" value="320"/>
     <!-- Header buttons: hit reach and spacing. The buttons are
          #button_height_sm tall; the reach takes each to the header's height
          (40 at micro) or 44, and the gap is twice the reach so the two
@@ -83,12 +84,13 @@
     <px name="assign_state_h_large" value="140"/>
     <!-- A common spool tile's height: a full touch target. -->
     <px name="assign_tile_h" value="44"/>
-    <!-- The summary's spool drawing. -->
-    <px name="edit_spool_size_micro" value="56"/>
-    <px name="edit_spool_size_tiny" value="72"/>
-    <px name="edit_spool_size_small" value="88"/>
-    <px name="edit_spool_size_medium" value="112"/>
-    <px name="edit_spool_size_large" value="140"/>
+    <!-- The summary's spool drawing: as large as the page leaves room for
+         once the weight, lane and action rows are in. -->
+    <px name="edit_spool_size_micro" value="64"/>
+    <px name="edit_spool_size_tiny" value="96"/>
+    <px name="edit_spool_size_small" value="120"/>
+    <px name="edit_spool_size_medium" value="168"/>
+    <px name="edit_spool_size_large" value="210"/>
     <!-- The empty lane's drawing of what it last held. -->
     <px name="empty_spool_size_micro" value="40"/>
     <px name="empty_spool_size_tiny" value="48"/>
@@ -107,11 +109,11 @@
     <px name="ams_edit_preview_h_medium" value="24"/>
     <px name="ams_edit_preview_h_large" value="28"/>
     <!-- The Lane Settings dropdowns. -->
-    <px name="ams_edit_lane_dd_w_micro" value="150"/>
-    <px name="ams_edit_lane_dd_w_tiny" value="160"/>
-    <px name="ams_edit_lane_dd_w_small" value="180"/>
-    <px name="ams_edit_lane_dd_w_medium" value="220"/>
-    <px name="ams_edit_lane_dd_w_large" value="260"/>
+    <px name="ams_edit_lane_dd_w_micro" value="110"/>
+    <px name="ams_edit_lane_dd_w_tiny" value="120"/>
+    <px name="ams_edit_lane_dd_w_small" value="150"/>
+    <px name="ams_edit_lane_dd_w_medium" value="200"/>
+    <px name="ams_edit_lane_dd_w_large" value="240"/>
   </consts>
   <styles>
     <!-- The color row pads by its swatches' reach so the outer ones are
@@ -226,7 +228,7 @@
           <style name="styles.press_wash" selector="pressed"/>
           <event_cb trigger="clicked" callback="ams_edit_open_filament_cb"/>
           <spool_canvas name="edit_spool"
-                        size="#edit_spool_size" color="#text_muted" fill_level="1.0" clickable="false"
+                        size="#edit_spool_size" view="front" color="#text_muted" fill_level="1.0" clickable="false"
                         event_bubble="true"/>
           <lv_obj height="content"
                   flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column" style_bg_opa="0"
@@ -257,22 +259,24 @@
                 flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
                 style_pad_gap="#ams_edit_step_gap" scrollable="false">
           <ui_button name="btn_remaining_minus"
-                     width="#button_height_sm" height="#button_height_sm" icon="minus" icon_size="sm"
-                     variant="secondary" ext_click_area="#ams_edit_step_hit">
+                     width="#button_height" height="#button_height" icon="minus" icon_size="md" variant="secondary"
+                     ext_click_area="#ams_edit_step_hit">
             <event_cb trigger="clicked" callback="ams_edit_remaining_minus_cb"/>
           </ui_button>
           <lv_obj name="weight_pill"
-                  width="content" height="#button_height_sm" style_min_width="#ams_edit_weight_w" flex_flow="row"
+                  width="content" height="#button_height" style_min_width="#ams_edit_weight_w" flex_flow="row"
                   style_flex_cross_place="center" style_flex_main_place="center" style_pad_hor="#space_md"
                   style_pad_ver="0" style_radius="#border_radius" style_bg_color="#elevated_bg" style_bg_opa="255"
                   style_border_width="1" style_border_color="#border" scrollable="false" clickable="true"
                   ext_click_area="#ams_edit_step_hit">
             <style name="styles.press_wash" selector="pressed"/>
-            <text_heading name="weight_text" bind_text="ams_edit_weight_text" clickable="false" event_bubble="true"/>
+            <text_heading name="weight_text"
+                          bind_text="ams_edit_weight_text" style_text_font="#font_xl" clickable="false"
+                          event_bubble="true"/>
             <event_cb trigger="clicked" callback="ams_edit_weight_cb"/>
           </lv_obj>
           <ui_button name="btn_remaining_plus"
-                     width="#button_height_sm" height="#button_height_sm" icon="plus" icon_size="sm" variant="secondary"
+                     width="#button_height" height="#button_height" icon="plus" icon_size="md" variant="secondary"
                      ext_click_area="#ams_edit_step_hit">
             <event_cb trigger="clicked" callback="ams_edit_remaining_plus_cb"/>
           </ui_button>
@@ -308,14 +312,14 @@
                 width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
                 style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
           <ui_button name="btn_clear_spool"
-                     width="content" height="#button_height_sm" text="Clear Lane" variant="outline"
+                     width="content" height="#button_height" text="Clear Lane" variant="outline"
                      style_border_color="#danger" style_text_color="#danger" hidden="true">
             <bind_flag_if_eq subject="ams_edit_clear_visible" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_edit_clear_spool_cb"/>
           </ui_button>
           <lv_obj width="1" height="1" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"/>
           <ui_button name="btn_edit_save"
-                     width="content" height="#button_height_sm" text="Save" variant="primary"
+                     width="content" height="#button_height" text="Save" variant="primary"
                      style_min_width="#ams_edit_weight_w">
             <bind_state_if cond="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0" state="disabled"/>
             <event_cb trigger="clicked" callback="ams_edit_save_cb"/>
@@ -337,7 +341,8 @@
                 style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
                 style_border_width="0" scrollable="false" hidden="true">
           <bind_flag_if_eq subject="ams_edit_has_last" flag="hidden" ref_value="0"/>
-          <spool_canvas name="empty_last_spool" size="#empty_spool_size" color="#text_muted" fill_level="1.0"/>
+          <spool_canvas name="empty_last_spool"
+                        size="#empty_spool_size" view="front" color="#text_muted" fill_level="1.0"/>
           <lv_obj width="content"
                   height="content" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
                   style_border_width="0" scrollable="false">
@@ -348,14 +353,13 @@
           </lv_obj>
         </lv_obj>
         <ui_button name="btn_same_filament"
-                   width="100%" height="#button_height_sm" text="Same Filament, New Spool" variant="primary"
-                   hidden="true">
+                   width="100%" height="#button_height" text="Same Filament, New Spool" variant="primary" hidden="true">
           <bind_flag_if_eq subject="ams_edit_has_last" flag="hidden" ref_value="0"/>
           <bind_state_if cond="ams_edit_save_state eq 1 or ams_lane_records_ready eq 0" state="disabled"/>
           <event_cb trigger="clicked" callback="ams_edit_same_filament_cb"/>
         </ui_button>
         <ui_button name="btn_choose_spool"
-                   width="100%" height="#button_height_sm" text="Choose a Different Spool" variant="secondary">
+                   width="100%" height="#button_height" text="Choose a Different Spool" variant="secondary">
           <event_cb trigger="clicked" callback="ams_edit_choose_spool_cb"/>
         </ui_button>
       </lv_obj>
@@ -541,7 +545,7 @@
         <lv_obj name="common_spools"
                 width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xxs"
                 style_pad_row="#space_xxs" scrollable="false" hidden="true">
-          <bind_flag_if cond="ams_edit_mode ne 0 or ui_breakpoint le 1" flag="hidden"/>
+          <bind_flag_if cond="ams_edit_adding eq 0 or ui_breakpoint le 1" flag="hidden"/>
           <common_spool_tile tile_name="common_spool_0" label="PLA" color_subject="ams_edit_common_color_0"/>
           <common_spool_tile tile_name="common_spool_3" label="PETG" color_subject="ams_edit_common_color_0"/>
           <common_spool_tile tile_name="common_spool_6" label="ABS" color_subject="ams_edit_common_color_0"/>
@@ -556,14 +560,10 @@
           <common_spool_tile tile_name="common_spool_11" label="ASA" color_subject="ams_edit_common_color_2"/>
         </lv_obj>
 
-        <lv_obj width="100%"
-                flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                clickable="false"/>
-
         <!-- Adding with Spoolman set up: whether the spool goes into it. -->
         <lv_checkbox name="add_to_spoolman_check"
                      text="Add to Spoolman" bind_checked="ams_edit_add_to_spoolman" hidden="true">
-          <bind_flag_if cond="ams_edit_mode ne 0 or printer_has_spoolman eq 0" flag="hidden"/>
+          <bind_flag_if cond="ams_edit_adding eq 0 or printer_has_spoolman eq 0" flag="hidden"/>
         </lv_checkbox>
         <!-- A linked spool's Spoolman-only details, on a page of their own. -->
         <lv_obj name="more_row"
@@ -585,16 +585,23 @@
       <!-- LANE SETTINGS (page 4): applied as soon as they change.       -->
       <!-- ============================================================ -->
       <lv_obj name="lane_section"
-              width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md"
+              width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#ams_edit_vgap"
               scrollable="false" hidden="true">
         <bind_flag_if_not_eq subject="ams_edit_page" flag="hidden" ref_value="4"/>
         <lv_obj name="tool_dropdown_row"
-                width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                style_pad_gap="#space_sm" scrollable="false" hidden="true">
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+                scrollable="false" hidden="true">
+          <style name="nav_row"/>
           <bind_flag_if_eq subject="ams_edit_tool_row_visible" flag="hidden" ref_value="0"/>
-          <text_body name="tool_label" text="Feeds Tool" flex_grow="1"/>
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <text_body name="tool_label" text="Feeds Tool"/>
+            <text_small width="100%"
+                        text="The toolhead this lane loads into" long_mode="wrap" style_text_color="#text_muted"/>
+          </lv_obj>
           <lv_dropdown name="tool_dropdown"
-                       width="#ams_edit_lane_dd_w" height="#button_height_sm" style_radius="#border_radius" options="">
+                       width="#ams_edit_lane_dd_w" height="#button_height" style_radius="#border_radius" options="">
             <bind_state_if_eq subject="ams_edit_tool_editable" state="disabled" ref_value="0"/>
             <event_cb trigger="value_changed" callback="ams_edit_tool_dd_cb"/>
           </lv_dropdown>
@@ -605,18 +612,40 @@
           <bind_flag_if cond="ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 1" flag="hidden"/>
         </text_small>
         <lv_obj name="backup_dropdown_row"
-                width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                style_pad_gap="#space_sm" scrollable="false" hidden="true">
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+                scrollable="false" hidden="true">
+          <style name="nav_row"/>
           <bind_flag_if_eq subject="ams_edit_backup_row_visible" flag="hidden" ref_value="0"/>
-          <text_body name="backup_label" text="Runout Backup" flex_grow="1"/>
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
+                  style_border_width="0" scrollable="false">
+            <text_body name="backup_label" text="Runout Backup"/>
+            <text_small width="100%"
+                        text="The lane that takes over when this one runs out" long_mode="wrap"
+                        style_text_color="#text_muted"/>
+          </lv_obj>
           <lv_dropdown name="backup_dropdown"
-                       width="#ams_edit_lane_dd_w" height="#button_height_sm" style_radius="#border_radius" options="">
+                       width="#ams_edit_lane_dd_w" height="#button_height" style_radius="#border_radius" options="">
             <bind_state_if_eq subject="ams_edit_backup_editable" state="disabled" ref_value="0"/>
             <event_cb trigger="value_changed" callback="ams_edit_backup_dd_cb"/>
           </lv_dropdown>
         </lv_obj>
-        <!-- One sentence: what a runout will do. -->
-        <ams_endless_status name="endless_status"/>
+        <!-- What a runout of this lane will do, in one sentence. -->
+        <lv_obj name="runout_card"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
+                scrollable="false">
+          <style name="nav_row"/>
+          <icon src="infinity" size="sm" variant="primary"/>
+          <text_body name="runout_text" flex_grow="1" bind_text="ams_edit_runout_text" long_mode="wrap"/>
+        </lv_obj>
+        <!-- Why the printer will not switch spools (Off, Unknown, NeedsPlugin). -->
+        <lv_obj name="endless_reason"
+                width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                scrollable="false" hidden="true">
+          <bind_flag_if cond="ams_endless_state ne 2 and ams_endless_state ne 3 and ams_endless_state ne 4"
+                        flag="hidden"/>
+          <ams_endless_status name="endless_status"/>
+        </lv_obj>
       </lv_obj>
 
       <!-- ============================================================ -->

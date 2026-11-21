@@ -1860,6 +1860,9 @@
         "fill_level": {
           "type": "int"
         },
+        "view": {
+          "type": "string"
+        },
         "size": {
           "type": "int"
         }
