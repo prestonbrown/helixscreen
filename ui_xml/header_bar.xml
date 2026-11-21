@@ -86,6 +86,9 @@
     <prop name="title_badge_subject" type="string" default=""/>
     <!-- Back button callback - defaults to standard navigation go_back -->
     <prop name="back_button_callback" type="string" default="on_header_back_clicked"/>
+    <!-- 1 hides the back arrow and makes the title inert: the view is embedded
+         beside a panel (an ultrawide side band), with nothing to go back to. -->
+    <prop name="back_hidden_subject" type="string" default=""/>
   </api>
   <view extends="lv_obj"
         width="100%" height="#header_height" style_pad_left="0" style_pad_right="#space_lg" style_pad_top="0"
@@ -99,8 +102,11 @@
             style_pad_gap="#space_xs">
       <bind_style_if_eq name="header_title_inset_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="header_title_inset" subject="ui_breakpoint" ref_value="1"/>
+      <bind_flag_if_eq subject="$back_hidden_subject" flag="clickable" ref_value="0"/>
       <event_cb trigger="clicked" callback="$back_button_callback"/>
-      <icon name="back_icon" src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+      <icon name="back_icon" src="back" size="lg" variant="text" clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="$back_hidden_subject" flag="hidden" ref_value="1"/>
+      </icon>
       <!-- bind_text is deliberately FIRST. An unsupplied title_subject resolves to the
            empty name, which is a registered no-op INT subject, and binding to that
            stamps "0" over the title. Applying text/translation_tag afterwards puts the

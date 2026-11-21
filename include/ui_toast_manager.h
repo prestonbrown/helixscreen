@@ -20,6 +20,16 @@
  */
 typedef void (*toast_action_callback_t)(void* user_data);
 
+namespace helix {
+/// One button on an action toast: its label and what a tap runs, with user_data.
+/// An action with no text or no callback is no button.
+struct ToastAction {
+    const char* text = nullptr;
+    toast_action_callback_t callback = nullptr;
+    void* user_data = nullptr;
+};
+} // namespace helix
+
 /**
  * @brief Singleton manager for toast notifications
  *
@@ -73,11 +83,16 @@ class ToastManager {
      * button, with @p user_data — a decision to decline the action, unlike
      * hide(), the dismiss timer or stack eviction, which say nothing. Runs on
      * the main thread once the widget is removed.
+     *
+     * @p second is an optional second button, shown before the action button;
+     * a tap on either runs its own callback and dismisses the toast. @p detail
+     * is an optional muted second line, as show_with_detail() draws it.
      */
     void show_with_action(ToastSeverity severity, const char* message, const char* action_text,
                           toast_action_callback_t action_callback, void* user_data,
                           uint32_t duration_ms = 5000,
-                          toast_action_callback_t user_closed_callback = nullptr);
+                          toast_action_callback_t user_closed_callback = nullptr,
+                          helix::ToastAction second = {}, const char* detail = nullptr);
 
     /** Dismiss all currently visible toasts (animated). */
     void hide();
@@ -110,6 +125,9 @@ class ToastManager {
         toast_action_callback_t action_cb = nullptr;
         void* action_user_data = nullptr;
         toast_action_callback_t user_closed_cb = nullptr;
+        /// The optional second button's callback and user_data.
+        toast_action_callback_t action2_cb = nullptr;
+        void* action2_user_data = nullptr;
     };
 
     /** Install the one observer every Event goes to; an empty function removes
@@ -140,6 +158,8 @@ class ToastManager {
         toast_action_callback_t action_cb = nullptr;
         void* action_user_data = nullptr;
         toast_action_callback_t user_closed_cb = nullptr;
+        toast_action_callback_t action2_cb = nullptr;
+        void* action2_user_data = nullptr;
         bool closed_by_user = false;
         bool is_exiting = false;
         ToastSeverity severity = ToastSeverity::INFO;
@@ -150,7 +170,8 @@ class ToastManager {
     void create_toast_internal(ToastSeverity severity, const char* message, const char* detail,
                                uint32_t duration_ms, bool with_action,
                                toast_action_callback_t action_cb, void* action_user_data,
-                               const char* action_text, toast_action_callback_t user_closed_cb);
+                               const char* action_text, toast_action_callback_t user_closed_cb,
+                               const helix::ToastAction& second = {});
     /** The X button's removal: a user decision, unlike hide() or a timer. */
     void user_close_toast(ToastList::iterator it);
     void ensure_stack_container();
@@ -215,6 +236,10 @@ class ToastManager {
     static void dismiss_timer_cb(lv_timer_t* timer);
     static void close_btn_clicked(lv_event_t* e);
     static void action_btn_clicked(lv_event_t* e);
+    static void action2_btn_clicked(lv_event_t* e);
+    /** A tap on @p e's toast's action button, or its second one: dismiss the
+     *  toast and run that button's callback after this input frame. */
+    static void run_action(lv_event_t* e, bool second);
 
     // Hard cap — further bounded at first show_by screen height.
     static constexpr size_t kMaxVisible = 5;

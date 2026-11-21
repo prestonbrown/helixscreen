@@ -813,3 +813,70 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the runout toast leads with the head, not K
     get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
     get_printer_state().set_hardware(PrinterDiscovery{});
 }
+
+#include "filament_sensor_manager.h"
+
+// The runout guidance on screen already says a head ran out; its toast would
+// cover the dialog's title (#2137).
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the runout toast stands down for the runout dialog of its head",
+                 "[snapmaker][feed_failure][runout_toast]") {
+    get_printer_state().set_hardware(coded_firmware());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
+    fault_surface_correlation::clear_for_test();
+    std::vector<std::string> titles;
+    ui::set_test_notification_event_hook(
+        [&titles](const ui::NotificationEvent& e) { titles.push_back(e.title); });
+    auto& sensors = FilamentSensorManager::instance();
+
+    {
+        helix::ui::RecoveryModalPresenter presenter(nullptr);
+        helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
+
+        sensors.set_runout_explained(0);
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0000-0000 e0_filament runout");
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        CHECK(titles.empty());
+
+        // A dialog about a sensor with no lane explains no head's runout.
+        sensors.set_runout_explained(-1);
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0000-0000 e0_filament runout");
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        REQUIRE(titles.size() == 1);
+        CHECK(titles[0] == "Toolhead 1 ran out of filament");
+        titles.clear();
+        fault_surface_correlation::clear_for_test();
+        sensors.set_runout_explained(0);
+
+        // Another head's runout is not what the dialog explains.
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0001-0000 e1_filament runout");
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        REQUIRE(titles.size() == 1);
+        CHECK(titles[0] == "Toolhead 2 ran out of filament");
+
+        // The dialog going up inside the toast's hold still stands it down.
+        // Every head's runout shares one detail text: forget head 2's so the
+        // duplicate check does not decide this one.
+        fault_surface_correlation::clear_for_test();
+        sensors.set_runout_explained(std::nullopt);
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0002-0000 e2_filament runout");
+        sensors.set_runout_explained(2);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        CHECK(titles.size() == 1);
+    }
+
+    sensors.set_runout_explained(std::nullopt);
+    ui::set_test_notification_event_hook(nullptr);
+    AmsState::instance().set_backend(nullptr);
+    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}

@@ -327,6 +327,7 @@ translations:
   Add to Queue: 添加到队列
   Added: 已添加
   Added to Spoolman: 已添加到 Spoolman
+  'Added to Spoolman as #{}': '已添加到 Spoolman，编号 #{}'
   Added to queue (position {}): 已添加到队列（第 {} 位）
   Added to queue (position {}) - queue is paused: 已添加到队列（第 {} 位）– 队列已暂停
   Adding printer: 正在添加打印机
@@ -436,7 +437,9 @@ translations:
   Ask before turning off the stepper motors: '关闭步进电机前先询问'
   Ask every time: '每次询问'
   Ask for parameters: '询问参数'
+  Assign: 分配
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: 分配 Klipper 宏通过开/关、切换或预设控制 LED
+  Assign Spool: 分配料盘
   Assign a role to enable sensor monitoring: 分配角色以启用传感器监控
   Assign a slot first: '请先分配槽位'
   Assigned Tool: 已分配工具
@@ -915,6 +918,7 @@ translations:
   Clear All Events: 清除所有事件
   Clear Console?: 清空控制台？
   Clear Error: 清除错误
+  Clear Lane: 清空耗材通道
   Clear Spool: 移除料盘
   Clear and clean the build plate, then resume.: '请清空并清洁打印板，然后恢复。'
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: '请清除滑架和工具头锁定装置上的杂物，重新安装工具头，然后归位并恢复。'
@@ -963,6 +967,7 @@ translations:
   Command Failed: '命令失败'
   Command failed: 命令失败
   Command not allowed: '命令不被允许'
+  Common spools to start from: 从常用料盘开始
   Communication Test: '通信测试'
   Compact: 紧凑
   Compare belt paths with a resonance sweep: "用共振扫频比较皮带路径"
@@ -1188,6 +1193,7 @@ translations:
   Could not verify Spoolman status. Moonraker may still be restarting.: 无法验证 Spoolman 状态。Moonraker 可能仍在重启中。
   Couldn't assign the tool: 无法分配工具
   Couldn't clear the printer's gate map: 无法清空打印机的通道映射
+  Couldn't load spools — tap to retry: 无法加载料盘 — 点按重试
   "Couldn't map filament: internal error": 无法映射耗材：内部错误
   "Couldn't map filament: no temp directory available": 无法映射耗材：没有可用的临时目录
   Couldn't save the material name: '无法保存材料名称'
@@ -1211,6 +1217,7 @@ translations:
   'Critical hardware missing: {}': '缺少关键硬件: {}'
   Ctrl: 'Ctrl'
   Currency: "货币"
+  Current: 当前
   Current / Target: 当前 / 目标
   Current Configuration: 当前配置
   Current Mesh: 当前网格
@@ -1314,6 +1321,7 @@ translations:
   Device name is required: 设备名称为必填项
   'Device: ': '设备: '
   Devices: 设备
+  Different Spool: 更换料盘
   Different color: '颜色不同'
   Different filament?: 耗材不同？
   Different material: '材料不同'
@@ -2403,6 +2411,7 @@ translations:
   Labels: 标签
   Labels Per Sheet: 每页标签数
   Lane: 耗材通道
+  Lane Settings: 耗材通道设置
   Lane name contains invalid characters: '耗材通道名称包含无效字符'
   Lane tests and motor resets: '耗材通道测试与电机重置'
   Lanes: 耗材通道
@@ -2629,6 +2638,7 @@ translations:
   Matched at {:.1f} Hz: "在 {:.1f} Hz 处匹配"
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "张力一致的皮带会得到形状相同的曲线。当一条路径的最高峰在另一条路径上没有对应峰时,说明除张力外还有其他因素在影响响应:\n\n- 皮带磨损、起毛或跑偏\n- 同步轮顶丝松动或打滑\n- 惰轮或轴承卡滞\n- 齿间有杂物,或皮带摩擦挡边\n- 加速度计安装松动\n\n调整仍跟随随转动而移动的区间,但在追求完美匹配之前请先检查这些。"
+  Matching Spools: 匹配的料盘
   Matching printers: 匹配的打印机
   Material: 材料
   'Material Comfort:': 材料适配度：
@@ -2898,6 +2908,7 @@ translations:
   No spool linked: '未关联料盘'
   No spools found — tap to retry: 未找到料盘 - 点击重试
   No spools match your search: 没有符合搜索条件的料盘
+  No spools match. Add it as a new spool below.: 没有匹配的料盘。请在下方添加为新料盘。
   No spools placed: 未放置料盘
 
   No tape detected in printer: 打印机中未检测到标签带
@@ -2932,6 +2943,7 @@ translations:
   Not Enough Filament: 耗材不足
   Not Enough Memory: "内存不足"
   Not Initialized: '未初始化'
+  Not Listed? Add New Spool: 不在列表中？添加新料盘
   Not Now: 暂不
   Not Supported: '不支持'
   Not added: 未添加
@@ -2958,6 +2970,9 @@ translations:
   Not run: '未运行'
   'Not saved: {}. Try again.': "未保存：{}。请重试。"
   Not set: 未设置
+  'Not undone: the lane changed since that save.': 未撤销：保存后耗材通道已更改。
+  'Not undone: the printer changed since that save.': 未撤销：保存后打印机已更换。
+  'Not undone: {}': 未撤销：{}
   Not while printing: '打印时不可用'
   Not yet available on this display: '此屏幕暂不支持'
   Not yet calibrated: 尚未校准
@@ -3151,6 +3166,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "插件的一部分加载失败。请重新安装插件。"
   Part of the plugin is missing. Reinstall the plugin.: "插件缺少一部分。请重新安装插件。"
   Part, hotend, and auxiliary fan speeds: '零件、热端与辅助风扇速度'
+  Partial…: 部分…
   Pass: "轮次"
   Password: 密码
   Password cannot be empty: 密码不能为空
@@ -3578,6 +3594,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: 可随时在设置中重新校准或查看详细结果。
   Received oversized data from printer ({} bytes). This may indicate a communication error.: 从打印机收到的数据过大（{} 字节）。这可能表示通信错误。
   Recent Prints: 最近打印
+  Recent Spools: 最近的料盘
   Recently Printed: 最近打印过的
   Recirculate: '内循环'
   Recirculation fan: '循环风扇'
@@ -3895,6 +3912,7 @@ translations:
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: '在第 2 层之后和每次打印结束时保存一张摄像头照片，显示在打印历史中。'
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: 大约每秒保存一次打印位置，以便断电后可以恢复打印。在 SD 卡上这会增加磨损。
   Saves to Klipper config and restarts firmware.: 保存到 Klipper 配置并重启固件。
+  'Saves to Spoolman spool #{}': '保存到 Spoolman 料盘 #{}'
   Saves when the filament operation finishes.: '耗材操作完成后保存。'
   Saves when the filament operation on {} finishes.: '{} 的耗材操作完成后保存。'
   Saves when the load finishes.: '装载完成后保存。'
@@ -3915,6 +3933,7 @@ translations:
   Saving...: 保存中...
   Scan: 扫描
   Scan Cal: 扫描校准
+  Scan Label: 扫描标签
   Scan QR Code: 扫描 QR 码
   Scan Spool QR Code: 扫描料盘 QR 码
   Scan and select a Bluetooth printer first: 请先扫描并选择蓝牙打印机
@@ -4185,6 +4204,7 @@ translations:
   'Spool #{}': '线轴 #{}'
   Spool Info: 料盘信息
   Spool Not Found: '找不到料盘'
+  Spool Size: 料盘尺寸
   Spool Weight (g): 料盘重量（克）
   Spool archived: 料盘已归档
   Spool created successfully: 料盘创建成功
@@ -4219,6 +4239,7 @@ translations:
   'Spoolman: %zu/%zu Spools': 'Spoolman: %zu/%zu 个线轴'
   SpoolmanDB search failed: 'SpoolmanDB 搜索失败'
   Spools: '料盘'
+  Spools Used on This Printer: 本打印机用过的料盘
   Spools are off: "料盘已取下"
   'Spools are on the bed: remove them and confirm before moving the printer': 热床上有料盘：请先移除并确认，再移动打印机
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 热床上有料盘:点击烘干横幅确认已取下,然后再重启。
@@ -4343,6 +4364,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: 正在将加热控制切换为 MPC。Klipper 将重启。
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: 切换到 MPC 会改变此加热器的控制方式，随后会进行校准。这需要在工作温度下耗时数分钟。
   Switching to MPC requires a config change and Klipper restart.: 切换到 MPC 需要修改配置并重启 Klipper。
+  Switching to {}. The printer heats and purges it, then resumes the print.: "正在切换到 {}。打印机会加热并冲刷它，然后继续打印。"
   Sync: '同步'
   Switching to {}: 正在切换到 {}
   Sync Feedback: "同步反馈"
@@ -4679,6 +4701,7 @@ translations:
   : '打印机会使用此值直到 Klipper 重启。如需保留，请将其作为 pressure_advance 添加到 printer.cfg 中此工具的挤出机段。'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : '打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。'
+  The printer is working on the paused print. Wait for it to finish.: "打印机正在处理已暂停的打印。请等待完成。"
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: 打印机未检测到已加载的耗材。请选择下一步操作。
   The printer kept printing after the cancel.: '取消后打印机仍在继续打印。'
   The printer lost power during a print. It can resume where it left off.: 打印机在打印过程中断电。可以从中断处继续。
@@ -4977,6 +5000,7 @@ translations:
   Tool offsets (mm): 工具偏移 (mm)
   Tool offsets saved: 工具偏移已保存
   Tool swap: 工具切换
+  Tool, runout backup: 工具、断料备用
   Toolchange purge: '换刀排料'
   Toolhead: '工具头'
   Toolhead Calibration Running: '工具头校准进行中'
@@ -5166,6 +5190,7 @@ translations:
   Upload unavailable in this build: 此构建版本无法上传
   Upper belt: "上皮带"
   Uptime: 运行时长
+  Use: 使用
   Use AFC's mapping commands to add or move a tool: '请使用 AFC 的映射命令添加或移动工具'
   Use Android native keyboard for text input: 使用 Android 原生键盘进行文本输入
   Use Another Toolhead: '使用另一个工具头'
@@ -5432,6 +5457,7 @@ translations:
   a temporary mesh profile '{}': '临时网格配置 ''{}'''
   about {} min: '约 {} 分钟'
   already loaded: '已加载'
+  assign without adding to Spoolman: 分配但不添加到 Spoolman
   attempt {}: '第 {} 次尝试'
   auto: 自动
   automatic: '自动'
@@ -5442,6 +5468,7 @@ translations:
   by Preston Brown: by Preston Brown
   chamber heater: 腔体加热器
   checking: '检查中'
+  'close: {}': 相近：{}
   color differs: '颜色不同'
   complete: 完成
   cores: 核心
@@ -5526,6 +5553,7 @@ translations:
   rendering: 渲染中
   reset at {} h: '于 {} 小时时重置'
   set manually: '手动设置'
+  similar color: 相近颜色
   sleep {} min: '{} 分钟后休眠'
   slots): 个槽位)
   started: 已启动
@@ -5570,6 +5598,7 @@ translations:
   : "{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（减少 {4}%）'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（增加 {4}%）'
+  '{:.0f} g left': 剩余 {:.0f} g
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
   '{:.2f} mm range': '范围 {:.2f} mm'
   '{} ({})': '{}（{}）'
@@ -5707,6 +5736,7 @@ translations:
   'Basic': '标准'
   Recovery is not possible in the printer's current state.: '打印机当前状态下无法恢复。'
   'Recycled': '再生'
+  Add to Spoolman & Assign: 添加到 Spoolman 并分配
   'Add to Spoolman + label': '添加到 Spoolman + 标签'
   'More': '更多'
   Price per kWh: "每千瓦时价格"

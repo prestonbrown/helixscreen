@@ -869,6 +869,11 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   and the 3D bed mesh in on the spot between your fingers, and a two-finger drag moves the zoomed
   view. Rotate, tap and the exclude-object long-press stay off until every finger has lifted.
   Resistive screens detect one finger and keep one-finger rotate only.
+- **Lane tray on Print Status** - with a filament system or several toolheads, Print Status
+  shows the lane tray, which follows the active lane and its colors through the print and
+  opens the filament system screen on a tap. On ultrawide screens it takes the readouts
+  card's column; in portrait it sits under the buttons, as tall as the preview card can
+  spare, and none on a screen too short for it.
 
 **Setup and settings**
 

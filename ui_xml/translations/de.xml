@@ -309,9 +309,11 @@
   <translation tag="Add part fan to MPC?" de="Bauteillüfter zu MPC hinzufügen?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" de="Zu Mainsail/Fluidd-Webcams hinzufügen"/>
   <translation tag="Add to Queue" de="Zur Warteschlange hinzufügen"/>
+  <translation tag="Add to Spoolman &amp; Assign" de="Zu Spoolman hinzufügen &amp; zuweisen"/>
   <translation tag="Add to Spoolman + label" de="Zu Spoolman hinzufügen + Etikett"/>
   <translation tag="Added" de="Hinzugefügt"/>
   <translation tag="Added to Spoolman" de="Zu Spoolman hinzugefügt"/>
+  <translation tag="Added to Spoolman as #{}" de="Zu Spoolman hinzugefügt als #{}"/>
   <translation tag="Added to queue (position {})" de="Zur Warteschlange hinzugefügt (Position {})"/>
   <translation tag="Added to queue (position {}) - queue is paused" de="Zur Warteschlange hinzugefügt (Position {}) – Warteschlange ist pausiert"/>
   <translation tag="Adding printer" de="Drucker wird hinzugefügt"/>
@@ -418,7 +420,9 @@
   <translation tag="Ask before turning off the stepper motors" de="Vor dem Abschalten der Schrittmotoren fragen"/>
   <translation tag="Ask every time" de="Jedes Mal fragen"/>
   <translation tag="Ask for parameters" de="Nach Parametern fragen"/>
+  <translation tag="Assign" de="Zuweisen"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" de="Klipper-Makros zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern"/>
+  <translation tag="Assign Spool" de="Spule zuweisen"/>
   <translation tag="Assign a role to enable sensor monitoring" de="Rolle zuweisen, um Sensorüberwachung zu aktivieren"/>
   <translation tag="Assign a slot first" de="Zuerst einen Slot zuweisen"/>
   <translation tag="Assigned Tool" de="Zugewiesenes Werkzeug"/>
@@ -892,6 +896,7 @@
   <translation tag="Clear All Events" de="Alle Ereignisse löschen"/>
   <translation tag="Clear Console?" de="Konsole leeren?"/>
   <translation tag="Clear Error" de="Fehler löschen"/>
+  <translation tag="Clear Lane" de="Spur leeren"/>
   <translation tag="Clear Spool" de="Spule entfernen"/>
   <translation tag="Clear and clean the build plate, then resume." de="Druckplatte räumen und reinigen, dann fortsetzen."/>
   <translation tag="Clear any debris from the carriage and the head&apos;s latch, seat the head again, then home and resume." de="Schmutz von Schlitten und Verriegelung des Kopfs entfernen, den Kopf neu einsetzen, dann referenzieren und fortsetzen."/>
@@ -938,6 +943,7 @@
   <translation tag="Command Failed" de="Befehl fehlgeschlagen"/>
   <translation tag="Command failed" de="Befehl fehlgeschlagen"/>
   <translation tag="Command not allowed" de="Befehl nicht erlaubt"/>
+  <translation tag="Common spools to start from" de="Gängige Spulen zum Start"/>
   <translation tag="Communication Test" de="Kommunikationstest"/>
   <translation tag="Compact" de="Kompakt"/>
   <translation tag="Compare belt paths with a resonance sweep" de="Riemenpfade mit einem Resonanz-Sweep vergleichen"/>
@@ -1124,6 +1130,7 @@
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." de="Spoolman-Status konnte nicht überprüft werden. Moonraker startet möglicherweise noch neu."/>
   <translation tag="Couldn&apos;t assign the tool" de="Werkzeug konnte nicht zugewiesen werden"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" de="Gate-Zuordnung des Druckers konnte nicht geleert werden"/>
+  <translation tag="Couldn&apos;t load spools — tap to retry" de="Spulen konnten nicht geladen werden — tippen zum Wiederholen"/>
   <translation tag="Couldn&apos;t map filament: internal error" de="Filament-Zuordnung nicht möglich: interner Fehler"/>
   <translation tag="Couldn&apos;t map filament: no temp directory available" de="Filament-Zuordnung nicht möglich: kein temporäres Verzeichnis verfügbar"/>
   <translation tag="Couldn&apos;t save the material name" de="Materialname konnte nicht gespeichert werden"/>
@@ -1147,6 +1154,7 @@
   <translation tag="Critical hardware missing: {}" de="Kritische Hardware fehlt: {}"/>
   <translation tag="Ctrl" de="Strg"/>
   <translation tag="Currency" de="Währung"/>
+  <translation tag="Current" de="Aktuell"/>
   <translation tag="Current / Target" de="Aktuell / Ziel"/>
   <translation tag="Current Configuration" de="Aktuelle Konfiguration"/>
   <translation tag="Current Mesh" de="Aktuelles Netz"/>
@@ -1252,6 +1260,7 @@
   <translation tag="Device name is required" de="Gerätename ist erforderlich"/>
   <translation tag="Device: " de="Gerät: "/>
   <translation tag="Devices" de="Geräte"/>
+  <translation tag="Different Spool" de="Andere Spule"/>
   <translation tag="Different color" de="Andere Farbe"/>
   <translation tag="Different filament?" de="Anderes Filament?"/>
   <translation tag="Different material" de="Anderes Material"/>
@@ -2319,6 +2328,7 @@
   <translation tag="Labels" de="Etiketten"/>
   <translation tag="Labels Per Sheet" de="Etiketten pro Blatt"/>
   <translation tag="Lane" de="Spur"/>
+  <translation tag="Lane Settings" de="Spur-Einstellungen"/>
   <translation tag="Lane name contains invalid characters" de="Der Spurname enthält ungültige Zeichen"/>
   <translation tag="Lane tests and motor resets" de="Spurtests und Motor-Rücksetzungen"/>
   <translation tag="Lanes" de="Spuren"/>
@@ -2547,6 +2557,7 @@
   <translation tag="Match your typical print fan speed" de="Typische Drucklüftergeschwindigkeit einstellen"/>
   <translation tag="Matched at {:.1f} Hz" de="Abgeglichen bei {:.1f} Hz"/>
   <translation tag="Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:&#10;&#10;- a worn, frayed or mis-tracking belt&#10;- a loose or slipping pulley grub screw&#10;- an idler or bearing that binds&#10;- debris in the teeth, or a belt rubbing a flange&#10;- a loose accelerometer mount&#10;&#10;Tuning still follows the zone that moved with the turn, but check these before chasing a perfect match." de="Gleich gespannte Riemen ergeben Kurven gleicher Form. Hat die höchste Spitze eines Pfads kein Gegenstück auf dem anderen, prägt etwas anderes als die Spannung die Antwort:&#10;&#10;- ein abgenutzter, ausgefranster oder schief laufender Riemen&#10;- eine lose oder rutschende Madenschraube am Pulley&#10;- eine klemmende Umlenkrolle oder ein Lager&#10;- Schmutz in den Zähnen oder ein Riemen, der an einem Bund schleift&#10;- eine lose Beschleunigungssensor-Halterung&#10;&#10;Die Einstellung folgt weiter der Zone, die sich mit der Drehung bewegt hat, aber prüfe diese Punkte, bevor du einem perfekten Abgleich nachjagst."/>
+  <translation tag="Matching Spools" de="Passende Spulen"/>
   <translation tag="Matching printers" de="Passende Drucker"/>
   <translation tag="Material" de="Material"/>
   <translation tag="Material Comfort:" de="Materialkomfort:"/>
@@ -2821,6 +2832,7 @@
   <translation tag="No spool linked" de="Keine Spule verknüpft"/>
   <translation tag="No spools found — tap to retry" de="Keine Spulen gefunden — tippen zum Wiederholen"/>
   <translation tag="No spools match your search" de="Keine Spulen entsprechen Ihrer Suche"/>
+  <translation tag="No spools match. Add it as a new spool below." de="Keine passenden Spulen. Unten als neue Spule hinzufügen."/>
   <translation tag="No spools placed" de="Keine Spulen eingelegt"/>
   <translation tag="No tape detected in printer" de="Kein Band im Drucker erkannt"/>
   <translation tag="No target printer configured" de="Kein Zieldrucker konfiguriert"/>
@@ -2852,6 +2864,7 @@
   <translation tag="Not Enough Filament" de="Nicht genug Filament"/>
   <translation tag="Not Enough Memory" de="Nicht genug Speicher"/>
   <translation tag="Not Initialized" de="Nicht initialisiert"/>
+  <translation tag="Not Listed? Add New Spool" de="Nicht dabei? Neue Spule hinzufügen"/>
   <translation tag="Not Now" de="Nicht jetzt"/>
   <translation tag="Not Supported" de="Nicht unterstützt"/>
   <translation tag="Not added" de="Nicht hinzugefügt"/>
@@ -2879,6 +2892,9 @@
   <translation tag="Not set" de="Nicht festgelegt"/>
   <translation tag="Not set up for this printer model yet." de="Für dieses Druckermodell noch nicht eingerichtet."/>
   <translation tag="Not turned" de="Ungedreht"/>
+  <translation tag="Not undone: the lane changed since that save." de="Nicht rückgängig gemacht: Die Spur hat sich seitdem geändert."/>
+  <translation tag="Not undone: the printer changed since that save." de="Nicht rückgängig gemacht: Der Drucker hat sich seitdem geändert."/>
+  <translation tag="Not undone: {}" de="Nicht rückgängig gemacht: {}"/>
   <translation tag="Not while printing" de="Nicht während des Drucks"/>
   <translation tag="Not yet available on this display" de="Auf diesem Display noch nicht verfügbar"/>
   <translation tag="Not yet calibrated" de="Noch nicht kalibriert"/>
@@ -3061,6 +3077,7 @@
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." de="Ein Teil des Plugins konnte nicht geladen werden. Installiere das Plugin neu."/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." de="Ein Teil des Plugins fehlt. Installiere das Plugin neu."/>
   <translation tag="Part, hotend, and auxiliary fan speeds" de="Bauteil-, Hotend- und Zusatzlüftergeschwindigkeiten"/>
+  <translation tag="Partial…" de="Teilweise…"/>
   <translation tag="Pass" de="Durchgang"/>
   <translation tag="Password" de="Passwort"/>
   <translation tag="Password cannot be empty" de="Passwort darf nicht leer sein"/>
@@ -3488,6 +3505,7 @@
   <translation tag="Recalibrate or view detailed results anytime in Settings." de="Jederzeit in den Einstellungen neu kalibrieren oder detaillierte Ergebnisse anzeigen."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." de="Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen."/>
   <translation tag="Recent Prints" de="Letzte Drucke"/>
+  <translation tag="Recent Spools" de="Zuletzt verwendete Spulen"/>
   <translation tag="Recently Printed" de="Zuletzt gedruckt"/>
   <translation tag="Recirculate" de="Umwälzen"/>
   <translation tag="Recirculation fan" de="Umwälzlüfter"/>
@@ -3804,6 +3822,7 @@
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." de="Speichert nach Schicht 2 und am Ende jedes Drucks ein Kamerafoto, das im Druckverlauf angezeigt wird."/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." de="Speichert die Druckposition etwa einmal pro Sekunde, damit ein Druck nach einem Stromausfall fortgesetzt werden kann. Auf einer SD-Karte erhöht das den Verschleiß."/>
   <translation tag="Saves to Klipper config and restarts firmware." de="Speichert in Klipper-Konfiguration und startet Firmware neu."/>
+  <translation tag="Saves to Spoolman spool #{}" de="Speichert in Spoolman-Spule #{}"/>
   <translation tag="Saves when the filament operation finishes." de="Wird gespeichert, wenn der Filamentvorgang abgeschlossen ist."/>
   <translation tag="Saves when the filament operation on {} finishes." de="Wird gespeichert, wenn der Filamentvorgang an {} abgeschlossen ist."/>
   <translation tag="Saves when the load finishes." de="Wird gespeichert, wenn das Laden abgeschlossen ist."/>
@@ -3823,6 +3842,7 @@
   <translation tag="Saving..." de="Speichern..."/>
   <translation tag="Scan" de="Suchen"/>
   <translation tag="Scan Cal" de="Scan-Kal."/>
+  <translation tag="Scan Label" de="Etikett scannen"/>
   <translation tag="Scan QR Code" de="QR-Code scannen"/>
   <translation tag="Scan Spool QR Code" de="Spulen-QR-Code scannen"/>
   <translation tag="Scan and select a Bluetooth printer first" de="Zuerst Bluetooth-Drucker suchen und auswählen"/>
@@ -4089,6 +4109,7 @@
   <translation tag="Spool #{}" de="Spule #{}"/>
   <translation tag="Spool Info" de="Spuleninfo"/>
   <translation tag="Spool Not Found" de="Spule nicht gefunden"/>
+  <translation tag="Spool Size" de="Spulengröße"/>
   <translation tag="Spool Weight (g)" de="Spulengewicht (g)"/>
   <translation tag="Spool archived" de="Spule archiviert"/>
   <translation tag="Spool created successfully" de="Spule erfolgreich erstellt"/>
@@ -4123,6 +4144,7 @@
   <translation tag="Spoolman: %zu/%zu Spools" de="Spoolman: %zu/%zu Spulen"/>
   <translation tag="SpoolmanDB search failed" de="SpoolmanDB-Suche fehlgeschlagen"/>
   <translation tag="Spools" de="Spulen"/>
+  <translation tag="Spools Used on This Printer" de="Auf diesem Drucker verwendete Spulen"/>
   <translation tag="Spools are off" de="Spulen sind entnommen"/>
   <translation tag="Spools are on the bed: remove them and confirm before moving the printer" de="Spulen liegen auf dem Heizbett: entferne sie und bestätige, bevor der Drucker bewegt wird"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." de="Spulen liegen auf dem Heizbett: Tippe auf das Trocknungsbanner, um zu bestätigen, dass sie entnommen sind, und starte dann neu."/>
@@ -4242,6 +4264,7 @@
   <translation tag="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature." de="Der Wechsel zu MPC ändert, wie diese Heizung geregelt wird, und kalibriert sie anschließend. Das dauert mehrere Minuten bei Betriebstemperatur."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." de="Wechsel zu MPC erfordert eine Konfigurationsänderung und Klipper-Neustart."/>
   <translation tag="Switching to {}" de="Wechsel zu {}"/>
+  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print." de="Wechsel zu {}. Der Drucker heizt und spült ihn, dann setzt er den Druck fort."/>
   <translation tag="Sync" de="Sync"/>
   <translation tag="Sync Feedback" de="Synchronisationsrückmeldung"/>
   <translation tag="Sync during printing" de="Beim Drucken synchronisieren"/>
@@ -4560,6 +4583,7 @@
   <translation tag="The printer is shut down." de="Der Drucker ist heruntergefahren."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." de="Der Drucker nutzt diesen Wert bis zum nächsten Klipper-Neustart. Um ihn zu behalten, tragen Sie ihn als pressure_advance im Extruder-Abschnitt dieses Werkzeugs in printer.cfg ein."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." de="Der Drucker wartet, bis die Kammer eine Temperatur erreicht, und nur ein Notaus mit Firmware-Neustart beendet dieses Warten. Der Druck stoppt sofort und kann nicht fortgesetzt werden."/>
+  <translation tag="The printer is working on the paused print. Wait for it to finish." de="Der Drucker arbeitet am pausierten Druck. Warten Sie, bis er fertig ist."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" de="Der Drucker erkennt derzeit kein geladenes Filament. Was möchten Sie tun?"/>
   <translation tag="The printer kept printing after the cancel." de="Der Drucker hat nach dem Abbruch weitergedruckt."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." de="Der Drucker hatte während eines Drucks einen Stromausfall. Er kann dort fortsetzen, wo er aufgehört hat."/>
@@ -4826,6 +4850,7 @@
   <translation tag="Tool offsets (mm)" de="Werkzeug-Offsets (mm)"/>
   <translation tag="Tool offsets saved" de="Werkzeug-Offsets gespeichert"/>
   <translation tag="Tool swap" de="Werkzeugwechsel"/>
+  <translation tag="Tool, runout backup" de="Werkzeug, Ersatz bei Filamentende"/>
   <translation tag="Toolchange purge" de="Werkzeugwechsel-Entlüftung"/>
   <translation tag="Toolhead" de="Werkzeugkopf"/>
   <translation tag="Toolhead Calibration Running" de="Werkzeugkopf-Kalibrierung läuft"/>
@@ -5020,6 +5045,7 @@
   <translation tag="Upload unavailable in this build" de="Hochladen in diesem Build nicht verfügbar"/>
   <translation tag="Upper belt" de="Riemen oben"/>
   <translation tag="Uptime" de="Betriebszeit"/>
+  <translation tag="Use" de="Verwenden"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" de="Verwende die Zuordnungsbefehle von AFC, um ein Werkzeug hinzuzufügen oder zu verschieben"/>
   <translation tag="Use Android native keyboard for text input" de="Native Android-Tastatur für Texteingabe verwenden"/>
   <translation tag="Use Another Toolhead" de="Anderen Werkzeugkopf verwenden"/>
@@ -5291,6 +5317,7 @@
   <translation tag="a temporary mesh profile &apos;{}&apos;" de="ein temporäres Netzprofil &apos;{}&apos;"/>
   <translation tag="about {} min" de="etwa {} Min."/>
   <translation tag="already loaded" de="bereits geladen"/>
+  <translation tag="assign without adding to Spoolman" de="ohne Spoolman zuweisen"/>
   <translation tag="attempt {}" de="Versuch {}"/>
   <translation tag="auto" de="auto"/>
   <translation tag="automatic" de="automatisch"/>
@@ -5301,6 +5328,7 @@
   <translation tag="by Preston Brown" de="von Preston Brown"/>
   <translation tag="chamber heater" de="Kammerheizung"/>
   <translation tag="checking" de="Prüfung"/>
+  <translation tag="close: {}" de="ähnlich: {}"/>
   <translation tag="color differs" de="Farbe abweichend"/>
   <translation tag="complete" de="abgeschlossen"/>
   <translation tag="cores" de="Kerne"/>
@@ -5380,6 +5408,7 @@
   <translation tag="rendering" de="wird gerendert"/>
   <translation tag="reset at {} h" de="zurückgesetzt bei {} Std"/>
   <translation tag="set manually" de="manuell gesetzt"/>
+  <translation tag="similar color" de="ähnliche Farbe"/>
   <translation tag="sleep {} min" de="Ruhezustand nach {} Min."/>
   <translation tag="slots)" de="Slots)"/>
   <translation tag="started" de="gestartet"/>
@@ -5422,6 +5451,7 @@
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." de="{0} schwingt bei {2:.0f} Hz viel stärker als {1}. Das deutet auf einen mechanischen Unterschied hin (Madenschrauben am Pulley, Umlenkrollenlager, Riemenlauf), nicht auf die Spannung."/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" de="{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% weniger)"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" de="{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% mehr)"/>
+  <translation tag="{:.0f} g left" de="noch {:.0f} g"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" de="{:.0f}-{:.0f} Hz · ca. {} Min."/>
   <translation tag="{:.2f} mm range" de="{:.2f} mm Spanne"/>
   <translation tag="{} ({})" de="{} ({})"/>

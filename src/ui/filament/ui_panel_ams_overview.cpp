@@ -19,6 +19,7 @@
 #include "ui_overlay_qr_scanner.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_common.h"
+#include "ui_side_band.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
 #include "ui_utils.h"
@@ -331,11 +332,11 @@ void AmsOverviewPanel::on_closed() {
         return;
     }
     open_ = false;
+    // The tree left the navigation stack: a side band waiting for it may take it.
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
     sidebar_.reset();
     // The next open starts at the overview.
-    if (unit_view_active_) {
-        reset_to_overview();
-    }
+    return_to_overview();
     if (detail_path_canvas_) {
         helix::ui::filament_path_canvas_release_buffer(detail_path_canvas_);
     }
@@ -703,6 +704,12 @@ void AmsOverviewPanel::show_overview() {
     }
 }
 
+void AmsOverviewPanel::return_to_overview() {
+    if (unit_view_active_) {
+        reset_to_overview();
+    }
+}
+
 void AmsOverviewPanel::reset_to_overview() {
     // Zoom-out has finished or is skipped; whatever else was in flight is moot.
     unit_view_active_ = false;
@@ -1060,6 +1067,7 @@ void destroy_ams_overview_panel_ui() {
                 panel->clear_panel_reference();
             }
         }));
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
 }
 
 AmsOverviewPanel& get_global_ams_overview_panel() {
@@ -1386,6 +1394,9 @@ void open_ams_overview_panel(int units) {
 } // namespace
 
 void helix::ui::open_ams_detail_panel() {
+    if (SideBand::take_open_request(SideBandContent::Ams)) {
+        return; // the Filament panel on screen already shows it
+    }
     drop_hidden_overview_ui();
     const AmsPanel* existing = get_existing_ams_panel();
     open_ams_overlay(existing && existing->get_panel(), []() {
@@ -1406,17 +1417,24 @@ void helix::ui::hand_ams_panel_to_overview(lv_obj_t* panel_root) {
     });
 }
 
+helix::ui::AmsView helix::ui::ams_view_for(const AmsSystemInfo& info) {
+    return info.is_multi_unit() ? AmsView::Overview : AmsView::Detail;
+}
+
 void navigate_to_ams_panel() {
     auto* backend = AmsState::instance().get_backend();
     if (!backend) {
         spdlog::warn("[AMS] navigate_to_ams_panel called with no backend");
         return;
     }
+    if (helix::ui::SideBand::take_open_request(helix::ui::SideBandContent::Ams)) {
+        return; // the Filament panel on screen already shows it
+    }
 
     // Only one of the two panels serves a given unit count; opening one drops the
     // other's hidden tree rather than holding both.
     const AmsSystemInfo info = backend->get_system_info();
-    if (info.is_multi_unit()) {
+    if (helix::ui::ams_view_for(info) == helix::ui::AmsView::Overview) {
         open_ams_overview_panel(info.unit_count());
     } else {
         helix::ui::open_ams_detail_panel();

@@ -245,6 +245,9 @@
          screen. helix::apply_content_cap() widens the root's direct children
          that carry it; see docs/devel/LAYOUT_SYSTEM.md, "Content width cap". -->
     <style name="cap_chrome"/>
+    <!-- An overlay's tree hosted in an ultrawide side band
+         (helix::ui::SideBand) reads as a card beside the host's cards. -->
+    <style name="side_band_guest" radius="#border_radius"/>
   </styles>
   <!-- Registration requires a <view>; nothing ever instantiates this
        component, so an empty lv_obj keeps it harmless. -->

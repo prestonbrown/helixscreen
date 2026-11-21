@@ -16,8 +16,8 @@ namespace {
 /// One firmware that stores the z-offset outside gcode_move.
 struct Provider {
     const char* name;
-    /// Macro whose presence identifies the firmware.
-    const char* detect_macro;
+    /// Whether this printer's objects list identifies the firmware.
+    bool (*detect)(const PrinterDiscovery& hw);
     /// Status objects that carry the stored value.
     std::vector<std::string> status_objects;
     /// One-shot command that turns persistence on, or nullptr.
@@ -225,12 +225,29 @@ bool refuted_helper_script(const nlohmann::json& status) {
     return variables->find("zoffset") == variables->end();
 }
 
+bool detect_zmod(const PrinterDiscovery& hw) {
+    return hw.has_macro("SAVE_ZMOD_DATA");
+}
+
+// SET_MOD and its siblings are commands the mod_params plugin registers, not
+// gcode macros, so objects/list never names them; the plugin's own status
+// object is the signature. Presence comes from objects/list only: Z-Mod's
+// Moonraker answers objects/query for mod_params with an empty status.
+bool detect_forge_x(const PrinterDiscovery& hw) {
+    return hw.has_mod_params();
+}
+
+bool detect_helper_script(const PrinterDiscovery& hw) {
+    return hw.has_macro("SET_GCODE_OFFSET");
+}
+
 const std::vector<Provider>& providers() {
-    // Row order is match priority: a box exposing two firmwares' macros
-    // resolves to the first hit.
+    // Row order is match priority: a box exposing two firmwares' signatures
+    // resolves to the first hit. Forge-X stays above Helper-Script, because
+    // the mod also wraps SET_GCODE_OFFSET.
     static const std::vector<Provider> table = {
         {"ZMOD",
-         "SAVE_ZMOD_DATA",
+         &detect_zmod,
          {"save_variables"},
          "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
          "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0",
@@ -245,13 +262,13 @@ const std::vector<Provider>& providers() {
          // save-variable is not read back on this machine at all.
          &toolchanger_addon::zmod_c5_present},
         {"Forge-X",
-         "SET_MOD",
+         &detect_forge_x,
          {"mod_params"},
          "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
          nullptr,
          &read_forge_x,
          &read_enabled_forge_x,
-         // Likewise SET_MOD: the mod's own plugin registers it, nothing else.
+         // Likewise mod_params: the mod's own plugin registers it, nothing else.
          nullptr,
          nullptr},
         // Keyed on the WRAPPER object. Klipper exposes a builtin command as a
@@ -267,7 +284,7 @@ const std::vector<Provider>& providers() {
         // anything, so this is the one row that carries a refutation - see
         // refuted_helper_script().
         {"Helper-Script",
-         "SET_GCODE_OFFSET",
+         &detect_helper_script,
          {"save_variables"},
          nullptr,
          nullptr,
@@ -283,7 +300,7 @@ const std::vector<Provider>& providers() {
 
 const Provider* match(const PrinterDiscovery& hw) {
     for (const auto& p : providers()) {
-        if (hw.has_macro(p.detect_macro)) {
+        if (p.detect(hw)) {
             return &p;
         }
     }

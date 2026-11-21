@@ -2600,10 +2600,10 @@ TEST_CASE("Z-offset calibration strategy lookup", "[printer_detector]") {
         REQUIRE(strategy == "firmware_managed");
     }
 
-    SECTION("FlashForge AD5M stock has no firmware_managed strategy") {
+    SECTION("FlashForge AD5M stock calibrates on its probe") {
         std::string strategy =
             PrinterDetector::get_z_offset_calibration_strategy("FlashForge Adventurer 5M");
-        REQUIRE(strategy.empty());
+        REQUIRE(strategy == "probe_calibrate");
     }
 
     SECTION("FlashForge AD5M Pro ForgeX returns firmware_managed strategy") {
@@ -2612,10 +2612,15 @@ TEST_CASE("Z-offset calibration strategy lookup", "[printer_detector]") {
         REQUIRE(strategy == "firmware_managed");
     }
 
-    SECTION("FlashForge AD5M Pro stock has no firmware_managed strategy") {
+    SECTION("FlashForge AD5M Pro stock calibrates on its probe") {
         std::string strategy =
             PrinterDetector::get_z_offset_calibration_strategy("FlashForge Adventurer 5M Pro");
-        REQUIRE(strategy.empty());
+        REQUIRE(strategy == "probe_calibrate");
+    }
+
+    SECTION("Elegoo Centauri Carbon calibrates on its Z switch") {
+        CHECK(PrinterDetector::get_z_offset_calibration_strategy("Elegoo Centauri Carbon") ==
+              "endstop");
     }
 
     SECTION("Unknown printer returns empty string") {

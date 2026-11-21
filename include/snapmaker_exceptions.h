@@ -59,6 +59,15 @@ enum class ExceptionSeverity { Informational, Pause, Cancel };
 /// feed failing, and its index is that head (0-based, "Toolhead 1" is 0).
 inline constexpr int kFeedingModuleId = 525;
 
+/// The toolheads' module; its index is the head.
+inline constexpr int kToolheadModuleId = 523;
+
+/// The head whose filament sensor ran out (the toolhead module's code 0), or
+/// -1 for any other fault.
+[[nodiscard]] constexpr int runout_head(const ExceptionCode& c) {
+    return c.id == kToolheadModuleId && c.code == 0 ? c.index : -1;
+}
+
 /// What a fault means to a user, as English source text; word_fault()
 /// translates it. A summary holding "{}" names the head the fault's index
 /// points at.

@@ -327,6 +327,7 @@ translations:
   Add to Queue: キューに追加
   Added: 追加済み
   Added to Spoolman: Spoolman に追加しました
+  'Added to Spoolman as #{}': 'Spoolmanに #{} として追加しました'
   Added to queue (position {}): キューに追加しました（{} 番目）
   Added to queue (position {}) - queue is paused: キューに追加しました（{} 番目）– キューは一時停止中です
   Adding printer: プリンターを追加中
@@ -436,7 +437,9 @@ translations:
   Ask before turning off the stepper motors: 'ステッピングモーターをオフにする前に確認する'
   Ask every time: '常に確認する'
   Ask for parameters: 'パラメータを確認する'
+  Assign: 割り当て
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御
+  Assign Spool: スプールを割り当て
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
   Assign a slot first: '先にスロットを割り当ててください'
   Assigned Tool: 割り当てツール
@@ -915,6 +918,7 @@ translations:
   Clear All Events: すべてのイベントをクリア
   Clear Console?: コンソールをクリアしますか？
   Clear Error: エラーをクリア
+  Clear Lane: レーンをクリア
   Clear Spool: スプールを解除
   Clear and clean the build plate, then resume.: 'ビルドプレートを片付けて清掃してから再開してください。'
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: 'キャリッジとヘッドのラッチから異物を取り除き、ヘッドを装着し直してから、ホーミングして再開してください。'
@@ -963,6 +967,7 @@ translations:
   Command Failed: 'コマンドに失敗しました'
   Command failed: コマンドに失敗しました
   Command not allowed: '許可されていないコマンドです'
+  Common spools to start from: よく使うスプールから始める
   Communication Test: '通信テスト'
   Compact: コンパクト
   Compare belt paths with a resonance sweep: "共振スイープでベルトパスを比較"
@@ -1188,6 +1193,7 @@ translations:
   Could not verify Spoolman status. Moonraker may still be restarting.: Spoolman のステータスを確認できませんでした。Moonraker がまだ再起動中の可能性があります。
   Couldn't assign the tool: ツールを割り当てられませんでした
   Couldn't clear the printer's gate map: プリンターのゲートマップをクリアできませんでした
+  Couldn't load spools — tap to retry: スプールを読み込めませんでした — タップして再試行
   "Couldn't map filament: internal error": 'フィラメントをマッピングできません: 内部エラー'
   "Couldn't map filament: no temp directory available": 'フィラメントをマッピングできません: 一時ディレクトリが利用できません'
   Couldn't save the material name: '材料名を保存できませんでした'
@@ -1211,6 +1217,7 @@ translations:
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
   Ctrl: 'Ctrl'
   Currency: "通貨"
+  Current: 現在
   Current / Target: 現在 / 目標
   Current Configuration: 現在の設定
   Current Mesh: 現在のメッシュ
@@ -1314,6 +1321,7 @@ translations:
   Device name is required: デバイス名は必須です
   'Device: ': 'デバイス: '
   Devices: デバイス
+  Different Spool: 別のスプール
   Different color: '色が異なります'
   Different filament?: 別のフィラメント？
   Different material: '材料が異なります'
@@ -2403,6 +2411,7 @@ translations:
   Labels: ラベル
   Labels Per Sheet: シートあたりのラベル数
   Lane: レーン
+  Lane Settings: レーン設定
   Lane name contains invalid characters: 'レーン名に無効な文字が含まれています'
   Lane tests and motor resets: 'レーンテストとモーターリセット'
   Lanes: レーン
@@ -2629,6 +2638,7 @@ translations:
   Matched at {:.1f} Hz: "{:.1f} Hzで一致"
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "張力のそろったベルトは同じ形のカーブになります。一方のパスの最も高いピークに、もう一方で対になるピークがない場合、張力以外の何かが応答に影響しています:\n\n- 摩耗、ほつれ、または片寄って走るベルト\n- プーリーのイモネジの緩みや滑り\n- 引っかかるアイドラーやベアリング\n- 歯の中のごみ、またはフランジに擦れるベルト\n- 加速度センサーの取り付けの緩み\n\n調整は回転に応じて動いたゾーンに従いますが、完全な一致を目指す前にこれらを確認してください。"
+  Matching Spools: 一致するスプール
   Matching printers: 一致するプリンター
   Material: 素材
   'Material Comfort:': '素材の適合度:'
@@ -2898,6 +2908,7 @@ translations:
   No spool linked: 'スプール未リンク'
   No spools found — tap to retry: スプールが見つかりません — タップして再試行
   No spools match your search: 検索に一致するスプールがありません
+  No spools match. Add it as a new spool below.: 一致するスプールがありません。下から新しいスプールとして追加してください。
   No spools placed: スプールは置いていません
 
   No tape detected in printer: プリンターにテープが検出されません
@@ -2932,6 +2943,7 @@ translations:
   Not Enough Filament: フィラメントが不足しています
   Not Enough Memory: "メモリ不足"
   Not Initialized: '初期化されていません'
+  Not Listed? Add New Spool: 見つからない場合は新しいスプールを追加
   Not Now: 今はしない
   Not Supported: 'サポートされていません'
   Not added: 未追加
@@ -2958,6 +2970,9 @@ translations:
   Not run: '未実行'
   'Not saved: {}. Try again.': "保存されていません: {}。もう一度お試しください。"
   Not set: 未設定
+  'Not undone: the lane changed since that save.': '元に戻せません: 保存後にレーンが変更されました。'
+  'Not undone: the printer changed since that save.': '元に戻せません: 保存後にプリンターが変わりました。'
+  'Not undone: {}': '元に戻せません: {}'
   Not while printing: '印刷中は変更できません'
   Not yet available on this display: 'このディスプレイではまだ利用できません'
   Not yet calibrated: 未キャリブレーション
@@ -3151,6 +3166,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "プラグインの一部を読み込めませんでした。プラグインを再インストールしてください。"
   Part of the plugin is missing. Reinstall the plugin.: "プラグインの一部が見つかりません。プラグインを再インストールしてください。"
   Part, hotend, and auxiliary fan speeds: 'パーツ・ホットエンド・補助ファンの速度'
+  Partial…: 使いかけ…
   Pass: "パス"
   Password: パスワード
   Password cannot be empty: パスワードを入力してください
@@ -3578,6 +3594,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: 設定からいつでも再キャリブレーションや詳細結果の確認ができます。
   Received oversized data from printer ({} bytes). This may indicate a communication error.: プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。
   Recent Prints: 最近の印刷
+  Recent Spools: 最近のスプール
   Recently Printed: 最近印刷されたもの
   Recirculate: '循環'
   Recirculation fan: '循環ファン'
@@ -3895,6 +3912,7 @@ translations:
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: 'レイヤー2の後と各印刷の終了時にカメラの写真を保存し、印刷履歴に表示します。'
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: 停電後に印刷を再開できるよう、約1秒ごとに印刷位置を保存します。SDカードでは摩耗が多くなります。
   Saves to Klipper config and restarts firmware.: Klipper 設定に保存してファームウェアを再起動します。
+  'Saves to Spoolman spool #{}': 'Spoolman スプール #{} に保存'
   Saves when the filament operation finishes.: 'フィラメント操作の完了時に保存します。'
   Saves when the filament operation on {} finishes.: '{} のフィラメント操作の完了時に保存します。'
   Saves when the load finishes.: '装填の完了時に保存します。'
@@ -3915,6 +3933,7 @@ translations:
   Saving...: 保存中...
   Scan: スキャン
   Scan Cal: スキャンキャリブレーション
+  Scan Label: ラベルをスキャン
   Scan QR Code: QR コードをスキャン
   Scan Spool QR Code: スプール QR コードをスキャン
   Scan and select a Bluetooth printer first: 先に Bluetooth プリンターをスキャンして選択してください
@@ -4185,6 +4204,7 @@ translations:
   'Spool #{}': 'スプール #{}'
   Spool Info: スプール情報
   Spool Not Found: 'スプールが見つかりません'
+  Spool Size: スプールサイズ
   Spool Weight (g): スプール重量（g）
   Spool archived: スプールをアーカイブしました
   Spool created successfully: スプールを作成しました
@@ -4219,6 +4239,7 @@ translations:
   'Spoolman: %zu/%zu Spools': 'Spoolman: %zu/%zu 個のスプール'
   SpoolmanDB search failed: 'SpoolmanDB の検索に失敗しました'
   Spools: 'スプール'
+  Spools Used on This Printer: このプリンターで使ったスプール
   Spools are off: "スプールを取り出しました"
   'Spools are on the bed: remove them and confirm before moving the printer': 'ベッドにスプールがあります: 取り除いて確認してからプリンターを動かしてください'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'ベッドにスプールがあります: 乾燥のバナーをタップして取り出したことを確認してから、再起動してください。'
@@ -4343,6 +4364,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: ヒーター制御をMPCに切り替えます。Klipperが再起動します。
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: MPCに切り替えると、このヒーターの制御方法が変わり、その後キャリブレーションが行われます。温度に達した状態で数分かかります。
   Switching to MPC requires a config change and Klipper restart.: MPCへの切り替えには設定変更とKlipperの再起動が必要です。
+  Switching to {}. The printer heats and purges it, then resumes the print.: "{} に切り替え中です。プリンターが加熱とパージを行い、印刷を再開します。"
   Sync: '同期'
   Switching to {}: '{}に切り替えています'
   Sync Feedback: "同期フィードバック"
@@ -4679,6 +4701,7 @@ translations:
   : 'この値はKlipperが再起動するまで使われます。保持するには、printer.cfgのこのツールのエクストルーダーセクションにpressure_advanceとして追加してください。'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。'
+  The printer is working on the paused print. Wait for it to finish.: "プリンターが一時停止中の印刷を処理しています。完了するまでお待ちください。"
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: プリンターは現在フィラメントが装填されていることを検出していません。どうしますか？
   The printer kept printing after the cancel.: 'キャンセル後もプリンターは印刷を続けています。'
   The printer lost power during a print. It can resume where it left off.: 印刷中にプリンターの電源が失われました。中断した箇所から再開できます。
@@ -4977,6 +5000,7 @@ translations:
   Tool offsets (mm): ツールオフセット (mm)
   Tool offsets saved: ツールオフセットを保存しました
   Tool swap: ツール交換
+  Tool, runout backup: ツール、フィラメント切れ時の予備
   Toolchange purge: 'ツール交換パージ'
   Toolhead: 'ツールヘッド'
   Toolhead Calibration Running: 'ツールヘッドのキャリブレーション実行中'
@@ -5166,6 +5190,7 @@ translations:
   Upload unavailable in this build: このビルドではアップロードできません
   Upper belt: "上ベルト"
   Uptime: 稼働時間
+  Use: 使用
   Use AFC's mapping commands to add or move a tool: 'ツールの追加や移動には AFC の割り当てコマンドを使用してください'
   Use Android native keyboard for text input: テキスト入力に Android ネイティブキーボードを使用
   Use Another Toolhead: '別のツールヘッドを使用'
@@ -5432,6 +5457,7 @@ translations:
   a temporary mesh profile '{}': '一時的なメッシュプロファイル ''{}'''
   about {} min: '約{}分'
   already loaded: '装填済み'
+  assign without adding to Spoolman: Spoolmanに追加せずに割り当て
   attempt {}: '試行 {}'
   auto: 自動
   automatic: '自動'
@@ -5442,6 +5468,7 @@ translations:
   by Preston Brown: by Preston Brown
   chamber heater: チャンバーヒーター
   checking: '確認中'
+  'close: {}': '近い: {}'
   color differs: '色が異なる'
   complete: 完了
   cores: コア
@@ -5526,6 +5553,7 @@ translations:
   rendering: レンダリング中
   reset at {} h: '{} 時間時点でリセット'
   set manually: '手動設定'
+  similar color: 近い色
   sleep {} min: '{}分でスリープ'
   slots): スロット)
   started: 開始
@@ -5570,6 +5598,7 @@ translations:
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 減少)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 増加)'
+  '{:.0f} g left': 残り {:.0f} g
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
   '{:.2f} mm range': '範囲 {:.2f} mm'
   '{} ({})': '{}（{}）'
@@ -5707,6 +5736,7 @@ translations:
   'Basic': '標準'
   Recovery is not possible in the printer's current state.: 'プリンターの現在の状態では復帰できません。'
   'Recycled': 'リサイクル'
+  Add to Spoolman & Assign: Spoolmanに追加して割り当て
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'
   'More': 'その他'
   Price per kWh: "kWh単価"

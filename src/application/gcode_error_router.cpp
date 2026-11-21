@@ -14,6 +14,7 @@
 #include "error_event.h"
 #include "error_modal_view.h"
 #include "fault_surface_correlation.h"
+#include "filament_sensor_manager.h"
 #include "firmware_fault_codes.h"
 #include "gcode_response_lines.h"
 #include "i_moonraker_api.h"
@@ -73,6 +74,18 @@ constexpr uint32_t kRpcReportClaimMs = 1500;
 /// How long a recover toast stays tappable. Longer than a plain toast: the
 /// user has to read the fault and decide, not just notice it.
 constexpr uint32_t kRecoverToastMs = 15000;
+
+/// A toast for a runout the runout dialog on screen already explains would
+/// cover that dialog, which is the account of it.
+bool runout_dialog_explains(const ErrorEvent& e, PresentAs how) {
+    if ((how != PresentAs::TOAST && how != PresentAs::TOAST_WITH_RECOVER) || e.runout_lane < 0 ||
+        !FilamentSensorManager::instance().runout_explained(e.runout_lane)) {
+        return false;
+    }
+    spdlog::info("[GcodeError] Runout dialog explains lane {} - no toast: {}", e.runout_lane,
+                 e.detail);
+    return true;
+}
 
 /// Owns one recover toast's action for as long as the toast can be tapped.
 /// See present_recover_toast() for why this is heap-allocated with a timer
@@ -504,6 +517,8 @@ void GcodeErrorRouter::present_deferred(const ErrorEvent& e, PresentAs how) {
                 spdlog::info("[GcodeError] Suppressing held prose presentation "
                              "(coded raise carries our wording): {}",
                              c->ev.detail);
+            } else if (runout_dialog_explains(c->ev, c->how)) {
+                // The dialog came up inside the hold.
             } else {
                 r->show_deferred(c->ev, c->how, c->short_form);
             }
@@ -656,6 +671,12 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
         (fault_surface_correlation::was_recently_surfaced_within(ev->detail) ||
          fault_surface_correlation::was_recently_surfaced_within(ev->raw_detail))) {
         spdlog::info("[GcodeError] Suppressing duplicate toast (already surfaced): {}", ev->detail);
+        return;
+    }
+
+    // Not recorded as surfaced: every head's runout shares one detail text,
+    // and another head's runout must still reach the screen.
+    if (runout_dialog_explains(*ev, how)) {
         return;
     }
 

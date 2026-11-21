@@ -5,6 +5,17 @@
 
 #include "ui_icon.h"
 
+#include "translation_loader.h"
+
+#include <spdlog/fmt/fmt.h>
+
+std::string RunoutGuidanceModal::switching_text(const std::string& target_name) {
+    return fmt::format(
+        fmt::runtime(lv_tr("Switching to {}. The printer heats and purges it, then resumes the "
+                           "print.")),
+        target_name);
+}
+
 void RunoutGuidanceModal::on_show() {
     // The XML header icon is the runout warning; an advisory show (a tap on the
     // home Filament tile) takes the neutral filament glyph instead.

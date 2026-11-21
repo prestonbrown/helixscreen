@@ -143,6 +143,8 @@
       "image": "flashforge-adventurer-5m.png",
       "preset": "ad5m",
       "print_start_profile": "ad5m",
+      "z_offset_calibration_strategy": "probe_calibrate",
+      "_z_offset_comment": "Z homes on a Z-max switch (position_endstop 220), but the bed mesh has no zero reference, so the nozzle probe sets Z0: a position_endstop change is cancelled by the next BED_MESH_CALIBRATE, while the probe z_offset survives it. ZMOD and Forge-X still own the offset through their SET_GCODE_OFFSET stores.",
       "heuristics": [
         {
           "type": "macro_exclude",
@@ -363,6 +365,8 @@
       "image": "flashforge-adventurer-5m-pro.png",
       "preset": "ad5m_pro",
       "print_start_profile": "ad5m",
+      "z_offset_calibration_strategy": "probe_calibrate",
+      "_z_offset_comment": "Z homes on a Z-max switch (position_endstop 220), but the bed mesh has no zero reference, so the nozzle probe sets Z0: a position_endstop change is cancelled by the next BED_MESH_CALIBRATE, while the probe z_offset survives it. ZMOD and Forge-X still own the offset through their SET_GCODE_OFFSET stores.",
       "heuristics": [
         {
           "type": "macro_exclude",
@@ -3684,6 +3688,8 @@
       "manufacturer": "Elegoo",
       "image": "elegoo-centauri-carbon.png",
       "preset": "cc1",
+      "z_offset_calibration_strategy": "endstop",
+      "_z_offset_comment": "COSMOS homes Z on the PG8 switch with a zero-referenced mesh, and its own CALIBRATE_Z_OFFSET saves with Z_OFFSET_APPLY_ENDSTOP. With nozzle_z_homing on, the load cell sets Z0 instead and Z_OFFSET_APPLY_ENDSTOP refuses.",
       "_calibration_comment": "COSMOS's BED_MESH_CALIBRATE is a macro that heats the bed to BED_TEMP, homes, cleans the nozzle, tares the load cell, probes, then measures the Z offset. It needs nothing sent ahead of it (bed_mesh_self_prepares); its M190/M109 wait for a hot bed to cool, so BED_TEMP never asks for less than a bed above 60C already has, even when a lower target is set. {profile_arg} stores the mesh under the chosen name as it completes; the Z-offset step clears the active mesh right after, so it cannot be saved from there.",
       "_screws_tilt_comment": "COSMOS replaces SCREWS_TILT_CALCULATE with a macro (rename_existing: SCREWS_TILT_CALCULATE_BASE) that tares the load cell, runs Klipper's calculation, parks, then opens a Manual Leveling prompt measuring every screw against a fixed bed height (z_bed_level + position_endstop - 4) rather than against a base screw. The shipped sequence is that macro without its prompt, so the Bed Screws panel shows Klipper's base-relative turns. Firmware without the wrapper runs the stock command, and the cosmos_load_cell_tare rule tares ahead of it.",
       "calibration": {

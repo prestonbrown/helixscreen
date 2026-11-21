@@ -360,6 +360,16 @@ class Modal {
     }
 
     /**
+     * @brief Called on a tap on the backdrop (default: closes)
+     *
+     * A modal that must stay up while something it reports is in progress
+     * overrides this to ignore the tap.
+     */
+    virtual void on_backdrop_tap() {
+        hide(ModalCloseReason::BackdropTap);
+    }
+
+    /**
      * @brief Called when Tertiary button is clicked (default: hides)
      *
      * Used for 3-button modals like runout guidance (Load/Resume/Cancel Print).

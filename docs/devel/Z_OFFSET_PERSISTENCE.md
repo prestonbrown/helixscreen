@@ -147,30 +147,30 @@ One row in the `providers()` table in `src/printer/z_offset_persistence.cpp`. No
 call site changes:
 
 ```cpp
-{"ZMOD",     "SAVE_ZMOD_DATA", {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
+{"ZMOD",     &detect_zmod,     {"save_variables"}, "SAVE_ZMOD_DATA LOAD_ZOFFSET=1",
  "SET_GCODE_VARIABLE MACRO=_TEST_POINT VARIABLE=temp_z_offset VALUE=0", &read_zmod, nullptr},
-{"Forge-X",  "SET_MOD",        {"mod_params"},     "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
+{"Forge-X",  &detect_forge_x,  {"mod_params"},     "SET_MOD PARAM=\"load_zoffset\" VALUE=1",
  nullptr, &read_forge_x, nullptr},
-{"Helper-Script", "SET_GCODE_OFFSET", {"save_variables"}, nullptr, nullptr,
+{"Helper-Script", &detect_helper_script, {"save_variables"}, nullptr, nullptr,
  &read_helper_script, &refuted_helper_script},
-//  name       detect macro      status objects     enable gcode   stale-delta clear
+//  name       detection         status objects     enable gcode   stale-delta clear
 //                                                                 reader   refutation
 ```
 
-- **detect macro** - matched via `PrinterDiscovery::has_macro()`, case-insensitive,
-  exact (the mod's own `SET_MOD_PARAM` does not trip the `SET_MOD` row). The
+- **detection** - a predicate over the discovered objects: `PrinterDiscovery::has_macro()`
+  (case-insensitive, exact) for ZMOD and Helper-Script, `has_mod_params()` for Forge-X. The
   Helper-Script row keys on the WRAPPER object: Klipper lists a builtin command
   as a `gcode_macro` object only where a macro shadows it (which requires
   `rename_existing`), so `SET_GCODE_OFFSET` present in objects/list IS "a
   renaming wrapper is installed" - the renamed original is a bare command,
   never an object.
-- **row order** - match priority. A box exposing two firmwares' macros resolves to
+- **row order** - match priority. A box exposing two firmwares' signatures resolves to
   the first row; ZMOD stays first.
 - **reader** - pulls microns out of a status frame; must return `nullopt` for any
   frame that does not carry the value, and must tolerate the firmware's
   not-yet-set placeholder. Round rather than truncate: stored values accumulate
   relative deltas, so a nominal `-0.150` arrives as `-0.1499999`.
-- **refutation** - `nullptr` unless the detect macro is ambiguous. When present,
+- **refutation** - `nullptr` unless the detection is ambiguous. When present,
   it must answer `true` only on positive evidence that the row's storage is
   absent, and `false` for every "no news" frame and for the firmware's own
   not-yet-used placeholder. See § "Latch conservatively, relax only on proof" -
@@ -199,21 +199,24 @@ AD5X - is the second row. Its klippy plugin (`mod_params`) keeps parameters in i
 own INI store (`/opt/config/mod_data/variables.cfg`), **not** klipper's
 `save_variables`, and mirrors them into the `mod_params` status object.
 
-- **Detection:** the `SET_MOD` macro (the plugin also registers `GET_MOD`,
-  `LIST_MOD_PARAMS`, `SET_MOD_PARAM`; only `SET_MOD` is the signature). The mod's
-  migration path actively removes `SAVE_ZMOD_DATA`, so it cannot trip the ZMOD row -
-  ZMOD nonetheless stays first in the table.
+- **Detection:** the `mod_params` object in `objects/list`. The plugin registers
+  `SET_MOD`, `GET_MOD`, `SET_MOD_PARAM` and `GET_MOD_PARAM` as plain commands, so no
+  `gcode_macro SET_MOD` object ever appears; an AD5M on Forge-X 1.4.1 lists
+  `mod_params`, a few `gcode_macro *_MOD` macros, and the mod's
+  `gcode_macro SET_GCODE_OFFSET` wrapper. That wrapper is why this row sits above
+  Helper-Script. The mod's migration path removes `SAVE_ZMOD_DATA`, so it cannot trip
+  the ZMOD row; ZMOD nonetheless stays first in the table.
 
-  **Never switch this predicate to object presence.** Rig-observed on ZMOD 1.7.2:
-  this Moonraker build answers `objects/query` with success and an empty status for an
-  object it does not have - `mod_params`, `zmod_ifs` and `zmod_color` all "answer"
-  despite being absent from `objects/list` - and `SET_MOD` is likewise absent from its
-  `gcode/help`. A query response is never proof an object is registered; `objects/list`
-  is the presence check. Even a stray empty frame stays harmless: `mod_params` is only
-  subscribed when this row is the match, and the reader returns `nullopt` for an object
-  without `variables`. The mods share lineage - ZMOD keeps its own flat param dict
-  (`load_zoffset`, `fix_e0011`, …) inside klipper `save_variables` - so a key name is
-  never proof of which mod a printer runs.
+  **Presence comes from `objects/list`, never from a query.** Rig-observed on ZMOD
+  1.7.2: this Moonraker build answers `objects/query` with success and an empty status
+  for an object it does not have (`mod_params`, `zmod_ifs` and `zmod_color` all
+  "answer" despite being absent from `objects/list`). `PrinterDiscovery` reads
+  `objects/list`, so its `has_mod_params()` is the presence check. Even a stray empty
+  frame stays harmless: `mod_params` is only subscribed when this row is the match, and
+  the reader returns `nullopt` for an object without `variables`. The mods share
+  lineage (ZMOD keeps its own flat param dict, `load_zoffset`, `fix_e0011` and so on,
+  inside klipper `save_variables`), so a key name is never proof of which mod a
+  printer runs.
 - **Read:** `mod_params.variables.z_offset`, a float in mm - the same accumulate-
   and-round-to-microns treatment as ZMOD, for the same reason.
 - **Write:** its `SET_GCODE_OFFSET` override auto-persists every `Z=` write, so

@@ -1932,4 +1932,16 @@ bool is_showing(lv_obj_t* panel) {
     return panel && (is_in_stack(panel) || is_push_pending(panel) || !lv_obj_is_hidden(panel));
 }
 
+lv_subject_t* active_panel_subject() {
+    return NavigationManager::instance().get_active_panel_subject();
+}
+
+std::shared_ptr<bool> subjects_lifetime() {
+    return NavigationManager::instance().get_subjects_lifetime();
+}
+
+bool main_panel_covered() {
+    return NavigationManager::instance().main_panel_deactivated_for_overlay();
+}
+
 } // namespace helix::nav

@@ -366,6 +366,7 @@ src/system/diagnostics.cpp
 src/system/display_settings_manager.cpp
 src/system/region_defaults.cpp
 src/system/filament_favorites.cpp
+src/system/lane_spool_history.cpp
 src/system/helix_plugin_installer.cpp
 src/system/local_plugin_installer.cpp
 src/core/http_executor.cpp
@@ -597,6 +598,7 @@ src/ui/filament/ui_batch_filament_modal.cpp
 src/ui/filament/ui_ams_sidebar.cpp
 src/ui/filament/ui_ams_slot.cpp
 src/ui/filament/spool_spin.cpp
+src/ui/filament/spool_assign.cpp
 src/ui/filament/ui_ams_slot_spin.cpp
 src/ui/filament/ui_spool_canvas_spin.cpp
 src/ui/filament/ui_buffer_slider.cpp
