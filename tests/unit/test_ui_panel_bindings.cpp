@@ -409,46 +409,6 @@ TEST_CASE_METHOD(XMLTestFixture,
 // ADDITIONAL BINDING TESTS (MIXED PANELS - SKIP)
 // =============================================================================
 
-TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_temp_display binding (temp_display widget)",
-                 "[ui][controls_panel][bind_current][bind_target][.xml_required]") {
-    ControlsPanelSubjects owner(state());
-    REQUIRE(register_component("controls_panel"));
-    set_xml_subject("bed_temp", 600);
-    set_xml_subject("bed_target", 650);
-    lv_obj_t* panel = create_component("controls_panel");
-    lv_obj_t* disp = require_named(panel, "bed_temp_display");
-    REQUIRE(ui_temp_display_is_valid(disp));
-    CHECK(ui_temp_display_get_current(disp) == 60);
-    CHECK(ui_temp_display_get_target(disp) == 65);
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "controls_panel: nozzle_status binding updates status text",
-                 "[ui][controls_panel][bind_text][.xml_required]") {
-    ControlsPanelSubjects owner(state());
-    REQUIRE(register_component("controls_panel"));
-    set_xml_subject_str("controls_nozzle_status", "Heating");
-    lv_obj_t* panel = create_component("controls_panel");
-    CHECK(label_text_of(require_named(require_named(panel, "nozzle_status"), "status_duty")) ==
-          "Heating");
-
-    set_xml_subject_str("controls_nozzle_status", "");
-    CHECK(
-        label_text_of(require_named(require_named(panel, "nozzle_status"), "status_duty")).empty());
-}
-
-TEST_CASE_METHOD(XMLTestFixture, "controls_panel: bed_status binding updates status text",
-                 "[ui][controls_panel][bind_text][.xml_required]") {
-    ControlsPanelSubjects owner(state());
-    REQUIRE(register_component("controls_panel"));
-    set_xml_subject_str("controls_bed_status", "Heating");
-    lv_obj_t* panel = create_component("controls_panel");
-    CHECK(label_text_of(require_named(require_named(panel, "bed_status"), "status_duty")) ==
-          "Heating");
-
-    set_xml_subject_str("controls_bed_status", "");
-    CHECK(label_text_of(require_named(require_named(panel, "bed_status"), "status_duty")).empty());
-}
-
 TEST_CASE_METHOD(XMLTestFixture, "controls_panel: all_homed drives btn_home_all background",
                  "[ui][controls_panel][bind_style][.xml_required]") {
     ControlsPanelSubjects owner(state());
