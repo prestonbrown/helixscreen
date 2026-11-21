@@ -26,6 +26,21 @@ class DisplayManagerTestAccess {
         dm.m_use_power_off = use_power_off;
     }
 
+    // init() sets this when /display/panel_power_off is present in the config.
+    static void set_power_off_explicit(DisplayManager& dm, bool power_off_explicit) {
+        dm.m_power_off_explicit = power_off_explicit;
+    }
+
+    // Hands the manager a pointer device without a backend creating it.
+    static void set_pointer(DisplayManager& dm, lv_indev_t* pointer) {
+        dm.m_pointer = pointer;
+    }
+
+    // Registers m_pointer with the delete watch init() installs.
+    static void watch_pointer(DisplayManager& dm) {
+        dm.watch_pointer();
+    }
+
     /// The size width()/height() report while no lv_display_t is attached.
     static void set_size(DisplayManager& dm, int width, int height) {
         dm.m_width = width;
