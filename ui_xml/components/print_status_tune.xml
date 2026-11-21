@@ -34,10 +34,10 @@
       </ui_button>
     </lv_obj>
     <tune_speed_flow gap="#space_sm" stack_cond="$stack_cond"/>
-    <!-- Landscape (the ultrawide column): the direction buttons beside the
-         steps in one short row. Portrait arranges its own. -->
+    <!-- The direction buttons in a row: beside the steps in landscape (the
+         ultrawide column), side by side above them in portrait. -->
     <tune_z_offset indicator_hidden="$indicator_hidden"
-                   squish_hint_hidden="true" dir_flow="row" dir_w="content" dir_btn_w="#tune_pa_btn_w"
-                   dir_btn_h="#button_height_sm"/>
+                   portrait_dir_flow="row" portrait_dir_btn_w="49%" squish_hint_hidden="true" dir_flow="row"
+                   dir_w="content" dir_btn_w="#tune_pa_btn_w" dir_btn_h="#button_height_sm"/>
   </view>
 </component>

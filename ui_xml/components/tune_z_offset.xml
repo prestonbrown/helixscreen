@@ -15,6 +15,11 @@
          steps, or, for a short narrow column, a row of two ("row", "content",
          "#tune_pa_btn_w", "#button_height_sm"). -->
     <prop name="dir_flow" type="string" default="column"/>
+    <!-- The portrait direction buttons: stacked beside the indicator, or a
+         row of two halves ("row", "49%") where the indicator is left out and
+         the height is short. -->
+    <prop name="portrait_dir_flow" type="string" default="column"/>
+    <prop name="portrait_dir_btn_w" type="string" default="100%"/>
     <prop name="dir_w" type="string" default="#z_tune_dir_col_w"/>
     <prop name="dir_btn_w" type="string" default="100%"/>
     <prop name="dir_btn_h" type="string" default="#button_height"/>
@@ -48,11 +53,14 @@
         <z_offset_indicator name="z_offset_indicator"
                             width="#z_tune_indicator_w" height="#z_tune_indicator_h" hidden="$indicator_hidden"/>
         <lv_obj height="content"
-                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <ui_button name="btn_z_farther" width="100%" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
+                flex_grow="1" style_pad_all="0" flex_flow="$portrait_dir_flow" style_flex_main_place="space_between"
+                style_pad_gap="#space_xxs" scrollable="false">
+          <ui_button name="btn_z_farther"
+                     width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
             <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
           </ui_button>
-          <ui_button name="btn_z_closer" width="100%" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
+          <ui_button name="btn_z_closer"
+                     width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
             <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
           </ui_button>
         </lv_obj>
