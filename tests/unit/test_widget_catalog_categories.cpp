@@ -1031,7 +1031,7 @@ TEST_CASE_METHOD(WidgetCatalogCategoryFixture,
     lv_obj_t* root = WidgetCatalogOverlay::active_root();
     REQUIRE(root != nullptr);
 
-    lv_obj_t* reset = lv_obj_find_by_name(root, "action_button");
+    lv_obj_t* reset = lv_obj_find_by_name(root, "btn_reset");
     REQUIRE(reset != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(reset));
 

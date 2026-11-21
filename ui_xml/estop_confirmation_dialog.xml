@@ -3,27 +3,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <!-- Dialog card (backdrop created programmatically) -->
   <view name="estop_confirmation_dialog"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <lv_obj width="100%"
-            height="content" style_min_height="140" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <!-- Warning icon -->
-      <icon src="alert_octagon" size="lg" variant="danger"/>
-      <!-- Title -->
-      <text_heading width="100%" text="Emergency Stop?" style_text_align="center"/>
-      <!-- Warning message -->
-      <text_muted width="100%"
-                  text="This will immediately halt all printer operations. The printer will require a restart to resume."
-                  long_mode="wrap" style_text_align="center"/>
-    </lv_obj>
-    <!-- Button row -->
-    <modal_button_row secondary_text="Cancel"
-                      secondary_callback="estop_dialog_cancel_clicked" primary_text="STOP"
-                      primary_callback="estop_dialog_confirm_clicked" primary_variant="danger"/>
+        extends="dialog_frame" title="Emergency Stop?" title_tag="Emergency Stop?" icon="alert_octagon"
+        icon_variant="danger">
+    <text_muted width="100%"
+                text="This will immediately halt all printer operations. The printer will require a restart to resume."
+                long_mode="wrap" style_text_align="left"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel"
+                        secondary_callback="estop_dialog_cancel_clicked" primary_text="STOP"
+                        primary_callback="estop_dialog_confirm_clicked" primary_variant="danger"/>
+    </dialog_frame-footer>
   </view>
 </component>
