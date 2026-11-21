@@ -510,7 +510,7 @@
               <bind_flag_if_not_eq subject="settings_motion_layout" flag="hidden" ref_value="0"/>
               <motion_jog_modes name="jog_modes"
                                 width="0" flex_grow="3" button_height="#motion_mode_row_h" max_width="100%"
-                                icon_position="left"/>
+                                icon_position="left" icon_hidden_subject="motion_modes_text_only"/>
               <home_axis_bar name="motion_home_bar"
                              width="0" height="#motion_mode_row_h" flex_grow="2" all_callback="on_motion_home_all"
                              x_callback="on_motion_home_x" y_callback="on_motion_home_y" xy_callback="on_motion_home_xy"
