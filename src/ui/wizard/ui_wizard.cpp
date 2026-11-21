@@ -15,7 +15,6 @@
 #include "ui_wizard_fan_select.h"
 #include "ui_wizard_filament_sensor_select.h"
 #include "ui_wizard_heater_select.h"
-#include "ui_wizard_input_shaper.h"
 #include "ui_wizard_language_chooser.h"
 #include "ui_wizard_led_select.h"
 #include "ui_wizard_printer_identify.h"
@@ -120,6 +119,8 @@ static std::optional<helix::wizard::StepId> s_left_step;
 // branch is gated on !g_step_subset.empty()).
 static std::vector<helix::wizard::StepId> g_step_subset;
 static std::function<void()> g_targeted_on_complete;
+/// What ui_wizard_complete_then() runs once Home is up.
+static std::function<void()> g_after_complete;
 
 namespace helix {
 
@@ -187,6 +188,12 @@ void helix::WizardCompletionTimers::arm_home_navigation() {
 
             spdlog::info("[Wizard] Deferred navigation to Home panel");
             helix::nav::set_active(PanelId::Home);
+            if (auto then = std::move(g_after_complete)) {
+                g_after_complete = nullptr;
+                // The tour waits for Home's next activation.
+                then();
+                return;
+            }
             // Home is already the active panel here, so set_active() returns
             // without running on_activate(), which is the tour's only other
             // entry point. Finishing the wizard is what opens the tour's gate,
@@ -542,7 +549,7 @@ void ui_wizard_container_register_responsive_constants() {
         "wizard_ams_identify",
         "wizard_led_select",
         "wizard_filament_sensor_select",
-        "wizard_input_shaper",
+        "wizard_calibration",
         "wizard_language_chooser",
         "wizard_appearance",
         "wizard_screen_power",
@@ -1157,6 +1164,11 @@ void ui_wizard_complete() {
     }
 
     spdlog::info("[Wizard] Wizard complete, transitioning to main UI");
+}
+
+void ui_wizard_complete_then(std::function<void()> then) {
+    ui_wizard_complete();
+    g_after_complete = std::move(then);
 }
 
 void ui_wizard_complete_targeted() {

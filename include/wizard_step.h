@@ -24,10 +24,10 @@ enum class StepId {
     AmsIdentify,
     LedSelect,
     FilamentSensor,
-    InputShaper,
     Preferences,
     Summary,
     Telemetry,
+    Calibration,
 };
 inline constexpr int STEP_COUNT = 16;
 

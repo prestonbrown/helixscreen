@@ -206,7 +206,6 @@ std::vector<wizard::StepId> wizard_deferred_hardware_steps(const std::vector<Ste
         wizard::StepId::PrinterIdentify, wizard::StepId::HeaterSelect,
         wizard::StepId::FanSelect,       wizard::StepId::AmsIdentify,
         wizard::StepId::LedSelect,       wizard::StepId::FilamentSensor,
-        wizard::StepId::InputShaper,
     };
 
     std::vector<wizard::StepId> out;

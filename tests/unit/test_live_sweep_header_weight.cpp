@@ -5,7 +5,6 @@
 // libhv's event loop.
 #include "ui_panel_belt_tension.h"
 #include "ui_panel_input_shaper.h"
-#include "ui_wizard_input_shaper.h"
 
 #include "live_sweep_preview.h"
 

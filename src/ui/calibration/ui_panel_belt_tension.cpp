@@ -2138,8 +2138,8 @@ void BeltTensionPanel::refresh_gate() {
     auto& ps = get_printer_state();
 
     // printer_has_accelerometer lives on PrinterCapabilitiesState and is not
-    // re-exported on PrinterState, so reach it through the XML subject registry
-    // the way WizardInputShaperStep::has_accelerometer() does. It can be absent
+    // re-exported on PrinterState, so reach it through the XML subject registry.
+    // It can be absent
     // before discovery has run; absent means "no accelerometer", never "yes".
     lv_subject_t* accel_subj = lv_xml_get_subject(nullptr, "printer_has_accelerometer");
 

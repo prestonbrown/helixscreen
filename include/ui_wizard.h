@@ -162,6 +162,13 @@ std::vector<helix::wizard::StepId> ui_wizard_deferred_hardware_steps();
 void ui_wizard_complete();
 
 /**
+ * ui_wizard_complete(), then @p then once the main UI is on Home, in place of
+ * the first-run tour. The setup wizard's Calibration page opens the guided
+ * run this way, so setup is complete before the run starts.
+ */
+void ui_wizard_complete_then(std::function<void()> then);
+
+/**
  * Create a targeted (subset) wizard session
  *
  * Launches the wizard running ONLY the requested step(s), in the given order,

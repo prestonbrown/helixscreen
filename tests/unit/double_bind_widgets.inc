@@ -24,6 +24,7 @@ static const BindGroup kDoubleBindWidgets[] = {
     {"ams_current_tool", "ams_current_tool", 0, {}, 0, BindKind::Flag, "hidden", {{"ams_slot_count", -1}, {"ams_current_tool", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
     {"ams_edit_overlay", "more_section", 0, {}, 0, BindKind::Flag, "hidden", {{"ams_edit_more_open", -1}, {"ams_edit_is_managed", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
     {"ams_environment_overlay", "drying_progress_bar", 0, {}, 0, BindKind::Flag, "hidden", {{"env_zone_state", 0}, {"ams_env_overlay_drying_progress", 0}}, 2, {{0, 1}, {1, -1}}, 2, true},
+    {"calibration_run_overlay", "btn_cal_run_start", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"cal_run_prereq_ready", -1}}, 2, {{0, 1}, {1, 0}}, 2, true},
     {"cold_pull_overlay", "btn_cold_pull_extrude", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"cold_pull_busy", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"cold_pull_overlay", "btn_cold_pull_more", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"cold_pull_busy", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"components/ams_sidebar", "btn_park", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"ams_sidebar_park_disabled", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
@@ -85,6 +86,6 @@ static const BindGroup kDoubleBindWidgets[] = {
 };
 // clang-format on
 
-// Groups in ui_xml/: 61 drivable, 52 that no test can drive (see the header
-// comment), 113 total. qc_double_binds fails a commit that leaves this file
+// Groups in ui_xml/: 62 drivable, 52 that no test can drive (see the header
+// comment), 114 total. qc_double_binds fails a commit that leaves this file
 // behind ui_xml/.

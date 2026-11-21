@@ -50,7 +50,7 @@ TEST_CASE("Default: next walks all steps", "[wizard][step_logic]") {
     for (int i = 0; i < helix::wizard::STEP_COUNT - 1; ++i) {
         REQUIRE(helix::wizard_next(static_cast<StepId>(i), v) == static_cast<StepId>(i + 1));
     }
-    REQUIRE(helix::wizard_is_last(StepId::Telemetry, v));
+    REQUIRE(helix::wizard_is_last(StepId::Calibration, v));
 }
 
 TEST_CASE("Default: prev walks all steps backward", "[wizard][step_logic]") {
@@ -74,8 +74,8 @@ TEST_CASE("Preset mode: skip hardware steps", "[wizard][step_logic][preset]") {
     skip_step(v, StepId::AmsIdentify);
     skip_step(v, StepId::LedSelect);
     skip_step(v, StepId::FilamentSensor);
-    skip_step(v, StepId::InputShaper);
     skip_step(v, StepId::Summary);
+    skip_step(v, StepId::Calibration); // no printer to calibrate
     // telemetry NOT skipped (shown in preset mode)
 
     // Steps shown: TouchCalibration, Language, Appearance, ScreenPower, Connection,
@@ -99,8 +99,8 @@ TEST_CASE("Preset mode: next skips hardware", "[wizard][step_logic][preset]") {
     skip_step(v, StepId::AmsIdentify);
     skip_step(v, StepId::LedSelect);
     skip_step(v, StepId::FilamentSensor);
-    skip_step(v, StepId::InputShaper);
     skip_step(v, StepId::Summary);
+    skip_step(v, StepId::Calibration); // no printer to calibrate
 
     REQUIRE(helix::wizard_next(StepId::TouchCalibration, v) == StepId::Language);
     REQUIRE(helix::wizard_next(StepId::Language, v) == StepId::Appearance);
@@ -115,9 +115,9 @@ TEST_CASE("Normal mode: telemetry skipped by default", "[wizard][step_logic]") {
     auto v = full_vec();
     skip_step(v, StepId::Telemetry);
 
-    // 12 steps shown (telemetry skipped)
     REQUIRE(helix::wizard_visible_count(v) == helix::wizard::STEP_COUNT - 1);
-    REQUIRE(helix::wizard_is_last(StepId::Summary, v)); // Summary is last
+    REQUIRE(helix::wizard_next(StepId::Summary, v) == StepId::Calibration);
+    REQUIRE(helix::wizard_is_last(StepId::Calibration, v)); // Calibration is last
 }
 
 TEST_CASE("Preset mode: prev works", "[wizard][step_logic][preset]") {
@@ -129,8 +129,8 @@ TEST_CASE("Preset mode: prev works", "[wizard][step_logic][preset]") {
     skip_step(v, StepId::AmsIdentify);
     skip_step(v, StepId::LedSelect);
     skip_step(v, StepId::FilamentSensor);
-    skip_step(v, StepId::InputShaper);
     skip_step(v, StepId::Summary);
+    skip_step(v, StepId::Calibration); // no printer to calibrate
 
     REQUIRE(helix::wizard_prev(StepId::Telemetry, v) == StepId::Preferences);
     REQUIRE(helix::wizard_prev(StepId::Preferences, v) == StepId::Connection);
@@ -151,8 +151,8 @@ TEST_CASE("Preset mode: connection also skipped", "[wizard][step_logic][preset]"
     skip_step(v, StepId::AmsIdentify);
     skip_step(v, StepId::LedSelect);
     skip_step(v, StepId::FilamentSensor);
-    skip_step(v, StepId::InputShaper);
     skip_step(v, StepId::Summary);
+    skip_step(v, StepId::Calibration); // no printer to calibrate
     // telemetry NOT skipped
 
     // Steps: TouchCalibration, Language, Appearance, ScreenPower, Preferences, Telemetry = 6
@@ -223,7 +223,7 @@ TEST_CASE(
     skip_step(v, StepId::Appearance);
     skip_step(v, StepId::ScreenPower);
     skip_step(v, StepId::Wifi);
-    // preset covers hardware (PrinterIdentify..InputShaper)
+    // preset covers hardware (PrinterIdentify..FilamentSensor)
     if (plan.skip_hardware) {
         skip_step(v, StepId::PrinterIdentify);
         skip_step(v, StepId::HeaterSelect);
@@ -231,7 +231,6 @@ TEST_CASE(
         skip_step(v, StepId::AmsIdentify);
         skip_step(v, StepId::LedSelect);
         skip_step(v, StepId::FilamentSensor);
-        skip_step(v, StepId::InputShaper);
     }
     // not first-run: summary shown, telemetry skipped
     if (plan.first_run)
@@ -241,8 +240,10 @@ TEST_CASE(
 
     REQUIRE(helix::wizard_next(StepId::Connection, v) == StepId::Preferences);
     REQUIRE(helix::wizard_next(StepId::Preferences, v) == StepId::Summary);
-    REQUIRE(helix::wizard_is_last(StepId::Summary, v)); // summary -> done (telemetry skipped)
-    REQUIRE(helix::wizard_visible_count(v) == 3);       // connection + preferences + summary
+    // telemetry skipped: summary -> calibration, the last page for every printer
+    REQUIRE(helix::wizard_next(StepId::Summary, v) == StepId::Calibration);
+    REQUIRE(helix::wizard_is_last(StepId::Calibration, v));
+    REQUIRE(helix::wizard_visible_count(v) == 4); // connection, preferences, summary, calibration
 }
 
 // ============================================================================
@@ -266,10 +267,10 @@ TEST_CASE("id-nav: non-contiguous skips are honored", "[wizard][step_logic][idna
     auto v = all_visible();
     for (auto& s : v)
         if (s.id == StepId::HeaterSelect || s.id == StepId::AmsIdentify ||
-            s.id == StepId::InputShaper)
+            s.id == StepId::LedSelect)
             s.skipped = true;
     REQUIRE(helix::wizard_next(StepId::PrinterIdentify, v) == StepId::FanSelect);
-    REQUIRE(helix::wizard_next(StepId::FanSelect, v) == StepId::LedSelect);
+    REQUIRE(helix::wizard_next(StepId::FanSelect, v) == StepId::FilamentSensor);
     REQUIRE(helix::wizard_next(StepId::FilamentSensor, v) == StepId::Preferences);
     REQUIRE(helix::wizard_visible_count(v) == helix::wizard::STEP_COUNT - 3);
 }
@@ -277,7 +278,7 @@ TEST_CASE("id-nav: non-contiguous skips are honored", "[wizard][step_logic][idna
 TEST_CASE("id-nav: last visible step reports done", "[wizard][step_logic][idnav]") {
     auto v = all_visible();
     for (auto& s : v)
-        if (s.id == StepId::Telemetry)
+        if (s.id == StepId::Telemetry || s.id == StepId::Calibration)
             s.skipped = true;
     REQUIRE(helix::wizard_is_last(StepId::Summary, v));
     REQUIRE_FALSE(helix::wizard_next(StepId::Summary, v).has_value());
@@ -320,7 +321,6 @@ TEST_CASE("registry: subsequent preset printer skips hardware, shows summary, no
     REQUIRE(skip(StepId::AmsIdentify));
     REQUIRE(skip(StepId::LedSelect));
     REQUIRE(skip(StepId::FilamentSensor));
-    REQUIRE(skip(StepId::InputShaper));
     REQUIRE_FALSE(skip(StepId::Summary)); // shown for subsequent printer
     REQUIRE(skip(StepId::Telemetry));     // never re-prompt
 }
@@ -330,6 +330,24 @@ TEST_CASE("registry: first-run preset printer skips summary, shows telemetry",
     auto ctx = preset_ctx(/*has_preset=*/true, /*printers=*/1);
     REQUIRE(helix::wizard::step_by_id(StepId::Summary)->should_skip(ctx));
     REQUIRE_FALSE(helix::wizard::step_by_id(StepId::Telemetry)->should_skip(ctx));
+}
+
+TEST_CASE("registry: Calibration is the last setup page, after Telemetry",
+          "[wizard][step_logic][calibration_run]") {
+    const auto v = helix::wizard::steps();
+    REQUIRE(v.size() == static_cast<size_t>(helix::wizard::STEP_COUNT));
+    CHECK(v.back()->id() == StepId::Calibration);
+    CHECK(std::string(v.back()->component_name()) == "wizard_calibration");
+    CHECK(static_cast<int>(StepId::Calibration) == static_cast<int>(StepId::Telemetry) + 1);
+    CHECK(helix::wizard_is_last(StepId::Calibration, all_visible()));
+
+    // With no printer to calibrate it is skipped, and the page before it
+    // finishes setup.
+    helix::wizard::StepContext no_printer;
+    CHECK(v.back()->should_skip(no_printer));
+    auto skipped = all_visible();
+    skipped.back().skipped = true;
+    CHECK(helix::wizard_is_last(StepId::Telemetry, skipped));
 }
 
 TEST_CASE_METHOD(HelixTestFixture,
@@ -398,7 +416,7 @@ TEST_CASE("Preset authority: interrupted wizard does NOT collapse the remaining 
           "[wizard][step_logic][preset][regression]") {
     // The defect: identify wrote the preset, the wizard never finished, the box
     // rebooted. Fresh process => applied_this_session is false. Skipping here
-    // silently ate PrinterIdentify, Heater, Fan, AMS, LED, Filament, InputShaper
+    // silently ate PrinterIdentify, Heater, Fan, AMS, LED, Filament
     // and Summary with no way back.
     REQUIRE_FALSE(helix::wizard_preset_is_authoritative(/*preset_marker=*/true,
                                                         /*provisional=*/true,
@@ -474,11 +492,11 @@ TEST_CASE("Total settles from the first step when a preset is authoritative",
 TEST_CASE("An unknown step never reports the total as settled without a preset",
           "[1550][wizard][step_logic]") {
     auto v = full_vec();
-    v.pop_back(); // drop Telemetry so a lookup misses
-    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Telemetry, v, false, true));
+    v.pop_back(); // drop Calibration so a lookup misses
+    REQUIRE_FALSE(helix::wizard_total_is_settled(StepId::Calibration, v, false, true));
     // A preset short-circuits before any step lookup: the denominator is
     // settled regardless of what the step is.
-    REQUIRE(helix::wizard_total_is_settled(StepId::Telemetry, v, true, false));
+    REQUIRE(helix::wizard_total_is_settled(StepId::Calibration, v, true, false));
 }
 
 TEST_CASE("A Connection escape hatch past discovery still holds the total hidden",

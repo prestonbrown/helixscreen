@@ -14,6 +14,7 @@ belt_names_modal.xml
 belt_retest_menu.xml
 calibration_pa_panel.xml
 calibration_pid_panel.xml
+calibration_run_overlay.xml
 calibration_tool_offset_panel.xml
 calibration_zoffset_panel.xml
 components/action_prompt_button.xml
@@ -21,6 +22,10 @@ components/action_prompt_swatch.xml
 components/action_prompt_text_line.xml
 components/barcode_scanner_device_row.xml
 components/bed_check_modal.xml
+components/calibration_run_pick_row.xml
+components/calibration_run_prereq_row.xml
+components/calibration_run_result_row.xml
+components/calibration_run_step_row.xml
 components/camera_config_modal.xml
 components/camera_fullscreen.xml
 components/firmware_update_entry_row.xml
@@ -64,11 +69,11 @@ toolhead_preset_config_modal.xml
 update_notify_modal.xml
 wizard_ams_identify.xml
 wizard_appearance.xml
+wizard_calibration.xml
 wizard_connection.xml
 wizard_fan_select.xml
 wizard_filament_sensor_select.xml
 wizard_heater_select.xml
-wizard_input_shaper.xml
 wizard_language_chooser.xml
 wizard_led_select.xml
 wizard_printer_identify.xml

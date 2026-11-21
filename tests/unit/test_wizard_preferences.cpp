@@ -38,8 +38,8 @@ TEST_CASE("Preference rows: Sounds need a sound backend on the first printer",
     CHECK_FALSE(preference_rows(true, false, false, true).sounds);
 }
 
-TEST_CASE("Preferences step sits between InputShaper and Summary", "[wizard][preferences]") {
-    CHECK(static_cast<int>(StepId::Preferences) == static_cast<int>(StepId::InputShaper) + 1);
+TEST_CASE("Preferences step sits between FilamentSensor and Summary", "[wizard][preferences]") {
+    CHECK(static_cast<int>(StepId::Preferences) == static_cast<int>(StepId::FilamentSensor) + 1);
     CHECK(static_cast<int>(StepId::Summary) == static_cast<int>(StepId::Preferences) + 1);
 
     helix::wizard::Step* step = helix::wizard::step_by_id(StepId::Preferences);

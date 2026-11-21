@@ -1015,6 +1015,8 @@ src/printer/calibration_catalog.cpp
 src/printer/calibration_catalog_inputs.cpp
 src/calibration/calibration_history_store.cpp
 src/ui/calibration/ui_calibration_hub_overlay.cpp
+# The guided run's step choice, for the Calibration screen's banner text.
+src/calibration/calibration_run.cpp
 # Discovery fills the config results the tiles show.
 src/calibration/calibration_config_results.cpp
 

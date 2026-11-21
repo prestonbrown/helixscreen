@@ -157,8 +157,7 @@ void PrintSelectDetailView::init_subjects() {
     UI_MANAGED_SUBJECT_INT(detail_gcode_loading_, 0, "detail_gcode_loading", subjects_);
 
     // Indexing progress, 0-100. 0 means "no figure to show" — the XML falls
-    // back to the indeterminate spinner there, matching wizard_input_shaper's
-    // determinate/indeterminate pair. Only the streaming path can report: it
+    // back to the indeterminate spinner there. Only the streaming path can report: it
     // scans the whole file to build a layer index before anything renders, and
     // on a large print that IS the wait (69s for a 133MB / 5M-line file on a
     // K2 Plus, during which the panel showed a bare spinner).

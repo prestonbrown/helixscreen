@@ -362,6 +362,8 @@ src/ui/calibration/ui_panel_calibration_pa.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_overlay_pa_tuning.cpp  # not in the v1 Core+AMS cut
 src/ui/filament/ui_head_picker.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/calibration_run_steps.cpp  # wraps the calibration panels, none in the cut
+src/ui/calibration/ui_calibration_run_overlay.cpp  # the guided run; its steps are excluded
 src/ui/debug/ui_panel_glyphs.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_input_shaper.cpp  # not in the v1 Core+AMS cut
 src/ui/debug/ui_panel_memory_stats.cpp  # not in the v1 Core+AMS cut
@@ -388,7 +390,7 @@ src/ui/wizard/ui_wizard_filament_sensor_select.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_hardware_selector.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_heater_select.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_helpers.cpp  # not in the v1 Core+AMS cut
-src/ui/wizard/ui_wizard_input_shaper.cpp  # not in the v1 Core+AMS cut
+src/ui/wizard/ui_wizard_calibration.cpp  # opens the guided run, whose steps drive excluded panels
 src/ui/wizard/ui_wizard_language_chooser.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_led_select.cpp  # not in the v1 Core+AMS cut
 src/ui/wizard/ui_wizard_printer_identify.cpp  # not in the v1 Core+AMS cut

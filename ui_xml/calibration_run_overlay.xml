@@ -1,0 +1,249 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Guided calibration: one page per cal_run_page, 0 Pick, 1 Before you start, 2 Running,
+     3 Results. The steps are the guided run's (calibration_run.h#guided_run_steps), in run order.
+     CalibrationRunOverlay owns the run and publishes every subject here. -->
+<component>
+  <styles>
+    <style name="split_row" layout="flex" flex_flow="row"/>
+    <style name="split_column" layout="flex" flex_flow="column"/>
+    <style name="side_half" width="0" height="100%" flex_grow="1"/>
+    <style name="side_full" width="100%" height="content" flex_grow="0"/>
+    <style name="list_half" width="0" height="100%" flex_grow="1"/>
+    <style name="list_full" width="100%" height="0" flex_grow="1"/>
+  </styles>
+  <view name="calibration_run_overlay" extends="overlay_panel" title="Guided calibration" bg_color="#screen_bg">
+    <overlay_panel-overlay_content style_pad_top="0"
+                                   style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_sm"
+                                   scrollable="false" flex_flow="column" style_pad_gap="#space_sm">
+      <!-- ================================================================ -->
+      <!-- PICK (0) -->
+      <!-- ================================================================ -->
+      <lv_obj name="cal_run_pick"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="0"/>
+        <text_small width="100%"
+                    long_mode="wrap" style_text_color="#text_muted"
+                    text="Pick what to run. The steps that need you come first, then the rest runs on its own.">
+          <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+        </text_small>
+        <lv_obj name="cal_run_pick_list"
+                width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+                scroll_dir="ver">
+          <calibration_run_pick_row name="cal_run_pick_z_offset" step="z_offset" label="Z offset"/>
+          <calibration_run_pick_row name="cal_run_pick_heaters" step="heaters" label="Heaters"/>
+          <calibration_run_pick_row name="cal_run_pick_bed_mesh" step="bed_mesh" label="Bed mesh"/>
+          <calibration_run_pick_row name="cal_run_pick_input_shaper" step="input_shaper" label="Input shaper"/>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
+                style_flex_cross_place="center" scrollable="false">
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
+                  scrollable="false">
+            <text_body name="cal_run_pick_summary_text" width="100%" bind_text="cal_run_pick_summary" long_mode="dots"/>
+            <text_small name="cal_run_pick_hands_text"
+                        width="100%" bind_text="cal_run_hands_line" long_mode="dots" style_text_color="#text_muted"/>
+          </lv_obj>
+          <ui_button name="btn_cal_run_next" width="30%" style_min_height="#touch_target_min" text="Next">
+            <bind_state_if_eq subject="cal_run_pick_count" state="disabled" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_cal_run_next"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- BEFORE YOU START (1) -->
+      <!-- ================================================================ -->
+      <lv_obj name="cal_run_prereqs"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="1"/>
+        <lv_obj width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
+          <bind_style_if_eq name="split_row" subject="ui_is_portrait" ref_value="0"/>
+          <bind_style_if_eq name="split_column" subject="ui_is_portrait" ref_value="1"/>
+          <lv_obj name="cal_run_prereq_list"
+                  style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scroll_dir="ver">
+            <bind_style_if_eq name="list_half" subject="ui_is_portrait" ref_value="0"/>
+            <bind_style_if_eq name="list_full" subject="ui_is_portrait" ref_value="1"/>
+            <calibration_run_prereq_row name="cal_prereq_bed_clear" prereq="bed_clear" label="The bed is clear"/>
+            <calibration_run_prereq_row name="cal_prereq_build_plate"
+                                        prereq="build_plate" label="Your usual build plate is on"/>
+            <calibration_run_prereq_row name="cal_prereq_toolhead_unloaded"
+                                        prereq="toolhead_unloaded" label="The toolhead is unloaded"/>
+            <calibration_run_prereq_row name="cal_prereq_filament_loaded"
+                                        prereq="filament_loaded" label="Filament is loaded"/>
+            <calibration_run_prereq_row name="cal_prereq_paper" prereq="paper" label="A sheet of printer paper"/>
+            <calibration_run_prereq_row name="cal_prereq_accelerometer"
+                                        prereq="accelerometer" label="The accelerometer is attached"/>
+          </lv_obj>
+          <lv_obj name="cal_run_next_steps"
+                  style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+            <bind_style_if_eq name="side_half" subject="ui_is_portrait" ref_value="0"/>
+            <bind_style_if_eq name="side_full" subject="ui_is_portrait" ref_value="1"/>
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            <text_heading width="100%" text="What happens next"/>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+              <bind_flag_if_eq subject="cal_run_has_hands" flag="hidden" ref_value="0"/>
+              <text_body name="cal_run_you_text" width="100%" bind_text="cal_run_you_line" long_mode="wrap"/>
+              <text_small width="100%"
+                          long_mode="wrap" style_text_color="#text_muted"
+                          text="The Z offset paper test. Stay at the printer."/>
+            </lv_obj>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+              <text_body name="cal_run_away_text" width="100%" bind_text="cal_run_away_line" long_mode="wrap"/>
+              <text_small name="cal_run_away_steps_text"
+                          width="100%" bind_text="cal_run_away_steps" long_mode="wrap" style_text_color="#text_muted"/>
+            </lv_obj>
+          </lv_obj>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
+                style_flex_cross_place="center" scrollable="false">
+          <ui_button name="btn_cal_run_back"
+                     width="25%" style_min_height="#touch_target_min" text="Back" variant="secondary">
+            <event_cb trigger="clicked" callback="on_cal_run_back"/>
+          </ui_button>
+          <text_small name="cal_run_prereq_left_text"
+                      width="0" flex_grow="1" bind_text="cal_run_prereq_left" long_mode="dots" style_text_align="right"
+                      style_text_color="#text_muted"/>
+          <ui_button name="btn_cal_run_start"
+                     width="45%" style_min_height="#touch_target_min" text="Everything's ready" moves_machine="true">
+            <bind_state_if_eq subject="cal_run_prereq_ready" state="disabled" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_cal_run_start"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- RUNNING (2) -->
+      <!-- ================================================================ -->
+      <lv_obj name="cal_run_running"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="2"/>
+        <lv_obj width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
+          <bind_style_if_eq name="split_row" subject="ui_is_portrait" ref_value="0"/>
+          <bind_style_if_eq name="split_column" subject="ui_is_portrait" ref_value="1"/>
+          <lv_obj name="cal_run_step_list"
+                  style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scroll_dir="ver">
+            <bind_style_if_eq name="list_half" subject="ui_is_portrait" ref_value="0"/>
+            <bind_style_if_eq name="side_full" subject="ui_is_portrait" ref_value="1"/>
+            <calibration_run_step_row name="cal_run_row_z_offset" step="z_offset" label="Z offset"/>
+            <calibration_run_step_row name="cal_run_row_heaters" step="heaters" label="Heaters"/>
+            <calibration_run_step_row name="cal_run_row_bed_mesh" step="bed_mesh" label="Bed mesh"/>
+            <calibration_run_step_row name="cal_run_row_input_shaper" step="input_shaper" label="Input shaper"/>
+          </lv_obj>
+          <lv_obj name="cal_run_live_box" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+            <bind_style_if_eq name="side_half" subject="ui_is_portrait" ref_value="0"/>
+            <bind_style_if_eq name="list_full" subject="ui_is_portrait" ref_value="1"/>
+            <ui_card name="cal_run_live"
+                     width="100%" height="100%" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_sm"
+                     scrollable="false">
+              <text_heading name="cal_run_title_text" width="100%" bind_text="cal_run_title" long_mode="dots"/>
+              <text_body name="cal_run_phase_text" width="100%" bind_text="cal_run_phase" long_mode="wrap"/>
+              <progress_bar name="cal_run_progress_bar" bind_value="cal_run_progress">
+                <bind_flag_if cond="cal_run_indeterminate eq 1 or cal_run_over eq 1" flag="hidden"/>
+              </progress_bar>
+              <spinner name="cal_run_spinner" size="sm">
+                <bind_flag_if cond="cal_run_indeterminate eq 0 or cal_run_over eq 1" flag="hidden"/>
+              </spinner>
+              <lv_obj name="cal_run_heat"
+                      width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_lg"
+                      style_flex_cross_place="center" scrollable="false">
+                <bind_flag_if_eq subject="cal_run_live_heat" flag="hidden" ref_value="0"/>
+                <lv_obj height="content"
+                        style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" style_flex_cross_place="center"
+                        scrollable="false">
+                  <heater_icon src="heater" glyph_name="cal_run_nozzle_glyph" size="xs"/>
+                  <temp_display name="cal_run_nozzle_temp"
+                                size="sm" show_target="true" bind_current="extruder_temp" bind_target="extruder_target"/>
+                </lv_obj>
+                <lv_obj height="content"
+                        style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" style_flex_cross_place="center"
+                        scrollable="false">
+                  <bind_flag_if_eq subject="cal_run_has_bed" flag="hidden" ref_value="0"/>
+                  <heater_icon src="radiator" glyph_name="cal_run_bed_glyph" size="xs"/>
+                  <temp_display name="cal_run_bed_temp"
+                                size="sm" show_target="true" bind_current="bed_temp" bind_target="bed_target"/>
+                </lv_obj>
+              </lv_obj>
+              <lv_obj height="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <text_small name="cal_run_warn_text"
+                          width="100%" bind_text="cal_run_warn" long_mode="wrap" style_text_color="#warning"/>
+            </ui_card>
+          </lv_obj>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
+                style_flex_cross_place="center" scrollable="false">
+          <ui_button name="btn_cal_run_stop"
+                     width="35%" style_min_height="#touch_target_min" text="Stop calibration" variant="danger">
+            <bind_flag_if_eq subject="cal_run_over" flag="hidden" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_cal_run_stop"/>
+          </ui_button>
+          <text_small name="cal_run_footer_text"
+                      width="0" flex_grow="1" bind_text="cal_run_footer" long_mode="dots" style_text_align="right"
+                      style_text_color="#text_muted"/>
+          <ui_button name="btn_cal_run_results" width="30%" style_min_height="#touch_target_min" text="See results">
+            <bind_flag_if_eq subject="cal_run_over" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_cal_run_see_results"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+      <!-- ================================================================ -->
+      <!-- RESULTS (3); cal_run_result_phase is calibration_run.h#RunPhase -->
+      <!-- ================================================================ -->
+      <lv_obj name="cal_run_results"
+              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+              scrollable="false">
+        <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="3"/>
+        <text_body name="cal_run_results_text" width="100%" bind_text="cal_run_results_sub" long_mode="wrap"/>
+        <lv_obj width="100%"
+                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scroll_dir="ver">
+          <lv_obj width="100%"
+                  height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
+                  style_pad_bottom="0" style_pad_gap="#space_sm" flex_flow="row" scrollable="false">
+            <text_small width="28%" text="Step" style_text_color="#text_muted"/>
+            <text_small width="0" flex_grow="1" text="Before" style_text_color="#text_muted"/>
+            <text_small width="0" flex_grow="1" text="After" style_text_color="#text_muted"/>
+          </lv_obj>
+          <calibration_run_result_row name="cal_run_result_z_offset" step="z_offset" label="Z offset"/>
+          <calibration_run_result_row name="cal_run_result_heaters" step="heaters" label="Heaters"/>
+          <calibration_run_result_row name="cal_run_result_bed_mesh" step="bed_mesh" label="Bed mesh"/>
+          <calibration_run_result_row name="cal_run_result_input_shaper" step="input_shaper" label="Input shaper"/>
+        </lv_obj>
+        <text_small name="cal_run_error_text"
+                    width="100%" bind_text="cal_run_error" long_mode="wrap" style_text_color="#danger">
+          <bind_flag_if_eq subject="cal_run_has_error" flag="hidden" ref_value="0"/>
+        </text_small>
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
+                style_flex_cross_place="center" scrollable="false">
+          <ui_button name="btn_cal_run_discard"
+                     width="25%" style_min_height="#touch_target_min" text="Discard all" variant="secondary">
+            <bind_flag_if cond="cal_run_result_phase ne 2 and cal_run_result_phase ne 5" flag="hidden"/>
+            <event_cb trigger="clicked" callback="on_cal_run_discard"/>
+          </ui_button>
+          <spinner name="cal_run_finishing" size="sm">
+            <bind_flag_if cond="cal_run_result_phase ne 3 and cal_run_result_phase ne 6" flag="hidden"/>
+          </spinner>
+          <text_small name="cal_run_save_text"
+                      width="0" flex_grow="1" bind_text="cal_run_save_line" long_mode="wrap" style_text_align="right"
+                      style_text_color="#text_muted"/>
+          <ui_button name="btn_cal_run_save" width="30%" style_min_height="#touch_target_min" text="Save all">
+            <bind_flag_if cond="cal_run_result_phase ne 2 and cal_run_result_phase ne 5" flag="hidden"/>
+            <bind_state_if_eq subject="cal_run_can_save" state="disabled" ref_value="0"/>
+            <event_cb trigger="clicked" callback="on_cal_run_save"/>
+          </ui_button>
+          <ui_button name="btn_cal_run_done" width="30%" style_min_height="#touch_target_min" text="Done">
+            <bind_flag_if cond="cal_run_result_phase ne 4 and cal_run_result_phase ne 7" flag="hidden"/>
+            <event_cb trigger="clicked" callback="on_cal_run_done"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
+    </overlay_panel-overlay_content>
+  </view>
+</component>

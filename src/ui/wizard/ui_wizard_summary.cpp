@@ -6,12 +6,12 @@
 #include "ui_settings_system.h"
 #include "ui_settings_updates.h"
 #include "ui_wizard.h"
-#include "ui_wizard_input_shaper.h"
 #include "ui_wizard_telemetry.h"
 
 #include "ams_backend.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "calibration_catalog_inputs.h"
 #include "config.h"
 #include "core/log_redact.h"
 #include "core/static_panel_registry.h"
@@ -252,14 +252,10 @@ void WizardSummaryStep::init_subjects() {
     std::string input_shaper_str = "Not available";
     int input_shaper_visible = 0;
 
-    WizardInputShaperStep* is_step = get_wizard_input_shaper_step();
-    if (is_step && is_step->has_accelerometer()) {
+    // Calibrating it is the last setup page, after this one.
+    if (helix::calibration::catalog_inputs_from(get_printer_state()).has_accelerometer) {
         input_shaper_visible = 1;
-        if (is_step->is_calibration_complete()) {
-            input_shaper_str = "Calibrated";
-        } else {
-            input_shaper_str = "Accelerometer detected (not calibrated)";
-        }
+        input_shaper_str = "Accelerometer detected (not calibrated)";
     }
 
     UI_SUBJECT_INIT_AND_REGISTER_STRING(input_shaper_, input_shaper_buffer_,

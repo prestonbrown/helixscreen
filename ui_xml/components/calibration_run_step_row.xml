@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One picked step in the guided run's step list while it runs. CalibrationRunOverlay
+     publishes, per step id:
+       cal_run_in_run_<step>  1 when the step is part of this run
+       cal_run_state_<step>   0 waiting, 1 running, 2 finished, 3 did not finish
+       cal_run_detail_<step>  its time, its result, or why it did not finish -->
+<component>
+  <api>
+    <prop name="step" type="string" default=""/>
+    <prop name="label" type="string" default=""/>
+  </api>
+  <styles>
+    <style name="row_active" bg_color="#card_bg" bg_opa="100%"/>
+  </styles>
+  <view extends="lv_obj"
+        width="100%" height="content" style_bg_opa="0" style_border_width="0" style_radius="#border_radius"
+        style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_xxs" style_pad_bottom="#space_xxs"
+        style_pad_gap="#space_sm" scrollable="false" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="center">
+    <bind_flag_if_eq subject="cal_run_in_run_${step}" flag="hidden" ref_value="0"/>
+    <bind_style name="row_active" subject="cal_run_state_${step}" ref_value="1"/>
+    <icon name="step_waiting" src="progress_clock" size="xs" variant="secondary">
+      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="0"/>
+    </icon>
+    <spinner name="step_running" size="xs">
+      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="1"/>
+    </spinner>
+    <icon name="step_finished" src="check_circle" size="xs" variant="success">
+      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
+    </icon>
+    <icon name="step_unfinished" src="close_circle" size="xs" variant="warning">
+      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="3"/>
+    </icon>
+    <lv_obj width="0"
+            height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
+            scrollable="false">
+      <text_body name="step_name" width="100%" text="$label" long_mode="dots"/>
+      <text_small name="step_detail"
+                  width="100%" bind_text="cal_run_detail_${step}" long_mode="dots" style_text_color="#text_muted"/>
+    </lv_obj>
+  </view>
+</component>
