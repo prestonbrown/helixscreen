@@ -5,12 +5,12 @@
 #include "ui_notification.h"
 
 #include "lvgl.h"
+#include "text_io.h"
 
 #include <spdlog/spdlog.h>
 
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 
 namespace helix::u1 {
 
@@ -46,10 +46,9 @@ RestoreStockVerdict decide_restore_stock(const char* trigger_path, bool job_stat
 }
 
 bool write_restore_trigger(const std::string& path) {
-    std::ofstream out(path, std::ios::trunc);
-    out << "Restore the stock screen at the next start (written by HelixScreen Settings)\n";
-    out.close();
-    if (!out) {
+    if (!text_io::write_file(
+            path,
+            "Restore the stock screen at the next start (written by HelixScreen Settings)\n")) {
         spdlog::error("[U1] Could not write the restore-stock trigger {}", path);
         return false;
     }

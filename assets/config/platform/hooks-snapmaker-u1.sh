@@ -287,6 +287,9 @@ u1_root_ssh_state() {
 # on-screen notification. The launcher's own platform_pre_start call is the one
 # whose environment reaches helix-screen, and it re-runs this check.
 ensure_root_ssh() {
+    # A status this function computes, never a setting: drop any inherited
+    # value first, so only this run's check can set it.
+    unset HELIX_U1_ROOT_SSH_DOWN
     [ "$(u1_root_ssh_state)" = down ] || return 0
     echo "Root Access is enabled: starting SSH (dropbear)"
     "$HELIX_DROPBEAR_INIT" start --force || true
@@ -304,18 +307,10 @@ ensure_root_ssh() {
             logger -p user.err -t helixscreen -- "$_ssh_msg" 2>/dev/null || true
         fi
         unset _ssh_msg
-        export HELIX_U1_ROOT_SSH_DOWN=1
+        export HELIX_U1_ROOT_SSH_DOWN="${HELIX_U1_ROOT_SSH_DOWN:-1}"
     fi
     return 0
 }
-
-# ── Restore the stock screen without SSH ─────────────────────────────────────
-#
-# The boot delegate autostart installs over S99input-event-daemon acts on this
-# trigger file at boot (snapmaker-u1-setup-autostart.sh step 4c). The hook only
-# tells the app where it goes, which offers Settings > System > Restore Stock
-# Screen on stock firmware.
-HELIX_U1_RESTORE_TRIGGER="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
 
 # ── Remote screen: serve the live UI to Mainsail/Fluidd ──────────────────────
 #
@@ -472,13 +467,6 @@ platform_pre_start() {
     # Force DRM device — skip auto-detection which may race with connector state
     export HELIX_DRM_DEVICE="${HELIX_DRM_DEVICE:-/dev/dri/card0}"
 
-    # Stock firmware: tell the app where the restore trigger goes, which is
-    # what offers Settings > System > Restore Stock Screen. PAXX firmware has
-    # its own way back to its screen.
-    if [ "$(u1_root_ssh_state)" != ungated ]; then
-        export HELIX_U1_RESTORE_TRIGGER
-    fi
-
     # Recover the camera supervisor if a prior helixscreen build killed it.
     # Idempotent: no-op when lmd is already alive.
     ensure_lmd_running
@@ -493,6 +481,15 @@ platform_pre_start() {
     # Serve the live UI to Mainsail/Fluidd via the firmware's fb-http tool when
     # the PAXX `web remote_screen` toggle is on (no-op otherwise).
     start_remote_screen
+
+    # Stock firmware: tell the app where the restore trigger goes, which is
+    # what offers Settings > System > Restore Stock Screen. The boot delegate
+    # autostart installs over S99input-event-daemon acts on that file at boot
+    # (snapmaker-u1-setup-autostart.sh step 4c). PAXX firmware has its own way
+    # back to its screen.
+    if [ "$(u1_root_ssh_state)" != ungated ]; then
+        export HELIX_U1_RESTORE_TRIGGER="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
+    fi
 
     # Opt into the launcher's boot-time respawn self-heal (busybox init does
     # not respawn S99 children). Supplied here, not at file scope: the init
