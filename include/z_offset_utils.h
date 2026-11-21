@@ -417,16 +417,6 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
                         helix::SharedCallback<void(const std::string& error)> on_error,
                         PrinterState* ps = nullptr);
 
-/// Tracks Klipper restart activity observed while a SAVE_CONFIG is in flight.
-///
-/// Sampling "is a restart expected right now" at the moment a save timeout fires
-/// is useless: the recovery-suppression window (recovery_suppression::LONG, 15s)
-/// closes long before a 30s save guard first fires, so the instantaneous check
-/// is always false by then. This latches the restart instead — "was a restart
-/// seen at any point since this save began" — which is the question the timeout
-/// actually needs answered.
-///
-/// It also detects the restart *completing*. SAVE_CONFIG restarts Klipper, and
 /// The command that sets a firmware-managed Z offset to @p z_mm, which the
 /// firmware then persists itself. Outside a print it first clears the probe
 /// delta the last print left (stale_probe_delta_clear_gcode()).

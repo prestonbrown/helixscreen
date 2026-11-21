@@ -448,7 +448,8 @@ void ZOffsetCalibrationPanel::end_saving_restart_watch() {
 }
 
 void ZOffsetCalibrationPanel::arm_saving_timeout() {
-    operation_guard_.begin(kSavingTimeoutMs, [this] {
+    // In a run, SAVING waits on ACCEPT alone, which a scan probe answers late.
+    operation_guard_.begin(run_done_ ? IAdvancedAPI::kProbingTimeoutMs : kSavingTimeoutMs, [this] {
         // Fold in the suppression window as a second latch source, in case the
         // klippy observer never saw the dip. Monotonic within this save.
         save_restart_latch_.note_restart_expected(
@@ -531,7 +532,13 @@ void ZOffsetCalibrationPanel::finish_run(bool accepted) {
     }
     if (done) {
         spdlog::info("[ZOffsetCal] Guided run step {}", accepted ? "accepted" : "left unaccepted");
-        done(accepted, final_offset_, run_strategy());
+        // A firmware-managed run applied the offset itself; the others report
+        // the Z position ACCEPT took, which the run reads the staged value for.
+        const auto strategy = run_strategy();
+        done(accepted,
+             strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? cumulative_z_delta_
+                                                                      : final_offset_,
+             strategy);
     }
 }
 
@@ -950,6 +957,10 @@ void ZOffsetCalibrationPanel::send_accept() {
         // here sends one. The complete state says so.
         spdlog::info("[ZOffsetCal] Sending ACCEPT without saving ({})",
                      run_done_ ? "guided run" : "Z-offset saving is off");
+        if (run_done_) {
+            // A run's Continue appears only once ACCEPT has answered.
+            set_state(State::SAVING);
+        }
         auto tok = lifetime_.token();
         api_->execute_gcode(
             "ACCEPT",
@@ -964,7 +975,9 @@ void ZOffsetCalibrationPanel::send_accept() {
                                   false, fmt::format(fmt::runtime(lv_tr("ACCEPT failed: {}")),
                                                      err.localized_message()));
                           });
-            });
+            },
+            // A scan-probe ACCEPT replies only after its post-test sweep.
+            IAdvancedAPI::kProbingTimeoutMs);
     } else {
         // Probe/endstop: ACCEPT then apply+save
         spdlog::info("[ZOffsetCal] Sending ACCEPT");

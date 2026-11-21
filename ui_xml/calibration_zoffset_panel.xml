@@ -197,8 +197,15 @@
               style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="3"/>
         <spinner size="lg"/>
-        <text_heading text="Saving Configuration..." style_text_align="center"/>
-        <text_small width="80%" text="Klipper will restart to apply changes." style_text_align="center"/>
+        <text_heading text="Saving Configuration..." style_text_align="center">
+          <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
+        </text_heading>
+        <text_small width="80%" text="Klipper will restart to apply changes." style_text_align="center">
+          <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
+        </text_small>
+        <text_heading text="Accepting the Z offset..." style_text_align="center">
+          <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="0"/>
+        </text_heading>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STATE: COMPLETE (4) - Calibration finished -->
