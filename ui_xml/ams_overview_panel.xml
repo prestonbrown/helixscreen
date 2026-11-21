@@ -24,6 +24,10 @@
          axis in the header's height. -->
     <style name="name_centered" height="#ams_header_name_line_h"/>
     <style name="suffix_centered" flex_track_place="center"/>
+    <!-- In an ultrawide side band the left column is narrower than the overlay's: the
+         title steps down to the body font, as a header_bar with a long title passes
+         a smaller title_font. -->
+    <style name="title_embedded" text_font="#font_body"/>
     <!-- The unit view in portrait: a tighter gap, and the page dots float over the
          canvas's empty bottom-left corner instead of taking a row of height. -->
     <style name="unit_gap_landscape" pad_row="#space_xs"/>
@@ -73,6 +77,7 @@
                         long_mode="dots" style_text_align="left" clickable="false" event_bubble="true"
                         scrollable="false">
             <bind_flag_if_eq subject="ams_unit_view_active" flag="hidden" ref_value="1"/>
+            <bind_style_if_eq name="title_embedded" subject="ams_in_side_band" ref_value="1"/>
           </text_heading>
           <!-- The unit view's title is the unit on this page: logo + name. width="1"+flex_grow:
                it takes what the chip leaves, and the name ellipsizes inside that. -->
