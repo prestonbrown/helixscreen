@@ -5571,9 +5571,10 @@ TEST_CASE_METHOD(EditorFixture,
     CHECK(done.result.slot_info.color_rgb == 0xFFFFFF);
 }
 
-TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "Assign Spool and Edit Spool fit 800x480 and 480x272 without a page scroll",
-                 "[ams_edit_overlay][spool-assign][layout]") {
+TEST_CASE_METHOD(
+    OverlayConsumerCommitFixture,
+    "Assign Spool and Edit Spool fit 800x480, 480x320 and 480x272 without a page scroll",
+    "[ams_edit_overlay][spool-assign][layout]") {
     lv_display_t* disp = lv_display_get_default();
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -5582,7 +5583,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     AmsState::instance().init_subjects(true);
     lv_subject_t* records = lv_xml_get_subject(nullptr, "ams_lane_records_ready");
     REQUIRE(records != nullptr);
-    for (const auto& [w, h] : {std::pair<int32_t, int32_t>{800, 480}, {480, 272}}) {
+    for (const auto& [w, h] : {std::pair<int32_t, int32_t>{800, 480}, {480, 320}, {480, 272}}) {
         {
             ScopedResolution res(disp, w, h);
             theme_manager_refresh_layout_constants(disp);
