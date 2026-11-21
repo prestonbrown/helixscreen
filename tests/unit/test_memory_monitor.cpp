@@ -716,3 +716,47 @@ TEST_CASE("MemoryMonitor sleeps between samples and still stops at once", "[memo
     CHECK(std::chrono::steady_clock::now() - t0 < std::chrono::seconds(1));
 }
 #endif
+
+// =============================================================================
+// should_release_heap_on_pressure()
+// =============================================================================
+
+TEST_CASE("should_release_heap_on_pressure: each rise releases once, a held level never",
+          "[memory_monitor][heap-trim]") {
+    using L = MemoryPressureLevel;
+    constexpr int64_t kMin = 60 * 1000;
+    HeapReleaseState state;
+
+    SECTION("below warning never releases") {
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::none, 0));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::elevated, 5 * kMin));
+    }
+
+    SECTION("warning, held, then critical, held") {
+        CHECK(should_release_heap_on_pressure(state, L::warning, 0));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::warning, 5 * kMin));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::warning, 10 * kMin));
+        CHECK(should_release_heap_on_pressure(state, L::critical, 10 * kMin + 5000));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::critical, 15 * kMin + 5000));
+        // Critical eases to warning: no new rise.
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::warning, 16 * kMin));
+    }
+
+    SECTION("straight to critical releases once, and warning after it does not") {
+        CHECK(should_release_heap_on_pressure(state, L::critical, 0));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::warning, 1 * kMin));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::critical, 5 * kMin));
+    }
+
+    SECTION("a dispatch below warning ends the episode") {
+        CHECK(should_release_heap_on_pressure(state, L::warning, 0));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::elevated, 1 * kMin));
+        CHECK(should_release_heap_on_pressure(state, L::warning, 2 * kMin));
+    }
+
+    SECTION("a gap longer than the re-arm window ends the episode") {
+        CHECK(should_release_heap_on_pressure(state, L::critical, 0));
+        CHECK_FALSE(should_release_heap_on_pressure(state, L::critical, kHeapReleaseRearmMs));
+        CHECK(should_release_heap_on_pressure(state, L::warning, 2 * kHeapReleaseRearmMs + 1));
+    }
+}
