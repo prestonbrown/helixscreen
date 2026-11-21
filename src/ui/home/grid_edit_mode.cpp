@@ -24,6 +24,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <string>
 #include <unordered_set>
 
 namespace helix {
@@ -599,117 +601,54 @@ void GridEditMode::create_selection_chrome(lv_obj_t* widget) {
                   widget_area.x1, widget_area.y1, widget_area.x2, widget_area.y2, container_area.x1,
                   container_area.y1, pad_left, pad_top, rel_x1, rel_y1, widget_w, widget_h);
 
-    // Create floating overlay container for selection chrome.
-    // The overlay itself draws the connecting border (rounded, muted).
-    lv_color_t accent = theme_get_accent_color();
-    int radius = theme_manager_get_spacing("border_radius");
+    // The edge bars run between the corner brackets, so a side shorter than
+    // two insets has no room for one.
+    int edge_inset = 0;
+    if (const char* inset =
+            lv_xml_get_const(lv_xml_component_get_scope("grid_edit_selection"), "edge_inset")) {
+        edge_inset = std::atoi(inset);
+    }
+    const bool resizable = is_selected_widget_resizable();
+    const bool show_left_right = resizable && widget_h > 2 * edge_inset;
+    const bool show_top_bottom = resizable && widget_w > 2 * edge_inset;
 
-    selection_overlay_ = lv_obj_create(container_);
+    const std::string accent =
+        fmt::format("0x{:06X}", lv_color_to_u32(theme_get_accent_color()) & 0xFFFFFF);
+    const char* attrs[] = {"accent",
+                           accent.c_str(),
+                           "hide_left_right",
+                           show_left_right ? "false" : "true",
+                           "hide_top_bottom",
+                           show_top_bottom ? "false" : "true",
+                           nullptr};
+    selection_overlay_ =
+        static_cast<lv_obj_t*>(lv_xml_create(container_, "grid_edit_selection", attrs));
+    if (!selection_overlay_) {
+        spdlog::error("[GridEditMode] grid_edit_selection component is not registered");
+        return;
+    }
     lv_obj_set_pos(selection_overlay_, rel_x1, rel_y1);
     lv_obj_set_size(selection_overlay_, widget_w, widget_h);
-    lv_obj_set_floating(selection_overlay_, true);
-    lv_obj_set_scrollable(selection_overlay_, false);
-    // Let touch events pass through to the container for long-press drag detection.
-    // The X button child is independently clickable.
-    lv_obj_set_clickable(selection_overlay_, false);
-    lv_obj_set_style_bg_opa(selection_overlay_, LV_OPA_TRANSP, 0);
-    // No overlay border — edge bars provide the visual for resizable widgets,
-    // non-resizable get just corner brackets with no connecting lines.
-    lv_obj_set_style_border_width(selection_overlay_, 0, 0);
-    lv_obj_set_style_radius(selection_overlay_, radius, 0);
-    lv_obj_set_style_pad_all(selection_overlay_, 0, 0);
-    // Corner bracket styling: two bars per corner forming a square L-bracket
-    constexpr int kBarLen = 16;
-    constexpr int kBarThick = 3;
 
-    int bar_count = 0;
-    auto make_bar = [&](int x, int y, int w, int h) {
-        lv_obj_t* bar = lv_obj_create(selection_overlay_);
-        lv_obj_set_pos(bar, x, y);
-        lv_obj_set_size(bar, w, h);
-        lv_obj_set_style_bg_color(bar, accent, 0);
-        lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
-        lv_obj_set_style_border_width(bar, 0, 0);
-        lv_obj_set_style_radius(bar, 0, 0);
-        lv_obj_set_style_pad_all(bar, 0, 0);
-        lv_obj_set_clickable(bar, false);
-        lv_obj_set_scrollable(bar, false);
-        bar_count++;
-    };
-
-    // Top-left
-    make_bar(0, 0, kBarLen, kBarThick);
-    make_bar(0, 0, kBarThick, kBarLen);
-    // Top-right
-    make_bar(widget_w - kBarLen, 0, kBarLen, kBarThick);
-    make_bar(widget_w - kBarThick, 0, kBarThick, kBarLen);
-    // Bottom-left
-    make_bar(0, widget_h - kBarThick, kBarLen, kBarThick);
-    make_bar(0, widget_h - kBarLen, kBarThick, kBarLen);
-    // Bottom-right
-    make_bar(widget_w - kBarLen, widget_h - kBarThick, kBarLen, kBarThick);
-    make_bar(widget_w - kBarThick, widget_h - kBarLen, kBarThick, kBarLen);
-
-    // Add resize edge handles for scalable widgets: thinner, lower opacity than corners
-    if (is_selected_widget_resizable()) {
-        constexpr int kEdgeThick = 1;
-        constexpr int kHandleInset = kBarLen + 4; // Start after corner brackets
-
-        auto make_edge_bar = [&](int x, int y, int w, int h) {
-            lv_obj_t* bar = lv_obj_create(selection_overlay_);
-            lv_obj_set_pos(bar, x, y);
-            lv_obj_set_size(bar, w, h);
-            lv_obj_set_style_bg_color(bar, accent, 0);
-            lv_obj_set_style_bg_opa(bar, LV_OPA_20, 0);
-            lv_obj_set_style_border_width(bar, 0, 0);
-            lv_obj_set_style_radius(bar, 0, 0);
-            lv_obj_set_style_pad_all(bar, 0, 0);
-            lv_obj_set_clickable(bar, false);
-            lv_obj_set_scrollable(bar, false);
-            bar_count++;
-        };
-
-        // Right edge handle
-        if (widget_h > 2 * kHandleInset) {
-            make_edge_bar(widget_w - kEdgeThick, kHandleInset, kEdgeThick,
-                          widget_h - 2 * kHandleInset);
-        }
-
-        // Left edge handle
-        if (widget_h > 2 * kHandleInset) {
-            make_edge_bar(0, kHandleInset, kEdgeThick, widget_h - 2 * kHandleInset);
-        }
-
-        // Bottom edge handle
-        if (widget_w > 2 * kHandleInset) {
-            make_edge_bar(kHandleInset, widget_h - kEdgeThick, widget_w - 2 * kHandleInset,
-                          kEdgeThick);
-        }
-
-        // Top edge handle
-        if (widget_w > 2 * kHandleInset) {
-            make_edge_bar(kHandleInset, 0, widget_w - 2 * kHandleInset, kEdgeThick);
-        }
-    }
-
-    // Pulse animation on corner brackets ONLY (not edge bars) when animations enabled.
-    // Corner brackets are the first children (2 bars x 4 corners).
-    static constexpr uint32_t kCornerBarCount = 8;
-    if (DisplaySettingsManager::instance().get_animations_enabled()) {
+    // Pulse the corner brackets (not the edge bars) when animations are on.
+    // Each bracket bar's own bg_opa, rather than one opa on their container:
+    // a container's opa repaints the whole tile under it every frame, a bar's
+    // only its strip. DECLARATIVE_OK: per-frame animation.
+    lv_obj_t* corners = lv_obj_find_by_name(selection_overlay_, "selection_corners");
+    if (corners && DisplaySettingsManager::instance().get_animations_enabled()) {
         lv_anim_t anim;
         lv_anim_init(&anim);
-        lv_anim_set_var(&anim, selection_overlay_);
+        lv_anim_set_var(&anim, corners);
         lv_anim_set_values(&anim, LV_OPA_COVER, LV_OPA_20);
         lv_anim_set_duration(&anim, 1000);
         lv_anim_set_repeat_count(&anim, LV_ANIM_REPEAT_INFINITE);
         lv_anim_set_reverse_duration(&anim, 1000);
         lv_anim_set_exec_cb(&anim, [](void* obj, int32_t val) {
-            auto* overlay = static_cast<lv_obj_t*>(obj);
-            // Only pulse the corner brackets, skip edge bars
-            uint32_t count = std::min(lv_obj_get_child_count(overlay), kCornerBarCount);
+            auto* brackets = static_cast<lv_obj_t*>(obj);
+            const uint32_t count = lv_obj_get_child_count(brackets);
             for (uint32_t i = 0; i < count; ++i) {
-                lv_obj_t* child = lv_obj_get_child(overlay, static_cast<int32_t>(i));
-                lv_obj_set_style_bg_opa(child, static_cast<lv_opa_t>(val), 0);
+                lv_obj_set_style_bg_opa(lv_obj_get_child(brackets, static_cast<int32_t>(i)),
+                                        static_cast<lv_opa_t>(val), 0);
             }
         });
         lv_anim_start(&anim);
@@ -2954,24 +2893,20 @@ void GridEditMode::ensure_shield() {
         // rebuilt while a gesture may own the pointer. The object dies with
         // the container's other children in a deferred rebuild, which a commit
         // schedules after its release and a cancel after it ended the gesture.
-        shield_ = lv_obj_create(container_);
-        lv_obj_set_size(shield_, LV_PCT(100), LV_PCT(100));
-        lv_obj_set_floating(shield_, true);
-        // CLICKABLE + EVENT_BUBBLE makes this a genuine event shield: as the
-        // top-most full-grid child it becomes the hit target for every touch,
-        // so no widget underneath ever receives a press/click while editing
-        // (only sizing and moving, handled geometrically by the bubbled
-        // press/click handlers). A non-clickable overlay would let touches
-        // fall through to widgets that re-add CLICKABLE on async updates (e.g.
-        // the AMS mini-status), launching them mid-edit. The selection's
-        // configure and remove buttons are created after this overlay, so
-        // they stay on top.
-        lv_obj_set_clickable(shield_, true);
-        lv_obj_set_event_bubble(shield_, true);
-        lv_obj_set_scrollable(shield_, false);
-        lv_obj_set_style_bg_opa(shield_, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(shield_, 0, 0);
-        lv_obj_set_style_pad_all(shield_, 0, 0);
+        // The shield is clickable and bubbles its events, so as the top-most
+        // full-grid child it is the hit target for every touch: no widget
+        // underneath ever receives a press/click while editing (only sizing
+        // and moving, handled geometrically by the bubbled press/click
+        // handlers). A non-clickable overlay would let touches fall through to
+        // widgets that re-add CLICKABLE on async updates (e.g. the AMS
+        // mini-status), launching them mid-edit. The selection's configure
+        // and remove buttons are created after this overlay, so they stay on
+        // top.
+        shield_ = static_cast<lv_obj_t*>(lv_xml_create(container_, "grid_edit_shield", nullptr));
+        if (!shield_) {
+            spdlog::error("[GridEditMode] grid_edit_shield component is not registered");
+            return;
+        }
         // The lattice it draws. DECLARATIVE_OK: draw hook and LV_EVENT_DELETE
         // cleanup.
         auto* spec = new GridLatticeSpec();
