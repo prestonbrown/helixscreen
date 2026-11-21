@@ -35,6 +35,7 @@
 #include "display_settings_manager.h"
 #include "filament_op_dispatch.h"
 #include "lane_source_store.h"
+#include "lane_spool_history.h"
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -98,6 +99,7 @@ class AmsEditOverlayViewTestAccess {
     }
     void set_cached_spools(std::vector<SpoolInfo> spools) {
         overlay_.cached_spools_ = std::move(spools);
+        overlay_.spools_from_spoolman_ = true;
         // Mirror populate_picker's precompute so direct-drive tests exercise
         // the same filter path as production.
         overlay_.cached_searchables_.clear();
@@ -125,11 +127,52 @@ class AmsEditOverlayViewTestAccess {
     void call_handle_save() {
         overlay_.handle_save();
     }
-    void call_switch_to_picker() {
-        overlay_.switch_to_picker();
+    /// What a QR scan's result does to the open editor.
+    void scan_spool(const SpoolInfo& spool) {
+        overlay_.apply_scanned_spool(spool);
     }
-    void call_handle_spool_selected(int spool_id) {
-        overlay_.handle_spool_selected(spool_id);
+    void tap_size_chip(int chip) {
+        overlay_.handle_size_chip(chip);
+    }
+    void tap_common_spool(size_t index) {
+        overlay_.handle_common_spool(index);
+    }
+    void step_remaining(float delta) {
+        overlay_.handle_remaining_step(delta);
+    }
+    void call_assign_local() {
+        overlay_.handle_assign_local();
+    }
+    void call_populate_picker() {
+        overlay_.populate_picker();
+    }
+    void call_different_spool() {
+        overlay_.handle_different_spool();
+    }
+    int mode() {
+        return lv_subject_get_int(&overlay_.mode_subject_);
+    }
+    /// Tap Use on the listed row holding @p spool_id, listing the cached
+    /// spools first when nothing is listed yet.
+    void use_spool(int spool_id) {
+        if (overlay_.listed_.empty()) {
+            overlay_.render_spool_list("");
+        }
+        for (size_t row = 0; row < overlay_.listed_.size(); ++row) {
+            if (overlay_.cached_spools_[overlay_.listed_[row].index].id == spool_id) {
+                overlay_.handle_row_use(row);
+                return;
+            }
+        }
+        FAIL("spool " << spool_id << " is not listed");
+    }
+    /// The spool ids the list shows, in order.
+    std::vector<int> listed_ids() {
+        std::vector<int> ids;
+        for (const auto& r : overlay_.listed_) {
+            ids.push_back(overlay_.cached_spools_[r.index].id);
+        }
+        return ids;
     }
     void call_switch_to_editor() {
         overlay_.set_view(AmsEditOverlay::kViewEditor);
@@ -334,6 +377,11 @@ class AmsEditOverlayViewTestAccess {
         const char* t = lv_textarea_get_text(w);
         return t ? t : "";
     }
+    /// Forget the session's completion callback: it captures the test's
+    /// locals, which are gone by the time a fixture tears the editor down.
+    void drop_completion() {
+        overlay_.completion_callback_ = nullptr;
+    }
     void click(const char* name) {
         lv_obj_t* w = overlay_.find_widget(name);
         REQUIRE(w != nullptr);
@@ -355,6 +403,19 @@ void close_editor_overlay() {
     UpdateQueue::instance().drain();
     lv_timer_handler(); // the overlay close callback runs on the next tick
 }
+
+/// Closes an editor a test left open (a failed REQUIRE ends the test before
+/// its own close), so the next test never inherits a live session.
+struct EditorFixture : LVGLUITestFixture {
+    ~EditorFixture() override {
+        auto& overlay = get_ams_edit_overlay();
+        lv_obj_t* root = overlay.get_root();
+        if (root && NavigationManager::instance().is_panel_in_stack(root)) {
+            AmsEditOverlayViewTestAccess(overlay).drop_completion();
+            close_editor_overlay();
+        }
+    }
+};
 
 SlotInfo untracked_slot() {
     SlotInfo info;
@@ -487,7 +548,7 @@ void poll_lane_once(helix::ams::LaneId lane) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "show_for_slot skips the identity-sync fetch when Spoolman is unavailable",
                  "[ams_edit_overlay][card][spoolman]") {
     // A Spoolman-less printer must not fire a doomed identity-sync fetch (one
@@ -549,7 +610,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "color view from spool-edit stages the pending color and returns there",
                  "[ams_edit_overlay][color_view]") {
     auto& overlay = get_ams_edit_overlay();
@@ -581,7 +642,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "custom color view opens on the slot's black, not the grey sentinel",
                  "[ams_edit_overlay][color][1608]") {
     auto& overlay = get_ams_edit_overlay();
@@ -656,16 +717,14 @@ std::vector<SpoolInfo> three_spools() {
     return spools;
 }
 
-/// Spool ids of the picker rows that read as "linked to this slot": the
-/// checked highlight or the visible check mark, either one alone counts.
-std::vector<int> marked_spool_ids(lv_obj_t* list) {
+/// Spool ids, of @p listed in list order, whose row's Use is disabled.
+std::vector<int> unusable_spool_ids(lv_obj_t* list, const std::vector<int>& listed) {
     std::vector<int> ids;
-    for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
+    for (uint32_t i = 0; i < lv_obj_get_child_count(list) && i < listed.size(); ++i) {
         lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
-        lv_obj_t* check = lv_obj_find_by_name(row, "selected_icon");
-        const bool check_shown = check && !lv_obj_is_hidden(check);
-        if (lv_obj_has_state(row, LV_STATE_CHECKED) || check_shown) {
-            ids.push_back(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row))));
+        lv_obj_t* use = lv_obj_find_by_name(row, "row_use");
+        if (use && lv_obj_has_state(use, LV_STATE_DISABLED)) {
+            ids.push_back(listed[i]);
         }
     }
     return ids;
@@ -683,7 +742,7 @@ std::vector<int> marked_spool_ids(lv_obj_t* list) {
 // commit_slot_edit persists nothing (AmsBackendMock ignores the persist flag).
 // ============================================================================
 
-struct OverlayConsumerCommitFixture : LVGLUITestFixture {
+struct OverlayConsumerCommitFixture : EditorFixture {
     MoonrakerClientMock client;
     MoonrakerAPIMock api;
     AmsBackendMock* backend = nullptr;
@@ -1078,7 +1137,38 @@ TEST_CASE_METHOD(BoxWinsFixture, "moving a box-held lane to a third filament sti
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament name",
+TEST_CASE_METHOD(EditorFixture, "every listed spool is usable on a lane with no spool",
+                 "[ams_edit_overlay][picker][preselect]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    access.set_cached_spools(three_spools());
+    access.call_render_spool_list("");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 3);
+    CHECK(access.listed_ids() == std::vector<int>{11, 22, 33});
+    CHECK(unusable_spool_ids(list, access.listed_ids()).empty());
+
+    access.call_render_spool_list("abs");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(lv_obj_get_child_count(list) == 1);
+    CHECK(access.listed_ids() == std::vector<int>{33});
+    CHECK(unusable_spool_ids(list, access.listed_ids()).empty());
+
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
                  "[ams_edit_overlay][picker][spool_label]") {
     // Two spools of one vendor and material differ only by Spoolman's filament
     // name, so the row's primary label (the only text a compact row shows)
@@ -1121,27 +1211,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     REQUIRE(list != nullptr);
     REQUIRE(lv_obj_get_child_count(list) == 3);
 
+    // Rows follow the list order: 12, 13, 14.
+    REQUIRE(access.listed_ids() == std::vector<int>{12, 13, 14});
     const auto row_for = [list](int spool_id) -> lv_obj_t* {
-        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
-            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
-            if (reinterpret_cast<intptr_t>(lv_obj_get_user_data(row)) == spool_id) {
-                return row;
-            }
-        }
-        return nullptr;
+        return lv_obj_get_child(list, static_cast<int32_t>(spool_id - 12));
     };
-    const auto name_of = [&row_for](int spool_id) -> std::string {
+    const auto text_of = [&row_for](int spool_id, const char* name) -> std::string {
         lv_obj_t* row = row_for(spool_id);
         REQUIRE(row != nullptr);
-        lv_obj_t* label = lv_obj_find_by_name(row, "spool_name");
+        lv_obj_t* label = lv_obj_find_by_name(row, name);
         REQUIRE(label != nullptr);
         return lv_label_get_text(label);
     };
 
     // The vendor and material the filament name already contains are not repeated.
-    CHECK(name_of(12) == "#12 Kingroon Basic PETG Clear");
-    CHECK(name_of(13) == "#13 Kingroon Basic PETG White");
-    CHECK(name_of(14) == "#14 Polymaker PLA");
+    CHECK(text_of(12, "row_name") == "Kingroon Basic PETG Clear");
+    CHECK(text_of(13, "row_name") == "Kingroon Basic PETG White");
+    CHECK(text_of(14, "row_name") == "Polymaker PLA");
+    // The id and what is left go on the line under it.
+    CHECK(text_of(12, "row_detail") == "#12 · 750 g left");
+    CHECK(text_of(14, "row_detail") == "#14");
 
     // Only the linked spool's row is checked; a weight shows when Spoolman has one.
     auto part = [&row_for](int id, const char* name) {
@@ -1185,22 +1274,21 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
 
     // A label that holds the name but lays out zero-sized shows nothing.
     lv_obj_update_layout(list);
-    lv_obj_t* label = lv_obj_find_by_name(row_for(12), "spool_name");
+    lv_obj_t* label = lv_obj_find_by_name(row_for(12), "row_name");
     CHECK(lv_obj_get_height(label) > 0);
     CHECK(lv_obj_get_width(label) > 0);
-    // The name leaves room for the weight beside or below it, inside the
-    // details box that holds them both.
-    lv_obj_t* weight = lv_obj_find_by_name(row_for(12), "spool_weight");
-    lv_area_t details_area;
-    lv_area_t weight_area;
-    lv_obj_get_coords(lv_obj_get_parent(lv_obj_get_parent(weight)), &details_area);
-    lv_obj_get_coords(weight, &weight_area);
-    CHECK(weight_area.x2 <= details_area.x2);
+    // Use stays in the row, beside the text.
+    lv_obj_t* use = lv_obj_find_by_name(row_for(12), "row_use");
+    lv_area_t row_area;
+    lv_area_t use_area;
+    lv_obj_get_coords(row_for(12), &row_area);
+    lv_obj_get_coords(use, &use_area);
+    CHECK(use_area.x2 <= row_area.x2);
 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker search burst renders once, after the pause",
+TEST_CASE_METHOD(EditorFixture, "picker search burst renders once, after the pause",
                  "[ams_edit_overlay][picker][search]") {
     // Regression: every value_changed used to rebuild the whole spool list
     // synchronously - at a few hundred spools that froze the keyboard for the
@@ -1249,7 +1337,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker search burst renders once, after the
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker zero-match shows no-match state, not fetch-error retry",
+TEST_CASE_METHOD(EditorFixture, "picker zero-match shows no-match state, not fetch-error retry",
                  "[ams_edit_overlay][picker][search]") {
     // The empty-filter result and the failed fetch used to share state 1, so
     // a term that matches nothing flashed "No spools found - tap to retry"
@@ -1283,7 +1371,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker zero-match shows no-match state, not
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and closes the editor",
+TEST_CASE_METHOD(EditorFixture, "picker-entry spool selection commits and closes the editor",
                  "[ams_edit_overlay][picker][header_save]") {
     // Task #13: when the editor is opened directly on the picker (context-menu
     // "Select spool"), choosing a spool is a one-tap commit — apply + close the
@@ -1308,15 +1396,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and cl
         /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    // Select spool #22 (eSUN PETG) from the picker.
-    access.call_handle_spool_selected(22);
+    // Use spool #22 (eSUN PETG) from the list.
+    access.use_spool(22);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -1331,7 +1419,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and cl
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "the editor header names the position in the active backend's own word",
+                 "the editor subtitle names the position in the active backend's own word",
                  "[ams_edit_overlay][i18n]") {
     // The fixture registers an AmsBackendMock, which reports Happy Hare, whose
     // noun is Gate. The title a user reads above the editor has to be the same
@@ -1347,11 +1435,10 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    // header_bar's title carries text_transform="uppercase", so the rendered
-    // string is the composed title in caps.
-    lv_obj_t* title = access.widget("header_title");
-    REQUIRE(title != nullptr);
-    CHECK(std::string(lv_label_get_text(title)) == "GATE 3");
+    // The subtitle under the title names the lane.
+    lv_obj_t* subtitle = access.widget("subtitle");
+    REQUIRE(subtitle != nullptr);
+    CHECK(std::string(lv_label_get_text(subtitle)).rfind("Gate 3", 0) == 0);
     close_editor_overlay();
 
     // A tool changer's lane is the tool, spelled in the tool number style.
@@ -1360,7 +1447,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     SettingsManager::instance().set_tool_number_style_setting(ToolNumberStyleSetting::Gcode);
     REQUIRE(overlay.show_for_slot(test_screen(), 2, info, nullptr, nullptr));
     UpdateQueue::instance().drain();
-    CHECK(std::string(lv_label_get_text(access.widget("header_title"))) == "T2");
+    CHECK(std::string(lv_label_get_text(access.widget("subtitle"))).rfind("T2", 0) == 0);
     SettingsManager::instance().set_tool_number_style_setting(ToolNumberStyleSetting::Auto);
     close_editor_overlay();
 }
@@ -1407,7 +1494,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
@@ -1415,7 +1502,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     process_lvgl(10);
 
     // Switch the link to spool #22 (eSUN PETG) — a different material/color.
-    access.call_handle_spool_selected(22);
+    access.use_spool(22);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -1439,11 +1526,10 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "two-step relink header Save never prompts or PATCHes the old spool",
+                 "Different Spool then Use never prompts or PATCHes the old spool",
                  "[ams_edit_overlay][filament_picker][picker][header_save]") {
-    // Task #16, two-step variant: reach the picker via Change Filament (not the
-    // one-tap entry), pick a different spool, return to the editor, then tap
-    // header Save. Same relink semantics: no confirm, no PATCH of the old spool.
+    // Task #16 through Edit Spool: Different Spool, then Use on another spool.
+    // Same relink semantics: no confirm, no PATCH of the old spool.
 
     SpoolInfo linked_a;
     linked_a.id = 7;
@@ -1473,24 +1559,17 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    access.call_switch_to_picker(); // Change-Filament entry: clears the shortcut
+    access.call_different_spool(); // Edit Spool's header: Different Spool
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
 
     access.set_cached_spools(two_spools());
     access.call_render_spool_list("");
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    access.call_handle_spool_selected(22); // stages the relink, returns to the editor
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewEditor);
-    REQUIRE_FALSE(fired); // not committed yet
-    REQUIRE(access.working_info().spoolman_id == 22);
-
-    access.call_handle_save(); // header Save on the editor
+    access.use_spool(22);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -1568,7 +1647,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     REQUIRE(client.spoolman_mock().get_mock_active_spool_id() == 169);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "editing the linked spool's identity (same spool) still prompts to confirm",
                  "[ams_edit_overlay][filament_picker]") {
     // Contrast with the relink cases: when spoolman_id is UNCHANGED and the
@@ -1634,7 +1713,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().capabilities_state().set_spoolman_available(false); // restore clean slate
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a linked slot still saves a color while Spoolman is offline",
+TEST_CASE_METHOD(EditorFixture, "a linked slot still saves a color while Spoolman is offline",
                  "[ams_edit_overlay][spool_edit][1653]") {
     // Colour is the lane's own, not the spool's, so the read-only identity does
     // not reach it: a swatch picked with Spoolman down still saves.
@@ -1677,144 +1756,131 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a linked slot still saves a color while Spo
     CHECK(captured.slot_info.brand == tracked_slot().brand);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "header-picker selection returns to the editor without closing",
+TEST_CASE_METHOD(EditorFixture, "Use after Different Spool links the lane and closes",
                  "[ams_edit_overlay][picker]") {
-    // Contrast with the picker-entry shortcut: reaching the picker via the header
-    // Spoolman button (switch_to_picker clears opened_on_picker_) keeps the two-step
-    // flow — a selection returns to the editor for review, no completion.
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
-    lv_subject_set_int(spoolman_subj, 1);
+    lv_subject_set_int(spoolman_subj, 0); // the local-close branch, no PATCH seam
 
     bool fired = false;
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr,
-                                  [&](const AmsEditOverlay::EditResult&) { fired = true; }));
+    AmsEditOverlay::EditResult captured;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, tracked_slot(), nullptr,
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      fired = true;
+                                      captured = r;
+                                  }));
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
 
-    access.call_switch_to_picker(); // Change-Filament entry: clears the shortcut
+    access.call_different_spool();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
 
     access.set_cached_spools(two_spools());
-    access.call_render_spool_list("");
+    access.use_spool(22);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    access.call_handle_spool_selected(22);
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    CHECK(access.view() == AmsEditOverlay::kViewEditor);
-    CHECK_FALSE(fired); // no commit — the editor's header Save commits later
-    CHECK(access.working_info().spoolman_id == 22); // staged, awaiting review
-
-    close_editor_overlay();
+    CHECK(fired);
+    CHECK(captured.saved);
+    CHECK(captured.slot_info.spoolman_id == 22);
+    CHECK(captured.slot_info.material == "PETG");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker always offers the setup entry",
+TEST_CASE_METHOD(EditorFixture, "Assign Spool always offers a way to add the spool",
                  "[ams_edit_overlay][picker][setup_entry]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
 
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
-                                  /*open_on_picker=*/true));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    lv_obj_t* entry = access.widget("picker_setup_entry");
-    REQUIRE(entry != nullptr);
-    // Present regardless of picker fetch state (loading/empty/content) —
-    // it is the only path forward when the spool list is empty.
-    CHECK_FALSE(lv_obj_is_hidden(entry));
-    CHECK(lv_obj_is_clickable(entry));
-
-    close_editor_overlay();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "picker marks the slot's linked spool and pins it first",
-                 "[ams_edit_overlay][picker][preselect]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
-    // No link: no row marked, Spoolman's order kept. Spool 33 is last, so a link moves it up.
-    const int linked_id = GENERATE(0, 33);
-    CAPTURE(linked_id);
-    SlotInfo linked = linked_id ? tracked_slot() : untracked_slot();
-    linked.spoolman_id = linked_id;
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, linked, nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    access.set_cached_spools(three_spools());
-    lv_obj_t* list = access.widget("picker_spool_list");
-    REQUIRE(list != nullptr);
-    const auto rows_for = [&](const char* filter) {
-        access.call_render_spool_list(filter);
+    SECTION("spools listed: the outlined Add New") {
+        lv_subject_set_int(spoolman_subj, 1);
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
+                                      /*open_on_picker=*/true));
+        UpdateQueue::instance().drain();
+        access.set_cached_spools(two_spools());
+        access.call_render_spool_list("");
+        process_lvgl(10);
+        CHECK(access.shown("btn_add_new"));
+        CHECK_FALSE(access.shown("btn_assign_primary"));
+        CHECK_FALSE(access.shown("btn_assign_local"));
+    }
+    SECTION("nothing listed: Add to Spoolman & Assign, and the local link") {
+        lv_subject_set_int(spoolman_subj, 1);
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
+                                      /*open_on_picker=*/true));
+        UpdateQueue::instance().drain();
+        access.set_cached_spools(two_spools());
+        access.call_render_spool_list("zzzz nothing matches");
+        process_lvgl(10);
+        CHECK(access.shown("btn_assign_primary"));
+        CHECK(access.shown("link_assign_local"));
+        CHECK_FALSE(access.shown("btn_add_new"));
+    }
+    SECTION("no Spoolman: Assign") {
+        lv_subject_set_int(spoolman_subj, 0);
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr,
+                                      /*open_on_picker=*/true));
         UpdateQueue::instance().drain();
         process_lvgl(10);
-        std::vector<int> ids;
-        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
-            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
-            ids.push_back(static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row))));
-        }
-        return ids;
-    };
-
-    CHECK(rows_for("") ==
-          (linked_id ? std::vector<int>{33, 11, 22} : std::vector<int>{11, 22, 33}));
-    CHECK(marked_spool_ids(list) == std::vector<int>(linked_id ? 1 : 0, 33));
-
-    // Spools 22 and 33 are both eSUN: the linked one still leads the survivors.
-    CHECK(rows_for("esun") == (linked_id ? std::vector<int>{33, 22} : std::vector<int>{22, 33}));
-    CHECK(marked_spool_ids(list) == std::vector<int>(linked_id ? 1 : 0, 33));
-
-    // The search applies to the linked spool too: filtered out, nothing is marked.
-    CHECK(rows_for("polymaker") == std::vector<int>{11});
-    CHECK(marked_spool_ids(list).empty());
+        CHECK(access.shown("btn_assign_local"));
+        CHECK_FALSE(access.shown("btn_assign_primary"));
+        CHECK_FALSE(access.shown("link_assign_local"));
+        // The common spools a fresh install starts from.
+        CHECK(access.shown("common_spools"));
+    }
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "header Save shows on the editor, hides on picker/color",
+TEST_CASE_METHOD(EditorFixture,
+                 "an empty lane opens on Assign Spool and a filled one on Edit Spool",
                  "[ams_edit_overlay][views]") {
+    // The Save gate reads the lane-records subject, which must exist when the
+    // editor is built, as it does in the app.
+    AmsState::instance().init_subjects(true);
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    auto* hide_subj = lv_xml_get_subject(nullptr, "ams_edit_save_hidden");
-    REQUIRE(hide_subj != nullptr);
-    auto* save_dis = lv_xml_get_subject(nullptr, "ams_edit_save_disabled");
-    REQUIRE(save_dis != nullptr);
-    REQUIRE(lv_subject_get_int(hide_subj) == 0); // editor: visible
-
-    access.call_set_view(AmsEditOverlay::kViewSpoolPicker);
-    REQUIRE(lv_subject_get_int(hide_subj) == 1); // picker: hidden
-
-    // Editor: Save stays VISIBLE and is disabled while nothing is dirty —
-    // the dropdowns stage into working_info_ only through Save.
-    access.call_set_view(AmsEditOverlay::kViewEditor);
-    REQUIRE(lv_subject_get_int(hide_subj) == 0);
-    REQUIRE_FALSE(access.is_dirty());
-    CHECK(lv_subject_get_int(save_dis) == 1);
-
-    access.call_set_view(AmsEditOverlay::kViewColor);
-    REQUIRE(lv_subject_get_int(hide_subj) == 1); // color: hidden
-
-    access.call_set_view(AmsEditOverlay::kViewEditor);
-    REQUIRE(lv_subject_get_int(hide_subj) == 0);
-    // Overview: dirty-gated — a clean slot keeps Save disabled.
-    CHECK(lv_subject_get_int(save_dis) == 1);
-
+    SECTION("empty lane") {
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        CHECK(access.mode() == AmsEditOverlay::kModeAssign);
+        CHECK(std::string(lv_label_get_text(access.widget("header_title"))) == "ASSIGN SPOOL");
+        CHECK(access.shown("spools_column"));
+        CHECK_FALSE(access.shown("edit_column"));
+        CHECK(access.shown("size_row"));
+    }
+    SECTION("lane with a spool") {
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        CHECK(access.mode() == AmsEditOverlay::kModeEdit);
+        CHECK(std::string(lv_label_get_text(access.widget("header_title"))) == "EDIT SPOOL");
+        CHECK(access.shown("edit_column"));
+        CHECK(access.shown("btn_hdr_different_spool"));
+        CHECK_FALSE(access.shown("spools_column"));
+        // Save is dirty-gated: a clean lane keeps it shut, an edit opens it.
+        lv_subject_t* records = lv_xml_get_subject(nullptr, "ams_lane_records_ready");
+        REQUIRE(records != nullptr);
+        lv_subject_set_int(records, 1);
+        REQUIRE_FALSE(access.is_dirty());
+        UpdateQueue::instance().drain();
+        CHECK(lv_obj_has_state(access.widget("btn_edit_save"), LV_STATE_DISABLED));
+        access.call_apply_weight(321);
+        UpdateQueue::instance().drain();
+        CHECK_FALSE(lv_obj_has_state(access.widget("btn_edit_save"), LV_STATE_DISABLED));
+    }
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "weightless slot opens clean — no fabricated weights",
+TEST_CASE_METHOD(EditorFixture, "weightless slot opens clean — no fabricated weights",
                  "[ams_edit_overlay][dirty]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -1879,8 +1945,7 @@ TEST_CASE("build_spool_patches splits spool-level vs filament-level fields",
     CHECK(empty_filament.empty());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a failed Spoolman save keeps the editor open and commits nothing",
+TEST_CASE_METHOD(EditorFixture, "a failed Spoolman save keeps the editor open and commits nothing",
                  "[ams_edit_overlay][spool_edit]") {
     // A save that did not reach Spoolman has changed nothing anywhere, so the
     // editor stays on the user's edit rather than closing on a local commit
@@ -1933,8 +1998,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a failed Spoolman write keeps the editor open on the staged edit",
+TEST_CASE_METHOD(EditorFixture, "a failed Spoolman write keeps the editor open on the staged edit",
                  "[ams_edit_overlay][spoolman][failure]") {
     // A weight-only edit (spool-level, no identity move) reaches the Spoolman
     // write with no prompt - and with every request failing, nothing is
@@ -1989,7 +2053,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "an incomplete new spool keeps the editor open and names what is missing",
                  "[ams_edit_overlay][spool_edit]") {
     // "It's a new spool" creates a filament, and Spoolman identifies one by
@@ -2210,7 +2274,7 @@ TEST_CASE("selection_from_slot splits family/variant/brand", "[ams_edit_overlay]
     CHECK(blank.brand == "Generic");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "apply_family_change pins the brand/variant reset rules",
+TEST_CASE_METHOD(EditorFixture, "apply_family_change pins the brand/variant reset rules",
                  "[ams_edit_overlay][dropdown]") {
     auto catalog = helix::printer::FilamentCatalog::load_full();
 
@@ -2252,8 +2316,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "apply_family_change pins the brand/variant 
     CHECK(dropped.variant == "Basic");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "editor dropdowns publish families, variants, Generic-first brands",
+TEST_CASE_METHOD(EditorFixture, "editor dropdowns publish families, variants, Generic-first brands",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2297,7 +2360,7 @@ std::vector<std::string> split_options(const std::string& options) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "every identity dropdown stages its pick through value_changed",
+TEST_CASE_METHOD(EditorFixture, "every identity dropdown stages its pick through value_changed",
                  "[ams_edit_overlay][dropdown][callback]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2314,9 +2377,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every identity dropdown stages its pick thr
     CHECK(access.save_disabled() == 0);
 
     // Variant, through the split layout's twin: both layouts are wired.
-    const auto variants = split_options(access.dropdown_options("dropdown_variant_split"));
+    const auto variants = split_options(access.dropdown_options("dropdown_variant"));
     REQUIRE(variants.size() > 1);
-    REQUIRE(access.pick_dropdown("dropdown_variant_split", variants[1]));
+    REQUIRE(access.pick_dropdown("dropdown_variant", variants[1]));
     process_lvgl(5);
     CHECK(access.sel().variant == variants[1]);
 
@@ -2343,7 +2406,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every identity dropdown stages its pick thr
 // open+save keeps it: an unknown family, or a product named without a catalog
 // id (the CFS fork's NAME), which opens on that product rather than the
 // brand's first line.
-TEST_CASE_METHOD(LVGLUITestFixture, "values the catalog cannot place open selected",
+TEST_CASE_METHOD(EditorFixture, "values the catalog cannot place open selected",
                  "[ams_edit_overlay][dropdown][product]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2391,7 +2454,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "values the catalog cannot place open select
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
+TEST_CASE_METHOD(EditorFixture, "weight pill keypad stages remaining grams",
                  "[ams_edit_overlay][weight]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2424,7 +2487,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a new spool on an unweighed lane saves as 1 kg",
+TEST_CASE_METHOD(EditorFixture, "a new spool on an unweighed lane saves as 1 kg",
                  "[ams_edit_overlay][weight][afc-edit-echo]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2458,8 +2521,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a new spool on an unweighed lane saves as 1
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "relabelling a lane that already had a material keeps its weight",
+TEST_CASE_METHOD(EditorFixture, "relabelling a lane that already had a material keeps its weight",
                  "[ams_edit_overlay][weight][afc-edit-echo]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2478,7 +2540,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Reset to tag restores identity, not just the colour",
+TEST_CASE_METHOD(EditorFixture, "Reset to tag restores identity, not just the colour",
                  "[ams_edit_overlay][dropdown][tag]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2540,7 +2602,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Reset to tag restores identity, not just th
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a dropdown pick refreshes the temperature line",
+TEST_CASE_METHOD(EditorFixture, "a dropdown pick refreshes the temperature line",
                  "[ams_edit_overlay][dropdown][r10]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2568,7 +2630,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a dropdown pick refreshes the temperature l
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a More-section edit lights Save and stages on it",
+TEST_CASE_METHOD(EditorFixture, "a More-section edit lights Save and stages on it",
                  "[ams_edit_overlay][more]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2595,7 +2657,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a More-section edit lights Save and stages 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the open More section scrolls into reach, unclipped",
+TEST_CASE_METHOD(EditorFixture, "the open More section scrolls into reach, unclipped",
                  "[ams_edit_overlay][more]") {
     // The More toggle exists only on a Spoolman-linked slot.
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
@@ -2645,7 +2707,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the open More section scrolls into reach, u
     process_lvgl(10);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a picker relink reseeds the More section to the new spool",
+TEST_CASE_METHOD(EditorFixture, "a scanned relink reseeds the More section to the new spool",
                  "[ams_edit_overlay][more][relink]") {
     // The More fields must describe the spool the slot NOW names, and the
     // Save PATCH must target that spool's record, never the one the editor
@@ -2676,9 +2738,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a picker relink reseeds the More section to
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    // Relink to spool B through the picker path.
-    access.set_cached_spools({spool_b});
-    access.call_handle_spool_selected(22);
+    // Relink to spool B by scanning its label.
+    access.scan_spool(spool_b);
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -2708,7 +2769,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a picker relink reseeds the More section to
     UpdateQueue::instance().drain();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a combined material+notes save loses neither",
+TEST_CASE_METHOD(EditorFixture, "a combined material+notes save loses neither",
                  "[ams_edit_overlay][more][combined]") {
     // The identity prompt owns the save, and the Notes edit rides the
     // Update arm instead of being dropped.
@@ -2779,7 +2840,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a combined material+notes save loses neithe
     UpdateQueue::instance().drain();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a linked slot's family change refreshes the temps line",
+TEST_CASE_METHOD(EditorFixture, "a linked slot's family change refreshes the temps line",
                  "[ams_edit_overlay][r10][linked]") {
     // A linked slot carries its spool's stored range; a family pick must
     // show the picked family's range, not the stored one.
@@ -2860,7 +2921,7 @@ void set_spoolman_available(bool available) {
 } // namespace
 
 /// The UI fixture plus a mock printer and API of the case's own.
-struct MockApiUiFixture : LVGLUITestFixture {
+struct MockApiUiFixture : EditorFixture {
     PrinterState state;
     MoonrakerClientMock client;
     MoonrakerAPIMock api{client, state};
@@ -2892,8 +2953,7 @@ TEST_CASE_METHOD(MockApiUiFixture, "a relink never carries the old spool's More 
     process_lvgl(10);
     REQUIRE(access.field_text("detail_field_location") == "Dry box 1");
 
-    access.set_cached_spools({spool_b});
-    access.call_handle_spool_selected(22);
+    access.scan_spool(spool_b);
     // Before B's record lands the fields are blank, not A's.
     CHECK(access.field_text("detail_field_location").empty());
     CHECK(access.field_text("detail_field_comment").empty());
@@ -2943,8 +3003,7 @@ TEST_CASE_METHOD(MockApiUiFixture, "a late spool record never overwrites a relin
     other.id = 31;
     other.vendor = "Sunlu";
     other.material = "PETG";
-    access.set_cached_spools({other});
-    access.call_handle_spool_selected(31);
+    access.scan_spool(other);
     UpdateQueue::instance().drain();
     process_lvgl(10);
     CHECK(access.working_info().spoolman_id == 31);
@@ -2954,7 +3013,8 @@ TEST_CASE_METHOD(MockApiUiFixture, "a late spool record never overwrites a relin
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry then Back builds the editor from this slot alone",
+TEST_CASE_METHOD(EditorFixture,
+                 "pick-a-spool entry then Back builds Edit Spool from this slot alone",
                  "[ams_edit_overlay][picker][session]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2973,13 +3033,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry then Back builds the editor fr
     REQUIRE(overlay.show_for_slot(test_screen(), 1, untracked_slot(), nullptr, nullptr, true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    REQUIRE(access.view() == AmsEditOverlay::kViewSpoolPicker);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
     CHECK_FALSE(access.has_tag());
     access.call_handle_back();
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
+    // Back on a pick-a-spool entry returns to the lane's own spool.
     CHECK(access.view() == AmsEditOverlay::kViewEditor);
+    CHECK(access.mode() == AmsEditOverlay::kModeEdit);
     CHECK(access.sel().family == "PETG");
     CHECK(access.sel().brand == "Generic");
     CHECK(access.dropdown_selected("dropdown_material") == "PETG");
@@ -2992,7 +3054,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry then Back builds the editor fr
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the editor reopens while its last close is still sliding out",
+TEST_CASE_METHOD(EditorFixture, "the editor reopens while its last close is still sliding out",
                  "[ams_edit_overlay][session]") {
     // Overlays slide out only on the full-effects tier with animations on.
     ScopedTier tier(helix::PlatformTier::STANDARD);
@@ -3040,34 +3102,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor reopens while its last close is 
     display.set_animations_enabled(animations_were_enabled);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "leaving the picker keeps the edits staged in the editor",
-                 "[ams_edit_overlay][picker][session]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
-    access.set_detail_field("detail_field_comment", "keep dry");
-    access.call_switch_to_picker();
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    // "Not in your spools? Set it up" returns to the editor, edits intact.
-    access.click("picker_setup_entry");
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    CHECK(access.view() == AmsEditOverlay::kViewEditor);
-    CHECK(access.sel().family == "PLA");
-    CHECK(access.detail_comment() == "keep dry");
-    CHECK(access.is_dirty());
-
-    access.set_detail_field("detail_field_comment", "");
-    close_editor_overlay();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "a save in flight holds Back and the keypad shut",
+TEST_CASE_METHOD(EditorFixture, "a save in flight holds Back and the keypad shut",
                  "[ams_edit_overlay][save][session]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3132,7 +3167,7 @@ TEST_CASE_METHOD(MockApiUiFixture, "a Spoolman save completes even if the editor
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "an untracked slot on a Spoolman printer shows the Add link",
+TEST_CASE_METHOD(EditorFixture, "Edit Spool shows Spoolman's parts only for a linked spool",
                  "[ams_edit_overlay][more][add_link]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3141,30 +3176,31 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an untracked slot on a Spoolman printer sho
     REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(access.shown("add_to_spoolman_link"));
     CHECK_FALSE(access.shown("more_row")); // the logistics fields are Spoolman's
+    CHECK_FALSE(access.shown("saves_to"));
     close_editor_overlay();
 
-    // Linked: the toggle shows and the link does not.
+    // Linked: the toggle shows, and Save says where it writes.
     REQUIRE(overlay.show_for_slot(test_screen(), 0, tracked_slot(), nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK_FALSE(access.shown("add_to_spoolman_link"));
     CHECK(access.shown("more_row"));
+    REQUIRE(access.shown("saves_to"));
+    CHECK(std::string(lv_label_get_text(access.widget("saves_to"))) ==
+          "Saves to Spoolman spool #7");
     close_editor_overlay();
 
-    // No Spoolman: neither, and the bar is left holding only Clear Spool.
+    // No Spoolman: neither, and Clear Lane stays.
     set_spoolman_available(false);
     REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK_FALSE(access.shown("add_to_spoolman_link"));
     CHECK_FALSE(access.shown("more_row"));
     CHECK(access.shown("btn_clear_spool"));
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a price the field rounds does not make the editor dirty",
+TEST_CASE_METHOD(EditorFixture, "a price the field rounds does not make the editor dirty",
                  "[ams_edit_overlay][more][price]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3187,7 +3223,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a price the field rounds does not make the 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a material with few makers lists Generic once",
+TEST_CASE_METHOD(EditorFixture, "a material with few makers lists Generic once",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3216,7 +3252,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a material with few makers lists Generic on
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picking Browse catalog opens the catalog sheet",
+TEST_CASE_METHOD(EditorFixture, "picking Browse catalog opens the catalog sheet",
                  "[ams_edit_overlay][dropdown][callback]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3283,8 +3319,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    // Header Save, through its XML-registered callback.
-    lv_obj_t* save = access.widget("action_button");
+    // Save, through its XML-registered callback.
+    lv_obj_t* save = access.widget("btn_edit_save");
     REQUIRE(save != nullptr);
     REQUIRE(access.save_disabled() == 0);
     lv_obj_send_event(save, LV_EVENT_CLICKED, nullptr);
@@ -3300,7 +3336,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
     CHECK(backend->get_slot_info(0).color_rgb == 0x1E88E5);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a variant the catalog lacks shows as the selected entry",
+TEST_CASE_METHOD(EditorFixture, "a variant the catalog lacks shows as the selected entry",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3317,8 +3353,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a variant the catalog lacks shows as the se
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Browse catalog leaves the row intact and a pick sets the temps",
+TEST_CASE_METHOD(EditorFixture, "Browse catalog leaves the row intact and a pick sets the temps",
                  "[ams_edit_overlay][dropdown][browse][2029]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3395,7 +3430,7 @@ int subject_int(const char* name) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "each field the tag states carries its own badge",
+TEST_CASE_METHOD(EditorFixture, "each field the tag states carries its own badge",
                  "[ams_edit_overlay][tag]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3440,23 +3475,27 @@ namespace {
 lv_obj_t* tag_pill_beside(AmsEditOverlayViewTestAccess& access, const char* dropdown) {
     lv_obj_t* dd = access.widget(dropdown);
     REQUIRE(dd != nullptr);
-    lv_obj_t* row = lv_obj_get_parent(dd);
-    for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
-        lv_obj_t* cell = lv_obj_get_child(row, static_cast<int32_t>(i));
-        if (lv_obj_get_child_count(cell) != 1) {
-            continue;
+    // The pill sits in the dropdown's grid cell, beside its label.
+    std::vector<lv_obj_t*> stack{lv_obj_get_parent(dd)};
+    while (!stack.empty()) {
+        lv_obj_t* obj = stack.back();
+        stack.pop_back();
+        if (lv_obj_get_child_count(obj) == 1) {
+            lv_obj_t* text = lv_obj_get_child(obj, 0);
+            if (lv_obj_check_type(text, &lv_label_class) &&
+                std::string(lv_label_get_text(text)) == "from tag") {
+                return obj;
+            }
         }
-        lv_obj_t* text = lv_obj_get_child(cell, 0);
-        if (lv_obj_check_type(text, &lv_label_class) &&
-            std::string(lv_label_get_text(text)) == "from tag") {
-            return cell;
+        for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+            stack.push_back(lv_obj_get_child(obj, static_cast<int32_t>(i)));
         }
     }
     return nullptr;
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the material and brand rows show their from-tag pill",
+TEST_CASE_METHOD(EditorFixture, "the material and brand rows show their from-tag pill",
                  "[ams_edit_overlay][tag]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3475,8 +3514,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the material and brand rows show their from
     process_lvgl(5);
 
     // Both layouts carry the pills; only the breakpoint decides which shows.
-    for (const char* dd : {"dropdown_material", "dropdown_material_split", "dropdown_brand",
-                           "dropdown_brand_split"}) {
+    for (const char* dd : {"dropdown_material", "dropdown_brand"}) {
         INFO(dd);
         lv_obj_t* pill = tag_pill_beside(access, dd);
         REQUIRE(pill != nullptr);
@@ -3487,12 +3525,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the material and brand rows show their from
     REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
     process_lvgl(5);
     CHECK(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_material")));
-    CHECK(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_material_split")));
     CHECK_FALSE(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_brand")));
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picking another colour drops the colour's from-tag badge",
+TEST_CASE_METHOD(EditorFixture, "picking another colour drops the colour's from-tag badge",
                  "[ams_edit_overlay][tag][color]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3522,7 +3559,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picking another colour drops the colour's f
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a colour no visible preset holds rings the custom tile",
+TEST_CASE_METHOD(EditorFixture, "a colour no visible preset holds rings the custom tile",
                  "[ams_edit_overlay][color]") {
     auto& overlay = get_ams_edit_overlay();
     SlotInfo info = untracked_slot();
@@ -3534,7 +3571,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a colour no visible preset holds rings the 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the More section opens collapsed in every session",
+TEST_CASE_METHOD(EditorFixture, "the More section opens collapsed in every session",
                  "[ams_edit_overlay][more][session]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3602,7 +3639,7 @@ TEST_CASE_METHOD(MockApiUiFixture, "a cover that drops the open-time fetches re-
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the editor's non-swatch targets reach 44px",
+TEST_CASE_METHOD(EditorFixture, "the editor's non-swatch targets reach 44px",
                  "[ams_edit_overlay][touch]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3615,6 +3652,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor's non-swatch targets reach 44px"
     };
 
     set_spoolman_available(true);
+    // Edit Spool.
     REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -3624,9 +3662,28 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor's non-swatch targets reach 44px"
     process_lvgl(5);
     check_44("btn_custom_color");
     check_44("weight_pill");
-    check_44("add_to_spoolman_link");
+    check_44("btn_remaining_minus");
+    check_44("btn_remaining_plus");
     check_44("btn_reset_tag");
+    check_44("btn_clear_spool");
     lv_subject_set_int(reset_visible, 0);
+    close_editor_overlay();
+
+    // Assign Spool: the size chips and the bottom actions.
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools({});
+    access.call_render_spool_list("");
+    process_lvgl(5);
+    for (const char* chip : {"size_chip_0", "size_chip_1", "size_chip_2", "size_chip_3"}) {
+        check_44(chip);
+    }
+    check_44("link_assign_local");
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("");
+    process_lvgl(5);
+    check_44("btn_add_new");
     close_editor_overlay();
 
     REQUIRE(overlay.show_for_slot(test_screen(), 0, tracked_slot(), nullptr, nullptr));
@@ -3652,8 +3709,7 @@ int y_centre(lv_obj_t* obj) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "the header's icon buttons are round targets on the title's line",
+TEST_CASE_METHOD(EditorFixture, "the header's labeled buttons are full targets on the title's line",
                  "[ams_edit_overlay][touch][header]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3669,14 +3725,10 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* title = access.widget("header_title");
     REQUIRE(title != nullptr);
     lv_obj_update_layout(title);
-    for (const char* name : {"btn_hdr_spoolman", "btn_hdr_scan_qr"}) {
+    for (const char* name : {"btn_hdr_different_spool", "btn_hdr_scan_qr"}) {
         INFO(name);
         REQUIRE(access.shown(name));
         lv_obj_t* btn = access.widget(name);
-        // A filled circle, so it reads as a button and not a bare glyph.
-        CHECK(lv_obj_get_width(btn) == lv_obj_get_height(btn));
-        CHECK(lv_obj_get_style_bg_opa(btn, LV_PART_MAIN) == LV_OPA_COVER);
-        CHECK(lv_obj_get_style_radius(btn, LV_PART_MAIN) >= lv_obj_get_height(btn) / 2);
         // A full touch target, all of it inside the parent's box: LVGL
         // never hit-tests a child outside its parent.
         const lv_area_t hit = access.click_area(name);
@@ -3688,7 +3740,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         CHECK(std::abs(y_centre(btn) - y_centre(title)) <= 2);
     }
     // The two targets meet without overlapping, so neither steals the other's taps.
-    const lv_area_t a = access.click_area("btn_hdr_spoolman");
+    const lv_area_t a = access.click_area("btn_hdr_different_spool");
     const lv_area_t b = access.click_area("btn_hdr_scan_qr");
     CHECK(a.x2 < b.x1);
 
@@ -3702,7 +3754,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "every colour swatch's reach is inside the grid and its own",
+TEST_CASE_METHOD(EditorFixture, "every colour swatch's reach is inside the grid and its own",
                  "[ams_edit_overlay][touch][color][grid]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3735,7 +3787,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every colour swatch's reach is inside the g
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "colour swatches keep a 7mm pitch on every class's panel",
+TEST_CASE_METHOD(EditorFixture, "colour swatches keep a 7mm pitch on every class's panel",
                  "[ams_edit_overlay][touch][color][grid]") {
     struct Panel {
         int32_t w;
@@ -3833,7 +3885,7 @@ void check_color_view_static(AmsEditOverlayViewTestAccess& access) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "the colour view shows presets and picker together only where both fit",
                  "[ams_edit_overlay][color][touch]") {
     struct Size {
@@ -3910,7 +3962,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "reopening the colour view keeps its preset grid instead of rebuilding it",
                  "[ams_edit_overlay][color]") {
     // 480x320 is a one-pane size: the fit verdict is 0, the subject's
@@ -3961,7 +4013,7 @@ TEST_CASE("grid_preset_count fills whole rows less the custom tile",
     CHECK(AmsEditOverlay::grid_preset_count(132, 0, 14, 3, 30) == 0);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the colour grid wraps inside the editor's width",
+TEST_CASE_METHOD(EditorFixture, "the colour grid wraps inside the editor's width",
                  "[ams_edit_overlay][color][grid]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -4115,8 +4167,7 @@ TEST_CASE("color_ring_index rings custom only for a set colour no visible preset
     CHECK(AmsEditOverlay::slot_has_colour(bare_black)); // black PLA is a colour
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot rings no colour tile",
-                 "[ams_edit_overlay][color]") {
+TEST_CASE_METHOD(EditorFixture, "an unset slot rings no colour tile", "[ams_edit_overlay][color]") {
     auto& overlay = get_ams_edit_overlay();
     SlotInfo info = untracked_slot();
     info.material.clear();
@@ -4439,32 +4490,36 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     spools[1].id = 9002;
     spools[1].material = "PETG";
 
-    const auto disabled = [](lv_obj_t* list, int spool_id) {
-        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
-            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
-            if (reinterpret_cast<intptr_t>(lv_obj_get_user_data(row)) == spool_id) {
-                return lv_obj_has_state(row, LV_STATE_DISABLED);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    // Whether the row listing @p spool_id offers no Use.
+    const auto disabled = [&access](lv_obj_t* list, int spool_id) {
+        const std::vector<int> ids = access.listed_ids();
+        for (size_t i = 0; i < ids.size(); ++i) {
+            if (ids[i] == spool_id) {
+                lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
+                return lv_obj_has_state(lv_obj_find_by_name(row, "row_use"), LV_STATE_DISABLED);
             }
         }
         FAIL("no row for spool " << spool_id);
         return false;
     };
 
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-
     // The external spool feeds through no lane, so every lane's spool is taken.
     bool external = false;
     SECTION("the lane's own editor") {
         SlotInfo lane = backend->get_slot_info(2);
         lane.spoolman_id = 9001;
-        REQUIRE(overlay.show_for_slot(test_screen(), 2, lane, nullptr, nullptr));
+        REQUIRE(overlay.show_for_slot(test_screen(), 2, lane, nullptr, nullptr,
+                                      /*open_on_picker=*/true));
     }
     SECTION("the external spool's editor") {
         external = true;
         SlotInfo info;
         info.slot_index = kExternalSpoolSlot;
-        REQUIRE(overlay.show_for_slot(test_screen(), kExternalSpoolSlot, info, nullptr, nullptr));
+        REQUIRE(overlay.show_for_slot(test_screen(), kExternalSpoolSlot, info, nullptr, nullptr,
+                                      /*open_on_picker=*/true));
     }
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -4514,19 +4569,21 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     spools[1].id = 9003;
     spools[1].material = "PETG";
 
-    const auto disabled = [](lv_obj_t* list, int spool_id) {
-        for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
-            lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
-            if (reinterpret_cast<intptr_t>(lv_obj_get_user_data(row)) == spool_id) {
-                return lv_obj_has_state(row, LV_STATE_DISABLED);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    // Whether the row listing @p spool_id offers no Use.
+    const auto disabled = [&access](lv_obj_t* list, int spool_id) {
+        const std::vector<int> ids = access.listed_ids();
+        for (size_t i = 0; i < ids.size(); ++i) {
+            if (ids[i] == spool_id) {
+                lv_obj_t* row = lv_obj_get_child(list, static_cast<int32_t>(i));
+                return lv_obj_has_state(lv_obj_find_by_name(row, "row_use"), LV_STATE_DISABLED);
             }
         }
         FAIL("no row for spool " << spool_id);
         return false;
     };
-
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
 
     int slot = 0;
     SECTION("the lane on the tool") {
@@ -4535,8 +4592,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     SECTION("a loaded lane numbered past the tools") {
         slot = 2;
     }
-    REQUIRE(
-        overlay.show_for_slot(test_screen(), slot, backend->get_slot_info(slot), nullptr, nullptr));
+    REQUIRE(overlay.show_for_slot(test_screen(), slot, backend->get_slot_info(slot), nullptr,
+                                  nullptr, /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
@@ -4674,7 +4731,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when the editor opens",
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "the lane rows sit in view on open, or behind Lane Settings when small",
                  "[ams_edit_overlay][lane_settings][layout]") {
     lv_display_t* disp = lv_display_get_default();
     auto& overlay = get_ams_edit_overlay();
@@ -4692,6 +4750,14 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
             lv_obj_get_coords(content, &box);
             CAPTURE(w, h);
             CHECK(lv_obj_get_scroll_right(content) <= 0);
+            // The two smallest classes fold the rows behind Lane Settings.
+            const bool folded = access.shown("lane_toggle");
+            CHECK(folded == (w < 800));
+            if (folded) {
+                CHECK_FALSE(access.shown("lane_section"));
+                access.click("lane_toggle");
+                lv_obj_update_layout(content);
+            }
             for (const char* name : {"tool_dropdown", "backup_dropdown"}) {
                 INFO(name);
                 REQUIRE(access.shown(name));
@@ -4701,8 +4767,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
                 CHECK(dd.x2 <= box.x2);
                 // Reachable by scrolling, never past the scroller's extent.
                 CHECK(dd.y2 <= box.y2 + lv_obj_get_scroll_bottom(content));
-                // In view when the editor opens wherever one row holds both.
-                if (w > h) {
+                // In view when the editor opens wherever they are not folded.
+                if (!folded) {
                     CHECK(dd.y2 <= box.y2);
                 }
             }
@@ -4714,7 +4780,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
 
 // A spool that ran out has to come off the slot even while Spoolman is down,
 // and a printer with no filament system has no lane menu to do it from.
-TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off with Spoolman offline",
+TEST_CASE_METHOD(EditorFixture, "Clear takes a linked external spool off with Spoolman offline",
                  "[ams_edit_overlay][spool_edit][clear_spool]") {
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -4758,7 +4824,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off wit
     CHECK((!ext || (ext->spoolman_id == 0 && ext->material.empty())));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothing on it",
+TEST_CASE_METHOD(EditorFixture, "Clear is not offered for a slot with nothing on it",
                  "[ams_edit_overlay][spool_edit][clear_spool]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -4798,8 +4864,9 @@ TEST_CASE_METHOD(MockApiUiFixture,
     loaded.color_rgb = 0x4A4A4A;
     loaded.color_name = "Deep Gray";
     auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
     std::optional<SlotInfo> committed;
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, loaded, &api,
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, &api,
                                   [&](const AmsEditOverlay::EditResult& r) {
                                       if (r.saved) {
                                           committed = r.slot_info;
@@ -4807,8 +4874,10 @@ TEST_CASE_METHOD(MockApiUiFixture,
                                   }));
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    // Assign Spool describing the new spool.
+    access.set_working_info(loaded);
 
-    lv_obj_t* add = lv_obj_find_by_name(test_screen(), "add_to_spoolman_link");
+    lv_obj_t* add = lv_obj_find_by_name(test_screen(), "btn_assign_primary");
     REQUIRE(add != nullptr);
     lv_obj_send_event(add, LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
@@ -4926,7 +4995,7 @@ void settle() {
     }
 }
 
-struct SaveAckFixture : LVGLUITestFixture {
+struct SaveAckFixture : EditorFixture {
     MoonrakerClientMock client;
     MoonrakerAPIMock api;
     RecordBackedChanger* backend = nullptr;
@@ -5229,4 +5298,627 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         CHECK(variants_of("PLA").size() > 3);
     }
     close_editor_overlay();
+}
+// ============================================================================
+// Assign Spool: sizes, common spools, the local assign and its history, the
+// closing toast.
+// ============================================================================
+
+namespace {
+struct AssignCapture {
+    bool fired = false;
+    AmsEditOverlay::EditResult result;
+    AmsEditOverlay::CompletionCallback callback() {
+        return [this](const AmsEditOverlay::EditResult& r) {
+            fired = true;
+            result = r;
+        };
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(EditorFixture, "a new spool is assigned at the size its chip says",
+                 "[ams_edit_overlay][spool-assign]") {
+    set_spoolman_available(false);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    AssignCapture done;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, done.callback()));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    REQUIRE(access.pick_dropdown("dropdown_material", "PETG"));
+
+    float want_remaining = 0;
+    float want_total = 0;
+    SECTION("untouched: a full 1 kg spool") {
+        want_remaining = want_total = 1000;
+    }
+    SECTION("750 g") {
+        access.tap_size_chip(1);
+        want_remaining = want_total = 750;
+    }
+    SECTION("Partial: what is left of a 1 kg spool") {
+        access.call_apply_weight(400); // the keypad's answer to Partial...
+        CHECK(subject_int("ams_edit_size_chip") == 3);
+        want_remaining = 400;
+        want_total = 1000;
+    }
+    access.call_assign_local();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    REQUIRE(done.fired);
+    CHECK(done.result.saved);
+    CHECK(done.result.slot_info.material == "PETG");
+    CHECK(done.result.slot_info.remaining_weight_g == want_remaining);
+    CHECK(done.result.slot_info.total_weight_g == want_total);
+}
+
+TEST_CASE_METHOD(EditorFixture, "a common spool tile fills the form",
+                 "[ams_edit_overlay][spool-assign]") {
+    set_spoolman_available(false);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.shown("common_spools"));
+
+    // "ABS White": material-major, Black/White/Gray.
+    lv_obj_t* tile = access.widget("common_spool_7");
+    REQUIRE(tile != nullptr);
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    CHECK(access.dropdown_selected("dropdown_material") == "ABS");
+    CHECK(access.dropdown_selected("dropdown_brand") == "Generic");
+    CHECK(access.details_color_set());
+    CHECK(access.details_color() == 0xFFFFFF);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "without Spoolman an assigned filament is listed for the next empty lane",
+                 "[ams_edit_overlay][spool-assign]") {
+    set_spoolman_available(false);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    const auto commit = [this](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); };
+
+    // A pick-a-spool session on lane 1: nothing in the history yet.
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, backend->get_slot_info(0), &api, commit,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    REQUIRE(access.listed_ids().empty());
+    REQUIRE(access.pick_dropdown("dropdown_material", "ASA"));
+    access.call_apply_color(0x7F7F7F);
+    access.call_assign_local();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    REQUIRE(backend->get_slot_info(0).material == "ASA");
+
+    // The next session lists it, read back from the printer's database.
+    AssignCapture done;
+    REQUIRE(overlay.show_for_slot(test_screen(), 1, backend->get_slot_info(1), &api,
+                                  done.callback(), /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 1);
+    lv_obj_t* row = lv_obj_get_child(list, 0);
+    CHECK(std::string(lv_label_get_text(lv_obj_find_by_name(row, "row_name"))) == "ASA");
+
+    // Use describes the lane with it, linked to nothing.
+    lv_obj_send_event(lv_obj_find_by_name(row, "row_use"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(done.fired);
+    CHECK(done.result.slot_info.material == "ASA");
+    CHECK(done.result.slot_info.color_rgb == 0x7F7F7F);
+    CHECK(done.result.slot_info.spoolman_id == 0);
+}
+
+TEST_CASE_METHOD(EditorFixture, "Edit Spool's - and + step what is left, within the spool",
+                 "[ams_edit_overlay][spool-assign]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo lane = untracked_slot();
+    lane.total_weight_g = 1000;
+    lane.remaining_weight_g = 995;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, lane, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
+
+    lv_obj_send_event(access.widget("btn_remaining_plus"), LV_EVENT_CLICKED, nullptr);
+    CHECK(access.working_info().remaining_weight_g == 1000);
+    lv_obj_send_event(access.widget("btn_remaining_minus"), LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(access.widget("btn_remaining_minus"), LV_EVENT_CLICKED, nullptr);
+    CHECK(access.working_info().remaining_weight_g == 980);
+    CHECK(access.is_dirty());
+    access.set_working_info(lane);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "an assign closes with a toast whose Undo puts the lane back",
+                 "[ams_edit_overlay][spool-assign]") {
+    set_spoolman_available(false);
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+
+    const SlotInfo before = backend->get_slot_info(0);
+    REQUIRE(before.spoolman_id != 22);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, before, nullptr,
+        [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(backend->get_slot_info(0).spoolman_id == 22);
+
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts.back().find("eSUN PETG") != std::string::npos);
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == before.spoolman_id);
+    CHECK(backend->get_slot_info(0).material == before.material);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(EditorFixture,
+                 "a color pick on an empty lane describes a spool of the shown material",
+                 "[ams_edit_overlay][spool-assign]") {
+    set_spoolman_available(false);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    AssignCapture done;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, done.callback(),
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.dropdown_selected("dropdown_material") == "PLA");
+
+    // The list matches the material the dropdown shows, not the color alone.
+    SpoolInfo pla_white;
+    pla_white.id = 1;
+    pla_white.material = "PLA";
+    pla_white.color_hex = "FFFFFF";
+    SpoolInfo tpu_clear;
+    tpu_clear.id = 2;
+    tpu_clear.material = "TPU";
+    tpu_clear.color_hex = "F0F0F0";
+    access.set_cached_spools({pla_white, tpu_clear});
+    access.call_apply_color(0xFFFFFF);
+    access.call_render_spool_list("");
+    CHECK(access.listed_ids() == std::vector<int>{1});
+
+    access.call_assign_local();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(done.fired);
+    CHECK(done.result.slot_info.material == "PLA");
+    CHECK(done.result.slot_info.color_rgb == 0xFFFFFF);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "Assign Spool and Edit Spool fit 800x480 and 480x272 without a page scroll",
+                 "[ams_edit_overlay][spool-assign][layout]") {
+    lv_display_t* disp = lv_display_get_default();
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    // The loading line binds the lane-records subject, which exists in the app
+    // before the editor is built.
+    AmsState::instance().init_subjects(true);
+    lv_subject_t* records = lv_xml_get_subject(nullptr, "ams_lane_records_ready");
+    REQUIRE(records != nullptr);
+    for (const auto& [w, h] : {std::pair<int32_t, int32_t>{800, 480}, {480, 272}}) {
+        {
+            ScopedResolution res(disp, w, h);
+            theme_manager_refresh_layout_constants(disp);
+            CAPTURE(w, h);
+            // Measured with the lane records read: the loading line above the
+            // form shows only until they land.
+            const auto page_scroll = [&access, records] {
+                if (records) {
+                    lv_subject_set_int(records, 1);
+                }
+                UpdateQueue::instance().drain();
+                lv_obj_t* loading = access.widget("lane_records_loading");
+                REQUIRE(loading != nullptr);
+                REQUIRE(lv_obj_is_hidden(loading));
+                lv_obj_t* content = access.widget("overlay_content");
+                REQUIRE(content != nullptr);
+                lv_obj_update_layout(content);
+                return lv_obj_get_scroll_bottom(content);
+            };
+
+            show_editor_on_lane(*this, *backend, 1);
+            REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
+            CHECK(page_scroll() <= 0);
+
+            // Assign with a full list: the list scrolls inside itself, not the page.
+            access.call_different_spool();
+            std::vector<SpoolInfo> many;
+            for (int id = 1; id <= 12; ++id) {
+                SpoolInfo spool;
+                spool.id = id;
+                spool.vendor = "Polymaker";
+                spool.material = "PLA";
+                spool.remaining_weight_g = 500;
+                many.push_back(spool);
+            }
+            access.set_cached_spools(many);
+            access.call_render_spool_list("");
+            process_lvgl(10);
+            REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+            REQUIRE(access.listed_ids().size() == 12);
+            CHECK(page_scroll() <= 0);
+
+            // A fresh install: the common spools grid instead of the list.
+            access.set_cached_spools({});
+            access.call_render_spool_list("");
+            process_lvgl(10);
+            REQUIRE(access.shown("common_spools"));
+            CHECK(page_scroll() <= 0);
+            close_editor_overlay();
+        }
+        theme_manager_refresh_layout_constants(disp);
+    }
+}
+
+// ============================================================================
+// Review fixes: per-toast Undo, lane settings on Assign, list re-arm, Undo
+// guard, history writes, list cost.
+// ============================================================================
+
+namespace {
+/// Use spool @p spool_id on @p slot through a pick-a-spool session, committed
+/// the way the AMS panel commits.
+void use_on_lane(OverlayConsumerCommitFixture& fx, int slot, int spool_id) {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        fx.test_screen(), slot, fx.backend->get_slot_info(slot), nullptr,
+        [&fx](const AmsEditOverlay::EditResult& r) { fx.commit_like_consumer(r); },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    fx.process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(spool_id);
+    UpdateQueue::instance().drain();
+    fx.process_lvgl(10);
+    REQUIRE(fx.backend->get_slot_info(slot).spoolman_id == spool_id);
+}
+} // namespace
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "Undo on an older toast puts back its own lane",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+    const SlotInfo lane0 = backend->get_slot_info(0);
+    const SlotInfo lane1 = backend->get_slot_info(1);
+    REQUIRE(lane0.spoolman_id != 11);
+    REQUIRE(lane1.spoolman_id != 22);
+
+    use_on_lane(*this, 0, 11); // toast 0
+    use_on_lane(*this, 1, 22); // toast 1, stacked over it
+
+    REQUIRE(helix::ui::fire_toast_action(0));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == lane0.spoolman_id);
+    CHECK(backend->get_slot_info(1).spoolman_id == 22);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "Undo leaves a lane that changed since the save",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+    use_on_lane(*this, 0, 22);
+
+    // Something else changes the lane before Undo is tapped.
+    SlotInfo changed = backend->get_slot_info(0);
+    changed.color_rgb = 0x123456;
+    REQUIRE(helix::test::apply_edit(*backend, 0, changed).success());
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == 22);
+    CHECK(backend->get_slot_info(0).color_rgb == 0x123456);
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts.back().find("Not undone") != std::string::npos);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "Assign Spool's Use writes the staged Assigned Tool",
+                 "[ams_edit_overlay][spool-assign][lane_settings]") {
+    set_spoolman_available(false);
+    REQUIRE(helix::ui::lane_settings::show_tool_row(backend));
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 2, backend->get_slot_info(2), nullptr,
+        [this](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    REQUIRE(helix::ui::lane_settings::assigned_tool(*backend, 2) == 2);
+    REQUIRE(access.pick_dropdown("tool_dropdown", "T0"));
+
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(2).spoolman_id == 22);
+    CHECK(backend->get_tool_mapping()[0] == 2);
+}
+
+TEST_CASE_METHOD(EditorFixture, "a cover that drops Assign Spool's list load re-runs it",
+                 "[ams_edit_overlay][spool-assign][session]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    mock_spool(client, 7).material = "PLA";
+    set_spoolman_available(true);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, &api, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    // A load in flight (Different Spool, a retry) covered by the Partial
+    // keypad before it answers: the answer dies with the cover.
+    access.call_populate_picker();
+    overlay.on_deactivate(DeactivateReason::NavigateAway);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.picker_state() == 0);
+
+    overlay.on_activate();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    UpdateQueue::instance().drain();
+    CHECK(access.picker_state() == 2);
+    CHECK_FALSE(access.listed_ids().empty());
+    close_editor_overlay();
+    set_spoolman_available(false);
+}
+
+TEST_CASE_METHOD(EditorFixture, "a form tap that changes nothing the list reads keeps its rows",
+                 "[ams_edit_overlay][spool-assign]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("");
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(lv_obj_get_child_count(list) == 2);
+    lv_obj_t* first = lv_obj_get_child(list, 0);
+
+    access.tap_size_chip(1); // 750 g: the list does not read the size
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(lv_obj_get_child(list, 0) == first);
+
+    access.call_apply_color(0x1A1A2E); // a color it does read: spool 11's
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(access.listed_ids() == std::vector<int>{11});
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "two assigns saved back to back both reach the lane history",
+                 "[ams_edit_overlay][spool-assign][history]") {
+    SlotInfo pla;
+    pla.material = "PLA";
+    pla.color_rgb = 0xFFFFFF;
+    SlotInfo petg;
+    petg.material = "PETG";
+    petg.color_rgb = 0x1A1A1A;
+    // Both recorded before either read answers.
+    helix::lane_spool_history::record(api, pla);
+    helix::lane_spool_history::record(api, petg);
+    for (int i = 0; i < 6; ++i) {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    std::vector<helix::lane_spool_history::Entry> stored;
+    bool loaded = false;
+    helix::lane_spool_history::load(api, [&](std::vector<helix::lane_spool_history::Entry> e) {
+        stored = std::move(e);
+        loaded = true;
+    });
+    for (int i = 0; i < 4 && !loaded; ++i) {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    REQUIRE(loaded);
+    REQUIRE(stored.size() == 2);
+    CHECK(stored[0].material == "PETG");
+    CHECK(stored[1].material == "PLA");
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "Undo after a printer switch leaves the new printer alone",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+    use_on_lane(*this, 0, 22);
+
+    // Another printer connects: its backend holds the same spool on lane 0,
+    // so only the printer says the lane is not the one saved. The old backend
+    // goes first, so the new one may well be allocated at its address.
+    auto& ams = AmsState::instance();
+    const SlotInfo saved = backend->get_slot_info(0);
+    const void* old_address = backend;
+    ams.clear_backends();
+    auto other = std::make_unique<AmsBackendMock>(4);
+    AmsBackendMock* other_backend = other.get();
+    CAPTURE(old_address == static_cast<const void*>(other_backend));
+    REQUIRE(helix::test::apply_edit(*other_backend, 0, saved).success());
+    const SlotInfo held = other_backend->get_slot_info(0);
+    ams.set_backend(std::move(other));
+    backend = other_backend;
+    UpdateQueue::instance().drain();
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(other_backend->get_slot_info(0).spoolman_id == held.spoolman_id);
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts.back().find("printer changed") != std::string::npos);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(EditorFixture, "Undo on an External Filament toast puts the external spool back",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    set_spoolman_available(false);
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().set_backend(nullptr);
+    AmsState::instance().set_moonraker_api(&api);
+    UpdateQueue::instance().drain();
+    SlotInfo before = tracked_slot();
+    before.slot_index = -2;
+    before.global_index = -2;
+    AmsState::instance().commit_external_spool_edit(before);
+    UpdateQueue::instance().drain();
+    // The external spool's record, as the printer's database holds it.
+    const auto stored_id = [&client] {
+        const auto record = client.mock_db_get("lane_data", "lane1");
+        return record.is_object() && record.contains("spool_id") ? record["spool_id"].get<int>()
+                                                                 : 0;
+    };
+    REQUIRE(stored_id() == before.spoolman_id);
+    helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), -2, AmsState::instance().get_external_spool_info().value_or(before), &api,
+        [](const AmsEditOverlay::EditResult& r) {
+            if (r.saved) {
+                AmsState::instance().commit_external_spool_edit(r.slot_info);
+            }
+        },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    for (int i = 0; i < 3; ++i) {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    REQUIRE(stored_id() == 22);
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(stored_id() == before.spoolman_id);
+    helix::ui::set_test_toast_hook(nullptr);
+    AmsState::instance().set_moonraker_api(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "Undo checks the lane against what it settled on, not the form",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+    const SlotInfo before = backend->get_slot_info(0);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    // A backend that files the material in its own spelling, as a box that
+    // owns lane identity does.
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, before, nullptr,
+        [this](const AmsEditOverlay::EditResult& r) {
+            AmsEditOverlay::EditResult stored = r;
+            stored.slot_info.material = "PETG-HF";
+            commit_like_consumer(stored);
+        },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(backend->get_slot_info(0).material == "PETG-HF");
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == before.spoolman_id);
+    CHECK(backend->get_slot_info(0).material == before.material);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "a spool another lane takes while the list shows greys its Use on the next tap",
+                 "[ams_edit_overlay][spool-assign]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("");
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(unusable_spool_ids(list, access.listed_ids()).empty());
+
+    SlotInfo lane3 = backend->get_slot_info(3);
+    lane3.spoolman_id = 22;
+    REQUIRE(helix::test::apply_edit(*backend, 3, lane3).success());
+    access.tap_size_chip(1);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(unusable_spool_ids(list, access.listed_ids()) == std::vector<int>{22});
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "every change of the backend set moves its generation",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    auto& ams = AmsState::instance();
+    const uint64_t start = ams.backend_generation();
+    ams.clear_backends();
+    const uint64_t cleared = ams.backend_generation();
+    CHECK(cleared != start);
+    auto replacement = std::make_unique<AmsBackendMock>(4);
+    backend = replacement.get();
+    ams.set_backend(std::move(replacement));
+    CHECK(ams.backend_generation() != cleared);
+    const uint64_t set = ams.backend_generation();
+    ams.add_backend(std::make_unique<AmsBackendMock>(2));
+    CHECK(ams.backend_generation() != set);
+    UpdateQueue::instance().drain();
 }

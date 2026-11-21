@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One of the user's spools in Assign Spool's list: the spool drawing (its
+     filament ring shows what is left), the name, "#12 · 800 g left · 2 days
+     ago", an optional "close: PLA+" tag, and Use. The row carries the spool's
+     index on its user_data. C++ sets the texts, which are user data and can
+     start with '#', and paints the spool. -->
+<component>
+  <api>
+    <!-- "false" shows the close-match tag. -->
+    <prop name="hide_close" type="string" default="true"/>
+    <!-- "true" for a spool another lane holds: no Use. -->
+    <prop name="use_disabled" type="string" default="false"/>
+  </api>
+  <consts>
+    <px name="spool_assign_row_spool_micro" value="28"/>
+    <px name="spool_assign_row_spool_tiny" value="32"/>
+    <px name="spool_assign_row_spool_small" value="36"/>
+    <px name="spool_assign_row_spool_medium" value="40"/>
+    <px name="spool_assign_row_spool_large" value="48"/>
+  </consts>
+  <view extends="lv_obj"
+        width="100%" height="content" style_pad_hor="#space_xs" style_pad_ver="#space_xxs" style_pad_gap="#space_sm"
+        style_radius="#border_radius" style_bg_opa="0" style_border_width="0" flex_flow="row"
+        style_flex_cross_place="center" scrollable="false" clickable="false">
+    <spool_canvas name="row_spool" size="#spool_assign_row_spool" color="#text_muted" fill_level="1.0"/>
+    <lv_obj height="content"
+            flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0" style_border_width="0"
+            scrollable="false" clickable="false">
+      <text_body name="row_name" width="100%" text="" long_mode="dots"/>
+      <text_small name="row_detail" width="100%" text="" long_mode="dots" style_text_color="#text_muted"/>
+      <text_small name="row_close"
+                  width="100%" text="" long_mode="dots" style_text_color="#warning" hidden="$hide_close"/>
+    </lv_obj>
+    <ui_button name="row_use"
+               width="content" height="#button_height_sm" text="Use" variant="primary" disabled="$use_disabled">
+      <event_cb trigger="clicked" callback="ams_edit_row_use_cb"/>
+    </ui_button>
+  </view>
+</component>
