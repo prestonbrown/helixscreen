@@ -621,6 +621,7 @@
   <translation tag="Cannot reprint: not connected to printer" es="No se puede reimprimir: no conectado a la impresora"/>
   <translation tag="Cannot restart Moonraker while printing" es="No se puede reiniciar Moonraker durante la impresión"/>
   <translation tag="Cannot restart — no filename" es="No se puede reiniciar — sin nombre de archivo"/>
+  <translation tag="Cannot restore the stock screen while printing" es="No se puede restaurar la pantalla original durante una impresión"/>
   <translation tag="Cannot run filament operation while printing" es="No se puede realizar la operación de filamento mientras se imprime"/>
   <translation tag="Cannot save offsets while printing" es="No se pueden guardar los offsets durante la impresión"/>
   <translation tag="Cannot schedule a pause: printer not connected" es="No se puede programar una pausa: impresora no conectada"/>
@@ -932,6 +933,8 @@
   <translation tag="Could not remove the job from the queue" es="No se pudo eliminar el trabajo de la cola"/>
   <translation tag="Could not reset the printer image tags" es="Error al restablecer las marcas de la imagen"/>
   <translation tag="Could not resolve printer RFCOMM channel" es="No se pudo resolver el canal RFCOMM de la impresora"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" es="No se pudo reiniciar la impresora; la pantalla original no se restauró"/>
+  <translation tag="Could not restore the stock screen" es="No se pudo restaurar la pantalla original"/>
   <translation tag="Could not save filament" es="No se pudo guardar el filamento"/>
   <translation tag="Could not save the drying state" es="No se pudo guardar el estado del secado"/>
   <translation tag="Could not save the drying state: nothing was heated" es="No se pudo guardar el estado del secado: no se calentó nada"/>
@@ -3170,14 +3173,19 @@
   <translation tag="Restart print" es="Reiniciar impresión"/>
   <translation tag="Restart the display application" es="Reiniciar la aplicación de pantalla"/>
   <translation tag="Restart the printer or screen" es="Reiniciar la impresora o pantalla"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" es="Reinicie la impresora para terminar de restaurar la pantalla original"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" es="Reinicie la impresora. Si SSH sigue rechazando la conexión, consulte la guía de instalación del Snapmaker U1"/>
   <translation tag="Restarting HelixScreen..." es="Reiniciando HelixScreen..."/>
   <translation tag="Restarting Klipper..." es="Reiniciando Klipper..."/>
   <translation tag="Restarting Moonraker..." es="Reiniciando Moonraker..."/>
   <translation tag="Restarting printer..." es="Reiniciando impresora..."/>
   <translation tag="Restarting screen..." es="Reiniciando pantalla..."/>
+  <translation tag="Restarting the printer..." es="Reiniciando la impresora..."/>
   <translation tag="Restarting with the new version..." es="Reiniciando con la nueva versión..."/>
   <translation tag="Restarting..." es="Reiniciando..."/>
+  <translation tag="Restore" es="Restaurar"/>
   <translation tag="Restore Defaults" es="Restaurar valores predeterminados"/>
+  <translation tag="Restore Stock Screen" es="Restaurar pantalla original"/>
   <translation tag="Restore tool" es="Restaurar herramienta"/>
   <translation tag="Restoring position" es="Restaurando posición"/>
   <translation tag="Restoring the print settings" es="Restaurando los ajustes de impresión"/>
@@ -3258,6 +3266,7 @@
   <translation tag="SETTINGS" es="AJUSTES"/>
   <translation tag="SHIPPED IMAGES" es="IMÁGENES INCLUIDAS"/>
   <translation tag="SOFTWARE" es="SOFTWARE"/>
+  <translation tag="SSH did not start although Root access is on" es="SSH no se inició aunque el acceso root está activado"/>
   <translation tag="STANDARD MACROS" es="MACROS ESTÁNDAR"/>
   <translation tag="STARTUP" es="INICIO"/>
   <translation tag="STOP" es="DETENER"/>
@@ -3671,6 +3680,7 @@
   <translation tag="Switch Printer" es="Cambiar Impresora"/>
   <translation tag="Switch Sensors" es="Sensores de interruptor"/>
   <translation tag="Switch a power device on or off" es="Encender o apagar un dispositivo"/>
+  <translation tag="Switch back to the Snapmaker screen" es="Volver a la pantalla de Snapmaker"/>
   <translation tag="Switch between light and dark themes" es="Cambiar entre temas claro y oscuro"/>
   <translation tag="Switch spools at each tool change" es="Cambiar de bobina en cada cambio de herramienta"/>
   <translation tag="Switch the active tool or extruder" es="Cambiar la herramienta o extrusor activo"/>
@@ -3907,6 +3917,7 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." es="La impresora no informa ningún registro de carril, así que solo vaciar el extrusor puede descargar."/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" es="La impresora requiere una conexión cifrada, pero rechazó el trabajo cifrado: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" es="La impresora requiere una conexión cifrada, pero falló la conexión cifrada a {}:{}"/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." es="La impresora se reinicia con la pantalla de Snapmaker y HelixScreen deja de iniciarse. Sus ajustes de HelixScreen se conservan en la impresora; ejecute de nuevo el instalador para volver."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." es="La impresora cambia entre varios cabezales. Gestiona las herramientas en la pantalla del sistema de filamento."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" es="El firmware de la impresora elige a dónde cambiar al agotarse"/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." es="La cola imprime la placa predeterminada de este .3mf. Imprime esta placa desde aquí."/>
@@ -4341,6 +4352,7 @@
   <translation tag="Waiting for the chamber to heat" es="Esperando a que la cámara se caliente"/>
   <translation tag="Waiting for the filament system to report its state" es="Esperando que el sistema de filamento informe su estado"/>
   <translation tag="Waiting for the printer" es="Esperando a la impresora"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" es="Esperando el estado de la impresora; inténtelo de nuevo cuando esté conectada"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." es="Esperando para leer la configuración de la impresora desde Klipper."/>
   <translation tag="Warm" es="Cálido"/>
   <translation tag="Warm Bed" es="Calentar cama"/>

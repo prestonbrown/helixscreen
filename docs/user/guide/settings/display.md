@@ -2,7 +2,7 @@
 
 **Settings > Display** controls the screen itself. Use it to turn the picture to match how the screen is mounted, make the interface bigger or smaller, set the brightness, and choose when the screen dims, sleeps or shows a screensaver.
 
-On the Settings screen, the **Display** row shows your brightness and sleep time, for example *80% · sleep 20 min*. It reads *80% · never sleeps* when sleep is off, and just *Sleep 20 min* on a screen that can't change its brightness.
+On the Settings screen, the **Display** row shows your brightness and sleep time, for example *80% · sleep 60 min*. It reads *80% · never sleeps* when sleep is off, and just *Sleep 60 min* on a screen that can't change its brightness.
 
 ![Display settings, top of the page](../../../images/user/settings-display.png)
 
@@ -56,7 +56,7 @@ While a screensaver is selected, this timer starts the screensaver, so the row i
 
 ## Display Sleep
 
-How long the screen waits before it turns off completely: **Never**, **1 minute**, **5 minutes**, **10 minutes**, **20 minutes** (the default), **30 minutes** or **1 hour**. Touch the screen to wake it.
+How long the screen waits before it turns off completely: **Never**, **1 minute**, **5 minutes**, **10 minutes**, **20 minutes**, **30 minutes** or **1 hour** (the default). Touch the screen to wake it.
 
 Opening the HelixScreen screen page in a browser ([Screen Sharing](../screen-sharing.md)) wakes it. While someone has that page open, it dims and runs the screensaver as usual but does not go to sleep; it sleeps once they close the page. Webcam integrations that show the screen (Obico, Home Assistant, timelapse, a view-only webcam tile) never keep it awake.
 

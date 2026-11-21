@@ -55,6 +55,16 @@ translations:
   '%u layers': '%u 层'
   '%zu events queued': '%zu 个事件已排队'
   '%zu plugins failed to load': '%zu 个插件加载失败'
+  Cannot restore the stock screen while printing: '打印期间无法恢复原厂屏幕'
+  Could not restart the printer; the stock screen was not restored: '无法重启打印机；未恢复原厂屏幕'
+  Could not restore the stock screen: '无法恢复原厂屏幕'
+  Restart the printer to finish restoring the stock screen: '请重启打印机以完成恢复原厂屏幕'
+  Restarting the printer...: '正在重启打印机...'
+  Restore: '恢复'
+  Restore Stock Screen: '恢复原厂屏幕'
+  Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'
   "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' 和 '{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）
@@ -3270,6 +3280,7 @@ translations:
   Restart print: '重新开始打印'
   Restart the display application: 重启显示应用程序
   Restart the printer or screen: 重启打印机或屏幕
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: '请重启打印机。如果 SSH 仍然拒绝连接，请查看 Snapmaker U1 安装指南'
   Restarting HelixScreen...: 正在重启 HelixScreen…
   Restarting Klipper...: 正在重启 Klipper...
   Restarting Moonraker...: 正在重启 Moonraker...
@@ -3361,6 +3372,7 @@ translations:
   SETTINGS: 设置
   SHIPPED IMAGES: 内置图片
   SOFTWARE: 软件
+  SSH did not start although Root access is on: 'Root 访问已开启，但 SSH 未能启动'
   STANDARD MACROS: 标准宏
   STARTUP: 启动
   STOP: 停止
@@ -4508,6 +4520,7 @@ translations:
   Waiting for the chamber to heat: 正在等待腔室加热
   Waiting for the filament system to report its state: 正在等待耗材系统报告状态
   Waiting for the printer: 正在等待打印机
+  Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   Waiting to read the printer's configuration from Klipper.: "正在等待从 Klipper 读取打印机配置。"
   Warm: 暖色
   Warm Bed: 预热热床

@@ -215,9 +215,14 @@ json get_default_printer_config(const std::string& moonraker_host) {
 /// Default display configuration section
 /// Used for both new configs and ensuring display section exists with defaults
 json get_default_display_config() {
-    return {{"sleep_sec", 1200},       {"dim_sec", 600},           {"dim_brightness", 30},
-            {"drm_device", ""},        {"gcode_render_mode", 0},   {"bed_mesh_render_mode", 0},
-            {"gpu_3d_blocked", false}, {"gpu_blur_blocked", false}};
+    return {{"sleep_sec", helix::app_constants::display::kDefaultSleepSec},
+            {"dim_sec", 600},
+            {"dim_brightness", 30},
+            {"drm_device", ""},
+            {"gcode_render_mode", 0},
+            {"bed_mesh_render_mode", 0},
+            {"gpu_3d_blocked", false},
+            {"gpu_blur_blocked", false}};
 }
 
 /// Migrate legacy display settings from root level to /display/ section

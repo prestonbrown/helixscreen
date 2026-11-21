@@ -55,6 +55,16 @@ translations:
   '%u layers': '%uレイヤー'
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
+  Cannot restore the stock screen while printing: '印刷中は標準画面に戻せません'
+  Could not restart the printer; the stock screen was not restored: 'プリンターを再起動できませんでした。標準画面には戻っていません'
+  Could not restore the stock screen: '標準画面に戻せませんでした'
+  Restart the printer to finish restoring the stock screen: '標準画面への復元を完了するにはプリンターを再起動してください'
+  Restarting the printer...: 'プリンターを再起動しています...'
+  Restore: '復元'
+  Restore Stock Screen: '標準画面に戻す'
+  Switch back to the Snapmaker screen: 'Snapmakerの画面に戻します'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'
   "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' と '{}' は既に存在します。保存されたメッシュを置き換えますか？"
   (different grade): (グレード違い)
@@ -3279,6 +3289,7 @@ translations:
   Restart print: '印刷を再開始'
   Restart the display application: ディスプレイアプリケーションを再起動
   Restart the printer or screen: プリンターまたは画面を再起動します
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'プリンターを再起動してください。それでもSSHが接続を拒否する場合は、Snapmaker U1のインストールガイドを参照してください'
   Restarting HelixScreen...: HelixScreenを再起動中...
   Restarting Klipper...: Klipper を再起動中...
   Restarting Moonraker...: Moonrakerを再起動中...
@@ -3370,6 +3381,7 @@ translations:
   SETTINGS: 設定
   SHIPPED IMAGES: 付属画像
   SOFTWARE: ソフトウェア
+  SSH did not start although Root access is on: 'ルートアクセスがオンですが、SSHが起動しませんでした'
   STANDARD MACROS: 標準マクロ
   STARTUP: 起動
   STOP: 停止
@@ -4517,6 +4529,7 @@ translations:
   Waiting for the chamber to heat: チャンバーの加熱を待っています
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
+  Waiting for the printer's status; try again once it is connected: 'プリンターの状態を待っています。接続後にもう一度お試しください'
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"
   Warm: ウォーム
   Warm Bed: ベッドを予熱

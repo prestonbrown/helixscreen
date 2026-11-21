@@ -946,4 +946,5 @@ src/calibration/shaper_csv_parser.cpp
 # MOCK: src/printer/ams_backend_mock.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp
+src/system/u1_stock_screen.cpp
 src/system/home_layout_share.cpp

@@ -15,7 +15,7 @@ Display keys live in the `display` section unless the table says otherwise.
 | `brightness` (top level) | `80` | `10` to `100` | Screen brightness in percent. Set it with the slider at **Settings > Display > Brightness**, which is shown only on screens whose backlight HelixScreen can control. |
 | `dim_sec` | `600` | `0`, `30`, `60`, `120`, `300`, `600` | Seconds of inactivity before the screen dims. `0` never dims. Set it at **Settings > Display > Screen Dim**. A value that is not on this list snaps to the nearest one. |
 | `dim_brightness` | `30` | `1` to `100` | Brightness percentage while dimmed. |
-| `sleep_sec` | `1200` | `0`, `60`, `300`, `600`, `1200`, `1800`, `3600` | Seconds of inactivity before the screen turns off. `0` never sleeps. Set it at **Settings > Display > Display Sleep**. A value that is not on this list snaps to the nearest one. |
+| `sleep_sec` | `3600` | `0`, `60`, `300`, `600`, `1200`, `1800`, `3600` | Seconds of inactivity before the screen turns off. `0` never sleeps. Set it at **Settings > Display > Display Sleep**. A value that is not on this list snaps to the nearest one. |
 | `sleep_while_printing` | `true` | `true` or `false` | Whether the screen may dim and sleep during a print. Set `false` to keep it lit for the whole print. **Settings > Display > Sleep While Printing**. |
 
 Dimming starts the screensaver at the same moment, so while a screensaver is selected the **Screen Dim** row is called **Screensaver after**. On a screen with no backlight control (an Android phone, for example) the screensaver is the only idle sign, and the row appears only while a screensaver is selected.

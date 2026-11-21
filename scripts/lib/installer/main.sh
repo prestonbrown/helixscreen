@@ -892,6 +892,8 @@ main() {
     elif [ "$platform" = "k1" ]; then
         K1_FIRMWARE=$(detect_k1_firmware)
         firmware="$K1_FIRMWARE"
+        log_info "K1 firmware flavour: $K1_FIRMWARE"
+        log_k1_ssh_state "install start"
     fi
     set_install_paths "$platform" "$firmware"
 
@@ -1031,6 +1033,10 @@ download_step() {
 apply_install() {
     local uis stopping seed_pid
 
+    # Before any service starts, so none inherits helix-screen's OOM score.
+    # Not earlier: everything before confirm_point only reads (--dry-run).
+    reset_inherited_oom_score_adj
+
     if [ "${platform:-}" = "x86-desktop" ]; then
         apply_desktop_install
         return 0
@@ -1137,6 +1143,7 @@ apply_install() {
         # ships in the release package) and on self-update, which skips
         # stop_competing_uis and would otherwise never see it installed.
         install_k1_creality_backend
+        log_k1_ssh_state "after Creality backend start"
     fi
 
     # Verify all shared library dependencies are satisfied before starting

@@ -992,7 +992,7 @@ struct ConfigDefault {
 /// Deliberately absent: /display/rotate — see the rotate case below.
 const std::vector<ConfigDefault>& expected_defaults() {
     static const std::vector<ConfigDefault> table = {
-        {"/display/sleep_sec", 1200},
+        {"/display/sleep_sec", 3600},
         {"/display/dim_sec", 600},
         {"/display/dim_brightness", 30},
         {"/display/drm_device", ""},

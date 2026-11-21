@@ -99,6 +99,7 @@ static lv_subject_t g_home_edit_page_deletable_subject;
 static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_platform_extras_subject;
 static lv_subject_t g_camera_supported_subject;
+static lv_subject_t g_u1_restore_stock_offered_subject;
 static bool g_subjects_initialized = false;
 
 lv_subject_t& get_notification_subject() {
@@ -146,6 +147,10 @@ void app_globals_init_subjects() {
     // The firmware cut has no camera view (HELIX_HAS_CAMERA=0): camera rows bind hidden.
     lv_subject_init_int(&g_camera_supported_subject, 0);
     lv_xml_register_subject(nullptr, "platform_camera_supported", &g_camera_supported_subject);
+    // Restore Stock Screen is a Snapmaker U1 row: the firmware hides it.
+    lv_subject_init_int(&g_u1_restore_stock_offered_subject, 0);
+    lv_xml_register_subject(nullptr, "u1_restore_stock_offered",
+                            &g_u1_restore_stock_offered_subject);
     // The shutdown home widget's hardware gate reads it by name.
     lv_subject_init_int(&g_host_power_supported_subject,
                         helix::platform_host_power_supported() ? 1 : 0);

@@ -11,6 +11,7 @@
 #include "app_globals.h"
 #include "board_identity.h"
 #include "config.h"
+#include "helix_version.h"
 #include "platform_table.h"
 #include "printer_state.h"
 #include "system/debug_bundle_collector.h"
@@ -97,6 +98,7 @@ TEST_CASE("DebugBundleCollector: collect() returns valid JSON with expected keys
     // version and timestamp should be non-empty strings
     REQUIRE(bundle["version"].is_string());
     REQUIRE_FALSE(bundle["version"].get<std::string>().empty());
+    REQUIRE(bundle["git_hash"] == std::string(helix_git_hash()));
     REQUIRE(bundle["timestamp"].is_string());
     REQUIRE_FALSE(bundle["timestamp"].get<std::string>().empty());
 }

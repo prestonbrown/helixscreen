@@ -504,10 +504,29 @@ install_qidi_3mf_thumbs() {
     return 0
 }
 
+# One install-log line saying whether SSH is up at a named point of the run:
+# dropbear's pids and whether anything listens on port 22. The install log
+# survives reboots, so a printer that loses SSH across an update shows which
+# step it was lost at. assets/config/platform/hooks-k1.sh#_k1_ssh_state is
+# the same probe for the launch-time log, which cannot source this module.
+log_k1_ssh_state() { # phase
+    _lks_pids=$(pidof dropbear 2>/dev/null || true)
+    _lks_listen=unknown
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tln 2>/dev/null | grep -q ':22 '; then
+            _lks_listen=yes
+        else
+            _lks_listen=no
+        fi
+    fi
+    log_info "SSH state ($1): dropbear=${_lks_pids:-none} port22=$_lks_listen"
+}
+
 # Ensure SSH (dropbear) is running and will start on boot.
 # On stock K1 firmware, dropbear is managed by S99start_app which we disable.
 # This creates an independent dropbear init script so SSH survives reboots.
 ensure_k1_ssh() {
+    log_k1_ssh_state "before ensure"
     # Already running — nothing to do
     if pidof dropbear >/dev/null 2>&1; then
         # Make sure it has a boot-time init script
@@ -522,6 +541,7 @@ ensure_k1_ssh() {
         "$script" start 2>/dev/null || true
         if pidof dropbear >/dev/null 2>&1; then
             log_info "SSH (dropbear) started via $script"
+            log_k1_ssh_state "after ensure"
             return 0
         fi
     done
@@ -547,6 +567,7 @@ ensure_k1_ssh() {
     else
         log_warn "dropbear not found — SSH may not be available"
     fi
+    log_k1_ssh_state "after ensure"
 }
 
 # Create a minimal dropbear init script if one doesn't exist.

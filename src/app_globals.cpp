@@ -38,6 +38,7 @@
 #include "system/child_process.h"
 #include "system/helix_paths.h"
 #include "temperature_controller.h"
+#include "u1_stock_screen.h"
 
 #include <spdlog/spdlog.h>
 
@@ -87,6 +88,7 @@ static lv_subject_t g_host_power_supported_subject;
 static lv_subject_t g_camera_supported_subject;
 static lv_subject_t g_platform_tier_subject;
 static lv_subject_t g_wizard_active_subject;
+static lv_subject_t g_u1_restore_stock_offered_subject;
 
 // Application quit flag. Set from signal handlers and from worker threads
 // (remote control, update checks) and read by the main loop, so it must be a
@@ -268,6 +270,14 @@ void app_globals_init_subjects() {
     //   <bind_flag_if_eq subject="platform_camera_supported" flag="hidden" ref_value="0"/>
     lv_subject_init_int(&g_camera_supported_subject, HELIX_HAS_CAMERA ? 1 : 0);
     g_subjects.publish("platform_camera_supported", &g_camera_supported_subject);
+
+    // Whether Settings > System offers Restore Stock Screen
+    // (helix::u1::restore_stock_screen_offered(): a stock-firmware Snapmaker U1).
+    lv_subject_init_int(
+        &g_u1_restore_stock_offered_subject,
+        helix::u1::restore_stock_screen_offered(std::getenv(helix::u1::kRestoreTriggerEnv)) ? 1
+                                                                                            : 0);
+    g_subjects.publish("u1_restore_stock_offered", &g_u1_restore_stock_offered_subject);
 
     // Hardware tier (helix::PlatformTier as an int: 0 EMBEDDED, 1 BASIC,
     // 2 STANDARD), the same classification that turns animations off. XML

@@ -27,6 +27,27 @@ namespace helix {
 
 static constexpr auto kRateLimitInterval = std::chrono::minutes(5);
 
+static_assert(kHeapReleaseRearmMs >
+                  std::chrono::duration_cast<std::chrono::milliseconds>(kRateLimitInterval).count(),
+              "a held level re-dispatches every kRateLimitInterval and must not re-arm");
+
+bool should_release_heap_on_pressure(HeapReleaseState& state, MemoryPressureLevel level,
+                                     int64_t now_ms) {
+    if (level < MemoryPressureLevel::warning) {
+        state = {};
+        return false;
+    }
+    if (state.last_dispatch_ms && now_ms - *state.last_dispatch_ms > kHeapReleaseRearmMs) {
+        state.released = MemoryPressureLevel::none;
+    }
+    state.last_dispatch_ms = now_ms;
+    if (level <= state.released) {
+        return false;
+    }
+    state.released = level;
+    return true;
+}
+
 MemoryThresholds MemoryThresholds::for_device(const MemoryInfo& info) {
     MemoryThresholds t;
 

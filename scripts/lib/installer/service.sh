@@ -470,7 +470,14 @@ install_service_snapmaker_u1() {
 
     # --- Patch S99screen to delegate to helixscreen.init on boot ---
     if [ -f "${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh" ]; then
-        if ! bash "${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh" "${INSTALL_DIR}"; then
+        local autostart_rc=0
+        bash "${INSTALL_DIR}/scripts/snapmaker-u1-setup-autostart.sh" "${INSTALL_DIR}" || autostart_rc=$?
+        if [ "$autostart_rc" -eq 3 ]; then
+            # The script printed why: SSH would not survive the stock screen
+            # being switched off. It changed nothing, so the stock screen stays.
+            log_error "Install stopped before switching off the stock screen."
+            exit 1
+        elif [ "$autostart_rc" -ne 0 ]; then
             log_error "Snapmaker U1 autostart configuration failed."
             log_error "Ensure /oem and /etc/init.d are writable."
             exit 1
