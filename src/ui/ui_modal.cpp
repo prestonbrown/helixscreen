@@ -58,17 +58,16 @@ static lv_obj_t* create_modal_backdrop(lv_obj_t* parent) {
     const std::vector<lv_obj_t*> leaving = ModalStack::instance().exiting_backdrops();
     std::vector<lv_obj_t*> hidden;
     for (lv_obj_t* b : leaving) {
-        if (!lv_obj_has_flag(b, LV_OBJ_FLAG_HIDDEN)) {
-            lv_obj_add_flag(
-                b,
-                LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: excluded from one snapshot, restored below
+        if (!lv_obj_is_hidden(b)) {
+            lv_obj_set_hidden(b,
+                              true); // DECLARATIVE_OK: excluded from one snapshot, restored below
             hidden.push_back(b);
         }
     }
     lv_obj_t* backdrop =
         helix::ui::create_fullscreen_backdrop(parent, get_modal_backdrop_opacity());
     for (lv_obj_t* b : hidden) {
-        lv_obj_remove_flag(b, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: restores the flag set above
+        lv_obj_set_hidden(b, false); // DECLARATIVE_OK: restores the flag set above
     }
     return backdrop;
 }
