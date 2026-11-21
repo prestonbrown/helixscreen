@@ -69,6 +69,14 @@ std::optional<ScannedDevice> find_mouse_device();
 std::optional<ScannedDevice> find_mouse_device(const std::string& dev_base,
                                                const std::string& sysfs_base);
 
+/// Scan /dev/input/event* for the touchscreen: a device with ABS_X+ABS_Y or
+/// ABS_MT_POSITION_X+Y. Candidates score +2 for a known touchscreen name, +2 for
+/// INPUT_PROP_DIRECT, +1 for a USB phys; the highest score wins and the lowest
+/// event number breaks a tie.
+std::optional<ScannedDevice> find_touch_device();
+std::optional<ScannedDevice> find_touch_device(const std::string& dev_base,
+                                               const std::string& sysfs_base);
+
 /// Scan /dev/input/event* for keyboard devices (KEY_A set).
 /// Skips devices that look like barcode scanners ("barcode"/"scanner" in name).
 /// If exclude_vendor_product is non-empty (format "vendor:product"), also skips

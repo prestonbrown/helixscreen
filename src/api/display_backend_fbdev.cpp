@@ -21,7 +21,6 @@
 
 // System includes for device access checks
 #include <algorithm>
-#include <climits>
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
@@ -36,27 +35,6 @@
 // Optional LVGL extension in some branches/builds; weak symbol allows probing at runtime.
 extern "C" void lv_linux_fbdev_set_skip_unblank(lv_display_t* disp, bool enabled)
     __attribute__((weak));
-
-namespace {
-
-using helix::is_known_touchscreen_name;
-
-/**
- * @brief Check if an input device has INPUT_PROP_DIRECT set
- *
- * Reads /sys/class/input/eventN/device/properties and tests INPUT_PROP_DIRECT,
- * which marks a device that is touched directly (a touchscreen) rather than one
- * that moves a cursor (a touchpad or pointing stick).
- *
- * @param event_num Event device number
- * @return true if INPUT_PROP_DIRECT is set
- */
-bool has_direct_input_prop(int event_num) {
-    std::string path = "/sys/class/input/event" + std::to_string(event_num) + "/device/properties";
-    return helix::parse_input_prop_direct(helix::input::read_sysfs_line(path));
-}
-
-} // anonymous namespace
 
 DisplayBackendFbdev::DisplayBackendFbdev() = default;
 
@@ -693,80 +671,10 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
     }
 
     // Priority 3: Capability-based detection using Linux sysfs
-    // Scan /dev/input/eventN devices and check for touch capabilities
     const char* input_dir = "/dev/input";
-    DIR* dir = opendir(input_dir);
-    if (dir == nullptr) {
-        spdlog::debug("[Fbdev Backend] Cannot open {}", input_dir);
-        return "";
-    }
+    auto touch = helix::input::find_touch_device(input_dir, "/sys/class/input");
 
-    std::string best_device;
-    std::string best_name;
-    int best_score = -1;
-    int best_event_num = INT_MAX;
-
-    struct dirent* entry;
-    while ((entry = readdir(dir)) != nullptr) {
-        // Look for eventN devices
-        if (strncmp(entry->d_name, "event", 5) != 0) {
-            continue;
-        }
-
-        // Extract event number
-        int event_num = -1;
-        if (sscanf(entry->d_name, "event%d", &event_num) != 1 || event_num < 0) {
-            continue;
-        }
-
-        std::string device_path = std::string(input_dir) + "/" + entry->d_name;
-
-        // Check if accessible
-        if (access(device_path.c_str(), R_OK) != 0) {
-            continue;
-        }
-
-        // Get device name from sysfs (do this once, before capability check)
-        std::string name = helix::input::get_input_device_name(event_num);
-
-        // Check for ABS capabilities (single-touch or multitouch)
-        helix::AbsCapabilities dev_abs_caps;
-        if (!helix::input::get_input_touch_capabilities(event_num, &dev_abs_caps)) {
-            spdlog::trace("[Fbdev Backend] {} ({}) - no touch capabilities", device_path, name);
-            continue;
-        }
-
-        // Score this candidate
-        int score = 0;
-
-        bool is_known = is_known_touchscreen_name(name);
-        if (is_known)
-            score += 2;
-
-        bool is_direct = has_direct_input_prop(event_num);
-        if (is_direct)
-            score += 2;
-
-        std::string phys = helix::input::get_input_device_phys(event_num);
-        bool is_usb = helix::is_usb_input_phys(phys);
-        if (is_usb)
-            score += 1;
-
-        spdlog::debug("[Fbdev Backend] {} ({}) score={} [known={} direct={} usb={} phys='{}']",
-                      device_path, name, score, is_known, is_direct, is_usb, phys);
-
-        // Best score wins; ties broken by lowest event number
-        if (score > best_score || (score == best_score && event_num < best_event_num)) {
-            best_device = device_path;
-            best_name = name;
-            best_score = score;
-            best_event_num = event_num;
-        }
-    }
-
-    closedir(dir);
-
-    if (best_device.empty()) {
+    if (!touch) {
         // No device with ABS_X/ABS_Y found. Fall back to first accessible event device
         // so VNC mouse input (uinput) or other pointer sources still work.
         DIR* fallback_dir = opendir(input_dir);
@@ -792,9 +700,8 @@ std::string DisplayBackendFbdev::auto_detect_touch_device() const {
         return "";
     }
 
-    spdlog::info("[Fbdev Backend] Selected touchscreen: {} ({}) [score={}]", best_device, best_name,
-                 best_score);
-    return best_device;
+    spdlog::info("[Fbdev Backend] Selected touchscreen: {} ({})", touch->path, touch->name);
+    return touch->path;
 }
 
 void DisplayBackendFbdev::suppress_console() {

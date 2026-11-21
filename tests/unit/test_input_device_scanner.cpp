@@ -420,6 +420,92 @@ TEST_CASE("find_mouse_device detects USB HID mice via sysfs", "[input]") {
     }
 }
 
+TEST_CASE("find_touch_device picks the touchscreen via sysfs", "[input]") {
+    using helix::input::find_touch_device;
+
+    const std::string mt_only_abs = caps_string({53, 54});
+    auto set_attr = [](MockInputTree& tree, int event_num, const std::string& attr,
+                       const std::string& value) {
+        std::ofstream(tree.sysfs_dir + "/event" + std::to_string(event_num) + "/device/" + attr)
+            << value;
+    };
+
+    SECTION("finds an MT-only touchscreen that the mouse scan skips") {
+        MockInputTree tree("touch_mt_only");
+        tree.add_device(0, "tlsc6x_touch", {{"abs", mt_only_abs}, {"key", caps_string({330})}},
+                        "0018");
+
+        auto result = find_touch_device(tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(result->path == tree.dev_dir + "/event0");
+        CHECK(result->event_num == 0);
+        CHECK_FALSE(helix::input::find_mouse_device(tree.dev_dir, tree.sysfs_dir).has_value());
+    }
+
+    SECTION("ignores devices without touch axes") {
+        MockInputTree tree("touch_none");
+        tree.add_device(0, "gpio-keys", {{"abs", "0"}, {"key", caps_string({116})}}, "0019");
+        tree.add_device(1, "USB Mouse", {{"rel", "3"}, {"key", mouse_key_caps()}, {"abs", "0"}});
+
+        CHECK_FALSE(find_touch_device(tree.dev_dir, tree.sysfs_dir).has_value());
+    }
+
+    SECTION("a non-touch device on a lower event number is not taken") {
+        MockInputTree tree("touch_after_keys");
+        tree.add_device(0, "gpio-keys", {{"abs", "0"}, {"key", caps_string({116})}}, "0019");
+        tree.add_device(1, "Generic ABS Panel", {{"abs", "3"}}, "0019");
+
+        auto result = find_touch_device(tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(result->event_num == 1);
+    }
+
+    SECTION("a known touchscreen name outranks an unknown one") {
+        MockInputTree tree("touch_known");
+        tree.add_device(0, "Generic ABS Panel", {{"abs", "3"}}, "0019");
+        tree.add_device(3, "Goodix Capacitive TouchScreen", {{"abs", mt_only_abs}}, "0019");
+
+        auto result = find_touch_device(tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(result->event_num == 3);
+    }
+
+    SECTION("INPUT_PROP_DIRECT outranks a USB phys") {
+        MockInputTree tree("touch_direct");
+        tree.add_device(0, "USB Digitizer", {{"abs", "3"}});
+        set_attr(tree, 0, "phys", "usb-0000:01:00.0-1.3/input0");
+        tree.add_device(2, "Panel ABS", {{"abs", "3"}}, "0019");
+        set_attr(tree, 2, "properties", "2");
+
+        auto result = find_touch_device(tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(result->event_num == 2);
+    }
+
+    SECTION("a USB phys breaks an otherwise equal score") {
+        MockInputTree tree("touch_usb");
+        tree.add_device(0, "Panel A", {{"abs", "3"}}, "0019");
+        tree.add_device(4, "Panel B", {{"abs", "3"}});
+        set_attr(tree, 4, "phys", "usb-0000:01:00.0-1.3/input0");
+
+        auto result = find_touch_device(tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(result->event_num == 4);
+    }
+
+    SECTION("equal scores go to the lowest event number") {
+        MockInputTree tree("touch_tie");
+        tree.add_device(5, "Panel A", {{"abs", "3"}}, "0019");
+        tree.add_device(2, "Panel B", {{"abs", "3"}}, "0019");
+        tree.add_device(7, "Panel C", {{"abs", "3"}}, "0019");
+
+        auto result = find_touch_device(tree.dev_dir, tree.sysfs_dir);
+        REQUIRE(result.has_value());
+        CHECK(result->event_num == 2);
+        CHECK(result->name == "Panel B");
+    }
+}
+
 TEST_CASE("find_keyboard_device detects USB HID keyboards via sysfs", "[input]") {
     using helix::input::find_keyboard_device;
 

@@ -35,6 +35,25 @@ std::string read_sysfs_capability(const std::string& sysfs_base, int event_num,
         sysfs_device_path(sysfs_base, event_num, "capabilities/" + cap_name));
 }
 
+bool read_touch_capabilities(const std::string& sysfs_base, int event_num,
+                             helix::AbsCapabilities* caps_out) {
+    std::string caps = read_sysfs_capability(sysfs_base, event_num, "abs");
+    if (caps.empty())
+        return false;
+
+    auto result = helix::parse_abs_capabilities(caps);
+    if (caps_out)
+        *caps_out = result;
+
+    if (result.has_multitouch && !result.has_single_touch) {
+        spdlog::debug("[InputScanner] event{}: MT-only touchscreen detected "
+                      "(no legacy ABS_X/ABS_Y)",
+                      event_num);
+    }
+
+    return result.has_single_touch || result.has_multitouch;
+}
+
 std::string read_device_name(const std::string& sysfs_base, int event_num) {
     return helix::input::read_sysfs_line(sysfs_device_path(sysfs_base, event_num, "name"));
 }
@@ -259,6 +278,67 @@ std::optional<ScannedDevice> find_mouse_device(const std::string& dev_base,
 
 std::optional<ScannedDevice> find_mouse_device() {
     return find_mouse_device("/dev/input", "/sys/class/input");
+}
+
+std::optional<ScannedDevice> find_touch_device(const std::string& dev_base,
+                                               const std::string& sysfs_base) {
+    auto dir = std::unique_ptr<DIR, decltype(&closedir)>(opendir(dev_base.c_str()), closedir);
+    if (!dir) {
+        spdlog::debug("[InputScanner] Cannot open {}", dev_base);
+        return std::nullopt;
+    }
+
+    std::optional<ScannedDevice> best;
+    int best_score = -1;
+
+    struct dirent* entry;
+    while ((entry = readdir(dir.get())) != nullptr) {
+        if (strncmp(entry->d_name, "event", 5) != 0) {
+            continue;
+        }
+
+        int event_num = -1;
+        if (sscanf(entry->d_name, "event%d", &event_num) != 1 || event_num < 0) {
+            continue;
+        }
+
+        std::string device_path = dev_base + "/" + entry->d_name;
+        if (access(device_path.c_str(), R_OK) != 0) {
+            continue;
+        }
+
+        std::string name = read_device_name(sysfs_base, event_num);
+        if (!read_touch_capabilities(sysfs_base, event_num, nullptr)) {
+            spdlog::trace("[InputScanner] {} ({}) - no touch capabilities", device_path, name);
+            continue;
+        }
+
+        bool is_known = helix::is_known_touchscreen_name(name);
+        bool is_direct = helix::parse_input_prop_direct(
+            read_sysfs_line(sysfs_device_path(sysfs_base, event_num, "properties")));
+        std::string phys = read_sysfs_line(sysfs_device_path(sysfs_base, event_num, "phys"));
+        bool is_usb = helix::is_usb_input_phys(phys);
+        int score = (is_known ? 2 : 0) + (is_direct ? 2 : 0) + (is_usb ? 1 : 0);
+
+        spdlog::debug("[InputScanner] {} ({}) touch score={} [known={} direct={} usb={} phys='{}']",
+                      device_path, name, score, is_known, is_direct, is_usb, phys);
+
+        // Best score wins; ties broken by lowest event number
+        if (score > best_score || (score == best_score && event_num < best->event_num)) {
+            best = ScannedDevice{device_path, name, event_num};
+            best_score = score;
+        }
+    }
+
+    if (best) {
+        spdlog::info("[InputScanner] Found touchscreen: {} ({}) [score={}]", best->path, best->name,
+                     best_score);
+    }
+    return best;
+}
+
+std::optional<ScannedDevice> find_touch_device() {
+    return find_touch_device("/dev/input", "/sys/class/input");
 }
 
 std::optional<ScannedDevice> find_keyboard_device(const std::string& dev_base,
@@ -681,23 +761,7 @@ std::vector<UsbHidDevice> enumerate_usb_hid_devices() {
 }
 
 bool get_input_touch_capabilities(int event_num, helix::AbsCapabilities* caps_out) {
-    std::string path =
-        "/sys/class/input/event" + std::to_string(event_num) + "/device/capabilities/abs";
-    std::string caps = read_sysfs_line(path);
-    if (caps.empty())
-        return false;
-
-    auto result = helix::parse_abs_capabilities(caps);
-    if (caps_out)
-        *caps_out = result;
-
-    if (result.has_multitouch && !result.has_single_touch) {
-        spdlog::debug("[InputScanner] event{}: MT-only touchscreen detected "
-                      "(no legacy ABS_X/ABS_Y)",
-                      event_num);
-    }
-
-    return result.has_single_touch || result.has_multitouch;
+    return read_touch_capabilities("/sys/class/input", event_num, caps_out);
 }
 
 } // namespace helix::input
