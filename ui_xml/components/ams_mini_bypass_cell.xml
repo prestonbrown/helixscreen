@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The AMS mini strip's spool-view bypass, pinned past the lanes' scroller so
+       it never scrolls out of sight: a spool painted from the external spool
+       and a label naming its material, laid out like a lane's cell. Nothing
+       weighs the bypass spool, so its percent line stays blank; it holds the
+       line a lane's percent takes so the spools stand level. Sizes, flow and
+       the material text are measured or data, set in C++. -->
+  <api>
+    <prop name="spool_size" type="string" default="24"/>
+  </api>
+  <view name="bypass_cell"
+        extends="lv_obj" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+        event_bubble="true" style_pad_column="#space_xxs" style_pad_row="#space_xxs" style_flex_main_place="center"
+        style_flex_cross_place="center" style_flex_track_place="center">
+    <lv_obj name="bypass_spool_wrap"
+            style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false" event_bubble="true">
+      <spool_canvas name="bypass_spool" size="$spool_size" align="top_left" event_bubble="true"/>
+    </lv_obj>
+    <lv_obj name="bypass_text"
+            style_bg_opa="0" style_border_width="0" style_pad_all="0" style_pad_row="0" scrollable="false"
+            event_bubble="true" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start"
+            style_flex_track_place="start">
+      <text_small name="bypass_material" text="" style_text_color="#text" style_text_align="center" event_bubble="true"/>
+      <text_xs name="bypass_pct" text="" event_bubble="true"/>
+    </lv_obj>
+  </view>
+</component>

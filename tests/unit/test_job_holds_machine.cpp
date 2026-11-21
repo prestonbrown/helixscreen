@@ -431,6 +431,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/ams_env_pill.xml",
     "ui_xml/components/ams_loaded_card.xml",
     "ui_xml/components/ams_environment_indicator.xml",
+    "ui_xml/components/ams_mini_status_frame.xml",
     "ui_xml/components/api_key_field.xml",
     "ui_xml/components/barcode_scanner_device_row.xml",
     "ui_xml/components/bed_check_modal.xml",

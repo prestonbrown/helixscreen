@@ -9,6 +9,7 @@
 #include "ui_fonts.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_row_text.h"
 #include "ui_spool_canvas.h"
 #include "ui_text.h"
 #include "ui_utils.h"
@@ -270,20 +271,23 @@ static void sync_from_ams_state(AmsMiniStatusData* data);
 // Internal helpers
 // ============================================================================
 
+/** The XML flex-place name of the strip's bars_align. */
+static const char* bars_align_name(lv_flex_align_t align) {
+    return align == LV_FLEX_ALIGN_START ? "start" : "center";
+}
+
 /**
  * @brief Create or get a unit row container for multi-unit stacked layout
  */
 static lv_obj_t* ensure_unit_row(AmsMiniStatusData* data, int unit_index) {
     UnitRowInfo* row = &data->unit_rows[unit_index];
     if (!row->row_container) {
-        row->row_container = ams_draw::create_transparent_container(data->bars_container);
-        lv_obj_set_flex_flow(row->row_container, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row->row_container, data->bars_align, LV_FLEX_ALIGN_END,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(row->row_container, theme_manager_get_spacing("space_xxs"),
-                                    LV_PART_MAIN);
-        lv_obj_set_width(row->row_container, LV_SIZE_CONTENT);
-        lv_obj_set_style_flex_grow(row->row_container, 1, LV_PART_MAIN);
+        const char* attrs[] = {"main_place", bars_align_name(data->bars_align), nullptr};
+        row->row_container =
+            static_cast<lv_obj_t*>(lv_xml_create(data->bars_container, "ams_mini_unit_row", attrs));
+        if (!row->row_container)
+            spdlog::error("[AmsMiniStatus] ams_mini_unit_row creation failed for unit {}",
+                          unit_index);
     }
     return row->row_container;
 }
@@ -345,22 +349,6 @@ static const char* bypass_label_text(const BypassView& bv) {
     return lv_tr("External");
 }
 
-/** The thin rule that sets the bypass apart from the unit's lanes. */
-static lv_obj_t* create_bypass_divider(lv_obj_t* parent) {
-    lv_obj_t* d = lv_obj_create(parent);
-    lv_obj_set_name(d, "bypass_divider");
-    lv_obj_set_width(d, 1);
-    lv_obj_set_style_pad_all(d, 0, LV_PART_MAIN);
-    lv_obj_set_style_border_width(d, 0, LV_PART_MAIN);
-    lv_obj_set_style_radius(d, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(d, theme_manager_get_color("border"), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(d, LV_OPA_COVER, LV_PART_MAIN);
-    lv_obj_set_scrollable(d, false);
-    lv_obj_set_clickable(d, false);
-    lv_obj_set_event_bubble(d, true);
-    return d;
-}
-
 /** What the divider and its gap take from the lanes' width, beyond one more bar and gap. */
 static int32_t bypass_width_overhead(const AmsMiniStatusData* data) {
     return data->bypass.shown ? theme_manager_get_spacing("space_xs") + 1 : 0;
@@ -376,29 +364,27 @@ static int32_t bypass_width_overhead(const AmsMiniStatusData* data) {
  *        hidden, as a stacked row's lanes do
  */
 static void layout_bypass_bar(AmsMiniStatusData* data, int32_t bar_width, int32_t bar_height,
-                              bool stretch, int32_t gap) {
+                              bool stretch) {
     if (!data->bypass.shown || data->slot_count <= 0) {
         if (data->bypass_column)
             lv_obj_set_hidden(data->bypass_column, true);
         return;
     }
     if (!data->bypass_column) {
-        lv_obj_t* col = ams_draw::create_transparent_container(data->container);
-        lv_obj_set_name(col, "ams_bypass_column");
-        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_END);
-        lv_obj_set_width(col, LV_SIZE_CONTENT);
-        create_bypass_divider(col);
-        data->bypass_bar = helix::ui::ams_lane_bar_create_unbound(col, bar_width, bar_height);
-        if (data->bypass_bar)
-            lv_obj_set_name(data->bypass_bar, "bypass_bar");
-        data->bypass_column = col;
+        const std::string w = std::to_string(bar_width);
+        const std::string h = std::to_string(bar_height);
+        const char* attrs[] = {"bar_width", w.c_str(), "bar_height", h.c_str(), nullptr};
+        data->bypass_column =
+            static_cast<lv_obj_t*>(lv_xml_create(data->container, "ams_mini_bypass_column", attrs));
+        if (!data->bypass_column) {
+            spdlog::error("[AmsMiniStatus] ams_mini_bypass_column creation failed");
+            return;
+        }
+        data->bypass_bar = lv_obj_find_by_name(data->bypass_column, "bypass_bar");
     }
-    lv_obj_t* col = data->bypass_column;
-    // Content-tall: the widget's row centres it as it centres the lanes, so a bar
+    // Content-tall: the widget's row centers it as it centers the lanes, so a bar
     // as tall as theirs stands level with them.
-    lv_obj_set_height(col, LV_SIZE_CONTENT);
-    lv_obj_set_style_pad_column(col, gap, LV_PART_MAIN);
+    lv_obj_t* col = data->bypass_column;
     // Past the "+N" overflow, which counts the unit's lanes.
     if (lv_obj_get_index(col) != static_cast<int32_t>(lv_obj_get_child_count(data->container)) - 1)
         lv_obj_move_to_index(col, -1);
@@ -683,7 +669,7 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         }
     }
 
-    layout_bypass_bar(data, bypass_bar_width, bypass_bar_height, is_multi_unit, gap);
+    layout_bypass_bar(data, bypass_bar_width, bypass_bar_height, is_multi_unit);
 
     // Batch-delete all condemned rows via a single deferred deletion
     if (condemned_parent) {
@@ -854,76 +840,22 @@ static int spool_badge_number(int slot_index) {
 }
 
 static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_size) {
-    char nm[32];
-
-    lv_obj_t* cell = lv_obj_create(parent);
-    snprintf(nm, sizeof(nm), "spool_cell_%d", slot_index);
-    lv_obj_set_name(cell, nm);
-    lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
-    lv_obj_set_scrollable(cell, false);
-    // Bubble taps/long-presses to the widget root: tap -> AMS overlay,
-    // long-press -> grid edit mode (matches the bar view).
-    lv_obj_set_event_bubble(cell, true);
-
-    // Spool wrap (square) holds the lane's spool widget + lane badge. The
-    // wrap is content-sized around the widget, whose root already carries the
-    // badge slack, so the badge (bottom-right aligned) hugs the spool's edge.
-    lv_obj_t* wrap = ams_draw::create_transparent_container(cell);
-    const std::string idx = std::to_string(slot_index);
+    const std::string slot = std::to_string(slot_index);
     const std::string sz = std::to_string(spool_size);
-    const char* attrs[] = {"slot_index", idx.c_str(), "spool_size", sz.c_str(), nullptr};
-    lv_obj_t* lspool = static_cast<lv_obj_t*>(lv_xml_create(wrap, "ams_lane_spool", attrs));
-    if (lspool)
-        lv_obj_set_name(lspool, "lane_spool"); // rebuild_spools() resizes it by this name
-    else
-        spdlog::error("[AmsMiniStatus] ams_lane_spool creation failed for slot {}", slot_index);
-
+    const std::string badge = std::to_string(spool_size * 2 / 5);
+    const char* attrs[] = {"slot",       slot.c_str(),  "spool_size", sz.c_str(),
+                           "badge_size", badge.c_str(), nullptr};
+    lv_obj_t* cell = static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_mini_spool_cell", attrs));
+    if (!cell) {
+        spdlog::error("[AmsMiniStatus] ams_mini_spool_cell creation failed for slot {}",
+                      slot_index);
+        return nullptr;
+    }
     // The lane's spool number, so a lane sharing another's spool wears that
     // spool's number; the plain 1-based lane number when no backend answers.
-    lv_obj_t* badge = ams_draw::create_lane_badge(wrap, spool_badge_number(slot_index),
-                                                  spool_size * 2 / 5, false);
-    if (badge) {
-        snprintf(nm, sizeof(nm), "spool_badge_%d", slot_index);
-        lv_obj_set_name(badge, nm);
-    }
-
-    // Text column (vertically centered), material over percent.
-    lv_obj_t* col = lv_obj_create(cell);
-    snprintf(nm, sizeof(nm), "spool_text_%d", slot_index);
-    lv_obj_set_name(col, nm);
-    lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-    lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
-    // The stacked height budget counts the two label lines and nothing
-    // between them, so the row gap has to actually be zero.
-    lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(col, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(col, 0, LV_PART_MAIN);
-    lv_obj_set_scrollable(col, false);
-    lv_obj_set_event_bubble(col, true);
-
-    lv_obj_t* mat = lv_label_create(col);
-    snprintf(nm, sizeof(nm), "spool_material_%d", slot_index);
-    lv_obj_set_name(mat, nm);
-    lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_set_event_bubble(mat, true);
-    const lv_font_t* fs = theme_manager_get_font("font_small");
-    if (fs)
-        lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
-    lv_obj_set_style_text_color(mat, theme_manager_get_color("text"), LV_PART_MAIN);
-
-    lv_obj_t* pct = lv_label_create(col);
-    snprintf(nm, sizeof(nm), "spool_pct_%d", slot_index);
-    lv_obj_set_name(pct, nm);
-    lv_obj_set_style_text_align(pct, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_set_event_bubble(pct, true);
-    const lv_font_t* fxs = theme_manager_get_font("font_xs");
-    if (fxs)
-        lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
-    lv_obj_set_style_text_color(pct, theme_manager_get_color("text_muted"), LV_PART_MAIN);
-
+    char nm[32];
+    snprintf(nm, sizeof(nm), "spool_badge_%d", slot_index);
+    ams_draw::set_lane_badge_number(lv_obj_find_by_name(cell, nm), spool_badge_number(slot_index));
     return cell;
 }
 
@@ -934,7 +866,7 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
  */
 static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_px, int spool_size,
                                int text_w, bool stacked, bool ellipsize, bool show_pct,
-                               int scrollbar_room, int gap) {
+                               int scrollbar_room) {
     const bool show = data->bypass.shown && !data->spool_cells.empty();
     if (!show) {
         if (data->bypass_divider)
@@ -945,47 +877,17 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
     }
     const int badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
     if (!data->bypass_cell) {
-        data->bypass_divider = create_bypass_divider(row);
-        lv_obj_t* cell = lv_obj_create(row);
-        lv_obj_set_name(cell, "bypass_cell");
-        lv_obj_set_style_pad_all(cell, 0, LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(cell, LV_OPA_TRANSP, LV_PART_MAIN);
-        lv_obj_set_style_border_width(cell, 0, LV_PART_MAIN);
-        lv_obj_set_scrollable(cell, false);
-        lv_obj_set_event_bubble(cell, true);
-
-        lv_obj_t* wrap = ams_draw::create_transparent_container(cell);
-        lv_obj_set_name(wrap, "bypass_spool_wrap");
-        lv_obj_t* canvas = ui_spool_canvas_create(wrap, spool_size);
-        if (canvas) {
-            lv_obj_set_name(canvas, "bypass_spool");
-            lv_obj_set_event_bubble(canvas, true);
+        data->bypass_divider =
+            static_cast<lv_obj_t*>(lv_xml_create(row, "ams_mini_bypass_divider", nullptr));
+        const std::string sz = std::to_string(spool_size);
+        const char* attrs[] = {"spool_size", sz.c_str(), nullptr};
+        data->bypass_cell =
+            static_cast<lv_obj_t*>(lv_xml_create(row, "ams_mini_bypass_cell", attrs));
+        if (!data->bypass_divider || !data->bypass_cell) {
+            spdlog::error("[AmsMiniStatus] bypass cell creation failed");
+            return;
         }
-
-        lv_obj_t* col = ams_draw::create_transparent_container(cell);
-        lv_obj_set_name(col, "bypass_text");
-        lv_obj_set_flex_flow(col, LV_FLEX_FLOW_COLUMN);
-        lv_obj_set_flex_align(col, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
-        lv_obj_set_style_pad_all(col, 0, LV_PART_MAIN);
-        lv_obj_set_style_pad_row(col, 0, LV_PART_MAIN);
-        lv_obj_t* mat = lv_label_create(col);
-        lv_obj_set_name(mat, "bypass_material");
-        lv_obj_set_style_text_align(mat, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-        lv_obj_set_event_bubble(mat, true);
-        if (const lv_font_t* fs = theme_manager_get_font("font_small"))
-            lv_obj_set_style_text_font(mat, fs, LV_PART_MAIN);
-        lv_obj_set_style_text_color(mat, theme_manager_get_color("text"), LV_PART_MAIN);
-        // Nothing weighs the bypass spool, so its percent line stays blank; it
-        // holds the line a lane's percent takes so the spools stand level.
-        lv_obj_t* pct = lv_label_create(col);
-        lv_obj_set_name(pct, "bypass_pct");
-        lv_label_set_text(pct, "");
-        lv_obj_set_event_bubble(pct, true);
-        if (const lv_font_t* fxs = theme_manager_get_font("font_xs"))
-            lv_obj_set_style_text_font(pct, fxs, LV_PART_MAIN);
-        data->bypass_cell = cell;
     }
-    lv_obj_set_height(data->bypass_divider, lv_pct(80));
     lv_obj_set_hidden(data->bypass_divider, false);
 
     lv_obj_t* cell = data->bypass_cell;
@@ -993,9 +895,6 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
     // Level with the lane cells, which stand above the scrollbar's room.
     lv_obj_set_style_pad_bottom(cell, scrollbar_room, LV_PART_MAIN);
     lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN_REVERSE : LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(cell, gap, LV_PART_MAIN);
-    lv_obj_set_style_pad_row(cell, gap, LV_PART_MAIN);
 
     // The same footprint a lane's spool takes with its badge slack, so the
     // bypass spool lines up with theirs.
@@ -1006,8 +905,6 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
     }
     if (lv_obj_t* canvas = lv_obj_find_by_name(cell, "bypass_spool")) {
         ui_spool_canvas_set_size(canvas, spool_size);
-        // Where a lane's graphic stands inside its badge slack.
-        lv_obj_align(canvas, LV_ALIGN_TOP_LEFT, 0, 0);
         const auto& spool = data->bypass.spool;
         if (spool) {
             helix::ui::spool_canvas_set_filament(canvas, *spool);
@@ -1029,8 +926,8 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
         lv_obj_set_width(mat, text_w);
         lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_MODE_DOTS : LV_LABEL_LONG_MODE_WRAP);
         lv_label_set_max_lines(mat, ellipsize ? 1 : 0);
-        lv_label_set_text(mat, bypass_label_text(data->bypass));
     }
+    helix::ui::set_row_label_text(cell, "bypass_material", bypass_label_text(data->bypass));
     if (lv_obj_t* pct = lv_obj_find_by_name(cell, "bypass_pct"))
         lv_obj_set_hidden(pct, !show_pct);
     lv_obj_set_hidden(cell, false);
@@ -1081,37 +978,23 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     const bool cur_3d = helix::ui::ams_spool_style_3d();
 
     if (!data->spools_row) {
-        // The row carries the card and holds the lanes' scroller, then the
-        // bypass pinned past it: only the lanes scroll, so the bypass, often
-        // the node feeding the toolhead, never scrolls out of sight.
-        lv_obj_t* row = ams_draw::create_transparent_container(data->container);
-        lv_obj_set_name(row, "ams_spools_row");
-        lv_obj_set_size(row, lv_pct(100), lv_pct(100));
-        lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(row, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
+        lv_obj_t* row =
+            static_cast<lv_obj_t*>(lv_xml_create(data->container, "ams_mini_spools_row", nullptr));
+        lv_obj_t* sc = row ? lv_obj_find_by_name(row, "ams_spools_container") : nullptr;
+        if (!sc) {
+            spdlog::error("[AmsMiniStatus] ams_mini_spools_row creation failed");
+            if (row)
+                helix::ui::safe_delete_deferred(row);
+            return;
+        }
         data->spools_row = row;
+        data->spools_container = sc;
         apply_spools_card_surface(data);
         // The container's own SIZE_CHANGED fires before its children are laid
         // out, so a rebuild there reads this row at its old size, or at zero
         // and the width_px hint, which runs a few px wide. The row's real size
         // arrives here.
         lv_obj_add_event_cb(row, on_spools_size_changed, LV_EVENT_SIZE_CHANGED, data->container);
-
-        lv_obj_t* sc = ams_draw::create_transparent_container(row);
-        lv_obj_set_name(sc, "ams_spools_container");
-        lv_obj_set_size(sc, lv_pct(100), lv_pct(100));
-        lv_obj_set_style_flex_grow(sc, 1, LV_PART_MAIN);
-        lv_obj_set_flex_flow(sc, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(sc, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(sc, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
-        lv_obj_set_scrollable(sc, true);
-        lv_obj_set_scroll_dir(sc, LV_DIR_HOR);
-        lv_obj_set_scrollbar_mode(sc, LV_SCROLLBAR_MODE_AUTO);
-        // The bar runs on the bottom edge: rebuild_spools() keeps the lanes
-        // above it, and every pixel it floats above the edge comes off them.
-        lv_obj_set_style_pad_bottom(sc, 0, LV_PART_SCROLLBAR);
-        data->spools_container = sc;
     }
     lv_obj_t* row = data->spools_row;
     lv_obj_t* sc = data->spools_container;
@@ -1285,14 +1168,10 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         // Stacked cells put the name over the spool (the text column is the
         // cell's second child); short rows sit it alongside.
         lv_obj_set_size(cell, cell_px, lv_pct(100));
+        // A column-flow cell spaces its children by pad_row, which the
+        // component sets to the same space_xxs `gap` the stacked height budget
+        // counts once between the spool and the text block.
         lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN_REVERSE : LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                              LV_FLEX_ALIGN_CENTER);
-        lv_obj_set_style_pad_column(cell, gap, LV_PART_MAIN);
-        // A column-flow cell spaces its children by pad_row, and the stacked
-        // height budget counts exactly one `gap` between the spool and the
-        // text block.
-        lv_obj_set_style_pad_row(cell, gap, LV_PART_MAIN);
 
         // The graphic renders itself from the per-slot subjects; its size is
         // the one thing the cell still owes it (no-op unless the measured
@@ -1312,8 +1191,9 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         // spool and its lane badge carry the row on their own.
         const bool show_text = text_w > 0;
         const bool show_pct = !stacked || stacked_pct;
-        const lv_opa_t text_opa =
-            cd.lane_state == helix::ui::LaneState::Ghosted ? ams_draw::kGhostOpa : LV_OPA_COVER;
+        // Ghost the whole text group together: a full-strength percent beside a
+        // dimmed material would read as two different lanes.
+        const bool ghosted = cd.lane_state == helix::ui::LaneState::Ghosted;
         lv_obj_t* col = cell_part(cell, "spool_text_%d", slot);
         if (col) {
             lv_obj_set_width(col, text_w);
@@ -1335,25 +1215,20 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             lv_label_set_long_mode(mat,
                                    ellipsize ? LV_LABEL_LONG_MODE_DOTS : LV_LABEL_LONG_MODE_WRAP);
             lv_label_set_max_lines(mat, ellipsize ? 1 : 0);
-            lv_obj_set_style_text_opa(mat, text_opa, LV_PART_MAIN);
+            lv_obj_set_state(mat, LV_STATE_USER_1, ghosted);
             // Same helper measure_widest_material() sized text_w from, so the
             // string drawn here is the one the column was reserved for.
-            lv_label_set_text(mat, spool_material_text(cd));
+            helix::ui::set_row_label_text(cell, nm, spool_material_text(cd));
         }
 
         lv_obj_t* pct = cell_part(cell, "spool_pct_%d", slot);
         if (pct) {
             lv_obj_set_width(pct, text_w);
-            if (cd.remaining_pct >= 0) {
-                char pb[16];
+            char pb[16] = "";
+            if (cd.remaining_pct >= 0)
                 snprintf(pb, sizeof(pb), "%d%%", cd.remaining_pct);
-                lv_label_set_text(pct, pb);
-            } else {
-                lv_label_set_text(pct, "");
-            }
-            // Ghost the whole text group together: a full-strength percent beside a
-            // dimmed material would read as two different lanes.
-            lv_obj_set_style_text_opa(pct, text_opa, LV_PART_MAIN);
+            helix::ui::set_row_label_text(cell, nm, pb);
+            lv_obj_set_state(pct, LV_STATE_USER_1, ghosted);
             if (show_text && show_pct)
                 lv_obj_set_hidden(pct, false);
             else
@@ -1362,7 +1237,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     }
 
     layout_bypass_cell(data, row, cell_px, spool_size, text_w, stacked, ellipsize,
-                       !stacked || stacked_pct, scrollbar_room, gap);
+                       !stacked || stacked_pct, scrollbar_room);
 
     if (condemned)
         helix::ui::safe_delete_deferred(condemned);
@@ -1425,7 +1300,7 @@ static void on_size_changed(lv_event_t* e) {
     }
 }
 
-/** Click callback to open AMS panel (routes to overview for multi-unit) */
+/** Tap on the strip (ams_mini_status_frame): open the AMS panel, or the overview for multi-unit */
 static void on_click(lv_event_t* e) {
     (void)e;
     spdlog::debug("[AmsMiniStatus] Clicked - navigating to AMS panel");
@@ -1462,74 +1337,31 @@ static void bind_bypass_observers(AmsMiniStatusData* data, lv_obj_t* container) 
 // Public API
 // ============================================================================
 
-lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
-    if (!parent || height <= 0) {
+/**
+ * @brief Build the strip from the ams_mini_status_frame component and bind it
+ * to AmsState. Shared by the C++ factory and the XML create callback, which
+ * differ only in the frame's sizing props and the fixed @p height (0 = sized
+ * from the parent).
+ */
+static lv_obj_t* create_mini_status(lv_obj_t* parent, int32_t height, const char** frame_attrs) {
+    lv_obj_t* container =
+        static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_mini_status_frame", frame_attrs));
+    if (!container) {
+        spdlog::error("[AmsMiniStatus] ams_mini_status_frame creation failed");
         return nullptr;
     }
 
-    // Create main container
-    lv_obj_t* container = lv_obj_create(parent);
-    lv_obj_set_scrollable(container, false);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-
-    // Fill parent width, content height
-    lv_obj_set_size(container, LV_PCT(100), LV_SIZE_CONTENT);
-
-    // Use flex layout to center children (bars_container + overflow_label) horizontally
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(container, theme_manager_get_spacing("space_xs"), LV_PART_MAIN);
-
-    // Create user data
     auto data_ptr = std::make_unique<AmsMiniStatusData>();
     data_ptr->height = height;
     data_ptr->container = container;
-
-    // Create bars container (holds the slot bars)
-    data_ptr->bars_container = lv_obj_create(container);
-    lv_obj_set_name(data_ptr->bars_container, "ams_bars_container");
-    lv_obj_set_scrollable(data_ptr->bars_container, false);
-    lv_obj_set_event_bubble(data_ptr->bars_container, true); // Pass clicks to parent
-    lv_obj_set_style_bg_opa(data_ptr->bars_container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(data_ptr->bars_container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(data_ptr->bars_container, 0, LV_PART_MAIN);
-    lv_obj_set_flex_flow(data_ptr->bars_container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(data_ptr->bars_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(data_ptr->bars_container, theme_manager_get_spacing("space_xxs"),
-                                LV_PART_MAIN);
-    // Grows into the row the bypass column leaves it.
-    lv_obj_set_size(data_ptr->bars_container, LV_PCT(100), height);
-    lv_obj_set_style_flex_grow(data_ptr->bars_container, 1, LV_PART_MAIN);
-
-    // Create overflow label (hidden by default) - use responsive font
-    data_ptr->overflow_label = lv_label_create(container);
-    lv_obj_set_event_bubble(data_ptr->overflow_label, true); // Pass clicks to parent
-    lv_label_set_text(data_ptr->overflow_label, "+0");
-    lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_muted"),
-                                LV_PART_MAIN);
-    const lv_font_t* font_xs = theme_manager_get_font("font_xs");
-    if (!font_xs)
-        font_xs = &noto_sans_12;
-    lv_obj_set_style_text_font(data_ptr->overflow_label, font_xs, LV_PART_MAIN);
-    lv_obj_set_hidden(data_ptr->overflow_label, true);
+    data_ptr->bars_container = lv_obj_find_by_name(container, "ams_bars_container");
+    data_ptr->overflow_label = lv_obj_find_by_name(container, "ams_overflow_label");
 
     // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
     s_registry.set(container, data);
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(container, on_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
-
-    // Make clickable to open AMS panel
-    lv_obj_set_clickable(container, true);
-    lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
-
-    // Initially hidden (no slots)
-    lv_obj_set_hidden(container, true);
 
     // Auto-bind to AmsState: observe slots_version changes
     // slots_version is always bumped after slot_count changes, so one observer suffices
@@ -1540,15 +1372,10 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
     if (slots_version_subject) {
         // Capture container (lv_obj_t*) instead of data pointer to prevent
         // use-after-free when deferred callback executes after widget deletion.
-        // The registry lookup acts as a validity check. (fixes #83)
-        data->slots_version_observer = observe<int>(
-            slots_version_subject, container,
-            [](lv_obj_t* obj, int /* version */) {
-                auto* d = get_data(obj);
-                if (d)
-                    sync_from_ams_state(d);
-            },
-            helix::AmsState::instance().get_subjects_lifetime());
+        // The registry lookup acts as a validity check. (#83)
+        data->slots_version_observer =
+            observe<int>(slots_version_subject, container, resync_widget,
+                         helix::AmsState::instance().get_subjects_lifetime());
 
         // Sync now, so the frame that first shows the widget draws its lanes.
         // Layout has not sized the container yet: rebuild_bars waits for that,
@@ -1557,28 +1384,34 @@ lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
         if (slot_count_subject && lv_subject_get_int(slot_count_subject) > 0) {
             sync_from_ams_state(data);
         }
-        spdlog::debug("[AmsMiniStatus] Auto-bound to AmsState slots_version subject");
     }
 
-    // Observe current_slot as a re-sync trigger. The highlight itself now comes
+    // Observe current_slot as a re-sync trigger. The highlight itself comes
     // from the per-slot active-loaded subject (read in sync_from_ams_state), and
     // every delta on that subject bumps slots_version, so the observer above is
     // what keeps the strip live; this one covers a current_slot move that leaves
     // the active-loaded flags untouched.
     lv_subject_t* current_slot_subject = helix::AmsState::instance().get_current_slot_subject();
     if (current_slot_subject) {
-        data->current_slot_observer = observe<int>(
-            current_slot_subject, container,
-            [](lv_obj_t* obj, int /* slot */) {
-                auto* d = get_data(obj);
-                if (d)
-                    sync_from_ams_state(d);
-            },
-            helix::AmsState::instance().get_subjects_lifetime());
+        data->current_slot_observer =
+            observe<int>(current_slot_subject, container, resync_widget,
+                         helix::AmsState::instance().get_subjects_lifetime());
     }
 
     bind_bypass_observers(data, container);
+    return container;
+}
 
+lv_obj_t* ui_ams_mini_status_create(lv_obj_t* parent, int32_t height) {
+    if (!parent || height <= 0) {
+        return nullptr;
+    }
+    // Content-tall around bars of the given height, which grow into the row
+    // the bypass column leaves them.
+    const std::string h = std::to_string(height);
+    const char* attrs[] = {"height",  "content",   "bars_width", "100%", "bars_height",
+                           h.c_str(), "bars_grow", "1",          nullptr};
+    lv_obj_t* container = create_mini_status(parent, height, attrs);
     spdlog::trace("[AmsMiniStatus] Created (height={})", height);
     return container;
 }
@@ -1809,8 +1642,6 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     spdlog::trace("[AmsMiniStatus] Synced from AmsState: {} slots", slot_count);
 }
 
-// Observer callbacks migrated to lambda observers in ui_ams_mini_status_create()
-
 // ============================================================================
 // XML Widget Registration
 // ============================================================================
@@ -1819,117 +1650,10 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
  * @brief XML create callback - creates widget with responsive sizing
  */
 static void* ui_ams_mini_status_xml_create(lv_xml_parser_state_t* state, const char** /* attrs */) {
-    void* parent = lv_xml_state_get_parent(state);
-
-    // Create main container that fills parent
-    lv_obj_t* container = lv_obj_create((lv_obj_t*)parent);
-    lv_obj_set_scrollable(container, false);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-
-    // Fill parent (parent must have a definite height for bars to render correctly)
-    lv_obj_set_size(container, LV_PCT(100), LV_PCT(100));
-
-    // Use flex layout to center children
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(container, theme_manager_get_spacing("space_xs"), LV_PART_MAIN);
-
-    // Create user data with height=0 (will be set dynamically)
-    auto data_ptr = std::make_unique<AmsMiniStatusData>();
-    data_ptr->height = 0; // Will be calculated from parent
-    data_ptr->container = container;
-
-    // Create bars container (holds the slot bars)
-    data_ptr->bars_container = lv_obj_create(container);
-    lv_obj_set_name(data_ptr->bars_container, "ams_bars_container");
-    lv_obj_set_scrollable(data_ptr->bars_container, false);
-    lv_obj_set_event_bubble(data_ptr->bars_container, true);
-    lv_obj_set_style_bg_opa(data_ptr->bars_container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(data_ptr->bars_container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(data_ptr->bars_container, 0, LV_PART_MAIN);
-    lv_obj_set_flex_flow(data_ptr->bars_container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(data_ptr->bars_container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_END,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_column(data_ptr->bars_container, theme_manager_get_spacing("space_xxs"),
-                                LV_PART_MAIN);
-    // Fill parent height (responsive)
-    lv_obj_set_size(data_ptr->bars_container, LV_SIZE_CONTENT, LV_PCT(100));
-
-    // Create overflow label (hidden by default)
-    data_ptr->overflow_label = lv_label_create(container);
-    lv_obj_set_event_bubble(data_ptr->overflow_label, true);
-    lv_label_set_text(data_ptr->overflow_label, "+0");
-    lv_obj_set_style_text_color(data_ptr->overflow_label, theme_manager_get_color("text_muted"),
-                                LV_PART_MAIN);
-    const lv_font_t* font_xs = theme_manager_get_font("font_xs");
-    if (!font_xs)
-        font_xs = &noto_sans_12;
-    lv_obj_set_style_text_font(data_ptr->overflow_label, font_xs, LV_PART_MAIN);
-    lv_obj_set_hidden(data_ptr->overflow_label, true);
-
-    // Register and set up cleanup
-    AmsMiniStatusData* data = data_ptr.release();
-    s_registry.set(container, data);
-    lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
-    lv_obj_add_event_cb(container, on_size_changed, LV_EVENT_SIZE_CHANGED, nullptr);
-
-    // Make clickable to open AMS panel
-    lv_obj_set_clickable(container, true);
-    lv_obj_set_style_opa(container, LV_OPA_70, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_add_event_cb(container, on_click, LV_EVENT_CLICKED, nullptr);
-
-    // Initially hidden (no slots)
-    lv_obj_set_hidden(container, true);
-
-    // Auto-bind to AmsState: observe slots_version changes
-    // slots_version is always bumped after slot_count changes, so one observer suffices
-    using helix::ui::observe;
-
-    lv_subject_t* slots_version_subject = helix::AmsState::instance().get_slots_version_subject();
-    if (slots_version_subject) {
-        // Capture container (lv_obj_t*) instead of data pointer to prevent
-        // use-after-free when deferred callback executes after widget deletion.
-        // The registry lookup acts as a validity check. (fixes #83)
-        data->slots_version_observer = observe<int>(
-            slots_version_subject, container,
-            [](lv_obj_t* obj, int /* version */) {
-                auto* d = get_data(obj);
-                if (d)
-                    sync_from_ams_state(d);
-            },
-            helix::AmsState::instance().get_subjects_lifetime());
-
-        // Sync now, so the frame that first shows the widget draws its lanes.
-        // Layout has not sized the container yet: rebuild_bars waits for that,
-        // and on_size_changed rebuilds once it lands, still before that frame.
-        lv_subject_t* slot_count_subject = helix::AmsState::instance().get_slot_count_subject();
-        if (slot_count_subject && lv_subject_get_int(slot_count_subject) > 0) {
-            sync_from_ams_state(data);
-        }
-    }
-
-    // Observe current_slot as a re-sync trigger. The highlight itself now comes
-    // from the per-slot active-loaded subject (read in sync_from_ams_state), and
-    // every delta on that subject bumps slots_version, so the observer above is
-    // what keeps the strip live; this one covers a current_slot move that leaves
-    // the active-loaded flags untouched.
-    lv_subject_t* current_slot_subject = helix::AmsState::instance().get_current_slot_subject();
-    if (current_slot_subject) {
-        data->current_slot_observer = observe<int>(
-            current_slot_subject, container,
-            [](lv_obj_t* obj, int /* slot */) {
-                auto* d = get_data(obj);
-                if (d)
-                    sync_from_ams_state(d);
-            },
-            helix::AmsState::instance().get_subjects_lifetime());
-    }
-
-    bind_bypass_observers(data, container);
-
+    // The frame's defaults fill the parent, which must have a definite height
+    // for the bars to render correctly; height=0 sizes them from it.
+    lv_obj_t* container =
+        create_mini_status(static_cast<lv_obj_t*>(lv_xml_state_get_parent(state)), 0, nullptr);
     spdlog::trace("[AmsMiniStatus] Created via XML (responsive height)");
     return container;
 }
@@ -1967,6 +1691,8 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
 void ui_ams_mini_status_init(void) {
     ui_ams_lane_bar_register();
     ui_ams_lane_spool_register();
+    ui_spool_canvas_register(); // the spool view's bypass cell draws one
+    lv_xml_register_event_cb(nullptr, "ams_mini_status_clicked", on_click);
     lv_xml_register_widget("ams_mini_status", ui_ams_mini_status_xml_create,
                            ui_ams_mini_status_xml_apply);
     spdlog::trace("[AmsMiniStatus] Registered ams_mini_status XML widget");
