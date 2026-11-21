@@ -477,11 +477,11 @@ lv_indev_t* DisplayBackendDRM::reopen_input_pointer() {
     }
     input_delete_watch_.watch(pointer_, &pointer_);
     // Discovery installs the wrapper on a touch panel it finds; an override path
-    // does not, so the reopened device gets it here, a passthrough until a valid
-    // calibration is set.
+    // does not, so the reopened device gets it here. Either way it keeps the
+    // calibration live when the old device dropped.
     if (!calibration_wrapper_installed_) {
-        helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
-                                           screen_width_, screen_height_);
+        helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
+                                             screen_height_);
         calibration_wrapper_installed_ = true;
     }
     spdlog::info("[DRM Backend] Touch device reopened on {}", pointer_path_);
@@ -866,8 +866,15 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
                 };
             }
 
-            helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
-                                               screen_width_, screen_height_);
+            // A reopened device keeps the calibration live when the old one dropped,
+            // a capture's disabled affine included.
+            if (reopening) {
+                helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
+                                                     screen_height_);
+            } else {
+                helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                                   screen_width_, screen_height_);
+            }
             calibration_wrapper_installed_ = true;
 
             // Record the pipeline exactly as programmed above, so a debug bundle

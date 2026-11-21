@@ -1621,6 +1621,61 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_indev_delete(indev);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a reopened touch device reads with the calibration live when it dropped",
+                 "[touch-calibration][wrapper][2069]") {
+    // A valid affine calibration: screen_x = x + 100, screen_y = y + 50.
+    TouchCalibration cal;
+    cal.valid = true;
+    cal.a = 1.0f, cal.b = 0.0f, cal.c = 100.0f;
+    cal.d = 0.0f, cal.e = 1.0f, cal.f = 50.0f;
+
+    CalibrationContext ctx;
+    lv_indev_t* original = lv_indev_create();
+    lv_indev_set_type(original, LV_INDEV_TYPE_POINTER);
+    install_calibration_wrapper(original, ctx, cal, 800, 480);
+    lv_indev_delete(original);
+
+    auto read_reopened = [&](lv_indev_t* indev) {
+        lv_indev_data_t data{};
+        data.point.x = 10;
+        data.point.y = 20;
+        data.state = LV_INDEV_STATE_PRESSED;
+        calibrated_read_cb(indev, &data);
+        return Point{data.point.x, data.point.y};
+    };
+
+    SECTION("a capture in progress keeps reading raw") {
+        // What disable_affine_calibration() does while the wizard captures points.
+        ctx.calibration.valid = false;
+        lv_indev_t* reopened = lv_indev_create();
+        lv_indev_set_type(reopened, LV_INDEV_TYPE_POINTER);
+
+        helix::reinstall_calibration_wrapper(reopened, ctx, 800, 480);
+
+        CHECK(lv_indev_get_read_cb(reopened) == helix::calibrated_read_cb);
+        const Point got = read_reopened(reopened);
+        CHECK(got.x == 10);
+        CHECK(got.y == 20);
+        uninstall_calibration_wrapper(reopened, ctx);
+        lv_indev_delete(reopened);
+    }
+
+    SECTION("an accepted calibration stays applied") {
+        lv_indev_t* reopened = lv_indev_create();
+        lv_indev_set_type(reopened, LV_INDEV_TYPE_POINTER);
+
+        helix::reinstall_calibration_wrapper(reopened, ctx, 800, 480);
+
+        const Point want = transform_point(cal, {10, 20}, 799, 479);
+        const Point got = read_reopened(reopened);
+        CHECK(got.x == want.x);
+        CHECK(got.y == want.y);
+        uninstall_calibration_wrapper(reopened, ctx);
+        lv_indev_delete(reopened);
+    }
+}
+
 // ============================================================================
 // Shipped platform defaults
 // ============================================================================
