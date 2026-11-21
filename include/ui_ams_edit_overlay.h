@@ -476,6 +476,7 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject last_material_subject_{};   ///< what it last held, material · color
     helix::Subject add_to_spoolman_subject_{}; ///< the Add to Spoolman checkbox
     helix::Subject adding_subject_{};          ///< 1 while the summary holds a new spool going in
+    helix::Subject color_named_subject_{};     ///< 1 while the color line has a name to show
     helix::Subject tag_text_subject_{};        ///< "Tag says PLA · Bambu · Black"
     helix::Subject clear_archive_subject_{};   ///< the Clear Lane archive checkbox
     helix::Subject clear_title_subject_{};     ///< "Clear Lane 3?" ("ams_edit_clear_title")

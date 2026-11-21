@@ -496,7 +496,8 @@
         <lv_obj name="color_label_row"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                 style_flex_cross_place="center" scrollable="false">
-          <bind_flag_if cond="(ui_breakpoint eq 0 and ui_is_portrait eq 0) or ams_edit_multi eq 1" flag="hidden"/>
+          <bind_flag_if cond="(ui_breakpoint eq 0 and ui_is_portrait eq 0) or ams_edit_multi eq 1 or ams_edit_color_named eq 0"
+                        flag="hidden"/>
           <text_small name="color_name" bind_text="ams_edit_color_name" flex_grow="1" long_mode="dots"/>
           <tag_badge subject="ams_edit_tag_color"/>
         </lv_obj>

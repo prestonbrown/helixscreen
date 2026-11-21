@@ -581,6 +581,7 @@ void AmsEditOverlay::init_subjects() {
                                   "ams_edit_last_material", subjects_);
         UI_MANAGED_SUBJECT_INT(add_to_spoolman_subject_, 1, "ams_edit_add_to_spoolman", subjects_);
         UI_MANAGED_SUBJECT_INT(adding_subject_, 0, "ams_edit_adding", subjects_);
+        UI_MANAGED_SUBJECT_INT(color_named_subject_, 0, "ams_edit_color_named", subjects_);
         UI_MANAGED_SUBJECT_STRING(tag_text_subject_, tag_text_buf_, "", "ams_edit_tag_text",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(clear_archive_subject_, 0, "ams_edit_clear_archive", subjects_);
@@ -2079,7 +2080,12 @@ void AmsEditOverlay::update_summary() {
         lv_subject_set_int(&weight_pct_subject_, pct);
     }
     {
-        const SlotInfo shown = shown_slot();
+        SlotInfo shown = shown_slot();
+        // A spool going in is what the form's resting values say until a pick.
+        if (shown.material.empty() && lv_subject_get_int(&adding_subject_) == 1 && catalog_) {
+            shown.material = selected_type(sel_, *catalog_);
+            shown.brand = sel_.brand;
+        }
         snprintf(product_line_buf_, sizeof(product_line_buf_), "%s",
                  product_line_of(shown).c_str());
         lv_subject_set_string(&product_line_subject_, product_line_buf_);
@@ -2604,6 +2610,7 @@ void AmsEditOverlay::update_color_row() {
                                  ? helix::get_color_name_from_hex(details_color_)
                                  : helix::ams::slot_color_name(working_info_.color_rgb);
     lv_subject_set_string(&color_name_subject_, name.c_str());
+    lv_subject_set_int(&color_named_subject_, name.empty() ? 0 : 1);
 
     s_seg_colors.ensure_size(kMaxColors);
     for (size_t i = 0; i < static_cast<size_t>(dots); ++i) {

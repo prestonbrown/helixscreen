@@ -124,6 +124,8 @@ TEST_CASE_METHOD(PagesFixture, "an empty lane's New Spool pages lead back to it"
     CHECK(access.page() == AmsEditOverlay::kPageSummary);
     CHECK(access.adding() == 1);
     CHECK(access.subject_text("ams_edit_weight_text") == "1000 g of 1 kg");
+    CHECK(access.subject_text("ams_edit_product_line") == "Generic");
+    CHECK(access.subject_text("ams_edit_material_line").rfind("PLA", 0) == 0);
     back();
     CHECK(access.page() == AmsEditOverlay::kPageEmpty);
     CHECK(access.adding() == 0);
