@@ -24,6 +24,12 @@ bool same_filament(const Entry& a, const Entry& b) {
            a.color_rgb == b.color_rgb;
 }
 
+/// @p item's string member @p key, or empty when it is absent or not a string.
+std::string string_member(const nlohmann::json& item, const char* key) {
+    const auto it = item.find(key);
+    return (it != item.end() && it->is_string()) ? it->get<std::string>() : std::string();
+}
+
 } // namespace
 
 std::optional<Entry> entry_from_slot(const SlotInfo& slot) {
@@ -76,18 +82,14 @@ std::vector<Entry> from_json(const nlohmann::json& value) {
         if (!item.is_object()) {
             continue;
         }
-        auto text = [&item](const char* key) {
-            const auto it = item.find(key);
-            return (it != item.end() && it->is_string()) ? it->get<std::string>() : std::string();
-        };
         Entry e;
-        e.material = text("material");
+        e.material = string_member(item, "material");
         if (e.material.empty()) {
             continue;
         }
-        e.brand = text("brand");
-        e.product_name = text("product");
-        e.catalog_id = text("catalog_id");
+        e.brand = string_member(item, "brand");
+        e.product_name = string_member(item, "product");
+        e.catalog_id = string_member(item, "catalog_id");
         const auto rgb = item.find("color");
         if (rgb != item.end() && rgb->is_number_unsigned()) {
             e.color_rgb = rgb->get<uint32_t>() & 0xFFFFFF;
@@ -107,22 +109,26 @@ std::vector<Entry> from_json(const nlohmann::json& value) {
 nlohmann::json to_json(const std::vector<Entry>& entries) {
     nlohmann::json list = nlohmann::json::array();
     for (const auto& e : entries) {
-        list.push_back({{"material", e.material},
-                        {"brand", e.brand},
-                        {"product", e.product_name},
-                        {"catalog_id", e.catalog_id},
-                        {"color", e.color_rgb},
-                        {"total_g", e.total_weight_g}});
+        // Member by member: an initializer list builds a temporary json per
+        // field and costs several times the code.
+        nlohmann::json item = nlohmann::json::object();
+        item["material"] = e.material;
+        item["brand"] = e.brand;
+        item["product"] = e.product_name;
+        item["catalog_id"] = e.catalog_id;
+        item["color"] = e.color_rgb;
+        item["total_g"] = e.total_weight_g;
+        list.push_back(std::move(item));
     }
     return list;
 }
 
-void load(IMoonrakerAPI& api, std::function<void(std::vector<Entry>)> on_loaded) {
-    auto done = std::make_shared<std::function<void(std::vector<Entry>)>>(std::move(on_loaded));
+void load(IMoonrakerAPI& api, helix::SharedCallback<void(std::vector<Entry>)> on_loaded) {
     api.database_get_item(
-        kDbNamespace, kDbKey, [done](const nlohmann::json& value) { (*done)(from_json(value)); },
+        kDbNamespace, kDbKey,
+        [on_loaded](const nlohmann::json& value) { on_loaded(from_json(value)); },
         // A key nothing has written yet answers not-found: an empty history.
-        [done](const MoonrakerError&) { (*done)({}); });
+        [on_loaded](const MoonrakerError&) { on_loaded({}); });
 }
 
 std::optional<std::vector<Entry>> base_for_record(const nlohmann::json* stored,
