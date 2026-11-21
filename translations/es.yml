@@ -5568,6 +5568,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': 'Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% menos)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Ondulación {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} después ({4}% más)'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · unos {} min'
+  '{:.2f} mm range': '{:.2f} mm de rango'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} extrusores'
   '{} Hardware Issues': '{} problemas de hardware'

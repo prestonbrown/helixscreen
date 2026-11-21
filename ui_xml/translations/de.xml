@@ -5420,6 +5420,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" de="{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% weniger)"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" de="{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% mehr)"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" de="{:.0f}-{:.0f} Hz · ca. {} Min."/>
+  <translation tag="{:.2f} mm range" de="{:.2f} mm Spanne"/>
   <translation tag="{} ({})" de="{} ({})"/>
   <translation tag="{} Extruders" de="{} Extruder"/>
   <translation tag="{} Hardware Issues" de="{} Hardware-Probleme"/>

@@ -7,6 +7,7 @@
 
 #include "async_lifetime_guard.h"
 #include "calibration_abort.h"
+#include "calibration_config_results.h"
 #include "calibration_history_store.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
@@ -151,7 +152,7 @@ class HeatersStep : public CalibrationStep {
                 [this, h](float kp, float ki, float kd) {
                     values_[h.name] = {
                         {"control", "pid"}, {"temp", h.temp_c}, {"kp", kp}, {"ki", ki}, {"kd", kd}};
-                    summaries_.push_back(fmt::format("{} PID", label()));
+                    summaries_.push_back(fmt::format("{} {}", label(), format_pid(kp, ki, kd)));
                     next();
                 }),
             lifetime_.bg_cb("CalibrationRun.Heaters.pid_error",
@@ -179,7 +180,8 @@ class HeatersStep : public CalibrationStep {
                                     {"block_heat_capacity", r.block_heat_capacity},
                                     {"sensor_responsiveness", r.sensor_responsiveness},
                                     {"ambient_transfer", r.ambient_transfer}};
-                                summaries_.push_back(fmt::format("{} MPC", label()));
+                                summaries_.push_back(fmt::format(
+                                    "{} {}", label(), format_mpc(r.block_heat_capacity)));
                                 next();
                             }),
             lifetime_.bg_cb("CalibrationRun.Heaters.mpc_error",
@@ -235,11 +237,16 @@ class BedMeshStep : public CalibrationStep {
         aborted_ = false;
         ctx.progress({lv_tr("Probing the bed"), -1});
         BedMeshPanel::RunHooks hooks;
-        hooks.stored = [this](const std::string& profile) {
+        hooks.stored = [this](const std::string& profile, std::optional<double> range) {
             if (auto* c = take()) {
+                nlohmann::json values = {{"profile", profile}};
+                if (range) {
+                    values["range"] = *range;
+                }
                 c->done(StepOutcome::finished(
-                    {fmt::format(fmt::runtime(lv_tr("Profile '{}'")), profile),
-                     {{"profile", profile}}}));
+                    {range ? format_mesh_range(*range)
+                           : fmt::format(fmt::runtime(lv_tr("Profile '{}'")), profile),
+                     std::move(values)}));
             }
         };
         hooks.failed = [this](const std::string& why) {
@@ -351,16 +358,14 @@ class InputShaperStep : public CalibrationStep {
         }
         // Shaper names are Klipper's lowercase ids; the screens show them in capitals.
         const auto axis = [](const InputShaperResult& a) {
-            std::string type = a.shaper_type;
-            std::transform(type.begin(), type.end(), type.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-            return fmt::format("{} {:.1f} Hz", type, a.shaper_freq);
+            return a.shaper_type.empty() ? std::string()
+                                         : format_shaper_axis(a.shaper_type, a.shaper_freq);
         };
         nlohmann::json values = {
             {"x", {{"type", r.x_result.shaper_type}, {"freq", r.x_result.shaper_freq}}},
             {"y", {{"type", r.y_result.shaper_type}, {"freq", r.y_result.shaper_freq}}}};
         c->done(StepOutcome::finished(
-            {fmt::format("X {} · Y {}", axis(r.x_result), axis(r.y_result)), std::move(values)}));
+            {join_shaper_axes(axis(r.x_result), axis(r.y_result)), std::move(values)}));
     }
 
     StepInfo info_;
@@ -404,9 +409,12 @@ class ZOffsetStep : public CalibrationStep {
                 }
                 accepted_ = true;
                 strategy_ = strategy;
-                c->done(StepOutcome::finished(
-                    {fmt::format(fmt::runtime(lv_tr("Accepted at Z {:.3f} mm")), z),
-                     {{"accepted_z", z}}}));
+                if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
+                    // The panel set this offset itself; nothing is staged.
+                    c->done(StepOutcome::finished({format_z_offset(z), {{"z_offset", z}}}));
+                    return;
+                }
+                read_staged(*c, z);
             });
     }
 
@@ -446,6 +454,29 @@ class ZOffsetStep : public CalibrationStep {
     }
 
   private:
+    /// The value ACCEPT staged, as SAVE_CONFIG will write it. @p z, the Z
+    /// position accepted at, stands in when the firmware reports none.
+    void read_staged(StepContext& c, float z) {
+        StepContext* ctx = &c;
+        const auto fallback = [ctx, z]() {
+            ctx->done(StepOutcome::finished(
+                {fmt::format(fmt::runtime(lv_tr("Accepted at Z {:.3f} mm")), z),
+                 {{"accepted_z", z}}}));
+        };
+        ctx->api.advanced().get_save_config_pending_items(
+            lifetime_.bg_cb("CalibrationRun.ZOffset.staged",
+                            [ctx, fallback](const nlohmann::json& items) {
+                                if (const auto staged = staged_z_offset(items)) {
+                                    ctx->done(StepOutcome::finished(
+                                        {format_z_offset(*staged), {{"z_offset", *staged}}}));
+                                    return;
+                                }
+                                fallback();
+                            }),
+            lifetime_.bg_cb("CalibrationRun.ZOffset.staged_error",
+                            [fallback](const MoonrakerError&) { fallback(); }));
+    }
+
     StepInfo info_;
     StepContext* ctx_ = nullptr;
     bool accepted_ = false;

@@ -32,6 +32,7 @@
 #include "bed_mesh_profile_name.h"
 #include "bed_mesh_stats.h"
 #include "bed_plate_context.h"
+#include "calibration_config_results.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
@@ -1608,6 +1609,8 @@ void BedMeshPanel::on_calibration_complete() {
         [this](const helix::bed_mesh::StoredMeshes& after) {
             const auto result =
                 helix::bed_mesh::check_calibration(calibration_plan_, meshes_before_, after);
+            const auto held = after.find(result.from.empty() ? result.to : result.from);
+            calibrated_points_ = held != after.end() ? held->second : json();
             switch (result.outcome) {
             case helix::bed_mesh::CalibrationOutcome::Stored:
                 finish_calibration(result.to);
@@ -1670,7 +1673,7 @@ void BedMeshPanel::finish_calibration(const std::string& profile) {
         lv_subject_set_int(&bed_mesh_calibrate_state_,
                            static_cast<int>(BedMeshCalibrationState::IDLE));
         if (run_hooks_.stored) {
-            run_hooks_.stored(profile);
+            run_hooks_.stored(profile, helix::calibration::mesh_points_range(calibrated_points_));
         }
         return;
     }

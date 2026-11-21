@@ -5568,6 +5568,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（减少 {4}%）'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（增加 {4}%）'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
+  '{:.2f} mm range': '范围 {:.2f} mm'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} 个挤出机'
   '{} Hardware Issues': '{} 个硬件问题'

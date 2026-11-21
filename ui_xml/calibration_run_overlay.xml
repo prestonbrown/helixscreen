@@ -208,7 +208,7 @@
                   style_pad_bottom="0" style_pad_gap="#space_sm" flex_flow="row" scrollable="false">
             <text_small width="28%" text="Step" style_text_color="#text_muted"/>
             <text_small width="0" flex_grow="1" text="Before" style_text_color="#text_muted"/>
-            <text_small width="0" flex_grow="1" text="After" style_text_color="#text_muted"/>
+            <text_small width="0" flex_grow="2" text="After" style_text_color="#text_muted"/>
           </lv_obj>
           <calibration_run_result_row name="cal_run_result_z_offset" step="z_offset" label="Z offset"/>
           <calibration_run_result_row name="cal_run_result_heaters" step="heaters" label="Heaters"/>

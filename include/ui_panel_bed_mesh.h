@@ -23,6 +23,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -109,7 +110,8 @@ class BedMeshPanel : public OverlayBase {
     /// Where a guided calibration run hears how its mesh calibration ended. Both
     /// run on the main thread, and at most one of them once per calibration.
     struct RunHooks {
-        std::function<void(const std::string& profile)> stored;
+        /// @p range: the stored mesh's flatness, when its points could be read.
+        std::function<void(const std::string& profile, std::optional<double> range)> stored;
         std::function<void(const std::string& why)> failed;
     };
     /// Calibrate into the default profile for a guided run: the same plan,
@@ -319,6 +321,8 @@ class BedMeshPanel : public OverlayBase {
     /// Set while a guided run's calibration is under way.
     RunHooks run_hooks_;
     bool in_run_ = false;
+    /// The points of the mesh the last calibration stored, for the run's result.
+    nlohmann::json calibrated_points_;
     /// A calibration that probed but stored nothing usable: tell the run, or
     /// the owner. @p user_message is translated.
     void report_store_failure(const std::string& user_message);

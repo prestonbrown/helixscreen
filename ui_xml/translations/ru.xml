@@ -5489,6 +5489,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" ru="Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% меньше)"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" ru="Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% больше)"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
+  <translation tag="{:.2f} mm range" ru="разброс {:.2f} мм"/>
   <translation tag="{} ({})" ru="{} ({})"/>
   <translation tag="{} Extruders" ru="Экструдеров: {}"/>
   <translation tag="{} Hardware Issues" ru="Проблем с оборудованием: {}"/>

@@ -20,14 +20,14 @@
     <bind_flag_if_eq subject="cal_run_in_run_${step}" flag="hidden" ref_value="0"/>
     <text_body name="result_name" width="28%" text="$label" long_mode="dots"/>
     <text_small name="result_before"
-                width="0" flex_grow="1" bind_text="cal_run_before_${step}" long_mode="dots"
+                width="0" flex_grow="1" bind_text="cal_run_before_${step}" long_mode="wrap"
                 style_text_color="#text_muted"/>
     <icon name="result_arrow" src="chevron_right" size="xs" variant="secondary"/>
-    <text_small name="result_after" width="0" flex_grow="1" bind_text="cal_run_after_${step}" long_mode="dots">
+    <text_small name="result_after" width="0" flex_grow="2" bind_text="cal_run_after_${step}" long_mode="wrap">
       <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
     </text_small>
     <text_small name="result_unfinished"
-                width="0" flex_grow="1" bind_text="cal_run_after_${step}" long_mode="dots" style_text_color="#warning">
+                width="0" flex_grow="2" bind_text="cal_run_after_${step}" long_mode="wrap" style_text_color="#warning">
       <bind_flag_if_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
     </text_small>
   </view>

@@ -6,6 +6,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "calibration_catalog.h"
+#include "calibration_config_results.h"
 #include "calibration_run.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
@@ -411,4 +412,36 @@ TEST_CASE("a firmware-managed Z offset is set, and restored, by one command",
     // Under a print the delta is live and stays.
     CHECK(helix::zoffset::firmware_managed_offset_gcode(0.05, persisting, true) ==
           "SET_GCODE_OFFSET Z=0.050");
+}
+
+TEST_CASE("a guided run's results read as the measured values", "[calibration_run]") {
+    CHECK(format_z_offset(-1.3) == "-1.300 mm");
+    CHECK(format_pid(22.137, 1.0789, 113.4) == "22.1 / 1.08 / 113");
+    CHECK(format_pid(68.2, 0.92, 1265.3) == "68.2 / 0.92 / 1265");
+    CHECK(format_mpc(18.43) == "MPC 18.4 J/K");
+    CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.71), format_shaper_axis("ei", 47.6)) ==
+          "MZV 36.7 · EI 47.6 Hz");
+    CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.7), "") == "MZV 36.7 Hz");
+    CHECK(format_mesh_range(0.183) == "0.18 mm range");
+}
+
+TEST_CASE("a mesh's range is the spread of its stored points", "[calibration_run]") {
+    const auto range = mesh_points_range(nlohmann::json{{0.1, -0.08}, {0.02, 0.05}});
+    REQUIRE(range.has_value());
+    CHECK(*range == Catch::Approx(0.18));
+    CHECK_FALSE(mesh_points_range(nlohmann::json::array()).has_value());
+    CHECK_FALSE(mesh_points_range(nlohmann::json()).has_value());
+}
+
+TEST_CASE("the Z offset a calibration staged is read from the pending config",
+          "[calibration_run]") {
+    using nlohmann::json;
+    CHECK(staged_z_offset(json{{"probe", {{"z_offset", "-1.300"}}}}) == -1.3);
+    CHECK(staged_z_offset(json{{"beacon model default", {{"model_offset", "0.120"}}}}) == 0.12);
+    CHECK(staged_z_offset(json{{"stepper_z", {{"position_endstop", "0.5"}}}}) == 0.5);
+    // A probe's own offset wins over an endstop, and nothing else is a Z offset.
+    CHECK(staged_z_offset(json{{"stepper_z", {{"position_endstop", "0.5"}}},
+                               {"probe", {{"z_offset", "-1.2"}}}}) == -1.2);
+    CHECK_FALSE(staged_z_offset(json{{"bed_mesh default", {{"version", "1"}}}}).has_value());
+    CHECK_FALSE(staged_z_offset(json::object()).has_value());
 }

@@ -5542,6 +5542,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': ''
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': ''
   '{:.0f}-{:.0f} Hz · about {} min': ''
+  '{:.2f} mm range': ''
   '{} ({})': ''
   '{} Extruders': ''
   '{} Hardware Issues': ''

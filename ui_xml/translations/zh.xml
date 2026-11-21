@@ -5420,6 +5420,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" zh="{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（减少 {4}%）"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" zh="{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（增加 {4}%）"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
+  <translation tag="{:.2f} mm range" zh="范围 {:.2f} mm"/>
   <translation tag="{} ({})" zh="{}（{}）"/>
   <translation tag="{} Extruders" zh="{} 个挤出机"/>
   <translation tag="{} Hardware Issues" zh="{} 个硬件问题"/>

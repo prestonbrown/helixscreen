@@ -5420,6 +5420,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" ja="{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 減少)"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" ja="{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 増加)"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ja="{:.0f}-{:.0f} Hz · 約{}分"/>
+  <translation tag="{:.2f} mm range" ja="範囲 {:.2f} mm"/>
   <translation tag="{} ({})" ja="{}（{}）"/>
   <translation tag="{} Extruders" ja="{} エクストルーダー"/>
   <translation tag="{} Hardware Issues" ja="ハードウェアの問題 {} 件"/>
