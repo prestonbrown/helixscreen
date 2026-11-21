@@ -189,8 +189,17 @@ bool parse_proc_stat(const std::string& line, ProcStat& out) {
 
 namespace {
 
+/// python, python3, python3.11: digits and dots after "python", nothing else.
+bool is_python(const std::string& comm) {
+    if (comm.compare(0, 6, "python") != 0) {
+        return false;
+    }
+    return std::all_of(comm.begin() + 6, comm.end(),
+                       [](char c) { return (c >= '0' && c <= '9') || c == '.'; });
+}
+
 bool is_interpreter(const std::string& comm) {
-    if (comm.compare(0, 6, "python") == 0) {
+    if (is_python(comm)) {
         return true;
     }
     for (const char* name : {"node", "bash", "sh", "dash", "ash"}) {
@@ -199,6 +208,48 @@ bool is_interpreter(const std::string& comm) {
         }
     }
     return false;
+}
+
+/// Programs telemetry names by their comm: HelixScreen, the Klipper stack,
+/// camera streamers, stock vendor UIs and the daemons of printer-host images.
+/// A comm is whatever the binary's builder chose, so anything else is "other".
+constexpr const char* kKnownPrograms[] = {
+    // HelixScreen
+    "helix-screen", "helix-splash", "helix-watchdog",
+    // Klipper stack, and the UIs and services beside it
+    "klippy", "klipper", "klipper_mcu", "moonraker", "KlipperScreen", "crowsnest",
+    // Cameras
+    "ustreamer", "camera-streamer", "mjpg_streamer", "go2rtc", "janus", "webcamd",
+    // Stock vendor UIs and services
+    "gui", "lmd", "unisrv", "display-server", "master-server", "app-server", "audio-server",
+    "wifi-server", "upgrade-server", "web-server", "firmwareExe",
+    // Web servers
+    "nginx", "lighttpd", "httpd", "mosquitto",
+    // Display
+    "Xorg", "X", "Xwayland", "weston", "cage", "lightdm", "chromium", "chromium-browser",
+    // Remote access
+    "dropbear", "sshd",
+    // System daemons
+    "init", "systemd", "systemd-journald", "systemd-logind", "systemd-udevd", "systemd-networkd",
+    "systemd-resolved", "systemd-timesyncd", "udevd", "dbus-daemon", "avahi-daemon",
+    "NetworkManager", "ModemManager", "wpa_supplicant", "hostapd", "dhcpcd", "dnsmasq", "udhcpc",
+    "connmand", "rsyslogd", "syslogd", "klogd", "cron", "crond", "polkitd", "bluetoothd", "chronyd",
+    "ntpd", "containerd", "dockerd", "snapd", "smbd", "nmbd", "getty", "agetty", "login", "busybox",
+    "irqbalance", "haveged", "rngd"};
+
+/// The kernel keeps the first 15 characters of a program's name as its comm.
+constexpr size_t kCommLen = 15;
+
+const char* known_program(const std::string& comm) {
+    if (comm.empty()) {
+        return nullptr;
+    }
+    for (const char* name : kKnownPrograms) {
+        if (std::string_view(name).substr(0, kCommLen) == comm) {
+            return name;
+        }
+    }
+    return nullptr;
 }
 
 /// Printer-host services an interpreter runs, by a lowercase substring of one
@@ -237,20 +288,11 @@ const char* interpreted_service(std::string_view cmdline) {
 
 std::string telemetry_process_name(const std::string& comm, std::string_view cmdline) {
     if (is_interpreter(comm)) {
-        if (const char* label = interpreted_service(cmdline)) {
-            return label;
-        }
+        const char* label = interpreted_service(cmdline);
+        return label ? label : comm;
     }
-    constexpr size_t kMaxLen = 15;
-    std::string out;
-    for (char c : comm) {
-        const bool keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                          (c >= '0' && c <= '9') || c == '.' || c == '_' || c == '+' || c == '-';
-        if (keep && out.size() < kMaxLen) {
-            out.push_back(c);
-        }
-    }
-    return out.empty() ? "unknown" : out;
+    const char* known = known_program(comm);
+    return known ? known : "other";
 }
 
 std::vector<ProcessRss> top_processes_by_rss(size_t count, const char* proc_root,

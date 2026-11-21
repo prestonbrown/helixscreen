@@ -98,7 +98,7 @@ Recorded when free memory runs low or HelixScreen's own memory grows quickly (at
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `top_processes` | Each program's name and its memory in MB. The name is the short name the system reports (at most 15 characters, letters, digits and `._+-` only). For a Python, Node or shell program, whose short name is just the interpreter, the name comes from a fixed list instead (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), or stays the interpreter's name when it is none of those. Arguments and paths are never sent | `[{"name": "klipper", "rss_mb": 210}]` |
+| `top_processes` | Each program's name and its memory in MB. Names come only from fixed lists of known programs (HelixScreen, Klipper, Moonraker, camera streamers, printer makers' own screen programs, standard system services). Any other program is sent as `other`, because a program's name can be anything, including a person's or a computer's name. For a Python, Node or shell program, whose system name is just the interpreter, the name comes from a fixed list of printer services (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), or is the interpreter's name (`python3`, `node`) when it is none of those. Arguments and paths are never sent | `[{"name": "klipper", "rss_mb": 210}]` |
 
 ### Hardware Profile
 

@@ -114,9 +114,11 @@ bool parse_proc_stat(const std::string& line, ProcStat& out);
 /// services, so its comm alone names nothing. For those, the arguments in
 /// @p cmdline (NUL-separated, as /proc/<pid>/cmdline holds them; argv[0] is
 /// skipped) are matched against a fixed allowlist of services, and the
-/// service's fixed label is the name ("klipper", "moonraker", "obico", ...).
-/// Anything else is its comm reduced to [A-Za-z0-9._+-] and at most 15
-/// characters; "unknown" when nothing survives.
+/// service's fixed label is the name ("klipper", "moonraker", "obico", ...),
+/// else the interpreter's own name. Any other process is named only when its
+/// comm is a program on a fixed list (HelixScreen, the Klipper stack, camera
+/// streamers, stock vendor UIs, system daemons); everything else is "other",
+/// since a comm is free text and may carry a username or hostname.
 std::string telemetry_process_name(const std::string& comm, std::string_view cmdline = {});
 
 struct ProcessRss {

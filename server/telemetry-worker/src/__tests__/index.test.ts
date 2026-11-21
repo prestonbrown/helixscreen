@@ -905,7 +905,15 @@ describe("mapEventToDataPoints", () => {
     };
     const dp = mapEventToDataPoints(event)[0];
     expect(dp.blobs!.slice(13, 17)).toEqual(["llvmpipe", "1", "print_file_detail", "critical"]);
-    expect(dp.doubles!.slice(8, 11)).toEqual([3, 19, 81234]);
+    // Stored + 1, so the home panel (0) and an absent value (0) differ.
+    expect(dp.doubles!.slice(8, 11)).toEqual([4, 20, 81235]);
+    const home = mapEventToDataPoints({ ...event, active_panel: 0, mem_available_mb: 0, major_faults: 0 })[0];
+    expect(home.doubles!.slice(8, 11)).toEqual([1, 1, 1]);
+    // Other errors, and a hang with no panel yet (-1), leave them 0.
+    const other = mapEventToDataPoints({ event: "error_encountered", device_id: "dev-err", category: "net", code: "timeout" })[0];
+    expect(other.doubles!.slice(8, 11)).toEqual([0, 0, 0]);
+    const early = mapEventToDataPoints({ ...event, active_panel: -1 })[0];
+    expect(early.doubles![8]).toBe(0);
   });
 
   it("maps a memory warning's largest processes", () => {

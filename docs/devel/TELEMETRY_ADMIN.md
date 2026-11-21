@@ -738,6 +738,8 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 | `settings_changes` | Batched setting diffs | changes[]: setting, old_value, new_value |
 | `async_lifetime_skips` | Deferred async work skipped at shutdown | skips[], window stats |
 
+A `main_loop_hang`'s three doubles in Analytics Engine are stored as the value **plus one**, so that 0 means absent: the writer stores a missing double as 0, and Home is panel 0. `double9` is `active_panel + 1` (0 for every other error, and for a hang before any panel was shown, which the client sends as -1), `double10` is `mem_available_mb + 1`, `double11` is `major_faults + 1`. A query keeps the rows where the column is above 0 and subtracts one. R2 keeps the raw values.
+
 ### Event Trigger Summary
 
 | Event | When | Frequency |
@@ -876,6 +878,6 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
 }
 ```
 
-`top_processes` is present at `warning` and `critical` only: each process named by `telemetry_process_name()` and its RSS. The name is the comm (15 characters of `[A-Za-z0-9._+-]`), except for an interpreter (python*, node, bash, sh, dash, ash): its arguments after argv[0] are matched against the fixed allowlist `telemetry_process_name()` reads (`src/system/memory_utils.cpp#telemetry_process_name`) (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), and an interpreter on none of them keeps its comm. Arguments and paths are never sent. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`.
+`top_processes` is present at `warning` and `critical` only: each process named by `telemetry_process_name()` and its RSS. A comm is free text chosen by whoever built the binary, so it is sent only when it names a program on the fixed list in `kKnownPrograms` (`src/system/memory_utils.cpp#telemetry_process_name`) (HelixScreen, the Klipper stack, camera streamers, stock vendor UIs, the daemons of printer-host images), matched on the first 15 characters as the kernel keeps them; any other process is `other`. An interpreter (python, python3, python3.11, node, bash, sh, dash, ash) has its arguments after argv[0] matched against a second fixed list (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), and keeps its interpreter name when none matches. Arguments and paths are never sent. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`.
 
 **Implementation:** `MemoryMonitor` (background thread, 5s sampling) → `WarningCallback` → `TelemetryManager::record_memory_warning()`. Growth tracking uses a circular buffer of 10 RSS samples at 30s intervals (5-minute window).

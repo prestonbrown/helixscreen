@@ -109,6 +109,17 @@ const firstOf = (...readers: Reader[]): Reader =>
 
 const flat = (key: string): Reader => reads([key], (e) => e[key], true);
 
+/**
+ * A count or id where 0 is a real value, stored as value + 1 so that 0 means
+ * absent: the writer stores a missing double as 0. A negative value (the
+ * client's "none yet") is stored as absent too.
+ */
+const plusOne = (key: string): Reader =>
+  reads([key], (e) => {
+    const v = e[key];
+    return typeof v === "number" && v >= 0 ? v + 1 : undefined;
+  });
+
 /** `item[key]`, where the fan-out built the item from the client fields `paths`. */
 const fromItem = (key: string, ...paths: string[]): Reader =>
   reads(paths, (_e, item) => item?.[key]);
@@ -575,9 +586,11 @@ const KINDS: PointKind[] = [
     blob(16, "active_overlay"),
     blob(17, "pressure_level"),
     dbl(1, "uptime_sec"),
-    dbl(9, "active_panel"),
-    dbl(10, "mem_available_mb"),
-    dbl(11, "major_faults"),
+    // A main_loop_hang's doubles, each stored + 1 (0 = absent): panel 0 is
+    // Home, and 0 MB available or 0 major faults are real readings.
+    dbl(9, "active_panel", plusOne("active_panel")),
+    dbl(10, "mem_available_mb", plusOne("mem_available_mb")),
+    dbl(11, "major_faults", plusOne("major_faults")),
   ]),
 
   kind("performance_snapshot", [

@@ -102,7 +102,7 @@ In addition to the three categories above, HelixScreen records the following dia
 |-------|---------------|------------------|
 | Update events | When the in-app updater runs | Whether an update attempt succeeded or failed, and version/platform context |
 | Memory snapshots | Hourly and at startup | Resident/virtual memory usage and uptime (for leak detection) |
-| Memory warnings | When memory pressure is detected | The same memory-usage figures at the moment of a warning; at the warning and critical levels, the names and memory use of the three largest programs, each its short system name or a name from a fixed list of printer services (never arguments or paths) |
+| Memory warnings | When memory pressure is detected | The same memory-usage figures at the moment of a warning; at the warning and critical levels, the names and memory use of the three largest programs, each a name from a fixed list of known programs and printer services, or "other" for any program not on it (never arguments, paths, or a program's own name when it is not on the list) |
 | Hardware profile | Once per session | Detected printer model, kinematics, MCU, extruder/fan counts, capability flags, and Klipper configuration identifiers (see Section 4.5) |
 | Settings snapshot | Once per session | A subset of your preferences (theme, brightness, locale, animations on/off) |
 | Settings changes | Batched over 30 seconds after a change | The name of a changed setting and its old/new value — enumerated category values only, never free text |

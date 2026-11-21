@@ -442,13 +442,33 @@ TEST_CASE("parse_proc_stat reads comm, major faults and resident pages", "[memor
         "812 no-parens S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21", st));
 }
 
-TEST_CASE("telemetry_process_name keeps a short plain name", "[memory][proc_stat]") {
-    CHECK(telemetry_process_name("moonraker") == "moonraker");
-    CHECK(telemetry_process_name("python3.11") == "python3.11");
-    CHECK(telemetry_process_name("kworker/0:1H") == "kworker01H");
-    CHECK(telemetry_process_name("a very long process name") == "averylongproces");
-    CHECK(telemetry_process_name("") == "unknown");
-    CHECK(telemetry_process_name("/// ") == "unknown");
+TEST_CASE("telemetry_process_name passes only known program names", "[memory][proc_stat]") {
+    struct Row {
+        const char* comm;
+        const char* want;
+    };
+    const Row rows[] = {
+        {"helix-screen", "helix-screen"},
+        {"moonraker", "moonraker"},
+        {"ustreamer", "ustreamer"},
+        {"KlipperScreen", "KlipperScreen"},
+        {"lmd", "lmd"},
+        // The kernel keeps 15 characters of a comm; a longer known name still matches.
+        {"systemd-journal", "systemd-journald"},
+        {"python3", "python3"},
+        {"python3.11", "python3.11"},
+        // Free text a binary's builder chose: never sent as is.
+        {"jsmith-sync", "other"},
+        {"printer3-cam", "other"},
+        {"python_jsmith", "other"},
+        {"helix-screen2", "other"},
+        {"kworker/0:1H", "other"},
+        {"", "other"},
+    };
+    for (const Row& r : rows) {
+        INFO("comm: " << r.comm);
+        CHECK(telemetry_process_name(r.comm) == r.want);
+    }
 }
 
 TEST_CASE("telemetry_process_name names interpreter services from a fixed allowlist",
@@ -488,6 +508,7 @@ TEST_CASE("telemetry_process_name names interpreter services from a fixed allowl
         // Not an interpreter: its comm, whatever the arguments say.
         {"ustreamer", "/usr/bin/ustreamer\0--host\0moonraker\0"s, "ustreamer"},
         {"helix-screen", "/opt/helix/helix-screen\0klippy.py\0"s, "helix-screen"},
+        {"jsmith-sync", "/home/jsmith/bin/jsmith-sync\0moonraker\0"s, "other"},
     };
     for (const Row& r : rows) {
         INFO("comm: " << r.comm);
@@ -526,7 +547,7 @@ TEST_CASE("top_processes_by_rss lists the largest resident processes, largest fi
     proc.add("101", "klippy", 51200);                       // 200 MB at 4 KB pages
     proc.add("102", "moonraker", 25600);                    // 100 MB
     proc.add("103", "helix-screen", 12800);                 // 50 MB
-    proc.add("104", "crowsnest", 2560);                     // 10 MB
+    proc.add("104", "jsmith-cam", 2560);                    // 10 MB
     proc.add("2", "kthreadd", 0);                           // kernel threads hold no RSS
     std::filesystem::create_directories(proc.root / "105"); // exited between readdir and open
     proc.add("106", "python3", 1280);                       // 5 MB
@@ -544,6 +565,7 @@ TEST_CASE("top_processes_by_rss lists the largest resident processes, largest fi
     // Fewer processes than asked for: every one with resident memory.
     const auto all = top_processes_by_rss(10, proc.root.c_str(), 4);
     REQUIRE(all.size() == 5);
+    CHECK(all[3].name == "other");     // not a known program
     CHECK(all[4].name == "moonraker"); // named from its cmdline, not "python3"
     CHECK(top_processes_by_rss(3, "/nonexistent-proc-root", 4).empty());
 }
