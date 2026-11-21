@@ -59,7 +59,13 @@ enum class SideBandContent {
  * system or several heads, with lanes to draw, the rule Print Status's lane tray
  * follows too. Without it the band stays empty.
  */
+#if HELIX_HAS_SIDE_BAND
 bool side_band_shows(SideBandContent content, bool ultrawide, bool lane_tray);
+#else
+inline bool side_band_shows(SideBandContent, bool, bool) {
+    return false;
+}
+#endif
 
 /// The view a side band hosts: its tree and its lifecycle.
 class SideBandGuest {
@@ -86,6 +92,8 @@ class SideBandGuest {
         return false;
     }
 };
+
+#if HELIX_HAS_SIDE_BAND
 
 /// The Motion panel as a side band guest.
 std::unique_ptr<SideBandGuest> make_motion_side_band_guest();
@@ -201,5 +209,73 @@ class SideBand {
 
     AsyncLifetimeGuard lifetime_;
 };
+
+#else // !HELIX_HAS_SIDE_BAND
+
+// A build without the side band (the ESP32 firmware, whose panel is never
+// ultrawide): the band never shows, every overlay opens as it would without one,
+// and the hosts' XML still finds its two subjects, held at 0.
+inline std::unique_ptr<SideBandGuest> make_motion_side_band_guest() {
+    return nullptr;
+}
+inline std::unique_ptr<SideBandGuest> make_ams_side_band_guest() {
+    return nullptr;
+}
+
+class SideBand {
+  public:
+    SideBand(SideBandContent, std::unique_ptr<SideBandGuest>, const char* subject_name,
+             const char* hosted_subject_name)
+        : subject_name_(subject_name), hosted_subject_name_(hosted_subject_name) {}
+
+    SideBand(const SideBand&) = delete;
+    SideBand& operator=(const SideBand&) = delete;
+
+    void init_subjects() {
+        if (subjects_initialized_) {
+            return;
+        }
+        UI_MANAGED_SUBJECT_INT(shows_subject_, 0, subject_name_, subjects_);
+        UI_MANAGED_SUBJECT_INT(hosted_subject_, 0, hosted_subject_name_, subjects_);
+        subjects_initialized_ = true;
+    }
+    void deinit_subjects() {
+        if (!subjects_initialized_) {
+            return;
+        }
+        subjects_.deinit_all();
+        subjects_initialized_ = false;
+    }
+
+    void bind(lv_obj_t*) {}
+    void on_host_activate() {}
+    void on_host_deactivate(DeactivateReason) {}
+    [[nodiscard]] bool uses_full_width() const {
+        return false;
+    }
+    [[nodiscard]] bool shows() const {
+        return false;
+    }
+    [[nodiscard]] lv_obj_t* hosted() const {
+        return nullptr;
+    }
+    void refresh() {}
+
+    /// Nothing is ever in a band: the overlay always opens with its own tree.
+    static bool take_open_request(SideBandContent) {
+        return false;
+    }
+    static void notify_released(SideBandContent) {}
+
+  private:
+    const char* subject_name_;
+    const char* hosted_subject_name_;
+    SubjectManager subjects_;
+    helix::Subject shows_subject_{};
+    helix::Subject hosted_subject_{};
+    bool subjects_initialized_ = false;
+};
+
+#endif // HELIX_HAS_SIDE_BAND
 
 } // namespace helix::ui
