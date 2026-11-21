@@ -930,6 +930,7 @@ translations:
   Checking webcam: Проверка веб-камеры
   Checking...: Проверка...
   Checking…: Проверка…
+  Choose a Different Spool: 'Выбрать другую катушку'
   Choose a discovered printer: "Выберите найденный принтер"
   Choose 12-hour or 24-hour time display: Выберите 12-часовой или 24-часовой формат времени
   Choose Filament: Выбрать филамент
@@ -976,6 +977,7 @@ translations:
   Clear Console?: Очистить консоль?
   Clear Error: Сбросить ошибку
   Clear Lane: Очистить канал
+  Clear Lane?: 'Очистить канал?'
   Clear Spool: Убрать катушку
   Clear and clean the build plate, then resume.: 'Освободите и очистите печатную пластину, затем продолжите.'
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: 'Уберите мусор с каретки и защёлки головки, заново установите головку, затем выполните парковку и продолжите.'
@@ -989,6 +991,7 @@ translations:
 
   Clear the extruder?: 'Очистить экструдер?'
   Clear the plate and load {}. The tower prints in the middle of the bed.: Освободите стол и загрузите {}. Башня печатается в центре стола.
+  Clear {}?: 'Очистить {}?'
   Cleared: Очищено
   Cleared from settings — system unpair failed, may need OS Bluetooth: Удалено из настроек; не удалось отменить сопряжение в системе, возможно нужен Bluetooth ОС
   Clipboard unavailable - use SSH: Буфер обмена недоступен - используйте SSH
@@ -1139,6 +1142,7 @@ translations:
   Continue: Продолжить
   Continue on Another Toolhead: 'Продолжить на другой печатающей головке'
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать.'
+  Continues from {} on runout: 'При окончании продолжает с {}'
   Control optional print start features: Управление дополнительными функциями начала печати
   Control power relays and smart outlets: Управление реле и умными розетками
   Controllable Fans: Управляемые вентиляторы
@@ -1254,6 +1258,7 @@ translations:
   Could not start Bluetooth discovery: Не удалось запустить поиск Bluetooth
   Could not update filaments: Не удалось обновить филаменты
   Could not verify Spoolman status. Moonraker may still be restarting.: Не удалось проверить статус Spoolman. Moonraker может ещё перезапускаться.
+  Couldn't archive the spool in Spoolman: 'Не удалось архивировать катушку в Spoolman'
   Couldn't assign the tool: Не удалось назначить инструмент
   Couldn't clear the printer's gate map: Не удалось очистить карту шлюзов принтера
   Couldn't load spools — tap to retry: Не удалось загрузить катушки — нажмите, чтобы повторить
@@ -1835,6 +1840,9 @@ translations:
   Feeders: Фидеры
   Feeding filament to nozzle: "Подача филамента к соплу"
   Feeding the head by hand did not finish.: 'Ручная подача в головку не завершилась.'
+  Feeds Tool: 'Подаёт в инструмент'
+  Feeds no tool: 'Не подаёт ни в один инструмент'
+  Feeds {}: 'Подаёт в {}'
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
   Filament Control: Управление филаментом
@@ -2494,6 +2502,7 @@ translations:
   Last 30 days: 'Последние 30 дней'
   Last 7 days: 'Последние 7 дней'
   Last done at {} h: "Прошлый раз: {} ч"
+  'Last held: {}': 'Последняя: {}'
   Last measured: 'Последний замер'
   Last print canceled: Последняя печать отменена
   Last print failed: Последняя печать не удалась
@@ -2821,6 +2830,7 @@ translations:
   Moving the plate...: Перемещение стола...
 
   Moving {} to the front...: 'Перемещение вперёд: {}...'
+  Multi-Color: 'Многоцветная'
   Multi-Filament: Мульти-филамент
   Multi-Filament Overview: Обзор мульти-филамента
   Multi-Filament System: Мультифиламентная система
@@ -2982,6 +2992,7 @@ translations:
   No spools match. Add it as a new spool below.: Подходящих катушек нет. Добавьте её как новую катушку ниже.
   No spools placed: Катушки не положены
 
+  No spools to show. Add it as a new spool below.: 'Нет катушек. Добавьте её ниже как новую катушку.'
   No tape detected in printer: В принтере не обнаружена лента
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
@@ -3181,6 +3192,7 @@ translations:
   Original file location unknown: Расположение исходного файла неизвестно
   Oscillating... cycle %d/%d: Осцилляция... цикл %d/%d
   Other: Другое
+  Other…: 'Другое…'
   Outcome: Результат
   Output Device: Устройство вывода
   Output Mode: Режим вывода
@@ -3259,6 +3271,7 @@ translations:
   'Paused by {}: {}': 'Приостановлено ({}): {}'
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати.'
+  Pauses on runout: 'Пауза при окончании'
   Pausing at layer {}.: 'Пауза на слое {}.'
   Pausing...: Приостановка...
   Peak Freq: Пиковая частота
@@ -3936,6 +3949,7 @@ translations:
   Running tight: 'Натянут'
   Running {}...: Выполнение {}...
   Runout: 'Окончание'
+  Runout Backup: 'Резерв при окончании'
   Runout Sensor: Датчик окончания
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
@@ -3956,6 +3970,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Безопасный режим: приложение постоянно аварийно завершалось при запуске, поэтому плагины отключены, а раскладки виджетов показаны по умолчанию. Перезапустите, чтобы вернуться к обычному режиму.'
   Safety & Alerts: Безопасность и оповещения
+  Same Filament, New Spool: 'Тот же филамент, новая катушка'
   Same filament: 'Тот же филамент'
   Same spool in {}? Tap Clear if it is a new one.: 'Та же катушка в {}? Нажмите «Очистить», если это новая.'
   Sample: Образец
@@ -4300,12 +4315,14 @@ translations:
   Spool archived: Катушка архивирована
   Spool created successfully: Катушка успешно создана
   Spool deleted: Катушка удалена
+  Spool is empty, archive it in Spoolman: 'Катушка пуста, архивировать в Spoolman'
   Spool menu: 'Меню катушки'
   Spool motor: Мотор катушки
   Spool saved: Катушка сохранена
   Spool switching per tool and lane: 'Переключение катушек по инструменту и каналу'
   Spool wt (g): Вес катушки (г)
   Spoolman: Spoolman
+  Spoolman Details: 'Сведения Spoolman'
   Spoolman Not Available: 'Spoolman недоступен'
   Spoolman Server: Сервер Spoolman
   Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "В Spoolman уже есть «{}» этой марки близкого цвета. Использовать его для канала {} или добавить новый филамент?"
@@ -4549,6 +4566,7 @@ translations:
   Temporary adjustment for this print: "Временная настройка для этой печати"
   Temporary adjustment for this print, unless saved on Controls panel: Временная настройка для этой печати, если не сохранена в панели управления
   Temporary for this print; a tool change resets it: "Временно для этой печати; смена инструмента сбрасывает её"
+  Temps: 'Температуры'
   Tension Belts: "Натянуть ремни"
   'Tensioner: {}': "Натяжитель: {}"
   Tensioning belts...: "Натяжение ремней..."
@@ -4698,6 +4716,8 @@ translations:
   The heater was turned off at the heater.: 'Нагреватель был выключен на самом нагревателе.'
   The heater will cycle on and off several times.: Нагреватель будет несколько раз включаться и выключаться.
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
+  The lane forgets this spool. The filament itself stays where it is.: 'Канал забудет эту катушку. Сам филамент останется на месте.'
+  The lane that takes over when this one runs out: 'Канал, который продолжит, когда этот закончится'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание
@@ -4864,6 +4884,7 @@ translations:
   : 'Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?
+  The toolhead this lane loads into: 'Печатающая головка, в которую подаёт этот канал'
   The toolhead's pogo pins are not making contact.: 'Пого-контакты печатающей головки не замыкаются.'
   The toolheads have changed enough times since their last maintenance.: 'С последнего обслуживания печатающие головки сменились достаточно раз.'
   The toolheads' docked and picked-up states do not add up.: 'Состояния «в доке» и «на каретке» печатающих головок не сходятся.'
@@ -5408,6 +5429,8 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'Если слайсер загружает и запускает файл, который выходит за ход этого принтера, нагревает выше его пределов или использует отсутствующий инструмент, сохранить файл, но не запускать печать.'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: Когда включено, запускается только макрос. Когда выключено, сначала задаются температуры, затем запускается макрос.
+  When this spool runs out, printing continues from {}.: 'Когда эта катушка закончится, печать продолжится с {}.'
+  When this spool runs out, the print pauses.: 'Когда эта катушка закончится, печать приостановится.'
   Where UI sounds play: Где воспроизводятся звуки интерфейса
   Whether filament is loaded: Загружен ли филамент
   Which macro switches the ACE path back on: 'Какой макрос снова включает тракт ACE'
@@ -5611,6 +5634,8 @@ translations:
   'helixscreen.env ignored: {}': 'helixscreen.env проигнорирован: {}'
   idle: простой
   in unit {} slot {}: 'в блоке {} слот {}'
+  in {}: 'в {}'
+  in {}, feeding the print: 'в {}, подаёт в печать'
   incompatible: несовместим
   invalid: недопустим
   just now: только что
@@ -5703,6 +5728,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': 'Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% меньше)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% больше)'
   '{:.0f} g left': осталось {:.0f} г
+  '{:.0f} g of {} · {}%': '{:.0f} г из {} · {}%'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
   '{:.2f} mm range': 'разброс {:.2f} мм'
   '{} ({})': '{} ({})'
@@ -5711,6 +5737,7 @@ translations:
   '{} Issues Detected': 'Обнаружено проблем: {}'
   '{} LED strips available': 'Доступно светодиодных лент: {}'
   '{} MCUs': '{} MCU'
+  '{} Settings': 'Настройки: {}'
   '{} Tools': 'Инструментов: {}'
   '{} and {}': '{} и {}'
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
@@ -5773,6 +5800,7 @@ translations:
   '{} is blocked — manual intervention required': '{}: блокировка — требуется ручное вмешательство'
   '{} is due': "{}: пора выполнить"
   '{} is due: {} h reached': '{}: пора обслуживать, {} ч достигнуто'
+  '{} is empty': '{} пуст'
   '{} is feeding the current print. Clear it after the print ends.': '{}: подаёт филамент для текущей печати. Удалите катушку после завершения печати.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} установлен, но его настройка бесконечной катушки выключена, поэтому при обрыве ничего не переключится.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} установлен, но прочитать его настройку бесконечной катушки не удалось - не рассчитывайте на бесконечную катушку.'
@@ -5864,6 +5892,7 @@ translations:
   'Basic': 'Базовый'
   Recovery is not possible in the printer's current state.: 'В текущем состоянии принтера восстановление невозможно.'
   'Recycled': 'Переработанный'
+  Add to Spoolman: 'Добавить в Spoolman'
   Add to Spoolman & Assign: Добавить в Spoolman и назначить
   'Add to Spoolman + label': 'Добавить в Spoolman + этикетка'
   'More': 'Ещё'
