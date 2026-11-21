@@ -176,6 +176,43 @@ TEST_CASE_METHOD(StartupFaultFixture, "A printer in error at connect shows Klipp
     CHECK(recovery_label("recovery_title") == lv_tr("Printer Error"));
 }
 
+TEST_CASE_METHOD(StartupFaultFixture, "A coded config error keeps the config wording",
+                 "[klippy_startup_fault][recovery][error-wording]") {
+    // A firmware envelope with an opaque code, carrying Klipper's own config
+    // error as its message.
+    report("error", R"({"coded": "0003-0522-0000-0003", "msg": "Option 'sensor_typ' is not )"
+                    R"(valid in section 'extruder'"})");
+
+    REQUIRE(recovery_card() != nullptr);
+    CHECK(recovery_label("recovery_title") == lv_tr("Unknown setting in the configuration"));
+    const std::string message = recovery_label("recovery_message");
+    const auto klipper_at = message.find("Option 'sensor_typ' is not valid in section 'extruder'");
+    REQUIRE(klipper_at != std::string::npos);
+    CHECK(klipper_at > 0);
+}
+
+TEST_CASE_METHOD(StartupFaultFixture,
+                 "A coded shutdown nothing words shows the firmware's sentence once",
+                 "[klippy_startup_fault][recovery][error-wording][qidi]") {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"box_extras", "extruder"}));
+    get_printer_state().set_hardware(hw);
+    struct Restore {
+        ~Restore() {
+            get_printer_state().set_hardware(PrinterDiscovery{});
+        }
+    } restore;
+
+    report("shutdown", "Code:QDE_004_008; Message:Extruder unloading failure.");
+
+    REQUIRE(recovery_card() != nullptr);
+    const std::string message = recovery_label("recovery_message");
+    const std::string sentence = "Extruder unloading failure.";
+    const auto first = message.find(sentence);
+    REQUIRE(first != std::string::npos);
+    CHECK(message.find(sentence, first + 1) == std::string::npos);
+}
+
 TEST_CASE_METHOD(StartupFaultFixture, "A worded shutdown says what to do above Klipper's reason",
                  "[klippy_startup_fault][recovery][error-wording]") {
     report("shutdown", "MCU 'mcu' shutdown: Timer too close");

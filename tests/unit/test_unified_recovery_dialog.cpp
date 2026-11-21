@@ -795,7 +795,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Recovery dialog - U1 coded shutdown shows m
     std::string code;
     std::string displayed = recovery_texts(dialog, code);
 
-    REQUIRE(displayed.rfind("Lost communication with MCU 'e0'", 0) == 0);
+    // The envelope's prose is Klipper's own sentence: worded above it, kept below.
+    const auto msg_at = displayed.find("Lost communication with MCU 'e0'");
+    REQUIRE(msg_at != std::string::npos);
+    REQUIRE(msg_at > 0);
     REQUIRE(displayed.find("FIRMWARE_RESTART") != std::string::npos);
     REQUIRE(displayed.find("{") == std::string::npos);
     REQUIRE(displayed.find("coded") == std::string::npos);

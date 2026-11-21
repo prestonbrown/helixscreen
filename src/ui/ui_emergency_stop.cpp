@@ -877,6 +877,7 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
     // Use actual Klipper state_message if available (e.g. "Max force exceeded...")
     std::string message;
     std::string code;
+    FirmwareCodeScheme scheme = FirmwareCodeScheme::Opaque;
     if (printer_state_ && (recovery_reason_ == RecoveryReason::SHUTDOWN ||
                            recovery_reason_ == RecoveryReason::ERROR)) {
         const std::string state_msg = printer_state_->network_state().get_klippy_fault_message();
@@ -887,15 +888,18 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
             // in. Reuse the gcode router's decoder rather than showing the user raw
             // JSON: it lifts msg into the text and hands the code back separately for
             // the header slot. Prose and malformed envelopes come back untouched.
-            GcodeErrorRouter::clean_error_text(message, code);
+            GcodeErrorRouter::clean_error_text(message, code, &scheme);
         }
     }
     // Klippy's own reason restates any "Printer Error" alert raised for this
     // fault, and this dialog adds the restart, so it becomes the one dialog for
     // it. Generic text restates nothing, and the alerts stay.
     helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_.get());
+    // As the console classifier does: an error-table code is the identity, and
+    // an opaque code's envelope carries prose the table may know.
+    const bool prose = code.empty() || scheme == FirmwareCodeScheme::Opaque;
     const auto known =
-        message.empty() || !code.empty()
+        message.empty() || !prose
             ? std::optional<helix::error_wording::Classification>{}
             : helix::error_wording::classify(message, &printer_state_->get_discovery());
     const auto worded = known ? helix::error_wording::word(*known) : std::nullopt;
@@ -906,10 +910,10 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
             : helix::faultcodes::classify(printer_state_->get_discovery(), "!! " + message);
     if (message.empty()) {
         message = lv_tr(content.message);
-    } else if (coded && coded->detail != coded->raw_detail) {
-        if (!coded->title.empty()) {
-            lv_subject_set_string(&recovery_title_subject_, coded->title.c_str());
-        }
+    } else if (coded && !coded->title.empty()) {
+        // Only a code the firmware's table words: an unworded one's detail is
+        // the firmware's own sentence, already in the reason below.
+        lv_subject_set_string(&recovery_title_subject_, coded->title.c_str());
         message = coded->detail + "\n\n" + message;
     } else if (worded) {
         // What went wrong and what to do, above Klipper's own text: a support
