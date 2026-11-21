@@ -205,14 +205,9 @@ Prop to markup:
 Order inside `actions` is left to right: icon button, secondary, primary. A screen using
 `<header_bar>` directly (not `extends="overlay_panel"`) writes `<header_bar-actions>`.
 
-**Rename the buttons.** header_bar still holds its hidden built-in `action_button`,
-`action_button_2` and `action_icon_button`, and `lv_obj_find_by_name` meets those first,
-so a converted button needs its own name (`btn_save`, `btn_clear_all`, ...). Update every
-lookup: C++ (`ui_overlay_panel_wire_action_button`, used by
-`ui_panel_notification_history.cpp`, which then becomes an XML `event_cb`), tests, ctl
-recipes (`scripts/screenshot-recipes.sh`, `tests/ui/`). The built-ins and the
-`action_button_*` props are deleted once the last screen is converted, along with
-`tests/unit/test_header_button_cap.cpp`'s element check, which moves to the style.
+**Name the buttons.** header_bar has no built-in action buttons, so each slot button
+carries its own name (`btn_save`, `btn_clear_all`, ...) and every lookup (C++, tests, ctl
+recipes in `scripts/screenshot-recipes.sh` and `tests/ui/`) uses it.
 
 Before/after screenshots of a header must be pixel-identical.
 

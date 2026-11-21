@@ -41,8 +41,6 @@ MIN_TAGS = {
     "label_tag": 100,
     "title_tag": 15,
     "description_tag": 50,
-    "action_button_text_tag": 3,
-    "action_button_2_text_tag": 1,
     "primary_tag": 3,
     "secondary_tag": 2,
     "tertiary_tag": 1,

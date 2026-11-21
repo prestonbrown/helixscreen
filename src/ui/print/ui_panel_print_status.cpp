@@ -2441,9 +2441,6 @@ void PrintStatusPanel::on_print_state_changed(PrintJobState job_state) {
         animate_print_cancelled();
         spdlog::debug("[{}] Print cancelled at progress: {}%", get_name(), lifecycle_.progress());
     }
-
-    // Nothing here touches the header's action_button: this panel never
-    // configures one, so un-hiding it renders an empty primary-colored pill.
 }
 
 void PrintStatusPanel::on_print_filename_changed(const char* filename) {

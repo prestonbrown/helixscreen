@@ -31,36 +31,6 @@
     <prop name="title_subject" type="string" default=""/>
     <!-- Forwarded to header_bar: "uppercase" (default) or "none". -->
     <prop name="title_transform" type="string" default="uppercase"/>
-    <prop name="action_button_text" type="string" default=""/>
-    <prop name="action_button_text_tag" type="string" default=""/>
-    <prop name="action_button_callback" type="string" default=""/>
-    <prop name="action_button_height" type="string" default="content"/>
-    <prop name="action_button_pad" type="string" default="#space_sm"/>
-    <prop name="hide_action_button" type="string" default="true"/>
-    <prop name="action_button_disabled_subject" type="string" default=""/>
-    <!-- header_bar's expression form, resolved when the view is created. -->
-    <prop name="action_button_disabled_cond" type="string" default="0"/>
-    <prop name="action_button_hidden_subject" type="string" default=""/>
-    <!-- Second action button (left of primary). min_width forwards header_bar's
-         per-tier floor (header_slot2_min_width: 72 at 480x272, 90 elsewhere);
-         an overlay whose label may hide passes a smaller one. -->
-    <prop name="action_button_2_text" type="string" default=""/>
-    <prop name="action_button_2_text_tag" type="string" default=""/>
-    <prop name="action_button_2_icon" type="string" default=""/>
-    <prop name="action_button_2_icon_size" type="string" default="sm"/>
-    <prop name="action_button_2_bg_color" type="string" default="#secondary"/>
-    <prop name="action_button_2_min_width" type="string" default="#header_slot2_min_width"/>
-    <prop name="action_button_2_callback" type="string" default=""/>
-    <prop name="hide_action_button_2" type="string" default="true"/>
-    <prop name="action_button_2_hidden_subject" type="string" default=""/>
-    <prop name="action_button_2_hidden_cond" type="string" default=""/>
-    <prop name="action_button_2_label_hidden_cond" type="string" default=""/>
-    <prop name="action_button_2_disabled_subject" type="string" default=""/>
-    <!-- Icon-only action, forwarded to header_bar. -->
-    <prop name="action_icon" type="string" default=""/>
-    <prop name="action_icon_callback" type="string" default=""/>
-    <prop name="hide_action_icon" type="string" default="true"/>
-    <prop name="action_icon_hidden_cond" type="string" default=""/>
     <prop name="back_button_callback" type="string" default="on_header_back_clicked"/>
     <!-- Optional header badge, forwarded to header_bar. Hidden unless
          title_badge_subject is supplied and resolves to 1. -->
@@ -112,24 +82,8 @@
     <!-- Header Bar -->
     <header_bar name="overlay_header"
                 title="$title" title_tag="$title_tag" title_subject="$title_subject" title_transform="$title_transform"
-                action_button_text="$action_button_text" action_button_text_tag="$action_button_text_tag"
-                hide_action_button="$hide_action_button" action_button_callback="$action_button_callback"
-                action_button_height="$action_button_height" action_button_pad="$action_button_pad"
-                action_button_disabled_subject="$action_button_disabled_subject"
-                action_button_disabled_cond="$action_button_disabled_cond"
-                action_button_hidden_subject="$action_button_hidden_subject"
-                action_button_2_text="$action_button_2_text" action_button_2_text_tag="$action_button_2_text_tag"
-                action_button_2_bg_color="$action_button_2_bg_color" action_button_2_icon="$action_button_2_icon"
-                action_button_2_icon_size="$action_button_2_icon_size"
-                action_button_2_min_width="$action_button_2_min_width"
-                action_button_2_callback="$action_button_2_callback" hide_action_button_2="$hide_action_button_2"
-                action_button_2_hidden_subject="$action_button_2_hidden_subject"
-                action_button_2_hidden_cond="$action_button_2_hidden_cond"
-                action_button_2_label_hidden_cond="$action_button_2_label_hidden_cond"
-                action_button_2_disabled_subject="$action_button_2_disabled_subject" action_icon="$action_icon"
-                action_icon_callback="$action_icon_callback" hide_action_icon="$hide_action_icon"
-                action_icon_hidden_cond="$action_icon_hidden_cond" title_badge_icon="$title_badge_icon"
-                title_badge_subject="$title_badge_subject" back_button_callback="$back_button_callback"/>
+                title_badge_icon="$title_badge_icon" title_badge_subject="$title_badge_subject"
+                back_button_callback="$back_button_callback"/>
     <lv_obj name="overlay_content" width="100%" flex_grow="1">
       <style name="content_column"/>
     </lv_obj>

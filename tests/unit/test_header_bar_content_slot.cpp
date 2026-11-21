@@ -5,8 +5,8 @@
  * @file test_header_bar_content_slot.cpp
  * @brief Unit test for header_bar's injectable content slot.
  *
- * header_content is the strip between the back/title region and the action
- * buttons where a screen can park its own readouts (the Motion panel puts
+ * header_content is the strip between the back/title region and the actions
+ * slot where a screen can park its own readouts (the Motion panel puts
  * X/Y/Z coordinates there). Screens opt in by nesting a
  * <header_bar-header_content> tag inside their header_bar instantiation; the
  * engine re-parents that tag's children into the slot widget. A header that
@@ -44,17 +44,17 @@ TEST_CASE_METHOD(XMLTestFixture, "header_bar content slot exists and stays empty
     lv_obj_update_layout(slot);
     REQUIRE(lv_obj_get_width(slot) == 0);
 
-    // The slot sits between the title region and the action buttons, so
+    // The slot sits between the title region and the actions slot, so
     // injected content lands next to the buttons, not next to the title.
     lv_obj_t* back = lv_obj_find_by_name(hdr, "back_button");
-    lv_obj_t* action2 = lv_obj_find_by_name(hdr, "action_button_2");
+    lv_obj_t* actions = lv_obj_find_by_name(hdr, "header_actions");
     REQUIRE(back != nullptr);
-    REQUIRE(action2 != nullptr);
+    REQUIRE(actions != nullptr);
     const int back_idx = lv_obj_get_index(back);
     const int slot_idx = lv_obj_get_index(slot);
-    const int action2_idx = lv_obj_get_index(action2);
+    const int actions_idx = lv_obj_get_index(actions);
     REQUIRE(back_idx < slot_idx);
-    REQUIRE(slot_idx < action2_idx);
+    REQUIRE(slot_idx < actions_idx);
 }
 
 TEST_CASE_METHOD(XMLTestFixture, "header_bar content slot re-parents injected children",
@@ -142,11 +142,10 @@ TEST_CASE_METHOD(XMLTestFixture,
     CHECK(lv_obj_get_parent(lv_obj_find_by_name(screen, "body_label")) ==
           lv_obj_find_by_name(screen, "overlay_content"));
 
-    // Right of the built-in action buttons, so the buttons sit where the
-    // action_button props put them.
-    CHECK(lv_obj_get_index(host) > lv_obj_get_index(lv_obj_find_by_name(header, "action_button")));
+    // Right of the header_content strip, at the bar's right end.
+    CHECK(lv_obj_get_index(host) > lv_obj_get_index(lv_obj_find_by_name(header, "header_content")));
 
-    // Spaced as the bar spaces its own buttons.
+    // Spaced as the bar spaces its own children.
     CHECK(lv_obj_get_style_pad_column(host, LV_PART_MAIN) ==
           lv_obj_get_style_pad_column(header, LV_PART_MAIN));
     lv_area_t a, b;

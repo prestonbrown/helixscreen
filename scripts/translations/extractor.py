@@ -56,8 +56,6 @@ EXPLICIT_TAG_ATTRIBUTES = (
     "label_tag",
     "title_tag",
     "description_tag",
-    "action_button_text_tag",
-    "action_button_2_text_tag",
     "primary_tag",
     "secondary_tag",
     "tertiary_tag",
