@@ -211,6 +211,7 @@ static const IconMapping kIconMap[] = {
     {"minus",              "\xF3\xB0\x8D\xB4"},  // F0374 minus
     {"move",               "\xF3\xB0\x81\x8C"},  // F004C arrow-expand-all
     {"network",            "\xF3\xB0\x88\x80"},  // F0200 ethernet (network)
+    {"nfc_variant",        "\xF3\xB0\x8E\x98"},  // F0398 nfc-variant
     {"notifications",      "\xF3\xB0\x82\x9A"},  // F009A bell
     {"nozzle",             "\xF3\xB0\xB9\x9B"},  // F0E5B printer-3d-nozzle
     {"nozzle_alert",       "\xF3\xB1\x87\x80"},  // F11C0 printer-3d-nozzle-alert
